@@ -289,6 +289,7 @@ After selecting the exact reviewed owned source, an Active target and the unchan
 Missing required values open one host-owned private text question at a time; supplied nonblank fields are preserved ([collection owner](../src/Kora.Application/Skills/OwnedSkillInvocationWorkflow.InputQuestions.cs)).
 
 Type into that exact question's answer control and Submit for an original typed/native request. For an original activated-voice request, choose **Answer by voice** or **Hear then answer** on that exact question.
+**Save draft** keeps bounded text, including an empty or whitespace-only edit, in this private question only. It does not answer the field or advance collection; a separate nonblank Submit is required. Drafts retain the original source/channel, question identity and expiry, and disappear when collection is retired.
 Voice requires the existing ongoing microphone consent, enabled listening, qualified local ASR and current device/privacy/call readiness; unavailable voice stays unavailable.
 No ambient capture or automatic rearming is added ([native question owner](../src/Kora/NativeQuestionHost.SkillInputs.cs), [existing voice admission](../src/Kora.Application/ViewModels/MainViewModel.QuestionVoice.cs)).
 

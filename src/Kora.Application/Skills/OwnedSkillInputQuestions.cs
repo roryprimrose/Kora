@@ -64,9 +64,10 @@ public sealed class OwnedSkillInputQuestions : IHostInteractionStore, IDisposabl
                 { throw new InvalidDataException("An answered literal field requires its exact data."); }
                 if (question.Draft is { } answer)
                 {
-                    if (question.AnswerChannel != Request.Origin || !spec.Accepts(answer, submitting: true))
+                    var submitting = question.Status == QuestionStatus.Answered;
+                    if (question.AnswerChannel != Request.Origin || !spec.Accepts(answer, submitting))
                     { throw new InvalidDataException("Answer only the exact question through its original input channel."); }
-                    RequireValue(answer.Text!);
+                    RequireValue(answer.Text!, submitting);
                 }
                 audit.Write(next.Audit);
                 snapshot = next.Snapshot;
@@ -89,10 +90,10 @@ public sealed class OwnedSkillInputQuestions : IHostInteractionStore, IDisposabl
         }
     }
 
-    internal static void RequireValue(string value)
+    internal static void RequireValue(string value, bool submitting = true)
     {
         OwnedPromptTemplate.ValidateValue(value);
-        ConversationText.Validate(value, submission: true);
+        ConversationText.Validate(value, submission: submitting);
     }
 
     public void Dispose()

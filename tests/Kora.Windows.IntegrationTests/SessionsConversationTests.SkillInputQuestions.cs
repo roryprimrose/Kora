@@ -13,8 +13,12 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SessionsConversationTests
 {
+    private static readonly string[] SkillQuestionDrafts = ["", " \t\r\n ", "unsubmitted literal"];
+
     [Theory]
     [InlineData("complete")]
+    [InlineData("draft")]
+    [InlineData("draft-source")]
     [InlineData("cancel")]
     [InlineData("rewrite")]
     [InlineData("request")]
@@ -78,7 +82,20 @@ public sealed partial class SessionsConversationTests
             opened.Confirm.IsEnabled.Should().BeFalse();
             adapter.Calls.Should().Be(0);
             f.Count("conversation_messages").Should().Be(0);
-            if (scenario is "complete")
+            if (scenario is "draft" or "draft-source")
+            {
+                foreach (var draft in SkillQuestionDrafts)
+                {
+                    await SaveSkillQuestionDraft(question, draft, native.Token);
+                    question.IsVisible.Should().BeTrue();
+                    opened.Confirm.IsEnabled.Should().BeFalse();
+                    opened.LiteralInputs.Inputs["topic"].Text.Should().BeNullOrEmpty();
+                    count.Should().Be(1, "a draft cannot advance to the next required input");
+                    adapter.Calls.Should().Be(0);
+                    f.Count("conversation_messages").Should().Be(0);
+                }
+            }
+            if (scenario is "complete" or "draft")
             {
                 await AnswerSkillQuestion(question, "  literal ${input:other} e\u0301  ", native.Token);
                 var next = await second.Task.WaitAsync(TimeSpan.FromSeconds(20), native.Token);
@@ -95,7 +112,7 @@ public sealed partial class SessionsConversationTests
             { opened.Targets.SelectedIndex = -1; }
             else if (scenario is "close")
             { opened.Close(); }
-            else if (scenario is "source")
+            else if (scenario is "source" or "draft-source")
             {
                 await File.WriteAllTextAsync(Path.Combine(store.Destination(document), "instructions.md"),
                     "changed source", native.Token);
@@ -108,7 +125,7 @@ public sealed partial class SessionsConversationTests
                 question.Close();
             }
             await preparing.WaitAsync(TimeSpan.FromSeconds(20), native.Token);
-            if (scenario is "complete")
+            if (scenario is "complete" or "draft")
             {
                 opened.Confirm.IsEnabled.Should().BeTrue();
                 opened.LiteralInputs.Inputs["topic"].Text.Should().Be("  literal ${input:other} e\u0301  ");
@@ -147,6 +164,31 @@ public sealed partial class SessionsConversationTests
         window.FindControl<TextBox>("AnswerInput")!.Text = value;
         await WaitForSkillButton(button, token);
         button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+    }
+
+    private static async Task SaveSkillQuestionDraft(QuestionWindow window, string value, CancellationToken token)
+    {
+        var button = window.FindControl<Button>("SaveDraft")!;
+        var status = window.FindControl<TextBlock>("QuestionStatus")!;
+        window.FindControl<TextBox>("AnswerInput")!.Text = value;
+        await WaitForSkillButton(button, token);
+        var committed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void Changed(object? sender, Avalonia.AvaloniaPropertyChangedEventArgs args)
+        {
+            if (args.Property == TextBlock.TextProperty
+                && (status.Text?.EndsWith(": answer-recorded", StringComparison.Ordinal) == true
+                    || status.Text?.Contains("Interaction/storage/audit failed.", StringComparison.Ordinal) == true))
+            { committed.TrySetResult(); }
+        }
+        status.PropertyChanged += Changed;
+        try
+        {
+            button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await committed.Task.WaitAsync(TimeSpan.FromSeconds(20), token);
+            status.Text.Should().EndWith(": answer-recorded");
+            window.FindControl<TextBox>("AnswerInput")!.Text.Should().Be(value);
+        }
+        finally { status.PropertyChanged -= Changed; }
     }
 
     private static async Task WaitForSkillButton(Button button, CancellationToken token)

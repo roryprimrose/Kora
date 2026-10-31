@@ -90,6 +90,90 @@ public sealed class OwnedSkillInputQuestionsTests
         owner.Invoking(value => value.Accept(answer)).Should().Throw<InvalidOperationException>();
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData(" \t\r\n ")]
+    [InlineData("  unsubmitted ${input:topic} e\u0301  ")]
+    public async Task CanonicalDraftRemainsPendingAndCannotBindBeforeSeparateNonblankSubmit(string value)
+    {
+        using var f = new InteractionFixture();
+        var spec = new QuestionSpec("Literal field", QuestionKind.Text, [], maximumTextLength: 512,
+            purpose: OwnedSkillInputQuestions.Purpose, sourceId: "owned-skill-input");
+        using var owner = new OwnedSkillInputQuestions(f.Request, f.Store.Snapshot.Session, f.Store.Snapshot.Intent,
+            spec, f.Time.Now.AddMinutes(2), f.Time, _ => Task.CompletedTask,
+            (operation, _) => ValueTask.FromResult(operation()), new QuestionAudit());
+        var questions = new HostQuestionService(owner, f.Time);
+        using var activity = Kora.Core.Diagnostics.HostActivity.BeginRoot(f.Request,
+            Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request);
+        var initial = (await questions.CreateAsync(f.Request, spec, owner.ExpiresAt, TestContext.Current.CancellationToken)).Question!;
+        var drafted = await questions.DraftAsync(initial.Key, new([], value), RequestOrigin.LocalUi,
+            TestContext.Current.CancellationToken);
+        drafted.Outcome.Should().Be(HostInteractionOutcome.Drafted);
+        var pending = drafted.Question!;
+        pending.Key.Should().Be(initial.Key.Next());
+        pending.Spec.Should().BeSameAs(spec);
+        pending.Status.Should().Be(QuestionStatus.Pending);
+        pending.Draft!.Text.Should().Be(value);
+        pending.ExpiresAt.Should().Be(initial.ExpiresAt);
+        pending.SessionGeneration.Should().Be(initial.SessionGeneration);
+        owner.Invoking(collection => collection.Accept(drafted)).Should().Throw<InvalidOperationException>();
+        owner.Invoking(collection => collection.Accept(drafted with { Outcome = HostInteractionOutcome.Answered }))
+            .Should().Throw<InvalidOperationException>("a draft cannot be promoted by relabelling its receipt");
+        var refused = await questions.SubmitAsync(pending.Key, new([], ""), RequestOrigin.LocalUi,
+            TestContext.Current.CancellationToken);
+        refused.Outcome.Should().Be(HostInteractionOutcome.Denied);
+        owner.Invoking(collection => collection.Accept(refused)).Should().Throw<InvalidOperationException>();
+        var submitted = await questions.SubmitAsync(pending.Key, new([], "  exact submitted e\u0301  "), RequestOrigin.LocalUi,
+            TestContext.Current.CancellationToken);
+        submitted.Outcome.Should().Be(HostInteractionOutcome.Answered);
+        submitted.Question!.Key.Should().Be(pending.Key.Next());
+        submitted.Question.Status.Should().Be(QuestionStatus.Answered);
+        owner.Accept(submitted).Should().Be("  exact submitted e\u0301  ");
+        owner.Invoking(collection => collection.Accept(submitted)).Should().Throw<InvalidOperationException>();
+        f.Store.Snapshot.Questions.Should().BeEmpty("literal question drafts remain volatile");
+    }
+
+    [Theory]
+    [InlineData("oversized")]
+    [InlineData("unicode")]
+    [InlineData("secret")]
+    [InlineData("control")]
+    [InlineData("choice")]
+    [InlineData("channel")]
+    public async Task DraftingStillRejectsInvalidContentShapeAndOriginalChannelBeforePublication(string fault)
+    {
+        using var f = new InteractionFixture();
+        var spec = new QuestionSpec("Literal field", QuestionKind.Text, [], maximumTextLength: 512,
+            purpose: OwnedSkillInputQuestions.Purpose, sourceId: "owned-skill-input");
+        using var owner = new OwnedSkillInputQuestions(f.Request, f.Store.Snapshot.Session, f.Store.Snapshot.Intent,
+            spec, f.Time.Now.AddMinutes(2), f.Time, _ => Task.CompletedTask,
+            (operation, _) => ValueTask.FromResult(operation()), new QuestionAudit());
+        var questions = new HostQuestionService(owner, f.Time);
+        using var activity = Kora.Core.Diagnostics.HostActivity.BeginRoot(f.Request,
+            Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request);
+        var initial = (await questions.CreateAsync(f.Request, spec, owner.ExpiresAt, TestContext.Current.CancellationToken)).Question!;
+        var value = fault switch
+        {
+            "oversized" => new string('a', 513),
+            "unicode" => new string('\ud800', 1),
+            "secret" => "api_key=synthetic-only-value",
+            "control" => "\0",
+            _ => "valid",
+        };
+        HostInteractionDecision? draft = null;
+        var exception = await Record.ExceptionAsync(async () =>
+            draft = await questions.DraftAsync(initial.Key, fault is "choice" ? new(["approve"]) : new([], value),
+                fault is "channel" ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi, TestContext.Current.CancellationToken));
+        if (fault is "oversized" or "choice") { draft!.Outcome.Should().Be(HostInteractionOutcome.Denied); }
+        else { exception.Should().NotBeNull(); }
+        owner.Invoking(collection => collection.Accept(new(HostInteractionOutcome.Answered, "synthetic", initial)))
+            .Should().Throw<InvalidOperationException>();
+        var answer = await questions.SubmitAsync(initial.Key, new([], "accepted"), RequestOrigin.LocalUi,
+            TestContext.Current.CancellationToken);
+        owner.Accept(answer).Should().Be("accepted", "refused drafts never change the original question revision");
+        f.Store.Snapshot.Questions.Should().BeEmpty();
+    }
+
     private sealed class QuestionAudit : ISecurityAuditLog
     {
         internal bool Fail { get; set; }

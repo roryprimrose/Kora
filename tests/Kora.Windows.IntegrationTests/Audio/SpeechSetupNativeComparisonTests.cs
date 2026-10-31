@@ -236,6 +236,91 @@ public sealed class SpeechSetupNativeComparisonTests : IDisposable
         native.IsCaptureQuiescent.Should().BeTrue();
     }
 
+    [Theory]
+    [InlineData("release", false)]
+    [InlineData("release", true)]
+    [InlineData("dispose", false)]
+    [InlineData("dispose", true)]
+    public async Task CancelledNativeCleanupReportsFailureAndCannotRenewCapture(string phase, bool cancelRequested)
+    {
+        using var root = Root();
+        using var privacy = new ActivatedVoiceRecognitionTests.FakePrivacy();
+        var factory = new Factory();
+        var native = Native(privacy, factory, new Clock());
+        var voice = new HandsFreeVoiceRecognitionService(native, new UnavailableStage(),
+            NullLogger<HandsFreeVoiceRecognitionService>.Instance);
+        await using var comparison = new SpeechSetupComparison(voice, voice);
+        using var failedCleanup = new CancellationTokenSource();
+        failedCleanup.Cancel();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var capture = new ActivatedVoiceRecognitionTests.FakeCapture
+        {
+            DisposeGate = new(TaskCreationOptions.RunContinuationsAsynchronously),
+        };
+        capture.BeforeStart = () =>
+        {
+            started.TrySetResult();
+            if (!cancelRequested) { capture.Transcript(comparison.ExpectedPhrase); }
+        };
+        if (string.Equals(phase, "release", StringComparison.Ordinal))
+        { capture.ReleaseResult = Task.FromCanceled(failedCleanup.Token); }
+        var routed = new List<string>();
+        voice.TranscriptRecognized += (_, args) => routed.Add(args.Transcript);
+        native.RecognitionFailed += (_, _) => routed.Add("failure");
+        native.RecognitionCompleted += (_, _) => routed.Add("completion");
+        var generation = voice.ProfileGeneration;
+        comparison.Review(Microphone, static () => true);
+        var run = comparison.TestAsync(true);
+        var open = await factory.NextAsync();
+        open.Result.SetResult(capture);
+        try
+        {
+            await started.Task.WaitAsync(TestContext.Current.CancellationToken);
+            var stopping = cancelRequested ? comparison.CancelAsync() : Task.CompletedTask;
+            await capture.DisposeEntered.Task.WaitAsync(TestContext.Current.CancellationToken);
+            comparison.IsRunning.Should().BeTrue();
+            run.IsCompleted.Should().BeFalse();
+            comparison.Results.Should().BeEmpty();
+            voice.IsCaptureQuiescent.Should().BeFalse();
+            open.Stream.BufferedBytes.Should().Be(0);
+            var late = capture.QueueTranscript("Kora confirm operation");
+            if (string.Equals(phase, "dispose", StringComparison.Ordinal))
+            { capture.DisposeGate.SetCanceled(failedCleanup.Token); }
+            else { capture.DisposeGate.SetResult(); }
+            await Task.WhenAll(run, stopping);
+            late();
+            comparison.Status.Should().Contain("failed").And.Contain("cleanup is unconfirmed").And.NotContain("attempts joined");
+            comparison.Results.Should().BeEmpty();
+            comparison.IsRunning.Should().BeFalse();
+            comparison.CanTest.Should().BeFalse();
+            voice.IsCaptureQuiescent.Should().BeFalse();
+            native.IsCaptureQuiescent.Should().BeFalse();
+            await FluentActions.Awaiting(() => voice.BeginPushToTalkAsync(Microphone, [],
+                cancellationToken: TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+            await FluentActions.Awaiting(() => voice.BeginReplyAsync(Microphone, [], static () => true,
+                TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+            await FluentActions.Awaiting(() => voice.StartHandsFreeAsync(
+                cancellationToken: TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+            await FluentActions.Awaiting(() => voice.RetireProfileAsync(
+                TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+            comparison.Review(Microphone, static () => true);
+            await comparison.TestAsync(true);
+            comparison.Status.Should().Contain("failed");
+            comparison.Results.Should().BeEmpty();
+            factory.Opens.Should().Be(1);
+            voice.ProfileGeneration.Should().Be(generation);
+            voice.IsListening.Should().BeFalse();
+            routed.Should().BeEmpty();
+        }
+        finally
+        {
+            capture.DisposeGate.TrySetResult();
+            await run;
+            await FluentActions.Awaiting(() => voice.DisposeAsync().AsTask()).Should().ThrowAsync<InvalidOperationException>();
+            await FluentActions.Awaiting(() => native.DisposeAsync().AsTask()).Should().ThrowAsync<InvalidOperationException>();
+        }
+    }
+
     private static WindowsVoiceRecognitionService Native(ActivatedVoiceRecognitionTests.FakePrivacy privacy, Factory factory, Clock clock) =>
         new(NullLogger<WindowsVoiceRecognitionService>.Instance, privacy, factory, VoiceCaptureLimits.Default, clock);
     private static HostActivity Root() =>

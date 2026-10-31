@@ -160,6 +160,11 @@ public sealed partial class WindowsVoiceRecognitionService
                 }
                 finally { await native.DisposeAsync().ConfigureAwait(false); }
             }
+            catch (OperationCanceledException exception)
+            {
+                failedCleanup = true;
+                throw new InvalidOperationException("Native comparison cleanup was cancelled; resource quiescence is unconfirmed.", exception);
+            }
             catch
             {
                 failedCleanup = true;

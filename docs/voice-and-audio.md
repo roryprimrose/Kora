@@ -94,6 +94,8 @@ Equivalent exact typed or already activated commands are `compare speech input`,
 
 Shared appearance, speech, playback and response settings changes, including confirmed settings undo, discard the comparison and cancel active captures without reopening listening or replaying results. Capture ownership remains held until cleanup joins ([settings invalidation](../src/Kora.Application/ViewModels/MainViewModel.SpeechComparison.cs)).
 
+If native recorder release or disposal fails or is itself cancelled, the comparison reports failed/unconfirmed cleanup, not a joined cancellation. No results are retained and further capture remains unavailable; fresh review does not clear that resource hold ([native cleanup](../src/Kora.Windows/Audio/WindowsVoiceRecognitionService.Comparison.cs)).
+
 **Currently unavailable:** no production profile is qualified for this inert comparison operation. The review truthfully shows zero offers and does not open the microphone, download/install anything, select a fallback or change readiness. Installed Windows recognition and profile switching alone do not enable comparison. Fake-driven tests demonstrate implementation only ([capability gate](../src/Kora.Windows/Audio/IActivatedCaptureFactory.cs), [qualification contract](../Design/Speech_Input.md#comparison-and-qualification)).
 
 ## Microphone selection

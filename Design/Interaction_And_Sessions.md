@@ -299,6 +299,8 @@ All required canonical messages and acknowledgement records validate before excl
 
 Acknowledgement neither changes retained bodies nor renews meaningful activity, deadlines, grants, source/model consent, dispatch or Resume. Done inspection remains passive. Source disposition/retention removes owned acknowledgement rows with the existing copy-cleanup policy; independent audit/grants keep their own policy. No favourites, bookmark catalogue, attention analytics, inferred reading, model source consumer or new body retention is added ([deletion owner](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Conversation.cs)).
 
+Changing the selected conversation, private revocation or closure retires both its answer-review selection/presenter and any unconfirmed [new-task output review](User_Configuration.md#delivered-one-task-response-output). Neither transfers to another conversation or changes retained flags. Native Mark/Unmark captures the exact page, row and opened presentation at pointer press or Space/Enter; an old activation cannot change a newly opened replacement, including a reopened presentation of the same answer. Refusal preserves an otherwise-current replacement for a new deliberate activation. Delayed activations after private revocation or closure neither mutate retained flags nor publish source feedback. Native regressions hold default activation only after production tunnel capture, exercise a fresh deliberate gesture separately, and join the owned operation before fixture storage deletion even on assertion failure. Acknowledgement does not answer or finalize a pending question or establish current-question authority ([native choice and combined lifecycle regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AnswerReviews.cs)).
+
 This is an explicit private-native metadata operation using the existing native-only canonical Details admission, not a new model/typed/voice mutation grammar. Existing conversation controls/routes are unchanged. [SQLite regressions](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteAnswerReviewTests.cs) and [native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AnswerReviews.cs) prove implementation, not provider/hardware/installed accessibility qualification.
 
 ## Delivered exact-session conversation/composer foundation — 2026-10-12
@@ -1230,6 +1232,22 @@ Use categorical thresholds rather than claiming a numerical probability from scr
 | Medium | Private capture/egress, exact reversible user-file change, skill save/enable, privacy-affecting preference | Exact scope/destination/change review and deliberate voice or UI confirmation |
 | High | Irreversible or broad deletion, production/shared-resource change, security/credential change, software installation, arbitrary code with unverified effects | Explicit consequences, targets, source/diff and recovery limitations; action-specific confirmation through either channel; mandatory OS/provider checks |
 | Prohibited | Protected Kora mutation, bypassing lock/containment, exposing credential-store secrets, unsupported execution | Reject; approval cannot override policy |
+
+The informational/safety **pause dispatch** operation applies to one explicitly
+addressed Active ordinary conversation through the
+[shared manual-hold action](Work_Management.md#ordinary-submitted-conversation-turns).
+It holds future ordinary start decisions, never suspends/cancels a running or
+already-dispatching turn and never discards pending originals. Native **Pause
+ordinary dispatch** and exact typed/activated-voice `session dispatch pause
+<session-id>` need no model or action-approval question; existing editor,
+dictation, question and approval precedence is unchanged. The separate native
+**Release manual dispatch hold** or `session dispatch resume <session-id>`
+clears only that manual reason, not a recovery/security hold. All original
+deadlines keep running, and expired work requires fresh user input/review.
+Manual/task-stepping start decisions never replace consequential action approval.
+These controls neither Resume Done nor create/renew session activity, grants or
+model context. The retired diagnostic queue controls remain denied; no global
+pause, reorder or settings product is admitted.
 
 Unknown or mixed effects receive the highest applicable permitted review class.
 Administrator elevation is neither necessary nor sufficient for high risk.

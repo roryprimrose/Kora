@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
@@ -44,6 +44,7 @@ internal sealed partial class SessionsViewModel
             }
             RestoreUnsent();
             CancelLocalRequestProfile();
+            CancelTaskOutputReview();
             RetireReplyReview();
             composerBody = value;
             Interlocked.Increment(ref composerBufferRevision);
@@ -340,6 +341,7 @@ internal sealed partial class SessionsViewModel
     private void ClearConversation(bool preserveUnsent = true)
     {
         ClearAnswerReviews();
+        CancelTaskOutputReview();
         CancelLocalRequestProfile();
         ClearFailedRetry();
         ClearMixedContext();
@@ -367,6 +369,7 @@ internal sealed partial class SessionsViewModel
     private void NotifyConversation()
     {
         NotifyAnswerReviews();
+        NotifyTaskOutput();
         NotifyLocalRequestProfile();
         NotifyFailedRetry();
         RestoreUnsent();

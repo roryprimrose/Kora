@@ -79,26 +79,46 @@ internal sealed partial class SessionsViewModel
         answerReviewStatus = "Exact retained ASSISTANT Details opened. Nothing marked. Choose Mark this answer reviewed, or undo only this answer's existing flag.";
     });
 
-    public Task SetAnswerReviewedAsync(bool reviewed) => RunAnswerReviewAsync(async (_, live) =>
-    {
-        if (!AnswerReviewChoiceCurrent || selectedAnswerReview is null || selectedAnswerReview.MarkedReviewed == reviewed)
-        { throw new InvalidOperationException("Open this exact answer's current canonical Details before deliberately changing its review flag."); }
-        var page = answerReviewPage!;
-        var row = selectedAnswerReview!;
-        var presentation = answerReviewPresentation!;
-        bool MarkLive() => live() && presentation();
-        await service.SetAnswerReviewedAsync(page, row, reviewed, MarkLive, lifetime.Token);
-        ClearAnswerReviews();
-        var refreshed = await service.ReadAnswerReviewsAsync(page.Target, page.Filter, null, 25, live, lifetime.Token);
-        if (!live()) { throw new OperationCanceledException("Answer-review readback presentation was retired."); }
-        SetAnswerReviewPage(refreshed);
-        answerReviewStatus = (reviewed ? "Only this exact answer marked reviewed. " : "Only this exact answer unmarked. ")
-            + DescribeAnswerReviews(refreshed);
-    });
+    public Task SetAnswerReviewedAsync(bool reviewed) => CaptureAnswerReviewDecision(reviewed)();
 
-    private Task RunAnswerReviewAsync(Func<Kora.Core.Storage.SessionWorkspaceEntry, Func<bool>, Task> operation) =>
+    internal Func<Task> CaptureAnswerReviewDecision(bool reviewed)
+    {
+        var page = answerReviewPage;
+        var row = selectedAnswerReview;
+        var presentation = answerReviewPresentation;
+        return () => SetAnswerReviewedAsync(page, row, presentation, reviewed);
+    }
+
+    private Task SetAnswerReviewedAsync(ConversationAnswerReviewPage? expectedPage,
+        ConversationAnswerReviewRow? expectedRow, Func<bool>? expectedPresentation, bool reviewed)
+    {
+        bool ExpectedChoiceCurrent() => ReferenceEquals(answerReviewPage, expectedPage)
+            && ReferenceEquals(selectedAnswerReview, expectedRow) && ReferenceEquals(openedAnswerReview, expectedRow)
+            && ReferenceEquals(answerReviewPresentation, expectedPresentation) && AnswerReviewChoiceCurrent;
+        return RunAnswerReviewAsync(async (_, live) =>
+        {
+            var page = expectedPage ?? throw new InvalidOperationException("Read exact answer-review metadata first.");
+            var row = expectedRow ?? throw new InvalidOperationException("Select one actual answer-review row.");
+            var presentation = expectedPresentation ?? throw new InvalidOperationException("Open this exact answer's current canonical Details first.");
+            if (row.MarkedReviewed == reviewed)
+            { throw new InvalidOperationException("This exact answer already has the requested review flag."); }
+            bool MarkLive() => live() && ExpectedChoiceCurrent() && presentation();
+            await service.SetAnswerReviewedAsync(page, row, reviewed, MarkLive, lifetime.Token);
+            ClearAnswerReviews();
+            var refreshed = await service.ReadAnswerReviewsAsync(page.Target, page.Filter, null, 25, live, lifetime.Token);
+            if (!live()) { throw new OperationCanceledException("Answer-review readback presentation was retired."); }
+            SetAnswerReviewPage(refreshed);
+            answerReviewStatus = (reviewed ? "Only this exact answer marked reviewed. " : "Only this exact answer unmarked. ")
+                + DescribeAnswerReviews(refreshed);
+        }, ExpectedChoiceCurrent);
+    }
+
+    private Task RunAnswerReviewAsync(Func<Kora.Core.Storage.SessionWorkspaceEntry, Func<bool>, Task> operation,
+        Func<bool>? expectedChoice = null) =>
         RunConversationAsync(async (target, live) =>
         {
+            if (expectedChoice is not null && !expectedChoice())
+            { throw new InvalidOperationException("The exact answer-review choice changed; the old control cannot change a replacement answer. Open current canonical Details before a new deliberate choice."); }
             try { await operation(target, live); }
             catch
             {

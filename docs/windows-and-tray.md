@@ -248,6 +248,18 @@ Invalid or oversized drafts remain editable with the same limits and rejection
 policy. Reviewed bodies, comparisons, ASSISTANT answers, questions, approvals
 and source Details are unaffected.
 
+### Open an original observed tool result
+
+After **Read conversation**, a successful local answer that actually used a permitted host observation shows **Open observed result** links. Each names its tool, message and result position ([links](../src/Kora/SessionInteractionView.axaml)).
+Choose the exact link to inspect its original JSON in Details, including after restart; it is an observation from the displayed original time, not a fresh status query ([exact resolver](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs)).
+
+With the expanded conversation page in the foreground, type `open observed result application.get_version message 1 result 1`, using the actual presented name, or say it with your current assistant-name prefix ([command](../src/Kora.Core/Commands/WorkspaceSurfaceCommand.cs)).
+A tool name matching several results asks you to choose the full message/result name or a native link; it never chooses the newest result or intercepts generic Yes ([choice handling](../src/Kora/SessionsViewModel.Observations.cs)).
+
+Opening does not rerun a tool, contact a model/network, resume Done, extend retention or grant speech, clipboard, export or model-context use ([privacy and restart tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Observations.cs)).
+Source/private loss clears the reader; deleted results are unavailable, not reconstructed ([reader regression](../tests/Kora.Windows.IntegrationTests/DetailWindowControllerTests.Observations.cs)).
+Only the six built-in local observation tools are supported; hosted, MCP, file, web and customization results are excluded, and unqualified real runtimes remain unavailable ([capture](../src/Kora.Application/Dependencies/ModelTurn.cs)).
+
 ### Exact retained original message Details
 
 After **Read exact conversation** or explicit conversation Search, choose **Details - exact original USER / separate HOST** on one row. The shared row uses the same action in Sessions and compact projections; selecting a session or opening either window does not read/open Details automatically ([shared action](../src/Kora/ConversationPresentation.axaml)).
@@ -455,6 +467,37 @@ or permission to submit. It measures only the current buffer, not saved or
 reviewed bodies, questions, approvals or assistant answers. Reading it does not
 save, submit, renew activity, log content or start any model/device/network work.
 Private presentation revocation removes the metrics along with private content.
+
+### Ordinary conversation dispatch hold
+
+In Sessions or the expanded conversation, select one Active conversation and
+choose **Refresh submitted work**, then **Pause ordinary dispatch**. You can do
+this while a turn is running or before the next request. A turn already
+dispatching or running continues; this is not Stop, suspension or cancellation.
+Pending requests remain in arrival order with their original expiry displayed.
+You may submit more ordinary requests under the same qualification and limits.
+The [host control](../src/Kora.Application/Hosting/SessionConversationService.Pending.cs)
+suppresses new start decisions until a deliberate release.
+
+Choose **Release manual dispatch hold** to remove only your manual hold.
+If failure, cancellation or uncertainty also held the lane, its separate
+**Resume held dispatch** remains necessary. Neither control grants action
+approval or clears source, privacy, permission, storage or expiry requirements.
+Original authorization deadlines keep running while held. Expired requests
+are denied, not renewed or replayed; submit and review a fresh request.
+Other conversations and unsent text are unaffected, Done is not resumed and
+pause/release does not renew session activity or change history/context.
+The manual holder is current-run only; restarting never restores permission or
+replays pending originals. Existing recovery remains unchanged.
+
+The equivalent command-box controls are `session dispatch status <session-id>`,
+`session dispatch pause <session-id>` and `session dispatch resume <session-id>`.
+For activated voice, prefix the exact command with the current assistant name.
+They target one existing Active conversation and use the same host operation,
+without a model. Current editor/dictation, question and approval handling keeps
+precedence. See the [command guide](commands.md#pause-one-ordinary-conversations-dispatch).
+This is not a global pause, scheduler, queue setting or reorder operation.
+Retired public diagnostic `queue pause`/`queue resume` remain unavailable.
 
 Submit also performs bounded **local best-effort credential-like checks**:
 private-key PEM blocks/candidates, Authorization Bearer/Basic values, explicit
@@ -1096,6 +1139,19 @@ with the original Markdown, whitespace and line breaks. It is not rich HTML
 copy. Copying discloses the text to other applications and possibly clipboard
 history/sync. No page can initiate copy, fetch images, follow external links,
 approve an operation or capture model context.
+
+When the separately qualified pipe-table profile is available, Details exposes
+bounded read-only native tables to accessibility as tables. Use arrow keys for
+header/cell navigation, Home/End across a row and Ctrl+Home/End for the first
+header/last cell. Cells name the exact header, row/column and complete value;
+empty cells remain explicit. Source and Find still address the same immutable
+result. Tables do not enable editing, automatic copy, model input or network.
+The subset permits one header row, at most 32 total rows and 8 columns per table,
+128 cells across the document and 2,048 UTF-8 bytes per semantic cell, without
+merged/spanning cells. Unsupported/oversize tables retain labelled complete-source fallback. The profile
+remains unavailable by default; automated tests do not qualify installed
+screen readers, DPI or high contrast
+([supported subset and evidence](../Design/Information_Display.md#document-local-heading-and-final-table-interaction)).
 
 The native-text-v1 source limit is **256 KiB UTF-8**, with **512 blocks**,
 **4,096 nodes**, **32 nesting levels**, and **8 open viewers**. Unsupported

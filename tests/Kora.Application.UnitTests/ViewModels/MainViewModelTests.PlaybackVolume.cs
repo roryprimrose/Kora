@@ -171,7 +171,7 @@ public sealed partial class MainViewModelTests
         var fixture = new Fixture(enablePlaybackVolume: true);
         await using var admission = fixture.OutputAdmission;
         fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         await fixture.ViewModel.InitializeAsync();
         await fixture.RunAsync("lock this workstation please");
         await fixture.ViewModel.ActiveReasoningTask!;
@@ -180,6 +180,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.CanChangePlaybackVolume.Should().BeFalse();
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
         fixture.ViewModel.ResponseBody.Should().Be(preview);
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
         fixture.ViewModel.Dispose();
         await fixture.ViewModel.RefreshPlaybackVolumeCommand.ExecuteAsync();

@@ -28,14 +28,16 @@ public sealed partial class MainViewModelTests
         f.ViewModel.AgentRunRequested += (_, _, _) => { runs++; return Task.CompletedTask; };
         foreach (var text in new[] { "agent author", "agent author create example", "agent author source complete-source",
             "agent author validate", "agent author save as new", "agent author list",
-            "agent author inspect example", "agent author cancel review" })
+            "agent author inspect example", "agent author cancel review", "agent author describe Original request",
+            "agent author ask", "agent author draft example: Original description" })
         {
             if (voice) { await f.RaiseActivatedTranscriptAsync("Nova, " + text, 1); }
             else { await f.RunAsync(text); }
         }
         received.Should().Equal(AgentProfileAuthoringAction.Open, AgentProfileAuthoringAction.Create,
             AgentProfileAuthoringAction.Stage, AgentProfileAuthoringAction.Validate, AgentProfileAuthoringAction.ReviewSave,
-            AgentProfileAuthoringAction.List, AgentProfileAuthoringAction.Inspect, AgentProfileAuthoringAction.CancelReview);
+            AgentProfileAuthoringAction.List, AgentProfileAuthoringAction.Inspect, AgentProfileAuthoringAction.CancelReview,
+            AgentProfileAuthoringAction.Describe, AgentProfileAuthoringAction.Ask, AgentProfileAuthoringAction.DraftFromDescription);
         runs.Should().Be(0);
         f.Reasoner.Requests.Should().BeEmpty();
     }

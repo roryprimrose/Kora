@@ -77,6 +77,8 @@ public sealed partial class MainViewModelTests
     [InlineData("what version are you running")]
     [InlineData("open settings")]
     [InlineData("show skills")]
+    [InlineData("create kora adaptation adapted")]
+    [InlineData("save skill adaptation")]
     [InlineData("open new request")]
     [InlineData("get appearance.presence-size")]
     [InlineData("use dark mode")]
@@ -137,15 +139,56 @@ public sealed partial class MainViewModelTests
     [InlineData("show skills", "List")]
     [InlineData("edit example instruction", "Select")]
     [InlineData("add an agent named example", "Create")]
+    [InlineData("add an MCP server named example", "Create")]
+    [InlineData("edit example MCP server", "Select")]
     [InlineData("disable example MCP server", "Disable")]
     [InlineData("refine this artifact Explain this", "Refine")]
+    [InlineData("create kora adaptation adapted", "Adapt")]
+    [InlineData("save skill adaptation", "SaveAdaptation")]
     public async Task Customization_commands_use_the_shared_native_route_without_reasoning(string text, string operation)
     {
         var f = await Fixture.CreateInitializedAsync();
         CustomizationCommand? observed = null;
-        f.ViewModel.CustomizationRequested += command => { observed = command; return Task.CompletedTask; };
+        f.ViewModel.CustomizationRequested += command =>
+        { command.IsCurrent().Should().BeTrue(); observed = command; return Task.CompletedTask; };
         await f.RunAsync(text);
         observed!.Operation.Should().Be(operation);
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AdaptationCommandAuthorityRetainsOriginalInputChannel(bool voice)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var invoked = false;
+        f.ViewModel.CustomizationRequested += command =>
+        {
+            invoked = true;
+            command.Operation.Should().Be("SaveAdaptation");
+            command.IsCurrent().Should().BeTrue();
+            f.Voice.AdvanceGeneration();
+            command.IsCurrent().Should().Be(!voice);
+            return Task.CompletedTask;
+        };
+        if (voice) { await f.RaiseActivatedTranscriptAsync("Kora, save skill adaptation", 1); }
+        else { await f.RunAsync("save skill adaptation"); }
+        invoked.Should().BeTrue();
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("add an MCP server named example", "Create")]
+    [InlineData("edit example MCP server", "Select")]
+    public async Task ActivatedMcpCommandsUseTheSameNativeRouteWithoutModelDisclosure(string text, string operation)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        CustomizationCommand? observed = null;
+        f.ViewModel.CustomizationRequested += command => { observed = command; return Task.CompletedTask; };
+        await f.RaiseActivatedTranscriptAsync("Kora, " + text, 1);
+        observed!.Operation.Should().Be(operation);
+        observed.Kind.Should().Be(CustomizationKind.McpServer);
         f.Reasoner.Requests.Should().BeEmpty();
     }
 

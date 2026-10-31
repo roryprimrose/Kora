@@ -56,7 +56,7 @@ public static class QuestionVoiceAnswer
     private static QuestionOption[] MatchingOptions(QuestionSpec spec, string spoken) =>
         spec.Options.Where((option, index) =>
             string.Equals(spoken, option.Label, StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(spec.Purpose, "computer-power", StringComparison.Ordinal)
+            || spec.Purpose is not ("computer-power" or "owned-instruction-save")
                 && (string.Equals(spoken, (index + 1).ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
                     || string.Equals(spoken, "option " + (index + 1).ToString(CultureInfo.InvariantCulture),
                         StringComparison.OrdinalIgnoreCase)

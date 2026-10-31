@@ -2,7 +2,7 @@
 
 Status: bounded manual host mode, independent device-local feedback and conservative output/origin gates delivered;
 full R15 remains partial. A bounded Windows communications-notification adapter and host integration are implemented but the exact native profile is unqualified and unavailable.
-The broader tool detectors and configurable exception contracts below remain proposed.
+The broader tool detectors and call-wide/persistent relaxation contracts below remain proposed. The [bounded speak-once interaction](#delivered-exact-local-speak-once-review) is implemented separately.
 
 [Session Permission Levels](Session_Permission_Levels.md#voice-approval-and-protected-calls)
 owns the implemented call-channel policy: spoken approvals default Off, with
@@ -65,11 +65,10 @@ approval readbacks and voice previews. Call entry invalidates pending synthesis/
 playback before asynchronous UI dispatch or cleanup. Clearance does not replay
 suppressed output, answer questions or reopen capture. Saved explicit visual/
 activation preferences retain their existing format and behavior; Unknown now
-uses the same conservative protection. New speech or activation protection
-downgrades, temporary overrides and speak-once
-exceptions are unavailable because complete exact trusted downgrade review is
-not yet composed. Native controls explain this limitation; no alternate
-confirmation shortcut is supplied.
+uses the same conservative protection. New general speech/activation protection
+downgrades and call-wide temporary overrides remain unavailable. The separate
+[exact local speak-once review](#delivered-exact-local-speak-once-review) composes
+only one current otherwise-eligible response; it does not disable protection.
 
 Manual changes bind original `RequestOrigin` and observed call revision, then
 recheck live ownership/privacy immediately before application. Host-system or
@@ -117,7 +116,7 @@ Related: [Proactive Interaction](Proactive_Interaction.md), [Task Lifecycle](Tas
 
 ## Delivered Manual Command Parity - 2026-10-08
 
-The separately delivered [deliberate current-response read](../docs/commands.md#read-the-current-response-aloud-once) uses the same speech admission and summary caps. It refuses Active/Suspected/Unknown protection even for native initiation; this is not the proposed speak-once call exception or a protection downgrade.
+The separately delivered [deliberate current-response read](../docs/commands.md#read-the-current-response-aloud-once) uses the same speech admission and summary caps. It still refuses Active/Suspected/Unknown protection even for native initiation; it cannot substitute for the [separate exact speak-once review](#delivered-exact-local-speak-once-review).
 Call revision changes retire the request, and clearance does not replay it ([host boundary](../src/Kora.Application/ViewModels/MainViewModel.ResponseRead.cs), [tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseRead.cs)).
 
 The existing run-only layer now has shared native and exact typed/activated
@@ -193,6 +192,18 @@ Off/reset never assert automatic Clear while Active/Unknown evidence or a lost-r
 
 Bounded **I - Implementation** uses [parser tests](../tests/Kora.Application.UnitTests/Communication/ManualCallCommandTests.cs) and [consumer tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ManualCallCommands.cs). These deterministic fakes do not qualify real-call, acoustic, hardware or installed **E - Enablement / Q - RC** profiles.
 
+## Delivered Exact Local Speak-Once Review
+
+The [host interaction](../src/Kora.Application/ViewModels/MainViewModel.CallSpeech.cs) supports one otherwise-eligible **current ordinary response** while call protection applies. In the visible response, choose **Review speak once during call**, inspect the complete exact speech text and selected/effective speaker, voice, volume, rate and output policy in the existing [native Details presenter](../src/Kora/ResponseWindowController.cs), then separately choose **Confirm speak once**. **Cancel call speech** retires the review and joins any owned playback; **Call speech status** is passive.
+
+Exact typed `review call speech`, `confirm call speech`, `cancel call speech` and `call speech status` share that operation. Review and confirmation require fresh original local UI input; original voice is denied even when a native control is later invoked inside that request. Activated voice may inspect status or cancel but cannot mint a review or lease. Unknown provenance, session/source identity, ownership, output or manual-control evidence remains closed ([grammar](../src/Kora.Application/Voice/CallSpeechCommand.cs), [review authority](../src/Kora.Application/Communication/CallSpeechReview.cs)).
+
+The host pins response/request identity and revision, pending-decision/input epochs, native presentation lifetime, owner/privacy/recovery, call revision, speech selection/limits, ordinary output and feedback modes, selected/effective endpoint, volume and rate. A review expires after two minutes from creation, including any subsequent playback. Confirmation consumes it before awaited audit/admission; the [typed lease](../src/Kora.Application/Communication/CallSpeechLease.cs) permits one start under the [shared call-policy lock](../src/Kora.Application/Communication/CallCommunicationPolicy.cs), for only the reviewed text and pinned concrete endpoint. Changes, cancellation, failure and late completion never authorize replay or a second start.
+
+This narrow exception overrides only call speech suppression and the call feedback output selection for that one response. Ordinary VisualOnly, both summary caps, lock/privacy/owner, mute/zero volume, active capture, selected consent/security protections and local speech availability remain mandatory. No preference, call state, listening consent, approval, grant or retained data is changed; neither ordinary read commands nor unrelated speech inherit the lease. Requested/terminal audits carry opaque response identity and outcomes, never the reviewed content ([shared read lifecycle](../src/Kora.Application/ViewModels/MainViewModel.ResponseRead.cs), [summary gate](../src/Kora.Application/Configuration/SpeechConfigurationService.cs)).
+
+The [service regressions](../tests/Kora.Application.UnitTests/Communication/CallSpeechReviewTests.cs) and [consumer regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.CallSpeech.cs) use deterministic fakes. This is bounded **I - Implementation**, not actual-call, acoustic, provider, physical-device, installed-native accessibility or full R15 **E/Q** qualification. Existing unavailable profiles remain unavailable; no experiment is removed or rerun. Arbitrary retained-answer selection, questions/approvals, call-wide relaxation and persistent downgrade remain outside this increment.
+
 ## Delivered Bounded In-Call Feedback
 
 The independent device-local **`calls.feedback-mode`** defaults to **UI** and
@@ -243,10 +254,11 @@ Source/snapshot/selection lifetime revalidation and bounded working-area/DPI geo
 Explicit reselect/Return to primary retains every current host/privacy/call/request/generation gate and never clears unconfirmed preferences or restores retired text. A successfully retained caption can move without changing its original completion deadline or pin semantics.
 Required response/question/recovery panels remain independent. No new installed/native, multimonitor or acoustic acceptance is inferred.
 
-Sentence alignment is still open because actual playback exposes only utterance
-segment 0, without admitted sentence boundaries. No synthesis/playback change,
-estimated timing, detector, call-feedback change, model egress or rich renderer
-is introduced. Existing bounded ordinary-speech caps remain intact; a brief
+The [SAPI source-range sentence timeline](Information_Display.md#optional-speech-text)
+is implemented, but [production profile admission remains closed](../src/Kora.Windows/Audio/WindowsTextToSpeechService.SentenceAlignment.cs#L28).
+This is not all-engine word alignment or hardware qualification. No estimated
+timing, detector, call-feedback change, model egress or rich renderer is introduced.
+Existing bounded ordinary-speech caps remain intact; a brief
 spoken offer for an over-limit detailed answer is separate work. Maintained
 tests use fake playback/time and private preference fixtures, with source-tested
 native bindings; they do not qualify installed accessibility, live audio/calls

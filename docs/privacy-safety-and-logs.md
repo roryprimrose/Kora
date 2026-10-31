@@ -497,7 +497,7 @@ fresh ownership/privacy admission. Protected calls reject every voice-originated
 voice/in-call option mutation, including clear/reset. A later UI confirmation
 cannot relabel voice intent; new UI initiation is required. Stop/cancel,
 disable listening and readable status remain usable. New protection downgrades
-and exceptions stay unavailable until complete exact trusted review is composed.
+and call-wide exceptions remain unavailable. The separate [exact current-response speak-once review](responses-and-calls.md#speak-one-current-response-during-call-protection) is local-UI initiated and single-use; it cannot change saved protection or bypass mandatory privacy, mute, capture or speech availability.
 No network/account detector, speaker biometric check, live call trial or
 native/acoustic privacy acceptance is claimed.
 

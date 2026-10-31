@@ -210,6 +210,32 @@ public sealed partial class SessionWorkspaceServiceTests
         new(null!, f, f.Service, f, null!, f.QueueTime, NullLogger<SessionConversationService>.Instance);
 
     [Theory]
+    [InlineData(false, false, ConversationDispatchHoldReason.None, false)]
+    [InlineData(true, false, ConversationDispatchHoldReason.None, true)]
+    [InlineData(false, true, ConversationDispatchHoldReason.None, true)]
+    [InlineData(false, false, ConversationDispatchHoldReason.OriginalUser, true)]
+    public void RemainingWorkObservesEachIndependentDispatchHoldWithoutInventingExecution(
+        bool recovery, bool lifecycle, ConversationDispatchHoldReason manual, bool held)
+    {
+        var request = HostRequest.Create(RequestOrigin.LocalUi);
+        var target = new SessionWorkspaceEntry(new(request.SessionId, new(1), true), null);
+        var now = DateTimeOffset.UnixEpoch;
+        var ordinary = new ConversationWorkObservation(1, 0, 0, recovery, lifecycle, 0, [], null, false)
+        { ManualHoldReason = manual };
+        var answer = new SessionRemainingWorkAnswer(target, now, now, [], [], 0, 0, 0, 0)
+        { Ordinary = ordinary };
+        ordinary.DispatchHeld.Should().Be(held);
+        var body = answer.Format();
+        body.Should().Contain("Ordinary dispatch: " + (held ? "held." : "not observed held."))
+            .And.Contain("Manual ordinary dispatch hold: " + (manual == ConversationDispatchHoldReason.None ? "not observed held." : "held."))
+            .And.Contain("Failure/cancellation recovery hold: " + (recovery ? "held." : "not observed held."))
+            .And.Contain("Application lifecycle hold: " + (lifecycle ? "held." : "not observed held."))
+            .And.Contain("no in-memory execution owner observed; this does not prove completion");
+        answer.FormatSpeech().Should().Contain("dispatch " + (held ? "held" : "not observed held"))
+            .And.Contain("no current execution confirmed");
+    }
+
+    [Theory]
     [InlineData("tasks")]
     [InlineData("questions")]
     [InlineData("queue")]

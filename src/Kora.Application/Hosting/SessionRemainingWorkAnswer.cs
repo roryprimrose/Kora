@@ -36,7 +36,7 @@ public sealed record SessionRemainingWorkAnswer(
             ? progress.Step == ConversationExecutionStep.ReadingObservation ? "; reading an admitted observation" : "; generating an answer" : string.Empty;
         return (Session.Metadata?.Name.Value ?? "Unnamed conversation") + ": " + phase + step
             + "; " + Ordinary.Turns.Count(turn => turn.Phase == ConversationPendingPhase.Pending).ToString(CultureInfo.InvariantCulture)
-            + " pending in FIFO, dispatch " + (Ordinary.Paused || Ordinary.LifecycleHeld ? "held" : "not observed held")
+            + " pending in FIFO, dispatch " + (Ordinary.DispatchHeld ? "held" : "not observed held")
             + "; " + Questions.Length.ToString(CultureInfo.InvariantCulture) + " pending questions; "
             + Unresolved.Length.ToString(CultureInfo.InvariantCulture) + " unresolved ledger records"
             + (Unresolved.IsEmpty ? string.Empty : ", including " + string.Join(", ", Unresolved.Select(task => task.State).Distinct()))
@@ -68,7 +68,10 @@ public sealed record SessionRemainingWorkAnswer(
         }
         else { text.Append("\nActual host step: unavailable."); }
         if (CurrentReceipt is { } receipt) { text.Append("\nDurable current-request state: ").Append(receipt.State).Append('.'); }
-        text.Append("\nOrdinary dispatch: ").Append(Ordinary.Paused || Ordinary.LifecycleHeld ? "held." : "not observed held.");
+        text.Append("\nOrdinary dispatch: ").Append(Ordinary.DispatchHeld ? "held." : "not observed held.")
+            .Append("\nManual ordinary dispatch hold: ").Append(Ordinary.ManualHoldReason != ConversationDispatchHoldReason.None ? "held." : "not observed held.")
+            .Append("\nFailure/cancellation recovery hold: ").Append(Ordinary.Paused ? "held." : "not observed held.")
+            .Append("\nApplication lifecycle hold: ").Append(Ordinary.LifecycleHeld ? "held." : "not observed held.");
         foreach (var turn in Ordinary.Turns)
         {
             // The dispatching original and the running owner are the same request, not two remaining tasks.

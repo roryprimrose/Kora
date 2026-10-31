@@ -100,7 +100,10 @@ public sealed partial class SessionConversationService
             lane is null ? [] : [.. Snapshot(target.Authority.SessionId, lane).Turns.Select(turn =>
                 new RemainingWorkTurn(turn.Submission.Message.Request, turn.Submission.Message.Generation,
                     turn.Submission.Task.Revision, turn.ExpiresAt, turn.Phase, turn.Position))],
-            running, running is not null && IsExecutionProgressCurrent(running));
+            running, running is not null && IsExecutionProgressCurrent(running))
+        {
+            ManualHoldReason = lane?.ManualHoldReason ?? ConversationDispatchHoldReason.None,
+        };
     }
 
     private static void RequireRemainingWorkSubject(SessionWorkSnapshot snapshot, SessionWorkspaceEntry target)

@@ -176,7 +176,9 @@ public sealed class ModelActionReviewNativeTests
         await f.Main.RunTypedCommand.ExecuteAsync();
         await f.Main.ActiveReasoningTask!;
         Dispatcher.UIThread.RunJobs();
-        return f.Main.CaptureModelActionReview()!;
+        var target = f.Main.CaptureModelActionReview();
+        target.Should().NotBeNull();
+        return target!;
     }
 
     private sealed class ReviewClock : TimeProvider
@@ -194,6 +196,6 @@ public sealed class ModelActionReviewNativeTests
         public ValueTask<DependencyStatus> ProbeAsync(CancellationToken cancellationToken) =>
             ValueTask.FromResult(new DependencyStatus(TaskId, TaskName, DependencyReadiness.Ready, "Synthetic implementation seam only."));
         public Task<LocalModelResponse> ReasonAsync(string request, LocalModelContext context, LocalModelArtifact? artifact,
-            CancellationToken cancellationToken) => Task.FromResult(new LocalModelResponse(null, BuiltInAction.LockMachine));
+            CancellationToken cancellationToken) => Task.FromResult(new LocalModelResponse(null, BuiltInAction.EnableHostedModels));
     }
 }

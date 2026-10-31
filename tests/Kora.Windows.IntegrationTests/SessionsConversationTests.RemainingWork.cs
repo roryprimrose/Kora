@@ -1,3 +1,4 @@
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 
@@ -16,9 +17,11 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class SessionsConversationTests
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task NativeRemainingWorkAnswersRunningHeldFifoAndQuestionsWhileProviderContinuesWithoutWrites(bool compact)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task NativeRemainingWorkAnswersRunningHeldFifoAndQuestionsWhileProviderContinuesWithoutWrites(bool compact, bool manualHold)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -36,10 +39,20 @@ public sealed partial class SessionsConversationTests
             {
                 await composed.Conversation.SubmitQueuedAsync(target, "private pending one", () => true, f.Token);
                 await composed.Conversation.SubmitQueuedAsync(target, "private pending two", () => true, f.Token);
-                await composed.Conversation.SubmitQueuedAsync(target, "private withdraw", () => true, f.Token);
-                var pending = await composed.Conversation.ReadPendingConversationAsync(target, () => true, f.Token);
-                await composed.Conversation.CancelPendingConversationAsync(target, pending.Turns[^1], pending.Revision, () => true, f.Token);
-                TestContext.Current.TestOutputHelper!.WriteLine("Pending lane held after exact withdrawal.");
+                if (manualHold)
+                {
+                    var pending = await composed.Conversation.ReadPendingConversationAsync(target, () => true, f.Token);
+                    await composed.Conversation.SetManualDispatchHoldAsync(pending.DispatchControl
+                        ?? throw new InvalidOperationException("Exact native dispatch control is unavailable."),
+                        ConversationDispatchHoldReason.OriginalUser, () => true, f.Token);
+                }
+                else
+                {
+                    await composed.Conversation.SubmitQueuedAsync(target, "private withdraw", () => true, f.Token);
+                    var pending = await composed.Conversation.ReadPendingConversationAsync(target, () => true, f.Token);
+                    await composed.Conversation.CancelPendingConversationAsync(target, pending.Turns[^1], pending.Revision, () => true, f.Token);
+                }
+                TestContext.Current.TestOutputHelper!.WriteLine("Pending lane held by the exact independent control.");
                 f.Request = InteractionStorageFixture.NewRequest(target.Authority.SessionId);
                 await f.AdmitAsync(newSession: false);
                 await f.RunAsync(() => f.Questions.CreateAsync(f.Request, new("private pending question", QuestionKind.Text, [], maximumTextLength: 512),
@@ -59,6 +72,7 @@ public sealed partial class SessionsConversationTests
                     var retention = await f.Store.ReadRetentionAsync(target.Authority.SessionId, f.Token);
                     var tasks = f.Count("host_task_events");
                     var messages = f.Count("conversation_messages");
+                    var originalPending = await composed.Conversation.ReadPendingConversationAsync(target, () => true, f.Token);
                     window.FindControl<Button>("AnswerRemainingWork")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     await (compact ? ((CompactSessionWindow)window).ConversationOperation : ((SessionsWindow)window).ConversationOperation);
                     TestContext.Current.TestOutputHelper!.WriteLine("Native remaining-work query completed.");
@@ -68,6 +82,11 @@ public sealed partial class SessionsConversationTests
                         .And.Contain("Submitted FIFO position 1").And.Contain("Submitted FIFO position 2")
                         .And.Contain("Pending questions: 1").And.Contain("Bounds and omissions")
                         .And.NotContain("private").And.NotContain("position 0");
+                    model.RemainingWorkStatus.Should()
+                        .Contain("Manual ordinary dispatch hold: " + (manualHold ? "held." : "not observed held."))
+                        .And.Contain("Failure/cancellation recovery hold: " + (manualHold ? "not observed held." : "held."));
+                    (await composed.Conversation.ReadPendingConversationAsync(target, () => true, f.Token))
+                        .Should().BeEquivalentTo(originalPending);
                     adapter.Calls.Should().Be(1);
                     first.Completion.IsCompleted.Should().BeFalse();
                     model.ComposerBody.Should().Be("private unsent next request");
@@ -93,6 +112,97 @@ public sealed partial class SessionsConversationTests
                 await disposal;
             }
         });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NativeRemainingWorkRequiresExplicitSelectionWithoutReadsOrEffects(bool compact)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            var adapter = new PendingTurnAdapter();
+            var reader = new SearchReader(f.Store.ReadConversationPageAsync, readMetadata: f.Store.ReadMetadataAsync);
+            var workReads = 0;
+            reader.WorkRead = async (id, revision, limits, token) =>
+            {
+                workReads++;
+                return await f.Store.ReadWorkAsync(id, revision, limits, token);
+            };
+            await using var composed = new Composition(f, adapter: adapter, conversationReader: reader);
+            var model = composed.Model;
+            var owner = new SessionsPresentationOwner(model);
+            Window window = compact ? new CompactSessionWindow(model, owner) : new SessionsWindow(model, owner);
+            window.Show();
+            try
+            {
+                await model.RefreshAsync();
+                var button = window.FindControl<Button>("AnswerRemainingWork")!;
+                button.IsEnabled.Should().BeFalse();
+                model.CanAnswerRemainingWork.Should().BeFalse();
+                ControlAutomationPeer.CreatePeerForElement(button)!.GetName().Should().Contain("selected conversation");
+                var audits = WindowsSqliteConversationTests.AuditText(f);
+                var retention = await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token);
+                var tasks = f.Count("host_task_events");
+                var messages = f.Count("conversation_messages");
+                button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await (compact ? ((CompactSessionWindow)window).ConversationOperation : ((SessionsWindow)window).ConversationOperation);
+                model.RemainingWorkStatus.Should().BeEmpty();
+                workReads.Should().Be(0);
+                adapter.Calls.Should().Be(0);
+                f.Count("host_task_events").Should().Be(tasks);
+                f.Count("conversation_messages").Should().Be(messages);
+                f.Count("scoped_grants").Should().Be(0);
+                (await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token)).Should().Be(retention);
+                WindowsSqliteConversationTests.AuditText(f).Should().Be(audits);
+            }
+            finally { owner.Revoke(); }
+        });
+    }
+
+    [Fact]
+    public async Task RemainingWorkRejectsManualHoldChangesBeforePublicationWithoutReleasingTheHold()
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        await WindowsSqliteConversationTests.FinishInitial(f);
+        await using var composed = new Composition(f);
+        var target = await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token);
+        var pending = await composed.Conversation.ReadPendingConversationAsync(target, () => true, f.Token);
+        SessionRemainingWorkAnswer answer;
+        using (var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request))
+        {
+            answer = await composed.Conversation.ReadRemainingWorkAsync(target, () => true, f.Token);
+        }
+        await composed.Conversation.SetManualDispatchHoldAsync(pending.DispatchControl
+            ?? throw new InvalidOperationException("Exact native dispatch control is unavailable."),
+            ConversationDispatchHoldReason.OriginalUser, () => true, f.Token);
+        var audits = WindowsSqliteConversationTests.AuditText(f);
+        var retention = await f.Store.ReadRetentionAsync(target.Authority.SessionId, f.Token);
+        var tasks = f.Count("host_task_events");
+        var messages = f.Count("conversation_messages");
+        composed.Conversation.IsRemainingWorkCurrent(answer, () => true).Should().BeFalse();
+        using (var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request))
+        {
+            await composed.Conversation.Invoking(service => service.ValidateRemainingWorkAsync(answer, () => true, f.Token))
+                .Should().ThrowAsync<InvalidOperationException>().WithMessage("*changed*");
+        }
+        SessionRemainingWorkAnswer fresh;
+        using (var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request))
+        {
+            fresh = await composed.Conversation.ReadRemainingWorkAsync(target, () => true, f.Token);
+        }
+        fresh.Ordinary.ManualHoldReason.Should().Be(ConversationDispatchHoldReason.OriginalUser);
+        fresh.Format().Should().Contain("Ordinary dispatch: held.").And.Contain("Manual ordinary dispatch hold: held.");
+        fresh.FormatSpeech().Should().Contain("dispatch held");
+        f.Count("host_task_events").Should().Be(tasks);
+        f.Count("conversation_messages").Should().Be(messages);
+        f.Count("scoped_grants").Should().Be(0);
+        (await f.Store.ReadRetentionAsync(target.Authority.SessionId, f.Token)).Should().Be(retention);
+        WindowsSqliteConversationTests.AuditText(f).Should().Be(audits);
     }
 
     [Fact]

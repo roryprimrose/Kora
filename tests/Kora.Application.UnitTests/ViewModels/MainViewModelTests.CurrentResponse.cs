@@ -157,7 +157,7 @@ public sealed partial class MainViewModelTests
         var f = CreateSummaryFixture(Kora.Core.Voice.SpeechProviderIds.Windows);
         await f.ViewModel.InitializeAsync();
         if (string.Equals(pending, "question", StringComparison.Ordinal)) { f.Reasoner.Question = new("Which?", ["A", "B"]); }
-        if (string.Equals(pending, "approval", StringComparison.Ordinal)) { f.Reasoner.Action = Kora.Core.Commands.BuiltInAction.LockMachine; }
+        if (string.Equals(pending, "approval", StringComparison.Ordinal)) { f.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels; }
         if (f.Reasoner.Question is not null || f.Reasoner.Action is not null)
         {
             await f.RunAsync("choose something");
@@ -166,7 +166,7 @@ public sealed partial class MainViewModelTests
         if (string.Equals(pending, "grant", StringComparison.Ordinal))
         {
             await f.ViewModel.PrepareGrantChangeAsync(new(Kora.Core.Commands.GrantChangeOperation.Add,
-                Kora.Core.Commands.BuiltInAction.LockMachine, Kora.Core.Commands.ModelApprovalScope.Always));
+                Kora.Core.Commands.BuiltInAction.EnableHostedModels, Kora.Core.Commands.ModelApprovalScope.Always));
         }
         var native = new ResponsePresenter(f.ViewModel);
         f.ViewModel.BindCurrentResponsePresentation(native);
@@ -181,6 +181,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.IsModelQuestionPending.Should().Be(question);
         f.ViewModel.IsModelActionApprovalPending.Should().Be(approval);
         f.ViewModel.IsGrantChangePending.Should().Be(grant);
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
     }
 
@@ -549,6 +550,7 @@ public sealed partial class MainViewModelTests
         public Exception? Failure { get; set; }
         public bool RetireOnDismiss { get; set; } = true;
         public Action? AfterNative { get; set; }
+        public Action? BeforeOpen { get; set; }
         public int Calls { get; private set; }
         public AdmittedDetailContent? Content { get; private set; }
         public Func<bool> CaptureLifetime() => () => Alive;
@@ -563,6 +565,7 @@ public sealed partial class MainViewModelTests
         }
         public bool OpenDetails(AdmittedDetailContent content, Func<bool> admitted)
         {
+            BeforeOpen?.Invoke();
             Calls++;
             admitted().Should().BeTrue();
             if (Failure is { } failure) { throw failure; }

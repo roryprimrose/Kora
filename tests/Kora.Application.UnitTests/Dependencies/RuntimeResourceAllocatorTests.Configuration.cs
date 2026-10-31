@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using Kora.Application.UnitTests.Agents;
 using Kora.Application.UnitTests.Configuration;
+using Kora.Application.Hosting;
 using Kora.Core.Auditing;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
@@ -9,6 +10,71 @@ namespace Kora.Application.UnitTests.Dependencies;
 
 public sealed partial class RuntimeResourceAllocatorTests
 {
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    public async Task LowerMaximumBlocksReservedLeaseWhenAnotherLeaseAlreadyExecutes(bool reserveOlder, bool cancelExecuting)
+    {
+        await using var settings = new ConversationExecutionConfigurationServiceTests.Fixture();
+        settings.Service.Observe();
+        var source = new RuntimeSource();
+        await using var f = new AgentRunSetTests.Fixture(runtimeCapacity: source, registrationSource: source,
+            conversationExecution: settings.Service);
+        using var cleanup = source;
+        var reservedIndex = reserveOlder ? 0 : 1;
+        var executingIndex = reserveOlder ? 1 : 0;
+        var reserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.BeforeDispatchAsync = async request =>
+        {
+            if (request.SessionId != f.Sessions[reservedIndex].Authority.SessionId) { return; }
+            reserved.TrySetResult();
+            await release.Task.WaitAsync(Token);
+        };
+        Task<ConversationSubmissionReceipt>? two = null;
+        if (!reserveOlder)
+        {
+            two = f.Conversation.SubmitAsync(f.Sessions[executingIndex], "executing request", () => true, Token);
+            await source.Started(executingIndex, f);
+        }
+        var one = f.Conversation.SubmitAsync(f.Sessions[reservedIndex], "reserved request", () => true, Token);
+        try
+        {
+            await reserved.Task.WaitAsync(Token);
+            two ??= f.Conversation.SubmitAsync(f.Sessions[executingIndex], "executing request", () => true, Token);
+            await source.Started(executingIndex, f);
+            await settings.Set(1);
+            source.Transport(executingIndex, f).Cancelled.Task.IsCompleted.Should().BeFalse();
+            if (cancelExecuting)
+            {
+                var running = (await f.Conversation.ReadRunningConversationAsync(f.Sessions[executingIndex], () => true, Token))!;
+                await f.Conversation.CancelRunningConversationAsync(running.Target, () => true, Token);
+                await source.Transport(executingIndex, f).Cancelled.Task.WaitAsync(Token);
+                two.IsCompleted.Should().BeFalse("requested cancellation has not joined the provider");
+            }
+            release.TrySetResult();
+            await Task.WhenAny(one, source.Transport(reservedIndex, f).Started.Task).WaitAsync(Token);
+            source.Transport(reservedIndex, f).Started.Task.IsCompleted.Should().BeFalse(
+                "reservation order must not exceed the lowered maximum around an already executing lease");
+            await one.Invoking(value => value).Should().ThrowAsync<ConversationSubmissionUnconfirmedException>();
+            var retained = f.Messages.Values.Single(message => message.Request.SessionId == f.Sessions[reservedIndex].Authority.SessionId);
+            retained.Execution.Should().BeNull();
+            retained.AssistantResponse.Should().BeNull();
+            f.Audits.Should().Contain(entry => entry.ActionId == "runtime.resource.release"
+                && entry.Outcome == SecurityAuditOutcome.Succeeded);
+            two.IsCompleted.Should().BeFalse();
+            source.Transport(executingIndex, f).Finish("independent answer");
+            var completed = await two;
+            completed.Message.Outcome.Should().Be(cancelExecuting ? ModelTurnOutcome.Cancelled : ModelTurnOutcome.Succeeded);
+            if (cancelExecuting) { completed.Message.AssistantResponse.Should().BeNull(); }
+            else { completed.Message.AssistantResponse!.Body.Should().Be("independent answer"); }
+            f.Host.IsQuiescent.Should().BeTrue();
+        }
+        finally { release.TrySetResult(); }
+    }
+
     [Fact]
     public async Task ConfiguredOneEnforcesFairIndependentSessionAdmissionAndCancellationJoinsBeforeReusingLease()
     {

@@ -249,7 +249,10 @@ internal sealed class RuntimeResourceAllocator(Guid owner, TimeProvider time, IS
     private bool BudgetAdmits(Lease lease)
     {
         var current = configuration is null ? DefaultBudget : configuration.Current;
-        return current is not null && leases.IndexOf(lease) < Math.Min(lease.Budget.Limit.Value, current.Limit.Value);
+        if (current is null) { return false; }
+        var maximum = Math.Min(lease.Budget.Limit.Value, current.Limit.Value);
+        return leases.IndexOf(lease) < maximum
+            && leases.Count(item => item.Turn.ResourceDispatched) < current.Limit.Value;
     }
 
     private bool Available(ModelTurn turn, RuntimeCapacityEvidence? evidence, int maximum)

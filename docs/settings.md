@@ -100,6 +100,7 @@ Submit an original request explicitly in each independent Active session. Its ru
 These are admission observations, not model text or completion estimates. **Cancel** addresses only that displayed request; **Cancelling** is not terminal until its actual provider resources join ([conversation status](../src/Kora/SessionsViewModel.ConversationCancellation.cs)).
 
 A lower maximum never cancels executing work. Waiting requests use the smaller of their captured maximum and the current confirmed maximum; raising the setting does not expand old captured budgets.
+An earlier reservation cannot bypass that maximum if another session started first. Cancelling work still counts as executing until its provider physically joins.
 There remains one executing turn per session, with the existing pending FIFO unchanged. Failed or unconfirmed preference evidence holds new admission until explicit inspection/refresh, without releasing active resources ([allocator](../src/Kora.Application/Dependencies/RuntimeResourceAllocator.cs)).
 
 ## Local records and privacy

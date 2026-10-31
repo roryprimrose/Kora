@@ -426,6 +426,7 @@ Review and registration do not dispatch, evict or cancel work.
 
 Each resource admission captures an immutable budget. Waiting work revalidates current confirmed preferences before reservation and dispatch; its ceiling is the smaller of captured and current demand.
 Raising the preference cannot expand an already captured budget; lowering it never cancels executing work, but blocks future dispatch until resources fit.
+Reservation order does not imply execution order: an older reserved lease must also fit around every already dispatched lease, including cancellation-ignoring work awaiting physical join.
 Saved-state drift or unconfirmed writes hold new admission, not active joins ([allocator](../src/Kora.Application/Dependencies/RuntimeResourceAllocator.cs), [consumer regressions](../tests/Kora.Application.UnitTests/Dependencies/RuntimeResourceAllocatorTests.Configuration.cs)).
 
 The [typed host resource observation](../src/Kora.Core/Conversation/ConversationResourceStatus.cs) distinguishes configured/captured maximum, exact qualified ceiling, effective ceiling, lease/wait counts and FIFO/configuration/resource blockers.

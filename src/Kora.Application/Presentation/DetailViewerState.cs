@@ -60,7 +60,8 @@ public sealed class DetailViewerState : ObservableObject
             + $" · Reason: {message.Reason?.ToString() ?? "None recorded"} · Task status: {message.ExpectedTaskState}"
             + " · Not an assistant answer or execution permission.";
     public string FindText => findHost ? HostText : ActiveText;
-    public string AssistantText => !CanRead() ? string.Empty : content!.ConversationMessage?.AssistantResponse?.Body ?? string.Empty;
+    public string AssistantText => !CanRead() || content!.Origin == DetailContentOrigin.RetainedAnswerContext
+        ? string.Empty : content.ConversationMessage?.AssistantResponse?.Body ?? string.Empty;
 
     public bool CanInteractWithFinalDocument => CanRead() && readAdmission is not null
         && renderState == DetailRenderState.Rendered && content!.Kind == DetailContentKind.Markdown

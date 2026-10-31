@@ -1,17 +1,74 @@
 using System.Collections.Immutable;
 
+using Avalonia.Controls;
+
 using AwesomeAssertions;
 
+using Kora.Application.Presentation;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Presentation;
 using Kora.Core.Providers;
+using Kora.NativeUxFixture;
+
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class DetailWindowControllerTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NativeContextInspectorChromeNeverDisclosesAnswerBodiesAndIndependentReadersRetireSeparately(bool recorded)
+    {
+        await HeadlessSession.RunAsync(() =>
+        {
+            var message = RecordedContextAnswer();
+            if (!recorded) { message = message with { SubmittedContext = null }; }
+            var content = recorded ? RecordedContextContent(message, SubmittedHistoryAvailability.RetainedRevision)
+                : new AdmittedDetailContent(AnswerContextInspection.Reference(message), DetailContentKind.PlainText,
+                    DetailContentOrigin.RetainedAnswerContext, DetailSensitivity.DisclosureConfirmationRequired,
+                    "Context submitted for this answer", "Unknown historical metadata", AnswerContextInspection.Describe(message),
+                    conversationMessage: message);
+            var live = true;
+            var state = new DetailViewerState(content, () => live);
+            var independent = new DetailViewerState(content, () => true);
+            var renderer = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance);
+            var result = renderer.Render(content.Source, content.Kind, content.Reference);
+            state.CompleteRender(state.Generation, result.SemanticText, result.Status, result.IsFallback).Should().BeTrue();
+            independent.CompleteRender(independent.Generation, result.SemanticText, result.Status, result.IsFallback).Should().BeTrue();
+            var reader = new DetailContentView(state, result, (_, _, _) => Task.CompletedTask);
+            var otherReader = new DetailContentView(independent, result, (_, _, _) => Task.CompletedTask);
+            try
+            {
+                foreach (var view in new[] { reader, otherReader })
+                {
+                    var assistant = view.FindControl<TextBlock>("ConversationAssistantLabel")!;
+                    assistant.IsVisible.Should().BeFalse("the metadata route must not add a secondary answer viewport");
+                    assistant.Text.Should().BeEmpty();
+                    view.FindControl<TextBox>("ContentReader")!.Text.Should().Be(content.Source)
+                        .And.NotContain(message.Body).And.NotContain(message.AssistantResponse!.Body);
+                }
+                state.AssistantText.Should().BeEmpty();
+                independent.AssistantText.Should().BeEmpty();
+                live = false;
+                state.Content.Should().BeNull();
+                state.ActiveText.Should().BeEmpty();
+                reader.FindControl<TextBox>("ContentReader")!.Text.Should().BeEmpty();
+                independent.Content.Should().BeSameAs(content);
+                otherReader.FindControl<TextBox>("ContentReader")!.Text.Should().Be(content.Source);
+            }
+            finally
+            {
+                reader.ClearPresentation();
+                otherReader.ClearPresentation();
+            }
+            return Task.CompletedTask;
+        });
+    }
+
     [Theory]
     [InlineData("private")]
     [InlineData("source")]

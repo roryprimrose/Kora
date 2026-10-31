@@ -35,6 +35,8 @@ Availability changes in either direction between the application's observations 
 
 The existing exact native Details source/private/current-target fences, return-to-message navigation and no-copy policy apply. Inspection never renews session activity, source permission or independent retention. Only same-session conversation references are supported; memory, definitions and account-source expansion require their own deletion/privacy contracts ([native route](../src/Kora/SessionsViewModel.Conversation.cs), [metadata reader](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.AnswerContext.cs)).
 
+Metadata-only inspection also excludes the separately retained ASSISTANT body from shared native chrome, including unknown/not-recorded answers. Ordinary original-message Details retains its separate answer display; inspecting metadata does not substitute that body for unavailable provenance ([presentation boundary](../src/Kora.Application/Presentation/DetailViewerState.cs), [native chrome](../src/Kora/DetailContentView.axaml.cs)).
+
 ## Cross-conversation content search and exact message opening
 
 The [native content search owner](../src/Kora/SessionsViewModel.ContentSearch.cs)

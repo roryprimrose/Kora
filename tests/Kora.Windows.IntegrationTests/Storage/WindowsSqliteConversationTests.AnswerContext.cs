@@ -1,8 +1,10 @@
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 
 using AwesomeAssertions;
 
+using Kora.Core.Auditing;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
@@ -13,6 +15,96 @@ namespace Kora.Windows.IntegrationTests.Storage;
 
 public sealed partial class WindowsSqliteConversationTests
 {
+    [Theory]
+    [InlineData(32768)]
+    [InlineData(32769)]
+    public async Task CompleteSubmittedContextCellAtStorageLimitRoundTripsButOverflowWritesNoAnswerTaskSuccessOrAudit(int bytes)
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        await FinishInitial(f);
+        var selections = new List<ConversationHistorySelection>();
+        for (var index = 0; index < 8; index++)
+        {
+            var source = await Submit(f, f.Request.SessionId, "earlier source marker");
+            selections.Add(new(source.Message, ConversationHistoryRole.User));
+        }
+        var request = Fresh(f.Request.SessionId);
+        var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), request, ModelProviderSelection.OllamaCandidate);
+        const string marker = "original private user marker:";
+        var body = marker + new string('\u0800', ConversationText.MaximumUtf16Characters - marker.Length);
+        var envelope = ConversationHistoryContext.CreateEnvelope(request, body, selections, f.Time.Now, f.Time.Now.AddSeconds(15));
+        var option = new string('<', 128);
+        var submitted = SubmittedAnswerContext.Capture(provenance, new(1),
+            new(ProviderService.Local, new(option), new(1), new(option), new(option), new(option)),
+            envelope, envelope.Serialize(), f.Time.Now)!;
+        using var root = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
+        await f.Store.RetainConversationMessageAsync(request, new(1), 0, body, static () => true, f.Token);
+        var dispatch = await f.Store.BeginConversationExecutionAsync(request, provenance, 0, static () => true, f.Token);
+        var cell = dispatch.Message with
+        {
+            Revision = 3, Outcome = ModelTurnOutcome.Succeeded, Reason = ModelTurnReason.ProviderOutcome,
+            AssistantResponse = new(provenance, "a"), SubmittedContext = submitted,
+        };
+        var framing = JsonSerializer.SerializeToUtf8Bytes(cell).Length - 1;
+        cell = cell with { AssistantResponse = new(provenance, new string('a', bytes - framing)) };
+        cell.AssistantResponse!.Validate();
+        submitted.Validate();
+        submitted.CanonicalUtf8Bytes.Should().BeLessThan(ModelContextEnvelope.MaximumInputUtf8Bytes);
+        JsonSerializer.SerializeToUtf8Bytes(cell).Length.Should().Be(bytes);
+        Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(cell)).Should().Be(bytes);
+        JsonSerializer.SerializeToUtf8Bytes(cell with { SubmittedContext = null }).Length
+            .Should().BeLessThan(ConversationMessage.MaximumStorageUtf8Bytes);
+        var result = new ModelTurnResult(ModelTurnOutcome.Succeeded, ModelTurnReason.ProviderOutcome, provenance,
+            new(cell.AssistantResponse.Body, null)) { SubmittedContext = submitted };
+        var audit = AuditText(f);
+        var clock = await f.Store.ReadRetentionAsync(request.SessionId, f.Token);
+        var hash = SHA256.HashData(File.ReadAllBytes(f.DatabasePath));
+        f.Time.Now = f.Time.Now.AddSeconds(1);
+        if (bytes == ConversationMessage.MaximumStorageUtf8Bytes)
+        {
+            var completed = await f.Store.CompleteConversationExecutionAsync(request, result, static () => true, f.Token);
+            completed.Message.Should().Be(cell);
+            completed.Task.State.Should().Be(HostTaskState.Succeeded);
+            completed.Task.Revision.Value.Should().Be(3);
+            f.Reopen();
+            await f.Store.InitializeAsync(f.Token);
+            (await f.Store.ReadConversationMessageAsync(request.SessionId, request.RequestId, f.Token)).Should().Be(cell);
+        }
+        else
+        {
+            await f.Store.Invoking(store => store.CompleteConversationExecutionAsync(request, result,
+                static () => true, f.Token).AsTask()).Should().ThrowAsync<InvalidDataException>()
+                .WithMessage("The complete conversation cell exceeds 32768 UTF-8 bytes; nothing was retained partially.");
+            (await f.Store.ReadConversationMessageAsync(request.SessionId, request.RequestId, f.Token)).Should().Be(dispatch.Message);
+            (await f.Tasks.ReadTaskAsync(request.TaskId, f.Token)).Should().Be(dispatch.Task);
+            dispatch.Message.AssistantResponse.Should().BeNull();
+            dispatch.Message.SubmittedContext.Should().BeNull();
+            dispatch.Message.Outcome.Should().BeNull();
+            (await f.Store.ReadRetentionAsync(request.SessionId, f.Token)).Should().Be(clock);
+            AuditText(f).Should().Be(audit);
+            SHA256.HashData(File.ReadAllBytes(f.DatabasePath)).Should().Equal(hash);
+        }
+        using var connection = f.OpenRaw();
+        using var read = connection.CreateCommand();
+        read.CommandText = "SELECT payload FROM conversation_messages WHERE request_id=$request;";
+        read.Parameters.AddWithValue("$request", request.RequestId.Value.ToString("D"));
+        var payload = (string)read.ExecuteScalar()!;
+        Encoding.UTF8.GetByteCount(payload).Should().Be(bytes == 32768 ? 32768 : JsonSerializer.SerializeToUtf8Bytes(dispatch.Message).Length);
+        JsonSerializer.Deserialize<ConversationMessage>(payload).Should().Be(bytes == 32768 ? cell : dispatch.Message);
+        using var success = connection.CreateCommand();
+        success.CommandText = """
+            SELECT count(*) FROM security_audit_events
+            WHERE json_extract(envelope,'$.Request.RequestId.Value')=$request
+              AND json_extract(envelope,'$.Audit.ActionId')='conversation.answer'
+              AND json_extract(envelope,'$.Audit.Outcome')=$outcome;
+            """;
+        success.Parameters.AddWithValue("$request", request.RequestId.Value.ToString("D"));
+        success.Parameters.AddWithValue("$outcome", (int)SecurityAuditOutcome.Succeeded);
+        ((long)success.ExecuteScalar()!).Should().Be(bytes == 32768 ? 1 : 0);
+        AuditText(f).Should().NotContain(marker).And.NotContain(cell.AssistantResponse.Body).And.NotContain("earlier source marker");
+    }
+
     [Theory]
     [InlineData("retained")]
     [InlineData("missing")]

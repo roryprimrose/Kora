@@ -30,12 +30,22 @@ public sealed partial class SessionsConversationTests
             using var f = new InteractionStorageFixture();
             await f.InitializeAsync();
             await WindowsSqliteConversationTests.FinishInitial(f);
+            new LocalProviderProfilePreferences(f.Paths).Save(new(ProviderService.Local, [HandoffCatalogue.Local]));
             var adapter = new HistoryAdapter();
-            await using var composed = new Composition(f, adapter: adapter);
+            await using var composed = new Composition(f, adapter: adapter, localRequestCatalogue: new HandoffCatalogue(f));
             await composed.Model.RefreshAsync();
             await composed.Model.SelectAsync(composed.Model.Sessions.Single());
             composed.Model.ComposerBody = "genuine original request";
             await composed.Model.SubmitConversationAsync();
+            var source = composed.Model.ConversationMessages.Single();
+            await composed.Model.ReadConversationAsync();
+            composed.Model.OpenHistoryContext();
+            composed.Model.SelectHistoryContext(composed.Model.HistoryContextCandidates.ToArray());
+            composed.Model.ComposerBody = "genuine retained follow-up request";
+            await composed.Model.ReviewHistoryContextAsync();
+            await composed.Model.ConfirmHistoryContextAsync();
+            var retained = composed.Model.ConversationMessages.Single();
+            retained.SubmittedContext.Should().NotBeNull();
             using var native = new NativeUxFixtureSession(Path.GetFullPath("."));
             await native.InitializeAsync();
             using var details = new DetailWindowController(new EmbeddedUserDocumentationProvider(), native.Main,
@@ -52,18 +62,24 @@ public sealed partial class SessionsConversationTests
             var state = (SessionsViewModel)window!.SessionView.DataContext!;
             await state.SelectAsync(state.Sessions.Single(entry => entry.Authority.SessionId == f.Request.SessionId));
             await state.ReadConversationAsync();
+            var clock = await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token);
+            var audit = WindowsSqliteConversationTests.AuditText(f);
+            var tasks = f.Count("host_tasks");
             window.ShowSessions(true);
             window.UpdateLayout();
-            var original = state.ConversationMessages.Single();
+            var original = state.ConversationMessages.Single(message => message.Request == retained.Request);
             state.ComposerBody = "independent unsent input";
             var button = window.SessionView.GetVisualDescendants().OfType<Button>().Single(control =>
-                string.Equals(control.Name, "OpenSubmittedAnswerContext", StringComparison.Ordinal));
+                string.Equals(control.Name, "OpenSubmittedAnswerContext", StringComparison.Ordinal)
+                && control.DataContext is ConversationMessage message && message.Request == retained.Request);
             button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await window.SessionView.Operation;
             window.UpdateLayout();
             window.SessionView.DetailsVisible.Should().BeTrue(state.ConversationStatus);
             var reader = window.SessionView.GetVisualDescendants().OfType<DetailContentView>().Single();
-            reader.FindControl<TextBox>("ContentReader")!.Text.Should().Contain("Unknown / not recorded");
+            reader.FindControl<TextBox>("ContentReader")!.Text.Should().Contain("exact source-row revision is retained")
+                .And.NotContain(source.Body).And.NotContain(source.AssistantResponse!.Body)
+                .And.NotContain(retained.Body).And.NotContain(retained.AssistantResponse!.Body);
             window.SessionView.FindControl<TabControl>("ConversationTabs")!.SelectedIndex = 1;
             var back = window.SessionView.FindControl<Button>("BackToConversation")!;
             back.IsEnabled.Should().BeTrue();
@@ -71,8 +87,14 @@ public sealed partial class SessionsConversationTests
             button.IsFocused.Should().BeTrue("the return control must target this exact answer, not the latest source");
             window.SessionView.GetVisualDescendants().OfType<DetailContentView>().Single().Should().BeSameAs(reader);
             state.ComposerBody.Should().Be("independent unsent input");
-            state.ConversationMessages.Single().Should().Be(original);
-            adapter.Calls.Should().Be(1);
+            state.ConversationMessages.Single(message => message.Request == retained.Request).Should().Be(original);
+            state.ConversationMessages.Should().HaveCount(2);
+            adapter.Calls.Should().Be(2);
+            (await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token)).Should().Be(clock);
+            WindowsSqliteConversationTests.AuditText(f).Should().Be(audit);
+            f.Count("host_tasks").Should().Be(tasks);
+            f.Count("host_questions").Should().Be(0);
+            f.Count("scoped_grants").Should().Be(0);
             state.ComposerBody = string.Empty;
             window.Close();
         });

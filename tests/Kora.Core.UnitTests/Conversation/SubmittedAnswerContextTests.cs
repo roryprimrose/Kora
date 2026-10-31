@@ -96,6 +96,46 @@ public sealed class SubmittedAnswerContextTests
     }
 
     [Theory]
+    [InlineData(32768)]
+    [InlineData(32769)]
+    public void CompleteSerializedCellWithSubmittedContextAcceptsExactlyTheStorageLimitAndRejectsOneMoreByte(int bytes)
+    {
+        var answer = Answer();
+        var option = new string('<', 128);
+        answer = answer with
+        {
+            Sequence = 9,
+            Body = new string('\u0800', ConversationText.MaximumUtf16Characters),
+            AssistantResponse = new(answer.Execution!, "a"),
+            SubmittedContext = answer.SubmittedContext! with
+            {
+                Profile = new(ProviderService.Local, new(option), new(1), new(option), new(option), new(option)),
+                Sources = [.. Enumerable.Range(1, 8).Select(sequence =>
+                    new SubmittedHistorySource(new(Guid.NewGuid()), new(1), sequence, 2, ConversationHistoryRole.User))],
+            },
+        };
+        var framing = JsonSerializer.SerializeToUtf8Bytes(answer).Length - 1;
+        answer = answer with { AssistantResponse = new(answer.Execution!, new string('a', bytes - framing)) };
+        ConversationText.Validate(answer.Body, submission: true);
+        answer.AssistantResponse!.Validate();
+        answer.SubmittedContext!.Validate();
+        answer.SubmittedContext.CanonicalUtf8Bytes.Should().Be(1024, "the envelope size is not the retained-cell budget");
+        var serialized = JsonSerializer.SerializeToUtf8Bytes(answer);
+        serialized.Length.Should().Be(bytes, "the measurement includes JSON framing and all submitted metadata");
+        System.Text.Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(answer)).Should().Be(bytes);
+        JsonSerializer.SerializeToUtf8Bytes(answer with { SubmittedContext = null }).Length
+            .Should().BeLessThan(ConversationMessage.MaximumStorageUtf8Bytes);
+        var copy = JsonSerializer.Deserialize<ConversationMessage>(serialized)!;
+        copy.Should().Be(answer, "neither the body nor the ordered metadata may be truncated");
+        if (bytes == ConversationMessage.MaximumStorageUtf8Bytes) { copy.Validate(); }
+        else
+        {
+            copy.Invoking(message => message.Validate()).Should().Throw<InvalidDataException>()
+                .WithMessage("The complete conversation cell exceeds 32768 UTF-8 bytes; nothing was retained partially.");
+        }
+    }
+
+    [Theory]
     [InlineData("version")]
     [InlineData("provenance")]
     [InlineData("request")]

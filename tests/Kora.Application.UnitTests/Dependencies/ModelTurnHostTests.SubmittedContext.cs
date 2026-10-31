@@ -71,10 +71,18 @@ public sealed partial class ModelTurnHostTests
 
     private sealed partial class Fixture
     {
-        public ValueTask<ImmutableArray<SubmittedHistoryAvailability>> ReadSubmittedHistoryAvailabilityAsync(
-            ConversationMessage answer, CancellationToken token) =>
-            ValueTask.FromResult(answer.SubmittedContext!.Sources.Select(source =>
+        internal Func<CancellationToken, Task>? BeforeSubmittedAvailabilityRead { get; set; }
+        internal int SubmittedAvailabilityReads { get; private set; }
+
+        public async ValueTask<ImmutableArray<SubmittedHistoryAvailability>> ReadSubmittedHistoryAvailabilityAsync(
+            ConversationMessage answer, CancellationToken token)
+        {
+            SubmittedAvailabilityReads++;
+            if (BeforeSubmittedAvailabilityRead is { } before) { await before(token); }
+            token.ThrowIfCancellationRequested();
+            return answer.SubmittedContext!.Sources.Select(source =>
                 HistoryMessages.TryGetValue(source.Request, out var message) && message.Revision == source.Revision
-                    ? SubmittedHistoryAvailability.RetainedRevision : SubmittedHistoryAvailability.Unavailable).ToImmutableArray());
+                    ? SubmittedHistoryAvailability.RetainedRevision : SubmittedHistoryAvailability.Unavailable).ToImmutableArray();
+        }
     }
 }

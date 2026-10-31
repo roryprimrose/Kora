@@ -108,6 +108,8 @@ Assert ($workflow.Contains('fail-fast: false', [StringComparison]::Ordinal)) 'On
 Assert ($workflow.Contains('-Shard ''${{ matrix.shard }}''', [StringComparison]::Ordinal)) 'CI must execute its exact matrix shard.'
 Assert ($workflow.Contains('name: windows-test-results-${{ matrix.shard }}',
     [StringComparison]::Ordinal)) 'Matrix artifacts must have distinct names.'
+Assert ($workflow.Contains('.net-test-artifacts/windows/**/native-fixture-phases.json.txt',
+    [StringComparison]::Ordinal)) 'Matrix artifacts must retain the allowlisted per-test native phase attachment.'
 Assert ($workflow.Contains('needs: [admission, version, windows-integration-shards]',
     [StringComparison]::Ordinal)) 'The required aggregate must depend on the complete matrix.'
 Assert ($workflow.Contains("if: always() && needs.version.outputs.already-published != 'true' && (needs.admission.result != 'success' || needs.admission.outputs.full != 'false')",

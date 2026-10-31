@@ -541,6 +541,7 @@ jobs:
           path: |
             .net-test-artifacts/windows/**/*.trx
             .net-test-artifacts/windows/**/console.log
+            .net-test-artifacts/windows/**/native-fixture-phases.json.txt
           if-no-files-found: error
           include-hidden-files: true
 

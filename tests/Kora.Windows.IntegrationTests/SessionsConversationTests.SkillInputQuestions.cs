@@ -17,6 +17,9 @@ public sealed partial class SessionsConversationTests
     [InlineData("complete")]
     [InlineData("cancel")]
     [InlineData("rewrite")]
+    [InlineData("request")]
+    [InlineData("target")]
+    [InlineData("close")]
     [InlineData("source")]
     [InlineData("duplicate")]
     public async Task OwnedSkillMissingInputsUseExactNativeQuestionsBeforeSeparateCanonicalUse(string scenario)
@@ -86,6 +89,12 @@ public sealed partial class SessionsConversationTests
             { question.FindControl<Button>("CancelQuestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
             else if (scenario is "rewrite")
             { opened.LiteralInputs.Inputs["other"].Text = "unreviewed rewrite"; }
+            else if (scenario is "request")
+            { opened.Request.Text = "Different unreviewed task"; }
+            else if (scenario is "target")
+            { opened.Targets.SelectedIndex = -1; }
+            else if (scenario is "close")
+            { opened.Close(); }
             else if (scenario is "source")
             {
                 await File.WriteAllTextAsync(Path.Combine(store.Destination(document), "instructions.md"),

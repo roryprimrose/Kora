@@ -176,18 +176,25 @@ public sealed partial class OwnedSkillInvocationWorkflow(
         try
         {
             Require(() => authority.IsCurrent() && eligible() && review.IsCurrent, token);
-            var expected = review.Require(this);
             await admission.Run(authority, () => eligible() && review.IsCurrent, async (_, _, live, admitted) =>
             {
-                var actual = await store.Read(expected.Document.Id, expected.Document.Version, admitted).ConfigureAwait(false);
-                Require(live, admitted);
-                if (actual is null || !expected.IsSameRevision(actual))
-                { throw new InvalidDataException("The exact private saved package changed, was replaced or is missing. Review again."); }
+                await ValidateAdmittedAsync(review, authority, live, admitted).ConfigureAwait(false);
                 return true;
             }, token).ConfigureAwait(false);
             Require(() => authority.IsCurrent() && eligible() && review.IsCurrent, token);
         }
         catch { review.Dispose(); throw; }
+    }
+
+    internal async Task ValidateAdmittedAsync(OwnedSkillUseReview review, OwnedSkillAuthoringAuthority authority,
+        Func<bool> eligible, CancellationToken token)
+    {
+        Require(() => authority.IsCurrent() && eligible() && review.IsCurrent, token);
+        var expected = review.Require(this);
+        var actual = await store.Read(expected.Document.Id, expected.Document.Version, token).ConfigureAwait(false);
+        Require(() => authority.IsCurrent() && eligible() && review.IsCurrent, token);
+        if (actual is null || !expected.IsSameRevision(actual))
+        { throw new InvalidDataException("The exact private saved package changed, was replaced or is missing. Review again."); }
     }
 
     private async Task RequireTargetAsync(SessionWorkspaceEntry target, Func<bool> eligible, CancellationToken token)

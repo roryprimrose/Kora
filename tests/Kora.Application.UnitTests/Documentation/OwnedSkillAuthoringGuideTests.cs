@@ -43,5 +43,19 @@ public sealed class OwnedSkillAuthoringGuideTests
             .And.Contain("does not complete the entire Builder")
             .And.Contain("input names cannot be added")
             .And.Contain("until it joins");
+        guide.Markdown.Should().Contain("owned skill workflow create inspection 1.0.0")
+            .And.Contain("Save disabled revision")
+            .And.Contain("owned skill workflow approve-step")
+            .And.Contain("8192 complete labelled result bytes")
+            .And.Contain("15-second total budget")
+            .And.Contain("history is neither read nor written")
+            .And.Contain("no automatic pagination");
+        guide.Markdown.Should().Contain("create a skill that explains a deployment failure")
+            .And.Contain("owned skill expected-input:")
+            .And.Contain("owned skill expected-output:")
+            .And.Contain("owned skill generate")
+            .And.Contain("complete generated manifest and guidance")
+            .And.Contain("no-overwrite")
+            .And.Contain("unqualified");
     }
 }

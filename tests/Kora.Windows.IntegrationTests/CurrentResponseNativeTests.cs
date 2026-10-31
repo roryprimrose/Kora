@@ -17,6 +17,80 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class CurrentResponseNativeTests
 {
     [Fact]
+    public async Task CallSpeechButtonsReviewExactDetailsThenConfirmOnlyOneSilentFixturePlayback()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new NativeUxFixtureSession(Path.GetFullPath("."), silentCaption: true);
+            await f.InitializeAsync(null, callState: new ProtectedCall());
+            f.Main.DefaultResponseMode = Kora.Core.Voice.ResponseOutputMode.Hybrid;
+            var views = new List<CurrentView>();
+            using var details = new DetailWindowController(f.Documents, () => f.Main.CanRevealPrivatePresentation,
+                new(NullLogger<NativeDetailRenderer>.Instance), new NoClipboard(),
+                (state, _, _) =>
+                {
+                    var view = new CurrentView(state);
+                    views.Add(view);
+                    return view;
+                }, NullLogger<DetailWindowController>.Instance);
+            using var controller = new ResponseWindowController(f.Main, NullLogger<ResponseWindowController>.Instance, details);
+            f.Main.CommandText = "what power action is pending";
+            await f.Main.RunTypedCommand.ExecuteAsync();
+            Dispatcher.UIThread.RunJobs();
+            var window = (ResponseWindow)typeof(ResponseWindowController).GetField("window",
+                BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(controller)!;
+            window.UpdateLayout();
+            var text = $"{f.Main.ResponseTitle}. {f.Main.ResponseBody}";
+            var reviewed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            f.Main.PropertyChanged += (_, args) =>
+            {
+                if (string.Equals(args.PropertyName, nameof(f.Main.CanConfirmCallSpeech), StringComparison.Ordinal)
+                    && f.Main.CanConfirmCallSpeech) { reviewed.TrySetResult(); }
+            };
+            var review = window.GetVisualDescendants().OfType<Button>().Single(button =>
+                string.Equals(button.Content as string, "Review speak once during call", StringComparison.Ordinal));
+            f.Main.CanReviewCallSpeech.Should().BeTrue(f.Main.CallSpeechStatus);
+            review.Command.Should().BeSameAs(f.Main.ReviewCallSpeechCommand);
+            review.Command!.Execute(null);
+            await reviewed.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+            views.Should().ContainSingle();
+            views[0].State.ActiveText.Should().Contain("EXACT RESPONSE TO SPEAK").And.EndWith(text);
+            var inactivity = (PresentationInactivityTimeout)typeof(ResponseWindow).GetField("responseInactivity",
+                BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
+            inactivity.IsScheduled.Should().BeFalse("the separate exact review must not be auto-hidden mid-review");
+            f.Main.IsSpeechResponseEnabled.Should().BeFalse();
+            f.SilentSpeech!.AdmittedRequests.Should().Be(0);
+            var confirm = window.GetVisualDescendants().OfType<Button>().Single(button =>
+                string.Equals(button.Content as string, "Confirm speak once", StringComparison.Ordinal));
+            confirm.Command.Should().BeSameAs(f.Main.ConfirmCallSpeechCommand);
+            var started = f.SilentSpeech.Arm();
+            var completion = f.Main.ConfirmCallSpeechCommand.ExecuteAsync();
+            var observed = await Task.WhenAny(started, completion);
+            observed.Should().BeSameAs(started, f.Main.CallSpeechStatus);
+            await started.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+            f.SilentSpeech.ExactText.Should().Be(text);
+            views[0].Cleared.Should().BeTrue("the consumed review is not reusable native authority");
+            f.SilentSpeech.ObservePlayback();
+            f.Main.RefreshSpeechPlaybackFrame();
+            f.Main.IsSpeechCaptionVisible.Should().BeTrue();
+            f.SilentSpeech.Complete();
+            await completion;
+            f.Main.CallSpeechStatus.Should().Contain("completed once");
+            f.Main.CanConfirmCallSpeech.Should().BeFalse();
+            f.SilentSpeech.AdmittedRequests.Should().Be(1);
+            f.Main.IsProtectedCall.Should().BeTrue();
+            await f.Main.ConfirmCallSpeechCommand.ExecuteAsync();
+            f.SilentSpeech.AdmittedRequests.Should().Be(1);
+        });
+    }
+
+    private sealed class ProtectedCall : Kora.Core.Communication.ICallStateService
+    {
+        public Kora.Core.Communication.CallState CurrentState => Kora.Core.Communication.CallState.Active;
+        public event EventHandler<Kora.Core.Communication.CallStateChangedEventArgs>? StateChanged { add { } remove { } }
+    }
+
+    [Fact]
     public async Task BackgroundFailureRevealsItsDetailsAndCannotAutoHideBeforeExplicitDismissal()
     {
         await HeadlessSession.RunAsync(async () =>

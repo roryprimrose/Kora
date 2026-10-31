@@ -7,6 +7,7 @@ using Kora.Application.UnitTests.Interaction;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
+using Kora.Core.Skills;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Application.UnitTests.Dependencies;
@@ -82,6 +83,100 @@ public sealed partial class ModelTurnHostTests
         {
             Encoding.UTF8.GetString(f.Adapter.Wire!).Should().Contain("never-expanded");
         }
+    }
+
+    [Theory]
+    [InlineData(OwnedSkillToolSelection.None)]
+    [InlineData(OwnedSkillToolSelection.WebPageGet)]
+    [InlineData(OwnedSkillToolSelection.ReadOnlyObservations)]
+    public async Task NonInputSkillVersionsCannotOpenRequiredQuestions(OwnedSkillToolSelection tool)
+    {
+        using var f = new Fixture();
+        await using var skill = new OwnedSkillHarness(f);
+        var document = tool == OwnedSkillToolSelection.ReadOnlyObservations
+            ? OwnedDeclarativeSkillDocument.CreateObservationWorkflow("example", "1.0.0", "Example", "Description",
+                "{\"steps\":[{\"tool\":\"application.get_version\",\"input\":{}}]}")
+            : OwnedDeclarativeSkillDocument.Create("example", "1.0.0", "Example", "Description", "${input:topic}", tool);
+        skill.Store.Snapshot = skill.Store.Snapshot! with { Document = document };
+        using var review = await skill.Review();
+        review.RequiredNames.Should().BeEmpty();
+        var calls = 0;
+        await skill.Workflow.Invoking(flow => flow.CollectInputsAsync(review, new(f.Session, null), "Original",
+            new Dictionary<string, string>(StringComparer.Ordinal), skill.Authority, skill.Eligible, (_, _, _) =>
+            {
+                calls++;
+                throw new InvalidOperationException("Non-input versions cannot present questions.");
+            }, Token)).Should().ThrowAsync<InvalidOperationException>();
+        calls.Should().Be(0);
+        review.IsCurrent.Should().BeFalse();
+        f.Adapter.Calls.Should().Be(0);
+        f.RetainCalls.Should().Be(0);
+        skill.Store.Writes.Should().Be(0);
+        skill.Store.Snapshot!.Document.Should().BeSameAs(document);
+    }
+
+    [Theory]
+    [InlineData("cancel")]
+    [InlineData("generation")]
+    [InlineData("source-format")]
+    [InlineData("source-version")]
+    [InlineData("privacy")]
+    [InlineData("closed")]
+    [InlineData("expiry")]
+    public async Task AcceptedSkillFieldStillJoinsItsPresenterAndCannotBindAfterRetirement(string fault)
+    {
+        using var f = new Fixture();
+        f.Time.ExpectedDeadline = TimeSpan.FromMinutes(2);
+        await using var skill = new OwnedSkillHarness(f);
+        Parameterize(skill);
+        using var review = await skill.Review();
+        var initial = new Dictionary<string, string>(StringComparer.Ordinal);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        var collecting = skill.Workflow.CollectInputsAsync(review, new(f.Session, null), "Original unchanged",
+            initial, skill.Authority, skill.Eligible, async (owner, spec, token) =>
+            {
+                var questions = new HostQuestionService(owner, f.Time);
+                using var activity = HostActivity.BeginRoot(owner.Request, HostActivityLayer.Application, HostOperation.Presentation);
+                var shown = (await questions.CreateAsync(owner.Request, spec, owner.ExpiresAt, token)).Question!;
+                var answer = await questions.SubmitAsync(shown.Key, new([], "accepted literal"), RequestOrigin.LocalUi, token);
+                answer.Outcome.Should().Be(HostInteractionOutcome.Answered);
+                entered.SetResult();
+                await release.Task;
+                return answer;
+            }, cancellation.Token);
+        await entered.Task.WaitAsync(Token);
+        var original = skill.Store.Snapshot!;
+        if (fault is "cancel") { cancellation.Cancel(); }
+        if (fault is "generation") { f.Session = f.Session with { Generation = new(2) }; }
+        if (fault is "source-format" or "source-version")
+        {
+            skill.Store.Snapshot = original with
+            {
+                Document = OwnedDeclarativeSkillDocument.Create(original.Document.Id,
+                    fault is "source-version" ? "2.0.0" : original.Document.Version,
+                    original.Document.Name, original.Document.Description, original.Document.Guidance,
+                    guidanceFormat: fault is "source-version"
+                        ? OwnedSkillGuidanceFormat.RequiredLiteralInputs : OwnedSkillGuidanceFormat.Literal),
+            };
+        }
+        if (fault is "privacy") { f.CanControl = false; }
+        if (fault is "closed") { review.Dispose(); }
+        if (fault is "expiry") { f.Time.Now = review.ExpiresAt; }
+        collecting.IsCompleted.Should().BeFalse("logical retirement cannot release an unjoined question presenter");
+        release.SetResult();
+        await ((Func<Task>)(async () => await collecting)).Should().ThrowAsync<Exception>();
+        initial.Should().BeEmpty();
+        review.IsCurrent.Should().BeFalse();
+        skill.Store.Snapshot = original;
+        await skill.Workflow.Invoking(flow => flow.EnableAsync(review, skill.Authority, skill.Eligible, Token))
+            .Should().ThrowAsync<InvalidOperationException>();
+        f.Adapter.Calls.Should().Be(0);
+        f.RetainCalls.Should().Be(0);
+        skill.Store.Writes.Should().Be(0);
+        skill.Audit.Events.Should().NotContain(item =>
+            JsonSerializer.Serialize(item).Contains("accepted literal", StringComparison.Ordinal));
     }
 
     [Theory]

@@ -64,6 +64,7 @@ public sealed partial class MainViewModel
     {
         voiceOwnershipEligible = gate;
         Interlocked.Increment(ref voiceOwnershipBindingRevision);
+        reviewedVoiceCommand?.Revalidate();
         BindHandsFreeVoiceRuntime();
         if (voiceRecognition is HandsFreeVoiceRecognitionService handsFree) { handsFree.Revalidate(); }
     }
@@ -86,6 +87,7 @@ public sealed partial class MainViewModel
         RetireQuestionVoiceReply();
         var snapshot = eventArgs.Current;
         RetireComposerDictation();
+        RetireReviewedVoiceCommand();
         var voicePrivacyChanged = (eventArgs.Reason & (WindowsPrivacyChangeReason.Power
             | WindowsPrivacyChangeReason.MicrophonePermission | WindowsPrivacyChangeReason.InputTopology
             | WindowsPrivacyChangeReason.DefaultMicrophone)) != WindowsPrivacyChangeReason.Unknown
@@ -109,6 +111,7 @@ public sealed partial class MainViewModel
         {
             InvalidateUnavailableOutput();
         }
+        settingsUndo.Clear();
         if (Interlocked.Exchange(ref observedTopologyRevision, snapshot.TopologyRevision) != snapshot.TopologyRevision)
         {
             uiDispatcher.Post(() =>
@@ -277,6 +280,10 @@ public sealed partial class MainViewModel
             if (disposed) { return; }
             disposed = true;
         }
+        completionNotices?.Retire();
+        PropertyChanged -= CompletionNoticeHostChanged;
+        settingsUndo.Changed -= OnSettingsUndoChanged;
+        settingsUndo.Dispose();
         if (auditImpactPreview is not null)
         {
             auditImpactPreview.Changed -= OnAuditImpactPreviewChanged;
@@ -311,6 +318,12 @@ public sealed partial class MainViewModel
         PropertyChanged -= OnQuestionVoiceReadinessChanged;
         PropertyChanged -= ComposerVoiceReadinessChanged;
         composerDictation?.CloseAdmission();
+        PropertyChanged -= RevalidateReviewedVoiceCommand;
+        if (reviewedVoiceCommand is not null)
+        {
+            reviewedVoiceCommand.CloseAdmission();
+            reviewedVoiceCommand.Changed -= OnReviewedVoiceCommandChanged;
+        }
         if (dictationQuestions is not null) { dictationQuestions.ReplyTargetChanging -= OnComposerQuestionChanging; }
         // Refresh cancellation can release an awaiting caller before Dispose returns.
         HoldVoiceInput("Microphone closed · host disposed");
@@ -432,6 +445,7 @@ public sealed partial class MainViewModel
         }
         HoldVoiceInput("Microphone closed · " + reason + "; use Enable listening", sessionState, restoreOnUnlock);
         textToSpeech.InvalidateOutput();
+        settingsUndo.Clear();
         privacyClosureTask = CompletePrivacyClosureAsync(reason, hidePresentation);
     }
 
@@ -478,8 +492,10 @@ public sealed partial class MainViewModel
             var captureClosure = voiceRecognition.StopAsync();
             var outputClosure = textToSpeech.StopAsync();
             await Task.WhenAll(captureClosure, outputClosure, presentation);
+            if (completionNotices is not null) { await completionNotices.RetireAndJoinAsync(); }
             await JoinCustomizationClarification();
             await ClosePromptPreparation();
+            if (bundledActionShutdown is not null) { await bundledActionShutdown(); }
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
@@ -516,6 +532,8 @@ public sealed partial class MainViewModel
 
     private void HoldVoiceInput(string reason, WindowsSessionState? sessionState = null, bool restoreOnUnlock = false)
     {
+        Interlocked.Exchange(ref explicitVoiceActivationRevision, -1);
+        completionNotices?.Retire();
         if (disposed) { RetireHandsFreeVoiceBinding(); }
         RetireSessionCommandReviews();
         long revision;
@@ -532,6 +550,7 @@ public sealed partial class MainViewModel
         captureOpenCancellation?.Cancel();
         RetireQuestionVoiceReply();
         RetireComposerDictation();
+        RetireReviewedVoiceCommand();
         uiDispatcher.Post(() =>
         {
             if (revision != Interlocked.Read(ref voiceRecoveryRevision))
@@ -705,6 +724,11 @@ public sealed partial class MainViewModel
 
     public async Task BeginPushToTalkAsync()
     {
+        if (!IsReviewedVoiceCaptureReleased)
+        {
+            ShowInformation("Reviewed command owns input.", "Finish or cancel its exact review before starting a direct command.");
+            return;
+        }
         var editorTarget = Volatile.Read(ref customizationVoiceTarget);
         var speechInput = CaptureSpeechInterruptionInput();
         if (speechInput.Playback is not null && !voiceRecognition.IsSpeechInterruptionAvailable)

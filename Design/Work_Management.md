@@ -152,6 +152,14 @@ host-owned query services while enforcing each caller's data scope.
 Approval replies are correlated to the existing host prompt, not interpreted
 by management inference as permission to create a grant.
 
+The delivered [general-request destination operation](../docs/session-routing.md#untargeted-requests)
+separately discloses the exact original input and bounded Active metadata before
+optional local-only relatedness advice. The user can instead choose an exact
+destination without advice or cancel. Destination acknowledgment and ordinary
+submission remain separate; advice consent cannot authorize an answering provider,
+source transfer, queue editing or task replacement
+([routing admission](../src/Kora.Application/Hosting/SessionRouting/SessionRoutingService.cs)).
+
 ## Contextual Decisions, Not a Fixed Queue Prompt
 
 Use the model to decide what a new utterance means when context makes that decision clear.
@@ -335,6 +343,40 @@ Bodies and reviewed sources are not telemetry.
 
 Sessions and compact conversation share factual pending position, the submitted
 USER input, exact selected pending cancellation and held/resume controls.
+The same [lane owner](../src/Kora.Application/Hosting/SessionConversationService.Pending.cs)
+also supports an independent, deliberate **Pause ordinary dispatch** for one
+exact Active conversation, including a healthy lane with no pending requests.
+It suppresses the next ordinary start decision after the physical terminal join;
+a turn already selected for dispatch or running continues unchanged. New
+submissions retain the same provider qualification, immutable original source,
+FIFO, message/byte bounds and original authorization expiry. Native waiting
+rows show their original expiry, not a renewed deadline.
+
+**Release manual dispatch hold** clears only the typed original-user manual
+reason. **Resume held dispatch** clears only the separate failure/cancellation
+recovery hold; when both exist, both require their own deliberate operation.
+Neither action clears storage, Unknown, permission, source, consent, privacy or
+expiry fences. An expired/invalid head cannot be skipped to dispatch a later
+request. Expiry is denied without acquiring resources; fresh input/review is
+required, never renewal or replay. Manual start decisions are not action approval.
+
+The [exact typed/activated-voice adapter](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)
+uses `session dispatch status|pause|resume <session-id>` and the same admitted
+manual-control action as native Sessions/compact. Current input, channel,
+private control, exact session/generation/metadata, host-run admission and lane
+revision are host bindings; no model is needed or authorized to create this
+control. Done is not resumed, no session is created and pause/release itself
+does not renew activity, change history/context, grant permission or invoke a
+provider. The holder is volatile to this host run and generation, not durable
+authority; restart recovery of older pending work is unchanged.
+
+This is ordinary conversation control, **not** the retired public fixed-read
+diagnostic queue pause/resume, reorder or settings product. Those command
+operations remain denied. There is no global pause, second scheduler, new
+queue policy setting or task-stepping execution approval. See the
+[user controls](../docs/windows-and-tray.md#ordinary-conversation-dispatch-hold)
+and [behavioral regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ManualDispatch.cs).
+
 Cancellation wins atomically against dispatch, preserves submitted history and
 unrelated requests, and has zero provider/egress/resource effects for that
 pending turn. Active cancellation stays with the existing running-turn owner.

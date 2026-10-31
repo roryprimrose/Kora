@@ -97,6 +97,8 @@ public sealed partial class LocalTextToSpeechPreferences : ITextToSpeechPreferen
         IdentifierSaved(logger, "spoken summary limits");
     }
 
+    public void ResetSummaryLimits() => store.Delete(SummaryLimitsFileName);
+
     private static SpeechSelection ValidateSaved(SpeechSelection selection)
     {
         try { selection.Validate(); }

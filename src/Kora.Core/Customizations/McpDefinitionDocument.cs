@@ -1,6 +1,8 @@
 using System.Text;
 using System.Text.Json;
 
+using Kora.Core.Mcp;
+
 namespace Kora.Core.Customizations;
 
 public sealed class McpDefinitionDocument
@@ -8,6 +10,8 @@ public sealed class McpDefinitionDocument
     private readonly byte[] bytes;
     private readonly List<Entry> entries = [];
     private readonly int insertion;
+    private readonly bool managedShape;
+    private static readonly UTF8Encoding StrictUtf8 = new(false, true);
     private sealed record Entry(string Name, int Start, int End);
 
     public McpDefinitionDocument(ReadOnlySpan<byte> bytes)
@@ -17,6 +21,7 @@ public sealed class McpDefinitionDocument
         var prefix = bytes.StartsWith(Encoding.UTF8.Preamble) ? Encoding.UTF8.Preamble.Length : 0;
         try
         {
+            _ = StrictUtf8.GetCharCount(bytes);
             using var document = JsonDocument.Parse(bytes[prefix..].ToArray(), new JsonDocumentOptions
             { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip, MaxDepth = 16 });
             RequireUniqueProperties(document.RootElement);
@@ -24,6 +29,7 @@ public sealed class McpDefinitionDocument
             if (root.ValueKind != JsonValueKind.Object
                 || root.TryGetProperty("servers", out _) == root.TryGetProperty("mcpServers", out _))
             { throw new InvalidDataException("MCP configuration requires exactly one servers or mcpServers object."); }
+            managedShape = root.EnumerateObject().Count() == 1;
             var reader = new Utf8JsonReader(bytes[prefix..], new JsonReaderOptions
             { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip, MaxDepth = 16 });
             while (reader.Read())
@@ -48,9 +54,59 @@ public sealed class McpDefinitionDocument
             }
         }
         catch (JsonException exception) { throw new InvalidDataException("Invalid MCP JSON/JSONC configuration.", exception); }
+        catch (DecoderFallbackException exception) { throw new InvalidDataException("MCP configuration must be strict UTF-8.", exception); }
     }
 
     public IReadOnlyList<string> Names => entries.Select(entry => entry.Name).ToArray();
+
+    public void RequireManagedShape()
+    {
+        if (!managedShape)
+        { throw new InvalidDataException("This MCP file has additional root fields. It remains inspection-only; no fields were disclosed, removed or reinterpreted."); }
+    }
+
+    public byte[] ReadHttps(string name)
+    {
+        RequireManagedShape();
+        var definition = Read(name);
+        _ = ValidateHttpsServer(definition);
+        return definition;
+    }
+
+    public byte[] ReplaceHttps(string name, ReadOnlySpan<byte> definition)
+    {
+        RequireManagedShape();
+        _ = ValidateHttpsServer(definition);
+        if (Names.Contains(name, StringComparer.Ordinal)) { _ = ReadHttps(name); }
+        return Replace(name, definition);
+    }
+
+    public static McpEndpoint ValidateHttpsServer(ReadOnlySpan<byte> definition)
+    {
+        if (definition.Length is 0 or > 64 * 1024)
+        { throw new InvalidDataException("The selected HTTPS MCP entry exceeds its byte bound or is empty."); }
+        try
+        {
+            _ = StrictUtf8.GetCharCount(definition);
+            using var document = JsonDocument.Parse(definition.ToArray(), new JsonDocumentOptions
+            { MaxDepth = 16, CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true });
+            var root = document.RootElement;
+            RequireUniqueProperties(root);
+            if (root.ValueKind != JsonValueKind.Object
+                || root.EnumerateObject().Any(property => property.Name is not ("url" or "type"))
+                || !root.TryGetProperty("url", out var url) || url.ValueKind != JsonValueKind.String
+                || url.GetString() is not { Length: > 0 and <= 2048 } text || text.Any(char.IsWhiteSpace)
+                || !Uri.TryCreate(text, UriKind.Absolute, out var address)
+                || root.TryGetProperty("type", out var type)
+                    && (type.ValueKind != JsonValueKind.String || !string.Equals(type.GetString(), "http", StringComparison.Ordinal)))
+            { throw new InvalidDataException("The selected entry supports only an HTTPS URL and optional type http. Unsupported or sensitive fields remain undisclosed; no downgrade is allowed."); }
+            return new McpEndpoint(address);
+        }
+        catch (JsonException exception)
+        { throw new InvalidDataException("The selected HTTPS MCP entry is malformed.", exception); }
+        catch (DecoderFallbackException exception)
+        { throw new InvalidDataException("The selected HTTPS MCP entry must be strict UTF-8.", exception); }
+    }
 
     public byte[] Read(string name)
     {

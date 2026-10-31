@@ -5,11 +5,66 @@ that cannot be overwritten. It does not enable, select, advertise or invoke
 the saved skill. You can create and inspect skills
 without AI. **Using one for an answer is unavailable in this build**, because
 no local model is approved.
+The separate [native observation workflow](#author-and-run-an-ordered-host-observation-workflow) below uses no model and does not qualify or enable one.
 
-Start with [create and save](#complete-operation), then
+Start with [a purpose](#create-a-new-skill-from-a-purpose) or [manual create and save](#complete-operation), then
 [review a saved version for use](#review-and-invoke-one-saved-revision).
 The [file format](#native-v1-format) is needed only if you inspect the saved
 files; the native editor prepares them for you.
+
+## Author and run an ordered host observation workflow
+
+Use the separate **Kora-owned observation workflow** window, typed commands below, or the same commands with the current assistant-name voice prefix.
+This native v4 package declares actual ordered actions, not executable guidance inferred from model text ([declaration](../src/Kora.Core/Skills/ObservationWorkflowDefinition.cs), [host owner](../src/Kora.Application/Skills/ObservationSkillWorkflow.cs)).
+
+1. `owned skill workflow create inspection 1.0.0` opens a volatile draft. Set `owned skill workflow name: Inspect host readiness` and `owned skill workflow description: Read the version and recorded local runtime`.
+2. Enter this complete literal definition in the native JSON field, or after `owned skill workflow definition: `:
+
+   ```json
+   {"steps":[
+     {"tool":"application.get_version","input":{}},
+     {"tool":"readiness.get","input":{"offset":0,"count":6}},
+     {"tool":"runtime.get_status","input":{"id":"local.inference"}}
+   ]}
+   ```
+
+3. Choose **Validate**, then **Save**, or `owned skill workflow validate` and `owned skill workflow save`. Review both complete files, then separately confirm **Save disabled revision**. The immutable package remains disabled; saving never runs a step.
+4. Choose **List** and select the saved source. **Reopen** or `owned skill workflow reopen inspection 1.0.0` reads that exact version without enabling it. Existing versions cannot be overwritten.
+5. Choose **Targets** (`owned skill workflow targets`), select one displayed existing Active conversation, and enter the unchanged original request. Exact typed controls are `owned skill workflow target <session-id>` and `owned skill workflow request: <literal>`. **Next targets** pages without creating or resuming a session.
+6. Choose **Review**, or `owned skill workflow review inspection 1.0.0`. Review the complete saved source, original request, exact Active target and all host bounds. Separately choose **Enable** (`owned skill workflow enable`); this temporary one-shot review expires after two minutes. Neither the declaration nor enablement approves any action.
+7. Choose **Invoke** (`owned skill workflow invoke`). Each step opens **Approve exact observation step**, showing its exact action/input and original request/target. Approve only that step once, or Cancel. While that exact step review is pending, `owned skill workflow approve-step` or `owned skill workflow deny-step` accepts or declines it through the same gate.
+8. Inspect the complete source-labelled result and typed state. `owned skill workflow status` reports whether owned work has joined. **Cancel** or `owned skill workflow cancel` closes further dispatch and joins actual work, including cancellation-ignoring source reads. It never claims physical termination merely from a cancellation request.
+
+The only admitted IDs are `capabilities.list`, `capabilities.get`, `application.get_version`, `readiness.get`, `runtime.list`, and `runtime.get_status`. Inputs and complete results use their existing [registry schemas](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs).
+Pages remain explicit; there is no automatic pagination or guessed continuation ([execution tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ObservationWorkflows.cs)).
+
+The host assigns step numbers and enforces 1-6 steps, 8192 UTF-8 source bytes, 1024 bytes per input, 4096 total input bytes, 4096 bytes per result and 8192 complete labelled result bytes ([bounds](../src/Kora.Core/Skills/ObservationWorkflowDefinition.cs)).
+Invocation has a 15-second total budget, including step reviews. Excess input is rejected, never truncated or silently dropped ([exact-threshold tests](../tests/Kora.Core.UnitTests/Skills/ObservationWorkflowDefinitionTests.cs)).
+Excess output fails the entire workflow; earlier observations are not presented as partial success ([complete-result threshold tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ObservationWorkflows.cs)).
+
+Source replacement/change/removal, dependency observation changes, held/changed session profiles, target changes, original channel loss, policy revocation, privacy/call/ownership loss, denial, expiry and cancellation close the next step and suppress a late complete result ([host tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ObservationWorkflows.cs)).
+Failed or cancelled runs require fresh explicit review; no retry or alternate destination occurs ([native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ObservationWorkflows.cs)).
+
+Results stay in this private native window. The selected conversation binds the reviewed operation; its history is neither read nor written ([native forbidden-effect tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ObservationWorkflows.cs)).
+These actions read already-recorded host state, without setup probes, network, new tool registration, settings writes, arbitrary file access, scripts, references, branches, loops, models or hosted disclosure. Provider/tool-loop E/Q remains unavailable; native deterministic evidence does not enable it ([workflow owner](../src/Kora.Application/Skills/ObservationSkillWorkflow.cs)).
+
+`owned skill workflow editor` opens this separate owner. **Close** (`owned skill workflow close`) offers explicit discard for an unsaved volatile draft; cancel keeps it open.
+Exit/restart/handoff likewise cannot silently discard it. Save first to retain the package. Cancellation retires the original owner: Close/discard and open a fresh workflow before another operation. No draft is autosaved ([controller](../src/Kora/ObservationWorkflowController.cs)).
+
+## Create a new skill from a purpose
+
+This bounded operation implements initial **native v1 literal, local, tool-free** guidance generation through the [existing proposal owner](../src/Kora.Application/Skills/OwnedSkillGuidanceRefinementService.cs). Generation is **unavailable in this build** while the local runtime is unqualified; it never falls back to a hosted model, installs a model or claims qualification.
+
+1. Type `create a skill that explains a deployment failure`, or say it with the current activation name, for example **Kora, create a skill that explains a deployment failure**.
+2. The same editor retains the unchanged original purpose and assigns a new ID/version and owned destination. Supply only the missing bounded fields: `owned skill expected-input: User supplied failure text` and `owned skill expected-output: An explanation and next questions`. Enter **none** explicitly if no input is needed. Native fields are equivalent; this does not create v3 template parameters.
+3. Optionally replace the host's default readable name and description in the existing editor. Choose **Generate initial guidance**, or `owned skill generate`. Review the unchanged purpose and exact input/output fields, then separately confirm **Generate local guidance proposal**. Before that admission, nothing is sent to a model.
+4. Review the **complete generated manifest and guidance**, exact host-chosen owned destination, local runtime, tools none and references none. **Use proposal for next Save** stages only that exact source in memory. **Reject proposal** preserves the original fields and draft, with no save.
+5. To refine the staged guidance, enter `owned skill critique: Make the generated steps clearer.` and use the existing **Refine** operation below. It compares against the generated guidance, not the initial placeholder. Original purpose/input/output and catalogue bindings remain attached; the model cannot change metadata or destination.
+6. Choose **Validate**, then **Save**, review both complete files and the exact destination, and continue to the **separate native publication confirmation**. Only **Publish exact new version** saves the atomic no-overwrite package, **disabled**. Enablement and invocation remain independent exact-revision operations.
+
+Only the purpose and the two explicit fields enter one local tool-free model turn. Model output must be exactly one JSON `body` string; invented IDs, paths, tools, effects, dependencies or extra fields are rejected, not stripped. Guidance containing commands or attempted instructions remains untrusted literal data, never approval or executable metadata ([generation validation](../src/Kora.Application/Skills/OwnedSkillGuidanceRefinementService.cs), [native v1 document](../src/Kora.Core/Skills/OwnedDeclarativeSkillDocument.cs)).
+
+Complete serialized model input must fit **32768 bytes** and the complete two-file source **64 KiB**; there is no truncation. Missing fields, malformed output, provider failure, cancellation or late results do not save or enable anything. Draft/clarification/name/source/catalogue changes retire proposals; occupied or ambiguous names require choosing another name or cancelling, never automatic overwrite. Cancellation retains originals and the volatile draft; the host owns an ignoring model until it joins ([proposal lifecycle](../src/Kora/OwnedSkillEditorController.Refinement.cs), [atomic store](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.cs)).
 
 ## Complete operation
 
@@ -51,7 +106,7 @@ Save authority. Drafts are not autosaved.
 The bounded refinement operation supports the current Kora-owned **declarative,
 instruction-only draft**: native v1 literal guidance or native v3 required
 literal inputs. Tool-declaring v2 skills, shared originals, scripts, fixtures and
-package generation are not supported. This does not complete the entire Builder.
+general package generation are not supported. The bounded initial v1 operation above is separate. This does not complete the entire Builder.
 
 1. Create a draft and supply its metadata and complete guidance as above. If you
    reopened an immutable version, first enter a **new version** in the native
@@ -212,6 +267,11 @@ the two-file publication/reopen operation are unchanged. Formats 1 and 2,
 including any `${input:...}` text, stay literal: existing saved bytes are never
 reinterpreted.
 
+Native v4 ordered observations use their separate workflow review and action
+approvals, not required literal fields or input questions. This v3 operation
+does not admit Markdown-reference or MCP formats by compatibility fallback,
+and no format change carries earlier review, enablement or question authority.
+
 On Use, the same private input controls used for owned prompts collect every
 declared field. Enter a value natively, or use typed/current-name activated
 voice `owned skill input topic: <literal>`. Values preserve whitespace and
@@ -234,6 +294,10 @@ No ambient capture or automatic rearming is added ([native question owner](../sr
 
 Answers are data only: they cannot Save, Enable, choose source/target or approve Use. Each answer is bound to the exact original channel, control intent/session generation, reviewed source bytes and identities, declared field, question revision, expiry and current private ownership.
 Wrong, foreign, changed or late answers refuse the collection without command/session fallback. Cancel/close/expiry or editing fields during questions discards partial collection; existing manual entry remains available through a fresh review.
+Changing the original request or target during collection also retires the
+questions and preview. An accepted field answer cannot survive a subsequent
+source/version, session-generation or privacy change; pending reply work stays
+owned until it joins, with no late binding or automatic retry.
 See the [volatile question policy](../src/Kora.Application/Skills/OwnedSkillInputQuestions.cs) and [native orchestration](../src/Kora/OwnedSkillInvocationController.InputQuestions.cs).
 
 The complete bindings and single-pass expansion then appear in the existing preview, with the original task/source/target. **Confirm exact invocation once** remains a separate native confirmation.

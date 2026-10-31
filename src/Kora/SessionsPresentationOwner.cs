@@ -1,6 +1,7 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using Avalonia.LogicalTree;
 using Kora.Application.ViewModels;
 using Kora.Core.Conversation;
 
@@ -28,6 +29,12 @@ internal sealed partial class SessionsPresentationOwner
             foreach (var panel in surfaces.Select(RequestPanel).OfType<SessionRequestReviewPanel>().ToArray())
             {
 #pragma warning disable VSTHRD003 // Join this owner's exact native request operation before voluntary shutdown.
+                await panel.Operation;
+#pragma warning restore VSTHRD003
+            }
+            foreach (var panel in surfaces.SelectMany(surface => surface.GetLogicalDescendants()).OfType<TaskResponseOutputPanel>().ToArray())
+            {
+#pragma warning disable VSTHRD003 // Join the exact one-task native operation before voluntary shutdown.
                 await panel.Operation;
 #pragma warning restore VSTHRD003
             }
@@ -99,6 +106,16 @@ internal sealed partial class SessionsPresentationOwner
         Justification = "Avalonia routed Click requires void; failures route to the session model's logged recovery status.")]
     private async void OpenConversationDetail(object? sender, RoutedEventArgs args)
     {
+        if (!revoked && !args.Handled
+            && args.Source is Button { Name: "OpenObservedResult", DataContext: ObservationDetailChoice choice }
+            && model.CanOpenConversationDetails)
+        {
+            args.Handled = true;
+            try { await (DetailOperation = model.OpenObservationAsync(choice)); }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            { model.ReportDetailPresentationFailure(exception); }
+            return;
+        }
         if (!revoked && sender is Window replyPresenter
             && args.Source is Button { Name: "ReplyToAssistantAnswer", DataContext: ConversationMessage source })
         {

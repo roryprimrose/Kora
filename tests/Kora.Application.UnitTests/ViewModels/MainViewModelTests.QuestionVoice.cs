@@ -62,6 +62,22 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
+    public async Task InstructionSaveVoiceEligibilityPinsReadinessWithoutOpeningCapture()
+    {
+        var unavailable = CreateVoicePrivacyFixture();
+        unavailable.ViewModel.CaptureInstructionSaveVoiceEligibility().Should().BeNull();
+        unavailable.ViewModel.Dispose();
+        var f = await ReplyHostAsync();
+        var current = f.ViewModel.CaptureInstructionSaveVoiceEligibility();
+        current.Should().NotBeNull();
+        current!().Should().BeTrue();
+        f.Voice.IsListening.Should().BeFalse();
+        f.ViewModel.SelectedMicrophone = new("other", "Unavailable");
+        current().Should().BeFalse();
+        f.ViewModel.Dispose();
+    }
+
+    [Fact]
     public async Task Native_question_reply_binding_requires_supported_endpointing_and_a_unique_application_owner()
     {
         var legacy = CreateVoicePrivacyFixture();

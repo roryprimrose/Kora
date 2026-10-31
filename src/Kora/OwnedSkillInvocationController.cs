@@ -71,6 +71,8 @@ internal sealed partial class OwnedSkillInvocationController(
                 callRevision = main.CallPolicyRevision;
                 var captured = await workflow.ReviewAsync(command.Id!, command.Version!, authority,
                     () => Eligible() && sourceEligible(), lifetime.Token);
+                if (captured.Tool == OwnedSkillToolSelection.ReadOnlyObservations)
+                { captured.Dispose(); throw new InvalidOperationException("Use owned skill workflow review for this exact observation workflow; the ordinary guidance/model route does not execute its steps."); }
                 if (!Eligible() || !sourceEligible()) { captured.Dispose(); return; }
                 review = captured;
                 var opened = new OwnedSkillInvocationWindow(action => Start(action), captured.Tool == OwnedSkillToolSelection.WebPageGet);

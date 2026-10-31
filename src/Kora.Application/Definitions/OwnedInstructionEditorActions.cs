@@ -27,6 +27,10 @@ public sealed partial class OwnedInstructionEditorActions(
             && string.Equals(candidate.OwnedInstructionRevision, original.Revision, StringComparison.Ordinal)
             && string.Equals(candidate.Digest, original.Document.Definition.Digest, StringComparison.Ordinal));
 
+    public bool IsNewInstructionTargetObserved(string name) =>
+        Kind == ArtifactKind.Instruction && !catalogue.IsReloadUnavailable
+        && !catalogue.Candidates.Any(candidate => Matches(candidate, name));
+
     public Task<IReadOnlyList<string>> List(Func<bool> eligible, CancellationToken token) =>
         admission.Run(eligible, async (_, _, _, admitted) => await store.List(admitted).ConfigureAwait(false), token);
 
@@ -52,13 +56,8 @@ public sealed partial class OwnedInstructionEditorActions(
 
     private void ValidateProposal(ArtifactFileDocument document, string name, IReadOnlyList<ArtifactDefinition> candidates)
     {
-        var proposed = document.Definition;
-        if (proposed.CommandName is "skill" or "skills" or "instruction" or "instructions" or "prompt"
-            or "prompts" or "agent" or "agents" or "definitions" or "help" or "exit" or "settings")
-        { throw new InvalidDataException("The instruction cannot shadow a reserved control."); }
-        if (proposed.SpokenNames.Any(name => new[] { "use " + name, "run " + name }.Any(phrase => controls.Match(phrase).IsMatch)))
-        { throw new InvalidDataException("The declared instruction name would shadow a registered built-in command."); }
-        _ = new ArtifactCatalogue([.. candidates.Where(item => !Matches(item, name)), proposed]);
+        ArtifactPublicationValidation.RequireUnshadowed(document.Definition,
+            candidates.Where(item => !Matches(item, name)).ToArray(), controls);
     }
 
     public OwnedDefinitionCopy PrepareCopy(string destinationName, OwnedInstructionSnapshot source, string draft)

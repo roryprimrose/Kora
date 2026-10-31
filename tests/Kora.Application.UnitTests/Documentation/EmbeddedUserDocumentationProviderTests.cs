@@ -382,8 +382,9 @@ public sealed class EmbeddedUserDocumentationProviderTests
         page.Title.Should().Be("Tools and built-in skills: current and planned");
         page.Markdown.Should().Contain("The fixed bundled script executor is implemented but unavailable")
             .And.Contain("installed contained profile is qualified")
-            .And.Contain("Model suggestions open inspection only")
-            .And.Contain("There is no legacy native-lock fallback");
+            .And.Contain("direct and model-proposed Lock share exact package review and grants")
+            .And.Contain("without named-action permission reuse or a legacy native-lock fallback")
+            .And.Contain("preserving the original request channel");
         page.Markdown.Should().Contain("### Lock the machine");
         page.Markdown.Should().Contain("### Shut down the computer");
         page.Markdown.Should().Contain("### Restart the computer");

@@ -53,7 +53,7 @@ public sealed partial class LocalFolderAnswer(LocalFilePreview preview, ILocalFi
     {
         ArgumentNullException.ThrowIfNull(review);
         ArgumentNullException.ThrowIfNull(canPresent);
-        if (!AdmittedInput(review.Target) || !review.TryConsume())
+        if (!AdmittedInput(review.Target) || !review.IsCurrent(time.GetUtcNow()) || !review.TryConsume())
         {
             return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Denied);
         }
@@ -63,7 +63,8 @@ public sealed partial class LocalFolderAnswer(LocalFilePreview preview, ILocalFi
         try
         {
             audit.Write(requested);
-            result = await preview.UseFolderAnswerAsync(review.Source.Reference, canPresent, LocalFileAnswerResult.Empty,
+            bool ReviewedCurrent() => canPresent() && review.IsCurrent(time.GetUtcNow());
+            result = await preview.UseFolderAnswerAsync(review.Source.Reference, ReviewedCurrent, LocalFileAnswerResult.Empty,
                 async (source, _, current, token) =>
                 {
                     if (!ReferenceEquals(source, review.Source)) { return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Stale); }

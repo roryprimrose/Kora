@@ -55,6 +55,13 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess
 
     internal sealed record DefinitionFile(byte[] Bytes, string Identity, DateTime LastWriteTimeUtc);
 
+    internal static SafeFileHandle PinDefinitionFile(string path)
+    {
+        var handle = OpenFile(path, 0x80000000, 1);
+        try { VerifyFile(handle, path); return handle; }
+        catch { handle.Dispose(); throw; }
+    }
+
     internal static DefinitionFile? ReadDefinitionFile(string path, int maximumBytes, CancellationToken token)
     {
         using var handle = CreateFile(path, 0x80000000, 5, nint.Zero, 3, 0x02200000, nint.Zero);
@@ -80,7 +87,8 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess
 
     internal static string WriteDefinitionFile(string directory, DefinitionDirectory pinned, string name,
         byte[] bytes, bool replace, Func<bool> eligible, CancellationToken token,
-        Action? finalComparison = null, string? preserveSecurityFrom = null, Action? publicationCommitted = null)
+        Action? finalComparison = null, string? preserveSecurityFrom = null, Action? publicationCommitted = null,
+        Action<string>? stagedMetadata = null)
     {
         CustomizationFile.ValidateName(name);
         if (name.Contains('\\', StringComparison.Ordinal))
@@ -95,6 +103,7 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess
             RandomAccess.Write(staged, bytes, 0);
             RandomAccess.FlushToDisk(staged);
             if (original is not null) { PreserveInstructionSecurity(original, staged); }
+            stagedMetadata?.Invoke(DefinitionMetadataRevision(staged));
             finalComparison?.Invoke();
             RequireEligible(eligible, token);
             Rename(staged, pinned.Handle, name, replace, token);

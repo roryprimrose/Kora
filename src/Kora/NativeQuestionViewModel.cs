@@ -3,6 +3,7 @@ using System.Text.Json;
 
 using Kora.Application.Infrastructure;
 using Kora.Application.Interaction;
+using Kora.Core.Authorization;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
@@ -23,6 +24,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     private readonly ActivityLink[] links;
     private readonly Func<HostQuestionKey, Task<HostInteractionDecision>>? cancel;
     private readonly bool dismissible;
+    private readonly bool explainClipboardRead;
     // Terminal state and its receipt share one boundary. No I/O, gates or notifications run under it.
     private readonly Lock stateGate = new();
     private readonly TaskCompletionSource<HostInteractionDecision> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -38,6 +40,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     private string status = "Choose an answer. Editing is local; Save draft and Submit are explicit.";
     private string reviewText = string.Empty;
     private string mcpReviewText = string.Empty;
+    private PendingOperationExplanation? policyExplanation;
     private QuestionAnswer answer;
     private HostQuestionVoiceReplyService? voiceReplies;
     private Func<bool> ownsVoiceTarget = static () => false;
@@ -136,7 +139,8 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     internal NativeQuestionViewModel(HostQuestionRecord question, HostQuestionService questions,
         HostAuthorizationService authorization, HostQuestionReviewService reviews, Func<bool> canInteract,
         TimeProvider time, ILogger<NativeQuestionViewModel> logger,
-        Func<HostQuestionKey, Task<HostInteractionDecision>>? cancel = null, bool dismissible = false)
+        Func<HostQuestionKey, Task<HostInteractionDecision>>? cancel = null, bool dismissible = false,
+        bool explainClipboardRead = false)
     {
         this.question = question;
         this.questions = questions;
@@ -147,6 +151,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         this.logger = logger;
         this.cancel = cancel;
         this.dismissible = dismissible;
+        this.explainClipboardRead = explainClipboardRead;
         links = Activity.Current is { } activity ? [new(activity.Context)] : [];
         answer = question.Draft ?? EmptyAnswer();
     }
@@ -156,6 +161,29 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     internal QuestionAnswer Answer { get { lock (stateGate) { return answer; } } }
     internal string Status { get { lock (stateGate) { return status; } } }
     internal string ReviewText { get { lock (stateGate) { return reviewText; } } }
+    internal bool SupportsPolicyExplanation => explainClipboardRead;
+    internal bool HasPolicyExplanation { get { lock (stateGate) { return policyExplanation is not null; } } }
+    internal string PolicyExplanationText
+    {
+        get
+        {
+            lock (stateGate)
+            {
+                if (policyExplanation is not { } observed) { return string.Empty; }
+                var grant = observed.ApplicableGrant is { } exact
+                    ? $"Matching exact {exact.Scope} grant {exact.Id.Value:D} (revision {exact.Revision.Value}) was observed; "
+                        + "it has not been reserved or consumed."
+                    : "No applicable exact grant was observed. This read still needs native Once, This session or Always approval.";
+                return "Read snapshot only: clipboard.read - current plain-text clipboard to volatile native preview.\n"
+                    + $"Current session level at observation: {observed.SessionPolicy.DisplayName}.\n"
+                    + grant + "\nThis path requires exact clipboard-read permission independently of the session level. "
+                    + "It does not permit model use, writing, speech or history.\n"
+                    + "Current effect authority: NOT supplied by this explanation. No clipboard contents were read. "
+                    + "Return to the same approval rechecks these facts; approval and execution still use their normal fresh checks. "
+                    + "Native controls only; no spoken approval or sensitive disclosure is added.";
+            }
+        }
+    }
     internal bool HasPresentation { get { lock (stateGate) { return !cleared; } } }
     internal bool HasPendingOperation { get { lock (stateGate) { return busy; } } }
     internal bool IsWithdrawn { get { lock (stateGate) { return withdrawn; } } }
@@ -176,7 +204,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
             if (!IsEditable) { return false; }
             lock (stateGate)
             {
-                return !closed && !cleared && !busy && question.Spec.Accepts(answer, submitting: true)
+                return !closed && !cleared && !busy && policyExplanation is null && question.Spec.Accepts(answer, submitting: true)
                     && (question.Proposal is null || (reviewedKey == question.Key && displayedReviewKey == question.Key));
             }
         }
@@ -236,7 +264,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
             target = question.Key;
             value = answer;
             approval = question.Proposal is not null;
-            needsReview = approval && (reviewedKey != target || displayedReviewKey != target);
+            needsReview = approval && (policyExplanation is not null || reviewedKey != target || displayedReviewKey != target);
             if (needsReview) { status = "Review the exact current operation before approval. Reading does not approve or use it."; }
         }
         if (needsReview)
@@ -289,6 +317,24 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         return DecideAsync(target, () => reviews.ReviewAsync(target, CancellationToken.None), checking: true);
     }
 
+    internal Task ExplainPolicyAsync()
+    {
+        if (!explainClipboardRead) { return Task.CompletedTask; }
+        var expected = Question;
+        return DecideAsync(expected.Key,
+            () => authorization.ExplainPendingClipboardReadAsync(expected, null, CancellationToken.None), explaining: true);
+    }
+
+    internal Task ReturnToApprovalAsync()
+    {
+        var expected = Question;
+        PendingOperationExplanation? previous;
+        lock (stateGate) { previous = policyExplanation; }
+        if (previous is null) { return Task.CompletedTask; }
+        return DecideAsync(expected.Key,
+            () => authorization.ExplainPendingClipboardReadAsync(expected, previous, CancellationToken.None), returning: true);
+    }
+
     internal void ReportOutcome(string message)
     {
         RefreshEligibility();
@@ -301,7 +347,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     }
 
     private async Task DecideAsync(HostQuestionKey target, Func<ValueTask<HostInteractionDecision>> decide,
-        bool reviewing = false, bool checking = false)
+        bool reviewing = false, bool checking = false, bool explaining = false, bool returning = false)
     {
         StopVoiceReply();
         if (!IsEditable) { RefreshEligibility(); return; }
@@ -336,7 +382,17 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
                 else
                 {
                     status = decision.Reason;
-                    if ((reviewing || checking) && decision.Outcome == HostInteractionOutcome.Presented)
+                    if ((explaining || returning) && decision.Outcome == HostInteractionOutcome.Presented)
+                    {
+                        var observed = decision.Explanation
+                            ?? throw new InvalidDataException("The policy observation is unavailable.");
+                        if (observed.Question != target || observed.Proposal != question.Proposal)
+                        { throw new InvalidDataException("The policy observation changed the original operation."); }
+                        policyExplanation = returning ? null : observed;
+                        status = returning ? "Same pending approval revalidated. No approval or grant use occurred."
+                            : "Policy snapshot read. Return to this same approval or explicitly cancel; nothing has run.";
+                    }
+                    else if ((reviewing || checking) && decision.Outcome == HostInteractionOutcome.Presented)
                     {
                         var exact = decision.Question ?? throw new InvalidDataException("The exact review has no question.");
                         if (exact.Key != target || exact.Proposal != question.Proposal)
@@ -360,6 +416,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
                     }
                     else
                     {
+                        policyExplanation = null;
                         closed = true;
                         completion.TrySetResult(decision);
                     }
@@ -539,6 +596,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         answer = EmptyAnswer();
         reviewText = string.Empty;
         mcpReviewText = string.Empty;
+        policyExplanation = null;
         reviewedKey = null;
         displayedReviewKey = null;
     }
@@ -551,6 +609,8 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         OnPropertyChanged(nameof(Answer));
         OnPropertyChanged(nameof(Status));
         OnPropertyChanged(nameof(ReviewText));
+        OnPropertyChanged(nameof(PolicyExplanationText));
+        OnPropertyChanged(nameof(HasPolicyExplanation));
         OnPropertyChanged(nameof(HasPresentation));
         OnPropertyChanged(nameof(IsEditable));
         OnPropertyChanged(nameof(CanSubmit));

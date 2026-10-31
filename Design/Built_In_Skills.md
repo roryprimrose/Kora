@@ -2,7 +2,7 @@
 
 Status: immutable package inspection and the [script-preserving fixed-action implementation](../src/Kora/BundledFixedActionController.cs) exist.
 All bundled execution remains unavailable because the [production worker](../src/Kora.Windows/Skills/WindowsBundledScriptWorker.cs) has no qualified installed profile.
-Direct lock/shutdown/restart requests use that same host gate, not a legacy native-lock fallback; model suggestions open inspection only and require a subsequent original-user execution gesture.
+Direct Lock and model-proposed Lock use the same exact host gate, preserving the original request channel; a model cannot grant or self-confirm it. Direct shutdown/restart retain that gate; model power suggestions still open inspection only and require a subsequent original-user execution gesture. There is no legacy native-lock fallback.
 The [source inspector](../src/Kora/SkillPackagesWindow.axaml.cs) retains every original manifest, instruction, fixture, entry and shared-helper tab. See [execution availability](../docs/skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
 
 The structural migration preserves all 13 resource IDs/bytes and package
@@ -58,6 +58,9 @@ editing and reload across all definition kinds, without bundled mutation.
 A bundled package is not a blanket permission grant.
 Its complete definition and every required script are embedded application resources, not separately deployed or writable skill files.
 User skills may reference an admitted action but cannot change its executable implementation or acquire its special routing privileges.
+
+The separate [native owned observation workflow](../docs/owned-skill-authoring.md#author-and-run-an-ordered-host-observation-workflow) supports only explicit ordered calls to the existing six read-only host observations.
+Its saved declaration grants no permission: exact revision/request/Active-target review, separate enablement and independent step approvals remain mandatory. It does not enable these bundled packages or any script runner ([host owner](../src/Kora.Application/Skills/ObservationSkillWorkflow.cs)).
 
 ## Built-In Skill Manifest
 
@@ -467,13 +470,14 @@ Behaviour:
 6. Enforce microphone policy immediately on lock, regardless of how the lock occurred. Produce a correlated structured result/receipt for host presentation or permitted runtime continuation; do not expose private results on the lock screen.
 
 An unambiguous direct request identifies the intended lock, but is not
-itself an execution grant. Under the future common gate, direct and
+itself an execution grant. Under the shared Lock gate, direct and
 model-suggested lock both require action-specific approval for the exact
 version-bound implementation, with once/session/always duration choices;
 no separate named spoken confirmation is required as for shutdown/restart.
 Session is offered only under the durable binding rule below; priority dispatch
 does not waive identity, persistence, grant, or call-policy checks.
-The [composed host](../src/Kora/ApplicationLifecycle/App.ApplicationLifecycle.cs) now routes voluntary direct and model-selected lock through the same bounded owner; an unqualified runtime reports unavailable without a native fallback.
+The [composed host](../src/Kora/ApplicationLifecycle/App.ApplicationLifecycle.cs) routes voluntary direct and model-selected Lock through the same bounded owner, not a preliminary named-action approval. Fresh grants use the existing mandatory native script review, including for voice-originated requests; model selection and a later native answer cannot relabel that origin. An unqualified runtime or missing owner reports unavailable without a native fallback.
+The existing fixed native effect is the final brokered operation after exact script admission, not proof of script qualification or physical Windows lock. Accepted requests retain Unknown physical-state receipts; privacy closure joins the owned operation and retires private presentation.
 Required privacy retirement after any Windows lock remains separate from voluntary execution grants.
 Ambiguous or quoted/retrieved mentions of locking are not an invocation.
 The skill cannot select another user/session, unlock Windows, obtain credentials, elevate, or lock repeatedly on a timer.

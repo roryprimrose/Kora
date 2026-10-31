@@ -112,7 +112,7 @@ public sealed partial class MainViewModelTests
         fixture.DiagnosticPreferences.Pending = false;
         fixture.DiagnosticPreferences.AfterWrite = null;
         fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        fixture.Reasoner.Action = Kora.Core.Commands.BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels;
         await fixture.ViewModel.InitializeAsync();
         await fixture.RunAsync("lock this workstation please");
         await fixture.ViewModel.ActiveReasoningTask!;
@@ -120,6 +120,7 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync("reset " + DiagnosticRetentionCommand.OptionId);
         fixture.ViewModel.ResponseBody.Should().Be(preview);
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
         typeof(MainViewModel).GetMethod("PresentDiagnosticRetentionFailure",
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!

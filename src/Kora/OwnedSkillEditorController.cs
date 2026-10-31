@@ -11,7 +11,8 @@ namespace Kora;
 internal sealed partial class OwnedSkillEditorController(
     MainViewModel main, OwnedSkillSaveWorkflow workflow, OwnedSkillControlAdmission admission,
     Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<OwnedSkillEditorController> logger,
-    OwnedSkillInvocationController? invocation = null, OwnedSkillGuidanceRefinementService? refinement = null) : IAsyncDisposable
+    OwnedSkillInvocationController? invocation = null, OwnedSkillGuidanceRefinementService? refinement = null,
+    ObservationWorkflowController? observations = null) : IAsyncDisposable
 {
     private OwnedSkillEditorWindow? window;
     private OwnedSkillAuthoringAuthority? original;
@@ -47,6 +48,7 @@ internal sealed partial class OwnedSkillEditorController(
     private void Retire()
     {
         original?.Retire();
+        generatedBase = null;
         lifetime?.Cancel();
         CancelRefinement();
         invocation?.Retire();
@@ -58,6 +60,12 @@ internal sealed partial class OwnedSkillEditorController(
 
     private async Task Handle(OwnedSkillAuthoringCommand command, OwnedSkillAuthoringAuthority authority)
     {
+        if (command.Operation is "workflow")
+        {
+            if (observations is null) { throw new InvalidOperationException("Native observation workflows are unavailable in this host."); }
+            await observations.Handle(command.Literal!, authority);
+            return;
+        }
         if (command.Operation is "cancel-refinement")
         {
             CancelRefinement();
@@ -89,6 +97,7 @@ internal sealed partial class OwnedSkillEditorController(
                 Interlocked.Increment(ref generation);
                 dirty = true;
                 validated = null;
+                generatedBase = null;
                 CancelRefinement();
                 invocation?.Retire();
                 window?.RetireReview();
@@ -148,11 +157,23 @@ internal sealed partial class OwnedSkillEditorController(
                     opened.InputFormat.SelectedIndex = 0;
                     opened.Critique.Text = "";
                     source = null;
+                    initialAuthority = null;
+                    generatedBase = null;
+                    opened.Purpose.Text = "";
+                    opened.ExpectedInput.Text = "";
+                    opened.ExpectedOutput.Text = "";
                     CancelRefinement();
                     dirty = false;
                     uncertain = false;
                     opened.Report("New volatile declarative draft. Supply metadata, exact host capability selection and literal guidance, then Validate.");
                     break;
+                case "generate-request":
+                    if (!await DiscardOrSave()) { return; }
+                    PrepareInitial(opened, command.Literal!, authority);
+                    break;
+                case "expected-input": opened.ExpectedInput.Text = command.Literal; break;
+                case "expected-output": opened.ExpectedOutput.Text = command.Literal; break;
+                case "generate": await ProposeGuidance(opened, authority, GuidanceOperation.Generate, lifetime.Token); break;
                 case "name": opened.NameInput.Text = command.Literal; break;
                 case "description": opened.DescriptionInput.Text = command.Literal; break;
                 case "guidance": opened.Guidance.Text = command.Literal; break;
@@ -161,7 +182,7 @@ internal sealed partial class OwnedSkillEditorController(
                     opened.Critique.Text = command.Literal;
                     critiqueAuthority = authority;
                     break;
-                case "refine": await Refine(opened, authority, lifetime.Token); break;
+                case "refine": await ProposeGuidance(opened, authority, GuidanceOperation.Refine, lifetime.Token); break;
                 case "inputs":
                     opened.InputFormat.SelectedIndex = command.Literal switch
                     {
@@ -179,6 +200,8 @@ internal sealed partial class OwnedSkillEditorController(
                     };
                     break;
                 case "validate":
+                    if (initialAuthority is not null && pendingRefinement is null)
+                    { throw new InvalidOperationException("Generate and review the complete initial proposal before validation. Nothing saved."); }
                     validated = pendingRefinement is { } proposal
                         ? proposal.IsCurrent() ? proposal.Proposed : throw new InvalidOperationException("The refinement expired. Generate and review again.")
                         : opened.Document();
@@ -221,6 +244,8 @@ internal sealed partial class OwnedSkillEditorController(
                     if (!await DiscardOrSave()) { return; }
                     var saved = await workflow.Read(id, version, original!, lifetime.Token)
                         ?? throw new InvalidDataException("The exact saved skill version is absent.");
+                    if (saved.Document.ObservationWorkflow is not null)
+                    { throw new InvalidOperationException("Use the separate owned skill workflow editor for this declarative observation source; its steps cannot become literal guidance."); }
                     if (!Eligible()) { return; }
                     ShowSaved(opened, saved);
                     break;
@@ -259,6 +284,8 @@ internal sealed partial class OwnedSkillEditorController(
     {
         CancelRefinement();
         source = saved;
+        initialAuthority = null;
+        generatedBase = null;
         opened.IdInput.Text = saved.Document.Id;
         opened.VersionInput.Text = saved.Document.Version;
         opened.NameInput.Text = saved.Document.Name;
@@ -303,6 +330,7 @@ internal sealed partial class OwnedSkillEditorController(
 
     internal async Task<bool> PrepareClose()
     {
+        if (observations is not null && !await observations.PrepareClose()) { return false; }
         if (invocation is not null) { await invocation.CloseAndWait(); }
         if (window is null) { return true; }
         if (busy)
@@ -343,6 +371,7 @@ internal sealed partial class OwnedSkillEditorController(
         main.PropertyChanged -= OnMainChanged;
         main.BindOwnedSkillAuthoring(null, null);
         if (invocation is not null) { await invocation.DisposeAsync(); }
+        if (observations is not null) { await observations.DisposeAsync(); }
         await admission.DisposeAsync();
         lifetime?.Dispose();
     }

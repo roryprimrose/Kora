@@ -10,6 +10,61 @@ public sealed partial class MainViewModelTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task ObservationWorkflowAuthoringAndReviewCommandsRetainOriginalTypedOrActivatedVoiceAuthority(bool voice)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        await f.ViewModel.SetAssistantNameAsync("Nova", SecurityAuditInitiator.LocalUser);
+        var captured = new List<string>();
+        f.ViewModel.BindOwnedSkillAuthoring((command, authority) =>
+        {
+            command.Operation.Should().Be("workflow");
+            authority.IsCurrent().Should().BeTrue();
+            authority.Origin.Should().Be(voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
+            captured.Add(command.Literal!);
+            return Task.CompletedTask;
+        }, null);
+        foreach (var command in new[] { "create example 1.0.0", "definition: {\"steps\":[{\"tool\":\"application.get_version\",\"input\":{}}]}",
+            "validate", "save", "targets", "request: unchanged original", "review example 1.0.0", "enable", "invoke", "approve-step", "status", "cancel" })
+        {
+            var text = "owned skill workflow " + command;
+            if (voice) { await f.RaiseActivatedTranscriptAsync("Nova, " + text, 1); }
+            else { await f.RunAsync(text); }
+        }
+        captured.Should().HaveCount(12);
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.Session.LockCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NaturalNewSkillRequestAndClarificationsUseOriginalAuthoringRoute(bool voice)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        await f.ViewModel.SetAssistantNameAsync("Nova", SecurityAuditInitiator.LocalUser);
+        var captured = new List<OwnedSkillAuthoringCommand>();
+        f.ViewModel.BindOwnedSkillAuthoring((command, authority) =>
+        {
+            authority.Origin.Should().Be(voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
+            captured.Add(command);
+            return Task.CompletedTask;
+        }, null);
+        foreach (var command in new[] { "create a skill that  explains failures\r\nowned skill save  ",
+            "owned skill expected-input:  user text  ", "owned skill expected-output:  explanation  ", "owned skill generate" })
+        {
+            if (voice) { await f.RaiseActivatedTranscriptAsync("Nova, " + command, 1); }
+            else { await f.RunAsync(command); }
+        }
+        captured.Select(command => command.Operation).Should().Equal("generate-request", "expected-input", "expected-output", "generate");
+        captured[0].Literal.Should().Be(" explains failures\r\nowned skill save  ");
+        captured[1].Literal.Should().Be(" user text  ");
+        captured[2].Literal.Should().Be(" explanation  ");
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task OwnedSkillAuthoringPreservesOriginalTypedOrCurrentNameVoiceAndLiteralPayload(bool voice)
     {
         var f = await Fixture.CreateInitializedAsync();

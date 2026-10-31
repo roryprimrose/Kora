@@ -1,5 +1,7 @@
 using Avalonia.Headless;
 
+using Xunit;
+
 namespace Kora.Windows.IntegrationTests;
 
 /// <summary>
@@ -11,13 +13,21 @@ internal static class HeadlessSession
     private static readonly HeadlessUnitTestSession Session =
         HeadlessUnitTestSession.GetOrStartForAssembly(typeof(HeadlessSession).Assembly);
 
-    internal static Task RunAsync(Action action) => Session.Dispatch(action, CancellationToken.None);
+    internal static Task RunAsync(Action action) => RunAsync(() => { action(); return Task.CompletedTask; });
 
-    internal static Task RunAsync(Func<Task> action) => Session.Dispatch<bool>(async () =>
+    internal static Task RunAsync(Func<Task> action)
     {
-        await action();
-        return true;
-    }, CancellationToken.None);
+        var timing = NativeFixturePhaseTimings.Capture(TestContext.Current);
+        return Session.Dispatch<bool>(() => timing.RunAsync(async () =>
+        {
+            await action();
+            return true;
+        }), CancellationToken.None);
+    }
 
-    internal static Task<T> RunAsync<T>(Func<T> action) => Session.Dispatch(action, CancellationToken.None);
+    internal static Task<T> RunAsync<T>(Func<T> action)
+    {
+        var timing = NativeFixturePhaseTimings.Capture(TestContext.Current);
+        return Session.Dispatch<T>(() => timing.RunAsync(() => Task.FromResult(action())), CancellationToken.None);
+    }
 }

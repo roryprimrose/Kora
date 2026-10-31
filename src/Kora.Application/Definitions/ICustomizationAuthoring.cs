@@ -8,5 +8,6 @@ public interface ICustomizationAuthoring
         Func<bool> eligible, CancellationToken token);
 
     Task<CustomizationAuthoringResult> Refine(CustomizationSource source, IReadOnlyList<CustomizationFile> files,
-        CustomizationAuthoringContext context, string requestText, Func<bool> eligible, CancellationToken token);
+        CustomizationAuthoringContext context, string requestText, Func<bool> eligible, CancellationToken token,
+        Func<CancellationToken, Task>? validateSource = null);
 }

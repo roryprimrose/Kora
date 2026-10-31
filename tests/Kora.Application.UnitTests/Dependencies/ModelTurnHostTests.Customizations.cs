@@ -21,6 +21,37 @@ public sealed partial class ModelTurnHostTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task McpAuthoringRejectsSourceAndVoiceMetadataBeforeAnyModelDisclosure(bool interpret)
+    {
+        using var f = new Fixture();
+        await using var admission = new InstructionControlAdmission(f, f, new(f));
+        await using var runner = AuthoringRunner(f, f.PolicyHost);
+        var source = new CustomizationSource("mcp.example", CustomizationKind.McpServer, CustomizationScope.Kora,
+            "example", "owned", "example.json");
+        var service = new CustomizationAuthoringService(admission, runner, f.Time);
+        Action action = () =>
+        {
+            if (interpret)
+            {
+                _ = service.Interpret(new(source.Kind, source.Scope, source.Name, source.PrimaryFile, false, false),
+                    "Change this endpoint", () => true, Token);
+            }
+            else
+            {
+                _ = service.Refine(source, [new(source.PrimaryFile, ArtifactFileDocument.Encode(
+                    "{\"url\":\"https://private.invalid/mcp\"}", false))], new(source.PrimaryFile),
+                    "Change this endpoint", () => true, Token);
+            }
+        };
+        action.Should().Throw<InvalidOperationException>().WithMessage("*native URL fields*");
+        f.Adapter.Calls.Should().Be(0);
+        f.RetainCalls.Should().Be(0);
+        f.PolicyHost.IsQuiescent.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task OriginalAgentDescriptionGeneratesOnlyInertToolFreeFieldsWithoutRetention(bool voice)
     {
         using var f = new Fixture();
@@ -239,6 +270,49 @@ public sealed partial class ModelTurnHostTests
         f.Messages.Should().NotContain(message => message.Contains("Explain and refine", StringComparison.Ordinal));
         await service.Invoking(authoring => authoring.Refine(source, files, new(null), " ", () => true, Token))
             .Should().ThrowAsync<InvalidDataException>();
+    }
+
+    [Theory]
+    [InlineData("before")]
+    [InlineData("after")]
+    [InlineData("current")]
+    public async Task SharedAuthoringRunnerPreservesExactSourceValidationBeforeDisclosureAndAfterGeneration(string change)
+    {
+        using var f = new Fixture();
+        await using var admission = new InstructionControlAdmission(f, f, new(f));
+        await using var runner = AuthoringRunner(f, f.PolicyHost);
+        var source = new CustomizationSource("file.example", CustomizationKind.Skill, CustomizationScope.Kora,
+            "example", "source", "SKILL.md");
+        CustomizationFile[] files = [new(source.PrimaryFile, ArtifactFileDocument.Encode(
+            CustomizationLayout.Template(source.Kind, source.Name), false))];
+        f.Adapter.Reply = new(ModelTurnOutcome.Succeeded, ModelProviderSelection.OllamaCandidate,
+            new(JsonSerializer.Serialize(new
+            {
+                explanation = "Reviewed source",
+                files = files.Select(file => new { name = file.Name, text = file.Text }),
+            }), null));
+        var sourceCurrent = change is not "before";
+        var sourceChecks = 0;
+        f.Adapter.OnRun = () => { if (change is "after") { sourceCurrent = false; } };
+        var service = new CustomizationAuthoringService(admission, runner, f.Time);
+        var operation = () => service.Refine(source, files, new(source.PrimaryFile), "Discuss this exact source",
+            () => true, Token, _ =>
+            {
+                sourceChecks++;
+                if (!sourceCurrent) { throw new InvalidOperationException("Source changed"); }
+                return Task.CompletedTask;
+            });
+        if (change is "current")
+        {
+            var result = await operation();
+            result.Files.Single().Digest.Should().Be(files.Single().Digest);
+            sourceChecks.Should().BeGreaterThan(1);
+        }
+        else { await operation.Should().ThrowAsync<InvalidOperationException>(); }
+        sourceChecks.Should().BeGreaterThan(0);
+        f.Adapter.Calls.Should().Be(change is "before" ? 0 : 1);
+        f.RetainCalls.Should().Be(0);
+        f.PolicyHost.IsQuiescent.Should().BeTrue();
     }
 
     private static LocalContextTurnWorkflow AuthoringRunner(Fixture f, ModelTurnHost host) =>

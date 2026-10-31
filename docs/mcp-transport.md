@@ -56,6 +56,11 @@ In the registered shared-skill inspector, select exactly one eligible skill and 
 
 **Stop and close reviewed use** cancels and joins the original operation, including cancellation-ignoring provider/transport work. Changed inputs/selections require new review and enablement. Source/account/schema changes, revocation, expired permission or failed readback suppress success/publication; no automatic retry or rollback is claimed ([canonical owner](../src/Kora.Application/Hosting/SessionConversationService.Mcp.cs)).
 
+The authenticated connection must finish disposal before its successful result
+enters local continuation or presentation. The host rechecks source/session and
+permissions after that join. Pending disposal retains the owner; failed disposal,
+revocation or cancellation cannot produce a successful retained answer.
+
 Arguments must be one JSON object of at most 2,048 UTF-8 bytes, starting with `{`
 and ending with `}`. Whitespace inside those braces is preserved; leading or
 trailing whitespace is rejected before confirmation because the model protocol

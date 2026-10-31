@@ -35,6 +35,7 @@ internal sealed class McpInvocation(
     private readonly List<Func<CancellationToken, Task>> grants = [];
     private McpConnectionDescriptor? descriptor;
     private IMcpConnection? connection;
+    private Task? transportJoin;
     private McpDiscoveredTool? selected;
     private McpAccountChoice? accountChoice;
     private Dependencies.ModelTurn? turn;
@@ -163,6 +164,8 @@ internal sealed class McpInvocation(
             Mcp: new(id, descriptor!.SourceRevision, time.GetUtcNow(), result.Text, result.StructuredJson));
         if (!CapabilityReplyWire.IsWithinLimit(reply))
         { return new(CapabilityOutcome.Failed, "mcp-complete-result-exceeds-limit"); }
+        await JoinTransportAsync().ConfigureAwait(false);
+        await ValidateAsync(token).ConfigureAwait(false);
         Completed = true;
         Result = reply.Mcp;
         return reply;
@@ -334,9 +337,13 @@ internal sealed class McpInvocation(
         if (connection is { } owned)
         {
             connection = null;
-            await owned.DisposeAsync().ConfigureAwait(false);
+            transportJoin = DisposeTransportAsync(owned);
         }
+        if (transportJoin is { } joining) { await joining.ConfigureAwait(false); }
     }
+
+    private static async Task DisposeTransportAsync(IMcpConnection owned) =>
+        await owned.DisposeAsync().ConfigureAwait(false);
 
     internal async Task ValidateResultSourceAsync(CancellationToken token)
     {

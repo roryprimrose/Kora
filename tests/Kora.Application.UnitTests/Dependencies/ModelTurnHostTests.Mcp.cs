@@ -440,11 +440,14 @@ public sealed partial class ModelTurnHostTests
         internal Action<string>? AfterExchange { get; set; }
         internal TaskCompletionSource<ImmutableArray<byte>>? PendingCall { get; init; }
         internal TaskCompletionSource? EnteredCall { get; init; }
+        internal TaskCompletionSource? PendingDispose { get; init; }
+        internal TaskCompletionSource? EnteredDispose { get; init; }
         internal List<string> Methods { get; } = [];
         internal string? InvocationArguments { get; private set; }
         internal int Notifications { get; private set; }
         internal bool Connected { get; private set; }
         internal bool Disposed { get; private set; }
+        internal int DisposeCalls { get; private set; }
         internal Action? AfterDispose { get; set; }
         public McpAccountReference Account => Fault is "account-swap"
             ? new(Guid.NewGuid(), new(1), Guid.NewGuid(), account.Destination) : account;
@@ -500,7 +503,14 @@ public sealed partial class ModelTurnHostTests
             AfterExchange?.Invoke(method);
             return Task.FromResult(ImmutableArray.CreateRange(Encoding.UTF8.GetBytes(response)));
         }
-        public ValueTask DisposeAsync() { Disposed = true; AfterDispose?.Invoke(); return ValueTask.CompletedTask; }
+        public async ValueTask DisposeAsync()
+        {
+            DisposeCalls++;
+            EnteredDispose?.TrySetResult();
+            if (PendingDispose is { } pending) { await pending.Task; }
+            Disposed = true;
+            AfterDispose?.Invoke();
+        }
     }
 
     private sealed class McpApprovals(Fixture f) : IHostInteractionStore

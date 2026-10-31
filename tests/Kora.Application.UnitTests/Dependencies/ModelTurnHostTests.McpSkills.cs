@@ -504,6 +504,95 @@ public sealed partial class ModelTurnHostTests
         }
     }
 
+    [Theory]
+    [InlineData("none")]
+    [InlineData("disposal-failed")]
+    [InlineData("source")]
+    [InlineData("permission")]
+    [InlineData("cancelled")]
+    public async Task McpSkillConnectionDisposalMustJoinBeforeContinuationOrDurableSuccess(string fault)
+    {
+        using var f = new Fixture();
+        await using var skill = new SharedSkillHarness(f);
+        await skill.Register();
+        using var source = new McpSource();
+        DeclareMcpTool(skill, source);
+        f.ProfileCatalogue.Status = Kora.Core.Providers.ProviderCatalogueStatus.Current;
+        f.ProfilePreferences.Value = new(Kora.Core.Providers.ProviderService.Local, [Profile()]);
+        var model = new McpModelTransport();
+        await using var loop = new BoundedModelTurnAdapter(model, f.Time, f);
+        var host = f.ConfiguredProfiles(adapter: loop);
+        var approval = new McpApprovals(f);
+        var pending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var broker = new McpBroker(source.Account) { PendingDispose = pending, EnteredDispose = entered };
+        var workflow = skill.McpWorkflow(McpService(f, host, source, broker, approval, await source.Policy()));
+        using var review = await workflow.ReviewAsync(skill.Reader.Source, skill.Reader.Snapshot(), new(f.Session, null),
+            skill.Eligible, RequestOrigin.LocalUi, Token);
+        await workflow.EnableAsync(review, skill.Eligible, RequestOrigin.LocalUi, Token);
+        using var invocation = await workflow.PrepareMcpAsync(review, "Review reference", source.ServerId, source.Account,
+            SkillMcpArguments, skill.Eligible, RequestOrigin.LocalUi, Token);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        var observed = 0;
+        var operation = workflow.InvokeMcpAsync(invocation, skill.Eligible, approval.Present, McpSelect,
+            cancellation.Token, (_, _) => observed++);
+        await entered.Task.WaitAsync(Token);
+        try
+        {
+            operation.IsCompleted.Should().BeFalse();
+            broker.Disposed.Should().BeFalse();
+            model.Requests.Count.Should().Be(1, "the result cannot enter model continuation until the connection joins");
+            f.Retained!.Outcome.Should().BeNull();
+            observed.Should().Be(0);
+            skill.Audit.Events.Should().NotContain(item => item.ActionId == "skills.mcp-revision.invoke"
+                && item.Outcome == SecurityAuditOutcome.Succeeded);
+            if (fault is "source") { skill.Reader.Text += "\nchanged during connection disposal"; }
+            if (fault is "permission") { approval.Revoke(); }
+            if (fault is "cancelled") { await cancellation.CancelAsync(); }
+            if (fault is "disposal-failed") { pending.SetException(new IOException("Synthetic disposal failure")); }
+            else { pending.SetResult(); }
+            if (fault is "disposal-failed")
+            {
+                await FluentActions.Awaiting(async () => await operation).Should().ThrowAsync<IOException>();
+                f.Retained!.Outcome.Should().BeNull();
+                f.Task!.Task.State.Should().Be(HostTaskState.DispatchRecorded);
+            }
+            else if (fault is "source" or "permission" or "cancelled")
+            {
+                await FluentActions.Awaiting(async () => await operation)
+                    .Should().ThrowAsync<ConversationSubmissionUnconfirmedException>();
+                f.Retained!.AssistantResponse.Should().BeNull();
+            }
+            else
+            {
+                var receipt = await operation;
+                receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+                receipt.Message.AssistantResponse.Should().NotBeNull();
+                observed.Should().Be(1);
+                model.Requests.Should().HaveCount(2);
+            }
+            if (fault is not "none")
+            {
+                observed.Should().Be(0);
+                model.Requests.Should().ContainSingle();
+                skill.Audit.Events.Should().NotContain(item => item.ActionId == "skills.mcp-revision.invoke"
+                    && item.Outcome == SecurityAuditOutcome.Succeeded);
+            }
+            broker.Disposed.Should().Be(fault is not "disposal-failed");
+            broker.DisposeCalls.Should().Be(1);
+            broker.Methods.Count(method => string.Equals(method, "tools/call", StringComparison.Ordinal)).Should().Be(1);
+            host.IsQuiescent.Should().BeTrue();
+        }
+        finally
+        {
+            pending.TrySetResult();
+            try { await operation; }
+            catch (ConversationSubmissionUnconfirmedException) when (fault is "source" or "permission" or "cancelled") { }
+            catch (IOException) when (fault is "disposal-failed") { }
+            await host.WaitForQuiescenceAsync(CancellationToken.None);
+        }
+    }
+
     [Fact]
     public async Task McpSkillCannotEnterPagePreparationOrDispatchAfterOriginalCancellation()
     {

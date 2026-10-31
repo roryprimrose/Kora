@@ -332,6 +332,24 @@ runner latency. Same-run handoff removes one startup, not the much larger cost
 of long-running validation and failed attempts. Main release builds remain
 independent and may overlap candidates; their execution is not an idle queue gap.
 
+On 31 October 2026, 12:39-21:39 UTC, 17 completed candidates produced three
+merges and 14 cancellations. Twelve cancelled candidates had a confirmed
+30-minute UI job timeout; cancelled runs consumed 413 minutes. This is failed
+validation occupancy, not a controller handoff delay.
+
+The Windows runner now retains five hosted job identities but uses seven
+disjoint processes, isolating the complete conversation and editor classes
+inside their existing synchronous UI jobs. The portable required check joins
+independent test/coverage and exact-source payload producers. The installer can
+start after payload verification while portable tests continue; release still
+requires every existing protected check. The portable aggregate requires both
+producers to succeed; admission job identities stay compatible with predecessor
+workflows so completed runs can still retire during rollout. No test category
+is deferred.
+See the [development checks](../../CONTRIBUTING.md#development-checks) for
+partition discovery, execution-evidence checks and measured timing projections;
+shared-runner timing is not guaranteed by those projections.
+
 Controller workflow success means reconciliation completed, not that a PR
 merged. Inspect its `Merge queue:` outcome and the durable active/blocked state.
 Conflicts still require a contributor repair; the controller does not resolve

@@ -8,6 +8,9 @@ param(
     [switch] $ListShards,
 
     [Parameter()]
+    [switch] $ListPartitions,
+
+    [Parameter()]
     [ValidateRange(1, 64)]
     [int] $MaxThreads = 2,
 
@@ -21,21 +24,18 @@ $ErrorActionPreference = 'Stop'
 
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $projectPath = Join-Path $repositoryRoot 'tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj'
-$resultsRoot = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot $ResultsDirectory))
+$resultsRoot = [System.IO.Path]::GetFullPath($ResultsDirectory, $repositoryRoot)
 
-# Run 40468340968 exhausted ui-platform's whole-job budget. Move its 544s conversation class
-# to the 477s synchronous definitions shard, retaining whole classes and the serial UI dispatcher.
-# Run 40781657098 then exhausted definitions at 1,804s; leave its 133s Find class on
-# synchronous ui-platform for predicted whole jobs of 1,671s and 1,561s respectively.
-# Run 40815883491 breached platform's job cap; move its 385s of settings UI work
-# intact to synchronous definitions. Keep native-UX's buffered profile unchanged.
-# Run 40836599680 cancelled definitions after 1,400 of 1,421 cases; move its
-# complete 381.4s owned-editor class to synchronous platform, which finished in 1,114s.
+if ($ListShards -and $ListPartitions) {
+    throw 'Select either shard or execution-partition discovery, not both.'
+}
+
 $platformEditorPrefix = 'Kora.Windows.IntegrationTests.ArtifactDiscovery.OwnedDefinitionEditorWindowTests.'
+$conversationPrefix = 'Kora.Windows.IntegrationTests.SessionsConversationTests.'
 $definitionUiPrefixes = @(
     'Kora.Windows.IntegrationTests.ArtifactDiscovery.'
     'Kora.Windows.IntegrationTests.BoundedSurfaceAccessibilityTests.'
-    'Kora.Windows.IntegrationTests.SessionsConversationTests.'
+    $conversationPrefix
     'Kora.Windows.IntegrationTests.SettingsSectionNavigationTests.'
     'Kora.Windows.IntegrationTests.SettingsResetMenuTests.'
     'Kora.Windows.IntegrationTests.SettingsSpecialistNavigationTests.'
@@ -81,10 +81,48 @@ if ($ListShards) {
     return $shards
 }
 
+# Keep the hosted job selectors stable while isolating the two largest serial UI classes.
+$splitClasses = @{
+    'ui-definitions' = @{ Name = 'ui-conversations'; Prefix = $conversationPrefix }
+    'ui-platform' = @{ Name = 'ui-editors'; Prefix = $platformEditorPrefix }
+}
+$partitions = @(
+    foreach ($definition in $shards) {
+        if ($splitClasses.ContainsKey($definition.Name)) {
+            $split = $splitClasses[$definition.Name]
+            [pscustomobject]@{
+                Name = $definition.Name
+                Shard = $definition.Name
+                Filter = ($definition.Filter -split '\|' | ForEach-Object {
+                    "$_&FullyQualifiedName!~$($split.Prefix)"
+                }) -join '|'
+            }
+            [pscustomobject]@{
+                Name = $split.Name
+                Shard = $definition.Name
+                Filter = "FullyQualifiedName~$($split.Prefix)"
+            }
+        }
+        else {
+            [pscustomobject]@{
+                Name = $definition.Name
+                Shard = $definition.Name
+                Filter = $definition.Filter
+            }
+        }
+    }
+)
+if ($ListPartitions) {
+    return $partitions
+}
+
+$dotnetPath = (Get-Command dotnet -CommandType Application, ExternalScript -ErrorAction Stop |
+    Select-Object -First 1).Source
+$resultsRoot = Join-Path $resultsRoot ([guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $resultsRoot -Force | Out-Null
 
 $runs = @(
-    $shards | ForEach-Object -Parallel {
+    $partitions | ForEach-Object -Parallel {
         $shardDirectory = Join-Path $using:resultsRoot $_.Name
         $logPath = Join-Path $shardDirectory 'console.log'
         New-Item -ItemType Directory -Path $shardDirectory -Force | Out-Null
@@ -107,22 +145,43 @@ $runs = @(
             '--report-trx'
         )
 
-        & dotnet @arguments *> $logPath
+        & $using:dotnetPath @arguments *> $logPath
+        $exitCode = $LASTEXITCODE
 
         [pscustomobject]@{
             Name = $_.Name
-            ExitCode = $LASTEXITCODE
+            ExitCode = $exitCode
             LogPath = $logPath
         }
-    } -ThrottleLimit $shards.Count
+    } -ThrottleLimit $partitions.Count
 )
 
 $failedShards = @()
-foreach ($definition in $shards) {
-    $run = $runs | Where-Object Name -EQ $definition.Name
+foreach ($definition in $partitions) {
+    $run = @($runs | Where-Object Name -CEQ $definition.Name)
+    if ($run.Count -ne 1) {
+        throw "Missing or duplicate Windows execution partition: $($definition.Name)."
+    }
+    $run = $run[0]
     Write-Host "::group::Windows integration tests ($($definition.Name))"
     Get-Content -LiteralPath $run.LogPath
     Write-Host '::endgroup::'
+
+    if ($run.ExitCode -eq 0) {
+        $directory = Split-Path -Parent $run.LogPath
+        $reports = @(Get-ChildItem -LiteralPath $directory -Filter '*.trx' -File -Recurse)
+        if ($reports.Count -ne 1) {
+            throw "Windows partition $($run.Name) must produce exactly one fresh TRX report."
+        }
+        [xml] $report = Get-Content -Raw -LiteralPath $reports[0].FullName
+        $results = @($report.TestRun.Results.UnitTestResult)
+        $counters = $report.TestRun.ResultSummary.Counters
+        if ($results.Count -eq 0 -or $results.Count -ne [int] $counters.total -or
+            [int] $counters.passed -ne $results.Count -or
+            @($results | Where-Object outcome -CNE 'Passed').Count -gt 0) {
+            throw "Windows partition $($run.Name) did not produce complete, nonempty passing test evidence."
+        }
+    }
 
     if ($run.ExitCode -ne 0) {
         $failedShards += $run.Name

@@ -219,8 +219,8 @@ jobs:
           path: ${{ runner.temp }}/kora-native-fixture-evidence
           if-no-files-found: error
 
-  portable:
-    name: Portable build, tests, coverage, and package
+  portable-tests:
+    name: Portable build, tests, and coverage
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: version
@@ -251,10 +251,6 @@ jobs:
 
       - name: Restore local tools
         run: dotnet tool restore
-
-      - name: Enforce dependency license policy
-        shell: pwsh
-        run: ./eng/Test-DependencyLicenses.ps1
 
       - name: Build solution without restore
         run: dotnet build Kora.slnx --configuration Release --no-restore
@@ -359,6 +355,40 @@ jobs:
           if-no-files-found: error
           include-hidden-files: true
 
+  payload:
+    name: Publish and inspect exact-source payloads
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: version
+    if: needs.version.outputs.already-published != 'true'
+    env:
+      Version: ${{ needs.version.outputs.version }}
+      SOURCE_REVISION: ${{ needs.version.outputs.source-revision }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.version.outputs.source-revision }}
+          persist-credentials: false
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: |
+            **/packages.lock.json
+
+      - name: Restore locked dependencies
+        run: dotnet restore Kora.slnx --locked-mode
+
+      - name: Restore local tools
+        run: dotnet tool restore
+
+      - name: Enforce dependency license policy
+        shell: pwsh
+        run: ./eng/Test-DependencyLicenses.ps1
+
       - name: Package exact-revision source tools without executing them
         shell: pwsh
         env:
@@ -455,6 +485,23 @@ jobs:
           path: artifacts/Kora-win-x86
           if-no-files-found: error
           include-hidden-files: true
+
+  portable:
+    name: Portable build, tests, coverage, and package
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [admission, version, portable-tests, payload]
+    if: always() && needs.version.outputs.already-published != 'true' && (needs.admission.result != 'success' || needs.admission.outputs.full != 'false')
+    steps:
+      - name: Require portable tests and exact-source payloads to succeed
+        shell: pwsh
+        env:
+          TEST_RESULT: ${{ needs.portable-tests.result }}
+          PAYLOAD_RESULT: ${{ needs.payload.result }}
+        run: |
+          if ($env:TEST_RESULT -cne 'success' -or $env:PAYLOAD_RESULT -cne 'success') {
+            throw "Portable validation is incomplete: tests '$env:TEST_RESULT'; payload '$env:PAYLOAD_RESULT'."
+          }
 
   queue-feedback:
     name: Queue policy feedback
@@ -564,7 +611,7 @@ jobs:
     name: Build WiX MSI and custom Burn setup
     runs-on: windows-latest
     timeout-minutes: 20
-    needs: [version, portable]
+    needs: [version, payload]
     env:
       SOURCE_REVISION: ${{ needs.version.outputs.source-revision }}
     steps:

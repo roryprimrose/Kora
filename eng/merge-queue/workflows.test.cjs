@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { execution, CHECKS, GATE } = require('./policy.cjs');
+const { execution, CHECKS, GATE, JOBS, terminalJobs } = require('./policy.cjs');
 const root = path.resolve(__dirname, '..', '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8').replaceAll('\r\n', '\n');
 const ci = process.env.KORA_QUEUE_WORKFLOW_TEST_PATH
@@ -77,37 +77,75 @@ test('candidate jobs check out the admitted SHA, preserve all required identitie
   assert.match(job('version'), /ref: \$\{\{ needs\.admission\.outputs\.source \}\}/);
   assert.match(job('version'), /publish: \$\{\{ needs\.admission\.outputs\.candidate != 'true'/);
   assert.match(job('version'), /if: steps\.version\.outputs\.publish == 'true' && needs\.admission\.outputs\.candidate != 'true'/);
-  for (const name of ['portable', 'windows-integration-shards', 'installer']) {
+  for (const name of ['portable-tests', 'payload', 'windows-integration-shards', 'installer']) {
     assert.match(job(name), /ref: \$\{\{ needs\.version\.outputs\.source-revision \}\}/);
     assert.match(job(name), /persist-credentials: false/);
     assert.doesNotMatch(job(name), /permission[s]?:[\s\S]*write/);
   }
-  for (const name of ['portable', 'installer']) {
+  for (const name of ['portable-tests', 'payload', 'installer']) {
     assert.match(job(name), /SOURCE_REVISION: \$\{\{ needs\.version\.outputs\.source-revision \}\}/);
     assert.doesNotMatch(job(name), /SourceRevision "\$env:GITHUB_SHA"|Revision "\$env:GITHUB_SHA"/);
   }
   assert.match(job('release'), /inputs\.queue_ticket == ''/);
   assert.match(job('windows-integration'), /needs: \[admission, version, windows-integration-shards\]/);
+  assert.match(job('portable'), /needs: \[admission, version, portable-tests, payload\]/);
+  assert.match(job('installer'), /needs: \[version, payload\]/);
+  assert.match(job('payload'), /needs: version/);
+  assert.doesNotMatch(job('payload'), /needs:.*portable/);
   assert.match(ci, /cancel-in-progress: \$\{\{ !inputs\.queue_ticket \}\}/);
 });
 
+test('independent producers are joined without preventing retirement of predecessor workflow runs', () => {
+  const predecessorJobs = JOBS.map(name => ({ name, status: 'completed', conclusion: 'success' }));
+  assert.equal(terminalJobs(predecessorJobs), true);
+  assert.equal(terminalJobs([...predecessorJobs,
+    { name: 'Portable build, tests, and coverage', status: 'completed', conclusion: 'success' },
+    { name: 'Publish and inspect exact-source payloads', status: 'completed', conclusion: 'success' },
+  ]), true);
+  assert.ok(!JOBS.includes('Portable build, tests, and coverage'));
+  assert.ok(!JOBS.includes('Publish and inspect exact-source payloads'));
+  assert.match(job('portable-tests'), /name: Portable build, tests, and coverage/);
+  assert.match(job('payload'), /name: Publish and inspect exact-source payloads/);
+  assert.match(job('release'), /needs: \[version, portable, windows-integration, installer\]/);
+  assert.match(job('portable'), /needs: \[admission, version, portable-tests, payload\]/);
+});
+
 test('required aggregate skips only an explicitly waiting admission or an already-published release', () => {
-  const expression = job('windows-integration').match(/^    if: (.+)$/m)[1]
-    .replace('always()', 'true')
-    .replaceAll('needs.version.outputs.already-published', "needs.version.outputs['already-published']");
-  const evaluate = new Function('needs', `return ${expression};`);
-  for (const result of ['success', 'failure', 'cancelled', 'skipped']) {
-    for (const full of ['true', 'false', '']) {
-      for (const versionResult of ['success', 'failure', 'cancelled', 'skipped']) {
-        const needs = { admission: { result, outputs: { full } },
-          version: { result: versionResult, outputs: {} } };
-        assert.equal(evaluate(needs), !(result === 'success' && full === 'false'),
-          JSON.stringify(needs));
-        needs.version.outputs['already-published'] = 'true';
-        assert.equal(evaluate(needs), false);
+  for (const name of ['portable', 'windows-integration']) {
+    const expression = job(name).match(/^    if: (.+)$/m)[1]
+      .replace('always()', 'true')
+      .replaceAll('needs.version.outputs.already-published', "needs.version.outputs['already-published']");
+    const evaluate = new Function('needs', `return ${expression};`);
+    for (const result of ['success', 'failure', 'cancelled', 'skipped']) {
+      for (const full of ['true', 'false', '']) {
+        for (const versionResult of ['success', 'failure', 'cancelled', 'skipped']) {
+          const needs = { admission: { result, outputs: { full } },
+            version: { result: versionResult, outputs: {} } };
+          assert.equal(evaluate(needs), !(result === 'success' && full === 'false'),
+            JSON.stringify(needs));
+          needs.version.outputs['already-published'] = 'true';
+          assert.equal(evaluate(needs), false);
+        }
       }
     }
   }
+});
+
+test('portable aggregate requires both actual producers and fails closed for incomplete outcomes', () => {
+  const source = job('portable');
+  assert.match(source, /TEST_RESULT: \$\{\{ needs\.portable-tests\.result \}\}/);
+  assert.match(source, /PAYLOAD_RESULT: \$\{\{ needs\.payload\.result \}\}/);
+  const script = source.match(/        run: \|\n([\s\S]*)/)[1]
+    .split('\n').map(line => line.replace(/^          /, '')).join('\n');
+  const { spawnSync } = require('node:child_process');
+  const outcomes = ['success', 'failure', 'cancelled', 'skipped', '', 'unknown', 'SUCCESS'];
+  const checks = outcomes.flatMap(tests => outcomes.map(payload =>
+    `$env:TEST_RESULT = '${tests}'; $env:PAYLOAD_RESULT = '${payload}'; `
+    + `$failed = $false; try { & { ${script} } } catch { $failed = $true }; `
+    + `if ($failed -ne $${tests !== 'success' || payload !== 'success'}) { throw 'Incorrect aggregate outcome.' }`));
+  const result = spawnSync('pwsh', ['-NoProfile', '-NonInteractive', '-Command', checks.join('\n')], { encoding: 'utf8' });
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
 });
 
 test('controller wakes on both priority label additions and removals without trusting event labels', () => {

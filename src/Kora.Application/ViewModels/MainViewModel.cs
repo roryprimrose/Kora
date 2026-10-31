@@ -4275,6 +4275,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ReportHostInteractionFailure("Conversation opening unavailable while a question, approval, review, editor or dictation owns input. Nothing was answered or submitted.");
             return;
         }
+        var addressedWorkCommand = SessionCommand.Parse(spokenText, AssistantName);
+        if (addressedWorkCommand?.IsRemainingWork != true) { remainingWorkCommands?.Retire(); }
+        if ((addressedWorkCommand?.IsRemainingWork == true || string.Equals(addressedWorkCommand?.Error, SessionCommand.RemainingWorkSyntax, StringComparison.Ordinal))
+            && (!CanAnswerRemainingWork || editorTarget is not null))
+        {
+            Transcript = "Remaining-work answer unavailable while a question, approval, editor or dictation owns input. Its exact decision remains unchanged.";
+            return;
+        }
         var selectedAnswerCommand = ResponseReadCommand.Parse(spokenText, AssistantName) is { SelectedAnswer: true } selectedRead
             ? selectedRead : null;
         var displacedAnswerDecision = initiator == SecurityAuditInitiator.TypedCommand
@@ -4298,7 +4306,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         Interlocked.Increment(ref workspaceSurfaceInputRevision);
         Interlocked.Increment(ref evidenceTraceInputRevision);
-        var sessionCommand = SessionCommand.Parse(spokenText, AssistantName);
+        var sessionCommand = addressedWorkCommand;
         var newRequestCommand = NewRequestOpenCommand.Parse(spokenText, AssistantName);
         var cataloguePreparation = manualInput?.CataloguePreparation
             ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName);

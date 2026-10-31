@@ -44,6 +44,11 @@ internal sealed partial class CompactSessionWindow : Window
             };
         }
         RefreshWork.Click += async (_, _) => await (ConversationOperation = model.RefreshWorkAsync());
+        AnswerRemainingWork.Click += async (_, _) =>
+        {
+            using var presenter = new ReplyPresentationFence(this);
+            await (ConversationOperation = model.ShowRemainingWorkAsync(presenter.Capture()));
+        };
         RecoverConversationDraft.Click += async (_, _) => await (ConversationOperation = model.RecoverLegacyUnsentAsync());
         DiscardComposer.Click += async (_, _) => await (ConversationOperation = model.DiscardComposerBufferAsync());
         SubmitConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitConversationAsync());

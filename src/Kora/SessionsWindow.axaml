@@ -486,6 +486,8 @@
           </ListBox.ItemTemplate>
         </controls:ScrollableListBox>
         <WrapPanel Grid.Row="2" x:Name="SessionWorkActions">
+          <Button x:Name="AnswerRemainingWork" Content="What work remains?" IsEnabled="{Binding CanAnswerRemainingWork}"
+                  AutomationProperties.Name="Answer what submitted work remains in this exact selected conversation without stopping or resuming it" />
           <Button x:Name="ReadQueue" Content="Refresh selected _work" IsEnabled="{Binding CanRefreshWork}"
                   AutomationProperties.Name="Passively refresh selected exact session work; no meaningful activity or dispatch" />
           <Button x:Name="InspectWork" Content="_Inspect selected work ID" IsEnabled="{Binding CanInspectWork}"
@@ -500,6 +502,8 @@
         <ScrollViewer Grid.Row="3" MaxHeight="180" VerticalScrollBarVisibility="Auto"
                       AutomationProperties.Name="Routine notices and pending exact questions; scroll for complete retained cards">
         <StackPanel Spacing="4">
+          <controls:NamedTextBlock Text="{Binding RemainingWorkStatus}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Factual addressed remaining-work answer with source times, bounds and omissions" />
           <controls:ScrollableListBox x:Name="PendingCancellationEntries" MaxHeight="160"
                                      ItemsSource="{Binding PendingCancellationEntries}" SelectionMode="Multiple,Toggle"
                                      IsEnabled="{Binding CanSelectPendingCancellation}"

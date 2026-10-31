@@ -13,6 +13,7 @@ using Kora.Application.Hosting;
 using Kora.Application.Tools;
 using Kora.Application.Voice;
 using Kora.Core.Artifacts;
+using Kora.Core.Auditing;
 using Kora.Core.Customizations;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
@@ -84,6 +85,9 @@ public sealed partial class CustomizationWindowTests
     [InlineData("voice")]
     [InlineData("existing")]
     [InlineData("source-save")]
+    [InlineData("final-source")]
+    [InlineData("final-identity")]
+    [InlineData("final-owner")]
     [InlineData("cancel-disclosure")]
     [InlineData("cancel-proposal")]
     [InlineData("proposal-kind")]
@@ -179,7 +183,7 @@ public sealed partial class CustomizationWindowTests
                 return review;
             }
             OwnedInstructionSnapshot? original = null;
-            if (action is "existing" or "source-save" or "late-source")
+            if (action is "existing" or "source-save" or "late-source" or "final-source" or "final-identity" or "final-owner")
             {
                 original = (await promptStore.Write("example", null, ArtifactFileDocument.Parse(
                     ArtifactFileDocument.Encode("---\r\nkora-format: 2\r\nname: 'example'  \r\ndescription: \"Keep exact metadata\"\r\nattribution: Exact\r\n---\r\nOld ${input:topic}\r\n", true),
@@ -307,6 +311,22 @@ public sealed partial class CustomizationWindowTests
                     {
                         await promptStore.Write("example", original, original!.Document.WithPromptBody("External request"), () => true, f.Token);
                     }
+                    var finalChecks = 0;
+                    if (action.StartsWith("final-", StringComparison.Ordinal))
+                    {
+                        store.BeforePromptPublication = () =>
+                        {
+                            finalChecks++;
+                            if (action is "final-source")
+                            { File.WriteAllBytes(path, original!.Document.WithPromptBody("External staged-time request").CopyBytes()); }
+                            if (action is "final-identity")
+                            {
+                                File.Move(path, path + ".previous");
+                                WindowsOwnedInstructionStoreTests.WriteOwnedFile(path, original!.Document.CopyBytes());
+                            }
+                            if (action is "final-owner") { Interlocked.Increment(ref ownership); }
+                        };
+                    }
                     Choose(native, "Review and save");
                     var save = controller.WaitForOperation();
                     var confirmation = await Review(save);
@@ -316,6 +336,33 @@ public sealed partial class CustomizationWindowTests
                     if (action is "cancel-save") { File.Exists(path).Should().BeFalse(); }
                     else if (action is "occupied-save") { File.ReadAllText(path).Should().Be(draft); }
                     else if (action is "source-save") { File.ReadAllText(path).Should().EndWith("External request"); }
+                    else if (action.StartsWith("final-", StringComparison.Ordinal))
+                    {
+                        finalChecks.Should().Be(1);
+                        native.Editor.Text.Should().Be(proposed, "rejected publication must preserve the independent draft");
+                        var retained = action is "final-source"
+                            ? original!.Document.WithPromptBody("External staged-time request").CopyBytes() : original!.Document.CopyBytes();
+                        File.ReadAllBytes(path).Should().Equal(retained, "a staging-time edit, replacement or revoked owner cannot be overwritten");
+                        management.IsDisabled((await store.List(f.Token)).Single(item => item.Kind == CustomizationKind.Prompt)).Should().BeTrue();
+                        Directory.GetFiles(Path.GetDirectoryName(path)!, ".customization-*.tmp").Should().BeEmpty();
+                        using var auditRead = HostActivity.BeginOperation(HostActivityLayer.Desktop, HostOperation.Evidence, RequestOrigin.LocalUi);
+                        var audits = new List<EvidenceRecord>();
+                        string? cursor = null;
+                        do
+                        {
+                            var page = await f.Evidence.QueryAsync(new() { Source = EvidenceSource.Audit, Limit = 25 }, cursor, f.Token);
+                            page.Status.Should().Be(EvidencePageStatus.Available);
+                            audits.AddRange(page.Records.Where(record => string.Equals(record.Audit?.ActionId, "definition.source.save", StringComparison.Ordinal)));
+                            cursor = page.Cursor;
+                        } while (cursor is not null);
+                        audits.Select(record => record.Audit!.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Unknown);
+                        audits.Select(record => record.Audit!.CorrelationId).Distinct().Should().ContainSingle();
+                        audits.Should().OnlyContain(record => record.Reference.Source == EvidenceSource.Audit && record.AuditSequence > 0
+                            && record.Host != null && record.Host.RequestId.Value == record.Audit!.CorrelationId
+                            && record.CorrelationId == record.Audit.CorrelationId);
+                        audits.Select(record => record.Host!.SessionId).Distinct().Should().ContainSingle();
+                        audits.Select(record => record.Host!.TaskId).Distinct().Should().ContainSingle();
+                    }
                     else
                     {
                         var saved = (await promptStore.Read("example", f.Token))!;

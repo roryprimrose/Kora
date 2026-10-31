@@ -4,6 +4,7 @@ using Avalonia.VisualTree;
 
 using AwesomeAssertions;
 
+using Kora.Application.Documentation;
 using Kora.Application.Presentation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
@@ -20,6 +21,44 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class ConversationNoticeTests
 {
+    [Fact]
+    public async Task UnavailableNativeNoticeReaderRecordsFailedOperationWithoutRenewingOrDisclosingTheResult()
+    {
+        using var f = new Fixture();
+        await f.Initialize();
+        var request = await f.Submit(ModelTurnOutcome.Succeeded);
+        await using var broker = f.Broker();
+        var clipboard = new ResultClipboard();
+        using var details = new DetailWindowController(new EmbeddedUserDocumentationProvider(), () => f.Access.CanInspect,
+            new(NullLogger<NativeDetailRenderer>.Instance), clipboard,
+            (_, _, _) => throw new InvalidOperationException("fake unavailable native reader"),
+            NullLogger<DetailWindowController>.Instance);
+        HostActivity? operation = null;
+        var viewer = f.Viewer(broker, (content, current, resolve, token) =>
+        {
+            operation = HostActivity.RequireCurrent();
+            return details.OpenConversationDetailAsync(content, null, current, resolve, token);
+        });
+        viewer.SetRoutineQuietSurfaceOpen(true);
+        await viewer.RefreshAsync();
+        await viewer.SelectAsync(viewer.Sessions.Single());
+        await viewer.RefreshWorkAsync();
+        viewer.SelectLocalEvent(viewer.LocalEvents.Single());
+        var retention = await f.Storage.Store.ReadRetentionAsync(request.SessionId, f.Token);
+        var tasks = f.Storage.Count("host_tasks");
+        var audits = f.Storage.Count("security_audit_events");
+        await viewer.ReadExactNoticeResultAsync(() => true);
+        operation.Should().NotBeNull();
+        operation!.Outcome.Should().Be(HostOperationOutcome.Failed);
+        viewer.Status.Should().Contain("unavailable");
+        viewer.Detail.Should().NotContain("private answer marker");
+        clipboard.Writes.Should().Be(0);
+        f.Storage.Count("host_tasks").Should().Be(tasks);
+        f.Storage.Count("security_audit_events").Should().Be(audits);
+        (await f.Storage.Store.ReadRetentionAsync(request.SessionId, f.Token)).Should().Be(retention);
+        viewer.Close();
+    }
+
     [WindowsFact]
     public async Task NativeTerminalNoticeReadsItsCompleteAnswerInIntegratedDetailsAndReturnsToExactNotice()
     {

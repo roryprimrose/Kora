@@ -12,6 +12,8 @@ Select one current terminal conversation notice in the already-open **Sessions**
 
 No retained answer means explicit **Unavailable**, never an empty success or a body invented from a status or model claim. Inspect the separate typed **HOST** outcome in Work or ordinary history. Done, deleted, expired, revoked or changed notice sources also require fresh ordinary history inspection; reading history does not Resume a Done conversation ([canonical resolver](../src/Kora.Application/Hosting/SessionWorkspaceService.ConversationNoticeResult.cs)).
 
+Unavailable native controls, a full reader limit, or failed window display/activation fail the read operation rather than recording completion. Unconfirmed private reader state is cleared; refresh and deliberately select the exact source before retrying. Successful content rendering alone does not confirm that the reader opened ([publication acknowledgment](../src/Kora/DetailWindowController.cs)).
+
 Each body access is freshly resolved under the existing private read policy and rechecks the exact broker receipt/source. Losing the source cannot recover an old body from a cache, logs or the newest task. Notice metadata and completion-voice consent grant no body-disclosure authority by themselves ([broker admission](../src/Kora.Application/Interaction/LocalEventBroker.cs), [reader revalidation](../src/Kora/DetailWindowController.cs)).
 
 Notices come from Kora's actual work records for this run, not from claims in

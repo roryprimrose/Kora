@@ -117,6 +117,9 @@ public sealed partial class App : Avalonia.Application
                 viewModel,
                 Services.GetRequiredService<ILogger<DocumentationWindowController>>(),
                 detailWindow);
+            viewModel.BindReviewedVoiceCommand(
+                Services.GetRequiredService<ILogger<Kora.Application.Voice.ReviewedVoiceCommandCapture>>(),
+                Services.GetRequiredService<TimeProvider>());
             responseWindow = new ResponseWindowController(
                 viewModel,
                 Services.GetRequiredService<ILogger<ResponseWindowController>>(), detailWindow);
@@ -311,6 +314,8 @@ public sealed partial class App : Avalonia.Application
             viewModel.BindSessionCommands(Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>(),
                 Services.GetRequiredService<SessionRequestCommandService>(),
                 Services.GetRequiredService<ConversationSearchCommandService>());
+            viewModel.BindRemainingWork(Services.GetRequiredService<SessionRemainingWorkCommandService>(),
+                Services.GetRequiredService<SessionConversationService>());
             viewModel.BindSpeechSummarySuggestions(Services.GetRequiredService<SessionConversationService>(),
                 Services.GetRequiredService<TimeProvider>());
             viewModel.BindSessionProviderProfiles(Services.GetRequiredService<Kora.Application.Configuration.SessionProviderProfileConfigurationService>());

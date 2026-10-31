@@ -73,6 +73,10 @@ declared name change; BOM, line endings, formatting, attribution and unrelated
 body/metadata/file bytes stay unchanged. Destination replacement and automatic
 reference rewrites are never offered
 ([proposal](../src/Kora.Core/ArtifactInvocation/OwnedInstructionRename.cs)).
+If catalogue observations or dependent declarations change after confirmation,
+or a catalogue reload fails, the old review cannot continue. Review again;
+if a private intent may already exist, use **Recover rename** instead of retrying
+the rename. Neither source nor the open editor draft is silently replaced.
 
 The old ID becomes unavailable; the new source opens **disabled/held** and
 needs a fresh, separate **Review use**. Explicitly Inspect/Reopen the new ID

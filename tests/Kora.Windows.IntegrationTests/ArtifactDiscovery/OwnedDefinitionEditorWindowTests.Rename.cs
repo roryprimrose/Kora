@@ -32,6 +32,10 @@ public sealed partial class OwnedDefinitionEditorWindowTests
     [InlineData("occupied")]
     [InlineData("privacy")]
     [InlineData("recovery")]
+    [InlineData("late-dependent")]
+    [InlineData("late-reload")]
+    [InlineData("prepared-dependent")]
+    [InlineData("prepared-reload")]
     public async Task CompleteOwnedRenameReviewsConfirmsReconcilesAndReopensExactDisabledSource(string scenario)
     {
         await HeadlessSession.RunAsync(async () =>
@@ -61,6 +65,20 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             var source = (await store.Write("example", null, Document(ArtifactKind.Instruction, "Exact original body"), () => true,
                 operation => Task.FromResult(operation()), f.Token)).Current!;
             reload.ReconcileSavedCopy(source).Should().BeTrue();
+            var consequencesChanged = false;
+            void ChangeConsequences()
+            {
+                if (consequencesChanged) { return; }
+                consequencesChanged = true;
+                if (scenario.EndsWith("dependent", StringComparison.Ordinal))
+                {
+                    var dependent = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(
+                        $"---\nname: later\ndescription: Later dependent\nkora-agent-format: 2\nreferences: {source.Document.Definition.Id}\n---\nLater guidance",
+                        false), ArtifactKind.Agent, "user-profile", "later").Definition;
+                    catalogue.Update(items => [.. items, dependent]);
+                }
+                else { catalogue.ReportReloadFailure(new IOException("Synthetic post-confirmation reload failure")); }
+            }
             OwnedInstructionEditorWindow? editor = null;
             var reviewOpened = new TaskCompletionSource<Window>(TaskCreationOptions.RunContinuationsAsynchronously);
             using var observer = Window.WindowOpenedEvent.AddClassHandler<Window>((window, _) =>
@@ -135,10 +153,35 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                             if (phase == OwnedInstructionRenamePhase.OriginalHeld) { throw new IOException("Synthetic interruption"); }
                         };
                         break;
+                    case "late-dependent":
+                    case "late-reload":
+                        store.RenameDirectoryFlags = _ => { ChangeConsequences(); return 0; };
+                        break;
+                    case "prepared-dependent":
+                    case "prepared-reload":
+                        store.AfterRenamePhase = phase =>
+                        {
+                            if (phase == OwnedInstructionRenamePhase.Prepared) { ChangeConsequences(); }
+                        };
+                        break;
                 }
                 if (scenario is not "privacy") { Click(confirmation, scenario is "cancel-confirm" ? "Cancel" : "Confirm rename"); }
             }
             await rename;
+            if (scenario.StartsWith("late-", StringComparison.Ordinal) || scenario.StartsWith("prepared-", StringComparison.Ordinal))
+            {
+                consequencesChanged.Should().BeTrue();
+                var recoveryState = await store.ReadRenameRecovery(f.Token);
+                if (scenario.StartsWith("prepared-", StringComparison.Ordinal))
+                {
+                    recoveryState.Should().NotBeNull();
+                    recoveryState!.Phase.Should().Be(OwnedInstructionRenamePhase.Prepared);
+                }
+                else { recoveryState.Should().BeNull(); }
+                editor.Source.Text.Should().Be(source.Document.Text);
+                editor.NameInput.Text.Should().Be(source.Name);
+                catalogue.Artifacts.Should().NotContain(item => item.OwnedInstructionName == "renamed");
+            }
             if (scenario is "recovery")
             {
                 (await store.ReadRenameRecovery(f.Token))!.Phase.Should().Be(OwnedInstructionRenamePhase.OriginalHeld);

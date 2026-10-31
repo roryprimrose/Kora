@@ -164,6 +164,60 @@ public sealed partial class InstructionEditorTests
     }
 
     [Theory]
+    [InlineData("dependent", false)]
+    [InlineData("reload", false)]
+    [InlineData("recovered-reload", false)]
+    [InlineData("privacy", false)]
+    [InlineData("dependent", true)]
+    [InlineData("reload", true)]
+    [InlineData("recovered-reload", true)]
+    [InlineData("privacy", true)]
+    public async Task ChangedReviewedConsequencesAcrossAwaitRefuseRenameBeforeNativeMutation(string change, bool recover)
+    {
+        await using var f = new Fixture();
+        var source = f.Files.Current!;
+        var proposal = new OwnedInstructionRename(source, "renamed");
+        if (recover) { f.Files.PendingRename = new(proposal, "observed", OwnedInstructionRenamePhase.Prepared); }
+        var review = recover ? await f.Actions.ReviewRenameRecovery(f.Eligible, CancellationToken.None)
+            : await f.Actions.ReviewRename(source, "renamed", f.Eligible, CancellationToken.None);
+        var waiting = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.Files.BeforeRenameCommit = () => { waiting.SetResult(); return release.Task; };
+        var reconciled = false;
+        var operation = f.Actions.Rename(review!, (_, _) => Task.FromResult(true), (_, _) =>
+        {
+            reconciled = true;
+            return true;
+        }, f.Eligible, CancellationToken.None);
+        await waiting.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var held = f.Catalogue.Candidates;
+        if (change is "privacy") { f.Open = false; }
+        else if (change is "dependent")
+        {
+            var agent = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(
+                $"---\nname: later\ndescription: Later dependent\nkora-agent-format: 2\nreferences: {source.Document.Definition.Id}\n---\nLater guidance",
+                false), ArtifactKind.Agent, "user-profile", "later").Definition;
+            f.Catalogue.Update(items => [.. items, agent]);
+        }
+        else
+        {
+            f.Catalogue.ReportReloadFailure(new IOException("Later source observation failure"));
+            if (change is "recovered-reload") { f.Catalogue.Publish(held); }
+        }
+        release.SetResult();
+
+        await ((Func<Task>)(async () => await operation)).Should().ThrowAsync<InvalidOperationException>();
+        f.Files.Current.Should().BeSameAs(source);
+        f.Files.Renames.Should().Be(0);
+        f.Files.Copies.Should().BeEmpty();
+        reconciled.Should().BeFalse();
+        f.Revisions.IsEnabled(source).Should().BeFalse();
+        f.Audit.Events.Where(item => string.Equals(item.ActionId, recover
+            ? "definition.instruction.recover-rename" : "definition.instruction.rename", StringComparison.Ordinal))
+            .Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Failed);
+    }
+
+    [Theory]
     [InlineData("storage")]
     [InlineData("cancel")]
     [InlineData("uncertain")]
@@ -283,14 +337,17 @@ public sealed partial class InstructionEditorTests
         internal OwnedInstructionRenameRecovery? PendingRename;
         internal Action? AfterRename;
         internal Action? AfterRecoveryRead;
+        internal Func<Task>? BeforeRenameCommit;
         public Task<OwnedInstructionRenameRecovery?> ReadRenameRecovery(CancellationToken token)
         { AfterRecoveryRead?.Invoke(); return Task.FromResult(PendingRename); }
         public Task<OwnedInstructionSnapshot> RecoverRename(OwnedInstructionRenameRecovery recovery, Func<bool> eligible,
             Func<Func<OwnedInstructionSnapshot>, Task<OwnedInstructionSnapshot>> commit, CancellationToken token)
         { Recoveries++; return Rename(recovery.Proposal, eligible, commit, token); }
-        public Task<OwnedInstructionSnapshot> Rename(OwnedInstructionRename proposal, Func<bool> eligible,
-            Func<Func<OwnedInstructionSnapshot>, Task<OwnedInstructionSnapshot>> commit, CancellationToken token) =>
-            commit(() =>
+        public async Task<OwnedInstructionSnapshot> Rename(OwnedInstructionRename proposal, Func<bool> eligible,
+            Func<Func<OwnedInstructionSnapshot>, Task<OwnedInstructionSnapshot>> commit, CancellationToken token)
+        {
+            if (BeforeRenameCommit is not null) { await BeforeRenameCommit(); }
+            return await commit(() =>
             {
                 token.ThrowIfCancellationRequested();
                 if (!eligible()) { throw new InvalidOperationException("Retired authority"); }
@@ -305,5 +362,6 @@ public sealed partial class InstructionEditorTests
                 if (RenameFailure is "uncertain") { throw new InstructionRenameUnconfirmedException(new IOException("Interrupted")); }
                 return saved;
             });
+        }
     }
 }

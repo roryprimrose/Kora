@@ -887,6 +887,12 @@ changes and unchanged old reference bindings. A separate native confirmation
 is mandatory for native, typed and current-name activated entry alike
 ([shared actions](../src/Kora.Application/Definitions/OwnedInstructionEditorActions.Rename.cs),
 [native review](../src/Kora/OwnedInstructionEditorController.Rename.cs)).
+Reviewed catalogue consequences remain bound across awaited commit scheduling
+and every native admission check. Only the operation's own old/new use holds
+are accepted without another review; changed candidates, dependent declarations
+or a reload failure (even subsequently recovered) retire the confirmation.
+Before possible intent publication this refuses mutation; afterward the exact
+unfinished proposal remains recovery-required and must be reviewed again.
 
 This is explicitly a multi-step, recoverable operation, not an atomic rename
 transaction or content CAS. A bounded private local intent contains exact

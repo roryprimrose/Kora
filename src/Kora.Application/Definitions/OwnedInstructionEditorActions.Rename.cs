@@ -64,17 +64,22 @@ public sealed partial class OwnedInstructionEditorActions
             try
             {
                 ValidateRenameNamespace(proposal);
+                var reloadRevision = catalogue.ReloadFailureRevision;
+                var heldCandidates = review.Candidates.Select(item => Matches(item, proposal.Source.Name)
+                    ? item with { IsUseEnabled = false, PreservesCapturedUse = false } : item).ToArray();
+                bool RenameCurrent() => current() && catalogue.ReloadFailureRevision == reloadRevision
+                    && catalogue.Candidates.SequenceEqual(heldCandidates);
                 HoldRevision(proposal.Source.Name);
                 HoldRevision(proposal.DestinationName, existingOnly: true);
                 Task<OwnedInstructionSnapshot> Commit(Func<OwnedInstructionSnapshot> operation) =>
-                    admission.Publish(request, session, current, () =>
+                    admission.Publish(request, session, RenameCurrent, () =>
                     {
                         ValidateRenameNamespace(proposal);
                         return operation();
                     }, admitted).AsTask();
                 var saved = review.Recovery is null
-                    ? await native.Rename(proposal, current, Commit, admitted).ConfigureAwait(false)
-                    : await native.RecoverRename(review.Recovery, current, Commit, admitted).ConfigureAwait(false);
+                    ? await native.Rename(proposal, RenameCurrent, Commit, admitted).ConfigureAwait(false)
+                    : await native.RecoverRename(review.Recovery, RenameCurrent, Commit, admitted).ConfigureAwait(false);
                 published = true;
                 await admission.Publish(request, session, current, () =>
                 {

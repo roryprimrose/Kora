@@ -87,8 +87,7 @@ internal sealed partial class SessionsViewModel
         {
             var receipt = await conversation!.SubmitMemoryContextAsync(workflow, review, live, lifetime.Token);
             if (!live()) { throw new OperationCanceledException("The original memory presentation changed."); }
-            completedConversationMessage = receipt.Message;
-            conversationPage = null;
+            PublishCompletedConversationMessage(receipt.Message);
             memoryContextRequest = string.Empty;
             memoryContextOutcome = receipt.Message.AssistantResponse is { } answer
                 ? "ASSISTANT\n" + answer.Body

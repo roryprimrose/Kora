@@ -69,8 +69,7 @@ internal sealed partial class SessionsViewModel
             if (!live()) { throw new OperationCanceledException("The original private conversation changed."); }
             if (string.Equals(composerBody, review.Body, StringComparison.Ordinal)) { composerBody = string.Empty; }
             RememberUnsent();
-            conversationPage = null;
-            completedConversationMessage = receipt.Message;
+            PublishCompletedConversationMessage(receipt.Message);
             conversationStatus = "One-shot instruction request retained. HOST " + receipt.Message.Outcome + " / "
                 + receipt.Message.Reason + (receipt.Message.AssistantResponse is null
                     ? ". No assistant answer retained." : ". Genuine ASSISTANT answer retained separately.")

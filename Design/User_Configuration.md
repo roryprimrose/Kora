@@ -49,6 +49,16 @@ No format/limit override, folder attachment, managed source, extra version, mode
 
 ## Configuration Contract
 
+### Implemented existing detail-offer suppression
+
+The bounded `responses.detail-presentation` implementation has only Offer (unsaved legacy/default) and LinkOnly. Native Responses settings and exact original typed/current-name activated commands share inspect/review/confirm/cancel/reset. Set/reset require separate confirmation; reset explicitly saves Offer, not file deletion. This is not a new model setting observation/proposal catalogue ([workflow](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs), [parser](../src/Kora.Application/Configuration/DetailPresentationCommand.cs), [native controls](../src/Kora/SettingsWindow.axaml)).
+
+The strict domain format and shared atomic preference store use application data paths with a pre-write unconfirmed marker, exact readback and trusted requested/terminal audit. Missing legacy state retains existing Offer behavior; malformed/current unknown state throws rather than silently defaulting. Failed audit/receipt/readback stays held for explicit saved-state/evidence recovery ([domain](../src/Kora.Core/Presentation/DetailPresentationPreference.cs), [store adapter](../src/Kora.Application/Configuration/LocalDetailPresentationPreferences.cs), [configuration owner](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs)).
+
+Only future existing proactive cues are affected; manual Details and original source/privacy/currentness gates remain. Protected/Unknown call evidence rejects voice-originated writes, including later native confirmation of that voice review. Closed microphone, missing recognizer, lost ownership/private host or native lifetime still prevent the corresponding route. No new question/reply/capture, automatic opening, historical replay, window visibility/position policy or persistent session timing is added ([shared interaction](../src/Kora.Application/ViewModels/MainViewModel.DetailPresentation.cs), [display boundary](Information_Display.md#implemented-existing-offer-versus-link-only-suppression)).
+
+Deterministic behavioral regressions exercise the complete bounded workflow and forbidden effects. Build/analyzers, required module/shard evidence and 100% portable line/branch coverage remain mandatory; implementation does not establish full three-way preference completion or enablement/qualification ([tests](../tests/Kora.Application.UnitTests/Configuration/DetailPresentationConfigurationServiceTests.cs), [delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
+
 ### Conversational voice replies
 
 **Settings > Speech & audio > Conversational voice replies** provides explicit **Enable conversational replies** and **Turn off** actions ([native controls](../src/Kora/SettingsWindow.axaml)).

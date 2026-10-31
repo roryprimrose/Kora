@@ -108,8 +108,7 @@ internal sealed partial class SessionsViewModel
             review.Target.Authority.SessionId.Value) { RequestReviewId = review.Id },
             RequestOrigin.LocalUi, () => !closed && access.CanInspect && access.CanControl, lifetime.Token);
         var receipt = result.RequestSubmission!;
-        conversationPage = null;
-        completedConversationMessage = receipt.Message;
+        PublishCompletedConversationMessage(receipt.Message);
         if (string.Equals(composerBody, review.Body, StringComparison.Ordinal))
         { composerBody = string.Empty; Interlocked.Increment(ref composerBufferRevision); }
         conversationStatus = "This request only: HOST " + receipt.Message.Outcome + " / " + receipt.Message.Reason

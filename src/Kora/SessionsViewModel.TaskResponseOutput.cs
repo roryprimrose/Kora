@@ -79,8 +79,7 @@ internal sealed partial class SessionsViewModel
             review.Target.Authority.SessionId.Value) { RequestReviewId = review.Id },
             RequestOrigin.LocalUi, () => !closed && access.CanInspect && access.CanControl, lifetime.Token);
         var receipt = result.RequestSubmission!;
-        completedConversationMessage = receipt.Message;
-        conversationPage = null;
+        PublishCompletedConversationMessage(receipt.Message);
         if (string.Equals(composerBody, review.Body, StringComparison.Ordinal))
         { composerBody = string.Empty; Interlocked.Increment(ref composerBufferRevision); RememberUnsent(); }
         conversationStatus = TerminalConversationStatus(receipt)

@@ -1190,6 +1190,20 @@ keeps a valid Kora-only installation ([installer](../installer/README.md#optiona
 
 ## Responses
 
+### Detailed result offers
+
+**Responses > Detailed result offers** reviews one device-local choice: **Offer** keeps existing proactive cues; **Link only** suppresses those cues for new results while retaining manual Details. It adds no hands-free question or automatic opening ([controls](../src/Kora/SettingsWindow.axaml), [shared owner](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs)).
+
+Choose **Review Offer** or **Review Link only**, read the exact review, then separately **Confirm detail presentation change** or **Cancel detail presentation change**. The cog menu offers **Inspect** and **Review reset to Offer**; reset also needs confirmation and explicitly saves Offer. Closing/reopening Settings retires its review ([interaction](../src/Kora.Application/ViewModels/MainViewModel.DetailPresentation.cs)).
+
+The controls are unavailable while readiness work or an input decision owns
+the host. When that work completes under unchanged admission, an already-open
+Settings window refreshes their availability; reopening is not required.
+
+Exact typed commands are listed in [the command reference](commands.md#detail-presentation-preference); voice requires the current assistant name and existing microphone/privacy/call eligibility. Protected calls reject voice-originated setting changes. One-off **Not now** or opening Details changes no preference. Restoring Offer never replays old offers or speech; already published response text is not rewritten ([workflow](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs), [consumer](../src/Kora.Application/ViewModels/MainViewModel.CurrentResponse.cs)).
+
+Malformed or unconfirmed saved state holds proactive offers with explicit recovery status; it does not hide manual access or reinterpret corrupt data as Offer. Automatic opening and the full three-choice design remain unavailable; this preference does not qualify a model, microphone or provider ([persistence](../src/Kora.Application/Configuration/LocalDetailPresentationPreferences.cs), [scope](../Design/Information_Display.md#implemented-existing-offer-versus-link-only-suppression)).
+
 ### Device default
 
 Persistent `Hybrid` (**Text and speech**), `VoiceOnly` (**Speech only**)

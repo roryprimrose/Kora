@@ -77,8 +77,7 @@ internal sealed partial class SessionsViewModel
             if (composerBufferRevision == buffer && string.Equals(composerBody, body, StringComparison.Ordinal))
             { composerBody = string.Empty; }
             RememberUnsent();
-            conversationPage = null;
-            completedConversationMessage = submitted.Receipt.Message;
+            PublishCompletedConversationMessage(submitted.Receipt.Message);
             conversationStatus = submitted.Receipt.Message.Outcome is not null
                 ? TerminalConversationStatus(submitted.Receipt)
                 : submitted.Position > 0
@@ -91,10 +90,8 @@ internal sealed partial class SessionsViewModel
             if (submitted.Position == 0)
             {
                 var completed = (await submitted.Completion.WaitAsync(token)).RequireReceipt();
-                if (PresentLive())
+                if (PresentLive() && PublishCompletedConversationMessage(completed.Message))
                 {
-                    conversationPage = null;
-                    completedConversationMessage = completed.Message;
                     conversationStatus = TerminalConversationStatus(completed);
                 }
             }
@@ -127,14 +124,14 @@ internal sealed partial class SessionsViewModel
     private void PresentSubmittedConversation(SessionWorkspaceEntry target, ConversationTurnCompletion completion)
     {
         var control = access.ControlRevision;
+        var epoch = selectionEpoch;
         void Present()
         {
-            if (closed || !access.CanInspect || access.ControlRevision != control || selected != target) { return; }
+            if (closed || !access.CanInspect || access.ControlRevision != control
+                || selectionEpoch != epoch || selected != target) { return; }
             if (completion.Receipt is { } receipt)
             {
-                if (conversationPage is not null || completedConversationMessage == receipt.Message) { return; }
-                conversationPage = null;
-                completedConversationMessage = receipt.Message;
+                if (conversationPage is not null || !PublishCompletedConversationMessage(receipt.Message)) { return; }
                 conversationStatus = TerminalConversationStatus(receipt);
             }
             else

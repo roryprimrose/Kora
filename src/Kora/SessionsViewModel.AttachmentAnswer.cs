@@ -26,8 +26,7 @@ internal sealed partial class SessionsViewModel
         {
             var receipt = await conversation!.SubmitAttachmentAnswerAsync(review, live, token);
             if (!live()) { throw new OperationCanceledException("The private attachment answer presentation was revoked."); }
-            conversationPage = null;
-            completedConversationMessage = receipt.Message;
+            PublishCompletedConversationMessage(receipt.Message);
             conversationStatus = receipt.Message.AssistantResponse is null
                 ? "Attachment question retained with explicit HOST failure/unavailable status. No answer or retry claimed."
                 : "Grounded ASSISTANT response retained in this conversation with host-resolved source references. Verify cited spans.";

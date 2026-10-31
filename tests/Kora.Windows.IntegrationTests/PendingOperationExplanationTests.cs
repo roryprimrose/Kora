@@ -1,3 +1,6 @@
+using Avalonia.Controls;
+using Avalonia.Interactivity;
+
 using AwesomeAssertions;
 
 using Kora.Application.Context;
@@ -17,6 +20,81 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class PendingOperationExplanationTests
 {
+    [Fact]
+    public async Task NativePolicyReviewAndClipboardSourceReviewRemainSeparateInertControls()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            f.Proposal = new(f.Request, new(Guid.NewGuid()), new(1),
+                ClipboardPermissionSourceUsePolicy.CreateReadBinding(), HostOperationEffect.BoundedRead, f.Time.Now.AddMinutes(5));
+            await f.PublishAsync();
+            var presented = await f.RunAsync(() => f.Authorization.RequestGrantAsync(f.Request, Spec(), f.Token));
+            var model = new NativeQuestionViewModel(presented.Question!, f.Questions, f.Authorization,
+                new(f.Store, f.Time), () => true, f.Time, NullLogger<NativeQuestionViewModel>.Instance,
+                explainClipboardRead: true);
+            var window = new QuestionWindow(model, new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance));
+            try
+            {
+                window.Show();
+                await QuestionClipboardAnswerTests.Activate(window);
+                await QuestionClipboardAnswerTests.WhenEditable(model);
+                model.Edit(new(["once"]));
+                await model.ReviewAsync();
+                model.CanSubmit.Should().BeTrue();
+                var original = model.Key;
+                var exact = window.FindControl<TextBox>("ExactReview")!;
+                var reviewed = exact.Text;
+                var policy = window.FindControl<TextBox>("PolicyExplanation")!;
+                var source = window.FindControl<TextBox>("ClipboardAnswerReview")!;
+
+                await model.ExplainPolicyAsync();
+                policy.IsVisible.Should().BeTrue();
+                policy.Text.Should().Be(model.PolicyExplanationText).And.NotContain("private-body-marker");
+                exact.IsVisible.Should().BeTrue();
+                exact.Text.Should().Be(reviewed);
+                source.IsVisible.Should().BeFalse();
+                source.Text.Should().BeNullOrEmpty();
+                window.FindControl<Button>("UseClipboardAnswer")!.IsVisible.Should().BeFalse();
+                window.FindControl<Button>("AcceptClipboardDraft")!.IsVisible.Should().BeFalse();
+                window.FindControl<Button>("SubmitAnswer")!.IsEnabled.Should().BeFalse();
+                foreach (var text in new[] { exact, policy, source })
+                {
+                    foreach (var transfer in new[] { TextBox.CopyingToClipboardEvent, TextBox.CuttingToClipboardEvent, TextBox.PastingFromClipboardEvent })
+                    {
+                        var attempt = new RoutedEventArgs(transfer);
+                        text.RaiseEvent(attempt);
+                        attempt.Handled.Should().BeTrue();
+                    }
+                }
+                await model.SubmitAsync();
+                model.Key.Should().Be(original);
+                model.Completion.IsCompleted.Should().BeFalse();
+                (await f.Store.ReadGrantsAsync(f.Token)).Should().BeEmpty();
+                f.Count("session_admissions").Should().Be(0);
+
+                await model.ReturnToApprovalAsync();
+                policy.IsVisible.Should().BeFalse();
+                policy.Text.Should().BeNullOrEmpty();
+                exact.Text.Should().Be(reviewed);
+                model.Answer.Choices.Should().Equal("once");
+                model.CanSubmit.Should().BeTrue();
+                model.Completion.IsCompleted.Should().BeFalse();
+                (await f.Store.ReadGrantsAsync(f.Token)).Should().BeEmpty();
+                (await f.Store.ReadQuestionsAsync(f.Request.SessionId, f.Token)).Single().Status.Should().Be(QuestionStatus.Pending);
+
+                window.Close();
+                exact.Text.Should().BeNullOrEmpty();
+                policy.Text.Should().BeNullOrEmpty();
+                source.Text.Should().BeNullOrEmpty();
+                model.HasPresentation.Should().BeFalse();
+                (await model.Completion).Outcome.Should().Be(HostInteractionOutcome.Denied);
+            }
+            finally { window.Close(); }
+        });
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

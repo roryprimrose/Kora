@@ -12,6 +12,7 @@ internal sealed partial class SessionsWindow : Window
     internal Task ConversationCancellationOperation { get; private set; } = Task.CompletedTask;
     internal Task StopAndDeleteOperation { get; private set; } = Task.CompletedTask;
     internal Task MemoryBatchOperation { get; private set; } = Task.CompletedTask;
+    internal Task SessionMemoryCopyOperation { get; private set; } = Task.CompletedTask;
     internal void ClosePrivate()
     {
         owner.Revoke();
@@ -188,6 +189,11 @@ internal sealed partial class SessionsWindow : Window
         ConfirmPendingCancellation.Click += async (_, _) => await model.ConfirmPendingCancellationAsync();
         DiscardPendingCancellation.Click += async (_, _) => await model.DiscardPendingCancellationAsync();
         ReadQueue.Click += async (_, _) => await model.RefreshWorkAsync();
+        AnswerRemainingWork.Click += async (_, _) =>
+        {
+            using var presenter = new ReplyPresentationFence(this);
+            await (ConversationOperation = model.ShowRemainingWorkAsync(presenter.Capture()));
+        };
         CancelQueueEntry.Click += async (_, _) => await model.CancelWorkAsync();
         ClearQueue.Click += async (_, _) => await model.ClearQueueAsync();
         EventRecords.SelectionChanged += (_, _) =>
@@ -213,6 +219,11 @@ internal sealed partial class SessionsWindow : Window
         ListMemories.Click += async (_, _) => await model.ListMemoriesAsync();
         BindMemoryContext(model);
         ProposeMemory.Click += async (_, _) => await model.ProposeMemoryAsync();
+        KeepSessionMemory.Click += async (_, _) => await (SessionMemoryCopyOperation = model.KeepSessionMemoryAsync());
+        ProposeSessionMemoryCopy.Click += async (_, _) => await (SessionMemoryCopyOperation = model.ProposeSessionMemoryCopyAsync());
+        AcceptSessionMemoryCopy.Click += async (_, _) => await (SessionMemoryCopyOperation = model.AcceptSessionMemoryCopyAsync());
+        AdmitSessionMemoryCopy.Click += async (_, _) => await (SessionMemoryCopyOperation = model.AdmitSessionMemoryCopyAsync());
+        CancelSessionMemoryCopy.Click += (_, _) => model.CancelSessionMemoryCopy();
         ClearMemoryFilters.Click += (_, _) => { model.ClearMemoryFilters(); MemoryIdFilter.Focus(); };
         foreach (var filter in new Control[] { MemoryIdFilter, MemoryScopeIdentityFilter, MemoryMinimumRevisionFilter, MemoryMaximumRevisionFilter,
             MemoryCreatedFromFilter, MemoryCreatedUntilFilter, MemoryScopeFilter, MemoryReviewFilter, MemoryRetentionFilter, MemoryOrder })

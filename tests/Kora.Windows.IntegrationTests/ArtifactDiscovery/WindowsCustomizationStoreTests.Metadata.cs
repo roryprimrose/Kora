@@ -2,12 +2,47 @@ using System.Text;
 
 using AwesomeAssertions;
 
+using Kora.Core.Artifacts;
+using Kora.Core.Configuration;
 using Kora.Core.Customizations;
+using Kora.Windows.Artifacts;
 
 namespace Kora.Windows.IntegrationTests.ArtifactDiscovery;
 
 public sealed partial class WindowsCustomizationStoreTests
 {
+    [Theory]
+    [InlineData("Code", "vscode-profile")]
+    [InlineData("Code - Insiders", "vscode-insiders-profile")]
+    [InlineData("additional", "additional")]
+    public async Task UserAgentMetadataAndRegisteredCatalogueShareFileAndBytesNotCategoryId(string editor, string category)
+    {
+        var token = TestContext.Current.CancellationToken;
+        var paths = new Paths(root);
+        var profile = Path.Combine(root, "editor-profile");
+        var directory = editor is "additional" ? Path.Combine(root, "custom-agents")
+            : Path.Combine(profile, editor, "User", "prompts");
+        Directory.CreateDirectory(directory);
+        var file = Path.Combine(directory, "helper.agent.md");
+        WindowsOwnedInstructionStoreTests.WriteOwnedFile(file,
+            Encoding.UTF8.GetBytes("---\nname: Helper\ndescription: Local role\n---\nInert role."));
+        var settings = editor is "additional"
+            ? new ArtifactDirectorySettings([], [], [], [directory], [], [], false)
+            : ArtifactDirectorySettings.Empty;
+        var store = new WindowsCustomizationStore(paths, profile, Path.Combine(root, "user-profile"),
+            new DirectoryPreferences(settings));
+        var source = (await store.ListMetadataSources(token)).Should().ContainSingle().Subject;
+        var observed = await store.ReadMetadata(source, token);
+        var registered = new WindowsDiskArtifactDiscovery(paths, settings, profile,
+            userProfileRoot: Path.Combine(root, "user-profile")).Load().Should().ContainSingle().Subject;
+        source.Scope.Should().Be(CustomizationScope.User);
+        registered.Source.Should().Be(category);
+        registered.UseControlId.Should().Be(source.Id).And.Be(ArtifactUseIdentity.File(file));
+        registered.Digest.Should().Be(observed.Digest);
+        registered.Id.Should().NotBe(observed.ArtifactId);
+        observed.ArtifactId.Should().Be("disk.user-profile.agent.helper");
+    }
+
     [Theory]
     [InlineData(CustomizationKind.Skill, CustomizationScope.Kora)]
     [InlineData(CustomizationKind.Agent, CustomizationScope.Kora)]

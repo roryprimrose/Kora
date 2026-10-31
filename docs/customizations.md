@@ -89,6 +89,9 @@ Before reviewing metadata, select **Ask for one agent recommendation (never invo
 The same bounded local metadata request may recommend exactly one enabled registered
 Agent from the entries actually returned to it. A recommendation runs nothing and
 is labelled as a proposal, not an answer from that agent.
+Eligible User agents from VS Code, VS Code Insiders and configured agent roots
+use the same exact file-and-bytes binding as Kora agents. Different catalogue
+category labels do not make the same reviewed source unavailable.
 
 1. Select **Review customization recommendation**. This opens the existing private agent review in the exact original conversation. The strict whole-answer opaque `agentRef` is only an inert hint into the current registered catalogue; rendered prose, paths and claimed approvals are not accepted ([proposal resolution](../src/Kora.Application/Tools/CustomizationDiscoverySnapshot.cs)).
 2. Deliberately choose one **current source-qualified Agent**. Nothing is selected automatically, including when names collide. Readable name, actual host-owned source binding and current use state are shown; executable availability is not inferred. A missing, changed, disabled or unbound source refuses without latest/by-name fallback ([source resolver](../src/Kora.Application/Agents/NamedAgentResolver.cs)).

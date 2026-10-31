@@ -54,6 +54,9 @@ public sealed partial class SessionsConversationTests
     [InlineData("ownership")]
     [InlineData("call")]
     [InlineData("child-unavailable")]
+    [InlineData("vscode-profile")]
+    [InlineData("vscode-insiders-profile")]
+    [InlineData("additional-profile")]
     public async Task ModelAgentProposalCompletesOnlyThroughExactNativeReviewSeparateConsentAndJoinedOriginalSessionAnswer(string scenario)
     {
         await HeadlessSession.RunAsync(async () =>
@@ -88,9 +91,20 @@ public sealed partial class SessionsConversationTests
                 reader.Inner.Text = reader.Inner.Text.Replace("tools: none", "tools: application.get_version", StringComparison.Ordinal)
                     .Replace("maximum-calls: 0", "maximum-calls: 1", StringComparison.Ordinal);
             }
-            using var catalogue = NamedCatalogue(reader, scenario is "duplicate-name" ? scenario : "success");
+            var catalogueCategory = scenario switch
+            {
+                "vscode-profile" => "vscode-profile",
+                "vscode-insiders-profile" => "vscode-insiders-profile",
+                "additional-profile" => "additional",
+                _ => null,
+            };
+            using var catalogue = catalogueCategory is null
+                ? NamedCatalogue(reader, scenario is "duplicate-name" ? scenario : "success")
+                : new ArtifactCatalogue([ArtifactFileDocument.Parse(Encoding.UTF8.GetBytes(reader.Inner.Text),
+                    ArtifactKind.Agent, catalogueCategory, "existing").Definition with
+                    { UseControlId = ArtifactUseIdentity.File(reader.Metadata.CanonicalPath) }]);
             var use = new ProposalUsePolicy();
-            var sources = new ProposalMetadataSource(reader, catalogue.Candidates[0]);
+            var sources = new ProposalMetadataSource(reader, catalogue.Candidates[0], catalogueCategory is not null);
             var metadata = new CustomizationDiscoveryService(sources, catalogue, use, composed.Access, f.Time);
             var hostOwned = true;
             await using var workflow = new BoundedAgentWorkflow(reader, f.Store, composed.Access,
@@ -258,7 +272,8 @@ public sealed partial class SessionsConversationTests
                 }
                 await agent.ActiveOperation;
                 var messages = (await f.Store.ReadConversationPageAsync(f.Request.SessionId, null, 25, f.Token)).Messages;
-                if (scenario is "success" or "duplicate-name" or "activated-parent")
+                if (scenario is "success" or "duplicate-name" or "activated-parent"
+                    or "vscode-profile" or "vscode-insiders-profile" or "additional-profile")
                 {
                     transport.ChildRequests.Should().ContainSingle();
                     var child = transport.ChildRequests.Single();
@@ -323,7 +338,8 @@ public sealed partial class SessionsConversationTests
         internal void Revoke() { Revision++; Changed?.Invoke(this, EventArgs.Empty); }
     }
 
-    private sealed class ProposalMetadataSource(NamedSourceReader reader, ArtifactDefinition definition) : ICustomizationMetadataStore
+    private sealed class ProposalMetadataSource(NamedSourceReader reader, ArtifactDefinition definition,
+        bool nativeUserCategory = false) : ICustomizationMetadataStore
     {
         private readonly CustomizationSource source = new(definition.UseControlId!, CustomizationKind.Agent,
             CustomizationScope.User, "existing", reader.Metadata.CanonicalPath, "existing.agent.md");
@@ -334,8 +350,13 @@ public sealed partial class SessionsConversationTests
         {
             token.ThrowIfCancellationRequested();
             selected.Should().Be(source);
+            var metadataId = nativeUserCategory
+                ? ArtifactFileDocument.Parse(Encoding.UTF8.GetBytes(reader.Inner.Text),
+                    ArtifactKind.Agent, "user-profile", "existing").Definition.Id
+                : definition.Id;
+            if (nativeUserCategory) { metadataId.Should().NotBe(definition.Id); }
             return Task.FromResult(new CustomizationMetadataObservation(source, "revision" + Revision,
-                definition.Name, definition.Description, definition.Id, definition.Digest));
+                definition.Name, definition.Description, metadataId, definition.Digest));
         }
     }
 

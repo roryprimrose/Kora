@@ -111,6 +111,8 @@ public sealed partial class OwnedSkillAuthoringNativeTests
     [InlineData("close")]
     [InlineData("retire")]
     [InlineData("cancel")]
+    [InlineData("owner-hidden")]
+    [InlineData("owner-closed")]
     public async Task AcceptedChoiceWaitsForNativeClosureAndRechecksOriginalEligibility(string scenario)
     {
         await HeadlessSession.RunAsync(async () =>
@@ -140,12 +142,15 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 choosing.IsCompleted.Should().BeFalse("a clicked choice cannot complete before its native window closes");
                 if (scenario is "retire") { current = false; }
                 if (scenario is "cancel") { cancellation.Cancel(); }
+                if (scenario is "owner-hidden") { editor.Hide(); }
+                if (scenario is "owner-closed") { holdClose = false; editor.Close(); }
+                if (scenario is "owner-hidden" or "owner-closed") { editor.IsVisible.Should().BeFalse(); }
                 holdClose = false;
                 dialog.Close();
                 (await choosing).Should().Be(scenario is "close");
                 dialog.IsVisible.Should().BeFalse();
                 editor.Guidance.Text.Should().Be(document.Guidance);
-                editor.IsVisible.Should().BeTrue();
+                editor.IsVisible.Should().Be(scenario is not ("owner-hidden" or "owner-closed"));
             }
             finally
             {
@@ -158,6 +163,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
 
     private static void AssertModalHandoff(Window editor, Window dialog)
     {
+        dialog.Owner.Should().BeSameAs(editor);
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
         var editorActivations = 0;
         var dialogActivations = 0;

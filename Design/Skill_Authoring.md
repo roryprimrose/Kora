@@ -50,7 +50,9 @@ Owned-skill source reviews, model-authoring disclosures/proposals, simulated
 examples/results and dirty-draft decisions use the same modal native handoff.
 The draft editor cannot reactivate behind its review; blocked owner input
 returns to that exact dialog. A choice completes only after native closure
-joins, with original eligibility and cancellation rechecked before returning.
+joins, with the exact native owner still visible and original eligibility and
+cancellation rechecked before returning. Hiding or closing the owner cannot
+complete an accepted choice.
 This is presentation ownership, not new consent or authority. Save still
 requires both separate native reviews and exact atomic publication/readback;
 Cancel retains the draft and expired authority remains expired.

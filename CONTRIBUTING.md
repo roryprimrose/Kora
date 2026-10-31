@@ -172,6 +172,12 @@ consumers, including links embedded in the guide and historical experiments.
   counts or an incomplete command task. Await cancellation acceptance, owned
   resource completion and the exact UI publication separately. Drain dispatcher
   work only after the operation it presents has joined.
+- An immediate dispatcher does not serialize UI-bound collection access across
+  worker continuations. Gate persistence while enqueuing native inputs, then join
+  the owning update before reading saved values or audit snapshots. Independently
+  completing operations share current response state; capture each complete
+  presentation and verify its exact receipt rather than treating the last title
+  as a durable command outcome.
 - Preserve production deadlines; use existing fake clocks for non-deadline
   scenarios. Dispose asynchronous fixture owners and release held operations in
   `finally`. See the [microphone ownership regressions](tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.MicrophoneRefreshOwnership.cs).

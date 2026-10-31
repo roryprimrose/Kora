@@ -295,36 +295,46 @@ public sealed partial class ModelTurnHostTests
         public ValueTask<ConversationSubmissionReceipt> CompleteConversationSubmissionAsync(HostRequest request,
             ModelTurnOutcome outcome, ModelTurnReason reason, Func<bool> admitted, CancellationToken token)
         {
-            SelectPendingRecord(request);
-            Retained = Retained! with { Revision = 2, Outcome = outcome, Reason = reason };
-            Task = Task! with { Task = Task.Task.Next(Retained.ExpectedTaskState) };
-            RememberPendingRecord();
-            var receipt = new ConversationSubmissionReceipt(Retained, Task.Task);
-            if (CompletionFault is "body-receipt") { receipt = receipt with { Message = Retained with { Body = "wrong body" } }; }
-            if (CompletionFault is "request-receipt") { receipt = receipt with { Message = Retained with { Request = HostRequest.Create(RequestOrigin.LocalUi) } }; }
+            // Concurrent expiry must derive both terminal rows from the same original request.
+            var pending = TrackPendingRecords ? PendingRecords[request.RequestId] : null;
+            var message = (pending?.Message ?? Retained!) with { Revision = 2, Outcome = outcome, Reason = reason };
+            var observed = pending is null ? Task!
+                : new HostTaskObservation(pending.Task, pending.Message.Generation, "host", true, null);
+            observed = observed with { Task = observed.Task.Next(message.ExpectedTaskState) };
+            Retained = message;
+            Task = observed;
+            var receipt = new ConversationSubmissionReceipt(message, observed.Task);
+            if (TrackPendingRecords) { PendingRecords[request.RequestId] = receipt; }
+            if (CompletionFault is "body-receipt") { receipt = receipt with { Message = message with { Body = "wrong body" } }; }
+            if (CompletionFault is "request-receipt") { receipt = receipt with { Message = message with { Request = HostRequest.Create(RequestOrigin.LocalUi) } }; }
             if (CompletionFault is "task-receipt") { receipt = receipt with { Task = new(request, new(3), HostTaskState.Failed) }; }
             if (CompletionFault is "nonterminal-receipt")
             {
-                Task = Task with { Task = new(request, new(1), HostTaskState.IntentRecorded) };
-                receipt = receipt with { Task = Task.Task };
+                observed = observed with { Task = new(request, new(1), HostTaskState.IntentRecorded) };
+                Task = observed;
+                receipt = receipt with { Task = observed.Task };
             }
             if (CompletionFault is "receipt-admission") { ControlRevision++; }
             if (CompletionFault is "missing-task") { Task = null; }
             if (CompletionFault is "wrong-state")
             {
-                Task = Task! with { Task = new(request, new(2), HostTaskState.Succeeded) };
-                receipt = receipt with { Task = Task.Task };
+                observed = observed with { Task = new(request, new(2), HostTaskState.Succeeded) };
+                Task = observed;
+                receipt = receipt with { Task = observed.Task };
             }
             if (CompletionFault is "wrong-outcome")
             {
-                Retained = Retained with { Outcome = ModelTurnOutcome.Denied };
-                Task = Task! with { Task = new(request, new(2), HostTaskState.Denied) };
-                receipt = receipt with { Task = Task.Task, Message = Retained };
+                message = message with { Outcome = ModelTurnOutcome.Denied };
+                observed = observed with { Task = new(request, new(2), HostTaskState.Denied) };
+                Retained = message;
+                Task = observed;
+                receipt = receipt with { Task = observed.Task, Message = message };
             }
             if (CompletionFault is "wrong-reason")
             {
-                Retained = Retained with { Reason = ModelTurnReason.InvalidPolicy };
-                receipt = receipt with { Message = Retained };
+                message = message with { Reason = ModelTurnReason.InvalidPolicy };
+                Retained = message;
+                receipt = receipt with { Message = message };
             }
             return ValueTask.FromResult(receipt);
         }

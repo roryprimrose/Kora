@@ -148,6 +148,21 @@ public sealed partial class ModelTurnHostTests
         }
         f.Adapter.Calls.Should().Be(0);
         f.PendingRecords[head.Receipt.Message.Request.RequestId].Message.AssistantResponse.Should().BeNull();
+        if (fault is "expiry")
+        {
+            foreach (var submitted in new[] { head, next })
+            {
+                var expired = (await submitted.Completion).RequireReceipt();
+                expired.Message.Should().Be(submitted.Receipt.Message with
+                {
+                    Revision = 2,
+                    Outcome = ModelTurnOutcome.Denied,
+                    Reason = ModelTurnReason.ContextExpired,
+                });
+                expired.Task.Should().Be(submitted.Receipt.Task.Next(HostTaskState.Denied));
+                f.PendingRecords[submitted.Receipt.Message.Request.RequestId].Should().Be(expired);
+            }
+        }
         var after = await service.ReadPendingConversationAsync(target, () => true, Token);
         after.Paused.Should().BeTrue();
         if (fault is not "expiry") { next.Completion.IsCompleted.Should().BeFalse("an invalid head cannot be skipped"); }

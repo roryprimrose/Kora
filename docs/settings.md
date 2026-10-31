@@ -1158,12 +1158,13 @@ dependency readiness. Refresh does not enable listening.
 ## Optional speech-input data
 
 **Speech & audio → Optional speech-input components** manages only exact
-host-catalogued optional model data. This release has no qualified optional
-input offers, so the panel reports that state and cannot download or claim
-installation success ([catalogue](../src/Kora.Core/Dependencies/SpeechComponentCatalogue.cs),
+host-catalogued optional model data. The existing **Hands-free CPU assets**
+offer supports preparation and removal, not qualified listening. Preparing it
+does not make it a selectable speech-input profile
+([catalogue](../src/Kora.Windows/Audio/HandsFreeSetupCatalogue.cs),
 [Settings panel](../src/Kora/SettingsWindow.SpeechComponents.cs)).
 
-For an admitted future offer, **Inspect** reports installed bytes, integrity,
+**Inspect** reports installed bytes, integrity,
 compatibility, qualification and ownership separately. **Prepare / retry**,
 **Verify** and **Remove** require a fresh complete review of the exact model,
 sources, licence, download/storage/resource costs and operation before approval.
@@ -1187,6 +1188,30 @@ exact managed model data after exclusive quiescence; saved selections, personal
 profiles, calibration and secrets are outside this operation. Burn uses the
 same lifecycle with individually unchecked choices; skipping optional work
 keeps a valid Kora-only installation ([installer](../installer/README.md#optional-local-speech-component-lifecycle)).
+
+For **Remove**, choose that one exact offer and read the complete native review,
+including actual remaining file names/bytes/digests, managed ownership, model/source
+identity, current asset consumers, saved/desired/effective input and resource impact.
+Read the independent privacy/consent exclusions, then select **Confirm exact model-data
+removal** or **Decline**. Inspection/preparation alone never confirms deletion.
+Unknown/foreign inventory cannot be confirmed
+([review](../src/Kora.Application/Dependencies/SpeechComponentSetupPlan.cs)).
+
+Kora excludes new asset consumers, retires only its owned work using these bytes
+and waits for actual joins before deleting the exact inventoried files.
+Changes to consumers, native identity, selection, private/owner/call state or the
+reviewed files invalidate confirmation. Typed or spoken profile switching is not
+destructive removal consent; this operation requires the live native Settings host
+([admission](../src/Kora.Application/ViewModels/MainViewModel.SpeechComponents.cs),
+[runtime](../src/Kora.Windows/Audio/HandsFreeSetupRuntime.cs)).
+
+Failure/cancellation leaves affected assets **Unavailable** and, while disclosure
+remains permitted, shows the exact observed remainder. Inspect again and explicitly
+review a new removal; Kora does not claim rollback, discarded bytes or physical disk
+release, automatically retry/download, or silently select Windows/another model.
+Enablement/acquisition stay separate. This does not delete biometric/learning data,
+history or user originals, or uninstall Kora/native code, Windows, .NET, VC++ or shared
+runtimes ([bounded storage](../src/Kora.Windows/Dependencies/WindowsSpeechComponentStore.cs)).
 
 ## Responses
 

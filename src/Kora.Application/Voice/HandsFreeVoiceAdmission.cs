@@ -8,6 +8,7 @@ public sealed record HandsFreeVoiceAdmission(
     long RecoveryRevision, long TopologyRevision, long CallRevision, long OwnerRevision,
     long OwnershipBindingRevision = 0)
 {
+    public long ControlBindingRevision { get; init; }
     public long ComposerRevision { get; init; }
     public long ConversationRevision { get; init; }
 

@@ -26,6 +26,78 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class SessionRoutingTests
 {
     [Theory]
+    [InlineData("capture")]
+    [InlineData("join")]
+    [InlineData("advice")]
+    public async Task NativeWakeCannotRouteAfterEligibleCallOwnerReplacement(string phase)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            await using var f = new WakeNativeComposition();
+            await f.Initialize(expanded: true);
+            var native = f.Composition.Ui.Native;
+            var session = await f.Stage.NextAsync();
+            session.HoldClose = true;
+            var adviceOpening = new TaskCompletionSource<SessionRoutingAdviceWindow>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var routeOpening = new TaskCompletionSource<SessionRoutingWindow>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var adviceOpened = Window.WindowOpenedEvent.AddClassHandler<SessionRoutingAdviceWindow>((window, _) => adviceOpening.TrySetResult(window));
+            using var routeOpened = Window.WindowOpenedEvent.AddClassHandler<SessionRoutingWindow>((window, _) => routeOpening.TrySetResult(window));
+            try
+            {
+                session.Wake();
+                await session.Capture.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
+                if (phase is not "capture")
+                {
+                    session.Capture.Transcript("compare these plans");
+                    session.Capture.Done.SetResult();
+                    await session.Closing.Task.WaitAsync(TestContext.Current.CancellationToken);
+                    f.Voice.IsCaptureQuiescent.Should().BeFalse();
+                    if (phase is "advice")
+                    {
+                        session.ReleaseClose.SetResult();
+                        var advice = await AwaitWakeOpening(f.Voice, adviceOpening.Task);
+                        await ActivateRoutingWindow(advice, f.Composition.Ui.Window);
+                        Dispatcher.UIThread.RunJobs();
+                    }
+                }
+                var revision = native.Main.CallPolicyRevision;
+                native.Main.BindCallOwnershipGate(static () => true);
+                native.Main.CallPolicyRevision.Should().Be(revision);
+                if (phase is "capture")
+                {
+                    session.Capture.Transcript("compare these plans");
+                    session.Capture.Done.TrySetResult();
+                }
+                session.ReleaseClose.TrySetResult();
+                if (phase is "advice")
+                {
+                    ClickAdvice(await adviceOpening.Task, "RoutingAdviceAllow");
+                    await Task.WhenAny(f.Voice.Completion, routeOpening.Task);
+                    routeOpening.Task.IsCompleted.Should().BeFalse();
+                }
+                else
+                {
+                    await Task.WhenAny(f.Voice.Completion, adviceOpening.Task);
+                    adviceOpening.Task.IsCompleted.Should().BeFalse();
+                }
+                await f.Voice.Completion;
+                session.Session.IsQuiescent.Should().BeTrue();
+                session.Assets.Disposed.Should().BeTrue();
+                f.Voice.IsCaptureQuiescent.Should().BeTrue();
+                f.Stage.Opens.Should().Be(1);
+                f.Composition.Adapter.Calls.Should().Be(0);
+                f.Composition.Audit.Events.Should().NotContain(item => item.ActionId == "model.turn");
+                foreach (var entry in new[] { f.Composition.Ui.First, f.Composition.Ui.Second })
+                {
+                    (await native.Interactions.ReadConversationPageAsync(entry.Authority.SessionId,
+                        null, 50, native.Token)).Messages.Should().BeEmpty();
+                }
+            }
+            finally { session.ReleaseClose.TrySetResult(); }
+        });
+    }
+
+    [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]
     [InlineData(false, true)]

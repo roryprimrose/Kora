@@ -23,6 +23,99 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Theory]
+    [InlineData("capture")]
+    [InlineData("join")]
+    [InlineData("dispatch")]
+    [InlineData("review")]
+    [InlineData("answer")]
+    public async Task ReplacingEligibleCallOwnerCannotRenewTheOriginalWakeOperation(string phase)
+    {
+        var stage = new HandsFreeStage();
+        HandsFreeVoiceRecognitionService? decorated = null;
+        var f = CreateHandsFreeFixture(stage, value => decorated = value);
+        await using var voice = decorated!;
+        f.ViewModel.BindCallOwnershipGate(static () => true);
+        await using var conversation = new WakeConversation(f, () => voice.IsCaptureQuiescent);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (phase is "dispatch")
+        {
+            f.Dispatcher.BeforeInvokeAsync = async () =>
+            {
+                entered.TrySetResult();
+                await release.Task.WaitAsync(TestContext.Current.CancellationToken);
+            };
+        }
+        if (phase is "review")
+        {
+            conversation.BeforeSelection = async () =>
+            {
+                entered.TrySetResult();
+                await release.Task.WaitAsync(TestContext.Current.CancellationToken);
+            };
+        }
+        await f.ViewModel.InitializeAsync();
+        var first = await stage.NextAsync();
+        first.HoldClose = phase is "join";
+        try
+        {
+            first.Wake.SetResult(new(first.Binding.Generation, 12, true));
+            await first.CaptureStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+            if (phase is not "capture")
+            {
+                first.Result.SetResult(new("compare these plans", 1, first.Binding.Generation));
+                if (phase is "join") { await first.Closing.Task.WaitAsync(TestContext.Current.CancellationToken); }
+                if (phase is "dispatch" or "review") { await entered.Task.WaitAsync(TestContext.Current.CancellationToken); }
+                if (phase is "answer")
+                {
+                    await conversation.Adapter.Entered.Task.WaitAsync(TestContext.Current.CancellationToken);
+                    conversation.Turns.IsQuiescent.Should().BeFalse();
+                    conversation.Store.RequestMessage!.AssistantResponse.Should().BeNull();
+                }
+            }
+            var callRevision = f.ViewModel.CallPolicyRevision;
+            f.ViewModel.BindCallOwnershipGate(static () => true);
+            f.ViewModel.CallPolicyRevision.Should().Be(callRevision);
+            first.Result.TrySetResult(new("compare these plans", 1, first.Binding.Generation));
+            release.TrySetResult();
+            first.ReleaseClose.TrySetResult();
+            conversation.Adapter.Release.TrySetResult();
+            await Task.WhenAny(voice.Completion, stage.NextAsync());
+            if (phase is "answer")
+            {
+                conversation.Adapter.Calls.Should().Be(1);
+                conversation.Store.RequestMessage!.Outcome.Should().NotBe(ModelTurnOutcome.Succeeded);
+                conversation.Store.RequestMessage.AssistantResponse.Should().BeNull();
+                conversation.Store.TaskResult!.Task.State.Should().NotBe(HostTaskState.Succeeded);
+                f.Audit.Events.Last(item => string.Equals(item.ActionId, "model.turn", StringComparison.Ordinal))
+                    .Outcome.Should().NotBe(SecurityAuditOutcome.Succeeded);
+            }
+            else
+            {
+                conversation.Adapter.Calls.Should().Be(0);
+                conversation.Store.RequestRetentions.Should().Be(0);
+                f.Audit.Events.Should().NotContain(item => item.ActionId == "model.turn");
+            }
+            voice.Completion.IsCompleted.Should().BeTrue("a replacement owner cannot rearm the original utterance");
+            await voice.Completion;
+            stage.OpenCount.Should().Be(1);
+            first.IsQuiescent.Should().BeTrue();
+            conversation.Turns.IsQuiescent.Should().BeTrue();
+            f.ViewModel.ResponseBody.Should().NotContain(WakeAnswerAdapter.Answer);
+            f.Reasoner.Requests.Should().BeEmpty();
+        }
+        finally
+        {
+            release.TrySetResult();
+            first.ReleaseClose.TrySetResult();
+            conversation.Adapter.Release.TrySetResult();
+            await voice.StopAsync(TestContext.Current.CancellationToken);
+            await voice.Completion;
+            await f.ViewModel.DisposeAsync();
+        }
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task ReviewedCommandCannotStealWakeCaptureOrItsPendingPhysicalJoin(bool duringJoin)
@@ -407,6 +500,7 @@ public sealed partial class MainViewModelTests
     [Theory]
     [InlineData("channel")]
     [InlineData("call-owner")]
+    [InlineData("call-owner-loss")]
     [InlineData("dictation-retirement")]
     public async Task NativeRoutingRechecksItsOriginalChannelAndAdmissionAtEntry(string change)
     {
@@ -414,6 +508,9 @@ public sealed partial class MainViewModelTests
         HandsFreeVoiceRecognitionService? decorated = null;
         var f = CreateHandsFreeFixture(stage, value => decorated = value);
         await using var voice = decorated!;
+        var callOwnerEligible = true;
+        if (change is "call-owner-loss")
+        { f.ViewModel.BindCallOwnershipGate(() => callOwnerEligible); }
         var calls = 0;
         f.ViewModel.BindSessionRouting((_, _, _) =>
         {
@@ -434,6 +531,8 @@ public sealed partial class MainViewModelTests
         f.ViewModel.WindowActionRequested += WindowRequested;
         if (change is "call-owner")
         { f.Dispatcher.BeforeInvoke = () => f.ViewModel.BindCallOwnershipGate(static () => false); }
+        if (change is "call-owner-loss")
+        { f.Dispatcher.BeforeInvoke = () => callOwnerEligible = false; }
         var dictation = change is "dictation-retirement"
             ? f.ViewModel.BindComposerDictation(NullLogger<ComposerDictationService>.Instance) : null;
         var armed = true;
@@ -445,7 +544,12 @@ public sealed partial class MainViewModelTests
         }
         if (dictation is not null) { dictation.Changed += Retired; }
         var terminal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var expected = change is "call-owner" ? "Session routing stopped." : "Voice request retired.";
+        var expected = change switch
+        {
+            "call-owner" => "The command could not be completed.",
+            "call-owner-loss" => "Session routing stopped.",
+            _ => "Voice request retired.",
+        };
         void Presented(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
         {
             if (args.PropertyName is nameof(f.ViewModel.ResponseTitle)

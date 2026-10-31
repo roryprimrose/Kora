@@ -72,6 +72,7 @@ public sealed partial class MainViewModel
                     privacy.TopologyRevision, CallPolicyRevision, auditImpactOwnerRevision(),
                     Interlocked.Read(ref voiceOwnershipBindingRevision))
                 {
+                    ControlBindingRevision = Interlocked.Read(ref settingsOwnershipBindingRevision),
                     ComposerRevision = Interlocked.Read(ref attachmentCatalogueComposerRevision),
                     ConversationRevision = Interlocked.Read(ref foregroundConversationRevision),
                 }

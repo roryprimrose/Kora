@@ -8,6 +8,62 @@ namespace Kora.Application.UnitTests.Context;
 public sealed partial class ClipboardExplanationWorkflowTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NativeReadReviewKeepsExactPermissionLiveWithoutAnotherCapture(bool revoke)
+    {
+        var reviews = 0;
+        Fixture? fixture = null;
+        await using var lifetime = fixture = new Fixture(productionReadPolicy: true, readReview: async (source, validate, token) =>
+        {
+            reviews++;
+            source.Should().BeSameAs(fixture!.Broker.Current);
+            fixture.Reader.Calls.Should().Be(1);
+            fixture.Tasks.Last().State.Should().Be(HostTaskState.DispatchRecorded);
+            await validate(token);
+            if (revoke)
+            {
+                RevokePermission(fixture);
+                var invalid = () => validate(token);
+                await invalid.Should().ThrowAsync<InvalidOperationException>();
+                return ClipboardOutcome.Denied;
+            }
+            return ClipboardOutcome.Captured;
+        });
+        using var root = fixture.Root();
+        (await fixture.ReadAction.ExecuteAsync(() => true, fixture.Token)).Should()
+            .Be(revoke ? ClipboardOutcome.Denied : ClipboardOutcome.Captured);
+        reviews.Should().Be(1);
+        fixture.Reader.Calls.Should().Be(1);
+        fixture.Adapter.Calls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RetiredOrUnsupportedCaptureNeverEntersReadReview(bool retire)
+    {
+        var reviews = 0;
+        await using var fixture = new Fixture(productionReadPolicy: true, readReview: (_, _, _) =>
+        {
+            reviews++;
+            return Task.FromResult(ClipboardOutcome.Captured);
+        });
+        using var root = fixture.Root();
+        if (retire)
+        {
+            fixture.Broker.Changed += (_, _) =>
+            {
+                if (fixture.Broker.Current is not null) { fixture.Broker.Clear(); }
+            };
+        }
+        else { fixture.Reader.Outcome = ClipboardOutcome.UnsupportedFormat; }
+        (await fixture.ReadAction.ExecuteAsync(() => true, fixture.Token)).Should()
+            .Be(retire ? ClipboardOutcome.Stale : ClipboardOutcome.UnsupportedFormat);
+        reviews.Should().Be(0);
+    }
+
+    [Theory]
     [InlineData("once", 2, RequestOrigin.LocalUi)]
     [InlineData("session", 1, RequestOrigin.LocalUi)]
     [InlineData("perpetual", 1, RequestOrigin.LocalUi)]

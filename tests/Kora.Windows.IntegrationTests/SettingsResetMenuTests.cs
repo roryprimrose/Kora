@@ -32,6 +32,7 @@ public sealed class SettingsResetMenuTests
         { "RefreshPlaybackVolumeCommand", "Kora playback volume", "CanChangePlaybackVolume", "Refresh volume" },
         { "RefreshWindowsSpeechRateCommand", "Windows voice speed", "CanInspectWindowsSpeechRateNative", "Refresh voice speed" },
         { "RefreshResponseModeCommand", "Device-default response mode", "CanChangeResponseMode", "Refresh response mode" },
+        { "RefreshConversationExecutionCommand", "Ordinary conversation execution maximum", "CanChangeConversationExecution", "Refresh ordinary conversation execution maximum" },
         { "RefreshSpeechTextCommand", "Speech captions", "CanChangeSpeechText", "Refresh captions" },
         { "RefreshSessionRetentionCommand", "Session inactivity retention", "CanChangeSessionRetentionNative", "Refresh archive and deletion settings" },
         { "RefreshDiagnosticRetentionCommand", "Diagnostic record storage", "CanChangeDiagnosticRetentionNative", "Refresh diagnostic settings" },
@@ -159,7 +160,7 @@ public sealed class SettingsResetMenuTests
         bindings.Select(attribute => attribute.Value).Distinct(StringComparer.Ordinal).Should().HaveCount(33);
         elements.Count(element =>
             string.Equals(element.Name.LocalName, nameof(SettingActionsButton), StringComparison.Ordinal))
-            .Should().Be(35);
+            .Should().Be(36);
         foreach (var binding in bindings)
         {
             var element = binding.Parent!;
@@ -196,7 +197,7 @@ public sealed class SettingsResetMenuTests
     [Theory]
     [InlineData("Appearance", 15, 15, 0)]
     [InlineData("Speech & audio", 8, 7, 5)]
-    [InlineData("Responses", 3, 4, 2)]
+    [InlineData("Responses", 4, 4, 3)]
     [InlineData("Sessions", 1, 1, 1)]
     [InlineData("Logging", 2, 2, 2)]
     [InlineData("Calls", 2, 2, 2)]

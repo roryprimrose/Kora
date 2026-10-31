@@ -286,7 +286,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         SpeechSetupComparison? speechSetupComparison = null,
         ConversationExecutionConfigurationService? conversationExecution = null,
         LogonStartupConfigurationService? logonStartupConfiguration = null,
-        StartupPresentationConfigurationService? startupPresentationConfiguration = null)
+        StartupPresentationConfigurationService? startupPresentationConfiguration = null,
+        DetailPresentationConfigurationService? detailPresentationConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -448,6 +449,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         InitializeConversationExecution(conversationExecution, execute => CreateCommand(execute));
         InitializeLogonStartup(logonStartupConfiguration, execute => CreateCommand(execute));
         InitializeStartupPresentation(startupPresentationConfiguration, execute => CreateCommand(execute));
+        InitializeDetailPresentation(detailPresentationConfiguration, execute => CreateCommand(execute));
         ResetThemeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.Theme));
         ResetReaderTextScaleCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReaderTextScale));
         ResetReducedMotionCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReducedMotion));
@@ -4262,6 +4264,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         if (SettingsSectionCommand.Parse(eventArgs.Transcript, AssistantName) is not null
             || LogonStartupCommand.Parse(eventArgs.Transcript, AssistantName) is not null
+            || DetailPresentationCommand.Parse(eventArgs.Transcript, AssistantName) is not null
             || manualInput.CataloguePreparation is not null
             || EvidenceTraceCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
         {
@@ -4326,6 +4329,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             && string.Equals(spokenText.Trim(), "listening", StringComparison.OrdinalIgnoreCase))
         {
             await ExecuteAsync(commandCatalog.GetCommands(AssistantName).Single(command => command.Action == BuiltInAction.DisableListening), initiator);
+            return;
+        }
+        if (DetailPresentationCommand.Parse(spokenText, AssistantName) is { } detailCommand)
+        {
+            if (!isAssistantNameAvailable || initiator == SecurityAuditInitiator.VoiceCommand
+                && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Detail preferences require original typed input or the current assistant-name voice prefix.";
+                return;
+            }
+            await ExecuteDetailPresentation(detailCommand, initiator, manualInput);
             return;
         }
         if (LogonStartupCommand.Parse(spokenText, AssistantName) is { } startupOperation)
@@ -5391,8 +5405,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             {
                 var presentation = AnswerPresentation.From(decision.Answer!);
                 PresentResponse(AssistantState.Information, "Local model response",
-                    $"Generated locally; verify important details.\n\n{presentation.Brief}"
-                        + (presentation.HasDetails ? "\n\n" + AnswerPresentation.Offer : string.Empty),
+                    $"Generated locally; verify important details.\n\n{presentation.Brief}",
                     modelAnswer: new(decision.Answer!));
                 await SpeakCurrentResponseAsync(cancellationToken: cancellation.Token, expectedSpeechRevision: speechRevision);
             }
@@ -6680,6 +6693,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         State = responseState;
         spokenSummaryRecovery = null;
         ResponseTitle = title;
+        if (modelAnswer is not null)
+        {
+            modelAnswer = modelAnswer with
+            {
+                OfferEpoch = detailPresentation is null ? 0 : detailPresentation.CaptureOfferEpoch(),
+            };
+            if (AnswerPresentation.From(modelAnswer.Body).HasDetails && modelAnswer.OfferEpoch is not null)
+            { body += "\n\n" + AnswerPresentation.Offer; }
+        }
         ResponseBody = body;
         forceVisualResponse = ShouldForceVisualResponse(
             IsGrantEditorVisible, IsResponseInteractionPending, responseState);
@@ -6726,6 +6748,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         OnPropertyChanged(nameof(CanControlLogonStartup));
         OnPropertyChanged(nameof(CanControlLogonStartupNative));
         OnPropertyChanged(nameof(CanControlStartupPresentation));
+        OnPropertyChanged(nameof(CanControlDetailPresentation));
+        OnPropertyChanged(nameof(CanControlDetailPresentationNative));
         OnPropertyChanged(nameof(WindowsSpeechRateStatus));
         OnPropertyChanged(nameof(PlaybackVolumeStatus));
         OnPropertyChanged(nameof(CanChangeDiagnosticRetention));
@@ -6811,6 +6835,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
             .Concat(SettingsSectionCommand.FixedPhrases)
             .Concat(LogonStartupCommand.FixedPhrases)
+            .Concat(DetailPresentationCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
             .Concat(ClipboardPreview is { } snapshot

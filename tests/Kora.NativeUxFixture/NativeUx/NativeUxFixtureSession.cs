@@ -174,12 +174,13 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         Kora.Application.Dependencies.SpeechComponentSetupService? speechComponentSetup = null,
         SpeechSetupComparison? speechSetupComparison = null,
         LogonStartupConfigurationService? logonStartupConfiguration = null,
+        DetailPresentationConfigurationService? detailPresentationConfiguration = null,
         StartupPresentationConfigurationService? startupPresentationConfiguration = null,
         IQuestionVoiceRecognitionService? voiceRecognition = null, SpeechInputConfigurationService? speechInputConfiguration = null)
     {
         using var setup = BeginPhase(NativeFixturePhase.Setup);
         await setup.RunAsync(() => InitializeCoreAsync(webPageGet, webSummary, callState, dispatcher, modelReasoner,
-            modelProbe, speechComponentSetup, speechSetupComparison, logonStartupConfiguration, startupPresentationConfiguration,
+            modelProbe, speechComponentSetup, speechSetupComparison, logonStartupConfiguration, detailPresentationConfiguration, startupPresentationConfiguration,
             voiceRecognition, speechInputConfiguration));
     }
 
@@ -190,6 +191,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         Kora.Application.Dependencies.SpeechComponentSetupService? speechComponentSetup,
         SpeechSetupComparison? speechSetupComparison,
         LogonStartupConfigurationService? logonStartupConfiguration,
+        DetailPresentationConfigurationService? detailPresentationConfiguration,
         StartupPresentationConfigurationService? startupPresentationConfiguration,
         IQuestionVoiceRecognitionService? voiceRecognition, SpeechInputConfigurationService? speechInputConfiguration)
     {
@@ -267,7 +269,8 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             webPageGet: webPageGet, speechComponentSetup: speechComponentSetup,
             speechSetupComparison: speechSetupComparison, logonStartupConfiguration: logonStartupConfiguration,
             startupPresentationConfiguration: startupPresentationConfiguration,
-            speechInputConfiguration: speechInputConfiguration);
+            speechInputConfiguration: speechInputConfiguration,
+            detailPresentationConfiguration: detailPresentationConfiguration);
         if (webSummary is not null) { Main.BindWebSummaryWorkflow(webSummary); }
         Main.BindCallOwnershipGate(() => Access.Open);
         Main.BindClipboardOwnershipGate(static () => false);

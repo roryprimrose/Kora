@@ -227,6 +227,12 @@ remain available in Sessions when the bounded lookup has more results.
 | `hide details` | Hide Details without closing the conversation or discarding input |
 | `show session logs`, `show session audit` | Explicit bounded diagnostic-log / typed committed-audit query for the selected session; original local UI only |
 
+Generic Details phrases accept the current response only while its exact offer
+is pending. After **Not now**, or in **Link only**, they retain the selected
+session route; an older current response does not override that selection.
+Use `open current response details` to request that exact current response
+manually, independently of the offer preference.
+
 Activated voice requires the current available assistant name, for example `Kora, open all work`. Renaming replaces that prefix in the recognition grammar.
 These phrases accept no extra words, body queries or trailing punctuation; malformed reserved navigation input is refused, not sent to a model.
 
@@ -1527,6 +1533,24 @@ No automatic rewrite, default-save, rollback or retry is claimed ([confirmation 
 Use `review response timeout suggestion` to review the exact host-pinned successful answer, then separately `confirm response timeout change` or `cancel response timeout review`. Activated voice requires the current assistant-name prefix. Both conversation windows also offer **Review setting suggestion...** on the exact retained answer ([shared route](../src/Kora.Application/ViewModels/MainViewModel.ResponseTimeoutSuggestions.cs)).
 
 The answer must be one exact `set appearance.response-timeout to <integer>` using canonical digits, 1-60 seconds. It changes only the existing response-window inactivity hide delay, not provider deadlines or Always show. Review saves nothing; original-channel call policy, source, preference, privacy and host checks remain required through commit ([review and recovery](settings.md#review-a-response-timeout-suggestion)).
+
+### Detail presentation preference
+
+These exact commands share the native reviewed preference workflow. Prefix activated voice with the current assistant name. Set/reset stage a review only; confirmation is separate ([parser](../src/Kora.Application/Configuration/DetailPresentationCommand.cs), [interaction](../src/Kora.Application/ViewModels/MainViewModel.DetailPresentation.cs)).
+
+```text
+get responses.detail-presentation
+status responses.detail-presentation
+set responses.detail-presentation to Offer
+set responses.detail-presentation to LinkOnly
+stop asking about details
+offer detailed results
+reset responses.detail-presentation
+confirm detail presentation change
+cancel detail presentation change
+```
+
+Only existing proactive cues on future publications are affected. **Open details**, `open current response details` and selected-session detail commands retain their existing source/privacy admission. Accepting/declining an individual offer never saves a preference. Protected-call voice writes remain denied; no new question, reply turn, model tool, automatic opening or historical replay is introduced ([shared policy](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs), [manual route](../src/Kora.Application/ViewModels/MainViewModel.CurrentResponse.cs)).
 
 ### Inspect or change the device-default response mode
 

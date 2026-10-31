@@ -18,6 +18,7 @@ internal sealed partial class SessionsViewModel
         get => completedMessage;
         set
         {
+            if (value is null) { completedDetailPublication = null; }
             if (ReferenceEquals(completedMessage, value)) { return; }
             completedMessage = value;
             completionMessages = value is { } message ? [message] : [];
@@ -80,14 +81,15 @@ internal sealed partial class SessionsViewModel
         && (CanOpenConversationDetails && ObservedConversationMessages.Any() || CanOpenHistoryDetail || HasEvidenceDetails);
     public string DetailsAvailability => CanShowDetails ? "Open an exact result from this session's observed messages or selected activity."
         : "No available details on the selected session's observed page. Select a session and explicitly read conversation or activity.";
-    private Guid? dismissedSessionDetailsOffer;
-    public ConversationMessage? DetailsOfferMessage => CanPresentDetails && completedConversationMessage is { AssistantResponse: { } response } message
-        && message.Request.RequestId.Value != dismissedSessionDetailsOffer
+    public ConversationMessage? DetailsOfferMessage => CanPresentDetails
+        && completedDetailPublication is { Dismissed: false, Message: { AssistantResponse: { } response } message } publication
+        && (detailPresentation is null || detailPresentation.IsOfferCurrent(publication.OfferEpoch))
         && Kora.Core.Presentation.AnswerPresentation.From(response.Body).HasDetails ? message : null;
+    public bool HasDetailsOffer => DetailsOfferMessage is not null;
     internal void DismissDetailsOffer(ConversationMessage message)
     {
         if (!ReferenceEquals(message, DetailsOfferMessage)) { return; }
-        dismissedSessionDetailsOffer = message.Request.RequestId.Value;
+        RetireSessionDetailsOffer();
         NotifyConversation();
     }
     public Task OpenConversationDetailAsync(ConversationMessage message, bool assistant = false, Guid? observationId = null,
@@ -388,6 +390,7 @@ internal sealed partial class SessionsViewModel
         conversationPage = null;
         completedConversationMessage = null;
         conversationUpdates = false;
+        ClearTerminalDetailPublications();
         conversationHeld = false;
         conversationSourceHeld = false;
         composerSession = null;
@@ -431,7 +434,7 @@ internal sealed partial class SessionsViewModel
             nameof(CanOpenConversationDetails), nameof(CanExportExactAnswer), nameof(CanReviewOriginalMessageReuse), nameof(CanCompose), nameof(CanSubmitConversation), nameof(CanSubmitLocalFirst),
             nameof(CanShowDetails), nameof(DetailsAvailability),
             nameof(HasEvidenceDetails), nameof(EvidenceDetails), nameof(ObservationChoices),
-            nameof(DetailsOfferMessage),
+            nameof(DetailsOfferMessage), nameof(HasDetailsOffer),
             nameof(CanRecoverConversationDraft), nameof(ComposerDraftSizeFeedback), nameof(CanSubmitConversationWithClarification),
             nameof(McpServers), nameof(McpAccounts), nameof(SelectedMcpServer), nameof(SelectedMcpAccount), nameof(IsMcpActive), nameof(McpResultText) })
         { OnPropertyChanged(name); }

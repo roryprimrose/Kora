@@ -98,9 +98,8 @@ internal sealed partial class SessionsViewModel
             if (submitted.Position == 0)
             {
                 var completed = (await submitted.Completion.WaitAsync(token)).RequireReceipt();
-                if (PresentLive())
+                if (PresentLive() && PublishConversationCompletion(completed.Message))
                 {
-                    PublishConversationCompletion(completed.Message);
                     conversationStatus = TerminalConversationStatus(completed);
                 }
             }
@@ -143,7 +142,7 @@ internal sealed partial class SessionsViewModel
             {
                 if (completedConversationMessage == receipt.Message
                     || conversationPage?.Messages.Any(message => message == receipt.Message) == true) { return; }
-                PublishConversationCompletion(receipt.Message);
+                if (!PublishConversationCompletion(receipt.Message)) { return; }
                 conversationStatus = TerminalConversationStatus(receipt);
             }
             else

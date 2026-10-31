@@ -21,17 +21,19 @@ internal sealed partial class SessionsViewModel
     internal IEnumerable<ConversationMessage> ObservedConversationMessages => ConversationMessages.Concat(ConversationUpdates);
     internal long ConversationTailRevision => conversationTailRevision;
 
-    private void PublishConversationCompletion(ConversationMessage message)
+    private bool PublishConversationCompletion(ConversationMessage message)
     {
         message.Validate();
         if (!CanPresentDetails || selected?.Authority.SessionId != message.Request.SessionId
             || selected.Authority.Generation != message.Generation)
         { throw new InvalidOperationException("The completion does not belong to the current exact private conversation."); }
+        if (!TryCaptureDetailPublication(message)) { return false; }
         if (!ConversationReadingAvailable) { conversationPage = null; completedConversationMessage = null; }
         if (completedConversationMessage is null || message.Sequence >= completedConversationMessage.Sequence)
         { completedConversationMessage = message; }
         conversationReadingControl = access.ControlRevision;
         conversationUpdates = true;
+        return true;
     }
 
     public Task ReadLatestConversationAsync(Func<bool>? admitted = null) => RunConversationAsync(async (target, live) =>

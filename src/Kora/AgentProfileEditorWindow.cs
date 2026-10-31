@@ -11,6 +11,7 @@ internal sealed class AgentProfileEditorWindow : Window
 {
     internal TextBox NameInput { get; } = new() { PlaceholderText = "new-lowercase-owned-id", IsUndoEnabled = false };
     internal TextBox Source { get; } = new() { AcceptsReturn = true, Height = 250, IsUndoEnabled = false };
+    internal TextBox DescriptionRequest { get; } = new() { AcceptsReturn = true, Height = 100, IsUndoEnabled = false };
     internal ComboBox Inventory { get; } = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     internal TextBox Review { get; } = new() { AcceptsReturn = true, Height = 250, IsReadOnly = true, IsUndoEnabled = false };
     internal TextBlock Status { get; } = new() { TextWrapping = TextWrapping.Wrap };
@@ -35,13 +36,17 @@ internal sealed class AgentProfileEditorWindow : Window
         AutomationProperties.SetName(Inventory, "Owned inert agent originals");
         panel.Children.Add(NameInput);
         Add("Create new volatile draft", "Create");
+        AutomationProperties.SetName(DescriptionRequest, "Original agent description or refinement");
+        DescriptionRequest.PlaceholderText = "Describe a local text-only role, or refine this draft";
+        panel.Children.Add(DescriptionRequest);
+        Add("Ask Kora: review local authoring disclosure", "Ask");
         panel.Children.Add(Source);
         Add("Validate complete v1 or v4 source", "Validate");
         Add("Review Save as new", "Review");
         panel.Children.Add(Review);
         panel.Children.Add(Confirm);
         Confirm.Click += (_, _) => run("Confirm");
-        Add("Cancel save review", "Cancel");
+        Add("Cancel proposal or save review", "Cancel");
         Add("Refresh owned inventory", "List");
         panel.Children.Add(Inventory);
         Add("Reopen selected original read-only", "Inspect");
@@ -111,7 +116,7 @@ internal sealed class AgentProfileEditorWindow : Window
     internal void ClearPrivateText()
     {
         RetireReview();
-        NameInput.Text = Source.Text = string.Empty;
+        NameInput.Text = Source.Text = DescriptionRequest.Text = string.Empty;
         Inventory.ItemsSource = null;
         Status.Text = string.Empty;
     }

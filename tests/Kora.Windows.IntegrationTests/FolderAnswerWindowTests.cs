@@ -37,7 +37,10 @@ public sealed class FolderAnswerWindowTests
                 }, (review, current, token) =>
                 {
                     answers++;
-                    review.Should().BeSameAs(actual);
+                    review.Source.Should().BeSameAs(actual!.Source);
+                    review.Target.Should().BeSameAs(actual.Target);
+                    review.IsUserSelected.Should().BeTrue();
+                    actual = review;
                     current().Should().BeTrue();
                     return Task.FromResult(new LocalFileAnswerResult(LocalFileAnswerOutcome.Succeeded,
                         [new("A genuine cited model claim", review.Search.Citations.ToImmutableArray())], review.Search.MatchingChunks));
@@ -52,10 +55,15 @@ public sealed class FolderAnswerWindowTests
                 await Press(window, "Review folder excerpts for this question");
                 prepares.Should().Be(1);
                 answers.Should().Be(0);
+                Candidates(window).SelectedItems!.Count.Should().Be(0);
+                Confirm(window).IsEnabled.Should().BeFalse();
+                Candidates(window).SelectedItems!.Add(actual!.Search.Citations[0]);
+                Candidates(window).SelectedItems!.Add(actual.Search.Citations[1]);
+                await Press(window, "Review only chosen folder excerpts");
                 Status(window).Text.Should().Contain("REVIEW NEEDED").And.Contain("2 selected excerpts")
                     .And.Contain(actual!.ExcerptUtf8Bytes.ToString(System.Globalization.CultureInfo.InvariantCulture))
                     .And.Contain("bounded retrieval omitted other matches: True");
-                Rows(window).ItemsSource.Should().BeSameAs(actual.Search.Citations);
+                Rows(window).ItemsSource.Should().NotBeNull();
                 Confirm(window).IsEnabled.Should().BeTrue();
                 await Press(window, Confirm(window).Content!.ToString()!);
                 answers.Should().Be(1);
@@ -82,6 +90,67 @@ public sealed class FolderAnswerWindowTests
         });
     }
 
+    [Fact]
+    public async Task DeliberateSubsetReviewShowsUnchangedQuestionScopeAndBudgetAndOnlyChosenOriginalSpanNavigates()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var source = Source();
+            FolderAnswerReview? retrieved = null;
+            var answers = 0;
+            var window = new LocalFilePreviewWindow(message => throw new InvalidOperationException(message));
+            window.ShowFolderRevision(source, (_, _, _) => throw new NotSupportedException(), () => true,
+                () => Task.CompletedTask, (question, _, _) =>
+                {
+                    retrieved = Review(source, question);
+                    return Task.FromResult(new FolderAnswerPreparation(LocalFileAnswerOutcome.Succeeded, retrieved));
+                }, (review, _, _) =>
+                {
+                    answers++;
+                    review.Question.Should().Be("alpha?");
+                    review.Search.Citations.Should().Equal(retrieved!.Search.Citations[1]);
+                    review.ExpiresAt.Should().Be(retrieved.ExpiresAt);
+                    return Task.FromResult(new LocalFileAnswerResult(LocalFileAnswerOutcome.Succeeded,
+                        [new("Only the chosen source supports this claim", review.Search.Citations.ToImmutableArray())], review.Search.MatchingChunks));
+                });
+            window.Show();
+            try
+            {
+                Question(window).Text = "alpha?";
+                await Press(window, "Review folder excerpts for this question");
+                Confirm(window).IsEnabled.Should().BeFalse();
+                Candidates(window).SelectedItems!.Count.Should().Be(0);
+                Candidates(window).SelectedItems!.Add(retrieved!.Search.Citations[0]);
+                await Press(window, "Review only chosen folder excerpts");
+                Candidates(window).SelectedItems!.Clear();
+                Confirm(window).IsEnabled.Should().BeFalse();
+                Rows(window).ItemsSource.Should().BeNull();
+                answers.Should().Be(0);
+                Candidates(window).SelectedItems!.Add(retrieved.Search.Citations[1]);
+                await Press(window, "Review only chosen folder excerpts");
+                Status(window).Text.Should().Contain("Original question (unchanged):\nalpha?")
+                    .And.Contain("1 selected excerpts").And.Contain("User omitted 1")
+                    .And.Contain("32768").And.Contain("16384").And.Contain("not renewed")
+                    .And.Contain("Choice is not risk approval").And.Contain("full folder");
+                Rows(window).ItemsSource!.Cast<LocalFileCitation>().Should().Equal(retrieved.Search.Citations[1]);
+                answers.Should().Be(0);
+                await Press(window, Confirm(window).Content!.ToString()!);
+                answers.Should().Be(1);
+                Rows(window).SelectedItem = retrieved.Search.Citations[1];
+                await Press(window, "Show exact folder answer citation");
+                var span = window.GetVisualDescendants().OfType<NamedTextBlock>().Single(block =>
+                    AutomationProperties.GetName(block)?.StartsWith("Exact cited original source span", StringComparison.Ordinal) == true);
+                span.Text.Should().Be(retrieved.Search.Citations[1].Excerpt);
+                span.IsFocused.Should().BeTrue();
+                Candidates(window).SelectedItems!.Clear();
+                span.Text.Should().BeNull();
+                Rows(window).ItemsSource.Should().BeNull();
+                Status(window).Text.Should().BeNull();
+            }
+            finally { window.ClearAndClose(); }
+        });
+    }
+
     [Theory]
     [InlineData("question", false)]
     [InlineData("cancel", false)]
@@ -91,6 +160,7 @@ public sealed class FolderAnswerWindowTests
     [InlineData("cancel", true)]
     [InlineData("close", true)]
     [InlineData("source", true)]
+    [InlineData("selection", true)]
     public async Task ChangesCancelActualWorkAndSuppressLateReviewOrClaims(string change, bool duringAnswer)
     {
         await HeadlessSession.RunAsync(async () =>
@@ -119,6 +189,8 @@ public sealed class FolderAnswerWindowTests
                 if (duringAnswer)
                 {
                     await Press(window, "Review folder excerpts for this question");
+                    Candidates(window).SelectedItems!.Add(Candidates(window).Items[0]);
+                    await Press(window, "Review only chosen folder excerpts");
                     work = Press(window, Confirm(window).Content!.ToString()!);
                 }
                 else { work = Press(window, "Review folder excerpts for this question"); }
@@ -132,6 +204,7 @@ public sealed class FolderAnswerWindowTests
                             .RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
                         break;
                     case "close": window.ClearAndClose(); break;
+                    case "selection": Candidates(window).SelectedItems!.Clear(); break;
                     default: current = false; break;
                 }
                 if (!string.Equals(change, "source", StringComparison.Ordinal)) { actualToken.IsCancellationRequested.Should().BeTrue(); }
@@ -150,6 +223,8 @@ public sealed class FolderAnswerWindowTests
         string.Equals(AutomationProperties.GetName(control), "Folder answer review and local model outcome", StringComparison.Ordinal));
     private static ListBox Rows(Window window) => window.GetVisualDescendants().OfType<ListBox>().Single(control =>
         string.Equals(AutomationProperties.GetName(control), "Complete selected folder excerpts and exact citations", StringComparison.Ordinal));
+    private static ListBox Candidates(Window window) => window.GetVisualDescendants().OfType<ListBox>().Single(control =>
+        string.Equals(AutomationProperties.GetName(control), "Choose whole retrieved folder excerpts for model context; none selected by default", StringComparison.Ordinal));
     private static Button Confirm(Window window) => window.GetVisualDescendants().OfType<Button>().Single(button =>
         string.Equals(button.Content as string, "Confirm: answer locally using only these reviewed folder excerpts", StringComparison.Ordinal));
     private static Task Press(Window window, string label) =>
@@ -159,7 +234,7 @@ public sealed class FolderAnswerWindowTests
     private static FolderAnswerReview Review(LocalFolderRevision source, string question)
     {
         var input = new HostRequest(new(Guid.NewGuid()), source.Review.Request.SessionId, source.Review.Request.TaskId, RequestOrigin.LocalUi);
-        var search = new LocalFileLexicalRetrieval().Search(source, source.Reference, question, DateTimeOffset.UnixEpoch, CancellationToken.None);
+        var search = new LocalFileLexicalRetrieval().Search(source, source.Reference, question, DateTimeOffset.UtcNow, CancellationToken.None);
         return new(source, question, search with { MatchingChunks = 3, Truncated = true },
             LocalContextSessionTarget.ReviewedFresh(input, HostRequest.Create(RequestOrigin.LocalUi)));
     }

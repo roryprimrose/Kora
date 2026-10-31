@@ -40,7 +40,11 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 var buttons = children.OfType<Button>().ToArray();
                 buttons[0].Content.Should().Be(reviews.Count == 1
                     ? "Continue to separate native publication confirmation" : "Publish exact new version");
-                Avalonia.Threading.Dispatcher.UIThread.Post(() => buttons[0].RaiseEvent(new RoutedEventArgs(Button.ClickEvent)));
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    try { AssertModalHandoff(editor, dialog); }
+                    finally { buttons[0].RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
+                });
             });
             (await editor.Review(document, "fixed-owned-package-destination", TestContext.Current.CancellationToken)).Should().BeTrue();
             reviews.Should().ContainSingle();
@@ -62,7 +66,11 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             {
                 if (ReferenceEquals(dialog, editor)) { return; }
                 var buttons = dialog.GetLogicalDescendants().OfType<Button>().ToArray();
-                Avalonia.Threading.Dispatcher.UIThread.Post(() => buttons[^1].RaiseEvent(new RoutedEventArgs(Button.ClickEvent)));
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    try { AssertModalHandoff(editor, dialog); }
+                    finally { buttons[^1].RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
+                });
             });
             (await editor.DirtyChoice(true, static () => true, TestContext.Current.CancellationToken)).Should().Be(2);
             current = false;
@@ -97,5 +105,81 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             (await editor.DirtyChoice(false, static () => true, TestContext.Current.CancellationToken)).Should().Be(1);
             editor.Close();
         });
+    }
+
+    [Theory]
+    [InlineData("close")]
+    [InlineData("retire")]
+    [InlineData("cancel")]
+    public async Task AcceptedChoiceWaitsForNativeClosureAndRechecksOriginalEligibility(string scenario)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var current = true;
+            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+            var document = OwnedDeclarativeSkillDocument.Create("example", "1.0.0", "Example", "Description", "Literal");
+            var editor = new OwnedSkillEditorWindow(_ => { }, () => current);
+            editor.Guidance.Text = document.Guidance;
+            editor.Show();
+            Window? review = null;
+            var holdClose = true;
+            using var opened = Window.WindowOpenedEvent.AddClassHandler<Window>((dialog, _) =>
+            {
+                if (ReferenceEquals(dialog, editor)) { return; }
+                review = dialog;
+                dialog.Closing += (_, args) => args.Cancel = holdClose;
+            });
+            var choosing = editor.Review(document, "fixed-destination", cancellation.Token);
+            try
+            {
+                var dialog = review!;
+                var button = dialog.GetLogicalDescendants().OfType<Button>().First();
+                button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                dialog.IsVisible.Should().BeTrue();
+                Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                choosing.IsCompleted.Should().BeFalse("a clicked choice cannot complete before its native window closes");
+                if (scenario is "retire") { current = false; }
+                if (scenario is "cancel") { cancellation.Cancel(); }
+                holdClose = false;
+                dialog.Close();
+                (await choosing).Should().Be(scenario is "close");
+                dialog.IsVisible.Should().BeFalse();
+                editor.Guidance.Text.Should().Be(document.Guidance);
+                editor.IsVisible.Should().BeTrue();
+            }
+            finally
+            {
+                holdClose = false;
+                review?.Close();
+                editor.Close();
+            }
+        });
+    }
+
+    private static void AssertModalHandoff(Window editor, Window dialog)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+        var editorActivations = 0;
+        var dialogActivations = 0;
+        void EditorActivated(object? sender, EventArgs args) => editorActivations++;
+        void DialogActivated(object? sender, EventArgs args) => dialogActivations++;
+        editor.Activated += EditorActivated;
+        dialog.Activated += DialogActivated;
+        try
+        {
+            // Headless input has no public gesture for Avalonia's internal disabled-window callback.
+            var disabledInput = editor.PlatformImpl!.GetType().GetProperty("GotInputWhenDisabled",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+            disabledInput.Should().NotBeNull();
+            disabledInput!.GetValue(editor.PlatformImpl).Should().BeOfType<Action>().Which.Invoke();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            dialogActivations.Should().Be(1, "blocked owner input must return to the exact native review");
+            editorActivations.Should().Be(0, "the draft editor must not reactivate behind its review");
+        }
+        finally
+        {
+            editor.Activated -= EditorActivated;
+            dialog.Activated -= DialogActivated;
+        }
     }
 }

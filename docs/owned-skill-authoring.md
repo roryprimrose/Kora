@@ -63,6 +63,7 @@ Deletion removes only `manifest.yaml`, `instructions.md` and the now-empty exact
 Bundled/shared/profile originals, reference packages, native v4 observation workflows, arbitrary paths and recursive tree deletion are unavailable ([owned store](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.Deletion.cs)).
 
 Confirmed deletion requires absence readback. The editor clears its saved catalogue; use **List** again. Future source-dependent use revalidates the exact source and fails closed if missing or replaced.
+Retained editor text keeps its deleted-source binding: editing it or changing its version does not make it a fresh unsaved source for simulation or refinement. Explicitly **Create** a new draft, or **Reopen** a present exact source, before model use; deletion does not silently discard the buffer.
 Deletion cannot start while a simulated test owns work. Cancel the test and wait for its actual source/model work to join before separately reviewing deletion; a simulated result never approves deletion.
 Deletion does not physically cancel immutable admitted tasks, erase independent grants/history/audit, transfer authority or enable anything. External dependents are not exhaustively inventoried ([use revalidation](../src/Kora.Application/Skills/OwnedSkillInvocationWorkflow.cs)).
 

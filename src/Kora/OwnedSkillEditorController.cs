@@ -253,11 +253,11 @@ internal sealed partial class OwnedSkillEditorController(
                         if (string.Equals(source?.Document.Id, deletionId, StringComparison.Ordinal)
                             && string.Equals(source?.Document.Version, deletionVersion, StringComparison.Ordinal))
                         {
-                            source = null;
+                            // Retained text must keep its deleted-source binding until explicit Create/Reopen.
                             validated = null;
                             CancelRefinement();
                         }
-                        opened.Report("The exact two-file owned source was deleted and absence read back. List again. Future source-dependent use requires a present exact source; admitted immutable tasks and independent grants/history are unchanged.");
+                        opened.Report("The exact two-file owned source was deleted and absence read back. List again. Retained text keeps its deleted-source binding; Create a new draft or explicitly Reopen before model use. Future source-dependent use requires a present exact source; admitted immutable tasks and independent grants/history are unchanged.");
                     }
                     break;
                 case "list":

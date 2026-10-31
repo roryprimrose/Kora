@@ -24,6 +24,9 @@ Delete, skill Disable or source unregistration. Unknown inventory and other
 formats/sources are refused; partial effects/audit/readback uncertainty hold
 mutation without rollback/retry or cancellation of immutable admitted work
 ([native owner](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.Deletion.cs)).
+Retained owned-skill editor text preserves its deleted-source provenance.
+Text/version edits cannot downgrade it to source-free model input; explicit
+Create or a fresh exact Reopen establishes a new draft/source binding.
 
 The existing supported-source watcher observes the nearest existing ancestor
 when a recognized root has not yet been created, including when several parent

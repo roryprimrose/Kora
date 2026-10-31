@@ -24,6 +24,8 @@ public sealed partial class OwnedSkillAuthoringNativeTests
     [InlineData("fail")]
     [InlineData("saved")]
     [InlineData("saved-delete")]
+    [InlineData("saved-delete-refine")]
+    [InlineData("saved-delete-edited")]
     [InlineData("reject")]
     [InlineData("unknown")]
     [InlineData("mocked-tool")]
@@ -70,6 +72,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             var ownership = 1L;
             await using var controller = new OwnedSkillEditorController(f.Main, save, admission, static () => true,
                 () => ownership, NullLogger<OwnedSkillEditorController>.Instance,
+                refinement: new(store, admission, save, runner, TimeProvider.System),
                 deletion: new(store, admission, f.Audit, TimeProvider.System), fixtures: flow);
             controller.Bind();
             OwnedSkillEditorWindow? editor = null;
@@ -103,7 +106,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 await Run("owned skill inputs required-literal");
             }
             var document = owned.Document();
-            var savedSource = scenario is "saved" or "saved-delete" or "late-delete";
+            var savedSource = scenario is "saved" or "late-delete" || scenario.StartsWith("saved-delete", StringComparison.Ordinal);
             if (savedSource)
             {
                 var saving = Run("owned skill save");
@@ -238,7 +241,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 var exactSource = (await store.Read("example", "1.0.0", f.Token))!;
                 exactSource.Document.ManifestBytes.ToArray().Should().Equal(document.ManifestBytes.ToArray());
                 exactSource.Document.InstructionBytes.ToArray().Should().Equal(document.InstructionBytes.ToArray());
-                if (scenario is "saved-delete")
+                if (scenario.StartsWith("saved-delete", StringComparison.Ordinal))
                 {
                     var calls = adapter.Calls;
                     var deleting = Run("owned skill delete example 1.0.0");
@@ -259,6 +262,49 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                     adapter.Calls.Should().Be(calls, "source deletion grants no model or tool invocation authority");
                     models.IsQuiescent.Should().BeTrue();
                     next.Task.IsCompleted.Should().BeFalse("deletion cannot open a simulated result or another operation");
+                    owned.Guidance.Text.Should().Be(guidance, "deleting the source must not silently discard the retained buffer");
+                    if (scenario is "saved-delete-edited")
+                    {
+                        owned.VersionInput.Text = "1.0.1";
+                        owned.Guidance.Text += " retained unsaved edit";
+                    }
+                    var refining = scenario is "saved-delete-refine";
+                    if (refining)
+                    {
+                        await Run("owned skill critique: Keep the complete guidance");
+                        adapter.Output = """{"body":"replacement guidance"}""";
+                    }
+                    var retry = Run(refining ? "owned skill refine" : "owned skill test");
+                    if (await Task.WhenAny(next.Task, retry) == next.Task)
+                    {
+                        Choose(await Review(retry), refining ? "Generate local guidance proposal" : "Start SIMULATED test");
+                        if (await Task.WhenAny(next.Task, retry) == next.Task)
+                        { Choose(await Review(retry), refining ? "Reject proposal" : "Dismiss simulated result"); }
+                    }
+                    await retry;
+                    adapter.Calls.Should().Be(calls,
+                        "retained deleted-source text cannot become a source-free simulation or refinement");
+                    next.Task.IsCompleted.Should().BeFalse("no deleted-source result or proposal can be disclosed");
+                    models.IsQuiescent.Should().BeTrue();
+                    (await store.Read("example", "1.0.0", f.Token)).Should().BeNull();
+                    (await store.Read("example", "1.0.1", f.Token)).Should().BeNull();
+                    owned.Guidance.Text.Should().Be(scenario is "saved-delete-edited" ? guidance + " retained unsaved edit" : guidance);
+                    if (scenario is "saved-delete")
+                    {
+                        await Run("owned skill create example 1.0.1");
+                        await Run("owned skill name: New example");
+                        await Run("owned skill description: New draft");
+                        owned.Guidance.Text = guidance;
+                        await Run("owned skill fixture: " + fixture);
+                        var fresh = Run("owned skill test");
+                        Choose(await Review(fresh), "Start SIMULATED test");
+                        Choose(await Review(fresh), "Dismiss simulated result");
+                        await fresh;
+                        adapter.Calls.Should().Be(calls + 1, "explicit Create establishes a new source-free draft, not old activation");
+                        models.IsQuiescent.Should().BeTrue();
+                        owned.Document().IsAvailableForInvocation.Should().BeFalse();
+                        (await store.List(f.Token)).Should().BeEmpty("fresh simulation must not recreate or enable either source");
+                    }
                 }
             }
         });

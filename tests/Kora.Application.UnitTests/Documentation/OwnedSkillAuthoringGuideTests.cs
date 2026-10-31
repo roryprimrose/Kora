@@ -68,6 +68,8 @@ public sealed class OwnedSkillAuthoringGuideTests
             .And.Contain("Delete only this exact owned source")
             .And.Contain("does not physically cancel immutable admitted tasks")
             .And.Contain("absence readback")
-            .And.Contain("do not retry or recreate");
+            .And.Contain("do not retry or recreate")
+            .And.Contain("Retained editor text keeps its deleted-source binding")
+            .And.Contain("before model use");
     }
 }

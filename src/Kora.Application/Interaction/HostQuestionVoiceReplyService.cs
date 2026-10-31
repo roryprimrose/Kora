@@ -84,9 +84,25 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
         Action<HostInteractionDecision> accepted, bool afterPlayback, CancellationToken cancellationToken) =>
         OpenCoreAsync(question, isExactVisiblePresenter, accepted, afterPlayback, conversational: false, cancellationToken);
 
-    private async Task OpenCoreAsync(HostQuestionRecord question, Func<bool> isExactVisiblePresenter,
-        Action<HostInteractionDecision> accepted, bool afterPlayback, bool conversational, CancellationToken cancellationToken)
+    public Task OpenFieldAsync(HostQuestionRecord question, string fieldId, Func<bool> isExactVisiblePresenter,
+        Action<QuestionFieldAnswer> edited, CancellationToken cancellationToken)
     {
+        var field = question.Spec.Fields.SingleOrDefault(item => string.Equals(item.Id, fieldId, StringComparison.Ordinal));
+        if (question.Spec.Kind != QuestionKind.Form || question.Proposal is not null || field is null)
+        { throw new InvalidOperationException("Voice field entry requires one exact ordinary form field."); }
+        return OpenCoreAsync(question, isExactVisiblePresenter, static _ => { }, afterPlayback: true,
+            conversational: false, cancellationToken, field, edited);
+    }
+
+    private async Task OpenCoreAsync(HostQuestionRecord question, Func<bool> isExactVisiblePresenter,
+        Action<HostInteractionDecision> accepted, bool afterPlayback, bool conversational, CancellationToken cancellationToken,
+        QuestionField? field = null, Action<QuestionFieldAnswer>? edited = null)
+    {
+        if (question.Spec.Kind == QuestionKind.Form && field is null)
+        {
+            Retire("Choose a displayed form field for voice entry. Field entry never submits the form.");
+            return;
+        }
         if (capture is HandsFreeVoiceRecognitionService handsFree) { await handsFree.PauseWakeForReplyAsync(); }
         Turn opened;
         var admission = observe();
@@ -105,7 +121,7 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
             {
                 denied = true;
             }
-            opened = new(question, admission, isExactVisiblePresenter, accepted, cancellationToken);
+            opened = new(question, admission, isExactVisiblePresenter, accepted, field, edited, cancellationToken);
             if (!denied)
             {
                 turn = opened;
@@ -138,6 +154,12 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
                 activity.Complete(HostOperationOutcome.Failed);
                 return;
             }
+            if (field is not null && !canonical.Spec.Fields.Any(item => item.Matches(field)))
+            {
+                Retire(opened, "The exact form field changed. No capture opened.");
+                activity.Complete(HostOperationOutcome.Failed);
+                return;
+            }
             var presentationContext = HostActivity.RequireCurrent().Activity!.Context;
             lock (gate)
             {
@@ -149,7 +171,12 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
             opened.Cancellation.Token.Register(opened.Expiry.Dispose);
             if (afterPlayback)
             {
-                var readback = canonical.Spec.Options.IsEmpty
+                var readback = field is not null
+                    ? field.Label + (field.Kind == QuestionKind.Text
+                        ? $". Required text, maximum {field.MaximumLength} characters and {field.MaximumUtf8Bytes} UTF-8 bytes."
+                        : ". Required choice. " + string.Join(" ", field.Options.Select((option, index) => $"Option {index + 1}: {option.Label}.")))
+                        + " Voice entry edits this field only. Review and explicitly Submit the whole form using native controls."
+                    : canonical.Spec.Options.IsEmpty
                     || !string.Equals(canonical.Spec.SourceId, LocalModelQuestionPolicy.SourceId, StringComparison.Ordinal)
                     ? canonical.Spec.Text
                     : canonical.Spec.Text + " " + string.Join(" ", canonical.Spec.Options.Select((option, index) =>
@@ -177,7 +204,7 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
             }
             Publish();
             await capture.BeginReplyAsync(opened.Admission.Microphone,
-                canonical.Spec.Options.Select(option => option.Label).Concat(listeningStopPhrases?.Invoke() ?? []),
+                (field?.Options ?? canonical.Spec.Options).Select(option => option.Label).Concat(listeningStopPhrases?.Invoke() ?? []),
                 () => Eligible(opened), opened.Cancellation.Token);
             lock (gate) { opened.Generation = capture.Generation; }
             if (!Eligible(opened) || !capture.AcceptCaptureGeneration(opened.Generation))
@@ -385,13 +412,27 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
                     Retire(current, "Listening disabled. Native question remains answerable; no answer was submitted.");
                     return;
                 }
-                var answer = QuestionVoiceAnswer.Parse(current.Question, transcript, current.Admission.ActivationName);
+                var answer = current.Field is { } field
+                    ? QuestionVoiceAnswer.Parse(field.VoiceSpec(), transcript, current.Admission.ActivationName)
+                    : QuestionVoiceAnswer.Parse(current.Question, transcript, current.Admission.ActivationName);
                 if (answer is null)
                 {
                     Retire(current, "Reply did not match this question's schema. Nothing was routed or submitted. Microphone closed; use native controls or try again.");
                     return;
                 }
                 await capture.StopAsync();
+                if (current.Field is { } targetField)
+                {
+                    var value = new QuestionFieldAnswer(targetField.Id, answer.Text, answer.Choices.SingleOrDefault());
+                    if (!targetField.Accepts(value, submitting: true) || !Eligible(current))
+                    {
+                        Retire(current, "Field entry was refused or its draft changed. Nothing was saved or submitted.");
+                        return;
+                    }
+                    current.Edited!(value);
+                    Retire(current, "Field edited locally. Review all fields and explicitly Submit; nothing was saved or submitted.");
+                    return;
+                }
                 var decision = await questions.SubmitReplyAsync(current.Question.Key, current.Question.SessionGeneration,
                     answer, () => Eligible(current), current.Cancellation.Token);
                 if (decision.Outcome != HostInteractionOutcome.Answered)
@@ -487,13 +528,16 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
     }
 
     private sealed class Turn(HostQuestionRecord question, QuestionVoiceAdmission admission,
-        Func<bool> presented, Action<HostInteractionDecision> accepted, CancellationToken cancellation)
+        Func<bool> presented, Action<HostInteractionDecision> accepted,
+        QuestionField? field, Action<QuestionFieldAnswer>? edited, CancellationToken cancellation)
     {
         public HostQuestionRecord Question { get; set; } = question;
         public ActivityContext? PresentationContext { get; set; }
         public QuestionVoiceAdmission Admission { get; } = admission;
         public Func<bool> Presented { get; } = presented;
         public Action<HostInteractionDecision> Accepted { get; } = accepted;
+        public QuestionField? Field { get; } = field;
+        public Action<QuestionFieldAnswer>? Edited { get; } = edited;
         public CancellationTokenSource Cancellation { get; } = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
         public ITimer? Timer { get; set; }
         public ITimer? Expiry { get; set; }

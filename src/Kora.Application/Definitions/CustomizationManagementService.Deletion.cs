@@ -18,11 +18,17 @@ public sealed partial class CustomizationManagementService
                 var controlRevision = use.Revision;
                 var observed = catalogue.SourceCandidates;
                 var reloadFailure = catalogue.ReloadFailureRevision;
+                bool CatalogueCurrent() => ReferenceEquals(observed, catalogue.SourceCandidates)
+                    && catalogue.ReloadFailureRevision == reloadFailure && !catalogue.IsReloadUnavailable;
+                bool DeletionCurrent() => current() && CatalogueCurrent();
+                void RequireCatalogue()
+                {
+                    if (!CatalogueCurrent())
+                    { throw new InvalidOperationException("The source catalogue changed or is unavailable. Reload and begin a fresh deletion review."); }
+                }
                 if (!await confirm(admitted).ConfigureAwait(false)) { return CustomizationDeletionOutcome.Cancelled; }
                 await RequireUnchangedSourceCore(reviewed.Source, reviewed, current, admitted).ConfigureAwait(false);
-                if (!ReferenceEquals(observed, catalogue.SourceCandidates) || catalogue.ReloadFailureRevision != reloadFailure
-                    || catalogue.IsReloadUnavailable)
-                { throw new InvalidOperationException("The source catalogue changed or is unavailable. Reload and begin a fresh deletion review."); }
+                RequireCatalogue();
                 var entry = new SecurityAuditEvent(request.RequestId.Value, SecurityAuditCategory.ResourceWrite,
                     "definition.source.delete", SecurityAuditOutcome.Requested,
                     request.Origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.LocalUser,
@@ -32,15 +38,17 @@ public sealed partial class CustomizationManagementService
                 {
                     await admission.Publish(request, session, current, () =>
                     {
+                        RequireCatalogue();
                         if (use.Revision != controlRevision)
                         { throw new InvalidOperationException("Use control changed during deletion review. Begin a fresh exact review."); }
                         use.SetDisabled(reviewed.Source.Id, true);
                         return true;
                     }, admitted).ConfigureAwait(false);
-                    await store.Delete(reviewed, current, async operation =>
+                    await store.Delete(reviewed, DeletionCurrent, async operation =>
                     {
                         await admission.Publish(request, session, current, () =>
                         {
+                            RequireCatalogue();
                             operation();
                             deleted = true;
                             return true;

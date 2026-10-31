@@ -9,7 +9,6 @@ internal sealed partial class CustomizationWindowController
         if (source is null || baseline is null)
         { throw new InvalidOperationException("Inspect the exact saved Kora-owned definition before deletion."); }
         CustomizationDeletion.Validate(baseline);
-        FlushBuffer();
         var selected = source;
         var reviewed = baseline;
         var revision = draftRevision;
@@ -40,6 +39,7 @@ internal sealed partial class CustomizationWindowController
             if (outcome is CustomizationDeletionOutcome.Cancelled)
             { window!.Status.Text = "Deletion cancelled. Source and editor draft unchanged."; return; }
             deleted = true;
+            if (ReferenceEquals(source, selected)) { deletionRecoverySource = selected; }
             var reloaded = reload.ReloadNow();
             RequireCurrent(Exact, token);
             // Keep the raw draft and its baseline visible for explicit recovery, never a new-file Save.
@@ -52,6 +52,7 @@ internal sealed partial class CustomizationWindowController
         catch (Exception exception) when ((deleted || exception is CustomizationDeletionUnconfirmedException)
             && exception is not OutOfMemoryException)
         {
+            if (ReferenceEquals(source, selected)) { deletionRecoverySource = selected; }
             reload.ReloadNow();
             throw new CustomizationDeletionUnconfirmedException(exception);
         }

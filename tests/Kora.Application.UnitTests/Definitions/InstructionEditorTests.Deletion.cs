@@ -54,6 +54,47 @@ public sealed partial class InstructionEditorTests
     }
 
     [Theory]
+    [InlineData(CustomizationKind.Instruction, "publish")]
+    [InlineData(CustomizationKind.Prompt, "publish")]
+    [InlineData(CustomizationKind.Agent, "publish")]
+    [InlineData(CustomizationKind.Instruction, "reload-failure")]
+    [InlineData(CustomizationKind.Prompt, "reload-failure")]
+    [InlineData(CustomizationKind.Agent, "reload-failure")]
+    [InlineData(CustomizationKind.Instruction, "recovered")]
+    [InlineData(CustomizationKind.Instruction, "audit-publish")]
+    [InlineData(CustomizationKind.Instruction, "hold-publish")]
+    public async Task CatalogueInvalidationAfterReviewCannotCommitDeletion(CustomizationKind kind, string invalidation)
+    {
+        await using var f = new Fixture();
+        var files = new CustomizationFiles(kind);
+        var reviewed = files.Current;
+        var use = new ArtifactUsePreferences(new LocalSharedSkillPreferencesTests.Store());
+        var service = new CustomizationManagementService(files, f.Admission, use, f.Catalogue, f.Audit);
+        var observed = f.Catalogue.SourceCandidates;
+        void Invalidate()
+        {
+            if (invalidation is "reload-failure" or "recovered")
+            { f.Catalogue.ReportReloadFailure(new IOException("Synthetic reload failure")); }
+            if (invalidation is not "reload-failure") { f.Catalogue.Publish(observed); }
+        }
+        if (invalidation is "audit-publish")
+        {
+            f.Audit.BeforeWrite = entry =>
+            { if (entry.Outcome is SecurityAuditOutcome.Requested) { Invalidate(); } };
+        }
+        else if (invalidation is "hold-publish") { use.Changed += (_, _) => Invalidate(); }
+        else { files.BeforeCommit = Invalidate; }
+        var operation = () => service.Delete(reviewed, _ => Task.FromResult(true), f.Eligible,
+            TestContext.Current.CancellationToken);
+        await operation.Should().ThrowAsync<InvalidOperationException>();
+        files.Writes.Should().Be(0);
+        files.Current.Should().BeSameAs(reviewed);
+        use.IsDisabled(files.Source.Id).Should().Be(invalidation is not "audit-publish");
+        f.Audit.Events.Select(entry => entry.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Failed);
+        f.Audit.Events.Should().NotContain(entry => entry.Outcome == SecurityAuditOutcome.Succeeded);
+    }
+
+    [Theory]
     [InlineData("cancel")]
     [InlineData("changed")]
     [InlineData("source")]

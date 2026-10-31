@@ -8,6 +8,7 @@ using Kora.Application.Configuration;
 using Kora.Application.Definitions;
 using Kora.Application.Hosting;
 using Kora.Core.Artifacts;
+using Kora.Core.Auditing;
 using Kora.Core.Customizations;
 using Kora.Definitions.Artifacts;
 using Kora.NativeUxFixture;
@@ -41,6 +42,15 @@ public sealed partial class CustomizationWindowTests
     [InlineData(CustomizationKind.Instruction, "post-effect-privacy")]
     [InlineData(CustomizationKind.Instruction, "reload-failure")]
     [InlineData(CustomizationKind.Instruction, "recover-draft")]
+    [InlineData(CustomizationKind.Prompt, "recover-draft")]
+    [InlineData(CustomizationKind.Agent, "recover-draft")]
+    [InlineData(CustomizationKind.Instruction, "oversize")]
+    [InlineData(CustomizationKind.Prompt, "oversize")]
+    [InlineData(CustomizationKind.Agent, "oversize")]
+    [InlineData(CustomizationKind.Instruction, "nul")]
+    [InlineData(CustomizationKind.Instruction, "unicode")]
+    [InlineData(CustomizationKind.Instruction, "final-catalogue")]
+    [InlineData(CustomizationKind.Instruction, "final-reload-failure")]
     public async Task SharedDefinitionDeletionCompletesTheActualReviewedOperationOrPreservesSourceAndDraft(
         CustomizationKind kind, string state)
     {
@@ -56,7 +66,8 @@ public sealed partial class CustomizationWindowTests
             var use = new ArtifactUsePreferences(f);
             using var bundled = EmbeddedArtifactCatalogue.Load();
             using var catalogue = new ArtifactCatalogue(bundled.SourceCandidates, use);
-            var management = new CustomizationManagementService(store, admission, use, catalogue, f.Audit);
+            var audit = new DeletionAudit(f.Audit);
+            var management = new CustomizationManagementService(store, admission, use, catalogue, audit);
             var directories = new LocalArtifactDirectoryPreferences(f);
             using var reload = new ArtifactCatalogueReloadService(catalogue, f, directories,
                 new ArtifactDirectoryConfigurationService(directories, f.Audit),
@@ -101,6 +112,13 @@ public sealed partial class CustomizationWindowTests
             editor.Should().NotBeNull();
             editor!.Editor.Text.Should().Be(text);
             editor.Editor.Text += "\nPrivate unsaved recovery.";
+            if (state is "oversize")
+            {
+                editor.Editor.Text += new string('x', 65536 - ArtifactFileDocument.Encode(editor.Editor.Text!, true).Length + 1);
+                ArtifactFileDocument.Encode(editor.Editor.Text!, true).Length.Should().Be(65537);
+            }
+            if (state is "nul") { editor.Editor.Text += "\0"; }
+            if (state is "unicode") { editor.Editor.Text += "\ud800"; }
             var rawDraft = editor.Editor.Text;
             Task operation;
             if (state is "activated")
@@ -140,6 +158,12 @@ public sealed partial class CustomizationWindowTests
                             .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                         break;
                     case "catalogue": reload.ReloadNow().Should().BeTrue(); break;
+                    case "final-catalogue":
+                        store.BeforeDeletionComparison = () => catalogue.Publish(catalogue.SourceCandidates);
+                        break;
+                    case "final-reload-failure":
+                        store.BeforeDeletionComparison = () => catalogue.ReportReloadFailure(new IOException("Synthetic final reload failure"));
+                        break;
                     case "owner": ownership++; break;
                     case "privacy":
                         f.Main.CloseForObservedPrivacyEvent("Synthetic deletion privacy closure", hidePresentation: true);
@@ -155,7 +179,7 @@ public sealed partial class CustomizationWindowTests
             }
             await operation.WaitAsync(TimeSpan.FromSeconds(20), f.Token);
             var deleted = state is "native" or "typed" or "activated" or "uncertain" or "post-effect-privacy"
-                or "reload-failure" or "recover-draft";
+                or "reload-failure" or "recover-draft" or "oversize" or "nul" or "unicode";
             File.Exists(original.Location).Should().Be(!deleted, editor.Status.Text);
             if (deleted)
             {
@@ -171,26 +195,141 @@ public sealed partial class CustomizationWindowTests
             if (state is not "reload-failure") { File.ReadAllBytes(unrelated.Location).Should().Equal(otherBytes); }
             authoring.Calls.Should().Be(0);
             authoring.InterpretCalls.Should().Be(0);
-            if (state is "recover-draft")
+            if (state is "final-catalogue" or "final-reload-failure")
             {
-                Choose(editor, "Create Kora copy");
-                await controller.WaitForOperation();
-                // A new ID is mandatory; the occupied/old identity is never silently recreated.
+                management.IsDisabled(original).Should().BeTrue();
+                audit.Events.Should().NotContain(entry => entry.ActionId == "definition.source.delete"
+                    && entry.Outcome == SecurityAuditOutcome.Succeeded);
+            }
+            if (state is "recover-draft" or "oversize" or "nul" or "unicode")
+            {
+                async Task DisableAndKeepDraft(CustomizationSource target, string retained)
+                {
+                    var saveReceipts = audit.Events.Count(entry => string.Equals(entry.ActionId, "definition.source.save", StringComparison.Ordinal)
+                        && entry.Outcome == SecurityAuditOutcome.Succeeded);
+                    var disableReceipts = audit.Events.Count(entry => string.Equals(entry.ActionId, "definition.use.disable", StringComparison.Ordinal)
+                        && string.Equals(entry.TargetId, target.Id, StringComparison.Ordinal)
+                        && entry.Outcome == SecurityAuditOutcome.Succeeded);
+                    Choose(editor, "Disable");
+                    var disabling = controller.WaitForOperation();
+                    var disableReview = await Review();
+                    disableReview.Title.Should().Be("Disable in Kora");
+                    Choose(disableReview, "Disable");
+                    await disabling;
+                    editor.Editor.Text.Should().Be(retained);
+                    management.IsDisabled(target).Should().BeTrue();
+                    audit.Events.Count(entry => string.Equals(entry.ActionId, "definition.use.disable", StringComparison.Ordinal)
+                        && string.Equals(entry.TargetId, target.Id, StringComparison.Ordinal)
+                        && entry.Outcome == SecurityAuditOutcome.Succeeded).Should().Be(disableReceipts + 1);
+                    File.Exists(original.Location).Should().BeFalse();
+                    File.Exists(target.Location).Should().BeFalse();
+                    audit.Events.Count(entry => string.Equals(entry.ActionId, "definition.source.save", StringComparison.Ordinal)
+                        && entry.Outcome == SecurityAuditOutcome.Succeeded).Should().Be(saveReceipts);
+                    var closing = controller.PrepareClose();
+                    var closeReview = await Review();
+                    closeReview.Title.Should().Be("Unsaved customization");
+                    Choose(closeReview, "Cancel");
+                    (await closing).Should().BeFalse();
+                    editor.Editor.Text.Should().Be(retained);
+                    editor.IsVisible.Should().BeTrue();
+                }
+                await DisableAndKeepDraft(original, rawDraft!);
+                foreach (var name in new[] { original.Name, original.Name.ToUpperInvariant() })
+                {
+                    editor.NewName.Text = name;
+                    Choose(editor, "Create Kora copy");
+                    await controller.WaitForOperation();
+                    editor.Status.Text.Should().Contain("distinct Kora artifact ID");
+                    editor.Editor.Text.Should().Be(rawDraft);
+                    File.Exists(original.Location).Should().BeFalse();
+                    management.IsDisabled(original).Should().BeTrue();
+                    next.Task.IsCompleted.Should().BeFalse("identity rejection must precede any discard or rebase review");
+                }
+                if (state is "recover-draft")
+                {
+                    Choose(editor, "Review and save");
+                    var oldSaving = controller.WaitForOperation();
+                    Choose(await Review(), "Save disabled");
+                    await oldSaving;
+                    File.Exists(original.Location).Should().BeFalse("the frozen missing baseline cannot be reset by rejected copies");
+                    editor.Editor.Text.Should().Be(rawDraft);
+                }
                 editor.NewName.Text = "recovered";
                 Choose(editor, "Create Kora copy");
                 var copying = controller.WaitForOperation();
                 var dirty = await Review();
+                dirty.Title.Should().Be("Unsaved customization");
+                if (state is "oversize")
+                {
+                    Choose(dirty, "Cancel");
+                    await copying;
+                    editor.Editor.Text.Should().Be(rawDraft);
+                    File.Exists(original.Location).Should().BeFalse();
+                    Choose(editor, "Create Kora copy");
+                    copying = controller.WaitForOperation();
+                    dirty = await Review();
+                }
                 Choose(dirty, "Discard");
                 await copying;
-                editor.Editor.Text.Should().Contain("Private unsaved recovery.");
+                var recoveredText = rawDraft!.Replace("name: example", "name: recovered", StringComparison.Ordinal);
+                editor.Editor.Text.Should().Be(recoveredText);
+                var recovered = await store.Create(kind, CustomizationScope.Kora, "recovered", f.Token);
+                recovered.Id.Should().NotBe(original.Id);
+                File.Exists(recovered.Location).Should().BeFalse("copy creates only a draft until its separate Save");
+                await DisableAndKeepDraft(recovered, recoveredText);
                 Choose(editor, "Review and save");
                 var saving = controller.WaitForOperation();
-                Choose(await Review(), "Save disabled");
+                if (state is "recover-draft") { Choose(await Review(), "Save disabled"); }
                 await saving;
-                File.ReadAllText(Path.Combine(Path.GetDirectoryName(original.Location)!, "recovered.instructions.md"))
-                    .Should().Contain("Private unsaved recovery.");
+                if (state is "recover-draft")
+                {
+                    File.ReadAllBytes(recovered.Location).Should().Equal(ArtifactFileDocument.Encode(recoveredText, true));
+                    new ArtifactUsePreferences(f).IsDisabled(recovered.Id).Should().BeTrue();
+                    management.IsDisabled(original).Should().BeTrue();
+                }
+                else
+                {
+                    File.Exists(recovered.Location).Should().BeFalse("retained raw text must not bypass the existing store bounds");
+                    editor.Editor.Text.Should().Be(recoveredText);
+                    editor.Status.Text.Should().Contain(state is "oversize" ? "64 KiB"
+                        : state is "nul" ? "Binary components" : "valid Unicode");
+                    next.Task.IsCompleted.Should().BeFalse("invalid recovery bytes cannot reach a Save review");
+                    audit.Events.Should().NotContain(entry => entry.ActionId == "definition.source.save"
+                        && entry.TargetId == recovered.Id && entry.Outcome == SecurityAuditOutcome.Succeeded);
+                }
                 File.Exists(original.Location).Should().BeFalse();
+                editor.NewName.Text = original.Name;
+                Choose(editor, "Create Kora copy");
+                await controller.WaitForOperation();
+                editor.Status.Text.Should().Contain("distinct Kora artifact ID");
+                editor.Editor.Text.Should().Be(recoveredText);
+                File.Exists(original.Location).Should().BeFalse("the recovery constraint survives rebasing and separate Save");
+                if (state is "oversize")
+                {
+                    var boundedText = recoveredText[..(65536 - System.Text.Encoding.UTF8.Preamble.Length)];
+                    editor.Editor.Text = boundedText;
+                    var bounded = ArtifactFileDocument.Encode(boundedText, true);
+                    bounded.Length.Should().Be(65536);
+                    Choose(editor, "Review and save");
+                    var boundedSaving = controller.WaitForOperation();
+                    Choose(await Review(), "Save disabled");
+                    await boundedSaving;
+                    File.ReadAllBytes(recovered.Location).Should().Equal(bounded);
+                    new ArtifactUsePreferences(f).IsDisabled(recovered.Id).Should().BeTrue();
+                    management.IsDisabled(original).Should().BeTrue();
+                    File.Exists(original.Location).Should().BeFalse();
+                }
             }
         });
+    }
+
+    private sealed class DeletionAudit(ISecurityAuditLog inner) : ISecurityAuditLog
+    {
+        internal readonly List<SecurityAuditEvent> Events = [];
+        public void Write(SecurityAuditEvent entry)
+        {
+            inner.Write(entry);
+            Events.Add(entry);
+        }
     }
 }

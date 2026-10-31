@@ -703,10 +703,15 @@ public sealed partial class MemoryAdmissionServiceTests : IDisposable
         }
         public ValueTask<MemoryResult> TransactMemoryAsync(HostRequest request, MemoryBoundary boundary,
             Func<ImmutableArray<MemoryRecord>, MemoryStorageCommit> transition, Func<bool> admitted, CancellationToken token)
+            => TransactMemoryCoreAsync(request, boundary, transition, admitted, MemoryScopeKind.Session, token);
+
+        private ValueTask<MemoryResult> TransactMemoryCoreAsync(HostRequest request, MemoryBoundary boundary,
+            Func<ImmutableArray<MemoryRecord>, MemoryStorageCommit> transition, Func<bool> admitted,
+            MemoryScopeKind scopeKind, CancellationToken token)
         {
             if (SkipStoreTransition) { return ValueTask.FromResult(new MemoryResult(MemoryOutcome.Denied, MemoryReason.AuthorityClosed)); }
             OnStoreTransition?.Invoke();
-            var commit = transition([.. Stored.Values]);
+            var commit = transition([.. Stored.Values.Where(row => row.Scope.Kind == scopeKind)]);
             OnStoreCommit?.Invoke();
             token.ThrowIfCancellationRequested();
             if (!admitted()) { throw new InvalidOperationException("Memory admission closed at commit."); }
@@ -717,6 +722,12 @@ public sealed partial class MemoryAdmissionServiceTests : IDisposable
             }
             if (FailStoreCommit) { throw new IOException("Injected atomic commit failure."); }
             if (StoreResult is { } overrideResult) { return ValueTask.FromResult(overrideResult); }
+            if (commit.Result is { Outcome: MemoryOutcome.Succeeded, Record: { } copy }
+                && copy.Lineage.CopiedFromSession is not null
+                && (copy.Review is MemoryReviewState.Proposed or MemoryReviewState.Reviewed || commit.ReviewedOriginal is not null)
+                && (!MemoryPolicy.MatchesSessionCopySource(copy, commit.SessionCopySource, boundary)
+                    || !Stored.ContainsValue(commit.SessionCopySource!)))
+            { return ValueTask.FromResult(new MemoryResult(MemoryOutcome.RevisionConflict, MemoryReason.RevisionMismatch)); }
             if (commit.Replacement is { } replacement)
             {
                 Stored[replacement.Id] = replacement;

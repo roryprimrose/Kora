@@ -107,6 +107,16 @@ internal sealed partial class SessionsPresentationOwner
     private async void OpenConversationDetail(object? sender, RoutedEventArgs args)
     {
         if (!revoked && !args.Handled
+            && args.Source is Button { Name: "OpenSubmittedAnswerContext", DataContext: ConversationMessage answer }
+            && model.CanOpenConversationDetails)
+        {
+            args.Handled = true;
+            try { await (DetailOperation = model.OpenConversationDetailAsync(answer, submittedContext: true)); }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            { model.ReportDetailPresentationFailure(exception); }
+            return;
+        }
+        if (!revoked && !args.Handled
             && args.Source is Button { Name: "OpenObservedResult", DataContext: ObservationDetailChoice choice }
             && model.CanOpenConversationDetails)
         {

@@ -271,6 +271,7 @@ public sealed partial class ModelTurnHostTests
                 AssistantResponse = result.Outcome == ModelTurnOutcome.Succeeded
                     ? ConversationResponse.FromResult(result, Retained.Execution!) : null,
                 Observations = result.Observations,
+                SubmittedContext = result.SubmittedContext,
             };
             Task = Task! with { Task = Task.Task.Next(Retained.ExpectedTaskState) };
             RememberPendingRecord();
@@ -282,6 +283,7 @@ public sealed partial class ModelTurnHostTests
                 "reason" => receipt with { Message = receipt.Message with { Reason = ModelTurnReason.HostInterrupted } },
                 "answer" => receipt with { Message = receipt.Message with { AssistantResponse = null } },
                 "observations" => receipt with { Message = receipt.Message with { Observations = null } },
+                "submitted-context" => receipt with { Message = receipt.Message with { SubmittedContext = null } },
                 "execution" => receipt with { Message = receipt.Message with { Execution = result.Provenance! with { Turn = new(Guid.NewGuid()) } } },
                 "generation" => receipt with { Message = receipt.Message with { Generation = new(2) } },
                 "sequence" => receipt with { Message = receipt.Message with { Sequence = 2 } },

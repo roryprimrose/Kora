@@ -316,7 +316,9 @@ public sealed partial class AgentRunSetTests
             HostRevision generation, long expectedMetadataRevision, string body, Func<bool> admitted, CancellationToken token)
         {
             Require(admitted, token);
-            Messages.TryAdd(request.RequestId, new(request, generation, 1, 1, Time.Now, body, null, null)).Should().BeTrue();
+            var sequence = Messages.Values.Where(message => message.Request.SessionId == request.SessionId)
+                .Select(message => message.Sequence).DefaultIfEmpty().Max() + 1;
+            Messages.TryAdd(request.RequestId, new(request, generation, sequence, 1, Time.Now, body, null, null)).Should().BeTrue();
             return ValueTask.FromResult(Publish(request, HostTaskState.IntentRecorded));
         }
         public ValueTask<ConversationSubmissionReceipt> RetainPendingConversationMessageAsync(HostRequest request,
@@ -347,6 +349,7 @@ public sealed partial class AgentRunSetTests
                 AssistantResponse = result.Outcome == ModelTurnOutcome.Succeeded
                     ? ConversationResponse.FromResult(result, before.Execution!) : null,
                 Observations = result.Observations,
+                SubmittedContext = result.SubmittedContext,
             };
             return ValueTask.FromResult(Publish(request, Messages[request.RequestId].ExpectedTaskState));
         }

@@ -53,6 +53,7 @@ public sealed partial class MainViewModel
 
     public void BindSpeechInputNativeLifetime(Func<bool> lifetime)
     {
+        speechComparison?.Clear();
         Volatile.Read(ref pendingSpeechInputReview)?.Completion.TrySetResult(false);
         speechInputNativeLifetime = lifetime;
         OnPropertyChanged(nameof(CanChangeSpeechInputNative));

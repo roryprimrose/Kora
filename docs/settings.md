@@ -931,6 +931,8 @@ profile, learning/enrollment, assets, download or OS/global setting is added.
 
 **Review speech input switch** displays the current saved/desired/effective tuple, proposed compatible Windows activated tuple and required local capabilities. **Confirm speech input switch** completes the joined switch; **Cancel speech input switch** leaves intent unchanged. No additional qualified local wake/ASR/resource profile is offered ([complete interaction](voice-and-audio.md#speech-input-profile-preference)).
 
+**Local speech setup comparison** is separate from profile switching and the no-transcription microphone test. Review an inert phrase and microphone use, explicitly test exact offered installed profiles, inspect bounded memory-only results, or cancel and join cleanup. It leaves settings and listening unchanged. No production comparison profiles are offered yet; review reports unavailable without capture or downloads ([complete interaction and current limits](voice-and-audio.md#local-speech-setup-comparison)).
+
 ### Microphone
 
 | Choice/control | Behavior |

@@ -459,6 +459,32 @@ or confer listening consent. Cancel leaves prior settings unchanged.
 Do not conflate this with the existing no-transcription microphone
 test or a release-quality benchmark; it is supporting setup, not a new utility.
 
+The [bounded implementation](../src/Kora.Application/Voice/SpeechSetupComparison.cs)
+connects [native review/test/results/cancel](../src/Kora/SettingsWindow.axaml)
+and [exact local input](../src/Kora.Application/ViewModels/MainViewModel.SpeechComparison.cs).
+It reviews one editable inert phrase and at most two exact installed compatible
+capabilities, then performs two finite captures per profile. Phrase, source,
+profile, owner, device, call or privacy drift requires fresh review; cancellation
+retains exclusivity until native cleanup joins. Close/privacy changes clear the
+visible memory-only text. No preference writer, command grammar, conversation,
+source-context or listening-consent publication receives comparison text.
+
+The [native seam](../src/Kora.Windows/Audio/WindowsVoiceRecognitionService.Comparison.cs)
+measures actual open-to-start elapsed time. First/repeat trials do not establish
+cold/warm cache state. End-of-speech-to-final, cold/warm startup and resource use
+are explicitly unknown because the current native seam does not measure them.
+Final-text correctness is a visible case-insensitive exact comparison, not a
+correct-command, word-error-rate or acoustic qualification claim.
+
+The [production factory](../src/Kora.Windows/Audio/IActivatedCaptureFactory.cs)
+offers no comparison capabilities until exact-profile enablement evidence is
+admitted. Installed Windows recognition and ordinary profile switching do not
+grant comparison readiness. Zero offers reports unavailable without opening
+audio, acquiring assets or substituting another engine. Deterministic
+[native fake](../tests/Kora.Windows.IntegrationTests/Audio/SpeechSetupNativeComparisonTests.cs)
+and [actual Settings](../tests/Kora.Windows.IntegrationTests/SpeechComparisonNativeUiTests.cs)
+regressions exercise the complete interaction, not real acoustic/hardware trials.
+
 The [acceptance criteria](Acceptance_Criteria.md#configurable-local-speech-input-gate)
 own measurement and thresholds. Evaluate complete correct-command outcomes and
 false-action cases, not word error rate alone. Report name/voice/noise/device

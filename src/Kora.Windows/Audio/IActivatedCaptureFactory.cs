@@ -4,6 +4,9 @@ namespace Kora.Windows.Audio;
 
 internal interface IActivatedCaptureFactory
 {
+    // Installed recognition alone does not qualify the inert comparison profile.
+    IReadOnlyList<SpeechComparisonProfile> GetComparisonProfiles() => [];
+
     Task<IActivatedCapture> OpenAsync(
         MicrophoneDevice microphone,
         IReadOnlyList<string> phrases,

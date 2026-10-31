@@ -106,7 +106,7 @@ choices with explicit Refresh/Save/Reset. Unsaved/default/reset means **1 day
 activity timestamp. Archive must be positive, deletion strictly greater than
 archive and at most 365 days. Domain validation rejects invalid combinations;
 saved malformed/noncanonical/schema/UTF-8 values throw `InvalidDataException`,
-never an implicit default. No typed, voice, model or apply-now route is added.
+never an implicit default. These future-only preferences add no typed, voice or model mutation route.
 
 Schema-1 **`session-retention.txt`** and
 **`session-retention-unconfirmed.txt`** use `IApplicationDataPaths` and the shared
@@ -120,11 +120,11 @@ refresh cannot clear an unconfirmed marker or claim rollback.
 Changes affect only new sessions or subsequent meaningful activity. Existing
 sessions retain their snapshotted archive/deletion intervals and due dates;
 shortening or resetting never silently applies an immediate purge on a later
-tick. Status discloses future-only behavior and unavailable apply-now. Ordinary
+tick. Status discloses future-only behavior; [single-conversation apply-now](#explicit-single-conversation-apply-now) is a separate native decision. Ordinary
 diagnostic/audit retention, independent Perpetual grants and other preference
 files are unchanged. Audited Perpetual session marking is a separate
 exemption, now exposed by the [exact native per-session controls](Interaction_And_Sessions.md#r12-native-exact-session-retention-controls---2026-10-10), not by these future-only preferences.
-Native status shows recorded UTC inactivity/due dates. Keep/ordinary requires a separate exact preview/confirmation; ordinary warns about unchanged soon/already-due dates. The exemption is session retention only, not an operation grant, consent, memory/recall or execution. No typed/voice/model or apply-now route is available.
+Native status shows recorded UTC inactivity/due dates. Keep/ordinary requires a separate exact preview/confirmation; ordinary warns about unchanged soon/already-due dates. The exemption is session retention only, not an operation grant, consent, memory/recall or execution. It does not apply the current policy to existing clocks.
 
 #### Read-only hypothetical session retention planner
 
@@ -142,7 +142,19 @@ Entries charge envelope size without returning it; task/session metadata charge 
 Ten-second scan timeout retires the request; receipts expire after thirty seconds. Incomplete/Unavailable have no aggregate, never false zero.
 Proposal/control/private/owner/call, preference/policy revisions, source snapshot and expiry fence results. Edits, refresh/save/reset, changes, privacy loss, close or failure retire without replay ([orchestration](../src/Kora.Application/Configuration/SessionRetentionPlannerService.cs)).
 
-There is no apply-now, policy write, session mutation/removal/hold, revocation, schema/index change or scanner. Future-only preferences and maintenance remain separate. Existing policy/private authority is consumed, not broader runtime or E/Q qualification ([contract](../src/Kora.Core/Storage/ISessionRetentionPlannerReader.cs)).
+The planner has no apply-now, policy write, session mutation/removal/hold, revocation, schema/index change or scanner. Future-only preferences and maintenance remain separate. Existing policy/private authority is consumed, not broader runtime or E/Q qualification ([contract](../src/Kora.Core/Storage/ISessionRetentionPlannerReader.cs)).
+
+#### Explicit single-conversation apply-now
+
+The separate native **Sessions > Selected-session retention** operation previews the confirmed current policy for one existing ordinary conversation. Exact-ID retention access also works when passive content browsing is held. The original meaningful-activity clock is unchanged; old/new UTC archive and deletion deadlines, a fixed cutoff, expiry, inventory and immediate action are disclosed before a separate confirmation ([native workflow](../src/Kora/SessionsViewModel.RetentionApply.cs)).
+
+Confirmation durably changes only that conversation's snapshotted intervals. If due at the reviewed cutoff, it archives to Done or performs the existing guarded exact disposition, with deletion taking precedence. A cutoff crossing into a different action requires fresh review; there is no deferred unreviewed purge, retry renewal, bulk action or new scheduler ([domain rules](../src/Kora.Core/Storage/SessionRetentionApplication.cs), [transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.RetentionApply.cs)).
+
+Perpetual/removed/purged conversations, current-run controls, queued/live/Unknown/unavailable work, unresolved questions, unconfirmed physical release, unsent/held native input and uncertain copy inventory are excluded. Policy/preference, original native source, owner/privacy/call/control revision, session generation, inventory, authority head, storage snapshot, cutoff and expiry changes deny confirmation. A later click cannot promote an original voice-origin retention handoff; start a fresh native metadata review ([admission](../src/Kora.Application/Hosting/SessionRetentionApplyService.cs), [resource guard](../src/Kora.Application/Hosting/SessionConversationService.RetentionApply.cs)).
+
+Requested/terminal authority audit, policy/effect and terminal task receipt share the existing transaction. Exact readback precedes completion; deletion also consumes the existing owned SQLite/free-page/journal cleanup contract. Precommit cancellation changes no policy or lifecycle; failed/unknown commit or postcommit copy/readback failure requires durable inspection, never a rollback or replay claim. Independent Perpetual grants, audit, diagnostics, device memories, original files and external/provider copies remain outside this action ([existing disposition](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Disposition.cs)).
+
+This is bounded implementation, not broader runtime enablement or E/Q qualification. Future-only Save/Reset and the hypothetical planner retain their no-apply behavior ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
 
 Live/dispatched/Unknown work, unresolved questions, current-run control
 authorities and uncertain copy inventories hold maintenance. See the
@@ -1371,6 +1383,19 @@ Visual-only does not close the microphone. Output-device changes never change gl
 Voice-only still preserves required visual approval/error/fallback surfaces; it cannot suppress safety information.
 When speech output is missing, temporarily unavailable, or fails during playback, the response text and window are forced visible regardless of the effective response mode.
 Task and queue response-mode overrides expire with their execution scope; an explicitly chosen session mode is persisted with that session until reset/deletion. The device default changes only explicitly.
+
+### Delivered one-task response output
+
+The [native one-task review](../src/Kora/SessionsViewModel.TaskResponseOutput.cs) applies to a new ordinary request in the exact selected Active conversation. Choose Inherit, VisualOnly, Hybrid or VoiceOnly; review the complete unchanged input, destination, original channel and configured output, then separately confirm submission once. Cancel, editing input/choice, replacing the review or private closure retires its controls without submission.
+
+The [shared request review](../src/Kora.Application/Hosting/SessionRequestCommandService.cs) also accepts `session request output <session-id> <generation> <metadata-revision> <Inherit|VisualOnly|Hybrid|VoiceOnly> -- <original body>`, followed by the existing separate confirm/cancel commands. Activated voice keeps the original channel and protected-call preference gate; a later native click cannot relabel it.
+
+The [host-owned output binding](../src/Kora.Application/Hosting/SessionConversationService.TaskResponseOutput.cs) captures the choice once for the newly issued request/task, not provider payloads or model context. Only an exact confirmed retained terminal result reaches output. Queueing never extends original context/review/authority expiry; cancellation, stale identity and unconfirmed retention cannot replay an answer.
+
+Inherit captures the existing ordinary task/queue/device resolution at review; it does not invent a persisted session-mode consumer or decide session-persistent output timing. The [shared output consumer](../src/Kora.Application/ViewModels/MainViewModel.TaskResponseOutput.cs) reports declared/configured/effective output, revalidates mandatory host/privacy/call/output gates, and retires the transient choice when output joins. Required errors, questions, approvals and complete output-loss fallback remain visual; speech uses the existing caps. Later tasks and saved preferences are unchanged.
+
+These controls do not qualify or enable a model/runtime, change model sources/egress/permissions/retention, create listening consent, change the microphone, replay old output or cancel other work ([qualification boundary](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy), [behavioral evidence](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.TaskResponseOutput.cs)).
+
 Specific microphone and output selections are device-local Kora overrides. A
 saved override wins on later starts while that stable endpoint exists. Missing
 saved or current explicit endpoints are not replaced silently; the user must
@@ -1654,10 +1679,18 @@ Where action approval and disclosure consent cover the same exact operation, off
 Permissions and approvals are host-owned security records, not ordinary preference values.
 The current bootstrap provides once/session/always preferences for named
 model-suggested built-in actions and host-validated grant-change proposals.
-This is not an executable/script grant, and exact direct lock does not yet
-use the same gate. The broader controls and finer-grained applicability observations below remain proposed;
-future side-effecting built-ins and skills share the content/version-bound
-execution gate in [skill and task execution design](../docs/skill-and-task-execution-design.md).
+These preferences are not executable/script grants and cannot authorize Lock.
+Direct typed/activated-voice/native Lock and model-proposed Lock now share the
+[exact package admission owner](../src/Kora/BundledFixedActionController.cs).
+Intent or source inspection is not approval: expect fresh exact review unless
+an applicable exact grant covers the operation. Retained named Lock preferences
+are neither imported nor upgraded; changed resources, implementation or identity
+cannot reuse old authority. Once/Session/Always retain the same exact-domain rules.
+The mandatory script/native-review boundary applies at every session level;
+the original voice channel remains bound even when native controls answer it.
+Execution stays unavailable without a qualified contained runtime, with no
+native-only fallback. See [execution availability](../docs/skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
+Broader controls and finer-grained observations below remain proposed.
 The native Permissions & Approvals page distinguishes single-use, session, and perpetual grants, including applicable, inapplicable, content-revoked, consumed, session-ended, and explicitly removed states.
 Show stable ID, capability/action, canonical resource, identity, destination, scope/bound session, creator channel, creation/edit history, last use/use count, policy revision, and reason for inapplicability/revocation/removal.
 Perpetual grants have no expiry/retention/eviction; see [Grant Types and Inheritance](Security_Data_Flows.md#grant-types-and-inheritance).
@@ -1669,6 +1702,22 @@ Broadening scope, changing identity/destination, choosing session/perpetual scop
 No approvable action category is categorically denied session/always duration; future execution grants bind exact implementation/dependency digests, invocation, and resources, unlike today's named model-action preferences.
 Extending beyond a host maximum, granting unspecified effects, or approving a prohibited action is rejected, not overridable by approval.
 Revocation blocks subsequent exact-grant consumption. In-flight work is reported as cancelled, completed, or uncertain only when actual evidence supports it; revocation itself never proves physical cancellation or rollback.
+
+### Explain one current pending clipboard read
+
+On the live native **clipboard read** permission card, choose **Why is this allowed / why does it need approval?**.
+The [host authorization owner](../src/Kora.Application/Interaction/HostAuthorizationService.Explanation.cs) checks the original pending question, exact built-in descriptor, session generation/level and mandatory gates, using the same exact-grant matcher as normal admission.
+The [native presentation](../src/Kora/NativeQuestionViewModel.cs) shows only the safe `clipboard.read` / current plain-text clipboard to volatile native preview label, observed session level, and applicable exact grant scope or independent native permission requirement.
+Review all, Model review and Approve all do not replace this path's exact clipboard-read permission; no reviewer/model is consulted.
+
+This is a **read snapshot**, not current effect authority or permission for later execution.
+It never reads clipboard contents, creates/reserves/consumes a grant, dispatches, revokes content, completes the separate exact-record review, changes the question or renews session activity ([observation transition](../src/Kora.Application/Interaction/HostAuthorizationService.Explanation.cs), [storage transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.cs)).
+Choose **Return to same approval** to recheck the same proposal, question, session policy, gates and exact grant revision; changed evidence invalidates the explanation rather than following another operation.
+Then deliberately review/approve or cancel through the unchanged native path. Unknown/stale identity, implementation/dependency binding, storage/audit, private ownership or source state cannot establish an explanation ([native owner](../src/Kora/NativeQuestionHost.Clipboard.cs), [policy regressions](../tests/Kora.Application.UnitTests/Interaction/PendingOperationExplanationTests.cs)).
+
+Original typed/activated-voice clipboard requests still reach the same native permission card.
+Explanation adds no spoken disclosure/approval, provider/tool exposure, grant-history/global search, automatic revocation or new clipboard/model consent.
+Deterministic [complete-route tests](../tests/Kora.Windows.IntegrationTests/ClipboardExplanationPermissionTests.cs) and [withdrawal/race tests](../tests/Kora.Windows.IntegrationTests/PendingOperationExplanationTests.cs) use fake clipboard/model seams, not real clipboard/network/native effects; they are implementation evidence, not E/Q qualification.
 
 ### Delivered native exact operation grants — 2026-10-10
 

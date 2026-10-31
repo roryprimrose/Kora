@@ -19,7 +19,9 @@ public sealed partial class App
         var workflow = ActivatorUtilities.CreateInstance<AgentProfileSaveWorkflow>(Services, store);
         var ownership = Services.GetRequiredService<DesktopInstanceOwnershipBridge>();
         agentAuthoring = new(main, workflow, () => ownership.IsReady && !ownership.IsHandoffRecoveryRequired,
-            () => ownership.AdmissionRevision, Services.GetRequiredService<ILogger<AgentProfileEditorController>>());
+            () => ownership.AdmissionRevision, Services.GetRequiredService<ILogger<AgentProfileEditorController>>(),
+            Services.GetRequiredService<Kora.Application.Definitions.CustomizationAuthoringService>(),
+            Services.GetRequiredService<Kora.Core.Artifacts.ArtifactCatalogue>(), Services.GetRequiredService<TimeProvider>());
         agentAuthoring.Bind();
     }
 }

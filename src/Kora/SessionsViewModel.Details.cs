@@ -8,24 +8,25 @@ namespace Kora;
 
 internal sealed partial class SessionsViewModel
 {
-    private enum DetailPart { Original, Assistant, History, Evidence }
-    private sealed record DetailSelection(DetailPart Part, Guid Item);
+    private enum DetailPart { Original, Assistant, History, Evidence, Observation }
+    private sealed record DetailSelection(DetailPart Part, Guid Item, Guid? Observation);
     private readonly Dictionary<HostId<SessionIdentity>, DetailSelection> detailSelections = [];
     private DetailSelection? CurrentDetailSelection => selected is { } entry
         ? detailSelections.GetValueOrDefault(entry.Authority.SessionId) : null;
     internal bool LastDetailAssistant => CurrentDetailSelection?.Part == DetailPart.Assistant;
-    internal ConversationMessage? LastDetailMessage => CurrentDetailSelection is { Part: DetailPart.Original or DetailPart.Assistant } choice
+    internal Guid? LastDetailObservation => CurrentDetailSelection?.Observation;
+    internal ConversationMessage? LastDetailMessage => CurrentDetailSelection is { Part: DetailPart.Original or DetailPart.Assistant or DetailPart.Observation } choice
         ? ConversationMessages.FirstOrDefault(message => message.Request.RequestId.Value == choice.Item) : null;
     internal bool CanRestoreHistoryDetail => CanOpenHistoryDetail && CurrentDetailSelection is { Part: DetailPart.History } choice
         && selectedHistory?.Id == choice.Item;
     internal SessionEvidenceDetail? LastEvidenceDetail => CurrentDetailSelection is { Part: DetailPart.Evidence } choice
         ? evidenceDetails.FirstOrDefault(snapshot => snapshot.Id == choice.Item) : null;
 
-    private void RememberSelectedDetail(DetailPart part, Guid item)
+    private void RememberSelectedDetail(DetailPart part, Guid item, Guid? observation = null)
     {
         var subject = RequireSelected().Authority.SessionId;
         if (!detailSelections.ContainsKey(subject) && detailSelections.Count == 8) { detailSelections.Remove(detailSelections.Keys.First()); }
-        detailSelections[subject] = new(part, item);
+        detailSelections[subject] = new(part, item, observation);
     }
 
     internal void ReportDetailPresentationFailure(Exception exception)

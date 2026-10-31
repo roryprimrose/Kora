@@ -28,7 +28,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Application.UnitTests.Agents;
 
 [Collection("Host tracing")]
-public sealed class AgentRunSetTests
+public sealed partial class AgentRunSetTests
 {
     [Fact]
     public async Task DistinctConfirmedRunsActuallyOverlapAndRetainOnlyTheirOwnGenuineAnswer()
@@ -219,7 +219,7 @@ public sealed class AgentRunSetTests
 
     internal static CancellationToken Token => TestContext.Current.CancellationToken;
 
-    internal sealed class Fixture : ISessionWorkspaceStore, ISessionConversationStore, ISessionWorkspaceAccess,
+    internal sealed partial class Fixture : ISessionWorkspaceStore, ISessionConversationStore, ISessionWorkspaceAccess,
         ICapabilityHostAccess, IApplicationInfo, ISecurityAuditLog, ISessionProviderProfileStore, IAsyncDisposable
     {
         private readonly ActivityListener listener = new()
@@ -346,6 +346,7 @@ public sealed class AgentRunSetTests
                 Reason = result.Reason,
                 AssistantResponse = result.Outcome == ModelTurnOutcome.Succeeded
                     ? ConversationResponse.FromResult(result, before.Execution!) : null,
+                Observations = result.Observations,
             };
             return ValueTask.FromResult(Publish(request, Messages[request.RequestId].ExpectedTaskState));
         }

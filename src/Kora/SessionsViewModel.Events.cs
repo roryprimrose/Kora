@@ -177,6 +177,13 @@ internal sealed partial class SessionsViewModel
         eventSelectionEpoch = epoch;
         selectedEvent = null;
         NotifyLocalEvents();
+        if (completionVoiceHost is { } speech)
+        {
+            await speech.DeliverCompletionNoticesAsync(observed,
+                () => EventSourceCurrent && routineSurfaceOpen && selectionEpoch == epoch && eventChoiceEpoch == choiceEpoch,
+                lifetime.Token);
+            NotifyLocalEvents();
+        }
     }
 
     public Task ReviewLocalEventAsync() => RunLocalEventAsync(LocalEventOperation.Review);
@@ -272,6 +279,10 @@ internal sealed partial class SessionsViewModel
             OnPropertyChanged(nameof(CanControlLocalEvent));
             OnPropertyChanged(nameof(RoutineQuietStatus));
             OnPropertyChanged(nameof(CanChangeRoutineQuiet));
+            OnPropertyChanged(nameof(CompletionNoticeDisclosure));
+            OnPropertyChanged(nameof(CompletionNoticeStatus));
+            OnPropertyChanged(nameof(CanEnableCompletionNotices));
+            OnPropertyChanged(nameof(CanDisableCompletionNotices));
         }
         finally { presentingEvents = false; }
     }

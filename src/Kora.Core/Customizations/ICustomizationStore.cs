@@ -1,7 +1,9 @@
-namespace Kora.Core.Customizations;
+﻿namespace Kora.Core.Customizations;
 
 public interface ICustomizationStore
 {
+    /// <summary>Gets the current host-issued exact-source registration, without discovery or content access.</summary>
+    InstructionOriginalRegistration? RegisteredInstruction { get; }
     /// <summary>Inspects only native identity metadata for one selected personal instruction original.</summary>
     Task<InstructionOriginalRegistration> PrepareInstructionRegistration(CustomizationSource source, CancellationToken token);
     /// <summary>Registers the exact reviewed source for this host lifetime, without approving a mutation.</summary>
@@ -15,6 +17,7 @@ public interface ICustomizationStore
     Task<CustomizationSnapshot> Read(CustomizationSource source, CancellationToken token);
     Task<CustomizationSnapshot> Save(CustomizationSource source, CustomizationSnapshot? expected,
         IReadOnlyList<CustomizationFile> files, Func<bool> eligible,
-        Func<Func<CustomizationSnapshot>, Task<CustomizationSnapshot>> commit, CancellationToken token);
+        Func<Func<CustomizationSnapshot>, Task<CustomizationSnapshot>> commit, CancellationToken token,
+        CustomizationSnapshot? copiedFrom = null);
     Task<CustomizationSnapshot> ReadRecovery(CustomizationSource source, CancellationToken token);
 }

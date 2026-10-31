@@ -63,7 +63,7 @@ public sealed partial class MainViewModelTests
         }
         else if (string.Equals(pending, "approval", StringComparison.Ordinal))
         {
-            fixture.Reasoner.Action = Kora.Core.Commands.BuiltInAction.LockMachine;
+            fixture.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels;
         }
         if (fixture.Reasoner.Question is not null || fixture.Reasoner.Action is not null)
         {
@@ -73,7 +73,7 @@ public sealed partial class MainViewModelTests
         if (string.Equals(pending, "grant", StringComparison.Ordinal))
         {
             await fixture.ViewModel.PrepareGrantChangeAsync(new(Kora.Core.Commands.GrantChangeOperation.Add,
-                Kora.Core.Commands.BuiltInAction.LockMachine, Kora.Core.Commands.ModelApprovalScope.Always));
+                Kora.Core.Commands.BuiltInAction.EnableHostedModels, Kora.Core.Commands.ModelApprovalScope.Always));
         }
         if (voice)
         {
@@ -110,6 +110,7 @@ public sealed partial class MainViewModelTests
         }
         fixture.TextToSpeech.SpokenText.Should().BeNull();
         fixture.Reasoner.Requests.Should().BeEmpty();
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
         fixture.Audit.Events.Should().NotContain(item => string.Equals(item.ActionId, SpeechReadOnce.AuditActionId, StringComparison.Ordinal));
     }
@@ -300,7 +301,7 @@ public sealed partial class MainViewModelTests
     {
         var fixture = CreateSummaryFixture(SpeechProviderIds.Windows);
         await fixture.ViewModel.InitializeAsync();
-        if (approval) { fixture.Reasoner.Action = Kora.Core.Commands.BuiltInAction.LockMachine; }
+        if (approval) { fixture.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels; }
         else { fixture.Reasoner.Question = new("Which color?", ["Blue", "Green"]); }
         await fixture.RunAsync("choose something");
         await fixture.ViewModel.ActiveReasoningTask!;

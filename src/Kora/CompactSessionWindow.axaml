@@ -32,7 +32,11 @@
         <Button x:Name="ReadConversation" Content="Read exact conversation" IsEnabled="{Binding CanReadConversation}" />
         <Button x:Name="NextConversation" Content="Next bounded page" IsEnabled="{Binding CanNextConversation}" />
         <Button x:Name="RefreshWork" Content="Refresh observed work" IsEnabled="{Binding CanRefreshWork}" />
+        <Button x:Name="AnswerRemainingWork" Content="What work remains?" IsEnabled="{Binding CanAnswerRemainingWork}"
+                AutomationProperties.Name="Answer what work remains in this selected conversation; execution continues" />
       </WrapPanel>
+      <controls:NamedTextBlock Text="{Binding RemainingWorkStatus}" TextWrapping="Wrap"
+          AutomationProperties.Name="Factual addressed remaining-work answer with source times, bounds and omissions" />
       <controls:ScrollableListBox x:Name="AnswerSourceRecords" ItemsSource="{Binding ConversationMessages}" MaxHeight="200"
           SelectedItem="{Binding SelectedAnswerRecord, Mode=TwoWay}"
           ItemTemplate="{StaticResource ConversationMessageTemplate}"
@@ -80,6 +84,7 @@
       <controls:NamedTextBlock x:Name="DraftSizeFeedback" Text="{Binding ComposerDraftSizeFeedback}" TextWrapping="Wrap"
           AutomationProperties.Name="Current editable shared conversation draft size and shape" />
       <local:SessionDictationButton IsEnabled="{Binding CanCompose}" />
+      <local:TaskResponseOutputPanel />
       <CheckBox x:Name="WrapDraftText" Content="Wrap draft text" IsEnabled="{Binding CanCompose}"
           AutomationProperties.Name="Wrap draft text"
           ToolTip.Tip="Visual rows only, not logical lines or tokens. Exact draft text is unchanged. Uncheck to scroll long lines horizontally; this view and source only, until closed." />

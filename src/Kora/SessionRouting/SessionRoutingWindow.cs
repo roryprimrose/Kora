@@ -47,7 +47,7 @@ internal sealed class SessionRoutingWindow : Window
                 SessionRouteMatch.Clear => "One related Active conversation proposed. Review its name, correct the destination or choose New before submitting.",
                 SessionRouteMatch.Ambiguous => "Several related Active conversations proposed. Choose one exact candidate or New. Nothing has been submitted.",
                 SessionRouteMatch.NoMatch => "No clear relationship. New is the fresh-session fallback; deterministic correction is available.",
-                _ => "Relatedness inference is unqualified or unavailable. New is the fresh-session fallback; no relationship was guessed.",
+                _ => "Relatedness advice was not requested, is unqualified or is unavailable. Choose New or correct to an exact Active destination; no relationship was guessed.",
             },
             TextWrapping = TextWrapping.Wrap,
         });

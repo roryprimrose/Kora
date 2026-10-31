@@ -46,6 +46,10 @@ public sealed partial class MainViewModelTests
     [InlineData("lock")]
     [InlineData("unrelated")]
     [InlineData("invalid")]
+    [InlineData("review call speech")]
+    [InlineData("confirm call speech")]
+    [InlineData("cancel call speech")]
+    [InlineData("call speech status")]
     public async Task LogonStartupReviewCannotSurviveAdmissionOrInputChanges(string boundary)
     {
         await using var startup = new LogonStartupConfigurationServiceTests.Fixture();
@@ -62,6 +66,10 @@ public sealed partial class MainViewModelTests
             case "lock": f.Session.IsUnlocked = false; break;
             case "unrelated": await f.RunAsync("show settings"); break;
             case "invalid": await f.RunAsync("enable start at logon and listen"); break;
+            case "review call speech":
+            case "confirm call speech":
+            case "cancel call speech":
+            case "call speech status": await f.RunAsync(boundary); break;
         }
         await f.ViewModel.ConfirmLogonStartupCommand.ExecuteAsync();
         startup.Registration.Writes.Should().Be(0);
@@ -158,11 +166,13 @@ public sealed partial class MainViewModelTests
         await using var startup = new LogonStartupConfigurationServiceTests.Fixture();
         var f = new Fixture(logonStartupConfiguration: startup.Service);
         f.Probe.Status = new("local.inference", "Local inference", DependencyReadiness.Ready, "fixture");
-        if (approval) { f.Reasoner.Action = Kora.Core.Commands.BuiltInAction.LockMachine; }
+        if (approval) { f.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels; }
         else { f.Reasoner.Question = new("Which target?", ["One", "Two"]); }
         await f.ViewModel.InitializeAsync();
         await f.RunAsync("help me");
         await f.ViewModel.ActiveReasoningTask!;
+        f.ViewModel.IsModelActionApprovalPending.Should().Be(approval);
+        f.ViewModel.IsModelQuestionPending.Should().Be(!approval);
         var title = f.ViewModel.ResponseTitle;
         var body = f.ViewModel.ResponseBody;
         await f.RunAsync("enable start at logon");

@@ -1,13 +1,15 @@
-using Kora.Application.Configuration;
+﻿using Kora.Application.Configuration;
 using Kora.Core.Artifacts;
 using Kora.Core.Auditing;
 using Kora.Core.Customizations;
 
 namespace Kora.Application.Definitions;
 
-public sealed class CustomizationManagementService(ICustomizationStore store, InstructionControlAdmission admission,
-    ArtifactUsePreferences use, ArtifactCatalogue catalogue, ISecurityAuditLog audit)
+public sealed partial class CustomizationManagementService(ICustomizationStore store, InstructionControlAdmission admission,
+    ArtifactUsePreferences use, ArtifactCatalogue catalogue, ISecurityAuditLog audit,
+    ArtifactDirectoryConfigurationService? mcpConfiguration = null)
 {
+    public InstructionOriginalRegistration? RegisteredInstruction => store.RegisteredInstruction;
     public bool IsInstructionRegistered(CustomizationSource source) => store.IsInstructionRegistered(source);
     public void RetireInstructionRegistration(CustomizationSource source) => store.WithdrawInstruction(source);
 
@@ -88,20 +90,26 @@ public sealed class CustomizationManagementService(ICustomizationStore store, In
         Func<bool> eligible, CancellationToken token) =>
         admission.Run(eligible, async (_, _, current, admitted) =>
         {
-            if (expected is null)
-            {
-                var destination = await store.Create(source.Kind, source.Scope, source.Name, admitted).ConfigureAwait(false);
-                if (destination != source) { throw new InvalidOperationException("The original draft destination changed."); }
-            }
-            else
-            {
-                var live = await store.Read(source, admitted).ConfigureAwait(false);
-                if (live.Source != source || !string.Equals(live.Revision, expected.Revision, StringComparison.Ordinal))
-                { throw new InvalidOperationException("The original editor source changed. Reload and start a fresh request."); }
-            }
-            Require(current, admitted);
+            await RequireUnchangedSourceCore(source, expected, current, admitted).ConfigureAwait(false);
             return true;
         }, token);
+
+    private async Task RequireUnchangedSourceCore(CustomizationSource source, CustomizationSnapshot? expected,
+        Func<bool> current, CancellationToken token)
+    {
+        if (expected is null)
+        {
+            var destination = await store.Create(source.Kind, source.Scope, source.Name, token).ConfigureAwait(false);
+            if (destination != source) { throw new InvalidOperationException("The original draft destination changed."); }
+        }
+        else
+        {
+            var live = await store.Read(source, token).ConfigureAwait(false);
+            if (live.Source != source || !string.Equals(live.Revision, expected.Revision, StringComparison.Ordinal))
+            { throw new InvalidOperationException("The original editor source changed. Reload and start a fresh request."); }
+        }
+        Require(current, token);
+    }
 
     public Task<bool> SetDisabled(CustomizationSource source, bool disabled,
         Func<CustomizationSnapshot?, CancellationToken, Task<bool>> confirm, Func<bool> eligible, CancellationToken token) =>
@@ -153,20 +161,28 @@ public sealed class CustomizationManagementService(ICustomizationStore store, In
 
     public Task<CustomizationSnapshot?> Save(CustomizationSource source, CustomizationSnapshot? original,
         IReadOnlyList<CustomizationFile> files, Func<CancellationToken, Task<bool>> confirm,
-        Func<bool> eligible, CancellationToken token)
+        Func<bool> eligible, CancellationToken token, Func<CancellationToken, Task>? validateSource = null,
+        CustomizationSnapshot? copiedFrom = null)
     {
         var proposal = CustomizationSnapshot.ValidateFiles(source, files).ToArray();
         ValidatePrimary(source, proposal);
+        if (source.Kind == CustomizationKind.McpServer
+            && (source.Scope != CustomizationScope.Kora || mcpConfiguration is null))
+        { throw new InvalidOperationException("Saving requires Kora's canonical MCP source and the host's independent MCP inclusion control."); }
         return admission.Run<CustomizationSnapshot?>(eligible, async (request, session, current, admitted) =>
         {
+            if (validateSource is not null) { await validateSource(admitted).ConfigureAwait(false); }
             if (!await confirm(admitted).ConfigureAwait(false)) { return null; }
+            if (validateSource is not null) { await validateSource(admitted).ConfigureAwait(false); }
             if (source is { Scope: CustomizationScope.User, Kind: CustomizationKind.Instruction }
                 && original is not null && proposal.Single().CopyBytes().AsSpan().SequenceEqual(original.Files.Single().CopyBytes()))
             {
                 var live = await store.Read(source, admitted).ConfigureAwait(false);
                 Require(current, admitted);
-                if (live.Source != source || !string.Equals(live.Revision, original.Revision, StringComparison.Ordinal))
-                { throw new InvalidOperationException("The unchanged original was replaced or changed. Compare before saving; the draft is retained."); }
+                if (live.Source != source)
+                { throw new InvalidOperationException("The unchanged original no longer matches the selected source. Reopen it explicitly; the draft is retained."); }
+                if (!string.Equals(live.Revision, original.Revision, StringComparison.Ordinal))
+                { throw new InstructionOriginalConflictException(); }
                 return live;
             }
             var entry = new SecurityAuditEvent(request.RequestId.Value, SecurityAuditCategory.ResourceWrite,
@@ -176,13 +192,24 @@ public sealed class CustomizationManagementService(ICustomizationStore store, In
             try
             {
                 await admission.Publish(request, session, current, () =>
-                { use.SetDisabled(source.Id, true); return true; }, admitted).ConfigureAwait(false);
-                var saved = await store.Save(source, original, proposal, current,
-                    operation => admission.Publish(request, session, current, () =>
+                {
+                    use.SetDisabled(source.Id, true);
+                    if (source.Kind == CustomizationKind.McpServer)
                     {
-                        attempted = true;
-                        return operation();
-                    }, admitted).AsTask(), admitted).ConfigureAwait(false);
+                        mcpConfiguration!.SetMcpServerIncluded(ArtifactUseIdentity.McpServerId(source.Location, source.Name), false);
+                    }
+                    return true;
+                }, admitted).ConfigureAwait(false);
+                var saved = await store.Save(source, original, proposal, current,
+                    async operation =>
+                    {
+                        if (validateSource is not null) { await validateSource(admitted).ConfigureAwait(false); }
+                        return await admission.Publish(request, session, current, () =>
+                        {
+                            attempted = true;
+                            return operation();
+                        }, admitted).ConfigureAwait(false);
+                    }, admitted, copiedFrom).ConfigureAwait(false);
                 await admission.Publish(request, session, current, static () => true, admitted).ConfigureAwait(false);
                 audit.Write(entry.WithOutcome(SecurityAuditOutcome.Succeeded));
                 return saved;
@@ -206,7 +233,7 @@ public sealed class CustomizationManagementService(ICustomizationStore store, In
     public static void ValidatePrimary(CustomizationSource source, IReadOnlyList<CustomizationFile> files)
     {
         var primary = files.Single(file => string.Equals(file.Name, source.PrimaryFile, StringComparison.Ordinal));
-        if (source.Kind == CustomizationKind.McpServer) { McpDefinitionDocument.ValidateServer(primary.CopyBytes()); }
+        if (source.Kind == CustomizationKind.McpServer) { _ = McpDefinitionDocument.ValidateHttpsServer(primary.CopyBytes()); }
         else
         {
             var originalInstruction = source.Scope == CustomizationScope.User && source.Kind == CustomizationKind.Instruction;

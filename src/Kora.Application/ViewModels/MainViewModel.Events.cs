@@ -10,7 +10,13 @@ namespace Kora.Application.ViewModels;
 public sealed partial class MainViewModel
 {
     private LocalEventBroker? localEvents;
-    public void BindLocalEvents(LocalEventBroker broker) => localEvents = broker;
+    public void BindLocalEvents(LocalEventBroker broker)
+    {
+        if (localEvents is not null) { throw new InvalidOperationException("Local events are already bound."); }
+        localEvents = broker;
+        completionNotices = new(broker, communicationPolicy, textToSpeech, securityAuditLog, logger);
+        PropertyChanged += CompletionNoticeHostChanged;
+    }
 
     internal async Task ExecuteLocalEventCommandAsync(LocalEventCommand command, SecurityAuditInitiator initiator)
     {

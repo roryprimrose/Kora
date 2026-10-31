@@ -48,6 +48,7 @@ public sealed class AgentProfileSaveWorkflowTests : IDisposable
     {
         await using var f = new Fixture();
         f.Workflow.Validate("example", Source).Document.Text.Should().Be(Source);
+        (await f.Workflow.PrepareNewAsync("example", f.Eligible, CancellationToken.None)).Name.Should().Be("example");
         f.Files.Writes.Should().Be(0);
         using var review = await f.Review(origin);
         review.Revision.Should().Be(1);

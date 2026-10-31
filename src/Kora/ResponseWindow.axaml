@@ -99,6 +99,17 @@
           <Button Content="Stop speaking" Command="{Binding StopSpeechCommand}" />
         </StackPanel>
         <TextBlock Text="{Binding ReadCurrentResponseStatus}" Classes="muted" FontSize="11" TextWrapping="Wrap" />
+        <StackPanel Spacing="6">
+          <WrapPanel>
+            <Button Content="Review speak once during call" Command="{Binding ReviewCallSpeechCommand}"
+                    AutomationProperties.Name="Review one exact current response and output for a call speech exception" />
+            <Button Content="Confirm speak once" Command="{Binding ConfirmCallSpeechCommand}"
+                    AutomationProperties.Name="Separately confirm this exact single-use call speech review" />
+            <Button Content="Cancel call speech" Command="{Binding CancelCallSpeechCommand}" />
+            <Button Content="Call speech status" Command="{Binding GetCallSpeechStatusCommand}" />
+          </WrapPanel>
+          <TextBlock Text="{Binding CallSpeechStatus}" Classes="muted" FontSize="11" TextWrapping="Wrap" />
+        </StackPanel>
         <StackPanel IsVisible="{Binding IsDetailsOfferPending}" Spacing="6">
           <TextBlock Text="Would you like to view the detailed response?" TextWrapping="Wrap" />
           <WrapPanel>
@@ -251,7 +262,23 @@
         </controls:ScrollableListBox>
       </Border>
 
-      <Grid Grid.Row="9" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="9">
+      <StackPanel Grid.Row="9" Spacing="8">
+        <TextBlock Text="{Binding ReviewedVoiceCommandStatus}" TextWrapping="Wrap" FontSize="11" />
+        <WrapPanel>
+          <Button x:Name="BeginReviewedVoiceCommand" Content="Review one spoken command" Click="OnBeginReviewedVoiceCommand"
+              IsEnabled="{Binding !IsReviewedVoiceCommandActive}" />
+          <Button x:Name="FinishReviewedVoiceCommand" Content="Finish capture" Click="OnFinishReviewedVoiceCommand"
+              IsVisible="{Binding IsReviewedVoiceCommandActive}" IsEnabled="{Binding !HasReviewedVoiceCommand}" />
+          <Button x:Name="CancelReviewedVoiceCommand" Content="Cancel reviewed command" Click="OnCancelReviewedVoiceCommand"
+              IsVisible="{Binding IsReviewedVoiceCommandActive}" />
+        </WrapPanel>
+        <TextBox x:Name="ReviewedVoiceCommandInput"
+            IsVisible="{Binding HasReviewedVoiceCommand}" TextChanged="OnReviewedVoiceCommandTextChanged"
+            AutomationProperties.Name="Exact command transcript; edit without executing"
+            AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="110" />
+        <Button x:Name="ConfirmReviewedVoiceCommand" Content="Dispatch this exact voice command once" Click="OnConfirmReviewedVoiceCommand"
+            IsVisible="{Binding HasReviewedVoiceCommand}" />
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="9">
         <TextBox
             x:Name="CommandInput"
             Text="{Binding CommandText}"
@@ -274,6 +301,7 @@
             Content="{Binding CommandSubmitLabel}"
             Command="{Binding RunTypedCommand}" />
       </Grid>
+      </StackPanel>
     </Grid>
   </Border>
   </Grid>

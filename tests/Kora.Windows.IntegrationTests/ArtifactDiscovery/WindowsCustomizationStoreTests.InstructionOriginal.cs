@@ -350,6 +350,34 @@ public sealed partial class WindowsCustomizationStoreTests
     }
 
     [Fact]
+    public async Task ConfiguredInstructionDirectoryDoesNotGrantProfileOriginalRegistrationOrWriteAuthority()
+    {
+        var directory = Path.Combine(root, "configured-instructions");
+        Directory.CreateDirectory(root);
+        using var identity = WindowsIdentity.GetCurrent();
+        RestrictedStorageDirectory.CreateRestrictedDirectory(directory, identity.User!);
+        var path = Path.Combine(directory, "example.instructions.md");
+        var bytes = ArtifactFileDocument.Encode(CustomizationLayout.Template(CustomizationKind.Instruction, "example"), true);
+        WindowsOwnedInstructionStoreTests.WriteOwnedFile(path, bytes);
+        var preferences = new DirectoryPreferences(new([], [directory], [], [], [], [], false));
+        var store = new WindowsCustomizationStore(new Paths(root), Path.Combine(root, "editor-profile"),
+            Path.Combine(root, "user-profile"), preferences);
+        var source = (await store.List(TestContext.Current.CancellationToken)).Should().ContainSingle().Subject;
+        source.Scope.Should().Be(CustomizationScope.User);
+        (await store.ListMetadataSources(TestContext.Current.CancellationToken)).Should().Equal(source);
+        await ((Func<Task>)(() => store.PrepareInstructionRegistration(source, TestContext.Current.CancellationToken)))
+            .Should().ThrowAsync<InvalidDataException>();
+        await ((Func<Task>)(() => store.Read(source, TestContext.Current.CancellationToken)))
+            .Should().ThrowAsync<InvalidOperationException>();
+        await ((Func<Task>)(() => Save(store, source, null, Primary(source, "Unapproved change"))))
+            .Should().ThrowAsync<InvalidOperationException>();
+        store.RegisteredInstruction.Should().BeNull();
+        (await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken)).Should().Equal(bytes);
+        Directory.Exists(Path.Combine(root, "local", "DefinitionTransactions")).Should().BeFalse();
+        Directory.EnumerateFiles(directory).Should().Equal(path);
+    }
+
+    [Fact]
     public async Task AcceptedOptimisticSameNameReplacementWindowRemainsWholeBytePublicationWithoutFollowingOtherTargets()
     {
         var store = Create();

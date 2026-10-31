@@ -23,8 +23,10 @@ over those operations. Selecting/enabling a skill is not an execution grant.
 The trusted C# host owns identity, routing, validation, review, approval, audit,
 hashing, cancellation and process/resource supervision. Essential stop/cancel/
 exit controls remain available without PowerShell or inference.
-Fixed lock/shutdown/restart requests use the same execution gate; model
-suggestions open source inspection only and never grant execution.
+Fixed lock/shutdown/restart requests use the same execution gate. Model Lock
+proposals enter that same exact host-owned grant workflow, without legacy
+named-action approval; model power suggestions remain inspection-only.
+No model suggestion grants execution.
 
 See [interaction and implementation rules](../Design/Commands_Tools_And_Skills.md)
 and [canonical tools](../Design/Internal_Model_Tools.md).
@@ -39,7 +41,7 @@ A script message or successful exit is not proof that Windows completed the effe
 
 The [native permission review](../src/Kora/NativeQuestionHost.BundledControl.cs) offers Once, This session and Always, or cancellation without a grant. Exact grants use native controls, including for voice-origin requests; they do not supply separate power consent.
 An unaddressed request creates a fresh neutral control session. **Run in last reviewed control session** explicitly addresses the previous binding; the [controller](../src/Kora/BundledFixedActionController.cs) revalidates it instead of automatically recreating retired authority.
-The [power owner](../src/Kora/ApplicationLifecycle/ApplicationLifecycleController.cs) requires separate original-channel confirmation, a 30-second visible cancellable countdown, physically joined resources and current one-use authority. Model suggestions only open source inspection; they do not start this workflow.
+The [power owner](../src/Kora/ApplicationLifecycle/ApplicationLifecycleController.cs) requires separate original-channel confirmation, a 30-second visible cancellable countdown, physically joined resources and current one-use authority. Model power suggestions only open source inspection; they do not start this workflow. Lock does not acquire power authority or require that separate countdown.
 
 Bundled, Kora-owned and user/profile content obey the same host governance, but source discovery/enablement does not admit executable code. Skills and agents can propose only admitted operations; approving one does not blanket-approve its calls or other packages sharing a helper.
 Model-generated scripts remain proposals, not executable authority. General executable imports remain separately deferred under [R27](../Design/Implementation_Roadmap.md#optional-and-deferred-work).

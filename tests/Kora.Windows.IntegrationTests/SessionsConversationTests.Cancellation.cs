@@ -39,6 +39,8 @@ public sealed partial class SessionsConversationTests
                 var provenance = await adapter.Started.Task;
                 await model.RefreshRunningConversationAsync();
                 model.RunningConversationStatus.Should().Contain("Running").And.Contain(provenance.Request.TaskId.Value.ToString("D"));
+                model.RunningConversationStatus.Should().Contain("configured maximum 2").And.Contain("qualified ceiling 1")
+                    .And.Contain("effective ceiling 1").And.Contain("not a promise");
                 var cancel = window.FindControl<Button>("CancelRunningConversation")!;
                 cancel.IsEnabled.Should().BeTrue();
                 cancel.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));

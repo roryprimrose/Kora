@@ -32,6 +32,7 @@ public sealed class SettingsResetMenuTests
         { "RefreshPlaybackVolumeCommand", "Kora playback volume", "CanChangePlaybackVolume", "Refresh volume" },
         { "RefreshWindowsSpeechRateCommand", "Windows voice speed", "CanInspectWindowsSpeechRateNative", "Refresh voice speed" },
         { "RefreshResponseModeCommand", "Device-default response mode", "CanChangeResponseMode", "Refresh response mode" },
+        { "RefreshConversationExecutionCommand", "Ordinary conversation execution maximum", "CanChangeConversationExecution", "Refresh ordinary conversation execution maximum" },
         { "RefreshSpeechTextCommand", "Speech captions", "CanChangeSpeechText", "Refresh captions" },
         { "RefreshSessionRetentionCommand", "Session inactivity retention", "CanChangeSessionRetentionNative", "Refresh archive and deletion settings" },
         { "RefreshOrdinaryDeadlineCommand", "Ordinary task deadline", "CanChangeOrdinaryDeadlineNative", "Refresh future ordinary task deadline" },
@@ -163,7 +164,10 @@ public sealed class SettingsResetMenuTests
             ["{Binding ResetOrdinaryDeadlineCommand}", "{Binding ResetLogonStartupCommand}"]);
         elements.Count(element =>
             string.Equals(element.Name.LocalName, nameof(SettingActionsButton), StringComparison.Ordinal))
-            .Should().Be(36);
+            .Should().Be(37);
+        elements.Where(element => element.Name.LocalName is nameof(SettingActionsButton))
+            .Select(element => element.Attribute("SettingName")?.Value).Should().Contain(
+                ["Ordinary task deadline", "Ordinary conversation execution maximum"]);
         foreach (var binding in bindings)
         {
             var element = binding.Parent!;
@@ -200,7 +204,7 @@ public sealed class SettingsResetMenuTests
     [Theory]
     [InlineData("Appearance", 15, 15, 0)]
     [InlineData("Speech & audio", 8, 7, 5)]
-    [InlineData("Responses", 3, 4, 2)]
+    [InlineData("Responses", 4, 4, 3)]
     [InlineData("Sessions", 2, 2, 2)]
     [InlineData("Logging", 2, 2, 2)]
     [InlineData("Calls", 2, 2, 2)]

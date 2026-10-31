@@ -34,6 +34,7 @@ public sealed partial class SessionConversationService
         var runtime = executor as ModelTurnHost;
         await using var running = RegisterRunningConversation(target, turn, live, token);
         turn.PublishExecutionStep = running.PresentExecutionStep;
+        turn.PublishResourceStatus = running.PresentResources;
         turn.PublishAnswer = async (update, publicationToken) =>
         {
             bool PresentCurrent() => Current() && turn.OrdinaryActiveBudget?.Expired != true
@@ -196,6 +197,7 @@ public sealed partial class SessionConversationService
         finally
         {
             turn.PublishExecutionStep = null;
+            turn.PublishResourceStatus = null;
             turn.PublishAnswer = null;
             // An accepted cancellation owns its join even when audit, privacy, storage or readback subsequently fails.
             try

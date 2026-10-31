@@ -1493,6 +1493,7 @@ Specialized source workflows and clarification turns keep their existing fixed l
 
 Pending work has no active budget. At durable dispatch the host captures one immutable preference and starts monotonic elapsed accounting; pending expiry and the original context timestamps are not renewed.
 A later saved default never changes a running turn. The shorter fixed provider/tool maximum and original context expiry always win.
+The ordinary conversation execution maximum is a separate reviewed preference: saving or resetting a deadline cannot confirm or overwrite it, and changing concurrency does not renew an active deadline.
 The current local/read-only cap is 15 seconds, and ordinary hosted adapters are capped at two minutes, so choosing five or sixty minutes does not extend those caps ([budget ownership](../src/Kora.Application/Dependencies/ModelTurnHost.OrdinaryDeadline.cs)).
 
 Expiry requests runtime cancellation and suppresses late success; the existing conversation owner retains the session/resource lease and waits for physical quiescence before terminal retention.

@@ -321,15 +321,34 @@ public sealed partial class MainViewModelTests
     {
         var f = await Fixture.CreateInitializedAsync();
         var (store, model) = BindSpeechSuggestions(f);
+        using var release = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var token = TestContext.Current.CancellationToken;
+        f.VoiceConsent.BeforeSave = consent =>
+        {
+            if (consent) { return; }
+            entered.TrySetResult();
+            release.Wait(token);
+        };
         Task? withdrawal = null;
         store.BeforeSpeechReceiptMetadataRead = () =>
         {
             withdrawal = f.ViewModel.SetVoiceConsentAsync(false);
         };
-        await SubmitSpeechSuggestion(f, store, voice: true);
-        withdrawal.Should().NotBeNull("withdrawal must occur during receipt pinning, not before submission");
+        try
+        {
+            await SubmitSpeechSuggestion(f, store, voice: true);
+            withdrawal.Should().NotBeNull("withdrawal must occur during receipt pinning, not before submission");
+            await entered.Task.WaitAsync(token);
+            f.ViewModel.HasVoiceConsent.Should().BeFalse();
+            f.Voice.IsListening.Should().BeFalse();
+            withdrawal!.IsCompleted.Should().BeFalse();
+        }
+        finally { release.Set(); }
         await withdrawal!;
         f.ViewModel.HasVoiceConsent.Should().BeFalse();
+        f.VoiceConsent.Consent.Should().BeFalse();
+        f.ViewModel.ResponseTitle.Should().Be("Voice consent declined or withdrawn.");
         store.RequestMessage!.Request.Origin.Should().Be(RequestOrigin.ActivatedVoice);
         await f.RunAsync("review speech limit suggestion");
         f.ViewModel.ResponseTitle.Should().Be("Speech limit change unconfirmed.");

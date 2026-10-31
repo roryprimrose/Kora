@@ -63,6 +63,8 @@ actions, approval rules, executable implementations, or privileged system
 policy. Agent profiles cannot widen host limits, create grants, automatically
 delegate, or select an unapproved destination.
 
+The admitted metadata-only agent recommendation is an inert proposal, not source selection or task input. **Review customization recommendation** requires a deliberate current source-qualified native choice, a NEW original-user task, separate source-read consent and complete profile/input/scope review before the existing one-use confirmation. Same-name candidates are not collapsed; the discovery question/channel remain provenance only. This consumes only the existing bounded local v1 tools-none/references-none agent workflow, not a new model catalogue, source writer, activation or runtime profile ([complete operation](../docs/customizations.md#review-and-run-one-model-recommended-local-agent), [native owner](../src/Kora/AgentRunController.ModelProposal.cs)).
+
 Keep kind explicit in the common descriptor and apply kind-specific validation
 and context roles. A prompt expands into clearly separated user-request
 content with bounded explicit parameters; instructions are untrusted guidance,

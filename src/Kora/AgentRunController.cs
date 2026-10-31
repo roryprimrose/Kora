@@ -206,6 +206,11 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
             {
                 Retire();
                 revision = inputRevision;
+                if (modelProposal is not null)
+                {
+                    await SelectProposedSourceAsync(opened, Current, token);
+                    revision = inputRevision;
+                }
                 var target = (opened.Targets.SelectedItem as AgentTarget)?.Entry
                     ?? throw new InvalidOperationException("Select one current Active conversation.");
                 if (modelProposal is { } proposed && target != proposed.Target)

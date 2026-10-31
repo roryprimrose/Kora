@@ -148,6 +148,11 @@ The native MCP review/exchange fixture uses its existing frozen test timers:
 it verifies exact native approval, real fake-broker results and physical joins,
 not elapsed-time policy. Deadline regressions retain their explicit clock/timer
 boundaries; production model and transport deadlines are unchanged.
+The one-task output fixture retains `ProviderBusy` for an overlapping session on
+its unqualified shared adapter, then joins queued work before a fresh review.
+The speech-suggestion receipt-pin consent race holds the existing consent-save
+seam until submission status is asserted, then joins withdrawal before checking
+that the retained voice source cannot authorize review or confirmation.
 Native stop-and-delete assertions await the exact cancellation-accepted event.
 Paging gestures await the existing Next readiness notification when passive
 work refresh is outstanding; draining dispatcher jobs does not join that I/O.

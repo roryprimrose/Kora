@@ -46,6 +46,62 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Fact]
+    public async Task MonotonicDeadlineRevokesPublishedPreviewBeforeIgnoringProviderJoinsWithoutTimerCallback()
+    {
+        using var f = new Fixture();
+        await using var settings = new OrdinaryDeadlineConfigurationFixture();
+        settings.Preferences.Save(new(1));
+        var runtime = new HostClaudeStream();
+        var host = f.ClaudeProfiles(runtime, new(f, f.Time));
+        f.Time.Timestamp = 0;
+        f.Time.ExpectedDeadline = TimeSpan.FromMinutes(1);
+        await using var service = DeadlineConversation(f, host, settings);
+        ConversationAnswerPresentation? preview = null;
+        var publications = 0;
+        service.ProvisionalAnswerChanged += (value, _) =>
+        {
+            preview = value;
+            publications++;
+            return ValueTask.CompletedTask;
+        };
+        var submitted = service.SubmitClaudeAnswerStreamAsync(new(f.Session, null), "original", () => true, Token);
+        await runtime.Entered.Task.WaitAsync(Token);
+        var request = f.Retained!.Request;
+        try
+        {
+            f.Time.Timestamp = TimeSpan.FromMilliseconds(59999).Ticks;
+            preview!.IsCurrent().Should().BeTrue();
+            f.Time.Timestamp = TimeSpan.FromMinutes(1).Ticks;
+            preview.IsCurrent().Should().BeFalse();
+            f.Time.Timestamp++;
+            preview.IsCurrent().Should().BeFalse();
+            f.Time.Now.Should().Be(DateTimeOffset.UnixEpoch);
+            submitted.IsCompleted.Should().BeFalse();
+            host.IsQuiescent.Should().BeFalse();
+            f.Task!.Task.State.Should().Be(HostTaskState.DispatchRecorded);
+            f.ExecutionCompletions.Should().Be(0);
+            f.Retained.Outcome.Should().BeNull();
+            f.Retained.AssistantResponse.Should().BeNull();
+            publications.Should().Be(1);
+        }
+        finally
+        {
+            runtime.Release.TrySetResult();
+            await submitted;
+        }
+        var receipt = await submitted;
+        receipt.Message.Request.Should().Be(request);
+        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.TimedOut);
+        receipt.Message.Reason.Should().Be(ModelTurnReason.DeadlineExceeded);
+        receipt.Message.AssistantResponse.Should().BeNull();
+        receipt.Task.State.Should().Be(HostTaskState.Unknown);
+        f.ExecutionCompletions.Should().Be(1);
+        runtime.Streams.Should().Be(1);
+        runtime.Buffered.Should().Be(0);
+        host.IsQuiescent.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task DeadlineCancellationSuppressesLateAnswerAndRetainsLeaseUntilIgnoringRuntimeActuallyJoins()
     {
         using var f = new Fixture();

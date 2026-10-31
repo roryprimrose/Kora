@@ -203,11 +203,11 @@ public sealed partial class MainViewModelTests
                         await f.ViewModel.ApplyAssistantNameCommand.ExecuteAsync();
                         break;
                     case "grant":
-                        await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
+                        await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add, BuiltInAction.EnableHostedModels, ModelApprovalScope.Always));
                         break;
                     default:
                         f.Reasoner.Question = mode is "question" ? new("Which?", ["One", "Two"]) : null;
-                        f.Reasoner.Action = mode is "approval" ? BuiltInAction.LockMachine : null;
+                        f.Reasoner.Action = mode is "approval" ? BuiltInAction.EnableHostedModels : null;
                         await f.RunAsync("choose");
                         await f.ViewModel.ActiveReasoningTask!;
                         break;
@@ -233,11 +233,11 @@ public sealed partial class MainViewModelTests
         var presenter = new QueuePreparationPresenter();
         f.ViewModel.BindQueueCancellationReview(presenter);
         if (mode is "grant")
-        { await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always)); }
+        { await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add, BuiltInAction.EnableHostedModels, ModelApprovalScope.Always)); }
         else
         {
             f.Reasoner.Question = mode is "question" ? new("Which?", ["One", "Two"]) : null;
-            f.Reasoner.Action = mode is "approval" ? BuiltInAction.LockMachine : null;
+            f.Reasoner.Action = mode is "approval" ? BuiltInAction.EnableHostedModels : null;
             await f.RunAsync("choose");
             await f.ViewModel.ActiveReasoningTask!;
         }

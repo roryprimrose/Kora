@@ -113,7 +113,7 @@ public sealed partial class MainViewModelTests
         var fixture = new Fixture();
         fixture.Probe.Status = new("local.inference", "Local model",
             Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         await fixture.ViewModel.InitializeAsync();
         if (modelAction)
         {
@@ -123,7 +123,7 @@ public sealed partial class MainViewModelTests
         else
         {
             await fixture.ViewModel.PrepareGrantChangeAsync(
-                new(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
+                new(GrantChangeOperation.Add, BuiltInAction.EnableHostedModels, ModelApprovalScope.Always));
         }
         var changed = false;
         fixture.ViewModel.PropertyChanged += (_, args) =>
@@ -143,13 +143,15 @@ public sealed partial class MainViewModelTests
         else { await fixture.ViewModel.ConfirmGrantChangeAsync(); }
         if (modelAction && string.Equals(transition, "call", StringComparison.Ordinal))
         {
-            fixture.ViewModel.AlwaysAllowedModelActions.Should().ContainSingle().Which.Action.Should().Be(BuiltInAction.LockMachine);
-            fixture.Session.LockCalls.Should().Be(1);
+            fixture.ViewModel.AlwaysAllowedModelActions.Should().ContainSingle().Which.Action.Should().Be(BuiltInAction.EnableHostedModels);
+            fixture.ViewModel.HostedModelsEnabled.Should().Be(true);
+        fixture.Session.LockCalls.Should().Be(0);
         }
         else
         {
             fixture.ViewModel.AlwaysAllowedModelActions.Should().BeEmpty();
-            fixture.Session.LockCalls.Should().Be(0);
+            fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
+        fixture.Session.LockCalls.Should().Be(0);
         }
     }
 
@@ -255,7 +257,7 @@ public sealed partial class MainViewModelTests
         var fixture = new Fixture();
         fixture.Probe.Status = new("local.inference", "Local model",
             Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         await fixture.ViewModel.InitializeAsync();
         fixture.Audit.BeforeWrite = audit =>
         {
@@ -276,6 +278,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.ActiveReasoningTask!;
         await fixture.ViewModel.PrivacyClosureTask;
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
         fixture.Audit.Events.Should().Contain(item => item.Outcome == SecurityAuditOutcome.Denied);
     }

@@ -67,6 +67,77 @@ public sealed class QuestionClipboardAnswerTests
     }
 
     [Fact]
+    public async Task ClipboardReviewRemainsSeparateFromPermissionPolicyAndCloseClearsBothWithoutSubmitting()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            await using var f = await Fixture.Create();
+            var original = f.Model.Key;
+            await f.Capture(grant: true);
+            var review = f.Window.FindControl<TextBox>("ClipboardAnswerReview")!;
+            var policy = f.Window.FindControl<TextBox>("PolicyExplanation")!;
+            review.IsVisible.Should().BeTrue();
+            review.Text.Should().Contain(f.Reader.Text);
+            policy.IsVisible.Should().BeFalse();
+            policy.Text.Should().BeNullOrEmpty();
+            f.Window.FindControl<Button>("ExplainPolicy")!.IsVisible.Should().BeFalse();
+            f.Window.FindControl<Button>("ReturnToApproval")!.IsVisible.Should().BeFalse();
+            var copying = new RoutedEventArgs(TextBox.CopyingToClipboardEvent);
+            review.RaiseEvent(copying);
+            copying.Handled.Should().BeTrue();
+            f.Model.Key.Should().Be(original);
+            f.Model.Completion.IsCompleted.Should().BeFalse();
+            f.Model.CanSubmit.Should().BeFalse();
+
+            f.Window.Close();
+            await f.Answer.Quiescence;
+            review.Text.Should().BeNullOrEmpty();
+            policy.Text.Should().BeNullOrEmpty();
+            f.Window.FindControl<TextBox>("AnswerInput")!.Text.Should().BeNullOrEmpty();
+            f.Answer.ReviewText.Should().BeEmpty();
+            var canonical = (await f.Data.Store.ReadQuestionsAsync(original.Request.SessionId, f.Data.Token)).Single();
+            canonical.Key.Should().Be(original);
+            canonical.Status.Should().Be(QuestionStatus.Pending);
+            canonical.Draft.Should().BeNull();
+            f.Reader.Calls.Should().Be(1);
+            f.Reader.Released.Should().BeTrue();
+            f.Data.Count("conversation_messages").Should().Be(0);
+        });
+    }
+
+    [Theory]
+    [InlineData("ownership")]
+    [InlineData("private")]
+    public async Task ChangedNativeRevisionBeforeReadApprovalCannotReadOrReplaceManualDraft(string change)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            await using var f = await Fixture.Create();
+            f.Model.Edit(new([], "keep this manual draft"));
+            var original = f.Model.Key;
+            await f.Capture(grant: true, beforePermissionSubmit: () =>
+            {
+                if (change is "ownership") { f.AdmissionRevision++; }
+                else { f.PrivateRevision++; }
+            });
+            await f.Answer.Quiescence;
+            f.Eligible.Should().BeTrue("a reopened boolean gate cannot replace the original native revision");
+            f.Reader.Calls.Should().Be(0);
+            f.Model.Answer.Text.Should().Be("keep this manual draft");
+            f.Model.Key.Should().Be(original);
+            f.Model.Completion.IsCompleted.Should().BeFalse();
+            f.Answer.ReviewText.Should().BeEmpty();
+            f.Answer.HasAccepted.Should().BeFalse();
+            (await f.Data.Store.ReadGrantsAsync(f.Data.Token)).Should().BeEmpty();
+            var canonical = (await f.Data.Store.ReadQuestionsAsync(original.Request.SessionId, f.Data.Token))
+                .Single(record => record.Key.QuestionId == original.QuestionId);
+            canonical.Status.Should().Be(QuestionStatus.Pending);
+            canonical.Draft.Should().BeNull();
+            f.Data.Count("conversation_messages").Should().Be(0);
+        });
+    }
+
+    [Fact]
     public async Task DeniedPermissionDoesNotReadOrChangeExistingDraft()
     {
         await HeadlessSession.RunAsync(async () =>
@@ -240,7 +311,7 @@ public sealed class QuestionClipboardAnswerTests
         });
     }
 
-    internal static async Task DecidePermission(QuestionWindow permission, bool grant)
+    internal static async Task DecidePermission(QuestionWindow permission, bool grant, Action? beforeSubmit = null)
     {
         var review = permission.FindControl<Button>("ReviewQuestion")!;
         await WhenEnabled(review);
@@ -249,6 +320,7 @@ public sealed class QuestionClipboardAnswerTests
         review.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         var submit = permission.FindControl<Button>("SubmitAnswer")!;
         await WhenEnabled(submit);
+        beforeSubmit?.Invoke();
         submit.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
     }
 
@@ -307,6 +379,8 @@ public sealed class QuestionClipboardAnswerTests
         internal QuestionClipboardAnswer Answer { get; private set; } = null!;
         internal QuestionWindow Window { get; private set; } = null!;
         internal bool Eligible { get; set; } = true;
+        internal long AdmissionRevision { get; set; } = 1;
+        internal long PrivateRevision { get; set; } = 1;
         private ClipboardExplanationAdmission admission = null!;
 
         internal static async Task<Fixture> Create(string purpose = LocalModelQuestionPolicy.Purpose)
@@ -324,6 +398,7 @@ public sealed class QuestionClipboardAnswerTests
             var renderer = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance);
             f.Answer = new(f.Model, f.Reader, f.admission, f.Data.Store, () => () => f.Eligible,
                 () => new(1, Kora.Core.Communication.CallState.Clear, false, Kora.Core.Communication.CallAwareSettings.Default),
+                () => f.AdmissionRevision, () => f.PrivateRevision,
                 f.Data.Time, NullLogger<ClipboardSnapshotBroker>.Instance, NullLogger<NativeQuestionViewModel>.Instance, renderer);
             f.Model.BindClipboardAnswer(f.Answer);
             f.Window = new(f.Model, renderer);
@@ -333,7 +408,7 @@ public sealed class QuestionClipboardAnswerTests
             return f;
         }
 
-        internal async Task Capture(bool grant, bool waitForCapture = true)
+        internal async Task Capture(bool grant, bool waitForCapture = true, Action? beforePermissionSubmit = null)
         {
             Answer.CanCapture.Should().BeTrue("active={0}, editable={1}, status={2}", Window.IsActive, Model.IsEditable, Model.Status);
             var opened = new TaskCompletionSource<QuestionWindow>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -343,7 +418,7 @@ public sealed class QuestionClipboardAnswerTests
             opened.Task.IsCompleted.Should().BeTrue("capture ended before any permission presentation: {0}", Model.Status);
             var permission = await opened.Task.WaitAsync(Data.Token);
             Reader.Calls.Should().Be(0);
-            await DecidePermission(permission, grant);
+            await DecidePermission(permission, grant, beforePermissionSubmit);
             if (waitForCapture)
             {
                 await capture;

@@ -52,6 +52,7 @@ internal sealed class QuestionClipboardAnswer : IDisposable
     internal QuestionClipboardAnswer(NativeQuestionViewModel question, IPlainTextClipboardReader reader,
         ClipboardExplanationAdmission admission, WindowsSqliteHostInteractionStore store,
         Func<Func<bool>> captureAdmission, Func<Kora.Application.Communication.CallPolicyObservation> call,
+        Func<long> admissionRevision, Func<long> privateRevision,
         TimeProvider time, ILogger<ClipboardSnapshotBroker> brokerLogger,
         ILogger<NativeQuestionViewModel> logger, NativeDetailRenderer renderer)
     {
@@ -64,6 +65,8 @@ internal sealed class QuestionClipboardAnswer : IDisposable
         permissionHost = new(store, time, logger);
         permissionHost.BindGate(() => original());
         permissionHost.BindCallObservation(call);
+        permissionHost.BindAdmissionRevision(admissionRevision);
+        permissionHost.BindPrivateRevision(privateRevision);
         var permissions = new ClipboardPermissionSourceUsePolicy(store, store, time);
         permissions.BindPresenter(async (proposal, generation, current, token) =>
             await Dispatcher.UIThread.InvokeAsync(() => permissionHost.RequestClipboardPermissionAsync(

@@ -8,4 +8,6 @@ public sealed record ConversationPendingSnapshot(HostId<SessionIdentity> Session
     bool Paused, ImmutableArray<ConversationPendingTurn> Turns)
 {
     public long ControlRevision { get; init; }
+    public ConversationDispatchControl? DispatchControl { get; init; }
+    public ConversationDispatchHoldReason ManualHoldReason { get; init; }
 }

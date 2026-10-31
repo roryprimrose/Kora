@@ -41,6 +41,7 @@ public sealed partial class SessionsConversationTests
             var renderer = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance);
             native.BindClipboardAnswers(state => new(state, reader, admission, f.Store, () => () => eligible,
                 () => new(1, Kora.Core.Communication.CallState.Clear, false, Kora.Core.Communication.CallAwareSettings.Default),
+                static () => 1, static () => 1,
                 f.Time, NullLogger<ClipboardSnapshotBroker>.Instance, NullLogger<NativeQuestionViewModel>.Instance, renderer));
             var model = composed.Model;
             var owner = new Window();

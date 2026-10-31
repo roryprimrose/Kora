@@ -5,11 +5,14 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
+using System.Collections.Immutable;
 using AwesomeAssertions;
 using Kora.Core.Commands;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Memory;
+using Kora.Core.Memory.DeviceProfile;
 using Kora.Windows.IntegrationTests.Storage;
 
 namespace Kora.Windows.IntegrationTests;
@@ -138,6 +141,142 @@ public sealed partial class SessionsConversationTests
     }
 
     [Theory]
+    [InlineData("cancel-before")]
+    [InlineData("cancel-after")]
+    [InlineData("readback")]
+    public async Task NativeSessionMemoryCopyCancellationAndUnconfirmedCompletionPreserveIndependentBuffersAndExactRestartState(string fault)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            var checkpoint = new InteractionTransactionCheckpoint();
+            f.Reopen(checkpoint);
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            using var release = new ManualResetEventSlim();
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var store = new SessionCopyReadbackStore(f.Store, () =>
+            {
+                entered.TrySetResult();
+                release.Wait(f.Token);
+                if (fault is "readback") { throw new IOException("Readback unconfirmed after the copy commit."); }
+            });
+            await using (var composition = new Composition(f, memoryContext: true, memoryStore: store))
+            {
+                var model = composition.Model;
+                var window = new SessionsWindow(model);
+                window.Show();
+                try
+                {
+                    await model.RefreshAsync();
+                    await model.SelectAsync(model.Sessions.Single());
+                    await model.ReadConversationAsync();
+                    model.ComposerBody = "Independent unsent input";
+                    model.MemoryDraft = "Prefer explicit examples";
+                    await model.ProposeMemoryAsync();
+                    model.SelectMemory(model.MemoryRecords.Single());
+                    await model.InspectMemoryAsync();
+                    await model.ReviewMemoryAsync(true);
+                    await model.AdmitMemoryAsync();
+                    await model.InspectMemoryAsync();
+                    var original = model.SelectedMemory!;
+                    var tab = window.GetLogicalDescendants().OfType<TabItem>().Single(item => Equals(item.Header, "Memories"));
+                    tab.GetLogicalAncestors().OfType<TabControl>().First().SelectedItem = tab;
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+                    string[] operations = ["KeepSessionMemory", "ProposeSessionMemoryCopy", "AcceptSessionMemoryCopy"];
+                    foreach (var operation in operations)
+                    {
+                        window.FindControl<Button>(operation)!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                        await window.SessionMemoryCopyOperation;
+                        model.SessionMemoryCopyClass = MemoryContentClass.Decision;
+                    }
+                    checkpoint.Commit = (connection, transaction) =>
+                    {
+                        if (fault is not "cancel-before") { return; }
+                        using var count = connection.CreateCommand();
+                        count.Transaction = transaction;
+                        count.CommandText = "SELECT COUNT(*) FROM reviewed_memory;";
+                        if (Convert.ToInt64(count.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture) != 2) { return; }
+                        entered.TrySetResult();
+                        release.Wait(f.Token);
+                    };
+                    window.FindControl<Button>("AdmitSessionMemoryCopy")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(20), f.Token);
+                    var pending = window.SessionMemoryCopyOperation;
+                    if (fault is not "readback")
+                    {
+                        window.FindControl<Button>("CancelSessionMemoryCopy")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                        window.SessionMemoryCopyOperation.Should().BeSameAs(pending);
+                        model.ConversationStatus.Should().Contain("review cancelled").And.Contain("No admission, rollback or retry");
+                        model.CanReadConversation.Should().BeFalse("cancellation does not join the outstanding storage operation");
+                    }
+                    release.Set();
+                    await pending;
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+                    model.ConversationStatus.Should().Contain("Unconfirmed").And.Contain("no retry, rollback")
+                        .And.NotContain("admitted independently");
+                    var outcome = window.FindControl<TextBox>("SessionMemoryCopyStatus")!;
+                    outcome.IsFocused.Should().BeTrue();
+                    outcome.Text.Should().Be(model.ConversationStatus);
+                    model.SessionMemoryCopyDescription.Should().BeEmpty();
+                    model.CanAdmitSessionMemoryCopy.Should().BeFalse();
+                    model.ComposerBody.Should().Be("Independent unsent input");
+                    model.MemoryDraft.Should().Be("Prefer explicit examples");
+                    model.SelectedMemory.Should().Be(original);
+                    f.Count("reviewed_memory").Should().Be(fault is "cancel-before" ? 1 : 2);
+                    f.Count("conversation_messages").Should().Be(0);
+                    f.Count("scoped_grants").Should().Be(0);
+                }
+                finally
+                {
+                    release.Set();
+                    checkpoint.Commit = null;
+                    await window.SessionMemoryCopyOperation;
+                    window.ClosePrivate();
+                }
+            }
+            f.Reopen();
+            await f.Store.InitializeAsync(f.Token);
+            await using var restarted = new Composition(f, memoryContext: true);
+            await restarted.Model.RefreshAsync();
+            await restarted.Model.SelectAsync(restarted.Model.Sessions.Single());
+            await restarted.Model.ReadConversationAsync();
+            restarted.Model.DeviceProfileMemory = true;
+            await restarted.Model.ListMemoriesAsync();
+            restarted.Model.MemoryRecords.Count.Should().Be(fault is "cancel-before" ? 0 : 1);
+            if (fault is not "cancel-before")
+            {
+                restarted.Model.SelectMemory(restarted.Model.MemoryRecords.Single());
+                await restarted.Model.InspectMemoryAsync();
+                restarted.Model.MemoryDetail.Should().Contain("Prefer explicit examples").And.Contain("DeviceProfile");
+            }
+            restarted.Model.CanAdmitSessionMemoryCopy.Should().BeFalse();
+            restarted.Model.Close();
+        });
+    }
+
+    private sealed class SessionCopyReadbackStore(
+        Kora.Windows.Storage.WindowsSqliteHostInteractionStore store, Action committed) : IMemoryStore, IDeviceProfileMemoryStore
+    {
+        public ValueTask<MemoryBoundary> ReadMemoryBoundaryAsync(HostRequest request, long controlRevision, CancellationToken token) =>
+            store.ReadMemoryBoundaryAsync(request, controlRevision, token);
+
+        public ValueTask<MemoryResult> TransactMemoryAsync(HostRequest request, MemoryBoundary boundary,
+            Func<ImmutableArray<MemoryRecord>, MemoryStorageCommit> transition, Func<bool> admitted, CancellationToken token) =>
+            store.TransactMemoryAsync(request, boundary, transition, admitted, token);
+
+        public async ValueTask<MemoryResult> TransactDeviceProfileMemoryAsync(HostRequest request, MemoryBoundary boundary,
+            Func<ImmutableArray<MemoryRecord>, MemoryStorageCommit> transition, Func<bool> admitted, CancellationToken token)
+        {
+            var result = await store.TransactDeviceProfileMemoryAsync(request, boundary, transition, admitted, token).ConfigureAwait(false);
+            if (result is { Outcome: MemoryOutcome.Succeeded, Record.Review: MemoryReviewState.Admitted }) { committed(); }
+            return result;
+        }
+    }
+
+    [Theory]
     [InlineData("cancel")]
     [InlineData("source-forget")]
     [InlineData("audit")]
@@ -259,6 +398,161 @@ public sealed partial class SessionsConversationTests
         current = model.CaptureSessionMemoryCopyPresentation();
         model.Close();
         current().Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(0, "tab")]
+    [InlineData(1, "tab")]
+    [InlineData(2, "tab")]
+    [InlineData(3, "tab")]
+    [InlineData(0, "focus")]
+    [InlineData(1, "focus")]
+    [InlineData(2, "focus")]
+    [InlineData(3, "focus")]
+    [InlineData(0, "hide")]
+    [InlineData(3, "hide")]
+    [InlineData(0, "parent")]
+    [InlineData(3, "parent")]
+    [InlineData(0, "callback")]
+    [InlineData(3, "callback")]
+    public async Task NativeSessionMemoryCopyLateCompletionCannotRenewRetiredPresenterFocus(int stage, string change)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            var checkpoint = new InteractionTransactionCheckpoint();
+            f.Reopen(checkpoint);
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            await using var composition = new Composition(f, memoryContext: true);
+            var model = composition.Model;
+            var window = new SessionsWindow(model);
+            using var release = new ManualResetEventSlim();
+            window.Show();
+            try
+            {
+                await ActivateOriginalRequestWindow(window);
+                await model.RefreshAsync();
+                await model.SelectAsync(model.Sessions.Single());
+                await model.ReadConversationAsync();
+                model.ComposerBody = "Independent unsent input";
+                model.MemoryDraft = "Prefer explicit examples";
+                await model.ProposeMemoryAsync();
+                model.SelectMemory(model.MemoryRecords.Single());
+                await model.InspectMemoryAsync();
+                await model.ReviewMemoryAsync(true);
+                await model.AdmitMemoryAsync();
+                await model.InspectMemoryAsync();
+                var original = model.SelectedMemory!;
+                var tab = window.GetLogicalDescendants().OfType<TabItem>().Single(item => Equals(item.Header, "Memories"));
+                var tabs = tab.GetLogicalAncestors().OfType<TabControl>().First();
+                tabs.SelectedItem = tab;
+                window.UpdateLayout();
+                Dispatcher.UIThread.RunJobs();
+                string[] operations = ["KeepSessionMemory", "ProposeSessionMemoryCopy", "AcceptSessionMemoryCopy", "AdmitSessionMemoryCopy"];
+                for (var index = 0; index < stage; index++)
+                {
+                    window.FindControl<Button>(operations[index])!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    await window.SessionMemoryCopyOperation;
+                    if (index == 0) { model.SessionMemoryCopyClass = MemoryContentClass.Decision; }
+                }
+                if (stage == 1) { model.SessionMemoryCopyClass = MemoryContentClass.Decision; }
+                var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                checkpoint.Commit = (_, _) =>
+                {
+                    entered.TrySetResult();
+                    release.Wait(f.Token);
+                };
+                window.FindControl<Button>(operations[stage])!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(20), f.Token);
+                var pending = window.SessionMemoryCopyOperation;
+                if (change is "tab")
+                {
+                    tabs.SelectedItem = tabs.Items.OfType<TabItem>().First(item => !ReferenceEquals(item, tab));
+                    window.UpdateLayout();
+                    TopLevel.GetTopLevel(window.FindControl<StackPanel>("SessionMemoryCopyPanel")!).Should().BeNull();
+                    tabs.SelectedItem = tab;
+                }
+                else if (change is "focus")
+                {
+                    var platform = window.PlatformImpl as Avalonia.Platform.IWindowBaseImpl
+                        ?? throw new InvalidOperationException("The headless window platform is unavailable.");
+                    // Avalonia 12 keeps the native callback internal; invoke the real headless event, not view-model state.
+                    var callback = typeof(Avalonia.Platform.IWindowBaseImpl).GetProperty("Deactivated",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)
+                        ?.GetValue(platform) as Action ?? throw new InvalidOperationException("The native deactivation callback is unavailable.");
+                    callback();
+                    window.IsActive.Should().BeFalse();
+                    await ActivateOriginalRequestWindow(window);
+                }
+                else if (change is "parent")
+                {
+                    var parent = window.FindControl<StackPanel>("SessionMemoryCopyPanel")!
+                        .GetVisualAncestors().OfType<ScrollViewer>().First();
+                    parent.IsVisible = false;
+                    window.FindControl<StackPanel>("SessionMemoryCopyPanel")!.IsEffectivelyVisible.Should().BeFalse();
+                    parent.IsVisible = true;
+                }
+                else if (change is "hide")
+                {
+                    window.Hide();
+                    window.Show();
+                    await ActivateOriginalRequestWindow(window);
+                }
+                window.UpdateLayout();
+                Dispatcher.UIThread.RunJobs();
+                var sentinel = window.FindControl<TextBox>(stage == 3 ? "SessionMemoryCopyReview" : "SessionMemoryCopyStatus")!;
+                sentinel.Focus().Should().BeTrue();
+                var callbackObserved = false;
+                if (change is "callback")
+                {
+                    var destination = window.FindControl<TextBox>(stage == 3 ? "SessionMemoryCopyStatus" : "SessionMemoryCopyReview")!;
+                    destination.AddHandler(Control.RequestBringIntoViewEvent, (_, _) =>
+                    {
+                        callbackObserved = true;
+                        model.SelectMemory(null);
+                    });
+                }
+                release.Set();
+                await pending;
+                window.UpdateLayout();
+                Dispatcher.UIThread.RunJobs();
+                sentinel.IsFocused.Should().BeTrue("returning to the presenter cannot renew a late focus handoff");
+                model.ComposerBody.Should().Be("Independent unsent input");
+                model.MemoryDraft.Should().Be(change is "callback" ? string.Empty : "Prefer explicit examples");
+                f.Count("reviewed_memory").Should().Be(stage == 3 ? 2 : 1);
+                f.Count("conversation_messages").Should().Be(0);
+                f.Count("scoped_grants").Should().Be(0);
+                if (change is "callback")
+                {
+                    callbackObserved.Should().BeTrue("the real presentation callback must retire the selected source");
+                    model.SelectedMemory.Should().BeNull();
+                    model.SessionMemoryCopyDescription.Should().BeEmpty();
+                    model.CanAdmitSessionMemoryCopy.Should().BeFalse();
+                }
+                else
+                {
+                    model.SelectedMemory.Should().Be(original);
+                }
+                if (stage == 3)
+                {
+                    model.ConversationStatus.Should().Contain("admitted independently");
+                    model.SessionMemoryCopyDescription.Should().BeEmpty();
+                }
+                else if (change is not "callback")
+                {
+                    model.SessionMemoryCopyDescription.Should().Contain("Prefer explicit examples");
+                    model.CanAdmitSessionMemoryCopy.Should().Be(stage == 2);
+                }
+            }
+            finally
+            {
+                release.Set();
+                checkpoint.Commit = null;
+                await window.SessionMemoryCopyOperation;
+                window.ClosePrivate();
+            }
+        });
     }
 
     [Theory]

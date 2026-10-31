@@ -46,7 +46,9 @@ beginning of the complete private review, never to an affirmative decision.
 Admission, cancellation and held/error outcomes focus the adjacent read-only
 scope-copy status. A stale source yields the held/error outcome, not its old
 review. Changed selection, lost private control or a hidden or inactive original
-surface prevents a late focus handoff. Focus does not
+surface prevents a late focus handoff. Returning after native deactivation or
+ancestor visibility loss does not renew that handoff; the actual outcome remains
+readable in the adjacent status without moving your current focus. Focus does not
 accept, save, list or inspect a different memory; readback still requires step 6.
 
 The [source-bound service](../src/Kora.Application/Memory/DeviceProfile/MemoryManagementService.SessionCopy.cs) re-reads the exact original before proposing, reviewing and admitting; the [canonical transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Memory.cs) compares it again at the actual destination operation.

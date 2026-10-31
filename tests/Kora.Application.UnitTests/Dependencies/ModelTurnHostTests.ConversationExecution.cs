@@ -238,13 +238,12 @@ public sealed partial class ModelTurnHostTests
         public ValueTask<ConversationSubmissionReceipt> BeginConversationExecutionAsync(HostRequest request,
             ModelTurnProvenance provenance, long metadataRevision, Func<bool> admitted, CancellationToken token)
         {
-            SelectPendingRecord(request);
+            var retained = ReadPendingRecord(request);
             admitted().Should().BeTrue();
             ExecutionStarts++;
-            Retained = Retained! with { Version = 2, Revision = 2, Execution = provenance, ExecutionMetadataRevision = metadataRevision };
-            Task = Task! with { Task = Task.Task.Next(HostTaskState.DispatchRecorded) };
-            RememberPendingRecord();
-            var receipt = new ConversationSubmissionReceipt(Retained, Task.Task);
+            var message = retained.Message with { Version = 2, Revision = 2, Execution = provenance, ExecutionMetadataRevision = metadataRevision };
+            var receipt = new ConversationSubmissionReceipt(message, retained.Task.Next(HostTaskState.DispatchRecorded));
+            RememberPendingRecord(receipt);
             AfterExecutionStart?.Invoke();
             return ValueTask.FromResult(StartReceiptFault switch
             {
@@ -261,21 +260,20 @@ public sealed partial class ModelTurnHostTests
         public ValueTask<ConversationSubmissionReceipt> CompleteConversationExecutionAsync(HostRequest request,
             ModelTurnResult result, Func<bool> admitted, CancellationToken token)
         {
-            SelectPendingRecord(request);
+            var retained = ReadPendingRecord(request);
             BeforeExecutionComplete?.Invoke();
             admitted().Should().BeTrue();
             ExecutionCompletions++;
-            Retained = Retained! with
+            var message = retained.Message with
             {
                 Revision = 3, Outcome = result.Outcome, Reason = result.Reason,
                 AssistantResponse = result.Outcome == ModelTurnOutcome.Succeeded
-                    ? ConversationResponse.FromResult(result, Retained.Execution!) : null,
+                    ? ConversationResponse.FromResult(result, retained.Message.Execution!) : null,
                 Observations = result.Observations,
                 SubmittedContext = result.SubmittedContext,
             };
-            Task = Task! with { Task = Task.Task.Next(Retained.ExpectedTaskState) };
-            RememberPendingRecord();
-            var receipt = new ConversationSubmissionReceipt(Retained, Task.Task);
+            var receipt = new ConversationSubmissionReceipt(message, retained.Task.Next(message.ExpectedTaskState));
+            RememberPendingRecord(receipt);
             if (BadExecutionReadback) { Retained = Retained with { Body = "different durable original" }; }
             return ValueTask.FromResult(TerminalReceiptFault switch
             {

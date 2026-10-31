@@ -257,6 +257,7 @@ public sealed partial class ModelTurnHostTests
         internal ConversationMessage? Retained { get; set; }
         internal int RetainCalls { get; set; }
         internal Action? AfterRetain { get; set; }
+        internal Action? BeforeSubmissionComplete { get; set; }
         internal Exception? RetainError { get; set; }
         internal string CompletionFault { get; set; } = string.Empty;
         private SavedConversationDraft? conversationDraft;
@@ -286,21 +287,24 @@ public sealed partial class ModelTurnHostTests
             expectedMetadataRevision.Should().Be(Metadata?.Revision.Value ?? 0);
             admitted().Should().BeTrue();
             Request = request;
-            Task = new(new(request, new(1), HostTaskState.IntentRecorded), Session.Generation, "host", true, null);
-            Retained = new(request, generation, HistoryMessages.Values.Select(message => message.Sequence).DefaultIfEmpty().Max() + 1,
+            var task = new HostTaskRecord(request, new(1), HostTaskState.IntentRecorded);
+            var message = new ConversationMessage(request, generation, HistoryMessages.Values.Select(item => item.Sequence).DefaultIfEmpty().Max() + 1,
                 1, Time.Now, body, null, null);
+            Task = new(task, Session.Generation, "host", true, null);
+            Retained = message;
             AfterRetain?.Invoke();
-            RememberPendingRecord();
-            return ValueTask.FromResult(new ConversationSubmissionReceipt(Retained, Task.Task));
+            var receipt = TrackPendingRecords ? new(message, task) : new ConversationSubmissionReceipt(Retained, Task!.Task);
+            RememberPendingRecord(receipt);
+            return ValueTask.FromResult(receipt);
         }
         public ValueTask<ConversationSubmissionReceipt> CompleteConversationSubmissionAsync(HostRequest request,
             ModelTurnOutcome outcome, ModelTurnReason reason, Func<bool> admitted, CancellationToken token)
         {
-            SelectPendingRecord(request);
-            Retained = Retained! with { Revision = 2, Outcome = outcome, Reason = reason };
-            Task = Task! with { Task = Task.Task.Next(Retained.ExpectedTaskState) };
-            RememberPendingRecord();
-            var receipt = new ConversationSubmissionReceipt(Retained, Task.Task);
+            var retained = ReadPendingRecord(request);
+            BeforeSubmissionComplete?.Invoke();
+            var message = retained.Message with { Revision = 2, Outcome = outcome, Reason = reason };
+            var receipt = new ConversationSubmissionReceipt(message, retained.Task.Next(message.ExpectedTaskState));
+            RememberPendingRecord(receipt);
             if (CompletionFault is "body-receipt") { receipt = receipt with { Message = Retained with { Body = "wrong body" } }; }
             if (CompletionFault is "request-receipt") { receipt = receipt with { Message = Retained with { Request = HostRequest.Create(RequestOrigin.LocalUi) } }; }
             if (CompletionFault is "task-receipt") { receipt = receipt with { Task = new(request, new(3), HostTaskState.Failed) }; }

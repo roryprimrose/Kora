@@ -69,14 +69,18 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
-    [InlineData("native")]
-    [InlineData("typed")]
-    [InlineData("activated")]
-    public async Task SpeechComparisonNativeAndTypedRoutesExecuteSameInertOperationWithoutPreferenceOrRoutingEffects(string route)
+    [InlineData("native", false)]
+    [InlineData("typed", false)]
+    [InlineData("activated", false)]
+    [InlineData("native", true)]
+    [InlineData("typed", true)]
+    [InlineData("activated", true)]
+    public async Task SpeechComparisonNativeAndTypedRoutesExecuteSameInertOperationWithoutPreferenceOrRoutingEffects(
+        string route, bool enableConversationExecution)
     {
         var runtime = new SpeechSetupComparisonTests.Runtime();
         await using var comparison = new SpeechSetupComparison(runtime, runtime);
-        var f = new Fixture(speechSetupComparison: comparison);
+        var f = new Fixture(speechSetupComparison: comparison, enableConversationExecution: enableConversationExecution);
         f.VoiceConsent.Consent = true;
         f.Voice.Microphones = [new("mic", "Headset")];
         f.Voice.DefaultMicrophoneId = "mic";
@@ -84,12 +88,18 @@ public sealed partial class MainViewModelTests
         f.ViewModel.BindSpeechInputNativeLifetime(static () => true);
         var navigation = new SettingsNavigationFake();
         f.ViewModel.BindSettingsSectionNavigation(navigation);
+        if (enableConversationExecution)
+        {
+            await f.RunAsync("review conversations.execution-maximum to 1");
+            f.ViewModel.CanConfirmConversationExecution.Should().BeTrue();
+        }
         var listening = f.ViewModel.IsVoiceEnabled;
         var preference = f.AudioPreferences.MicrophoneId;
         var audits = f.Audit.Events.Count;
-        f.ViewModel.SpeechComparisonPhrase = "Kora confirm delete";
+        var phrase = enableConversationExecution ? "Kora confirm conversations.execution-maximum" : "Kora confirm delete";
+        f.ViewModel.SpeechComparisonPhrase = phrase;
         runtime.Capture = (_, _, _) => Task.FromResult(new Kora.Core.Voice.SpeechComparisonObservation(
-            "Kora confirm delete", TimeSpan.FromMilliseconds(10)));
+            phrase, TimeSpan.FromMilliseconds(10)));
         if (string.Equals(route, "typed", StringComparison.Ordinal)) { await f.RunAsync("compare speech input"); }
         else if (string.Equals(route, "activated", StringComparison.Ordinal))
         { await f.RaiseActivatedTranscriptAsync("Kora compare speech input", 1); }
@@ -118,10 +128,20 @@ public sealed partial class MainViewModelTests
         f.ViewModel.IsVoiceEnabled.Should().Be(listening);
         f.VoiceConsent.Consent.Should().BeTrue();
         f.Audit.Events.Count.Should().Be(audits);
+        f.ConversationExecutionPreferences.Writes.Should().Be(0);
         if (!string.Equals(route, "native", StringComparison.Ordinal))
         { navigation.Sections.Should().Equal(SettingsSection.SpeechAudio); await f.RunAsync("cancel speech comparison"); }
         else { await f.ViewModel.CancelSpeechComparisonCommand.ExecuteAsync(); }
         f.ViewModel.SpeechComparisonResults.Should().BeEmpty();
+        if (enableConversationExecution)
+        {
+            f.ViewModel.CanConfirmConversationExecution.Should().BeTrue();
+            await f.ViewModel.ConfirmConversationExecutionCommand.ExecuteAsync();
+            f.ConversationExecutionPreferences.Value!.Value.Should().Be(1);
+            f.ConversationExecutionPreferences.Writes.Should().Be(1);
+            f.Reasoner.Requests.Should().BeEmpty();
+            f.ViewModel.IsVoiceEnabled.Should().Be(listening);
+        }
         await f.ViewModel.DisposeAsync();
     }
 

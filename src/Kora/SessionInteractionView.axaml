@@ -196,6 +196,7 @@
         <Button x:Name="DiscardMessage" Content="Discard unsent..." IsEnabled="{Binding ComposerDirty}" />
       </WrapPanel>
       <StackPanel Grid.Row="5" Spacing="4">
+      <local:TaskResponseOutputPanel />
       <TextBlock Text="{Binding RunningConversationStatus}" TextWrapping="Wrap"
           AutomationProperties.Name="Exact conversation running, stopping or terminal outcome" />
       <local:PendingConversationPanel />

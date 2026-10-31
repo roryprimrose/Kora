@@ -90,6 +90,8 @@ The result shows expected and final text, case-insensitive exact correctness or 
 
 **Cancel and discard** cancels and joins owned capture cleanup. Closing Settings or a privacy change clears visible text; raw buffers are discarded after each joined capture. Edits and changed source/profile/device/owner/call admission invalidate the review. No phrase is executed, used as source context, sent to a model, archived or learned. Prior listening, consent, settings and selected profile remain unchanged ([isolated native capture](../src/Kora.Windows/Audio/WindowsVoiceRecognitionService.Comparison.cs), [host admission](../src/Kora.Application/ViewModels/MainViewModel.SpeechComparison.cs)).
 
+Test phrases cannot confirm a prepared [ordinary-conversation maximum change](settings.md#independent-ordinary-conversations). That setting still requires its own separate confirmation.
+
 Equivalent exact typed or already activated commands are `compare speech input`, `test speech comparison` and `cancel speech comparison`, with the current assistant-name prefix for activated voice. The first opens the same native review; the second explicitly confirms microphone use. During a comparison all other voice capture is excluded, so use native or typed cancellation, not a calibration phrase ([entry parser](../src/Kora.Application/Configuration/SpeechComparisonCommand.cs)).
 
 Shared appearance, speech, playback and response settings changes, including confirmed settings undo, discard the comparison and cancel active captures without reopening listening or replaying results. Capture ownership remains held until cleanup joins ([settings invalidation](../src/Kora.Application/ViewModels/MainViewModel.SpeechComparison.cs)).

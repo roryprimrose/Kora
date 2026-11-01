@@ -237,6 +237,33 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
         }
     }
 
+    internal bool ReconcileRenamedInstruction(OwnedInstructionSnapshot original, OwnedInstructionSnapshot saved)
+    {
+        lock (gate)
+        {
+            if (disposed || instructionRevisions is null) { return false; }
+            var settings = preferences.Load();
+            var sourceRoot = Path.Combine(paths.RoamingRoot, "Instructions");
+            var include = settings.UseDefaultDirectories
+                || settings.GetDirectories(ArtifactKind.Instruction).Contains(sourceRoot, StringComparer.OrdinalIgnoreCase);
+            var retained = catalogue.SourceCandidates.Where(item => item.Kind != ArtifactKind.Instruction
+                || !string.Equals(item.OwnedInstructionName, original.Name, StringComparison.Ordinal)
+                    && !string.Equals(item.OwnedInstructionName, saved.Name, StringComparison.Ordinal));
+            ArtifactDefinition[] candidates = include
+                ? [.. retained, saved.Document.Definition with
+                {
+                    OwnedInstructionRevision = saved.Revision, IsUseEnabled = false,
+                    UseControlId = ArtifactUseIdentity.File(Path.Combine(sourceRoot, saved.CanonicalFileName)),
+                }]
+                : retained.ToArray();
+            PublishReconciled(candidates);
+            return !catalogue.Candidates.Any(item => item.Kind == ArtifactKind.Instruction
+                    && string.Equals(item.OwnedInstructionName, original.Name, StringComparison.Ordinal))
+                && !catalogue.Artifacts.Any(item => item.Kind == ArtifactKind.Instruction
+                    && string.Equals(item.OwnedInstructionName, saved.Name, StringComparison.Ordinal));
+        }
+    }
+
     private void PublishReconciled(IReadOnlyList<ArtifactDefinition> candidates)
     {
         _ = new ArtifactCatalogue(candidates);

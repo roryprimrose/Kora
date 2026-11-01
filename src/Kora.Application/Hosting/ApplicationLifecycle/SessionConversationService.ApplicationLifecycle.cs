@@ -65,7 +65,8 @@ public sealed partial class SessionConversationService
         lock (cancellationGate)
         {
             ExpireLifecycleBarrier();
-            if (!SourceCurrent() || lifecycleHeld || pendingClosed || lifecycleUnconfirmed)
+            if (!SourceCurrent() || lifecycleHeld || pendingClosed || lifecycleUnconfirmed
+                || conversationLanes.Values.Any(item => item.PendingClearHeld))
             { throw new InvalidOperationException("Application work review is unavailable or earlier work has unconfirmed release. No work was stopped."); }
             var running = runningConversations.Values.Select(item => item.Status).ToImmutableArray();
             var pending = conversationLanes.Select(item => Snapshot(item.Key, item.Value)).ToImmutableArray();

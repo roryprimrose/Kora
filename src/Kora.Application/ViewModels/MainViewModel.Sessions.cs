@@ -48,7 +48,8 @@ public sealed partial class MainViewModel
         retireSessionInstructionScopes?.Invoke();
         RetireSessionCommandReviews();
         if (SessionCommand.Parse(CommandText, AssistantName) is { } command
-            && (command.Operation == SessionCommandOperation.RequestReview || command.IsRetentionCommand || command.IsConversationSearch))
+            && (command.Operation == SessionCommandOperation.RequestReview || command.IsRetentionCommand || command.IsConversationSearch
+                || command.IsPendingClear))
         { CommandText = string.Empty; }
     }
 
@@ -88,7 +89,7 @@ public sealed partial class MainViewModel
         var dispatchRouteRevision = Interlocked.Read(ref workspaceSurfaceInputRevision);
         var dispatchInput = CommandText;
         var requestCommand = command.Operation is SessionCommandOperation.RequestReview
-            or SessionCommandOperation.RequestConfirm or SessionCommandOperation.RequestCancel;
+            or SessionCommandOperation.RequestConfirm or SessionCommandOperation.RequestCancel || command.IsPendingClear;
         if (requestCommand) { RetireSpeechSummarySuggestions(); }
         var attachmentCommand = command.Operation == SessionCommandOperation.AttachmentInspect;
         var sourceBoundCommand = requestCommand || command.IsRetentionCommand || attachmentCommand || command.IsConversationDispatch;
@@ -99,9 +100,12 @@ public sealed partial class MainViewModel
                 && privacyObservation.Current.TopologyRevision == topologyRevision
                 && Volatile.Read(ref voiceRecoveryRevision) == recoveryRevision
                 && string.Equals(originalName, AssistantName, StringComparison.Ordinal))
-            && (!command.IsRetentionCommand && !command.IsConversationDispatch || privacyObservation.Current.TopologyRevision == topologyRevision
+            && (!(command.IsRetentionCommand || command.IsPendingClear || command.IsConversationDispatch)
+                || privacyObservation.Current.TopologyRevision == topologyRevision
                 && Volatile.Read(ref voiceRecoveryRevision) == recoveryRevision
                 && string.Equals(originalName, AssistantName, StringComparison.Ordinal))
+            && (!command.IsPendingClear || originalScopeEligibility?.Invoke() == true
+                && originalScopeNameRevision == assistantNameConfiguration.Get().Revision)
             && (!command.IsConversationDispatch || originalScopeEligibility?.Invoke() == true
                 && originalScopeNameRevision == assistantNameConfiguration.Get().Revision
                 && dispatchInputRevision == Interlocked.Read(ref conversationDispatchInputRevision)
@@ -132,6 +136,8 @@ public sealed partial class MainViewModel
             return;
         }
         var originalForegroundReview = foregroundRequestReview;
+        var inputEligible = command.IsPendingClear ? BindPendingClearInput(command, origin, Eligible) : Eligible;
+        if (command.IsPendingClear) { SetPendingClearReview(null); }
         try
         {
             var foregroundConfirmation = originalForegroundReview is not null;
@@ -176,9 +182,10 @@ public sealed partial class MainViewModel
                 ? await ExecuteSessionRetentionCommandAsync(command, origin, Eligible, CancellationToken.None)
                 : requestCommand || command.IsConversationDispatch
                 ? await (sessionRequests ?? throw new InvalidOperationException("The canonical retained-request command service is unavailable."))
-                    .ExecuteAsync(command, origin, Eligible, CancellationToken.None, foregroundTarget)
+                    .ExecuteAsync(command, origin, inputEligible, CancellationToken.None, foregroundTarget)
                 : await sessionCommands.ExecuteCommandAsync(command, origin, Eligible, CancellationToken.None);
             if (!Eligible()) { return; }
+            if (result.PendingClearReview is { } pendingReview) { SetPendingClearReview(pendingReview); }
             if (result.RequestSubmission is { } submitted)
             {
                 if (foregroundConfirmation) { ForegroundRequestSubmitted?.Invoke(submitted); }

@@ -7,7 +7,7 @@ public sealed record SpeechInputSelection(string ProfileId, SpeechInputResource 
 
     public void Validate()
     {
-        if (!string.Equals(ProfileId, SpeechInputProfileCatalogue.WindowsProfileId, StringComparison.Ordinal)
+        if (ProfileId is not (SpeechInputProfileCatalogue.WindowsProfileId or SpeechInputProfileCatalogue.NativeWakeProfileId)
             || !Enum.IsDefined(Resource) || !Enum.IsDefined(Residency))
         {
             throw new ArgumentOutOfRangeException(null, "Choose an exact known speech-input profile, resource and residency tuple.");

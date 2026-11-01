@@ -270,6 +270,8 @@ The [conversation owner](Interaction_And_Sessions.md#delivered-exact-session-con
 
 Done/Resume and exact-session retirement clear only the target's unsent input and invalidate its content/controls, not the shared native views or unrelated buffers. Returning to another conversation restores its exact unsent text in both views; the integrated interaction uses that same owner. Privacy/ownership closure still closes the shared presentation and clears all buffers.
 
+Worker-thread lifecycle notifications complete exact-source retirement on the native dispatcher before the mutation call returns. The shared window remains available for fresh admitted inspection; stale selected controls cannot execute ([native regression](../tests/Kora.Windows.IntegrationTests/SessionsWorkWindowTests.cs)).
+
 Explicit discard or voluntary last-view/application close protects unsent content with Discard/Cancel. Ordinary Save/Reload/Clear, catalogue, comparison and rebase/recovery windows are gone; only legacy exact-session read-only recovery into empty input remains ([buffers](../src/Kora/SessionsViewModel.Unsent.cs), [shutdown guard](../src/Kora/ConversationShutdownGuard.cs)).
 
 Submission is a new admitted original-user turn, not a draft save, replay or grant. History reads do not implicitly read legacy saved text or start providers. Mandatory privacy/ownership/OS retirement and resource-quiescence rules remain independent.

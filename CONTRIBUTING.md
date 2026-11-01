@@ -88,6 +88,12 @@ Portable fixtures that require host-resolved absolute source paths must construc
 host-native paths with `Path.GetFullPath`, not hard-coded Windows drive paths.
 Keep relative-path rejection intact; fixture portability must not relax source authority.
 
+Queued-conversation fakes must derive each terminal message/task pair from the
+exact request-owned retained record before updating shared observation fields.
+Concurrent expiry must preserve both originals' identity, body, generation,
+sequence and UTC timestamp, with exact terminal revisions and retained readback;
+fixture repairs do not relax production authority or receipt checks.
+
 Run [Test-PortableTestScheduling.ps1](eng/Test-PortableTestScheduling.ps1) to check solution membership, main-build coverage, parallel scheduling, report isolation, and coverage-gate arguments without building or running test modules.
 
 For a controlled comparison, manually dispatch [CI](.github/workflows/ci.yml) with `compare_portable_tests=true`. Its opt-in job builds the main solution once, then runs [Compare-PortableTestScheduling.ps1](eng/Compare-PortableTestScheduling.ps1) in sequential/parallel/parallel/sequential order with identical coverage and reporting options. The artifact retains all four runs and their mean wall times.

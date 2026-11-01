@@ -93,6 +93,8 @@ exact request-owned retained record before updating shared observation fields.
 Concurrent expiry must preserve both originals' identity, body, generation,
 sequence and UTC timestamp, with exact terminal revisions and retained readback;
 fixture repairs do not relax production authority or receipt checks.
+Await interleaving hooks outside the fixture lock, then run the original-source
+terminal guard and write together under the lock using that request-local pair.
 
 Run [Test-PortableTestScheduling.ps1](eng/Test-PortableTestScheduling.ps1) to check solution membership, main-build coverage, parallel scheduling, report isolation, and coverage-gate arguments without building or running test modules.
 
@@ -107,6 +109,13 @@ cancellation notification and retain the observer through joined terminal
 completion. Later Cancelling publications are not additional injected failures;
 every accepted request still requires its physical join and terminal receipt,
 while the operation truthfully retains its partial/unconfirmed outcome.
+
+Speech-suggestion receipt-pin regressions explicitly join voice-consent
+withdrawal and capture closure in both notification orders. Assert the exact
+command presentation and canonical request/task receipt independently of the
+later consent notification; the shared current response title is not a durable
+command outcome. Withdrawal must still prevent review, confirmation, capture
+restart and any future speech-limit write.
 
 To reproduce CI's Windows test scheduling after a locked `win-x64` build, run
 `.\eng\Run-WindowsIntegrationTests.ps1 -Partition <name>`. CI builds once,
@@ -249,6 +258,55 @@ Documentation-only changes need local link/heading, exact example and availabili
 checks. Changes to the embedded user guide also run its focused tests. They do
 not require device/provider trials. Preserve existing anchors or update their
 consumers, including links embedded in the guide and historical experiments.
+
+### Native fixture phase evidence
+
+Headless dispatch and the shared native fixture retain a per-test
+`native-fixture-phases.json` attachment through xUnit's existing attachment API.
+The adapter writes this string attachment as `native-fixture-phases.json.txt`
+under the original test's unique-ID directory and links its retained copy in TRX.
+It uses MTP's `TimingProperty`, `StepTimingInfo` and `TimingInfo` field shapes,
+with the original xUnit execution `TestUniqueId` (including distinct theory
+rows), not a reconstructed name or source attribute. The runner's ordinary
+adapter-generated per-case timing remains unchanged; its empty `StepTimings`
+is not the fixture attachment.
+The attachment's `GlobalTiming` covers its observation window, not the entire
+test's execution duration.
+
+The stable phase allowlist is `native-ui`, `owned-storage`, `setup`, `context`,
+`join`, `evidence-flush` and `disposal`. `native-ui` measures the dispatched
+callback, not its queue wait; storage measures fixture construction, context
+measures task/interaction-store initialization, and setup measures the complete
+fixture initialization. Join and evidence flush measure the existing shutdown
+owners inside disposal. These intervals can nest and must not be summed as
+exclusive CPU time. Repeated phases have distinct ordinal IDs.
+
+Each entered phase publishes `running`; only observed terminal phases enter
+`Timing.StepTimings`, with a matching `completed`, `cancelled` or `failed`
+`PhaseStates` entry. Elapsed durations and timestamp offsets use a monotonic
+clock anchored once to UTC, independent of product clocks and deadline modes.
+No exception text, display-name arguments, filenames, content, scope or audit
+payload is collected. Report-delivery failure is rethrown after the owning
+operation's cleanup boundary, failing the test rather than skipping physical
+joins or pretending evidence was retained. During a dispatched callback,
+fixture verification defers to that callback's exception boundary so disposal
+cannot replace an original failure. Concurrent operation and report-delivery
+failures surface together as an `AggregateException`, preserving both original
+exceptions without adding their payloads to the attachment. Ambient capture is
+valid only while its owning callback is active; inherited late callbacks cannot
+reuse an ended ambient operation.
+
+Each of the twelve `windows-execution-results-<partition>` artifacts retains
+these test attachments alongside TRX, console output and MTP diagnostics under
+its fresh execution directory. Phase attachments and started-test diagnostics
+do not substitute for the complete admitted-source catalog and passing reports.
+A killed host may never publish a terminal test report
+or its attachments; absent evidence is not a completed/cancelled phase or a
+recoverable historical trace. This instrumentation does not establish the
+cause or repair of a hosted job deadline breach, runtime performance
+qualification, or eligibility for a different evidence profile. Run the focused
+`NativeUx.NativeFixturePhaseTimingTests` with the existing integration test
+runner to verify the exact shape, original identity and real headless output.
 
 ### Reliable fixture patterns
 

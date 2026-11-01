@@ -124,6 +124,7 @@ $classes = [ordered]@{
     'EvidenceLiteralFindTests' = 'ui-platform'
     'BoundedSurfaceAccessibilityTests' = 'ui-definitions'
     'NativeUx.NativeUxFixtureContractTests' = 'native-ux'
+    'NativeUx.NativeFixturePhaseTimingTests' = 'native-ux'
     'NativeUx.FutureNativeUxTests' = 'native-ux'
     'Presentation.DispatcherEvidenceResponsivenessTests' = 'native-ux'
     'NativeReaderTextScaleTests' = 'native-ux'
@@ -207,6 +208,17 @@ Assert ($workflow.Contains('name: Windows integration tests', [StringComparison]
 $shardJob = [regex]::Match($workflow, '(?ms)^  windows-test-partitions:\r?\n(?<job>.*?)(?=^  [a-z][a-z-]*:|\z)')
 Assert $shardJob.Success 'The consumed Windows matrix job was not found.'
 $job = $shardJob.Groups['job'].Value
+Assert ($job.Contains('name: windows-execution-results-${{ matrix.partition }}',
+    [StringComparison]::Ordinal)) 'Phase evidence must belong to the current independent execution artifact.'
+foreach ($path in @(
+    '.net-test-artifacts/windows/**/*.trx'
+    '.net-test-artifacts/windows/**/console.log'
+    '.net-test-artifacts/windows/**/native-fixture-phases.json.txt'
+    '.net-test-artifacts/windows/**/*.diag'
+)) {
+    Assert ($job.Contains($path, [StringComparison]::Ordinal)) "Execution artifacts must retain $path."
+}
+Assert ($job.Contains('if: always()', [StringComparison]::Ordinal)) 'Failed execution must still upload observed phase and started-test evidence.'
 $deadline = [regex]::Match($job, '(?m)^    timeout-minutes: (?<minutes>\d+)\s*$')
 Assert ($deadline.Success -and $deadline.Groups['minutes'].Value -ceq '30') 'Preserve the exact whole-job 30-minute deadline.'
 Assert ($job.Contains('ref: ${{ needs.version.outputs.source-revision }}', [StringComparison]::Ordinal)) 'Candidate jobs must consume the admitted source, including its scheduling script.'

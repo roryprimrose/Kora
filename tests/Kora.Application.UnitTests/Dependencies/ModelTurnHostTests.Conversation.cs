@@ -301,7 +301,7 @@ public sealed partial class ModelTurnHostTests
             ModelTurnOutcome outcome, ModelTurnReason reason, Func<bool> admitted, CancellationToken token)
         {
             var retained = ReadPendingRecord(request);
-            if (BeforeSubmissionComplete is { } before) { await before(request); }
+            if (BeforeSubmissionComplete is { } before) { await before(request).ConfigureAwait(false); }
             var message = retained.Message with { Revision = 2, Outcome = outcome, Reason = reason };
             var receipt = new ConversationSubmissionReceipt(message, retained.Task.Next(message.ExpectedTaskState));
             var observed = new HostTaskObservation(receipt.Task, message.Generation, "host", true, null);

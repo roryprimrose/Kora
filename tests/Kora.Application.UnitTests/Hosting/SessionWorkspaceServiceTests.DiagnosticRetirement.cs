@@ -20,6 +20,7 @@ public sealed partial class SessionWorkspaceServiceTests
     [Theory]
     [InlineData(SessionCommandOperation.QueueEnqueue)]
     [InlineData(SessionCommandOperation.QueueDispatch)]
+    [InlineData(SessionCommandOperation.QueueClear)]
     [InlineData(SessionCommandOperation.QueuePause)]
     [InlineData(SessionCommandOperation.QueueResume)]
     [InlineData(SessionCommandOperation.QueueMoveUp)]

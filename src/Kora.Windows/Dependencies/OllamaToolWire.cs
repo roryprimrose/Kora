@@ -97,7 +97,7 @@ internal static partial class OllamaToolWire
             {
                 writer.WriteStartArray("tools");
                 if (request.ClarificationAllowed && !request.Messages.OfType<ModelClarificationQuestion>().Any())
-                { WriteAskUserTool(writer); }
+                { WriteAskUserTool(writer, request.FormsAllowed); }
                 foreach (var descriptor in request.Context.Tools) { WriteTool(writer, descriptor); }
                 if (request.Context.McpTool is { } external)
                 {
@@ -222,7 +222,8 @@ internal static partial class OllamaToolWire
         var content = Text(message, "content");
         if (clarificationAllowed && !message.TryGetProperty("tool_calls", out _))
         {
-            var structured = ModelToolProtocol.ParseAssistant(StrictUtf8.GetBytes(content), clarificationAllowed: true);
+            var structured = ModelToolProtocol.ParseAssistant(StrictUtf8.GetBytes(content), clarificationAllowed: true,
+                formsAllowed: false);
             if (structured is ModelClarificationQuestion { CallId: not null })
             { throw new InvalidDataException("Only a native ask_user call can establish tool correlation."); }
             return new(structured, JsonSerializer.SerializeToUtf8Bytes(message));
@@ -255,7 +256,8 @@ internal static partial class OllamaToolWire
                         { throw new InvalidDataException("An ask_user wait cannot share a batch with another tool call."); }
                         var questionId = call.TryGetProperty("id", out _)
                             ? Text(call, "id") : $"ollama_r{round.ToString(CultureInfo.InvariantCulture)}_c0";
-                        return new(ModelToolProtocol.ParseAskUser(StrictUtf8.GetBytes(function.GetProperty("arguments").GetRawText()), questionId),
+                        return new(ModelToolProtocol.ParseAskUser(StrictUtf8.GetBytes(function.GetProperty("arguments").GetRawText()), questionId,
+                                formsAllowed: toolMode == ModelToolMode.None),
                             JsonSerializer.SerializeToUtf8Bytes(message));
                     }
                     if (clarificationAllowed && toolMode != ModelToolMode.ReadOnly)

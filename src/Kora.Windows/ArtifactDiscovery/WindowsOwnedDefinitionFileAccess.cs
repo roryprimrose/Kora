@@ -30,6 +30,7 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess(IApplicationDataP
     {
         lock (gate)
         {
+            RequireNoInstructionRename(paths, kind, token);
             using var pinned = PinRoot(token);
             var files = Directory.EnumerateFiles(directory, "*" + extension, SearchOption.TopDirectoryOnly)
                 .Select(Path.GetFileName).OfType<string>().ToArray();
@@ -44,6 +45,7 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess(IApplicationDataP
     {
         lock (gate)
         {
+            RequireNoInstructionRename(paths, kind, token);
             using var pinned = PinRoot(token);
             return ReadCore(OwnedInstructionNames.ReadName(name), pinned, token);
         }
@@ -55,6 +57,7 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess(IApplicationDataP
     {
         lock (gate)
         {
+            RequireNoInstructionRename(paths, kind, token);
             name = OwnedInstructionNames.WriteName(name);
             if (kind == ArtifactKind.Agent)
             {
@@ -226,7 +229,8 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess(IApplicationDataP
             OwnedInstructionNames.WriteName(name);
             document.RequireEditableInstruction();
         }
-        return new(name, WindowsFileIdentity.Read(pinned.Last), WindowsFileIdentity.Read(handle), document, name + extension);
+        return new(name, WindowsFileIdentity.Read(pinned.Last), WindowsFileIdentity.Read(handle), document, name + extension)
+        { RootBindingIdentity = pinned.BindingIdentity };
     }
 
     private Pinned PinRoot(CancellationToken token)
@@ -377,7 +381,10 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess(IApplicationDataP
     }
 
     internal sealed record Snapshot(string Name, string DirectoryIdentity, string FileIdentity,
-        ArtifactFileDocument Document, string CanonicalFileName);
+        ArtifactFileDocument Document, string CanonicalFileName)
+    {
+        internal string RootBindingIdentity { get; init; } = string.Empty;
+    }
     internal sealed record WriteResult(bool Published, bool Deleted, bool Conflict, Snapshot? Current, bool Unchanged = false);
 
     internal sealed class Pinned : IDisposable

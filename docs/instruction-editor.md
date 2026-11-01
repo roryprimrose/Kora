@@ -19,7 +19,7 @@ Manual editing needs no model, hosted account or network. Explicit [local body r
 
 | Kind/source/channel | What this editor supports |
 |---|---|
-| Kora-owned instructions | Native single-file create/list/inspect/edit/Validate/Rebase/Refine/Save/Save as new copy/reload/Delete, separate explicit-use review and exact native v1 Disable reviewed use ([refinement](../src/Kora/OwnedInstructionEditorController.Refinement.cs)) |
+| Kora-owned instructions | Native single-file create/list/inspect/edit/Validate/Rebase/Refine/Save/Save as new copy/reload/Delete, separate [reviewed rename/recovery](#rename-one-owned-instruction), explicit-use review and exact native v1 Disable reviewed use ([refinement](../src/Kora/OwnedInstructionEditorController.Refinement.cs)) |
 | Kora-owned prompts | The same editor/reviews; v1 literal requests and v2 bounded required `${input:name}` text with private expanded preview and separate request admission; no instruction/system authority |
 | Personal profile instructions | Open one already registered/read-consented native v1 original in this editor; manually edit, compare, separately confirm Save, resolve content conflicts or Reload. Independent disabled Kora copy remains available ([original workflow](../src/Kora.Application/Definitions/ProfileInstructionEditorWorkflow.cs), [copy workflow](../src/Kora.Application/Definitions/ProfileInstructionForkWorkflow.cs)) |
 | Skills and agents | Use the separate [skill editor](owned-skill-authoring.md) or [agent profile editor](agent-profile-authoring.md); this editor does not write them |
@@ -55,6 +55,54 @@ A changed source retires stale requests, questions and approvals. Discovery
 never invokes a definition; changed owned instructions and prompts still need
 separate review and enablement before fresh explicit use. Malformed sources
 report a reload failure rather than claiming the catalogue is current.
+
+## Rename one owned instruction
+
+Inspect one supported saved **Instruction** and leave its draft clean.
+Enter a distinct lowercase ID in **new-instruction-id (rename)**, then choose
+**Rename**, or type `instructions rename new-id`. After ordinary push-to-talk
+admission, `Kora, instructions rename new-id` enters the same review. Paths,
+reserved controls, case-only aliases, case-sensitive/unconfirmed directories, prompts, legacy/unsupported files,
+profile originals and unsaved draft edits are not rename targets
+([native owner](../src/Kora/OwnedInstructionEditorController.Rename.cs)).
+
+Review the old/new file and invocation identities, complete old/new source,
+and affected observed agent declarations. Choose **Reviewed exact rename**,
+then separately **Confirm rename**. Only the canonical filename and necessary
+declared name change; BOM, line endings, formatting, attribution and unrelated
+body/metadata/file bytes stay unchanged. Destination replacement and automatic
+reference rewrites are never offered
+([proposal](../src/Kora.Core/ArtifactInvocation/OwnedInstructionRename.cs)).
+If catalogue observations or dependent declarations change after confirmation,
+or a catalogue reload fails, the old review cannot continue. Review again;
+if a private intent may already exist, use **Recover rename** instead of retrying
+the rename. Neither source nor the open editor draft is silently replaced.
+
+The old ID becomes unavailable; the new source opens **disabled/held** and
+needs a fresh, separate **Review use**. Explicitly Inspect/Reopen the new ID
+to check its current resolution status. Old dependent references remain old
+and cannot resolve to the new source by name. Saving or allowing the new source
+does not transfer grants, applicability or dependent approval. Admitted content
+is never switched mid-task; existing source/access and stricter agent-bundle
+checks can still retire continuation
+([admitted operation](../src/Kora.Application/Definitions/OwnedInstructionEditorActions.Rename.cs)).
+
+Rename is a recoverable multi-step operation, **not an atomic transaction**:
+private intent, native move of the original into a recovery slot, no-replace
+publication, exact readback and cleanup. Another application can observe
+intermediate absence. Changed source/destination, replaced parents/aliases,
+withdrawn privacy/input admission and uncertain publication do not authorize
+overwrite, automatic retry or rollback
+([writer](../src/Kora.Windows/ArtifactDiscovery/WindowsOwnedDefinitionFileAccess.Rename.cs)).
+
+After an interruption, choose **Recover rename** or
+`instructions recover-rename`. Inspect the original proposal and exact
+observed phase, then separately confirm continuation. No recovery replays
+at startup; ordinary owned Instruction use/writes remain withheld while intent
+is unfinished. Changed external bytes, identities or corrupt recovery data
+remain held rather than being overwritten. If no intent remains, explicitly
+Inspect the old/new IDs and Reload/reconcile; this does not imply rollback
+([recovery contract](../Design/Definition_Management.md#bounded-recoverable-owned-instruction-rename)).
 
 ## Edit one registered profile instruction original
 

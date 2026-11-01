@@ -37,6 +37,9 @@ public static partial class ModelToolProtocol
             { throw new InvalidDataException("The provider tuple does not belong to the host selection."); }
         }
         var history = messages.Take(MaximumCalls * 2 + 3).ToImmutableArray();
+        if (history.OfType<ModelClarificationQuestion>().Any(question => question.Question.Fields is not null
+            && (!clarificationAllowed || !AllowsForms(context.ToolMode, provenance.Selection.Provider) || question.CallId is null)))
+        { throw new InvalidDataException("Typed forms are confined to the explicit local clarification-only operation."); }
         if (clarificationAllowed && !AllowsClarification(context.ToolMode, provenance.Selection.Provider)
             || context.ToolMode == ModelToolMode.HostedClarification
                 && (!clarificationAllowed || profile is null
@@ -76,7 +79,8 @@ public static partial class ModelToolProtocol
         {
             writer.WriteStartObject();
             writer.WriteNumber("schemaVersion", request.ClarificationAllowed
-                ? request.Context.ToolMode == ModelToolMode.ReadOnly ? ReadOnlyClarificationSchemaVersion : ClarificationSchemaVersion
+                ? request.FormsAllowed ? FormClarificationSchemaVersion
+                    : request.Context.ToolMode == ModelToolMode.ReadOnly ? ReadOnlyClarificationSchemaVersion : ClarificationSchemaVersion
                 : SchemaVersion);
             writer.WritePropertyName("context");
             writer.WriteRawValue(request.Context.Wire.AsSpan());

@@ -442,7 +442,8 @@ public sealed partial class ModelTurnHostTests
 
         internal static ModelToolTransportReply Reply(ModelToolRequest request, string wire)
         {
-            var message = ModelToolProtocol.ParseAssistant(Encoding.UTF8.GetBytes(wire), request.ClarificationAllowed);
+            var message = ModelToolProtocol.ParseAssistant(Encoding.UTF8.GetBytes(wire), request.ClarificationAllowed,
+                formsAllowed: request.FormsAllowed);
             return new(ModelTurnOutcome.Succeeded, request.Provenance, message,
                 new(ModelToolProtocol.SerializeRequest(request).Length,
                     Math.Max(Encoding.UTF8.GetByteCount(wire), ModelToolProtocol.SerializeMessage(message).Length)));

@@ -227,9 +227,10 @@ internal sealed class QuestionClipboardAnswer : IDisposable
         if (!CanAccept) { return; }
         if (!await ValidateAsync()) { return; }
         if (!CanAccept) { Clear("Clipboard review changed. The manual draft is unchanged."); return; }
-        accepted = new([], snapshot!.Text);
-        question.SetClipboardDraft(accepted);
-        question.ReportOutcome("Reviewed clipboard text is an unsubmitted answer draft. Separately choose Submit answer; normal task and transmission admission still apply.");
+        var draft = new QuestionAnswer([], snapshot!.Text);
+        accepted = draft;
+        question.SetClipboardDraft(draft);
+        question.ReportOutcome("Reviewed clipboard text is an unsubmitted answer draft. Separately choose Submit answer; normal task and transmission admission still apply.", draft);
     }
 
     internal async Task<bool> ValidateSubmitAsync()
@@ -287,6 +288,8 @@ internal sealed class QuestionClipboardAnswer : IDisposable
 
     internal void Clear(string status = "Clipboard answer cancelled. The prior manual draft is unchanged.", bool restore = true)
     {
+        var draft = question.Answer;
+        var expectedDraft = restore && ReferenceEquals(draft, accepted) && previous is { } prior ? prior : draft;
         Interlocked.Increment(ref revision);
         cancellation?.Cancel();
         permissionWindow?.Close();
@@ -302,7 +305,7 @@ internal sealed class QuestionClipboardAnswer : IDisposable
         replacing = false;
         broker.Clear();
         release?.TrySetResult(ClipboardOutcome.Cancelled);
-        question.ReportOutcome(status);
+        question.ReportOutcome(status, expectedDraft);
     }
 
     public void Dispose()

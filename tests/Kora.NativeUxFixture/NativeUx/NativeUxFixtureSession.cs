@@ -153,7 +153,8 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         Kora.Core.Communication.ICallStateService? callState = null,
         IUiDispatcher? dispatcher = null, ILocalModelReasoner? modelReasoner = null, ISetupDependencyProbe? modelProbe = null,
         Kora.Application.Dependencies.SpeechComponentSetupService? speechComponentSetup = null,
-        LogonStartupConfigurationService? logonStartupConfiguration = null)
+        LogonStartupConfigurationService? logonStartupConfiguration = null,
+        IQuestionVoiceRecognitionService? voiceRecognition = null, SpeechInputConfigurationService? speechInputConfiguration = null)
     {
         if (initialized) { throw new InvalidOperationException("A fixture session may be initialized only once."); }
         await Tasks.InitializeAsync(Token);
@@ -201,7 +202,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             commands, Audit, NullLogger<AssistantNameConfigurationService>.Instance);
         main = new(commands, new(commands), catalogue, new(catalogue), bootstrapper,
             new(bootstrapper, execution, execution), modelReasoner ?? execution, new LocalModelApprovalPreferences(this), models, Access,
-            Voice, speech, assistantNameConfiguration, appearances,
+            voiceRecognition ?? Voice, speech, assistantNameConfiguration, appearances,
             new LocalOptionalSpeechOfferPreferences(this),
             audioPreferences,
             new LocalResponseOutputPreferences(this, NullLogger<LocalResponseOutputPreferences>.Instance),
@@ -220,7 +221,8 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             new Kora.Application.Presentation.AudioPlaybackSettings(dispatcher ?? new AvaloniaUiDispatcher(),
                 NullLogger<Kora.Application.Presentation.AudioPlaybackSettings>.Instance),
             speechTextConfiguration: captionConfiguration,
-            webPageGet: webPageGet, speechComponentSetup: speechComponentSetup, logonStartupConfiguration: logonStartupConfiguration);
+            webPageGet: webPageGet, speechComponentSetup: speechComponentSetup, logonStartupConfiguration: logonStartupConfiguration,
+            speechInputConfiguration: speechInputConfiguration);
         if (webSummary is not null) { Main.BindWebSummaryWorkflow(webSummary); }
         Main.BindCallOwnershipGate(() => Access.Open);
         Main.BindClipboardOwnershipGate(static () => false);

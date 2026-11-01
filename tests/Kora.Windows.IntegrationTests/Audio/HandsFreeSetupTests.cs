@@ -212,7 +212,7 @@ public sealed class HandsFreeSetupTests : IDisposable
     }
 
     private static HandsFreeAudioBinding Binding() => new(1, new("synthetic", "Synthetic"), "Nova",
-        new(1, SpeechInputSelection.Default)) { CanCapture = () => true };
+        new(1, SpeechInputProfileCatalogue.NativeWakeSelection)) { CanCapture = () => true };
     private static HostActivity Begin() => HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
         HostActivityLayer.Application, HostOperation.Request);
 

@@ -25,7 +25,7 @@ public sealed partial class MainViewModel
         { ReportHostInteractionFailure(OwnedSkillAuthoringCommand.Syntax); return; }
         if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(text, AssistantName)
             || input.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
-            || input.Origin == RequestOrigin.ActivatedVoice && !commandRouter.IsActivationPrefixed(text, AssistantName))
+            || input.Origin == RequestOrigin.ActivatedVoice && !HasCurrentNameActivation(text))
         { ReportHostInteractionFailure("Skill authoring requires original typed input or current-name activated voice."); return; }
         var captured = queuedEligibility ?? CaptureSkillReviewEligibility(input);
         var privacy = CaptureInstructionEditorEligibility();

@@ -7,6 +7,25 @@ namespace Kora.Application.ViewModels;
 public sealed partial class MainViewModel
 {
     private HandsFreeVoiceRecognitionService? handsFreeVoice;
+    private sealed record WakeDispatch(VoiceTranscriptEventArgs Transcript, HandsFreeCommandActivation Activation);
+    private readonly AsyncLocal<WakeDispatch?> wakeDispatch = new();
+
+    private Task RunTranscriptOperationAsync(Kora.Core.Hosting.RequestOrigin origin, Func<Task> operation) =>
+        wakeDispatch.Value is { } current && origin == Kora.Core.Hosting.RequestOrigin.ActivatedVoice
+        && ReferenceEquals(Kora.Core.Diagnostics.HostActivity.Current?.Request, current.Activation.Request)
+            ? operation() : Kora.Application.Hosting.HostRequestRunner.RunAsync(origin, operation);
+
+    private bool HasCurrentNameActivation(string text) =>
+        commandRouter.IsActivationPrefixed(text, AssistantName) || IsWakeCommand(text);
+
+    private bool IsWakeCommand(string text) =>
+        wakeDispatch.Value is { } current && string.Equals(text, current.Transcript.Transcript, StringComparison.Ordinal)
+        && ReferenceEquals(Kora.Core.Diagnostics.HostActivity.Current?.Request, current.Activation.Request)
+        && current.Activation.Request.Origin == Kora.Core.Hosting.RequestOrigin.ActivatedVoice
+        && current.Transcript.Generation == voiceRecognition.Generation
+        && current.Activation.Wake.Generation == current.Transcript.Generation
+        && current.Activation.Wake.PlaybackExcluded && current.Activation.Wake.CommandStartSample >= 0
+        && ObserveHandsFreeVoiceAdmission() == current.Activation.Admission;
 
     private bool CanRetireWakeForManualInput =>
         voiceRecognition is HandsFreeVoiceRecognitionService { State: HandsFreeVoiceState.WakeListening };
@@ -25,14 +44,19 @@ public sealed partial class MainViewModel
     private void BindHandsFreeVoiceRuntime()
     {
         if (handsFreeVoice is not null || voiceRecognition is not HandsFreeVoiceRecognitionService handsFree) { return; }
-        handsFree.Bind(ObserveHandsFreeVoiceAdmission, async (transcript, request) =>
+        handsFree.Bind(ObserveHandsFreeVoiceAdmission, async (transcript, request, activation) =>
         {
-            if (transcript.Generation != voiceRecognition.Generation || ObserveHandsFreeVoiceAdmission() is null)
+            if (transcript.Generation != voiceRecognition.Generation || ObserveHandsFreeVoiceAdmission() != activation.Admission
+                || !ReferenceEquals(request, activation.Request) || activation.Wake.Generation != transcript.Generation
+                || !activation.Wake.PlaybackExcluded || activation.Wake.CommandStartSample < 0)
             {
                 throw new InvalidOperationException("The original hands-free command was retired before dispatch.");
             }
             Interlocked.Exchange(ref acceptedTranscriptGeneration, transcript.Generation);
-            await DispatchRecognizedVoiceTranscriptAsync(transcript, request);
+            var previous = wakeDispatch.Value;
+            wakeDispatch.Value = new(transcript, activation);
+            try { await DispatchRecognizedVoiceTranscriptAsync(transcript, request); }
+            finally { wakeDispatch.Value = previous; }
         }, () => !IsBusy && !IsSpeaking && !textToSpeech.IsSpeaking
             && promptInputVoice?.IsActive != true && composerDictation?.IsActive != true
             && questionVoiceReplies?.IsActive != true,
@@ -68,7 +92,7 @@ public sealed partial class MainViewModel
             && communicationPolicy.Current.EffectiveState is CallState.Unavailable or CallState.Clear or CallState.Active or CallState.Suspected
                 ? new(EffectiveMicrophone!, AssistantName, profile, Interlocked.Read(ref voiceRecoveryRevision),
                     privacy.TopologyRevision, CallPolicyRevision, auditImpactOwnerRevision(),
-                    Interlocked.Read(ref voiceOwnershipBindingRevision))
+                    Interlocked.Read(ref voiceOwnershipBindingRevision), assistantNameConfiguration.Get().Revision)
                 : null;
     }
 

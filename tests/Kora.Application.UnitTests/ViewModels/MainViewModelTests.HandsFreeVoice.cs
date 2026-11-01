@@ -18,6 +18,7 @@ public sealed partial class MainViewModelTests
     [InlineData("Nova", "request")]
     [InlineData("Nova", "new-request")]
     [InlineData("Nova", "refine")]
+    [InlineData("Nova", "restore")]
     [InlineData("Nova", "rename")]
     [InlineData("Nova", "recover-rename")]
     [InlineData("Stop", "collision")]
@@ -71,7 +72,9 @@ public sealed partial class MainViewModelTests
             instructionOperation = requested;
             instructionId = id;
             routedOrigin = HostActivity.RequireCurrent().Request.Origin;
-            routedAdmission = fixture.ViewModel.CaptureInstructionRefinementEligibility()();
+            routedAdmission = operation is "restore"
+                ? fixture.ViewModel.CaptureInstructionRestoreEligibility()()
+                : fixture.ViewModel.CaptureInstructionRefinementEligibility()();
             return Task.CompletedTask;
         };
         fixture.ViewModel.BindSessionRouting((text, origin, admitted) =>
@@ -87,6 +90,7 @@ public sealed partial class MainViewModelTests
         {
             "request" => "read a fixture", "new-request" => "open new request",
             "refine" => "instructions refine", "rename" => "instructions rename renamed",
+            "restore" => "instructions restore",
             "recover-rename" => "instructions recover-rename",
             "collision" => "listening", _ => "what version are you running",
         };
@@ -107,11 +111,12 @@ public sealed partial class MainViewModelTests
                 routedAdmission.Should().BeTrue();
             }
             else if (operation is "new-request") { navigated.Should().Be(1); }
-            else if (operation is "refine" or "rename" or "recover-rename")
+            else if (operation is "refine" or "restore" or "rename" or "recover-rename")
             {
                 instructionOperation.Should().Be(operation switch
                 {
-                    "refine" => "Refine", "rename" => "Rename", _ => "Recover rename",
+                    "refine" => "Refine", "restore" => "Restore previous saved content",
+                    "rename" => "Rename", _ => "Recover rename",
                 });
                 instructionId.Should().Be(operation is "rename" ? "renamed" : null);
                 routedOrigin.Should().Be(RequestOrigin.ActivatedVoice);

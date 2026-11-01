@@ -22,6 +22,7 @@ internal sealed partial class OwnedInstructionEditorController
         if (reloadOriginal && profileOriginal?.Snapshot.Source != registration.Source)
         { throw new InvalidOperationException("The selected original no longer has the same source registration. Reopen the exact source deliberately; no retargeting is allowed."); }
         if (!await AbandonDraft(opened, token)) { return; }
+        ClearRestore();
         var revision = Interlocked.Read(ref sourceRevision);
         var inputRevision = Interlocked.Read(ref copyInputRevision);
         bool Current() => eligible() && revision == Interlocked.Read(ref sourceRevision)

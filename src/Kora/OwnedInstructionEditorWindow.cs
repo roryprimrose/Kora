@@ -14,26 +14,33 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
     internal readonly TextBox QueryInput = new() { Width = 240, PlaceholderText = "Literal filename, display name or artifact substring" };
     internal readonly ComboBox QueryModeInput = new()
     {
-        Width = 180, ItemsSource = Enum.GetValues<OwnedDefinitionInventoryQueryMode>(),
+        Width = 180,
+        ItemsSource = Enum.GetValues<OwnedDefinitionInventoryQueryMode>(),
         SelectedItem = OwnedDefinitionInventoryQueryMode.Literal,
     };
     internal readonly ComboBox OrderInput = new()
     {
-        Width = 210, ItemsSource = Enum.GetValues<OwnedDefinitionInventoryOrder>(),
+        Width = 210,
+        ItemsSource = Enum.GetValues<OwnedDefinitionInventoryOrder>(),
         SelectedItem = OwnedDefinitionInventoryOrder.FileNameAscending,
     };
     internal readonly Button ReviewUse = new() { Content = "Review use", Margin = new(3), IsEnabled = false };
     internal readonly Button DisableReviewedUse = new() { Content = "Disable reviewed use", Margin = new(3), IsEnabled = false };
+    internal readonly Button RestorePrevious = new() { Content = "Restore previous saved content", Margin = new(3), IsEnabled = false };
+    private readonly TextBlock restoreStatus = new() { TextWrapping = TextWrapping.Wrap };
     internal readonly ComboBox UseStateInput = new()
     {
-        Width = 180, ItemsSource = Enum.GetValues<OwnedDefinitionUseFilter>(), SelectedItem = OwnedDefinitionUseFilter.All,
+        Width = 180,
+        ItemsSource = Enum.GetValues<OwnedDefinitionUseFilter>(),
+        SelectedItem = OwnedDefinitionUseFilter.All,
     };
     internal readonly Button NextPage = new() { Content = "Next", IsEnabled = false };
     private readonly TextBlock inventoryStatus = new() { TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock inventoryDetails = new() { TextWrapping = TextWrapping.Wrap };
     internal readonly ComboBox KindInput = new()
     {
-        Width = 140, ItemsSource = new[] { ArtifactKind.Instruction, ArtifactKind.Prompt },
+        Width = 140,
+        ItemsSource = new[] { ArtifactKind.Instruction, ArtifactKind.Prompt },
         SelectedItem = ArtifactKind.Instruction,
     };
     internal readonly TextBox NameInput = new() { Width = 240, PlaceholderText = "lowercase-owned-id" };
@@ -41,13 +48,19 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
     internal readonly TextBox RenameNameInput = new() { Width = 240, PlaceholderText = "new-instruction-id (rename)" };
     internal readonly TextBox Critique = new()
     {
-        AcceptsReturn = true, MaxHeight = 100, MinHeight = 40, TextWrapping = TextWrapping.Wrap,
+        AcceptsReturn = true,
+        MaxHeight = 100,
+        MinHeight = 40,
+        TextWrapping = TextWrapping.Wrap,
         PlaceholderText = "Describe a new Instruction after Create, or how to refine the inspected body",
     };
     internal readonly TextBox Source = new()
     {
-        AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap, FontFamily = new("Consolas"),
-        HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch,
+        AcceptsReturn = true,
+        TextWrapping = TextWrapping.NoWrap,
+        FontFamily = new("Consolas"),
+        HorizontalAlignment = HorizontalAlignment.Stretch,
+        VerticalAlignment = VerticalAlignment.Stretch,
     };
     private readonly TextBlock status = new() { TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock validationStatus = new() { TextWrapping = TextWrapping.Wrap };
@@ -83,6 +96,8 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         DisableReviewedUse.Click += (_, _) => run("Disable reviewed use");
         controls.Children.Add(ReviewUse);
         controls.Children.Add(DisableReviewedUse);
+        RestorePrevious.Click += (_, _) => run("Restore previous saved content");
+        controls.Children.Add(RestorePrevious);
         var panel = new DockPanel { Margin = new(12) };
         DockPanel.SetDock(controls, Dock.Top);
         panel.Children.Add(controls);
@@ -135,6 +150,9 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         panel.Children.Add(inventoryStatus);
         DockPanel.SetDock(inventoryDetails, Dock.Top);
         panel.Children.Add(inventoryDetails);
+        DockPanel.SetDock(restoreStatus, Dock.Top);
+        panel.Children.Add(restoreStatus);
+        SetRestoreAvailable(false);
         var metadataFindControls = BuildMetadataFind();
         DockPanel.SetDock(metadataFindControls, Dock.Top);
         panel.Children.Add(metadataFindControls);
@@ -145,11 +163,12 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
                 + "Observed UTC is snapshot time only, not freshness, trust, approval, ownership or use authority. "
                 + "Save as new copy retains the original draft and creates a separate disabled same-kind owned file. Create Kora copy from profile instruction separately selects one personal native v1 instruction, asks for bounded read consent, then reviews the entire disabled copy. Manual editing needs no model. "
                 + "Ask Kora generates a new Instruction body after explicit Create, or refines the inspected body, through a qualified local tool-free model. New proposals stage in this editor and require a separate create-only Save, disabled. Hold to dictate body instead inserts reviewed literal text at a frozen owned body caret/range, without a model; both require a separate normal Save. "
-                + "Profile originals support exact manual edit, separately confirmed Save and Reload only, not create/delete/rename/refinement/use review or dictation. No prompt/metadata dictation, scripts or restore. "
+                + "Profile originals support exact manual edit, separately confirmed Save and Reload only, not create/delete/rename/refinement/use review or dictation. No prompt/metadata dictation or scripts. Restore previous saved content is only the last confirmed same-source owned Instruction Save in this editor; no persistent history or profile-original restore. "
                 + "Rename/Recover rename requires a clean Kora-owned Instruction, complete original/proposed source and reference review, and separate native confirmation. The new identity stays disabled; references, grants and activation are not transferred. "
                 + "Save is not activation. Review permits explicit selection for a new request only. Disable reviewed use holds the exact saved revision without changing its source; a fresh review is required to enable it again. "
                 + "Prompts are user requests, not system guidance. Native v1 stays literal; v2 supports required ${input:name} text only, with private expanded preview and separate use admission.",
-            TextWrapping = TextWrapping.Wrap, Margin = new(0, 10),
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new(0, 10),
         };
         DockPanel.SetDock(disclosure, Dock.Top);
         panel.Children.Add(disclosure);
@@ -233,6 +252,13 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         ReviewUse.IsEnabled = available;
         DisableReviewedUse.IsEnabled = available;
     }
+    internal void SetRestoreAvailable(bool available)
+    {
+        RestorePrevious.IsEnabled = available;
+        restoreStatus.Text = available
+            ? "Last confirmed save in this editor: previous complete source available for separate restore review and Save. Memory only; no persistent history."
+            : "No last confirmed save in this editor available to restore. Memory only; no persistent history or restore after reopening.";
+    }
     internal void ClearPrivateText()
     {
         RetireBufferFind(clearQuery: true);
@@ -240,11 +266,13 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         CancelRebaseReview();
         ClearInventory(); ClearSearch();
         SetUseReviewAvailable(false);
+        SetRestoreAvailable(false);
         Source.Text = string.Empty; NameInput.Text = string.Empty; CopyNameInput.Text = string.Empty; RenameNameInput.Text = string.Empty;
         Critique.Text = string.Empty;
         status.Text = string.Empty; inventoryStatus.Text = string.Empty;
         ClearValidation();
         SourceSizeStatus.Text = string.Empty;
+        restoreStatus.Text = string.Empty;
     }
 
     internal void ShowComparison(OwnedDraftComparison comparison, Func<bool> current)
@@ -254,7 +282,10 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         var dialog = new Window
         {
             Title = $"Passive owned {comparison.Validation.Kind} comparison",
-            Width = 1000, Height = 720, MinWidth = 640, MinHeight = 500,
+            Width = 1000,
+            Height = 720,
+            MinWidth = 640,
+            MinHeight = 500,
         };
         var root = new DockPanel { Margin = new(12) };
         var explanation = new TextBlock { Text = comparison.Summary, TextWrapping = TextWrapping.Wrap };

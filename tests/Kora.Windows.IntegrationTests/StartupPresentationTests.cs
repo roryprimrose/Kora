@@ -34,6 +34,7 @@ public sealed class StartupPresentationTests
             var preferences = new LocalStartupPresentationPreferences(original);
             var configuration = new StartupPresentationConfigurationService(preferences, admission, original.Audit, TimeProvider.System);
             await original.InitializeAsync(null, callState: new Call(), startupPresentationConfiguration: configuration);
+            original.Main.StartupPresentationStatus.Should().Be(configuration.Status);
             using var settingsController = new SettingsWindowController(original.Main, NullLogger<SettingsWindowController>.Instance);
             SettingsWindow? settings = null;
             using var opened = Window.WindowOpenedEvent.AddClassHandler<SettingsWindow>((window, _) => settings = window);
@@ -54,6 +55,7 @@ public sealed class StartupPresentationTests
             await original.Main.ConfirmStartupPresentationCommand.ExecuteAsync();
             new LocalStartupPresentationPreferences(original).Load().Should().Be(choice);
             original.Main.StartupPresentationStatus.Should().Contain("Last confirmed");
+            original.Main.StartupPresentationStatus.Should().Be(configuration.Status);
 
             using var next = new NativeUxFixtureSession(ScratchParent());
             await next.InitializeAsync(null, callState: new Call());

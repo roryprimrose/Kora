@@ -10,6 +10,12 @@ capture seam with a synthetic endpoint and transcript callbacks. This mode
 never opens an audio device and is not exposed by the interactive launcher.
 The default fixture still denies microphone permission and capture.
 
+Headless startup settings tests pass the optional typed configuration services
+through the timed initialization wrapper into the real `MainViewModel`.
+The [manual startup regressions](../Kora.Windows.IntegrationTests/StartupPresentationTests.cs)
+verify that the injected service owns native status, review, confirmation and
+saved-intent readback; ordinary fixture initialization leaves it unavailable.
+
 Evidence capture serializes delivery per sink and provider disposal waits for active
 callbacks and joins accepted writes before scratch cleanup. The buffered presence
 fixture uses the desktop's independent bounded required-file/SQLite-projection

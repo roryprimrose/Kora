@@ -91,5 +91,6 @@ public sealed class ModelTurn
     internal Func<ModelAnswerUpdate, CancellationToken, ValueTask>? PublishAnswer { get; set; }
     internal Func<CancellationToken, ValueTask<ModelTurnReason>>? ValidateAnswerCommit { get; set; }
     internal Action<Kora.Core.Conversation.ConversationExecutionStep>? PublishExecutionStep { get; set; }
+    internal Action<Kora.Core.Conversation.ConversationResourceStatus>? PublishResourceStatus { get; set; }
     internal bool TryUse() => Interlocked.Exchange(ref used, 1) == 0;
 }

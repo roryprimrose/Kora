@@ -8,6 +8,28 @@ namespace Kora.Application.UnitTests.Interaction;
 [Collection("Host tracing")]
 public sealed class HostQuestionServiceTests
 {
+    [Theory]
+    [InlineData(1, true, HostInteractionOutcome.Answered)]
+    [InlineData(2, true, HostInteractionOutcome.Denied)]
+    [InlineData(1, false, HostInteractionOutcome.Denied)]
+    public async Task NativeReviewedReplyUsesOriginalQuestionAndRequiresLiveGenerationAndPresenter(
+        long generation, bool presented, HostInteractionOutcome expected)
+    {
+        using var f = new InteractionFixture(RequestOrigin.ActivatedVoice);
+        var question = await f.QuestionAsync(new("Describe", QuestionKind.Text, [], maximumTextLength: 32));
+        var result = await f.RunAsync(() => f.Questions.SubmitNativeReplyAsync(question.Key, new(generation),
+            new([], "Exact reviewed answer"), () => presented, CancellationToken.None));
+        result.Outcome.Should().Be(expected);
+        f.Store.Snapshot.Grants.Should().BeEmpty();
+        if (expected == HostInteractionOutcome.Answered)
+        {
+            result.Question!.AnswerChannel.Should().Be(RequestOrigin.LocalUi);
+            result.Question.Key.Request.Should().Be(question.Key.Request);
+            result.Question.Draft!.Text.Should().Be("Exact reviewed answer");
+        }
+        else { f.Store.Snapshot.Questions.Single().Draft.Should().BeNull(); }
+    }
+
     [Fact]
     public async Task Mixed_channels_share_revisioned_draft_and_only_submit_accepts()
     {

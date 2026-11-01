@@ -159,7 +159,7 @@ Snapshots carry quiet and control generations; old render callbacks cannot publi
 An admitted quiet request revokes in-flight observations and exact actions before waiting for the broker/source lease, preventing late routine presentation or fatigue consumption by those callbacks.
 Status separately counts all omitted rows, routine rows hidden by quiet and current sources suppressed without presentation. Other sessions are not ambiently observed; this remains the bounded already-open native surface, not a reminder scheduler.
 
-Scheduled quiet hours, multi-session reminders, proactive speech, broad model/typed quiet settings and installed accessibility/full R18/RC acceptance remain unavailable.
+Scheduled quiet hours, multi-session reminders, proactive speech beyond [run-consented conversation completion](#run-consented-conversation-completion-speech), broad model/typed quiet settings and installed accessibility/full R18/RC acceptance remain unavailable.
 Existing exact event commands remain unchanged for Failure/Attention; exact routine defer cannot revive a quiet-suppressed source. All R02 runtime/native/containment/speech/evidence procedures remain unique historical evidence and are retained, not rerun or promoted by deterministic quiet tests.
 
 ## Product Behaviour

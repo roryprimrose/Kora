@@ -52,7 +52,7 @@ internal sealed partial class MemoryAdmissionService(
     private async Task<MemoryResult> ExecuteAsync(MemoryOperation operation, HostId<MemoryIdentity>? id,
         HostRevision expected, MemoryScope? scope, MemoryCandidate? candidate, MemoryProposalOrigin origin,
         bool accept, MemoryDestination destination, CancellationToken token, MemoryRecord? exactRecord = null,
-        HostRequest? modelSource = null)
+        HostRequest? modelSource = null, MemoryRecord? sessionCopySource = null)
     {
         var issuer = HostActivity.Current;
         if (issuer is null || issuer.Activity!.IsStopped || issuer.Outcome != HostOperationOutcome.Unknown)
@@ -110,7 +110,7 @@ internal sealed partial class MemoryAdmissionService(
                 if (storage is not null)
                 {
                     return await ExecuteStoredAsync(operation, id, expected, scope!, candidate, origin, accept,
-                        destination, before!, issuer, control, lifecycle, session, requested, continuation, activity, exactRecord, modelSource, token)
+                        destination, before!, issuer, control, lifecycle, session, requested, continuation, activity, exactRecord, modelSource, sessionCopySource, token)
                         .ConfigureAwait(false);
                 }
                 lock (stateGate)
@@ -133,7 +133,7 @@ internal sealed partial class MemoryAdmissionService(
                         result = exactRecord is not null && current != exactRecord
                             ? new(MemoryOutcome.RevisionConflict, MemoryReason.RevisionMismatch)
                             : Transition(operation, current, expected, scope!, candidate, origin,
-                                accept, destination, before, request, modelSource);
+                                accept, destination, before, request, modelSource, sessionCopySource);
                         // Audit must succeed before publishing the new state or use receipt.
                         CompleteAudit(requested, result, continuation);
                         var unchanged = id is not { } known || ReferenceEquals(records.GetValueOrDefault(known), current);
@@ -181,7 +181,7 @@ internal sealed partial class MemoryAdmissionService(
         HostRevision expected, MemoryScope scope, MemoryCandidate? candidate, MemoryProposalOrigin origin,
         bool accept, MemoryDestination destination, MemoryBoundary boundary, HostActivity issuer, long control,
         long lifecycle, SessionWorkspaceEntry session, SecurityAuditEvent requested, Func<HostActivity> continuation,
-        HostActivity activity, MemoryRecord? exactRecord, HostRequest? modelSource, CancellationToken token)
+        HostActivity activity, MemoryRecord? exactRecord, HostRequest? modelSource, MemoryRecord? sessionCopySource, CancellationToken token)
     {
         MemoryRecord? original = null;
         lock (stateGate) { original = id is { } identity ? records.GetValueOrDefault(identity) : null; }
@@ -215,7 +215,7 @@ internal sealed partial class MemoryAdmissionService(
                     || !session.Authority.IsActive || session.Authority.Generation != boundary.Generation
                     ? new MemoryResult(MemoryOutcome.Denied, MemoryReason.AuthorityClosed)
                     : Transition(operation, original, expected, scope, candidate, origin, accept, destination,
-                        boundary, issuer.Request, modelSource);
+                        boundary, issuer.Request, modelSource, sessionCopySource);
                 CompleteAudit(requested, value, continuation);
                 if (!Admitted())
                 {
@@ -229,7 +229,7 @@ internal sealed partial class MemoryAdmissionService(
                     ? DurableProjection(updated) : null;
                 proposedResult = value;
                 return new(value, persisted, replacement, operation == MemoryOperation.Admit ? original : null)
-                { VolatileIdentityCount = volatileIdentities.Count };
+                { VolatileIdentityCount = volatileIdentities.Count, SessionCopySource = sessionCopySource };
             }
         }, Admitted, token).ConfigureAwait(false);
         if (result != proposedResult) { CompleteAudit(requested, result, continuation); }
@@ -267,7 +267,8 @@ internal sealed partial class MemoryAdmissionService(
 
     private MemoryResult Transition(MemoryOperation operation, MemoryRecord? current, HostRevision expected,
         MemoryScope scope, MemoryCandidate? candidate, MemoryProposalOrigin origin, bool accept,
-        MemoryDestination destination, MemoryBoundary boundary, HostRequest request, HostRequest? modelSource)
+        MemoryDestination destination, MemoryBoundary boundary, HostRequest request, HostRequest? modelSource,
+        MemoryRecord? sessionCopySource)
     {
         if (operation == MemoryOperation.Propose)
         {
@@ -286,12 +287,26 @@ internal sealed partial class MemoryAdmissionService(
             if (validation != MemoryReason.None) { return new(MemoryOutcome.Denied, validation); }
             if (records.Count >= MemoryPolicy.MaximumEntries) { return new(MemoryOutcome.CapacityExceeded, MemoryReason.Capacity); }
             var lineage = new MemoryLineage(modelSource ?? request, boundary.Generation, boundary.Profile, origin, boundary.Source, boundary.SourceRevision);
-            return new(MemoryOutcome.Succeeded, MemoryReason.None,
-                new(new(Guid.NewGuid()), new(1), scope, lineage, candidate, time.GetUtcNow(),
-                    MemoryReviewState.Proposed, MemoryRetentionState.Pending, null));
+            if (sessionCopySource is not null)
+            {
+                lineage = lineage with { CopiedFromSession = new(sessionCopySource.Id, sessionCopySource.Revision,
+                    boundary.Session, boundary.Generation) };
+            }
+            var proposed = new MemoryRecord(new(Guid.NewGuid()), new(1), scope, lineage, candidate, time.GetUtcNow(),
+                MemoryReviewState.Proposed, MemoryRetentionState.Pending, null);
+            return sessionCopySource is not null && !MemoryPolicy.MatchesSessionCopySource(proposed, sessionCopySource, boundary)
+                ? new(MemoryOutcome.Denied, MemoryReason.LineageUnknown)
+                : new(MemoryOutcome.Succeeded, MemoryReason.None, proposed);
         }
         if (current is null) { return new(MemoryOutcome.NotFound, MemoryReason.Missing); }
         if (current.Revision != expected) { return new(MemoryOutcome.RevisionConflict, MemoryReason.RevisionMismatch); }
+        if (current.Lineage.CopiedFromSession is not null
+            && current.Review is MemoryReviewState.Proposed or MemoryReviewState.Reviewed
+            && operation is MemoryOperation.Review or MemoryOperation.Admit or MemoryOperation.Edit
+            && !MemoryPolicy.MatchesSessionCopySource(current, sessionCopySource, boundary))
+        {
+            return new(MemoryOutcome.Denied, MemoryReason.LineageUnknown);
+        }
         var lineageReason = operation is MemoryOperation.Edit or MemoryOperation.Forget
             ? MemoryPolicy.CheckManagementLineage(current, boundary) : MemoryPolicy.CheckLineage(current, boundary);
         if (lineageReason != MemoryReason.None)

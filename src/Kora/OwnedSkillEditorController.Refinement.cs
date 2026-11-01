@@ -13,11 +13,12 @@ internal sealed partial class OwnedSkillEditorController
 
     private void CancelRefinement()
     {
+        if (pendingRefinement is null && refinementLifetime is null) { return; }
         Interlocked.Increment(ref refinementEpoch);
         if (pendingRefinement is not null) { validated = null; }
         pendingRefinement = null;
         refinementLifetime?.Cancel();
-        window?.RetireReview();
+        if (refinementLifetime is not null) { window?.RetireReview(); }
     }
 
     private enum GuidanceOperation { Generate, Refine }

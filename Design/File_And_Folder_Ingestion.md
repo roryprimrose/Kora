@@ -1,11 +1,12 @@
 # File and Folder Ingestion and Grounded Reasoning
 
 Status: immutable local previews/retrieval, retained single-file session
-attachments and the [named device-local folder lifecycle](#named-device-local-folder-lifecycle)
-are implemented. Reviewed file/folder answer workflows exist, but their
-production source-use policy and runtime qualification remain unavailable.
-Recursive/multiple-version ingestion, persistent/vector indexes, multi-source
-reasoning and hosted grounding remain gated.
+attachments and the [named device-local folder lifecycle](#named-device-local-folder-lifecycle),
+including opt-in bounded descendants, are implemented. Reviewed file/folder
+answers use the [shared private-LocalOnly risk policy](Security_Data_Flows.md#reviewed-localonly-source-use-risk-admission),
+not a secret-free guarantee or provider approval. Unqualified runtimes remain
+unavailable. Named-source model use, multiple-version ingestion,
+persistent/vector indexes, multi-source reasoning and hosted grounding remain gated.
 
 Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Data_Flows.md),
 [Interaction and Sessions](Interaction_And_Sessions.md),
@@ -25,6 +26,34 @@ screens each evidence-bearing file under separate one-shot consent. Unqualified
 runtimes remain unavailable; this does not enable them or claim model-quality/RC
 qualification. No evidence means no model call, and no unsupported or invalid
 response becomes a fabricated answer. Managed named sources remain separate.
+
+The existing folder consumer now completes **answer using these shown sections only**:
+explicit lexical search of one admitted immutable folder revision, deliberate nonempty
+whole-citation selection, complete unchanged-question/chosen-evidence review, separate
+one-shot local tool-free confirmation, cited model claims or truthful insufficiency,
+then navigation to those same selected original spans. Nothing is selected by default.
+Text highlighting/Find selection is not context authority. This is native source review,
+not a second named-source consumer or a new capture/search engine.
+
+[FolderAnswerReview](../src/Kora.Core/Context/FolderAnswers/FolderAnswerReview.cs)
+accepts only original citation objects from that exact retrieval and preserves source,
+revision, digest, UTF-16 span, question, target and original deadline. Foreign, cloned,
+modified, duplicate, empty and over-limit choices are rejected, not trimmed.
+Selection changes revoke derived reviews/answers/navigation; question/source/privacy/
+call/owner/channel changes, cancellation and closure retain their existing revocation
+and resource-join fences. Selection never refreshes files or extends retention.
+
+The [native review](../src/Kora/FolderAnswers/LocalFilePreviewWindow.FolderAnswers.cs)
+shows every chosen excerpt and provenance, unchanged question, combined excerpt byte
+budget and unchanged global eight-citation/16 KiB excerpt/32 KiB envelope ceilings.
+User-omitted retrieved excerpts and retrieval omissions are distinct disclosures.
+[FolderAnswerContext](../src/Kora.Core/Context/FolderAnswers/FolderAnswerContext.cs)
+binds only the chosen citations to host evidence IDs; unselected/foreign IDs cannot
+become grounded claims. Its policy forbids claims of reviewing omitted sections or
+the whole folder. Identity validation does not establish semantic truth.
+The existing per-file whole-source/question/excerpt screening and one-shot consent
+remain mandatory before model disclosure. This bounded I increment enables no runtime,
+hosted destination, tools, new persistence, source purpose or named-source comparison.
 
 ## Delivered passive native decoded-text measurement
 
@@ -315,7 +344,7 @@ Only the user's separate existing native Search action invokes the same audited 
 Preparation adds no read/search/refresh, metadata capture, Attach, consent, model/provider, clipboard or retention authority; query/source bodies never enter response/transcript, logging, audit, tags/Baggage or persistence ([guards](../src/Kora.Application/ViewModels/MainViewModel.Files.cs)).
 
 Deterministic [portable admission tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.PreparedLocalSearch.cs) and [headless native tests](../tests/Kora.Windows.IntegrationTests/PreparedLocalSearchWindowTests.cs) cover preparation versus separate execution.
-This is bounded I only: existing preview consent, retained attachment and unavailable source-use policy stay separate; no unrelated E/RC-Q, physical/audio/provider or installed-accessibility qualification is claimed.
+This is bounded I only: preview consent, retained attachment and [reviewed source-use admission](Security_Data_Flows.md#reviewed-localonly-source-use-risk-admission) stay separate; no unrelated E/RC-Q, physical/audio/provider or installed-accessibility qualification is claimed.
 
 Experiment disposition: maintained deterministic chunk/citation, bounds,
 revocation/cancellation/isolation and no-egress tests now cover this exact
@@ -985,10 +1014,13 @@ Before advertising the initial file/folder capability:
 | R26.4 - Hosted-model reasoning | Apply exact destination/source revision/excerpt review and hosted adapter egress; preserve citations and deletion boundaries | R26.3, admitted hosted provider under R08, remote-enabled policy and credentials | Real destination/account tests, payload capture/bounds, denial/revocation, timeout/cancel/unknown and no-fallback evidence |
 | R26.5 - Additional formats and hybrid retrieval | Admit parser/model packages independently; optional embeddings and scheduled refresh | R26.2 plus R25 for rich formats and format-specific dependency/licence/security gates | Per-format hostile corpus and citation proof; embedding identity, quality, privacy, migration, deletion and offline evidence |
 
-The broader R26.1 durable attachment/registry and recursive-folder stage is not complete. The roadmap
-marks required storage/session/configuration/tool-loop work as partial or
-outstanding. Implementing path reads directly in a view model or inserting
-whole files into the existing 4,096-character local-model request would bypass
-the required source identity, context budget, retention, egress, and
-cross-session controls. Delivered R26.1a/b/c/d explicitly stop at volatile native inspection, scoped lexical search and exact explicit preview refresh; those
-remaining contracts are not implied by this foundation.
+The [retained single-file attachment](#delivered-durable-single-file-session-attachment---2026-10-10)
+and [named-folder lifecycle](#named-device-local-folder-lifecycle) implement bounded
+durable subsets, including explicitly reviewed descendant capture for named sources.
+They do not complete the broader R26 contract or qualify model use.
+Implementing path reads directly in a view model or inserting whole files into
+the existing 4,096-character local-model request would bypass the required source
+identity, context budget, retention, egress and cross-session controls.
+The volatile R26.1a/b/c/d operations remain distinct from those durable subsets;
+[model enablement and RC qualification](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)
+remain separate.

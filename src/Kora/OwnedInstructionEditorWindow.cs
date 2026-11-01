@@ -38,10 +38,11 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
     };
     internal readonly TextBox NameInput = new() { Width = 240, PlaceholderText = "lowercase-owned-id" };
     internal readonly TextBox CopyNameInput = new() { Width = 240, PlaceholderText = "new-copy-owned-id" };
+    internal readonly TextBox RenameNameInput = new() { Width = 240, PlaceholderText = "new-instruction-id (rename)" };
     internal readonly TextBox Critique = new()
     {
         AcceptsReturn = true, MaxHeight = 100, MinHeight = 40, TextWrapping = TextWrapping.Wrap,
-        PlaceholderText = "Describe how to refine the current owned Instruction body",
+        PlaceholderText = "Describe a new Instruction after Create, or how to refine the inspected body",
     };
     internal readonly TextBox Source = new()
     {
@@ -70,7 +71,9 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         controls.Children.Add(Files);
         controls.Children.Add(NameInput);
         controls.Children.Add(CopyNameInput);
-        foreach (var action in new[] { "List", "Refresh", "Create", "Inspect", "Validate", "Compare", "Rebase", "Save", "Save as new copy", "Open registered profile original", "Create Kora copy from profile instruction", "Cancel profile copy", "Reload", "Delete" })
+        AutomationProperties.SetName(RenameNameInput, "Distinct new canonical owned Instruction ID for reviewed rename; not a path or copy");
+        controls.Children.Add(RenameNameInput);
+        foreach (var action in new[] { "List", "Refresh", "Create", "Inspect", "Validate", "Compare", "Rebase", "Save", "Save as new copy", "Rename", "Recover rename", "Open registered profile original", "Create Kora copy from profile instruction", "Cancel profile copy", "Reload", "Delete" })
         {
             var button = new Button { Content = action, Margin = new(3) };
             button.Click += (_, _) => run(action);
@@ -141,8 +144,9 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
                 + "Observed catalogue use state; inspect revalidates disk and exact revision. Search/filter is metadata-only, not a freshness, compatibility or integrity guarantee. "
                 + "Observed UTC is snapshot time only, not freshness, trust, approval, ownership or use authority. "
                 + "Save as new copy retains the original draft and creates a separate disabled same-kind owned file. Create Kora copy from profile instruction separately selects one personal native v1 instruction, asks for bounded read consent, then reviews the entire disabled copy. Manual editing needs no model. "
-                + "Explicit Refine proposes only the current owned Instruction body through a qualified local tool-free model. Hold to dictate body instead inserts reviewed literal text at a frozen owned body caret/range, without a model; both require a separate normal Save. "
-                + "Profile originals support exact manual edit, separately confirmed Save and Reload only, not create/delete/rename/refinement/use review or dictation. No prompt/metadata dictation, scripts, rename or restore. "
+                + "Ask Kora generates a new Instruction body after explicit Create, or refines the inspected body, through a qualified local tool-free model. New proposals stage in this editor and require a separate create-only Save, disabled. Hold to dictate body instead inserts reviewed literal text at a frozen owned body caret/range, without a model; both require a separate normal Save. "
+                + "Profile originals support exact manual edit, separately confirmed Save and Reload only, not create/delete/rename/refinement/use review or dictation. No prompt/metadata dictation, scripts or restore. "
+                + "Rename/Recover rename requires a clean Kora-owned Instruction, complete original/proposed source and reference review, and separate native confirmation. The new identity stays disabled; references, grants and activation are not transferred. "
                 + "Save is not activation. Review permits explicit selection for a new request only. Disable reviewed use holds the exact saved revision without changing its source; a fresh review is required to enable it again. "
                 + "Prompts are user requests, not system guidance. Native v1 stays literal; v2 supports required ${input:name} text only, with private expanded preview and separate use admission.",
             TextWrapping = TextWrapping.Wrap, Margin = new(0, 10),
@@ -150,10 +154,10 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         DockPanel.SetDock(disclosure, Dock.Top);
         panel.Children.Add(disclosure);
         var refinementControls = new StackPanel { Spacing = 4 };
-        refinementControls.Children.Add(new TextBlock { Text = "Local body refinement critique (volatile; Instruction only)" });
-        AutomationProperties.SetName(Critique, "Unsent local instruction body refinement critique");
+        refinementControls.Children.Add(new TextBlock { Text = "New Instruction description / existing body critique (volatile; Instruction only)" });
+        AutomationProperties.SetName(Critique, "Unsent new instruction description or local body refinement critique");
         refinementControls.Children.Add(Critique);
-        var refine = new Button { Content = "Refine current Instruction body" };
+        var refine = new Button { Content = "Ask Kora: new Instruction / refine body" };
         AutomationProperties.SetName(refine, "Review local disclosure and generate a complete instruction body proposal without saving");
         refine.Click += (_, _) => run("Refine");
         refinementControls.Children.Add(refine);
@@ -236,7 +240,7 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         CancelRebaseReview();
         ClearInventory(); ClearSearch();
         SetUseReviewAvailable(false);
-        Source.Text = string.Empty; NameInput.Text = string.Empty; CopyNameInput.Text = string.Empty;
+        Source.Text = string.Empty; NameInput.Text = string.Empty; CopyNameInput.Text = string.Empty; RenameNameInput.Text = string.Empty;
         Critique.Text = string.Empty;
         status.Text = string.Empty; inventoryStatus.Text = string.Empty;
         ClearValidation();

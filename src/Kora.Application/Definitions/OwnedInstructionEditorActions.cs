@@ -27,6 +27,10 @@ public sealed partial class OwnedInstructionEditorActions(
             && string.Equals(candidate.OwnedInstructionRevision, original.Revision, StringComparison.Ordinal)
             && string.Equals(candidate.Digest, original.Document.Definition.Digest, StringComparison.Ordinal));
 
+    public bool IsNewInstructionTargetObserved(string name) =>
+        Kind == ArtifactKind.Instruction && !catalogue.IsReloadUnavailable
+        && !catalogue.Candidates.Any(candidate => Matches(candidate, name));
+
     public Task<IReadOnlyList<string>> List(Func<bool> eligible, CancellationToken token) =>
         admission.Run(eligible, async (_, _, _, admitted) => await store.List(admitted).ConfigureAwait(false), token);
 

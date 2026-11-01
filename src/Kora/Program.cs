@@ -442,6 +442,19 @@ internal static class Program
         services.AddSingleton<IConversationalReplyPreferences>(provider =>
             new LocalConversationalReplyPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<ConversationalReplyConfigurationService>();
+        services.AddSingleton<IConversationExecutionPreferences>(provider =>
+            new LocalConversationExecutionPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton(provider =>
+        {
+            var configuration = ActivatorUtilities.CreateInstance<ConversationExecutionConfigurationService>(provider);
+            try { configuration.Observe(); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+                ApplicationLog.Error(provider.GetRequiredService<ILogger<ConversationExecutionConfigurationService>>(),
+                    exception, "Reading ordinary conversation execution maximum");
+            }
+            return configuration;
+        });
         services.AddSingleton<DesktopSessionWorkspaceAccess>();
         services.AddSingleton<ISessionWorkspaceAccess>(provider => provider.GetRequiredService<DesktopSessionWorkspaceAccess>());
         services.AddSingleton<SessionWorkspaceService>();
@@ -553,7 +566,8 @@ internal static class Program
             provider.GetRequiredService<ProviderProfileConfigurationService>(),
             provider.GetRequiredService<ISessionProviderProfileStore>(),
             provider.GetRequiredService<HostedModelProviderFactory>(),
-            provider.GetRequiredService<HostedTransmissionReviewService>()));
+            provider.GetRequiredService<HostedTransmissionReviewService>(),
+            conversationExecution: provider.GetRequiredService<ConversationExecutionConfigurationService>()));
         services.AddSingleton<IModelTurnAdmission>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<IModelTurnExecution>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<SessionConversationService>();
@@ -564,6 +578,7 @@ internal static class Program
         services.AddSingleton<SessionRetentionCommandService>();
         services.AddSingleton<SessionRetentionApplyService>();
         services.AddSingleton<ConversationSearchCommandService>();
+        services.AddSingleton<SessionRemainingWorkCommandService>();
         services.AddTransient<NewRequestComposer>();
         services.AddSingleton<Kora.Application.Definitions.PromptConversationSubmission>();
         services.AddSingleton<ModelProviderHandoffWorkflow>();

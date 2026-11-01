@@ -6,7 +6,7 @@ using it, and every write needs exact confirmation after the complete native sou
 
 Start with [open and select](#open-and-select), [edit and save](#edit-review-and-save),
 [required prompt inputs](#prepare-required-native-prompt-inputs), or
-[resolve a conflict](#resolve-a-conflict). **Local refinement is unavailable in
+[resolve a conflict](#resolve-a-conflict). **Local generation/refinement is unavailable in
 this build** because no local model is approved.
 
 ## Open and select
@@ -19,7 +19,7 @@ Manual editing needs no model, hosted account or network. Explicit [local body r
 
 | Kind/source/channel | What this editor supports |
 |---|---|
-| Kora-owned instructions | Native single-file create/list/inspect/edit/Validate/Rebase/Refine/Save/Save as new copy/reload/Delete, separate explicit-use review and exact native v1 Disable reviewed use ([refinement](../src/Kora/OwnedInstructionEditorController.Refinement.cs)) |
+| Kora-owned instructions | Native single-file create/list/inspect/edit/Validate/Rebase/Refine/Save/Save as new copy/reload/Delete, separate [reviewed rename/recovery](#rename-one-owned-instruction), explicit-use review and exact native v1 Disable reviewed use ([refinement](../src/Kora/OwnedInstructionEditorController.Refinement.cs)) |
 | Kora-owned prompts | The same editor/reviews; v1 literal requests and v2 bounded required `${input:name}` text with private expanded preview and separate request admission; no instruction/system authority |
 | Personal profile instructions | Open one already registered/read-consented native v1 original in this editor; manually edit, compare, separately confirm Save, resolve content conflicts or Reload. Independent disabled Kora copy remains available ([original workflow](../src/Kora.Application/Definitions/ProfileInstructionEditorWorkflow.cs), [copy workflow](../src/Kora.Application/Definitions/ProfileInstructionForkWorkflow.cs)) |
 | Skills and agents | Use the separate [skill editor](owned-skill-authoring.md) or [agent profile editor](agent-profile-authoring.md); this editor does not write them |
@@ -56,6 +56,54 @@ never invokes a definition; changed owned instructions and prompts still need
 separate review and enablement before fresh explicit use. Malformed sources
 report a reload failure rather than claiming the catalogue is current.
 
+## Rename one owned instruction
+
+Inspect one supported saved **Instruction** and leave its draft clean.
+Enter a distinct lowercase ID in **new-instruction-id (rename)**, then choose
+**Rename**, or type `instructions rename new-id`. After ordinary push-to-talk
+admission, `Kora, instructions rename new-id` enters the same review. Paths,
+reserved controls, case-only aliases, case-sensitive/unconfirmed directories, prompts, legacy/unsupported files,
+profile originals and unsaved draft edits are not rename targets
+([native owner](../src/Kora/OwnedInstructionEditorController.Rename.cs)).
+
+Review the old/new file and invocation identities, complete old/new source,
+and affected observed agent declarations. Choose **Reviewed exact rename**,
+then separately **Confirm rename**. Only the canonical filename and necessary
+declared name change; BOM, line endings, formatting, attribution and unrelated
+body/metadata/file bytes stay unchanged. Destination replacement and automatic
+reference rewrites are never offered
+([proposal](../src/Kora.Core/ArtifactInvocation/OwnedInstructionRename.cs)).
+If catalogue observations or dependent declarations change after confirmation,
+or a catalogue reload fails, the old review cannot continue. Review again;
+if a private intent may already exist, use **Recover rename** instead of retrying
+the rename. Neither source nor the open editor draft is silently replaced.
+
+The old ID becomes unavailable; the new source opens **disabled/held** and
+needs a fresh, separate **Review use**. Explicitly Inspect/Reopen the new ID
+to check its current resolution status. Old dependent references remain old
+and cannot resolve to the new source by name. Saving or allowing the new source
+does not transfer grants, applicability or dependent approval. Admitted content
+is never switched mid-task; existing source/access and stricter agent-bundle
+checks can still retire continuation
+([admitted operation](../src/Kora.Application/Definitions/OwnedInstructionEditorActions.Rename.cs)).
+
+Rename is a recoverable multi-step operation, **not an atomic transaction**:
+private intent, native move of the original into a recovery slot, no-replace
+publication, exact readback and cleanup. Another application can observe
+intermediate absence. Changed source/destination, replaced parents/aliases,
+withdrawn privacy/input admission and uncertain publication do not authorize
+overwrite, automatic retry or rollback
+([writer](../src/Kora.Windows/ArtifactDiscovery/WindowsOwnedDefinitionFileAccess.Rename.cs)).
+
+After an interruption, choose **Recover rename** or
+`instructions recover-rename`. Inspect the original proposal and exact
+observed phase, then separately confirm continuation. No recovery replays
+at startup; ordinary owned Instruction use/writes remain withheld while intent
+is unfinished. Changed external bytes, identities or corrupt recovery data
+remain held rather than being overwritten. If no intent remains, explicitly
+Inspect the old/new IDs and Reload/reconcile; this does not imply rollback
+([recovery contract](../Design/Definition_Management.md#bounded-recoverable-owned-instruction-rename)).
+
 ## Edit one registered profile instruction original
 
 First select one existing personal instruction in **Customizations** and explicitly review its exact-source registration/read consent. Keep that window open. Registration is memory-only for that source owner's lifetime and is not write approval. In the **Instruction** editor choose **Open registered profile original**, check the displayed shared source and choose **Open exact registered original**; cancellation reads no content. This editor cannot discover or register a new source, choose an arbitrary path or consent on your behalf ([source selection](../src/Kora/OwnedInstructionEditorController.ProfileOriginal.cs)).
@@ -85,9 +133,36 @@ This uses the existing consented microphone and qualified bounded local literal-
 
 Final transcripts retain the existing 4096-character local voice-input bound. The complete strict UTF-8 proposed source, including the original BOM when present, must still fit 65536 bytes; invalid or oversized results are rejected, not truncated ([body admission](../src/Kora/OwnedInstructionEditorController.Dictation.cs), [voice bound](../src/Kora.Core/Voice/VoiceInputLimits.cs)).
 
+## Describe a new owned instruction
+
+Select **Instruction**, enter a fresh canonical lowercase owned ID, then **Create** (or `instructions create example`, including current-name activated voice).
+Enter the original description in **New Instruction description / existing body critique**, then select **Ask Kora: new Instruction / refine body** or the existing `instructions refine` control.
+This is the existing single-file editor, not another writer or a new format ([native owner](../src/Kora/OwnedInstructionEditorController.Refinement.cs)).
+
+Review the exact original description, fixed destination-kind/native-v1 descriptor, local tools-none disclosure and host-chosen owned destination.
+Only that description and fixed descriptor go to the admitted local model; no draft, editable metadata, path, source ID, references, history or memory is sent.
+Credential screening is best-effort reject-only assistance, not a secret-free guarantee ([proposal service](../src/Kora.Application/Definitions/OwnedInstructionRefinementService.cs)).
+
+The model may return only a complete literal **body**. Kora retains the supported native-v1 header, metadata, ID, destination and format. The complete-source comparison shows all proposed bytes.
+**Use proposal for next Save** stages only that source in this editor; it does not save, activate, grant permissions or execute references ([review and staging](../src/Kora/OwnedInstructionEditorController.Refinement.cs)).
+
+Separately select **Save**, review the full source and destination again, then **Confirm save**.
+The new target must remain absent: occupied or concurrently created targets reject the operation without an Overwrite fallback.
+Publication uses the existing atomic create-only writer and exact readback. The saved instruction is disabled ([save workflow](../src/Kora.Application/Definitions/InstructionSaveWorkflow.cs), [native store](../src/Kora.Windows/ArtifactDiscovery/WindowsOwnedInstructionStore.cs)).
+
+Use **List**, then explicitly **Inspect** the saved ID to reopen its exact source-qualified revision and disabled state. The original description is not retained as conversation/history or authoring authority.
+Future guidance use still needs the independent exact revision/context review; authoring output is never current-turn instructions or host policy ([complete native regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Refinement.cs)).
+
+Changed description/draft/destination/kind/source/catalogue, original input during generation, call/privacy/ownership/channel retirement, cancellation and the two-minute proposal expiry revoke outstanding work.
+Late output cannot replace a newer draft. Retired staged source remains unsaved; generate/review again or explicitly Create a manual draft, never silently save a stale proposal ([lifecycle](../src/Kora/OwnedInstructionEditorController.Refinement.cs), [forbidden-effect regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.NewInstruction.cs)).
+
+Production local qualification remains unavailable. Native manual editing still works; generation reports unavailable rather than installing, sending to a hosted model, reading references or falling back. Prompt, skill, agent and personal-profile authoring retain their separate operations ([registration](../src/Kora/Program.cs)).
+
 ## Refine the current owned instruction body
 
-Inspect one supported Kora-owned **Instruction**, keep the desired current draft open, and enter an unchanged critique in **Local body refinement critique**. Select **Refine current Instruction body**, type `instructions refine`, or use current-name activated `Kora, instructions refine`. These routes target only the already open same-kind editor; they do not open a filename or accept inline body text ([routing](../src/Kora.Application/ViewModels/MainViewModel.InstructionEditor.cs)).
+Inspect one supported Kora-owned **Instruction**, keep the desired draft open, and enter a critique in **New Instruction description / existing body critique**.
+Select **Ask Kora: new Instruction / refine body**, or use `instructions refine` / current-name activated `Kora, instructions refine`.
+These controls target the open editor, not inline body text ([routing](../src/Kora.Application/ViewModels/MainViewModel.InstructionEditor.cs)).
 
 Review the complete current draft and critique, then explicitly choose **Generate local body proposal**. The model receives only the exact body as untrusted LocalOnly evidence and the unchanged critique as the request. Tools, history, memory, attachments, remote fallback and reference execution are excluded. The host retains metadata, kind, name, source, BOM, encoding and writer authority ([local-context workflow](../src/Kora.Application/Definitions/OwnedInstructionRefinementService.cs)).
 

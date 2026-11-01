@@ -65,6 +65,7 @@ internal sealed partial class OwnedInstructionEditorController(
         if (args.PropertyName is nameof(MainViewModel.CommandText))
         {
             Interlocked.Increment(ref copyInputRevision);
+            if (generationName is not null && refinementLifetime is not null) { CancelRefinement(); }
             var opened = window;
             if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess()) { opened?.CancelRebaseReview(); opened?.ClearValidation(); }
             else { Avalonia.Threading.Dispatcher.UIThread.Post(() => { if (ReferenceEquals(window, opened)) { opened?.CancelRebaseReview(); opened?.ClearValidation(); } }); }
@@ -108,11 +109,15 @@ internal sealed partial class OwnedInstructionEditorController(
                 || change.Property == TextBox.SelectionEndProperty)
             { Interlocked.Increment(ref caretRevision); }
             if (change.Property == TextBox.TextProperty || change.Property == TextBox.IsReadOnlyProperty || change.Property == TextBox.IsEnabledProperty)
-            { Interlocked.Increment(ref sourceRevision); CancelRefinement(); window?.CancelRebaseReview(); window?.ClearValidation(); }
+            { Interlocked.Increment(ref sourceRevision); if (!stagingInitialProposal) { CancelRefinement(); } window?.CancelRebaseReview(); window?.ClearValidation(); }
         };
         window.CopyNameInput.PropertyChanged += (_, change) =>
         {
             if (change.Property == TextBox.TextProperty)             { Interlocked.Increment(ref sourceRevision); CancelRefinement(); window?.CancelRebaseReview(); window?.RetireMetadataFind(); }
+        };
+        window.RenameNameInput.PropertyChanged += (_, change) =>
+        {
+            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); }
         };
         window.Critique.PropertyChanged += (_, change) =>
         {
@@ -167,7 +172,13 @@ internal sealed partial class OwnedInstructionEditorController(
             return;
         }
         if (busy) { return; }
-        if (operation is "Save as new copy")
+        if (operation is "Rename")
+        {
+            if (requestedKind != ArtifactKind.Instruction || kind != requestedKind)
+            { window.Report("Rename requires the inspected canonical owned Instruction, not a prompt or profile original."); return; }
+            window.RenameNameInput.Text = name;
+        }
+        else if (operation is "Save as new copy")
         {
             if (requestedKind != kind) { window.Report("Copy must retain the open original kind. Inspect a supported owned source first."); return; }
             window.CopyNameInput.Text = name;
@@ -177,7 +188,8 @@ internal sealed partial class OwnedInstructionEditorController(
             if (!await SwitchKind(window, requestedKind, lifetime.Token)) { return; }
             if (name is not null) { window.NameInput.Text = name; window.Files.SelectedItem = null; inventoryChoiceWithdrawn = false; }
         }
-        await Run(operation, name);
+        activeOperation = Run(operation, name);
+        await activeOperation;
     }
 
     private async Task Run(string action, string? exactName = null)
@@ -219,6 +231,7 @@ internal sealed partial class OwnedInstructionEditorController(
                     { throw new InvalidOperationException("That exact owned ID already exists. Inspect it; no implicit overwrite."); }
                     if (!Eligible()) { return; }
                     profileOriginal = null;
+                    generatedDraft = false;
                     selectedName = name;
                     baseline = null;
                     newDraft = true;
@@ -249,6 +262,10 @@ internal sealed partial class OwnedInstructionEditorController(
                     break;
                 case "Save as new copy":
                     await SaveCopy(opened, Eligible, token);
+                    break;
+                case "Rename":
+                case "Recover rename":
+                    await RenameInstruction(opened, action is "Recover rename", Eligible, token);
                     break;
                 case "Create Kora copy from profile instruction":
                     await ForkProfileInstruction(opened, Eligible, token);
@@ -317,10 +334,12 @@ internal sealed partial class OwnedInstructionEditorController(
         {
             EditorFailed(logger, exception.GetType().Name);
             if (action is "List" or "Refresh") { InvalidateInventory("Inventory unavailable; historical observations are not current. Explicit Refresh required."); }
-            if (action is "Save" or "Delete"
+            if (action is "Save" or "Delete" or "Rename" or "Recover rename"
                 || exception is InstructionUseRevocationUnconfirmedException) { uncertain = true; }
             if (ReferenceEquals(window, opened))
-            { opened.Report((exception is InstructionPublicationUnconfirmedException
+            { opened.Report((exception is InstructionRenameUnconfirmedException
+                    ? "Rename is recovery-required. Use Recover rename to inspect exact durable state and separately confirm continuation; no automatic retry or rollback. "
+                    : exception is InstructionPublicationUnconfirmedException
                     ? "Atomic source publication occurred; later completion is unconfirmed. "
                     : exception is InstructionUseRevocationUnconfirmedException revocation
                         ? $"Reviewed use is held or unavailable; completion unconfirmed. Control receipt {revocation.ControlReceipt}. Reload/read back revision preferences before fresh use review. Source and draft retained. "
@@ -429,6 +448,8 @@ internal sealed partial class OwnedInstructionEditorController(
         review = new NativeInstructionMutationReview(opened, Path.Combine(paths.RoamingRoot, OwnedDefinitionKind.DirectoryName(kind)),
             CurrentDraft, kind, saveQuestions, expiresAt);
         var pending = pendingRefinement;
+        if (generatedDraft && pending is null)
+        { throw new InvalidOperationException("The generated instruction review retired. Draft retained; generate and review again, or explicitly Create a manual draft. No overwrite fallback."); }
         var result = !delete && pending is not null
             ? await (refinement ?? throw new InvalidOperationException("Local refinement is unavailable.")).Save(pending, review, CurrentDraft, token)
             : await Saves.Save(name, baseline, text, delete, review, CurrentDraft, token);
@@ -446,6 +467,7 @@ internal sealed partial class OwnedInstructionEditorController(
         if (!result.Saved) { return false; }
         if (!reload.ReloadNow()) { uncertain = true; throw new IOException("Write may be durable; catalogue publication is unconfirmed."); }
         baseline = result.Current;
+        generatedDraft = false;
         newDraft = false;
         originalText = baseline?.Document.Text ?? string.Empty;
         opened.Source.Text = originalText;
@@ -492,6 +514,7 @@ internal sealed partial class OwnedInstructionEditorController(
         if (observed is not null && !Actions.IsInventoryCurrent(observed))
         { throw new InvalidOperationException("The observed catalogue changed before inspection delivery. Refresh and reselect; draft retained."); }
         profileOriginal = null;
+        generatedDraft = false;
         baseline = loaded; selectedName = loaded?.Name ?? name; originalText = loaded?.Document.Text ?? string.Empty;
         newDraft = false;
         opened.NameInput.Text = selectedName;
@@ -536,6 +559,7 @@ internal sealed partial class OwnedInstructionEditorController(
         { opened.SelectKind(kind); return false; }
         token.ThrowIfCancellationRequested();
         kind = requestedKind;
+        generatedDraft = false;
         InvalidateInventory("Kind changed; explicit List/Refresh required.");
         baseline = null; profileOriginal = null; selectedName = null; originalText = string.Empty; uncertain = false;
         newDraft = false;
@@ -612,6 +636,7 @@ internal sealed partial class OwnedInstructionEditorController(
         window?.ClearPrivateText(); window = null; baseline = null; profileOriginal = null; selectedName = null; originalText = string.Empty; uncertain = false;
         newDraft = false;
         pendingRefinement = null;
+        generatedDraft = false;
     }
 
     public void Dispose()

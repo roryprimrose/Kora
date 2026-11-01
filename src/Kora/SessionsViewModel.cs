@@ -45,7 +45,8 @@ internal sealed partial class SessionsViewModel(
     Func<Kora.Application.Configuration.PlaybackVolumeSuggestionReview, CancellationToken, Task<bool>>?
         confirmPlaybackVolumeSuggestion = null,
     Kora.Application.IUiDispatcher? conversationPresentationDispatcher = null,
-    Kora.Application.Dependencies.VerifiedLocalHandoffOperation? localHandoff = null) : ObservableObject
+    Kora.Application.Dependencies.VerifiedLocalHandoffOperation? localHandoff = null,
+    SessionRetentionApplyService? retentionApply = null) : ObservableObject
 {
     private readonly HostRequest viewer = HostRequest.Create(RequestOrigin.LocalUi);
     private readonly CancellationTokenSource lifetime = new();
@@ -588,9 +589,17 @@ internal sealed partial class SessionsViewModel(
                 .Append(" | expires ").Append(question.ExpiresAt.ToString("O", CultureInfo.InvariantCulture)).AppendLine()
                 .Append(question.Spec.Kind).Append(": ").AppendLine(question.Spec.Text);
             foreach (var option in question.Spec.Options) { text.Append(option.Id).Append(": ").AppendLine(option.Label); }
+            foreach (var field in question.Spec.Fields)
+            {
+                text.Append(field.Label).Append(" | required ").Append(field.Kind)
+                    .Append(" | text maximum ").Append(field.MaximumLength).Append(" / ").Append(field.MaximumUtf8Bytes).AppendLine(" UTF-8 bytes");
+                foreach (var option in field.Options) { text.Append(option.Id).Append(": ").AppendLine(option.Label); }
+            }
             if (question.Draft is { } draft)
             {
                 text.Append("Recorded draft/answer: ").AppendJoin(", ", draft.Choices).Append(' ').AppendLine(draft.Text);
+                foreach (var field in draft.Fields)
+                { text.Append(field.FieldId).Append(": ").Append(field.Text).AppendLine(field.Choice); }
             }
             if (question.Proposal is { } proposal) { text.Append("Exact proposal: ").Append(proposal.ProposalId.Value.ToString("D")).AppendLine(); }
         }
@@ -727,6 +736,7 @@ internal sealed partial class SessionsViewModel(
 
     private void ClearSelection()
     {
+        ClearRemainingWork();
         CancelStopAndDeleteReview();
         ClearSessionPermission();
         ClearEvidenceDetails();

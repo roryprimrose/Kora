@@ -152,6 +152,14 @@ host-owned query services while enforcing each caller's data scope.
 Approval replies are correlated to the existing host prompt, not interpreted
 by management inference as permission to create a grant.
 
+The delivered [general-request destination operation](../docs/session-routing.md#untargeted-requests)
+separately discloses the exact original input and bounded Active metadata before
+optional local-only relatedness advice. The user can instead choose an exact
+destination without advice or cancel. Destination acknowledgment and ordinary
+submission remain separate; advice consent cannot authorize an answering provider,
+source transfer, queue editing or task replacement
+([routing admission](../src/Kora.Application/Hosting/SessionRouting/SessionRoutingService.cs)).
+
 ## Contextual Decisions, Not a Fixed Queue Prompt
 
 Use the model to decide what a new utterance means when context makes that decision clear.
@@ -176,6 +184,17 @@ Acknowledge accepted decisions with the task label and queue position; the user 
 
 Exact stop/cancel controls and basic ledger status have a deterministic local path.
 They do not wait for the management model, task runtime, tool, or network.
+
+The delivered addressed remaining-work operation completes a passive host answer through **What work remains?** on one selected native conversation or the [exact typed/current-name activated grammar](../docs/commands.md#ask-what-remains-in-one-conversation).
+Setup status remains separate; neither Work-panel navigation nor opening All Work substitutes for the answer ([native owner](../src/Kora/SessionsViewModel.RemainingWork.cs)).
+
+The [query owner](../src/Kora.Application/Hosting/SessionConversationService.RemainingWork.cs) captures body-free pending and running facts together under the existing conversation owner gate, then fences durable task/question facts and volatile revisions again.
+The [projection](../src/Kora.Application/Hosting/SessionRemainingWorkAnswer.cs) distinguishes durable/source times, known host steps, ordinary FIFO positions/holds/expiry, pending questions and unresolved Unknown/Interrupted records.
+Manual ordinary dispatch, failure/cancellation recovery and application lifecycle holds are observed independently; the passive answer neither releases a hold nor renews an original deadline.
+
+The sources are not a fictitious globally atomic plan. Omitted records, accepting originals, absent workers and unavailable steps remain explicit; missing volatile ownership never proves durable completion.
+Changed sources refuse publication rather than inferring absence. Execution, queue state, source activity, retention and grants are unchanged; no provider/model/tool/resource dispatch is part of this query ([query](../src/Kora.Application/Hosting/SessionConversationService.RemainingWork.cs)).
+
 The proposed bundled session-lock skill has a narrowly host-admitted priority
 control path; this does not grant management inference executable-tool access
 or waive the future action-specific approval gate. Today direct exact lock
@@ -335,6 +354,40 @@ Bodies and reviewed sources are not telemetry.
 
 Sessions and compact conversation share factual pending position, the submitted
 USER input, exact selected pending cancellation and held/resume controls.
+The same [lane owner](../src/Kora.Application/Hosting/SessionConversationService.Pending.cs)
+also supports an independent, deliberate **Pause ordinary dispatch** for one
+exact Active conversation, including a healthy lane with no pending requests.
+It suppresses the next ordinary start decision after the physical terminal join;
+a turn already selected for dispatch or running continues unchanged. New
+submissions retain the same provider qualification, immutable original source,
+FIFO, message/byte bounds and original authorization expiry. Native waiting
+rows show their original expiry, not a renewed deadline.
+
+**Release manual dispatch hold** clears only the typed original-user manual
+reason. **Resume held dispatch** clears only the separate failure/cancellation
+recovery hold; when both exist, both require their own deliberate operation.
+Neither action clears storage, Unknown, permission, source, consent, privacy or
+expiry fences. An expired/invalid head cannot be skipped to dispatch a later
+request. Expiry is denied without acquiring resources; fresh input/review is
+required, never renewal or replay. Manual start decisions are not action approval.
+
+The [exact typed/activated-voice adapter](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)
+uses `session dispatch status|pause|resume <session-id>` and the same admitted
+manual-control action as native Sessions/compact. Current input, channel,
+private control, exact session/generation/metadata, host-run admission and lane
+revision are host bindings; no model is needed or authorized to create this
+control. Done is not resumed, no session is created and pause/release itself
+does not renew activity, change history/context, grant permission or invoke a
+provider. The holder is volatile to this host run and generation, not durable
+authority; restart recovery of older pending work is unchanged.
+
+This is ordinary conversation control, **not** the retired public fixed-read
+diagnostic queue pause/resume, reorder or settings product. Those command
+operations remain denied. There is no global pause, second scheduler, new
+queue policy setting or task-stepping execution approval. See the
+[user controls](../docs/windows-and-tray.md#ordinary-conversation-dispatch-hold)
+and [behavioral regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ManualDispatch.cs).
+
 Cancellation wins atomically against dispatch, preserves submitted history and
 unrelated requests, and has zero provider/egress/resource effects for that
 pending turn. Active cancellation stays with the existing running-turn owner.
@@ -419,6 +472,19 @@ Pending-request/context execution expiry does not erase durable history or exten
 ### Ordinary-session resource allocation implementation
 
 The [host allocator](../src/Kora.Application/Dependencies/RuntimeResourceAllocator.cs) issues single-use, owner-checked resource leases before [ordinary retained dispatch](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs). Legacy qualification admits only one exclusive execution across unknown physical resources, including hosted single-flight runtimes; it never implies capacity two.
+
+The ordinary-conversation maximum is now a separate [validated device-local preference](../src/Kora.Core/Configuration/ConversationExecutionLimit.cs), bounded to one or two (default desired maximum two). It does not reuse or reopen retired fixed-version queue settings.
+[Settings and original typed/activated commands](../src/Kora.Application/ViewModels/MainViewModel.ConversationExecution.cs) review the exact current/proposed maximum and shared scope, then separately confirm through the [same audited preference owner](../src/Kora.Application/Configuration/ConversationExecutionConfigurationService.cs).
+Review and registration do not dispatch, evict or cancel work.
+
+Each resource admission captures an immutable budget. Waiting work revalidates current confirmed preferences before reservation and dispatch; its ceiling is the smaller of captured and current demand.
+Raising the preference cannot expand an already captured budget; lowering it never cancels executing work, but blocks future dispatch until resources fit.
+Reservation order does not imply execution order: an older reserved lease must also fit around every already dispatched lease, including cancellation-ignoring work awaiting physical join.
+Saved-state drift or unconfirmed writes hold new admission, not active joins ([allocator](../src/Kora.Application/Dependencies/RuntimeResourceAllocator.cs), [consumer regressions](../tests/Kora.Application.UnitTests/Dependencies/RuntimeResourceAllocatorTests.Configuration.cs)).
+
+The [typed host resource observation](../src/Kora.Core/Conversation/ConversationResourceStatus.cs) distinguishes configured/captured maximum, exact qualified ceiling, effective ceiling, lease/wait counts and FIFO/configuration/resource blockers.
+The native conversation shows the last factual admission check, not model progress or a promise of free capacity.
+Settings cannot claim a qualified effective capacity before exact runtime/profile admission; provider limits and unclassified exclusive resources still win ([presentation](../src/Kora/SessionsViewModel.ConversationCancellation.cs)).
 
 The trusted [runtime qualification seam](../src/Kora.Application/Dependencies/IRuntimeCapacityQualification.cs) can supply current exact provider/account/profile/runtime-generation evidence for two independently owned transports and canonical shared/exclusive resource identities. The allocator rejects unknown identities, shared-resource/profile conflicts, duplicate session ownership and reused active transports. It bounds FIFO waiting to ten requests and at most fifteen seconds, within original context expiry.
 

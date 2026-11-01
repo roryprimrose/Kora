@@ -29,7 +29,15 @@ public sealed partial class MainViewModel
         var nativeLifetime = speechComponentNativeLifetime;
         var origin = OriginalOrigin();
         var hostEligible = CaptureConfigurationControlEligibility(origin);
+        var savedInput = speechInputConfiguration?.Get();
+        var selectedProfile = SelectedSpeechInputProfile;
+        var resource = SelectedSpeechInputResource;
+        var residency = SelectedSpeechInputResidency;
+        var expectedVoiceConsent = HasVoiceConsent;
         bool Eligible() => hostEligible() && !IsResponseInteractionPending
+            && HasVoiceConsent == expectedVoiceConsent
+            && speechInputConfiguration?.Get() == savedInput && SelectedSpeechInputProfile == selectedProfile
+            && SelectedSpeechInputResource == resource && SelectedSpeechInputResidency == residency
             && ReferenceEquals(nativeLifetime, speechComponentNativeLifetime) && nativeLifetime();
         return setup.ReviewAsync(identity, operation, Eligible, cancellationToken);
     }

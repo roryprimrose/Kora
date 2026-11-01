@@ -7,14 +7,15 @@ using Kora.Core.Skills;
 
 namespace Kora;
 
-internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
+internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview, IOwnedSkillDeletionReview
 {
     internal readonly TextBox IdInput = new() { PlaceholderText = "canonical-skill-id" };
     internal readonly TextBox VersionInput = new() { Text = "1.0.0" };
     internal readonly TextBox NameInput = new();
     internal readonly TextBox DescriptionInput = new();
-    internal readonly TextBox Guidance = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap };
+    internal readonly TextBox Guidance = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 140 };
     internal readonly TextBox Critique = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MaxHeight = 100 };
+    internal readonly TextBox Fixture = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MaxHeight = 100 };
     internal readonly TextBox Purpose = new() { IsReadOnly = true, AcceptsReturn = true, MaxHeight = 80 };
     internal readonly TextBox ExpectedInput = new() { AcceptsReturn = true, MaxHeight = 80 };
     internal readonly TextBox ExpectedOutput = new() { AcceptsReturn = true, MaxHeight = 80 };
@@ -26,6 +27,7 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
     private readonly Func<bool> eligible;
     internal event Action? DraftChanged;
     internal event Action? CritiqueChanged;
+    internal event Action? FixtureChanged;
 
     internal OwnedSkillEditorWindow(Action<string> run, Func<bool> eligible)
     {
@@ -45,6 +47,7 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
         }
         Guidance.PropertyChanged += (_, args) => { if (args.Property == TextBox.TextProperty) { DraftChanged?.Invoke(); } };
         Critique.PropertyChanged += (_, args) => { if (args.Property == TextBox.TextProperty) { CritiqueChanged?.Invoke(); } };
+        Fixture.PropertyChanged += (_, args) => { if (args.Property == TextBox.TextProperty) { FixtureChanged?.Invoke(); } };
         Tool.SelectionChanged += (_, _) => DraftChanged?.Invoke();
         AutomationProperties.SetName(Tool, "Exact existing host capability");
         fields.Children.Add(new TextBlock { Text = "Host capability declaration (not permission)" });
@@ -59,7 +62,7 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
             TextWrapping = TextWrapping.Wrap,
         });
         var buttons = new WrapPanel { Orientation = Orientation.Horizontal };
-        foreach (var action in new[] { "Create", "Refine", "Cancel refinement", "Validate", "Save", "List", "Reopen", "Use", "Cancel" })
+        foreach (var action in new[] { "Create", "Refine", "Cancel refinement", "Validate", "Test", "Cancel test", "Save", "List", "Reopen", "Delete", "Use", "Cancel" })
         {
             var button = new Button { Content = action, Margin = new(3) };
             button.Click += (_, _) => run(action.ToLowerInvariant().Replace(' ', '-'));
@@ -81,12 +84,19 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
         fields.Children.Add(new TextBlock { Text = "Original critique for explicit local guidance refinement" });
         AutomationProperties.SetName(Critique, "Original skill guidance critique");
         fields.Children.Add(Critique);
+        fields.Children.Add(new TextBlock
+        {
+            Text = "SIMULATED native v1 example only. Volatile JSON: input and 1-8 assertions (kind equals/contains, value). No tools or mocked tool responses. Review before explicit local inference; Save/enable remain separate.",
+            TextWrapping = TextWrapping.Wrap,
+        });
+        AutomationProperties.SetName(Fixture, "Volatile simulated skill fixture JSON");
+        fields.Children.Add(Fixture);
         DockPanel.SetDock(fields, Dock.Top);
         panel.Children.Add(fields);
         DockPanel.SetDock(status, Dock.Bottom);
         panel.Children.Add(status);
         panel.Children.Add(Guidance);
-        Content = panel;
+        Content = new ScrollViewer { Content = panel };
     }
 
     internal void Report(string message) => status.Text = message;
@@ -125,6 +135,24 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
                 + "? Existing versions will never be replaced. The saved package remains inactive. Use requires a separate exact-version review and enablement.",
             document.ManifestText, document.Guidance, ["Publish exact new version", "Cancel"], token) == 0;
 
+    public async Task<bool> ReviewDeletion(OwnedSkillDeletionSnapshot source, CancellationToken token) =>
+        await ChooseOnUi("Review exact owned skill source deletion", DeletionDisclosure(source),
+            source.Source.Document.ManifestText, source.Source.Document.Guidance,
+            ["Continue to separate deletion confirmation", "Cancel"], token) == 0;
+
+    public async Task<bool> ConfirmDeletion(OwnedSkillDeletionSnapshot source, CancellationToken token) =>
+        await ChooseOnUi("Confirm exact owned skill source deletion", DeletionDisclosure(source),
+            source.Source.Document.ManifestText, source.Source.Document.Guidance,
+            ["Delete only this exact owned source", "Cancel"], token) == 0;
+
+    private static string DeletionDisclosure(OwnedSkillDeletionSnapshot source) =>
+        "Delete owned " + source.Source.Document.Name + " (" + source.Source.Document.Id + " " + source.Source.Document.Version
+        + ") at " + source.Destination + "?\nExactly manifest.yaml, instructions.md and their now-empty version directory; the ID/root and all other entries remain."
+        + "\nDeclared dependency: " + source.Source.Document.Tool + "; references: none. Future use that needs this exact source fails closed."
+        + " External dependents are not exhaustively inventoried. Immutable admitted tasks are not cancelled; independent grants, history and audit are not erased or renewed."
+        + "\nNo reference packages, shared/profile originals, bundled sources, arbitrary paths or tree deletion. No backup/rollback, model, tools or egress."
+        + " Partial/unconfirmed deletion is held for explicit inspection, never retried automatically.";
+
     internal async Task<int> DirtyChoice(bool canSave, Func<bool> privateEligible, CancellationToken token)
     {
         var choice = await ChooseOnUi("Unsaved skill draft",
@@ -138,16 +166,34 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
         string[] choices, Func<bool> currentInput, CancellationToken token) =>
         ChooseOnUi(title, disclosure, current, proposed, choices, token, currentInput, "Complete current guidance", "Complete proposed guidance");
 
+    internal async Task<bool> ReviewFixture(OwnedSkillFixtureWorkflow.Preview preview, Func<bool> current, CancellationToken token) =>
+        await ChooseOnUi("Review SIMULATED skill example",
+            "Native v1 only. One local tools-NONE inference after explicit Start. No actual tools, network, effects, grants, history, "
+            + "memory, hosted fallback, Save or enablement. Expected assertions stay host-side. Complete source, unchanged fixture and exact "
+            + "serialized model input below. Passing is not harmlessness or qualification. Review expires in two minutes.",
+            preview.Document.ManifestText + "\n--- instructions.md ---\n" + preview.Document.Guidance + "\n--- EPHEMERAL fixture ---\n" + preview.Fixture.Source,
+            preview.Context, ["Start SIMULATED test", "Cancel"], token, current, "Source and fixture (inert data)", "Local tools-none input") == 0;
+
+    internal async Task ShowFixtureResult(OwnedSkillFixtureWorkflow.Result result, Func<bool> current, CancellationToken token) =>
+        _ = await ChooseOnUi("SIMULATED skill example result",
+            "SIMULATED / " + (result.Passed ? "PASS" : "FAIL")
+            + ". Example behavior only; not a real observation, harmlessness, qualification or enablement. Volatile; never saved as conversation facts. "
+            + "Each assertion uses case-sensitive ordinal matching. Nothing saved, enabled or granted.",
+            result.Preview.Document.ManifestText + "\n--- instructions.md ---\n" + result.Preview.Document.Guidance
+                + "\n--- EPHEMERAL fixture ---\n" + result.Preview.Fixture.Source + "\n--- EXACT LOCAL INPUT ---\n" + result.Preview.Context,
+            result.Output, ["Dismiss simulated result"], token, current, "Exact tested source and fixture", "Exact simulated output",
+            System.Text.Json.JsonSerializer.Serialize(result.Assertions));
+
     internal Task<int> ChooseInitial(string title, string disclosure, string manifest, string guidance,
         string[] choices, Func<bool> currentInput, CancellationToken token) =>
         ChooseOnUi(title, disclosure, manifest, guidance, choices, token, currentInput);
 
     private async Task<int> ChooseOnUi(string title, string disclosure, string manifest, string instructions,
         string[] choices, CancellationToken token, Func<bool>? privateEligible = null,
-        string firstLabel = "manifest.yaml", string secondLabel = "instructions.md")
+        string firstLabel = "manifest.yaml", string secondLabel = "instructions.md", string? assertionResults = null)
     {
         if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-        { return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ChooseOnUi(title, disclosure, manifest, instructions, choices, token, privateEligible, firstLabel, secondLabel)); }
+        { return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ChooseOnUi(title, disclosure, manifest, instructions, choices, token, privateEligible, firstLabel, secondLabel, assertionResults)); }
         var current = privateEligible ?? eligible;
         if (!current() || token.IsCancellationRequested) { return -1; }
         var result = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -174,9 +220,20 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
             AutomationProperties.SetName(source, "Complete exact " + pair.Item1);
             files.Children.Add(source);
         }
+        if (assertionResults is not null)
+        {
+            files.Children.Add(new TextBlock { Text = "Host assertion results (not model output)" });
+            var assertions = new TextBox { Text = assertionResults, IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap };
+            AutomationProperties.SetName(assertions, "Complete exact host assertion results");
+            files.Children.Add(assertions);
+        }
         panel.Children.Add(new ScrollViewer { Content = files });
         dialog.Content = panel;
         review = dialog;
+        dialog.KeyDown += (_, key) =>
+        {
+            if (key.Key == Avalonia.Input.Key.Escape) { key.Handled = true; dialog.Close(); }
+        };
         dialog.Closed += (_, _) => { if (ReferenceEquals(review, dialog)) { review = null; } result.TrySetResult(-1); };
         using var cancellation = token.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(dialog.Close));
         dialog.Show(this);

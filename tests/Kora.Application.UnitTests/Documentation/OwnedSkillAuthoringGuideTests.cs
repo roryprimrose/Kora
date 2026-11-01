@@ -43,6 +43,20 @@ public sealed class OwnedSkillAuthoringGuideTests
             .And.Contain("does not complete the entire Builder")
             .And.Contain("input names cannot be added")
             .And.Contain("until it joins");
+        guide.Markdown.Should().Contain("Start SIMULATED test")
+            .And.Contain("owned skill fixture:")
+            .And.Contain("owned skill cancel-test")
+            .And.Contain("8192 UTF-8 bytes")
+            .And.Contain("Unknown/duplicate fields")
+            .And.Contain("not a real observation")
+            .And.Contain("unchanged skill format");
+        guide.Markdown.Should().Contain("owned skill workflow create inspection 1.0.0")
+            .And.Contain("Save disabled revision")
+            .And.Contain("owned skill workflow approve-step")
+            .And.Contain("8192 complete labelled result bytes")
+            .And.Contain("15-second total budget")
+            .And.Contain("history is neither read nor written")
+            .And.Contain("no automatic pagination");
         guide.Markdown.Should().Contain("create a skill that explains a deployment failure")
             .And.Contain("owned skill expected-input:")
             .And.Contain("owned skill expected-output:")
@@ -50,5 +64,12 @@ public sealed class OwnedSkillAuthoringGuideTests
             .And.Contain("complete generated manifest and guidance")
             .And.Contain("no-overwrite")
             .And.Contain("unqualified");
+        guide.Markdown.Should().Contain("owned skill delete daily-review 1.0.0")
+            .And.Contain("Delete only this exact owned source")
+            .And.Contain("does not physically cancel immutable admitted tasks")
+            .And.Contain("absence readback")
+            .And.Contain("do not retry or recreate")
+            .And.Contain("Retained editor text keeps its deleted-source binding")
+            .And.Contain("before model use");
     }
 }

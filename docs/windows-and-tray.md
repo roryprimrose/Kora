@@ -114,6 +114,11 @@ Activity contains the existing task/question/answer/decision records; it is not
 a complete tool trace or exact-grant-change feed. Historical records and their
 Details are read-only, never live answer or approval buttons.
 
+Returning to a conversation does not replay delayed submission notifications.
+Use **Read conversation** for its retained result or **Refresh submitted work**
+for current pending requests. Your unsent text stays in its original conversation;
+refreshing does not submit it or renew the original request's permission.
+
 The composer explicitly sends to the selected conversation. Switching topics
 preserves each topic's separate memory-only unsent text. **Collapse** (or
 `collapse conversation`) returns to the original compact interaction without
@@ -159,6 +164,21 @@ history or current defaults. Review/decline never overwrites unsent input or
 saves it to disk, and no tools/effects are replayed automatically.
 Retained voice content also cannot acquire fresh activated-voice authority from
 a native button: a retry review needs current admission of the original channel.
+
+### Answers not marked reviewed
+
+Return to the exact conversation in the expanded, Sessions or compact view. Expand **Answers not marked reviewed**, then:
+
+1. Choose **Read answers not marked reviewed**. The status shows how many retained answers have no explicit review flag at that read, with bounded rows and **Next answer-review page** when more matches are omitted.
+2. Select one metadata row and choose **Open this exact answer Details**. This opens the retained ASSISTANT answer through the existing private Details reader; selection and opening mark nothing.
+3. Deliberately choose **Mark this answer reviewed**. Only that exact answer changes. The list and count refresh after confirmed durable readback; other conversations, unseen pages and later answers are not marked.
+4. To undo, choose **Read all answer review flags (including undo)**, select the exact answer, open its Details, then choose **Unmark this answer reviewed**.
+
+**Not marked reviewed** does not mean unread: Kora cannot prove that a person read or understood an answer. Opening, rendering, polling, browsing and paging never mark anything automatically. Read again for new background answers. Flags survive restart only while the source history remains retained ([operation owner](../src/Kora/SessionsViewModel.AnswerReviews.cs)).
+
+Changed or removed sources, privacy/ownership loss, cancellation, malformed saved state or uncertain readback report **Unavailable**, not a zero remaining count or successful mark. Read again explicitly after recovery; no automatic retry or rollback is inferred. Confirmed older history with no acknowledgement starts as not marked ([authoritative store](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.AnswerReviews.cs)).
+
+This native-only metadata choice does not Resume a Done conversation, renew retention, send model input, change grants, dispatch work, copy an answer body or save unsent text. Deleting source history also removes its owned review metadata under the existing deletion policy ([lifecycle contract](../Design/Interaction_And_Sessions.md#explicit-retained-answer-review-acknowledgement)).
 
 ### Details beside the conversation
 
@@ -247,6 +267,18 @@ reviews. They do not save, read, submit, answer a question or run a model.
 Invalid or oversized drafts remain editable with the same limits and rejection
 policy. Reviewed bodies, comparisons, ASSISTANT answers, questions, approvals
 and source Details are unaffected.
+
+### Open an original observed tool result
+
+After **Read conversation**, a successful local answer that actually used a permitted host observation shows **Open observed result** links. Each names its tool, message and result position ([links](../src/Kora/SessionInteractionView.axaml)).
+Choose the exact link to inspect its original JSON in Details, including after restart; it is an observation from the displayed original time, not a fresh status query ([exact resolver](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs)).
+
+With the expanded conversation page in the foreground, type `open observed result application.get_version message 1 result 1`, using the actual presented name, or say it with your current assistant-name prefix ([command](../src/Kora.Core/Commands/WorkspaceSurfaceCommand.cs)).
+A tool name matching several results asks you to choose the full message/result name or a native link; it never chooses the newest result or intercepts generic Yes ([choice handling](../src/Kora/SessionsViewModel.Observations.cs)).
+
+Opening does not rerun a tool, contact a model/network, resume Done, extend retention or grant speech, clipboard, export or model-context use ([privacy and restart tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Observations.cs)).
+Source/private loss clears the reader; deleted results are unavailable, not reconstructed ([reader regression](../tests/Kora.Windows.IntegrationTests/DetailWindowControllerTests.Observations.cs)).
+Only the six built-in local observation tools are supported; hosted, MCP, file, web and customization results are excluded, and unqualified real runtimes remain unavailable ([capture](../src/Kora.Application/Dependencies/ModelTurn.cs)).
 
 ### Exact retained original message Details
 
@@ -394,6 +426,13 @@ Read/Next show bounded chronological **USER** messages and separate **HOST** sta
 
 Typing writes nothing. Switching topics preserves a separate memory-only unsent message per exact session, shared by Sessions and compact views. No ordinary Save/Reload/Clear or saved-draft management exists ([buffers](../src/Kora/SessionsViewModel.Unsent.cs)).
 
+If work refresh observes a changed lifecycle or generation, all conversation
+views retain the unsent text but disable stale composer and Send controls.
+An Active observation alone does not restore eligibility. Use **Read conversation**
+for that exact session to recover its current source; other topics' unsent text
+remains independent. Submission uncertainty still requires exact receipt
+inspection and is not cleared by reading.
+
 **Recover existing legacy text into empty input** is a separate read-only action for the selected exact session. It verifies stable source/revision before importing, refuses nonempty input and never saves, deletes or submits. Missing/unavailable legacy text leaves history and unsent input unchanged. Retention and private authority checks remain; no migration or purge occurs ([recovery](../src/Kora/SessionsViewModel.Unsent.cs)).
 
 **Discard this unsent message...** requires confirmation and affects only that session's memory input. Last-view/application close protects all nonempty topic buffers with Discard/Cancel. Privacy/ownership/session retirement revokes affected private text without saving ([presentation owner](../src/Kora/SessionsPresentationOwner.cs)).
@@ -455,6 +494,37 @@ or permission to submit. It measures only the current buffer, not saved or
 reviewed bodies, questions, approvals or assistant answers. Reading it does not
 save, submit, renew activity, log content or start any model/device/network work.
 Private presentation revocation removes the metrics along with private content.
+
+### Ordinary conversation dispatch hold
+
+In Sessions or the expanded conversation, select one Active conversation and
+choose **Refresh submitted work**, then **Pause ordinary dispatch**. You can do
+this while a turn is running or before the next request. A turn already
+dispatching or running continues; this is not Stop, suspension or cancellation.
+Pending requests remain in arrival order with their original expiry displayed.
+You may submit more ordinary requests under the same qualification and limits.
+The [host control](../src/Kora.Application/Hosting/SessionConversationService.Pending.cs)
+suppresses new start decisions until a deliberate release.
+
+Choose **Release manual dispatch hold** to remove only your manual hold.
+If failure, cancellation or uncertainty also held the lane, its separate
+**Resume held dispatch** remains necessary. Neither control grants action
+approval or clears source, privacy, permission, storage or expiry requirements.
+Original authorization deadlines keep running while held. Expired requests
+are denied, not renewed or replayed; submit and review a fresh request.
+Other conversations and unsent text are unaffected, Done is not resumed and
+pause/release does not renew session activity or change history/context.
+The manual holder is current-run only; restarting never restores permission or
+replays pending originals. Existing recovery remains unchanged.
+
+The equivalent command-box controls are `session dispatch status <session-id>`,
+`session dispatch pause <session-id>` and `session dispatch resume <session-id>`.
+For activated voice, prefix the exact command with the current assistant name.
+They target one existing Active conversation and use the same host operation,
+without a model. Current editor/dictation, question and approval handling keeps
+precedence. See the [command guide](commands.md#pause-one-ordinary-conversations-dispatch).
+This is not a global pause, scheduler, queue setting or reorder operation.
+Retired public diagnostic `queue pause`/`queue resume` remain unavailable.
 
 Submit also performs bounded **local best-effort credential-like checks**:
 private-key PEM blocks/candidates, Authorization Bearer/Basic values, explicit
@@ -999,6 +1069,23 @@ results are observations rather than runtime progress or conversation history.
 Protected-call voice mutations remain unavailable; pending bootstrap questions
 and approvals are preserved and must be resolved explicitly.
 
+### Use clipboard as an ordinary clarification answer
+
+For an ordinary free-text conversation clarification, deliberately choose **Use clipboard as my answer** in that exact question window. Allow or deny the existing clipboard-read permission review; opening a question or choosing the shortcut does not grant permission ([question controls](../src/Kora/QuestionWindow.axaml)).
+
+In that read-permission question, **Why is this allowed / why does it need approval?** shows only the pending policy snapshot.
+Choose **Return to same approval** before the separate exact-record review and approval. Neither policy control reads the clipboard, accepts an answer draft or submits the original clarification.
+
+Review the **complete captured text** and its snapshot provenance. Choose **Accept reviewed text as draft**, then separately **Submit answer**. If a manual draft already exists, first acknowledge replacing that displayed draft.
+Accepting never submits, approves an action or sends anything to a model; normal task and transmission reviews remain independent ([workflow](../src/Kora/QuestionClipboardAnswer.cs)).
+
+The source must wholly fit the displayed question bound (currently 500 characters for conversation clarification) and normal Unicode/credential rules. Invalid or overlong text is rejected, not shortened. Changing the system clipboard after capture cannot replace the reviewed text or trigger a reread ([regressions](../tests/Kora.Windows.IntegrationTests/QuestionClipboardAnswerTests.cs)).
+
+**Cancel clipboard answer** preserves the prior manual draft and leaves the question unanswered. Manual typing retires the capture without overwriting the new typing.
+Permission loss, expiry, stale/replaced question or unavailable private presentation refuses the candidate; start a fresh deliberate review. Clipboard drafts cannot use **Save draft** before submission ([native answer state](../src/Kora/NativeQuestionViewModel.cs)).
+
+This shortcut is unavailable for choices, approvals, authentication, permission, consent and security questions. It is not clipboard explanation, source grounding, polling, automatic paste/answer or a new clipboard archive. Existing manual OS paste and source-copy restrictions are unchanged ([scope](../Design/Interaction_Fallback.md#delivered-ordinary-clarification-clipboard-answer)).
+
 ### Local clipboard preview
 
 The separate [clipboard preview](commands.md#explicit-local-clipboard-preview)
@@ -1096,6 +1183,19 @@ with the original Markdown, whitespace and line breaks. It is not rich HTML
 copy. Copying discloses the text to other applications and possibly clipboard
 history/sync. No page can initiate copy, fetch images, follow external links,
 approve an operation or capture model context.
+
+When the separately qualified pipe-table profile is available, Details exposes
+bounded read-only native tables to accessibility as tables. Use arrow keys for
+header/cell navigation, Home/End across a row and Ctrl+Home/End for the first
+header/last cell. Cells name the exact header, row/column and complete value;
+empty cells remain explicit. Source and Find still address the same immutable
+result. Tables do not enable editing, automatic copy, model input or network.
+The subset permits one header row, at most 32 total rows and 8 columns per table,
+128 cells across the document and 2,048 UTF-8 bytes per semantic cell, without
+merged/spanning cells. Unsupported/oversize tables retain labelled complete-source fallback. The profile
+remains unavailable by default; automated tests do not qualify installed
+screen readers, DPI or high contrast
+([supported subset and evidence](../Design/Information_Display.md#document-local-heading-and-final-table-interaction)).
 
 The native-text-v1 source limit is **256 KiB UTF-8**, with **512 blocks**,
 **4,096 nodes**, **32 nesting levels**, and **8 open viewers**. Unsupported

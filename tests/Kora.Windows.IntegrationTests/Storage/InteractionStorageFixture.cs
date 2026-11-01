@@ -5,6 +5,7 @@ using Kora.Core.Authorization;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
+using Kora.Core.Storage;
 using Kora.Windows.Storage;
 
 using Microsoft.Data.Sqlite;
@@ -61,9 +62,10 @@ internal sealed class InteractionStorageFixture : IDisposable
         await PublishAsync();
     }
 
-    internal void Reopen(IHostInteractionTransactionCheckpoint? checkpoint = null, AuditRetentionPolicy? auditPolicy = null)
+    internal void Reopen(IHostInteractionTransactionCheckpoint? checkpoint = null, AuditRetentionPolicy? auditPolicy = null,
+        SessionRetentionPolicy? sessionRetentionPolicy = null)
     {
-        Store = new(Paths, Tasks, Time, checkpoint, auditPolicy: auditPolicy);
+        Store = new(Paths, Tasks, Time, checkpoint, auditPolicy: auditPolicy, sessionRetentionPolicy: sessionRetentionPolicy);
         Questions = new(Store, Time);
         Authorization = new(Store, Time);
     }
@@ -182,7 +184,15 @@ internal sealed class InteractionStorageFixture : IDisposable
     {
         if (Count("session_permission") != 0 || Count("session_admissions") != 0)
         { throw new InvalidOperationException("A legacy fixture must not discard current session permission authority."); }
+        DropEmptyAnswerReviewSchemaForLegacy();
         Mutate("DROP TABLE session_admissions; DROP TABLE session_permission;");
+    }
+
+    internal void DropEmptyAnswerReviewSchemaForLegacy()
+    {
+        if (Count("conversation_answer_reviews") != 0)
+        { throw new InvalidOperationException("A legacy fixture must not discard current answer-review authority."); }
+        Mutate("DROP TABLE conversation_answer_reviews;");
     }
 
     internal static HostRequest NewRequest(HostId<SessionIdentity>? session = null,

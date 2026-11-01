@@ -177,7 +177,8 @@ public sealed partial class AppearanceConfigurationService(
                 StaleProposal(logger, AppearanceOptionRegistry.Get(proposal.Option).Id, proposal.Revision);
                 return new(AppearanceApplyOutcome.Stale, Get(proposal.Option), "Appearance changed. Inspect the current value and submit a new proposal.");
             }
-            if (values[proposal.Option] == proposal.Value)
+            if (values[proposal.Option] == proposal.Value
+                && (!proposal.RestoreDefault || !savedOptions.Contains(proposal.Option)))
             {
                 return new(AppearanceApplyOutcome.Unchanged, Get(proposal.Option));
             }
@@ -185,6 +186,11 @@ public sealed partial class AppearanceConfigurationService(
             {
                 return ApplyReaderScale(proposal, cancellationToken);
             }
+            var before = Get(proposal.Option);
+            var registered = Kora.Core.Configuration.RegisteredSettings.RegisteredSettingRegistry.Settings
+                .Any(item => string.Equals(item.Id, before.Descriptor.Id, StringComparison.Ordinal));
+            if (registered && !MatchesRegistered(before))
+            { throw new InvalidOperationException("Saved appearance changed. Refresh before a new proposal."); }
             var audit = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.ConfigurationWrite,
                 AppearanceOptionRegistry.Get(proposal.Option).AuditAction, SecurityAuditOutcome.Requested,
                 proposal.Initiator, "preferences.device-local");
@@ -193,6 +199,7 @@ public sealed partial class AppearanceConfigurationService(
                 : HostActivity.BeginRoot(HostRequest.Create(proposal.Initiator == SecurityAuditInitiator.VoiceCommand
                     ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi), HostActivityLayer.Application, HostOperation.Storage);
             if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.RequestedAuditStarted); }
+            UndoChanged?.Invoke(null);
             auditLog.Write(audit);
             if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.RequestedAuditReturned); }
             try
@@ -200,7 +207,10 @@ public sealed partial class AppearanceConfigurationService(
                 cancellationToken.ThrowIfCancellationRequested();
                 RequireEligibility(proposal);
                 if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.PreferenceWriteStarted); }
-                save[proposal.Option](proposal.Value);
+                if (proposal.RestoreDefault) { preferences.ResetRegisteredOption(proposal.Option); }
+                else { save[proposal.Option](proposal.Value); }
+                if (registered && ReadRegistered(proposal.Option) != (proposal.RestoreDefault ? null : proposal.Value))
+                { throw new InvalidDataException("Appearance readback does not match the exact preference."); }
                 if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.PreferenceWriteReturned); }
             }
             catch (OperationCanceledException)
@@ -215,16 +225,17 @@ public sealed partial class AppearanceConfigurationService(
                 auditLog.Write(audit.WithOutcome(SecurityAuditOutcome.Denied, "appearance-admission-changed"));
                 throw;
             }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
             {
                 activity.Complete(HostOperationOutcome.Failed);
                 auditLog.Write(audit.WithOutcome(SecurityAuditOutcome.Failed,
-                    exception is IOException ? "io-error" : "access-denied"));
+                    exception is InvalidDataException ? "invalid-data" : exception is IOException ? "io-error" : "access-denied"));
                 SaveFailed(logger, AppearanceOptionRegistry.Get(proposal.Option).Id, exception);
                 return new(AppearanceApplyOutcome.Failed, Get(proposal.Option), exception.Message);
             }
             values[proposal.Option] = proposal.Value;
-            savedOptions.Add(proposal.Option);
+            if (proposal.RestoreDefault) { savedOptions.Remove(proposal.Option); }
+            else { savedOptions.Add(proposal.Option); }
             revision++;
             if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.TerminalAuditStarted); }
             auditLog.Write(audit.WithOutcome(SecurityAuditOutcome.Succeeded));
@@ -232,6 +243,7 @@ public sealed partial class AppearanceConfigurationService(
             activity.Complete(HostOperationOutcome.Completed);
             if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.PublicationStarted); }
             Publish();
+            if (registered) { RecordUndo(before); }
             if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.PublicationReturned); }
             if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.ApplyReturning); }
             return new(AppearanceApplyOutcome.Applied, Get(proposal.Option));
@@ -240,6 +252,7 @@ public sealed partial class AppearanceConfigurationService(
 
     private AppearanceApplyResult ApplyReaderScale(AppearanceProposal proposal, CancellationToken token)
     {
+        var before = Get(proposal.Option);
         using var activity = HostActivity.BeginOperation(HostActivityLayer.Application, HostOperation.Storage,
             proposal.OriginalOrigin!.Value);
         var audit = new SecurityAuditEvent(activity.Request.RequestId.Value,
@@ -247,13 +260,15 @@ public sealed partial class AppearanceConfigurationService(
             SecurityAuditOutcome.Requested, proposal.Initiator, "preferences.device-local");
         try
         {
+            UndoChanged?.Invoke(null);
             auditLog.Write(audit);
             token.ThrowIfCancellationRequested();
             ValidateReaderAdmission(proposal.Initiator, proposal.OriginalOrigin, proposal.RemainsEligible);
             EnsureReaderState();
             preferences.BeginReaderTextScaleWrite();
-            preferences.SaveReaderTextScalePercent(proposal.Value.GetNumber());
-            if (preferences.ReadBackReaderTextScalePercent() != proposal.Value.GetNumber())
+            if (proposal.RestoreDefault) { preferences.ResetRegisteredOption(proposal.Option); }
+            else { preferences.SaveReaderTextScalePercent(proposal.Value.GetNumber()); }
+            if (preferences.ReadBackReaderTextScalePercent() != (proposal.RestoreDefault ? null : proposal.Value.GetNumber()))
             {
                 throw new InvalidDataException("Native reader text scale readback did not match the requested percentage.");
             }
@@ -275,10 +290,12 @@ public sealed partial class AppearanceConfigurationService(
             throw;
         }
         values[proposal.Option] = proposal.Value;
-        savedOptions.Add(proposal.Option);
+        if (proposal.RestoreDefault) { savedOptions.Remove(proposal.Option); }
+        else { savedOptions.Add(proposal.Option); }
         revision++;
         activity.Complete(HostOperationOutcome.Completed);
         Publish();
+        RecordUndo(before);
         return new(AppearanceApplyOutcome.Applied, Get(proposal.Option));
     }
 

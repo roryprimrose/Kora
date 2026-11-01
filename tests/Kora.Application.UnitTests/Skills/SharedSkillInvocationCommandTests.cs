@@ -14,6 +14,10 @@ public sealed class SharedSkillInvocationCommandTests
     [InlineData("tool skill second address https://second.example/", "SecondAddress")]
     [InlineData("Kora, tool skill second address https://second.example/", "SecondAddress")]
     [InlineData("tool skill clear second address", "SecondAddress")]
+    [InlineData("tool skill mcp options", "McpOptions")]
+    [InlineData("tool skill mcp server exact-id", "McpServer")]
+    [InlineData("tool skill mcp account Exact account", "McpAccount")]
+    [InlineData("Kora, tool skill mcp arguments {\"query\":\"reference\"}", "McpArguments")]
     public void ToolCapableCommandsAreExplicitlyDistinct(string input, string action)
     {
         var command = SharedSkillInvocationCommand.Parse(input, "Kora")!;
@@ -49,6 +53,7 @@ public sealed class SharedSkillInvocationCommandTests
     [InlineData("shared skill close", "Close")]
     [InlineData("shared skill run script", "Invalid")]
     [InlineData("shared skill review tool revision", "Invalid")]
+    [InlineData("shared skill mcp options", "Invalid")]
     public void OnlyExactHostOwnedCommandsAreSelected(string input, string? expected) =>
         SharedSkillInvocationCommand.Parse(input, "Kora")?.Action.Should().Be(expected);
 }

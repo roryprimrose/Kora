@@ -85,6 +85,24 @@ Silence, cancellation, failure, changed settings, lost foreground or changed pri
 Automatic replies remain unavailable if the saved preference or required audit is unconfirmed; inspect saved state and audit before recovery. Audio and raw transcripts are not saved or logged ([storage](../src/Kora.Application/Configuration/LocalConversationalReplyPreferences.cs)).
 This feature does not enable ambient name listening, capture during speech playback, barge-in, a new speech provider or unqualified hardware/acoustic profiles ([scope and qualification](../Design/Interaction_And_Sessions.md#opt-in-exact-playback-conversational-replies)).
 
+## Independent ordinary conversations
+
+In Settings, **Independent ordinary conversations** lets you select a desired future maximum of **1** or **2** (default **2**), choose **Review maximum**, inspect the current/proposed values and shared device-local scope, then **Confirm maximum** or **Cancel review**.
+Refresh is in the card's top-right cog menu, named **Ordinary conversation execution maximum actions** for accessibility. Its **Refresh ordinary conversation execution maximum** action keeps the same private-host admission as Review; an unavailable preference leaves the controls disabled. Opening the menu changes no preference. Reviewing or saving starts no work and cancels no work ([shared preference workflow](../src/Kora.Application/Configuration/ConversationExecutionConfigurationService.cs)).
+
+Equivalent original typed or activated commands are `get conversations.execution-maximum`, `review conversations.execution-maximum to 1` (or `2`), `confirm conversations.execution-maximum`, and `cancel conversations.execution-maximum`.
+Confirmation must use the original review's channel and current private host admission; call restrictions still apply. Assistant answers cannot confirm this preference ([command route](../src/Kora.Application/ViewModels/MainViewModel.ConversationExecution.cs)).
+
+This is **desired demand, not qualified effective capacity**. A saved two does not make an unavailable provider ready or prove independent transports, account capacity or hardware readiness.
+Each explicitly submitted Active conversation still requires its own current host/provider/resource admission. Unknown resource costs stay exclusive; the production composition does not supply two-transport qualification ([resource contract](../Design/Work_Management.md#ordinary-session-resource-allocation-implementation)).
+
+Submit an original request explicitly in each independent Active session. Its running-work panel reports factual host waiting/running status, including the last resource check's configured/captured maximum, qualified/effective ceiling, lease/wait counts and blocker.
+These are admission observations, not model text or completion estimates. **Cancel** addresses only that displayed request; **Cancelling** is not terminal until its actual provider resources join ([conversation status](../src/Kora/SessionsViewModel.ConversationCancellation.cs)).
+
+A lower maximum never cancels executing work. Waiting requests use the smaller of their captured maximum and the current confirmed maximum; raising the setting does not expand old captured budgets.
+An earlier reservation cannot bypass that maximum if another session started first. Cancelling work still counts as executing until its provider physically joins.
+There remains one executing turn per session, with the existing pending FIFO unchanged. Failed or unconfirmed preference evidence holds new admission until explicit inspection/refresh, without releasing active resources ([allocator](../src/Kora.Application/Dependencies/RuntimeResourceAllocator.cs)).
+
 ## Local records and privacy
 
 Kora keeps task records, diagnostic records and security records on this device.
@@ -100,6 +118,18 @@ session records are not automatically deleted. A storage limit is not
 confirmation that records have been removed.
 
 ## Preference Changes and Recovery
+
+### Undo the last registered settings change
+
+At the top of Settings, choose **Undo the last settings change**. Inspect the exact current and previous preference, saved/default source and shared device-local scope. Separately choose **Confirm settings undo**, or **Cancel settings undo** to write nothing. Review lasts 60 seconds ([shared undo workflow](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
+
+**Confirm settings undo** and **Cancel settings undo** are disabled and skipped by Tab navigation until a current review can be confirmed ([native controls](../src/Kora/SettingsWindow.axaml), [keyboard regression](../tests/Kora.Windows.IntegrationTests/BoundedSurfaceAccessibilityTests.cs)).
+
+There is only one candidate from this run: the last confirmed registered appearance/presence, summary-cap, Kora-volume or ordinary response-mode change. Restoring a default removes the saved override; summary limits restore the exact previous pair. Undo is unavailable after restart or privacy/lifecycle closure, and cannot overwrite externally changed or unconfirmed preferences. A successful undo is a new audited save, consumes that candidate and offers no redo ([registered settings](../src/Kora.Core/Configuration/RegisteredSettings/RegisteredSettingRegistry.cs), [undo validation](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
+
+For summary caps, Kora volume and ordinary response mode, type **undo the last settings change**, then separately **confirm settings undo** or **cancel settings undo**. Activated voice uses the current name, for example **"Kora, undo the last settings change"**. Appearance requires a new native Settings review. Voice requests blocked by call policy cannot become permitted by clicking Confirm later ([command route](../src/Kora.Application/ViewModels/MainViewModel.RegisteredSettingUndo.cs)).
+
+Only future eligible output changes. Undo does not replay speech, call an AI, restore microphone consent, listening, permissions or grants, change providers/devices/retention/security, or reverse external actions. If a save is unconfirmed, inspect the saved preference and audit before explicit recovery; Kora does not guess whether to retry or roll back ([scope and recovery](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
 
 Settings uses plain-language labels and short status summaries. For example,
 **Logging** describes diagnostic and security record storage without naming the
@@ -247,9 +277,13 @@ These are **Sessions** controls, not global preferences:
 |---|---|
 | Refresh retention / Read exact ID retention | Recorded activity/due/kept/purged/hold metadata only; never resumes, renews activity or cleans up |
 | Keep this session / Use ordinary retention | Exact ID/generation/date review followed by separate native confirmation; ordinary retention retains original due dates |
+| Preview confirmed policy for this conversation / Confirm apply-now and disclosed action | One ordinary idle conversation; old/new UTC deadlines and immediate action review, then separate native confirmation |
 | Attach / inspect / replace / remove retained attachment | One immutable UTF-8 text/Markdown file per session, 256 KiB including BOM, sixteen retained profile files, no eviction |
 
 Keep stops automatic archive/delete only, not execution or egress checks.
+For apply-now, first refresh confirmed session preferences in Settings, then select one conversation (or read its exact ID retention metadata). Preview is read-only. Confirmation changes only that conversation's policy/deadlines from its original activity; any reviewed due archive or deletion executes now, not on an unreviewed later tick ([single-conversation workflow](../src/Kora/SessionsViewModel.RetentionApply.cs)).
+
+Kept, removed, live/queued/question/Unknown/unavailable work, held unsent input or uncertain resource/copy state cannot be confirmed. Changed policy, source, inventory, selection, private ownership/call state, expiry or due-action cutoff requires a fresh native review. Cancel makes no changes. Unknown commit/copy completion needs durable inspection, not retry or rollback assumptions. Perpetual grants, audit/diagnostics and original/external files have independent lifetimes ([scope and recovery](../Design/User_Configuration.md#explicit-single-conversation-apply-now)).
 When ordinary inactivity deletion becomes due, completion includes rebuilding
 owned SQLite content previously freed by older revisions and clearing its
 committed journal. A storage/copy-verification failure after revocation leaves
@@ -262,8 +296,8 @@ has a new source identity; uncertified committed copies remain held.
 See [Sessions and lifecycle](windows-and-tray.md#minimal-durable-sessions),
 [attachment commands](commands.md#attach-one-text-file-to-an-exact-session-native-only)
 and [retained metadata](windows-and-tray.md#retained-session-attachments-metadata-only).
-No typed/voice/model attachment capture, global keep, apply-now or forced cleanup
-is delivered.
+No typed/voice/model attachment capture, global keep, bulk apply-now or forced cleanup
+is delivered; [single-conversation apply-now](#exact-existing-session-controls) is a separate native review.
 
 ## Local speech text
 
@@ -280,13 +314,14 @@ Exact typed or current-name activated commands are `list speech text settings`,
 and `reset display.speech-text`. These only inspect/save the device-local
 preference; they never speak, replay or open the microphone.
 
-**Current sentence (requires qualified alignment)** is also an explicit native
+**Current sentence (unavailable in this build)** is also an explicit native
 choice in Speech and audio settings. It requests the exact source sentence
 reached by actual playback, not a timing estimate or rewritten text. This build
 has no qualified Windows voice/rate/output profile for sentence alignment, so
 sentence captions remain **unavailable**; ordinary speech and the complete visual
 answer remain available. Missing or invalid alignment never becomes an utterance
-caption. Saving this choice does not test your device or enable a provider.
+caption. Saving this choice does not test your device or enable a provider
+([native choice](../src/Kora.Application/Configuration/SpeechTextChoice.cs), [production alignment gate](../src/Kora.Windows/Audio/WindowsTextToSpeechService.SentenceAlignment.cs)).
 
 Captions clear immediately on interruption, replacement, lock,
 ownership/privacy/call change or unconfirmed configuration. Corrupt or pending
@@ -311,8 +346,9 @@ resets only that option. These device-local options do not enable captions:
 Each has exact `get/status <id>`, `set <id> to <value>` and `reset <id>`.
 `list speech text settings` discovers the persisted options; exact pin status
 shows its run-only scope. Invalid saved options are rejected, not defaulted.
-Sentence alignment remains unavailable because playback supplies no admitted
-sentence boundaries. Broad natural caption commands and rich browser/HTML/
+Sentence alignment has a [native callback implementation](../src/Kora.Windows/Audio/WindowsTextToSpeechService.SentenceAlignment.cs), but no qualified production Windows profile. Kokoro and legacy providers do not attest alignment; there is no timing, utterance or rewritten-text fallback.
+Recover ordinary utterance captions by explicitly selecting **Show spoken words** for future playback; changing modes never replays retired text ([shared consumer](../src/Kora.Application/ViewModels/MainViewModel.SpeechText.cs)).
+Broad natural caption commands and rich browser/HTML/
 diagram rendering remain unimplemented.
 
 **Caption screen — until Kora restarts** is available in **Settings > Responses** and the caption. Choose a connected screen and press **Use selected display**; the section's top-right cog offers **Use main screen** to reset to the current main screen.
@@ -1140,12 +1176,13 @@ dependency readiness. Refresh does not enable listening.
 ## Optional speech-input data
 
 **Speech & audio → Optional speech-input components** manages only exact
-host-catalogued optional model data. This release has no qualified optional
-input offers, so the panel reports that state and cannot download or claim
-installation success ([catalogue](../src/Kora.Core/Dependencies/SpeechComponentCatalogue.cs),
+host-catalogued optional model data. The existing **Hands-free CPU assets**
+offer supports preparation and removal, not qualified listening. Preparing it
+does not make it a selectable speech-input profile
+([catalogue](../src/Kora.Windows/Audio/HandsFreeSetupCatalogue.cs),
 [Settings panel](../src/Kora/SettingsWindow.SpeechComponents.cs)).
 
-For an admitted future offer, **Inspect** reports installed bytes, integrity,
+**Inspect** reports installed bytes, integrity,
 compatibility, qualification and ownership separately. **Prepare / retry**,
 **Verify** and **Remove** require a fresh complete review of the exact model,
 sources, licence, download/storage/resource costs and operation before approval.
@@ -1169,6 +1206,30 @@ exact managed model data after exclusive quiescence; saved selections, personal
 profiles, calibration and secrets are outside this operation. Burn uses the
 same lifecycle with individually unchecked choices; skipping optional work
 keeps a valid Kora-only installation ([installer](../installer/README.md#optional-local-speech-component-lifecycle)).
+
+For **Remove**, choose that one exact offer and read the complete native review,
+including actual remaining file names/bytes/digests, managed ownership, model/source
+identity, current asset consumers, saved/desired/effective input and resource impact.
+Read the independent privacy/consent exclusions, then select **Confirm exact model-data
+removal** or **Decline**. Inspection/preparation alone never confirms deletion.
+Unknown/foreign inventory cannot be confirmed
+([review](../src/Kora.Application/Dependencies/SpeechComponentSetupPlan.cs)).
+
+Kora excludes new asset consumers, retires only its owned work using these bytes
+and waits for actual joins before deleting the exact inventoried files.
+Changes to consumers, native identity, selection, private/owner/call state or the
+reviewed files invalidate confirmation. Typed or spoken profile switching is not
+destructive removal consent; this operation requires the live native Settings host
+([admission](../src/Kora.Application/ViewModels/MainViewModel.SpeechComponents.cs),
+[runtime](../src/Kora.Windows/Audio/HandsFreeSetupRuntime.cs)).
+
+Failure/cancellation leaves affected assets **Unavailable** and, while disclosure
+remains permitted, shows the exact observed remainder. Inspect again and explicitly
+review a new removal; Kora does not claim rollback, discarded bytes or physical disk
+release, automatically retry/download, or silently select Windows/another model.
+Enablement/acquisition stay separate. This does not delete biometric/learning data,
+history or user originals, or uninstall Kora/native code, Windows, .NET, VC++ or shared
+runtimes ([bounded storage](../src/Kora.Windows/Dependencies/WindowsSpeechComponentStore.cs)).
 
 ## Responses
 
@@ -1299,7 +1360,7 @@ a new UI request. Stop speech, disable listening, cancel and read-only status
 remain usable. Protected calls preserve applicable grants and session action
 levels. **Allow spoken approvals during calls** defaults Off and requires
 fresh native review and explicit downgrade confirmation before enabling.
-Temporary overrides and speak-once exceptions remain unavailable. This is bounded manual behavior, not
+Call-wide temporary overrides remain unavailable. A separate [exact current-response speak-once review](responses-and-calls.md#speak-one-current-response-during-call-protection) changes no preference or general protection. This is bounded behavior, not
 full call/provider/native/audio acceptance.
 
 Use [session permission controls](session-permission-levels.md) to review and

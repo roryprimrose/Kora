@@ -11,7 +11,9 @@ namespace Kora;
 internal sealed partial class OwnedSkillEditorController(
     MainViewModel main, OwnedSkillSaveWorkflow workflow, OwnedSkillControlAdmission admission,
     Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<OwnedSkillEditorController> logger,
-    OwnedSkillInvocationController? invocation = null, OwnedSkillGuidanceRefinementService? refinement = null) : IAsyncDisposable
+    OwnedSkillInvocationController? invocation = null, OwnedSkillGuidanceRefinementService? refinement = null,
+    ObservationWorkflowController? observations = null, OwnedSkillDeletionWorkflow? deletion = null,
+    OwnedSkillFixtureWorkflow? fixtures = null) : IAsyncDisposable
 {
     private OwnedSkillEditorWindow? window;
     private OwnedSkillAuthoringAuthority? original;
@@ -24,6 +26,10 @@ internal sealed partial class OwnedSkillEditorController(
     private bool uncertain;
     private bool busy;
     private OwnedDeclarativeSkillDocument? validated;
+
+#pragma warning disable VSTHRD003 // Retain the actual controller-owned operation through native cancellation and terminal completion.
+    internal Task ActiveOperation => work;
+#pragma warning restore VSTHRD003
 
     internal void Bind()
     {
@@ -50,6 +56,7 @@ internal sealed partial class OwnedSkillEditorController(
         generatedBase = null;
         lifetime?.Cancel();
         CancelRefinement();
+        CancelFixture();
         invocation?.Retire();
         window?.RetireReview();
     }
@@ -59,9 +66,16 @@ internal sealed partial class OwnedSkillEditorController(
 
     private async Task Handle(OwnedSkillAuthoringCommand command, OwnedSkillAuthoringAuthority authority)
     {
-        if (command.Operation is "cancel-refinement")
+        if (command.Operation is "workflow")
         {
-            CancelRefinement();
+            if (observations is null) { throw new InvalidOperationException("Native observation workflows are unavailable in this host."); }
+            await observations.Handle(command.Literal!, authority);
+            return;
+        }
+        if (command.Operation is "cancel-refinement" or "cancel-test")
+        {
+            if (command.Operation is "cancel-test") { CancelFixture(); }
+            else { CancelRefinement(); }
 #pragma warning disable VSTHRD003 // Keep the owned model operation until its actual resources terminate.
             await work;
 #pragma warning restore VSTHRD003
@@ -92,15 +106,24 @@ internal sealed partial class OwnedSkillEditorController(
                 validated = null;
                 generatedBase = null;
                 CancelRefinement();
+                CancelFixture();
                 invocation?.Retire();
                 window?.RetireReview();
             };
             window.CritiqueChanged += () =>
             {
                 CancelRefinement();
+                CancelFixture();
                 var captured = main.CaptureInstructionRefinementEligibility();
                 critiqueAuthority = new(RequestOrigin.LocalUi, () => Eligible() && captured());
             };
+            window.FixtureChanged += () =>
+            {
+                CancelFixture();
+                var captured = main.CaptureOwnedSkillFixtureEligibility();
+                fixtureAuthority = new(RequestOrigin.LocalUi, () => Eligible() && captured());
+            };
+            window.Saved.SelectionChanged += (_, _) => CancelFixture();
             window.Closing += OnClosing;
             window.Show();
         }
@@ -124,6 +147,8 @@ internal sealed partial class OwnedSkillEditorController(
     private void Start(OwnedSkillAuthoringCommand command, OwnedSkillAuthoringAuthority authority)
     {
         if (command.Operation is "cancel-refinement") { CancelRefinement(); return; }
+        if (command.Operation is "cancel-test")
+        { CancelFixture(); window?.Report("SIMULATED cancellation requested. Ownership is retained until actual model work joins."); return; }
         if (command.Operation is "cancel") { Retire(); return; }
         if (busy) { window?.Report("Wait for owned skill I/O to terminate; the draft remains owned."); return; }
         work = Run(command, authority);
@@ -149,6 +174,8 @@ internal sealed partial class OwnedSkillEditorController(
                     opened.Tool.SelectedIndex = 0;
                     opened.InputFormat.SelectedIndex = 0;
                     opened.Critique.Text = "";
+                    opened.Fixture.Text = "";
+                    fixtureAuthority = null;
                     source = null;
                     initialAuthority = null;
                     generatedBase = null;
@@ -176,6 +203,12 @@ internal sealed partial class OwnedSkillEditorController(
                     critiqueAuthority = authority;
                     break;
                 case "refine": await ProposeGuidance(opened, authority, GuidanceOperation.Refine, lifetime.Token); break;
+                case "fixture":
+                    CancelFixture();
+                    opened.Fixture.Text = command.Literal;
+                    fixtureAuthority = authority;
+                    break;
+                case "test": await TestFixture(opened, authority, lifetime.Token); break;
                 case "inputs":
                     opened.InputFormat.SelectedIndex = command.Literal switch
                     {
@@ -202,6 +235,31 @@ internal sealed partial class OwnedSkillEditorController(
                         + ". No publication, enablement, tool permission or invocation.");
                     break;
                 case "save": await Save(); break;
+                case "delete":
+                    if (deletion is null) { throw new InvalidOperationException("Owned skill source deletion is unavailable in this host."); }
+                    if (uncertain) { throw new InvalidOperationException("A source mutation is unconfirmed. Inspect/recover the exact inventory; do not retry deletion."); }
+                    var deletionSelection = opened.Saved.SelectedItem as OwnedDeclarativeSkillSnapshot;
+                    var deletionId = command.Id ?? deletionSelection?.Document.Id;
+                    var deletionVersion = command.Version ?? deletionSelection?.Document.Version;
+                    if (deletionId is null || deletionVersion is null)
+                    { throw new InvalidOperationException("Select one exact saved owned ID/version before Delete."); }
+                    if (!await DiscardOrSave()) { return; }
+                    var deletionDraft = Interlocked.Read(ref generation);
+                    bool ExactDeletion() => Eligible() && authority.IsCurrent() && deletionDraft == Interlocked.Read(ref generation)
+                        && ReferenceEquals(opened.Saved.SelectedItem, deletionSelection);
+                    if (await deletion.Delete(deletionId, deletionVersion, authority, ExactDeletion, opened, lifetime.Token))
+                    {
+                        opened.Saved.ItemsSource = null;
+                        if (string.Equals(source?.Document.Id, deletionId, StringComparison.Ordinal)
+                            && string.Equals(source?.Document.Version, deletionVersion, StringComparison.Ordinal))
+                        {
+                            // Retained text must keep its deleted-source binding until explicit Create/Reopen.
+                            validated = null;
+                            CancelRefinement();
+                        }
+                        opened.Report("The exact two-file owned source was deleted and absence read back. List again. Retained text keeps its deleted-source binding; Create a new draft or explicitly Reopen before model use. Future source-dependent use requires a present exact source; admitted immutable tasks and independent grants/history are unchanged.");
+                    }
+                    break;
                 case "list":
                     var rows = await workflow.List(original!, lifetime.Token);
                     if (Eligible()) { opened.Saved.ItemsSource = rows; opened.Report("Saved immutable inactive versions. Select one and Reopen or Use; nothing is enabled or invoked."); }
@@ -237,6 +295,8 @@ internal sealed partial class OwnedSkillEditorController(
                     if (!await DiscardOrSave()) { return; }
                     var saved = await workflow.Read(id, version, original!, lifetime.Token)
                         ?? throw new InvalidDataException("The exact saved skill version is absent.");
+                    if (saved.Document.ObservationWorkflow is not null)
+                    { throw new InvalidOperationException("Use the separate owned skill workflow editor for this declarative observation source; its steps cannot become literal guidance."); }
                     if (!Eligible()) { return; }
                     ShowSaved(opened, saved);
                     break;
@@ -245,9 +305,11 @@ internal sealed partial class OwnedSkillEditorController(
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            if (exception is OwnedSkillPublicationUnconfirmedException) { uncertain = true; }
+            if (exception is OwnedSkillPublicationUnconfirmedException or OwnedSkillDeletionUnconfirmedException) { uncertain = true; }
             AuthoringFailed(logger, exception.GetType().Name);
-            opened.Report(exception is OwnedSkillPublicationUnconfirmedException
+            opened.Report(exception is OwnedSkillDeletionUnconfirmedException
+                ? "Deletion may have occurred. Mutation is held. Do not retry or recreate this source. Inspect the exact remaining inventory and audit; no rollback, task cancellation or confirmed deletion is claimed."
+                : exception is OwnedSkillPublicationUnconfirmedException
                 ? "Publication may have occurred. Do not retry Save. List/Reopen the exact ID/version to reconcile; no rollback or invocation is claimed."
                 : exception is OperationCanceledException ? "Cancelled. Owned I/O has joined; no saved result is claimed."
                 : "Skill authoring failed: " + exception.Message);
@@ -285,6 +347,8 @@ internal sealed partial class OwnedSkillEditorController(
         opened.Tool.SelectedIndex = saved.Document.Tool == OwnedSkillToolSelection.WebPageGet ? 1 : 0;
         opened.InputFormat.SelectedIndex = saved.Document.InputTemplate is null ? 0 : 1;
         opened.Critique.Text = "";
+        opened.Fixture.Text = "";
+        fixtureAuthority = null;
         validated = null;
         dirty = false;
         uncertain = false;
@@ -321,6 +385,7 @@ internal sealed partial class OwnedSkillEditorController(
 
     internal async Task<bool> PrepareClose()
     {
+        if (observations is not null && !await observations.PrepareClose()) { return false; }
         if (invocation is not null) { await invocation.CloseAndWait(); }
         if (window is null) { return true; }
         if (busy)
@@ -361,7 +426,9 @@ internal sealed partial class OwnedSkillEditorController(
         main.PropertyChanged -= OnMainChanged;
         main.BindOwnedSkillAuthoring(null, null);
         if (invocation is not null) { await invocation.DisposeAsync(); }
+        if (observations is not null) { await observations.DisposeAsync(); }
         await admission.DisposeAsync();
         lifetime?.Dispose();
+        lifetime = null;
     }
 }

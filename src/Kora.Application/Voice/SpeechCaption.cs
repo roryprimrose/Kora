@@ -101,17 +101,25 @@ internal sealed class SpeechCaption(TimeProvider? timeProvider = null)
                     return null;
                 }
                 if (!sentenceMap.Matches(sentence)
-                    || lastSentence is { } previous && (sentence.Index < previous.Index
+                    || sentence.Source.Playback != new SpeechPlaybackToken(playbackId, frame.Generation))
+                {
+                    Retire();
+                    return null;
+                }
+                var range = sentenceMap.Resolve(sentence.Source)!;
+                var previousRange = lastSentence is { } prior ? sentenceMap.Resolve(prior.Source) : null;
+                if (lastSentence is { } previous && (range.Index < previousRange!.Index
                         || sentence.PlaybackPosition < previous.PlaybackPosition
                         || sentence.AudioDuration != previous.AudioDuration
-                        || sentence.Index == previous.Index && sentence.AudioStart != previous.AudioStart
-                        || sentence.Index > previous.Index && sentence.AudioStart <= previous.AudioStart))
+                        || range.Index == previousRange.Index && sentence.Source != previous.Source
+                        || range.Index > previousRange.Index
+                            && sentence.Source.AudioPosition <= previous.Source.AudioPosition))
                 {
                     Retire();
                     return null;
                 }
                 lastSentence = sentence;
-                observedText = sentenceMap.GetText(sentenceMap.Sentences[sentence.Index]);
+                observedText = sentenceMap.GetText(range);
             }
             else { observedText = text; }
             observedPlaying = true;

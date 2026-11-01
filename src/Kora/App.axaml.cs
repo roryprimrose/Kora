@@ -117,6 +117,9 @@ public sealed partial class App : Avalonia.Application
                 viewModel,
                 Services.GetRequiredService<ILogger<DocumentationWindowController>>(),
                 detailWindow);
+            viewModel.BindReviewedVoiceCommand(
+                Services.GetRequiredService<ILogger<Kora.Application.Voice.ReviewedVoiceCommandCapture>>(),
+                Services.GetRequiredService<TimeProvider>());
             responseWindow = new ResponseWindowController(
                 viewModel,
                 Services.GetRequiredService<ILogger<ResponseWindowController>>(), detailWindow);
@@ -130,6 +133,17 @@ public sealed partial class App : Avalonia.Application
                     Services.GetRequiredService<ILogger<Kora.Application.Interaction.HostQuestionVoiceReplyService>>()));
             nativeQuestions.BindWorkspace(Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>());
             nativeQuestions.BindPrivateRevision(() => Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>().ControlRevision);
+            nativeQuestions.BindClipboardAnswers(model => new QuestionClipboardAnswer(model,
+                Services.GetRequiredService<Kora.Core.Context.IPlainTextClipboardReader>(),
+                Services.GetRequiredService<Kora.Application.Context.ClipboardExplanationAdmission>(),
+                Services.GetRequiredService<Kora.Windows.Storage.WindowsSqliteHostInteractionStore>(),
+                viewModel.CaptureLocalFilePresentationEligibility, () => viewModel.CallObservation,
+                () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision,
+                () => Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>().ControlRevision,
+                Services.GetRequiredService<TimeProvider>(),
+                Services.GetRequiredService<ILogger<Kora.Tools.Clipboard.ClipboardSnapshotBroker>>(),
+                Services.GetRequiredService<ILogger<NativeQuestionViewModel>>(),
+                new NativeDetailRenderer(Services.GetRequiredService<ILogger<NativeDetailRenderer>>())));
             questionWindow = new QuestionWindowController(viewModel,
                 nativeQuestions,
                 Services.GetRequiredService<Kora.Application.Hosting.DurableVersionQuery>(),
@@ -165,6 +179,8 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredKeyedService<Kora.Application.Definitions.InstructionSaveWorkflow>(Kora.Core.Artifacts.ArtifactKind.Prompt),
                 Services.GetRequiredService<Kora.Application.Definitions.ProfileInstructionForkWorkflow>(),
                 refinement: Services.GetRequiredService<Kora.Application.Definitions.OwnedInstructionRefinementService>(),
+                saveQuestions: questionWindow,
+                profileOriginals: Services.GetRequiredService<Kora.Application.Definitions.ProfileInstructionEditorWorkflow>(),
                 dictation: viewModel.BindComposerDictation(Services.GetRequiredService<ILogger<Kora.Application.Voice.ComposerDictationService>>()));
             instructionEditor.Bind();
             customizations = new(viewModel,
@@ -175,7 +191,7 @@ public sealed partial class App : Avalonia.Application
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
                     && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired,
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision,
-                Services.GetRequiredService<ILogger<CustomizationWindowController>>());
+                Services.GetRequiredService<ILogger<CustomizationWindowController>>(), agentAuthoring!.Add);
             customizations.Bind();
             BindInstructionUse(viewModel);
             promptParameters = new(viewModel, Services.GetRequiredService<Kora.Core.Artifacts.ArtifactCatalogue>(),
@@ -256,7 +272,8 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<ScopedInstructionUseBroker>(),
                 Services.GetRequiredService<SessionInstructionScopeCommandService>(),
                 Services.GetRequiredService<SessionInstructionScopeBroker>(),
-                Services.GetRequiredService<Kora.Application.Dependencies.VerifiedLocalHandoffOperation>());
+                Services.GetRequiredService<Kora.Application.Dependencies.VerifiedLocalHandoffOperation>(),
+                Services.GetRequiredService<SessionRetentionApplyService>());
             sessionsWindow.Bind();
             sessionsWindow.CreateInteraction = (state, owner) =>
                 responseWindow.PrepareSessions(state, owner, sessionsWindow.Open,
@@ -308,6 +325,8 @@ public sealed partial class App : Avalonia.Application
             viewModel.BindSessionCommands(Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>(),
                 Services.GetRequiredService<SessionRequestCommandService>(),
                 Services.GetRequiredService<ConversationSearchCommandService>());
+            viewModel.BindRemainingWork(Services.GetRequiredService<SessionRemainingWorkCommandService>(),
+                Services.GetRequiredService<SessionConversationService>());
             viewModel.BindSpeechSummarySuggestions(Services.GetRequiredService<SessionConversationService>(),
                 Services.GetRequiredService<TimeProvider>());
             viewModel.BindSessionProviderProfiles(Services.GetRequiredService<Kora.Application.Configuration.SessionProviderProfileConfigurationService>());

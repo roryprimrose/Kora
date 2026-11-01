@@ -36,9 +36,10 @@ public sealed partial class SessionsConversationTests
         await HeadlessSession.RunAsync(async () =>
         {
             using var storage = new InteractionStorageFixture();
+            storage.Time.UseFrozenTimers = true;
             await storage.Tasks.InitializeAsync(storage.Token);
             await storage.Store.InitializeAsync(storage.Token);
-            using var native = new NativeUxFixtureSession(storage.Paths.LocalRoot);
+            using var native = new NativeUxFixtureSession(storage.Paths.LocalRoot, timeProvider: storage.Time);
             await native.InitializeAsync();
             await using var composition = new Composition(storage);
             using var questions = new NativeQuestionHost(storage.Store, storage.Time, NullLogger<NativeQuestionViewModel>.Instance);
@@ -53,7 +54,7 @@ public sealed partial class SessionsConversationTests
             var owner = new Window();
             owner.Show();
             using var lifecycle = new ApplicationLifecycleController(native.Main, composition.Conversation, native.Queue,
-                questions, new(storage.Tasks), renderer, () => owner);
+                questions, new(storage.Tasks), renderer, () => owner, storage.Time);
             var platform = new BundledNativePlatform
             { LockOutcome = nativeFailure ? FixedSessionEffectOutcome.Failed : FixedSessionEffectOutcome.RequestAccepted };
             var worker = new BundledNativeWorker();
@@ -132,9 +133,10 @@ public sealed partial class SessionsConversationTests
         await HeadlessSession.RunAsync(async () =>
         {
             using var storage = new InteractionStorageFixture();
+            storage.Time.UseFrozenTimers = true;
             await storage.Tasks.InitializeAsync(storage.Token);
             await storage.Store.InitializeAsync(storage.Token);
-            using var native = new NativeUxFixtureSession(storage.Paths.LocalRoot);
+            using var native = new NativeUxFixtureSession(storage.Paths.LocalRoot, timeProvider: storage.Time);
             await native.InitializeAsync();
             await using var composition = new Composition(storage);
             using var questions = new NativeQuestionHost(storage.Store, storage.Time, NullLogger<NativeQuestionViewModel>.Instance);
@@ -309,25 +311,28 @@ public sealed partial class SessionsConversationTests
     }
 
     [Theory]
-    [InlineData(FixedSessionAction.Lock, true, true, false)]
-    [InlineData(FixedSessionAction.Lock, false, false, false)]
-    [InlineData(FixedSessionAction.Shutdown, true, true, false)]
-    [InlineData(FixedSessionAction.Shutdown, true, true, true)]
-    [InlineData(FixedSessionAction.Shutdown, true, false, false)]
-    [InlineData(FixedSessionAction.Shutdown, false, false, false)]
-    [InlineData(FixedSessionAction.Restart, true, true, false)]
-    [InlineData(FixedSessionAction.Restart, true, true, true)]
-    [InlineData(FixedSessionAction.Restart, true, false, false)]
-    [InlineData(FixedSessionAction.Restart, false, false, false)]
+    [InlineData(FixedSessionAction.Lock, true, true, false, false)]
+    [InlineData(FixedSessionAction.Lock, false, false, false, false)]
+    [InlineData(FixedSessionAction.Shutdown, true, true, false, false)]
+    [InlineData(FixedSessionAction.Shutdown, true, true, true, false)]
+    [InlineData(FixedSessionAction.Shutdown, true, false, false, false)]
+    [InlineData(FixedSessionAction.Shutdown, false, false, false, false)]
+    [InlineData(FixedSessionAction.Restart, true, true, false, false)]
+    [InlineData(FixedSessionAction.Restart, true, true, true, false)]
+    [InlineData(FixedSessionAction.Restart, true, false, false, false)]
+    [InlineData(FixedSessionAction.Restart, false, false, false, false)]
+    [InlineData(FixedSessionAction.Shutdown, true, true, false, true)]
+    [InlineData(FixedSessionAction.Restart, true, true, false, true)]
     public async Task BundledNativeGrantAndDistinctPowerConsentReachRealWindowsBindingOnlyThroughJoinedHost(
-        FixedSessionAction action, bool grant, bool powerConsent, bool cancelCountdown)
+        FixedSessionAction action, bool grant, bool powerConsent, bool cancelCountdown, bool reviewTimeout)
     {
         await HeadlessSession.RunAsync(async () =>
         {
             using var storage = new InteractionStorageFixture();
+            storage.Time.UseFrozenTimers = true;
             await storage.Tasks.InitializeAsync(storage.Token);
             await storage.Store.InitializeAsync(storage.Token);
-            using var native = new NativeUxFixtureSession(storage.Paths.LocalRoot);
+            using var native = new NativeUxFixtureSession(storage.Paths.LocalRoot, timeProvider: storage.Time);
             await native.InitializeAsync();
             await using var composition = new Composition(storage);
             using var questionHost = new NativeQuestionHost(storage.Store, storage.Time, NullLogger<NativeQuestionViewModel>.Instance);
@@ -436,10 +441,20 @@ public sealed partial class SessionsConversationTests
                     {
                         if (await Task.WhenAny(powerQuestion.Task, running) == running) { await running; }
                         var question = await powerQuestion.Task.WaitAsync(storage.Token);
+                        clock.ReviewTimerCreated.Should().BeTrue();
                         worker.Calls.Should().Be(1);
                         platform.Requests.Should().BeEmpty();
                         var cancel = question.FindControl<Button>("CancelQuestion")!;
                         await BundledButtonEnabled(cancel).WaitAsync(storage.Token);
+                        if (reviewTimeout)
+                        {
+                            clock.Advance(TimeSpan.FromSeconds(59));
+                            running.IsCompleted.Should().BeFalse();
+                            clock.Advance(TimeSpan.FromSeconds(1));
+                            await ((Func<Task>)(async () => await running)).Should().ThrowAsync<OperationCanceledException>();
+                            platform.Requests.Should().BeEmpty();
+                            return;
+                        }
                         if (!powerConsent)
                         { cancel.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
                         else
@@ -489,33 +504,40 @@ public sealed partial class SessionsConversationTests
     private sealed class BundledCountdownClock(DateTimeOffset now) : TimeProvider
     {
         private DateTimeOffset instant = now;
-        private TimerCallback? callback;
-        private object? state;
-        private DateTimeOffset due;
+        private readonly List<CountdownTimer> timers = [];
         internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal Window? CountdownWindow { get; set; }
+        internal bool ReviewTimerCreated { get; private set; }
         public override DateTimeOffset GetUtcNow() => instant;
         public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
         {
-            dueTime.Should().Be(TimeSpan.FromSeconds(30));
-            this.callback = callback;
-            this.state = state;
-            due = instant + dueTime;
-            Started.SetResult();
-            return new CountdownTimer();
+            period.Should().Be(Timeout.InfiniteTimeSpan);
+            (dueTime == TimeSpan.FromSeconds(30) || dueTime == TimeSpan.FromMinutes(1)).Should().BeTrue();
+            var timer = new CountdownTimer(instant + dueTime, callback, state);
+            timers.Add(timer);
+            if (dueTime == TimeSpan.FromMinutes(1)) { ReviewTimerCreated = true; }
+            else { Started.SetResult(); }
+            return timer;
         }
         internal void Advance(TimeSpan age)
         {
             instant += age;
-            if (instant >= due) { callback!(state); }
+            foreach (var timer in timers.ToArray()) { timer.Fire(instant); }
         }
         internal void CancelCountdown() => CountdownWindow!.GetLogicalDescendants().OfType<Button>().Single()
             .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        private sealed class CountdownTimer : ITimer
+        private sealed class CountdownTimer(DateTimeOffset due, TimerCallback callback, object? state) : ITimer
         {
+            private bool disposed;
+            internal void Fire(DateTimeOffset instant)
+            {
+                if (disposed || instant < due) { return; }
+                disposed = true;
+                callback(state);
+            }
             public bool Change(TimeSpan dueTime, TimeSpan period) => throw new InvalidOperationException("Unexpected countdown reset.");
-            public void Dispose() { }
-            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+            public void Dispose() => disposed = true;
+            public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
         }
     }
 

@@ -194,6 +194,7 @@ public sealed partial class SpeechConfigurationService(
                 descriptor.AuditAction, SecurityAuditOutcome.Requested,
                 origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : proposal.Initiator,
                 "preferences.device-local");
+            UndoChanged?.Invoke(null);
             auditLog.Write(audit);
             SpeechApplyResult Reject(string reason, string recovery)
             {
@@ -221,10 +222,14 @@ public sealed partial class SpeechConfigurationService(
                         {
                             var limits = proposal.SummaryLimits
                                 ?? throw new InvalidOperationException("The proposal has no summary limits.");
-                            candidate = current with { SummaryLimits = limits, AreSummaryLimitsSaved = true, SummaryLimitsRecovery = null };
-                            if (current.SummaryLimits != limits || !current.AreSummaryLimitsSaved)
+                            limits.Validate();
+                            candidate = current with { SummaryLimits = limits, AreSummaryLimitsSaved = !proposal.RestoreSummaryDefault, SummaryLimitsRecovery = null };
+                            if (current.SummaryLimits != limits || current.AreSummaryLimitsSaved == proposal.RestoreSummaryDefault)
                             {
-                                preferences.SaveSummaryLimits(limits);
+                                if (proposal.RestoreSummaryDefault) { preferences.ResetSummaryLimits(); }
+                                else { preferences.SaveSummaryLimits(limits); }
+                                if (preferences.LoadSummaryLimits() != (proposal.RestoreSummaryDefault ? null : limits))
+                                { throw new InvalidDataException("Summary pair readback does not match the exact preference."); }
                             }
                         }
                         else
@@ -258,10 +263,11 @@ public sealed partial class SpeechConfigurationService(
                 activity.Complete(HostOperationOutcome.Cancelled);
                 throw;
             }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException or InvalidDataException)
             {
                 auditLog.Write(audit.WithOutcome(SecurityAuditOutcome.Failed,
-                    exception is IOException ? "io-error" : exception is UnauthorizedAccessException ? "access-denied" : "catalogue-unavailable"));
+                    exception is InvalidDataException ? "invalid-data" : exception is IOException ? "io-error"
+                        : exception is UnauthorizedAccessException ? "access-denied" : "catalogue-unavailable"));
                 activity.Complete(HostOperationOutcome.Failed);
                 SaveFailed(logger, descriptor.Id, exception);
                 return new(false, current, exception.Message);
@@ -274,6 +280,7 @@ public sealed partial class SpeechConfigurationService(
                 state = candidate with { Revision = checked(current.Revision + 1) };
                 Publish();
             }
+            if (descriptor.IsSummaryLimit) { RecordSummaryUndo(proposal.Option, current); }
             return new(true, Get());
         }
     }
@@ -291,8 +298,12 @@ public sealed partial class SpeechConfigurationService(
             error ?? (voice is null ? "The selected provider or voice is unavailable. Choose a ready installed choice or reset; visual responses remain available. Nothing is downloaded or substituted." : null));
     }
 
+    internal Task<string?> StartSummarySpeechAsync(string text, CallCommunicationPolicy policy,
+        Func<bool> hostEligible, Func<Task> start, CancellationToken cancellationToken) =>
+        StartSummarySpeechAsync(text, policy, hostEligible, start, null, cancellationToken);
+
     internal async Task<string?> StartSummarySpeechAsync(string text, CallCommunicationPolicy policy,
-        Func<bool> hostEligible, Func<Task> start, CancellationToken cancellationToken)
+        Func<bool> hostEligible, Func<Task> start, CallSpeechLease? callSpeechLease, CancellationToken cancellationToken)
     {
         Task playback;
         lock (gate)
@@ -310,11 +321,13 @@ public sealed partial class SpeechConfigurationService(
                 SummarySpeechRefused(logger, "over-limit");
                 return $"Speech withheld: the complete result is {measured.Sentences} sentences/{measured.Words} words, exceeding the configured {limits.Sentences}-sentence/{limits.Words}-word caps. No text was shortened; the full result is available visually.";
             }
-            playback = policy.StartSpeech(() =>
+            Task Start()
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 return start();
-            }, hostEligible);
+            }
+            playback = callSpeechLease is null ? policy.StartSpeech(Start, hostEligible)
+                : policy.StartReviewedSpeech(callSpeechLease, text, Start, hostEligible);
         }
         await playback;
         return null;

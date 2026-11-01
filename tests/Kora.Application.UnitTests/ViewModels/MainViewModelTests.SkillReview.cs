@@ -94,7 +94,7 @@ public sealed partial class MainViewModelTests
     {
         var f = new Fixture();
         f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "ready");
-        f.Reasoner.Action = question ? null : BuiltInAction.LockMachine;
+        f.Reasoner.Action = question ? null : BuiltInAction.EnableHostedModels;
         if (question) { f.Reasoner.Question = new("Exact choice?", ["one", "two"]); }
         await f.ViewModel.InitializeAsync();
         await f.RunAsync("please do this work");

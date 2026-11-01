@@ -184,8 +184,8 @@ public sealed partial class MainViewModelTests
         var f = CreateVoicePrivacyFixture();
         f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "ready");
         if (string.Equals(pending, "question", StringComparison.Ordinal)) { f.Reasoner.Question = new("Exact choice?", ["stop listening", "continue"]); }
-        if (string.Equals(pending, "action", StringComparison.Ordinal)) { f.Reasoner.Action = BuiltInAction.LockMachine; }
-        if (string.Equals(pending, "grant", StringComparison.Ordinal)) { f.Reasoner.GrantChange = new(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Session); }
+        if (string.Equals(pending, "action", StringComparison.Ordinal)) { f.Reasoner.Action = BuiltInAction.EnableHostedModels; }
+        if (string.Equals(pending, "grant", StringComparison.Ordinal)) { f.Reasoner.GrantChange = new(GrantChangeOperation.Add, BuiltInAction.EnableHostedModels, ModelApprovalScope.Session); }
         await f.ViewModel.InitializeAsync();
         if (voice) { await f.ViewModel.BeginPushToTalkAsync(); await f.ViewModel.EndPushToTalkAsync(); }
         await f.RunAsync("do this requested work");
@@ -206,6 +206,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.IsVisualResponseVisible.Should().BeTrue();
         f.ViewModel.Transcript.Should().Contain("Listening disabled.");
         f.Reasoner.Requests.Should().HaveCount(1);
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
     }
 

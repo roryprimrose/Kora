@@ -614,6 +614,21 @@ still joins the actual reader and preserves unverified-release failures.
 Read grants do not authorize `clipboard.explain-local`, model use, writing,
 automatic speech or history. Exact snapshot confirmation remains separate.
 
+The [ordinary clarification clipboard-answer owner](../src/Kora/QuestionClipboardAnswer.cs) consumes this same read grant/broker path, not Avalonia clipboard APIs or a paste command.
+Its exact original question, schema/revision, task/session generation, expiry, native presenter and captured private/input/owner/call admission fence capture, review, draft acceptance and Submit. It keeps the read admission live for fresh grant revalidation before acceptance and submission.
+
+The nested clipboard-read permission host observes the same live desktop ownership and private-control revisions as the outer native host; reopening a boolean gate cannot preserve stale approval.
+Its inert pending-policy explanation remains separate from the clipboard answer's complete source review. Returning to the same read approval does not read, accept a draft or submit an answer, and closing clears both private review surfaces.
+
+Only the existing ordinary conversation Text clarification purpose/source is eligible; operation proposals, choices, authentication, authorization, consent, security and unknown purposes are refused.
+The complete immutable bounded source/provenance is reviewed before a separate local draft acceptance. A nonempty manual draft requires replacement acknowledgement; typing cancels the candidate rather than losing edits ([native regressions](../tests/Kora.Windows.IntegrationTests/QuestionClipboardAnswerTests.cs)).
+
+The shared conversation Unicode/credential validation and question limit reject the whole invalid or overlong source before draft use. The candidate is volatile and cannot use Save draft; only independent normal Submit commits its answer under existing question retention.
+Cancellation/failure/revocation releases source references and suppresses late publication, while actual native resource release is joined ([read workflow](../src/Kora.Application/Context/ClipboardReadWorkflow.cs)).
+
+Clipboard text is not USER authority merely because it was captured. Explicit reviewed draft acceptance plus separate Submit supplies only an ordinary clarification answer, never approval, a credential flow, new source/export authority or inferred hosted consent.
+The existing original-task continuation and each required physical-send review remain independent; native manual OS paste is unchanged ([canonical continuation regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ClipboardAnswer.cs)).
+
 The host assigns immutable source/snapshot IDs, original request identity,
 `CF_UNICODETEXT` provenance, native read sequence and capture time. Unicode
 text and its strict UTF-8 representation preserve exact whitespace/line
@@ -1022,7 +1037,10 @@ Successful admitted intent/approval/audit commits are prerequisites, not
 permission to expose execution. Native exact review/input, verified R04
 handoff/durable integration and the action's ownership/privacy/containment/
 deployment gates must pass before consequential production dispatch.
-The bootstrap's existing action routes are unchanged.
+Lock's bounded [host owner](../src/Kora/BundledFixedActionController.cs) now
+shares exact script admission across direct and model selection. Missing owner
+or runtime qualification is unavailable, never a native-only fallback.
+Other action routes retain their own gates.
 
 Permissions combine capability, canonical resource scope, identity, destination where relevant, and current applicability; proposal/dispatch deadlines are separate from perpetual grant lifetime.
 Examples:
@@ -1042,7 +1060,7 @@ Executable extensions need real containment or explicit trust; a path-scoped gat
 | Action | Default treatment |
 |---|---|
 | Requested local clipboard capture | Deliberate request in the unlocked session, subject to selected speaker/privacy policy; authorises one snapshot, not monitoring |
-| Explicit current-session lock request | Under the future common gate, approve the exact version-bound lock action (once/session/always) through voice or UI; the phrase identifies intent but is not a grant. Today exact direct lock is ungated, while model-suggested lock asks for approval |
+| Explicit current-session lock request | Direct and model selection share exact version-bound package approval (once/session/always), current owner/unlocked-session checks and the fixed broker. Intent is not a grant; named-action preferences confer no authority. Mandatory native script review and contained-runtime qualification remain independent; missing qualification is unavailable, not native substitution ([Lock contract](Built_In_Skills.md#initial-skill-lock-the-machine)) |
 | Local shutdown/restart | Named second confirmation of exact graceful action, warning, and bounded host countdown |
 | Local read within a user-selected scope | Default single-use; operation-bound session or perpetual scope requires explicit review and visible source selection |
 | New remote context transmission | Review destination and payload; explicitly confirm immutable context and transformation class for this task through voice or UI |
@@ -1553,6 +1571,8 @@ and the [staged roadmap](Implementation_Roadmap.md#r02-windows-containment-follo
 - A server using user identity is still an external data processor.
 
 ## Retention Defaults
+
+Exact-answer review acknowledgements are metadata owned by the retained conversation, not an independent retention domain or a read-receipt claim. Source deletion removes them; acknowledgement does not renew activity, deadlines, grants, model/source consent or execution authority. Details still needs fresh canonical native admission; unknown or malformed acknowledgement state fails unavailable ([contract and storage](Interaction_And_Sessions.md#explicit-retained-answer-review-acknowledgement)).
 
 | Data | Default |
 |---|---|

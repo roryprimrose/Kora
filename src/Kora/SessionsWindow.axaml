@@ -74,6 +74,7 @@
         <controls:NamedTextBlock x:Name="ComposerTargetLabel" Text="{Binding ComposerTarget}" TextWrapping="Wrap"
             AutomationProperties.Name="Conversation name and exact session identity for this message" />
         <Button x:Name="CompactConversation" Content="Open / activate compact selected conversation" HorizontalAlignment="Left" />
+        <local:AnswerReviewPanel />
         <TextBlock Text="Submit retains accepted USER text exactly. A separately qualified local host turn may use admitted read-only tools and retain a genuine ASSISTANT answer. Unqualified production runtime remains explicitly unavailable, with no fallback, history assembly, hosted egress or side effects. Best-effort structural credential checks cannot guarantee secret-free text; no silent redaction. Unsent input stays separately in memory per session while switching topics. No draft saves or autosave." TextWrapping="Wrap" />
         <WrapPanel>
           <Button x:Name="ReadConversation" Content="Read exact conversation" IsEnabled="{Binding CanReadConversation}" />
@@ -146,6 +147,7 @@
         <controls:NamedTextBlock x:Name="DraftSizeFeedback" Text="{Binding ComposerDraftSizeFeedback}" TextWrapping="Wrap"
             AutomationProperties.Name="Current editable shared conversation draft size and shape" />
         <local:SessionDictationButton IsEnabled="{Binding CanCompose}" />
+        <local:TaskResponseOutputPanel />
         <TextBlock Text="Optional Claude observation scope: comma-separated exact IDs from capabilities.list, capabilities.get, application.get_version, readiness.get, runtime.list, runtime.get_status. No files, web, MCP, settings or provider tools. Ordinary Claude stays tool-free."
             TextWrapping="Wrap" />
         <TextBox x:Name="ClaudeObservationIds" Text="{Binding ClaudeObservationIds, Mode=TwoWay}"
@@ -265,6 +267,17 @@
         </WrapPanel>
         <controls:NamedTextBlock Text="{Binding RetentionPreview}" TextWrapping="Wrap"
                                 AutomationProperties.Name="Exact retention confirmation; ordinary policy may already be due; session hold is not an operation grant" />
+        <WrapPanel>
+          <Button x:Name="ReviewRetentionApply" Content="Preview confirmed policy for this conversation"
+                  IsEnabled="{Binding CanReviewRetentionApply}"
+                  AutomationProperties.Name="Preview old and new deadlines and exact immediate effects for one ordinary idle conversation; no changes" />
+          <Button x:Name="ConfirmRetentionApply" Content="Confirm apply-now and disclosed action"
+                  IsEnabled="{Binding CanConfirmRetentionApply}"
+                  AutomationProperties.Name="Separate native confirmation of the reviewed single conversation policy and any disclosed archive or deletion now" />
+          <Button x:Name="CancelRetentionApply" Content="Cancel apply-now review" />
+        </WrapPanel>
+        <controls:NamedTextBlock Text="{Binding RetentionApplyPreview}" TextWrapping="Wrap"
+                                AutomationProperties.Name="Single conversation retention application deadlines, cutoff, content inventory and immediate action disclosure" />
       </StackPanel>
     </Expander>
     <Expander Header="Selected-session provider overrides: inherit app or exact desired choices">
@@ -474,6 +487,8 @@
           </ListBox.ItemTemplate>
         </controls:ScrollableListBox>
         <WrapPanel Grid.Row="2" x:Name="SessionWorkActions">
+          <Button x:Name="AnswerRemainingWork" Content="What work remains?" IsEnabled="{Binding CanAnswerRemainingWork}"
+                  AutomationProperties.Name="Answer what submitted work remains in this exact selected conversation without stopping or resuming it" />
           <Button x:Name="ReadQueue" Content="Refresh selected _work" IsEnabled="{Binding CanRefreshWork}"
                   AutomationProperties.Name="Passively refresh selected exact session work; no meaningful activity or dispatch" />
           <Button x:Name="InspectWork" Content="_Inspect selected work ID" IsEnabled="{Binding CanInspectWork}"
@@ -488,6 +503,8 @@
         <ScrollViewer Grid.Row="3" MaxHeight="180" VerticalScrollBarVisibility="Auto"
                       AutomationProperties.Name="Routine notices and pending exact questions; scroll for complete retained cards">
         <StackPanel Spacing="4">
+          <controls:NamedTextBlock Text="{Binding RemainingWorkStatus}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Factual addressed remaining-work answer with source times, bounds and omissions" />
           <controls:ScrollableListBox x:Name="PendingCancellationEntries" MaxHeight="160"
                                      ItemsSource="{Binding PendingCancellationEntries}" SelectionMode="Multiple,Toggle"
                                      IsEnabled="{Binding CanSelectPendingCancellation}"
@@ -524,6 +541,16 @@
           </WrapPanel>
           <controls:NamedTextBlock Text="{Binding LocalEventStatus}" TextWrapping="Wrap"
                                   AutomationProperties.Name="Trusted visual local event status, fatigue, deferral and no replay reasons; no speech or focus change" />
+          <controls:NamedTextBlock Text="{Binding CompletionNoticeDisclosure}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Run-only task completion voice notice disclosure" />
+          <controls:NamedTextBlock Text="{Binding CompletionNoticeStatus}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Task completion voice consent, availability and actual terminal outcome" />
+          <WrapPanel>
+            <Button x:Name="EnableCompletionNotices" Content="Enable completion voice notices for this run"
+                    IsEnabled="{Binding CanEnableCompletionNotices}" />
+            <Button x:Name="DisableCompletionNotices" Content="Turn completion voice notices Off"
+                    IsEnabled="{Binding CanDisableCompletionNotices}" />
+          </WrapPanel>
           <WrapPanel>
             <TextBlock Text="Local event category" VerticalAlignment="Center" />
             <ComboBox x:Name="LocalEventCategoryFilter" ItemsSource="{Binding LocalEventCategoryFilters}"
@@ -620,6 +647,31 @@
                          TextWrapping="Wrap" />
               <Button x:Name="ListMemories" Content="_List memories in chosen scope" IsEnabled="{Binding CanReadMemories}"
                       AutomationProperties.Name="List exact active selected session memory identity, revision, scope, review, retention and creation time only" />
+              <StackPanel x:Name="SessionMemoryCopyPanel" Spacing="8">
+              <Button x:Name="KeepSessionMemory" Content="Keep for later sessions in this device profile"
+                      IsEnabled="{Binding CanKeepSessionMemory}"
+                      AutomationProperties.Name="Review copying ONE inspected current reviewed Session memory into a NEW unadmitted Device-profile candidate; original unchanged" />
+              <TextBox x:Name="SessionMemoryCopyReview" Text="{Binding SessionMemoryCopyDescription, Mode=OneWay}" IsReadOnly="True"
+                       IsUndoEnabled="False"
+                       AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="420"
+                       AutomationProperties.Name="Complete current Session source and new profile candidate; independent scopes, lifetimes and fresh classification review; inert private text" />
+              <ComboBox ItemsSource="{Binding MemoryClasses}" SelectedItem="{Binding SessionMemoryCopyClass, Mode=TwoWay}"
+                        IsEnabled="{Binding CanClassifySessionMemoryCopy}"
+                        PlaceholderText="Choose a fresh classification for this copy"
+                        AutomationProperties.Name="Fresh explicit user classification for new profile copy; no inherited classification or safety guarantee" />
+              <WrapPanel>
+                <Button x:Name="ProposeSessionMemoryCopy" Content="Propose NEW unadmitted profile copy"
+                        IsEnabled="{Binding CanProposeSessionMemoryCopy}" />
+                <Button x:Name="AcceptSessionMemoryCopy" Content="Accept complete copy review"
+                        IsEnabled="{Binding CanAcceptSessionMemoryCopy}" />
+                <Button x:Name="AdmitSessionMemoryCopy" Content="Separately admit NEW profile memory"
+                        IsEnabled="{Binding CanAdmitSessionMemoryCopy}" />
+                <Button x:Name="CancelSessionMemoryCopy" Content="Cancel scope copy" />
+              </WrapPanel>
+              <TextBox x:Name="SessionMemoryCopyStatus" Text="{Binding ConversationStatus, Mode=OneWay}" IsReadOnly="True"
+                       IsUndoEnabled="False" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="160"
+                       AutomationProperties.Name="Scope-copy outcome and recovery; admission, cancellation or failure is not automatic recall or rollback" />
+              </StackPanel>
               <TextBlock Text="Filter only the frozen listed metadata. No content search or classification filter. Edits clear selection, inspection and replacement draft; select and inspect an exact visible result again. List explicitly to refresh." TextWrapping="Wrap" />
               <WrapPanel>
                 <TextBlock Text="Snapshot order" VerticalAlignment="Center" />

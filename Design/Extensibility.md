@@ -1,10 +1,13 @@
 # Built-In Features and Extensibility
 
-Status: proposed feature placement. The current PowerShell readiness probe is
-not an executable skill runner; the current exact lock is a native API call,
-and model-suggested lock uses a separate approval path. Future side-effecting
-built-ins share the gate in
-[skill and task execution design](../docs/skill-and-task-execution-design.md).
+Status: direct typed/activated-voice/native Lock and model-proposed Lock use the
+same [exact host owner](../src/Kora/BundledFixedActionController.cs), package
+review, content-bound grant and audited fixed-effect broker. Named-action
+preferences and a missing host binding cannot select a native fallback.
+The [D-013 script-preserving contract](Decision_Register.md#2026-10-28-accepted-script-preserving-host-bridge)
+remains mandatory: an unqualified contained runtime means unavailable, not
+permission to substitute a standalone native-only Lock implementation.
+See [skill and task execution design](../docs/skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
 
 Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Data_Flows.md), [MVP Scope](MVP_Scope.md).
 
@@ -159,6 +162,7 @@ Suggested manifest fields:
 - Package origin and content digest.
 
 Declared capabilities are requirements, not grants. Missing dependencies disable the skill with an explanation.
+The [reviewed exact MCP reference](Skill_Storage.md#reviewed-exact-read-only-mcp-skill) is one closed declarative dependency, resolved only through independent current host MCP admission. It cannot install a server, select credentials, approve an account, redefine effects or widen the internal tool catalogue.
 The future user-provided executable-skill format derives an implicit manifest
 from a selected folder and parses supported script references to discover
 dependencies; it does not change the MVP declarative policy. See

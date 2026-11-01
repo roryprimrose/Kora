@@ -12,6 +12,7 @@ internal sealed partial class SessionsWindow : Window
     internal Task ConversationCancellationOperation { get; private set; } = Task.CompletedTask;
     internal Task StopAndDeleteOperation { get; private set; } = Task.CompletedTask;
     internal Task MemoryBatchOperation { get; private set; } = Task.CompletedTask;
+    internal Task SessionMemoryCopyOperation { get; private set; } = Task.CompletedTask;
     internal void ClosePrivate()
     {
         owner.Revoke();
@@ -147,6 +148,9 @@ internal sealed partial class SessionsWindow : Window
         OrdinaryRetention.Click += (_, _) => model.PreviewRetention(keep: false);
         ConfirmRetention.Click += async (_, _) => await model.ConfirmRetentionAsync();
         CancelRetentionReview.Click += (_, _) => model.CancelRetentionReview();
+        ReviewRetentionApply.Click += async (_, _) => await model.ReviewRetentionApplyAsync();
+        ConfirmRetentionApply.Click += async (_, _) => await model.ConfirmRetentionApplyAsync();
+        CancelRetentionApply.Click += (_, _) => model.CancelRetentionApplication();
         NextQuestions.Click += async (_, _) => await model.NextQuestionsAsync();
         NextTasks.Click += async (_, _) => await model.NextTasksAsync();
         ReadHistory.Click += async (_, _) => await model.ReadHistoryAsync();
@@ -185,6 +189,11 @@ internal sealed partial class SessionsWindow : Window
         ConfirmPendingCancellation.Click += async (_, _) => await model.ConfirmPendingCancellationAsync();
         DiscardPendingCancellation.Click += async (_, _) => await model.DiscardPendingCancellationAsync();
         ReadQueue.Click += async (_, _) => await model.RefreshWorkAsync();
+        AnswerRemainingWork.Click += async (_, _) =>
+        {
+            using var presenter = new ReplyPresentationFence(this);
+            await (ConversationOperation = model.ShowRemainingWorkAsync(presenter.Capture()));
+        };
         CancelQueueEntry.Click += async (_, _) => await model.CancelWorkAsync();
         ClearQueue.Click += async (_, _) => await model.ClearQueueAsync();
         EventRecords.SelectionChanged += (_, _) =>
@@ -196,6 +205,8 @@ internal sealed partial class SessionsWindow : Window
         QuietRoutineNotices.Click += async (_, _) => await model.QuietRoutineNoticesAsync();
         ClearRoutineQuiet.Click += async (_, _) => await model.ClearRoutineQuietAsync();
         ResetRoutineQuiet.Click += async (_, _) => await model.ResetRoutineQuietAsync();
+        EnableCompletionNotices.Click += async (_, _) => await model.EnableCompletionNoticesAsync();
+        DisableCompletionNotices.Click += async (_, _) => await model.DisableCompletionNoticesAsync();
         Evidence.Click += async (_, _) => await model.ReadEvidenceAsync();
         NextEvidence.Click += async (_, _) => await model.ReadEvidenceAsync(next: true);
         Done.Click += async (_, _) => await model.ChangeLifecycleAsync(active: false);
@@ -208,6 +219,15 @@ internal sealed partial class SessionsWindow : Window
         ListMemories.Click += async (_, _) => await model.ListMemoriesAsync();
         BindMemoryContext(model);
         ProposeMemory.Click += async (_, _) => await model.ProposeMemoryAsync();
+        KeepSessionMemory.Click += async (_, _) => await (SessionMemoryCopyOperation = PresentSessionMemoryCopyAsync(model, model.KeepSessionMemoryAsync));
+        ProposeSessionMemoryCopy.Click += async (_, _) => await (SessionMemoryCopyOperation = PresentSessionMemoryCopyAsync(model, model.ProposeSessionMemoryCopyAsync));
+        AcceptSessionMemoryCopy.Click += async (_, _) => await (SessionMemoryCopyOperation = PresentSessionMemoryCopyAsync(model, model.AcceptSessionMemoryCopyAsync));
+        AdmitSessionMemoryCopy.Click += async (_, _) => await (SessionMemoryCopyOperation = PresentSessionMemoryCopyAsync(model, model.AdmitSessionMemoryCopyAsync));
+        CancelSessionMemoryCopy.Click += async (_, _) => await PresentSessionMemoryCopyAsync(model, () =>
+        {
+            model.CancelSessionMemoryCopy(reportCancellation: true);
+            return Task.CompletedTask;
+        });
         ClearMemoryFilters.Click += (_, _) => { model.ClearMemoryFilters(); MemoryIdFilter.Focus(); };
         foreach (var filter in new Control[] { MemoryIdFilter, MemoryScopeIdentityFilter, MemoryMinimumRevisionFilter, MemoryMaximumRevisionFilter,
             MemoryCreatedFromFilter, MemoryCreatedUntilFilter, MemoryScopeFilter, MemoryReviewFilter, MemoryRetentionFilter, MemoryOrder })

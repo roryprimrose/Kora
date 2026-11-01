@@ -483,6 +483,24 @@ Session-only. No automatic recall, provider learning, Project/Source scope
 or hosted disclosure is enabled. Historical session-only availability notes
 below describe the earlier increments, not this explicit profile route.
 
+### Explicit selected Session-to-profile copy
+
+An original user can select and inspect ONE current enabled, admitted Session memory, choose **Keep for later sessions in this device profile**, inspect its full current value/class/source and independent lifetimes, choose a fresh classification, then propose a NEW unadmitted DeviceProfile candidate.
+Separate acceptance and admission use the [existing profile admission owner](../src/Kora.Application/Memory/DeviceProfile/MemoryManagementService.SessionCopy.cs) and canonical store; the [complete native journey](../docs/profile-memory.md#keep-one-reviewed-session-memory-for-later-sessions) includes reopening and inspecting the distinct record, not only preparing a copy button.
+
+The [native keyboard handoff](../src/Kora/MemoryProfile/SessionsWindow.SessionMemoryCopy.cs) focuses the complete current review after review transitions and the adjacent read-only outcome after admission, cancellation or a held failure. It never focuses an affirmative decision or creates readback authority. Original memory selection/control and native surface currentness fence late focus; a stale source yields the held/error outcome, not its old review. Explicit profile list/inspect remains separate.
+
+Native root activation and effective ancestor visibility are observed for the entire handoff. Returning to a deactivated or hidden presenter does not renew late focus; source/surface currentness is rechecked after synchronous scroll callbacks and before focus. This presentation retirement neither cancels the independent admitted transaction nor changes its truthful adjacent status. In-flight cancellation retains the operation handle until storage joins. A copy committed before terminal/readback failure remains independently inspectable after restart; uncertainty never claims rollback or renews copy/use authority.
+
+The [content-free copy lineage](../src/Kora.Core/Memory/MemorySessionCopySource.cs) records exact source identity/revision/session/generation, never copied authority. Live original input, current private owner/control/profile/session and expiry are checked across review; the [destination transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Memory.cs) compares the exact enabled source inside the same authoritative mutation.
+Source edits, disablement, forgetting, deletion or replacement retire pending copy authority. The new value remains volatile until fresh separate review/admission; ordinary profile CRUD cannot admit an unvalidated copied candidate.
+
+After independent admission, the source reference is provenance only. Original Session content, receipt, grants and lifetime remain unchanged; Session deletion does not delete the new profile memory. Existing global byte/count/identity bounds and no-eviction rules apply. Cancellation and uncertain storage/audit/readback remain held, not inferred rollback.
+No automatic promotion, model recall/read, hosted disclosure, new scope, bulk transfer or generic import journal is added. Native original-user copy controls do not add a spoken/model promotion route. Later explicit one-shot local use remains the existing independent operation.
+
+[Native journey and revocation tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.SessionMemoryCopy.cs), [canonical storage tests](../tests/Kora.Windows.IntegrationTests/MemoryProfile/WindowsSqliteMemoryTests.SessionCopy.cs) and [application boundary tests](../tests/Kora.Application.UnitTests/Memory/DeviceProfile/MemoryAdmissionServiceTests.SessionCopy.cs) cover fresh classification/review, original preservation, restart, source races, independent deletion, capacity and failed outcomes.
+These deterministic checks do not qualify or enable any provider, physical voice route or hosted memory disclosure.
+
 Durable user memory is optional application data, not hidden model learning.
 The model may propose a candidate memory, but only Kora can admit it.
 
@@ -801,6 +819,17 @@ Reviewed source roots
 The original files remain authoritative. Snapshots, extracted text,
 embeddings, and indexes are derived data that retain source and revision
 identity and can be rebuilt or deleted.
+
+The implemented named-source subset supports explicit bounded descendant
+capture in addition to the unchanged default immediate-file scope. Separate
+complete-inventory read and immutable-snapshot save reviews, restart inspection,
+global lexical retrieval with root-relative exact saved citations, pinned-policy
+revoke-first refresh and Kora-copy-only removal are owned by the
+[named-source lifecycle](File_And_Folder_Ingestion.md#named-device-local-folder-lifecycle).
+Registration and refresh still provide no named-source model-use, automatic
+session context or hosted approval; the
+[user surface](../docs/knowledge-sources.md#explicit-inspection-and-retrieval)
+keeps AI answers unavailable.
 
 ### Retrieval
 

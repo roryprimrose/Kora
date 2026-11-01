@@ -60,14 +60,20 @@ public sealed partial class WindowsSqliteHostInteractionStore
             return preview;
         }, cancellationToken));
 
-    public async ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview,
-        Func<bool> canControl, CancellationToken cancellationToken)
+    public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview,
+        Func<bool> canControl, CancellationToken cancellationToken) =>
+        DisposeSessionAsync(request, preview, canControl, null, cancellationToken);
+
+    private async ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview,
+        Func<bool> canControl, SessionRetentionApplyReview? retentionReview, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(preview);
         ArgumentNullException.ThrowIfNull(canControl);
         var receipt = await RunHostMutationAsync(request, "session.disposition", (connection, transaction, intent, audit) =>
         {
             RequireFreshMetadataIntent(intent);
+            if (retentionReview is not null)
+            { ApplyReviewedRetentionPolicy(connection, transaction, intent, audit, retentionReview); }
             if (request.SessionId != preview.Session.Authority.SessionId)
             {
                 throw new InvalidOperationException("Disposition requires the exact previewed session ID.");
@@ -87,7 +93,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
             }
             RequireDispositionIdle(connection, request.SessionId, request.TaskId, preview.StoppedWork?.Target.Request.TaskId);
             if (preview.ConfirmationId == Guid.Empty
-                || preview != DescribeDisposition(connection, target, request.TaskId, preview.ConfirmationId, preview.StoppedWork))
+                || retentionReview is null
+                    && preview != DescribeDisposition(connection, target, request.TaskId, preview.ConfirmationId, preview.StoppedWork))
             {
                 throw new InvalidOperationException("Session records changed after preview. Obtain a fresh preview and confirmation.");
             }
@@ -104,6 +111,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
             WriteSession(connection, transaction, removed, 2, sequence);
             foreach (var memory in memories) { WriteMemory(connection, transaction, memory, sequence); }
             WindowsSqliteHostTaskStore.WriteTask(connection, transaction, completed);
+            if (retentionReview is not null)
+            { CompleteRetentionApplication(connection, transaction, intent, removed, audit); }
             SessionHistoryPersistence.Redact(connection, transaction, request.SessionId);
             RemoveConversation(connection, transaction, request.SessionId);
             Execute(connection, transaction, """
@@ -151,13 +160,17 @@ public sealed partial class WindowsSqliteHostInteractionStore
 
     private static SessionDispositionPreview DescribeDisposition(SqliteConnection connection,
         SessionWorkspaceEntry target, HostId<TaskIdentity>? control, Guid confirmation, SessionStoppedWorkReview? stopped = null)
+        => DescribeDispositionInventory(connection, target, confirmation,
+            DispositionRevision(connection, target.Authority.SessionId, control, stopped)) with { StoppedWork = stopped };
+
+    private static SessionDispositionPreview DescribeDispositionInventory(SqliteConnection connection,
+        SessionWorkspaceEntry target, Guid confirmation, string revision)
     {
         var session = target.Authority.SessionId;
-        return new(confirmation, target, DispositionRevision(connection, session, control, stopped),
+        return new(confirmation, target, revision,
             CountDispositionRows(connection, "host_questions", session), CountDispositionRows(connection, "scoped_grants", session),
             CountDispositionRows(connection, "host_observations", session), CountDispositionRows(connection, "host_task_waits", session))
         {
-            StoppedWork = stopped,
             Attachments = ReadAttachmentRow(connection, session)?.Attachment is null ? 0 : 1,
             ProviderProfiles = CountDispositionRows(connection, "session_provider_profile", session),
             ConversationMessages = CountDispositionRows(connection, "conversation_messages", session),
@@ -224,6 +237,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             "SELECT * FROM session_file WHERE session_id=$id ORDER BY session_id;",
             "SELECT * FROM session_provider_profile WHERE session_id=$id ORDER BY session_id;",
             "SELECT * FROM conversation_drafts WHERE session_id=$id ORDER BY session_id;",
+            "SELECT * FROM conversation_answer_reviews WHERE session_id=$id ORDER BY request_id;",
             "SELECT * FROM conversation_messages WHERE session_id=$id AND request_id<>$stoppedRequest ORDER BY sequence;",
             "SELECT * FROM session_queue WHERE session_id=$id ORDER BY task_id;",
             "SELECT * FROM session_queue_order WHERE session_id=$id ORDER BY order_id;",

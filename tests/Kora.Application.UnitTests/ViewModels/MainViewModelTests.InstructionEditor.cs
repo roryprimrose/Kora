@@ -101,6 +101,10 @@ public sealed partial class MainViewModelTests
     [InlineData("instructions refine", "Refine", null)]
     [InlineData("Kora, instructions refine", "Refine", null)]
     [InlineData("instructions copy new-copy", "Save as new copy", "new-copy")]
+    [InlineData("instructions rename new-id", "Rename", "new-id")]
+    [InlineData("Kora, instructions rename new-id", "Rename", "new-id")]
+    [InlineData("instructions recover-rename", "Recover rename", null)]
+    [InlineData("Kora, instructions recover-rename", "Recover rename", null)]
     [InlineData("Kora, instructions copy new-copy", "Save as new copy", "new-copy")]
     [InlineData("instructions reload", "Reload", null)]
     [InlineData("instructions discard", "Reload", null)]
@@ -163,7 +167,12 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("instructions compare example");
         await f.RunAsync("instructions rebase example");
         await f.RunAsync("instructions refine example");
+        await f.RunAsync("instructions rename");
+        await f.RunAsync("instructions rename new-id extra");
+        await f.RunAsync("instructions recover-rename extra");
         await f.RunAsync("prompts refine");
+        await f.RunAsync("prompts rename new-id");
+        await f.RunAsync("prompts recover-rename");
         await f.RunAsync("instructions unknown");
         await f.RunAsync("instructions disable example");
         await f.RunAsync("instructions stop-use extra");
@@ -230,6 +239,28 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
+    [InlineData("rename renamed", "Rename", false)]
+    [InlineData("rename renamed", "Rename", true)]
+    [InlineData("recover-rename", "Recover rename", false)]
+    [InlineData("recover-rename", "Recover rename", true)]
+    public async Task RenameVoiceEntryRequiresCurrentNameAndKeepsOriginalChannel(string input, string expected, bool prefixed)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var calls = 0;
+        f.ViewModel.OwnedInstructionEditorRequested += (operation, _) =>
+        {
+            operation.Should().Be(expected);
+            Kora.Core.Diagnostics.HostActivity.RequireCurrent().Request.Origin.Should().Be(Kora.Core.Hosting.RequestOrigin.ActivatedVoice);
+            f.ViewModel.CaptureInstructionRefinementEligibility()().Should().BeTrue();
+            calls++;
+            return Task.CompletedTask;
+        };
+        await f.RaiseActivatedTranscriptAsync((prefixed ? "Kora, " : "") + "instructions " + input, 1);
+        calls.Should().Be(prefixed ? 1 : 0);
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
     [InlineData(ArtifactKind.Instruction)]
     [InlineData(ArtifactKind.Prompt)]
     public async Task ExplicitUseDisablePreservesCapturedReasoningButRetiresNewCommandsAndPendingQuestions(ArtifactKind kind)
@@ -277,7 +308,7 @@ public sealed partial class MainViewModelTests
         f.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "ready");
         f.Reasoner.DecisionGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
         if (response is "question") { f.Reasoner.Question = new("Which target?", ["One", "Two"]); }
-        else { f.Reasoner.Action = BuiltInAction.LockMachine; }
+        else { f.Reasoner.Action = BuiltInAction.EnableHostedModels; }
         await f.ViewModel.InitializeAsync();
         var artifact = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(
             "---\nkora-format: 1\nname: example\ndescription: Test\n---\nCaptured content", false),
@@ -292,6 +323,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.IsModelQuestionPending.Should().BeFalse();
         f.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
         f.ViewModel.ResponseTitle.Should().Be("Artifact use disabled.");
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
         f.Reasoner.Requests.Should().ContainSingle();
     }

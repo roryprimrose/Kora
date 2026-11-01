@@ -28,6 +28,9 @@ narratives here.
 
 ## Delivered Artifact Invocation
 
+The separate [native owned observation workflow](../docs/owned-skill-authoring.md#author-and-run-an-ordered-host-observation-workflow) declares and executes one to six explicit original read-only catalogue actions in order.
+It saves disabled, separately reviews/enables the exact source/request/Active target, independently approves each action and shows a complete source-labelled native result or joined failure/cancellation. It does not expose a seventh tool or a model runner ([host owner](../src/Kora.Application/Skills/ObservationSkillWorkflow.cs)).
+
 The bounded [owned-package operation](../docs/owned-skill-authoring.md#author-and-use-one-host-webpageget-skill) is explicitly selected by exact saved ID/version, not automatically registered as an artifact. Native v2 declares only host WebPageGet; save stays disabled, source review/enablement and exact target/request/URL confirmation precede independent per-action approval. The [common reviewed consumer](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs) binds source-specific storage admission without changing instruction-only purposes or shared-root read consent.
 
 The separate [reviewed declarative WebPageGet workflow](Skill_Storage.md#reviewed-declarative-one-tool-invocation) now supports one or two explicit finite destinations, at most one independently approved call per destination and one genuine retained answer or truthful terminal. The host owns scope, cumulative budgets, current source/session/action authority and joined cancellation; [comparison guidance](../docs/tools-and-built-in-skills.md#two-source-comparison-skill-example) remains skill prose. This does not widen ordinary artifact invocation, MCP or hosted disclosure.
@@ -197,6 +200,12 @@ inspection still supports its existing stdio/HTTP shapes, but duplicate JSON
 fields now fail closed rather than selecting an ambiguous definition. A source
 revision or inclusion change requires fresh review and discovery.
 
+The [bounded source editor](Definition_Management.md#bounded-kora-owned-https-mcp-entry-editing) completes creation/editing
+of one Kora-owned canonical `Mcp\mcp.json` HTTPS entry through native URL/type fields, complete exact-entry review
+and a separate atomic Save confirmation/readback. It accepts a sole `servers` or `mcpServers` root collection and preserves all unrelated bytes.
+Saving disables the source and independently removes inclusion before publication; it grants no connection, account, capability, tool, egress or model authority.
+Personal/additional configuration, stdio and credential/authentication fields are not writable.
+
 The bounded protocol parser targets MCP `2025-06-18`, requires exact JSON-RPC
 correlation, and rejects paginated/oversize discovery and unsupported schemas.
 The initial schema subset is a closed flat object with at most eight fields:
@@ -243,6 +252,11 @@ its existing cancellation policy. The existing 30-second per-exchange deadline
 also covers serial waiters. Lifetime/account withdrawal cancels waiting
 exchanges before any new send, and disposal retains the handler and credential
 lease until cancellation-ignoring work actually terminates.
+
+The separately reviewed [declarative MCP skill bridge](Skill_Storage.md#reviewed-exact-read-only-mcp-skill)
+reuses this route for one closed exact tool/source/schema dependency and the original user's independently selected account and arguments.
+The skill is local-only untrusted guidance, not a new model-tool catalogue, effect mapping or connector approval.
+Current discovery, source inclusion, session capabilities, permission, native consent and physical-send checks remain independent.
 
 Implementation is exercised with deterministic delegated-account, transport and
 model fakes, not live servers. The shipped broker remains explicitly

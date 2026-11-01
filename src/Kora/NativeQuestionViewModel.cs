@@ -3,6 +3,7 @@ using System.Text.Json;
 
 using Kora.Application.Infrastructure;
 using Kora.Application.Interaction;
+using Kora.Core.Authorization;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
@@ -23,6 +24,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     private readonly ActivityLink[] links;
     private readonly Func<HostQuestionKey, Task<HostInteractionDecision>>? cancel;
     private readonly bool dismissible;
+    private readonly bool explainClipboardRead;
     // Terminal state and its receipt share one boundary. No I/O, gates or notifications run under it.
     private readonly Lock stateGate = new();
     private readonly TaskCompletionSource<HostInteractionDecision> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -38,6 +40,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     private string status = "Choose an answer. Editing is local; Save draft and Submit are explicit.";
     private string reviewText = string.Empty;
     private string mcpReviewText = string.Empty;
+    private PendingOperationExplanation? policyExplanation;
     private QuestionAnswer answer;
     private HostQuestionVoiceReplyService? voiceReplies;
     private Func<bool> ownsVoiceTarget = static () => false;
@@ -45,6 +48,51 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     private HostQuestionKey? voiceTarget;
     private int voicePresenterCount;
     private bool conversationalReplyAttempted;
+    private long draftRevision;
+    internal QuestionClipboardAnswer? ClipboardAnswer { get; private set; }
+    internal void BindClipboardAnswer(QuestionClipboardAnswer clipboard) => ClipboardAnswer = clipboard;
+    internal void ClipboardChanged() => Notify();
+    internal bool IsClipboardTargetLive(HostQuestionRecord target)
+    {
+        var eligible = canInteract();
+        lock (stateGate)
+        {
+            return eligible && !closed && !cleared && ReferenceEquals(question, target)
+                && question.Status == QuestionStatus.Pending && question.ExpiresAt > time.GetUtcNow();
+        }
+    }
+
+    internal async Task<bool> ValidateClipboardTargetAsync(HostQuestionRecord target)
+    {
+        if (!IsClipboardTargetLive(target)) { return false; }
+        using var activity = HostActivity.BeginRoot(target.Key.Request, HostActivityLayer.Desktop, HostOperation.Presentation, links);
+        var decision = await reviews.ReviewAsync(target.Key, CancellationToken.None);
+        var valid = IsClipboardTargetLive(target) && decision is { Outcome: HostInteractionOutcome.Presented, Question: { } exact }
+            && exact.Key == target.Key && exact.SessionGeneration == target.SessionGeneration
+            && exact.ExpiresAt == target.ExpiresAt && exact.Proposal is null
+            && exact.Spec.Kind == target.Spec.Kind
+            && string.Equals(exact.Spec.Purpose, target.Spec.Purpose, StringComparison.Ordinal)
+            && string.Equals(exact.Spec.SourceId, target.Spec.SourceId, StringComparison.Ordinal)
+            && string.Equals(exact.Spec.Text, target.Spec.Text, StringComparison.Ordinal)
+            && exact.Spec.MaximumTextLength == target.Spec.MaximumTextLength;
+        activity.Complete(valid ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
+        return valid;
+    }
+
+    internal void SetClipboardDraft(QuestionAnswer value)
+    {
+        lock (stateGate) { answer = value; }
+        Notify();
+    }
+
+    internal void RestoreClipboardDraft(QuestionAnswer expected, QuestionAnswer previous)
+    {
+        lock (stateGate)
+        {
+            if (!closed && !cleared && ReferenceEquals(answer, expected)) { answer = previous; }
+        }
+        Notify();
+    }
     internal void BindMcpReview(Kora.Application.Mcp.McpReview review)
     {
         if (question.Proposal is null || !review.IsBoundTo(question.Proposal))
@@ -53,8 +101,32 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     }
     internal string VoiceReplyStatus => voiceReplies?.Status ?? "Question voice reply unavailable. Use native answer controls.";
     internal bool IsVoiceReplyActive => voiceReplies?.IsActive == true;
-    internal bool CanAnswerByVoice => voiceReplies is not null && IsEditable && !IsApproval
+    internal bool IsForm => Question.Spec.Kind == QuestionKind.Form;
+    internal bool CanEditFieldByVoice => voiceReplies is not null && IsEditable && !IsApproval
+        && ClipboardAnswer?.IsActive != true
         && ownsVoiceTarget() && voicePresenterCount == 1 && visibleVoicePresenter() && !IsVoiceReplyActive;
+    internal bool CanAnswerByVoice => !IsForm && CanEditFieldByVoice;
+
+    internal Task AnswerFieldByVoiceAsync(string fieldId)
+    {
+        if (!IsForm || !CanEditFieldByVoice) { StopVoiceReply(); return Task.CompletedTask; }
+        var exact = Question;
+        var revision = draftRevision;
+        voiceTarget = exact.Key;
+        return voiceReplies!.OpenFieldAsync(exact, fieldId,
+            () => ownsVoiceTarget() && voicePresenterCount == 1 && visibleVoicePresenter()
+                && IsEditable && ReferenceEquals(Question, exact) && revision == draftRevision,
+            value =>
+            {
+                if (ReferenceEquals(Question, exact) && revision == draftRevision) { EditField(value); }
+            }, CancellationToken.None);
+    }
+
+    internal void EditField(QuestionFieldAnswer value)
+    {
+        var currentAnswer = Answer;
+        Edit(new([], fields: currentAnswer.Fields.Where(field => !string.Equals(field.FieldId, value.FieldId, StringComparison.Ordinal)).Append(value)));
+    }
 
     internal void BindVoiceReplies(HostQuestionVoiceReplyService? replies, Func<bool> ownsTarget)
     {
@@ -133,7 +205,8 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     internal NativeQuestionViewModel(HostQuestionRecord question, HostQuestionService questions,
         HostAuthorizationService authorization, HostQuestionReviewService reviews, Func<bool> canInteract,
         TimeProvider time, ILogger<NativeQuestionViewModel> logger,
-        Func<HostQuestionKey, Task<HostInteractionDecision>>? cancel = null, bool dismissible = false)
+        Func<HostQuestionKey, Task<HostInteractionDecision>>? cancel = null, bool dismissible = false,
+        bool explainClipboardRead = false)
     {
         this.question = question;
         this.questions = questions;
@@ -144,6 +217,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         this.logger = logger;
         this.cancel = cancel;
         this.dismissible = dismissible;
+        this.explainClipboardRead = explainClipboardRead;
         links = Activity.Current is { } activity ? [new(activity.Context)] : [];
         answer = question.Draft ?? EmptyAnswer();
     }
@@ -153,6 +227,29 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     internal QuestionAnswer Answer { get { lock (stateGate) { return answer; } } }
     internal string Status { get { lock (stateGate) { return status; } } }
     internal string ReviewText { get { lock (stateGate) { return reviewText; } } }
+    internal bool SupportsPolicyExplanation => explainClipboardRead;
+    internal bool HasPolicyExplanation { get { lock (stateGate) { return policyExplanation is not null; } } }
+    internal string PolicyExplanationText
+    {
+        get
+        {
+            lock (stateGate)
+            {
+                if (policyExplanation is not { } observed) { return string.Empty; }
+                var grant = observed.ApplicableGrant is { } exact
+                    ? $"Matching exact {exact.Scope} grant {exact.Id.Value:D} (revision {exact.Revision.Value}) was observed; "
+                        + "it has not been reserved or consumed."
+                    : "No applicable exact grant was observed. This read still needs native Once, This session or Always approval.";
+                return "Read snapshot only: clipboard.read - current plain-text clipboard to volatile native preview.\n"
+                    + $"Current session level at observation: {observed.SessionPolicy.DisplayName}.\n"
+                    + grant + "\nThis path requires exact clipboard-read permission independently of the session level. "
+                    + "It does not permit model use, writing, speech or history.\n"
+                    + "Current effect authority: NOT supplied by this explanation. No clipboard contents were read. "
+                    + "Return to the same approval rechecks these facts; approval and execution still use their normal fresh checks. "
+                    + "Native controls only; no spoken approval or sensitive disclosure is added.";
+            }
+        }
+    }
     internal bool HasPresentation { get { lock (stateGate) { return !cleared; } } }
     internal bool HasPendingOperation { get { lock (stateGate) { return busy; } } }
     internal bool IsWithdrawn { get { lock (stateGate) { return withdrawn; } } }
@@ -170,10 +267,10 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     {
         get
         {
-            if (!IsEditable) { return false; }
+            if (!IsEditable || ClipboardAnswer?.BlocksSubmission == true) { return false; }
             lock (stateGate)
             {
-                return !closed && !cleared && !busy && question.Spec.Accepts(answer, submitting: true)
+                return !closed && !cleared && !busy && policyExplanation is null && question.Spec.Accepts(answer, submitting: true)
                     && (question.Proposal is null || (reviewedKey == question.Key && displayedReviewKey == question.Key));
             }
         }
@@ -182,8 +279,8 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     {
         get
         {
-            if (!IsEditable) { return false; }
-            lock (stateGate) { return !closed && !cleared && !busy && question.Spec.Accepts(answer, submitting: false); }
+            if (!IsEditable || ClipboardAnswer?.IsActive == true) { return false; }
+            lock (stateGate) { return !closed && !cleared && !busy && !IsForm && question.Spec.Accepts(answer, submitting: false); }
         }
     }
 #pragma warning disable VSTHRD003 // Exposes the owned interaction receipt; asynchronous observers leave the dispatcher available for completion.
@@ -191,12 +288,18 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
 #pragma warning restore VSTHRD003
     internal Task OperationQuiescence
     {
-        get { lock (stateGate) { return pendingOperation?.Task ?? Task.CompletedTask; } }
+        get
+        {
+            Task operation;
+            lock (stateGate) { operation = pendingOperation?.Task ?? Task.CompletedTask; }
+            return Task.WhenAll(operation, ClipboardAnswer?.Quiescence ?? Task.CompletedTask);
+        }
     }
 
     internal void Edit(QuestionAnswer value)
     {
         StopVoiceReply();
+        ClipboardAnswer?.ManualEdit();
         if (!IsEditable)
         {
             RefreshEligibility();
@@ -206,6 +309,8 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         {
             if (closed || cleared || busy) { return; }
             answer = value;
+            draftRevision++;
+            if (IsForm) { reviewText = string.Empty; reviewedKey = null; displayedReviewKey = null; }
             status = question.Spec.Accepts(value, submitting: false)
                 ? "Unsubmitted local edit. Save draft or Submit explicitly."
                 : "Invalid answer: use the displayed choice and text bounds; nothing was shortened or saved.";
@@ -215,35 +320,54 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
 
     internal Task SaveDraftAsync()
     {
+        if (ClipboardAnswer?.IsActive == true)
+        {
+            ReportOutcome("Clipboard answer drafts remain volatile. Separately Submit answer, or cancel the clipboard review to keep the manual draft.");
+            return Task.CompletedTask;
+        }
         HostQuestionKey target;
         QuestionAnswer value;
         lock (stateGate) { target = question.Key; value = answer; }
         return DecideAsync(target, () => questions.DraftAsync(target, value, RequestOrigin.LocalUi, CancellationToken.None));
     }
 
-    internal Task SubmitAsync()
+    internal async Task SubmitAsync()
     {
+        var clipboard = ClipboardAnswer;
+        var clipboardSubmission = clipboard?.HasAccepted == true;
+        if (clipboardSubmission)
+        {
+            Task pending;
+            lock (stateGate) { pending = pendingOperation?.Task ?? Task.CompletedTask; }
+#pragma warning disable VSTHRD003 // Joins this question owner's existing exact-record review before validating the deliberate Submit.
+            await pending;
+#pragma warning restore VSTHRD003
+        }
+        if (clipboard is not null && !await clipboard.ValidateSubmitAsync()) { return; }
         HostQuestionKey target;
         QuestionAnswer value;
         bool approval;
         bool needsReview;
         lock (stateGate)
         {
-            if (closed || cleared) { return Task.CompletedTask; }
+            if (closed || cleared) { return; }
             target = question.Key;
             value = answer;
             approval = question.Proposal is not null;
-            needsReview = approval && (reviewedKey != target || displayedReviewKey != target);
+            needsReview = approval && (policyExplanation is not null || reviewedKey != target || displayedReviewKey != target);
             if (needsReview) { status = "Review the exact current operation before approval. Reading does not approve or use it."; }
         }
         if (needsReview)
         {
             Notify();
-            return Task.CompletedTask;
+            return;
         }
-        return DecideAsync(target, () => approval
+        await DecideAsync(target, () => approval
             ? authorization.ApproveAsync(target, value, RequestOrigin.LocalUi, CancellationToken.None)
-            : questions.SubmitAsync(target, value, RequestOrigin.LocalUi, CancellationToken.None));
+            : clipboardSubmission
+                ? questions.SubmitNativeReplyAsync(target, question.SessionGeneration, value,
+                    () => clipboard!.CanCommit, CancellationToken.None)
+                : questions.SubmitAsync(target, value, RequestOrigin.LocalUi, CancellationToken.None));
     }
 
     internal Task CancelAsync()
@@ -286,6 +410,24 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         return DecideAsync(target, () => reviews.ReviewAsync(target, CancellationToken.None), checking: true);
     }
 
+    internal Task ExplainPolicyAsync()
+    {
+        if (!explainClipboardRead) { return Task.CompletedTask; }
+        var expected = Question;
+        return DecideAsync(expected.Key,
+            () => authorization.ExplainPendingClipboardReadAsync(expected, null, CancellationToken.None), explaining: true);
+    }
+
+    internal Task ReturnToApprovalAsync()
+    {
+        var expected = Question;
+        PendingOperationExplanation? previous;
+        lock (stateGate) { previous = policyExplanation; }
+        if (previous is null) { return Task.CompletedTask; }
+        return DecideAsync(expected.Key,
+            () => authorization.ExplainPendingClipboardReadAsync(expected, previous, CancellationToken.None), returning: true);
+    }
+
     internal void ReportOutcome(string message)
     {
         RefreshEligibility();
@@ -298,7 +440,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     }
 
     private async Task DecideAsync(HostQuestionKey target, Func<ValueTask<HostInteractionDecision>> decide,
-        bool reviewing = false, bool checking = false)
+        bool reviewing = false, bool checking = false, bool explaining = false, bool returning = false)
     {
         StopVoiceReply();
         if (!IsEditable) { RefreshEligibility(); return; }
@@ -314,6 +456,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         try
         {
             var decision = await decide();
+            if (decision.Outcome == HostInteractionOutcome.Answered) { ClipboardAnswer?.Submitted(); }
             if (decision.Question is { } next && (next.Key.Request != target.Request
                 || next.Key.QuestionId != target.QuestionId))
             {
@@ -321,7 +464,8 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
             }
             var eligible = canInteract();
             var review = reviewing && decision.Outcome == HostInteractionOutcome.Presented
-                ? JsonSerializer.Serialize(decision.Question, ReviewFormat) : string.Empty;
+                ? IsForm ? JsonSerializer.Serialize(new { Question = decision.Question, UnsubmittedDraft = Answer }, ReviewFormat)
+                    : JsonSerializer.Serialize(decision.Question, ReviewFormat) : string.Empty;
             bool interrupted;
             lock (stateGate)
             {
@@ -333,7 +477,17 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
                 else
                 {
                     status = decision.Reason;
-                    if ((reviewing || checking) && decision.Outcome == HostInteractionOutcome.Presented)
+                    if ((explaining || returning) && decision.Outcome == HostInteractionOutcome.Presented)
+                    {
+                        var observed = decision.Explanation
+                            ?? throw new InvalidDataException("The policy observation is unavailable.");
+                        if (observed.Question != target || observed.Proposal != question.Proposal)
+                        { throw new InvalidDataException("The policy observation changed the original operation."); }
+                        policyExplanation = returning ? null : observed;
+                        status = returning ? "Same pending approval revalidated. No approval or grant use occurred."
+                            : "Policy snapshot read. Return to this same approval or explicitly cancel; nothing has run.";
+                    }
+                    else if ((reviewing || checking) && decision.Outcome == HostInteractionOutcome.Presented)
                     {
                         var exact = decision.Question ?? throw new InvalidDataException("The exact review has no question.");
                         if (exact.Key != target || exact.Proposal != question.Proposal)
@@ -346,7 +500,8 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
                                 ? review : mcpReviewText + "\n\nHost record:\n" + review;
                             reviewedKey = cleared ? null : target;
                             displayedReviewKey = null;
-                            status = "Exact host record reviewed. Operation source bytes are not supplied by this contract. Review is not approval, use or execution.";
+                            status = IsForm ? "Whole unsubmitted form reviewed. Editing invalidates this review; Submit validates every required field."
+                                : "Exact host record reviewed. Operation source bytes are not supplied by this contract. Review is not approval, use or execution.";
                         }
                     }
                     else if (decision.Outcome == HostInteractionOutcome.Drafted)
@@ -357,7 +512,9 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
                     }
                     else
                     {
+                        policyExplanation = null;
                         closed = true;
+                        if (IsForm) { ClearAnswer(); }
                         completion.TrySetResult(decision);
                     }
                 }
@@ -416,6 +573,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     internal void Close(string reason)
     {
         StopVoiceReply();
+        ClipboardAnswer?.Dispose();
         if (voiceReplies is not null) { voiceReplies.Changed -= OnVoiceReplyChanged; }
         lock (stateGate) { CloseState(reason); }
         Notify();
@@ -436,6 +594,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     internal void Dismiss()
     {
         StopVoiceReply();
+        ClipboardAnswer?.Dispose();
         voicePresenterCount = Math.Max(0, voicePresenterCount - 1);
         visibleVoicePresenter = static () => false;
         lock (stateGate)
@@ -536,6 +695,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         answer = EmptyAnswer();
         reviewText = string.Empty;
         mcpReviewText = string.Empty;
+        policyExplanation = null;
         reviewedKey = null;
         displayedReviewKey = null;
     }
@@ -548,11 +708,14 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         OnPropertyChanged(nameof(Answer));
         OnPropertyChanged(nameof(Status));
         OnPropertyChanged(nameof(ReviewText));
+        OnPropertyChanged(nameof(PolicyExplanationText));
+        OnPropertyChanged(nameof(HasPolicyExplanation));
         OnPropertyChanged(nameof(HasPresentation));
         OnPropertyChanged(nameof(IsEditable));
         OnPropertyChanged(nameof(CanSubmit));
         OnPropertyChanged(nameof(CanSaveDraft));
         OnPropertyChanged(nameof(CanAnswerByVoice));
+        OnPropertyChanged(nameof(CanEditFieldByVoice));
         OnPropertyChanged(nameof(IsVoiceReplyActive));
         OnPropertyChanged(nameof(VoiceReplyStatus));
     }

@@ -1,9 +1,11 @@
 using System.Diagnostics;
+
 using Kora.Application.Dependencies;
 using Kora.Core.Auditing;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging;
 
@@ -110,11 +112,23 @@ internal sealed class SpeechComponentSetupFixture
         internal bool ReturnNoMutation { get; set; }
         internal bool ReturnNoObservation { get; set; }
         internal bool ReturnNoVerification { get; set; }
+        internal long ConsumerRevision { get; set; }
+        internal string? NativeIdentity { get; set; } = "fixture-native";
+        internal bool ConsumersKnown { get; set; } = true;
+        internal string? Dependents { get; set; } = "None; exact fixture-owned runtime.";
+        internal int Holds { get; private set; }
+        public void HoldUnavailable(SpeechComponentDefinition component) => Holds++;
         public SpeechComponentRuntimeObservation Observe(SpeechComponentDefinition component)
         {
             if (ObservationFailure is { } failure) { throw failure; }
             if (ReturnNoObservation) { return null!; }
-            return new(Compatibility, ExistingFunctional, "Fixture-only installed runtime observation; no probe was run.");
+            return new(Compatibility, ExistingFunctional, "Fixture-only installed runtime observation; no probe was run.")
+            {
+                ConsumerRevision = ConsumerRevision,
+                NativeIdentity = NativeIdentity,
+                ConsumersKnown = ConsumersKnown,
+                Dependents = Dependents,
+            };
         }
         public ValueTask<SpeechComponentMutationAdmission> TryAcquireExclusiveAsync(SpeechComponentDefinition component, CancellationToken cancellationToken)
         {
@@ -152,10 +166,17 @@ internal sealed class SpeechComponentSetupFixture
     {
         internal bool Enabled { get; set; } = true;
         internal List<EventId> Events { get; } = [];
+        internal List<string> Messages { get; } = [];
+        internal List<Exception?> Exceptions { get; } = [];
         public bool IsEnabled(LogLevel logLevel) => Enabled;
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
-            Func<TState, Exception?, string> formatter) => Events.Add(eventId);
+            Func<TState, Exception?, string> formatter)
+        {
+            Events.Add(eventId);
+            Messages.Add(formatter(state, exception));
+            Exceptions.Add(exception);
+        }
     }
 
     internal sealed class Audit : ISecurityAuditLog

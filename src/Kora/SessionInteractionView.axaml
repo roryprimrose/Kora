@@ -116,6 +116,7 @@
             </WrapPanel>
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
               <StackPanel Spacing="8">
+                <local:AnswerReviewPanel />
                 <ItemsControl ItemsSource="{Binding ConversationMessages}" ItemTemplate="{StaticResource TimelineMessage}" />
                 <StackPanel IsVisible="{Binding HasProvisionalAnswer}" Spacing="4">
                   <TextBlock Text="Provisional answer — not retained; only a validated completed answer is saved."
@@ -197,6 +198,8 @@
       </WrapPanel>
       <StackPanel Grid.Row="5" Spacing="4">
       <local:TaskResponseOutputPanel />
+      <controls:NamedTextBlock x:Name="ConversationStatusMessage" Text="{Binding ConversationStatus}" TextWrapping="Wrap"
+          AutomationProperties.Name="Selected conversation submission, source hold and recovery outcome" />
       <TextBlock Text="{Binding RunningConversationStatus}" TextWrapping="Wrap"
           AutomationProperties.Name="Exact conversation running, stopping or terminal outcome" />
       <local:PendingConversationPanel />

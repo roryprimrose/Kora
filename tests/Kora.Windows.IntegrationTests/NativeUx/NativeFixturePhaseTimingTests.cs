@@ -391,13 +391,17 @@ public sealed class NativeFixturePhaseTimingTests
         var context = TestContext.Current;
         var original = context.Test!.UniqueID;
         var owner = NativeFixturePhaseTimings.Capture(context);
+        TimeProvider? productClock = invocation == 2
+            ? new PhaseClock { UtcNow = new(2000, 1, 1, 0, 0, 0, TimeSpan.Zero) }
+            : null;
         string? root = null;
         await HeadlessSession.RunAsync(async () =>
         {
             NativeFixturePhaseTimings.Capture(TestContext.Current).Should().BeSameAs(owner);
             var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
             Directory.CreateDirectory(parent);
-            using var fixture = new NativeUxFixtureSession(parent);
+            using var fixture = new NativeUxFixtureSession(parent, timeProvider: productClock);
+            fixture.Time.Should().BeSameAs(productClock ?? TimeProvider.System);
             root = fixture.LocalRoot;
             await fixture.InitializeAsync();
             fixture.Main.HasVoiceConsent.Should().BeFalse();
@@ -423,6 +427,12 @@ public sealed class NativeFixturePhaseTimingTests
         steps.Should().HaveCount(states.Length);
         steps.Should().OnlyContain(step => TimeSpan.Parse(step.GetProperty("Timing").GetProperty("Duration").GetString()!,
             System.Globalization.CultureInfo.InvariantCulture) >= TimeSpan.Zero);
+        if (productClock is not null)
+        {
+            productClock.GetTimestamp().Should().Be(0);
+            report.RootElement.GetProperty("Timing").GetProperty("GlobalTiming")
+                .GetProperty("StartTime").GetDateTimeOffset().Year.Should().NotBe(2000);
+        }
         report.RootElement.GetRawText().Should().NotContain(root!);
     }
 

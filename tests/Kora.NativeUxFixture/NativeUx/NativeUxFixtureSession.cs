@@ -57,8 +57,10 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     internal NativeUxFixtureSession(string scratchParent, bool silentCaption = false, bool listOverflow = false,
         bool exactGrants = false, bool allWork = false, bool bufferedEvidence = false,
         ISqliteTransactionCheckpoint? evidenceCheckpoint = null,
-        IHostInteractionTransactionCheckpoint? interactionCheckpoint = null, bool syntheticVoice = false)
+        IHostInteractionTransactionCheckpoint? interactionCheckpoint = null, bool syntheticVoice = false,
+        TimeProvider? timeProvider = null)
     {
+        Time = timeProvider ?? TimeProvider.System;
         CapturePhaseObserver();
         using var ownedStorage = BeginPhase(NativeFixturePhase.OwnedStorage);
         if ((silentCaption ? 1 : 0) + (listOverflow ? 1 : 0) + (exactGrants ? 1 : 0) + (allWork ? 1 : 0) + (syntheticVoice ? 1 : 0) > 1)
@@ -101,10 +103,10 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             Loggers = LoggerFactory.Create(builder => builder.AddProvider(evidenceProvider));
             Audit = new LoggerSecurityAuditLog(Loggers.CreateLogger<LoggerSecurityAuditLog>());
             Tasks = new(this);
-            Interactions = new(this, Tasks, TimeProvider.System, interactionCheckpoint);
+            Interactions = new(this, Tasks, Time, interactionCheckpoint);
             VersionQuery = new(new(Tasks), Audit, Loggers.CreateLogger<DurableVersionQuery>());
             Evidence = new(new WindowsEvidenceReader(new WindowsSqliteEvidenceReader(sink),
-                new WindowsDailyEvidenceReader(this), Interactions), Access, TimeProvider.System, NullLogger<DurableEvidenceQuery>.Instance);
+                new WindowsDailyEvidenceReader(this), Interactions), Access, Time, NullLogger<DurableEvidenceQuery>.Instance);
             SharedAdmission = new(Interactions, Interactions, new(Tasks));
             SharedSkills = new(new(this), new DeniedSharedSkillReader(), SharedAdmission, Audit,
                 NullLogger<SharedSkillDiscoveryService>.Instance);
@@ -132,6 +134,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     private NativeFixturePhaseScope BeginPhase(NativeFixturePhase phase) => new(phase, RecordPhase);
 
     public string LocalRoot { get; }
+    internal TimeProvider Time { get; }
     public string RoamingRoot => Path.Combine(LocalRoot, "Roaming");
     internal FixtureAccess Access { get; }
     internal FixtureVoice Voice { get; }
@@ -214,9 +217,9 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         var capabilities = new ReadOnlyCapabilityRegistry(Access, new(), new(), new(new AssemblyApplicationInfo()),
             new(bootstrapper), new(runtime), new(runtime), NullLogger<ReadOnlyCapabilityRegistry>.Instance);
         queue = new(Interactions, Interactions, new(Tasks), Access, new DeterministicVersionQueueAction(capabilities),
-            new(), NullLogger<SessionQueueService>.Instance);
+            new(), NullLogger<SessionQueueService>.Instance, Time);
         sessions = new(Interactions, new(Tasks), Access, NullLogger<SessionWorkspaceService>.Instance, queue);
-        var clipboard = new ClipboardSnapshotBroker(new FixtureClipboardReader(), TimeProvider.System,
+        var clipboard = new ClipboardSnapshotBroker(new FixtureClipboardReader(), Time,
             NullLogger<ClipboardSnapshotBroker>.Instance);
         ITextToSpeechService speech = SilentSpeech is { } silent ? silent : new FixtureSpeech();
         var audioPreferences = new LocalAudioDevicePreferences(this, NullLogger<LocalAudioDevicePreferences>.Instance);
@@ -313,11 +316,11 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         await Interactions.CreateSessionAsync(request, Token);
         await Interactions.PublishTrustedSnapshotAsync(request, new(true, false, false, true),
             proposal: null, expectedObservationRevision: 0, Token);
-        var decision = await new HostQuestionService(Interactions, TimeProvider.System).CreateAsync(request,
+        var decision = await new HostQuestionService(Interactions, Time).CreateAsync(request,
             new("Synthetic stale-revision fixture: show the harmless local version?",
                 QuestionKind.SingleChoice, [new("show", "Show local version")],
                 purpose: "native-ux-stale-revision", sourceId: "host"),
-            TimeProvider.System.GetUtcNow().AddMinutes(5), Token);
+            Time.GetUtcNow().AddMinutes(5), Token);
         if (decision.Outcome != HostInteractionOutcome.Presented || decision.Question is null)
         {
             throw new InvalidOperationException("The synthetic revision question was not admitted.");
@@ -332,11 +335,11 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         RequireValidationAccess();
         var target = RevisionQuestion ?? throw new InvalidOperationException("Open the exact revision question first.");
         using var activity = HostActivity.BeginRoot(target.Key.Request, HostActivityLayer.Desktop, HostOperation.Presentation);
-        var decision = await new HostQuestionService(Interactions, TimeProvider.System).ReviseAsync(target.Key,
+        var decision = await new HostQuestionService(Interactions, Time).ReviseAsync(target.Key,
             new("Synthetic replacement revision: the older displayed question must not answer this target.",
                 target.Spec.Kind, target.Spec.Options, target.Spec.Minimum, target.Spec.Maximum,
                 target.Spec.MaximumTextLength, target.Spec.Purpose, target.Spec.SourceId),
-            TimeProvider.System.GetUtcNow().AddMinutes(5), Token);
+            Time.GetUtcNow().AddMinutes(5), Token);
         if (decision.Outcome != HostInteractionOutcome.Presented || decision.Question is null)
         {
             throw new InvalidOperationException("The exact synthetic question revision did not advance.");
@@ -388,7 +391,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     internal MaintenanceViewModel CreateMaintenance()
     {
         var model = new MaintenanceViewModel(new DeniedReleaseClient(), new AssemblyApplicationInfo(), ReleaseArchitecture.X64,
-            new DeniedReleaseOpener(), TimeProvider.System, new AvaloniaUiDispatcher(), Audit,
+            new DeniedReleaseOpener(), Time, new AvaloniaUiDispatcher(), Audit,
             NullLogger<MaintenanceViewModel>.Instance);
         model.BindGate(() => Access.Open);
         maintenance.Add(model);

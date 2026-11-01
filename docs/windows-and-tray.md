@@ -204,6 +204,21 @@ review for its own original input.
 Normal capacity, message, byte, budget and resource limits still apply
 ([review fences](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)).
 
+### Answers not marked reviewed
+
+Return to the exact conversation in the expanded, Sessions or compact view. Expand **Answers not marked reviewed**, then:
+
+1. Choose **Read answers not marked reviewed**. The status shows how many retained answers have no explicit review flag at that read, with bounded rows and **Next answer-review page** when more matches are omitted.
+2. Select one metadata row and choose **Open this exact answer Details**. This opens the retained ASSISTANT answer through the existing private Details reader; selection and opening mark nothing.
+3. Deliberately choose **Mark this answer reviewed**. Only that exact answer changes. The list and count refresh after confirmed durable readback; other conversations, unseen pages and later answers are not marked.
+4. To undo, choose **Read all answer review flags (including undo)**, select the exact answer, open its Details, then choose **Unmark this answer reviewed**.
+
+**Not marked reviewed** does not mean unread: Kora cannot prove that a person read or understood an answer. Opening, rendering, polling, browsing and paging never mark anything automatically. Read again for new background answers. Flags survive restart only while the source history remains retained ([operation owner](../src/Kora/SessionsViewModel.AnswerReviews.cs)).
+
+Changed or removed sources, privacy/ownership loss, cancellation, malformed saved state or uncertain readback report **Unavailable**, not a zero remaining count or successful mark. Read again explicitly after recovery; no automatic retry or rollback is inferred. Confirmed older history with no acknowledgement starts as not marked ([authoritative store](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.AnswerReviews.cs)).
+
+This native-only metadata choice does not Resume a Done conversation, renew retention, send model input, change grants, dispatch work, copy an answer body or save unsent text. Deleting source history also removes its owned review metadata under the existing deletion policy ([lifecycle contract](../Design/Interaction_And_Sessions.md#explicit-retained-answer-review-acknowledgement)).
+
 ### Details beside the conversation
 
 After explicitly reading a conversation or selecting an activity receipt, use

@@ -14,6 +14,19 @@ namespace Kora.Application.UnitTests.Documentation;
 public sealed class EmbeddedUserDocumentationProviderTests
 {
     [Fact]
+    public void TrayGuideKeepsFreshExpiredRequestsAndExplicitAnswerAcknowledgementsSeparate()
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "windows-and-tray", StringComparison.Ordinal)).Markdown;
+        guide.Should().Contain("### Review expired local text as a new ordinary request")
+            .And.Contain("### Answers not marked reviewed")
+            .And.Contain("**Confirm one NEW ordinary LOCAL request**")
+            .And.Contain("**Mark this answer reviewed**")
+            .And.Contain("Opening, rendering, polling, browsing and paging never mark anything automatically")
+            .And.Contain("does not Resume a Done conversation, renew retention, send model input, change grants, dispatch work");
+    }
+
+    [Fact]
     public void ExpiredOrdinaryGuideKeepsFreshConfirmationDeadlineIndependentHoldsAndSourceReviewSeparate()
     {
         var guide = new EmbeddedUserDocumentationProvider().GetPages()

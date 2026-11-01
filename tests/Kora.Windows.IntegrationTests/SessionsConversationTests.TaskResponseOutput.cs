@@ -122,6 +122,7 @@ public sealed partial class SessionsConversationTests
     public async Task TaskOutputSeparateSessionsAndQueuedTurnsOwnImmutableChoicesWithoutProviderPayloadFields(int elapsedSeconds)
     {
         using var f = new InteractionStorageFixture();
+        f.Time.UseFrozenTimers = true;
         await f.InitializeAsync();
         await WindowsSqliteConversationTests.FinishInitial(f);
         f.Time.UseFrozenTimers = true;

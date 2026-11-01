@@ -300,13 +300,18 @@ public sealed partial class ModelTurnHostTests
         public async ValueTask<ConversationSubmissionReceipt> CompleteConversationSubmissionAsync(HostRequest request,
             ModelTurnOutcome outcome, ModelTurnReason reason, Func<bool> admitted, CancellationToken token)
         {
-            // Capture the request-owned terminal pair before the awaited callback can interleave completions.
-            var source = ReadPendingRecord(request);
-            if (BeforeSubmissionComplete is { } before) { await before(request); }
-            var message = source.Message with { Revision = 2, Outcome = outcome, Reason = reason };
-            var receipt = new ConversationSubmissionReceipt(message, source.Task.Next(message.ExpectedTaskState));
-            RememberPendingRecord(receipt);
-            var observed = new HostTaskObservation(receipt.Task, message.Generation, "host", true, null);
+            // Expired workers must derive both terminal rows from one request-local snapshot.
+            var pending = TrackPendingRecords ? PendingRecords[request.RequestId] : null;
+            var message = pending?.Message ?? Retained!;
+            var observed = pending is null ? Task!
+                : new HostTaskObservation(pending.Task, pending.Message.Generation, "host", true, null);
+            if (BeforeSubmissionComplete is { } before) { await before(request).ConfigureAwait(false); }
+            message = message with { Revision = 2, Outcome = outcome, Reason = reason };
+            observed = observed with { Task = observed.Task.Next(message.ExpectedTaskState) };
+            Retained = message;
+            Task = observed;
+            var receipt = new ConversationSubmissionReceipt(message, observed.Task);
+            if (TrackPendingRecords) { PendingRecords[request.RequestId] = receipt; }
             if (CompletionFault is "body-receipt") { receipt = receipt with { Message = message with { Body = "wrong body" } }; }
             if (CompletionFault is "request-receipt") { receipt = receipt with { Message = message with { Request = HostRequest.Create(RequestOrigin.LocalUi) } }; }
             if (CompletionFault is "task-receipt") { receipt = receipt with { Task = new(request, new(3), HostTaskState.Failed) }; }

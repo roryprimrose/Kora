@@ -37,9 +37,10 @@ public sealed partial class SessionsConversationTests
         await HeadlessSession.RunAsync(async () =>
         {
             using var storage = new InteractionStorageFixture();
+            storage.Time.UseFrozenTimers = true;
             await storage.Tasks.InitializeAsync(storage.Token);
             await storage.Store.InitializeAsync(storage.Token);
-            using var native = new NativeUxFixtureSession(storage.Paths.LocalRoot);
+            using var native = new NativeUxFixtureSession(storage.Paths.LocalRoot, timeProvider: storage.Time);
             await native.InitializeAsync();
             await using var composition = new Composition(storage);
             using var questions = new NativeQuestionHost(storage.Store, storage.Time, NullLogger<NativeQuestionViewModel>.Instance);
@@ -54,7 +55,7 @@ public sealed partial class SessionsConversationTests
             var owner = new Window();
             owner.Show();
             using var lifecycle = new ApplicationLifecycleController(native.Main, composition.Conversation, native.Queue,
-                questions, new(storage.Tasks), renderer, () => owner);
+                questions, new(storage.Tasks), renderer, () => owner, storage.Time);
             var platform = new BundledNativePlatform();
             var worker = new BundledNativeWorker();
             var audit = new BundledNativeAudit();

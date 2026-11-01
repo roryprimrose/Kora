@@ -163,7 +163,7 @@ public sealed partial class SessionsConversationTests
                 pageTransport: scenario is "unavailable" ? null : network);
             var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
             Directory.CreateDirectory(parent);
-            using var native = new NativeUxFixtureSession(parent);
+            using var native = new NativeUxFixtureSession(parent, timeProvider: f.Time);
             await native.InitializeAsync();
             var store = new WindowsOwnedDeclarativeSkillStore(native);
             await using var admission = new OwnedSkillControlAdmission(native.Interactions, native.Interactions, new(native.Tasks));

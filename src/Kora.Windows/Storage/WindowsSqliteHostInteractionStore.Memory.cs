@@ -98,6 +98,15 @@ public sealed partial class WindowsSqliteHostInteractionStore
             {
                 RequireFreshMetadataIntent(intent);
             }
+            if (commit.Result is { Outcome: MemoryOutcome.Succeeded, Record: { } copy }
+                && copy.Lineage.CopiedFromSession is not null
+                && (copy.Review is MemoryReviewState.Proposed or MemoryReviewState.Reviewed
+                    || commit.ReviewedOriginal is not null)
+                && (!MemoryPolicy.MatchesSessionCopySource(copy, commit.SessionCopySource, boundary)
+                    || !all.Contains(commit.SessionCopySource!)))
+            {
+                return new MemoryResult(MemoryOutcome.RevisionConflict, MemoryReason.RevisionMismatch);
+            }
             if (commit.Replacement is null && commit.Result is
                 { Outcome: MemoryOutcome.Succeeded, Record: { Revision.Value: 1, Review: MemoryReviewState.Proposed } }
                 && all.Length + (long)commit.VolatileIdentityCount >= MemoryPolicy.MaximumEntries)
@@ -212,7 +221,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
     {
         if (record.Id.Value == Guid.Empty || record.Revision.Value <= 0 || record.Lineage is null
             || record.Lineage.Request is null || record.Lineage.Profile != profile
-            || !ValidMemoryScope(record, profile)
+            || !ValidMemoryScope(record, profile) || !MemoryPolicy.ValidSessionCopyLineage(record)
             || record.CreatedAt.Offset != TimeSpan.Zero || record.Lineage.SessionGeneration.Value <= 0
             || record.Lineage.Origin is not (MemoryProposalOrigin.User or MemoryProposalOrigin.Model)
             || record.Lineage.Source is not null || record.Lineage.SourceRevision is not null

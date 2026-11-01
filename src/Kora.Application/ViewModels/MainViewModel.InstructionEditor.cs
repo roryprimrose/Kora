@@ -93,6 +93,8 @@ public sealed partial class MainViewModel
             "activate" => "Review use",
             "cancel" => "Cancel",
             "copy" => "Save as new copy",
+            "rename" when !prompt => "Rename",
+            "recover-rename" when !prompt => "Recover rename",
             "validate" => "Validate",
             "compare" => "Compare",
             "rebase" => "Rebase",
@@ -102,15 +104,15 @@ public sealed partial class MainViewModel
             _ => null,
         };
         if (operation is null)
-        { ReportHostInteractionFailure("Use instructions/prompts editor/list/create/edit/inspect/validate/compare/rebase/save/copy/reload/delete/activate/disable/stop-use/cancel, or instructions refine/restore in the open editor. Body text and paths are not editor commands."); return; }
-        if (operation is "Create" or "Inspect" or "Save as new copy" ? words.Length != 3 : words.Length != 2)
+        { ReportHostInteractionFailure("Use instructions/prompts editor/list/create/edit/inspect/validate/compare/rebase/save/copy/reload/delete/activate/disable/stop-use/cancel. Instructions also support refine, restore, rename <new-id> and recover-rename. Body text and paths are not editor commands."); return; }
+        if (operation is "Create" or "Inspect" or "Save as new copy" or "Rename" ? words.Length != 3 : words.Length != 2)
         { ReportHostInteractionFailure("Use an exact bounded owned ID; editor commands do not accept body text or paths."); return; }
-        if (operation is ("Refine" or "Restore previous saved content") && Kora.Core.Diagnostics.HostActivity.RequireCurrent().Request.Origin == RequestOrigin.ActivatedVoice
+        if (operation is ("Refine" or "Restore previous saved content" or "Rename" or "Recover rename") && Kora.Core.Diagnostics.HostActivity.RequireCurrent().Request.Origin == RequestOrigin.ActivatedVoice
             && !commandRouter.IsActivationPrefixed(input, AssistantName))
-        { ReportHostInteractionFailure("Use the current assistant-name prefix for instruction refinement or restore. No model disclosure or editor change occurred."); return; }
+        { ReportHostInteractionFailure("Use the current assistant-name prefix for this open instruction operation. No model disclosure or editor change occurred."); return; }
         if ((prompt ? OwnedPromptEditorRequested : OwnedInstructionEditorRequested) is { } handler)
         {
-            if (operation is "Refine" or "Restore previous saved content")
+            if (operation is "Refine" or "Restore previous saved content" or "Rename" or "Recover rename")
             {
                 instructionEditorInput = reviewEligibility ?? CaptureSkillReviewEligibility(manualInput
                     ?? CaptureManualCallInput(Kora.Core.Diagnostics.HostActivity.RequireCurrent().Request.Origin, CallPolicyRevision));

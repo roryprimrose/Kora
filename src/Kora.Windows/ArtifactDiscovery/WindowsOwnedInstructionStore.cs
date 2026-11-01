@@ -1,9 +1,11 @@
 using Kora.Core.Artifacts;
 using Kora.Core.Dependencies;
 
+using Microsoft.Win32.SafeHandles;
+
 namespace Kora.Windows.Artifacts;
 
-public sealed class WindowsOwnedInstructionStore : IOwnedInstructionStore
+public sealed class WindowsOwnedInstructionStore : IOwnedInstructionStore, IOwnedInstructionRenameStore
 {
     private readonly WindowsOwnedDefinitionFileAccess files;
 
@@ -15,6 +17,15 @@ public sealed class WindowsOwnedInstructionStore : IOwnedInstructionStore
 
     internal Action? AfterFinalComparison { get => files.AfterFinalComparison; set => files.AfterFinalComparison = value; }
     internal Action? AfterPublication { get => files.AfterPublication; set => files.AfterPublication = value; }
+    internal Action<OwnedInstructionRenamePhase>? AfterRenamePhase { get => files.AfterRenamePhase; set => files.AfterRenamePhase = value; }
+    internal Func<SafeFileHandle, uint> RenameDirectoryFlags { get => files.RenameDirectoryFlags; set => files.RenameDirectoryFlags = value; }
+    public Task<OwnedInstructionSnapshot> Rename(OwnedInstructionRename proposal, Func<bool> eligible,
+        Func<Func<OwnedInstructionSnapshot>, Task<OwnedInstructionSnapshot>> commit, CancellationToken token) =>
+        files.RenameInstruction(proposal, eligible, commit, token);
+    public Task<OwnedInstructionRenameRecovery?> ReadRenameRecovery(CancellationToken token) => files.ReadRenameRecovery(token);
+    public Task<OwnedInstructionSnapshot> RecoverRename(OwnedInstructionRenameRecovery recovery, Func<bool> eligible,
+        Func<Func<OwnedInstructionSnapshot>, Task<OwnedInstructionSnapshot>> commit, CancellationToken token) =>
+        files.RecoverInstructionRename(recovery, eligible, commit, token);
     public Task<IReadOnlyList<string>> List(CancellationToken token) => files.List(token);
     internal IReadOnlyList<string> ListVerified(CancellationToken token) => files.ListVerified(token);
     public async Task<OwnedInstructionSnapshot?> Read(string name, CancellationToken token) =>
@@ -31,9 +42,10 @@ public sealed class WindowsOwnedInstructionStore : IOwnedInstructionStore
 
     private static OwnedInstructionSnapshot? Convert(WindowsOwnedDefinitionFileAccess.Snapshot? value) =>
         value is null ? null : new(value.Name, value.DirectoryIdentity, value.FileIdentity, value.Document)
-        { CanonicalFileName = value.CanonicalFileName };
+        { CanonicalFileName = value.CanonicalFileName, RootBindingIdentity = value.RootBindingIdentity };
     private static WindowsOwnedDefinitionFileAccess.Snapshot? Convert(OwnedInstructionSnapshot? value) =>
-        value is null ? null : new(value.Name, value.DirectoryIdentity, value.FileIdentity, value.Document, value.CanonicalFileName);
+        value is null ? null : new(value.Name, value.DirectoryIdentity, value.FileIdentity, value.Document, value.CanonicalFileName)
+        { RootBindingIdentity = value.RootBindingIdentity };
     private static InstructionWriteResult Convert(WindowsOwnedDefinitionFileAccess.WriteResult value) =>
         new(value.Published, value.Deleted, value.Conflict, Convert(value.Current), value.Unchanged);
     private static WindowsOwnedDefinitionFileAccess.WriteResult Convert(InstructionWriteResult value) =>

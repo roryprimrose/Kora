@@ -64,6 +64,26 @@ over future requests. A changed review needs fresh confirmation, and an unavaila
 native owner reports unavailable. Model suggestions and reusable model grants
 cannot authorize this action. `stop` and `stop speaking` keep their prior meanings.
 
+## Ask what remains in one conversation
+
+Select one conversation in Sessions or the compact conversation view, then choose **What work remains?** The button completes a factual host answer without opening All Work, submitting a message or stopping execution ([native action](../src/Kora/SessionsViewModel.RemainingWork.cs)).
+
+In the global command box, use `session remaining "<exact readable name>"` or `what work remains in "<exact readable name>"`.
+Activated voice requires the current assistant-name prefix, for example `Kora, what work remains in "Build"`.
+`what do you have left to do in "Build"` is equivalent; quotes delimit the exact case-sensitive name and an embedded quote is doubled ([grammar](../src/Kora.Core/Commands/SessionCommand.RemainingWork.cs)).
+
+Duplicate names produce up to eight numbered, host-bound choices. Use `session remaining choose 2` or `session remaining cancel` on the original channel within 60 seconds.
+If the rows cannot be distinguished, cancel and choose the exact native conversation. Nothing uses focus or recent activity to pick a target.
+The technical exact-ID route is `session remaining <session-id>` ([resolution](../src/Kora.Application/Hosting/SessionRemainingWorkCommandService.cs)).
+
+The answer separates the durable ledger's source time from the ordinary lane's observation time.
+It reports the actual host step when available, submitted FIFO positions, separate manual/recovery/application hold facts, original expiries, pending-question kinds and unresolved Unknown/Interrupted records, with explicit omissions.
+It excludes message/question bodies, unsent input and other conversations. No worker is not proof of completion; this is not an atomic global inventory, future-step plan, percentage, ETA or effect claim ([answer projection](../src/Kora.Application/Hosting/SessionRemainingWorkAnswer.cs)).
+
+Done conversations are inspected without Resume. Changed or unavailable sources require a fresh request, not an empty/all-complete answer or automatic retry.
+A question, approval, editor, dictation or protected-call/private/channel restriction can refuse or retire the answer.
+The complete timed answer remains visual; a bounded factual spoken summary follows normal speech policy. The existing untargeted `status` and `what do you have left to do` commands remain setup status, not this conversation answer ([query](../src/Kora.Application/Hosting/SessionConversationService.RemainingWork.cs), [presentation admission](../src/Kora.Application/ViewModels/MainViewModel.RemainingWork.cs)).
+
 ## Pause one ordinary conversation's dispatch
 
 Use the [ordinary dispatch controls](windows-and-tray.md#ordinary-conversation-dispatch-hold)
@@ -1920,6 +1940,12 @@ Instruction/Prompt kind selection. `list`, `create <id>`, `edit <id>`,
 `inspect <id>`, `validate`, `compare`, `rebase`, `save`, `copy <new-id>`, `reload`, `discard`, `delete`, `activate`, `disable`, `stop-use` and `cancel`
 are the exact controls after either plural kind name. Only create/edit/inspect/copy
 accept one canonical file ID; other controls target the open original.
+Instructions additionally support `instructions rename <new-id>` and
+`instructions recover-rename`. These use the same clean inspected owned source,
+complete identity/source/reference review and separate native confirmation for
+typed/current-name activated entry. No prompt/profile-original rename, overwrite
+or activation transfer is included; see
+[owned Instruction rename and recovery](instruction-editor.md#rename-one-owned-instruction).
 `instructions validate` / `prompts validate` observes the currently open same-kind supported owned draft/new draft using exact Save preparation, including BOM/native-marker overhead and observed structural/namespace checks. It never opens/switches sources, saves or enables.
 The bounded body-free result is historical structural compatibility, not harmlessness, current disk integrity or approval. Source/private/input changes retire it; Save separately revalidates and exactly confirms. No store I/O/reload, revision-preference write/hold, model/network or reference execution is added. See [draft validation](instruction-editor.md#validate-the-open-draft-without-saving).
 `instructions rebase` / `prompts rebase` explicitly observes latest for an already open supported same-kind source and reviews complete old/latest/raw bodies. Confirmation rereads the exact observed revision and adopts only that baseline in memory, preserving the raw draft; it neither merges nor saves/enables.

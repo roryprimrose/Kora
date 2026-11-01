@@ -869,8 +869,66 @@ uses scalar `kora-format: 1`, `name`, `description` and optional `attribution`;
 the editor preserves original BOM, source text, line endings and supported
 metadata. Compatible legacy files lacking `kora-format` retain unchanged
 behavior; unsupported scope/metadata cannot be implicitly repaired in place.
-Header editing is bounded to 16 fields/4096 UTF-8 bytes. Rename, general revision history,
-other profile mutations, executable content and agent runtime are absent from this editor.
+Header editing is bounded to 16 fields/4096 UTF-8 bytes. The separately reviewed
+[owned Instruction rename](../docs/instruction-editor.md#rename-one-owned-instruction)
+adds only `instructions rename <new-id>` / `instructions recover-rename` and the
+same native controls. General revision history, prompt/profile-original rename, other profile
+mutations, executable content and agent runtime remain absent.
+
+#### Bounded recoverable owned Instruction rename
+
+One original user may rename the exact clean inspected canonical native v1
+Kora-owned Instruction within its existing owned root. The host prepares a
+distinct nonreserved canonical ID and changes only the declared name scalar
+(or filename-derived name when absent); it preserves original BOM, formatting,
+line endings, attribution, metadata and body bytes. Full old/new identity and
+source review includes observed exact declared agent dependents, invocation
+changes and unchanged old reference bindings. A separate native confirmation
+is mandatory for native, typed and current-name activated entry alike
+([shared actions](../src/Kora.Application/Definitions/OwnedInstructionEditorActions.Rename.cs),
+[native review](../src/Kora/OwnedInstructionEditorController.Rename.cs)).
+Reviewed catalogue consequences remain bound across awaited commit scheduling
+and every native admission check. Only the operation's own old/new use holds
+are accepted without another review; changed candidates, dependent declarations
+or a reload failure (even subsequently recovered) retire the confirmation.
+Before possible intent publication this refuses mutation; afterward the exact
+unfinished proposal remains recovery-required and must be reviewed again.
+
+This is explicitly a multi-step, recoverable operation, not an atomic rename
+transaction or content CAS. A bounded private local intent contains exact
+original source and native root/parent/file/stage bindings. The writer moves
+the pinned original by native handle into its private same-root recovery slot,
+publishes the exact staged new source with native no-replace semantics, verifies
+identity/bytes and old-name absence, then removes retained original and intent.
+No ordinary copy-then-delete shortcut, arbitrary path, executable/dependency
+rewrite, replacement or silent rollback is admitted. Another writer, alias,
+reparse/hardlink, parent/root replacement, changed source, occupied destination
+case-sensitive/unknown native directory semantics or unconfirmed readback refuses or holds the operation
+([native protocol](../src/Kora.Windows/ArtifactDiscovery/WindowsOwnedDefinitionFileAccess.Rename.cs)).
+
+Cancellation after possible intent publication and interrupted/unconfirmed
+publication remain explicit recovery-required. Startup/list/reload never
+replay that intent; owned source reads/use/writes are withheld until separately
+reviewed **Recover rename** resumes that exact proposal and observed phase.
+Unexpected membership/identity/bytes or corrupt recovery data remain held;
+recovery cannot overwrite subsequent external edits. Recovery data is private
+definition content, not diagnostics, conversation retention or a grant, and is
+removed only after confirmed completion. Process-interruption fixture evidence
+is not distributed sync, power-loss, provider or installed qualification
+([phase regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsOwnedInstructionStoreTests.Rename.cs)).
+
+Both use identities are held before publication. Coherent reconciliation removes
+the old candidate and exposes the new exact source disabled, requiring fresh
+independent revision review. No grant, activation, applicability, dependent
+declaration or approval is transferred or rewritten. Existing source-digest
+reference resolution remains authoritative; old IDs cannot select the new
+source even after its independent activation. Captured content is never
+rebound mid-task; existing access/source-freshness checks and the stricter
+[agent-bundle lifetime](#bounded-local-agent-owned-instruction-references-v2)
+still apply. Exact requested/terminal audit records contain only content-free
+operation hashes and truthful failed/cancelled/unknown/succeeded outcomes
+([reconciliation](../src/Kora/ArtifactCatalogueReloadService.cs),
+[complete editor fixtures](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Rename.cs)).
 
 **Restore previous saved content** completes one bounded same-source owned native-v1 Instruction restoration.
 Only a changed normal Save with known terminal audit, native readback and coherent catalogue reconciliation retains one prior complete source in the same private editor/run.
@@ -879,6 +937,7 @@ The user reviews complete CURRENT saved source against exact PREVIOUS source, wi
 It creates and reads back a NEW disabled revision, even when its bytes match a formerly enabled revision. No prior review epoch, activation, grants or reference binding returns ([restore action](../src/Kora.Application/Definitions/OwnedInstructionEditorActions.Restore.cs)).
 Current native identity/digest/root and source observation, proposal compatibility/namespace and original input/channel/session/control/private/owner/call/expiry gates are revalidated before preview, confirmation and publication.
 Detected external change, rename, deletion, access loss or observed ABA retires the plan; this route never offers historical conflict overwrite or retries.
+Rename and its recovery do not carry the prior Save snapshot to the new identity. Only a subsequent confirmed changed normal Save on that new source can establish a new same-source restore point.
 It retains the existing accepted optimistic final comparison/native-publication window, not CAS or detection of unobserved intervening writes ([writer](../src/Kora.Windows/ArtifactDiscovery/WindowsOwnedDefinitionFileAccess.cs)).
 Dirty-draft Save/Discard/Cancel is independent. A dirty Save completes separately and requires choosing Restore again; no unsaved draft is silently discarded.
 Source/control retirement, private closure, window closure and disposal release the volatile prior snapshot. There is no disk archive, restore after restart, forensic RAM-erasure claim, profile-original writer or model/tool/network/audio effect ([user interaction](../docs/instruction-editor.md#restore-the-last-confirmed-save-in-this-editor), [native fixture regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Restore.cs)).

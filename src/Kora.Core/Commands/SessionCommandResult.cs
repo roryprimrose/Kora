@@ -32,6 +32,8 @@ public sealed record SessionCommandResult(string Outcome, string Message)
     public SessionQueueRequeueReview? QueueRequeueReview { get; init; }
     public SessionQueueRequeueReceipt? QueueRequeueReceipt { get; init; }
     public SessionRequestReview? RequestReview { get; init; }
+    public ConversationPendingClearSnapshot? PendingClearReview { get; init; }
+    public ConversationPendingClearResult? PendingClearResult { get; init; }
     public ConversationSubmissionReceipt? RequestSubmission { get; init; }
     public SessionRetentionObservation? Retention { get; init; }
     public SessionRetentionReview? RetentionReview { get; init; }

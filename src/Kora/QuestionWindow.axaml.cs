@@ -21,6 +21,9 @@ public sealed partial class QuestionWindow : Window
     private readonly TextBox review;
     private readonly TextBox explanation;
     private readonly Dictionary<string, ToggleButton> choices = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, TextBox> fieldTexts = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Dictionary<string, RadioButton>> fieldChoices = new(StringComparer.Ordinal);
+    private readonly List<Button> fieldVoice = [];
     private readonly DispatcherTimer expiry = new() { Interval = TimeSpan.FromSeconds(1) };
     private bool refreshing;
     private int foregroundAdmission;
@@ -51,6 +54,57 @@ public sealed partial class QuestionWindow : Window
             + $"\nPurpose/source: {record.Spec.Purpose}/{record.Spec.SourceId}"
             + $"\nBounds: {record.Spec.Minimum}..{record.Spec.Maximum} choices; text maximum {record.Spec.MaximumTextLength}.";
         var panel = Required<StackPanel>("ChoicePanel");
+        foreach (var field in record.Spec.Fields)
+        {
+            panel.Children.Add(new TextBlock
+            {
+                Text = field.Label + (field.Kind == QuestionKind.Text
+                    ? $" (required text; maximum {field.MaximumLength} characters / {field.MaximumUtf8Bytes} UTF-8 bytes)"
+                    : " (required; choose one)"),
+                TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+            });
+            if (field.Kind == QuestionKind.Text)
+            {
+                var text = new TextBox
+                {
+                    Name = field.Id, AcceptsReturn = true, IsUndoEnabled = false,
+                    TextWrapping = Avalonia.Media.TextWrapping.Wrap, MinHeight = 42, MaxHeight = 120,
+                };
+                AutomationProperties.SetName(text, field.Label + " required text");
+                text.PropertyChanged += (_, change) =>
+                {
+                    if (!refreshing && change.Property == TextBox.TextProperty)
+                    { state.EditField(new(field.Id, text.Text ?? string.Empty)); }
+                };
+                fieldTexts.Add(field.Id, text);
+                panel.Children.Add(text);
+            }
+            else
+            {
+                var controls = new Dictionary<string, RadioButton>(StringComparer.Ordinal);
+                fieldChoices.Add(field.Id, controls);
+                foreach (var option in field.Options)
+                {
+                    var radio = new RadioButton
+                    {
+                        Name = field.Id + "-" + option.Id,
+                        Content = new TextBlock { Text = option.Label, TextWrapping = Avalonia.Media.TextWrapping.Wrap },
+                        GroupName = record.Key.QuestionId.Value.ToString("D") + "-" + field.Id,
+                    };
+                    AutomationProperties.SetName(radio, field.Label + ": " + option.Label);
+                    radio.IsCheckedChanged += (_, _) =>
+                    {
+                        if (!refreshing && radio.IsChecked == true) { state.EditField(new(field.Id, Choice: option.Id)); }
+                    };
+                    controls.Add(option.Id, radio);
+                    panel.Children.Add(radio);
+                }
+            }
+            var speak = new Button { Content = "Speak field: " + field.Label, Name = "Speak-" + field.Id };
+            speak.Click += async (_, _) => await RunInteractionAsync(() => state.AnswerFieldByVoiceAsync(field.Id));
+            fieldVoice.Add(speak);
+            panel.Children.Add(speak);
+        }
         for (var index = 0; index < record.Spec.Options.Length; index++)
         {
             var option = record.Spec.Options[index];
@@ -73,6 +127,7 @@ public sealed partial class QuestionWindow : Window
         Required<Button>("ExplainPolicy").Click += async (_, _) => await RunInteractionAsync(state.ExplainPolicyAsync);
         Required<Button>("ReturnToApproval").Click += async (_, _) => await RunInteractionAsync(state.ReturnToApprovalAsync);
         Required<Button>("SaveDraft").Click += async (_, _) => await RunInteractionAsync(state.SaveDraftAsync);
+        Required<Button>("SaveDraft").IsVisible = !state.IsForm;
         Required<Button>("SubmitAnswer").Content = state.IsApproval ? "_Approve exact operation" : "_Submit answer";
         Required<Button>("SubmitAnswer").Click += async (_, _) => await RunInteractionAsync(state.SubmitAsync);
         Required<Button>("CancelQuestion").Click += async (_, _) => await RunInteractionAsync(state.CancelAsync);
@@ -141,8 +196,7 @@ public sealed partial class QuestionWindow : Window
         Opened += (_, _) =>
         {
             expiry.Start();
-            if (choices.Count != 0) { choices.Values.First().Focus(); }
-            else { input.Focus(); }
+            FocusAnswer();
         };
         Closed += (_, _) =>
         {
@@ -161,6 +215,10 @@ public sealed partial class QuestionWindow : Window
             explanation.Text = string.Empty;
             panel.Children.Clear();
             choices.Clear();
+            foreach (var text in fieldTexts.Values) { text.Text = string.Empty; }
+            fieldTexts.Clear();
+            fieldChoices.Clear();
+            fieldVoice.Clear();
             Required<TextBlock>("PromptLabel").Text = string.Empty;
             Required<TextBlock>("TargetLabel").Text = string.Empty;
             Required<TextBlock>("QuestionStatus").Text = string.Empty;
@@ -210,14 +268,21 @@ public sealed partial class QuestionWindow : Window
         }
         if (state.IsEditable)
         {
-            if (choices.Count != 0) { choices.Values.First().Focus(); }
-            else { input.Focus(); }
+            FocusAnswer();
         }
         else { Required<Button>("CloseQuestion").Focus(); }
     }
 
     private T Required<T>(string name) where T : Control =>
         this.FindControl<T>(name) ?? throw new InvalidOperationException("A native question control is missing.");
+
+    private void FocusAnswer()
+    {
+        if (fieldTexts.Count != 0) { fieldTexts.Values.First().Focus(); }
+        else if (fieldChoices.Count != 0) { fieldChoices.Values.First().Values.First().Focus(); }
+        else if (choices.Count != 0) { choices.Values.First().Focus(); }
+        else { input.Focus(); }
+    }
 
     private void Edit()
     {
@@ -243,6 +308,10 @@ public sealed partial class QuestionWindow : Window
             Required<TextBlock>("TargetLabel").Text = string.Empty;
             Required<StackPanel>("ChoicePanel").Children.Clear();
             choices.Clear();
+            foreach (var text in fieldTexts.Values) { text.Text = string.Empty; }
+            fieldTexts.Clear();
+            fieldChoices.Clear();
+            fieldVoice.Clear();
         }
         foreach (var (id, control) in choices)
         {
@@ -251,6 +320,23 @@ public sealed partial class QuestionWindow : Window
         }
         if (!string.Equals(input.Text, state.Answer.Text, StringComparison.Ordinal)) { input.Text = state.Answer.Text; }
         input.IsEnabled = state.IsEditable;
+        var answer = state.Answer;
+        foreach (var (id, text) in fieldTexts)
+        {
+            var value = answer.Fields.SingleOrDefault(field => string.Equals(field.FieldId, id, StringComparison.Ordinal))?.Text ?? string.Empty;
+            if (!string.Equals(text.Text, value, StringComparison.Ordinal)) { text.Text = value; }
+            text.IsEnabled = state.IsEditable;
+        }
+        foreach (var (id, controls) in fieldChoices)
+        {
+            var value = answer.Fields.SingleOrDefault(field => string.Equals(field.FieldId, id, StringComparison.Ordinal))?.Choice;
+            foreach (var (choice, radio) in controls)
+            {
+                radio.IsChecked = string.Equals(choice, value, StringComparison.Ordinal);
+                radio.IsEnabled = state.IsEditable;
+            }
+        }
+        foreach (var button in fieldVoice) { button.IsEnabled = state.CanEditFieldByVoice; }
         Required<Button>("ReviewQuestion").IsEnabled = state.IsEditable;
         Required<Button>("ExplainPolicy").IsVisible = state.SupportsPolicyExplanation;
         Required<Button>("ExplainPolicy").IsEnabled = state.IsEditable && !state.HasPolicyExplanation;

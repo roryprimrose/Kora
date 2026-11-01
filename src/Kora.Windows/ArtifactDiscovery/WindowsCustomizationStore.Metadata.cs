@@ -14,6 +14,8 @@ public sealed partial class WindowsCustomizationStore
                 if (!CustomizationDiscoveryTools.IsSupported(source.Kind) || source.UnavailableReason is not null)
                 { throw new InvalidDataException("This exact source does not support metadata discovery."); }
                 var target = Resolve(source);
+                if (source.Scope == CustomizationScope.Kora && source.Kind == CustomizationKind.Instruction)
+                { WindowsOwnedDefinitionFileAccess.RequireNoInstructionRename(paths, ArtifactKind.Instruction, token); }
                 if (File.Exists(JournalPath(target)))
                 { throw new InvalidOperationException("This source requires recovery. No current metadata snapshot was produced."); }
                 using var pinned = WindowsOwnedDefinitionFileAccess.PinDefinitionDirectory(target.Directory, false, token);

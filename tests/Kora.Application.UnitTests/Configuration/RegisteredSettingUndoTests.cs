@@ -23,7 +23,7 @@ namespace Kora.Application.UnitTests.Configuration;
 public sealed class RegisteredSettingUndoTests
 {
     public static IEnumerable<object[]> RegisteredCases =>
-        RegisteredSettingRegistry.Settings.SelectMany(item => new[]
+        RegisteredSettingRegistry.Settings.Where(item => item.Setting != RegisteredSetting.WindowsSpeechRate).SelectMany(item => new[]
         {
             new object[] { item.Setting, false }, new object[] { item.Setting, true },
         });

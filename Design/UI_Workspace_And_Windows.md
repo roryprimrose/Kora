@@ -268,6 +268,8 @@ Retained USER, optional ASSISTANT and typed HOST outcomes remain distinct inert 
 
 The [conversation owner](Interaction_And_Sessions.md#delivered-exact-session-conversationcomposer-foundation--2026-10-12) uses one in-memory unsent buffer per conversation, shared by Sessions and compact views. Switching topics preserves the independent buffers without Save/Discard prompts.
 
+Done/Resume and exact-session retirement clear only the target's unsent input and invalidate its content/controls, not the shared native views or unrelated buffers. Returning to another conversation restores its exact unsent text in both views; the integrated interaction uses that same owner. Privacy/ownership closure still closes the shared presentation and clears all buffers.
+
 Explicit discard or voluntary last-view/application close protects unsent content with Discard/Cancel. Ordinary Save/Reload/Clear, catalogue, comparison and rebase/recovery windows are gone; only legacy exact-session read-only recovery into empty input remains ([buffers](../src/Kora/SessionsViewModel.Unsent.cs), [shutdown guard](../src/Kora/ConversationShutdownGuard.cs)).
 
 Submission is a new admitted original-user turn, not a draft save, replay or grant. History reads do not implicitly read legacy saved text or start providers. Mandatory privacy/ownership/OS retirement and resource-quiescence rules remain independent.

@@ -443,6 +443,7 @@ internal sealed partial class SessionsWindowController(
         };
         if (ConversationQuestions is { } questions)
         {
+            model.ConversationNoticeQuestion = questions.CaptureConversationNoticeQuestion;
             model.QuestionPresenter = (request, generation, spec, expiry, admitted, token) =>
                 questions.AskConversationAsync(window ?? (Avalonia.Controls.Window?)compact ?? interaction
                     ?? throw new InvalidOperationException("The exact conversation window is unavailable."),
@@ -561,9 +562,7 @@ internal sealed partial class SessionsWindowController(
         details?.RevokeSession(session);
         if (model is { } state)
         {
-            state.RetireUnsent(session);
-            if (state.ReferencesSession(session)) { presentation?.Revoke(); }
-            else { state.RevokeSessionList(); }
+            state.RevokeSessionPresentation(session);
         }
     }
 

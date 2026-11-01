@@ -23,13 +23,16 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class SessionsWorkWindowTests
 {
     private static readonly string[] FixedProfileButtons = ["EnqueueCapabilities", "EnqueueReadiness", "EnqueueRuntimes"];
+    private static readonly string[] RetiredSourceButtons = ["Done", "Resume", "SubmitConversation", "CancelQueueEntry"];
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task Worker_thread_lifecycle_revocation_closes_matching_window_and_preserves_unrelated_work(bool matching)
+    public async Task Worker_thread_lifecycle_revocation_retires_matching_source_and_preserves_shared_window_and_unrelated_input(bool matching)
     {
         await HeadlessSession.RunAsync(async () =>
         {
+            const string targetBody = "  target input e\u0301\r\n  ";
+            const string otherBody = "  unrelated input \u03a9 e\u0301\r\nexact trailing space  ";
             using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
             await fixture.InitializeAsync();
             using var controller = new SessionsWindowController(fixture.Main, fixture.Sessions, fixture.Evidence,
@@ -42,29 +45,75 @@ public sealed class SessionsWorkWindowTests
             var viewer = (SessionsViewModel)opened!.DataContext!;
             await viewer.RefreshAsync();
             var target = fixture.LifecycleTarget!;
-            var selected = matching ? viewer.Sessions.Single(entry => entry.Authority.SessionId == target.SessionId)
-                : viewer.Sessions.First(entry => entry.Authority.SessionId != target.SessionId);
+            var targetRow = viewer.Sessions.Single(entry => entry.Authority.SessionId == target.SessionId);
+            var other = viewer.Sessions.First(entry => entry.Authority.SessionId != target.SessionId);
+            var targetDraft = await fixture.Interactions.ReadConversationDraftAsync(target.SessionId, fixture.Token);
+            var otherDraft = await fixture.Interactions.ReadConversationDraftAsync(other.Authority.SessionId, fixture.Token);
+            await viewer.SelectAsync(other);
+            viewer.ComposerBody = otherBody;
+            await viewer.SelectAsync(targetRow);
+            viewer.ComposerBody = targetBody;
+            var selected = matching ? targetRow : other;
             await viewer.SelectAsync(selected);
+            viewer.ComposerBody.Should().Be(matching ? targetBody : otherBody);
             var selectedObservation = viewer.SelectedSessionRecord;
             var rows = viewer.WorkRecords.ToArray();
+            var source = viewer.CaptureDraftPresentationEligibility();
+            var originalWindow = opened;
             var changed = await Task.Run(fixture.AdvanceLifecycleTargetAsync);
             changed.Generation.Value.Should().Be(target.Generation.Value + 1);
+            changed.IsActive.Should().BeFalse();
+            opened.IsVisible.Should().BeTrue("exact-source retirement must not dispose the shared composer owner");
+            opened.DataContext.Should().BeSameAs(viewer);
+            viewer.CanRead.Should().BeTrue("fresh admitted inspection remains available after exact-source retirement");
+            source().Should().Be(!matching);
             if (matching)
             {
-                opened.IsVisible.Should().BeFalse();
-                viewer.CanRead.Should().BeFalse();
                 viewer.WorkRecords.Should().BeEmpty();
                 viewer.ReferencesSession(target.SessionId).Should().BeFalse();
+                viewer.SelectedSessionRecord.Should().BeNull();
+                viewer.ComposerBody.Should().BeEmpty();
+                viewer.ConversationMessages.Should().BeEmpty();
+                viewer.CanCancelWork.Should().BeFalse();
+                foreach (var name in RetiredSourceButtons)
+                {
+                    opened.FindControl<Button>(name)!.IsEnabled.Should().BeFalse();
+                }
+                opened.FindControl<TextBox>("ConversationComposer")!.Text.Should().BeNullOrEmpty();
             }
             else
             {
-                opened.IsVisible.Should().BeTrue();
                 viewer.SelectedSessionRecord.Should().BeSameAs(selectedObservation);
                 viewer.WorkRecords.Should().Equal(rows);
+                viewer.ComposerBody.Should().Be(otherBody);
                 viewer.Sessions.Should().BeEmpty("list metadata is revoked without retargeting unrelated work");
                 viewer.Status.Should().Contain("Rows and search continuation revoked");
             }
+            controller.Open();
+            opened.Should().BeSameAs(originalWindow);
+            opened.DataContext.Should().BeSameAs(viewer);
+            viewer.SessionFilter = SessionListFilter.All;
+            await viewer.RefreshAsync();
+            await viewer.SelectAsync(viewer.Sessions.Single(entry => entry.Authority.SessionId == other.Authority.SessionId));
+            viewer.ComposerBody.Should().Be(otherBody);
+            opened.FindControl<TextBox>("ConversationComposer")!.Text.Should().Be(otherBody);
+            await viewer.SelectAsync(viewer.Sessions.Single(entry => entry.Authority.SessionId == target.SessionId));
+            viewer.SelectedSessionRecord!.Authority.Should().Be(changed);
+            viewer.ComposerBody.Should().BeEmpty("the retired target input cannot return after fresh inspection");
+            (await fixture.Interactions.ReadConversationDraftAsync(target.SessionId, fixture.Token))
+                .Should().Be(targetDraft with { Session = changed });
+            (await fixture.Interactions.ReadConversationDraftAsync(other.Authority.SessionId, fixture.Token))
+                .Should().Be(otherDraft);
+            await viewer.SelectAsync(viewer.Sessions.Single(entry => entry.Authority.SessionId == other.Authority.SessionId));
+            viewer.ComposerBody.Should().Be(otherBody);
+            var closed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            opened.Closed += (_, _) => closed.TrySetResult();
             controller.Dispose();
+            await closed.Task.WaitAsync(fixture.Token);
+            opened.IsVisible.Should().BeFalse("whole-owner disposal still closes the shared presentation");
+            viewer.CanRead.Should().BeFalse();
+            viewer.ComposerBody.Should().BeEmpty();
+            viewer.ReferencesSession(other.Authority.SessionId).Should().BeFalse();
             await Task.Run(() => controller.RevokeSession(target.SessionId));
             opened.IsVisible.Should().BeFalse();
         });

@@ -1412,6 +1412,8 @@ Inherit captures the existing ordinary task/queue/device resolution at review; i
 
 These controls do not qualify or enable a model/runtime, change model sources/egress/permissions/retention, create listening consent, change the microphone, replay old output or cancel other work ([qualification boundary](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy), [behavioral evidence](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.TaskResponseOutput.cs)).
 
+The output-choice regressions retain same-session queued choices and separately reviewed session choices, joining the shared legacy runtime before confirming the other session. They also confirm the other session while that runtime is physically held and require `Unavailable/ProviderBusy`, no provider invocation or successful answer, and preservation of the original task's choice. An output choice never supplies independent runtime-capacity qualification.
+
 Specific microphone and output selections are device-local Kora overrides. A
 saved override wins on later starts while that stable endpoint exists. Missing
 saved or current explicit endpoints are not replaced silently; the user must

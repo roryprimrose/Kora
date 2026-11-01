@@ -9,6 +9,10 @@ namespace Kora;
 
 internal sealed partial class NativeQuestionHost
 {
+    internal Task<bool> ValidateConversationNoticeAsync(NativeQuestionViewModel model, LocalEvent notice,
+        CancellationToken token) =>
+        store.ValidateConversationNoticeQuestionAsync(model.Question, notice, token).AsTask();
+
     private HostRequest? mcpObservationRequest;
     private long mcpObservationRevision;
     private HostRequest? pageObservationRequest;

@@ -22,6 +22,64 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class ConversationNoticeTests
 {
     [Fact]
+    public async Task ReadingTerminalResultNeverReviewsOrActivatesAnIndependentPendingQuestion()
+    {
+        using var f = new Fixture();
+        await f.Initialize();
+        var terminal = await f.Submit(ModelTurnOutcome.Succeeded);
+        var waiting = await f.Submit(null);
+        var question = await f.Clarify(waiting);
+        await using var broker = f.Broker();
+        var opened = 0;
+        var viewer = f.Viewer(broker, async (content, current, resolve, token) =>
+        {
+            current().Should().BeTrue();
+            content.ConversationMessage!.Request.Should().Be(terminal);
+            content.Source.Should().Be("private answer marker");
+            content.IsSameSnapshot(await resolve(token)).Should().BeTrue();
+            opened++;
+            return "Exact terminal result opened.";
+        });
+        viewer.ConversationNoticeQuestion = _ =>
+            throw new InvalidOperationException("Reading a terminal result cannot capture or activate a question.");
+        viewer.SetRoutineQuietSurfaceOpen(true);
+        await viewer.RefreshAsync();
+        await viewer.SelectAsync(viewer.Sessions.Single());
+        await viewer.RefreshWorkAsync();
+        var terminalNotice = viewer.LocalEvents.Single(item => item.Event.TaskId == terminal.TaskId);
+        var questionNotice = viewer.LocalEvents.Single(item => item.Event.TaskId == waiting.TaskId);
+        var before = await f.Storage.Store.ReadRetentionAsync(terminal.SessionId, f.Token);
+        var tasks = f.Storage.Count("host_tasks");
+        var audits = f.Storage.Count("security_audit_events");
+        var changes = new List<string?>();
+        viewer.PropertyChanged += (_, args) => changes.Add(args.PropertyName);
+        viewer.SelectLocalEvent(terminalNotice);
+        viewer.CanReadExactNoticeResult.Should().BeTrue();
+        viewer.CanAnswerConversationNotice.Should().BeFalse();
+        await viewer.ReadExactNoticeResultAsync(() => true);
+        viewer.Status.Should().Be("Exact terminal result opened.");
+        opened.Should().Be(1);
+        viewer.SelectLocalEvent(questionNotice);
+        viewer.CanReadExactNoticeResult.Should().BeFalse();
+        viewer.CanAnswerConversationNotice.Should().BeFalse("reading a result cannot acknowledge question review");
+        changes.Should().Contain(nameof(SessionsViewModel.CanReadExactNoticeResult))
+            .And.Contain(nameof(SessionsViewModel.CanAnswerConversationNotice));
+        await viewer.ReviewLocalEventAsync();
+        viewer.CanAnswerConversationNotice.Should().BeTrue("the question still requires its own deliberate Review");
+        viewer.CanReadExactNoticeResult.Should().BeFalse();
+        viewer.SelectLocalEvent(terminalNotice);
+        viewer.CanAnswerConversationNotice.Should().BeFalse("question review cannot authorize a different notice");
+        viewer.CanReadExactNoticeResult.Should().BeTrue();
+        (await f.Storage.Store.ReadQuestionsAsync(waiting.SessionId, f.Token)).Single().Key.Should().Be(question.Key);
+        (await f.Storage.Store.ReadQuestionsAsync(waiting.SessionId, f.Token)).Single().Status.Should().Be(QuestionStatus.Pending);
+        f.Storage.Count("host_tasks").Should().Be(tasks);
+        f.Storage.Count("security_audit_events").Should().Be(audits);
+        f.Storage.Count("scoped_grants").Should().Be(0);
+        (await f.Storage.Store.ReadRetentionAsync(terminal.SessionId, f.Token)).Should().Be(before);
+        viewer.Close();
+    }
+
+    [Fact]
     public async Task UnavailableNativeNoticeReaderRecordsFailedOperationWithoutRenewingOrDisclosingTheResult()
     {
         using var f = new Fixture();

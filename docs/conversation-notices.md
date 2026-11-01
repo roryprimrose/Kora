@@ -2,13 +2,21 @@
 
 In an already-open **Sessions** window, refresh the selected session's work to see bounded, content-free notices for admitted conversation tasks: completed, failed/unavailable, Unknown, or an exact pending clarification ([source admission](../src/Kora.Application/Interaction/ConversationNotices/AuthorityLocalEventSource.ConversationNotices.cs)).
 
-Select an exact notice and use **Review**, **Dismiss**, or **Defer**. Review inspects that exact task's content-free status without changing the conversation or work selection. Answer a clarification separately in **Questions**; a notice cannot answer, approve, retry, dispatch, speak, open a window or take focus automatically ([native inspection](../src/Kora/ConversationNotices/SessionsViewModel.ConversationNotices.cs)).
+Select an exact notice and use **Review**, **Dismiss**, or **Defer**. These actions inspect or suppress content-free status without changing the conversation, work selection or focus ([native inspection](../src/Kora/SessionsViewModel.Events.cs)).
+
+For an ordinary conversation clarification, **Review** shows the exact session, task, question and original expiry. Then deliberately select **Answer exact question** to activate only its existing canonical **Questions** window. Enter an answer and **Submit**, use the existing eligible question voice controls, or **Cancel** there ([response gesture](../src/Kora/ConversationNotices/SessionsViewModel.ConversationNotices.cs)).
+
+The original task continues only after its current canonical answer has been accepted and revalidated. Opening is not an answer, approval, microphone or transmission grant. Claude retains separate complete-body review and consent for each physical send ([continuation](../src/Kora.Application/Hosting/ConversationQuestionContinuation.cs), [Claude reviews](../Design/Interaction_And_Sessions.md#explicit-hosted-conversational-clarification---2026-10-29)).
+
+Closed, changed, expired, foreign, retired or no-longer-current questions cannot reopen from a notice. A competing question, foreground editor, prompt review or active dictation/reply must be resolved separately; Kora never opens the newest question as a substitute. Refresh and review again after a refusal. Dismiss and Defer are never answers or Cancel ([exact presenter](../src/Kora/QuestionWindowController.Conversation.cs), [source validation](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.QuestionFocus.cs)).
+
+Observation and Review cannot answer, approve, retry, dispatch, speak, open a window or take focus. Only the deliberate response gesture activates the already-existing exact question; no duplicate question is created ([native response regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.NoticeResponse.cs)).
 
 ## Read one exact terminal result
 
 Select one current terminal conversation notice in the already-open **Sessions** management window, then deliberately choose **Read exact result**. This native-only gesture opens that task's complete retained **ASSISTANT** answer in the existing integrated **Details** reader, with **Historical** provenance and its original request/task/session identity ([exact route](../src/Kora/ConversationNotices/SessionsViewModel.ConversationNotices.cs)).
 
-**Back to notice** returns focus to that exact still-selected notice in its existing window, not a similarly named conversation or newer message. No conversation-page read, composer replacement, speech, model invocation, continuation or Resume occurs. The existing Find, reader scale, inert rendering and blocked copy/export policy still apply ([origin navigation](../src/Kora/SessionInteractionView.axaml.cs), [retained reader](../src/Kora/DetailContentView.axaml.cs)).
+**Back to notice** returns focus to that exact still-selected notice in its existing window, not a similarly named conversation or newer message. No conversation-page read, composer replacement, speech, model invocation, continuation or Resume occurs. Reading a result does not review or answer a pending question. The existing Find, reader scale, inert rendering and blocked copy/export policy still apply ([origin navigation](../src/Kora/SessionInteractionView.axaml.cs), [retained reader](../src/Kora/DetailContentView.axaml.cs)).
 
 No retained answer means explicit **Unavailable**, never an empty success or a body invented from a status or model claim. Inspect the separate typed **HOST** outcome in Work or ordinary history. Done, deleted, expired, revoked or changed notice sources also require fresh ordinary history inspection; reading history does not Resume a Done conversation ([canonical resolver](../src/Kora.Application/Hosting/SessionWorkspaceService.ConversationNoticeResult.cs)).
 

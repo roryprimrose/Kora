@@ -213,16 +213,16 @@ public sealed partial class ModelTurnHostTests
     [InlineData("history-cancel")]
     [InlineData("memory-error")]
     [InlineData("memory-cancel")]
-    [InlineData("combined-budget")]
+    [InlineData("combined-count")]
     [InlineData("combined-cancel")]
     public async Task MixedContextFailedReviewNeverPublishesSourcesOrRetainsInput(string fault)
     {
         using var f = new Fixture();
         var earlier = Earlier(f);
-        var source = new ContextMemories(f);
+        var source = new ContextMemories(f, fault is "combined-count" ? 15 : 1);
         var instruction = new InstructionSource
         {
-            Snapshot = InstructionSnapshot(fault is "combined-budget" ? new string('x', 32000) : InstructionBody),
+            Snapshot = InstructionSnapshot(InstructionBody),
         };
         var (broker, catalogue, _) = InstructionBroker(f, instruction);
         var time = new MemoryReviewTime();

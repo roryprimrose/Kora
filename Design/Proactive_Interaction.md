@@ -109,9 +109,26 @@ clarifications keep their original earlier expiry. Host-control/privacy/protecte
 epoch changes retire prior sources, without call-end replay or activity renewal.
 Existing fatigue, quiet, exact source revalidation, suppression, retirement and
 deferral bounds apply unchanged. Existing source enum values and stored receipts
-remain compatible. No ambient observation, question answering, approval, dispatch,
-automatic focus/selection change or implicit speech consent is added. See the
+remain compatible. Observation, Review, Dismiss and Defer add no ambient observation,
+question answering, approval, dispatch, focus/selection change or implicit speech consent. See the
 [conversation notice guide](../docs/conversation-notices.md) for exact native inspection.
+
+After reviewing one exact ordinary conversation question notice, the deliberate native
+**Answer exact question** gesture activates only its existing canonical presenter.
+The host revalidates the held event revision, question/session/generation, audited source,
+original expiry, current run, original input and native lifetime before focus.
+Current-source validation uses the shared clarification policy and exact schema
+comparison, preserving original choice identities and optional/multiple-selection
+bounds without changing provider-gated form admission.
+It does not create a question, restore a closed presenter or start listening
+([native owner](../src/Kora/QuestionWindowController.Conversation.cs),
+[durable validation](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.QuestionFocus.cs)).
+
+Answer/Cancel remains in the existing Questions service; only its actual canonical accepted
+answer can continue the original task. Independent source/egress approvals remain independent.
+Busy editor/dictation/decision precedence and stale/withdrawn-source refusal are preserved;
+the waiting conversation does not block bounded work/notice refresh
+([complete-flow regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.NoticeResponse.cs)).
 
 ### Explicit terminal-result reading
 
@@ -121,7 +138,7 @@ The existing integrated Details reader shows the complete bounded immutable answ
 
 The retained reader confirms successful native publication, not just source resolution or rendering. Unavailable controls/capacity and failed show/activation propagate through the originating operation's logged failure path and retire unconfirmed private state; they cannot produce a completed read receipt ([publication owner](../src/Kora/DetailWindowController.cs)).
 
-Fresh receipt/source/private/control/channel/expiry validation surrounds every body resolution and native disclosure. No cached-body recovery, latest-task substitution, model/provider operation, source capture, copy/export, question/approval change, execution continuation, listening, activity renewal or retention write is added. Existing fatigue, bounds and retirement remain authoritative ([broker](../src/Kora.Application/Interaction/LocalEventBroker.cs), [behavioral regressions](../tests/Kora.Windows.IntegrationTests/ConversationNoticeTests.ExactResult.cs)).
+Fresh receipt/source/private/control/channel/expiry validation surrounds every body resolution and native disclosure. No cached-body recovery, latest-task substitution, model/provider operation, source capture, copy/export, question/approval change, execution continuation, listening, activity renewal or retention write is added. Reading a terminal result does not acknowledge review of a pending question. Existing fatigue, bounds and retirement remain authoritative ([broker](../src/Kora.Application/Interaction/LocalEventBroker.cs), [behavioral regressions](../tests/Kora.Windows.IntegrationTests/ConversationNoticeTests.ExactResult.cs)).
 
 ## Run-consented conversation completion speech
 
@@ -146,6 +163,11 @@ This adds no scheduler, detector enablement, microphone acquisition, foreground 
 Normal Sessions event browsing retains category and reason choices only ([native event presentation](../src/Kora/SessionsViewModel.Events.cs)). Technical identity, profile, generation/revision, lifetime and correlation query widgets are removed.
 
 The internal broker's typed query/state contracts, source admission, finite pages, suppression and no-replay boundaries remain. Filtering an observed notice does not answer its question, change queue eligibility, dispatch work, grant consent or renew a deadline. Diagnostic Evidence retains its separate technical inspection role.
+
+Failure, cancellation or stale completion of an exact native notice action withdraws
+its loaded snapshot as well as selection and notice detail. Recovery requires a fresh
+selected-work observation and a new explicit selection; it does not replay delivery,
+answer a question or change suppression, history, audit or work authority.
 
 ## Delivered run-only routine notice quiet mode - 2026-10-10
 

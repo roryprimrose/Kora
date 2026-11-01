@@ -81,26 +81,54 @@ if ($ListShards) {
     return $shards
 }
 
-# Keep the hosted job selectors stable while isolating the two largest serial UI classes.
-$splitClasses = @{
-    'ui-definitions' = @{ Name = 'ui-conversations'; Prefix = $conversationPrefix }
-    'ui-platform' = @{ Name = 'ui-editors'; Prefix = $platformEditorPrefix }
+function Add-FilterExclusions {
+    param([string] $Filter, [string[]] $Prefixes)
+
+    ($Filter -split '\|' | ForEach-Object {
+        $alternative = $_
+        foreach ($prefix in $Prefixes) {
+            $alternative += "&FullyQualifiedName!~$prefix"
+        }
+        $alternative
+    }) -join '|'
+}
+
+# Method-family filters keep every theory row together without changing hosted job identities.
+$conversationActions = @(
+    "${conversationPrefix}Native"
+    "${conversationPrefix}Owned"
+    "${conversationPrefix}Named"
+)
+$executionSplits = @{
+    'ui-definitions' = @(
+        @{ Name = 'ui-definition-dialogs'; Prefixes = @(
+            'Kora.Windows.IntegrationTests.ArtifactDiscovery.CustomizationWindowTests.'
+            'Kora.Windows.IntegrationTests.ArtifactDiscovery.PromptParameterWindowTests.'
+        ); Exclusions = @() }
+        @{ Name = 'ui-conversations'; Prefixes = @($conversationPrefix); Exclusions = $conversationActions }
+        @{ Name = 'ui-conversation-actions'; Prefixes = $conversationActions; Exclusions = @() }
+    )
+    'ui-platform' = @(
+        @{ Name = 'ui-editors'; Prefixes = @($platformEditorPrefix); Exclusions = @() }
+    )
 }
 $partitions = @(
     foreach ($definition in $shards) {
-        if ($splitClasses.ContainsKey($definition.Name)) {
-            $split = $splitClasses[$definition.Name]
+        if ($executionSplits.ContainsKey($definition.Name)) {
+            $splits = $executionSplits[$definition.Name]
+            $excluded = @($splits.Prefixes | Sort-Object -Unique)
             [pscustomobject]@{
                 Name = $definition.Name
                 Shard = $definition.Name
-                Filter = ($definition.Filter -split '\|' | ForEach-Object {
-                    "$_&FullyQualifiedName!~$($split.Prefix)"
-                }) -join '|'
+                Filter = Add-FilterExclusions $definition.Filter $excluded
             }
-            [pscustomobject]@{
-                Name = $split.Name
-                Shard = $definition.Name
-                Filter = "FullyQualifiedName~$($split.Prefix)"
+            foreach ($split in $splits) {
+                $filter = ($split.Prefixes | ForEach-Object { "FullyQualifiedName~$_" }) -join '|'
+                [pscustomobject]@{
+                    Name = $split.Name
+                    Shard = $definition.Name
+                    Filter = Add-FilterExclusions $filter $split.Exclusions
+                }
             }
         }
         else {

@@ -110,11 +110,15 @@ while the operation truthfully retains its partial/unconfirmed outcome.
 
 To reproduce CI's Windows test scheduling after a locked `win-x64` build, run
 `.\eng\Run-WindowsIntegrationTests.ps1`. Its five disjoint hosted groups cover
-heavy storage, other storage, and three UI/platform groups. The two overloaded
-synchronous UI groups each launch two isolated processes: `ui-conversations`
-owns the complete conversation class, and `ui-editors` owns the complete
-owned-definition editor class. The remaining classes stay in `ui-definitions`
-and `ui-platform`. All seven execution partitions preserve serial headless UI
+heavy storage, other storage, and three UI/platform groups. Synchronous
+`ui-definitions` launches four isolated processes: `ui-definition-dialogs`
+owns the complete customization and prompt-parameter window classes;
+`ui-conversation-actions` owns conversation methods beginning Native, Owned or
+Named; `ui-conversations` owns every other conversation method, including future
+methods outside those families; and `ui-definitions` owns the remaining classes.
+All theory rows for each method stay together. `ui-platform` retains two
+processes, with `ui-editors` owning the complete owned-definition editor class.
+All nine execution partitions preserve serial headless UI
 execution within each process and the existing per-process thread limit.
 Each partition retains its own TRX and console output under a fresh run directory;
 nonzero exits or missing, duplicate, empty or incomplete passing reports fail
@@ -122,7 +126,7 @@ the run. `-Shard <name>` selects exactly one existing hosted group;
 `-ListShards` lists its complete filter, and `-ListPartitions` lists its actual
 process filters without running tests.
 CI keeps the same five hosted Windows jobs and artifact names, retaining all
-seven partitions' TRX and console output. The unchanged required **Windows integration
+nine partitions' TRX and console output. The unchanged required **Windows integration
 tests** check aggregates the matrix fail-closed: failure, cancellation, missing
 or skipped shards cannot pass. Payload/bootstrap fixtures still run once.
 This scheduling isolates competing test processes without removing tests or
@@ -134,13 +138,26 @@ The [scheduling regression](eng/Test-WindowsIntegrationScheduling.ps1) checks
 both hosted ownership and exact process partitions, exercises the real runner
 with a fake CLI, and rejects missing/malformed execution evidence. Its optional
 `-RetainedResultsDirectory <path>` accepts a complete legacy five-report or
-current seven-report dataset and checks every recorded case against the new
+legacy seven-report or current nine-report dataset and checks every recorded case against the new
 partition exactly once. Complete successful runs
 [41223826625](https://github.com/roryprimrose/Kora/actions/runs/41223826625) and
 [41229047847](https://github.com/roryprimrose/Kora/actions/runs/41229047847)
 project at least a 25% shorter UI critical path with measured setup/post costs.
 Those projections are not new-head execution evidence or a guarantee about
-contention between processes sharing a hosted runner.
+contention between processes sharing a hosted runner. The initial seven-process
+repair still timed out in [run 41255145262](https://github.com/roryprimrose/Kora/actions/runs/41255145262):
+only 842 of 857 conversation cases were recorded. The nine-process repair
+retains every unfinished method and splits recorded conversation/dialog work
+further; partial timings are not proof that the repaired hosted job completes.
+Approval-flow fixtures use a shared injected clock and explicitly controlled
+timers rather than allowing runner load to consume an unrelated review budget.
+The lifecycle controller's one-minute cancellation budget uses its injected
+clock; shutdown/restart regressions exercise cancellation at 60 seconds without
+a Windows effect, separately from the 30-second physical-effect countdown.
+The native fixture still defaults to system time when no test clock is supplied.
+Cancellation and deferred-cleanup regressions wait for the actual token or
+callback signal before releasing their fake work. This preserves exact denial,
+resource-release and no-effect assertions without sleeps or widened deadlines.
 
 Portable tests and exact-source payload production run independently after
 version resolution. The installer consumes the verified payload immediately,
@@ -181,8 +198,8 @@ terminal UI publication after the real operation/resource join.
 
 The [runner's UI filters](eng/Run-WindowsIntegrationTests.ps1) retain the existing shard names: `ui-definitions` also runs conversation and bounded accessibility tests; `native-ux` also runs dispatcher responsiveness, reader scale, and speech caption tests. `ui-platform` runs Evidence Find and the remainder, with exclusions derived from the same prefix lists to avoid gaps or overlaps.
 
-Rebalance whole classes using per-shard TRX durations, not test counts. Keep the [headless UI collection](tests/Kora.Windows.IntegrationTests/HeadlessUiTestGroup.cs) serial within each process; moving classes between isolated shard processes must not relax its process-wide dispatcher protection. Update the [scheduling contracts](eng/Test-WindowsIntegrationScheduling.ps1) when changing assignments.
-Validate complete retained five-shard TRX evidence with `.\eng\Test-WindowsIntegrationScheduling.ps1 -RetainedResultsDirectory <results-root>`; this checks every recorded case against the current partition, not revised-source hosted timing.
+Rebalance classes or explicit method families using per-shard TRX durations, not test counts; keep each method's theory rows together. Keep the [headless UI collection](tests/Kora.Windows.IntegrationTests/HeadlessUiTestGroup.cs) serial within each process; isolated processes must not relax its process-wide dispatcher protection. Update the [scheduling contracts](eng/Test-WindowsIntegrationScheduling.ps1) when changing assignments.
+Validate complete retained five-, seven- or nine-report TRX evidence with `.\eng\Test-WindowsIntegrationScheduling.ps1 -RetainedResultsDirectory <results-root>`; this checks every recorded case against the current partition, not revised-source hosted timing.
 
 Documentation-only changes need local link/heading, exact example and availability
 checks. Changes to the embedded user guide also run its focused tests. They do

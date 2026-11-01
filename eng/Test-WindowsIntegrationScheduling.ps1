@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    # Optional complete five-shard TRX evidence checks every recorded case against the current partition.
+    # Optional complete retained TRX evidence checks every recorded case against the current partition.
     [Parameter()]
     [ValidateNotNullOrEmpty()]
     [string] $RetainedResultsDirectory
@@ -42,8 +42,9 @@ function Get-MatchingShard {
 $expected = @('storage-heavy', 'storage-other', 'ui-definitions', 'native-ux', 'ui-platform')
 $all = @(& $runner -ListShards)
 $partitions = @(& $runner -ListPartitions)
-$expectedPartitions = @('storage-heavy', 'storage-other', 'ui-definitions', 'ui-conversations', 'native-ux', 'ui-platform', 'ui-editors')
-Assert (($partitions.Name -join ',') -ceq ($expectedPartitions -join ',')) 'Execute exactly seven disjoint partitions within the five hosted jobs.'
+$legacyPartitions = @('storage-heavy', 'storage-other', 'ui-definitions', 'ui-conversations', 'native-ux', 'ui-platform', 'ui-editors')
+$expectedPartitions = @('storage-heavy', 'storage-other', 'ui-definitions', 'ui-definition-dialogs', 'ui-conversations', 'ui-conversation-actions', 'native-ux', 'ui-platform', 'ui-editors')
+Assert (($partitions.Name -join ',') -ceq ($expectedPartitions -join ',')) 'Execute exactly nine disjoint partitions within the five hosted jobs.'
 Assert ($all.Count -eq 5) 'Default scheduling must retain all five shards.'
 Assert (($all.Name -join ',') -ceq ($expected -join ',')) 'Shard identities or order changed.'
 foreach ($name in $expected) {
@@ -52,7 +53,7 @@ foreach ($name in $expected) {
     Assert ($selected[0].Name -ceq $name) "Selector returned a different shard: $name."
     Assert ($selected[0].Filter -ceq ($all | Where-Object Name -EQ $name).Filter) 'Selection changed a filter.'
     $selectedPartitions = @(& $runner -Shard $name -ListPartitions)
-    $expectedCount = if ($name -in @('ui-definitions', 'ui-platform')) { 2 } else { 1 }
+    $expectedCount = switch ($name) { 'ui-definitions' { 4 }; 'ui-platform' { 2 }; default { 1 } }
     Assert ($selectedPartitions.Count -eq $expectedCount) "Wrong execution-partition count for $name."
     Assert (@($selectedPartitions | Where-Object Shard -CNE $name).Count -eq 0) 'A hosted selector must never execute another job''s partitions.'
 }
@@ -75,6 +76,10 @@ $classes = [ordered]@{
     'Storage.FutureStorageTests' = 'storage-other'
     'ArtifactDiscovery.OwnedDefinitionEditorWindowTests' = 'ui-platform'
     'ArtifactDiscovery.OwnedDefinitionEditorWindowTestsExtra' = 'ui-definitions'
+    'ArtifactDiscovery.CustomizationWindowTests' = 'ui-definitions'
+    'ArtifactDiscovery.PromptParameterWindowTests' = 'ui-definitions'
+    'ArtifactDiscovery.CustomizationWindowTestsExtra' = 'ui-definitions'
+    'ArtifactDiscovery.PromptParameterWindowTestsExtra' = 'ui-definitions'
     'ArtifactDiscovery.FutureDefinitionTests' = 'ui-definitions'
     'EvidenceLiteralFindTests' = 'ui-platform'
     'BoundedSurfaceAccessibilityTests' = 'ui-definitions'
@@ -117,14 +122,33 @@ foreach ($class in $classes.Keys) {
 }
 $conversation = @(Get-MatchingShard 'Kora.Windows.IntegrationTests.SessionsConversationTests.Test' -Definitions $partitions)
 $editor = @(Get-MatchingShard 'Kora.Windows.IntegrationTests.ArtifactDiscovery.OwnedDefinitionEditorWindowTests.Test' -Definitions $partitions)
-Assert ($conversation[0].Name -ceq 'ui-conversations') 'Isolate the complete conversation class in its own serial UI process.'
+Assert ($conversation[0].Name -ceq 'ui-conversations') 'New unclassified conversation methods must remain in the default serial conversation process.'
 Assert ($editor[0].Name -ceq 'ui-editors') 'Isolate the complete editor class in its own serial UI process.'
+foreach ($method in @('NativeExample', 'OwnedExample', 'NamedExample')) {
+    $execution = @(Get-MatchingShard "Kora.Windows.IntegrationTests.SessionsConversationTests.$method" -Definitions $partitions)
+    Assert ($execution.Count -eq 1 -and $execution[0].Name -ceq 'ui-conversation-actions') 'Keep each native/owned/named conversation method and all its theory rows in one action process.'
+}
+foreach ($method in @(
+    'CriteriaEditsFenceLateDetailCallbacksWithoutClearingIndependentComposer'
+    'InvalidConversationDatesRetainEditableInputsAndRefuseBeforeAnyBodyRead'
+    'ModelAgentProposalCompletesOnlyThroughExactNativeReviewSeparateConsentAndJoinedOriginalSessionAnswer'
+)) {
+    $execution = @(Get-MatchingShard "Kora.Windows.IntegrationTests.SessionsConversationTests.$method" -Definitions $partitions)
+    Assert ($execution.Count -eq 1 -and $execution[0].Name -ceq 'ui-conversations') 'All methods unfinished at the hosted timeout must remain scheduled, not disappear from the repair.'
+}
+foreach ($class in @('CustomizationWindowTests', 'PromptParameterWindowTests')) {
+    $execution = @(Get-MatchingShard "Kora.Windows.IntegrationTests.ArtifactDiscovery.$class.Test" -Definitions $partitions)
+    Assert ($execution.Count -eq 1 -and $execution[0].Name -ceq 'ui-definition-dialogs') 'Split the two complete measured dialog classes from remaining definitions work.'
+}
 foreach ($qualifiedName in @(
     'Kora.Windows.IntegrationTests.SessionsConversationTestsExtra.Test'
     'Kora.Windows.IntegrationTests.ArtifactDiscovery.OwnedDefinitionEditorWindowTestsExtra.Test'
+    'Kora.Windows.IntegrationTests.SessionsConversationTestsExtra.NativeExample'
+    'Kora.Windows.IntegrationTests.ArtifactDiscovery.CustomizationWindowTestsExtra.Test'
+    'Kora.Windows.IntegrationTests.ArtifactDiscovery.PromptParameterWindowTestsExtra.Test'
 )) {
     $execution = @(Get-MatchingShard $qualifiedName -Definitions $partitions)
-    Assert ($execution.Count -eq 1 -and $execution[0].Name -notin @('ui-conversations', 'ui-editors')) 'Exact class boundaries must not capture similarly named future classes.'
+    Assert ($execution.Count -eq 1 -and $execution[0].Name -notin @('ui-conversations', 'ui-conversation-actions', 'ui-definition-dialogs', 'ui-editors')) 'Exact class boundaries must not capture similarly named future classes.'
 }
 
 Assert ($workflow.Contains('shard: [storage-heavy, storage-other, ui-definitions, native-ux, ui-platform]',
@@ -295,15 +319,20 @@ Assert ((1412 - 288 + $navigationCases) + (3475 + 288 - $navigationCases) -eq 48
 
 # Complete successful runs; retain measured setup/post costs rather than timing test steps alone.
 foreach ($measurement in @(
-    @{ Run = 41223826625; Definitions = 1483.0; Conversation = 872.376; DefinitionsOverhead = 245.0;
+    @{ Run = 41223826625; Definitions = 1483.0; Conversation = 872.376; Actions = 453.666; Dialogs = 202.146; DefinitionsOverhead = 245.0;
        Platform = 1536.0; Editor = 536.596; PlatformOverhead = 257.0 }
-    @{ Run = 41229047847; Definitions = 1303.0; Conversation = 592.119; DefinitionsOverhead = 244.0;
+    @{ Run = 41229047847; Definitions = 1303.0; Conversation = 592.119; Actions = 304.304; Dialogs = 124.647; DefinitionsOverhead = 244.0;
        Platform = 993.0; Editor = 277.799; PlatformOverhead = 212.0 }
 )) {
     $before = [Math]::Max($measurement.Definitions + $measurement.DefinitionsOverhead,
         $measurement.Platform + $measurement.PlatformOverhead)
-    $definitionsAfter = [Math]::Max($measurement.Conversation,
-        $measurement.Definitions - $measurement.Conversation) + $measurement.DefinitionsOverhead
+    $definitionProcesses = @(
+        $measurement.Actions
+        ($measurement.Conversation - $measurement.Actions)
+        $measurement.Dialogs
+        ($measurement.Definitions - $measurement.Conversation - $measurement.Dialogs)
+    )
+    $definitionsAfter = ($definitionProcesses | Measure-Object -Maximum).Maximum + $measurement.DefinitionsOverhead
     $platformAfter = [Math]::Max($measurement.Editor,
         $measurement.Platform - $measurement.Editor) + $measurement.PlatformOverhead
     $after = [Math]::Max($definitionsAfter, $platformAfter)
@@ -312,10 +341,19 @@ foreach ($measurement in @(
     Write-Host ("Run {0}: projected UI critical path {1:N1}s -> {2:N1}s; shared-runner contention still requires new-head timing evidence." -f $measurement.Run, $before, $after)
 }
 
+# Run 41255145262 cancelled after 842/857 conversation cases; only project recorded work.
+$recordedProcesses = @(803.976, 724.243, 582.331, 725.102)
+$recordedCriticalPath = ($recordedProcesses | Measure-Object -Maximum).Maximum + 266 + 7
+Assert ((266 + 1535 + 7) -eq 1808) 'Reproduce the hosted whole-job timeout, including setup and cleanup.'
+Assert ($recordedCriticalPath -lt 0.8 * $deadlineSeconds) 'Recorded work must leave headroom without dropping the 15 unrecorded cases or extending the job deadline.'
+Write-Host ("Run 41255145262: recorded-work projection {0:N1}s; partial evidence does not establish completion or shared-runner timing." -f $recordedCriticalPath)
+
 if ($PSBoundParameters.ContainsKey('RetainedResultsDirectory')) {
     $reports = @(Get-ChildItem -LiteralPath $RetainedResultsDirectory -Filter '*.trx' -Recurse -File)
-    Assert ($reports.Count -in @($expected.Count, $expectedPartitions.Count)) 'Retained evidence must contain a complete legacy five-shard or current seven-partition report set.'
-    $reportNames = if ($reports.Count -eq $expected.Count) { $expected } else { $expectedPartitions }
+    Assert ($reports.Count -in @($expected.Count, $legacyPartitions.Count, $expectedPartitions.Count)) 'Retained evidence must contain a complete five-shard, legacy seven-partition or current nine-partition report set.'
+    $reportNames = if ($reports.Count -eq $expected.Count) { $expected }
+        elseif ($reports.Count -eq $legacyPartitions.Count) { $legacyPartitions }
+        else { $expectedPartitions }
     $executions = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     $recordedClasses = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     $recordedCases = 0
@@ -342,13 +380,21 @@ if ($PSBoundParameters.ContainsKey('RetainedResultsDirectory')) {
             Assert ($matching.Count -eq 1) "Partition must cover retained case $($result.testName) exactly once."
             $execution = @(Get-MatchingShard "$($method.className).$($method.name)" -Definitions $partitions)
             Assert ($execution.Count -eq 1) "Execution must cover retained case $($result.testName) exactly once."
-            $sourceName = if ($reports.Count -eq $expected.Count) { $execution[0].Shard } else { $execution[0].Name }
+            $sourceName = $execution[0].Name
+            if ($reports.Count -eq $expected.Count) { $sourceName = $execution[0].Shard }
+            elseif ($reports.Count -eq $legacyPartitions.Count) {
+                $sourceName = switch ($sourceName) {
+                    'ui-definition-dialogs' { 'ui-definitions' }
+                    'ui-conversation-actions' { 'ui-conversations' }
+                    default { $sourceName }
+                }
+            }
             Assert ($sourceName -ceq $name) 'A retained case must belong to its recorded source partition.'
             $partitionCases[$execution[0].Name]++
             $recordedCases++
         }
     }
-    Write-Host "Retained partition: $recordedCases cases in $($recordedClasses.Count) whole classes covered exactly once."
+    Write-Host "Retained partition: $recordedCases cases across $($recordedClasses.Count) classes covered exactly once."
     foreach ($name in $expectedPartitions) {
         Assert ($partitionCases[$name] -gt 0) "Projected execution partition $name must not be empty."
         Write-Host "$name`: $($partitionCases[$name]) retained cases."
@@ -371,6 +417,9 @@ try {
     if ($mode -ceq 'missing') { exit 0 }
     $report = '<TestRun><Results><UnitTestResult outcome="Passed"/></Results><ResultSummary><Counters total="1" passed="1"/></ResultSummary></TestRun>'
     if ($mode -ceq 'empty') { $report = '<TestRun><Results/><ResultSummary><Counters total="0" passed="0"/></ResultSummary></TestRun>' }
+    if ($mode -ceq 'incomplete') { $report = '<TestRun><Results><UnitTestResult outcome="Passed"/></Results><ResultSummary><Counters total="2" passed="2"/></ResultSummary></TestRun>' }
+    if ($mode -ceq 'failed') { $report = '<TestRun><Results><UnitTestResult outcome="Failed"/></Results><ResultSummary><Counters total="1" passed="0"/></ResultSummary></TestRun>' }
+    if ($mode -ceq 'skipped') { $report = '<TestRun><Results><UnitTestResult outcome="NotExecuted"/></Results><ResultSummary><Counters total="1" passed="0"/></ResultSummary></TestRun>' }
     if ($mode -ceq 'malformed') { $report = '<TestRun>' }
     Set-Content -LiteralPath (Join-Path $directory 'results.trx') -Value $report
     if ($mode -ceq 'duplicate') { Set-Content -LiteralPath (Join-Path $directory 'duplicate.trx') -Value $report }
@@ -399,7 +448,7 @@ try {
         Assert ($arguments[[Array]::IndexOf($arguments, '--max-threads') + 1] -eq 2) 'Partitioning must preserve the existing per-process thread limit.'
         Assert (Test-Path -LiteralPath (Join-Path $receipt[0].Directory.FullName 'console.log')) 'Each invocation must retain its own console output.'
     }
-    foreach ($mode in @('exit', 'missing', 'empty', 'malformed', 'duplicate')) {
+    foreach ($mode in @('exit', 'missing', 'empty', 'incomplete', 'failed', 'skipped', 'malformed', 'duplicate')) {
         $env:KORA_WINDOWS_SCHEDULING_FIXTURE = $mode
         $modeRoot = Join-Path $fixtureRoot $mode
         $failure = $null
@@ -407,12 +456,12 @@ try {
         catch { $failure = $_ }
         Assert ($null -ne $failure) "Execution must fail explicitly for $mode partition evidence."
         $terminal = @(Get-ChildItem -LiteralPath $modeRoot -Filter 'terminal.txt' -Recurse -File)
-        Assert ($terminal.Count -eq 2) 'Failure reporting must wait for both selected execution partitions to finish.'
+        Assert ($terminal.Count -eq 4) 'Failure reporting must wait for all four selected execution partitions to finish.'
     }
     $env:KORA_WINDOWS_SCHEDULING_FIXTURE = 'success'
     & $runner -Shard 'ui-definitions' -ResultsDirectory $executionRoot
     $freshReports = @(Get-ChildItem -LiteralPath $executionRoot -Filter 'results.trx' -Recurse -File)
-    Assert ($freshReports.Count -eq 9) 'A repeat run must retain fresh evidence without overwriting or consuming the previous seven reports.'
+    Assert ($freshReports.Count -eq 13) 'A repeat run must retain four fresh reports without overwriting or consuming the previous nine reports.'
 }
 finally {
     $env:PATH = $savedPath

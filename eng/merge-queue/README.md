@@ -337,9 +337,11 @@ merges and 14 cancellations. Twelve cancelled candidates had a confirmed
 30-minute UI job timeout; cancelled runs consumed 413 minutes. This is failed
 validation occupancy, not a controller handoff delay.
 
-The Windows runner now retains five hosted job identities but uses seven
-disjoint processes, isolating the complete conversation and editor classes
-inside their existing synchronous UI jobs. The portable required check joins
+The Windows runner now retains five hosted job identities but uses nine
+disjoint processes. The definitions job separates dialog classes, conversation
+Native/Owned/Named method families, other conversation methods, and remaining
+definitions work. Theory rows stay together; the editor class retains its own
+synchronous process inside the platform job. The portable required check joins
 independent test/coverage and exact-source payload producers. The installer can
 start after payload verification while portable tests continue; release still
 requires every existing protected check. The portable aggregate requires both
@@ -349,6 +351,18 @@ is deferred.
 See the [development checks](../../CONTRIBUTING.md#development-checks) for
 partition discovery, execution-evidence checks and measured timing projections;
 shared-runner timing is not guaranteed by those projections.
+
+[The initial repair candidate](https://github.com/roryprimrose/Kora/actions/runs/41255145262)
+still exhausted definitions' 30-minute job budget. Portable, installer and four
+other Windows jobs succeeded, but only 842 of 857 conversation cases were
+recorded before cancellation. The subsequent finer partition retains all
+unfinished methods and all protected gates. Partial passing TRX counters do
+not establish a complete candidate pass or justify bypassing admission.
+Local repair validation also exposed approval scenarios mixing fixed domain
+time with wall-clock cancellation or queue expiry. Those deterministic fixtures
+now share their clock, and lifecycle review cancellation uses the controller's
+injected clock with the same one-minute production budget. The default fixture
+and production clocks remain system time; no gate or job deadline is extended.
 
 Controller workflow success means reconciliation completed, not that a PR
 merged. Inspect its `Merge queue:` outcome and the durable active/blocked state.

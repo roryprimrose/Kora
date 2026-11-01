@@ -46,7 +46,7 @@ public sealed partial class SessionsConversationTests
                 pageTransport: available ? network : null);
             var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
             Directory.CreateDirectory(parent);
-            using var native = new NativeUxFixtureSession(parent);
+            using var native = new NativeUxFixtureSession(parent, timeProvider: f.Time);
             await native.InitializeAsync();
             using var questionHost = new NativeQuestionHost(f.Store, f.Time, NullLogger<NativeQuestionViewModel>.Instance);
             using var questions = new QuestionWindowController(native.Main, questionHost, native.VersionQuery, new HostBoundary(),

@@ -59,7 +59,7 @@ public sealed partial class MainViewModel
         if (initiator is not (SecurityAuditInitiator.TypedCommand or SecurityAuditInitiator.VoiceCommand)
             || origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
             || !isAssistantNameAvailable
-            || origin == RequestOrigin.ActivatedVoice && !commandRouter.IsActivationPrefixed(text, AssistantName))
+            || origin == RequestOrigin.ActivatedVoice && !HasCurrentNameActivation(text))
         {
             PendingQuestionNavigationStatus = unavailable;
             return;

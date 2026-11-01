@@ -224,7 +224,15 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
     }
 
     public ValueTask<ConversationSubmissionReceipt> CompleteConversationSubmissionAsync(HostRequest request,
-        ModelTurnOutcome outcome, ModelTurnReason reason, Func<bool> admitted, CancellationToken token)
+        ModelTurnOutcome outcome, ModelTurnReason reason, Func<bool> admitted, CancellationToken token) =>
+        CompleteConversationSubmissionCoreAsync(request, outcome, reason, null, admitted, token);
+
+    public ValueTask<ConversationSubmissionReceipt> CancelPendingConversationSubmissionAsync(HostRequest request,
+        SessionWorkspaceEntry expected, Func<bool> admitted, CancellationToken token) =>
+        CompleteConversationSubmissionCoreAsync(request, ModelTurnOutcome.Cancelled, ModelTurnReason.CallerCancelled, expected, admitted, token);
+
+    private ValueTask<ConversationSubmissionReceipt> CompleteConversationSubmissionCoreAsync(HostRequest request,
+        ModelTurnOutcome outcome, ModelTurnReason reason, SessionWorkspaceEntry? expected, Func<bool> admitted, CancellationToken token)
     {
         if (!Enum.IsDefined(outcome) || !Enum.IsDefined(reason) || outcome == ModelTurnOutcome.Succeeded)
         { throw new InvalidOperationException("This conversation increment has no qualified assistant-generation or dispatch route."); }
@@ -234,7 +242,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
                 ?? throw new InvalidDataException("The exact retained original submission is missing.");
             var session = RequireSession(connection, request.SessionId);
             if (previous.Request != request || previous.Revision != 1 || session.State != 0
-                || session.Authority.Generation != previous.Generation || intent.State != HostTaskState.IntentRecorded)
+                || session.Authority.Generation != previous.Generation || intent.State != HostTaskState.IntentRecorded
+                || expected is not null && expected != new SessionWorkspaceEntry(session.Authority, ReadMetadata(connection, request.SessionId)))
             { throw new InvalidOperationException("The retained request, task, session or terminal outcome conflicts; inspect without replay."); }
             var message = previous with { Revision = 2, Outcome = outcome, Reason = reason };
             var completed = intent.Next(message.ExpectedTaskState);

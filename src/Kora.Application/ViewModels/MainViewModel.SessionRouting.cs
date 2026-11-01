@@ -19,7 +19,7 @@ public sealed partial class MainViewModel
     {
         if (routeSessionRequest is not { } route) { return false; }
         var origin = OriginalOrigin(initiator);
-        if (origin == RequestOrigin.ActivatedVoice && !commandRouter.IsActivationPrefixed(text, AssistantName))
+        if (origin == RequestOrigin.ActivatedVoice && !HasCurrentNameActivation(text))
         {
             ShowInformation("Activate me before routing a request.", "Use the current assistant name. No destination was selected.");
             return true;

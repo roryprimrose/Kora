@@ -21,6 +21,24 @@ public sealed partial class SpeechInputConfigurationService : IAsyncDisposable
     private readonly ISecurityAuditLog auditLog;
     private readonly ILogger<SpeechInputConfigurationService> logger;
     private SpeechInputConfigurationState state;
+    private AssistantNameConfigurationService? names;
+
+    public void BindAssistantName(AssistantNameConfigurationService configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        lock (gate)
+        {
+            if (names is not null) { throw new InvalidOperationException("Speech-input name authority is already bound."); }
+            names = configuration;
+        }
+    }
+
+    public IReadOnlyList<SpeechInputProfile> GetProfiles() =>
+        names?.Get().Name is { } name ? runtime.GetProfiles(name) : SpeechInputProfileCatalogue.Profiles;
+
+    private string? UnavailableReason(SpeechInputSelection selection) =>
+        names?.Get().Name is { } name ? runtime.GetUnavailableReason(selection, name)
+            : SpeechInputProfileCatalogue.UnavailableReason(selection);
 
     public SpeechInputConfigurationService(ISpeechInputPreferences preferences, ISpeechInputProfileRuntime runtime,
         AudioControlAdmission admission, ISecurityAuditLog auditLog, ILogger<SpeechInputConfigurationService> logger)
@@ -53,10 +71,11 @@ public sealed partial class SpeechInputConfigurationService : IAsyncDisposable
     {
         lock (gate)
         {
-            return runtime.IsProfileAvailable ? state : state with
+            var unavailable = state.Desired is { } desired ? UnavailableReason(desired) : state.UnavailableReason;
+            return runtime.IsProfileAvailable && unavailable is null ? state with { Effective = runtime.ProfileGeneration, UnavailableReason = null } : state with
             {
                 Effective = null,
-                UnavailableReason = state.UnavailableReason ?? "Speech-input capture is held unavailable or switching; no microphone was opened.",
+                UnavailableReason = unavailable ?? state.UnavailableReason ?? "Speech-input capture is held unavailable or switching; no microphone was opened.",
             };
         }
     }
@@ -98,6 +117,8 @@ public sealed partial class SpeechInputConfigurationService : IAsyncDisposable
             SpeechInputSelection? previous;
             SpeechInputGeneration previousGeneration;
             SpeechInputConfigurationState reviewedState;
+            var nameState = names?.Get();
+            bool NameCurrent() => names?.Get() == nameState;
             lock (gate)
             {
                 if (expectedRevision != state.Revision || !eligible())
@@ -130,18 +151,18 @@ public sealed partial class SpeechInputConfigurationService : IAsyncDisposable
                     }
                     if (review is not null)
                     {
-                        if (SpeechInputProfileCatalogue.UnavailableReason(selection) is { } unavailable)
+                        if (UnavailableReason(selection) is { } unavailable)
                         {
                             throw new InvalidOperationException(unavailable);
                         }
-                        if (!await review(new(reviewedState, nextGeneration, request.Origin), token).ConfigureAwait(false))
+                        if (!await review(new(reviewedState, nextGeneration, request.Origin) { AssistantName = nameState?.Name }, token).ConfigureAwait(false))
                         {
                             throw new OperationCanceledException("Speech-input review was cancelled; no preference changed.");
                         }
                         token.ThrowIfCancellationRequested();
                         lock (gate)
                         {
-                            if (state.Revision != expectedRevision || runtime.ProfileGeneration != previousGeneration
+                            if (!NameCurrent() || UnavailableReason(selection) is not null || state.Revision != expectedRevision || runtime.ProfileGeneration != previousGeneration
                                 || policy.CheckMutation(request.Origin, callRevision, eligible) is not null
                                 || preferences.Load() != previous)
                             {
@@ -150,7 +171,14 @@ public sealed partial class SpeechInputConfigurationService : IAsyncDisposable
                         }
                     }
                     retirementAttempted = true;
-                    retirement = await runtime.RetireProfileAsync(token).ConfigureAwait(false);
+                    if (selection.ProfileId is SpeechInputProfileCatalogue.NativeWakeProfileId
+                        && (nameState?.Name is null || UnavailableReason(selection) is not null))
+                    {
+                        throw new InvalidOperationException("The exact configured name and installed native wake profile are unavailable.");
+                    }
+                    retirement = nameState?.Name is { } name
+                        ? await runtime.RetireProfileAsync(selection, name, token).ConfigureAwait(false)
+                        : await runtime.RetireProfileAsync(token).ConfigureAwait(false);
                     return nextGeneration;
                 }
                 catch (OperationCanceledException)
@@ -172,7 +200,7 @@ public sealed partial class SpeechInputConfigurationService : IAsyncDisposable
                     var audit = operationAudit ?? throw new InvalidOperationException("The speech-input request audit is missing.");
                     var denied = policy.CommitVoiceSetting(request.Origin, callRevision,
                         () => ReferenceEquals(HostActivity.RequireCurrent().Request, request)
-                            && retirement is not null && !disposed && eligible() && !cancellationToken.IsCancellationRequested && state.Revision == expectedRevision,
+                            && retirement is not null && !disposed && eligible() && NameCurrent() && !cancellationToken.IsCancellationRequested && state.Revision == expectedRevision,
                         () =>
                         {
                             using var storage = HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Storage);
@@ -220,7 +248,7 @@ public sealed partial class SpeechInputConfigurationService : IAsyncDisposable
             using var cutover = cutoverActivity!();
             lock (gate)
             {
-                if (disposed || !eligible() || cancellationToken.IsCancellationRequested || policy.CheckMutation(originalOrigin, callRevision, eligible) is not null
+                if (disposed || !eligible() || !NameCurrent() || cancellationToken.IsCancellationRequested || policy.CheckMutation(originalOrigin, callRevision, eligible) is not null
                     || state.Revision != expectedRevision || runtime.ProfileGeneration != previousGeneration || preferences.ReadBack() != selection)
                 {
                     throw new InvalidOperationException("Speech-input write completed but cutover admission is unconfirmed. No new capture is enabled.");
@@ -242,8 +270,8 @@ public sealed partial class SpeechInputConfigurationService : IAsyncDisposable
                     preferences.BeginWrite();
                     throw new InvalidOperationException("Speech-input cutover lost call/channel admission.");
                 }
-                state = new(selection, selection, SpeechInputProfileCatalogue.UnavailableReason(selection) is null ? accepted : null,
-                    checked(state.Revision + 1), SpeechInputProfileCatalogue.UnavailableReason(selection));
+                state = new(selection, selection, UnavailableReason(selection) is null ? accepted : null,
+                    checked(state.Revision + 1), UnavailableReason(selection));
                 SelectionCommitted(accepted.Number, state.Effective is not null);
                 cutover.Complete(HostOperationOutcome.Completed);
             }

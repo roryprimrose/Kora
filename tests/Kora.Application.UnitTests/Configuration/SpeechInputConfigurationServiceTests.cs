@@ -30,6 +30,18 @@ public sealed class SpeechInputConfigurationServiceTests : IDisposable
     public SpeechInputConfigurationServiceTests() => ActivitySource.AddActivityListener(listener);
     public void Dispose() => listener.Dispose();
 
+    [Fact]
+    public async Task UnboundProfileInspectionRemainsDefaultAndNativeSyntaxDoesNotConferQualification()
+    {
+        await using var fixture = new Fixture();
+        fixture.Service.GetProfiles().Should().Equal(SpeechInputProfileCatalogue.Profiles);
+        var command = SpeechInputCommand.Parse("set speech.input to pocketsphinx-5-1-1-en-us-cpu-v1 Cpu CaptureLifetime", "Nova")!;
+        command.Selection.Should().Be(SpeechInputProfileCatalogue.NativeWakeSelection);
+        command.Operation.Should().Be(AppearanceCommandOperation.Set);
+        SpeechInputProfileCatalogue.UnavailableReason(command.Selection!).Should().NotBeNull();
+        new SpeechInputConfigurationState(null, null, null, 0, null).Describe().Should().Contain("Effective: unavailable");
+    }
+
     [Theory]
     [InlineData(RequestOrigin.LocalUi, SecurityAuditInitiator.LocalUser)]
     [InlineData(RequestOrigin.LocalUi, SecurityAuditInitiator.TypedCommand)]

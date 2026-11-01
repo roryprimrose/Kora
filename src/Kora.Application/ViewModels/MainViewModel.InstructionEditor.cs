@@ -95,7 +95,7 @@ public sealed partial class MainViewModel
         if (operation is "Create" or "Inspect" or "Save as new copy" or "Rename" ? words.Length != 3 : words.Length != 2)
         { ReportHostInteractionFailure("Use an exact bounded owned ID; editor commands do not accept body text or paths."); return; }
         if (operation is "Refine" or "Rename" or "Recover rename" && Kora.Core.Diagnostics.HostActivity.RequireCurrent().Request.Origin == RequestOrigin.ActivatedVoice
-            && !commandRouter.IsActivationPrefixed(input, AssistantName))
+            && !HasCurrentNameActivation(input))
         { ReportHostInteractionFailure("Use the current assistant-name prefix for this open instruction operation. No model disclosure or editor change occurred."); return; }
         if ((prompt ? OwnedPromptEditorRequested : OwnedInstructionEditorRequested) is { } handler)
         {

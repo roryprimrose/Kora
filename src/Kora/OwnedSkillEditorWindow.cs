@@ -7,7 +7,7 @@ using Kora.Core.Skills;
 
 namespace Kora;
 
-internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
+internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview, IOwnedSkillRenameReview, IOwnedSkillDeletionReview
 {
     internal readonly TextBox IdInput = new() { PlaceholderText = "canonical-skill-id" };
     internal readonly TextBox VersionInput = new() { Text = "1.0.0" };
@@ -20,6 +20,8 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
     internal readonly TextBox ExpectedInput = new() { AcceptsReturn = true, MaxHeight = 80 };
     internal readonly TextBox ExpectedOutput = new() { AcceptsReturn = true, MaxHeight = 80 };
     internal readonly ComboBox Saved = new() { MinWidth = 400 };
+    internal readonly TextBox RenameId = new() { PlaceholderText = "new-canonical-skill-id" };
+    internal readonly ComboBox PendingRenames = new() { MinWidth = 400 };
     internal readonly ComboBox Tool = new() { ItemsSource = new[] { "No tools (native v1)", "Host WebPageGet only (native v2)" }, SelectedIndex = 0 };
     internal readonly ComboBox InputFormat = new() { ItemsSource = new[] { "Literal guidance (native v1/v2)", "Required literal guidance inputs (native v3; no tools)" }, SelectedIndex = 0 };
     private readonly TextBlock status = new() { TextWrapping = TextWrapping.Wrap };
@@ -27,6 +29,7 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
     private readonly Func<bool> eligible;
     internal event Action? DraftChanged;
     internal event Action? CritiqueChanged;
+    internal event Action? RenameTargetChanged;
     internal event Action? FixtureChanged;
 
     internal OwnedSkillEditorWindow(Action<string> run, Func<bool> eligible)
@@ -62,7 +65,7 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
             TextWrapping = TextWrapping.Wrap,
         });
         var buttons = new WrapPanel { Orientation = Orientation.Horizontal };
-        foreach (var action in new[] { "Create", "Refine", "Cancel refinement", "Validate", "Test", "Cancel test", "Save", "List", "Reopen", "Use", "Cancel" })
+        foreach (var action in new[] { "Create", "Refine", "Cancel refinement", "Validate", "Test", "Cancel test", "Save", "List", "Reopen", "Delete", "Use", "Cancel" })
         {
             var button = new Button { Content = action, Margin = new(3) };
             button.Click += (_, _) => run(action.ToLowerInvariant().Replace(' ', '-'));
@@ -81,6 +84,21 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
         generate.Click += (_, _) => run("generate");
         fields.Children.Add(generate);
         fields.Children.Add(Saved);
+        fields.Children.Add(new TextBlock { Text = "Rename selected saved package ID (version and readable name remain unchanged)" });
+        AutomationProperties.SetName(RenameId, "New owned package ID");
+        fields.Children.Add(RenameId);
+        RenameId.PropertyChanged += (_, args) =>
+        {
+            if (args.Property == TextBox.TextProperty) { RenameTargetChanged?.Invoke(); RetireReview(); }
+        };
+        var rename = new Button { Content = "Rename selected package", Margin = new(3) };
+        rename.Click += (_, _) => run("rename");
+        fields.Children.Add(rename);
+        AutomationProperties.SetName(PendingRenames, "Pending exact package renames");
+        fields.Children.Add(PendingRenames);
+        var recoverRename = new Button { Content = "Recover selected rename", Margin = new(3) };
+        recoverRename.Click += (_, _) => run("recover-rename");
+        fields.Children.Add(recoverRename);
         fields.Children.Add(new TextBlock { Text = "Original critique for explicit local guidance refinement" });
         AutomationProperties.SetName(Critique, "Original skill guidance critique");
         fields.Children.Add(Critique);
@@ -96,6 +114,7 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
         DockPanel.SetDock(status, Dock.Bottom);
         panel.Children.Add(status);
         panel.Children.Add(Guidance);
+        Guidance.MinHeight = 120;
         Content = new ScrollViewer { Content = panel };
     }
 
@@ -134,6 +153,48 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
             "Publish this exact reviewed TWO-file package at " + destination
                 + "? Existing versions will never be replaced. The saved package remains inactive. Use requires a separate exact-version review and enablement.",
             document.ManifestText, document.Guidance, ["Publish exact new version", "Cancel"], token) == 0;
+
+    public async Task<bool> ReviewRename(OwnedSkillRename proposal, string source, string destination, bool recovery, CancellationToken token) =>
+        await ChooseOnUi(recovery ? "Review retained package rename recovery" : "Review complete owned package rename",
+            RenameDisclosure(proposal, source, destination, recovery), Complete(proposal.Original.Document), Complete(proposal.Renamed),
+            ["Continue to separate rename confirmation", "Cancel"], token,
+            firstLabel: "Complete original package", secondLabel: "Complete proposed package") == 0;
+
+    public async Task<bool> ConfirmRename(OwnedSkillRename proposal, string source, string destination, bool recovery, CancellationToken token) =>
+        await ChooseOnUi(recovery ? "Confirm exact rename recovery" : "Confirm exact package rename",
+            RenameDisclosure(proposal, source, destination, recovery), Complete(proposal.Original.Document), Complete(proposal.Renamed),
+            [recovery ? "Resume only retained rename" : "Rename only this complete package", "Cancel"], token,
+            firstLabel: "Complete original package", secondLabel: "Complete proposed package") == 0;
+
+    private static string Complete(OwnedDeclarativeSkillDocument document) =>
+        "manifest.yaml\n" + document.ManifestText + "\ninstructions.md\n" + document.Guidance;
+
+    private static string RenameDisclosure(OwnedSkillRename proposal, string source, string destination, bool recovery) =>
+        (recovery ? "Resume this retained multi-step operation; effects may already exist.\n" : "Rename this exact saved package, not the editor draft.\n")
+        + $"Original: {source}\nNew: {destination}\nOriginal revision: {proposal.Original.Document.RevisionDigest}\nNew revision: {proposal.Renamed.RevisionDigest}\n"
+        + "Only the manifest ID changes; version, readable name, capability/input declarations and complete guidance stay unchanged. "
+        + "Exactly manifest.yaml and instructions.md; no reference packages, imports or external/profile writes. "
+        + "New publication and old retirement are recoverable steps, NOT an atomic transaction. No overwrite or automatic rollback/retry. "
+        + "Old reviews/use authority cannot follow the new ID. External references stay old, never silently retargeted. "
+        + "The new identity is disabled; fresh independent review/enablement/action permission is required. Nothing is invoked. "
+        + "Pending intent holds both identities unavailable until explicit recovery; unrelated packages and unsaved drafts are retained.";
+    public async Task<bool> ReviewDeletion(OwnedSkillDeletionSnapshot source, CancellationToken token) =>
+        await ChooseOnUi("Review exact owned skill source deletion", DeletionDisclosure(source),
+            source.Source.Document.ManifestText, source.Source.Document.Guidance,
+            ["Continue to separate deletion confirmation", "Cancel"], token) == 0;
+
+    public async Task<bool> ConfirmDeletion(OwnedSkillDeletionSnapshot source, CancellationToken token) =>
+        await ChooseOnUi("Confirm exact owned skill source deletion", DeletionDisclosure(source),
+            source.Source.Document.ManifestText, source.Source.Document.Guidance,
+            ["Delete only this exact owned source", "Cancel"], token) == 0;
+
+    private static string DeletionDisclosure(OwnedSkillDeletionSnapshot source) =>
+        "Delete owned " + source.Source.Document.Name + " (" + source.Source.Document.Id + " " + source.Source.Document.Version
+        + ") at " + source.Destination + "?\nExactly manifest.yaml, instructions.md and their now-empty version directory; the ID/root and all other entries remain."
+        + "\nDeclared dependency: " + source.Source.Document.Tool + "; references: none. Future use that needs this exact source fails closed."
+        + " External dependents are not exhaustively inventoried. Immutable admitted tasks are not cancelled; independent grants, history and audit are not erased or renewed."
+        + "\nNo reference packages, shared/profile originals, bundled sources, arbitrary paths or tree deletion. No backup/rollback, model, tools or egress."
+        + " Partial/unconfirmed deletion is held for explicit inspection, never retried automatically.";
 
     internal async Task<int> DirtyChoice(bool canSave, Func<bool> privateEligible, CancellationToken token)
     {
@@ -218,7 +279,10 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
         };
         dialog.Closed += (_, _) => { if (ReferenceEquals(review, dialog)) { review = null; } result.TrySetResult(-1); };
         using var cancellation = token.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(dialog.Close));
-        dialog.Show(this);
-        return await result.Task;
+        await dialog.ShowDialog(this);
+        var choice = await result.Task;
+        // Owner Hide/Close can complete the dialog before updating the owner's own visibility.
+        return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(
+            () => IsVisible && current() && !token.IsCancellationRequested ? choice : -1);
     }
 }

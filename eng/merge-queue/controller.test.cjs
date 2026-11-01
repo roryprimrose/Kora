@@ -1,5 +1,8 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const { createHash } = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
 const { reconcile } = require('./controller.cjs');
 const { CHECKS, GATE, JOBS, WINDOWS_12_JOBS, PREDECESSOR_WORKFLOWS, workflowJobs,
   MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS,
@@ -75,47 +78,56 @@ const count = (api, action) => api.calls.filter(call => call[0] === action).leng
 const labels = (...names) => names.map(name => ({ name }));
 
 test('missing source-required producers cannot release failed, stale, merged or retiring lanes', async () => {
-  for (const producer of WINDOWS_12_JOBS.filter(name => !JOBS.includes(name))) {
-    for (const scenario of ['success', 'cancelled', 'failure', null, 'unknown',
-      'stale-head', 'stale-base', 'stale-enrollment', 'merged', 'retiring']) {
-      const api = new Fake();
-      api.state.active = active();
-      api.prs.push(pr(2));
-      api.workflowRuns = [run({ conclusion: ['success', 'cancelled', 'failure', null, 'unknown'].includes(scenario)
-        ? scenario : 'cancelled' })];
-      const missing = api.workflowJobs.find(job => job.name === producer);
-      api.workflowJobs = api.workflowJobs.filter(job => job.name !== producer);
-      if (scenario === 'stale-head') api.prs[0].head.sha = OTHER;
-      if (scenario === 'stale-base') api.base = OTHER;
-      if (scenario === 'stale-enrollment') api.enrolled = NOW.toISOString();
-      if (scenario === 'merged') Object.assign(api.prs[0], { state: 'closed', merged: true });
-      if (scenario === 'retiring') api.state.active.phase = 'retiring';
-      const pending = scenario === 'success';
-      assert.equal(await step(api), pending ? 'waiting-for-jobs' : 'retiring', `${producer}/${scenario}`);
-      assert.equal(api.state.active.ticket, TICKET);
-      assert.equal(count(api, 'cancel'), pending ? 0 : 1);
-      for (const action of ['dispatch', 'merge', 'wake']) assert.equal(count(api, action), 0);
-      assert.equal(api.calls.some(call => call[0] === 'save' && call[1].active === null), false);
-      assert.deepEqual(api.calls.filter(call => call[0] === 'inventory').map(call => call[1]), [BASE]);
-      if (pending) {
-        assert.equal(await step(api, { now: new Date(NOW.valueOf() + JOB_OBSERVATION_MS) }), 'retiring');
-        assert.equal(count(api, 'cancel'), 1);
-      } else {
-        assert.equal(await step(api), 'retiring');
-        assert.equal(count(api, 'cancel'), 2);
+  const source = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  for (const workflow of [source, source.replace('# merge-queue-job-schema: windows-12-v1\n', '')]) {
+    const bytes = Buffer.from(workflow);
+    const blob = createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
+    assert.deepEqual(workflowJobs(workflow, blob), WINDOWS_12_JOBS);
+    for (const producer of WINDOWS_12_JOBS.filter(name => !JOBS.includes(name))) {
+      for (const scenario of ['success', 'cancelled', 'failure', null, 'unknown',
+        'stale-head', 'stale-base', 'stale-enrollment', 'merged', 'retiring']) {
+        const api = new Fake();
+        api.workflowSource = workflow;
+        api.workflowBlob = blob;
+        api.state.active = active();
+        api.prs.push(pr(2));
+        api.workflowRuns = [run({ conclusion: ['success', 'cancelled', 'failure', null, 'unknown'].includes(scenario)
+          ? scenario : 'cancelled' })];
+        const missing = api.workflowJobs.find(job => job.name === producer);
+        api.workflowJobs = api.workflowJobs.filter(job => job.name !== producer);
+        if (scenario === 'stale-head') api.prs[0].head.sha = OTHER;
+        if (scenario === 'stale-base') api.base = OTHER;
+        if (scenario === 'stale-enrollment') api.enrolled = NOW.toISOString();
+        if (scenario === 'merged') Object.assign(api.prs[0], { state: 'closed', merged: true });
+        if (scenario === 'retiring') api.state.active.phase = 'retiring';
+        const pending = scenario === 'success';
+        assert.equal(await step(api), pending ? 'waiting-for-jobs' : 'retiring', `${blob}/${producer}/${scenario}`);
+        assert.equal(api.state.active.ticket, TICKET);
+        assert.equal(count(api, 'cancel'), pending ? 0 : 1);
+        for (const action of ['dispatch', 'merge', 'wake']) assert.equal(count(api, action), 0);
+        assert.equal(api.calls.some(call => call[0] === 'save' && call[1].active === null), false);
+        assert.deepEqual(api.calls.filter(call => call[0] === 'inventory').map(call => call[1]), [BASE]);
+        if (pending) {
+          assert.equal(await step(api, { now: new Date(NOW.valueOf() + JOB_OBSERVATION_MS) }), 'retiring');
+          assert.equal(count(api, 'cancel'), 1);
+        } else {
+          assert.equal(await step(api), 'retiring');
+          assert.equal(count(api, 'cancel'), 2);
+        }
+        assert.equal(api.state.active.number, 1);
+        // Cancellation acknowledgement is not a join; exact terminal producer metadata permits retirement.
+        api.workflowJobs.push({ ...missing, conclusion: 'cancelled' });
+        assert.equal(await step(api), scenario === 'merged' ? 'already-merged' : 'retired');
+        assert.ok(api.calls.some(call => call[0] === 'save' && call[1].active === null));
+        if (scenario !== 'merged') {
+          api.prs[0].auto_merge = null;
+          assert.equal(await step(api, { ticket: undefined }), 'dispatched');
+        }
+        assert.equal(api.state.active.number, 2);
+        assert.equal(count(api, 'dispatch'), 1);
+        assert.equal(count(api, 'merge'), 0);
       }
-      assert.equal(api.state.active.number, 1);
-      // Cancellation acknowledgement is not a join; exact terminal producer metadata permits retirement.
-      api.workflowJobs.push({ ...missing, conclusion: 'cancelled' });
-      assert.equal(await step(api), scenario === 'merged' ? 'already-merged' : 'retired');
-      assert.ok(api.calls.some(call => call[0] === 'save' && call[1].active === null));
-      if (scenario !== 'merged') {
-        api.prs[0].auto_merge = null;
-        assert.equal(await step(api, { ticket: undefined }), 'dispatched');
-      }
-      assert.equal(api.state.active.number, 2);
-      assert.equal(count(api, 'dispatch'), 1);
-      assert.equal(count(api, 'merge'), 0);
     }
   }
 });

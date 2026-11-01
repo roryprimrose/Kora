@@ -1,6 +1,8 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { createHash } = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
 const { GitHubQueue, admit } = require('./github.cjs');
 const { CHECKS, GATE, STATE_BRANCH, WINDOWS_12_JOBS } = require('./policy.cjs');
 const BASE = 'a'.repeat(40);
@@ -40,7 +42,7 @@ function fixture(overrides = {}) {
   };
   const groups = {
     git: ['getRef', 'createBlob', 'createTree', 'createCommit', 'updateRef', 'createRef'],
-    repos: ['getContent', 'getBranchProtection', 'compareCommits'],
+    repos: ['getContent', 'getBranchProtection', 'compareCommits', 'getCollaboratorPermissionLevel'],
     pulls: ['list', 'get', 'updateBranch', 'merge'],
     checks: ['create', 'update'],
     actions: ['createWorkflowDispatch', 'listWorkflowRuns', 'listJobsForWorkflowRunAttempt', 'cancelWorkflowRun', 'getWorkflowRun'],
@@ -132,6 +134,36 @@ test('unchanged state does not create an idle checkpoint on every scheduled reco
   assert.equal(value.calls.some(call => call[0] === 'createCommit'), false);
 });
 
+test('reviewed recovery commit metadata preserves the existing linear state update mechanism', async () => {
+  const value = fixture();
+  const loaded = await value.api.load();
+  loaded.active = null;
+  await value.api.save(loaded, 'ci: reviewed recovery\n\nAdministrator: operator\nTicket: synthetic');
+  assert.equal(value.calls.find(call => call[0] === 'createCommit')[1].message,
+    'ci: reviewed recovery\n\nAdministrator: operator\nTicket: synthetic');
+  assert.equal(value.calls.find(call => call[0] === 'updateRef')[1].force, false);
+});
+
+test('recovery actor authority is read live and fails closed on missing, mismatched or unavailable metadata', async () => {
+  for (const permission of ['admin', 'maintain', 'write', 'read', 'none']) {
+    const value = fixture({ getCollaboratorPermissionLevel: () => ({ permission, user: { login: 'Operator' } }) });
+    assert.equal(await value.api.administrator('operator'), permission === 'admin');
+    assert.deepEqual(value.calls.at(-1)[1], { owner: 'owner', repo: 'repo', username: 'operator' });
+  }
+  for (const data of [{}, { permission: 'admin' }, { permission: 'admin', user: { login: 'other' } },
+    { permission: 'unknown', user: { login: 'operator' } }]) {
+    await assert.rejects(fixture({ getCollaboratorPermissionLevel: () => data }).api.administrator('operator'),
+      /authority/);
+  }
+  for (const actor of ['', undefined, 'queue[bot]', '../operator']) {
+    await assert.rejects(fixture().api.administrator(actor), /actor/);
+  }
+  for (const status of [401, 403, 404, 500]) {
+    await assert.rejects(fixture({ getCollaboratorPermissionLevel: () => { throw error(status); } })
+      .api.administrator('operator'), /HTTP/);
+  }
+});
+
 test('cancellation races accept only an independently observed terminal run', async () => {
   const value = fixture({ cancelWorkflowRun: () => { throw error(409); } });
   await value.api.cancel(9);
@@ -213,7 +245,7 @@ test('candidate admission requires trusted main, the exact ticket and still-curr
 
 test('paginated run and job lookups cannot accidentally select an unrelated workflow', async () => {
   const value = fixture({
-    list: () => [pr()], listWorkflowRuns: () => ({ workflow_runs: [{ id: 1 }] }),
+    list: () => [pr()], listWorkflowRuns: () => ({ total_count: 1, workflow_runs: [{ id: 1 }] }),
     listJobsForWorkflowRunAttempt: () => ({ total_count: 1, jobs: [{ id: 2 }] }),
   });
   assert.equal((await value.api.pulls()).length, 1);
@@ -292,6 +324,19 @@ test('workflow inventory reads and validates exact source bytes, never main, can
   assert.equal(value.calls.length, 1);
 });
 
+test('real schema-declared and unversioned protected workflows resolve the same complete producer inventory', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  const unversioned = source.replace('# merge-queue-job-schema: windows-12-v1\n', '');
+  assert.equal(workflowContent(unversioned).sha, 'd3db4c610d08468c508f09e63b10f7c6568b82ea');
+  for (const workflow of [source, unversioned]) {
+    const value = fixture({ getContent: () => workflowContent(workflow) });
+    assert.deepEqual(await value.api.expectedJobs(BASE), WINDOWS_12_JOBS);
+    assert.deepEqual(value.calls, [['getContent', { owner: 'owner', repo: 'repo',
+      ref: BASE, path: '.github/workflows/ci.yml' }]]);
+  }
+});
+
 test('missing, unknown or malformed workflow source explicitly denies a quiescence inventory', async () => {
   for (const response of [null, {}, { type: 'dir' }, { ...workflowContent(), encoding: 'utf-8' },
     { ...workflowContent(), sha: undefined }, { ...workflowContent(), content: undefined },
@@ -313,6 +358,39 @@ test('missing, unknown or malformed workflow source explicitly denies a quiescen
     const value = fixture({ getContent: () => { throw error(status); } });
     await assert.rejects(value.api.expectedJobs(BASE), new RegExp(`HTTP ${status}`));
     assert.equal(value.calls.length, 1);
+  }
+});
+
+test('run observations require complete consistent pages and never accept API errors as an empty listing', async () => {
+  for (const scenario of ['complete', 'partial', 'changed-count', '401', '403', '404', '429', '500']) {
+    const value = fixture();
+    value.github.paginate = async (method, args, transform) => {
+      assert.equal(method, value.github.rest.actions.listWorkflowRuns);
+      assert.equal(args.workflow_id, 'ci.yml');
+      assert.equal(args.event, 'workflow_dispatch');
+      assert.equal(args.branch, 'main');
+      const first = Object.assign([{ id: 1 }], { total_count: 2 });
+      const records = [...transform({ data: first })];
+      if (scenario === 'partial') return records;
+      if (/^\d+$/.test(scenario)) throw error(Number(scenario));
+      const second = Object.assign([{ id: 2 }], { total_count: scenario === 'changed-count' ? 3 : 2 });
+      return [...records, ...transform({ data: second })];
+    };
+    if (scenario === 'complete') assert.deepEqual(await value.api.runs(candidate()), [{ id: 1 }, { id: 2 }]);
+    else await assert.rejects(value.api.runs(candidate()), /pagination|HTTP/);
+  }
+  for (const total_count of [undefined, null, -1, '0', 1]) {
+    await assert.rejects(fixture({ listWorkflowRuns: () => ({ total_count, workflow_runs: [] }) })
+      .api.runs(candidate()), /candidate run pagination/);
+  }
+});
+
+test('a late recovered ticket cannot admit expensive candidate work after its reservation is removed or replaced', async () => {
+  for (const active of [null, { ...candidate(), ticket: 'ffffffff-ffff-ffff-ffff-ffffffffffff' }]) {
+    const value = fixture({ getContent: () => ({ type: 'file', encoding: 'base64',
+      content: Buffer.from(JSON.stringify({ ...state(), active })).toString('base64') }) });
+    await assert.rejects(admit({ github: value.github, context, inputs: inputs() }), /stale or was not admitted/);
+    assert.equal(value.calls.some(call => ['get', 'compareCommits', 'createWorkflowDispatch'].includes(call[0])), false);
   }
 });
 

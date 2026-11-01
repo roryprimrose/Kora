@@ -27,6 +27,7 @@ const PREDECESSOR_WORKFLOWS = Object.freeze({
   '9f19d4298cde21e313481cec9042138d6378b7ba': JOBS,
   'd8bfcc6eceeb3b68bf993c94ee0139d58cf15a8c': SPLIT_JOBS,
   '86656bbb4151eac2f50bb4cd532f83d5667e3bba': WINDOWS_12_JOBS,
+  'd3db4c610d08468c508f09e63b10f7c6568b82ea': WINDOWS_12_JOBS,
 });
 const STATE_BRANCH = 'automation/merge-queue-state';
 const SHA = /^[0-9a-f]{40}$/;
@@ -35,6 +36,7 @@ const PRIORITY_LABELS = Object.freeze(['queue:priority-high', 'queue:priority-no
 const MERGE_PHASES = Object.freeze(['merging', 'merge-refused', 'merge-unconfirmed']);
 const MERGE_CONFIRMATION_MS = 10 * 60_000;
 const JOB_OBSERVATION_MS = MERGE_CONFIRMATION_MS;
+const DISPATCH_OBSERVATION_MS = 10 * 60_000;
 const JOB_CONCLUSIONS = Object.freeze([
   'success', 'failure', 'cancelled', 'timed_out', 'neutral', 'skipped', 'action_required', 'stale',
 ]);
@@ -46,6 +48,19 @@ function invariant(condition, message) {
 function mode(value) {
   invariant(['', 'disabled', 'enabled'].includes(value), 'Unknown merge queue mode.');
   return value === 'enabled';
+}
+
+function controllerOperation(inputs) {
+  invariant(inputs && typeof inputs === 'object' && !Array.isArray(inputs), 'Invalid controller inputs.');
+  const operation = inputs.operation ?? 'reconcile';
+  invariant(['reconcile', 'recover-unobservable-dispatch'].includes(operation), 'Unknown controller operation.');
+  invariant(inputs.acknowledge_uncertain_dispatch === undefined
+    || typeof inputs.acknowledge_uncertain_dispatch === 'boolean', 'Invalid recovery acknowledgement.');
+  if (operation === 'reconcile') {
+    invariant(!inputs.recovery_checkpoint && !inputs.recovery_ticket && inputs.acknowledge_uncertain_dispatch !== true,
+      'Recovery inputs require the explicit recovery operation.');
+  }
+  return operation;
 }
 
 function execution({ modeValue, eventName, ref, sha, inputs }) {
@@ -174,5 +189,5 @@ function successfulJobs(jobs, expected = JOBS) {
 
 module.exports = { CHECKS, GATE, JOBS, SPLIT_JOBS, WINDOWS_12_JOBS, PREDECESSOR_WORKFLOWS, workflowJobs,
   STATE_BRANCH, SHA, TICKET, MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS,
-  invariant, mode, execution,
+  DISPATCH_OBSERVATION_MS, invariant, mode, controllerOperation, execution,
   validateState, ready, readinessIssue, priority, title, matchingRuns, requiredJobsState, terminalJobs, successfulJobs };

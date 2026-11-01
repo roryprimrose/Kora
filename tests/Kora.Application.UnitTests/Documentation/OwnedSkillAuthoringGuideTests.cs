@@ -64,5 +64,15 @@ public sealed class OwnedSkillAuthoringGuideTests
             .And.Contain("complete generated manifest and guidance")
             .And.Contain("no-overwrite")
             .And.Contain("unqualified");
+        guide.Markdown.Should().Contain("owned skill delete daily-review 1.0.0")
+            .And.Contain("Delete only this exact owned source")
+            .And.Contain("does not physically cancel immutable admitted tasks")
+            .And.Contain("absence readback")
+            .And.Contain("do not retry or recreate")
+            .And.Contain("Retained editor text keeps its deleted-source binding")
+            .And.Contain("before model use")
+            .And.Contain("Both reviews block editor input")
+            .And.Contain("completes only after native closure")
+            .And.Contain("none approves deletion or recovery");
     }
 }

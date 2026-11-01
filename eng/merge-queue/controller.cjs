@@ -1,5 +1,5 @@
 const { randomUUID } = require('node:crypto');
-const { CHECKS, GATE, MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS, invariant, validateState,
+const { CHECKS, GATE, MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS, DISPATCH_OBSERVATION_MS, invariant, validateState,
   ready, readinessIssue, priority, matchingRuns, requiredJobsState, terminalJobs } = require('./policy.cjs');
 
 const MAX_CANDIDATES = 10;
@@ -127,7 +127,7 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
     // An eventually consistent run listing cannot prove a recorded dispatch is quiescent.
     if (runs.length === 0 && active.dispatchRecorded) {
       api.info(`PR #${active.number}: recorded dispatch has no observable matching run; lane held, not assumed quiescent.`);
-      if (now - Date.parse(active.created) >= 10 * 60_000)
+      if (now - Date.parse(active.created) >= DISPATCH_OBSERVATION_MS)
         api.notice('Candidate dispatch has no observable run. The lane remains held pending cancellation or reviewed state repair.');
       return false;
     }
@@ -202,7 +202,7 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
         return unconfirmedMerge(active,
           'Merge outcome is unconfirmed and candidate validation is not observable. The lane remains held; no automatic merge retry.');
       }
-      if (now - Date.parse(active.created) > 10 * 60_000) {
+      if (now - Date.parse(active.created) > DISPATCH_OBSERVATION_MS) {
         const message = 'No candidate workflow appeared after dispatch. The lane remains held pending cancellation or reviewed state repair.';
         active.phase = 'retiring';
         state.blocked.push({ number: active.number, head: active.head, enrollment: active.enrollment, reason: message });

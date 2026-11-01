@@ -42,7 +42,11 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 var buttons = children.OfType<Button>().ToArray();
                 buttons[0].Content.Should().Be(reviews.Count == 1
                     ? "Continue to separate native publication confirmation" : "Publish exact new version");
-                Avalonia.Threading.Dispatcher.UIThread.Post(() => buttons[0].RaiseEvent(new RoutedEventArgs(Button.ClickEvent)));
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    try { AssertModalHandoff(editor, dialog); }
+                    finally { buttons[0].RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
+                });
             });
             (await editor.Review(document, "fixed-owned-package-destination", TestContext.Current.CancellationToken)).Should().BeTrue();
             reviews.Should().ContainSingle();
@@ -77,6 +81,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 ? editor.ConfirmPublication(document, "fixed-owned-package-destination", TestContext.Current.CancellationToken)
                 : editor.Review(document, "fixed-owned-package-destination", TestContext.Current.CancellationToken);
             var review = await next.Task;
+            AssertModalHandoff(editor, review);
             var sources = review.GetLogicalDescendants().OfType<TextBox>().ToArray();
             sources.Should().HaveCount(2).And.OnlyContain(source => source.IsReadOnly);
             sources[0].Text.Should().Be(document.ManifestText);
@@ -105,7 +110,11 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             {
                 if (ReferenceEquals(dialog, editor)) { return; }
                 var buttons = dialog.GetLogicalDescendants().OfType<Button>().ToArray();
-                Avalonia.Threading.Dispatcher.UIThread.Post(() => buttons[^1].RaiseEvent(new RoutedEventArgs(Button.ClickEvent)));
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    try { AssertModalHandoff(editor, dialog); }
+                    finally { buttons[^1].RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
+                });
             });
             (await editor.DirtyChoice(true, static () => true, TestContext.Current.CancellationToken)).Should().Be(2);
             current = false;
@@ -140,5 +149,113 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             (await editor.DirtyChoice(false, static () => true, TestContext.Current.CancellationToken)).Should().Be(1);
             editor.Close();
         });
+    }
+
+    [Theory]
+    [InlineData("close", "save")]
+    [InlineData("retire", "save")]
+    [InlineData("cancel", "save")]
+    [InlineData("owner-hidden", "save")]
+    [InlineData("owner-closed", "save")]
+    [InlineData("escape", "save")]
+    [InlineData("close", "delete-review")]
+    [InlineData("retire", "delete-review")]
+    [InlineData("cancel", "delete-review")]
+    [InlineData("owner-hidden", "delete-review")]
+    [InlineData("owner-closed", "delete-review")]
+    [InlineData("escape", "delete-review")]
+    [InlineData("close", "delete-confirm")]
+    [InlineData("retire", "delete-confirm")]
+    [InlineData("cancel", "delete-confirm")]
+    [InlineData("owner-hidden", "delete-confirm")]
+    [InlineData("owner-closed", "delete-confirm")]
+    [InlineData("escape", "delete-confirm")]
+    public async Task AcceptedChoiceWaitsForNativeClosureAndRechecksOriginalEligibility(string scenario, string operation)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var current = true;
+            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+            var document = OwnedDeclarativeSkillDocument.Create("example", "1.0.0", "Example", "Description", "Literal");
+            var editor = new OwnedSkillEditorWindow(_ => { }, () => current);
+            editor.Guidance.Text = document.Guidance;
+            editor.Show();
+            Window? review = null;
+            var holdClose = true;
+            using var opened = Window.WindowOpenedEvent.AddClassHandler<Window>((dialog, _) =>
+            {
+                if (ReferenceEquals(dialog, editor)) { return; }
+                review = dialog;
+                dialog.Closing += (_, args) => args.Cancel = holdClose;
+            });
+            var deletion = new OwnedSkillDeletionSnapshot(new(document, "directory", "manifest", "instructions"),
+                "fixed-destination", "root", "parent", "catalogue");
+            var choosing = operation switch
+            {
+                "save" => editor.Review(document, "fixed-destination", cancellation.Token),
+                "delete-review" => editor.ReviewDeletion(deletion, cancellation.Token),
+                "delete-confirm" => editor.ConfirmDeletion(deletion, cancellation.Token),
+                _ => throw new InvalidOperationException("Unknown review operation."),
+            };
+            try
+            {
+                var dialog = review!;
+                AssertModalHandoff(editor, dialog);
+                var button = dialog.GetLogicalDescendants().OfType<Button>().First();
+                if (scenario is "escape")
+                {
+                    dialog.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+                }
+                else { button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
+                dialog.IsVisible.Should().BeTrue();
+                Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                choosing.IsCompleted.Should().BeFalse("acceptance or Escape dismissal cannot complete before its native window closes");
+                if (scenario is "retire") { current = false; }
+                if (scenario is "cancel") { cancellation.Cancel(); }
+                if (scenario is "owner-hidden") { editor.Hide(); }
+                if (scenario is "owner-closed") { holdClose = false; editor.Close(); }
+                if (scenario is "owner-hidden" or "owner-closed") { editor.IsVisible.Should().BeFalse(); }
+                holdClose = false;
+                dialog.Close();
+                (await choosing).Should().Be(scenario is "close");
+                dialog.IsVisible.Should().BeFalse();
+                editor.Guidance.Text.Should().Be(document.Guidance);
+                editor.IsVisible.Should().Be(scenario is not ("owner-hidden" or "owner-closed"));
+            }
+            finally
+            {
+                holdClose = false;
+                review?.Close();
+                editor.Close();
+            }
+        });
+    }
+
+    private static void AssertModalHandoff(Window editor, Window dialog)
+    {
+        dialog.Owner.Should().BeSameAs(editor);
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+        var editorActivations = 0;
+        var dialogActivations = 0;
+        void EditorActivated(object? sender, EventArgs args) => editorActivations++;
+        void DialogActivated(object? sender, EventArgs args) => dialogActivations++;
+        editor.Activated += EditorActivated;
+        dialog.Activated += DialogActivated;
+        try
+        {
+            // Headless input has no public gesture for Avalonia's internal disabled-window callback.
+            var disabledInput = editor.PlatformImpl!.GetType().GetProperty("GotInputWhenDisabled",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+            disabledInput.Should().NotBeNull();
+            disabledInput!.GetValue(editor.PlatformImpl).Should().BeOfType<Action>().Which.Invoke();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            dialogActivations.Should().Be(1, "blocked owner input must return to the exact native review");
+            editorActivations.Should().Be(0, "the draft editor must not reactivate behind its review");
+        }
+        finally
+        {
+            editor.Activated -= EditorActivated;
+            dialog.Activated -= DialogActivated;
+        }
     }
 }

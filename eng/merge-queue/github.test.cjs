@@ -1,7 +1,10 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const { createHash } = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
 const { GitHubQueue, admit } = require('./github.cjs');
-const { CHECKS, GATE, STATE_BRANCH } = require('./policy.cjs');
+const { CHECKS, GATE, STATE_BRANCH, WINDOWS_12_JOBS } = require('./policy.cjs');
 const BASE = 'a'.repeat(40);
 const HEAD = 'b'.repeat(40);
 const OTHER = 'c'.repeat(40);
@@ -16,6 +19,11 @@ const pr = () => ({ state: 'open', draft: false, base: { ref: 'main' },
   head: { sha: HEAD, repo: { full_name: 'owner/repo' } }, auto_merge: { merge_method: 'squash' } });
 const inputs = () => ({ queue_pr: '1', queue_head: HEAD, queue_base: BASE, queue_ticket: TICKET, app_id: '42' });
 const error = status => Object.assign(new Error(`HTTP ${status}`), { status });
+function workflowContent(source = '# merge-queue-job-schema: windows-12-v1\n') {
+  const bytes = Buffer.from(source);
+  return { type: 'file', encoding: 'base64', content: bytes.toString('base64'),
+    sha: createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex') };
+}
 
 function fixture(overrides = {}) {
   const calls = [];
@@ -302,6 +310,54 @@ test('job pagination joins every normalized page and propagates later-page API o
   for (const status of [401, 403, 404, 429, 500]) {
     const value = fixture({ listJobsForWorkflowRunAttempt: () => { throw error(status); } });
     await assert.rejects(value.api.jobs(9), new RegExp(`HTTP ${status}`));
+  }
+});
+
+test('workflow inventory reads and validates exact source bytes, never main, candidate code or event fields', async () => {
+  const value = fixture({ getContent: () => workflowContent() });
+  assert.deepEqual(await value.api.expectedJobs(BASE), WINDOWS_12_JOBS);
+  assert.deepEqual(value.calls, [['getContent', { owner: 'owner', repo: 'repo',
+    ref: BASE, path: '.github/workflows/ci.yml' }]]);
+  for (const source of [null, undefined, 'main', HEAD.toUpperCase(), 'topic']) {
+    await assert.rejects(value.api.expectedJobs(source), /workflow source/);
+  }
+  assert.equal(value.calls.length, 1);
+});
+
+test('real schema-declared and unversioned protected workflows resolve the same complete producer inventory', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  const unversioned = source.replace('# merge-queue-job-schema: windows-12-v1\n', '');
+  assert.equal(workflowContent(unversioned).sha, 'd3db4c610d08468c508f09e63b10f7c6568b82ea');
+  for (const workflow of [source, unversioned]) {
+    const value = fixture({ getContent: () => workflowContent(workflow) });
+    assert.deepEqual(await value.api.expectedJobs(BASE), WINDOWS_12_JOBS);
+    assert.deepEqual(value.calls, [['getContent', { owner: 'owner', repo: 'repo',
+      ref: BASE, path: '.github/workflows/ci.yml' }]]);
+  }
+});
+
+test('missing, unknown or malformed workflow source explicitly denies a quiescence inventory', async () => {
+  for (const response of [null, {}, { type: 'dir' }, { ...workflowContent(), encoding: 'utf-8' },
+    { ...workflowContent(), sha: undefined }, { ...workflowContent(), content: undefined },
+    { ...workflowContent(), content: '' }, { ...workflowContent(), content: 'not base64' },
+    { ...workflowContent(), sha: OTHER }, workflowContent('name: CI\n'),
+    workflowContent('# merge-queue-job-schema: future-v2\n'),
+    workflowContent('# merge-queue-job-schema: windows-12-v1\n# merge-queue-job-schema: windows-12-v1\n')]) {
+    const value = fixture({ getContent: () => response });
+    // A null API response is normalized to an empty object by this existing fake.
+    assert.equal(await value.api.expectedJobs(BASE), null);
+    assert.equal(value.calls.filter(call => call[0] === 'warning').length, 1);
+    assert.match(value.calls.at(-1)[1], /physical quiescence is unknown/);
+    assert.equal(value.calls.some(call => ['update', 'merge', 'createWorkflowDispatch'].includes(call[0])), false);
+  }
+  const missing = fixture({ getContent: () => { throw error(404); } });
+  assert.equal(await missing.api.expectedJobs(BASE), null);
+  assert.match(missing.calls.at(-1)[1], /source is unavailable/);
+  for (const status of [401, 403, 429, 500]) {
+    const value = fixture({ getContent: () => { throw error(status); } });
+    await assert.rejects(value.api.expectedJobs(BASE), new RegExp(`HTTP ${status}`));
+    assert.equal(value.calls.length, 1);
   }
 });
 

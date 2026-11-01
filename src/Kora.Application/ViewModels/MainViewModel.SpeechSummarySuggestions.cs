@@ -88,6 +88,7 @@ public sealed partial class MainViewModel
     {
         RetireResponseModeSuggestions();
         RetirePlaybackVolumeSuggestions();
+        RetireWindowsSpeechRateSuggestions();
         commandSpeechReview?.Dispose();
         commandSpeechReview = null;
         pinnedSpeechSuggestion = null;

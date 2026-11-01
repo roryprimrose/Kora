@@ -16,7 +16,7 @@ public sealed partial class HandsFreeVoiceRecognitionService(
 {
     private readonly Lock gate = new();
     private Func<HandsFreeVoiceAdmission?>? observe;
-    private Func<VoiceTranscriptEventArgs, HostRequest, Task>? dispatch;
+    private Func<VoiceTranscriptEventArgs, HostRequest, HandsFreeCommandActivation, Task>? dispatch;
     private Func<bool> canOpen = static () => false;
     private Action<long> commandActivated = static _ => { };
     private Func<IReadOnlyList<string>> recognitionPhrases = static () => [];
@@ -53,6 +53,15 @@ public sealed partial class HandsFreeVoiceRecognitionService(
 
     public void Bind(Func<HandsFreeVoiceAdmission?> observation,
         Func<VoiceTranscriptEventArgs, HostRequest, Task> governedDispatch, Func<bool> canOpenCapture,
+        Action<long>? onCommandActivated = null, Func<IReadOnlyList<string>>? getRecognitionPhrases = null)
+    {
+        ArgumentNullException.ThrowIfNull(governedDispatch);
+        Bind(observation, (transcript, request, _) => governedDispatch(transcript, request), canOpenCapture,
+            onCommandActivated, getRecognitionPhrases);
+    }
+
+    public void Bind(Func<HandsFreeVoiceAdmission?> observation,
+        Func<VoiceTranscriptEventArgs, HostRequest, HandsFreeCommandActivation, Task> governedDispatch, Func<bool> canOpenCapture,
         Action<long>? onCommandActivated = null, Func<IReadOnlyList<string>>? getRecognitionPhrases = null)
     {
         ArgumentNullException.ThrowIfNull(observation);
@@ -151,6 +160,7 @@ public sealed partial class HandsFreeVoiceRecognitionService(
                 try
                 {
                     VoiceTranscriptEventArgs? transcript;
+                    WakeWordObservation wake;
                     lock (gate)
                     {
                         token.ThrowIfCancellationRequested();
@@ -176,7 +186,7 @@ public sealed partial class HandsFreeVoiceRecognitionService(
                         RequireCurrent(current, generation, token);
                         SetState(HandsFreeVoiceState.WakeListening);
                         firstOpen.TrySetResult();
-                        var wake = await opened.WaitForWakeAsync(token);
+                        wake = await opened.WaitForWakeAsync(token);
                         RequireCurrent(current, generation, token);
                         if (wake.Generation != generation || wake.CommandStartSample < 0 || !wake.PlaybackExcluded)
                         {
@@ -209,7 +219,7 @@ public sealed partial class HandsFreeVoiceRecognitionService(
                             token.ThrowIfCancellationRequested();
                             SetState(HandsFreeVoiceState.CompletingOperation);
                         }
-                        await dispatch!(transcript, request);
+                        await dispatch!(transcript, request, new(current, wake, request));
                     }
                     activity.Complete(HostOperationOutcome.Completed);
                     causes = activity.Activity is { } completed ? [new(completed.Context)] : [];

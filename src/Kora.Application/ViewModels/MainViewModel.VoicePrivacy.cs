@@ -64,6 +64,7 @@ public sealed partial class MainViewModel
     {
         voiceOwnershipEligible = gate;
         Interlocked.Increment(ref voiceOwnershipBindingRevision);
+        reviewedVoiceCommand?.Revalidate();
         BindHandsFreeVoiceRuntime();
         if (voiceRecognition is HandsFreeVoiceRecognitionService handsFree) { handsFree.Revalidate(); }
     }
@@ -86,6 +87,7 @@ public sealed partial class MainViewModel
         RetireQuestionVoiceReply();
         var snapshot = eventArgs.Current;
         RetireComposerDictation();
+        RetireReviewedVoiceCommand();
         var voicePrivacyChanged = (eventArgs.Reason & (WindowsPrivacyChangeReason.Power
             | WindowsPrivacyChangeReason.MicrophonePermission | WindowsPrivacyChangeReason.InputTopology
             | WindowsPrivacyChangeReason.DefaultMicrophone)) != WindowsPrivacyChangeReason.Unknown
@@ -316,6 +318,12 @@ public sealed partial class MainViewModel
         PropertyChanged -= OnQuestionVoiceReadinessChanged;
         PropertyChanged -= ComposerVoiceReadinessChanged;
         composerDictation?.CloseAdmission();
+        PropertyChanged -= RevalidateReviewedVoiceCommand;
+        if (reviewedVoiceCommand is not null)
+        {
+            reviewedVoiceCommand.CloseAdmission();
+            reviewedVoiceCommand.Changed -= OnReviewedVoiceCommandChanged;
+        }
         if (dictationQuestions is not null) { dictationQuestions.ReplyTargetChanging -= OnComposerQuestionChanging; }
         // Refresh cancellation can release an awaiting caller before Dispose returns.
         HoldVoiceInput("Microphone closed · host disposed");
@@ -350,6 +358,7 @@ public sealed partial class MainViewModel
         if (diagnosticRetentionConfiguration is not null) { diagnosticRetentionConfiguration.Changed -= OnDiagnosticRetentionChanged; }
         if (auditRetentionConfiguration is not null) { auditRetentionConfiguration.Changed -= OnAuditRetentionChanged; }
         if (responseModeConfiguration is not null) { responseModeConfiguration.Changed -= OnResponseModeConfigurationChanged; }
+        if (conversationExecution is not null) { conversationExecution.Changed -= OnConversationExecutionChanged; }
         if (providerModeConfiguration is not null) { providerModeConfiguration.Changed -= OnProviderModeConfigurationChanged; }
         if (providerProfileConfiguration is not null) { providerProfileConfiguration.Changed -= OnProviderProfileConfigurationChanged; }
         if (inCallFeedbackConfiguration is not null) { inCallFeedbackConfiguration.Changed -= OnInCallFeedbackChanged; }
@@ -542,6 +551,7 @@ public sealed partial class MainViewModel
         captureOpenCancellation?.Cancel();
         RetireQuestionVoiceReply();
         RetireComposerDictation();
+        RetireReviewedVoiceCommand();
         uiDispatcher.Post(() =>
         {
             if (revision != Interlocked.Read(ref voiceRecoveryRevision))
@@ -715,6 +725,11 @@ public sealed partial class MainViewModel
 
     public async Task BeginPushToTalkAsync()
     {
+        if (!IsReviewedVoiceCaptureReleased)
+        {
+            ShowInformation("Reviewed command owns input.", "Finish or cancel its exact review before starting a direct command.");
+            return;
+        }
         var editorTarget = Volatile.Read(ref customizationVoiceTarget);
         var speechInput = CaptureSpeechInterruptionInput();
         if (speechInput.Playback is not null && !voiceRecognition.IsSpeechInterruptionAvailable)

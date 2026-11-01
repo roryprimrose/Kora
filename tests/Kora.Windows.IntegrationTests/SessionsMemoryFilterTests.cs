@@ -618,8 +618,12 @@ public sealed partial class SessionsMemoryFilterTests
                     var actions = window.FindControl<WrapPanel>("SessionWorkActions")!;
                     actions.Bounds.Width.Should().BeLessThanOrEqualTo(pane.Viewport.Width);
                     var buttons = actions.GetLogicalDescendants().OfType<Button>().ToArray();
-                    buttons.Select(button => button.Name).Should().Equal("ReadQueue", "InspectWork", "CancelQueueEntry",
+                    buttons.Select(button => button.Name).Should().Equal("AnswerRemainingWork", "ReadQueue", "InspectWork", "CancelQueueEntry",
                         "RemoveQueueEntry", "ClearQueue");
+                    var remaining = buttons[0];
+                    remaining.IsEnabled.Should().Be(f.Model.CanAnswerRemainingWork);
+                    ControlAutomationPeer.CreatePeerForElement(remaining)!.GetName().Should()
+                        .Contain("exact selected conversation").And.Contain("without stopping or resuming");
                     foreach (var button in buttons)
                     {
                         if (button.IsEnabled) { button.Focus().Should().BeTrue(); }

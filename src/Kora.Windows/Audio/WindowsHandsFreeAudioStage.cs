@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+
 using Kora.Core.Configuration;
 using Kora.Core.Voice;
 
@@ -11,15 +12,19 @@ public sealed class WindowsHandsFreeAudioStage : IHandsFreeAudioStage
     private readonly IHandsFreeNativeFactory factory;
 
     public WindowsHandsFreeAudioStage() : this([]) { }
-    public WindowsHandsFreeAudioStage(HandsFreeSetupRuntime setup) : this(setup.Profiles) => this.setup = setup;
+    public WindowsHandsFreeAudioStage(HandsFreeSetupRuntime setup) : this(setup, new HandsFreeNativeFactory()) { }
+    internal WindowsHandsFreeAudioStage(HandsFreeSetupRuntime setup, IHandsFreeNativeFactory factory)
+        : this(setup.Profiles, factory) => this.setup = setup;
     internal WindowsHandsFreeAudioStage(IReadOnlyList<HandsFreeNativeProfile> profiles, IHandsFreeNativeFactory? factory = null)
     {
         this.profiles = Array.AsReadOnly(profiles.ToArray());
         this.factory = factory ?? new HandsFreeNativeFactory();
     }
-    public bool IsAvailable => setup?.IsPlatformCompatible != false && profiles.Any(profile => profile.CaptureQualified);
+    public bool IsAvailable => setup?.IsPlatformCompatible != false && setup?.IsCaptureHeld != true
+        && profiles.Any(profile => profile.CaptureQualified);
     public bool SupportsProfile(string assistantName, SpeechInputSelection selection) =>
         selection == SpeechInputProfileCatalogue.NativeWakeSelection && setup?.IsPlatformCompatible != false
+        && setup?.IsCaptureHeld != true
         && profiles.Count(profile => profile.CaptureQualified && profile.Names.Contains(assistantName)) == 1;
 
     public async Task<IAsyncDisposable> PrepareProfileAsync(
@@ -30,7 +35,7 @@ public sealed class WindowsHandsFreeAudioStage : IHandsFreeAudioStage
             throw new InvalidOperationException("The exact configured name/profile is unavailable.");
         }
         var profile = profiles.Single(candidate => candidate.CaptureQualified && candidate.Names.Contains(assistantName));
-        IAsyncDisposable? ownership = null;
+        HandsFreeSetupRuntime.CaptureOwnership? ownership = null;
         HandsFreeAssetLease? assets = null;
         try
         {
@@ -40,14 +45,21 @@ public sealed class WindowsHandsFreeAudioStage : IHandsFreeAudioStage
                     ?? throw new InvalidOperationException("Speech assets remain owned; no replacement is admitted.");
             }
             assets = await profile.BindAsync(cancellationToken, ownership).ConfigureAwait(false);
-            ownership = null;
             await PocketSphinxKeywordConfiguration.CreateAsync(profile, assistantName, cancellationToken).ConfigureAwait(false);
+            if (ownership?.Token.IsCancellationRequested == true)
+            { throw new OperationCanceledException("Speech-model removal retired the pending profile preparation."); }
+            if (ownership is not null && !ownership.Attach(() => assets.DisposeAsync().AsTask()))
+            { throw new OperationCanceledException("Speech-model removal retired the prepared profile."); }
             return assets;
         }
         catch
         {
-            try { if (assets is not null) { await assets.DisposeAsync().ConfigureAwait(false); } }
-            finally { if (ownership is not null) { await ownership.DisposeAsync().ConfigureAwait(false); } }
+            try
+            {
+                if (assets is not null) { await assets.DisposeAsync().ConfigureAwait(false); }
+                else if (ownership is not null) { await ownership.DisposeAsync().ConfigureAwait(false); }
+            }
+            catch { ownership?.Fail(); throw; }
             throw;
         }
     }
@@ -58,7 +70,7 @@ public sealed class WindowsHandsFreeAudioStage : IHandsFreeAudioStage
         cancellationToken.ThrowIfCancellationRequested();
         binding.Profile.Selection.Validate();
         var profile = profiles.SingleOrDefault(candidate => candidate.CaptureQualified && candidate.Names.Contains(binding.AssistantName));
-        if (profile is null || setup?.IsPlatformCompatible == false
+        if (profile is null || setup?.IsPlatformCompatible == false || setup?.IsCaptureHeld == true
             || (binding.Profile.Selection.ProfileId is SpeechInputProfileCatalogue.NativeWakeProfileId
                 ? !SupportsProfile(binding.AssistantName, binding.Profile.Selection)
                 : !string.Equals(binding.AssistantName, AssistantNameRules.DefaultName, StringComparison.Ordinal)
@@ -66,10 +78,11 @@ public sealed class WindowsHandsFreeAudioStage : IHandsFreeAudioStage
         {
             throw new InvalidOperationException("The exact local native/model/name/playback profile is unavailable. Use push-to-talk or native controls.");
         }
-        bool Admitted() => !cancellationToken.IsCancellationRequested && binding.CanCapture();
+        HandsFreeSetupRuntime.CaptureOwnership? ownership = null;
+        bool Admitted() => !cancellationToken.IsCancellationRequested
+            && ownership?.Token.IsCancellationRequested != true && binding.CanCapture();
         if (!Admitted()) { throw new OperationCanceledException("Fresh hands-free admission is unavailable."); }
         HandsFreeAssetLease? assets = null;
-        IAsyncDisposable? ownership = null;
         IHandsFreeKeywordDetector? detector = null;
         IHandsFreeCommandEndpoint? endpoint = null;
         IHandsFreeMicrophone? microphone = null;
@@ -81,8 +94,7 @@ public sealed class WindowsHandsFreeAudioStage : IHandsFreeAudioStage
                 ownership = await setup.TryAcquireOwnershipAsync(cancellationToken).ConfigureAwait(false)
                     ?? throw new InvalidOperationException("Speech assets are owned by setup or another capture. Wait for release, then explicitly retry.");
             }
-            assets = await profile.BindAsync(cancellationToken, ownership).ConfigureAwait(false);
-            ownership = null;
+            assets = await profile.BindAsync(cancellationToken).ConfigureAwait(false);
             var keyword = await PocketSphinxKeywordConfiguration.CreateAsync(profile, binding.AssistantName, cancellationToken).ConfigureAwait(false);
             if (!Admitted()) { throw new OperationCanceledException("Hands-free admission changed during exact keyword preparation."); }
             detector = await Task.Run(() => factory.CreateKeyword(profile, keyword),
@@ -90,8 +102,12 @@ public sealed class WindowsHandsFreeAudioStage : IHandsFreeAudioStage
             endpoint = await Task.Run(() => factory.CreateEndpoint(profile),
                 CancellationToken.None).ConfigureAwait(false);
             if (!Admitted()) { throw new OperationCanceledException("Hands-free admission changed while loading native resources."); }
-            microphone = await factory.OpenMicrophoneAsync(binding, Admitted).ConfigureAwait(false);
-            session = new(binding, microphone, detector, endpoint, assets, stream => factory.OpenCommandAsync(binding, stream, Admitted));
+            var admittedBinding = binding with { CanCapture = Admitted };
+            microphone = await factory.OpenMicrophoneAsync(admittedBinding, Admitted).ConfigureAwait(false);
+            session = new(admittedBinding, microphone, detector, endpoint, assets,
+                stream => factory.OpenCommandAsync(admittedBinding, stream, Admitted), ownership);
+            if (ownership is not null && !ownership.Attach(() => session.DisposeAsync().AsTask()))
+            { throw new OperationCanceledException("Speech-model removal retired the pending capture open."); }
             if (!Admitted()) { throw new OperationCanceledException("Hands-free admission changed before native start."); }
             session.Start();
             if (!Admitted()) { throw new OperationCanceledException("Hands-free admission changed during native start."); }
@@ -102,20 +118,21 @@ public sealed class WindowsHandsFreeAudioStage : IHandsFreeAudioStage
             if (session is not null) { await session.DisposeAsync().ConfigureAwait(false); }
             else
             {
-                try { if (microphone is not null) { await microphone.DisposeAsync().ConfigureAwait(false); } }
-                finally
+                try
                 {
-                    try { detector?.Dispose(); }
+                    try { if (microphone is not null) { await microphone.DisposeAsync().ConfigureAwait(false); } }
                     finally
                     {
-                        try { endpoint?.Dispose(); }
+                        try { detector?.Dispose(); }
                         finally
                         {
-                            try { if (assets is not null) { await assets.DisposeAsync().ConfigureAwait(false); } }
-                            finally { if (ownership is not null) { await ownership.DisposeAsync().ConfigureAwait(false); } }
+                            try { endpoint?.Dispose(); }
+                            finally { if (assets is not null) { await assets.DisposeAsync().ConfigureAwait(false); } }
                         }
                     }
                 }
+                catch { ownership?.Fail(); throw; }
+                if (ownership is not null) { await ownership.DisposeAsync().ConfigureAwait(false); }
             }
             throw;
         }

@@ -6,6 +6,7 @@ using Avalonia.Threading;
 using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Application.Voice;
+using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Voice;
 using Kora.NativeUxFixture;
@@ -166,6 +167,96 @@ public sealed class CustomNameWakeCutoverTests
         factory.Current.Microphone.Started.Task.IsCompleted.Should().BeFalse();
     }
 
+    [Fact]
+    public async Task Exact_profile_preparation_is_an_owned_consumer_joined_before_model_mutation()
+    {
+        using var assets = new Assets();
+        await using var runtime = new HandsFreeSetupRuntime(HandsFreeSetupCatalogue.Component, assets.Profile, compatible: true);
+        var factory = new Factory();
+        var stage = new WindowsHandsFreeAudioStage(runtime, factory);
+        var before = runtime.Observe(HandsFreeSetupCatalogue.Component);
+        await using var prepared = await stage.PrepareProfileAsync("Nova", SpeechInputProfileCatalogue.NativeWakeSelection,
+            TestContext.Current.CancellationToken);
+        var current = runtime.Observe(HandsFreeSetupCatalogue.Component);
+        current.ActiveConsumers.Should().Be(1);
+        current.ConsumerRevision.Should().BeGreaterThan(before.ConsumerRevision);
+        FluentActions.Invoking(() => File.Open(assets.Profile.DictionaryPath, FileMode.Open, FileAccess.Write, FileShare.None).Dispose())
+            .Should().Throw<IOException>();
+        await using var mutation = (await runtime.TryAcquireExclusiveAsync(HandsFreeSetupCatalogue.Component,
+            TestContext.Current.CancellationToken)).RequireLease();
+        runtime.Observe(HandsFreeSetupCatalogue.Component).ActiveConsumers.Should().Be(0);
+        stage.SupportsProfile("Nova", SpeechInputProfileCatalogue.NativeWakeSelection).Should().BeFalse();
+        using (File.Open(assets.Profile.DictionaryPath, FileMode.Open, FileAccess.Write, FileShare.None)) { }
+        runtime.HoldUnavailable(HandsFreeSetupCatalogue.Component);
+        stage.IsAvailable.Should().BeFalse();
+        stage.SupportsProfile("Nova", SpeechInputProfileCatalogue.NativeWakeSelection).Should().BeFalse();
+        await FluentActions.Awaiting(() => stage.PrepareProfileAsync("Nova", SpeechInputProfileCatalogue.NativeWakeSelection,
+            TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+        factory.Created.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Model_mutation_invalidates_exact_name_capture_and_joins_pending_open_and_physical_teardown(bool lateOpen)
+    {
+        using var assets = new Assets();
+        await using var runtime = new HandsFreeSetupRuntime(HandsFreeSetupCatalogue.Component, assets.Profile, compatible: true);
+        var factory = new Factory
+        {
+            MicrophoneOpenRelease = lateOpen ? new(TaskCreationOptions.RunContinuationsAsynchronously) : null,
+        };
+        var stage = new WindowsHandsFreeAudioStage(runtime, factory);
+        var binding = new HandsFreeAudioBinding(-13, new("fixture", "Fixture"), "Nova",
+            new(1, SpeechInputProfileCatalogue.NativeWakeSelection)) { CanCapture = static () => true };
+        var open = stage.OpenAsync(binding, TestContext.Current.CancellationToken);
+        var resources = await factory.NextAsync();
+        resources.Microphone.Release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        IHandsFreeAudioSession? session = null;
+        try
+        {
+            if (!lateOpen) { session = await open; }
+            var mutationTask = runtime.TryAcquireExclusiveAsync(HandsFreeSetupCatalogue.Component,
+                TestContext.Current.CancellationToken).AsTask();
+            resources.Binding!.CanCapture().Should().BeFalse();
+            mutationTask.IsCompleted.Should().BeFalse();
+            stage.IsAvailable.Should().BeFalse();
+            stage.SupportsProfile("Nova", SpeechInputProfileCatalogue.NativeWakeSelection).Should().BeFalse();
+            runtime.Observe(HandsFreeSetupCatalogue.Component).ActiveConsumers.Should().Be(1);
+            factory.MicrophoneOpenRelease?.SetResult();
+            await resources.Microphone.Closing.Task.WaitAsync(TestContext.Current.CancellationToken);
+            mutationTask.IsCompleted.Should().BeFalse();
+            resources.Api.Disposed.Should().BeFalse();
+            FluentActions.Invoking(() => File.Open(assets.Profile.DictionaryPath, FileMode.Open, FileAccess.Write, FileShare.None).Dispose())
+                .Should().Throw<IOException>();
+            resources.Microphone.Release.SetResult();
+            if (lateOpen) { await FluentActions.Awaiting(() => open).Should().ThrowAsync<OperationCanceledException>(); }
+            await using var mutation = (await mutationTask).RequireLease();
+            resources.Microphone.Disposed.Should().BeTrue();
+            resources.Api.Disposed.Should().BeTrue();
+            if (session is not null) { session.IsQuiescent.Should().BeTrue(); }
+            else { resources.Microphone.Started.Task.IsCompleted.Should().BeFalse(); }
+            runtime.Observe(HandsFreeSetupCatalogue.Component).ActiveConsumers.Should().Be(0);
+            using (File.Open(assets.Profile.DictionaryPath, FileMode.Open, FileAccess.Write, FileShare.None)) { }
+            runtime.HoldUnavailable(HandsFreeSetupCatalogue.Component);
+            stage.SupportsProfile("Nova", SpeechInputProfileCatalogue.NativeWakeSelection).Should().BeFalse();
+            await FluentActions.Awaiting(() => stage.OpenAsync(binding, TestContext.Current.CancellationToken))
+                .Should().ThrowAsync<InvalidOperationException>();
+            factory.Created.Should().Be(1);
+        }
+        finally
+        {
+            factory.MicrophoneOpenRelease?.TrySetResult();
+            resources.Microphone.Release.TrySetResult();
+            if (session is not null) { await session.DisposeAsync(); }
+            else
+            {
+                try { await using var pending = await open; }
+                catch (OperationCanceledException) { }
+            }
+        }
+    }
+
     private sealed class Assets : IDisposable
     {
         internal string Root { get; }
@@ -203,6 +294,7 @@ public sealed class CustomNameWakeCutoverTests
         internal int Created { get; private set; }
         internal Resources? Current { get; private set; }
         internal string? Failure { get; init; }
+        internal TaskCompletionSource? MicrophoneOpenRelease { get; init; }
         public IHandsFreeKeywordDetector CreateKeyword(HandsFreeNativeProfile profile, PocketSphinxKeywordConfiguration configuration)
         {
             Created++;
@@ -210,12 +302,14 @@ public sealed class CustomNameWakeCutoverTests
             return new PocketSphinxKeywordDetector(profile, configuration, Current.Api);
         }
         public IHandsFreeCommandEndpoint CreateEndpoint(HandsFreeNativeProfile profile) => new Endpoint();
-        public Task<IHandsFreeMicrophone> OpenMicrophoneAsync(HandsFreeAudioBinding binding, Func<bool> admitted)
+        public async Task<IHandsFreeMicrophone> OpenMicrophoneAsync(HandsFreeAudioBinding binding, Func<bool> admitted)
         {
             admitted().Should().BeTrue();
             var current = Current ?? throw new InvalidOperationException("Keyword resources missing.");
+            current.Binding = binding;
             opened.Writer.TryWrite(current).Should().BeTrue();
-            return Task.FromResult<IHandsFreeMicrophone>(current.Microphone);
+            if (MicrophoneOpenRelease is not null) { await MicrophoneOpenRelease.Task; }
+            return current.Microphone;
         }
         public Task<IActivatedCapture> OpenCommandAsync(HandsFreeAudioBinding binding, BlockingAudioStream stream, Func<bool> admitted)
         {
@@ -232,6 +326,7 @@ public sealed class CustomNameWakeCutoverTests
         internal Microphone Microphone { get; } = new();
         internal Capture Command { get; } = new();
         internal BlockingAudioStream? Stream { get; set; }
+        internal HandsFreeAudioBinding? Binding { get; set; }
     }
 
     private sealed class Api : IPocketSphinxLibrary

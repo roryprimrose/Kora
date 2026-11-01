@@ -35,6 +35,11 @@ This native v4 package declares actual ordered actions, not executable guidance 
 7. Choose **Invoke** (`owned skill workflow invoke`). Each step opens **Approve exact observation step**, showing its exact action/input and original request/target. Approve only that step once, or Cancel. While that exact step review is pending, `owned skill workflow approve-step` or `owned skill workflow deny-step` accepts or declines it through the same gate.
 8. Inspect the complete source-labelled result and typed state. `owned skill workflow status` reports whether owned work has joined. **Cancel** or `owned skill workflow cancel` closes further dispatch and joins actual work, including cancellation-ignoring source reads. It never claims physical termination merely from a cancellation request.
 
+Package review, separate Save confirmation, each step approval and unsaved-draft discard are native modal decisions: input to the workflow window stays blocked until the exact review actually closes.
+Keyboard focus starts on the complete read-only review; Tab reaches the explicit decision buttons. **Cancel**, Escape or the review's native close declines that decision.
+Closing/hiding the original owner or cancelling its operation retires the review; a clicked approval cannot outlive that owner or bypass native closure.
+Focus returns to the original control only while the original presentation remains visible and eligible. Declining the first step launches no observation; declining a later step never approves remaining steps or publishes partial success.
+
 The only admitted IDs are `capabilities.list`, `capabilities.get`, `application.get_version`, `readiness.get`, `runtime.list`, and `runtime.get_status`. Inputs and complete results use their existing [registry schemas](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs).
 Pages remain explicit; there is no automatic pagination or guessed continuation ([execution tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ObservationWorkflows.cs)).
 

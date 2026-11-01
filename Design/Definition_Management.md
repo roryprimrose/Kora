@@ -930,7 +930,13 @@ is not distributed sync, power-loss, provider or installed qualification
 
 Both use identities are held before publication. Coherent reconciliation removes
 the old candidate and exposes the new exact source disabled, requiring fresh
-independent revision review. No grant, activation, applicability, dependent
+independent revision review. Native inventory-selected rename/recovery retains
+its exact editor input across internal row retirement and hands the confirmed
+new ID/source to the same editor. Explicit native Inspect reads the new status;
+no old row selection or typed workaround is needed. Actual editor/input,
+catalogue, reload and admission changes still retire the operation through the
+existing exact checks, retaining changed drafts rather than retargeting them.
+No grant, activation, applicability, dependent
 declaration or approval is transferred or rewritten. Existing source-digest
 reference resolution remains authoritative; old IDs cannot select the new
 source even after its independent activation. Captured content is never

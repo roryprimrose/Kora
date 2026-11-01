@@ -328,7 +328,7 @@ public sealed partial class MainViewModelTests
             await fixture.HostStore.CommitAsync(intent, 0, cancellationToken);
             return intent;
         }
-        public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken)
+        public async ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken)
         {
             BeforeDispatchMetadataRead?.Invoke();
             if (SpeechTerminalPublished && RequestMessage?.Outcome == ModelTurnOutcome.Succeeded
@@ -337,8 +337,11 @@ public sealed partial class MainViewModelTests
                 var before = BeforeSpeechReceiptMetadataRead;
                 BeforeSpeechReceiptMetadataRead = null;
                 before?.Invoke();
+                var beforeAsync = BeforeSpeechReceiptMetadataReadAsync;
+                BeforeSpeechReceiptMetadataReadAsync = null;
+                if (beforeAsync is not null) { await beforeAsync(); }
             }
-            return ValueTask.FromResult(Session);
+            return Session;
         }
         public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken cancellationToken) =>
             Failure is null ? ValueTask.FromResult(ClaudePageRead?.Invoke(after, limit) ?? new SessionPage<SessionWorkspaceEntry>([Session], null))

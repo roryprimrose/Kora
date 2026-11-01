@@ -33,7 +33,7 @@ foreach ($project in $expected) {
 $configuration = Get-Content -Raw -LiteralPath (Join-Path $root 'global.json') | ConvertFrom-Json
 Assert ($configuration.test.runner -ceq 'Microsoft.Testing.Platform') 'Solution test execution requires the MTP runner.'
 $workflow = Get-Content -Raw -LiteralPath (Join-Path $root '.github\workflows\ci.yml')
-$portable = [regex]::Match($workflow, '(?ms)^  portable:\r?\n(?<job>.*?)(?=^  [a-z][a-z-]*:|\z)')
+$portable = [regex]::Match($workflow, '(?ms)^  portable-tests:\r?\n(?<job>.*?)(?=^  [a-z][a-z-]*:|\z)')
 Assert $portable.Success 'The portable CI job was not found.'
 $job = $portable.Groups['job'].Value
 Assert ([regex]::Matches($job, '(?m)^\s+dotnet test\s*$').Count -eq 1) 'Portable CI must use one multi-project test invocation.'
@@ -59,6 +59,15 @@ Assert (-not [regex]::IsMatch($command, '--max-parallel-test-modules\s+1(?:\s|$)
 Assert ($job.Contains('-reports:.net-test-artifacts/**/*.coverage.cobertura.*.xml', [StringComparison]::Ordinal)) 'Coverage aggregation must include every module directory.'
 Assert ($job.Contains('-MinimumLine 100', [StringComparison]::Ordinal)) 'Preserve the complete line-coverage gate.'
 Assert ($job.Contains('-MinimumBranch 100', [StringComparison]::Ordinal)) 'Preserve the complete branch-coverage gate.'
+$payload = [regex]::Match($workflow, '(?ms)^  payload:\r?\n(?<job>.*?)(?=^  [a-z][a-z-]*:|\z)')
+Assert $payload.Success 'The independent payload producer was not found.'
+Assert ($payload.Groups['job'].Value.Contains('needs: version', [StringComparison]::Ordinal)) 'Payload production must not wait for portable tests.'
+Assert ($payload.Groups['job'].Value.Contains('dotnet restore Kora.slnx --locked-mode', [StringComparison]::Ordinal)) 'The payload producer must restore its complete graph independently.'
+Assert ($payload.Groups['job'].Value.Contains('run: dotnet tool restore', [StringComparison]::Ordinal)) 'The payload producer must restore the license checker on its own runner.'
+Assert ($payload.Groups['job'].Value.Contains('run: ./eng/Test-DependencyLicenses.ps1', [StringComparison]::Ordinal)) 'The payload producer must enforce license policy before distributing bytes.'
+Assert ($workflow.Contains('needs: [admission, version, portable-tests, payload]', [StringComparison]::Ordinal)) 'The required portable check must join tests and payload production.'
+$installer = [regex]::Match($workflow, '(?ms)^  installer:\r?\n(?<job>.*?)(?=^  [a-z][a-z-]*:|\z)')
+Assert ($installer.Success -and $installer.Groups['job'].Value.Contains('needs: [version, payload]', [StringComparison]::Ordinal)) 'The installer must consume the verified payload without waiting for unrelated portable tests.'
 Assert ($workflow.Contains("if: github.event_name == 'workflow_dispatch' && inputs.compare_portable_tests",
     [StringComparison]::Ordinal)) 'Scheduling comparisons must remain opt-in and manual-only.'
 Assert ($workflow.Contains("(inputs.compare_portable_tests || inputs.compare_native_evidence) && '-test-comparison' || ''",

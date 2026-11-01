@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 
 using AwesomeAssertions;
@@ -21,6 +22,60 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class QuestionClipboardAnswerTests
 {
+    [Theory]
+    [InlineData(QuestionKind.SingleChoice)]
+    [InlineData(QuestionKind.MultipleChoice)]
+    [InlineData(QuestionKind.Form)]
+    public async Task NonTextClarificationsRefuseClipboardCaptureAndStillSubmitTheirCanonicalTypedAnswer(QuestionKind kind)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var spec = LocalModelQuestionPolicy.CreateSpec(kind == QuestionKind.Form
+                ? ModelToolProtocol.ParseAskUser(
+                    """{"prompt":"Describe the answer","fields":[{"label":"Audience","type":"text","maximumLength":40,"maximumUtf8Bytes":100},{"label":"Style","type":"singleChoice","options":["Compact","Detailed"]}]}"""u8,
+                    "ask_1", formsAllowed: true).Question
+                : new("Choose the format", ["Compact", "Detailed"], Maximum: kind == QuestionKind.MultipleChoice ? 2 : 1));
+            await using var f = await Fixture.Create(spec: spec);
+            var original = f.Model.Question;
+            var panel = f.Window.FindControl<StackPanel>("ChoicePanel")!;
+            if (kind == QuestionKind.Form) { panel.Children.OfType<TextBox>().Single().Text = "Readers"; }
+            var options = panel.Children.OfType<ToggleButton>().ToArray();
+            options[0].IsChecked = true;
+            if (kind == QuestionKind.MultipleChoice) { options[1].IsChecked = true; }
+            var expected = f.Model.Answer;
+            f.Model.CanSubmit.Should().BeTrue();
+            QuestionClipboardAnswer.Supports(original).Should().BeFalse();
+            f.Answer.CanCapture.Should().BeFalse();
+            await f.Answer.CaptureAsync();
+            f.Reader.Calls.Should().Be(0);
+            f.Answer.IsActive.Should().BeFalse();
+            f.Answer.ReviewText.Should().BeEmpty();
+            f.Model.Answer.Should().BeSameAs(expected);
+            f.Model.Key.Should().Be(original.Key);
+            f.Model.Completion.IsCompleted.Should().BeFalse();
+            f.Data.Count("scoped_grants").Should().Be(0);
+            (await f.Data.Store.ReadQuestionsAsync(original.Key.Request.SessionId, f.Data.Token)).Single().Draft.Should().BeNull();
+            if (kind == QuestionKind.Form)
+            {
+                f.Model.CanSaveDraft.Should().BeFalse();
+                f.Window.FindControl<Button>("SaveDraft")!.IsVisible.Should().BeFalse();
+            }
+            await f.Model.ReviewAsync();
+            await Task.WhenAll(f.Model.SubmitAsync(), f.Model.SubmitAsync());
+            await f.Model.OperationQuiescence;
+            var canonical = (await f.Data.Store.ReadQuestionsAsync(original.Key.Request.SessionId, f.Data.Token)).Single();
+            canonical.Spec.Matches(spec).Should().BeTrue();
+            canonical.Key.Should().Be(original.Key.Next());
+            canonical.Status.Should().Be(QuestionStatus.Answered);
+            canonical.AnswerChannel.Should().Be(RequestOrigin.LocalUi);
+            canonical.Draft!.Choices.Should().Equal(expected.Choices);
+            canonical.Draft.Fields.Should().Equal(expected.Fields);
+            f.Reader.Calls.Should().Be(0);
+            f.Data.Count("scoped_grants").Should().Be(0);
+            f.Data.Count("conversation_messages").Should().Be(0);
+        });
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("previous manual draft")]
@@ -383,12 +438,12 @@ public sealed class QuestionClipboardAnswerTests
         internal long PrivateRevision { get; set; } = 1;
         private ClipboardExplanationAdmission admission = null!;
 
-        internal static async Task<Fixture> Create(string purpose = LocalModelQuestionPolicy.Purpose)
+        internal static async Task<Fixture> Create(string purpose = LocalModelQuestionPolicy.Purpose, QuestionSpec? spec = null)
         {
             var f = new Fixture();
             await f.Data.InitializeAsync();
             f.Data.Time.UseFrozenTimers = true;
-            var spec = new QuestionSpec("Describe the required format", QuestionKind.Text, [],
+            spec ??= new QuestionSpec("Describe the required format", QuestionKind.Text, [],
                 maximumTextLength: LocalModelQuestion.MaximumFreeTextLength, purpose: purpose, sourceId: LocalModelQuestionPolicy.SourceId);
             var record = (await f.Data.RunAsync(() => f.Data.Questions.CreateAsync(f.Data.Request, spec,
                 f.Data.Time.Now.AddMinutes(2), f.Data.Token))).Question!;

@@ -18,6 +18,41 @@ namespace Kora.Application.UnitTests.Interaction;
 public sealed partial class LocalEventBrokerTests
 {
     [Theory]
+    [InlineData("dispose")]
+    [InlineData("control")]
+    [InlineData("revision")]
+    [InlineData("session")]
+    [InlineData("lifetime")]
+    [InlineData("event-revision")]
+    [InlineData("source")]
+    [InlineData("ledger")]
+    public async Task HeldDeliveryBindingWithdrawsWithoutGrantingSourceOrQuestionAuthority(string change)
+    {
+        using var f = new Fixture();
+        await using var broker = f.Create();
+        var target = f.Events.Single();
+        broker.IsHeld(target).Should().BeFalse();
+        var visible = true;
+        target = (await broker.ObserveAsync(f.Session, () => visible, f.Token)).Events.Single().Event;
+        broker.IsHeld(target).Should().BeTrue();
+        switch (change)
+        {
+            case "dispose": await broker.DisposeAsync(); break;
+            case "control": f.CanControl = false; break;
+            case "revision": f.ControlRevision++; break;
+            case "session": target = target with { SessionId = new(Guid.NewGuid()) }; break;
+            case "lifetime": visible = false; break;
+            case "event-revision": target = target with { Revision = target.Revision + 1 }; break;
+            case "source": target = target with { SourceRevision = target.SourceRevision + 1 }; break;
+            case "ledger":
+                await broker.ExecuteAsync(new(LocalEventOperation.Defer, target.Id, target.Revision),
+                    RequestOrigin.LocalUi, () => true, f.Token);
+                break;
+        }
+        broker.IsHeld(target).Should().BeFalse();
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task Observation_watermark_follows_async_source_time_and_holds_a_rollback_without_fabricating_chronology(bool rollback)

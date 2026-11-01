@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Reflection;
 using System.Xml.Linq;
 
 using Avalonia.Automation.Peers;
@@ -11,7 +13,9 @@ using Avalonia.VisualTree;
 using AwesomeAssertions;
 
 using Kora.Controls;
+using Kora.Application;
 using Kora.NativeUxFixture;
+using Kora.Windows.IntegrationTests.Storage;
 
 namespace Kora.Windows.IntegrationTests;
 
@@ -134,14 +138,16 @@ public sealed class PushToTalkUiContractTests
     {
         await HeadlessSession.RunAsync(async () =>
         {
-            using var fixture = new NativeUxFixtureSession(Path.GetTempPath(), syntheticVoice: true);
-            await fixture.InitializeAsync();
+            var time = new InteractionStorageFixture.Clock { UseFrozenTimers = true };
+            var dispatcher = new DeferredCommandDispatcher();
+            using var fixture = new NativeUxFixtureSession(Path.GetTempPath(), syntheticVoice: true, timeProvider: time);
+            await fixture.InitializeAsync(null, dispatcher: dispatcher);
             fixture.Main.BindVoiceOwnershipGate(static () => true);
             fixture.Main.BindReviewedVoiceCommand(
                 Microsoft.Extensions.Logging.Abstractions.NullLogger<Kora.Application.Voice.ReviewedVoiceCommandCapture>.Instance,
-                TimeProvider.System);
+                time);
             await fixture.Main.SetVoiceConsentAsync(true);
-            var response = new ResponseWindow(fixture.Main);
+            var response = new ResponseWindow(fixture.Main, timeProvider: time);
             try
             {
                 response.Show();
@@ -150,6 +156,10 @@ public sealed class PushToTalkUiContractTests
                 response.FindControl<Button>("BeginReviewedVoiceCommand")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await fixture.Voice.Started.Task.WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
                 fixture.Main.IsReviewedVoiceCommandActive.Should().BeTrue(fixture.Main.ReviewedVoiceCommandStatus);
+                Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                ExpireResponseTimeout(response, time, fixture.Main.ResponseTimeoutSeconds);
+                response.IsVisible.Should().BeTrue("ordinary auto-hide must not close an owned command capture");
+                fixture.Voice.IsCaptureQuiescent.Should().BeFalse();
                 var previous = fixture.Main.ResponseTitle;
                 fixture.Voice.PublishTranscript("Kora, stop listening");
                 fixture.Main.ResponseTitle.Should().Be(previous);
@@ -167,6 +177,9 @@ public sealed class PushToTalkUiContractTests
                 fixture.Main.ReviewedVoiceCommandText.Should().Be(input.Text);
                 fixture.Main.ResponseTitle.Should().Be(previous);
                 fixture.Main.IsVoiceEnabled.Should().BeTrue();
+                ExpireResponseTimeout(response, time, fixture.Main.ResponseTimeoutSeconds);
+                response.IsVisible.Should().BeTrue("ordinary auto-hide must not retire an editable reviewed command");
+                fixture.Main.HasReviewedVoiceCommand.Should().BeTrue(fixture.Main.ReviewedVoiceCommandStatus);
                 if (cancel)
                 {
                     response.Hide();
@@ -176,25 +189,83 @@ public sealed class PushToTalkUiContractTests
                 else
                 {
                     var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                    fixture.Main.PropertyChanged += (_, args) =>
+                    void OnCompleted(object? sender, PropertyChangedEventArgs args)
                     {
-                        if (string.Equals(args.PropertyName, nameof(fixture.Main.IsReviewedVoiceCommandActive), StringComparison.Ordinal)
-                            && !fixture.Main.IsReviewedVoiceCommandActive
+                        if (!fixture.Main.IsReviewedVoiceCommandActive
                             && string.Equals(fixture.Main.ResponseTitle, "Kora version", StringComparison.Ordinal))
                         { completed.TrySetResult(); }
-                    };
-                    response.FindControl<Button>("ConfirmReviewedVoiceCommand")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                    await completed.Task.WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
+                    }
+                    fixture.Main.PropertyChanged += OnCompleted;
+                    dispatcher.PauseNext = true;
+                    try
+                    {
+                        response.FindControl<Button>("ConfirmReviewedVoiceCommand")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                        await dispatcher.Started.Task.WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
+                        fixture.Main.IsReviewedVoiceCommandActive.Should().BeTrue();
+                        fixture.Main.HasReviewedVoiceCommand.Should().BeFalse("confirmation consumes the candidate before dispatch");
+                        fixture.Main.ResponseTitle.Should().Be(previous, "a held dispatch is not a completed version query");
+                        ExpireResponseTimeout(response, time, fixture.Main.ResponseTimeoutSeconds);
+                        response.IsVisible.Should().BeTrue("auto-hide must not revoke the original held voice dispatch");
+                        completed.Task.IsCompleted.Should().BeFalse();
+                        dispatcher.Release.TrySetResult();
+                        await completed.Task.WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
+                    }
+                    finally
+                    {
+                        dispatcher.Release.TrySetResult();
+                        if (dispatcher.Started.Task.IsCompleted)
+                        { await dispatcher.Finished.Task.WaitAsync(TestContext.Current.CancellationToken); }
+                        fixture.Main.PropertyChanged -= OnCompleted;
+                    }
                     fixture.Main.ResponseTitle.Should().Be("Kora version");
+                    fixture.Main.Transcript.Should().Be($"\u201cKora, what version are you running\u201d \u00b7 {1f:P0} confidence");
+                    fixture.Main.IsReviewedVoiceCommandActive.Should().BeFalse();
+                    ExpireResponseTimeout(response, time, fixture.Main.ResponseTimeoutSeconds);
+                    response.IsVisible.Should().BeFalse("completed ordinary feedback resumes the configured auto-hide policy");
                 }
                 await fixture.Main.CancelReviewedVoiceCommandAsync();
                 await fixture.Main.ResponseOutputUpdate;
                 await fixture.Main.PreferenceUpdate;
                 fixture.Main.ReviewedVoiceCommandText.Should().BeEmpty();
                 fixture.Voice.IsCaptureQuiescent.Should().BeTrue();
+                fixture.Voice.StartCalls.Should().Be(1);
+                fixture.Voice.EndCalls.Should().Be(1);
+                fixture.Main.IsVoiceEnabled.Should().BeTrue("review and dispatch do not change listening preferences");
             }
             finally { response.Close(); }
         });
+    }
+
+    private static void ExpireResponseTimeout(ResponseWindow response, InteractionStorageFixture.Clock time, int seconds)
+    {
+        time.MonotonicTicks += TimeSpan.FromSeconds(seconds + 1).Ticks;
+        // Drive the legacy native timer callback with an injected clock, without waiting for dispatcher wall time.
+        typeof(ResponseWindow).GetMethod("OnResponseTimeout", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(response, [null, EventArgs.Empty]);
+    }
+
+    private sealed class DeferredCommandDispatcher : IUiDispatcher
+    {
+        private readonly AvaloniaUiDispatcher inner = new();
+        internal bool PauseNext { get; set; }
+        internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Finished { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task InvokeAsync(Func<Task> action)
+        {
+            var held = PauseNext;
+            if (held)
+            {
+                PauseNext = false;
+                Started.TrySetResult();
+                await Release.Task;
+            }
+            try { await inner.InvokeAsync(action); }
+            finally { if (held) { Finished.TrySetResult(); } }
+        }
+
+        public void Post(Action action) => inner.Post(action);
     }
 
     private static string SourceRoot()

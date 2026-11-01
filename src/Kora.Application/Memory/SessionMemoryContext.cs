@@ -25,9 +25,19 @@ internal sealed class SessionMemoryContext(
     private long epoch;
     private readonly Lock stateGate = new();
 
-    internal async Task<SessionMemoryContextReview> ReviewAsync(SessionWorkspaceEntry target,
+    internal Task<SessionMemoryContextReview> ReviewAsync(SessionWorkspaceEntry target,
         IReadOnlyList<MemorySummary> selection, string body, Func<bool> admitted, CancellationToken token,
-        RequestOrigin origin = RequestOrigin.LocalUi)
+        RequestOrigin origin = RequestOrigin.LocalUi) =>
+        ReviewCoreAsync(target, selection, body, admitted, origin, requireCompleteInputLimit: true, token);
+
+    internal Task<SessionMemoryContextReview> ReviewMixedSourceAsync(SessionWorkspaceEntry target,
+        IReadOnlyList<MemorySummary> selection, string body, Func<bool> admitted, RequestOrigin origin,
+        CancellationToken token) =>
+        ReviewCoreAsync(target, selection, body, admitted, origin, requireCompleteInputLimit: false, token);
+
+    private async Task<SessionMemoryContextReview> ReviewCoreAsync(SessionWorkspaceEntry target,
+        IReadOnlyList<MemorySummary> selection, string body, Func<bool> admitted, RequestOrigin origin,
+        bool requireCompleteInputLimit, CancellationToken token)
     {
         SessionConversationService.RequireOriginalSource(origin);
         ConversationText.Validate(body, submission: true);
@@ -53,7 +63,8 @@ internal sealed class SessionMemoryContext(
             token.ThrowIfCancellationRequested();
             if (!Live()) { throw new OperationCanceledException("Memory review source was revoked."); }
             // Measure the exact serialized shape, including evidence identities and host policy. Never truncate.
-            CreateEnvelope(activity.Request, body, snapshot, time.GetUtcNow()).RequireCompleteInputLimit();
+            var envelope = CreateEnvelope(activity.Request, body, snapshot, time.GetUtcNow());
+            if (requireCompleteInputLimit) { envelope.RequireCompleteInputLimit(); }
             var review = new SessionMemoryContextReview(target, selected, snapshot, body, origin, Live,
                 source, time, token);
             lock (stateGate)
@@ -83,7 +94,7 @@ internal sealed class SessionMemoryContext(
             ObjectDisposedException.ThrowIf(disposed, this);
             if (!ReferenceEquals(current, review) || !review.TryConsume())
             { throw new InvalidOperationException("Select and review exact memory again; this review is retired or consumed."); }
-            return new(source, review, admitted, token);
+            return new(review, admitted, token);
         }
     }
 

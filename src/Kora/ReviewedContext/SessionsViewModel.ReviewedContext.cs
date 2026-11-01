@@ -41,6 +41,9 @@ internal sealed partial class SessionsViewModel
     public IReadOnlyList<MemorySummary> MixedMemoryChoices => MixedCurrent ? mixedMemoryChoices : [];
     public IReadOnlyList<ArtifactDefinition> MixedInstructionChoices => MixedCurrent ? mixedInstructionChoices : [];
     public string MixedReviewText => MixedCurrent ? mixedReview?.Text ?? string.Empty : string.Empty;
+    public IReadOnlyList<MixedContextContribution> MixedContributions => MixedCurrent ? mixedReview?.Contributions ?? [] : [];
+    internal IReadOnlyList<ConversationHistorySelection> MixedSelectedHistory => mixedHistory;
+    internal IReadOnlyList<MemorySummary> MixedSelectedMemories => mixedMemories;
     public string MixedOutcome => MixedCurrent ? mixedOutcome : string.Empty;
     public string MixedBody
     {
@@ -144,6 +147,33 @@ internal sealed partial class SessionsViewModel
         finally { RetireMixedReview(clearOutcome: false); }
     }, submission: true);
 
+    internal Task OmitMixedContributionAsync(MixedContextContribution contribution) => RunConversationAsync(async (_, live) =>
+    {
+        var review = mixedReview ?? throw new InvalidOperationException("Inspect the exact complete input before omitting a contribution.");
+        var workflow = mixedWorkflow ?? throw new InvalidOperationException("The source workflow was closed.");
+        mixedReview = null;
+        NotifyMixedContext();
+        try
+        {
+            var replacement = await workflow.RemoveWholeContributionAsync(review, contribution, live, lifetime.Token);
+            if (!live() || !MixedCurrent)
+            { replacement.Dispose(); throw new OperationCanceledException("The original private context selection changed."); }
+            mixedReview = replacement;
+            mixedHistory = replacement.History.ToArray();
+            mixedMemories = replacement.Memory.Selection.ToArray();
+            replacement.Retired += () => Dispatcher.UIThread.Post(NotifyMixedContext);
+            conversationStatus = "One explicitly chosen whole contribution omitted. Inspect the FRESH complete sources, "
+                + "unchanged question, destination and measured budget; confirmation remains a separate action. "
+                + "Original source deadlines were not renewed.";
+        }
+        catch
+        {
+            workflow.Retire();
+            review.Dispose();
+            throw;
+        }
+    });
+
     public void CancelMixedContext()
     {
         RetireMixedReview();
@@ -186,7 +216,7 @@ internal sealed partial class SessionsViewModel
         foreach (var name in new[] { nameof(CanOpenMixedContext), nameof(CanEditMixedContext),
             nameof(CanReviewMixedContext), nameof(CanConfirmMixedContext), nameof(MixedHistoryChoices),
             nameof(MixedMemoryChoices), nameof(MixedInstructionChoices), nameof(MixedInstruction),
-            nameof(MixedBody), nameof(MixedReviewText), nameof(MixedOutcome) })
+            nameof(MixedBody), nameof(MixedReviewText), nameof(MixedContributions), nameof(MixedOutcome) })
         { OnPropertyChanged(name); }
     }
 }

@@ -31,6 +31,10 @@ internal sealed partial class NativeQuestionHost : IDisposable
     private Func<long>? privateRevision;
     private long focusRevision;
     private long currentFocusRevision;
+    private Func<NativeQuestionViewModel, QuestionClipboardAnswer>? createClipboardAnswer;
+
+    internal void BindClipboardAnswers(Func<NativeQuestionViewModel, QuestionClipboardAnswer> create) =>
+        createClipboardAnswer = create;
 
     internal NativeQuestionHost(WindowsSqliteHostInteractionStore store, TimeProvider time,
         ILogger<NativeQuestionViewModel> logger,

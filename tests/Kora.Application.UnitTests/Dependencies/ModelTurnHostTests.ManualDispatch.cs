@@ -111,6 +111,48 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
+    [InlineData(RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.ActivatedVoice)]
+    public async Task InterleavedExpiredFixtureCompletionsKeepEachOriginalMessageAndTaskPair(RequestOrigin origin)
+    {
+        using var f = new Fixture(origin) { TrackPendingRecords = true };
+        var head = await f.RetainConversationMessageAsync(f.Request, f.Session.Generation, 0,
+            " first immutable\r\n", () => true, Token);
+        var nextRequest = new HostRequest(new(Guid.NewGuid()), f.Session.SessionId, new(Guid.NewGuid()), origin);
+        var next = await f.RetainConversationMessageAsync(nextRequest, f.Session.Generation, 0,
+            "second immutable", () => true, Token);
+        Task<ConversationSubmissionReceipt>? interleaved = null;
+        f.BeforeSubmissionComplete = request =>
+        {
+            request.Should().BeSameAs(head.Message.Request);
+            f.BeforeSubmissionComplete = null;
+            interleaved = f.CompleteConversationSubmissionAsync(nextRequest, ModelTurnOutcome.Denied,
+                ModelTurnReason.ContextExpired, () => true, Token).AsTask();
+        };
+        var completed = await f.CompleteConversationSubmissionAsync(head.Message.Request, ModelTurnOutcome.Denied,
+            ModelTurnReason.ContextExpired, () => true, Token);
+        interleaved.Should().NotBeNull();
+        var nextCompleted = await interleaved!;
+        f.PendingRecords.Should().HaveCount(2);
+        foreach (var (original, terminal) in new[] { (head, completed), (next, nextCompleted) })
+        {
+            terminal.Message.Should().Be(original.Message with
+                { Revision = 2, Outcome = ModelTurnOutcome.Denied, Reason = ModelTurnReason.ContextExpired });
+            terminal.Message.Request.Should().BeSameAs(original.Message.Request);
+            terminal.Task.Should().Be(original.Task.Next(HostTaskState.Denied));
+            terminal.Task.Request.Should().BeSameAs(original.Task.Request);
+            f.PendingRecords[original.Message.Request.RequestId].Should().Be(terminal);
+            (await f.ReadConversationMessageAsync(original.Message.Request.SessionId,
+                original.Message.Request.RequestId, Token)).Should().Be(terminal.Message);
+            (await f.ReadTaskAsync(original.Task.Request.SessionId, original.Task.Request.TaskId, Token))!
+                .Task.Should().Be(terminal.Task);
+        }
+        f.Adapter.Calls.Should().Be(0);
+        f.ExecutionStarts.Should().Be(0);
+        f.ExecutionCompletions.Should().Be(0);
+    }
+
+    [Theory]
     [InlineData("expiry")]
     [InlineData("source")]
     [InlineData("provider")]
@@ -177,11 +219,22 @@ public sealed partial class ModelTurnHostTests
                 retained.Task.State.Should().Be(HostTaskState.Denied);
                 retained.Message.Execution.Should().BeNull();
                 retained.Message.AssistantResponse.Should().BeNull();
+                completed.Message.Should().Be(original.Receipt.Message with
+                    { Revision = 2, Outcome = ModelTurnOutcome.Denied, Reason = ModelTurnReason.ContextExpired });
+                completed.Message.Request.Should().BeSameAs(original.Receipt.Message.Request);
+                completed.Task.Should().Be(original.Receipt.Task.Next(HostTaskState.Denied));
+                completed.Task.Request.Should().BeSameAs(original.Receipt.Task.Request);
+                f.PendingRecords[original.Receipt.Message.Request.RequestId].Should().Be(completed);
+                (await f.ReadTaskAsync(target.Authority.SessionId, original.Receipt.Task.Request.TaskId, Token))!
+                    .Task.Should().Be(completed.Task);
             }
-            f.Time.GetUtcNow().Should().Be(originalNow.AddSeconds(15));
             f.PendingRecords.Should().HaveCount(2);
+            f.Time.GetUtcNow().Should().Be(originalNow.AddSeconds(15));
+            (await service.ReadPendingConversationAsync(target, () => true, Token)).Turns.Should().BeEmpty();
+            f.ExecutionStarts.Should().Be(0);
+            f.ExecutionCompletions.Should().Be(0);
         }
-        if (fault is not "expiry") { next.Completion.IsCompleted.Should().BeFalse("an invalid head cannot be skipped"); }
+        else { next.Completion.IsCompleted.Should().BeFalse("an invalid head cannot be skipped"); }
     }
 
     [Theory]

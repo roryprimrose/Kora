@@ -432,6 +432,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
     private static void RemoveConversation(SqliteConnection connection, SqliteTransaction transaction, HostId<SessionIdentity> session) =>
         Execute(connection, transaction, """
             DELETE FROM conversation_drafts WHERE session_id=$id;
+            DELETE FROM conversation_answer_reviews WHERE session_id=$id;
             DELETE FROM conversation_messages WHERE session_id=$id;
             """, ("$id", Id(session)));
 

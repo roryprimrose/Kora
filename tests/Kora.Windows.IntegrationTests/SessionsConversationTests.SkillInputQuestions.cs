@@ -78,6 +78,7 @@ public sealed partial class SessionsConversationTests
             await Command("owned skill request: Original unchanged");
             var preparing = Command("owned skill review-use");
             var question = await first.Task.WaitAsync(TimeSpan.FromSeconds(20), native.Token);
+            await WaitForSkillButton(question.FindControl<Button>("CancelQuestion")!, native.Token);
             question.FindControl<TextBlock>("PromptLabel")!.Text.Should().Contain("topic");
             opened.Confirm.IsEnabled.Should().BeFalse();
             adapter.Calls.Should().Be(0);
@@ -116,7 +117,8 @@ public sealed partial class SessionsConversationTests
             {
                 await File.WriteAllTextAsync(Path.Combine(store.Destination(document), "instructions.md"),
                     "changed source", native.Token);
-                await AnswerSkillQuestion(question, "late answer", native.Token);
+                question.FindControl<TextBox>("AnswerInput")!.Text = "late answer";
+                question.FindControl<Button>("SubmitAnswer")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             }
             else
             {
@@ -151,6 +153,11 @@ public sealed partial class SessionsConversationTests
                 opened.Confirm.IsEnabled.Should().BeFalse();
                 adapter.Calls.Should().Be(0);
                 f.Count("conversation_messages").Should().Be(0);
+                if (scenario is "source" or "draft-source")
+                {
+                    question.IsVisible.Should().BeFalse();
+                    opened.LiteralInputs.Inputs.Should().BeEmpty();
+                }
             }
             f.Count("scoped_grants").Should().Be(0);
             await Command("owned skill close-use");
@@ -160,9 +167,11 @@ public sealed partial class SessionsConversationTests
 
     private static async Task AnswerSkillQuestion(QuestionWindow window, string value, CancellationToken token)
     {
+        await WaitForSkillButton(window.FindControl<Button>("CancelQuestion")!, token);
         var button = window.FindControl<Button>("SubmitAnswer")!;
         window.FindControl<TextBox>("AnswerInput")!.Text = value;
         await WaitForSkillButton(button, token);
+        window.FindControl<TextBox>("AnswerInput")!.Text.Should().Be(value);
         button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
     }
 
@@ -170,6 +179,7 @@ public sealed partial class SessionsConversationTests
     {
         var button = window.FindControl<Button>("SaveDraft")!;
         var status = window.FindControl<TextBlock>("QuestionStatus")!;
+        await WaitForSkillButton(button, token);
         window.FindControl<TextBox>("AnswerInput")!.Text = value;
         await WaitForSkillButton(button, token);
         var committed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

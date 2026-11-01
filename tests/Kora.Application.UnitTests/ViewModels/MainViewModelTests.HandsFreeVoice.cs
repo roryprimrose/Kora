@@ -17,6 +17,9 @@ public sealed partial class MainViewModelTests
     [InlineData("Nova", "version")]
     [InlineData("Nova", "request")]
     [InlineData("Nova", "new-request")]
+    [InlineData("Nova", "refine")]
+    [InlineData("Nova", "rename")]
+    [InlineData("Nova", "recover-rename")]
     [InlineData("Stop", "collision")]
     public async Task ReviewedCustomNameCutoverJoinsOldGenerationAndRetainsActualFinalText(string name, string operation)
     {
@@ -61,6 +64,16 @@ public sealed partial class MainViewModelTests
         };
         Kora.Core.Hosting.RequestOrigin? routedOrigin = null;
         bool? routedAdmission = null;
+        string? instructionOperation = null;
+        string? instructionId = null;
+        fixture.ViewModel.OwnedInstructionEditorRequested += (requested, id) =>
+        {
+            instructionOperation = requested;
+            instructionId = id;
+            routedOrigin = HostActivity.RequireCurrent().Request.Origin;
+            routedAdmission = fixture.ViewModel.CaptureInstructionRefinementEligibility()();
+            return Task.CompletedTask;
+        };
         fixture.ViewModel.BindSessionRouting((text, origin, admitted) =>
         {
             routedOrigin = origin;
@@ -73,6 +86,8 @@ public sealed partial class MainViewModelTests
         var final = operation switch
         {
             "request" => "read a fixture", "new-request" => "open new request",
+            "refine" => "instructions refine", "rename" => "instructions rename renamed",
+            "recover-rename" => "instructions recover-rename",
             "collision" => "listening", _ => "what version are you running",
         };
         current.Result.SetResult(new(final, 1, current.Binding.Generation));
@@ -92,8 +107,48 @@ public sealed partial class MainViewModelTests
                 routedAdmission.Should().BeTrue();
             }
             else if (operation is "new-request") { navigated.Should().Be(1); }
+            else if (operation is "refine" or "rename" or "recover-rename")
+            {
+                instructionOperation.Should().Be(operation switch
+                {
+                    "refine" => "Refine", "rename" => "Rename", _ => "Recover rename",
+                });
+                instructionId.Should().Be(operation is "rename" ? "renamed" : null);
+                routedOrigin.Should().Be(RequestOrigin.ActivatedVoice);
+                routedAdmission.Should().BeTrue();
+                routed.Should().BeEmpty();
+            }
             else { fixture.ViewModel.ResponseTitle.Should().Be(name + " version"); }
         }
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        fixture.ViewModel.Dispose();
+    }
+
+    [Fact]
+    public async Task HandsFree_wake_resume_waits_for_reviewed_command_owner_even_after_physical_capture_release()
+    {
+        var stage = new HandsFreeStage();
+        HandsFreeVoiceRecognitionService? decorated = null;
+        var fixture = CreateHandsFreeFixture(stage, value => decorated = value);
+        await using var voice = decorated!;
+        fixture.ViewModel.BindReviewedVoiceCommand(NullLogger<ReviewedVoiceCommandCapture>.Instance, TimeProvider.System);
+        await fixture.ViewModel.InitializeAsync();
+        var wake = await stage.NextAsync();
+        await voice.PauseWakeForReplyAsync();
+        await fixture.ViewModel.BeginReviewedVoiceCommandAsync(static () => true);
+        wake.IsQuiescent.Should().BeTrue();
+        fixture.Voice.RaiseTranscript("Kora, what version are you running", 1);
+        await fixture.ViewModel.FinishReviewedVoiceCommandAsync();
+        fixture.Voice.IsCaptureQuiescent.Should().BeTrue();
+        fixture.ViewModel.HasReviewedVoiceCommand.Should().BeTrue();
+        await voice.ResumeAfterActivatedInputAsync();
+        stage.OpenCount.Should().Be(1);
+        fixture.ViewModel.ResponseTitle.Should().NotBe("Kora version");
+        await fixture.ViewModel.CancelReviewedVoiceCommandAsync();
+        await voice.ResumeAfterActivatedInputAsync();
+        await stage.NextAsync();
+        stage.OpenCount.Should().Be(2);
+        fixture.ViewModel.ReviewedVoiceCommandText.Should().BeEmpty();
         fixture.Reasoner.Requests.Should().BeEmpty();
         fixture.ViewModel.Dispose();
     }

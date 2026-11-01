@@ -57,7 +57,7 @@ public sealed partial class MainViewModel
             wakeDispatch.Value = new(transcript, activation);
             try { await DispatchRecognizedVoiceTranscriptAsync(transcript, request); }
             finally { wakeDispatch.Value = previous; }
-        }, () => !IsBusy && !IsSpeaking && !textToSpeech.IsSpeaking
+        }, () => IsReviewedVoiceCaptureReleased && !IsBusy && !IsSpeaking && !textToSpeech.IsSpeaking
             && promptInputVoice?.IsActive != true && composerDictation?.IsActive != true
             && questionVoiceReplies?.IsActive != true,
             _ => CaptureCustomizationVoice(Volatile.Read(ref customizationVoiceTarget)), GetRecognitionPhrases);

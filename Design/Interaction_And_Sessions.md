@@ -1217,6 +1217,22 @@ Use categorical thresholds rather than claiming a numerical probability from scr
 | High | Irreversible or broad deletion, production/shared-resource change, security/credential change, software installation, arbitrary code with unverified effects | Explicit consequences, targets, source/diff and recovery limitations; action-specific confirmation through either channel; mandatory OS/provider checks |
 | Prohibited | Protected Kora mutation, bypassing lock/containment, exposing credential-store secrets, unsupported execution | Reject; approval cannot override policy |
 
+The informational/safety **pause dispatch** operation applies to one explicitly
+addressed Active ordinary conversation through the
+[shared manual-hold action](Work_Management.md#ordinary-submitted-conversation-turns).
+It holds future ordinary start decisions, never suspends/cancels a running or
+already-dispatching turn and never discards pending originals. Native **Pause
+ordinary dispatch** and exact typed/activated-voice `session dispatch pause
+<session-id>` need no model or action-approval question; existing editor,
+dictation, question and approval precedence is unchanged. The separate native
+**Release manual dispatch hold** or `session dispatch resume <session-id>`
+clears only that manual reason, not a recovery/security hold. All original
+deadlines keep running, and expired work requires fresh user input/review.
+Manual/task-stepping start decisions never replace consequential action approval.
+These controls neither Resume Done nor create/renew session activity, grants or
+model context. The retired diagnostic queue controls remain denied; no global
+pause, reorder or settings product is admitted.
+
 Unknown or mixed effects receive the highest applicable permitted review class.
 Administrator elevation is neither necessary nor sufficient for high risk.
 Registered constrained actions may have lower risk only when their effects are actually enforced.
@@ -1538,6 +1554,9 @@ routing. Background tasks remain isolated and cannot acquire editor input.
 
 Independent Active sessions can execute concurrently, including writes to different resources.
 Initial proposed default: two executing session tasks, with a configurable limit admitted only within verified provider/hardware capabilities.
+For ordinary retained conversations, the [delivered future-maximum operation](Work_Management.md#ordinary-session-resource-allocation-implementation) reviews and separately confirms desired demand of one or two through native Settings or exact original typed/activated commands.
+This is not qualification of capacity two. Each request's host resource status reports its last configured/captured/qualified/effective ceiling and actual admission blocker; unknown readiness remains unavailable.
+Lowering the preference leaves active work and its physical joins intact, and never changes per-session pending FIFO.
 One execution slot per session preserves its ordering unless a later explicit design enables intra-session parallel tasks.
 Resource holds, dependency readiness, provider budgets, and fair scheduling govern admission; selected session gets no implicit execution priority.
 Management and exact local controls remain responsive while all slots are occupied.

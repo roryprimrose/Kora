@@ -71,6 +71,20 @@ remains unavailable pending name/acoustic and conservative playback-exclusion
 qualification. No microphone consent, profile selection or capture readiness
 is inferred from preparation.
 
+### One explicitly reviewed activated command
+
+The [reviewed command owner](../src/Kora.Application/Voice/ReviewedVoiceCommandCapture.cs) implements supporting voice reliability: **Review one spoken command**, bounded local capture, **Finish capture**, exact inert transcript, optional correction, then separate **Dispatch this exact voice command once** or cancellation. This is one utterance, not a saved setting or a change to direct activated/PTT routing.
+
+The [host binding](../src/Kora.Application/ViewModels/MainViewModel.ReviewedVoiceCommand.cs) captures original foreground/source, channel, name, device, topology, call, privacy, ownership/control and input revisions before opening capture. Recognition generations and confirmed native release belong to the capture owner. Any changed source or target expires the candidate rather than retargeting another conversation, editor, question or generic reply.
+
+[Hands-free wake resumption](../src/Kora.Application/ViewModels/MainViewModel.HandsFreeVoice.cs) also waits for this owner to release capture and review; physical microphone release alone does not end the retained review.
+
+Editing applies only shared reject-only [text and credential bounds](../src/Kora.Core/Conversation/ConversationText.cs), never command parsing, tools, model rewriting or execution. Native confirmation enters the [existing activated command admission](../src/Kora.Application/ViewModels/MainViewModel.cs) as **ActivatedVoice**; it cannot cleanse call/privacy/authentication restrictions or approve the resulting operation. Independent high-risk approval and exact hosted-send consent remain mandatory.
+
+Existing question replies, approvals, prompt-input capture and literal composer/owned-editor dictation retain exclusive owners; reviewed command capture refuses those contexts ([host admission](../src/Kora.Application/ViewModels/MainViewModel.ReviewedVoiceCommand.cs)). Capture and review share a 60-second lifetime. Cancel, expiry, private/device/owner changes, native hide/deactivation/close and disposal clear volatile candidate text and join capture cleanup. No candidate audio/text archive, diagnostic content, training, profile enablement or hosted ASR is introduced ([capture lifecycle](../src/Kora.Application/Voice/ReviewedVoiceCommandCapture.cs), [native lifetime](../src/Kora/ResponseWindow.ReviewedVoiceCommand.cs)).
+
+The [portable behavioral cases](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ReviewedVoiceCommand.cs), [capture lifecycle cases](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ReviewedVoiceLifecycle.cs) and [native-control cases](../tests/Kora.Windows.IntegrationTests/PushToTalkUiContractTests.cs) use deterministic audio/runtime seams. They are implementation evidence, not live microphone, provider, ASR-profile or acoustic qualification. See the [user interaction](../docs/commands.md#review-one-spoken-command-before-dispatch).
+
 ### Approved development direction and remaining admission evidence
 
 The [opt-in conversational reply increment](Interaction_And_Sessions.md#opt-in-exact-playback-conversational-replies) reuses the existing local question recognizer only after successful exact foreground question playback.

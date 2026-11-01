@@ -28,7 +28,7 @@ internal sealed partial class MemoryManagementService
         ModelMemoryProposalReview? review = null;
         try
         {
-            await RunModelProposalAsync(target, admitted, async (_, live) =>
+            await RunMemorySourceReviewAsync(target, admitted, async (_, live) =>
             {
                 await sessions.ReadSettingSuggestionAsync(target, source, live, token).ConfigureAwait(false);
                 var rows = await Admission.ObserveSessionAsync(token).ConfigureAwait(false);
@@ -64,7 +64,7 @@ internal sealed partial class MemoryManagementService
         MemoryResult? result = null;
         try
         {
-            await RunModelProposalAsync(review.Target, () => review.Current, async (_, live) =>
+            await RunMemorySourceReviewAsync(review.Target, () => review.Current, async (_, live) =>
             {
                 await sessions.ReadSettingSuggestionAsync(review.Target, review.Source, live, token).ConfigureAwait(false);
                 var rows = await Admission.ObserveSessionAsync(token).ConfigureAwait(false);
@@ -98,7 +98,7 @@ internal sealed partial class MemoryManagementService
         return input.Request.RequestId;
     }
 
-    private async Task RunModelProposalAsync(SessionWorkspaceEntry target, Func<bool> admitted,
+    private async Task RunMemorySourceReviewAsync(SessionWorkspaceEntry target, Func<bool> admitted,
         Func<HostRequest, Func<bool>, ValueTask<MemoryCommandResult>> operation, CancellationToken token)
     {
         var issuer = HostActivity.RequireCurrent();

@@ -10,6 +10,15 @@ public sealed partial class MainViewModel
     private Func<Task<bool>>? ownedSkillAuthoringShutdown;
     private long ownedSkillAuthoringBindingRevision;
 
+    public Func<bool> CaptureOwnedSkillFixtureEligibility()
+    {
+        var input = CaptureInstructionRefinementEligibility();
+        var mode = providerModeConfiguration?.Get().Revision;
+        var profile = providerProfileConfiguration?.Get().Revision;
+        return () => input() && mode == providerModeConfiguration?.Get().Revision
+            && profile == providerProfileConfiguration?.Get().Revision;
+    }
+
     public void BindOwnedSkillAuthoring(
         Func<OwnedSkillAuthoringCommand, OwnedSkillAuthoringAuthority, Task>? handler, Func<Task<bool>>? shutdown)
     {

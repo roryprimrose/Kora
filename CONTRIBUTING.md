@@ -185,6 +185,10 @@ consumers, including links embedded in the guide and historical experiments.
 - Reuse migration staging helpers; remove only empty later-version tables,
   never current authority records. Resolve a fresh admitted invocation for each
   grant use. Metadata-only reads must not create/edit files or publish journals.
+- Pending conversation fixtures build terminal receipts from the exact
+  request-keyed record, not shared latest-message/task fields. Expired queued
+  workers can complete concurrently; interleaved completions must retain each
+  original identity without model execution or answer publication.
 
 The [scoped testing guidance](.github/instructions/testing.instructions.md)
 owns behavioral regression requirements. Keep case-specific synchronization

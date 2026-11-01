@@ -31,6 +31,7 @@ public sealed partial class MainViewModel
     public void BindSessionCommands(SessionWorkspaceService service, SessionRequestCommandService? requests = null,
         ConversationSearchCommandService? searches = null)
     {
+        RetireRemainingWorkBinding();
         conversationSearchCommands?.Retire();
         sessionRequests?.Retire();
         SetForegroundRequestReview(null);
@@ -56,6 +57,11 @@ public sealed partial class MainViewModel
         long? originalScopeNameRevision = null, ForegroundConversationTarget? foregroundTarget = null)
     {
         if (disposed) { return; }
+        if (command.IsRemainingWork || string.Equals(command.Error, SessionCommand.RemainingWorkSyntax, StringComparison.Ordinal))
+        {
+            await ExecuteRemainingWorkCommandAsync(command, initiator, originalScopeEligibility, scopeActivationPrefixed);
+            return;
+        }
         if (command.Operation == SessionCommandOperation.Invalid)
         {
             RetireSessionCommandReviews();

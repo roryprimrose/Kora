@@ -34,5 +34,7 @@ public sealed partial class MainViewModel
         SetForegroundRequestReview(null);
         sessionRetentionCommands?.Service.Retire();
         conversationSearchCommands?.Retire();
+        remainingWorkCommands?.Retire();
+        remainingWorkPresentation = Guid.Empty;
     }
 }

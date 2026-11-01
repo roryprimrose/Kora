@@ -180,7 +180,8 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     {
         using var setup = BeginPhase(NativeFixturePhase.Setup);
         await setup.RunAsync(() => InitializeCoreAsync(webPageGet, webSummary, callState, dispatcher, modelReasoner,
-            modelProbe, speechComponentSetup, speechSetupComparison, logonStartupConfiguration, detailPresentationConfiguration, startupPresentationConfiguration,
+            modelProbe, speechComponentSetup, speechSetupComparison, logonStartupConfiguration, detailPresentationConfiguration,
+            conversationExecution, startupPresentationConfiguration,
             voiceRecognition, speechInputConfiguration));
     }
 
@@ -192,6 +193,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         SpeechSetupComparison? speechSetupComparison,
         LogonStartupConfigurationService? logonStartupConfiguration,
         DetailPresentationConfigurationService? detailPresentationConfiguration,
+        ConversationExecutionConfigurationService? conversationExecution,
         StartupPresentationConfigurationService? startupPresentationConfiguration,
         IQuestionVoiceRecognitionService? voiceRecognition, SpeechInputConfigurationService? speechInputConfiguration)
     {

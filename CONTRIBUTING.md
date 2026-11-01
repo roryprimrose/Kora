@@ -259,6 +259,55 @@ checks. Changes to the embedded user guide also run its focused tests. They do
 not require device/provider trials. Preserve existing anchors or update their
 consumers, including links embedded in the guide and historical experiments.
 
+### Native fixture phase evidence
+
+Headless dispatch and the shared native fixture retain a per-test
+`native-fixture-phases.json` attachment through xUnit's existing attachment API.
+The adapter writes this string attachment as `native-fixture-phases.json.txt`
+under the original test's unique-ID directory and links its retained copy in TRX.
+It uses MTP's `TimingProperty`, `StepTimingInfo` and `TimingInfo` field shapes,
+with the original xUnit execution `TestUniqueId` (including distinct theory
+rows), not a reconstructed name or source attribute. The runner's ordinary
+adapter-generated per-case timing remains unchanged; its empty `StepTimings`
+is not the fixture attachment.
+The attachment's `GlobalTiming` covers its observation window, not the entire
+test's execution duration.
+
+The stable phase allowlist is `native-ui`, `owned-storage`, `setup`, `context`,
+`join`, `evidence-flush` and `disposal`. `native-ui` measures the dispatched
+callback, not its queue wait; storage measures fixture construction, context
+measures task/interaction-store initialization, and setup measures the complete
+fixture initialization. Join and evidence flush measure the existing shutdown
+owners inside disposal. These intervals can nest and must not be summed as
+exclusive CPU time. Repeated phases have distinct ordinal IDs.
+
+Each entered phase publishes `running`; only observed terminal phases enter
+`Timing.StepTimings`, with a matching `completed`, `cancelled` or `failed`
+`PhaseStates` entry. Elapsed durations and timestamp offsets use a monotonic
+clock anchored once to UTC, independent of product clocks and deadline modes.
+No exception text, display-name arguments, filenames, content, scope or audit
+payload is collected. Report-delivery failure is rethrown after the owning
+operation's cleanup boundary, failing the test rather than skipping physical
+joins or pretending evidence was retained. During a dispatched callback,
+fixture verification defers to that callback's exception boundary so disposal
+cannot replace an original failure. Concurrent operation and report-delivery
+failures surface together as an `AggregateException`, preserving both original
+exceptions without adding their payloads to the attachment. Ambient capture is
+valid only while its owning callback is active; inherited late callbacks cannot
+reuse an ended ambient operation.
+
+Each of the twelve `windows-execution-results-<partition>` artifacts retains
+these test attachments alongside TRX, console output and MTP diagnostics under
+its fresh execution directory. Phase attachments and started-test diagnostics
+do not substitute for the complete admitted-source catalog and passing reports.
+A killed host may never publish a terminal test report
+or its attachments; absent evidence is not a completed/cancelled phase or a
+recoverable historical trace. This instrumentation does not establish the
+cause or repair of a hosted job deadline breach, runtime performance
+qualification, or eligibility for a different evidence profile. Run the focused
+`NativeUx.NativeFixturePhaseTimingTests` with the existing integration test
+runner to verify the exact shape, original identity and real headless output.
+
 ### Reliable fixture patterns
 
 - Coordinate races with explicit completion signals, not sleeps, property-read

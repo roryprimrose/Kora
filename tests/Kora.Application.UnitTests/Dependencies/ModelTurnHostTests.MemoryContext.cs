@@ -304,10 +304,12 @@ public sealed partial class ModelTurnHostTests
             token.ThrowIfCancellationRequested();
             admitted().Should().BeTrue();
             target.Authority.SessionId.Should().Be(Snapshot.Boundary.Session);
-            selection.Select(row => row.Id).Should().Equal(Selection.Select(row => row.Id));
+            selection.Should().NotBeEmpty();
+            selection.Select(row => row.Id).Should().Equal(Selection.Where(row => selection.Contains(row)).Select(row => row.Id));
             Reads++;
             OnRead?.Invoke();
-            return System.Threading.Tasks.Task.FromResult(Snapshot);
+            return System.Threading.Tasks.Task.FromResult(Snapshot with
+                { Records = [.. Snapshot.Records.Where(record => selection.Any(row => row.Id == record.Id.Value))] });
         }
     }
 
@@ -320,7 +322,8 @@ public sealed partial class ModelTurnHostTests
         internal bool FailTimer { get; set; }
         internal bool ExpireDuringCreation { get; set; }
         internal Action? OnCreateTimer { get; set; }
-        public override DateTimeOffset GetUtcNow() => Now;
+        internal Action? OnGetUtcNow { get; set; }
+        public override DateTimeOffset GetUtcNow() { OnGetUtcNow?.Invoke(); return Now; }
         public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
         {
             this.callback = callback;

@@ -79,6 +79,8 @@ public sealed class ConversationNoticeTests
 
     [Theory]
     [InlineData("valid", true)]
+    [InlineData("text", true)]
+    [InlineData("multiple-choice", true)]
     [InlineData("omitted", false)]
     [InlineData("generation", false)]
     [InlineData("request", false)]
@@ -91,7 +93,12 @@ public sealed class ConversationNoticeTests
     public void AttentionRequiresExactLiveClarificationNotModelText(string fault, bool admitted)
     {
         using var f = new Fixture();
-        f.Question();
+        f.Question(fault switch
+        {
+            "text" => QuestionKind.Text,
+            "multiple-choice" => QuestionKind.MultipleChoice,
+            _ => QuestionKind.SingleChoice,
+        });
         var question = f.Current.PendingQuestions.Single();
         var changed = fault switch
         {
@@ -100,7 +107,7 @@ public sealed class ConversationNoticeTests
             "revision" => question with { Key = question.Key.Next() },
             "status" => question with { Status = QuestionStatus.Answered },
             "channel" => question with { AnswerChannel = RequestOrigin.LocalUi },
-            "kind" => question with { Kind = QuestionKind.MultipleChoice },
+            "kind" => question with { Kind = (QuestionKind)(-1) },
             "expiry" => question with { ExpiresAt = question.ExpiresAt.AddTicks(1) },
             _ => question,
         };
@@ -242,14 +249,14 @@ public sealed class ConversationNoticeTests
             { ConversationNotice = new(Request, new(1), 3, new(Guid.NewGuid()), Time.Now, outcome, ModelTurnReason.ProviderOutcome, null, null) };
             Current = Snapshot(task);
         }
-        internal void Question()
+        internal void Question(QuestionKind kind = QuestionKind.SingleChoice)
         {
             var key = new HostQuestionKey(Request, new(Guid.NewGuid()), new(1));
             var task = new HostTaskObservation(new(Request, new(2), HostTaskState.DispatchRecorded), new(1),
                 ConversationNoticeAuthority.Source, true, null)
             { ConversationNotice = new(Request, new(1), 2, new(Guid.NewGuid()), Time.Now, null, null, key, Time.Now.AddSeconds(15)) };
             Current = Snapshot(task) with { PendingQuestions = [new(key, new(1), QuestionStatus.Pending,
-                QuestionKind.SingleChoice, null, Time.Now.AddSeconds(15))] };
+                kind, null, Time.Now.AddSeconds(15))] };
         }
         private SessionWorkSnapshot Snapshot(HostTaskObservation task) =>
             new(new(new(Request.SessionId, new(1), true), null), 1, Time.Now, new(Request.SessionId, new(1), 0, []),

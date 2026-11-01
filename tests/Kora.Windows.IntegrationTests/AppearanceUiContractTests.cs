@@ -70,6 +70,7 @@ public sealed class AppearanceUiContractTests
 
         headings.Should().Equal(
             "Start Kora at Windows user logon",
+            "Normal manual startup presentation",
             "Appearance",
             "Application theme",
             "Reading text size",

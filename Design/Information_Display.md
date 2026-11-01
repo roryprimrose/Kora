@@ -1099,6 +1099,11 @@ terminal event, foreground callback or late submission join cannot replace a
 newer displayed answer or an explicitly read page, or capture another epoch.
 Delayed pending acceptance also preserves an already published terminal status;
 it cannot make a completed request appear queued or running again.
+Deferred terminal publication also retains the original composer selection,
+generation and private-control fences. Passive work refresh or returning to
+the same session cannot admit a retired callback or capture a new offer epoch;
+explicit retained reading preserves the full original USER and ASSISTANT
+sources in both modes ([deferred-publication regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.SubmittedPresentation.cs)).
 Pending acceptance is not terminal publication: its first terminal answer
 still captures current policy. Generic Details accepts only a pending current-response offer;
 otherwise it keeps the selected-session route. The explicit current-response

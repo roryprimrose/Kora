@@ -127,10 +127,11 @@ internal sealed partial class SessionsViewModel
     {
         var control = access.ControlRevision;
         var epoch = selectionEpoch;
+        var source = selected;
         void Present()
         {
-            if (closed || !access.CanInspect || access.ControlRevision != control
-                || selectionEpoch != epoch || selected != target) { return; }
+            if (closed || !access.CanInspect || access.ControlRevision != control || selectionEpoch != epoch
+                || selected != source || source != target) { return; }
             if (completion.Receipt is { } receipt)
             {
                 if (conversationPage is not null || !PublishCompletedConversationMessage(receipt.Message)) { return; }
@@ -144,15 +145,18 @@ internal sealed partial class SessionsViewModel
             NotifyConversation();
         }
         if (Dispatcher.UIThread.CheckAccess()) { Present(); }
-        else { Dispatcher.UIThread.Post(Present); }
+        else { conversationDispatcher.Post(Present); }
     }
 
     private void PresentPendingConversation(ConversationPendingSnapshot snapshot)
     {
         var control = access.ControlRevision;
+        var epoch = selectionEpoch;
+        var source = selected;
         void Present()
         {
             if (closed || !access.CanInspect || access.ControlRevision != control || snapshot.ControlRevision != control
+                || selectionEpoch != epoch || selected != source || snapshot.Session != source?.Authority.SessionId
                 || snapshot.Session != selected?.Authority.SessionId
                 || pendingConversation is { } prior && prior.Session == snapshot.Session && prior.Revision > snapshot.Revision) { return; }
             pendingConversation = snapshot;
@@ -162,7 +166,7 @@ internal sealed partial class SessionsViewModel
             NotifyPendingConversation();
         }
         if (Dispatcher.UIThread.CheckAccess()) { Present(); }
-        else { Dispatcher.UIThread.Post(Present); }
+        else { conversationDispatcher.Post(Present); }
     }
 
     public Task RefreshPendingConversationAsync() => ChangePendingConversationAsync(async (target, live) =>

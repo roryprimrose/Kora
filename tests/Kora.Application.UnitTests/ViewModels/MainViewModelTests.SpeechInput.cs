@@ -1,6 +1,7 @@
 ﻿using AwesomeAssertions;
 
 using Kora.Application.Configuration;
+using Kora.Application.ViewModels;
 using Kora.Core.Auditing;
 using Kora.Core.Commands;
 using Kora.Core.Configuration;
@@ -13,6 +14,29 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task MissingOrUnreadableNameAuthorityDoesNotOfferAnotherWakeProfile()
+    {
+        var unbound = new Fixture();
+        unbound.ViewModel.SpeechInputProfiles.Should().Equal(SpeechInputProfileCatalogue.Profiles);
+        unbound.ViewModel.SpeechInputResources.Should().Equal(SpeechInputResource.WindowsManaged);
+        unbound.ViewModel.Dispose();
+        var fixture = new Fixture(enableSpeechInput: true);
+        await using var configuration = fixture.InputConfiguration!;
+        await using var admission = fixture.OutputAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        var names = (AssistantNameConfigurationService)typeof(MainViewModel)
+            .GetField("assistantNameConfiguration", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(fixture.ViewModel)!;
+        FluentActions.Invoking(() => configuration.BindAssistantName(names)).Should().Throw<InvalidOperationException>();
+        FluentActions.Invoking(() => configuration.BindAssistantName(null!)).Should().Throw<ArgumentNullException>();
+        fixture.NamePreferences.Name = "Supported Commands";
+        names.Reload();
+        fixture.ViewModel.SpeechInputProfiles.Should().Equal(SpeechInputProfileCatalogue.Profiles);
+        fixture.ViewModel.SpeechInputResources.Should().Equal(SpeechInputResource.WindowsManaged);
+        fixture.ViewModel.Dispose();
+    }
+
     [Fact]
     public async Task SpeechInputNativeTypedAndActivatedRoutesShareSelectionWithoutHiddenEffects()
     {

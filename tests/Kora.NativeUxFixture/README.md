@@ -24,6 +24,13 @@ The [manual startup regressions](../Kora.Windows.IntegrationTests/StartupPresent
 verify that the injected service owns native status, review, confirmation and
 saved-intent readback; ordinary fixture initialization leaves it unavailable.
 
+The setup phase forwards the supplied typed voice runtime and speech-input
+configuration together into the real view model. Headless custom-name cutover
+regressions require their exact profile generation to agree and keep capture
+quiescent until consent and reviewed selection. Omitted overrides retain the
+default fixture boundaries; setup failures and cancellation propagate without
+substituting those defaults.
+
 Evidence capture serializes delivery per sink and provider disposal waits for active
 callbacks and joins accepted writes before scratch cleanup. The buffered presence
 fixture uses the desktop's independent bounded required-file/SQLite-projection

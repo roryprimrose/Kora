@@ -5,6 +5,8 @@ namespace Kora;
 
 internal sealed partial class OwnedInstructionEditorController
 {
+    private bool renaming;
+
     private async Task RenameInstruction(OwnedInstructionEditorWindow opened, bool recover, Func<bool> eligible, CancellationToken token)
     {
         if (kind != ArtifactKind.Instruction || profileOriginal is not null || Dirty)
@@ -42,6 +44,7 @@ internal sealed partial class OwnedInstructionEditorController
         opened.Source.IsReadOnly = false;
         opened.SetUseReviewAvailable(true);
         InvalidateInventory("Rename reconciled. Refresh inventory explicitly; old identity unavailable, new candidate disabled.");
+        inventoryChoiceWithdrawn = false;
         opened.Report($"Renamed {review.Proposal.Source.Name} to {saved.Name}. Old identity is unavailable; new source is disabled and requires fresh exact Review use. "
             + "No reference, grant or activation was transferred. Reopen the new ID to inspect current resolution status. Original unrelated files and source bytes except declared name were preserved.");
     }

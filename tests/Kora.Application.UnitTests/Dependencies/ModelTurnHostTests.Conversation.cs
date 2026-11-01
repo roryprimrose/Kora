@@ -306,7 +306,7 @@ public sealed partial class ModelTurnHostTests
                 observed = pending is null ? Task!
                     : new HostTaskObservation(pending.Task, pending.Message.Generation, "host", true, null);
             }
-            if (BeforeSubmissionComplete is { } before) { await before(request); }
+            if (BeforeSubmissionComplete is { } before) { await before(request).ConfigureAwait(false); }
             lock (pendingRecordGate)
             {
                 BeforePendingTerminal?.Invoke(request, admitted);

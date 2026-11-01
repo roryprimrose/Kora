@@ -210,6 +210,32 @@ applies to stale, cancelled or already-merged candidates. Unknown resource state
 may therefore hold a retired lane for reviewed recovery; it never grants a
 second candidate or automatic success.
 
+The expected inventory comes from `.github/workflows/ci.yml` at the reservation's
+immutable base, which must match the run's workflow `head_sha`, not current main,
+the candidate PR head, dispatch inputs or returned job names. The trusted workflow
+declares `# merge-queue-job-schema: windows-12-v1`; its inventory includes both
+portable/payload producers, the shared Windows build and all twelve Windows
+partitions, as well as the preserved required aggregates and five legacy gates.
+The maintained workflow contract compares every candidate job and expanded
+matrix identity with that inventory. A producer/matrix change must update the
+schema and inventory together; a new unsupported version cannot release a lane.
+Known unversioned predecessor workflow blobs have explicit inventories in
+[policy.cjs](policy.cjs), including the pre-split five-shard workflow and the
+initial unversioned twelve-job workflow and its merged native-fixture timing
+revision from [PR #661](https://github.com/roryprimrose/Kora/pull/661).
+Old runs therefore retire against their own inventory rather than requiring
+jobs that did not exist.
+
+Source bytes are read through the trusted repository Contents API at that exact
+base and checked against the returned Git blob identity. Missing source, malformed
+metadata, an unknown unversioned blob or an unknown/duplicate schema holds the lane
+and requests cancellation, even when the run and every returned job are completed.
+API/authentication failures propagate while ownership remains held. No schema
+fallback, cancellation acknowledgement or successful aggregate establishes the
+physical termination of an absent producer. This applies equally to failed,
+cancelled, stale, already-merged and already-retiring tickets, without changing
+state version, observation deadlines, pagination, attempt/ticket or App trust.
+
 The [coverage-comment workflow](../../.github/workflows/coverage-comment.yml)
 checks the source run's latest-attempt jobs before downloading its report.
 A skipped portable job with successful queue-policy feedback identifies a
@@ -507,6 +533,81 @@ installation, GitHub permission configuration or this hosted canary has happened
   ordinary protection, ensure other open PRs cannot qualify using only skipped
   queue-waiting checks. Merge the tested repair through ordinary protected CI,
   retain the durable state history, then repeat the App-source canary.
+
+### Reviewed unobservable-dispatch recovery
+
+A GitHub dispatch HTTP 500 or lost response can leave a recorded dispatch with
+no observable run. The ordinary controller intentionally retains that lane:
+elapsed time and an empty run listing do not prove physical quiescence. Do not
+retry the dispatch, rerun an old ticket, automatically clear the reservation or
+temporarily grant a client access to the state branch.
+
+After an administrator has reviewed the exact failed dispatch, current candidate
+activity and state history, the existing **Merge queue controller** can perform
+one explicit `recover-unobservable-dispatch` operation. This is a privileged
+reviewed exception for unresolved dispatch uncertainty, not automatic proof that
+GitHub never created work. The caller must obtain separate administrator
+authorization for that exact checkpoint/ticket; unavailable or automatic agent
+responses are not consent. Merely having repository write permission, an
+Auto-merge request or publication authority is insufficient.
+
+Inspect the [state branch](https://github.com/roryprimrose/Kora/tree/automation/merge-queue-state)
+and its commit history, the failed controller log and candidate workflow runs.
+Read the exact checkpoint:
+
+```powershell
+gh api --hostname github.com repos/roryprimrose/Kora/git/ref/heads/automation/merge-queue-state --jq .object.sha
+```
+
+Only after review and explicit authorization, dispatch on main with the reviewed
+commit SHA and ticket, not values silently refreshed by a client:
+
+```powershell
+gh workflow run merge-queue.yml --repo github.com/roryprimrose/Kora --ref main `
+  --field operation=recover-unobservable-dispatch `
+  --field "recovery_checkpoint=<reviewed-state-commit>" `
+  --field "recovery_ticket=<reviewed-retiring-ticket>" `
+  --field acknowledge_uncertain_dispatch=true
+```
+
+The operation requires a first-attempt manual run on main, explicit acknowledgement
+and live repository **administrator** permission for the dispatching actor,
+rechecked before the final run observation and write. The existing main-only
+`merge-queue` environment supplies the same App token. Its branch policy is not
+a reviewer approval gate; this operation does not install or change environment
+reviewers, secrets, App permissions, protection or queue mode.
+
+The workflow shares the ordinary controller's concurrency group. It verifies
+main protection, the exact state checkpoint/ticket, `retiring` phase, recorded
+dispatch and elapsed ten-minute observation budget. Merge-intent uncertainty is
+excluded. Complete, consistent run pagination is required; API errors, duplicate
+or invalid run identities, any observable matching run and nonterminal dispatched
+work in the observation window reject recovery. Run metadata is reobserved
+immediately before committing. If the ticket has an observable run, use ordinary
+reconciliation and its existing exact-job/cancellation rules instead.
+
+Recovery does not replace the current twelve-partition, exact-source artifact
+and discovery-catalog pipeline or its fail-closed producer joins. The existing
+required job names remain compatible with historical tickets; retain both the
+recovery-routing and predecessor-retirement workflow regressions when integrating
+controller changes. Observable runs with missing or unknown producer metadata
+remain held by ordinary reconciliation; the administrator-only recovery operation
+still rejects any observable matching ticket.
+
+Recovery retains all blocked revisions, quarantines the old head/enrollment if
+needed and clears only the reviewed reservation. A linear App-owned state commit
+records the administrator, recovery workflow run, retired ticket and previous
+checkpoint. Existing check results are unchanged; no successful admission check,
+branch update, merge or candidate dispatch is produced. A late old ticket fails
+the existing CI admission check once its reservation is removed or replaced.
+This does not assert that previously admitted but unobservable work was absent;
+reviewed uncertainty is why this operation remains administrator-only.
+
+After exact checkpoint readback, recovery wakes ordinary reconciliation once.
+Inspect the recovery summary and the next candidate's exact ticket/run. If
+readback or continuation fails, inspect live state before proceeding: the
+checkpoint may already have been committed, and the old inputs cannot replay
+recovery. Scheduled reconciliation remains available; do not blindly retry.
 
 ## Deterministic validation
 

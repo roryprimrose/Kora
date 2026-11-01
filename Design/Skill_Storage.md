@@ -9,12 +9,24 @@ It accepts neither shared originals nor copied executable content; native result
 
 Related: [Extensibility](Extensibility.md), [Skill Authoring](Skill_Authoring.md), [Bundled Skills](Built_In_Skills.md), [Security and Data Flows](Security_Data_Flows.md).
 
+The [reviewed owned-source deletion](../docs/owned-skill-authoring.md#delete-one-saved-owned-source)
+supports only native v1/v2/v3's exact manifest/guidance pair and empty version
+directory. It pins native root/parent/file identities and exact bytes, checks
+the current catalogue and permissions, and reads back absence. Shared originals,
+bundled sources, reference packages and native v4 are not deletion targets;
+independent grants/history/audit and immutable admitted tasks are unaffected
+([store](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.Deletion.cs)).
+
 [Definition Management](Definition_Management.md) owns the common
 source, UI/voice editing, activation, and external-reload contract for skills,
 prompts, instructions, and agent profiles. Dedicated reviewed writes do not
 expand source-read consent into generic profile editing or execution authority.
 
 ## Explicit local Markdown references v2
+
+Native owned package ID rename is a separate [reviewed multi-step writer operation](Definition_Management.md#reviewed-owned-native-skill-package-rename). Its current two-file v1/v2/v3/v4 subset retains complete guidance/declarations, verifies new publication and old-name absence, and reopens disabled.
+Private local intent holds affected identities unavailable until separately confirmed recovery; it does not extend the shared Markdown reference profile below or authorize primary-only `SKILL.md` rename ([native owner](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.Rename.cs)).
+Hidden affected identities still reserve one logical immutable version and the larger complete old/new byte size for publication/recovery quotas; hiding them is not freed storage capacity. Source retirement and destination readback retain exact non-movable file holds under the [rename contract](Definition_Management.md#reviewed-owned-native-skill-package-rename).
 
 The v1 single-file profile remains unchanged. A primary `SKILL.md` may opt into
 the finite local-only v2 profile with these exact additional flat fields:

@@ -8,5 +8,7 @@ internal sealed partial class SessionsWindowController
     {
         createdModel.BindResponseModeSuggestions(host.ReviewResponseModeSuggestionAsync,
             (review, token) => host.ConfirmResponseModeSuggestionAsync(review, token));
+        createdModel.BindWindowsSpeechRateSuggestions(host.ReviewWindowsSpeechRateSuggestionAsync,
+            (review, token) => host.ConfirmWindowsSpeechRateSuggestionAsync(review, token));
     }
 }

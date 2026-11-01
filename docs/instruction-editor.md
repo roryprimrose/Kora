@@ -80,7 +80,13 @@ the rename. Neither source nor the open editor draft is silently replaced.
 
 The old ID becomes unavailable; the new source opens **disabled/held** and
 needs a fresh, separate **Review use**. Explicitly Inspect/Reopen the new ID
-to check its current resolution status. Old dependent references remain old
+to check its current resolution status. A rename started from an inspected
+inventory row hands the confirmed new ID and complete source back to the same
+editor; choose native **Inspect** to read its current status without reselecting
+the retired old row. Internal inventory clearing is not a draft edit. Actual
+draft, name, command, selection or admission changes still retire the review
+and preserve the draft rather than adopting a result into changed input.
+Old dependent references remain old
 and cannot resolve to the new source by name. Saving or allowing the new source
 does not transfer grants, applicability or dependent approval. Admitted content
 is never switched mid-task; existing source/access and stricter agent-bundle

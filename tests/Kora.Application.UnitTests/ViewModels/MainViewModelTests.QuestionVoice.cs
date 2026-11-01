@@ -12,8 +12,13 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
-    private sealed class QuestionVoiceAdapter(FakeVoiceRecognitionService voice) : IQuestionVoiceRecognitionService
+    private sealed class QuestionVoiceAdapter(FakeVoiceRecognitionService voice) : IQuestionVoiceRecognitionService, ISpeechInputProfileRuntime
     {
+        private readonly SpeechInputTestRuntime runtime = new(voice);
+        public SpeechInputGeneration ProfileGeneration => runtime.ProfileGeneration;
+        public bool IsProfileAvailable => runtime.IsProfileAvailable;
+        public void InitializeProfile(SpeechInputSelection? selection) => runtime.InitializeProfile(selection);
+        public Task<ISpeechInputProfileSwitch> RetireProfileAsync(CancellationToken cancellationToken) => runtime.RetireProfileAsync(cancellationToken);
         public event EventHandler<VoiceTranscriptEventArgs>? TranscriptRecognized
         { add => voice.TranscriptRecognized += value; remove => voice.TranscriptRecognized -= value; }
         public event EventHandler<VoiceRecognitionFailureEventArgs>? RecognitionFailed

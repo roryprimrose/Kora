@@ -26,6 +26,9 @@ public static class RegisteredSettingSuggestions
         + "The original user must review exact current/proposed values and scope, then separately confirm or cancel. "
         + "Spoken-summary review includes both caps and preserves the companion cap. Volume review includes desired/effective "
         + "values and saved/default provenance; zero blocks future synthesis, preserving full visual output. "
+        + "Windows rate uses exact 'set speech.windows-rate to <canonical integer>' from -10 through 10, normal 0, "
+        + "not percent or a common speed scale. Review shows provider/support, desired/effective native units and saved/default "
+        + "provenance; only the already available Windows adapter can apply. Kokoro remains unchanged. "
         + "Response-mode review shows saved/default, desired and configured effective modes. Use exact canonical "
         + "Hybrid, VoiceOnly or VisualOnly; mandatory full visual warnings, questions, approvals, security, speech-unavailable "
         + "fallback, privacy and call restrictions always win, including VoiceOnly. Response mode affects future eligible output only. "
@@ -73,6 +76,9 @@ public static class RegisteredSettingSuggestions
             if (string.Equals(answer, $"set {ResponseModeCommand.OptionId} to {mode}", StringComparison.Ordinal))
             { return new RegisteredSettingProposal.ResponseMode(mode); }
         }
+        const string ratePrefix = "set speech.windows-rate to ";
+        if (answer.StartsWith(ratePrefix, StringComparison.Ordinal))
+        { return new RegisteredSettingProposal.WindowsRate(WindowsSpeechRate.Parse(answer[ratePrefix.Length..])); }
         throw new InvalidDataException("No admitted setting suggestion. Request one exact registered Set value; nothing was applied.");
     }
 }

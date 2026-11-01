@@ -230,6 +230,10 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview, IO
         panel.Children.Add(new ScrollViewer { Content = files });
         dialog.Content = panel;
         review = dialog;
+        dialog.KeyDown += (_, key) =>
+        {
+            if (key.Key == Avalonia.Input.Key.Escape) { key.Handled = true; dialog.Close(); }
+        };
         dialog.Closed += (_, _) => { if (ReferenceEquals(review, dialog)) { review = null; } result.TrySetResult(-1); };
         using var cancellation = token.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(dialog.Close));
         dialog.Show(this);

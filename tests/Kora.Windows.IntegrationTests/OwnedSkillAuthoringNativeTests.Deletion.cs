@@ -1,4 +1,6 @@
 using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using AwesomeAssertions;
@@ -18,6 +20,8 @@ public sealed partial class OwnedSkillAuthoringNativeTests
     [InlineData("voice")]
     [InlineData("cancel-review")]
     [InlineData("cancel-confirm")]
+    [InlineData("escape-review")]
+    [InlineData("escape-confirm")]
     [InlineData("dirty-cancel")]
     [InlineData("dirty-discard")]
     [InlineData("dirty-save")]
@@ -66,6 +70,14 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             }
             static void Choose(Window dialog, string caption) => dialog.GetLogicalDescendants().OfType<Button>()
                 .Single(button => Equals(button.Content, caption)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            static bool Escape(Window dialog)
+            {
+                dialog.GetLogicalDescendants().OfType<TextBox>().Last().Focus().Should().BeTrue();
+                dialog.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+                var dismissed = !dialog.IsVisible;
+                if (!dismissed) { dialog.Close(); }
+                return dismissed;
+            }
             if (scenario is "voice")
             {
                 f.Main.BindVoiceOwnershipGate(static () => true);
@@ -127,18 +139,30 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             var disclosure = string.Join("\n", sourceReview.GetLogicalDescendants().OfType<TextBlock>().Select(block => block.Text));
             disclosure.Should().Contain(store.Destination(document)).And.Contain("references: none")
                 .And.Contain("Immutable admitted tasks are not cancelled").And.Contain("independent grants");
+            var originalGuidance = editing.Guidance.Text;
             if (scenario is "draft") { editing.Guidance.Text = "changed draft"; }
             if (scenario is "selection") { editing.Saved.SelectedIndex = 0; }
             if (scenario is "owner") { ownership++; }
             if (scenario is "control") { f.Access.SetOpen(false); }
             if (scenario is "privacy") { f.Main.CloseForObservedPrivacyEvent("Synthetic deletion input withdrawal", hidePresentation: true); }
             if (scenario is "source") { await File.WriteAllTextAsync(Path.Combine(store.Destination(document), "instructions.md"), "changed source", f.Token); }
-            Choose(sourceReview, scenario is "cancel-review" ? "Cancel" : "Continue to separate deletion confirmation");
-            if (scenario is "draft" or "selection" or "owner" or "control" or "privacy" or "source" or "cancel-review")
+            var dismissed = false;
+            if (scenario is "escape-review") { dismissed = Escape(sourceReview); }
+            else { Choose(sourceReview, scenario is "cancel-review" ? "Cancel" : "Continue to separate deletion confirmation"); }
+            if (scenario is "draft" or "selection" or "owner" or "control" or "privacy" or "source" or "cancel-review" or "escape-review")
             {
                 await operation;
                 File.Exists(Path.Combine(store.Destination(document), "manifest.yaml")).Should().BeTrue();
                 if (scenario is "privacy") { await f.Main.PrivacyClosureTask; }
+                if (scenario is "escape-review")
+                {
+                    dismissed.Should().BeTrue("Escape rejects the exact review without entering confirmation");
+                    next.Task.IsCompleted.Should().BeFalse();
+                    editing.IsVisible.Should().BeTrue();
+                    editing.Guidance.Text.Should().Be(originalGuidance);
+                    (await store.Read("example", "1.0.0", f.Token))!.IsSameRevision(saved).Should().BeTrue();
+                    (await store.Read("another", "1.0.0", f.Token))!.IsSameRevision(other).Should().BeTrue();
+                }
                 return;
             }
             var confirmation = await Review(operation);
@@ -146,7 +170,8 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             Directory.Exists(store.Destination(document)).Should().BeTrue();
             if (scenario is "uncertain")
             { store.Checkpoint = point => { if (point is "after-delete") { throw new IOException("fixture readback unavailable"); } }; }
-            Choose(confirmation, scenario is "cancel-confirm" ? "Cancel" : "Delete only this exact owned source");
+            if (scenario is "escape-confirm") { dismissed = Escape(confirmation); }
+            else { Choose(confirmation, scenario is "cancel-confirm" ? "Cancel" : "Delete only this exact owned source"); }
             await operation;
             store.Checkpoint = null;
             if (scenario is "uncertain")
@@ -156,8 +181,18 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 await Run("owned skill delete example 1.0.0");
                 next.Task.IsCompleted.Should().BeFalse();
             }
-            else if (scenario is "cancel-confirm")
-            { (await store.Read("example", "1.0.0", f.Token))!.IsSameRevision(saved).Should().BeTrue(); }
+            else if (scenario is "cancel-confirm" or "escape-confirm")
+            {
+                (await store.Read("example", "1.0.0", f.Token))!.IsSameRevision(saved).Should().BeTrue();
+                if (scenario is "escape-confirm")
+                {
+                    dismissed.Should().BeTrue("Escape rejects the separate confirmation without deletion");
+                    next.Task.IsCompleted.Should().BeFalse();
+                    editing.IsVisible.Should().BeTrue();
+                    editing.Guidance.Text.Should().Be(originalGuidance);
+                    (await store.Read("another", "1.0.0", f.Token))!.IsSameRevision(other).Should().BeTrue();
+                }
+            }
             else
             {
                 (await store.Read("example", "1.0.0", f.Token)).Should().BeNull();

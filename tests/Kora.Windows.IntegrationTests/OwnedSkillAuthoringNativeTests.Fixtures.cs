@@ -1,5 +1,7 @@
 using System.Text.Json;
 using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using AwesomeAssertions;
@@ -27,6 +29,8 @@ public sealed partial class OwnedSkillAuthoringNativeTests
     [InlineData("saved-delete-refine")]
     [InlineData("saved-delete-edited")]
     [InlineData("reject")]
+    [InlineData("review-escape")]
+    [InlineData("result-escape")]
     [InlineData("unknown")]
     [InlineData("mocked-tool")]
     [InlineData("v2")]
@@ -169,7 +173,16 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 adapter.Calls.Should().Be(0);
                 return;
             }
-            Choose(disclosure, scenario is "reject" ? "Cancel" : "Start SIMULATED test");
+            if (scenario is "review-escape")
+            {
+                reviewed[0].Focus().Should().BeTrue();
+                disclosure.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+                var dismissed = !disclosure.IsVisible;
+                if (!dismissed) { Choose(disclosure, "Cancel"); }
+                await testing;
+                dismissed.Should().BeTrue("Escape must reject the exact review without starting inference");
+            }
+            else { Choose(disclosure, scenario is "reject" ? "Cancel" : "Start SIMULATED test"); }
             if (late)
             {
                 (await Task.WhenAny(adapter.Started.Task, testing)).Should().BeSameAs(adapter.Started.Task);
@@ -209,11 +222,11 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 if (disposing is not null) { await disposing; }
                 next.Task.IsCompleted.Should().BeFalse("no late simulated output may become a result window");
             }
-            else if (scenario is "reject" or "unavailable")
+            else if (scenario is "reject" or "review-escape" or "unavailable")
             {
                 await testing;
                 next.Task.IsCompleted.Should().BeFalse();
-                adapter.Calls.Should().Be(scenario is "reject" ? 0 : 1);
+                adapter.Calls.Should().Be(scenario is "unavailable" ? 1 : 0);
             }
             else
             {
@@ -228,10 +241,20 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 var expectedStatus = scenario is "fail" ? "SIMULATED / FAIL" : "SIMULATED / PASS";
                 result.GetLogicalDescendants().OfType<TextBlock>().Should().Contain(block => block.Text != null
                     && block.Text.Contains(expectedStatus, StringComparison.Ordinal));
-                Choose(result, "Dismiss simulated result");
+                if (scenario is "result-escape")
+                {
+                    results[1].Focus().Should().BeTrue();
+                    result.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+                    var dismissed = !result.IsVisible;
+                    if (!dismissed) { Choose(result, "Dismiss simulated result"); }
+                    await testing;
+                    dismissed.Should().BeTrue("Escape must dismiss only the volatile simulated result");
+                }
+                else { Choose(result, "Dismiss simulated result"); }
                 await testing;
                 adapter.Wire.Should().Equal(System.Text.Encoding.UTF8.GetBytes(reviewed[1].Text!));
             }
+            adapter.Calls.Should().Be(scenario is "reject" or "review-escape" ? 0 : 1);
             owned.Guidance.Text.Should().Be(scenario is "late-draft" ? guidance + "EDIT" : guidance);
             (await store.List(f.Token)).Count.Should().Be(savedSource ? 1 : 0);
             document.IsAvailableForInvocation.Should().BeFalse();

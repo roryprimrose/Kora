@@ -40,6 +40,9 @@ public sealed class CustomNameWakeCutoverTests
             await host.InitializeAsync(null, voiceRecognition: voice, speechInputConfiguration: configuration);
             try
             {
+            host.Main.HasVoiceConsent.Should().BeFalse();
+            voice.IsCaptureQuiescent.Should().BeTrue();
+            factory.Created.Should().Be(0, "fixture initialization cannot open the injected capture runtime");
             host.Main.BindVoiceOwnershipGate(static () => true);
             host.Main.BindSpeechInputNativeLifetime(static () => true);
             string? routedText = null;
@@ -63,12 +66,15 @@ public sealed class CustomNameWakeCutoverTests
             factory.Created.Should().Be(0, "review/preparation cannot execute native code or open capture");
             await host.Main.ConfirmSpeechInputCommand.ExecuteAsync();
             configuration.Get().Effective!.Selection.Should().Be(SpeechInputProfileCatalogue.NativeWakeSelection);
+            voice.ProfileGeneration.Should().Be(configuration.Get().Effective,
+                "the fixture setup phase must bind the supplied runtime and configuration to the same exact generation");
             host.Main.IsListening.Should().BeFalse();
             host.Main.IsVoiceEnabled.Should().BeFalse();
             await host.Main.SetVoiceConsentAsync(true);
             if (!host.Main.IsVoiceEnabled) { await host.Main.ToggleListeningCommand.ExecuteAsync(); }
             var first = await factory.NextAsync();
             await first.Microphone.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
+            host.Voice.StartCalls.Should().Be(0, "wake capture belongs to the supplied hands-free runtime, not the fixture default");
             first.Api.Strings["keyphrase"].Should().Be(name.ToLowerInvariant());
             first.Api.Strings["kws"].Should().BeNull();
             first.Api.Strings["lm"].Should().BeNull();

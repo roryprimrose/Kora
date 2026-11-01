@@ -1086,6 +1086,23 @@ results are observations rather than runtime progress or conversation history.
 Protected-call voice mutations remain unavailable; pending bootstrap questions
 and approvals are preserved and must be resolved explicitly.
 
+### Use clipboard as an ordinary clarification answer
+
+For an ordinary free-text conversation clarification, deliberately choose **Use clipboard as my answer** in that exact question window. Allow or deny the existing clipboard-read permission review; opening a question or choosing the shortcut does not grant permission ([question controls](../src/Kora/QuestionWindow.axaml)).
+
+In that read-permission question, **Why is this allowed / why does it need approval?** shows only the pending policy snapshot.
+Choose **Return to same approval** before the separate exact-record review and approval. Neither policy control reads the clipboard, accepts an answer draft or submits the original clarification.
+
+Review the **complete captured text** and its snapshot provenance. Choose **Accept reviewed text as draft**, then separately **Submit answer**. If a manual draft already exists, first acknowledge replacing that displayed draft.
+Accepting never submits, approves an action or sends anything to a model; normal task and transmission reviews remain independent ([workflow](../src/Kora/QuestionClipboardAnswer.cs)).
+
+The source must wholly fit the displayed question bound (currently 500 characters for conversation clarification) and normal Unicode/credential rules. Invalid or overlong text is rejected, not shortened. Changing the system clipboard after capture cannot replace the reviewed text or trigger a reread ([regressions](../tests/Kora.Windows.IntegrationTests/QuestionClipboardAnswerTests.cs)).
+
+**Cancel clipboard answer** preserves the prior manual draft and leaves the question unanswered. Manual typing retires the capture without overwriting the new typing.
+Permission loss, expiry, stale/replaced question or unavailable private presentation refuses the candidate; start a fresh deliberate review. Clipboard drafts cannot use **Save draft** before submission ([native answer state](../src/Kora/NativeQuestionViewModel.cs)).
+
+This shortcut is unavailable for choices, approvals, authentication, permission, consent and security questions. It is not clipboard explanation, source grounding, polling, automatic paste/answer or a new clipboard archive. Existing manual OS paste and source-copy restrictions are unchanged ([scope](../Design/Interaction_Fallback.md#delivered-ordinary-clarification-clipboard-answer)).
+
 ### Local clipboard preview
 
 The separate [clipboard preview](commands.md#explicit-local-clipboard-preview)

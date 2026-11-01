@@ -13,6 +13,7 @@ namespace Kora.Application.Memory;
 internal sealed partial class MemoryManagementService : IAsyncDisposable, IMemoryBatchActions
 {
     private readonly SessionWorkspaceService sessions;
+    private readonly ISessionWorkspaceStore workspace;
     private readonly ManagementAccess access;
     internal MemoryAdmissionService Admission { get; }
     private readonly SemaphoreSlim gate = new(1, 1);
@@ -28,6 +29,7 @@ internal sealed partial class MemoryManagementService : IAsyncDisposable, IMemor
         ISecurityAuditLog audit, ILogger<MemoryAdmissionService> logger, TimeProvider time)
     {
         this.sessions = sessions;
+        this.workspace = workspace;
         this.access = new(access);
         contextSource = new(sessions, workspace, access, host, store, audit);
         contextTime = time;
@@ -179,6 +181,12 @@ internal sealed partial class MemoryManagementService : IAsyncDisposable, IMemor
                     }
                     else
                     {
+                        if (record.Lineage.CopiedFromSession is not null
+                            && record.Review is MemoryReviewState.Proposed or MemoryReviewState.Reviewed
+                            && command.Operation is MemoryCommandOperation.Review or MemoryCommandOperation.Admit or MemoryCommandOperation.Edit)
+                        {
+                            throw new InvalidOperationException("Use the exact Session-to-profile copy review; ordinary memory commands cannot bypass source revalidation.");
+                        }
                         if (record.Lineage.Origin == MemoryProposalOrigin.Model
                             && record.Review is MemoryReviewState.Proposed or MemoryReviewState.Reviewed
                             && command.Operation is MemoryCommandOperation.Review or MemoryCommandOperation.Admit)

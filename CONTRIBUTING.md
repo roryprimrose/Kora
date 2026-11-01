@@ -179,6 +179,9 @@ consumers, including links embedded in the guide and historical experiments.
   counts or an incomplete command task. Await cancellation acceptance, owned
   resource completion and the exact UI publication separately. Drain dispatcher
   work only after the operation it presents has joined.
+- Concurrent terminal-storage fakes must build message/task receipts from each
+  original request's retained snapshot, not mutable fixture-wide selection.
+  Force interleaving deterministically and verify both exact retained readbacks.
 - Preserve production deadlines; use existing fake clocks for non-deadline
   scenarios. Dispose asynchronous fixture owners and release held operations in
   `finally`. See the [microphone ownership regressions](tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.MicrophoneRefreshOwnership.cs).

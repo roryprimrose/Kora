@@ -17,6 +17,7 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore
             {
                 using var pins = PinRoot(token, requireExisting: true);
                 using var lease = directory.AcquireBoundedLease(requireExisting: true, token);
+                RequireNoPendingRename(id, version, token);
                 var target = Path.Combine(directory.Root, id, version);
                 if (deletionHolds.Contains(target))
                 { throw new InvalidOperationException("This source has a retired or unconfirmed deletion. Inspect/recover it explicitly; automatic retry is unavailable."); }
@@ -48,6 +49,7 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore
     private void ValidateDeletionCore(OwnedSkillDeletionSnapshot expected, OwnedSkillPackagePublication pins, CancellationToken token)
     {
         var source = expected.Source;
+        RequireNoPendingRename(source.Document.Id, source.Document.Version, token);
         if (source.Document.ReferenceDeclaration is not null || source.Document.ObservationWorkflow is not null
             || deletionHolds.Contains(expected.Destination)
             || !string.Equals(expected.Destination, Destination(source.Document), StringComparison.Ordinal)
@@ -138,7 +140,7 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore
                 entries.Add(Path.GetFileName(child) + ":" + WindowsFileIdentity.Read(pins.PinDirectory(child)));
             }
         }
-        var identity = string.Join('\n', entries) + "\n" + string.Join('\n', catalogue.Select(source =>
+        var identity = string.Join('\n', entries) + "\n" + string.Join('\n', catalogue.Packages.Select(source =>
             source.Document.Id + "/" + source.Document.Version + ":" + source.DirectoryIdentity + ":"
             + source.ManifestIdentity + ":" + source.InstructionsIdentity + ":" + source.Document.RevisionDigest));
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity)));

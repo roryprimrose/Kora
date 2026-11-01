@@ -108,14 +108,17 @@ internal sealed class MixedContextWorkflow(
         {
             await conversation.ValidateMixedHistoryAsync(target, ordered, Live, token).ConfigureAwait(false);
             source = await instructionBroker.ReviewSourceAsync(target, instruction, Live, token, origin).ConfigureAwait(false);
-            memory = await memoryBroker.ReviewAsync(target, selection, body, Live, token, origin).ConfigureAwait(false);
+            memory = await memoryBroker.ReviewMixedSourceAsync(target, selection, body, Live, origin, token).ConfigureAwait(false);
             var review = new MixedContextReview(this, source, memory, ordered, time, new(activity.Activity!.Context));
             lock (gate)
             {
-                if (!Live()) { review.Dispose(); throw new OperationCanceledException("A newer mixed-context review replaced this operation."); }
+                if (!review.Current) { review.Dispose(); throw new OperationCanceledException("A newer mixed-context review replaced this operation."); }
                 current = review;
             }
             await ValidateAsync(review, null, admitted, token).ConfigureAwait(false);
+            if (!review.Current)
+            { review.Dispose(); throw new OperationCanceledException("The original review was revoked before publication."); }
+            review.MarkValidated();
             activity.Complete(HostOperationOutcome.Completed);
             return review;
         }
@@ -130,6 +133,45 @@ internal sealed class MixedContextWorkflow(
         {
             source?.Retire();
             memory?.Dispose();
+            activity.Complete(HostOperationOutcome.Failed);
+            throw;
+        }
+    }
+
+    internal async Task<MixedContextReview> RemoveWholeContributionAsync(MixedContextReview review,
+        MixedContextContribution contribution, Func<bool> admitted, CancellationToken token)
+    {
+        SessionConversationService.RequireOriginalSource(review.Origin);
+        using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), review.Target.Authority.SessionId,
+            new(Guid.NewGuid()), review.Origin), HostActivityLayer.Application, HostOperation.Request, [review.Cause]);
+        try
+        {
+            MixedContextReview replacement;
+            lock (gate)
+            {
+                ObjectDisposedException.ThrowIf(disposed, this);
+                if (!ReferenceEquals(current, review))
+                { throw new InvalidOperationException("Only the exact current review may be reduced."); }
+                replacement = review.RemoveWholeContribution(contribution, time, new(activity.Activity!.Context));
+                current = replacement;
+            }
+            await ValidateAsync(replacement, null, admitted, token).ConfigureAwait(false);
+            lock (gate)
+            {
+                if (!admitted() || !replacement.Current)
+                { replacement.Dispose(); throw new OperationCanceledException("The reduced review is no longer current; read fresh sources."); }
+                replacement.MarkValidated();
+            }
+            activity.Complete(HostOperationOutcome.Completed);
+            return replacement;
+        }
+        catch (OperationCanceledException)
+        {
+            activity.Complete(HostOperationOutcome.Cancelled);
+            throw;
+        }
+        catch
+        {
             activity.Complete(HostOperationOutcome.Failed);
             throw;
         }
@@ -168,6 +210,7 @@ internal sealed class MixedContextWorkflow(
             await conversation.ValidateMixedHistoryAsync(review.Target, review.History, Live, token).ConfigureAwait(false);
             await review.Instruction.ValidateSourceAsync(token).ConfigureAwait(false);
             if (use is not null) { await use.ValidateAsync(token).ConfigureAwait(false); }
+            else { await review.Memory.ValidateAsync(Live, token).ConfigureAwait(false); }
         }
         catch
         {

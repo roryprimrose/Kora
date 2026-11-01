@@ -48,6 +48,10 @@ public sealed class OwnedSkillMarkdownCommandTests
             .Should().Be(new OwnedSkillAuthoringCommand("reference", Literal: "owned skill delete daily-review 1.0.0", InputName: "notes.md"));
         OwnedSkillAuthoringCommand.Syntax.Should().Contain("owned skill format markdown-package")
             .And.Contain("owned skill reference <relative.md>: <literal>")
-            .And.Contain("owned skill delete <id> <version>");
+            .And.Contain("owned skill rename <old-id> <version> <new-id>")
+            .And.Contain("owned skill recover-rename <old-id> <version>");
+        OwnedSkillAuthoringCommand.Parse("Nova, owned skill rename daily-review 1.0.0 renamed", "Nova")!
+            .Should().Be(new OwnedSkillAuthoringCommand("rename", "daily-review", "1.0.0", "renamed"));
+        OwnedSkillAuthoringCommand.Syntax.Should().Contain("owned skill delete <id> <version>");
     }
 }

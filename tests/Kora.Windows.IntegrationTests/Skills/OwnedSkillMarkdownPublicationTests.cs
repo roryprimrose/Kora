@@ -22,19 +22,34 @@ public sealed partial class OwnedSkillMarkdownPublicationTests
         OwnedDeclarativeSkillDocument document, OwnedDeclarativeSkillSnapshot? source = null) =>
         store.Publish(document, static () => true, operation => Task.FromResult(operation()), Token, source);
 
-    [Fact]
-    public async Task CatalogueCountsEveryStoredComponentWithoutReadingBodiesAndRejectsOneByteOverTotalLimit()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CatalogueCountsEveryStoredComponentWithoutReadingBodiesAndRejectsOneByteOverTotalLimit(bool pendingRename)
     {
         using var paths = new OwnedStorageFixture();
         var store = new WindowsOwnedDeclarativeSkillStore(paths);
-        var documents = Enumerable.Range(0, SharedSkillCatalogue.MaximumPackages)
+        var reservedBytes = 0;
+        if (pendingRename)
+        {
+            var original = await Save(store, OwnedDeclarativeSkillDocument.Create("rename-source", "1.0.0", "Original", "Description", "Literal"));
+            var proposal = new OwnedSkillRename(original, "renamed");
+            reservedBytes = Math.Max(original.Document.TotalBytes, proposal.Renamed.TotalBytes);
+            store.Checkpoint = point => { if (point is "rename-destination-verified") { throw new IOException("injected boundary"); } };
+            await store.Invoking(value => value.Rename(proposal, false, static () => true,
+                operation => Task.FromResult(operation()), Token)).Should().ThrowAsync<OwnedSkillRenameUnconfirmedException>();
+            store = new WindowsOwnedDeclarativeSkillStore(paths);
+        }
+        var documents = Enumerable.Range(0, SharedSkillCatalogue.MaximumPackages - (pendingRename ? 2 : 0))
             .Select(index => Document("1.0." + index)).ToArray();
         foreach (var document in documents) { await Save(store, document); }
-        var packageBytes = SharedSkillCatalogue.MaximumTotalBytes / documents.Length;
+        var budget = SharedSkillCatalogue.MaximumTotalBytes - reservedBytes;
+        var packageBytes = budget / documents.Length;
         foreach (var document in documents)
         {
             // External saved-file changes must not bypass the catalogue's aggregate bound.
-            var remaining = packageBytes - document.ManifestBytes.Length - document.InstructionBytes.Length;
+            var remaining = packageBytes + (ReferenceEquals(document, documents[0]) ? budget % documents.Length : 0)
+                - document.ManifestBytes.Length - document.InstructionBytes.Length;
             for (var index = 0; index < document.References.Count; index++)
             {
                 var size = remaining / (document.References.Count - index);
@@ -48,20 +63,28 @@ public sealed partial class OwnedSkillMarkdownPublicationTests
         var referenceReads = 0;
         store.Checkpoint = point => { if (point is "before-reference-read") { referenceReads++; } };
         var catalogue = await store.List(Token);
-        catalogue.Should().HaveCount(SharedSkillCatalogue.MaximumPackages);
-        catalogue.Sum(snapshot => snapshot.TotalBytes).Should().Be(SharedSkillCatalogue.MaximumTotalBytes);
+        catalogue.Should().HaveCount(documents.Length);
+        catalogue.Sum(snapshot => snapshot.TotalBytes).Should().Be(budget);
         catalogue.Should().OnlyContain(snapshot => !snapshot.Document.IsComplete && !snapshot.Document.IsAvailableForInvocation);
         referenceReads.Should().Be(0);
+        if (pendingRename)
+        {
+            await store.Invoking(value => Save(value, Document("2.0.0"))).Should().ThrowAsync<InvalidDataException>()
+                .WithMessage("The saved skill catalogue exceeds its total byte bound, including retained renames.");
+            Directory.Exists(store.Destination(Document("2.0.0"))).Should().BeFalse();
+            (await store.PendingRenames(Token)).Should().ContainSingle();
+            referenceReads.Should().Be(0);
+        }
 
         var overflow = Path.Combine(store.Destination(documents[0]), documents[0].References[0].RelativePath);
         await using (var stream = new FileStream(overflow, FileMode.Append, FileAccess.Write, FileShare.None))
         { await stream.WriteAsync("x"u8.ToArray(), Token); }
         await store.Invoking(value => value.List(Token)).Should().ThrowAsync<InvalidDataException>()
-            .WithMessage("The saved skill catalogue exceeds its total byte bound.");
+            .WithMessage("The saved skill catalogue exceeds its total byte bound, including retained renames.");
         referenceReads.Should().Be(0);
         Directory.EnumerateDirectories(Path.Combine(paths.RoamingRoot, "Skills", "example")).Should().HaveCount(documents.Length);
         (await store.Read("example", "1.0.0", Token, OwnedSkillReadScope.PrimaryDeclaration))!
-            .TotalBytes.Should().Be(packageBytes + 1);
+            .TotalBytes.Should().Be(packageBytes + budget % documents.Length + 1);
     }
 
     [Fact]

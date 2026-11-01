@@ -13,7 +13,7 @@ using Kora.Core.Storage;
 namespace Kora.Application.UnitTests.Skills;
 
 [Collection("Host tracing")]
-public sealed class OwnedSkillSaveWorkflowTests : IDisposable
+public sealed partial class OwnedSkillSaveWorkflowTests : IDisposable
 {
     private readonly ActivityListener listener = new()
     {

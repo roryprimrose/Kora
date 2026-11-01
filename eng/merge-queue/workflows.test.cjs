@@ -3,7 +3,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { execution, controllerOperation, CHECKS, GATE, JOBS, terminalJobs } = require('./policy.cjs');
+const { execution, controllerOperation, CHECKS, GATE, JOBS, WINDOWS_12_JOBS, PREDECESSOR_WORKFLOWS,
+  workflowJobs, requiredJobsState, terminalJobs } = require('./policy.cjs');
 const root = path.resolve(__dirname, '..', '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8').replaceAll('\r\n', '\n');
 const ci = process.env.KORA_QUEUE_WORKFLOW_TEST_PATH
@@ -97,17 +98,43 @@ test('candidate jobs check out the admitted SHA, preserve all required identitie
 
 test('independent producers are joined without preventing retirement of predecessor workflow runs', () => {
   const predecessorJobs = JOBS.map(name => ({ name, status: 'completed', conclusion: 'success' }));
-  assert.equal(terminalJobs(predecessorJobs), true);
-  assert.equal(terminalJobs([...predecessorJobs,
-    { name: 'Portable build, tests, and coverage', status: 'completed', conclusion: 'success' },
-    { name: 'Publish and inspect exact-source payloads', status: 'completed', conclusion: 'success' },
-  ]), true);
+  assert.equal(terminalJobs(predecessorJobs,
+    workflowJobs('name: CI\n', '9f19d4298cde21e313481cec9042138d6378b7ba')), true);
+  assert.equal(terminalJobs(predecessorJobs, workflowJobs(ci, 'current')), false);
   assert.ok(!JOBS.includes('Portable build, tests, and coverage'));
   assert.ok(!JOBS.includes('Publish and inspect exact-source payloads'));
   assert.match(job('portable-tests'), /name: Portable build, tests, and coverage/);
   assert.match(job('payload'), /name: Publish and inspect exact-source payloads/);
   assert.match(job('release'), /needs: \[version, portable, windows-integration, installer\]/);
   assert.match(job('portable'), /needs: \[admission, version, portable-tests, payload\]/);
+});
+
+test('trusted workflow schema inventories every candidate producer and matrix identity exactly', () => {
+  const expected = workflowJobs(ci, 'current');
+  assert.deepEqual(expected, WINDOWS_12_JOBS);
+  const excluded = ['Compare portable test scheduling', 'Compare native fixture evidence',
+    'Queue policy feedback', 'Publish GitHub release'];
+  const actual = [...ci.matchAll(/^  ([a-z][\w-]*):\n    name: (.+)$/gm)].flatMap(([, id, name]) => {
+    if (excluded.includes(name)) return [];
+    if (!name.includes('${{')) return [name];
+    const matrix = job(id).match(/^        (\w+): \[([^\]]+)\]$/m);
+    assert.ok(matrix, `Missing bounded matrix for ${id}`);
+    return matrix[2].split(',').map(value => name.replace(`\${{ matrix.${matrix[1]} }}`, value.trim()));
+  });
+  assert.deepEqual(actual.sort(), [...expected].sort());
+  assert.equal(new Set(actual).size, actual.length);
+  for (const [blob, inventory] of Object.entries(PREDECESSOR_WORKFLOWS))
+    assert.equal(workflowJobs('name: CI\n', blob), inventory);
+  for (const source of ['name: CI\n', '# merge-queue-job-schema: unknown\n',
+    '# merge-queue-job-schema: windows-12-v1\n# merge-queue-job-schema: windows-12-v1\n',
+    '# merge-queue-job-schema: \n']) {
+    const inventory = workflowJobs(source, 'unknown');
+    assert.equal(inventory, null);
+    assert.equal(terminalJobs(actual.map(name => ({ name, status: 'completed', conclusion: 'success' })), inventory), false);
+    assert.equal(requiredJobsState([], inventory), 'pending');
+  }
+  assert.equal(workflowJobs('name: CI\n', '__proto__'), null);
+  assert.deepEqual(workflowJobs('# merge-queue-job-schema: windows-12-v1\r\n', 'unknown'), expected);
 });
 
 test('Windows tests scale out to twelve artifact-only jobs behind predecessor-compatible gates', () => {

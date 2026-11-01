@@ -34,7 +34,10 @@ public sealed class HandsFreeSetupRuntime : ISpeechComponentRuntime, IAsyncDispo
 
     internal IReadOnlyList<HandsFreeNativeProfile> Profiles => [profile];
     internal bool IsPlatformCompatible => compatible;
-    internal bool IsCaptureHeld { get { lock (ownership) { return captureHeld; } } }
+    internal bool IsCaptureHeld
+    {
+        get { lock (ownership) { return disposed || captureHeld || mutationRequested || currentOwner is not null; } }
+    }
     internal const string CaptureUnavailable = "Hands-free capture is Unavailable: name, playback and acoustic qualification is missing. "
         + "Use PTT, typed or native controls; preparation grants no capture/inference authority.";
 

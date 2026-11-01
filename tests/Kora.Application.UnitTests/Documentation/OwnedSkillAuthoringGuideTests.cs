@@ -72,6 +72,15 @@ public sealed class OwnedSkillAuthoringGuideTests
             .And.Contain("native v5")
             .And.Contain("entire")
             .And.Contain("no hosted fallback");
+        guide.Markdown.Should().Contain("owned skill rename example 1.0.0 renamed")
+            .And.Contain("owned skill recover-rename example 1.0.0")
+            .And.Contain("your new text and its unsaved-draft prompt remain intact")
+            .And.Contain("New simulated-fixture input during that refresh is also retained")
+            .And.Contain("Pending renames still count")
+            .And.Contain("recovery refuses an already over-limit inventory")
+            .And.Contain("Delete** also refuses both affected identities")
+            .And.Contain("Escape** rejects either review without renaming")
+            .And.Contain("does not undo the native rename");
         guide.Markdown.Should().Contain("owned skill delete daily-review 1.0.0")
             .And.Contain("Delete only this exact owned source")
             .And.Contain("Native v5 Markdown packages are rejected")

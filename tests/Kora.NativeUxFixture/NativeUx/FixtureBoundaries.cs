@@ -51,8 +51,31 @@ internal static class FixtureBoundaries
         }
     }
 
-    internal sealed class FixtureVoice(bool syntheticCapture = false) : IQuestionVoiceRecognitionService
+    internal sealed class FixtureVoice(bool syntheticCapture = false) : IQuestionVoiceRecognitionService, ISpeechInputProfileRuntime
     {
+        public SpeechInputGeneration ProfileGeneration { get; private set; } = new(0, SpeechInputSelection.Default);
+        public bool IsProfileAvailable { get; private set; } = true;
+        public void InitializeProfile(SpeechInputSelection? selection)
+        {
+            IsProfileAvailable = selection is not null && SpeechInputProfileCatalogue.UnavailableReason(selection) is null;
+            if (selection is not null) { ProfileGeneration = new(0, selection); }
+        }
+        public async Task<ISpeechInputProfileSwitch> RetireProfileAsync(CancellationToken cancellationToken)
+        {
+            await StopAsync(cancellationToken);
+            IsProfileAvailable = false;
+            return new ProfileSwitch(this);
+        }
+        private sealed class ProfileSwitch(FixtureVoice owner) : ISpeechInputProfileSwitch
+        {
+            public void Publish(SpeechInputGeneration generation)
+            {
+                owner.ProfileGeneration = generation;
+                owner.IsProfileAvailable = SpeechInputProfileCatalogue.UnavailableReason(generation.Selection) is null;
+            }
+            public void HoldUnavailable() => owner.IsProfileAvailable = false;
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
         internal static MicrophoneDevice SyntheticMicrophone { get; } = new("fixture-synthetic-microphone", "Synthetic fixture microphone");
         internal bool SyntheticCapture => syntheticCapture;
         internal int StartCalls { get; private set; }

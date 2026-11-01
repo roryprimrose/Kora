@@ -24,7 +24,7 @@ public sealed partial class MainViewModel
         if (!Eligible()
             || !isAssistantNameAvailable && commandRouter.IsActivationPrefixed(text, AssistantName)
             || input.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
-            || input.Origin == RequestOrigin.ActivatedVoice && !commandRouter.IsActivationPrefixed(text, AssistantName))
+            || input.Origin == RequestOrigin.ActivatedVoice && !HasCurrentNameActivation(text))
         {
             ReportHostInteractionFailure("Customization discovery requires private original typed input or current-name activated voice. Nothing was shared.");
             return;

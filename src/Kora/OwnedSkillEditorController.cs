@@ -12,7 +12,8 @@ internal sealed partial class OwnedSkillEditorController(
     MainViewModel main, OwnedSkillSaveWorkflow workflow, OwnedSkillControlAdmission admission,
     Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<OwnedSkillEditorController> logger,
     OwnedSkillInvocationController? invocation = null, OwnedSkillGuidanceRefinementService? refinement = null,
-    ObservationWorkflowController? observations = null, OwnedSkillDeletionWorkflow? deletion = null,
+    ObservationWorkflowController? observations = null, OwnedSkillRenameWorkflow? renames = null,
+    OwnedSkillDeletionWorkflow? deletion = null,
     OwnedSkillFixtureWorkflow? fixtures = null) : IAsyncDisposable
 {
     private OwnedSkillEditorWindow? window;
@@ -112,6 +113,7 @@ internal sealed partial class OwnedSkillEditorController(
                 invocation?.Retire();
                 window?.RetireReview();
             };
+            window.RenameTargetChanged += () => Interlocked.Increment(ref generation);
             window.CritiqueChanged += () =>
             {
                 CancelRefinement();
@@ -121,6 +123,7 @@ internal sealed partial class OwnedSkillEditorController(
             };
             window.FixtureChanged += () =>
             {
+                Interlocked.Increment(ref fixtureInputGeneration);
                 CancelFixture();
                 var captured = main.CaptureOwnedSkillFixtureEligibility();
                 fixtureAuthority = new(RequestOrigin.LocalUi, () => Eligible() && captured());
@@ -165,6 +168,10 @@ internal sealed partial class OwnedSkillEditorController(
             if (!Eligible() || !authority.IsCurrent()) { throw new InvalidOperationException("Original authoring authority expired."); }
             switch (command.Operation)
             {
+                case "rename":
+                case "recover-rename":
+                    await Rename(command, authority);
+                    break;
                 case "editor": break;
                 case "create":
                     if (!await DiscardOrSave()) { return; }
@@ -262,7 +269,14 @@ internal sealed partial class OwnedSkillEditorController(
                     break;
                 case "list":
                     var rows = await workflow.List(original!, lifetime.Token);
-                    if (Eligible()) { opened.Saved.ItemsSource = rows; opened.Report("Saved immutable inactive versions. Select one and Reopen or Use; nothing is enabled or invoked."); }
+                    var pendingRenames = renames is null ? [] : await renames.Pending(authority, lifetime.Token);
+                    if (Eligible())
+                    {
+                        opened.Saved.ItemsSource = rows;
+                        opened.PendingRenames.ItemsSource = pendingRenames;
+                        opened.Report("Saved immutable inactive versions. Select Reopen, Use or Rename; nothing is enabled or invoked. "
+                            + $"Pending renames requiring separate recovery review: {pendingRenames.Count}.");
+                    }
                     break;
                 case "use":
                     var selection = opened.Saved.SelectedItem as OwnedDeclarativeSkillSnapshot;
@@ -314,9 +328,12 @@ internal sealed partial class OwnedSkillEditorController(
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            if (exception is OwnedSkillPublicationUnconfirmedException or OwnedSkillDeletionUnconfirmedException) { uncertain = true; }
+            if (exception is OwnedSkillPublicationUnconfirmedException or OwnedSkillRenameUnconfirmedException
+                or OwnedSkillDeletionUnconfirmedException) { uncertain = true; }
             AuthoringFailed(logger, exception.GetType().Name);
-            opened.Report(exception is OwnedSkillDeletionUnconfirmedException
+            opened.Report(exception is OwnedSkillRenameUnconfirmedException
+                ? exception.Message
+                : exception is OwnedSkillDeletionUnconfirmedException
                 ? "Deletion may have occurred. Mutation is held. Do not retry or recreate this source. Inspect the exact remaining inventory and audit; no rollback, task cancellation or confirmed deletion is claimed."
                 : exception is OwnedSkillPublicationUnconfirmedException
                 ? "Publication may have occurred. Do not retry Save. List/Reopen the exact ID/version to reconcile; no rollback or invocation is claimed."

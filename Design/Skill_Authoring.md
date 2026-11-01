@@ -258,6 +258,10 @@ See [Commands, Tools, Skills, and Model Interaction](Commands_Tools_And_Skills.m
 
 ## Storage and Versioning
 
+The [complete owned native package rename](Definition_Management.md#reviewed-owned-native-skill-package-rename) changes a selected supported package's canonical ID, not its readable name, version or unsaved editor text.
+Native and exact original typed/current-name activated entry share full old/new review and a separate native confirmation. New identity is disabled with no transferred review/grant authority; external references remain old.
+Uncertain effects require explicit retained-intent review/recovery, not Save retry ([user operation](../docs/owned-skill-authoring.md#rename-one-complete-owned-native-package)).
+
 Kora owns `%APPDATA%\Kora\Skills` as its dedicated user skill data store outside its installation and source trees, resolved through the Windows Roaming AppData known folder.
 The host chooses paths from validated skill IDs and package structure; the model never supplies an arbitrary destination.
 Staging and backup locations are subject to the same boundary.

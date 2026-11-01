@@ -8,7 +8,8 @@ using Microsoft.Win32.SafeHandles;
 
 namespace Kora.Windows.Skills;
 
-public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPaths paths) : IOwnedDeclarativeSkillStore, IOwnedSkillDeletionStore
+public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPaths paths)
+    : IOwnedDeclarativeSkillStore, IOwnedSkillRenameStore, IOwnedSkillDeletionStore
 {
     private readonly RestrictedStorageDirectory directory = RestrictedStorageDirectory.ForOwnedSkills(paths);
     private readonly Lock gate = new();
@@ -27,7 +28,7 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
         {
             using var pins = PinRoot(token);
             using var lease = directory.AcquireBoundedLease(requireExisting: false, token);
-            return Catalogue(pins, token);
+            return Catalogue(pins, token).Packages;
         }
     }, token);
 
@@ -39,6 +40,7 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
         {
             using var pins = PinRoot(token);
             using var lease = directory.AcquireBoundedLease(requireExisting: false, token);
+            RequireNoPendingRename(id, version, token);
             var idPath = ExactChild(directory.Root, id, SharedSkillCatalogue.MaximumPackages + 1);
             if (idPath is null) { return null; }
             pins.PinDirectory(idPath);
@@ -66,10 +68,11 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
     public Task<OwnedDeclarativeSkillSnapshot> Publish(OwnedDeclarativeSkillDocument document, Func<bool> eligible,
         Func<Func<OwnedDeclarativeSkillSnapshot>, Task<OwnedDeclarativeSkillSnapshot>> commit, CancellationToken token,
         OwnedDeclarativeSkillSnapshot? expectedSource = null) =>
-        Task.Run(async () => await commit(() => PublishCore(document, eligible, expectedSource, token)).ConfigureAwait(false), token);
+        Task.Run(async () => await commit(() => PublishCore(document, eligible, token, expectedSource: expectedSource)).ConfigureAwait(false), token);
 
-    private OwnedDeclarativeSkillSnapshot PublishCore(OwnedDeclarativeSkillDocument document, Func<bool> eligible,
-        OwnedDeclarativeSkillSnapshot? expectedSource, CancellationToken token)
+    private OwnedDeclarativeSkillSnapshot PublishCore(OwnedDeclarativeSkillDocument document, Func<bool> eligible, CancellationToken token,
+        Action<OwnedDeclarativeSkillSnapshot>? beforeCommit = null, OwnedSkillRename? rename = null,
+        OwnedDeclarativeSkillSnapshot? expectedSource = null)
     {
         document.RequireComplete();
         using var activity = HostActivity.Current is null ? null : HostActivity.BeginChild(HostActivityLayer.Windows, HostOperation.Storage);
@@ -80,11 +83,13 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
                 if (deletionHolds.Contains(Destination(document)))
                 { throw new InvalidOperationException("This exact owned ID/version is retired or has unconfirmed deletion. Use a new identity/version; do not recreate or retry it."); }
                 using var pins = PinRoot(token);
-                using var lease = directory.AcquireBoundedLease(requireExisting: false, token);
+                using var lease = beforeCommit is null ? directory.AcquireBoundedLease(requireExisting: false, token) : null;
+                if (beforeCommit is null) { RequireNoPendingRename(document.Id, document.Version, token); }
                 using var sourcePins = new OwnedSkillPackagePublication();
                 if (expectedSource is not null)
                 {
                     expectedSource.Document.RequireComplete();
+                    RequireNoPendingRename(expectedSource.Document.Id, expectedSource.Document.Version, token);
                     var sourcePath = Destination(expectedSource.Document);
                     sourcePins.PinDirectory(sourcePath);
                     _ = Inventory(sourcePath, expectedSource.Document.ReferenceDeclaration, sourcePins, token);
@@ -96,12 +101,16 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
                     { throw new InvalidDataException("The exact reopened package changed or was replaced; no new version was published."); }
                 }
                 var existing = Catalogue(pins, token);
-                if (existing.Length >= SharedSkillCatalogue.MaximumPackages)
-                { throw new InvalidDataException("The saved skill catalogue is full, including all immutable versions."); }
-                if (existing.Sum(s => s.TotalBytes)
-                    + document.TotalBytes > SharedSkillCatalogue.MaximumTotalBytes)
-                { throw new InvalidDataException("The saved skill catalogue exceeds its total byte bound."); }
-                if (existing.Any(s => string.Equals(s.Document.Id, document.Id, StringComparison.Ordinal)
+                var count = existing.Count + (rename is null ? 1 : 0);
+                var bytes = existing.TotalBytes + PackageBytes(document);
+                if (rename is not null)
+                {
+                    var reserved = existing.Pending.SingleOrDefault(p => p.Original.IsSameRevision(rename.Original));
+                    var originalBytes = reserved is null ? PackageBytes(rename.Original.Document) : RenameBytes(reserved);
+                    bytes = existing.TotalBytes - originalBytes + RenameBytes(rename);
+                }
+                RequireCatalogueCapacity(count, bytes);
+                if (existing.Packages.Any(s => string.Equals(s.Document.Id, document.Id, StringComparison.Ordinal)
                     && string.Equals(s.Document.Version, document.Version, StringComparison.Ordinal)))
                 { throw new InvalidOperationException("This skill version exists. Choose another ID/version or cancel."); }
                 var idPath = Path.Combine(directory.Root, document.Id);
@@ -175,6 +184,8 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
                     // directory handles pinned; join file handles, then verify both identities/bytes after the
                     // single no-replace directory commit. Any intervening file change is an uncertain publication.
                     foreach (var pin in contentPins) { pin.Dispose(); }
+                    beforeCommit?.Invoke(staged);
+                    RequireCurrent(eligible, token);
                     OwnedSkillPackagePublication.Commit(stageHandle, parent, document.Version);
                     observed = true;
                     Checkpoint?.Invoke("after-commit");
@@ -257,8 +268,32 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
         catch { pins.Dispose(); throw; }
     }
 
-    private OwnedDeclarativeSkillSnapshot[] Catalogue(OwnedSkillPackagePublication pins, CancellationToken token)
+    private sealed record CatalogueInventory(OwnedDeclarativeSkillSnapshot[] Packages, OwnedSkillRename[] Pending)
     {
+        internal int Count => Packages.Length + Pending.Length;
+        internal long TotalBytes => Packages.Sum(s => s.TotalBytes) + Pending.Sum(p => (long)RenameBytes(p));
+    }
+
+    private static int PackageBytes(OwnedDeclarativeSkillDocument document) =>
+        document.TotalBytes;
+
+    private static int RenameBytes(OwnedSkillRename rename) =>
+        Math.Max(PackageBytes(rename.Original.Document), PackageBytes(rename.Renamed));
+
+    private static void RequireCatalogueCapacity(int count, long bytes)
+    {
+        if (count > SharedSkillCatalogue.MaximumPackages)
+        { throw new InvalidDataException("The saved skill catalogue exceeds its immutable-version bound, including retained renames."); }
+        if (bytes > SharedSkillCatalogue.MaximumTotalBytes)
+        { throw new InvalidDataException("The saved skill catalogue exceeds its total byte bound, including retained renames."); }
+    }
+
+    private CatalogueInventory Catalogue(OwnedSkillPackagePublication pins, CancellationToken token)
+    {
+        var pending = ReadRenameIntents(token);
+        var reservations = pending.Select(intent => intent.Proposal()).ToArray();
+        var reservedBytes = reservations.Sum(p => (long)RenameBytes(p));
+        RequireCatalogueCapacity(reservations.Length, reservedBytes);
         var result = new List<OwnedDeclarativeSkillSnapshot>();
         var roots = Directory.EnumerateFileSystemEntries(directory.Root).Take(SharedSkillCatalogue.MaximumPackages + 2).ToArray();
         if (roots.Length > SharedSkillCatalogue.MaximumPackages + 1)
@@ -285,18 +320,18 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
                     continue;
                 }
                 OwnedDeclarativeSkillDocument.RequireIdentity(id, version);
+                if (pending.Any(intent => Affects(intent, id, version))) { continue; }
                 var saved = ReadPackage(versionPath, token, scope: OwnedSkillReadScope.PrimaryDeclaration);
                 if (!string.Equals(saved.Document.Id, id, StringComparison.Ordinal)
                     || !string.Equals(saved.Document.Version, version, StringComparison.Ordinal))
                 { throw new InvalidDataException("The saved package manifest does not match its canonical destination."); }
                 result.Add(saved);
-                if (result.Count > SharedSkillCatalogue.MaximumPackages)
-                { throw new InvalidDataException("The saved skill catalogue exceeds its immutable-version bound."); }
-                if (result.Sum(s => s.TotalBytes) > SharedSkillCatalogue.MaximumTotalBytes)
-                { throw new InvalidDataException("The saved skill catalogue exceeds its total byte bound."); }
+                RequireCatalogueCapacity(result.Count + reservations.Length,
+                    result.Sum(s => s.TotalBytes) + reservedBytes);
             }
         }
-        return result.OrderBy(s => s.Document.Id, StringComparer.Ordinal).ThenBy(s => s.Document.Version, StringComparer.Ordinal).ToArray();
+        return new(result.OrderBy(s => s.Document.Id, StringComparer.Ordinal)
+            .ThenBy(s => s.Document.Version, StringComparer.Ordinal).ToArray(), reservations);
     }
 
     private OwnedDeclarativeSkillSnapshot ReadPackage(string path, CancellationToken token, SafeFileHandle? pinnedDirectory = null,

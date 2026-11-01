@@ -5,6 +5,7 @@ using System.Text.Json;
 using AwesomeAssertions;
 using Kora.Application.Dependencies;
 using Kora.Application.Hosting;
+using Kora.Application.Hosting.McpResultFollowUp;
 using Kora.Application.Mcp;
 using Kora.Application.Skills;
 using Kora.Core.Auditing;
@@ -65,6 +66,12 @@ public sealed partial class ModelTurnHostTests
         const string body = "  Summarize the exact reference with the reviewed skill.\r\n";
         using var invocation = await workflow.PrepareMcpAsync(review, body, source.ServerId, source.Account,
             arguments, skill.Eligible, origin, Token);
+        var sourceValidation = workflow.CaptureMcpResultSourceValidation(review);
+        await sourceValidation(Token);
+        workflow.McpResultControlRevision.Should().Be(f.ControlRevision);
+        await workflow.CreateMcpResultFollowUpWorkflow().CancelAsync();
+        await workflow.ValidateMcpResultConfigurationAsync(source.ServerId, source.Account,
+            Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(source.File))), Token);
         invocation.ServerId.Should().Be(source.ServerId);
         invocation.Account.Should().Be(source.Account);
         broker.Connected.Should().BeFalse("preparation never connects or sends");
@@ -112,6 +119,113 @@ public sealed partial class ModelTurnHostTests
         broker.Methods.Should().HaveCount(3);
         f.Messages.Should().NotContain(message => message.Contains(body, StringComparison.Ordinal)
             || message.Contains("value 42", StringComparison.Ordinal) || message.Contains(skill.Reader.Text, StringComparison.Ordinal));
+        f.TrackPendingRecords = true;
+        f.PendingRecords[receipt.Message.Request.RequestId] = receipt;
+        var observation = new McpResultObservation(new(f.Session, null), receipt.Message.Request, observed[0],
+            approval.LastProposal!, approval.LastReview!, f.Session.Generation, f.ControlRevision, source.ServerId,
+            "Reference server", new(root.Activity!.Context), sourceValidation, review.ExpiresAt, receipt);
+        var wrongRequest = HostRequest.Create(origin);
+        foreach (var corrupted in new[]
+        {
+            receipt with { Message = receipt.Message with { Request = wrongRequest } },
+            receipt with { Message = receipt.Message with { Generation = new(2) } },
+            receipt with { Message = receipt.Message with { Outcome = ModelTurnOutcome.Unknown } },
+            receipt with { Task = new(wrongRequest, receipt.Task.Revision, receipt.Task.State) },
+            receipt with { Task = new(receipt.Task.Request, receipt.Task.Revision, HostTaskState.Unknown) },
+            receipt with { Task = new(receipt.Task.Request, new(4), receipt.Task.State) },
+        })
+        {
+            FluentActions.Invoking(() => new McpResultObservation(observation.Target, observation.Request,
+                observation.Result, observation.Invocation, observation.Mapping, f.Session.Generation,
+                observation.Control, observation.ServerId, observation.Provenance.Server, observation.Cause,
+                sourceValidation, review.ExpiresAt, corrupted)).Should().Throw<InvalidDataException>();
+        }
+        var freshHost = QualifiedHistoryHost(f);
+        var answer = f.ConversationService(freshHost, execution: freshHost)
+            .CreateMcpResultFollowUpWorkflow(Kora.Application.Context.LocalSourceUsePolicy.Instance);
+        const string freshQuestion = "  Explain only this unchanged result.\r\n";
+        var freshReview = await answer.ReviewAsync(observation, freshQuestion, skill.Eligible, Token, origin);
+        freshReview.CanConfirm.Should().BeTrue();
+        f.Adapter.Calls.Should().Be(0);
+        var freshReceipt = await answer.ConfirmAsync(freshReview, skill.Eligible, Token);
+        freshReceipt.Message.Request.SessionId.Should().Be(receipt.Message.Request.SessionId);
+        freshReceipt.Message.Request.RequestId.Should().NotBe(receipt.Message.Request.RequestId);
+        freshReceipt.Message.Body.Should().Be(freshQuestion);
+        freshReceipt.Message.AssistantResponse!.Body.Should().Be("answer");
+        f.Adapter.Calls.Should().Be(1);
+        f.PendingRecords[receipt.Message.Request.RequestId].Should().Be(receipt);
+        broker.Methods.Should().HaveCount(3);
+        model.Requests.Should().HaveCount(2);
+        await answer.CancelAsync();
+        var staleReview = await answer.ReviewAsync(observation, freshQuestion, skill.Eligible, Token, origin);
+        f.PendingRecords[receipt.Message.Request.RequestId] = origin is RequestOrigin.LocalUi
+            ? receipt with { Message = receipt.Message with { Body = "Changed original pair" } }
+            : receipt with { Task = new(receipt.Task.Request, new(4), receipt.Task.State) };
+        await answer.Invoking(value => value.ConfirmAsync(staleReview, skill.Eligible, Token))
+            .Should().ThrowAsync<InvalidOperationException>();
+        f.Adapter.Calls.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData("source")]
+    [InlineData("control")]
+    [InlineData("permission")]
+    [InlineData("inspect")]
+    [InlineData("consent")]
+    [InlineData("expiry")]
+    [InlineData("cancel")]
+    [InlineData("configuration")]
+    [InlineData("use-policy")]
+    [InlineData("disabled")]
+    [InlineData("wrong-registration")]
+    public async Task McpSkillResultSourceValidationIsReadOnlyAndFencesTheOriginalRevisionWithoutSpentConsent(string fault)
+    {
+        using var f = new Fixture();
+        var use = new NamedUsePolicy();
+        await using var skill = new SharedSkillHarness(f, fault is "use-policy" or "disabled" ? use : null);
+        await skill.Register();
+        using var source = new McpSource();
+        DeclareMcpTool(skill, source);
+        var broker = new McpBroker(source.Account);
+        var skillWorkflow = skill.McpWorkflow(McpService(f, f.ConfiguredProfiles(), source, broker, new(f), await source.Policy()));
+        using var sourceReview = await skillWorkflow.ReviewAsync(skill.Reader.Source, skill.Reader.Snapshot(),
+            new(f.Session, null), skill.Eligible, RequestOrigin.LocalUi, Token);
+        var validate = skillWorkflow.CaptureMcpResultSourceValidation(sourceReview);
+        sourceReview.Dispose();
+        await validate(Token);
+        using var cancelled = new CancellationTokenSource();
+        switch (fault)
+        {
+            case "source": skill.Reader.Text += "\nChanged"; break;
+            case "control": f.ControlRevision++; break;
+            case "permission": f.CanControl = false; break;
+            case "inspect": f.Inspect = false; break;
+            case "consent":
+                await skill.Discovery.UnregisterAsync(skill.Reader.Source, skill.Preferences.Load(), skill.Eligible, Token);
+                break;
+            case "expiry": f.Time.Now = f.Time.Now.AddMinutes(2); break;
+            case "cancel": cancelled.Cancel(); break;
+            case "use-policy": use.Revision++; break;
+            case "disabled":
+                use.Disabled.Add(Kora.Core.Artifacts.ArtifactUseIdentity.File(Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    skill.Reader.Source.ProfileRelativeRoot, skill.Reader.Snapshot().RelativeFile)));
+                break;
+            case "wrong-registration": skill.Reader.WrongSource = true; break;
+        }
+        if (fault is "configuration")
+        {
+            await skillWorkflow.Invoking(value => value.ValidateMcpResultConfigurationAsync(source.ServerId, source.Account,
+                new string('b', 64), Token)).Should().ThrowAsync<InvalidOperationException>();
+        }
+        else
+        {
+            await FluentActions.Awaiting(() => validate(fault is "cancel" ? cancelled.Token : Token))
+                .Should().ThrowAsync<Exception>();
+        }
+        broker.Connected.Should().BeFalse();
+        f.RetainCalls.Should().Be(0);
+        f.Adapter.Calls.Should().Be(0);
     }
 
     [Theory]

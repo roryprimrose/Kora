@@ -72,5 +72,17 @@ public sealed class OwnedSkillAuthoringGuideTests
             .And.Contain("native v5")
             .And.Contain("entire")
             .And.Contain("no hosted fallback");
+        guide.Markdown.Should().Contain("owned skill delete daily-review 1.0.0")
+            .And.Contain("Delete only this exact owned source")
+            .And.Contain("Native v5 Markdown packages are rejected")
+            .And.Contain("before reading reference bodies")
+            .And.Contain("does not physically cancel immutable admitted tasks")
+            .And.Contain("absence readback")
+            .And.Contain("do not retry or recreate")
+            .And.Contain("Retained editor text keeps its deleted-source binding")
+            .And.Contain("before model use")
+            .And.Contain("Both reviews block editor input")
+            .And.Contain("completes only after native closure")
+            .And.Contain("none approves deletion or recovery");
     }
 }

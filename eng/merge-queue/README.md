@@ -332,6 +332,60 @@ runner latency. Same-run handoff removes one startup, not the much larger cost
 of long-running validation and failed attempts. Main release builds remain
 independent and may overlap candidates; their execution is not an idle queue gap.
 
+On 31 October 2026, 12:39-21:39 UTC, 17 completed candidates produced three
+merges and 14 cancellations. Twelve cancelled candidates had a confirmed
+30-minute UI job timeout; cancelled runs consumed 413 minutes. This is failed
+validation occupancy, not a controller handoff delay.
+
+The Windows workflow builds exact-source test modules once, then scales out
+to twelve independent standard Windows hosted test jobs. Consumer jobs perform
+no restore or compilation; artifact revision/file hashes bind their binaries to
+the admitted source. Native-UX alone retains buffering; other jobs are synchronous.
+Theory rows stay together, and legacy logical ownership/`HostedShard` bootstrap
+assignments remain available while trusted main still uses predecessor scheduling.
+The original five Windows job names are lightweight fail-closed aggregates,
+not additional test runners. They join the producer and all twelve consumers.
+The protected Windows aggregate validates twelve reports against complete
+unfiltered source discovery, including exact method and theory-case identities.
+The portable required check joins
+independent test/coverage and exact-source payload producers. The installer can
+start after payload verification while portable tests continue; release still
+requires every existing protected check. The portable aggregate requires both
+producers to succeed; admission job identities stay compatible with predecessor
+workflows so completed runs can still retire during rollout. No test category
+is deferred.
+See the [development checks](../../CONTRIBUTING.md#development-checks) for
+partition discovery, execution-evidence checks and measured timing projections;
+shared-runner timing is not guaranteed by those projections.
+
+[The initial repair candidate](https://github.com/roryprimrose/Kora/actions/runs/41255145262)
+still exhausted definitions' 30-minute job budget. Portable, installer and four
+other Windows jobs succeeded, but only 842 of 857 conversation cases were
+recorded before cancellation. The subsequent finer partition retains all
+unfinished methods and all protected gates. Partial passing TRX counters do
+not establish a complete candidate pass or justify bypassing admission.
+[The nine-process same-runner candidate](https://github.com/roryprimrose/Kora/actions/runs/41288388916)
+also exhausted both UI jobs. The next repair distributes those same partitions
+across four synchronous hosted runners, consuming spare storage-job capacity
+without adding check identities or changing the trusted-main CI matrix. Timing
+regressions sum serial UI work on each host rather than treating extra processes
+as extra CPU capacity. This remains a scheduling repair, not hosted pass proof.
+[The cross-host candidate](https://github.com/roryprimrose/Kora/actions/runs/41292927647)
+completed definitions and platform but timed out storage-hosted conversation
+work. Controlled-clock repairs address isolated approval stalls; the twelve-job
+pipeline scales out further rather than requesting bigger runners. Its new
+workflow orchestration becomes active only after integration because candidate
+dispatch uses trusted main. Keep all existing `JOBS` names compatible with old
+runs; producer/consumer completeness is enforced through those aggregates,
+not by adding new required names that strand predecessor retirement.
+The 12-15 minute end-to-end target remains unverified until complete hosted
+results include build, transfer, runner scheduling and slowest-partition time.
+Local repair validation also exposed approval scenarios mixing fixed domain
+time with wall-clock cancellation or queue expiry. Those deterministic fixtures
+now share their clock, and lifecycle review cancellation uses the controller's
+injected clock with the same one-minute production budget. The default fixture
+and production clocks remain system time; no gate or job deadline is extended.
+
 Controller workflow success means reconciliation completed, not that a PR
 merged. Inspect its `Merge queue:` outcome and the durable active/blocked state.
 Conflicts still require a contributor repair; the controller does not resolve
@@ -453,6 +507,79 @@ installation, GitHub permission configuration or this hosted canary has happened
   ordinary protection, ensure other open PRs cannot qualify using only skipped
   queue-waiting checks. Merge the tested repair through ordinary protected CI,
   retain the durable state history, then repeat the App-source canary.
+
+### Reviewed unobservable-dispatch recovery
+
+A GitHub dispatch HTTP 500 or lost response can leave a recorded dispatch with
+no observable run. The ordinary controller intentionally retains that lane:
+elapsed time and an empty run listing do not prove physical quiescence. Do not
+retry the dispatch, rerun an old ticket, automatically clear the reservation or
+temporarily grant a client access to the state branch.
+
+After an administrator has reviewed the exact failed dispatch, current candidate
+activity and state history, the existing **Merge queue controller** can perform
+one explicit `recover-unobservable-dispatch` operation. This is a privileged
+reviewed exception for unresolved dispatch uncertainty, not automatic proof that
+GitHub never created work. The caller must obtain separate administrator
+authorization for that exact checkpoint/ticket; unavailable or automatic agent
+responses are not consent. Merely having repository write permission, an
+Auto-merge request or publication authority is insufficient.
+
+Inspect the [state branch](https://github.com/roryprimrose/Kora/tree/automation/merge-queue-state)
+and its commit history, the failed controller log and candidate workflow runs.
+Read the exact checkpoint:
+
+```powershell
+gh api --hostname github.com repos/roryprimrose/Kora/git/ref/heads/automation/merge-queue-state --jq .object.sha
+```
+
+Only after review and explicit authorization, dispatch on main with the reviewed
+commit SHA and ticket, not values silently refreshed by a client:
+
+```powershell
+gh workflow run merge-queue.yml --repo github.com/roryprimrose/Kora --ref main `
+  --field operation=recover-unobservable-dispatch `
+  --field "recovery_checkpoint=<reviewed-state-commit>" `
+  --field "recovery_ticket=<reviewed-retiring-ticket>" `
+  --field acknowledge_uncertain_dispatch=true
+```
+
+The operation requires a first-attempt manual run on main, explicit acknowledgement
+and live repository **administrator** permission for the dispatching actor,
+rechecked before the final run observation and write. The existing main-only
+`merge-queue` environment supplies the same App token. Its branch policy is not
+a reviewer approval gate; this operation does not install or change environment
+reviewers, secrets, App permissions, protection or queue mode.
+
+The workflow shares the ordinary controller's concurrency group. It verifies
+main protection, the exact state checkpoint/ticket, `retiring` phase, recorded
+dispatch and elapsed ten-minute observation budget. Merge-intent uncertainty is
+excluded. Complete, consistent run pagination is required; API errors, duplicate
+or invalid run identities, any observable matching run and nonterminal dispatched
+work in the observation window reject recovery. Run metadata is reobserved
+immediately before committing. If the ticket has an observable run, use ordinary
+reconciliation and its existing exact-job/cancellation rules instead.
+
+Recovery does not replace the current twelve-partition, exact-source artifact
+and discovery-catalog pipeline or its fail-closed producer joins. The existing
+required job names remain compatible with historical tickets; retain both the
+recovery-routing and predecessor-retirement workflow regressions when integrating
+controller changes.
+
+Recovery retains all blocked revisions, quarantines the old head/enrollment if
+needed and clears only the reviewed reservation. A linear App-owned state commit
+records the administrator, recovery workflow run, retired ticket and previous
+checkpoint. Existing check results are unchanged; no successful admission check,
+branch update, merge or candidate dispatch is produced. A late old ticket fails
+the existing CI admission check once its reservation is removed or replaced.
+This does not assert that previously admitted but unobservable work was absent;
+reviewed uncertainty is why this operation remains administrator-only.
+
+After exact checkpoint readback, recovery wakes ordinary reconciliation once.
+Inspect the recovery summary and the next candidate's exact ticket/run. If
+readback or continuation fails, inspect live state before proceeding: the
+checkpoint may already have been committed, and the old inputs cannot replay
+recovery. Scheduled reconciliation remains available; do not blindly retry.
 
 ## Deterministic validation
 

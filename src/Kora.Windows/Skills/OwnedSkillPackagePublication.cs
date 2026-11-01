@@ -48,6 +48,13 @@ internal sealed partial class OwnedSkillPackagePublication : IDisposable
         catch { handle.Dispose(); throw; }
     }
 
+    internal static SafeFileHandle OpenForDeletion(string path)
+    {
+        var handle = CreateFile(path, 0x80030000, 1, nint.Zero, 3, 0x00200000, nint.Zero);
+        try { Verify(handle, path, directory: false); return handle; }
+        catch { handle.Dispose(); throw; }
+    }
+
     private static SafeFileHandle OpenFileCore(string path, bool delete)
     {
         // Share rename, not writes: the enclosing directory is renamed while both exact file objects stay pinned.

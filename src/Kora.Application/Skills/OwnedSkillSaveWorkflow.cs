@@ -23,6 +23,18 @@ public sealed class OwnedSkillSaveWorkflow(
         Func<CancellationToken, Task>? validateSource = null, OwnedDeclarativeSkillSnapshot? expectedSource = null)
     {
         document.RequireComplete();
+        expectedSource?.Document.RequireComplete();
+        async Task ValidateSource(CancellationToken cancellation)
+        {
+            if (expectedSource is not null)
+            {
+                var actual = await store.Read(expectedSource.Document.Id, expectedSource.Document.Version, cancellation,
+                    expectedPrimary: expectedSource).ConfigureAwait(false);
+                if (actual is null || !expectedSource.IsSameRevision(actual))
+                { throw new InvalidDataException("The original owned package changed or was replaced. Reopen and review; no new tree was published."); }
+            }
+            if (validateSource is not null) { await validateSource(cancellation).ConfigureAwait(false); }
+        }
         var observed = false;
         try
         {
@@ -30,15 +42,15 @@ public sealed class OwnedSkillSaveWorkflow(
             async (request, session, current, admitted) =>
             {
                 bool Eligible() => current() && authority.IsCurrent() && exactDraft();
-                if (validateSource is not null) { await validateSource(admitted).ConfigureAwait(false); }
+                await ValidateSource(admitted).ConfigureAwait(false);
                 var destination = store.Destination(document);
                 if (!Eligible() || !await review.Review(document, destination, admitted).ConfigureAwait(false))
                 { return null; }
                 admitted.ThrowIfCancellationRequested();
-                if (validateSource is not null) { await validateSource(admitted).ConfigureAwait(false); }
+                await ValidateSource(admitted).ConfigureAwait(false);
                 if (!Eligible() || !await review.ConfirmPublication(document, destination, admitted).ConfigureAwait(false))
                 { return null; }
-                if (validateSource is not null) { await validateSource(admitted).ConfigureAwait(false); }
+                await ValidateSource(admitted).ConfigureAwait(false);
                 await admission.Commit(request, session, Eligible, static () => true, admitted).ConfigureAwait(false);
                 var entry = new SecurityAuditEvent(request.RequestId.Value, SecurityAuditCategory.ConfigurationWrite,
                     "definition.owned-skill.create", SecurityAuditOutcome.Requested,
@@ -50,7 +62,7 @@ public sealed class OwnedSkillSaveWorkflow(
                 {
                     var result = await store.Publish(document, Eligible, async operation =>
                     {
-                        if (validateSource is not null) { await validateSource(admitted).ConfigureAwait(false); }
+                        await ValidateSource(admitted).ConfigureAwait(false);
                         return await admission.Commit(request, session, Eligible, operation, admitted).ConfigureAwait(false);
                     }, admitted, expectedSource).ConfigureAwait(false);
                     published = true;

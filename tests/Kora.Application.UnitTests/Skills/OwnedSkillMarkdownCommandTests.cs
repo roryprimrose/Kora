@@ -33,4 +33,21 @@ public sealed class OwnedSkillMarkdownCommandTests
         OwnedSkillAuthoringCommand.FixedPhrases.Should().Contain("owned skill read-references");
         OwnedSkillAuthoringCommand.Syntax.Should().Contain("owned skill reference <relative.md>: <literal>");
     }
+
+    [Fact]
+    public void MarkdownComponentsAndExactSourceDeletionRetainIndependentCommandRoutes()
+    {
+        var deletion = OwnedSkillAuthoringCommand.Parse("Nova, owned skill delete daily-review 1.0.0", "Nova")!;
+        deletion.Operation.Should().Be("delete");
+        deletion.Id.Should().Be("daily-review");
+        deletion.Version.Should().Be("1.0.0");
+        deletion.Literal.Should().BeNull();
+        deletion.InputName.Should().BeNull();
+        OwnedSkillAuthoringCommand.Parse("owned skill delete ../daily-review 1.0.0", "Nova")!.Operation.Should().Be("Invalid");
+        OwnedSkillAuthoringCommand.Parse("owned skill reference notes.md: owned skill delete daily-review 1.0.0", "Nova")!
+            .Should().Be(new OwnedSkillAuthoringCommand("reference", Literal: "owned skill delete daily-review 1.0.0", InputName: "notes.md"));
+        OwnedSkillAuthoringCommand.Syntax.Should().Contain("owned skill format markdown-package")
+            .And.Contain("owned skill reference <relative.md>: <literal>")
+            .And.Contain("owned skill delete <id> <version>");
+    }
 }

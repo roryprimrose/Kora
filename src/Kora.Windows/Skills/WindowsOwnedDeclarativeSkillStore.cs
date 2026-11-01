@@ -7,7 +7,8 @@ using Microsoft.Win32.SafeHandles;
 
 namespace Kora.Windows.Skills;
 
-public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPaths paths) : IOwnedDeclarativeSkillStore, IOwnedSkillRenameStore
+public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPaths paths)
+    : IOwnedDeclarativeSkillStore, IOwnedSkillRenameStore, IOwnedSkillDeletionStore
 {
     private readonly RestrictedStorageDirectory directory = RestrictedStorageDirectory.ForOwnedSkills(paths);
     private readonly Lock gate = new();
@@ -74,6 +75,8 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
         {
             lock (gate)
             {
+                if (deletionHolds.Contains(Destination(document)))
+                { throw new InvalidOperationException("This exact owned ID/version is retired or has unconfirmed deletion. Use a new identity/version; do not recreate or retry it."); }
                 using var pins = PinRoot(token);
                 using var lease = beforeCommit is null ? directory.AcquireBoundedLease(requireExisting: false, token) : null;
                 if (beforeCommit is null) { RequireNoPendingRename(document.Id, document.Version, token); }
@@ -184,7 +187,7 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
         token.ThrowIfCancellationRequested();
     }
 
-    private OwnedSkillPackagePublication PinRoot(CancellationToken token)
+    private OwnedSkillPackagePublication PinRoot(CancellationToken token, bool requireExisting = false)
     {
         token.ThrowIfCancellationRequested();
         var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(paths.RoamingRoot));
@@ -202,7 +205,7 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
             pins.PinAncestors(Path.GetDirectoryName(root)!);
             if (!Directory.Exists(root))
             {
-                if (rootIdentity is not null) { throw new InvalidDataException("The bound roaming root is missing."); }
+                if (requireExisting || rootIdentity is not null) { throw new InvalidDataException("The bound roaming root is missing."); }
                 using var identity = WindowsIdentity.GetCurrent();
                 RestrictedStorageDirectory.CreateRestrictedDirectory(root,
                     identity.User ?? throw new InvalidOperationException("The profile owner is unavailable."));
@@ -210,7 +213,7 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
             pins.PinDirectory(root);
             if (!Directory.Exists(directory.Root))
             {
-                if (rootIdentity is not null) { throw new InvalidDataException("The bound skill root is missing."); }
+                if (requireExisting || rootIdentity is not null) { throw new InvalidDataException("The bound skill root is missing."); }
                 directory.CreateNew();
             }
             directory.Verify();

@@ -17,6 +17,17 @@ uses bounded intent/native clarification, not speech/model-profile qualification
 
 ## Catalogue freshness
 
+The bounded [owned-skill source deletion](../docs/owned-skill-authoring.md#delete-one-saved-owned-source)
+completes separate full-source review and exact confirmation for native v1/v2/v3
+two-file packages through the authoritative owned store. It is not instruction
+Delete, skill Disable or source unregistration. Unknown inventory and other
+formats/sources are refused; partial effects/audit/readback uncertainty hold
+mutation without rollback/retry or cancellation of immutable admitted work
+([native owner](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.Deletion.cs)).
+Retained owned-skill editor text preserves its deleted-source provenance.
+Text/version edits cannot downgrade it to source-free model input; explicit
+Create or a fresh exact Reopen establishes a new draft/source binding.
+
 The existing supported-source watcher observes the nearest existing ancestor
 when a recognized root has not yet been created, including when several parent
 directories are absent. External creation then refreshes the same catalogue
@@ -739,6 +750,7 @@ Retirement holds both exact source components against writes and delete/rename s
 
 Bounded private local intent retains original bytes and exact source/staged identities before publication. Both affected identities remain unavailable while intent exists, including after restart.
 List exposes pending renames; `owned skill recover-rename <old-id> <version>` separately reviews/confirms only retained intent.
+Owned-source deletion reuses the pending-rename guard at preparation and final validation: neither affected identity can be deleted while intent remains. Once recovery completes, deletion of a supported renamed source still requires fresh independent full-source review and confirmation; retained editor text keeps that source binding.
 Changed parents, source components, destination identity/bytes or corrupt intent fail closed; no overwrite, silent rollback, automatic retry or inferred recovery occurs ([workflow and audit](../src/Kora.Application/Skills/OwnedSkillRenameWorkflow.cs)).
 Pending-use visibility is separate from quota admission: each retained rename reserves one immutable version and the larger complete original/proposed byte size. Unrelated publication and recovery retain the 32-version/1 MiB logical inventory bounds. An already over-limit inventory cannot release its retained intent or report successful recovery.
 
@@ -940,7 +952,13 @@ is not distributed sync, power-loss, provider or installed qualification
 
 Both use identities are held before publication. Coherent reconciliation removes
 the old candidate and exposes the new exact source disabled, requiring fresh
-independent revision review. No grant, activation, applicability, dependent
+independent revision review. Native inventory-selected rename/recovery retains
+its exact editor input across internal row retirement and hands the confirmed
+new ID/source to the same editor. Explicit native Inspect reads the new status;
+no old row selection or typed workaround is needed. Actual editor/input,
+catalogue, reload and admission changes still retire the operation through the
+existing exact checks, retaining changed drafts rather than retargeting them.
+No grant, activation, applicability, dependent
 declaration or approval is transferred or rewritten. Existing source-digest
 reference resolution remains authoritative; old IDs cannot select the new
 source even after its independent activation. Captured content is never

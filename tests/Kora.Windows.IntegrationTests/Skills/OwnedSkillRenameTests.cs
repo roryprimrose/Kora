@@ -57,6 +57,7 @@ public sealed partial class OwnedSkillRenameTests
         var store = new WindowsOwnedDeclarativeSkillStore(paths);
         var original = await Save(store, Document());
         var unrelated = await Save(store, Document("unrelated"));
+        var deletion = await store.PrepareDeletion("example", "1.0.0", Token);
         var proposal = new OwnedSkillRename(original, "renamed");
         store.Checkpoint = point => { if (string.Equals(point, fault, StringComparison.Ordinal)) { throw new IOException("injected boundary"); } };
         var run = () => Rename(store, proposal);
@@ -69,6 +70,17 @@ public sealed partial class OwnedSkillRenameTests
         await restarted.Invoking(value => value.Read("renamed", "1.0.0", Token)).Should().ThrowAsync<InvalidOperationException>();
         await restarted.Invoking(value => Save(value, proposal.Renamed)).Should().ThrowAsync<InvalidOperationException>();
         await restarted.Invoking(value => Rename(value, proposal)).Should().ThrowAsync<InvalidOperationException>();
+        foreach (var id in new[] { "example", "renamed" })
+        {
+            await store.Invoking(value => value.PrepareDeletion(id, "1.0.0", Token)).Should().ThrowAsync<InvalidOperationException>();
+            await restarted.Invoking(value => value.PrepareDeletion(id, "1.0.0", Token)).Should().ThrowAsync<InvalidOperationException>();
+        }
+        await store.Invoking(value => value.ValidateDeletion(deletion, Token)).Should().ThrowAsync<InvalidOperationException>();
+        await restarted.Invoking(value => value.ValidateDeletion(deletion, Token)).Should().ThrowAsync<InvalidOperationException>();
+        await store.Invoking(value => value.Delete(deletion, static () => true,
+            operation => Task.FromResult(operation()), Token)).Should().ThrowAsync<InvalidOperationException>();
+        await restarted.Invoking(value => value.Delete(deletion, static () => true,
+            operation => Task.FromResult(operation()), Token)).Should().ThrowAsync<InvalidOperationException>();
         (await restarted.List(Token)).Should().ContainSingle().Which.IsSameRevision(unrelated).Should().BeTrue();
         var recovered = await Rename(restarted, pending, recovery: true);
         recovered.Document.RevisionDigest.Should().Be(proposal.Renamed.RevisionDigest);

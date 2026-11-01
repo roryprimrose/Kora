@@ -1,4 +1,6 @@
 using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using AwesomeAssertions;
@@ -18,6 +20,8 @@ public sealed partial class OwnedSkillAuthoringNativeTests
     [InlineData("voice")]
     [InlineData("cancel-review")]
     [InlineData("cancel-confirm")]
+    [InlineData("escape-review")]
+    [InlineData("escape-confirm")]
     [InlineData("dirty")]
     [InlineData("edited-review")]
     [InlineData("target-edited-review")]
@@ -79,6 +83,14 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 var buttons = dialog.GetLogicalDescendants().OfType<Button>().ToArray();
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
+                    dialog.Owner.Should().BeSameAs(window);
+                    if (scenario is "escape-review" || scenario is "escape-confirm" && reviews.Count == 2)
+                    {
+                        dialog.GetLogicalDescendants().OfType<TextBox>().Last().Focus().Should().BeTrue();
+                        dialog.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+                        dialog.IsVisible.Should().BeFalse("Escape must reject this review without confirming a rename");
+                        return;
+                    }
                     if (scenario is "edited-review" && reviews.Count == 1) { window.Guidance.Text = "Changed during review"; return; }
                     if (scenario is "target-edited-review" && reviews.Count == 1) { window.RenameId.Text = "other-target"; return; }
                     if (scenario is "privacy")
@@ -123,6 +135,8 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             }
             else
             {
+                if (scenario is "escape-review") { reviews.Should().ContainSingle(); }
+                if (scenario is "escape-confirm") { reviews.Should().HaveCount(2); }
                 (await store.Read("example", "1.0.0", f.Token))!.IsSameRevision(saved).Should().BeTrue();
                 (await store.Read("renamed", "1.0.0", f.Token)).Should().BeNull();
                 (await store.PendingRenames(f.Token)).Should().BeEmpty();

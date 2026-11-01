@@ -1181,6 +1181,22 @@ Switching sessions does not cancel background work. Content and delayed callback
 
 ## Structured Questions and Mixed-Channel Replies
 
+### Delivered bounded local clarification forms - 2026-10-30
+
+Only the existing explicit **Submit with one clarification** local operation can receive one `ask_user` form. It contains one to four required fields: bounded text (declared 1–500 UTF-16 characters and 1–2000 strict UTF-8 bytes), or one choice from two to four unambiguous labels. The prompt is at most 500 characters; field/option labels are at most 80 ([typed field contract](../src/Kora.Core/Interaction/QuestionField.cs)).
+
+The existing Questions window shows every field's label, type and constraints, without preselected choices. Mouse/keyboard edits and eligible **Speak field** entry update the same volatile draft. Spoken field entry is neither approval nor submission. **Review exact record** includes the whole current draft; another edit invalidates that review. **Submit answer** validates all required fields and commits one canonically ordered typed answer ([native owner](../src/Kora/NativeQuestionViewModel.cs), [window](../src/Kora/QuestionWindow.axaml.cs)).
+
+There is no form draft autosave or disk Save draft. Cancel, dismiss, expiry, duplicate presenters, changed question/draft/source/session/generation/privacy/call authority and late speech cannot partially submit. Only the canonical committed answer may resume the exact already-admitted original task once; it creates no instruction, source permission, grant or egress consent ([submission](../src/Kora.Application/Interaction/HostQuestionService.cs), [continuation](../src/Kora.Application/Hosting/ConversationQuestionContinuation.cs)).
+
+The closed local clarification-only request uses schema 4 and host-issued field/choice IDs. Unknown fields/types, numeric type values, duplicates, malformed Unicode, credentials and complete over-bound values are refused without evaluation or truncation. Ordinary text/schema 1, Claude/schema 2, read-only observation questions/schema 3, legacy question shapes and their voice submission behavior are unchanged ([protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Forms.cs), [transport](../src/Kora.Windows/Dependencies/OllamaToolWire.Questions.cs)).
+
+Current-source inspection reconstructs an ordinary clarification with its exact declared selection bounds, including canonical multiple-choice questions, and compares the complete schema and host-issued option/field identities. This preserves existing question kinds; it grants no authority to answer through a task observation ([source predicate](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.ConversationQuestions.cs), [boundary regressions](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteConversationTests.QuestionSource.cs)).
+
+Existing interaction tables and historical question/audit bytes are unchanged; optional field payloads are omitted from legacy records. Only submitted form answers are retained under existing question/privacy/retention rules. The original turn deadline is not renewed. Deterministic native/headless, store and fake-provider tests are implementation evidence, not installed accessibility, real-audio/provider or runtime qualification ([native regression](../tests/Kora.Windows.IntegrationTests/NativeQuestionWindowContractTests.Forms.cs), [continuing-task regression](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Forms.cs)).
+
+### General interaction contract
+
 Support single-choice options, multi-choice checkbox lists, yes/no decisions, bounded text, and typed forms where appropriate.
 Include free-form clarification when predefined options cannot express the user's answer; do not force every question into a yes/no approval.
 Each question declares:

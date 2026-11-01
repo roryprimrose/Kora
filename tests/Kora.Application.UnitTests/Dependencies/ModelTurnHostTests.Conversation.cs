@@ -296,12 +296,12 @@ public sealed partial class ModelTurnHostTests
         public async ValueTask<ConversationSubmissionReceipt> CompleteConversationSubmissionAsync(HostRequest request,
             ModelTurnOutcome outcome, ModelTurnReason reason, Func<bool> admitted, CancellationToken token)
         {
-            // Expiry completions can interleave; the terminal pair must remain request-local.
+            // Expired workers must derive both terminal rows from one request-local snapshot.
             var pending = TrackPendingRecords ? PendingRecords[request.RequestId] : null;
             var message = pending?.Message ?? Retained!;
             var observed = pending is null ? Task!
                 : new HostTaskObservation(pending.Task, pending.Message.Generation, "host", true, null);
-            if (BeforeSubmissionComplete is { } before) { await before(request); }
+            if (BeforeSubmissionComplete is { } before) { await before(request).ConfigureAwait(false); }
             message = message with { Revision = 2, Outcome = outcome, Reason = reason };
             observed = observed with { Task = observed.Task.Next(message.ExpectedTaskState) };
             Retained = message;

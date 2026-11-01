@@ -2,6 +2,10 @@ namespace Kora.Core.Artifacts;
 
 public static class OwnedInstructionNames
 {
+    public static bool IsReservedControlName(string name) =>
+        name is "skill" or "skills" or "instruction" or "instructions" or "prompt"
+            or "prompts" or "agent" or "agents" or "definitions" or "help" or "exit" or "settings";
+
     public static string ReadName(string name)
     {
         if (string.IsNullOrWhiteSpace(name) || name.Length > 128 || name is "." or ".."

@@ -133,7 +133,12 @@ channel, source/target, draft, privacy and resource-joining checks remain
 authoritative; an unqualified provider is unavailable, not a fallback. This is
 not fixture generation or the full conversational Builder.
 The [explicit literal owned Instruction body increment](../docs/instruction-editor.md#dictate-literal-instruction-body-text) now binds one foreground canonical owned draft/body caret or range before shared local capture, reviews the complete insertion/replacement and accepts into volatile memory only. Normal exact Save, dirty-close and separate enablement remain independent; metadata, prompts, profile originals and other definition kinds are excluded ([target owner](../src/Kora/OwnedInstructionEditorController.Dictation.cs)).
-Broader conversational/package authoring, rename/restore and expanded applicability remain unavailable. The same native editor also supports immediate
+The separate [bounded owned Instruction rename](Definition_Management.md#bounded-recoverable-owned-instruction-rename)
+now completes exact identity/source/reference review, separate confirmation,
+native no-replace recoverable publication, disabled reconciliation and reopening.
+It does not rename prompts, profile originals or packages, rewrite dependencies,
+transfer grants or enable content. Broader conversational/package authoring,
+restore and expanded applicability remain unavailable. The same native editor also supports immediate
 Kora-owned `.prompt.md` versioned saved requests: select Prompt, then use the same
 Save/Delete, conflict and separate exact-use reviews. Prompts are request content,
 not instructions, skill workflows or policy. Native v1 stays literal; owned native v2 supports required `${input:name}` text only, with a private native field form, complete expanded user-request preview and separately admitted Use. No defaults/expressions/reads/recursive substitution; profile prompt writing remains unavailable.
@@ -268,6 +273,11 @@ Built-in validation checks schema, dependency availability, capability declarati
 Mocked tests never invoke actual tools or cause side effects.
 If an example uses model inference, the example payload still follows normal local/remote egress policy.
 Passing these tests is evidence of structure/example behaviour, not proof that the skill is universally correct or harmless.
+
+The delivered [simulated example subset](../docs/owned-skill-authoring.md#simulate-one-tool-free-example) uses the current inspected owned native v1 literal draft/revision and an ephemeral closed fixture, leaving both saved files unchanged ([host workflow](../src/Kora.Application/Skills/OwnedSkillFixtureWorkflow.cs)).
+The [closed parser](../src/Kora.Core/Skills/OwnedSkillFixture.cs) admits one complete input and one to eight ordinal `equals`/`contains` assertions. No mocked tool responses are accepted in this tool-free subset; native v2/v3/v4, reference-bearing definitions, unknown fields/assertions, hooks and custom validators are explicitly denied. Input-looking text and workflow-looking JSON in native v1 guidance remain literal evidence, not bindings or steps.
+The [existing editor](../src/Kora/OwnedSkillEditorController.Fixtures.cs) separately reviews complete source/fixture/local input before **Start SIMULATED test**, then displays complete exact output and host assertions. The isolated local tools-none route cannot authorize actual tool/network/effect execution; unavailable qualification stays unavailable, with no hosted fallback.
+Fixture/source/selection, original channel, privacy, ownership, provider configuration, generation and two-minute expiry fences suppress stale output; cancellation/disposal joins owned source reads and model work. Every terminal retires its review even if source bytes or eligibility later recover. Results remain volatile simulated examples, not retained facts, grants, trust or enablement. Save, Enable and an independently admitted real trial remain separate.
 
 An optional real trial is a separately admitted task with the exact skill revision and selected context.
 It uses ordinary tool, egress, resource, and action approvals.

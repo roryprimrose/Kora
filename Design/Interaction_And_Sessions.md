@@ -1556,6 +1556,9 @@ routing. Background tasks remain isolated and cannot acquire editor input.
 
 Independent Active sessions can execute concurrently, including writes to different resources.
 Initial proposed default: two executing session tasks, with a configurable limit admitted only within verified provider/hardware capabilities.
+For ordinary retained conversations, the [delivered future-maximum operation](Work_Management.md#ordinary-session-resource-allocation-implementation) reviews and separately confirms desired demand of one or two through native Settings or exact original typed/activated commands.
+This is not qualification of capacity two. Each request's host resource status reports its last configured/captured/qualified/effective ceiling and actual admission blocker; unknown readiness remains unavailable.
+Lowering the preference leaves active work and its physical joins intact, and never changes per-session pending FIFO.
 One execution slot per session preserves its ordering unless a later explicit design enables intra-session parallel tasks.
 Resource holds, dependency readiness, provider budgets, and fair scheduling govern admission; selected session gets no implicit execution priority.
 Management and exact local controls remain responsive while all slots are occupied.

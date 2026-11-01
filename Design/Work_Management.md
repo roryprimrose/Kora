@@ -491,6 +491,19 @@ Pending-request/context execution expiry does not erase durable history or exten
 
 The [host allocator](../src/Kora.Application/Dependencies/RuntimeResourceAllocator.cs) issues single-use, owner-checked resource leases before [ordinary retained dispatch](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs). Legacy qualification admits only one exclusive execution across unknown physical resources, including hosted single-flight runtimes; it never implies capacity two.
 
+The ordinary-conversation maximum is now a separate [validated device-local preference](../src/Kora.Core/Configuration/ConversationExecutionLimit.cs), bounded to one or two (default desired maximum two). It does not reuse or reopen retired fixed-version queue settings.
+[Settings and original typed/activated commands](../src/Kora.Application/ViewModels/MainViewModel.ConversationExecution.cs) review the exact current/proposed maximum and shared scope, then separately confirm through the [same audited preference owner](../src/Kora.Application/Configuration/ConversationExecutionConfigurationService.cs).
+Review and registration do not dispatch, evict or cancel work.
+
+Each resource admission captures an immutable budget. Waiting work revalidates current confirmed preferences before reservation and dispatch; its ceiling is the smaller of captured and current demand.
+Raising the preference cannot expand an already captured budget; lowering it never cancels executing work, but blocks future dispatch until resources fit.
+Reservation order does not imply execution order: an older reserved lease must also fit around every already dispatched lease, including cancellation-ignoring work awaiting physical join.
+Saved-state drift or unconfirmed writes hold new admission, not active joins ([allocator](../src/Kora.Application/Dependencies/RuntimeResourceAllocator.cs), [consumer regressions](../tests/Kora.Application.UnitTests/Dependencies/RuntimeResourceAllocatorTests.Configuration.cs)).
+
+The [typed host resource observation](../src/Kora.Core/Conversation/ConversationResourceStatus.cs) distinguishes configured/captured maximum, exact qualified ceiling, effective ceiling, lease/wait counts and FIFO/configuration/resource blockers.
+The native conversation shows the last factual admission check, not model progress or a promise of free capacity.
+Settings cannot claim a qualified effective capacity before exact runtime/profile admission; provider limits and unclassified exclusive resources still win ([presentation](../src/Kora/SessionsViewModel.ConversationCancellation.cs)).
+
 The trusted [runtime qualification seam](../src/Kora.Application/Dependencies/IRuntimeCapacityQualification.cs) can supply current exact provider/account/profile/runtime-generation evidence for two independently owned transports and canonical shared/exclusive resource identities. The allocator rejects unknown identities, shared-resource/profile conflicts, duplicate session ownership and reused active transports. It bounds FIFO waiting to ten requests and at most fifteen seconds, within original context expiry.
 
 Waiting/running/Stop use the [same exact-request cancellation owner](../src/Kora.Application/Hosting/SessionConversationService.Cancellation.cs). Cancellation does not release resources before physical join; each original request joins only its own lease. Failed joins or release-audit failures quarantine affected resources, preventing reuse rather than claiming cancellation or rollback. Required content-free acquisition/release/quarantine audit uses the existing typed audit sink.

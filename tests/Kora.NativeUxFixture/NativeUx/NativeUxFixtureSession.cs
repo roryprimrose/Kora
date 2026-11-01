@@ -34,6 +34,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using static Kora.NativeUxFixture.FixtureBoundaries;
+using NativeFixturePhase = Kora.NativeUxFixture.NativeFixturePhaseScope.PhaseKind;
+using NativeFixturePhaseOutcome = Kora.NativeUxFixture.NativeFixturePhaseScope.Outcome;
 
 namespace Kora.NativeUxFixture;
 
@@ -59,6 +61,8 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         TimeProvider? timeProvider = null)
     {
         Time = timeProvider ?? TimeProvider.System;
+        CapturePhaseObserver();
+        using var ownedStorage = BeginPhase(NativeFixturePhase.OwnedStorage);
         if ((silentCaption ? 1 : 0) + (listOverflow ? 1 : 0) + (exactGrants ? 1 : 0) + (allWork ? 1 : 0) + (syntheticVoice ? 1 : 0) > 1)
         {
             throw new ArgumentException("Synthetic caption, list-overflow, exact-grants, all-work and voice fixture modes are separate.");
@@ -106,17 +110,28 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             SharedAdmission = new(Interactions, Interactions, new(Tasks));
             SharedSkills = new(new(this), new DeniedSharedSkillReader(), SharedAdmission, Audit,
                 NullLogger<SharedSkillDiscoveryService>.Instance);
+            ownedStorage.Complete();
+            ownedStorage.Dispose();
+            VerifyPhaseEvidence();
         }
-        catch
+        catch (Exception exception)
         {
             Loggers?.Dispose();
             evidenceProvider?.Dispose();
             dailyEvidenceLogger?.Dispose();
             cancellation.Dispose();
             Directory.Delete(LocalRoot, recursive: true);
+            if (exception is OperationCanceledException) { ownedStorage.Cancel(); }
             throw;
         }
     }
+
+    partial void CapturePhaseObserver();
+    partial void ObservePhase(NativeFixturePhaseScope phase, NativeFixturePhaseOutcome outcome);
+    partial void VerifyPhaseEvidence();
+
+    private void RecordPhase(NativeFixturePhaseScope phase, NativeFixturePhaseOutcome outcome) => ObservePhase(phase, outcome);
+    private NativeFixturePhaseScope BeginPhase(NativeFixturePhase phase) => new(phase, RecordPhase);
 
     public string LocalRoot { get; }
     internal TimeProvider Time { get; }
@@ -160,9 +175,27 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         DetailPresentationConfigurationService? detailPresentationConfiguration = null,
         ConversationExecutionConfigurationService? conversationExecution = null)
     {
+        using var setup = BeginPhase(NativeFixturePhase.Setup);
+        await setup.RunAsync(() => InitializeCoreAsync(webPageGet, webSummary, callState, dispatcher, modelReasoner,
+            modelProbe, speechComponentSetup, logonStartupConfiguration));
+    }
+
+    private async Task InitializeCoreAsync(Kora.Tools.Network.WebPageGet? webPageGet,
+        Kora.Application.Network.WebSummaryWorkflow? webSummary,
+        Kora.Core.Communication.ICallStateService? callState,
+        IUiDispatcher? dispatcher, ILocalModelReasoner? modelReasoner, ISetupDependencyProbe? modelProbe,
+        Kora.Application.Dependencies.SpeechComponentSetupService? speechComponentSetup,
+        LogonStartupConfigurationService? logonStartupConfiguration)
+    {
         if (initialized) { throw new InvalidOperationException("A fixture session may be initialized only once."); }
-        await Tasks.InitializeAsync(Token);
-        await Interactions.InitializeAsync(Token);
+        using (var context = BeginPhase(NativeFixturePhase.Context))
+        {
+            await context.RunAsync(async () =>
+            {
+                await Tasks.InitializeAsync(Token);
+                await Interactions.InitializeAsync(Token);
+            });
+        }
         using var startup = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem), HostActivityLayer.Desktop, HostOperation.Startup);
         var consent = new LocalVoiceConsentPreferences(this, NullLogger<LocalVoiceConsentPreferences>.Instance);
         consent.Save(false);
@@ -371,23 +404,43 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     public void Dispose()
     {
         if (disposed) { return; }
+        using var disposal = BeginPhase(NativeFixturePhase.Disposal);
+        disposal.Run(DisposeCore);
+        disposal.Dispose();
+        VerifyPhaseEvidence();
+    }
+
+    private void DisposeCore()
+    {
         disposed = true;
         cancellation.Cancel();
         foreach (var model in maintenance) { model.Dispose(); }
         main?.Dispose();
         assistantNameConfiguration?.Dispose();
         // The fixture's synchronous shutdown drains only local-version work; queue disposal uses ConfigureAwait(false), with no UI continuation.
+        using (var join = BeginPhase(NativeFixturePhase.Join))
+        {
+            join.Run(() =>
+            {
 #pragma warning disable VSTHRD002
-        queue?.DisposeAsync().AsTask().GetAwaiter().GetResult();
-        OverflowEvents?.DisposeAsync().AsTask().GetAwaiter().GetResult();
-        captionAdmission?.DisposeAsync().AsTask().GetAwaiter().GetResult();
-        ExactGrantControl?.DisposeAsync().AsTask().GetAwaiter().GetResult();
-        SilentSpeech?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                queue?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                OverflowEvents?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                captionAdmission?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                ExactGrantControl?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                SilentSpeech?.DisposeAsync().AsTask().GetAwaiter().GetResult();
 #pragma warning restore VSTHRD002
+            });
+        }
         Access.Dispose();
-        Loggers.Dispose();
-        evidenceProvider?.Dispose();
-        dailyEvidenceLogger?.Dispose();
+        using (var evidenceFlush = BeginPhase(NativeFixturePhase.EvidenceFlush))
+        {
+            evidenceFlush.Run(() =>
+            {
+                Loggers.Dispose();
+                evidenceProvider?.Dispose();
+                dailyEvidenceLogger?.Dispose();
+            });
+        }
         cancellation.Dispose();
         // Delete only the uniquely created fixture child, never the supplied parent or user data.
         if (File.GetAttributes(LocalRoot).HasFlag(FileAttributes.ReparsePoint))

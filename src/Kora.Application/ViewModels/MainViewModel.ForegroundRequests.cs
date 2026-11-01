@@ -51,6 +51,7 @@ public sealed partial class MainViewModel
     {
         foregroundRequestReview = review;
         OnPropertyChanged(nameof(HasForegroundRequestReview));
+        OnPropertyChanged(nameof(HasSessionOperationReview));
         OnPropertyChanged(nameof(ForegroundRequestReviewText));
     }
 }

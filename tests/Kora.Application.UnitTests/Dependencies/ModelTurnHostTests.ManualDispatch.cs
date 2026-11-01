@@ -154,6 +154,61 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
+    [InlineData(RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.ActivatedVoice)]
+    public async Task InterleavedExpiredFixtureAwaitRevalidatesOriginalSourceBeforeTerminalWrite(RequestOrigin origin)
+    {
+        using var f = new Fixture(origin) { TrackPendingRecords = true };
+        var head = await f.RetainConversationMessageAsync(f.Request, f.Session.Generation, 0,
+            "held original", () => true, Token);
+        var nextRequest = new HostRequest(new(Guid.NewGuid()), f.Session.SessionId, new(Guid.NewGuid()), origin);
+        var next = await f.RetainConversationMessageAsync(nextRequest, f.Session.Generation, 0,
+            "independent original", () => true, Token);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var source = true;
+        var terminalChecks = 0;
+        f.BeforeSubmissionComplete = async request =>
+        {
+            if (request != head.Message.Request) { return; }
+            entered.TrySetResult();
+            await release.Task;
+        };
+        f.BeforePendingTerminal = (request, admitted) =>
+        {
+            if (request != head.Message.Request) { return; }
+            terminalChecks++;
+            admitted().Should().BeFalse();
+            throw new InvalidOperationException("Original source changed before terminal write.");
+        };
+        var completion = f.CompleteConversationSubmissionAsync(head.Message.Request, ModelTurnOutcome.Denied,
+            ModelTurnReason.ContextExpired, () => source, Token).AsTask();
+        try
+        {
+            await entered.Task;
+            terminalChecks.Should().Be(0);
+            f.PendingRecords[head.Message.Request.RequestId].Should().Be(head);
+            var second = await f.CompleteConversationSubmissionAsync(nextRequest, ModelTurnOutcome.Denied,
+                ModelTurnReason.ContextExpired, () => true, Token);
+            second.Message.Should().Be(next.Message with
+                { Revision = 2, Outcome = ModelTurnOutcome.Denied, Reason = ModelTurnReason.ContextExpired });
+            second.Task.Should().Be(next.Task.Next(HostTaskState.Denied));
+            source = false;
+            release.TrySetResult();
+            Func<Task> complete = async () => await completion;
+            await complete.Should().ThrowAsync<InvalidOperationException>()
+                .WithMessage("Original source changed before terminal write.");
+            terminalChecks.Should().Be(1);
+            f.PendingRecords[head.Message.Request.RequestId].Should().Be(head);
+            f.PendingRecords[nextRequest.RequestId].Should().Be(second);
+            f.Adapter.Calls.Should().Be(0);
+            f.ExecutionStarts.Should().Be(0);
+            f.ExecutionCompletions.Should().Be(0);
+        }
+        finally { release.TrySetResult(); }
+    }
+
+    [Theory]
     [InlineData("expiry")]
     [InlineData("source")]
     [InlineData("provider")]

@@ -9740,6 +9740,8 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public Exception? SpeakException { get; set; }
 
+        public Exception? SpeakCompletionException { get; set; }
+
         public Action? BeforeSpeak { get; set; }
 
         public Exception? StopException { get; set; }
@@ -9821,6 +9823,7 @@ public sealed partial class MainViewModelTests : IDisposable
             {
                 await SpeakGate.Task.WaitAsync(IgnoreSpeakCancellation ? CancellationToken.None : cancellationToken);
             }
+            if (SpeakCompletionException is { } completionException) { throw completionException; }
             if (generation != Interlocked.Read(ref outputGeneration)) { throw new OperationCanceledException(); }
 
             IsSpeaking = false;

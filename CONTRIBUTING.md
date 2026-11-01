@@ -82,6 +82,16 @@ even when the gate fails. Non-destructive Windows integration tests are not
 physical audio, provider or installed acceptance; CI must never lock or restart
 its runner.
 
+The [bundled computer-power regressions](tests/Kora.Windows.IntegrationTests/ApplicationLifecycle/SessionsConversationTests.BundledActions.cs)
+wait for enabled native question controls after the activation-triggered source
+refresh before editing or confirming. Window-open notification alone does not
+prove the question is ready for input. Exact typed shutdown/restart requests
+exercise the composed controller, separate power confirmation, fake countdown
+and fixed platform callback with terminal readback. Non-deadline native eligibility
+uses the shared frozen fixture clock; lifecycle review and countdown timers remain
+explicitly controlled. All power effects and worker
+qualification are deterministic fakes; these tests do not enable a runtime.
+
 Portable CI runs the four projects in [Kora.UnitTests.slnx](Kora.UnitTests.slnx) together, using [MTP's processor-count-based module concurrency](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-test-mtp#options). The [workflow](.github/workflows/ci.yml) isolates TRX and coverage output in per-module directories and aggregates every module's coverage before enforcing the existing thresholds.
 
 Portable fixtures that require host-resolved absolute source paths must construct
@@ -324,6 +334,15 @@ runner to verify the exact shape, original identity and real headless output.
   counts or an incomplete command task. Await cancellation acceptance, owned
   resource completion and the exact UI publication separately. Drain dispatcher
   work only after the operation it presents has joined.
+- An immediate dispatcher does not serialize UI-bound collection access across
+  worker continuations. Gate persistence while enqueuing native inputs, then join
+  the owning update before reading saved values or audit snapshots. Independently
+  completing operations share current response state; capture each complete
+  presentation and verify its exact receipt rather than treating the last title
+  as a durable command outcome.
+- Concurrent terminal-storage fakes must build message/task receipts from each
+  original request's retained snapshot, not mutable fixture-wide selection.
+  Force interleaving deterministically and verify both exact retained readbacks.
 - Inject one-shot observer faults atomically: cancellation acceptance and
   completion can publish the same Cancelling state concurrently. Retain the
   observer through physical join and verify the exact terminal receipt.

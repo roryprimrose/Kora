@@ -339,6 +339,22 @@ No content storage, logging, clipboard expansion, stable admission identity or t
 
 ### Delivered bounded Windows-provider-native speech rate (R10)
 
+The [closed registered-setting suggestion path](../docs/setting-proposals.md)
+also admits one exact successful retained answer, such as
+`set speech.windows-rate to -1`, as inert lower-trust data. Both native conversation
+sizes use the shared Review/Confirm/Cancel surface; exact typed/current-name
+ACTIVATED `review rate suggestion`, `confirm rate change`, `cancel rate review`
+use the host-pinned successful request, never latest-message guessing.
+The [review owner](../src/Kora.Application/Configuration/WindowsSpeechRateSuggestionReview.cs)
+shows current/proposed values, saved/default provenance, provider/support and native
+units, expires after 60 seconds and binds the exact source/session/input/call/settings.
+Separate fresh original-user confirmation revalidates source and reviewed provider/rate
+across current audio admission, then uses the same validated audited writer below.
+Retained response text is never approval, execution authority or a write receipt.
+No model/provider enablement, automatic apply, generic parser, new undo family or
+provider qualification is added; deterministic platform fakes prove implementation
+only, not hardware/acoustic/installed E/Q.
+
 The independent schema-1 option **`speech.windows-rate`** admits one canonical
 integer **-10 through 10 inclusive**, engine-normal/unsaved default/reset **0**.
 These are the Windows `System.Speech.Synthesis.SpeechSynthesizer.Rate` API's

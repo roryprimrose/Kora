@@ -102,6 +102,7 @@ internal static class Program
                         ConfigureServices(services, paths, fileLogger, fileHealth, ownershipBridge, coordinator);
                         provider = services.BuildServiceProvider();
                         App.Services = provider;
+                        App.IsManualStartup = ManualStartupPresentationController.IsManualLaunch(args);
                         var startupLogger = provider.GetRequiredService<ILoggerFactory>().CreateLogger("Kora.Desktop");
                         using (var startup = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem),
                             HostActivityLayer.Desktop, HostOperation.Startup))
@@ -403,6 +404,9 @@ internal static class Program
             new LocalLogonStartupPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<LogonStartupAdmission>();
         services.AddSingleton<LogonStartupConfigurationService>();
+        services.AddSingleton<IStartupPresentationPreferences>(provider =>
+            new LocalStartupPresentationPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<StartupPresentationConfigurationService>();
         services.AddSingleton<MaintenanceCommands>();
         services.AddSingleton<Kora.Application.Voice.AudioControlAdmission>();
         services.AddSingleton<Kora.Application.Voice.BoundedAudioOutputCatalog>();

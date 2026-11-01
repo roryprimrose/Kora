@@ -8727,7 +8727,8 @@ public sealed partial class MainViewModelTests : IDisposable
             CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
             OrdinaryTurnDeadlineConfigurationService? ordinaryDeadlineConfiguration = null,
             bool enableConversationExecution = false,
-            LogonStartupConfigurationService? logonStartupConfiguration = null)
+            LogonStartupConfigurationService? logonStartupConfiguration = null,
+            StartupPresentationConfigurationService? startupPresentationConfiguration = null)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8789,7 +8790,9 @@ public sealed partial class MainViewModelTests : IDisposable
             RateConfiguration = enableWindowsSpeechRate ? new(RatePreferences, TextToSpeech, SpeechConfiguration, OutputAdmission, Audit,
                 NullLogger<WindowsSpeechRateConfigurationService>.Instance) : null;
             InputRuntime = new(Voice);
-            InputConfiguration = enableSpeechInput ? new(InputPreferences, InputRuntime, OutputAdmission, Audit,
+            var effectiveVoice = voiceDecorator is null ? (IActivatedVoiceRecognitionService?)ReplyVoice ?? Voice
+                : voiceDecorator(ReplyVoice ?? new QuestionVoiceAdapter(Voice));
+            InputConfiguration = enableSpeechInput ? new(InputPreferences, effectiveVoice as ISpeechInputProfileRuntime ?? InputRuntime, OutputAdmission, Audit,
                 NullLogger<SpeechInputConfigurationService>.Instance) : null;
             var diagnosticStore = new Kora.Application.UnitTests.Configuration.AudioControlTestStore();
             DiagnosticAdmission = new(diagnosticStore, diagnosticStore, new HostTaskCoordinator(diagnosticStore));
@@ -8859,8 +8862,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 ApprovalPreferences,
                 ModelExecutionPreferences,
                 MicrophoneAccess,
-                voiceDecorator is null ? (IActivatedVoiceRecognitionService?)ReplyVoice ?? Voice
-                    : voiceDecorator(ReplyVoice ?? new QuestionVoiceAdapter(Voice)),
+                effectiveVoice,
                 TextToSpeech,
                 new AssistantNameConfigurationService(NamePreferences, Catalog, Audit,
                     NullLogger<AssistantNameConfigurationService>.Instance),
@@ -8928,7 +8930,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 communicationActivityConfiguration: communicationActivityConfiguration,
                 ordinaryDeadlineConfiguration: ordinaryDeadlineConfiguration,
                 conversationExecution: ConversationExecutionConfiguration,
-                logonStartupConfiguration: logonStartupConfiguration);
+                logonStartupConfiguration: logonStartupConfiguration,
+                startupPresentationConfiguration: startupPresentationConfiguration);
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);

@@ -112,6 +112,31 @@
               </Grid>
             </Border>
 
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                <StackPanel Spacing="8">
+                  <TextBlock Text="Normal manual startup presentation" Classes="settings-title" />
+                  <TextBlock Text="Native review and separate confirmation only. Applies to the supported Start Menu shortcut or --manual-startup launch. Logon and argument-free launches keep their existing behavior. Default/reset preserves current initialization, not a fixed workspace. No conversation is loaded, focus activated or microphone enabled by this choice."
+                             Classes="settings-description" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding StartupPresentationStatus}" TextWrapping="Wrap" />
+                  <WrapPanel IsEnabled="{Binding CanControlStartupPresentation}">
+                    <Button Name="InspectStartupPresentation" Content="Inspect" Command="{Binding InspectStartupPresentationCommand}" Margin="0,0,8,8" />
+                    <Button Name="ReviewTrayStartup" Content="Review tray/minimal" Command="{Binding ReviewTrayStartupCommand}" Margin="0,0,8,8" />
+                    <Button Name="ReviewWorkspaceStartup" Content="Review Main workspace" Command="{Binding ReviewWorkspaceStartupCommand}" Margin="0,0,8,8" />
+                  </WrapPanel>
+                  <TextBlock Text="{Binding StartupPresentationReviewText}" TextWrapping="Wrap" />
+                  <WrapPanel IsEnabled="{Binding CanControlStartupPresentation}">
+                    <Button Name="ConfirmStartupPresentation" Content="Confirm presentation change" Command="{Binding ConfirmStartupPresentationCommand}" Margin="0,0,8,8" />
+                    <Button Name="CancelStartupPresentation" Content="Cancel presentation review" Command="{Binding CancelStartupPresentationCommand}" Margin="0,0,8,8" />
+                  </WrapPanel>
+                </StackPanel>
+                <controls:SettingActionsButton x:Name="StartupPresentationActions" Grid.Column="1"
+                                               SettingName="Normal manual startup presentation"
+                                               ResetCommand="{Binding ResetStartupPresentationCommand}"
+                                               IsEnabled="{Binding CanControlStartupPresentation}" />
+              </Grid>
+            </Border>
+
             <StackPanel Spacing="5" Margin="0,8,0,0">
               <TextBlock Text="Appearance" FontSize="18" FontWeight="SemiBold" />
               <TextBlock

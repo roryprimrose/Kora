@@ -25,7 +25,7 @@ public sealed partial class MainViewModel
         if (IsResponseInteractionPending || !eligible()
             || !isAssistantNameAvailable && commandRouter.IsActivationPrefixed(text, AssistantName)
             || input.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
-            || input.Origin == RequestOrigin.ActivatedVoice && !commandRouter.IsActivationPrefixed(text, AssistantName))
+            || input.Origin == RequestOrigin.ActivatedVoice && !HasCurrentNameActivation(text))
         { Transcript = "Agent review requires original private typed input or current-name activated voice, without a pending approval."; return; }
         if (command.Authoring is { } authoring)
         {

@@ -158,13 +158,13 @@ public sealed class SettingsResetMenuTests
             .Where(attribute => attribute.Name.LocalName is "Command" or "ResetCommand"
                 && attribute.Value.StartsWith("{Binding Reset", StringComparison.Ordinal))
             .ToArray();
-        bindings.Should().HaveCount(34);
-        bindings.Select(attribute => attribute.Value).Distinct(StringComparer.Ordinal).Should().HaveCount(34);
+        bindings.Should().HaveCount(35);
+        bindings.Select(attribute => attribute.Value).Distinct(StringComparer.Ordinal).Should().HaveCount(35);
         bindings.Select(attribute => attribute.Value).Should().Contain(
             ["{Binding ResetOrdinaryDeadlineCommand}", "{Binding ResetLogonStartupCommand}"]);
         elements.Count(element =>
             string.Equals(element.Name.LocalName, nameof(SettingActionsButton), StringComparison.Ordinal))
-            .Should().Be(37);
+            .Should().Be(38);
         elements.Where(element => element.Name.LocalName is nameof(SettingActionsButton))
             .Select(element => element.Attribute("SettingName")?.Value).Should().Contain(
                 ["Ordinary task deadline", "Ordinary conversation execution maximum"]);
@@ -201,8 +201,22 @@ public sealed class SettingsResetMenuTests
             .Should().BeEmpty();
     }
 
+    [Fact]
+    public void Manual_startup_reset_retains_its_native_review_command_and_guard_in_a_named_cog()
+    {
+        var cog = LoadSettings().Descendants().Single(element =>
+            element.Attribute("SettingName")?.Value is "Normal manual startup presentation");
+        cog.Name.LocalName.Should().Be(nameof(SettingActionsButton));
+        cog.Attribute("ResetCommand")!.Value.Should().Be("{Binding ResetStartupPresentationCommand}");
+        cog.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanControlStartupPresentation}");
+        cog.Attribute("Grid.Column")!.Value.Should().Be("1");
+        var grid = cog.Parent!;
+        grid.Name.LocalName.Should().Be("Grid");
+        grid.Attribute("ColumnDefinitions")!.Value.Should().Be("*,Auto");
+    }
+
     [Theory]
-    [InlineData("Appearance", 15, 15, 0)]
+    [InlineData("Appearance", 16, 16, 0)]
     [InlineData("Speech & audio", 8, 7, 5)]
     [InlineData("Responses", 4, 4, 3)]
     [InlineData("Sessions", 2, 2, 2)]

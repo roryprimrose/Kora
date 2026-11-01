@@ -49,7 +49,7 @@ public sealed partial class WindowsSqliteConversationTests
                 var spec = LocalModelQuestionPolicy.CreateSpec(new("Choose format",
                     scenario is "text" ? [] : ["Compact", "Detailed"],
                     Minimum: scenario is "optional-choice" ? 0 : 1,
-                    Maximum: scenario is "multi-choice" ? 2 : 1));
+                    Maximum: scenario is "multi-choice" or "optional-choice" ? 2 : 1));
                 if (scenario is "form")
                 {
                     spec = LocalModelQuestionPolicy.CreateSpec(ModelToolProtocol.ParseAskUser(

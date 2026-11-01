@@ -173,11 +173,15 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         Kora.Application.Dependencies.SpeechComponentSetupService? speechComponentSetup = null,
         OrdinaryTurnDeadlineConfigurationService? ordinaryDeadlineConfiguration = null,
         ConversationExecutionConfigurationService? conversationExecution = null,
-        LogonStartupConfigurationService? logonStartupConfiguration = null)
+        LogonStartupConfigurationService? logonStartupConfiguration = null,
+        StartupPresentationConfigurationService? startupPresentationConfiguration = null,
+        IQuestionVoiceRecognitionService? voiceRecognition = null, SpeechInputConfigurationService? speechInputConfiguration = null)
     {
         using var setup = BeginPhase(NativeFixturePhase.Setup);
         await setup.RunAsync(() => InitializeCoreAsync(webPageGet, webSummary, callState, dispatcher, modelReasoner,
-            modelProbe, speechComponentSetup, ordinaryDeadlineConfiguration, conversationExecution, logonStartupConfiguration));
+            modelProbe, speechComponentSetup, ordinaryDeadlineConfiguration, conversationExecution,
+            logonStartupConfiguration, startupPresentationConfiguration,
+            voiceRecognition, speechInputConfiguration));
     }
 
     private async Task InitializeCoreAsync(Kora.Tools.Network.WebPageGet? webPageGet,
@@ -187,7 +191,9 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         Kora.Application.Dependencies.SpeechComponentSetupService? speechComponentSetup,
         OrdinaryTurnDeadlineConfigurationService? ordinaryDeadlineConfiguration,
         ConversationExecutionConfigurationService? conversationExecution,
-        LogonStartupConfigurationService? logonStartupConfiguration)
+        LogonStartupConfigurationService? logonStartupConfiguration,
+        StartupPresentationConfigurationService? startupPresentationConfiguration,
+        IQuestionVoiceRecognitionService? voiceRecognition, SpeechInputConfigurationService? speechInputConfiguration)
     {
         if (initialized) { throw new InvalidOperationException("A fixture session may be initialized only once."); }
         using (var context = BeginPhase(NativeFixturePhase.Context))
@@ -241,7 +247,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             commands, Audit, NullLogger<AssistantNameConfigurationService>.Instance);
         main = new(commands, new(commands), catalogue, new(catalogue), bootstrapper,
             new(bootstrapper, execution, execution), modelReasoner ?? execution, new LocalModelApprovalPreferences(this), models, Access,
-            Voice, speech, assistantNameConfiguration, appearances,
+            voiceRecognition ?? Voice, speech, assistantNameConfiguration, appearances,
             new LocalOptionalSpeechOfferPreferences(this),
             audioPreferences,
             new LocalResponseOutputPreferences(this, NullLogger<LocalResponseOutputPreferences>.Instance),
@@ -263,7 +269,9 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             webPageGet: webPageGet, speechComponentSetup: speechComponentSetup,
             ordinaryDeadlineConfiguration: ordinaryDeadlineConfiguration,
             conversationExecution: conversationExecution,
-            logonStartupConfiguration: logonStartupConfiguration);
+            logonStartupConfiguration: logonStartupConfiguration,
+            startupPresentationConfiguration: startupPresentationConfiguration,
+            speechInputConfiguration: speechInputConfiguration);
         if (webSummary is not null) { Main.BindWebSummaryWorkflow(webSummary); }
         Main.BindCallOwnershipGate(() => Access.Open);
         Main.BindClipboardOwnershipGate(static () => false);

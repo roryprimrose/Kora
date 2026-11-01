@@ -285,7 +285,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
         OrdinaryTurnDeadlineConfigurationService? ordinaryDeadlineConfiguration = null,
         ConversationExecutionConfigurationService? conversationExecution = null,
-        LogonStartupConfigurationService? logonStartupConfiguration = null)
+        LogonStartupConfigurationService? logonStartupConfiguration = null,
+        StartupPresentationConfigurationService? startupPresentationConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -446,6 +447,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         InitializeConversationalReplies(conversationalReplies, execute => CreateCommand(execute));
         InitializeConversationExecution(conversationExecution, execute => CreateCommand(execute));
         InitializeLogonStartup(logonStartupConfiguration, execute => CreateCommand(execute));
+        InitializeStartupPresentation(startupPresentationConfiguration, execute => CreateCommand(execute));
         ResetThemeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.Theme));
         ResetReaderTextScaleCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReaderTextScale));
         ResetResponseTimeoutCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ResponseTimeout));
@@ -2516,6 +2518,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public async Task HideApplicationAsync()
     {
+        CancelStartupPresentationReview();
         Interlocked.Increment(ref approvalPreparationRevision);
         RetireWebResultDetails();
         var actionRetirement = ClearPendingModelActionAsync("dismissed");
@@ -4277,10 +4280,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget = null,
         ForegroundConversationTarget? foregroundTarget = null)
     {
+        CancelStartupPresentationReview();
+        if (IsWakeCommand(spokenText) && string.Equals(AssistantName, "Stop", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(spokenText.Trim(), "listening", StringComparison.OrdinalIgnoreCase))
+        {
+            await ExecuteAsync(commandCatalog.GetCommands(AssistantName).Single(command => command.Action == BuiltInAction.DisableListening), initiator);
+            return;
+        }
         if (LogonStartupCommand.Parse(spokenText, AssistantName) is { } startupOperation)
         {
             if (!isAssistantNameAvailable || initiator == SecurityAuditInitiator.VoiceCommand
-                && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+                && !HasCurrentNameActivation(spokenText))
             {
                 CancelLogonStartupReview();
                 Transcript = "Start at logon requires original typed input or the current assistant-name voice prefix.";
@@ -4437,7 +4447,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         if (IsListeningStopCommand(spokenText))
         {
-            await Kora.Application.Hosting.HostRequestRunner.RunAsync(
+            await RunTranscriptOperationAsync(
                 OriginalOrigin(initiator),
                 () => DisableListeningAsync(initiator));
             return;
@@ -4478,7 +4488,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 ReportHostInteractionFailure("Assistant prefix routing is unavailable; no customization control was dispatched.");
                 return;
             }
-            await Kora.Application.Hosting.HostRequestRunner.RunAsync(OriginalOrigin(initiator),
+            await RunTranscriptOperationAsync(OriginalOrigin(initiator),
                 () => initiator == SecurityAuditInitiator.VoiceCommand && customization.Operation is "Refine"
                     ? ExecuteCustomizationVoice(editorTarget, customization.Text!)
                     : ExecuteCustomizationCommand(customization, reviewEligibility ?? CaptureSkillReviewEligibility(reviewInput)));
@@ -4491,7 +4501,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 ReportHostInteractionFailure("Assistant prefix routing is unavailable; no instruction control was dispatched.");
                 return;
             }
-            await Kora.Application.Hosting.HostRequestRunner.RunAsync(OriginalOrigin(initiator),
+            await RunTranscriptOperationAsync(OriginalOrigin(initiator),
                 () => ExecuteInstructionEditorCommand(spokenText, manualInput, reviewEligibility));
             return;
         }
@@ -4661,7 +4671,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (AssistantNameCommand.Parse(spokenText, AssistantName) is { } assistantCommand
             && (isAssistantNameAvailable || !commandRouter.IsActivationPrefixed(spokenText, AssistantName)))
         {
-            await Kora.Application.Hosting.HostRequestRunner.RunAsync(origin,
+            await RunTranscriptOperationAsync(origin,
                 () => ExecuteAssistantNameCommandAsync(assistantCommand, initiator));
             return;
         }
@@ -4676,25 +4686,25 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (RegisteredSettingUndoCommand.Parse(spokenText, AssistantName) is { } undoCommand)
         {
             if (initiator == SecurityAuditInitiator.VoiceCommand
-                && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+                && !HasCurrentNameActivation(spokenText))
             {
                 ShowInformation("Settings undo requires original input.", "Use the current assistant-name prefix. Nothing was applied.");
                 return;
             }
-            await Kora.Application.Hosting.HostRequestRunner.RunAsync(origin,
+            await RunTranscriptOperationAsync(origin,
                 () => ExecuteSettingsUndoAsync(undoCommand, initiator, CancellationToken.None));
             return;
         }
         if (RegisteredSettingSuggestionCommand.Parse(spokenText, AssistantName) is { } responseSuggestionCommand)
         {
             await ExecuteResponseModeSuggestionAsync(responseSuggestionCommand, initiator,
-                commandRouter.IsActivationPrefixed(spokenText, AssistantName));
+                HasCurrentNameActivation(spokenText));
             return;
         }
         if (PlaybackVolumeSuggestionCommand.Parse(spokenText, AssistantName) is { } volumeSuggestionCommand)
         {
             await ExecutePlaybackVolumeSuggestionAsync(volumeSuggestionCommand, initiator,
-                commandRouter.IsActivationPrefixed(spokenText, AssistantName));
+                HasCurrentNameActivation(spokenText));
             return;
         }
         if (WindowsSpeechRateSuggestionCommand.Parse(spokenText, AssistantName) is { } rateSuggestionCommand)
@@ -4706,18 +4716,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (SpeechSummarySuggestionCommand.Parse(spokenText, AssistantName) is { } speechSuggestionCommand)
         {
             await ExecuteSpeechSummarySuggestionAsync(speechSuggestionCommand, initiator,
-                commandRouter.IsActivationPrefixed(spokenText, AssistantName));
+                HasCurrentNameActivation(spokenText));
             return;
         }
         if (SpeechCommand.Parse(spokenText, AssistantName) is { IsNaturalSummary: true } speechCommand)
         {
             if (initiator == SecurityAuditInitiator.VoiceCommand
-                && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+                && !HasCurrentNameActivation(spokenText))
             {
                 Transcript = "Use the current assistant-name prefix for spoken summary limit voice commands. No speech setting was changed.";
                 return;
             }
-            await Kora.Application.Hosting.HostRequestRunner.RunAsync(origin,
+            await RunTranscriptOperationAsync(origin,
                 () => ExecuteSpeechCommandAsync(speechCommand, initiator));
             return;
         }
@@ -4734,13 +4744,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (SessionDispositionReviewCommand.Parse(spokenText, AssistantName) is { } dispositionCommand)
         {
             await ExecuteSessionDispositionReviewAsync(dispositionCommand, initiator,
-                commandRouter.IsActivationPrefixed(spokenText, AssistantName));
+                HasCurrentNameActivation(spokenText));
             return;
         }
         if (SessionQueueCancellationReviewCommand.Parse(spokenText, AssistantName) is { } cancellationPreparation)
         {
             await ExecuteQueueCancellationPreparationAsync(cancellationPreparation, initiator,
-                commandRouter.IsActivationPrefixed(spokenText, AssistantName));
+                HasCurrentNameActivation(spokenText));
             return;
         }
         if (sessionCommand is not null)
@@ -4750,8 +4760,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     || sessionCommand.IsConversationDispatch
                     || sessionCommand.Operation is SessionCommandOperation.RequestReview or SessionCommandOperation.RequestConfirm
                         or SessionCommandOperation.RequestCancel or SessionCommandOperation.AttachmentInspect)
-                && (!commandRouter.IsActivationPrefixed(spokenText, AssistantName)
-                    || sessionCommand.RequestForegroundTarget && !sessionCommand.RequestActivationPrefixed))
+                && (!HasCurrentNameActivation(spokenText)
+                    || sessionCommand.RequestForegroundTarget && !sessionCommand.RequestActivationPrefixed && !IsWakeCommand(spokenText)))
             {
                 RetireSessionCommandReviews();
                 ShowInformation("Session request denied.", "Use the current assistant-name prefix and exact session grammar. No pending question or model received this input.");
@@ -4760,7 +4770,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await ExecuteSessionCommandAsync(sessionCommand, initiator,
                 reviewEligibility ?? CaptureSkillReviewEligibility(manualInput
                     ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision)),
-                commandRouter.IsActivationPrefixed(spokenText, AssistantName),
+                HasCurrentNameActivation(spokenText),
                 manualInput?.AssistantNameRevision ?? assistantNameConfiguration.Get().Revision, foregroundTarget);
             return;
         }
@@ -4790,7 +4800,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             }
             return;
         }
-        await Kora.Application.Hosting.HostRequestRunner.RunAsync(origin,
+        await RunTranscriptOperationAsync(origin,
             () => RouteTranscriptAsync(spokenText, confidence, initiator, speechRevision, editorTarget, manualInput));
     }
 
@@ -4840,7 +4850,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         {
             var canAnswer = initiator != SecurityAuditInitiator.VoiceCommand
                 || !RequireAssistantNameForVoiceApproval
-                || commandRouter.IsActivationPrefixed(spokenText, AssistantName);
+                || HasCurrentNameActivation(spokenText);
             if (canAnswer)
             {
                 var index = LocalModelQuestionSpeech.Match(spokenText, question, AssistantName);
@@ -4897,7 +4907,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             {
                 if (initiator == SecurityAuditInitiator.VoiceCommand
                     && RequireAssistantNameForVoiceApproval
-                    && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+                    && !HasCurrentNameActivation(spokenText))
                 {
                     ShowInformation("Say the assistant name to confirm.", DescribeGrantChange(pendingGrantChange!)
                         + $" Say “{AssistantName}, approve once” or “{AssistantName}, reject”.");
@@ -4929,7 +4939,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             {
                 if (initiator == SecurityAuditInitiator.VoiceCommand
                     && RequireAssistantNameForVoiceApproval
-                    && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+                    && !HasCurrentNameActivation(spokenText))
                 {
                     var action = pendingModelAction!.Value;
                     var description = commandCatalog.GetCommands(AssistantName)
@@ -4958,7 +4968,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         BeginTranscriptPresentation(spokenText, confidence, initiator);
 
         if ((AppearanceCommand.Parse(spokenText, AssistantName)
-            ?? NaturalAppearanceCommand.Parse(spokenText, AssistantName, initiator == SecurityAuditInitiator.VoiceCommand)) is { } appearanceCommand)
+            ?? NaturalAppearanceCommand.Parse(spokenText, AssistantName, initiator == SecurityAuditInitiator.VoiceCommand && !IsWakeCommand(spokenText))) is { } appearanceCommand)
         {
             await ExecuteAppearanceCommandAsync(appearanceCommand, initiator);
             return;
@@ -5043,7 +5053,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     {
         if (initiator == SecurityAuditInitiator.VoiceCommand
             && !activationAlreadyValidated
-            && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            && !HasCurrentNameActivation(spokenText))
         {
             ShowInformation(
                 "Activate me before asking a question.",
@@ -6638,6 +6648,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         OnPropertyChanged(nameof(CanChangeConversationalReplies));
         OnPropertyChanged(nameof(CanControlLogonStartup));
         OnPropertyChanged(nameof(CanControlLogonStartupNative));
+        OnPropertyChanged(nameof(CanControlStartupPresentation));
         OnPropertyChanged(nameof(WindowsSpeechRateStatus));
         OnPropertyChanged(nameof(PlaybackVolumeStatus));
         OnPropertyChanged(nameof(CanChangeDiagnosticRetention));

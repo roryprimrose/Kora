@@ -82,11 +82,29 @@ even when the gate fails. Non-destructive Windows integration tests are not
 physical audio, provider or installed acceptance; CI must never lock or restart
 its runner.
 
+The [bundled computer-power regressions](tests/Kora.Windows.IntegrationTests/ApplicationLifecycle/SessionsConversationTests.BundledActions.cs)
+wait for enabled native question controls after the activation-triggered source
+refresh before editing or confirming. Window-open notification alone does not
+prove the question is ready for input. Exact typed shutdown/restart requests
+exercise the composed controller, separate power confirmation, fake countdown
+and fixed platform callback with terminal readback. Non-deadline native eligibility
+uses the shared frozen fixture clock; lifecycle review and countdown timers remain
+explicitly controlled. All power effects and worker
+qualification are deterministic fakes; these tests do not enable a runtime.
+
 Portable CI runs the four projects in [Kora.UnitTests.slnx](Kora.UnitTests.slnx) together, using [MTP's processor-count-based module concurrency](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-test-mtp#options). The [workflow](.github/workflows/ci.yml) isolates TRX and coverage output in per-module directories and aggregates every module's coverage before enforcing the existing thresholds.
 
 Portable fixtures that require host-resolved absolute source paths must construct
 host-native paths with `Path.GetFullPath`, not hard-coded Windows drive paths.
 Keep relative-path rejection intact; fixture portability must not relax source authority.
+
+Queued-conversation fakes must derive each terminal message/task pair from the
+exact request-owned retained record before updating shared observation fields.
+Concurrent expiry must preserve both originals' identity, body, generation,
+sequence and UTC timestamp, with exact terminal revisions and retained readback;
+fixture repairs do not relax production authority or receipt checks.
+Await interleaving hooks outside the fixture lock, then run the original-source
+terminal guard and write together under the lock using that request-local pair.
 
 Run [Test-PortableTestScheduling.ps1](eng/Test-PortableTestScheduling.ps1) to check solution membership, main-build coverage, parallel scheduling, report isolation, and coverage-gate arguments without building or running test modules.
 
@@ -102,29 +120,114 @@ completion. Later Cancelling publications are not additional injected failures;
 every accepted request still requires its physical join and terminal receipt,
 while the operation truthfully retains its partial/unconfirmed outcome.
 
+Speech-suggestion receipt-pin regressions explicitly join voice-consent
+withdrawal and capture closure in both notification orders. Assert the exact
+command presentation and canonical request/task receipt independently of the
+later consent notification; the shared current response title is not a durable
+command outcome. Withdrawal must still prevent review, confirmation, capture
+restart and any future speech-limit write.
+
 To reproduce CI's Windows test scheduling after a locked `win-x64` build, run
-`.\eng\Run-WindowsIntegrationTests.ps1`. Its five concurrent, disjoint local shards
-cover heavy storage, other storage, and three balanced UI/platform groups.
-Each shard retains its own TRX and console output;
-any nonzero shard exit fails the run. `-Shard <name>` selects exactly one existing
-shard; `-ListShards` lists the selected names and filters without running tests.
-CI isolates these same five shards on separate hosted Windows runners, retaining
-per-shard TRX and console artifacts. The unchanged required **Windows integration
-tests** check aggregates the matrix fail-closed: failure, cancellation, missing
-or skipped shards cannot pass. Payload/bootstrap fixtures still run once.
+`.\eng\Run-WindowsIntegrationTests.ps1 -Partition <name>`. CI builds once,
+packages the runnable modules and complete unfiltered discovery catalog, then
+scales out to twelve independent standard Windows hosted jobs. Consumer jobs
+download this run's exact-source artifact, verify its revision and file hashes,
+and run MTP through `--root-directory` / `--test-modules`, without restore or
+compilation. No larger host or increased per-process thread limit is requested.
+`ui-definition-dialogs`
+owns the complete customization and prompt-parameter window classes;
+`ui-conversation-actions` owns conversation methods beginning Native, Owned or
+Named; `ui-conversation-core` owns conversation methods beginning B, E or M;
+`ui-conversations` owns all other conversation methods, including future
+methods outside those families. `ui-definitions` owns remaining definition classes.
+`ui-workflows` and `ui-presentation` isolate measured expensive platform classes;
+`ui-platform` catches the remainder, including future classes.
+All theory rows for each method stay together. `ui-editors` owns the complete
+owned-definition editor class.
+All twelve execution partitions preserve serial headless UI
+execution within each process and the existing per-process thread limit.
+Each partition retains its own TRX and console output under a fresh run directory;
+MTP diagnostics retain started-test identities and terminal state, with diagnostic
+tails appended to console logs for predecessor artifact compatibility.
+nonzero exits or missing, duplicate, empty or incomplete passing reports fail
+the run. `-Partition <name>` selects one independent execution process.
+`-Shard <name>` retains the five-job bootstrap assignments while trusted main
+still consumes the predecessor workflow;
+`-ListShards` lists legacy logical ownership filters for retained-data comparison;
+`-ListPartitions` lists actual process filters and `HostedShard` assignments
+without running tests. `Shard` on each partition retains its legacy logical owner.
+CI retains the five legacy Windows job names as lightweight fail-closed joins
+of the shared build and twelve execution jobs. This preserves queue retirement
+of predecessor runs without adding required job names to queue policy.
+`windows-execution-results-<partition>` artifacts retain every TRX and console log.
+The unchanged required **Windows integration tests** check validates all twelve
+reports against the admitted-source catalog: every method and theory case must
+pass exactly once. Failure, cancellation, missing or skipped jobs cannot pass.
+Payload/bootstrap fixtures still run once in the build producer.
 This scheduling isolates competing test processes without removing tests or
 changing test/product or 30-minute Windows job timeouts. Run
 `.\eng\Test-WindowsIntegrationScheduling.ps1` for deterministic selection,
 partition and aggregate-gate checks.
 
-The [shard runner](eng/Run-WindowsIntegrationTests.ps1) keeps the complete settings section navigation, reset-menu and specialist navigation classes on synchronous `ui-definitions`, separate from the buffered native-UX profile.
-The [scheduling regression](eng/Test-WindowsIntegrationScheduling.ps1) checks exact class boundaries and measured redistribution after the [platform job's deadline breach](https://github.com/roryprimrose/Kora/actions/runs/40815883491/job/123256871731); retained partial timings are not a full-shard pass or a hosted timing guarantee.
+The [scheduling regression](eng/Test-WindowsIntegrationScheduling.ps1) checks
+both hosted ownership and exact process partitions, exercises the real runner
+with a fake CLI, and rejects missing/malformed execution evidence. Its optional
+`-RetainedResultsDirectory <path>` accepts a complete legacy five-report or
+legacy seven-report, nine-report or current twelve-report dataset and checks every recorded case against the new
+partition exactly once. Complete successful runs
+[41223826625](https://github.com/roryprimrose/Kora/actions/runs/41223826625) and
+[41229047847](https://github.com/roryprimrose/Kora/actions/runs/41229047847)
+project at least a 25% shorter UI critical path with measured setup/post costs.
+Those projections are not new-head execution evidence or a guarantee about
+contention between processes sharing a hosted runner. The initial seven-process
+repair still timed out in [run 41255145262](https://github.com/roryprimrose/Kora/actions/runs/41255145262):
+only 842 of 857 conversation cases were recorded. The nine-process repair
+retains every unfinished method and splits recorded conversation/dialog work
+further; partial timings are not proof that the repaired hosted job completes.
+[Run 41288388916](https://github.com/roryprimrose/Kora/actions/runs/41288388916)
+then timed out both UI runners: extra processes on the same runner did not
+provide enough execution capacity. The subsequent cross-runner assignment uses
+the spare storage-job capacity, leaves native buffering isolated, and sums
+serial UI costs per hosted runner in timing regressions instead of assuming
+process-level parallel speedup. Every filter and recorded test case is retained.
+The twelve-job pipeline replaces those shared-runner assignments after
+integration; its larger matrix does not execute during its own candidate's
+trusted-main workflow. Local contracts and archive round-trip checks do not
+establish hosted timing. Aim for 12-15 minutes end-to-end, but measure actual
+runner scheduling, artifact transfer, build and slowest-test time before claiming
+that target. More jobs cannot fix a test that stalls.
 
-The [shard runner](eng/Run-WindowsIntegrationTests.ps1) places the whole owned-definition editor class on synchronous `ui-platform`, and session-routing and waiting-question navigation classes on synchronous `ui-definitions`; only the existing native-UX classes use buffered evidence.
+To reproduce downloaded-artifact execution after packaging:
 
-[Run 40836599680](https://github.com/roryprimrose/Kora/actions/runs/40836599680) retained partial definitions results before cancellation, so the [scheduling regression](eng/Test-WindowsIntegrationScheduling.ps1) predicts recorded work only, not a new-head completion or timing guarantee.
+```powershell
+.\eng\Publish-WindowsTestArtifact.ps1 -SourceRevision (git rev-parse HEAD) -OutputArchive '.net-test-artifacts\windows-build\test-modules.zip'
+Expand-Archive -LiteralPath '.net-test-artifacts\windows-build\test-modules.zip' -DestinationPath '<fresh-test-module-directory>'
+.\eng\Run-WindowsIntegrationTests.ps1 -Partition 'ui-platform' -TestModuleDirectory '<fresh-test-module-directory>' -ExpectedSourceRevision (git rev-parse HEAD)
+.\eng\Test-WindowsIntegrationScheduling.ps1 -RetainedResultsDirectory '<complete-twelve-report-directory>' -ExpectedCatalogPath '.net-test-artifacts\windows-build\kora-test-catalog.json' -ExpectedSourceRevision (git rev-parse HEAD)
+```
 
-The [candidate's cancelled definitions job](https://github.com/roryprimrose/Kora/actions/runs/40840133406/job/123334414374) retained incomplete results; [scheduling checks](eng/Test-WindowsIntegrationScheduling.ps1) preserve exact class partitions and the 30-minute cap while predicting recorded-work redistribution, not new-head completion or timing guarantees.
+Keep extracted modules beneath the source checkout at the test binary layout
+so fixture source/resource discovery retains its repository context.
+Approval-flow fixtures use a shared injected clock and explicitly controlled
+timers rather than allowing runner load to consume an unrelated review budget.
+The lifecycle controller's one-minute cancellation budget uses its injected
+clock; shutdown/restart regressions exercise cancellation at 60 seconds without
+a Windows effect, separately from the 30-second physical-effect countdown.
+The native fixture still defaults to system time when no test clock is supplied.
+Cancellation and deferred-cleanup regressions wait for the actual token or
+callback signal before releasing their fake work. This preserves exact denial,
+resource-release and no-effect assertions without sleeps or widened deadlines.
+Native approval fixtures await exact-review publication and restored editability
+before selecting an answer; review text can appear before the operation is idle.
+Adaptive interaction fixtures join the exposed session-navigation operation
+before asserting unchanged selected-row identity and independent composer text.
+
+Portable tests and exact-source payload production run independently after
+version resolution. The installer consumes the verified payload immediately,
+without waiting for unrelated portable tests. The existing required
+**Portable build, tests, coverage, and package** check joins both producers
+fail-closed; release still requires this check, all Windows jobs and the
+installer. No test category has moved to main-only or nightly validation.
 
 Cancellation-ignoring playback fixtures wait for the fake speech stop to complete
 before releasing playback. An incomplete command task alone does not establish
@@ -150,9 +253,9 @@ not elapsed-time policy. Deadline regressions retain their explicit clock/timer
 boundaries; production model and transport deadlines are unchanged.
 The one-task output fixture retains `ProviderBusy` for an overlapping session on
 its unqualified shared adapter, then joins queued work before a fresh review.
-The speech-suggestion receipt-pin consent race holds the existing consent-save
-seam until submission status is asserted, then joins withdrawal before checking
-that the retained voice source cannot authorize review or confirmation.
+The speech-suggestion receipt-pin consent race controls capture closure to cover
+both notification orders; its canonical receipt and consent-withdrawal checks
+are described above.
 Native stop-and-delete assertions await the exact cancellation-accepted event.
 Paging gestures await the existing Next readiness notification when passive
 work refresh is outstanding; draining dispatcher jobs does not join that I/O.
@@ -163,13 +266,62 @@ terminal UI publication after the real operation/resource join.
 
 The [runner's UI filters](eng/Run-WindowsIntegrationTests.ps1) retain the existing shard names: `ui-definitions` also runs conversation and bounded accessibility tests; `native-ux` also runs dispatcher responsiveness, reader scale, and speech caption tests. `ui-platform` runs Evidence Find and the remainder, with exclusions derived from the same prefix lists to avoid gaps or overlaps.
 
-Rebalance whole classes using per-shard TRX durations, not test counts. Keep the [headless UI collection](tests/Kora.Windows.IntegrationTests/HeadlessUiTestGroup.cs) serial within each process; moving classes between isolated shard processes must not relax its process-wide dispatcher protection. Update the [scheduling contracts](eng/Test-WindowsIntegrationScheduling.ps1) when changing assignments.
-Validate complete retained five-shard TRX evidence with `.\eng\Test-WindowsIntegrationScheduling.ps1 -RetainedResultsDirectory <results-root>`; this checks every recorded case against the current partition, not revised-source hosted timing.
+Rebalance classes or explicit method families using per-shard TRX durations, not test counts; keep each method's theory rows together. Keep the [headless UI collection](tests/Kora.Windows.IntegrationTests/HeadlessUiTestGroup.cs) serial within each process; isolated processes must not relax its process-wide dispatcher protection. Update the [scheduling contracts](eng/Test-WindowsIntegrationScheduling.ps1) when changing assignments.
+Validate complete retained five-, seven- or nine-report TRX evidence with `.\eng\Test-WindowsIntegrationScheduling.ps1 -RetainedResultsDirectory <results-root>`; this checks every recorded case against the current partition, not revised-source hosted timing.
 
 Documentation-only changes need local link/heading, exact example and availability
 checks. Changes to the embedded user guide also run its focused tests. They do
 not require device/provider trials. Preserve existing anchors or update their
 consumers, including links embedded in the guide and historical experiments.
+
+### Native fixture phase evidence
+
+Headless dispatch and the shared native fixture retain a per-test
+`native-fixture-phases.json` attachment through xUnit's existing attachment API.
+The adapter writes this string attachment as `native-fixture-phases.json.txt`
+under the original test's unique-ID directory and links its retained copy in TRX.
+It uses MTP's `TimingProperty`, `StepTimingInfo` and `TimingInfo` field shapes,
+with the original xUnit execution `TestUniqueId` (including distinct theory
+rows), not a reconstructed name or source attribute. The runner's ordinary
+adapter-generated per-case timing remains unchanged; its empty `StepTimings`
+is not the fixture attachment.
+The attachment's `GlobalTiming` covers its observation window, not the entire
+test's execution duration.
+
+The stable phase allowlist is `native-ui`, `owned-storage`, `setup`, `context`,
+`join`, `evidence-flush` and `disposal`. `native-ui` measures the dispatched
+callback, not its queue wait; storage measures fixture construction, context
+measures task/interaction-store initialization, and setup measures the complete
+fixture initialization. Join and evidence flush measure the existing shutdown
+owners inside disposal. These intervals can nest and must not be summed as
+exclusive CPU time. Repeated phases have distinct ordinal IDs.
+
+Each entered phase publishes `running`; only observed terminal phases enter
+`Timing.StepTimings`, with a matching `completed`, `cancelled` or `failed`
+`PhaseStates` entry. Elapsed durations and timestamp offsets use a monotonic
+clock anchored once to UTC, independent of product clocks and deadline modes.
+No exception text, display-name arguments, filenames, content, scope or audit
+payload is collected. Report-delivery failure is rethrown after the owning
+operation's cleanup boundary, failing the test rather than skipping physical
+joins or pretending evidence was retained. During a dispatched callback,
+fixture verification defers to that callback's exception boundary so disposal
+cannot replace an original failure. Concurrent operation and report-delivery
+failures surface together as an `AggregateException`, preserving both original
+exceptions without adding their payloads to the attachment. Ambient capture is
+valid only while its owning callback is active; inherited late callbacks cannot
+reuse an ended ambient operation.
+
+Each of the twelve `windows-execution-results-<partition>` artifacts retains
+these test attachments alongside TRX, console output and MTP diagnostics under
+its fresh execution directory. Phase attachments and started-test diagnostics
+do not substitute for the complete admitted-source catalog and passing reports.
+A killed host may never publish a terminal test report
+or its attachments; absent evidence is not a completed/cancelled phase or a
+recoverable historical trace. This instrumentation does not establish the
+cause or repair of a hosted job deadline breach, runtime performance
+qualification, or eligibility for a different evidence profile. Run the focused
+`NativeUx.NativeFixturePhaseTimingTests` with the existing integration test
+runner to verify the exact shape, original identity and real headless output.
 
 ### Reliable fixture patterns
 
@@ -177,9 +329,30 @@ consumers, including links embedded in the guide and historical experiments.
   counts or an incomplete command task. Await cancellation acceptance, owned
   resource completion and the exact UI publication separately. Drain dispatcher
   work only after the operation it presents has joined.
+- An immediate dispatcher does not serialize UI-bound collection access across
+  worker continuations. Gate persistence while enqueuing native inputs, then join
+  the owning update before reading saved values or audit snapshots. Independently
+  completing operations share current response state; capture each complete
+  presentation and verify its exact receipt rather than treating the last title
+  as a durable command outcome.
+- Concurrent terminal-storage fakes must build message/task receipts from each
+  original request's retained snapshot, not mutable fixture-wide selection.
+  Force interleaving deterministically and verify both exact retained readbacks.
+- Inject one-shot observer faults atomically: cancellation acceptance and
+  completion can publish the same Cancelling state concurrently. Retain the
+  observer through physical join and verify the exact terminal receipt.
 - Preserve production deadlines; use existing fake clocks for non-deadline
   scenarios. Dispose asynchronous fixture owners and release held operations in
   `finally`. See the [microphone ownership regressions](tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.MicrophoneRefreshOwnership.cs).
+- Concurrent conversation expiry fixtures derive the message/task terminal pair
+  from the exact request-owned snapshot, not mutable last-observed fixture slots.
+  A concurrent dictionary does not make shared selection/commit atomic; force
+  interleaving deterministically and preserve each original's exact receipt.
+  The [manual-release regressions](tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ManualDispatch.cs)
+  await the shared completion hook for nested completions and held expired
+  workers, verifying both exact retained readbacks and preserving original
+  authority, timestamps and recovery holds without model execution or answer
+  publication.
 - Put restricted-storage fixtures under the discovered repository root to avoid
   native path-length limits. Keep unique names, non-reparse checks and owner-only
   ACLs. Explicitly protect every enumerated root, including editor `User`,

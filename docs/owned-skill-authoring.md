@@ -12,6 +12,32 @@ Start with [a purpose](#create-a-new-skill-from-a-purpose) or [manual create and
 The [file format](#native-v1-format) is needed only if you inspect the saved
 files; the native editor prepares them for you.
 
+## Rename one complete owned native package
+
+Rename changes a saved package's canonical ID, not its readable name, version or unsaved draft. It supports the current native v1/v2/v3/v4 two-file formats only, never a primary-only `SKILL.md` move or a shared/profile/reference-package mutation
+([rename proposal](../src/Kora.Core/Skills/OwnedSkillRename.cs), [native writer](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.Rename.cs)).
+
+1. Choose **List** in the owned skill editor, or type `owned skill list`. Save a dirty draft as a separate new immutable version, or explicitly discard it first; Rename never discards it.
+2. Select the exact saved package, enter a distinct **New owned package ID**, then choose **Rename selected package**. Alternatively, type `owned skill rename example 1.0.0 renamed`. The same exact command with the current assistant-name prefix is available through eligible activated voice.
+3. Review the complete original and proposed files, exact old/new destinations and revisions, unchanged version/readable name/guidance/declarations, and reference/authority consequences. Continue, then separately confirm **Rename only this complete package**. Cancel or **Escape** rejects either review without renaming; the editor and source remain intact.
+4. After verified completion, choose **List**, select the new package and **Reopen**, or type `owned skill reopen renamed 1.0.0`. Native v4 uses its existing separate `owned skill workflow reopen renamed 1.0.0` editor.
+   The new identity remains inactive and needs fresh independent use review, enablement and any action permission ([native operation](../src/Kora/OwnedSkillEditorController.Rename.cs), [review controls](../src/Kora/OwnedSkillEditorWindow.cs)).
+
+Only the exact manifest ID changes; complete guidance bytes, version, readable name and supported declarations remain unchanged. Other packages and other versions are retained.
+If you edit the open draft while the post-rename list refresh is running, your new text and its unsaved-draft prompt remain intact. An unconfirmed presentation does not undo the native rename; inspect the exact names before taking another action.
+New simulated-fixture input during that refresh is also retained. After adopting the renamed source, enter a fresh fixture and separately review any simulation; Rename itself never runs or approves the example.
+External references stay bound to the old identity and are not rewritten; old reviews cannot follow the new ID or revive when old bytes are restored ([use-authority regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.OwnedSkillRename.cs)).
+
+Publication and old-source retirement are **recoverable steps, not an atomic transaction**. After an uncertain result, do not repeat Rename or overwrite either name.
+**List** exposes retained pending renames; select one and choose **Recover selected rename**, or type `owned skill recover-rename example 1.0.0` using the original ID/version. Review both complete packages and separately confirm **Resume only retained rename**.
+Both identities remain unavailable while intent is retained, including after restart; unrelated packages remain available ([recovery tests](../tests/Kora.Windows.IntegrationTests/Skills/OwnedSkillRenameTests.cs)).
+**Delete** also refuses both affected identities until separately reviewed rename recovery completes. A completed renamed native v1/v2/v3 source requires fresh full-source deletion review and independent confirmation; rename or simulation never approves deletion.
+Pending renames still count toward the saved-version and total-byte limits. Resolve retained renames before adding packages when that reserved capacity is full; recovery refuses an already over-limit inventory rather than releasing a broken catalogue.
+
+Changed source components, destination identity/bytes, parents or corrupt retained intent stop recovery without overwrite or deletion of substitutions. Keep both names and the private local intent for explicit inspection; no automatic rollback/retry is claimed.
+If no pending intent remains after an unconfirmed terminal receipt, inspect both exact old/new names with List/Reopen rather than retrying.
+Rename does not run a model/tool, register or enable a definition, import executable content, archive a package or mutate a profile original ([dedicated writer](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.Rename.cs), [admission and audit](../src/Kora.Application/Skills/OwnedSkillRenameWorkflow.cs)).
+
 ## Author and run an ordered host observation workflow
 
 Use the separate **Kora-owned observation workflow** window, typed commands below, or the same commands with the current assistant-name voice prefix.
@@ -35,6 +61,11 @@ This native v4 package declares actual ordered actions, not executable guidance 
 7. Choose **Invoke** (`owned skill workflow invoke`). Each step opens **Approve exact observation step**, showing its exact action/input and original request/target. Approve only that step once, or Cancel. While that exact step review is pending, `owned skill workflow approve-step` or `owned skill workflow deny-step` accepts or declines it through the same gate.
 8. Inspect the complete source-labelled result and typed state. `owned skill workflow status` reports whether owned work has joined. **Cancel** or `owned skill workflow cancel` closes further dispatch and joins actual work, including cancellation-ignoring source reads. It never claims physical termination merely from a cancellation request.
 
+Package review, separate Save confirmation, each step approval and unsaved-draft discard are native modal decisions: input to the workflow window stays blocked until the exact review actually closes.
+Keyboard focus starts on the complete read-only review; Tab reaches the explicit decision buttons. **Cancel**, Escape or the review's native close declines that decision.
+Closing/hiding the original owner or cancelling its operation retires the review; a clicked approval cannot outlive that owner or bypass native closure.
+Focus returns to the original control only while the original presentation remains visible and eligible. Declining the first step launches no observation; declining a later step never approves remaining steps or publishes partial success.
+
 The only admitted IDs are `capabilities.list`, `capabilities.get`, `application.get_version`, `readiness.get`, `runtime.list`, and `runtime.get_status`. Inputs and complete results use their existing [registry schemas](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs).
 Pages remain explicit; there is no automatic pagination or guessed continuation ([execution tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ObservationWorkflows.cs)).
 
@@ -50,6 +81,30 @@ These actions read already-recorded host state, without setup probes, network, n
 
 `owned skill workflow editor` opens this separate owner. **Close** (`owned skill workflow close`) offers explicit discard for an unsaved volatile draft; cancel keeps it open.
 Exit/restart/handoff likewise cannot silently discard it. Save first to retain the package. Cancellation retires the original owner: Close/discard and open a fresh workflow before another operation. No draft is autosaved ([controller](../src/Kora/ObservationWorkflowController.cs)).
+
+## Delete one saved owned source
+
+Use **List**, select one native v1/v2/v3 saved version, then **Delete**; or type `owned skill delete daily-review 1.0.0`.
+Activated voice uses the current assistant-name prefix and the same native reviews. Unsaved edits first require the existing **Save / Discard / Cancel** choice ([controller](../src/Kora/OwnedSkillEditorController.cs)).
+
+Review the exact owned destination, complete manifest and guidance, declared tool dependency, references-none boundary and use impact.
+Then separately confirm **Delete only this exact owned source**, or Cancel. The two-minute, single-operation review cannot be reused after source, draft, selection, catalogue, authority, ownership, privacy or channel changes ([review owner](../src/Kora.Application/Skills/OwnedSkillDeletionWorkflow.cs)).
+**Escape** rejects either deletion review without confirming or deleting anything; the editor, draft and saved source remain intact.
+Both reviews block editor input and return focus to that exact dialog. A choice
+completes only after native closure, while the original editor remains visible
+and eligible. Closing or hiding the owner, retiring its authority or cancelling
+the operation rejects an accepted choice; none approves deletion or recovery.
+
+Deletion removes only `manifest.yaml`, `instructions.md` and the now-empty exact version directory. The ID/root directories and unrelated versions remain.
+Bundled/shared/profile originals, reference packages, native v4 observation workflows, arbitrary paths and recursive tree deletion are unavailable ([owned store](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.Deletion.cs)).
+
+Confirmed deletion requires absence readback. The editor clears its saved catalogue; use **List** again. Future source-dependent use revalidates the exact source and fails closed if missing or replaced.
+Retained editor text keeps its deleted-source binding: editing it or changing its version does not make it a fresh unsaved source for simulation or refinement. Explicitly **Create** a new draft, or **Reopen** a present exact source, before model use; deletion does not silently discard the buffer.
+Deletion cannot start while a simulated test owns work. Cancel the test and wait for its actual source/model work to join before separately reviewing deletion; a simulated result never approves deletion.
+Deletion does not physically cancel immutable admitted tasks, erase independent grants/history/audit, transfer authority or enable anything. External dependents are not exhaustively inventoried ([use revalidation](../src/Kora.Application/Skills/OwnedSkillInvocationWorkflow.cs)).
+
+Partial deletion, lost authority after an effect, unavailable audit or readback is **unconfirmed**, not rollback or success. Mutation is held: do not retry or recreate that exact source.
+Inspect the remaining exact files and audit before manual recovery; restarting does not establish a successful deletion. The same store instance refuses republication of a retired ID/version; use a new version for new work ([native regressions](../tests/Kora.Windows.IntegrationTests/Skills/OwnedSkillDeletionTests.cs)).
 
 ## Create a new skill from a purpose
 
@@ -100,6 +155,15 @@ old voice or draft authority. A retired draft can only be explicitly discarded
 or retained. After privacy recovers, `owned skill editor` can show that draft
 under fresh private presentation eligibility for Discard/Cancel, never to renew
 Save authority. Drafts are not autosaved.
+
+Source reviews, generation/refinement reviews, simulated examples/results and
+unsaved-draft choices are modal: finish or dismiss the current dialog before
+editing the draft again. Attempts to return to the editor bring its exact
+review forward instead. A clicked choice completes only after the dialog
+closes; cancellation or expired eligibility cannot become confirmation during
+that handoff. Save keeps its separate publication confirmation.
+Escape dismisses only the current review after actual native closure; it never
+confirms publication, starts inference or discards the editor's volatile draft.
 
 ## Refine the current instruction-only guidance
 
@@ -162,6 +226,8 @@ Use the current editor's **native v1 literal, no-tools draft**, or explicitly **
 3. Explicitly choose **Start SIMULATED test**. Only this starts one separately admitted local inference. Setup and **Validate** never start inference. No provider is qualified in this build, so the real operation reports unavailable; deterministic test adapters exercise the host flow, not runtime qualification.
 4. If available, inspect the **SIMULATED / PASS** or **SIMULATED / FAIL** result, exact complete output in its own read-only field, and each host assertion result. Matching is case-sensitive ordinal, without trimming, normalization, regex or evaluation. Dismiss the volatile result; it is not saved as conversation facts.
 5. **Cancel test** / `owned skill cancel-test` cancels only the example. Cancellation, closing and disposal retain ownership until actual source reads and model work join; late output is not disclosed. The draft stays intact. Completion, rejection or failure retires the test review; restoring source bytes does not renew it.
+
+Press **Escape** from a read-only source field or another control in the simulation review to reject it before inference, or in the result window to dismiss the volatile result. Escape never chooses **Start SIMULATED test**, saves, enables or grants anything; the draft and fixture stay intact.
 
 Generation/refinement and simulation share one busy editor slot. **Cancel test** does not close a generation/refinement review; **Cancel refinement** does not close a simulated-test review. A reviewed generated/refined native v1 proposal can be tested, but simulation neither consumes its separate Save approval nor publishes it ([editor ownership](../src/Kora/OwnedSkillEditorController.cs)).
 

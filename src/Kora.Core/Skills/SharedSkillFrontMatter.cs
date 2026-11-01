@@ -56,7 +56,8 @@ internal static class SharedSkillFrontMatter
                 continue;
             }
             if (!result.TryAdd(key, value)) { reasons.Add("duplicate-metadata"); }
-            if (key is not ("name" or "version" or "description" or "allowed-tools" or "format" or "references"))
+            if (key is not ("name" or "version" or "description" or "allowed-tools" or "format" or "references"
+                or "mcp-server" or "mcp-source-revision" or "mcp-schema-digest"))
             { reasons.Add("unsupported-metadata"); }
         }
         return result;

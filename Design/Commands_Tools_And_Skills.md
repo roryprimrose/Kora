@@ -253,6 +253,11 @@ also covers serial waiters. Lifetime/account withdrawal cancels waiting
 exchanges before any new send, and disposal retains the handler and credential
 lease until cancellation-ignoring work actually terminates.
 
+The separately reviewed [declarative MCP skill bridge](Skill_Storage.md#reviewed-exact-read-only-mcp-skill)
+reuses this route for one closed exact tool/source/schema dependency and the original user's independently selected account and arguments.
+The skill is local-only untrusted guidance, not a new model-tool catalogue, effect mapping or connector approval.
+Current discovery, source inclusion, session capabilities, permission, native consent and physical-send checks remain independent.
+
 Implementation is exercised with deterministic delegated-account, transport and
 model fakes, not live servers. The shipped broker remains explicitly
 **unavailable**, with no qualified accounts or effect mappings installed. This

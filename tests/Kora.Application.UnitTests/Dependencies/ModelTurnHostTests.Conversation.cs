@@ -259,7 +259,7 @@ public sealed partial class ModelTurnHostTests
         internal Action? AfterRetain { get; set; }
         internal Exception? RetainError { get; set; }
         internal string CompletionFault { get; set; } = string.Empty;
-        internal Action<HostRequest>? BeforeSubmissionComplete { get; set; }
+        internal Func<HostRequest, Task>? BeforeSubmissionComplete { get; set; }
         private SavedConversationDraft? conversationDraft;
 
         internal SessionConversationService ConversationService(Kora.Application.Dependencies.IModelTurnAdmission host,
@@ -293,7 +293,7 @@ public sealed partial class ModelTurnHostTests
             RememberPendingRecord();
             return ValueTask.FromResult(new ConversationSubmissionReceipt(Retained, Task.Task));
         }
-        public ValueTask<ConversationSubmissionReceipt> CompleteConversationSubmissionAsync(HostRequest request,
+        public async ValueTask<ConversationSubmissionReceipt> CompleteConversationSubmissionAsync(HostRequest request,
             ModelTurnOutcome outcome, ModelTurnReason reason, Func<bool> admitted, CancellationToken token)
         {
             // Expiry completions can interleave; the terminal pair must remain request-local.
@@ -301,7 +301,7 @@ public sealed partial class ModelTurnHostTests
             var message = pending?.Message ?? Retained!;
             var observed = pending is null ? Task!
                 : new HostTaskObservation(pending.Task, pending.Message.Generation, "host", true, null);
-            BeforeSubmissionComplete?.Invoke(request);
+            if (BeforeSubmissionComplete is { } before) { await before(request); }
             message = message with { Revision = 2, Outcome = outcome, Reason = reason };
             observed = observed with { Task = observed.Task.Next(message.ExpectedTaskState) };
             Retained = message;
@@ -339,7 +339,7 @@ public sealed partial class ModelTurnHostTests
                 Retained = message;
                 receipt = receipt with { Message = message };
             }
-            return ValueTask.FromResult(receipt);
+            return receipt;
         }
         public ValueTask<ConversationMessage> ReadConversationMessageAsync(HostId<SessionIdentity> session,
             HostId<RequestIdentity> request, CancellationToken token)

@@ -128,6 +128,7 @@ public sealed partial class ModelTurnHostTests
             f.BeforeSubmissionComplete = null;
             interleaved = f.CompleteConversationSubmissionAsync(nextRequest, ModelTurnOutcome.Denied,
                 ModelTurnReason.ContextExpired, () => true, Token).AsTask();
+            return Task.CompletedTask;
         };
         var completed = await f.CompleteConversationSubmissionAsync(head.Message.Request, ModelTurnOutcome.Denied,
             ModelTurnReason.ContextExpired, () => true, Token);
@@ -221,6 +222,61 @@ public sealed partial class ModelTurnHostTests
             f.ExecutionCompletions.Should().Be(0);
         }
         else { next.Completion.IsCompleted.Should().BeFalse("an invalid head cannot be skipped"); }
+    }
+
+    [Fact]
+    public async Task InterleavedExpiredPendingCompletionsPreserveExactOriginalRecordsWithoutExecution()
+    {
+        using var f = new Fixture { TrackPendingRecords = true };
+        var host = ConfigureCancellation(f);
+        await using var service = f.ConversationService(host, execution: host);
+        var target = new SessionWorkspaceEntry(f.Session, null);
+        var empty = await service.ReadPendingConversationAsync(target, () => true, Token);
+        await service.SetManualDispatchHoldAsync(empty.DispatchControl!, ConversationDispatchHoldReason.OriginalUser, () => true, Token);
+        var head = await service.SubmitQueuedAsync(target, "first expiring original", () => true, Token);
+        var next = await service.SubmitQueuedAsync(target, "second expiring original", () => true, Token);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.BeforeSubmissionComplete = async request =>
+        {
+            if (request == head.Receipt.Message.Request)
+            {
+                entered.TrySetResult();
+                await release.Task;
+            }
+            else { await entered.Task; }
+        };
+        try
+        {
+            var held = await service.ReadPendingConversationAsync(target, () => true, Token);
+            f.Time.Now = held.Turns.Max(item => item.ExpiresAt);
+            await service.SetManualDispatchHoldAsync(held.DispatchControl!, ConversationDispatchHoldReason.None, () => true, Token);
+            await entered.Task;
+            var second = (await next.Completion).RequireReceipt();
+            second.Message.Request.Should().Be(next.Receipt.Message.Request);
+            release.TrySetResult();
+            var first = (await head.Completion).RequireReceipt();
+            first.Message.Request.Should().Be(head.Receipt.Message.Request);
+            foreach (var receipt in new[] { first, second })
+            {
+                receipt.Message.Body.Should().Be(receipt.Message.Request == head.Receipt.Message.Request
+                    ? head.Receipt.Message.Body : next.Receipt.Message.Body);
+                receipt.Task.Request.Should().Be(receipt.Message.Request);
+                receipt.Task.State.Should().Be(HostTaskState.Denied);
+                receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Denied);
+                receipt.Message.Reason.Should().Be(ModelTurnReason.ContextExpired);
+                receipt.Message.Execution.Should().BeNull();
+                receipt.Message.AssistantResponse.Should().BeNull();
+                f.PendingRecords[receipt.Message.Request.RequestId].Should().Be(receipt);
+            }
+            f.PendingRecords.Values.Select(item => item.Task.Request.TaskId).Should().OnlyHaveUniqueItems();
+            f.Adapter.Calls.Should().Be(0);
+            f.ExecutionStarts.Should().Be(0);
+            f.ExecutionCompletions.Should().Be(0);
+            host.IsQuiescent.Should().BeTrue();
+            f.Audits.Should().NotContain(item => item.ActionId == "runtime.resource.acquire");
+        }
+        finally { release.TrySetResult(); }
     }
 
     [Theory]

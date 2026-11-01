@@ -1638,13 +1638,13 @@ Developer, older installations lacking install-location metadata, machine-wide, 
 Save and reset use a [device-local atomic preference with a durable unconfirmed marker](../src/Kora.Application/Configuration/LocalLogonStartupPreferences.cs), requested/terminal audit, committed host intent and exact readback. Reset removes the owned registration and saved intent (default Off), not another installation's entry.
 A failed/uncertain write is not rolled back or retried automatically; inspect saved intent, registration and audit before manual recovery ([configuration owner](../src/Kora.Application/Configuration/LogonStartupConfigurationService.cs)).
 
-Registration launches nothing now and grants no audio/provider/network authority. Next logon runs the ordinary entry point and tray/minimal shell with unchanged instance, storage, ongoing-consent, locked-session and microphone gates; startup presentation customization is not added.
+Registration launches nothing now and grants no audio/provider/network authority. Next logon runs the ordinary argument-free entry point and tray/minimal shell with unchanged instance, storage, ongoing-consent, locked-session and microphone gates; the separate manual presentation preference is not consumed.
 See the [entry point](../src/Kora/Program.cs) and [microphone matrix](Security_Data_Flows.md#microphone-consent-and-enablement-matrix). Deterministic fake-platform/native tests are implementation evidence, not installed upgrade/logon or protected-deployment qualification ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
 
 | Option | Default / limits | Example verbal setter |
 |---|---|---|
 | Start at logon | Explicit opt-in | "Enable start at logon" |
-| Startup presentation | Tray/minimal shell; details optional | "Open the details view when you start" |
+| Startup presentation | Delivered native-only for the supported manual shortcut/`--manual-startup`; absent/reset preserves existing initialization; tray/minimal or existing Main workspace | Native Settings review and separate confirmation required |
 | Automatic update checking | Notify-only; enabled only for configured/permitted maintenance networking | "Only check for updates when I ask" |
 | Update-check interval | 6 hours; 30 minutes-24 hours with backoff/jitter | "Check for updates twice a day" |
 | Release channel | Stable; only trusted published channels | "Use the preview release channel" |
@@ -1652,6 +1652,22 @@ See the [entry point](../src/Kora/Program.cs) and [microphone matrix](Security_D
 
 During the unsigned phase, update installation is external to Kora; no install/stage/download approval or "automatic install" setting exists.
 Changing channels does not authorise a downgrade, skip verification, or rewrite the protected feed/trust configuration.
+### Delivered normal manual startup presentation
+
+**Settings > Appearance > Normal manual startup presentation** provides **Inspect**, **Review tray/minimal**, **Review Main workspace**, cog **Reset setting**, then separate **Confirm presentation change** or **Cancel presentation review** ([native binding](../src/Kora.Application/ViewModels/MainViewModel.StartupPresentation.cs)). Review and navigation alone do not save or launch anything.
+
+The separate logon and normal manual startup cards precede the appearance and presence fields. Each has its own named, top-right reset cog; neither replaces an existing appearance reset. The [heading inventory](../tests/Kora.Windows.IntegrationTests/AppearanceUiContractTests.cs) and [keyboard reset regression](../tests/Kora.Windows.IntegrationTests/BoundedSurfaceAccessibilityTests.cs) include both cards while retaining exact labels, menu commands, placement and field-only reset checks.
+
+This first increment requires original native Settings review and confirmation. Typed, activated-voice and model routes do not confirm this preference or relabel a prior input. Review expires after 60 seconds; changes to native lifetime, original input, ownership/binding, privacy, call policy, pending decision, assistant-name revision, saved intent or control session require a fresh review.
+
+The [configuration owner](../src/Kora.Application/Configuration/StartupPresentationConfigurationService.cs) uses the existing startup control-session/committed-intent path, requested and terminal typed audit, exact readback and a durable unconfirmed-write hold. The [device-local preference](../src/Kora.Application/Configuration/LocalStartupPresentationPreferences.cs) uses `IApplicationDataPaths` and the shared atomic store with strict UTF-8 and exact versioned values. Malformed, unsupported or uncertain state is unavailable, not an absent default; no automatic retry, rollback or startup reset occurs.
+
+The supported installed manual Start Menu shortcut passes `--manual-startup`. A deliberate command-line launch can use the same exact argument. Only that single-argument route consumes this preference; argument-free direct launches, existing logon registrations, setup completion, recovery, handoff and restart keep existing behavior. This explicit distinction preserves older logon registrations without registry migration or guessed manual-origin authority ([launch consumer](../src/Kora/ManualStartupPresentationController.cs), [shortcut](../installer/Kora.Msi/Package.wxs)).
+
+Confirmed **Main workspace** opens the existing primary workspace without activation/focus stealing, loaded session list, selected conversation, retained body read, restored unsent composer, resume, question or dispatch. Further reading and input targeting require existing fresh gestures. **Tray/minimal** does not open that workspace; absent/reset preserves the actual current initialization, including existing readiness/error/consent presentation and presence/listening gates, rather than assuming a fixed window default.
+
+The [desktop consumer](../src/Kora/App.axaml.cs) runs once after baseline initialization. Current ownership, unlocked private visibility, call/input/configuration revisions and pending-decision holds are revalidated; held or changed intent is not replayed on unlock/call end. This preference grants no capture/provider/network/maintenance/registration authority and never clears private holds. Deterministic fake-lifetime and [headless native evidence](../tests/Kora.Windows.IntegrationTests/StartupPresentationTests.cs) establish implementation only, not installed shortcut/logon or hardware/provider qualification.
+
 Logon startup uses saved ongoing consent and fresh gates, not a pre-logon
 listener or a waiver of locked-session policy. Normal unlock restores only prior
 enabled intent after fresh microphone-matrix gates; resume and other failure

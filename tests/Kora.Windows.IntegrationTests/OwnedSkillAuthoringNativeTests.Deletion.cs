@@ -66,6 +66,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                         editor!.GetLogicalDescendants().OfType<TextBlock>().Select(block => block.Text)));
                 var result = await next.Task;
                 next = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                AssertModalHandoff(editor!, result);
                 return result;
             }
             static void Choose(Window dialog, string caption) => dialog.GetLogicalDescendants().OfType<Button>()
@@ -131,8 +132,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                     Choose(await Review(operation), "Publish exact new version");
                 }
             }
-            var sourceReview = scenario is "native" or "voice" ? await next.Task : await Review(operation);
-            if (scenario is "native" or "voice") { next = new(TaskCreationOptions.RunContinuationsAsynchronously); }
+            var sourceReview = await Review(operation);
             sourceReview.Title.Should().Be("Review exact owned skill source deletion");
             sourceReview.GetLogicalDescendants().OfType<TextBox>().Select(box => box.Text)
                 .Should().Equal(document.ManifestText, document.Guidance);

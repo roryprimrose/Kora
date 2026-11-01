@@ -52,6 +52,17 @@ The [bounded initial-generation operation](../docs/owned-skill-authoring.md#crea
 Complete generated source/destination review, optional existing local refinement, Validate and both ordinary Save reviews produce one atomic immutable **disabled** package. Original request/channel, draft, critique, catalogue/name, source, privacy, ownership and destination checks remain bound through refinement and publication ([native lifecycle](../src/Kora/OwnedSkillEditorController.Refinement.cs), [save](../src/Kora.Application/Skills/OwnedSkillSaveWorkflow.cs)).
 This is implementation only: unqualified local runtime remains unavailable. It adds no general YAML, profile editing, arbitrary tools/effects, references, scripts, hooks, fixtures or agent execution. Tool-capable invocation retains independent per-action permission and actual tool/model joining ([action admission](../src/Kora.Application/Network/LocalWebPageInvocation.cs)).
 
+Owned-skill source save/deletion reviews, model-authoring disclosures/proposals, simulated
+examples/results and dirty-draft decisions use the same modal native handoff.
+The draft editor cannot reactivate behind its review; blocked owner input
+returns to that exact dialog. A choice completes only after native closure
+joins, with the exact native owner still visible and original eligibility and
+cancellation rechecked before returning. Hiding or closing the owner cannot
+complete an accepted choice.
+This is presentation ownership, not new consent or authority. Save still
+requires both separate native reviews and exact atomic publication/readback;
+Cancel retains the draft and expired authority remains expired.
+
 The additive [native v3 required literal guidance operation](../docs/owned-skill-authoring.md#required-literal-guidance-inputs)
 explicitly declares instruction-only inputs, reusing the owned prompt template
 parser/bounds and private controls, not Prompt artifact authority. Both direct

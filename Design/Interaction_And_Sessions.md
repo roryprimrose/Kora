@@ -137,6 +137,8 @@ The [approved product decision](MVP_Scope.md#approved-retirement-and-simplificat
 
 Keep unsent input per exact conversation in memory across view/session switching, share it consistently between Sessions and compact views, and never submit or merge it implicitly. Do not add disk autosave. Protect deliberate discard/exit and apply privacy/ownership retirement without cross-session leakage.
 
+Done/Resume and exact-session retirement discard the target's unsent input intentionally; they do not discard another conversation's buffer. Exact source invalidation retires selected content and stale controls without disposing the shared composer owner. Confirmed native lifecycle readback may present the changed target, but never restores its retired input or old authority. Privacy, device/instance ownership revision and mandatory host shutdown still retire all volatile buffers.
+
 Deferred submitted-work acceptance and terminal notifications retain the private
 control revision, exact selected source and selection epoch observed before native
 dispatch. Switching away and returning, arriving from another selection or

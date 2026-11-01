@@ -562,9 +562,7 @@ internal sealed partial class SessionsWindowController(
         details?.RevokeSession(session);
         if (model is { } state)
         {
-            state.RetireUnsent(session);
-            if (state.ReferencesSession(session)) { presentation?.Revoke(); }
-            else { state.RevokeSessionList(); }
+            state.RevokeSessionPresentation(session);
         }
     }
 

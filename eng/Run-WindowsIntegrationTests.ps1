@@ -5,6 +5,18 @@ param(
     [string] $Shard = 'All',
 
     [Parameter()]
+    [ValidateSet('storage-heavy', 'storage-other', 'ui-definitions', 'ui-definition-dialogs',
+        'ui-conversations', 'ui-conversation-core', 'ui-conversation-actions', 'native-ux',
+        'ui-platform', 'ui-workflows', 'ui-presentation', 'ui-editors')]
+    [string] $Partition,
+
+    [Parameter()]
+    [string] $TestModuleDirectory,
+
+    [Parameter()]
+    [string] $ExpectedSourceRevision,
+
+    [Parameter()]
     [switch] $ListShards,
 
     [Parameter()]
@@ -28,6 +40,12 @@ $resultsRoot = [System.IO.Path]::GetFullPath($ResultsDirectory, $repositoryRoot)
 
 if ($ListShards -and $ListPartitions) {
     throw 'Select either shard or execution-partition discovery, not both.'
+}
+if ($Partition -and ($Shard -cne 'All' -or $ListShards)) {
+    throw 'Select either a legacy hosted shard or an execution partition.'
+}
+if ([bool] $TestModuleDirectory -ne [bool] $ExpectedSourceRevision) {
+    throw 'Artifact execution requires both a test-module directory and its expected source revision.'
 }
 
 $platformEditorPrefix = 'Kora.Windows.IntegrationTests.ArtifactDiscovery.OwnedDefinitionEditorWindowTests.'
@@ -96,17 +114,32 @@ $conversationActions = @(
     "${conversationPrefix}Owned"
     "${conversationPrefix}Named"
 )
+$conversationCore = @('B', 'E', 'M') | ForEach-Object { "$conversationPrefix$_" }
 $executionSplits = @{
     'ui-definitions' = @(
         @{ Name = 'ui-definition-dialogs'; Prefixes = @(
             'Kora.Windows.IntegrationTests.ArtifactDiscovery.CustomizationWindowTests.'
             'Kora.Windows.IntegrationTests.ArtifactDiscovery.PromptParameterWindowTests.'
         ); Exclusions = @() }
-        @{ Name = 'ui-conversations'; Prefixes = @($conversationPrefix); Exclusions = $conversationActions }
+        @{ Name = 'ui-conversations'; Prefixes = @($conversationPrefix); Exclusions = ($conversationActions + $conversationCore) }
+        @{ Name = 'ui-conversation-core'; Prefixes = $conversationCore; Exclusions = @() }
         @{ Name = 'ui-conversation-actions'; Prefixes = $conversationActions; Exclusions = @() }
     )
     'ui-platform' = @(
         @{ Name = 'ui-editors'; Prefixes = @($platformEditorPrefix); Exclusions = @() }
+        @{ Name = 'ui-workflows'; Prefixes = @(
+            'Kora.Windows.IntegrationTests.OwnedSkillAuthoringNativeTests.'
+            'Kora.Windows.IntegrationTests.HostedClaudeSessionRequestTests.'
+            'Kora.Windows.IntegrationTests.ClaudeUiContractTests.'
+            'Kora.Windows.IntegrationTests.NewRequestControllerTests.'
+        ); Exclusions = @() }
+        @{ Name = 'ui-presentation'; Prefixes = @(
+            'Kora.Windows.IntegrationTests.LocalFileWrappingWindowTests.'
+            'Kora.Windows.IntegrationTests.AgentProfileConversationalAuthoringTests.'
+            'Kora.Windows.IntegrationTests.SessionsMemoryFilterTests.'
+            'Kora.Windows.IntegrationTests.AdaptiveInteractionTests.'
+            'Kora.Windows.IntegrationTests.EvidenceLiteralFindTests.'
+        ); Exclusions = @() }
     )
 }
 $partitions = @(
@@ -140,6 +173,7 @@ $partitions = @(
 $hostedAssignments = @{
     'storage-heavy' = 'storage-heavy'
     'ui-conversations' = 'storage-heavy'
+    'ui-conversation-core' = 'storage-heavy'
     'storage-other' = 'storage-other'
     'ui-conversation-actions' = 'storage-other'
     'ui-definition-dialogs' = 'storage-other'
@@ -147,16 +181,21 @@ $hostedAssignments = @{
     'ui-editors' = 'ui-definitions'
     'native-ux' = 'native-ux'
     'ui-platform' = 'ui-platform'
+    'ui-workflows' = 'ui-platform'
+    'ui-presentation' = 'ui-platform'
 }
-foreach ($partition in $partitions) {
-    if (-not $hostedAssignments.ContainsKey($partition.Name) -or
-        $hostedAssignments[$partition.Name] -cnotin $shards.Name) {
-        throw "Windows partition $($partition.Name) has no valid hosted assignment."
+foreach ($executionPartition in $partitions) {
+    if (-not $hostedAssignments.ContainsKey($executionPartition.Name) -or
+        $hostedAssignments[$executionPartition.Name] -cnotin $shards.Name) {
+        throw "Windows partition $($executionPartition.Name) has no valid hosted assignment."
     }
-    $partition | Add-Member -NotePropertyName HostedShard -NotePropertyValue $hostedAssignments[$partition.Name]
+    $executionPartition | Add-Member -NotePropertyName HostedShard -NotePropertyValue $hostedAssignments[$executionPartition.Name]
 }
 if ($Shard -cne 'All') {
     $partitions = @($partitions | Where-Object HostedShard -CEQ $Shard)
+}
+if ($Partition) {
+    $partitions = @($partitions | Where-Object Name -CEQ $Partition)
 }
 if ($ListPartitions) {
     return $partitions
@@ -164,6 +203,28 @@ if ($ListPartitions) {
 
 $dotnetPath = (Get-Command dotnet -CommandType Application, ExternalScript -ErrorAction Stop |
     Select-Object -First 1).Source
+$moduleRoot = $null
+if ($TestModuleDirectory) {
+    $moduleRoot = [IO.Path]::GetFullPath($TestModuleDirectory, $repositoryRoot)
+    $receipt = Get-Content -Raw -LiteralPath (Join-Path $moduleRoot 'kora-test-build.json') | ConvertFrom-Json
+    if ($receipt.Version -ne 1 -or $ExpectedSourceRevision -cnotmatch '^[0-9a-f]{40}$' -or
+        $receipt.SourceRevision -cne $ExpectedSourceRevision -or $receipt.Files.Count -eq 0) {
+        throw 'The Windows test artifact does not match the admitted source revision.'
+    }
+    foreach ($file in $receipt.Files) {
+        if ($file.Path -match '(^|[\\/])\.\.([\\/]|$)' -or [IO.Path]::IsPathRooted($file.Path) -or
+            $file.Hash -cnotmatch '^[A-F0-9]{64}$') {
+            throw 'The Windows test artifact contains an invalid file identity.'
+        }
+        $path = Join-Path $moduleRoot $file.Path
+        if ((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -cne $file.Hash) {
+            throw "The Windows test artifact file failed integrity validation: $($file.Path)."
+        }
+    }
+    if (@($receipt.Files | Where-Object Path -CEQ 'Kora.Windows.IntegrationTests.dll').Count -ne 1) {
+        throw 'The Windows test artifact must identify exactly one test assembly.'
+    }
+}
 $resultsRoot = Join-Path $resultsRoot ([guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $resultsRoot -Force | Out-Null
 
@@ -173,15 +234,14 @@ $runs = @(
         $logPath = Join-Path $shardDirectory 'console.log'
         New-Item -ItemType Directory -Path $shardDirectory -Force | Out-Null
 
-        $arguments = @(
-            'test'
-            '--project'
-            $using:projectPath
-            '--configuration'
-            'Release'
-            '--runtime'
-            'win-x64'
-            '--no-build'
+        $arguments = @('test')
+        if ($using:moduleRoot) {
+            $arguments += @('--root-directory', $using:moduleRoot, '--test-modules', 'Kora.Windows.IntegrationTests.dll')
+        }
+        else {
+            $arguments += @('--project', $using:projectPath, '--configuration', 'Release', '--runtime', 'win-x64', '--no-build')
+        }
+        $arguments += @(
             '--filter'
             $_.Filter
             '--max-threads'

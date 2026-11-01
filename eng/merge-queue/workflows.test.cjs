@@ -77,7 +77,7 @@ test('candidate jobs check out the admitted SHA, preserve all required identitie
   assert.match(job('version'), /ref: \$\{\{ needs\.admission\.outputs\.source \}\}/);
   assert.match(job('version'), /publish: \$\{\{ needs\.admission\.outputs\.candidate != 'true'/);
   assert.match(job('version'), /if: steps\.version\.outputs\.publish == 'true' && needs\.admission\.outputs\.candidate != 'true'/);
-  for (const name of ['portable-tests', 'payload', 'windows-integration-shards', 'installer']) {
+  for (const name of ['portable-tests', 'payload', 'windows-test-build', 'windows-test-partitions', 'installer']) {
     assert.match(job(name), /ref: \$\{\{ needs\.version\.outputs\.source-revision \}\}/);
     assert.match(job(name), /persist-credentials: false/);
     assert.doesNotMatch(job(name), /permission[s]?:[\s\S]*write/);
@@ -108,6 +108,39 @@ test('independent producers are joined without preventing retirement of predeces
   assert.match(job('payload'), /name: Publish and inspect exact-source payloads/);
   assert.match(job('release'), /needs: \[version, portable, windows-integration, installer\]/);
   assert.match(job('portable'), /needs: \[admission, version, portable-tests, payload\]/);
+});
+
+test('Windows tests scale out to twelve artifact-only jobs behind predecessor-compatible gates', () => {
+  const producer = job('windows-test-build');
+  const consumers = job('windows-test-partitions');
+  assert.match(producer, /runs-on: windows-latest/);
+  assert.equal((producer.match(/dotnet build tests\/Kora.Windows.IntegrationTests/g) || []).length, 1);
+  assert.match(producer, /Publish-WindowsTestArtifact\.ps1 -SourceRevision '\$\{\{ needs\.version\.outputs\.source-revision \}\}'/);
+  assert.match(consumers, /needs: \[version, windows-test-build\]/);
+  assert.match(consumers, /fail-fast: false/);
+  const partitions = consumers.match(/partition: \[([^\]]+)\]/)[1].split(',').map(value => value.trim());
+  assert.equal(partitions.length, 12);
+  assert.equal(new Set(partitions).size, 12);
+  assert.doesNotMatch(consumers, /dotnet (restore|build)|--project|max-threads|larger|xlarge/);
+  assert.match(consumers, /-Partition '\$\{\{ matrix\.partition \}\}' -TestModuleDirectory/);
+  assert.match(consumers, /-ExpectedSourceRevision '\$\{\{ needs\.version\.outputs\.source-revision \}\}'/);
+  assert.match(consumers, /KORA_TEST_NATIVE_EVIDENCE_MODE: \$\{\{ matrix\.partition == 'native-ux' && 'buffered' \|\| 'synchronous' \}\}/);
+  assert.match(consumers, /windows-test-build-\$\{\{ needs\.version\.outputs\.source-revision \}\}/);
+  assert.match(consumers, /windows-execution-results-\$\{\{ matrix\.partition \}\}/);
+  assert.match(job('windows-integration-shards'), /needs: \[admission, version, windows-test-build, windows-test-partitions\]/);
+  assert.ok(!JOBS.includes('Build exact-source Windows test modules'));
+  for (const partition of partitions) assert.ok(!JOBS.includes(`Windows test partition (${partition})`));
+  assert.match(job('windows-integration'), /Test-WindowsIntegrationScheduling\.ps1 -RetainedResultsDirectory/);
+  assert.match(job('windows-integration'), /-ExpectedCatalogPath.*-ExpectedSourceRevision/);
+});
+
+test('legacy Windows job identities fail closed unless the shared build and all twelve jobs succeed', () => {
+  const source = job('windows-integration-shards');
+  const guard = source.match(/        run: \|\n([\s\S]*)/)[1]
+    .split('\n').map(line => line.replace(/^          /, '')).join('\n');
+  assert.match(guard, /if \(\$env:BUILD_RESULT -cne 'success' -or \$env:PARTITION_RESULT -cne 'success'\)/);
+  assert.match(guard, /throw "Windows execution is incomplete/);
+  assert.match(source, /if: always\(\)/);
 });
 
 test('required aggregate skips only an explicitly waiting admission or an already-published release', () => {

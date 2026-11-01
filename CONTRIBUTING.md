@@ -109,32 +109,40 @@ every accepted request still requires its physical join and terminal receipt,
 while the operation truthfully retains its partial/unconfirmed outcome.
 
 To reproduce CI's Windows test scheduling after a locked `win-x64` build, run
-`.\eng\Run-WindowsIntegrationTests.ps1`. Its five disjoint hosted groups cover
-heavy storage, other storage, and three UI/platform identities. The nine logical
-process partitions are distributed across four synchronous hosted runners:
-`storage-heavy` runs storage plus `ui-conversations`; `storage-other` runs
-storage plus `ui-conversation-actions` and `ui-definition-dialogs`;
-`ui-definitions` runs remaining definitions plus `ui-editors`; `ui-platform`
-runs its remainder alone. `native-ux` remains unchanged and exclusively buffered.
+`.\eng\Run-WindowsIntegrationTests.ps1 -Partition <name>`. CI builds once,
+packages the runnable modules and complete unfiltered discovery catalog, then
+scales out to twelve independent standard Windows hosted jobs. Consumer jobs
+download this run's exact-source artifact, verify its revision and file hashes,
+and run MTP through `--root-directory` / `--test-modules`, without restore or
+compilation. No larger host or increased per-process thread limit is requested.
 `ui-definition-dialogs`
 owns the complete customization and prompt-parameter window classes;
 `ui-conversation-actions` owns conversation methods beginning Native, Owned or
-Named; `ui-conversations` owns every other conversation method, including future
-methods outside those families; and `ui-definitions` owns the remaining classes.
+Named; `ui-conversation-core` owns conversation methods beginning B, E or M;
+`ui-conversations` owns all other conversation methods, including future
+methods outside those families. `ui-definitions` owns remaining definition classes.
+`ui-workflows` and `ui-presentation` isolate measured expensive platform classes;
+`ui-platform` catches the remainder, including future classes.
 All theory rows for each method stay together. `ui-editors` owns the complete
 owned-definition editor class.
-All nine execution partitions preserve serial headless UI
+All twelve execution partitions preserve serial headless UI
 execution within each process and the existing per-process thread limit.
 Each partition retains its own TRX and console output under a fresh run directory;
 nonzero exits or missing, duplicate, empty or incomplete passing reports fail
-the run. `-Shard <name>` selects exactly one existing hosted group;
+the run. `-Partition <name>` selects one independent execution process.
+`-Shard <name>` retains the five-job bootstrap assignments while trusted main
+still consumes the predecessor workflow;
 `-ListShards` lists legacy logical ownership filters for retained-data comparison;
 `-ListPartitions` lists actual process filters and `HostedShard` assignments
 without running tests. `Shard` on each partition retains its legacy logical owner.
-CI keeps the same five hosted Windows jobs and artifact names, retaining all
-nine partitions' TRX and console output. The unchanged required **Windows integration
-tests** check aggregates the matrix fail-closed: failure, cancellation, missing
-or skipped shards cannot pass. Payload/bootstrap fixtures still run once.
+CI retains the five legacy Windows job names as lightweight fail-closed joins
+of the shared build and twelve execution jobs. This preserves queue retirement
+of predecessor runs without adding required job names to queue policy.
+`windows-execution-results-<partition>` artifacts retain every TRX and console log.
+The unchanged required **Windows integration tests** check validates all twelve
+reports against the admitted-source catalog: every method and theory case must
+pass exactly once. Failure, cancellation, missing or skipped jobs cannot pass.
+Payload/bootstrap fixtures still run once in the build producer.
 This scheduling isolates competing test processes without removing tests or
 changing test/product or 30-minute Windows job timeouts. Run
 `.\eng\Test-WindowsIntegrationScheduling.ps1` for deterministic selection,
@@ -144,7 +152,7 @@ The [scheduling regression](eng/Test-WindowsIntegrationScheduling.ps1) checks
 both hosted ownership and exact process partitions, exercises the real runner
 with a fake CLI, and rejects missing/malformed execution evidence. Its optional
 `-RetainedResultsDirectory <path>` accepts a complete legacy five-report or
-legacy seven-report or current nine-report dataset and checks every recorded case against the new
+legacy seven-report, nine-report or current twelve-report dataset and checks every recorded case against the new
 partition exactly once. Complete successful runs
 [41223826625](https://github.com/roryprimrose/Kora/actions/runs/41223826625) and
 [41229047847](https://github.com/roryprimrose/Kora/actions/runs/41229047847)
@@ -161,6 +169,24 @@ provide enough execution capacity. The subsequent cross-runner assignment uses
 the spare storage-job capacity, leaves native buffering isolated, and sums
 serial UI costs per hosted runner in timing regressions instead of assuming
 process-level parallel speedup. Every filter and recorded test case is retained.
+The twelve-job pipeline replaces those shared-runner assignments after
+integration; its larger matrix does not execute during its own candidate's
+trusted-main workflow. Local contracts and archive round-trip checks do not
+establish hosted timing. Aim for 12-15 minutes end-to-end, but measure actual
+runner scheduling, artifact transfer, build and slowest-test time before claiming
+that target. More jobs cannot fix a test that stalls.
+
+To reproduce downloaded-artifact execution after packaging:
+
+```powershell
+.\eng\Publish-WindowsTestArtifact.ps1 -SourceRevision (git rev-parse HEAD) -OutputArchive '.net-test-artifacts\windows-build\test-modules.zip'
+Expand-Archive -LiteralPath '.net-test-artifacts\windows-build\test-modules.zip' -DestinationPath '<fresh-test-module-directory>'
+.\eng\Run-WindowsIntegrationTests.ps1 -Partition 'ui-platform' -TestModuleDirectory '<fresh-test-module-directory>' -ExpectedSourceRevision (git rev-parse HEAD)
+.\eng\Test-WindowsIntegrationScheduling.ps1 -RetainedResultsDirectory '<complete-twelve-report-directory>' -ExpectedCatalogPath '.net-test-artifacts\windows-build\kora-test-catalog.json' -ExpectedSourceRevision (git rev-parse HEAD)
+```
+
+Keep extracted modules beneath the source checkout at the test binary layout
+so fixture source/resource discovery retains its repository context.
 Approval-flow fixtures use a shared injected clock and explicitly controlled
 timers rather than allowing runner load to consume an unrelated review budget.
 The lifecycle controller's one-minute cancellation budget uses its injected

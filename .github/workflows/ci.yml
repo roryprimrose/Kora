@@ -516,20 +516,14 @@ jobs:
       - shell: pwsh
         run: ./eng/Test-WindowsIntegrationScheduling.ps1
 
-  windows-integration-shards:
-    name: Windows integration shard (${{ matrix.shard }})
+  windows-test-build:
+    name: Build exact-source Windows test modules
     runs-on: windows-latest
-    # Isolate existing shards on separate runners; product, test and job deadlines are unchanged.
     timeout-minutes: 30
     needs: version
     if: needs.version.outputs.already-published != 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [storage-heavy, storage-other, ui-definitions, native-ux, ui-platform]
     env:
       Version: ${{ needs.version.outputs.version }}
-      KORA_TEST_NATIVE_EVIDENCE_MODE: ${{ matrix.shard == 'native-ux' && 'buffered' || 'synchronous' }}
 
     steps:
       # Keep the Windows job on the same reviewed action revisions as the portable job.
@@ -553,43 +547,107 @@ jobs:
       - name: Build Windows integration tests without restore
         run: dotnet build tests/Kora.Windows.IntegrationTests/Kora.Windows.IntegrationTests.csproj --configuration Release --runtime win-x64 --no-restore
 
+      - name: Package exact-source test modules and complete discovery catalog
+        shell: pwsh
+        run: .\eng\Publish-WindowsTestArtifact.ps1 -SourceRevision '${{ needs.version.outputs.source-revision }}' -OutputArchive '.net-test-artifacts\windows-build\test-modules.zip'
+
+      - name: Upload exact-source Windows test build
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-test-build-${{ needs.version.outputs.source-revision }}
+          path: .net-test-artifacts/windows-build
+          if-no-files-found: error
+          include-hidden-files: true
+
       - name: Test payload rejection before packaging
-        if: matrix.shard == 'storage-other'
         shell: pwsh
         run: .\eng\Test-InstallerPayloadContracts.ps1
 
       - name: Test build-only source ownership and recovery
-        if: matrix.shard == 'storage-other'
         shell: pwsh
         run: .\eng\Test-SourceBootstrap.ps1 -OutputDirectory (Join-Path $env:RUNNER_TEMP 'kora-source-bootstrap-contracts')
 
       - name: Test Windows debug launcher
-        if: matrix.shard == 'storage-other'
         shell: pwsh
         run: .\eng\Test-Run.ps1
 
       - name: Upload source bootstrap fixture results
-        if: always() && matrix.shard == 'storage-other'
+        if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: source-bootstrap-contracts
           path: ${{ runner.temp }}/kora-source-bootstrap-contracts/tests.json
           if-no-files-found: error
 
+  windows-test-partitions:
+    name: Windows test partition (${{ matrix.partition }})
+    runs-on: windows-latest
+    timeout-minutes: 30
+    needs: [version, windows-test-build]
+    if: needs.version.outputs.already-published != 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        partition: [storage-heavy, storage-other, ui-definitions, ui-definition-dialogs, ui-conversations, ui-conversation-core, ui-conversation-actions, native-ux, ui-platform, ui-editors, ui-workflows, ui-presentation]
+    env:
+      KORA_TEST_NATIVE_EVIDENCE_MODE: ${{ matrix.partition == 'native-ux' && 'buffered' || 'synchronous' }}
+    steps:
+      - name: Check out admitted source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.version.outputs.source-revision }}
+          persist-credentials: false
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Download this run's exact-source Windows test build
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: windows-test-build-${{ needs.version.outputs.source-revision }}
+          path: .net-test-artifacts/windows-build
+
+      - name: Expand runnable test modules
+        shell: pwsh
+        run: Expand-Archive -LiteralPath '.net-test-artifacts\windows-build\test-modules.zip' -DestinationPath 'tests\Kora.Windows.IntegrationTests\bin\Release\net10.0-windows10.0.19041.0\win-x64'
+
       - name: Run Windows integration tests
         shell: pwsh
-        run: .\eng\Run-WindowsIntegrationTests.ps1 -Shard '${{ matrix.shard }}'
+        run: .\eng\Run-WindowsIntegrationTests.ps1 -Partition '${{ matrix.partition }}' -TestModuleDirectory 'tests\Kora.Windows.IntegrationTests\bin\Release\net10.0-windows10.0.19041.0\win-x64' -ExpectedSourceRevision '${{ needs.version.outputs.source-revision }}'
 
       - name: Upload Windows test results
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: windows-test-results-${{ matrix.shard }}
+          name: windows-execution-results-${{ matrix.partition }}
           path: |
             .net-test-artifacts/windows/**/*.trx
             .net-test-artifacts/windows/**/console.log
           if-no-files-found: error
           include-hidden-files: true
+
+  windows-integration-shards:
+    name: Windows integration shard (${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [admission, version, windows-test-build, windows-test-partitions]
+    if: always() && needs.version.outputs.already-published != 'true' && (needs.admission.result != 'success' || needs.admission.outputs.full != 'false')
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [storage-heavy, storage-other, ui-definitions, native-ux, ui-platform]
+    steps:
+      - name: Require exact-source build and all twelve execution jobs
+        shell: pwsh
+        env:
+          BUILD_RESULT: ${{ needs.windows-test-build.result }}
+          PARTITION_RESULT: ${{ needs.windows-test-partitions.result }}
+        run: |
+          if ($env:BUILD_RESULT -cne 'success' -or $env:PARTITION_RESULT -cne 'success') {
+            throw "Windows execution is incomplete: build '$env:BUILD_RESULT'; partitions '$env:PARTITION_RESULT'."
+          }
 
   windows-integration:
     name: Windows integration tests
@@ -606,6 +664,28 @@ jobs:
           if ($env:SHARD_RESULT -cne 'success') {
             throw "Windows integration shards did not all succeed: '$env:SHARD_RESULT'."
           }
+
+      - name: Check out admitted source for complete evidence validation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.version.outputs.source-revision }}
+          persist-credentials: false
+
+      - name: Download all twelve execution reports
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: windows-execution-results-*
+          path: .net-test-artifacts/windows-evidence
+
+      - name: Download expected source catalog
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: windows-test-build-${{ needs.version.outputs.source-revision }}
+          path: .net-test-artifacts/windows-build
+
+      - name: Verify every discovered method and theory row passed exactly once
+        shell: pwsh
+        run: ./eng/Test-WindowsIntegrationScheduling.ps1 -RetainedResultsDirectory '.net-test-artifacts/windows-evidence' -ExpectedCatalogPath '.net-test-artifacts/windows-build/kora-test-catalog.json' -ExpectedSourceRevision '${{ needs.version.outputs.source-revision }}'
 
   installer:
     name: Build WiX MSI and custom Burn setup

@@ -87,6 +87,8 @@ internal sealed partial class NativeQuestionHost
                 || initial.SessionGeneration != generation || !Eligible())
             { throw new InvalidOperationException("The exact clarification could not be durably presented."); }
             opened = new(initial, questions, authorization, reviews, Eligible, time, logger);
+            if (QuestionClipboardAnswer.Supports(initial) && createClipboardAnswer is not null)
+            { opened.BindClipboardAnswer(createClipboardAnswer(opened)); }
             if (mcpReview is not null) { opened.BindMcpReview(mcpReview); }
             current = opened;
             Interlocked.Exchange(ref currentFocusRevision, Interlocked.Read(ref focusRevision));

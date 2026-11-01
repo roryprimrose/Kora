@@ -294,6 +294,22 @@ The [exact command service](../src/Kora.Application/Hosting/ConversationSearchCo
 
 The [complete interaction](../docs/windows-and-tray.md#search-retained-assistant-answers) is explicit role/query, Search/Next, inspect complete inert answer, Cancel/Clear. This grants no new context/reuse/export, retention renewal, index, persistence, model/provider invocation or profile enablement. Deterministic [portable tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.AssistantSearch.cs) and [private SQLite/native tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AssistantSearch.cs) cover the bounded implementation, not installed hardware/provider qualification.
 
+### Explicit retained-answer review acknowledgement
+
+The approved independent-conversation/readable-result usability operation is exact conversation -> **Read answers not marked reviewed** -> select one metadata row -> fresh canonical ASSISTANT Details -> deliberate **Mark this answer reviewed**. **Read all answer review flags (including undo)** supports the same exact Details -> **Unmark this answer reviewed** operation ([native owner](../src/Kora/SessionsViewModel.AnswerReviews.cs)).
+
+Opening, rendering, selecting, paging and polling are not evidence of human reading or understanding and never write acknowledgement. Counts mean **not marked reviewed**, not unread. Pages report observed counts, omitted matching rows and explicit Next; fresh reads include background answers. Query continuations bind the exact target, filter, message head and acknowledgement head ([contract](../src/Kora.Core/Conversation/ConversationAnswerReviewPage.cs)).
+
+Schema 14 adds a metadata-only acknowledgement projection under the existing private authoritative SQLite store and typed audit. It binds the immutable original request, answer turn, message revision and source generation. Confirmed legacy absence means not marked; missing audited rows, malformed/unknown data and uncertain readback mean Unavailable, never a successful zero count ([storage](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.AnswerReviews.cs)).
+
+All required canonical messages and acknowledgement records validate before exclusion or page limits. The existing closed 100-message conversation and 64 KiB complete page limits remain. Private/control/original native input, session generation/metadata, source head/revision and presenter lifetime fence reads, writes and late publication; there is no batch-through-sequence action ([host boundary](../src/Kora.Application/Hosting/SessionWorkspaceService.AnswerReviews.cs)).
+
+Acknowledgement neither changes retained bodies nor renews meaningful activity, deadlines, grants, source/model consent, dispatch or Resume. Done inspection remains passive. Source disposition/retention removes owned acknowledgement rows with the existing copy-cleanup policy; independent audit/grants keep their own policy. No favourites, bookmark catalogue, attention analytics, inferred reading, model source consumer or new body retention is added ([deletion owner](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Conversation.cs)).
+
+Changing the selected conversation, private revocation or closure retires both its answer-review selection/presenter and any unconfirmed [new-task output review](User_Configuration.md#delivered-one-task-response-output). Neither transfers to another conversation or changes retained flags. Native Mark/Unmark captures the exact page, row and opened presentation at pointer press or Space/Enter; an old activation cannot change a newly opened replacement, including a reopened presentation of the same answer. Refusal preserves an otherwise-current replacement for a new deliberate activation. Delayed activations after private revocation or closure neither mutate retained flags nor publish source feedback. Native regressions hold default activation only after production tunnel capture, exercise a fresh deliberate gesture separately, and join the owned operation before fixture storage deletion even on assertion failure. Acknowledgement does not answer or finalize a pending question or establish current-question authority ([native choice and combined lifecycle regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AnswerReviews.cs)).
+
+This is an explicit private-native metadata operation using the existing native-only canonical Details admission, not a new model/typed/voice mutation grammar. Existing conversation controls/routes are unchanged. [SQLite regressions](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteAnswerReviewTests.cs) and [native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AnswerReviews.cs) prove implementation, not provider/hardware/installed accessibility qualification.
+
 ## Delivered exact-session conversation/composer foundation — 2026-10-12
 
 ### Session-local unsent input and legacy compatibility - 2026-10-21
@@ -1178,6 +1194,22 @@ Switching sessions does not cancel background work. Content and delayed callback
 
 ## Structured Questions and Mixed-Channel Replies
 
+### Delivered bounded local clarification forms - 2026-10-30
+
+Only the existing explicit **Submit with one clarification** local operation can receive one `ask_user` form. It contains one to four required fields: bounded text (declared 1–500 UTF-16 characters and 1–2000 strict UTF-8 bytes), or one choice from two to four unambiguous labels. The prompt is at most 500 characters; field/option labels are at most 80 ([typed field contract](../src/Kora.Core/Interaction/QuestionField.cs)).
+
+The existing Questions window shows every field's label, type and constraints, without preselected choices. Mouse/keyboard edits and eligible **Speak field** entry update the same volatile draft. Spoken field entry is neither approval nor submission. **Review exact record** includes the whole current draft; another edit invalidates that review. **Submit answer** validates all required fields and commits one canonically ordered typed answer ([native owner](../src/Kora/NativeQuestionViewModel.cs), [window](../src/Kora/QuestionWindow.axaml.cs)).
+
+There is no form draft autosave or disk Save draft. Cancel, dismiss, expiry, duplicate presenters, changed question/draft/source/session/generation/privacy/call authority and late speech cannot partially submit. Only the canonical committed answer may resume the exact already-admitted original task once; it creates no instruction, source permission, grant or egress consent ([submission](../src/Kora.Application/Interaction/HostQuestionService.cs), [continuation](../src/Kora.Application/Hosting/ConversationQuestionContinuation.cs)).
+
+The closed local clarification-only request uses schema 4 and host-issued field/choice IDs. Unknown fields/types, numeric type values, duplicates, malformed Unicode, credentials and complete over-bound values are refused without evaluation or truncation. Ordinary text/schema 1, Claude/schema 2, read-only observation questions/schema 3, legacy question shapes and their voice submission behavior are unchanged ([protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Forms.cs), [transport](../src/Kora.Windows/Dependencies/OllamaToolWire.Questions.cs)).
+
+Current-source inspection reconstructs an ordinary clarification with its exact declared selection bounds, including canonical multiple-choice questions, and compares the complete schema and host-issued option/field identities. This preserves existing question kinds; it grants no authority to answer through a task observation ([source predicate](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.ConversationQuestions.cs), [boundary regressions](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteConversationTests.QuestionSource.cs)).
+
+Existing interaction tables and historical question/audit bytes are unchanged; optional field payloads are omitted from legacy records. Only submitted form answers are retained under existing question/privacy/retention rules. The original turn deadline is not renewed. Deterministic native/headless, store and fake-provider tests are implementation evidence, not installed accessibility, real-audio/provider or runtime qualification ([native regression](../tests/Kora.Windows.IntegrationTests/NativeQuestionWindowContractTests.Forms.cs), [continuing-task regression](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Forms.cs)).
+
+### General interaction contract
+
 Support single-choice options, multi-choice checkbox lists, yes/no decisions, bounded text, and typed forms where appropriate.
 Include free-form clarification when predefined options cannot express the user's answer; do not force every question into a yes/no approval.
 Each question declares:
@@ -1567,6 +1599,9 @@ routing. Background tasks remain isolated and cannot acquire editor input.
 
 Independent Active sessions can execute concurrently, including writes to different resources.
 Initial proposed default: two executing session tasks, with a configurable limit admitted only within verified provider/hardware capabilities.
+For ordinary retained conversations, the [delivered future-maximum operation](Work_Management.md#ordinary-session-resource-allocation-implementation) reviews and separately confirms desired demand of one or two through native Settings or exact original typed/activated commands.
+This is not qualification of capacity two. Each request's host resource status reports its last configured/captured/qualified/effective ceiling and actual admission blocker; unknown readiness remains unavailable.
+Lowering the preference leaves active work and its physical joins intact, and never changes per-session pending FIFO.
 One execution slot per session preserves its ordering unless a later explicit design enables intra-session parallel tasks.
 Resource holds, dependency readiness, provider budgets, and fair scheduling govern admission; selected session gets no implicit execution priority.
 Management and exact local controls remain responsive while all slots are occupied.

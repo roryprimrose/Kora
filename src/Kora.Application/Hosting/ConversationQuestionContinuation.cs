@@ -74,13 +74,7 @@ public sealed class ConversationQuestionContinuation(
         { throw new InvalidOperationException("Original question ownership, correlation or expiry changed. Start a fresh request."); }
     }
 
-    private static bool SameSpec(QuestionSpec left, QuestionSpec right) =>
-        string.Equals(left.Text, right.Text, StringComparison.Ordinal) && left.Kind == right.Kind
-        && string.Equals(left.Purpose, right.Purpose, StringComparison.Ordinal)
-        && string.Equals(left.SourceId, right.SourceId, StringComparison.Ordinal)
-        && left.Minimum == right.Minimum && left.Maximum == right.Maximum
-        && left.MaximumTextLength == right.MaximumTextLength
-        && left.Options.SequenceEqual(right.Options);
+    private static bool SameSpec(QuestionSpec left, QuestionSpec right) => left.Matches(right);
 
     // The exact-key lookup and validated submitted receipt already establish right's key, null proposal and answer.
     private static bool SameRecord(HostQuestionRecord left, HostQuestionRecord right, QuestionAnswer expectedAnswer) =>
@@ -89,5 +83,5 @@ public sealed class ConversationQuestionContinuation(
         && left.AnswerChannel == right.AnswerChannel && SameSpec(left.Spec, right.Spec)
         && left.Draft is { } actualAnswer
         && string.Equals(actualAnswer.Text, expectedAnswer.Text, StringComparison.Ordinal)
-        && actualAnswer.Choices.SequenceEqual(expectedAnswer.Choices);
+        && actualAnswer.Choices.SequenceEqual(expectedAnswer.Choices) && actualAnswer.Fields.SequenceEqual(expectedAnswer.Fields);
 }

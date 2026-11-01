@@ -1,7 +1,9 @@
 using System.Text;
+using System.Text.Json;
 using AwesomeAssertions;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
+using Kora.Core.Mcp;
 
 namespace Kora.Core.UnitTests.Dependencies;
 
@@ -20,6 +22,39 @@ public sealed class ModelContextEnvelopeTests
         exact.RequireCompleteInputLimit();
         var overflow = new ModelContextEnvelope(Request, "", new string('x', 32769 - overhead), [], Now, Now.AddMinutes(1));
         overflow.Invoking(envelope => envelope.RequireCompleteInputLimit()).Should().Throw<InvalidDataException>();
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void McpCompleteLimitIncludesActualSerializedSchemaAndNeverDropsContent(int excess)
+    {
+        var tool = new McpModelTool("mcp.search",
+            "{\"type\":\"object\",\r\n\"additionalProperties\":false,\"properties\":{},\"required\":[]}");
+        var empty = new ModelContextEnvelope(Request, "", "", [], Now, Now.AddMinutes(1),
+            ModelToolMode.McpReadOnly, mcpTool: tool);
+        var input = new string('x', 32768 - empty.Serialize().Length + excess);
+        var context = new ModelContextEnvelope(Request, "", input, [], Now, Now.AddMinutes(1),
+            ModelToolMode.McpReadOnly, mcpTool: tool);
+        context.Serialize().Length.Should().Be(32768 + excess);
+        JsonSerializer.SerializeToUtf8Bytes(tool.InputSchema).Length.Should().BeGreaterThan(Encoding.UTF8.GetByteCount(tool.InputSchema));
+        if (excess == 0) { context.RequireCompleteInputLimit(); }
+        else { context.Invoking(value => value.RequireCompleteInputLimit()).Should().Throw<InvalidDataException>(); }
+        context.UserRequest.Should().Be(input);
+        context.McpTool.Should().BeSameAs(tool);
+        context.Serialize().Length.Should().Be(32768 + excess);
+    }
+
+    [Fact]
+    public void ReservedInputBudgetIsInclusiveNonnegativeAndCannotOverflow()
+    {
+        var context = new ModelContextEnvelope(Request, "", "unchanged", [], Now, Now.AddMinutes(1), ModelToolMode.None);
+        var reserve = 32768 - context.Serialize().Length;
+        context.RequireCompleteInputLimit(reserve);
+        context.Invoking(value => value.RequireCompleteInputLimit(reserve + 1)).Should().Throw<InvalidDataException>();
+        context.Invoking(value => value.RequireCompleteInputLimit(-1)).Should().Throw<ArgumentOutOfRangeException>();
+        context.Invoking(value => value.RequireCompleteInputLimit(int.MaxValue)).Should().Throw<InvalidDataException>();
+        context.UserRequest.Should().Be("unchanged");
     }
 
     [Fact]

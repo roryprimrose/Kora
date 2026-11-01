@@ -314,7 +314,7 @@ public sealed partial class SessionWorkspaceServiceTests
         new(new(new(Guid.NewGuid()), f.Session.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi),
             new(1), sequence, 2, DateTimeOffset.UnixEpoch, body, ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel);
 
-    private sealed class ConversationFixture : Fixture, ISessionConversationStore
+    private sealed partial class ConversationFixture : Fixture, ISessionConversationStore
     {
         internal ConversationMessage[] Messages { get; set; } = [];
         internal int Reads { get; private set; }

@@ -374,6 +374,8 @@ required, never renewal or replay. Manual start decisions are not action approva
 Independent pending expirations may finish concurrently, but each terminal
 receipt and readback remains bound to its exact original request, task, session
 and channel. Another request's terminal state cannot confirm or replace it.
+The fixture captures the exact request-local receipt before awaiting its typed
+terminal-completion hook; concurrent completions cannot retarget that capture.
 The request-local fixture regressions cover both [interleaved expirations](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ManualDispatch.cs)
 and [pending/executing terminal interleavings](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Pending.cs)
 for UI and activated-voice origins, without provider execution or retained answers.

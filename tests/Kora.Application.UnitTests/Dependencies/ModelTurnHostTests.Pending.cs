@@ -195,6 +195,7 @@ public sealed partial class ModelTurnHostTests
             {
                 request.Should().BeSameAs(first);
                 CompleteOtherRequest();
+                return Task.CompletedTask;
             };
         }
         var expired = executing

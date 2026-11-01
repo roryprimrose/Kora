@@ -53,10 +53,22 @@ foreach ($name in $expected) {
     Assert ($selected[0].Name -ceq $name) "Selector returned a different shard: $name."
     Assert ($selected[0].Filter -ceq ($all | Where-Object Name -EQ $name).Filter) 'Selection changed a filter.'
     $selectedPartitions = @(& $runner -Shard $name -ListPartitions)
-    $expectedCount = switch ($name) { 'ui-definitions' { 4 }; 'ui-platform' { 2 }; default { 1 } }
+    $expectedCount = switch ($name) { 'storage-heavy' { 2 }; 'storage-other' { 3 }; 'ui-definitions' { 2 }; default { 1 } }
     Assert ($selectedPartitions.Count -eq $expectedCount) "Wrong execution-partition count for $name."
-    Assert (@($selectedPartitions | Where-Object Shard -CNE $name).Count -eq 0) 'A hosted selector must never execute another job''s partitions.'
+    Assert (@($selectedPartitions | Where-Object HostedShard -CNE $name).Count -eq 0) 'A hosted selector must execute exactly its assigned partitions.'
 }
+$hostedOwners = @{
+    'storage-heavy' = 'storage-heavy'; 'ui-conversations' = 'storage-heavy'
+    'storage-other' = 'storage-other'; 'ui-conversation-actions' = 'storage-other'; 'ui-definition-dialogs' = 'storage-other'
+    'ui-definitions' = 'ui-definitions'; 'ui-editors' = 'ui-definitions'
+    'native-ux' = 'native-ux'; 'ui-platform' = 'ui-platform'
+}
+foreach ($partition in $partitions) {
+    Assert ($partition.HostedShard -ceq $hostedOwners[$partition.Name]) 'Distribute measured UI work across four synchronous hosted runners, not one runner.'
+    Assert (($partition.HostedShard -ceq 'native-ux') -eq ($partition.Name -ceq 'native-ux')) 'Only native-UX work may run under the buffered fixture profile.'
+}
+$selectedAcrossHosts = @($expected | ForEach-Object { & $runner -Shard $_ -ListPartitions })
+Assert ((($selectedAcrossHosts.Name | Sort-Object) -join ',') -ceq (($expectedPartitions | Sort-Object) -join ',')) 'All five hosted selectors together must execute every partition exactly once.'
 $rejected = $false
 try { & $runner -Shard 'unknown' -ListShards | Out-Null }
 catch [System.Management.Automation.ParameterBindingException] { $rejected = $true }
@@ -326,16 +338,14 @@ foreach ($measurement in @(
 )) {
     $before = [Math]::Max($measurement.Definitions + $measurement.DefinitionsOverhead,
         $measurement.Platform + $measurement.PlatformOverhead)
-    $definitionProcesses = @(
-        $measurement.Actions
-        ($measurement.Conversation - $measurement.Actions)
-        $measurement.Dialogs
-        ($measurement.Definitions - $measurement.Conversation - $measurement.Dialogs)
+    # Sum serial UI costs on each hosted runner; extra processes do not grant CPU capacity.
+    $hostedSeconds = @(
+        (311 + $measurement.Conversation - $measurement.Actions + $measurement.DefinitionsOverhead)
+        (252 + $measurement.Actions + $measurement.Dialogs + $measurement.DefinitionsOverhead)
+        ($measurement.Definitions - $measurement.Conversation - $measurement.Dialogs + $measurement.Editor + $measurement.DefinitionsOverhead)
+        ($measurement.Platform - $measurement.Editor + $measurement.PlatformOverhead)
     )
-    $definitionsAfter = ($definitionProcesses | Measure-Object -Maximum).Maximum + $measurement.DefinitionsOverhead
-    $platformAfter = [Math]::Max($measurement.Editor,
-        $measurement.Platform - $measurement.Editor) + $measurement.PlatformOverhead
-    $after = [Math]::Max($definitionsAfter, $platformAfter)
+    $after = ($hostedSeconds | Measure-Object -Maximum).Maximum
     Assert ($after -lt 0.8 * $deadlineSeconds) "Run $($measurement.Run) must predict at least 20 percent deadline headroom."
     Assert ($after -lt 0.75 * $before) "Run $($measurement.Run) must predict at least a 25 percent shorter UI critical path."
     Write-Host ("Run {0}: projected UI critical path {1:N1}s -> {2:N1}s; shared-runner contention still requires new-head timing evidence." -f $measurement.Run, $before, $after)
@@ -452,16 +462,16 @@ try {
         $env:KORA_WINDOWS_SCHEDULING_FIXTURE = $mode
         $modeRoot = Join-Path $fixtureRoot $mode
         $failure = $null
-        try { & $runner -Shard 'ui-definitions' -ResultsDirectory $modeRoot }
+        try { & $runner -Shard 'storage-heavy' -ResultsDirectory $modeRoot }
         catch { $failure = $_ }
         Assert ($null -ne $failure) "Execution must fail explicitly for $mode partition evidence."
         $terminal = @(Get-ChildItem -LiteralPath $modeRoot -Filter 'terminal.txt' -Recurse -File)
-        Assert ($terminal.Count -eq 4) 'Failure reporting must wait for all four selected execution partitions to finish.'
+        Assert ($terminal.Count -eq 2) 'Failure reporting must wait for both selected storage/conversation processes to finish.'
     }
     $env:KORA_WINDOWS_SCHEDULING_FIXTURE = 'success'
     & $runner -Shard 'ui-definitions' -ResultsDirectory $executionRoot
     $freshReports = @(Get-ChildItem -LiteralPath $executionRoot -Filter 'results.trx' -Recurse -File)
-    Assert ($freshReports.Count -eq 13) 'A repeat run must retain four fresh reports without overwriting or consuming the previous nine reports.'
+    Assert ($freshReports.Count -eq 11) 'A repeat run must retain two fresh reports without overwriting or consuming the previous nine reports.'
 }
 finally {
     $env:PATH = $savedPath

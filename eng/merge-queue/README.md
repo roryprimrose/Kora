@@ -338,10 +338,13 @@ merges and 14 cancellations. Twelve cancelled candidates had a confirmed
 validation occupancy, not a controller handoff delay.
 
 The Windows runner now retains five hosted job identities but uses nine
-disjoint processes. The definitions job separates dialog classes, conversation
-Native/Owned/Named method families, other conversation methods, and remaining
-definitions work. Theory rows stay together; the editor class retains its own
-synchronous process inside the platform job. The portable required check joins
+disjoint processes. Storage-heavy also runs other conversation methods;
+storage-other also runs conversation Native/Owned/Named method families and
+dialog classes; definitions also runs the editor class; platform runs its
+remainder alone. These four hosted jobs use synchronous evidence; native-UX
+alone retains buffering. Theory rows stay together, and legacy logical ownership
+remains available separately from `HostedShard` execution assignments.
+The portable required check joins
 independent test/coverage and exact-source payload producers. The installer can
 start after payload verification while portable tests continue; release still
 requires every existing protected check. The portable aggregate requires both
@@ -358,6 +361,12 @@ other Windows jobs succeeded, but only 842 of 857 conversation cases were
 recorded before cancellation. The subsequent finer partition retains all
 unfinished methods and all protected gates. Partial passing TRX counters do
 not establish a complete candidate pass or justify bypassing admission.
+[The nine-process same-runner candidate](https://github.com/roryprimrose/Kora/actions/runs/41288388916)
+also exhausted both UI jobs. The next repair distributes those same partitions
+across four synchronous hosted runners, consuming spare storage-job capacity
+without adding check identities or changing the trusted-main CI matrix. Timing
+regressions sum serial UI work on each host rather than treating extra processes
+as extra CPU capacity. This remains a scheduling repair, not hosted pass proof.
 Local repair validation also exposed approval scenarios mixing fixed domain
 time with wall-clock cancellation or queue expiry. Those deterministic fixtures
 now share their clock, and lifecycle review cancellation uses the controller's

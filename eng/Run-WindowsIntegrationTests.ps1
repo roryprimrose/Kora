@@ -74,11 +74,8 @@ $shards = @(
     }
 )
 
-if ($Shard -cne 'All') {
-    $shards = @($shards | Where-Object Name -EQ $Shard)
-}
 if ($ListShards) {
-    return $shards
+    return @($shards | Where-Object { $Shard -ceq 'All' -or $_.Name -ceq $Shard })
 }
 
 function Add-FilterExclusions {
@@ -140,6 +137,27 @@ $partitions = @(
         }
     }
 )
+$hostedAssignments = @{
+    'storage-heavy' = 'storage-heavy'
+    'ui-conversations' = 'storage-heavy'
+    'storage-other' = 'storage-other'
+    'ui-conversation-actions' = 'storage-other'
+    'ui-definition-dialogs' = 'storage-other'
+    'ui-definitions' = 'ui-definitions'
+    'ui-editors' = 'ui-definitions'
+    'native-ux' = 'native-ux'
+    'ui-platform' = 'ui-platform'
+}
+foreach ($partition in $partitions) {
+    if (-not $hostedAssignments.ContainsKey($partition.Name) -or
+        $hostedAssignments[$partition.Name] -cnotin $shards.Name) {
+        throw "Windows partition $($partition.Name) has no valid hosted assignment."
+    }
+    $partition | Add-Member -NotePropertyName HostedShard -NotePropertyValue $hostedAssignments[$partition.Name]
+}
+if ($Shard -cne 'All') {
+    $partitions = @($partitions | Where-Object HostedShard -CEQ $Shard)
+}
 if ($ListPartitions) {
     return $partitions
 }

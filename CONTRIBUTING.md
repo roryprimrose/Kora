@@ -110,21 +110,27 @@ while the operation truthfully retains its partial/unconfirmed outcome.
 
 To reproduce CI's Windows test scheduling after a locked `win-x64` build, run
 `.\eng\Run-WindowsIntegrationTests.ps1`. Its five disjoint hosted groups cover
-heavy storage, other storage, and three UI/platform groups. Synchronous
-`ui-definitions` launches four isolated processes: `ui-definition-dialogs`
+heavy storage, other storage, and three UI/platform identities. The nine logical
+process partitions are distributed across four synchronous hosted runners:
+`storage-heavy` runs storage plus `ui-conversations`; `storage-other` runs
+storage plus `ui-conversation-actions` and `ui-definition-dialogs`;
+`ui-definitions` runs remaining definitions plus `ui-editors`; `ui-platform`
+runs its remainder alone. `native-ux` remains unchanged and exclusively buffered.
+`ui-definition-dialogs`
 owns the complete customization and prompt-parameter window classes;
 `ui-conversation-actions` owns conversation methods beginning Native, Owned or
 Named; `ui-conversations` owns every other conversation method, including future
 methods outside those families; and `ui-definitions` owns the remaining classes.
-All theory rows for each method stay together. `ui-platform` retains two
-processes, with `ui-editors` owning the complete owned-definition editor class.
+All theory rows for each method stay together. `ui-editors` owns the complete
+owned-definition editor class.
 All nine execution partitions preserve serial headless UI
 execution within each process and the existing per-process thread limit.
 Each partition retains its own TRX and console output under a fresh run directory;
 nonzero exits or missing, duplicate, empty or incomplete passing reports fail
 the run. `-Shard <name>` selects exactly one existing hosted group;
-`-ListShards` lists its complete filter, and `-ListPartitions` lists its actual
-process filters without running tests.
+`-ListShards` lists legacy logical ownership filters for retained-data comparison;
+`-ListPartitions` lists actual process filters and `HostedShard` assignments
+without running tests. `Shard` on each partition retains its legacy logical owner.
 CI keeps the same five hosted Windows jobs and artifact names, retaining all
 nine partitions' TRX and console output. The unchanged required **Windows integration
 tests** check aggregates the matrix fail-closed: failure, cancellation, missing
@@ -149,6 +155,12 @@ repair still timed out in [run 41255145262](https://github.com/roryprimrose/Kora
 only 842 of 857 conversation cases were recorded. The nine-process repair
 retains every unfinished method and splits recorded conversation/dialog work
 further; partial timings are not proof that the repaired hosted job completes.
+[Run 41288388916](https://github.com/roryprimrose/Kora/actions/runs/41288388916)
+then timed out both UI runners: extra processes on the same runner did not
+provide enough execution capacity. The subsequent cross-runner assignment uses
+the spare storage-job capacity, leaves native buffering isolated, and sums
+serial UI costs per hosted runner in timing regressions instead of assuming
+process-level parallel speedup. Every filter and recorded test case is retained.
 Approval-flow fixtures use a shared injected clock and explicitly controlled
 timers rather than allowing runner load to consume an unrelated review budget.
 The lifecycle controller's one-minute cancellation budget uses its injected

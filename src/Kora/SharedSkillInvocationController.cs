@@ -73,7 +73,7 @@ internal sealed partial class SharedSkillInvocationController(
             else { review = await workflow.ReviewAsync(source, snapshot, () => Eligible(), origin, lifetime.Token); }
             if (!eligible() || !Eligible()) { Close(); return; }
             requestOrigin = origin;
-            window = new(action => Start(action, RequestOrigin.LocalUi), toolCapable);
+            window = new(action => Start(action, RequestOrigin.LocalUi), toolCapable, snapshot.McpReference is not null);
             window.Instructions.Text = $"{snapshot.Name} | {snapshot.Version} | source {source.Id:D} | SHA256 {snapshot.RevisionDigest}\n\n"
                 + (toolCapable ? snapshot.Text : referenceConsent?.DeclarationText ?? review!.Text);
             window.SetReferenceConsent(referenceConsent is not null);
@@ -84,6 +84,10 @@ internal sealed partial class SharedSkillInvocationController(
             { if (args.Property == Avalonia.Controls.TextBox.TextProperty) { InputChanged(); } };
             window.SecondAddress.PropertyChanged += (_, args) =>
             { if (args.Property == Avalonia.Controls.TextBox.TextProperty) { InputChanged(); } };
+            window.McpArguments.PropertyChanged += (_, args) =>
+            { if (args.Property == Avalonia.Controls.TextBox.TextProperty) { InputChanged(); } };
+            window.McpServers.SelectionChanged += (_, _) => InputChanged();
+            window.McpAccounts.SelectionChanged += (_, _) => InputChanged();
             window.Targets.SelectionChanged += (_, _) =>
             { Interlocked.Increment(ref toolInputRevision); RetireConfirmation(); RetireToolReview(); };
             showing = true;
@@ -133,6 +137,28 @@ internal sealed partial class SharedSkillInvocationController(
             {
                 if (command.Action is "Address") { window.Address.Text = command.Argument; }
                 else { window.SecondAddress.Text = command.Argument; }
+                requestOrigin = origin;
+                RetireConfirmation();
+                return;
+            }
+            if (toolMode && command.Action is "McpServer" or "McpAccount" or "McpArguments")
+            {
+                if (toolSnapshot?.McpReference is null)
+                { throw new InvalidOperationException("Open a skill with the exact declarative MCP reference first."); }
+                if (command.Action is "McpArguments") { window.McpArguments.Text = command.Argument; }
+                else if (command.Action is "McpServer")
+                {
+                    window.McpServers.SelectedItem = (window.McpServers.ItemsSource as IReadOnlyList<Kora.Application.Configuration.McpServerConfigurationSummary>)?
+                        .SingleOrDefault(item => string.Equals(item.Id, command.Argument, StringComparison.Ordinal))
+                        ?? throw new InvalidOperationException("Refresh MCP options and independently select the exact included server ID.");
+                }
+                else
+                {
+                    var matches = (window.McpAccounts.ItemsSource as IReadOnlyList<Kora.Core.Mcp.McpAccountChoice>)?
+                        .Where(item => string.Equals(item.DisplayName, command.Argument, StringComparison.Ordinal)).ToArray();
+                    window.McpAccounts.SelectedItem = matches is { Length: 1 } ? matches[0]
+                        : throw new InvalidOperationException("Select one current delegated account natively, or use its unique exact displayed name.");
+                }
                 requestOrigin = origin;
                 RetireConfirmation();
                 return;
@@ -273,6 +299,9 @@ internal sealed partial class SharedSkillInvocationController(
         if (invocation is not null) { invocation.Dispose(); invocation = null; }
         toolInvocation?.Dispose();
         toolInvocation = null;
+        mcpInvocation?.Dispose();
+        mcpInvocation = null;
+        if (window is not null) { window.McpResult.Text = string.Empty; }
         if (window is not null) { window.Confirm.IsEnabled = false; window.Confirmation.Text = string.Empty; }
     }
 

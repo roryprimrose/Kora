@@ -79,6 +79,9 @@ public sealed class OwnedSkillAuthoringGuideTests
             .And.Contain("absence readback")
             .And.Contain("do not retry or recreate")
             .And.Contain("Retained editor text keeps its deleted-source binding")
-            .And.Contain("before model use");
+            .And.Contain("before model use")
+            .And.Contain("Both reviews block editor input")
+            .And.Contain("completes only after native closure")
+            .And.Contain("none approves deletion or recovery");
     }
 }

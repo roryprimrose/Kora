@@ -12,6 +12,22 @@ on:
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
+    inputs:
+      operation:
+        description: Controller operation; recovery requires separate administrator authorization
+        type: choice
+        options: [reconcile, recover-unobservable-dispatch]
+        default: reconcile
+      recovery_checkpoint:
+        description: Exact automation/merge-queue-state commit reviewed for recovery
+        type: string
+      recovery_ticket:
+        description: Exact retiring ticket with no observable workflow run
+        type: string
+      acknowledge_uncertain_dispatch:
+        description: I am authorized to recover this reviewed uncertain dispatch; absence of a run is not proof of quiescence
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -50,15 +66,24 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           QUEUE_APP_ID: ${{ vars.KORA_MERGE_QUEUE_APP_ID }}
+          QUEUE_INPUTS: ${{ toJSON(inputs) }}
+          QUEUE_RUN_ATTEMPT: ${{ github.run_attempt }}
         with:
           github-token: ${{ steps.app.outputs.token }}
           script: |
             const { GitHubQueue } = require('./eng/merge-queue/github.cjs');
             const { reconcile } = require('./eng/merge-queue/controller.cjs');
+            const { controllerOperation } = require('./eng/merge-queue/policy.cjs');
             const api = new GitHubQueue(github, context, core, process.env.QUEUE_APP_ID);
             let result = 'failed';
             try {
-              result = await reconcile(api);
+              const inputs = JSON.parse(process.env.QUEUE_INPUTS ?? '{}');
+              if (controllerOperation(inputs) === 'recover-unobservable-dispatch') {
+                const { recover } = require('./eng/merge-queue/recovery.cjs');
+                result = await recover(api, { context, inputs, attempt: Number(process.env.QUEUE_RUN_ATTEMPT) });
+              } else {
+                result = await reconcile(api);
+              }
               core.notice(`Merge queue: ${result}.`);
             } finally {
               await api.summarize(result);

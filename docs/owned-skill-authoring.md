@@ -90,6 +90,10 @@ Activated voice uses the current assistant-name prefix and the same native revie
 Review the exact owned destination, complete manifest and guidance, declared tool dependency, references-none boundary and use impact.
 Then separately confirm **Delete only this exact owned source**, or Cancel. The two-minute, single-operation review cannot be reused after source, draft, selection, catalogue, authority, ownership, privacy or channel changes ([review owner](../src/Kora.Application/Skills/OwnedSkillDeletionWorkflow.cs)).
 **Escape** rejects either deletion review without confirming or deleting anything; the editor, draft and saved source remain intact.
+Both reviews block editor input and return focus to that exact dialog. A choice
+completes only after native closure, while the original editor remains visible
+and eligible. Closing or hiding the owner, retiring its authority or cancelling
+the operation rejects an accepted choice; none approves deletion or recovery.
 
 Deletion removes only `manifest.yaml`, `instructions.md` and the now-empty exact version directory. The ID/root directories and unrelated versions remain.
 Bundled/shared/profile originals, reference packages, native v4 observation workflows, arbitrary paths and recursive tree deletion are unavailable ([owned store](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.Deletion.cs)).
@@ -151,6 +155,15 @@ old voice or draft authority. A retired draft can only be explicitly discarded
 or retained. After privacy recovers, `owned skill editor` can show that draft
 under fresh private presentation eligibility for Discard/Cancel, never to renew
 Save authority. Drafts are not autosaved.
+
+Source reviews, generation/refinement reviews, simulated examples/results and
+unsaved-draft choices are modal: finish or dismiss the current dialog before
+editing the draft again. Attempts to return to the editor bring its exact
+review forward instead. A clicked choice completes only after the dialog
+closes; cancellation or expired eligibility cannot become confirmation during
+that handoff. Save keeps its separate publication confirmation.
+Escape dismisses only the current review after actual native closure; it never
+confirms publication, starts inference or discards the editor's volatile draft.
 
 ## Refine the current instruction-only guidance
 

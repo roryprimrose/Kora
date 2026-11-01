@@ -1428,26 +1428,105 @@ public sealed partial class MainViewModelTests : IDisposable
         changedProperties.Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task Presence_and_response_timeout_property_setters_persist_independently()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Presence_and_response_timeout_property_setters_persist_independently(bool queueDuringFirstWrite)
     {
         var fixture = await Fixture.CreateInitializedAsync();
-
-        fixture.ViewModel.PresenceTimeoutSeconds = 15;
-        fixture.ViewModel.ResponseTimeoutSeconds = 8;
-        fixture.ViewModel.PresenceTimeoutSeconds = 20;
-        await fixture.ViewModel.AppearanceUpdate;
+        var token = TestContext.Current.CancellationToken;
+        using var releasePresence = new ManualResetEventSlim();
+        using var releaseResponse = new ManualResetEventSlim();
+        var presenceEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var responseEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var presenceWrites = 0;
+        fixture.AppearancePreferences.BeforePresencePreferenceSave = () =>
+        {
+            if (Interlocked.Increment(ref presenceWrites) != 1) { return; }
+            presenceEntered.SetResult();
+            releasePresence.Wait(token);
+        };
+        fixture.AppearancePreferences.BeforeResponseTimeoutPreferenceSave = () =>
+        {
+            responseEntered.SetResult();
+            releaseResponse.Wait(token);
+        };
+        try
+        {
+            fixture.ViewModel.PresenceTimeoutSeconds = 15;
+            await presenceEntered.Task.WaitAsync(token);
+            var firstWrite = fixture.ViewModel.AppearanceUpdate;
+            firstWrite.IsCompleted.Should().BeFalse();
+            fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(PresenceSettings.DefaultTimeoutSeconds);
+            fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(ResponseWindowSettings.DefaultTimeoutSeconds);
+            fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().BeNull();
+            fixture.AppearancePreferences.SavedResponseTimeoutSeconds.Should().BeNull();
+            var requested = fixture.Audit.Events.ToArray();
+            requested.Should().ContainSingle().Which.Outcome.Should().Be(SecurityAuditOutcome.Requested);
+            requested[0].ActionId.Should().Be("configuration.presence-timeout");
+            if (queueDuringFirstWrite)
+            {
+                // The immediate dispatcher has no UI context: hold the worker while native inputs enqueue.
+                fixture.ViewModel.ResponseTimeoutSeconds = 8;
+                fixture.ViewModel.PresenceTimeoutSeconds = 20;
+                fixture.ViewModel.AppearanceUpdate.Should().BeSameAs(firstWrite);
+            }
+            else
+            {
+                releasePresence.Set();
+                await firstWrite;
+                fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(15);
+                fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(ResponseWindowSettings.DefaultTimeoutSeconds);
+                fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().Be(15);
+                fixture.AppearancePreferences.SavedResponseTimeoutSeconds.Should().BeNull();
+                fixture.ViewModel.ResponseTimeoutSeconds = 8;
+            }
+            releasePresence.Set();
+            await responseEntered.Task.WaitAsync(token);
+            fixture.ViewModel.AppearanceUpdate.IsCompleted.Should().BeFalse();
+            fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().Be(15);
+            fixture.AppearancePreferences.SavedResponseTimeoutSeconds.Should().BeNull();
+            fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(queueDuringFirstWrite ? PresenceSettings.DefaultTimeoutSeconds : 15);
+            fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(ResponseWindowSettings.DefaultTimeoutSeconds);
+            if (!queueDuringFirstWrite) { fixture.ViewModel.PresenceTimeoutSeconds = 20; }
+        }
+        finally
+        {
+            releasePresence.Set();
+            releaseResponse.Set();
+            await fixture.ViewModel.AppearanceUpdate;
+        }
 
         fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(20);
         fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(8);
         fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().Be(20);
         fixture.AppearancePreferences.SavedResponseTimeoutSeconds.Should().Be(8);
+        presenceWrites.Should().Be(2);
+        var audits = fixture.Audit.Events.ToArray();
+        audits.Select(item => item.ActionId).Should().Equal(
+            "configuration.presence-timeout", "configuration.presence-timeout",
+            "configuration.response-timeout", "configuration.response-timeout",
+            "configuration.presence-timeout", "configuration.presence-timeout");
+        audits.Select(item => item.Outcome).Should().Equal(
+            SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded,
+            SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded,
+            SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+        audits.Should().OnlyContain(item => item.Category == SecurityAuditCategory.ConfigurationWrite
+            && item.Initiator == SecurityAuditInitiator.LocalUser && item.ReasonCode == null);
+        audits[0].CorrelationId.Should().NotBeEmpty();
+        audits[1].CorrelationId.Should().Be(audits[0].CorrelationId);
+        audits[4].CorrelationId.Should().NotBeEmpty().And.NotBe(audits[0].CorrelationId);
+        audits[5].CorrelationId.Should().Be(audits[4].CorrelationId);
         AssertAuditPair(
             fixture,
             SecurityAuditCategory.ConfigurationWrite,
             "configuration.response-timeout",
             SecurityAuditInitiator.LocalUser,
             SecurityAuditOutcome.Succeeded);
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        fixture.Preferences.SummaryLimits.Should().BeNull();
+        fixture.AppearancePreferences.SavedResponseWindowSettings.Should().BeNull();
+        await fixture.ViewModel.DisposeAsync();
     }
 
     [Fact]
@@ -4624,6 +4703,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(SpeechCommand.FixedPhrases)
             .Concat(["review speech limit suggestion", "confirm speech limit change", "cancel speech limit review"])
             .Concat(PlaybackVolumeSuggestionCommand.FixedPhrases)
+            .Concat(WindowsSpeechRateSuggestionCommand.FixedPhrases)
             .Concat(Kora.Application.Configuration.RegisteredSettings.RegisteredSettingSuggestionCommand.FixedPhrases)
             .Concat(Kora.Application.Configuration.RegisteredSettings.RegisteredSettingUndoCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.OwnedSkillAuthoringCommand.FixedPhrases)
@@ -9740,6 +9820,8 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public Exception? SpeakException { get; set; }
 
+        public Exception? SpeakCompletionException { get; set; }
+
         public Action? BeforeSpeak { get; set; }
 
         public Exception? StopException { get; set; }
@@ -9821,6 +9903,7 @@ public sealed partial class MainViewModelTests : IDisposable
             {
                 await SpeakGate.Task.WaitAsync(IgnoreSpeakCancellation ? CancellationToken.None : cancellationToken);
             }
+            if (SpeakCompletionException is { } completionException) { throw completionException; }
             if (generation != Interlocked.Read(ref outputGeneration)) { throw new OperationCanceledException(); }
 
             IsSpeaking = false;

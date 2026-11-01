@@ -283,7 +283,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         SpeechComponentSetupService? speechComponentSetup = null,
         ConversationalReplyConfigurationService? conversationalReplies = null,
         CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
-        LogonStartupConfigurationService? logonStartupConfiguration = null)
+        LogonStartupConfigurationService? logonStartupConfiguration = null,
+        StartupPresentationConfigurationService? startupPresentationConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -442,6 +443,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         InitializeSpeechInputConfiguration(speechInputConfiguration, execute => CreateCommand(execute));
         InitializeConversationalReplies(conversationalReplies, execute => CreateCommand(execute));
         InitializeLogonStartup(logonStartupConfiguration, execute => CreateCommand(execute));
+        InitializeStartupPresentation(startupPresentationConfiguration, execute => CreateCommand(execute));
         ResetThemeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.Theme));
         ResetReaderTextScaleCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReaderTextScale));
         ResetResponseTimeoutCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ResponseTimeout));
@@ -2502,6 +2504,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public async Task HideApplicationAsync()
     {
+        CancelStartupPresentationReview();
         Interlocked.Increment(ref approvalPreparationRevision);
         RetireWebResultDetails();
         var actionRetirement = ClearPendingModelActionAsync("dismissed");
@@ -4230,6 +4233,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget = null,
         ForegroundConversationTarget? foregroundTarget = null)
     {
+        CancelStartupPresentationReview();
         if (LogonStartupCommand.Parse(spokenText, AssistantName) is { } startupOperation)
         {
             if (!isAssistantNameAvailable || initiator == SecurityAuditInitiator.VoiceCommand
@@ -6551,6 +6555,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         OnPropertyChanged(nameof(CanChangeConversationalReplies));
         OnPropertyChanged(nameof(CanControlLogonStartup));
         OnPropertyChanged(nameof(CanControlLogonStartupNative));
+        OnPropertyChanged(nameof(CanControlStartupPresentation));
         OnPropertyChanged(nameof(WindowsSpeechRateStatus));
         OnPropertyChanged(nameof(PlaybackVolumeStatus));
         OnPropertyChanged(nameof(CanChangeDiagnosticRetention));

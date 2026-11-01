@@ -57,6 +57,8 @@ public sealed partial class App : Avalonia.Application
     private Func<HostActivity>? rendererSwitchContext;
 
     internal static ServiceProvider Services { get; set; } = null!;
+    internal static bool IsManualStartup { get; set; }
+    private ManualStartupPresentationController? manualStartupPresentation;
     internal DetailWindowController? Details => detailWindow;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
@@ -88,6 +90,7 @@ public sealed partial class App : Avalonia.Application
                 var replacement = new MainWindow(hostViewModel,
                     Services.GetRequiredService<ILogger<MainWindow>>(), native, startup,
                     Services.GetRequiredService<ILogger<Kora.Application.Visuals.PresenceRenderWorker>>());
+                replacement.ApplyStartupPresentation = ApplyStartupPresentationAsync;
                 desktop.MainWindow = replacement;
                 return replacement;
             }, () => fileWindow?.IsOwnerInUse != true && questionWindow?.IsOwnerInUse != true);
@@ -394,6 +397,21 @@ public sealed partial class App : Avalonia.Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private async Task ApplyStartupPresentationAsync()
+    {
+        var host = viewModel ?? throw new InvalidOperationException("The startup presentation host is unavailable.");
+        manualStartupPresentation ??= new(Services.GetRequiredService<StartupPresentationConfigurationService>(),
+            host, admitted => (sessionsWindow ?? throw new InvalidOperationException("The startup workspace is unavailable."))
+                .ShowStartupWorkspace(admitted));
+        try { await manualStartupPresentation.ApplyAsync(IsManualStartup, CancellationToken.None); }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException
+            or InvalidOperationException or OperationCanceledException)
+        {
+            DesktopLog.Error(logger!, exception, "Applying confirmed manual startup presentation");
+            host.ReportHostInteractionFailure("Manual startup presentation unavailable. Inspect saved intent and audit before manual recovery. " + exception.Message);
+        }
     }
 
     private void OnDesktopExit(object? sender, ControlledApplicationLifetimeExitEventArgs eventArgs)

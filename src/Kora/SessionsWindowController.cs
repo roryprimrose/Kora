@@ -87,6 +87,29 @@ internal sealed partial class SessionsWindowController(
         }
     }
 
+    internal void ShowStartupWorkspace(Func<bool> admitted)
+    {
+        if (disposed || !access.CanInspect || !main.CanRevealPrivatePresentation || !admitted())
+        { throw new InvalidOperationException("The startup workspace is held by current private desktop ownership."); }
+        if (presentation is not null)
+        { throw new InvalidOperationException("An existing workspace/source presentation cannot be replaced by startup intent."); }
+        EnsurePresentation();
+        var owner = presentation!;
+        if (DetailOwner() is not ResponseWindow surface)
+        { throw new InvalidOperationException("The existing Main workspace is not composed."); }
+        if (!admitted() || !access.CanInspect || !main.CanRevealPrivatePresentation)
+        {
+            owner.Revoke();
+            throw new InvalidOperationException("Startup workspace admission changed before native publication.");
+        }
+        surface.ShowSessions(expanded: true, activate: false);
+        if (!admitted() || !access.CanInspect || !surface.IsVisible)
+        {
+            owner.Revoke();
+            throw new InvalidOperationException("Startup workspace admission changed during native publication.");
+        }
+    }
+
     internal Func<Task> CaptureSessionSelection(int? position, Func<bool> admitted)
     {
         var source = model;

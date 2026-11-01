@@ -8643,7 +8643,8 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableConversationalReplies = false, Exception? conversationalReadFailure = null,
             Kora.Application.Communication.CommunicationActivityCallStateService? communicationActivity = null,
             CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
-            LogonStartupConfigurationService? logonStartupConfiguration = null)
+            LogonStartupConfigurationService? logonStartupConfiguration = null,
+            StartupPresentationConfigurationService? startupPresentationConfiguration = null)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8839,7 +8840,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 speechComponentSetup: speechComponentSetup,
                 conversationalReplies: ConversationalConfiguration,
                 communicationActivityConfiguration: communicationActivityConfiguration,
-                logonStartupConfiguration: logonStartupConfiguration);
+                logonStartupConfiguration: logonStartupConfiguration,
+                startupPresentationConfiguration: startupPresentationConfiguration);
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);

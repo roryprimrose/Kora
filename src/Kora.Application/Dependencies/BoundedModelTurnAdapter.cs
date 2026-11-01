@@ -181,6 +181,8 @@ internal sealed partial class BoundedModelTurnAdapter(
             if (message is ModelClarificationQuestion question)
             {
                 if (ask is null || questionAsked
+                    || question.Question.Fields is not null
+                        && (!ModelToolProtocol.AllowsForms(context.ToolMode, provenance.Selection.Provider) || question.CallId is null)
                     || question.CallId is { } questionId && !callIds.Add(questionId)
                     || context.ToolMode == ModelToolMode.ReadOnly && question.CallId is null && question.Question.Options.Count == 0)
                 { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.InvalidProviderResponse); }

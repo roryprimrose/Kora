@@ -21,8 +21,10 @@ public sealed partial class MainViewModel
     private PendingSpeechInputReview? pendingSpeechInputReview;
     private Task speechInputOperation = Task.CompletedTask;
 
-    public IReadOnlyList<SpeechInputProfile> SpeechInputProfiles => SpeechInputProfileCatalogue.Profiles;
-    public IReadOnlyList<SpeechInputResource> SpeechInputResources { get; } = [SpeechInputResource.WindowsManaged];
+    public IReadOnlyList<SpeechInputProfile> SpeechInputProfiles => speechInputConfiguration?.GetProfiles() ?? SpeechInputProfileCatalogue.Profiles;
+    public IReadOnlyList<SpeechInputResource> SpeechInputResources =>
+        SpeechInputProfiles.Any(profile => profile.Id is SpeechInputProfileCatalogue.NativeWakeProfileId)
+            ? [SpeechInputResource.WindowsManaged, SpeechInputResource.Cpu] : [SpeechInputResource.WindowsManaged];
     public IReadOnlyList<SpeechInputResidency> SpeechInputResidencies { get; } = [SpeechInputResidency.CaptureLifetime];
     public SpeechInputProfile? SelectedSpeechInputProfile
     {
@@ -66,6 +68,7 @@ public sealed partial class MainViewModel
             selectedSpeechInputResource = desired.Resource;
             selectedSpeechInputResidency = desired.Residency;
         }
+        service?.BindAssistantName(assistantNameConfiguration);
         SaveSpeechInputCommand = createCommand(() => ExecuteSpeechInputCommandAsync(new(AppearanceCommandOperation.Set,
             new(SelectedSpeechInputProfile?.Id ?? throw new InvalidOperationException("Choose one exact known speech-input profile."),
                 SelectedSpeechInputResource, SelectedSpeechInputResidency)), SecurityAuditInitiator.LocalUser));

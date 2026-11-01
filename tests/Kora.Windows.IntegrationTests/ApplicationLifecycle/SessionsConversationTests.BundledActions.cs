@@ -36,9 +36,10 @@ public sealed partial class SessionsConversationTests
         await HeadlessSession.RunAsync(async () =>
         {
             using var storage = new InteractionStorageFixture();
+            storage.Time.UseFrozenTimers = true;
             await storage.Tasks.InitializeAsync(storage.Token);
             await storage.Store.InitializeAsync(storage.Token);
-            using var native = new NativeUxFixtureSession(storage.Paths.LocalRoot);
+            using var native = new NativeUxFixtureSession(storage.Paths.LocalRoot, timeProvider: storage.Time);
             await native.InitializeAsync();
             await using var composition = new Composition(storage);
             using var questions = new NativeQuestionHost(storage.Store, storage.Time, NullLogger<NativeQuestionViewModel>.Instance);
@@ -53,7 +54,7 @@ public sealed partial class SessionsConversationTests
             var owner = new Window();
             owner.Show();
             using var lifecycle = new ApplicationLifecycleController(native.Main, composition.Conversation, native.Queue,
-                questions, new(storage.Tasks), renderer, () => owner);
+                questions, new(storage.Tasks), renderer, () => owner, storage.Time);
             var platform = new BundledNativePlatform
             { LockOutcome = nativeFailure ? FixedSessionEffectOutcome.Failed : FixedSessionEffectOutcome.RequestAccepted };
             var worker = new BundledNativeWorker();
@@ -83,6 +84,7 @@ public sealed partial class SessionsConversationTests
                         if (await Task.WhenAny(questionOpened.Task, controller.ActiveOperation) == controller.ActiveOperation)
                         { await controller.ActiveOperation; questionOpened.Task.IsCompleted.Should().BeTrue(controller.Status); }
                         var question = await questionOpened.Task.WaitAsync(storage.Token);
+                        await BundledButtonEnabled(question.FindControl<Button>("ReviewQuestion")!).WaitAsync(storage.Token);
                         question.GetLogicalDescendants().OfType<RadioButton>().Single(item => item.Content is "This session").IsChecked = true;
                         question.FindControl<Button>("ReviewQuestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                         await BundledButtonEnabled(question.FindControl<Button>("SubmitAnswer")!).WaitAsync(storage.Token);
@@ -114,6 +116,126 @@ public sealed partial class SessionsConversationTests
         button.PropertyChanged += (_, args) =>
         { if (args.Property == Avalonia.Input.InputElement.IsEnabledProperty && button.IsEnabled) { ready.TrySetResult(); } };
         return ready.Task;
+    }
+
+    [Theory]
+    [InlineData(FixedSessionAction.Shutdown, "accepted")]
+    [InlineData(FixedSessionAction.Restart, "accepted")]
+    [InlineData(FixedSessionAction.Shutdown, "cancelled")]
+    [InlineData(FixedSessionAction.Restart, "cancelled")]
+    [InlineData(FixedSessionAction.Shutdown, "failed")]
+    [InlineData(FixedSessionAction.Restart, "failed")]
+    [InlineData(FixedSessionAction.Shutdown, "unavailable")]
+    [InlineData(FixedSessionAction.Restart, "unavailable")]
+    public async Task BundledOriginalTypedPowerRequestUsesComposedControllerAndTruthfulTerminal(
+        FixedSessionAction action, string outcome)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var storage = new InteractionStorageFixture();
+            storage.Time.UseFrozenTimers = true;
+            await storage.Tasks.InitializeAsync(storage.Token);
+            await storage.Store.InitializeAsync(storage.Token);
+            using var native = new NativeUxFixtureSession(storage.Paths.LocalRoot, timeProvider: storage.Time);
+            await native.InitializeAsync();
+            await using var composition = new Composition(storage);
+            using var questions = new NativeQuestionHost(storage.Store, storage.Time, NullLogger<NativeQuestionViewModel>.Instance);
+            questions.BindGate(() => native.Main.CanRevealPrivatePresentation);
+            questions.BindAdmissionRevision(() => 1);
+            questions.BindPrivateRevision(() => composition.Access.ControlRevision);
+            questions.BindCallObservation(() => new(1, CallState.Clear, false, CallAwareSettings.Default));
+            var renderer = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance);
+            using var sources = new SkillPackagesWindowController(native.Main, () => true,
+                NullLogger<SkillPackagesWindowController>.Instance, renderer, native.SharedSkills,
+                NullLogger<SharedSkillSourcesWindowController>.Instance);
+            var owner = new Window();
+            owner.Show();
+            var clock = new BundledCountdownClock(storage.Time.GetUtcNow());
+            using var lifecycle = new ApplicationLifecycleController(native.Main, composition.Conversation, native.Queue,
+                questions, new(storage.Tasks), renderer, () => owner, clock);
+            var platform = new BundledNativePlatform
+            { PowerOutcome = outcome is "failed" ? FixedSessionEffectOutcome.Failed : FixedSessionEffectOutcome.RequestAccepted };
+            var audit = new BundledNativeAudit();
+            var worker = new BundledNativeWorker();
+            using var controller = new BundledFixedActionController(native.Main, sources, questions, lifecycle,
+                storage.Store, new(storage.Tasks), storage.Authorization,
+                outcome is "unavailable" ? new WindowsBundledScriptWorker() : worker,
+                new(new WindowsFixedSessionEffect(platform), audit, NullLogger<FixedSessionActionBroker>.Instance),
+                renderer, () => owner, () => true, () => 1, NullLogger<BundledFixedActionController>.Instance);
+            var grantQuestion = new TaskCompletionSource<QuestionWindow>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var powerQuestion = new TaskCompletionSource<QuestionWindow>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var observe = Window.WindowOpenedEvent.AddClassHandler<QuestionWindow>((window, _) =>
+            {
+                if (window.GetLogicalDescendants().OfType<RadioButton>().Any(button => button.Content is "Once"))
+                { grantQuestion.TrySetResult(window); }
+                else { powerQuestion.TrySetResult(window); }
+            });
+            try
+            {
+                native.Main.CommandText = action == FixedSessionAction.Shutdown
+                    ? "shut down the computer" : "restart the computer";
+                var running = native.Main.RunTypedCommand.ExecuteAsync();
+                if (outcome is not "unavailable")
+                {
+                    if (await Task.WhenAny(grantQuestion.Task, running) == running)
+                    {
+                        await running;
+                        grantQuestion.Task.IsCompleted.Should().BeTrue(controller.Status + "\n" + native.Main.ResponseBody);
+                    }
+                    var grant = await grantQuestion.Task.WaitAsync(storage.Token);
+                    await BundledButtonEnabled(grant.FindControl<Button>("ReviewQuestion")!).WaitAsync(storage.Token);
+                    grant.GetLogicalDescendants().OfType<RadioButton>().Single(button => button.Content is "Once").IsChecked = true;
+                    grant.FindControl<Button>("ReviewQuestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    await BundledButtonEnabled(grant.FindControl<Button>("SubmitAnswer")!).WaitAsync(storage.Token);
+                    platform.Requests.Should().BeEmpty();
+                    grant.FindControl<Button>("SubmitAnswer")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    if (await Task.WhenAny(powerQuestion.Task, running) == running)
+                    {
+                        await running;
+                        powerQuestion.Task.IsCompleted.Should().BeTrue(controller.Status);
+                    }
+                    var power = await powerQuestion.Task.WaitAsync(storage.Token);
+                    await BundledButtonEnabled(power.FindControl<Button>("CancelQuestion")!).WaitAsync(storage.Token);
+                    worker.Calls.Should().Be(1);
+                    platform.Requests.Should().BeEmpty();
+                    if (outcome is "cancelled")
+                    { power.FindControl<Button>("CancelQuestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
+                    else
+                    {
+                        power.GetLogicalDescendants().OfType<RadioButton>().Single(button =>
+                            button.Content is "Confirm shutdown" or "Confirm computer restart").IsChecked = true;
+                        await BundledButtonEnabled(power.FindControl<Button>("SubmitAnswer")!).WaitAsync(storage.Token);
+                        power.FindControl<Button>("SubmitAnswer")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                        if (await Task.WhenAny(clock.Started.Task, running) == running) { await running; }
+                        await clock.Started.Task.WaitAsync(storage.Token);
+                        platform.Requests.Should().BeEmpty();
+                        clock.Advance(TimeSpan.FromSeconds(30));
+                    }
+                }
+                await running;
+                await controller.ActiveOperation;
+                if (outcome is "unavailable")
+                {
+                    controller.Status.Should().Contain("not qualified");
+                    worker.Calls.Should().Be(0);
+                    grantQuestion.Task.IsCompleted.Should().BeFalse();
+                    powerQuestion.Task.IsCompleted.Should().BeFalse();
+                }
+                else
+                {
+                    var invocation = worker.Invocations.Single();
+                    var terminal = await storage.Store.ReadTaskAsync(invocation.SessionId, invocation.TaskId, storage.Token);
+                    terminal!.Task.State.Should().Be(outcome is "accepted" ? HostTaskState.Unknown : HostTaskState.Failed);
+                    controller.Status.Should().Contain(outcome is "accepted" ? "Windows accepted"
+                        : outcome is "failed" ? "Windows rejected" : "did not reach a native effect");
+                }
+                platform.Requests.Should().Equal(outcome is "accepted" or "failed" ? [action] : []);
+                platform.Restorations.Should().Be(platform.Activations);
+                audit.Events.Should().NotContain(item => item.Outcome == SecurityAuditOutcome.Succeeded);
+                worker.IsQuiescent.Should().BeTrue();
+            }
+            finally { owner.Close(); }
+        });
     }
 
     [Theory]
@@ -189,25 +311,28 @@ public sealed partial class SessionsConversationTests
     }
 
     [Theory]
-    [InlineData(FixedSessionAction.Lock, true, true, false)]
-    [InlineData(FixedSessionAction.Lock, false, false, false)]
-    [InlineData(FixedSessionAction.Shutdown, true, true, false)]
-    [InlineData(FixedSessionAction.Shutdown, true, true, true)]
-    [InlineData(FixedSessionAction.Shutdown, true, false, false)]
-    [InlineData(FixedSessionAction.Shutdown, false, false, false)]
-    [InlineData(FixedSessionAction.Restart, true, true, false)]
-    [InlineData(FixedSessionAction.Restart, true, true, true)]
-    [InlineData(FixedSessionAction.Restart, true, false, false)]
-    [InlineData(FixedSessionAction.Restart, false, false, false)]
+    [InlineData(FixedSessionAction.Lock, true, true, false, false)]
+    [InlineData(FixedSessionAction.Lock, false, false, false, false)]
+    [InlineData(FixedSessionAction.Shutdown, true, true, false, false)]
+    [InlineData(FixedSessionAction.Shutdown, true, true, true, false)]
+    [InlineData(FixedSessionAction.Shutdown, true, false, false, false)]
+    [InlineData(FixedSessionAction.Shutdown, false, false, false, false)]
+    [InlineData(FixedSessionAction.Restart, true, true, false, false)]
+    [InlineData(FixedSessionAction.Restart, true, true, true, false)]
+    [InlineData(FixedSessionAction.Restart, true, false, false, false)]
+    [InlineData(FixedSessionAction.Restart, false, false, false, false)]
+    [InlineData(FixedSessionAction.Shutdown, true, true, false, true)]
+    [InlineData(FixedSessionAction.Restart, true, true, false, true)]
     public async Task BundledNativeGrantAndDistinctPowerConsentReachRealWindowsBindingOnlyThroughJoinedHost(
-        FixedSessionAction action, bool grant, bool powerConsent, bool cancelCountdown)
+        FixedSessionAction action, bool grant, bool powerConsent, bool cancelCountdown, bool reviewTimeout)
     {
         await HeadlessSession.RunAsync(async () =>
         {
             using var storage = new InteractionStorageFixture();
+            storage.Time.UseFrozenTimers = true;
             await storage.Tasks.InitializeAsync(storage.Token);
             await storage.Store.InitializeAsync(storage.Token);
-            using var native = new NativeUxFixtureSession(storage.Paths.LocalRoot);
+            using var native = new NativeUxFixtureSession(storage.Paths.LocalRoot, timeProvider: storage.Time);
             await native.InitializeAsync();
             await using var composition = new Composition(storage);
             using var questionHost = new NativeQuestionHost(storage.Store, storage.Time, NullLogger<NativeQuestionViewModel>.Instance);
@@ -273,6 +398,7 @@ public sealed partial class SessionsConversationTests
                             try
                             {
                                 platform.Requests.Should().BeEmpty();
+                                await BundledButtonEnabled(window.FindControl<Button>("ReviewQuestion")!).WaitAsync(token);
                                 if (grant)
                                 {
                                     state.Edit(new(["once"]));
@@ -315,15 +441,29 @@ public sealed partial class SessionsConversationTests
                     {
                         if (await Task.WhenAny(powerQuestion.Task, running) == running) { await running; }
                         var question = await powerQuestion.Task.WaitAsync(storage.Token);
+                        clock.ReviewTimerCreated.Should().BeTrue();
                         worker.Calls.Should().Be(1);
                         platform.Requests.Should().BeEmpty();
+                        var cancel = question.FindControl<Button>("CancelQuestion")!;
+                        await BundledButtonEnabled(cancel).WaitAsync(storage.Token);
+                        if (reviewTimeout)
+                        {
+                            clock.Advance(TimeSpan.FromSeconds(59));
+                            running.IsCompleted.Should().BeFalse();
+                            clock.Advance(TimeSpan.FromSeconds(1));
+                            await ((Func<Task>)(async () => await running)).Should().ThrowAsync<OperationCanceledException>();
+                            platform.Requests.Should().BeEmpty();
+                            return;
+                        }
                         if (!powerConsent)
-                        { question.FindControl<Button>("CancelQuestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
+                        { cancel.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
                         else
                         {
                             question.GetLogicalDescendants().OfType<RadioButton>().Single(button =>
                                 button.Content is "Confirm shutdown" or "Confirm computer restart").IsChecked = true;
-                            question.FindControl<Button>("SubmitAnswer")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                            var submit = question.FindControl<Button>("SubmitAnswer")!;
+                            await BundledButtonEnabled(submit).WaitAsync(storage.Token);
+                            submit.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                             if (await Task.WhenAny(clock.Started.Task, running) == running) { await running; }
                             await clock.Started.Task.WaitAsync(storage.Token);
                             platform.Requests.Should().BeEmpty();
@@ -364,33 +504,40 @@ public sealed partial class SessionsConversationTests
     private sealed class BundledCountdownClock(DateTimeOffset now) : TimeProvider
     {
         private DateTimeOffset instant = now;
-        private TimerCallback? callback;
-        private object? state;
-        private DateTimeOffset due;
+        private readonly List<CountdownTimer> timers = [];
         internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal Window? CountdownWindow { get; set; }
+        internal bool ReviewTimerCreated { get; private set; }
         public override DateTimeOffset GetUtcNow() => instant;
         public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
         {
-            dueTime.Should().Be(TimeSpan.FromSeconds(30));
-            this.callback = callback;
-            this.state = state;
-            due = instant + dueTime;
-            Started.SetResult();
-            return new CountdownTimer();
+            period.Should().Be(Timeout.InfiniteTimeSpan);
+            (dueTime == TimeSpan.FromSeconds(30) || dueTime == TimeSpan.FromMinutes(1)).Should().BeTrue();
+            var timer = new CountdownTimer(instant + dueTime, callback, state);
+            timers.Add(timer);
+            if (dueTime == TimeSpan.FromMinutes(1)) { ReviewTimerCreated = true; }
+            else { Started.SetResult(); }
+            return timer;
         }
         internal void Advance(TimeSpan age)
         {
             instant += age;
-            if (instant >= due) { callback!(state); }
+            foreach (var timer in timers.ToArray()) { timer.Fire(instant); }
         }
         internal void CancelCountdown() => CountdownWindow!.GetLogicalDescendants().OfType<Button>().Single()
             .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        private sealed class CountdownTimer : ITimer
+        private sealed class CountdownTimer(DateTimeOffset due, TimerCallback callback, object? state) : ITimer
         {
+            private bool disposed;
+            internal void Fire(DateTimeOffset instant)
+            {
+                if (disposed || instant < due) { return; }
+                disposed = true;
+                callback(state);
+            }
             public bool Change(TimeSpan dueTime, TimeSpan period) => throw new InvalidOperationException("Unexpected countdown reset.");
-            public void Dispose() { }
-            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+            public void Dispose() => disposed = true;
+            public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
         }
     }
 
@@ -417,13 +564,14 @@ public sealed partial class SessionsConversationTests
     {
         internal List<FixedSessionAction> Requests { get; } = [];
         internal FixedSessionEffectOutcome LockOutcome { get; init; } = FixedSessionEffectOutcome.RequestAccepted;
+        internal FixedSessionEffectOutcome PowerOutcome { get; init; } = FixedSessionEffectOutcome.RequestAccepted;
         internal int Activations { get; private set; }
         internal int Restorations { get; private set; }
         public bool IsCurrentInteractiveSession() => true;
         public FixedSessionEffectResult Lock() { Requests.Add(FixedSessionAction.Lock); return new(LockOutcome, LockOutcome == FixedSessionEffectOutcome.Failed ? 5 : 0); }
         public IWindowsShutdownAuthority DuplicateShutdownAuthority() => this;
         public int Enable() { Activations++; return 0; }
-        public FixedSessionEffectResult Request(FixedSessionAction action) { Requests.Add(action); return new(FixedSessionEffectOutcome.RequestAccepted); }
+        public FixedSessionEffectResult Request(FixedSessionAction action) { Requests.Add(action); return new(PowerOutcome, PowerOutcome == FixedSessionEffectOutcome.Failed ? 5 : 0); }
         public int Restore() { Restorations++; return 0; }
         public void Dispose() { }
     }

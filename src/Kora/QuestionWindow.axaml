@@ -9,7 +9,9 @@
   <Grid Margin="20" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,Auto" RowSpacing="12">
     <TextBlock x:Name="TargetLabel" TextWrapping="Wrap" />
     <TextBlock x:Name="PromptLabel" Grid.Row="1" TextWrapping="Wrap" FontSize="20" />
-    <StackPanel x:Name="ChoicePanel" Grid.Row="2" Spacing="8" />
+    <ScrollViewer Grid.Row="2" MaxHeight="280" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel x:Name="ChoicePanel" Spacing="8" />
+    </ScrollViewer>
     <TextBox x:Name="AnswerInput" Grid.Row="3" AcceptsReturn="True" TextWrapping="Wrap"
         TabIndex="40" AutomationProperties.Name="Bounded text answer - unsubmitted draft" />
     <Grid Grid.Row="4" RowDefinitions="*,Auto,Auto,Auto" RowSpacing="8">

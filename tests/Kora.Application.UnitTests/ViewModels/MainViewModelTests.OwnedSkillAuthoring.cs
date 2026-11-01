@@ -10,6 +10,28 @@ public sealed partial class MainViewModelTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task ExactOwnedSkillDeletionKeepsOriginalChannelWithoutModelFallback(bool voice)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        await f.ViewModel.SetAssistantNameAsync("Nova", SecurityAuditInitiator.LocalUser);
+        OwnedSkillAuthoringCommand? captured = null;
+        f.ViewModel.BindOwnedSkillAuthoring((command, authority) =>
+        {
+            authority.IsCurrent().Should().BeTrue();
+            authority.Origin.Should().Be(voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
+            captured = command;
+            return Task.CompletedTask;
+        }, null);
+        if (voice) { await f.RaiseActivatedTranscriptAsync("Nova, owned skill delete example 1.0.0", 1); }
+        else { await f.RunAsync("owned skill delete example 1.0.0"); }
+        captured.Should().Be(new OwnedSkillAuthoringCommand("delete", "example", "1.0.0"));
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.Session.LockCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task ObservationWorkflowAuthoringAndReviewCommandsRetainOriginalTypedOrActivatedVoiceAuthority(bool voice)
     {
         var f = await Fixture.CreateInitializedAsync();

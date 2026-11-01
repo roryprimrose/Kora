@@ -54,7 +54,7 @@ public sealed partial class MainViewModel
         }
         if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(text, AssistantName)
             || input.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
-            || input.Origin == RequestOrigin.ActivatedVoice && !commandRouter.IsActivationPrefixed(text, AssistantName))
+            || input.Origin == RequestOrigin.ActivatedVoice && !HasCurrentNameActivation(text))
         {
             Transcript = "Skill review navigation requires original typed input or current-name activated voice.";
             return;

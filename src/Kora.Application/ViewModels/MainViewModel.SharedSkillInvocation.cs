@@ -28,7 +28,7 @@ public sealed partial class MainViewModel
         if (IsResponseInteractionPending || !eligible()
             || !isAssistantNameAvailable && commandRouter.IsActivationPrefixed(text, AssistantName)
             || input.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
-            || input.Origin == RequestOrigin.ActivatedVoice && !commandRouter.IsActivationPrefixed(text, AssistantName))
+            || input.Origin == RequestOrigin.ActivatedVoice && !HasCurrentNameActivation(text))
         {
             Transcript = "Named skill use requires original private typed input or current-name activated voice, without a pending question or approval.";
             return;
@@ -57,7 +57,7 @@ public sealed partial class MainViewModel
         if (IsResponseInteractionPending || !eligible()
             || !isAssistantNameAvailable && commandRouter.IsActivationPrefixed(text, AssistantName)
             || input.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
-            || input.Origin == RequestOrigin.ActivatedVoice && !commandRouter.IsActivationPrefixed(text, AssistantName))
+            || input.Origin == RequestOrigin.ActivatedVoice && !HasCurrentNameActivation(text))
         {
             Transcript = "Shared skill use requires original private typed input or current-name activated voice, without a pending question or approval.";
             return;

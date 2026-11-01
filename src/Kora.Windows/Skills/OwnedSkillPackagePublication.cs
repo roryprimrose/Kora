@@ -41,17 +41,19 @@ internal sealed partial class OwnedSkillPackagePublication : IDisposable
     internal static SafeFileHandle OpenFile(string path)
         => OpenFileCore(path, delete: false);
 
-    private static SafeFileHandle OpenFileCore(string path, bool delete)
+    internal static SafeFileHandle OpenForDeletion(string path) => OpenFileCore(path, delete: true, sharing: 1);
+
+    private static SafeFileHandle OpenFileCore(string path, bool delete, uint sharing = 5)
     {
-        // Share rename, not writes: the enclosing directory is renamed while both exact file objects stay pinned.
-        var handle = CreateFile(path, delete ? 0x80030000u : 0x80020000u, 5, nint.Zero, 3, 0x00200000, nint.Zero);
+        // Publication reads share rename; retirement holds deny writes and delete/rename until disposition.
+        var handle = CreateFile(path, delete ? 0x80030000u : 0x80020000u, sharing, nint.Zero, 3, 0x00200000, nint.Zero);
         try { Verify(handle, path, directory: false); return handle; }
         catch { handle.Dispose(); throw; }
     }
 
     internal static void DeleteExactFile(string path, string identity)
     {
-        using var handle = OpenFileCore(path, delete: true);
+        using var handle = OpenForDeletion(path);
         if (!string.Equals(WindowsFileIdentity.Read(handle), identity, StringComparison.Ordinal))
         { throw new InvalidDataException("Private staging file identity changed; external data was not deleted."); }
         MarkDeleted(handle);

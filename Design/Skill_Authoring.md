@@ -10,6 +10,12 @@ operations. Registering or inspecting a root grants none of the later
 authorities; see the [source contract](Skill_Storage.md#delivered-bounded-r21-native-inspection)
 and [reviewed invocation](Skill_Storage.md).
 
+Native v1/v2/v3 owned sources also support [explicit reviewed deletion](../docs/owned-skill-authoring.md#delete-one-saved-owned-source).
+Dirty drafts retain Save/Discard/Cancel. Full source/inventory/use-impact review
+precedes separate confirmation; deletion does not enable work or revoke
+independent grants, and an uncertain effect requires explicit recovery
+([admitted operation](../src/Kora.Application/Skills/OwnedSkillDeletionWorkflow.cs)).
+
 Related: [Extensibility](Extensibility.md), [Security and Data Flows](Security_Data_Flows.md), [Task Lifecycle](Task_Lifecycle.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
 [Definition Management](Definition_Management.md) owns the shared authoring
@@ -45,6 +51,17 @@ The additive [native v2 one-tool operation](../docs/owned-skill-authoring.md#aut
 The [bounded initial-generation operation](../docs/owned-skill-authoring.md#create-a-new-skill-from-a-purpose) adds original typed/current-name activated `create a skill that <purpose>` input to the same editor. Explicit expected-input/output clarification precedes a separately admitted local tools-none proposal; the host fixes native v1, identity, version and owned destination. Only a complete literal guidance body may come from the model ([proposal owner](../src/Kora.Application/Skills/OwnedSkillGuidanceRefinementService.cs)).
 Complete generated source/destination review, optional existing local refinement, Validate and both ordinary Save reviews produce one atomic immutable **disabled** package. Original request/channel, draft, critique, catalogue/name, source, privacy, ownership and destination checks remain bound through refinement and publication ([native lifecycle](../src/Kora/OwnedSkillEditorController.Refinement.cs), [save](../src/Kora.Application/Skills/OwnedSkillSaveWorkflow.cs)).
 This is implementation only: unqualified local runtime remains unavailable. It adds no general YAML, profile editing, arbitrary tools/effects, references, scripts, hooks, fixtures or agent execution. Tool-capable invocation retains independent per-action permission and actual tool/model joining ([action admission](../src/Kora.Application/Network/LocalWebPageInvocation.cs)).
+
+Owned-skill source save/deletion reviews, model-authoring disclosures/proposals, simulated
+examples/results and dirty-draft decisions use the same modal native handoff.
+The draft editor cannot reactivate behind its review; blocked owner input
+returns to that exact dialog. A choice completes only after native closure
+joins, with the exact native owner still visible and original eligibility and
+cancellation rechecked before returning. Hiding or closing the owner cannot
+complete an accepted choice.
+This is presentation ownership, not new consent or authority. Save still
+requires both separate native reviews and exact atomic publication/readback;
+Cancel retains the draft and expired authority remains expired.
 
 The additive [native v3 required literal guidance operation](../docs/owned-skill-authoring.md#required-literal-guidance-inputs)
 explicitly declares instruction-only inputs, reusing the owned prompt template
@@ -169,6 +186,9 @@ review of its exact revision and scope under the common lifecycle.
 
 The bounded [native v4 observation workflow](../docs/owned-skill-authoring.md#author-and-run-an-ordered-host-observation-workflow) now completes author/validate/save-disabled/reopen/review/enable/invoke/status/cancel for an explicit ordered sequence of the existing six host read-only observations.
 Its [separate native owner](../src/Kora/ObservationWorkflowController.cs) does not modify shared-source writers, interpret guidance as steps, or invoke a model.
+The [native confirmation lifetime](../src/Kora/ObservationWorkflowWindow.cs) is modal for package review, separate Save, each independent step and dirty-draft discard.
+It holds blocked owner input until native closure, starts keyboard focus on the complete review, declines on Cancel/Escape/native close, and retires on owner loss or cancellation.
+Approval and focus return are rechecked against the original visible eligible owner after closure; no remaining observation or partial-success result follows a declined step.
 
 The [closed declaration](../src/Kora.Core/Skills/ObservationWorkflowDefinition.cs) uses the existing immutable two-file owned store, exact registered input/result validation, host-assigned step numbers and strict count/byte/total-time budgets.
 The [host runner](../src/Kora.Application/Skills/ObservationSkillWorkflow.cs) revalidates exact source, original request/channel, Active target/profile, dependencies and independent action permission. It publishes only a complete native source-labelled result or explicit joined failure/cancellation, never partial success.
@@ -204,6 +224,10 @@ skill wrapper, and a bundled script remains its own registered implementation.
 See [Commands, Tools, Skills, and Model Interaction](Commands_Tools_And_Skills.md).
 
 ## Storage and Versioning
+
+The [complete owned native package rename](Definition_Management.md#reviewed-owned-native-skill-package-rename) changes a selected supported package's canonical ID, not its readable name, version or unsaved editor text.
+Native and exact original typed/current-name activated entry share full old/new review and a separate native confirmation. New identity is disabled with no transferred review/grant authority; external references remain old.
+Uncertain effects require explicit retained-intent review/recovery, not Save retry ([user operation](../docs/owned-skill-authoring.md#rename-one-complete-owned-native-package)).
 
 Kora owns `%APPDATA%\Kora\Skills` as its dedicated user skill data store outside its installation and source trees, resolved through the Windows Roaming AppData known folder.
 The host chooses paths from validated skill IDs and package structure; the model never supplies an arbitrary destination.
@@ -283,6 +307,7 @@ Passing these tests is evidence of structure/example behaviour, not proof that t
 The delivered [simulated example subset](../docs/owned-skill-authoring.md#simulate-one-tool-free-example) uses the current inspected owned native v1 literal draft/revision and an ephemeral closed fixture, leaving both saved files unchanged ([host workflow](../src/Kora.Application/Skills/OwnedSkillFixtureWorkflow.cs)).
 The [closed parser](../src/Kora.Core/Skills/OwnedSkillFixture.cs) admits one complete input and one to eight ordinal `equals`/`contains` assertions. No mocked tool responses are accepted in this tool-free subset; native v2/v3/v4, reference-bearing definitions, unknown fields/assertions, hooks and custom validators are explicitly denied. Input-looking text and workflow-looking JSON in native v1 guidance remain literal evidence, not bindings or steps.
 The [existing editor](../src/Kora/OwnedSkillEditorController.Fixtures.cs) separately reviews complete source/fixture/local input before **Start SIMULATED test**, then displays complete exact output and host assertions. The isolated local tools-none route cannot authorize actual tool/network/effect execution; unavailable qualification stays unavailable, with no hosted fallback.
+Native **Escape** rejects the pending simulation review without inference or dismisses its volatile result through the existing review close path; it never confirms a choice or changes the draft/fixture.
 Fixture/source/selection, original channel, privacy, ownership, provider configuration, generation and two-minute expiry fences suppress stale output; cancellation/disposal joins owned source reads and model work. Every terminal retires its review even if source bytes or eligibility later recover. Results remain volatile simulated examples, not retained facts, grants, trust or enablement. Save, Enable and an independently admitted real trial remain separate.
 
 An optional real trial is a separately admitted task with the exact skill revision and selected context.

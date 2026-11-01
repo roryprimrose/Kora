@@ -970,6 +970,26 @@ Repeated/mixed questions, arbitrary tools, source access, cross-session replies,
 This does not change ordinary local/hosted text, observations or streaming. Copilot/Codex questions remain unsupported ([provider guard](../src/Kora.Core/Dependencies/ModelToolProtocol.Questions.cs)).
 No provider/account approval, profile activation, automatic microphone opening, retry or production enablement is introduced; the shipped Claude deployment source stays unavailable ([availability](Runtime_Provider_Feasibility.md#native-claude-messages-profile---2026-10-24), [native controls](../tests/Kora.Windows.IntegrationTests/ClaudeUiContractTests.Questions.cs)).
 
+### Deliberate conversation-notice question response
+
+In already-open Sessions, select and Review an admitted current-run ordinary conversation
+QUESTION notice, inspect its exact session/task/question and expiry, then choose
+**Answer exact question**. This focuses only the original still-present canonical question.
+Bounded text, single-choice and multiple-choice clarifications keep their original
+host-owned schema and selection bounds; notice metadata neither reconstructs nor changes them.
+Native or eligible question-voice Submit and Cancel retain their existing purpose and
+validation; opening neither answers nor grants approval, listening or egress
+([response owner](../src/Kora/ConversationNotices/SessionsViewModel.ConversationNotices.cs)).
+
+The original wait and resource join remain owned by the existing conversation presenter;
+only the actual stored canonical answer can resume the same original task. Changed,
+expired, closed, foreign, retired, Done or revoked sources and intervening notice-ledger
+changes refuse without choosing another target. Other question/editor/dictation/decision
+owners retain precedence. No notice can migrate an approval, skill input or source-consent
+purpose into ordinary clarification; Claude's per-POST reviews above remain mandatory
+([exact binding](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.QuestionFocus.cs),
+[end-to-end evidence](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.NoticeResponse.cs)).
+
 Every supported Kora workflow has equivalent verbal and mouse/keyboard-accessible operations.
 Users can interact entirely by voice, entirely through UI, or change channels at any step without restarting the workflow.
 Voice-first means convenient hands-free operation, not reduced UI capability or compulsory speech.

@@ -9,6 +9,17 @@ namespace Kora.Application.ViewModels;
 
 public sealed partial class MainViewModel
 {
+    public Func<bool> CaptureQuestionNoticeNavigationEligibility()
+    {
+        var current = CapturePromptSelection();
+        bool Ready() => !IsBusy && !IsResponseInteractionPending && !IsGrantEditorVisible
+            && composerDictation?.IsActive != true && promptInputVoice?.IsActive != true
+            && questionVoiceReplies?.IsActive != true && customizationVoiceTarget?.IsCurrent != true
+            && retainedAnswerDecisionsEligible() && Volatile.Read(ref pushToTalkHeld) == 0;
+        var initiallyReady = Ready();
+        return () => initiallyReady && current() && Ready();
+    }
+
     private IPendingQuestionNavigation? pendingQuestionNavigation;
     private long pendingQuestionNavigationRevision;
     private string pendingQuestionNavigationStatus = string.Empty;

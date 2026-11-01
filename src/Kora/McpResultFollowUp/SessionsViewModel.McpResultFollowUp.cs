@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Diagnostics;
 using Avalonia.Threading;
 using Kora.Application.Hosting.McpResultFollowUp;
 using Kora.Application.Mcp;
@@ -11,10 +10,7 @@ namespace Kora;
 
 internal sealed partial class SessionsViewModel
 {
-    private HostOperationProposal? mcpCompletedProposal;
-    private McpReview? mcpCompletedMapping;
-    private HostRevision mcpCompletedGeneration;
-    private ActivityLink mcpCompletedCause;
+    private readonly McpResultCapture mcpResultCapture = new();
     private McpResultObservation? mcpObservation;
     private McpResultFollowUpWorkflow? mcpFollowUpWorkflow;
     private McpResultFollowUpReview? mcpFollowUpReview;
@@ -58,29 +54,19 @@ internal sealed partial class SessionsViewModel
     private async Task<McpApprovalPresentation> PresentMcpAndCaptureMappingAsync(HostOperationProposal proposal,
         HostRevision generation, McpReview review, Func<bool> admitted, CancellationToken token)
     {
-        var cause = new ActivityLink(HostActivity.RequireCurrent().Activity!.Context);
-        var presentation = await (mcpPresenter ?? throw new InvalidOperationException("The native MCP presenter was retired."))
-            (proposal, generation, review, admitted, token);
-        if (review.Stage == McpReviewStage.Invocation && review.IsBoundTo(proposal) && admitted()
-            && presentation.Completed.Outcome is Kora.Core.Interaction.HostInteractionOutcome.Approved
-                or Kora.Core.Interaction.HostInteractionOutcome.Consumed)
-        {
-            mcpCompletedProposal = proposal;
-            mcpCompletedMapping = review;
-            mcpCompletedGeneration = generation;
-            mcpCompletedCause = cause;
-        }
-        return presentation;
+        return await mcpResultCapture.PresentAsync(
+            mcpPresenter ?? throw new InvalidOperationException("The native MCP presenter was retired."),
+            proposal, generation, review, admitted, token);
     }
 
     private void CaptureMcpResultFollowUp()
     {
         if (mcpResult is not { } result || mcpResultRequest is not { } request || selected is not { } target
-            || mcpCompletedProposal is not { } proposal || mcpCompletedMapping is not { } mapping
-            || mcpServer is not { } server || mcpAccount?.Reference != mapping.Account)
+            || mcpServer is not { } server || mcpAccount is not { } account)
         { return; }
-        mcpObservation = new(target, request, result, proposal, mapping, mcpCompletedGeneration,
-            mcpResultControl, server.Id, server.Name, mcpCompletedCause);
+        mcpObservation = mcpResultCapture.Capture(target, request, result, mcpResultControl,
+            server.Id, server.Name, account.Reference);
+        if (mcpObservation is null) { return; }
         mcpObservationSelection = mcpSelectionRevision;
         mcpObservationEpoch = selectionEpoch;
         if (!observingMcpFollowUp)

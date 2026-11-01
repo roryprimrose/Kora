@@ -236,7 +236,10 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview, IO
         };
         dialog.Closed += (_, _) => { if (ReferenceEquals(review, dialog)) { review = null; } result.TrySetResult(-1); };
         using var cancellation = token.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(dialog.Close));
-        dialog.Show(this);
-        return await result.Task;
+        await dialog.ShowDialog(this);
+        var choice = await result.Task;
+        // Owner Hide/Close can complete the dialog before updating the owner's own visibility.
+        return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(
+            () => IsVisible && current() && !token.IsCancellationRequested ? choice : -1);
     }
 }

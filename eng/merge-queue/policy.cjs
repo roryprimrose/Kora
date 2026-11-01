@@ -16,6 +16,7 @@ const PRIORITY_LABELS = Object.freeze(['queue:priority-high', 'queue:priority-no
 const MERGE_PHASES = Object.freeze(['merging', 'merge-refused', 'merge-unconfirmed']);
 const MERGE_CONFIRMATION_MS = 10 * 60_000;
 const JOB_OBSERVATION_MS = MERGE_CONFIRMATION_MS;
+const DISPATCH_OBSERVATION_MS = 10 * 60_000;
 const JOB_CONCLUSIONS = Object.freeze([
   'success', 'failure', 'cancelled', 'timed_out', 'neutral', 'skipped', 'action_required', 'stale',
 ]);
@@ -27,6 +28,19 @@ function invariant(condition, message) {
 function mode(value) {
   invariant(['', 'disabled', 'enabled'].includes(value), 'Unknown merge queue mode.');
   return value === 'enabled';
+}
+
+function controllerOperation(inputs) {
+  invariant(inputs && typeof inputs === 'object' && !Array.isArray(inputs), 'Invalid controller inputs.');
+  const operation = inputs.operation ?? 'reconcile';
+  invariant(['reconcile', 'recover-unobservable-dispatch'].includes(operation), 'Unknown controller operation.');
+  invariant(inputs.acknowledge_uncertain_dispatch === undefined
+    || typeof inputs.acknowledge_uncertain_dispatch === 'boolean', 'Invalid recovery acknowledgement.');
+  if (operation === 'reconcile') {
+    invariant(!inputs.recovery_checkpoint && !inputs.recovery_ticket && inputs.acknowledge_uncertain_dispatch !== true,
+      'Recovery inputs require the explicit recovery operation.');
+  }
+  return operation;
 }
 
 function execution({ modeValue, eventName, ref, sha, inputs }) {
@@ -143,5 +157,5 @@ function successfulJobs(jobs) {
 }
 
 module.exports = { CHECKS, GATE, JOBS, STATE_BRANCH, SHA, TICKET, MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS,
-  invariant, mode, execution,
+  DISPATCH_OBSERVATION_MS, invariant, mode, controllerOperation, execution,
   validateState, ready, readinessIssue, priority, title, matchingRuns, requiredJobsState, terminalJobs, successfulJobs };

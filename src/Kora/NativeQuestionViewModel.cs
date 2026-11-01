@@ -299,23 +299,25 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     internal void Edit(QuestionAnswer value)
     {
         StopVoiceReply();
-        ClipboardAnswer?.ManualEdit();
         if (!IsEditable)
         {
+            ClipboardAnswer?.ManualEdit();
             RefreshEligibility();
             return;
         }
+        string editStatus;
         lock (stateGate)
         {
             if (closed || cleared || busy) { return; }
             answer = value;
             draftRevision++;
             if (IsForm) { reviewText = string.Empty; reviewedKey = null; displayedReviewKey = null; }
-            status = question.Spec.Accepts(value, submitting: false)
+            editStatus = question.Spec.Accepts(value, submitting: false)
                 ? "Unsubmitted local edit. Save draft or Submit explicitly."
                 : "Invalid answer: use the displayed choice and text bounds; nothing was shortened or saved.";
         }
-        Notify();
+        ClipboardAnswer?.ManualEdit();
+        ReportOutcome(editStatus, value);
     }
 
     internal Task SaveDraftAsync()
@@ -428,12 +430,14 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
             () => authorization.ExplainPendingClipboardReadAsync(expected, previous, CancellationToken.None), returning: true);
     }
 
-    internal void ReportOutcome(string message)
+    internal void ReportOutcome(string message, QuestionAnswer? expectedAnswer = null)
     {
+        expectedAnswer ??= Answer;
         RefreshEligibility();
         lock (stateGate)
         {
-            if (cleared) { return; }
+            // Synchronous presentation observers may admit a newer edit while eligibility is published.
+            if (cleared || !ReferenceEquals(answer, expectedAnswer)) { return; }
             status = message;
         }
         Notify();

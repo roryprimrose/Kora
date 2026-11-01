@@ -210,6 +210,32 @@ applies to stale, cancelled or already-merged candidates. Unknown resource state
 may therefore hold a retired lane for reviewed recovery; it never grants a
 second candidate or automatic success.
 
+The expected inventory comes from `.github/workflows/ci.yml` at the reservation's
+immutable base, which must match the run's workflow `head_sha`, not current main,
+the candidate PR head, dispatch inputs or returned job names. The trusted workflow
+declares `# merge-queue-job-schema: windows-12-v1`; its inventory includes both
+portable/payload producers, the shared Windows build and all twelve Windows
+partitions, as well as the preserved required aggregates and five legacy gates.
+The maintained workflow contract compares every candidate job and expanded
+matrix identity with that inventory. A producer/matrix change must update the
+schema and inventory together; a new unsupported version cannot release a lane.
+Known unversioned predecessor workflow blobs have explicit inventories in
+[policy.cjs](policy.cjs), including the pre-split five-shard workflow and the
+initial unversioned twelve-job workflow and its merged native-fixture timing
+revision from [PR #661](https://github.com/roryprimrose/Kora/pull/661).
+Old runs therefore retire against their own inventory rather than requiring
+jobs that did not exist.
+
+Source bytes are read through the trusted repository Contents API at that exact
+base and checked against the returned Git blob identity. Missing source, malformed
+metadata, an unknown unversioned blob or an unknown/duplicate schema holds the lane
+and requests cancellation, even when the run and every returned job are completed.
+API/authentication failures propagate while ownership remains held. No schema
+fallback, cancellation acknowledgement or successful aggregate establishes the
+physical termination of an absent producer. This applies equally to failed,
+cancelled, stale, already-merged and already-retiring tickets, without changing
+state version, observation deadlines, pagination, attempt/ticket or App trust.
+
 The [coverage-comment workflow](../../.github/workflows/coverage-comment.yml)
 checks the source run's latest-attempt jobs before downloading its report.
 A skipped portable job with successful queue-policy feedback identifies a
@@ -564,7 +590,9 @@ Recovery does not replace the current twelve-partition, exact-source artifact
 and discovery-catalog pipeline or its fail-closed producer joins. The existing
 required job names remain compatible with historical tickets; retain both the
 recovery-routing and predecessor-retirement workflow regressions when integrating
-controller changes.
+controller changes. Observable runs with missing or unknown producer metadata
+remain held by ordinary reconciliation; the administrator-only recovery operation
+still rejects any observable matching ticket.
 
 Recovery retains all blocked revisions, quarantines the old head/enrollment if
 needed and clears only the reviewed reservation. A linear App-owned state commit

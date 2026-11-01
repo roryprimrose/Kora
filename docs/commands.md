@@ -24,6 +24,8 @@ In the response window, choose **Review one spoken command**, speak one general 
 
 This one-shot action does not change ordinary push-to-talk or any listening preference. It requires existing voice consent, local command readiness and unchanged private ownership. Capture and review expire after 60 seconds; changing the original target, input, device, call or private context discards the candidate instead of sending it elsewhere. Hiding, deactivating or closing the window cancels it ([host admission](../src/Kora.Application/ViewModels/MainViewModel.ReviewedVoiceCommand.cs), [window lifetime](../src/Kora/ResponseWindow.ReviewedVoiceCommand.cs)).
 
+Ordinary response auto-hide is suspended during capture, transcript review and the original confirmed dispatch. Completed ordinary feedback resumes the configured response timeout. This does not extend the command's independent expiry or prevent explicit dismissal or privacy closure.
+
 The corrected command still originates from **voice**, even though you edited it and clicked dispatch. Normal call restrictions, authentication, operation approval and hosted-transmission consent still apply. Transcript acceptance is not approval of the command's action, microphone consent or egress. Oversized, malformed or credential-like text is rejected, never truncated ([normal command admission](../src/Kora.Application/ViewModels/MainViewModel.cs), [text bounds](../src/Kora.Core/Conversation/ConversationText.cs)).
 
 This is not session-message or owned-editor body dictation, and cannot take over a pending question, approval or another dictation owner. The unconfirmed candidate stays in volatile memory only; cancellation does not submit it. No speech profile is enabled and no model rewrites the transcript ([speech-input contract](../Design/Speech_Input.md#one-explicitly-reviewed-activated-command)).
@@ -1734,6 +1736,12 @@ separately qualified input profile.
 - **be quiet**
 - **stop reading aloud**
 - **stop the voice**
+
+Ordinary response and preview playback keep **Stop speaking** available while
+the speech provider reports active output, including after its operation returns.
+If Stop fails, is cancelled or returns with playback still active, Kora reports
+unconfirmed release rather than silence. Native and tray Stop remain available
+for recovery; no new speech or automatic replay is started before release.
 
 For a retained-answer reading, typed stop validates the original foreground
 conversation and exact playback; native **Cancel reading** is also available.

@@ -16,7 +16,7 @@ using Microsoft.Extensions.Logging;
 namespace Kora.Application.UnitTests.Configuration;
 
 [Collection("Host tracing")]
-public sealed class WindowsSpeechRateConfigurationServiceTests : IDisposable
+public sealed partial class WindowsSpeechRateConfigurationServiceTests : IDisposable
 {
     private readonly ActivityListener listener = new()
     {

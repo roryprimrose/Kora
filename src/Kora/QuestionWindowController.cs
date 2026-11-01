@@ -167,20 +167,26 @@ internal sealed partial class QuestionWindowController : IDisposable, IPendingQu
         if (disposed || original is null || native is null
             || original.Key.Request.SessionId.Value != sessionId || original.Key.Request.TaskId.Value != taskId)
         { return null; }
+        return CaptureExactFocus(original, native, () => host.ValidateFocusAsync(original), static () => true);
+    }
+
+    private PendingFocus? CaptureExactFocus(NativeQuestionViewModel original, QuestionWindow native,
+        Func<Task<bool>> validate, Func<bool> originalInput)
+    {
         var eligible = host.CaptureFocusEligibility(original);
         if (eligible is null) { return null; }
         var nativeLifetime = native.CaptureFocusLifetime();
         bool Exact() => !disposed && ReferenceEquals(state, original) && ReferenceEquals(window, native)
-            && eligible() && nativeLifetime() && main.CanRevealPrivatePresentation;
+            && eligible() && nativeLifetime() && main.CanRevealPrivatePresentation && originalInput();
         return new PendingFocus(async admitted =>
         {
-            if (!admitted() || !Exact() || !await host.ValidateFocusAsync(original) || !admitted() || !Exact()) { return false; }
+            if (!admitted() || !Exact() || !await validate() || !admitted() || !Exact()) { return false; }
             return await Dispatcher.UIThread.InvokeAsync(async () =>
             {
-                if (!admitted() || !Exact() || !await host.ValidateFocusAsync(original) || !admitted() || !Exact())
+                if (!admitted() || !Exact() || !await validate() || !admitted() || !Exact())
                 { return false; }
                 if (!await native.FocusExistingAsync(() => admitted() && Exact()) || !admitted() || !Exact()) { return false; }
-                return await host.ValidateFocusAsync(original) && admitted() && Exact();
+                return await validate() && admitted() && Exact();
             });
         });
     }

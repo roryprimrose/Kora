@@ -457,6 +457,7 @@ Creating a new instruction from an accepted model proposal does not supply a pri
 This means **last confirmed save in this editor**, not persistent version history: opening a file, creating its first revision, unchanged Save, legacy upgrade or uncertain Save supplies no restore point ([availability owner](../src/Kora/OwnedInstructionEditorController.Restore.cs)).
 
 1. Choose **Restore previous saved content**, type `instructions restore`, or use current-name activated `Kora, instructions restore`. The existing same-source Instruction editor must already be open; no source is opened implicitly.
+   Where qualified hands-free input is available, the admitted current-name wake supplies activation without inserting a name prefix into the final command. It does not approve either native review.
 1. If there are unsaved changes, choose **Save current draft**, **Discard current draft**, or **Cancel** first. Save is separate: after it finishes, choose Restore again to review the now-current last confirmed save.
 1. Review the complete CURRENT saved source on the left and exact PREVIOUS source on the right, including supported metadata, attribution and body. Encoding/BOM, byte counts and digests are disclosed separately; source line endings remain intact.
 1. Choose **Review separate Save confirmation**. Review the complete current/replacement source again, then **Confirm save**, or cancel either review. Confirmation remains native; it is not the spoken generic Save question ([native operation](../src/Kora/OwnedInstructionEditorController.Restore.cs)).

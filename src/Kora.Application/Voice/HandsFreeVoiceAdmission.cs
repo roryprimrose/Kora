@@ -6,4 +6,4 @@ namespace Kora.Application.Voice;
 public sealed record HandsFreeVoiceAdmission(
     MicrophoneDevice Microphone, string AssistantName, SpeechInputGeneration Profile,
     long RecoveryRevision, long TopologyRevision, long CallRevision, long OwnerRevision,
-    long OwnershipBindingRevision = 0);
+    long OwnershipBindingRevision = 0, long NameRevision = 0);

@@ -91,6 +91,55 @@ bytes** across all sources together. Nothing is silently dropped or shortened.
 History keeps its original chronological USER/ASSISTANT order, followed by the
 instruction and explicitly selected memories.
 
+## Recover when the complete input is over budget
+
+If these individually valid sources exceed the complete **32768 UTF-8 bytes**,
+the private review says **OVER BUDGET** and disables confirmation. Your exact
+question and selected sources remain unchanged; no model is called and no new
+request is retained. The host measures the actual serialized envelope, including
+policy, fields, escaping, evidence provenance and the empty tool list, not raw
+text length or an estimated model-token count
+([measurement](../src/Kora.Core/Conversation/ReviewedContext/MixedConversationContext.cs)).
+
+1. Inspect the complete sources and question. Each whole contribution is labelled
+   required or optional; optional rows show the exact serialized bytes saved by
+   removing that contribution.
+2. Choose **Omit this whole contribution and review again** on the particular
+   earlier USER/ASSISTANT message or SESSION memory you want to exclude. Nothing
+   is automatically selected, truncated, summarized, reordered or replaced.
+3. Inspect the **fresh complete review** of every remaining source, the unchanged
+   question, the LOCAL ONLY / NO TOOLS destination and the new measured total.
+   The previous review and any confirmation authority are retired. If still over
+   budget, explicitly omit another optional whole contribution and review again.
+4. Once it fits, separately choose **Confirm ONE local-only tool-free answer**.
+   Only this action admits the canonical local turn and retains its genuine
+   ASSISTANT answer or explicit HOST unavailable/failure outcome. Removing a
+   contribution is not confirmation
+   ([native recovery](../src/Kora/ReviewedContext/ReviewedContextWindow.cs),
+   [complete operation regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ContextBudgetRecovery.cs)).
+
+This consumer requires at least one whole history message, one complete enabled
+owned instruction and one admitted SESSION memory, plus your unchanged question.
+Required contributions cannot be omitted. If that minimum cannot fit, Kora cannot
+complete this request without fresh source input; cancel and obtain suitable
+sources rather than silently dropping required input. The existing per-source,
+memory, conversation/page, credential, strict-Unicode and **16 evidence items**
+limits still apply; malformed, unavailable or over-limit individual sources are
+not assigned a fictitious zero cost
+([context contract](../src/Kora.Core/Conversation/ReviewedContext/MixedConversationContext.cs)).
+
+Recovery preserves only still-current read permission, never old consent, and
+does **not** restart the original two-minute source deadline. Expired, disabled,
+changed, revoked or inaccessible sources require fresh explicit reads/review;
+they cannot be revived from the previous private preview. Input/source selection
+changes, cancel, close, privacy/ownership loss or session changes retire the
+review and clear its private contents. Existing history is not edited, removed
+sources are not copied elsewhere, and unsent question text remains memory-only.
+There is no draft autosave, context journal, hosted fallback, provider/default
+change or context-window increase
+([source lifetime](../src/Kora.Application/Memory/SessionMemoryContextReview.cs),
+ [recovery guards](../tests/Kora.Application.UnitTests/Hosting/ModelTurnHostTests.ContextBudgetRecovery.cs)).
+
 ## Confirm one answer or cancel
 
 Choose **Confirm ONE local-only tool-free answer** separately. Consent is

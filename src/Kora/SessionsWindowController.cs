@@ -463,6 +463,8 @@ internal sealed partial class SessionsWindowController(
             model.McpInput = mcp.InputAsync;
         }
         BindAdditionalRegisteredSettingSuggestions(model, main);
+        model.RemainingWorkAnswer = main.AnswerRemainingWorkAsync;
+        model.RemainingWorkAdmission = () => main.CanAnswerRemainingWork;
         presentation = new(model, main);
         model.OpenSessionInstructionScopes = () =>
         {

@@ -180,7 +180,8 @@ consumers, including links embedded in the guide and historical experiments.
   The [manual-release regressions](tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ManualDispatch.cs)
   await the shared completion hook for nested completions and held expired
   workers, verifying both exact retained readbacks and preserving original
-  authority, timestamps and recovery holds.
+  authority, timestamps and recovery holds without model execution or answer
+  publication.
 - Put restricted-storage fixtures under the discovered repository root to avoid
   native path-length limits. Keep unique names, non-reparse checks and owner-only
   ACLs. Explicitly protect every enumerated root, including editor `User`,

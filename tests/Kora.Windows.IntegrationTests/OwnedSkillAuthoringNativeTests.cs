@@ -152,13 +152,25 @@ public sealed partial class OwnedSkillAuthoringNativeTests
     }
 
     [Theory]
-    [InlineData("close")]
-    [InlineData("retire")]
-    [InlineData("cancel")]
-    [InlineData("owner-hidden")]
-    [InlineData("owner-closed")]
-    [InlineData("escape")]
-    public async Task AcceptedChoiceWaitsForNativeClosureAndRechecksOriginalEligibility(string scenario)
+    [InlineData("close", "save")]
+    [InlineData("retire", "save")]
+    [InlineData("cancel", "save")]
+    [InlineData("owner-hidden", "save")]
+    [InlineData("owner-closed", "save")]
+    [InlineData("escape", "save")]
+    [InlineData("close", "delete-review")]
+    [InlineData("retire", "delete-review")]
+    [InlineData("cancel", "delete-review")]
+    [InlineData("owner-hidden", "delete-review")]
+    [InlineData("owner-closed", "delete-review")]
+    [InlineData("escape", "delete-review")]
+    [InlineData("close", "delete-confirm")]
+    [InlineData("retire", "delete-confirm")]
+    [InlineData("cancel", "delete-confirm")]
+    [InlineData("owner-hidden", "delete-confirm")]
+    [InlineData("owner-closed", "delete-confirm")]
+    [InlineData("escape", "delete-confirm")]
+    public async Task AcceptedChoiceWaitsForNativeClosureAndRechecksOriginalEligibility(string scenario, string operation)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -176,7 +188,15 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 review = dialog;
                 dialog.Closing += (_, args) => args.Cancel = holdClose;
             });
-            var choosing = editor.Review(document, "fixed-destination", cancellation.Token);
+            var deletion = new OwnedSkillDeletionSnapshot(new(document, "directory", "manifest", "instructions"),
+                "fixed-destination", "root", "parent", "catalogue");
+            var choosing = operation switch
+            {
+                "save" => editor.Review(document, "fixed-destination", cancellation.Token),
+                "delete-review" => editor.ReviewDeletion(deletion, cancellation.Token),
+                "delete-confirm" => editor.ConfirmDeletion(deletion, cancellation.Token),
+                _ => throw new InvalidOperationException("Unknown review operation."),
+            };
             try
             {
                 var dialog = review!;

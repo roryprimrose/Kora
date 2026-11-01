@@ -35,6 +35,11 @@ This native v4 package declares actual ordered actions, not executable guidance 
 7. Choose **Invoke** (`owned skill workflow invoke`). Each step opens **Approve exact observation step**, showing its exact action/input and original request/target. Approve only that step once, or Cancel. While that exact step review is pending, `owned skill workflow approve-step` or `owned skill workflow deny-step` accepts or declines it through the same gate.
 8. Inspect the complete source-labelled result and typed state. `owned skill workflow status` reports whether owned work has joined. **Cancel** or `owned skill workflow cancel` closes further dispatch and joins actual work, including cancellation-ignoring source reads. It never claims physical termination merely from a cancellation request.
 
+Package review, separate Save confirmation, each step approval and unsaved-draft discard are native modal decisions: input to the workflow window stays blocked until the exact review actually closes.
+Keyboard focus starts on the complete read-only review; Tab reaches the explicit decision buttons. **Cancel**, Escape or the review's native close declines that decision.
+Closing/hiding the original owner or cancelling its operation retires the review; a clicked approval cannot outlive that owner or bypass native closure.
+Focus returns to the original control only while the original presentation remains visible and eligible. Declining the first step launches no observation; declining a later step never approves remaining steps or publishes partial success.
+
 The only admitted IDs are `capabilities.list`, `capabilities.get`, `application.get_version`, `readiness.get`, `runtime.list`, and `runtime.get_status`. Inputs and complete results use their existing [registry schemas](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs).
 Pages remain explicit; there is no automatic pagination or guessed continuation ([execution tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ObservationWorkflows.cs)).
 
@@ -50,6 +55,30 @@ These actions read already-recorded host state, without setup probes, network, n
 
 `owned skill workflow editor` opens this separate owner. **Close** (`owned skill workflow close`) offers explicit discard for an unsaved volatile draft; cancel keeps it open.
 Exit/restart/handoff likewise cannot silently discard it. Save first to retain the package. Cancellation retires the original owner: Close/discard and open a fresh workflow before another operation. No draft is autosaved ([controller](../src/Kora/ObservationWorkflowController.cs)).
+
+## Delete one saved owned source
+
+Use **List**, select one native v1/v2/v3 saved version, then **Delete**; or type `owned skill delete daily-review 1.0.0`.
+Activated voice uses the current assistant-name prefix and the same native reviews. Unsaved edits first require the existing **Save / Discard / Cancel** choice ([controller](../src/Kora/OwnedSkillEditorController.cs)).
+
+Review the exact owned destination, complete manifest and guidance, declared tool dependency, references-none boundary and use impact.
+Then separately confirm **Delete only this exact owned source**, or Cancel. The two-minute, single-operation review cannot be reused after source, draft, selection, catalogue, authority, ownership, privacy or channel changes ([review owner](../src/Kora.Application/Skills/OwnedSkillDeletionWorkflow.cs)).
+**Escape** rejects either deletion review without confirming or deleting anything; the editor, draft and saved source remain intact.
+Both reviews block editor input and return focus to that exact dialog. A choice
+completes only after native closure, while the original editor remains visible
+and eligible. Closing or hiding the owner, retiring its authority or cancelling
+the operation rejects an accepted choice; none approves deletion or recovery.
+
+Deletion removes only `manifest.yaml`, `instructions.md` and the now-empty exact version directory. The ID/root directories and unrelated versions remain.
+Bundled/shared/profile originals, reference packages, native v4 observation workflows, arbitrary paths and recursive tree deletion are unavailable ([owned store](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.Deletion.cs)).
+
+Confirmed deletion requires absence readback. The editor clears its saved catalogue; use **List** again. Future source-dependent use revalidates the exact source and fails closed if missing or replaced.
+Retained editor text keeps its deleted-source binding: editing it or changing its version does not make it a fresh unsaved source for simulation or refinement. Explicitly **Create** a new draft, or **Reopen** a present exact source, before model use; deletion does not silently discard the buffer.
+Deletion cannot start while a simulated test owns work. Cancel the test and wait for its actual source/model work to join before separately reviewing deletion; a simulated result never approves deletion.
+Deletion does not physically cancel immutable admitted tasks, erase independent grants/history/audit, transfer authority or enable anything. External dependents are not exhaustively inventoried ([use revalidation](../src/Kora.Application/Skills/OwnedSkillInvocationWorkflow.cs)).
+
+Partial deletion, lost authority after an effect, unavailable audit or readback is **unconfirmed**, not rollback or success. Mutation is held: do not retry or recreate that exact source.
+Inspect the remaining exact files and audit before manual recovery; restarting does not establish a successful deletion. The same store instance refuses republication of a retired ID/version; use a new version for new work ([native regressions](../tests/Kora.Windows.IntegrationTests/Skills/OwnedSkillDeletionTests.cs)).
 
 ## Create a new skill from a purpose
 

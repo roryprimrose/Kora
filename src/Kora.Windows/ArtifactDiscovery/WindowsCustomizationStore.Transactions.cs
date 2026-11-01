@@ -135,7 +135,7 @@ public sealed partial class WindowsCustomizationStore
         return Expose(target, current);
     }
 
-    private static void RequireCopySource(Target target, CustomizationSnapshot expected, CancellationToken token)
+    private void RequireCopySource(Target target, CustomizationSnapshot expected, CancellationToken token)
     {
         var live = Capture(target, token);
         if (!string.Equals(live.Revision, expected.Revision, StringComparison.Ordinal))

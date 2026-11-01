@@ -17,6 +17,17 @@ uses bounded intent/native clarification, not speech/model-profile qualification
 
 ## Catalogue freshness
 
+The bounded [owned-skill source deletion](../docs/owned-skill-authoring.md#delete-one-saved-owned-source)
+completes separate full-source review and exact confirmation for native v1/v2/v3
+two-file packages through the authoritative owned store. It is not instruction
+Delete, skill Disable or source unregistration. Unknown inventory and other
+formats/sources are refused; partial effects/audit/readback uncertainty hold
+mutation without rollback/retry or cancellation of immutable admitted work
+([native owner](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.Deletion.cs)).
+Retained owned-skill editor text preserves its deleted-source provenance.
+Text/version edits cannot downgrade it to source-free model input; explicit
+Create or a fresh exact Reopen establishes a new draft/source binding.
+
 The existing supported-source watcher observes the nearest existing ancestor
 when a recognized root has not yet been created, including when several parent
 directories are absent. External creation then refreshes the same catalogue
@@ -728,6 +739,28 @@ automatically. Closing a dirty editor requires Save/Discard/Cancel.
 
 ## Consistent External Change and Reload Contract
 
+### Reviewed owned native skill package rename
+
+The [owned editor](../src/Kora/OwnedSkillEditorController.Rename.cs) completes native List/select/Rename, exact original typed/current-name activated `owned skill rename <old-id> <version> <new-id>`, separate complete old/new review and native confirmation, persisted readback and reopen.
+Only current closed native two-file v1/v2/v3/v4 packages are supported; unsaved drafts are retained and must first be saved separately or explicitly discarded.
+
+The [dedicated native owner](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.Rename.cs) changes only the manifest ID, keeps the version/readable name and all guidance/declarations byte-exact, publishes the complete new package without replacement, then retires the exact old files/directory.
+This is a multi-step recoverable operation, not an atomic transaction or content CAS. Source/root/parent/file identities, complete bytes, aliases, inventory and current admission are checked; unrelated packages/versions are not renamed.
+Retirement holds both exact source components against writes and delete/rename sharing through their native dispositions; it never closes and reopens a checked component to delete it. The verified destination directory and both files remain non-replaceable and non-writable through source retirement and final readback. Scope, permissions, native identities and current authority are revalidated at each irreversible retirement; a file moved outside the owned root before those holds is never followed or deleted.
+
+Bounded private local intent retains original bytes and exact source/staged identities before publication. Both affected identities remain unavailable while intent exists, including after restart.
+List exposes pending renames; `owned skill recover-rename <old-id> <version>` separately reviews/confirms only retained intent.
+Owned-source deletion reuses the pending-rename guard at preparation and final validation: neither affected identity can be deleted while intent remains. Once recovery completes, deletion of a supported renamed source still requires fresh independent full-source review and confirmation; retained editor text keeps that source binding.
+Changed parents, source components, destination identity/bytes or corrupt intent fail closed; no overwrite, silent rollback, automatic retry or inferred recovery occurs ([workflow and audit](../src/Kora.Application/Skills/OwnedSkillRenameWorkflow.cs)).
+Pending-use visibility is separate from quota admission: each retained rename reserves one immutable version and the larger complete original/proposed byte size. Unrelated publication and recovery retain the 32-version/1 MiB logical inventory bounds. An already over-limit inventory cannot release its retained intent or report successful recovery.
+
+Post-rename catalogue reads stage results without altering the editor. Exact window, draft generation, dirty state and original authority are checked again before catalogue presentation or saved-result adoption. Edits during refresh retain their text and discard prompt, including an ordinary draft alongside a v4 rename. Native readback followed by failed or stale presentation remains explicitly unconfirmed, not rollback or permission to repeat the write.
+The separate volatile simulation-fixture generation also fences rename review and result adoption; new fixture input during refresh cannot be cleared by saved-source adoption. A successfully adopted renamed source needs a fresh explicit fixture and simulation review, without inherited use or Save authority.
+
+Old reviews cannot follow a new identity, and restored old bytes cannot revive old native-identity-bound review. The new package remains disabled and requires fresh independent use review/enablement/action permission.
+External references stay bound to the old identity, never silently rewritten. No shared/profile source, `SKILL.md` reference package, executable import, archive, automatic registration or invocation is added
+([use regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.OwnedSkillRename.cs), [user operation](../docs/owned-skill-authoring.md#rename-one-complete-owned-native-package)).
+
 ### Windows-managed roaming and local revision admission
 
 Windows/profile management owns propagation of Kora roaming definitions and
@@ -881,8 +914,72 @@ uses scalar `kora-format: 1`, `name`, `description` and optional `attribution`;
 the editor preserves original BOM, source text, line endings and supported
 metadata. Compatible legacy files lacking `kora-format` retain unchanged
 behavior; unsupported scope/metadata cannot be implicitly repaired in place.
-Header editing is bounded to 16 fields/4096 UTF-8 bytes. Rename, restore,
-other profile mutations, executable content and agent runtime are absent from this editor.
+Header editing is bounded to 16 fields/4096 UTF-8 bytes. The separately reviewed
+[owned Instruction rename](../docs/instruction-editor.md#rename-one-owned-instruction)
+adds only `instructions rename <new-id>` / `instructions recover-rename` and the
+same native controls. Restore, prompt/profile-original rename, other profile
+mutations, executable content and agent runtime remain absent.
+
+#### Bounded recoverable owned Instruction rename
+
+One original user may rename the exact clean inspected canonical native v1
+Kora-owned Instruction within its existing owned root. The host prepares a
+distinct nonreserved canonical ID and changes only the declared name scalar
+(or filename-derived name when absent); it preserves original BOM, formatting,
+line endings, attribution, metadata and body bytes. Full old/new identity and
+source review includes observed exact declared agent dependents, invocation
+changes and unchanged old reference bindings. A separate native confirmation
+is mandatory for native, typed and current-name activated entry alike
+([shared actions](../src/Kora.Application/Definitions/OwnedInstructionEditorActions.Rename.cs),
+[native review](../src/Kora/OwnedInstructionEditorController.Rename.cs)).
+Reviewed catalogue consequences remain bound across awaited commit scheduling
+and every native admission check. Only the operation's own old/new use holds
+are accepted without another review; changed candidates, dependent declarations
+or a reload failure (even subsequently recovered) retire the confirmation.
+Before possible intent publication this refuses mutation; afterward the exact
+unfinished proposal remains recovery-required and must be reviewed again.
+
+This is explicitly a multi-step, recoverable operation, not an atomic rename
+transaction or content CAS. A bounded private local intent contains exact
+original source and native root/parent/file/stage bindings. The writer moves
+the pinned original by native handle into its private same-root recovery slot,
+publishes the exact staged new source with native no-replace semantics, verifies
+identity/bytes and old-name absence, then removes retained original and intent.
+No ordinary copy-then-delete shortcut, arbitrary path, executable/dependency
+rewrite, replacement or silent rollback is admitted. Another writer, alias,
+reparse/hardlink, parent/root replacement, changed source, occupied destination
+case-sensitive/unknown native directory semantics or unconfirmed readback refuses or holds the operation
+([native protocol](../src/Kora.Windows/ArtifactDiscovery/WindowsOwnedDefinitionFileAccess.Rename.cs)).
+
+Cancellation after possible intent publication and interrupted/unconfirmed
+publication remain explicit recovery-required. Startup/list/reload never
+replay that intent; owned source reads/use/writes are withheld until separately
+reviewed **Recover rename** resumes that exact proposal and observed phase.
+Unexpected membership/identity/bytes or corrupt recovery data remain held;
+recovery cannot overwrite subsequent external edits. Recovery data is private
+definition content, not diagnostics, conversation retention or a grant, and is
+removed only after confirmed completion. Process-interruption fixture evidence
+is not distributed sync, power-loss, provider or installed qualification
+([phase regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsOwnedInstructionStoreTests.Rename.cs)).
+
+Both use identities are held before publication. Coherent reconciliation removes
+the old candidate and exposes the new exact source disabled, requiring fresh
+independent revision review. Native inventory-selected rename/recovery retains
+its exact editor input across internal row retirement and hands the confirmed
+new ID/source to the same editor. Explicit native Inspect reads the new status;
+no old row selection or typed workaround is needed. Actual editor/input,
+catalogue, reload and admission changes still retire the operation through the
+existing exact checks, retaining changed drafts rather than retargeting them.
+No grant, activation, applicability, dependent
+declaration or approval is transferred or rewritten. Existing source-digest
+reference resolution remains authoritative; old IDs cannot select the new
+source even after its independent activation. Captured content is never
+rebound mid-task; existing access/source-freshness checks and the stricter
+[agent-bundle lifetime](#bounded-local-agent-owned-instruction-references-v2)
+still apply. Exact requested/terminal audit records contain only content-free
+operation hashes and truthful failed/cancelled/unknown/succeeded outcomes
+([reconciliation](../src/Kora/ArtifactCatalogueReloadService.cs),
+[complete editor fixtures](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Rename.cs)).
 
 **Open registered profile original** additionally selects only the exact existing personal native v1 instruction already registered/read-consented by the dedicated Customizations source owner. No source registration or new discovery is performed by this editor. The same source-preserving writer remains authoritative for identity, local owner/root/file binding, non-reparse admission, final optimistic comparison, atomic replacement and exact readback ([writer](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.InstructionOriginal.cs)).
 The complete source is opened in this instruction editor, with supported metadata/BOM/line endings retained. Validate/Compare are memory-only; Save requires a separate complete native old/new confirmation. Detected content conflicts offer Reload/Overwrite/Cancel, with a fresh complete confirmation for every overwrite and another decision after a further detected change. Registration replacement/withdrawal and original input/privacy/call/ownership retirement invalidate pending work. Changed revisions remain disabled and uncertain publication requires explicit registration review plus Reload/reconciliation ([workflow](../src/Kora.Application/Definitions/ProfileInstructionEditorWorkflow.cs), [native operation regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.ProfileOriginal.cs)).

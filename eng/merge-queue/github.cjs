@@ -1,4 +1,5 @@
-const { CHECKS, GATE, STATE_BRANCH, SHA, TICKET, invariant, validateState, title } = require('./policy.cjs');
+const { createHash } = require('node:crypto');
+const { CHECKS, GATE, STATE_BRANCH, SHA, TICKET, invariant, validateState, title, workflowJobs } = require('./policy.cjs');
 
 const FILE = 'queue.json';
 const WORKFLOW = 'ci.yml';
@@ -43,7 +44,7 @@ class GitHubQueue {
     return state;
   }
 
-  async save(state) {
+  async save(state, message = 'ci: checkpoint merge queue state') {
     const serialized = JSON.stringify(validateState(state));
     if (this.commit && this.serialized === serialized) return;
     const { data: blob } = await this.github.rest.git.createBlob({ ...this.repo,
@@ -51,7 +52,7 @@ class GitHubQueue {
     const { data: tree } = await this.github.rest.git.createTree({ ...this.repo,
       tree: [{ path: FILE, mode: '100644', type: 'blob', sha: blob.sha }] });
     const { data: commit } = await this.github.rest.git.createCommit({ ...this.repo,
-      message: 'ci: checkpoint merge queue state', tree: tree.sha, parents: this.commit ? [this.commit] : [] });
+      message, tree: tree.sha, parents: this.commit ? [this.commit] : [] });
     if (this.commit) {
       const { data: current } = await this.github.rest.git.getRef({ ...this.repo, ref: `heads/${STATE_BRANCH}` });
       invariant(current.object.sha === this.commit, 'Queue state changed outside the controller.');
@@ -80,6 +81,13 @@ class GitHubQueue {
     const decision = data.repository?.pullRequest?.reviewDecision;
     invariant([null, 'APPROVED', 'REVIEW_REQUIRED', 'CHANGES_REQUESTED'].includes(decision), 'Unknown review state.');
     return decision === null || decision === 'APPROVED';
+  }
+  async administrator(actor) {
+    invariant(typeof actor === 'string' && /^[a-z0-9][a-z0-9-]{0,38}$/i.test(actor), 'Invalid recovery actor.');
+    const { data } = await this.github.rest.repos.getCollaboratorPermissionLevel({ ...this.repo, username: actor });
+    invariant(typeof data.user?.login === 'string' && data.user.login.toLowerCase() === actor.toLowerCase()
+      && ['admin', 'maintain', 'write', 'read', 'none'].includes(data.permission), 'Unknown recovery actor authority.');
+    return data.permission === 'admin';
   }
   async enrollment(number) {
     const data = await this.github.graphql(`query($owner:String!,$repo:String!,$number:Int!) {
@@ -118,22 +126,52 @@ class GitHubQueue {
     await this.github.rest.actions.createWorkflowDispatch({ ...this.repo, workflow_id: 'merge-queue.yml', ref: 'main' });
   }
   async runs(active) {
-    return this.github.paginate(this.github.rest.actions.listWorkflowRuns, { ...this.repo, workflow_id: WORKFLOW,
+    return this.completePages(this.github.rest.actions.listWorkflowRuns, { workflow_id: WORKFLOW,
       event: 'workflow_dispatch', branch: 'main',
-      created: `>=${new Date(Date.parse(active.created) - 5 * 60_000).toISOString()}`, per_page: 100 });
+      created: `>=${new Date(Date.parse(active.created) - 5 * 60_000).toISOString()}` }, 'candidate run');
   }
   async jobs(runId, attempt = 1) {
     invariant(Number.isSafeInteger(attempt) && attempt > 0, 'Unknown candidate job attempt.');
+    return this.completePages(this.github.rest.actions.listJobsForWorkflowRunAttempt,
+      { run_id: runId, attempt_number: attempt }, 'candidate job');
+  }
+  async completePages(method, parameters, kind) {
     let expected;
-    const jobs = await this.github.paginate(this.github.rest.actions.listJobsForWorkflowRunAttempt, { ...this.repo,
-      run_id: runId, attempt_number: attempt, per_page: 100 }, ({ data }) => {
+    const records = await this.github.paginate(method, { ...this.repo, ...parameters, per_page: 100 }, ({ data }) => {
       invariant(Array.isArray(data) && Number.isSafeInteger(data.total_count) && data.total_count >= 0
-        && (expected === undefined || expected === data.total_count), 'Incomplete or inconsistent candidate job pagination.');
+        && (expected === undefined || expected === data.total_count), `Incomplete or inconsistent ${kind} pagination.`);
       expected = data.total_count;
       return data;
     });
-    invariant(Array.isArray(jobs) && jobs.length === expected, 'Incomplete candidate job pagination.');
-    return jobs;
+    invariant(Array.isArray(records) && records.length === expected, `Incomplete ${kind} pagination.`);
+    return records;
+  }
+  async expectedJobs(source) {
+    invariant(SHA.test(source), 'Unknown candidate workflow source.');
+    let data;
+    try {
+      ({ data } = await this.github.rest.repos.getContent({ ...this.repo,
+        ref: source, path: `.github/workflows/${WORKFLOW}` }));
+    } catch (error) {
+      if (error.status !== 404) throw error;
+      this.notice('Candidate workflow source is unavailable; physical quiescence is unknown.');
+      return null;
+    }
+    if (data?.type !== 'file' || data.encoding !== 'base64' || !SHA.test(data.sha)
+      || typeof data.content !== 'string' || data.content.length === 0) {
+      this.notice('Candidate workflow source metadata is incomplete; physical quiescence is unknown.');
+      return null;
+    }
+    const bytes = Buffer.from(data.content, 'base64');
+    const blob = createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
+    if (blob !== data.sha) {
+      this.notice('Candidate workflow source bytes do not match its blob; physical quiescence is unknown.');
+      return null;
+    }
+    const expected = workflowJobs(bytes.toString('utf8'), data.sha);
+    if (expected === null)
+      this.notice('Candidate workflow job schema is unknown; physical quiescence is unknown.');
+    return expected;
   }
   async cancel(runId) {
     try {

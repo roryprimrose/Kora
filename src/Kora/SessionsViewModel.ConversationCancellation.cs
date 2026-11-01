@@ -101,7 +101,12 @@ internal sealed partial class SessionsViewModel
                 ConversationExecutionPhase.Terminal => "Terminal " + observation.Outcome + "; durable task " + observation.TaskState
                     + ". Owned resources joined and exact retained outcome confirmed. Dispatched work is never claimed rolled back.",
                 _ => "Terminal outcome unconfirmed. Inspect this exact task; no replay, rollback or successful cancellation inferred.",
-            });
+            }) + (observation.Resources is { } resources
+                ? $" Last host resource check: configured maximum {resources.ConfiguredMaximum}; captured maximum {resources.CapturedMaximum}; "
+                    + $"qualified ceiling {resources.QualifiedCeiling}; effective ceiling {resources.EffectiveCeiling}; "
+                    + $"owned leases {resources.OwnedLeases}; waiting requests {resources.WaitingRequests}; blocker {resources.WaitReason}. "
+                    + "A ceiling is not a promise of available resources."
+                : string.Empty);
             NotifyConversationCancellation();
         }
         if (Dispatcher.UIThread.CheckAccess()) { Present(); }
@@ -171,6 +176,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversationCancellation()
     {
+        DiscardPendingClear();
         runningConversation = null;
         runningConversationStatus = "No running conversation observed. Refresh running work to inspect this exact session.";
         if (closed && observingConversationCancellation && conversation is not null)

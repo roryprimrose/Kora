@@ -398,7 +398,7 @@ public sealed partial class InstructionEditorTests : IDisposable
         }
     }
 
-    private sealed class Files : IOwnedInstructionStore
+    private sealed partial class Files : IOwnedInstructionStore, IOwnedInstructionRenameStore
     {
         internal OwnedInstructionSnapshot? Current = Snapshot();
         internal readonly Dictionary<string, OwnedInstructionSnapshot> Copies = new(StringComparer.Ordinal);

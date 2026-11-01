@@ -204,6 +204,28 @@ This narrow exception overrides only call speech suppression and the call feedba
 
 The [service regressions](../tests/Kora.Application.UnitTests/Communication/CallSpeechReviewTests.cs) and [consumer regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.CallSpeech.cs) use deterministic fakes. This is bounded **I - Implementation**, not actual-call, acoustic, provider, physical-device, installed-native accessibility or full R15 **E/Q** qualification. Existing unavailable profiles remain unavailable; no experiment is removed or rerun. Arbitrary retained-answer selection, questions/approvals, call-wide relaxation and persistent downgrade remain outside this increment.
 
+## Ordinary Speech Stop and Recovery
+
+Ordinary responses and voice previews retain **Stop speaking** and active output
+state while the provider reports playback active, even if its speech operation
+has returned, failed or been cancelled. Returning from Stop is not a silence
+receipt: native, exact typed/activated-voice and tray Stop share the host's
+physical-release check. Unconfirmed release reports failure and retains recovery;
+only observed release permits "No speech playback is active."
+
+New response/preview speech is withheld during that recovery, without automatic
+retry or replay. Full visual results remain available; captions still retire on
+Stop, invalidation or unsuccessful completion, and private presence stays hidden
+when the host is ineligible. Passive playback observation can clear active state
+after the provider actually releases output. Existing call leases, retained-read
+joins, consent/privacy and call suppression remain unchanged.
+
+The [ordinary recovery regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.OrdinarySpeechRecovery.cs)
+use deterministic providers for operation return, physical activity, Stop failure
+and cancellation. This is **I - Implementation** repair, not acoustic stop timing,
+real provider/device, installed-native accessibility or **E/Q** qualification;
+no wake/model/native profile is enabled.
+
 ## Delivered Bounded In-Call Feedback
 
 The independent device-local **`calls.feedback-mode`** defaults to **UI** and

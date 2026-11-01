@@ -10,6 +10,12 @@ operations. Registering or inspecting a root grants none of the later
 authorities; see the [source contract](Skill_Storage.md#delivered-bounded-r21-native-inspection)
 and [reviewed invocation](Skill_Storage.md).
 
+Native v1/v2/v3 owned sources also support [explicit reviewed deletion](../docs/owned-skill-authoring.md#delete-one-saved-owned-source).
+Dirty drafts retain Save/Discard/Cancel. Full source/inventory/use-impact review
+precedes separate confirmation; deletion does not enable work or revoke
+independent grants, and an uncertain effect requires explicit recovery
+([admitted operation](../src/Kora.Application/Skills/OwnedSkillDeletionWorkflow.cs)).
+
 Related: [Extensibility](Extensibility.md), [Security and Data Flows](Security_Data_Flows.md), [Task Lifecycle](Task_Lifecycle.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
 [Definition Management](Definition_Management.md) owns the shared authoring
@@ -45,6 +51,17 @@ The additive [native v2 one-tool operation](../docs/owned-skill-authoring.md#aut
 The [bounded initial-generation operation](../docs/owned-skill-authoring.md#create-a-new-skill-from-a-purpose) adds original typed/current-name activated `create a skill that <purpose>` input to the same editor. Explicit expected-input/output clarification precedes a separately admitted local tools-none proposal; the host fixes native v1, identity, version and owned destination. Only a complete literal guidance body may come from the model ([proposal owner](../src/Kora.Application/Skills/OwnedSkillGuidanceRefinementService.cs)).
 Complete generated source/destination review, optional existing local refinement, Validate and both ordinary Save reviews produce one atomic immutable **disabled** package. Original request/channel, draft, critique, catalogue/name, source, privacy, ownership and destination checks remain bound through refinement and publication ([native lifecycle](../src/Kora/OwnedSkillEditorController.Refinement.cs), [save](../src/Kora.Application/Skills/OwnedSkillSaveWorkflow.cs)).
 This is implementation only: unqualified local runtime remains unavailable. It adds no general YAML, profile editing, arbitrary tools/effects, references, scripts, hooks, fixtures or agent execution. Tool-capable invocation retains independent per-action permission and actual tool/model joining ([action admission](../src/Kora.Application/Network/LocalWebPageInvocation.cs)).
+
+Owned-skill source save/deletion reviews, model-authoring disclosures/proposals, simulated
+examples/results and dirty-draft decisions use the same modal native handoff.
+The draft editor cannot reactivate behind its review; blocked owner input
+returns to that exact dialog. A choice completes only after native closure
+joins, with the exact native owner still visible and original eligibility and
+cancellation rechecked before returning. Hiding or closing the owner cannot
+complete an accepted choice.
+This is presentation ownership, not new consent or authority. Save still
+requires both separate native reviews and exact atomic publication/readback;
+Cancel retains the draft and expired authority remains expired.
 
 The additive [native v3 required literal guidance operation](../docs/owned-skill-authoring.md#required-literal-guidance-inputs)
 explicitly declares instruction-only inputs, reusing the owned prompt template
@@ -164,6 +181,9 @@ review of its exact revision and scope under the common lifecycle.
 
 The bounded [native v4 observation workflow](../docs/owned-skill-authoring.md#author-and-run-an-ordered-host-observation-workflow) now completes author/validate/save-disabled/reopen/review/enable/invoke/status/cancel for an explicit ordered sequence of the existing six host read-only observations.
 Its [separate native owner](../src/Kora/ObservationWorkflowController.cs) does not modify shared-source writers, interpret guidance as steps, or invoke a model.
+The [native confirmation lifetime](../src/Kora/ObservationWorkflowWindow.cs) is modal for package review, separate Save, each independent step and dirty-draft discard.
+It holds blocked owner input until native closure, starts keyboard focus on the complete review, declines on Cancel/Escape/native close, and retires on owner loss or cancellation.
+Approval and focus return are rechecked against the original visible eligible owner after closure; no remaining observation or partial-success result follows a declined step.
 
 The [closed declaration](../src/Kora.Core/Skills/ObservationWorkflowDefinition.cs) uses the existing immutable two-file owned store, exact registered input/result validation, host-assigned step numbers and strict count/byte/total-time budgets.
 The [host runner](../src/Kora.Application/Skills/ObservationSkillWorkflow.cs) revalidates exact source, original request/channel, Active target/profile, dependencies and independent action permission. It publishes only a complete native source-labelled result or explicit joined failure/cancellation, never partial success.

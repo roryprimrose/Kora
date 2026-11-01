@@ -6,7 +6,7 @@ namespace Kora;
 
 internal sealed partial class SessionsViewModel
 {
-    private enum SettingReviewFamily { Appearance, Summary, Volume, ResponseMode }
+    private enum SettingReviewFamily { Appearance, Summary, Volume, ResponseMode, WindowsRate }
 
     public string RegisteredSettingsDescription => "Supported inert suggestions: " + string.Join("; ",
         RegisteredSettingRegistry.Settings.Select(item => $"{item.Id}: "
@@ -15,11 +15,11 @@ internal sealed partial class SessionsViewModel
         + ". All are shared device-local preferences. Review changes nothing.";
 
     public bool CanReviewRegisteredSettingSuggestion => CanReviewAppearanceSuggestion
-        || CanReviewSpeechSummarySuggestion || CanReviewPlaybackVolumeSuggestion || CanReviewResponseModeSuggestion;
+        || CanReviewSpeechSummarySuggestion || CanReviewPlaybackVolumeSuggestion || CanReviewResponseModeSuggestion || CanReviewWindowsSpeechRateSuggestion;
     public bool CanConfirmRegisteredSettingSuggestion => CanConfirmAppearanceSuggestion
-        || CanConfirmSpeechSummarySuggestion || CanConfirmPlaybackVolumeSuggestion || CanConfirmResponseModeSuggestion;
+        || CanConfirmSpeechSummarySuggestion || CanConfirmPlaybackVolumeSuggestion || CanConfirmResponseModeSuggestion || CanConfirmWindowsSpeechRateSuggestion;
     public string RegisteredSettingSuggestionDescription => AppearanceSuggestionDescription
-        + SpeechSummarySuggestionDescription + PlaybackVolumeSuggestionDescription + ResponseModeSuggestionDescription;
+        + SpeechSummarySuggestionDescription + PlaybackVolumeSuggestionDescription + ResponseModeSuggestionDescription + WindowsSpeechRateSuggestionDescription;
 
     public Task ReviewRegisteredSettingSuggestionAsync(ConversationMessage message) =>
         ReviewRegisteredSettingSuggestionAsync(message, null);
@@ -39,6 +39,7 @@ internal sealed partial class SessionsViewModel
                 RegisteredSettingProposal.Summary => SettingReviewFamily.Summary,
                 RegisteredSettingProposal.Volume => SettingReviewFamily.Volume,
                 RegisteredSettingProposal.ResponseMode => SettingReviewFamily.ResponseMode,
+                RegisteredSettingProposal.WindowsRate => SettingReviewFamily.WindowsRate,
                 _ => throw new InvalidDataException("The setting suggestion is not registered."),
             };
             if (expected is not null && family != expected)
@@ -69,6 +70,10 @@ internal sealed partial class SessionsViewModel
                     responseModeReview = await (reviewResponseModeSuggestion
                         ?? throw new InvalidOperationException("Response-mode review is unavailable."))(message, Current, Validate, lifetime.Token);
                     break;
+                case SettingReviewFamily.WindowsRate:
+                    windowsSpeechRateReview = await (reviewWindowsSpeechRateSuggestion
+                        ?? throw new InvalidOperationException("Windows rate review is unavailable."))(message, Current, Validate, lifetime.Token);
+                    break;
             }
             if (!Current())
             {
@@ -80,6 +85,7 @@ internal sealed partial class SessionsViewModel
 
     public Task ConfirmRegisteredSettingSuggestionAsync() => appearanceReview is not null
         ? ConfirmAppearanceSuggestionAsync()
+        : windowsSpeechRateReview is not null ? ConfirmWindowsSpeechRateSuggestionAsync()
         : speechSummaryReview is not null ? ConfirmSpeechSummarySuggestionAsync()
         : responseModeReview is not null ? ConfirmResponseModeSuggestionAsync() : ConfirmPlaybackVolumeSuggestionAsync();
 
@@ -89,6 +95,7 @@ internal sealed partial class SessionsViewModel
         CancelSpeechSummarySuggestion(reportCancellation: false);
         CancelPlaybackVolumeSuggestion(reportCancellation: false);
         CancelResponseModeSuggestion();
+        CancelWindowsSpeechRateSuggestion();
         if (reportCancellation)
         {
             conversationStatus = "Setting review cancelled. No new setting write was requested.";
@@ -100,6 +107,7 @@ internal sealed partial class SessionsViewModel
     private void NotifyRegisteredSettings()
     {
         if (responseModeReview is { Available: false }) { CancelResponseModeSuggestion(); }
+        if (windowsSpeechRateReview is { Available: false }) { CancelWindowsSpeechRateSuggestion(); }
         OnPropertyChanged(nameof(CanReviewRegisteredSettingSuggestion));
         OnPropertyChanged(nameof(CanConfirmRegisteredSettingSuggestion));
         OnPropertyChanged(nameof(RegisteredSettingSuggestionDescription));

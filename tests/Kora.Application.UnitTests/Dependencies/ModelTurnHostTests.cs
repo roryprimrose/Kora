@@ -518,7 +518,8 @@ public sealed partial class ModelTurnHostTests : IDisposable
         internal List<HostRequest> LogRequests { get; } = [];
         public bool IsCurrentHost => Current;
         internal bool Inspect { get; set; } = true;
-        public bool CanInspect => CanControl && Inspect;
+        internal bool? InspectOverride { get; set; }
+        public bool CanInspect => InspectOverride ?? (CanControl && Inspect);
         public bool CanControl { get; set; } = true;
         public long ControlRevision { get; set; }
         internal string ObservedVersion { get; set; } = "1.0";

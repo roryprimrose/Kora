@@ -249,10 +249,21 @@ $runs = @(
             '--results-directory'
             $shardDirectory
             '--report-trx'
+            '--diagnostic'
+            '--diagnostic-output-directory'
+            $shardDirectory
         )
 
-        & $using:dotnetPath @arguments *> $logPath
-        $exitCode = $LASTEXITCODE
+        try {
+            & $using:dotnetPath @arguments *> $logPath
+            $exitCode = $LASTEXITCODE
+        }
+        finally {
+            foreach ($diagnostic in Get-ChildItem -LiteralPath $shardDirectory -Filter '*.diag' -File) {
+                Add-Content -LiteralPath $logPath -Value "MTP diagnostic tail: $($diagnostic.Name)"
+                Get-Content -LiteralPath $diagnostic.FullName -Tail 80 | Add-Content -LiteralPath $logPath
+            }
+        }
 
         [pscustomobject]@{
             Name = $_.Name

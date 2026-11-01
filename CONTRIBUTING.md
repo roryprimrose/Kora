@@ -128,6 +128,8 @@ owned-definition editor class.
 All twelve execution partitions preserve serial headless UI
 execution within each process and the existing per-process thread limit.
 Each partition retains its own TRX and console output under a fresh run directory;
+MTP diagnostics retain started-test identities and terminal state, with diagnostic
+tails appended to console logs for predecessor artifact compatibility.
 nonzero exits or missing, duplicate, empty or incomplete passing reports fail
 the run. `-Partition <name>` selects one independent execution process.
 `-Shard <name>` retains the five-job bootstrap assignments while trusted main
@@ -196,6 +198,10 @@ The native fixture still defaults to system time when no test clock is supplied.
 Cancellation and deferred-cleanup regressions wait for the actual token or
 callback signal before releasing their fake work. This preserves exact denial,
 resource-release and no-effect assertions without sleeps or widened deadlines.
+Native approval fixtures await exact-review publication and restored editability
+before selecting an answer; review text can appear before the operation is idle.
+Adaptive interaction fixtures join the exposed session-navigation operation
+before asserting unchanged selected-row identity and independent composer text.
 
 Portable tests and exact-source payload production run independently after
 version resolution. The installer consumes the verified payload immediately,

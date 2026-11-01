@@ -506,7 +506,10 @@ try {
     if ($mode -ceq 'duplicate') { Set-Content -LiteralPath (Join-Path $directory 'duplicate.trx') -Value $report }
     exit 0
 }
-finally { Set-Content -LiteralPath (Join-Path $directory 'terminal.txt') -Value 'joined' }
+finally {
+    Set-Content -LiteralPath (Join-Path $directory 'terminal.txt') -Value 'joined'
+    Set-Content -LiteralPath (Join-Path $directory 'fixture.diag') -Value 'Fixture started-test diagnostic'
+}
 '@ | Set-Content -LiteralPath $fakePath
 $savedPath = $env:PATH
 $savedFixture = [Environment]::GetEnvironmentVariable('KORA_WINDOWS_SCHEDULING_FIXTURE')
@@ -526,8 +529,11 @@ try {
         Assert ($arguments[0] -ceq 'test') 'Only the test operation may execute.'
         Assert ($arguments[[Array]::IndexOf($arguments, '--filter') + 1] -ceq $partition.Filter) 'The actual process must use its exact disjoint filter.'
         Assert ($arguments -ccontains '--no-build' -and $arguments -ccontains '--report-trx') 'Each process must use the same built source and retain test evidence.'
+        Assert ($arguments -ccontains '--diagnostic' -and $arguments -ccontains '--diagnostic-output-directory') 'Each process must retain started-test diagnostics for stalled execution.'
         Assert ($arguments[[Array]::IndexOf($arguments, '--max-threads') + 1] -eq 2) 'Partitioning must preserve the existing per-process thread limit.'
         Assert (Test-Path -LiteralPath (Join-Path $receipt[0].Directory.FullName 'console.log')) 'Each invocation must retain its own console output.'
+        Assert ((Get-Content -Raw -LiteralPath (Join-Path $receipt[0].Directory.FullName 'console.log')).Contains('Fixture started-test diagnostic',
+            [StringComparison]::Ordinal)) 'Process-finalization diagnostics must remain visible in predecessor-compatible console artifacts.'
     }
     foreach ($mode in @('exit', 'missing', 'empty', 'incomplete', 'failed', 'skipped', 'malformed', 'duplicate')) {
         $env:KORA_WINDOWS_SCHEDULING_FIXTURE = $mode

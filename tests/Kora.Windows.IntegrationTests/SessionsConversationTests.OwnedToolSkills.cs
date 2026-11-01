@@ -291,6 +291,7 @@ public sealed partial class SessionsConversationTests
                         review.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                         await Task.WhenAny(reviewed.Task, use.ActiveOperation).WaitAsync(TimeSpan.FromSeconds(30), native.Token);
                         reviewed.Task.IsCompleted.Should().BeTrue(opened.Status.Text);
+                        await RequireEnabled(review);
                         approval.FindControl<StackPanel>("ChoicePanel")!.Children.OfType<RadioButton>()
                             .Single(choice => Equals(choice.Content, "Once")).IsChecked = true;
                         var submit = approval.FindControl<Button>("SubmitAnswer")!;

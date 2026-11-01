@@ -84,8 +84,23 @@ public sealed partial class SessionsConversationTests
                     worker.Invocations.Should().BeEmpty();
                     if (approve)
                     {
+                        var review = question.FindControl<Button>("ReviewQuestion")!;
+                        await BundledButtonEnabled(review).WaitAsync(storage.Token);
+                        var text = question.FindControl<TextBox>("ExactReview")!;
+                        var reviewed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                        void Reviewed(object? sender, Avalonia.AvaloniaPropertyChangedEventArgs args)
+                        {
+                            if (args.Property == TextBox.TextProperty && !string.IsNullOrEmpty(text.Text)) { reviewed.TrySetResult(); }
+                        }
+                        text.PropertyChanged += Reviewed;
+                        try
+                        {
+                            review.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                            await reviewed.Task.WaitAsync(storage.Token);
+                        }
+                        finally { text.PropertyChanged -= Reviewed; }
+                        await BundledButtonEnabled(review).WaitAsync(storage.Token);
                         question.GetLogicalDescendants().OfType<RadioButton>().Single(item => item.Content is "Once").IsChecked = true;
-                        question.FindControl<Button>("ReviewQuestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                         await BundledButtonEnabled(question.FindControl<Button>("SubmitAnswer")!).WaitAsync(storage.Token);
                         question.FindControl<Button>("SubmitAnswer")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     }

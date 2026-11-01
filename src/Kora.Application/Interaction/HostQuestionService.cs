@@ -26,6 +26,13 @@ public sealed class HostQuestionService(IHostInteractionStore store, TimeProvide
                 : InteractionTransaction.Reject(snapshot, "voice-question-unavailable"),
             cancellationToken, retireReply: false);
 
+    public ValueTask<HostInteractionDecision> SubmitNativeReplyAsync(HostQuestionKey key, HostRevision generation,
+        QuestionAnswer answer, Func<bool> isPresented, CancellationToken cancellationToken) =>
+        UpdateAsync(key, "question.submit", (snapshot, question) =>
+            question.SessionGeneration == generation && isPresented()
+                ? Answer(snapshot, question, answer, RequestOrigin.LocalUi, submitting: true)
+                : InteractionTransaction.Reject(snapshot, "native-question-unavailable"), cancellationToken);
+
     public ValueTask<HostInteractionDecision> CreateAsync(HostRequest request, QuestionSpec spec,
         DateTimeOffset expiresAt, CancellationToken cancellationToken)
     {
@@ -90,6 +97,8 @@ public sealed class HostQuestionService(IHostInteractionStore store, TimeProvide
         {
             return InteractionTransaction.Reject(snapshot, "approval-service-required");
         }
+        if (question.Spec.Kind == QuestionKind.Form && !submitting)
+        { return InteractionTransaction.Reject(snapshot, "form-drafts-are-volatile"); }
         if (string.Equals(question.Spec.Purpose, LocalModelQuestionPolicy.Purpose, StringComparison.Ordinal)
             && string.Equals(question.Spec.SourceId, LocalModelQuestionPolicy.SourceId, StringComparison.Ordinal))
         {
@@ -100,7 +109,7 @@ public sealed class HostQuestionService(IHostInteractionStore store, TimeProvide
         return Replace(snapshot, question with
         {
             Key = question.Key.Next(),
-            Draft = answer,
+            Draft = question.Spec.CanonicalAnswer(answer),
             AnswerChannel = channel,
             Status = submitting ? QuestionStatus.Answered : QuestionStatus.Pending,
         }, submitting ? HostInteractionOutcome.Answered : HostInteractionOutcome.Drafted, "answer-recorded");

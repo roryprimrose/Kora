@@ -228,8 +228,13 @@ or approval. Both local clarification paths support:
 - **Text input:** an input field bounded to 500 characters.
 
 The session-owned question window opens from either Sessions view. Its input is
-separate from the unsent conversation composer. One call asks one question, not
-a multi-field form. Legacy structured questions remain supported.
+separate from the unsent conversation composer. Legacy structured questions remain supported.
+
+**Submit with one clarification** can also ask for one form with up to four required text or single-choice fields. Every field shows its limits: text is at most 500 characters / 2000 strict UTF-8 bytes, and each choice field has two to four options. No choice is preselected ([field contract](../src/Kora.Core/Interaction/QuestionField.cs)).
+
+Edit fields with keyboard/mouse or choose **Speak field** for the exact displayed field when voice readiness permits. Spoken entry changes only that field; it does not submit. **Review exact record** shows the whole current draft; further edits invalidate the review. Choose **Submit answer** to validate and submit all required fields together. Partial, invalid or over-limit answers are refused, not shortened ([native question controls](../src/Kora/QuestionWindow.axaml.cs)).
+
+Form drafts stay in memory and have no Save draft or autosave. Closing, cancelling, expiry or privacy/target changes do not submit any fields. Forms are unavailable in the observations-and-one-question path and in Claude; their existing single-question behavior is unchanged. No credentials, permissions or consent may be collected by this form ([submission boundary](../src/Kora.Application/Interaction/HostQuestionService.cs), [local-only protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Forms.cs)).
 
 Review the question, then explicitly **Submit answer**, or use **Answer by
 voice** / **Hear then answer** when the one exact foreground question and

@@ -189,6 +189,9 @@ consumers, including links embedded in the guide and historical experiments.
   counts or an incomplete command task. Await cancellation acceptance, owned
   resource completion and the exact UI publication separately. Drain dispatcher
   work only after the operation it presents has joined.
+- Concurrent terminal-storage fakes must build message/task receipts from each
+  original request's retained snapshot, not mutable fixture-wide selection.
+  Force interleaving deterministically and verify both exact retained readbacks.
 - Preserve production deadlines; use existing fake clocks for non-deadline
   scenarios. Dispose asynchronous fixture owners and release held operations in
   `finally`. See the [microphone ownership regressions](tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.MicrophoneRefreshOwnership.cs).
@@ -202,6 +205,10 @@ consumers, including links embedded in the guide and historical experiments.
 - Reuse migration staging helpers; remove only empty later-version tables,
   never current authority records. Resolve a fresh admitted invocation for each
   grant use. Metadata-only reads must not create/edit files or publish journals.
+- Pending conversation fixtures build terminal receipts from the exact
+  request-keyed record, not shared latest-message/task fields. Expired queued
+  workers can complete concurrently; interleaved completions must retain each
+  original identity without model execution or answer publication.
 
 The [scoped testing guidance](.github/instructions/testing.instructions.md)
 owns behavioral regression requirements. Keep case-specific synchronization

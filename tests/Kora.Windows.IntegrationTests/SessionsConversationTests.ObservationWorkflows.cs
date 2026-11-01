@@ -1,4 +1,7 @@
+using System.Text;
 using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using AwesomeAssertions;
@@ -24,12 +27,18 @@ public sealed partial class SessionsConversationTests
     [InlineData("source")]
     [InlineData("cancel")]
     [InlineData("deny")]
+    [InlineData("cancel-first")]
+    [InlineData("close-first")]
+    [InlineData("escape-first")]
+    [InlineData("token-first")]
+    [InlineData("owner-shutdown")]
     [InlineData("dirty-close")]
     public async Task NativeObservationWorkflowAuthorsSavesDisabledReviewsEnablesAndRunsOnlyDeclaredApprovedSteps(string operation)
     {
         await HeadlessSession.RunAsync(async () =>
         {
             using var f = new InteractionStorageFixture();
+            f.Time.UseFrozenTimers = true;
             await f.InitializeAsync();
             await WindowsSqliteConversationTests.FinishInitial(f);
             await using var composed = new Composition(f);
@@ -58,6 +67,7 @@ public sealed partial class SessionsConversationTests
             var reviews = new List<string>();
             var allowDiscard = false;
             var secondApproval = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var firstApproval = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             const string definition = """
                 {"steps":[
                   {"tool":"application.get_version","input":{}},
@@ -81,6 +91,24 @@ public sealed partial class SessionsConversationTests
                 if (dialog.Title is not "Approve exact observation step") { text.Text.Should().Contain(definition); }
                 if (dialog.Title is "Approve exact observation step")
                 {
+                    if (text.Text!.Contains("Step 1:", StringComparison.Ordinal))
+                    {
+                        boundary.VersionReads.Should().Be(0);
+                        if (operation is "token-first" or "owner-shutdown") { firstApproval.SetResult(); return; }
+                        if (operation is "cancel-first" or "close-first" or "escape-first")
+                        {
+                            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                            {
+                                if (operation is "cancel-first") { buttons[1].RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
+                                if (operation is "close-first") { dialog.Close(); }
+                                if (operation is "escape-first")
+                                {
+                                    dialog.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+                                }
+                            });
+                            return;
+                        }
+                    }
                     if (text.Text!.Contains("Step 2:", StringComparison.Ordinal))
                     {
                         boundary.VersionReads.Should().Be(1);
@@ -141,8 +169,17 @@ public sealed partial class SessionsConversationTests
             await Command("enable");
             boundary.VersionReads.Should().Be(0);
             if (operation is "request") { window.Request.Text = "changed request"; }
+            window.Request.Focus().Should().BeTrue();
             var invoke = Command("invoke");
             await invoke;
+            if (operation is "token-first" or "owner-shutdown")
+            {
+                await Task.WhenAny(firstApproval.Task, controller.ActiveOperation);
+                firstApproval.Task.IsCompleted.Should().BeTrue("the operation must reach its first independent approval");
+                controller.ActiveOperation.IsCompleted.Should().BeFalse();
+                if (operation is "token-first") { await Command("cancel"); }
+                else { await controller.CloseAndWait(); }
+            }
             if (operation is "cancel" or "complete")
             {
                 await Task.WhenAny(secondApproval.Task, controller.ActiveOperation);
@@ -154,9 +191,16 @@ public sealed partial class SessionsConversationTests
             if (operation is "complete")
             {
                 boundary.VersionReads.Should().Be(1);
-                window.Result.Text.Should().Contain("Step 1 - application.get_version").And.Contain("1.0.0-native-fixture")
-                    .And.Contain("Step 2 - runtime.get_status").And.Contain("NotObserved");
                 window.Status.Text.Should().Contain("Succeeded");
+                var versionReply = new CapabilityReply(CapabilityOutcome.Succeeded, "observed",
+                    Version: new("1.0.0-native-fixture", "Not observed by the current version provider."));
+                var runtimeReply = new CapabilityReply(CapabilityOutcome.Succeeded, "recorded-observation",
+                    Runtime: new(ReadOnlyCapabilityCatalog.LocalRuntimeId, RuntimeLocality.Local,
+                        CapabilityAvailability.NotObserved, null, "No completed observation is recorded.", null, false));
+                window.Result.Text.Should().Be("Source: Kora host observations. No model inference, probes or external actions.\n"
+                    + "Step 1 - application.get_version (schema 1)\n" + Encoding.UTF8.GetString(CapabilityReplyWire.Serialize(versionReply)) + "\n"
+                    + "Step 2 - runtime.get_status (schema 1)\n" + Encoding.UTF8.GetString(CapabilityReplyWire.Serialize(runtimeReply)) + "\n");
+                window.FocusManager!.GetFocusedElement().Should().BeSameAs(window.Request);
                 await Command("status");
                 window.Status.Text.Should().Contain("Succeeded").And.Contain("joined");
             }
@@ -170,7 +214,7 @@ public sealed partial class SessionsConversationTests
             f.Count("host_questions").Should().Be(0);
             f.Count("scoped_grants").Should().Be(0);
             dependencies.Observations.Should().BeEmpty();
-            await Command("close");
+            if (operation is not "owner-shutdown") { await Command("close"); }
             window.IsVisible.Should().BeFalse();
         });
     }

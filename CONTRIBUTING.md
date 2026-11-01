@@ -93,6 +93,8 @@ exact request-owned retained record before updating shared observation fields.
 Concurrent expiry must preserve both originals' identity, body, generation,
 sequence and UTC timestamp, with exact terminal revisions and retained readback;
 fixture repairs do not relax production authority or receipt checks.
+Await interleaving hooks outside the fixture lock, then run the original-source
+terminal guard and write together under the lock using that request-local pair.
 
 Run [Test-PortableTestScheduling.ps1](eng/Test-PortableTestScheduling.ps1) to check solution membership, main-build coverage, parallel scheduling, report isolation, and coverage-gate arguments without building or running test modules.
 
@@ -107,6 +109,13 @@ cancellation notification and retain the observer through joined terminal
 completion. Later Cancelling publications are not additional injected failures;
 every accepted request still requires its physical join and terminal receipt,
 while the operation truthfully retains its partial/unconfirmed outcome.
+
+Speech-suggestion receipt-pin regressions explicitly join voice-consent
+withdrawal and capture closure in both notification orders. Assert the exact
+command presentation and canonical request/task receipt independently of the
+later consent notification; the shared current response title is not a durable
+command outcome. Withdrawal must still prevent review, confirmation, capture
+restart and any future speech-limit write.
 
 To reproduce CI's Windows test scheduling after a locked `win-x64` build, run
 `.\eng\Run-WindowsIntegrationTests.ps1 -Partition <name>`. CI builds once,

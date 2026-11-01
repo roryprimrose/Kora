@@ -29,6 +29,7 @@ public sealed partial class MainViewModel
 
     private void RetireSessionCommandReviews()
     {
+        RetirePendingClearInput();
         RetireSpeechSummarySuggestions();
         sessionRequests?.Retire();
         SetForegroundRequestReview(null);

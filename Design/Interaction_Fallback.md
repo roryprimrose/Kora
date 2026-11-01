@@ -246,6 +246,8 @@ The complete bounded capture and provenance are inert native text. **Accept revi
 **Submit answer** independently records the canonical answer once through current question admission. Save draft is unavailable while this clipboard candidate is retained ([native state](../src/Kora/NativeQuestionViewModel.cs)).
 
 The whole source must satisfy strict Unicode, credential and question bounds; there is no truncation, silent reread, polling, automatic answer, command fallback or clipboard archive. Manual editing cancels review rather than overwriting typing.
+Native keyboard replacement records the new answer before publishing clipboard retirement, preserving exact text, caret and ordinary Undo/Redo while the original question remains unanswered. Editing an accepted snapshot becomes an ordinary manual draft; only a separate Submit records the edited answer.
+Clipboard acceptance and retirement publish status only for the exact draft they describe. A newer edit admitted by synchronous presentation callbacks retains its own validation status, including the complete over-limit text and Invalid answer warning.
 Cancellation, changed question/revision, expiry, revoked grant or private/owner/input/call loss retires the candidate and fences late callbacks ([behavioral tests](../tests/Kora.Windows.IntegrationTests/QuestionClipboardAnswerTests.cs)).
 
 Draft acceptance and submission convey no action approval, authentication, source-copy permission or hosted transmission consent. The original task resumes only through its existing independently revalidated continuation; physical-send review remains separate.

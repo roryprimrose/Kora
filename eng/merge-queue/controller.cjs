@@ -1,5 +1,5 @@
 const { randomUUID } = require('node:crypto');
-const { CHECKS, GATE, JOBS, MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS, invariant, validateState,
+const { CHECKS, GATE, MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS, invariant, validateState,
   ready, readinessIssue, priority, matchingRuns, requiredJobsState, terminalJobs } = require('./policy.cjs');
 
 const MAX_CANDIDATES = 10;
@@ -106,7 +106,16 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
       'Duplicate candidate job identities; refusing partial or repeated pagination.');
     return jobs;
   }
-  async function quiescent(active, runs, observedJobs) {
+  const inventories = new Map();
+  async function expectedInventory(active, run) {
+    if (run.head_sha !== active.base) {
+      api.notice('Candidate workflow source differs from its reservation; physical quiescence is unknown.');
+      return null;
+    }
+    if (!inventories.has(active.base)) inventories.set(active.base, await api.expectedJobs(active.base));
+    return inventories.get(active.base);
+  }
+  async function quiescent(active, runs, observed) {
     for (const run of runs.filter(run => run.status !== 'completed')) {
       api.info(`PR #${active.number}: requesting cancellation of matching run ${run.id} (${run.status}).`);
       await api.cancel(run.id);
@@ -124,9 +133,10 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
     }
     let terminal = true;
     for (const run of runs) {
-      const jobs = observedJobs ?? await observeJobs(run);
-      if (!terminalJobs(jobs)) {
-        api.info(`PR #${active.number}: run ${run.id} is completed but job metadata is incomplete; requesting cancellation and retaining the lane.`);
+      const jobs = observed?.runId === run.id ? observed.jobs : await observeJobs(run);
+      const expected = observed?.runId === run.id ? observed.expected : await expectedInventory(active, run);
+      if (!terminalJobs(jobs, expected)) {
+        api.info(`PR #${active.number}: run ${run.id} is completed but workflow inventory or job metadata is incomplete; requesting cancellation and retaining the lane.`);
         await api.cancel(run.id);
         terminal = false;
       }
@@ -217,27 +227,31 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
       return 'validating';
     }
     const jobs = await observeJobs(run);
-    for (const name of JOBS) {
+    const expected = await expectedInventory(active, run);
+    const observed = { runId: run.id, jobs, expected };
+    for (const name of expected ?? []) {
       const matches = jobs.filter(job => job.name === name);
       api.info(`Run ${run.id}: required job "${name}"; ${matches.length} match(es); conclusion(s): ${matches.map(job => job.conclusion ?? 'pending').join(', ') || 'missing'}.`);
     }
-    const jobState = requiredJobsState(jobs);
-    if (run.conclusion !== 'success' || jobState === 'failure') {
-      const terminal = await quiescent(active, runs, jobs);
-      await block(active, 'Candidate validation failed, was cancelled, or duplicated a required job.', !terminal);
+    const jobState = requiredJobsState(jobs, expected);
+    if (expected === null || run.conclusion !== 'success' || jobState === 'failure') {
+      const terminal = await quiescent(active, runs, observed);
+      await block(active, expected === null
+        ? 'Candidate workflow inventory is unknown. Validation is not merge evidence; uncertain work retains the lane.'
+        : 'Candidate validation failed, was cancelled, or duplicated a required job.', !terminal);
       return terminal ? 'blocked' : 'retiring';
     }
     if (active.jobObservationStarted !== undefined) {
       const elapsed = now - Date.parse(active.jobObservationStarted);
       invariant(elapsed >= 0, 'Required-job observation clock moved before the recorded observation.');
       if (elapsed >= JOB_OBSERVATION_MS) {
-        const terminal = await quiescent(active, runs, jobs);
+        const terminal = await quiescent(active, runs, observed);
         await block(active,
           'Required-job metadata was not confirmed within ten minutes. Validation is not merge evidence; uncertain work retains the lane.', !terminal);
         return terminal ? 'blocked' : 'retiring';
       }
     }
-    if (jobState === 'pending' || !terminalJobs(jobs)) {
+    if (jobState === 'pending' || !terminalJobs(jobs, expected)) {
       if (MERGE_PHASES.includes(active.phase)) {
         return unconfirmedMerge(active,
           'Merge outcome is unconfirmed and required-job metadata is incomplete. The lane remains held; no automatic merge retry.');

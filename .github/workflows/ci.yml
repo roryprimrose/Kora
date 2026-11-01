@@ -1,4 +1,5 @@
 name: CI
+# merge-queue-job-schema: windows-12-v1
 run-name: "${{ inputs.queue_ticket && format('Merge queue PR #{0} [{1}]', inputs.queue_pr, inputs.queue_ticket) || format('CI {0}', github.ref_name) }}"
 
 on:

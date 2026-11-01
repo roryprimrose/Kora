@@ -9,6 +9,25 @@ const JOBS = Object.freeze([
   ...['storage-heavy', 'storage-other', 'ui-definitions', 'native-ux', 'ui-platform']
     .map(shard => `Windows integration shard (${shard})`),
 ]);
+const SPLIT_JOBS = Object.freeze([...JOBS,
+  'Portable build, tests, and coverage', 'Publish and inspect exact-source payloads',
+]);
+const WINDOWS_12_JOBS = Object.freeze([...SPLIT_JOBS, 'Build exact-source Windows test modules',
+  ...['storage-heavy', 'storage-other', 'ui-definitions', 'ui-definition-dialogs', 'ui-conversations',
+    'ui-conversation-core', 'ui-conversation-actions', 'native-ux', 'ui-platform', 'ui-editors',
+    'ui-workflows', 'ui-presentation'].map(partition => `Windows test partition (${partition})`),
+]);
+// Unversioned workflows are recognized only by their exact trusted Contents API blob identity.
+const PREDECESSOR_WORKFLOWS = Object.freeze({
+  '854e26b112e57ff003daedb0c6a2183e7355ff54': JOBS,
+  'd7d28f15a59261722b8a87e57a41966aff87fd29': JOBS,
+  'a9c7e87106cdef9398fb508a1181927d95819e72': JOBS,
+  '65f091f1585b5a25c9c6e325f3a97e025e24bafb': JOBS,
+  '033686e2be70445f8801b93ad034efda176edc8f': JOBS,
+  '9f19d4298cde21e313481cec9042138d6378b7ba': JOBS,
+  'd8bfcc6eceeb3b68bf993c94ee0139d58cf15a8c': SPLIT_JOBS,
+  '86656bbb4151eac2f50bb4cd532f83d5667e3bba': WINDOWS_12_JOBS,
+});
 const STATE_BRANCH = 'automation/merge-queue-state';
 const SHA = /^[0-9a-f]{40}$/;
 const TICKET = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -124,8 +143,18 @@ function jobOutcome(job) {
   return job.conclusion === 'success' ? 'success' : 'failure';
 }
 
-function requiredJobsState(jobs) {
-  const outcomes = JOBS.map(name => {
+function workflowJobs(source, blob) {
+  const markers = source.replaceAll('\r\n', '\n').split('\n')
+    .filter(line => line.includes('merge-queue-job-schema:'));
+  if (markers.length !== 0)
+    return markers.length === 1 && markers[0] === '# merge-queue-job-schema: windows-12-v1'
+      ? WINDOWS_12_JOBS : null;
+  return Object.hasOwn(PREDECESSOR_WORKFLOWS, blob) ? PREDECESSOR_WORKFLOWS[blob] : null;
+}
+
+function requiredJobsState(jobs, expected = JOBS) {
+  if (!Array.isArray(expected) || expected.length === 0) return 'pending';
+  const outcomes = expected.map(name => {
     const matches = jobs.filter(job => job.name === name);
     if (matches.length > 1) return 'failure';
     return matches.length === 0 ? 'pending' : jobOutcome(matches[0]);
@@ -133,15 +162,17 @@ function requiredJobsState(jobs) {
   return outcomes.includes('failure') ? 'failure' : outcomes.includes('pending') ? 'pending' : 'success';
 }
 
-function terminalJobs(jobs) {
-  return JOBS.every(name => jobs.filter(job => job.name === name).length === 1)
+function terminalJobs(jobs, expected = JOBS) {
+  return Array.isArray(expected) && expected.length > 0
+    && expected.every(name => jobs.filter(job => job.name === name).length === 1)
     && jobs.every(job => jobOutcome(job) !== 'pending');
 }
 
-function successfulJobs(jobs) {
-  return requiredJobsState(jobs) === 'success';
+function successfulJobs(jobs, expected = JOBS) {
+  return requiredJobsState(jobs, expected) === 'success';
 }
 
-module.exports = { CHECKS, GATE, JOBS, STATE_BRANCH, SHA, TICKET, MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS,
+module.exports = { CHECKS, GATE, JOBS, SPLIT_JOBS, WINDOWS_12_JOBS, PREDECESSOR_WORKFLOWS, workflowJobs,
+  STATE_BRANCH, SHA, TICKET, MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS,
   invariant, mode, execution,
   validateState, ready, readinessIssue, priority, title, matchingRuns, requiredJobsState, terminalJobs, successfulJobs };

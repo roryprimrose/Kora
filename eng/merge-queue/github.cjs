@@ -1,4 +1,5 @@
-const { CHECKS, GATE, STATE_BRANCH, SHA, TICKET, invariant, validateState, title } = require('./policy.cjs');
+const { createHash } = require('node:crypto');
+const { CHECKS, GATE, STATE_BRANCH, SHA, TICKET, invariant, validateState, title, workflowJobs } = require('./policy.cjs');
 
 const FILE = 'queue.json';
 const WORKFLOW = 'ci.yml';
@@ -134,6 +135,33 @@ class GitHubQueue {
     });
     invariant(Array.isArray(jobs) && jobs.length === expected, 'Incomplete candidate job pagination.');
     return jobs;
+  }
+  async expectedJobs(source) {
+    invariant(SHA.test(source), 'Unknown candidate workflow source.');
+    let data;
+    try {
+      ({ data } = await this.github.rest.repos.getContent({ ...this.repo,
+        ref: source, path: `.github/workflows/${WORKFLOW}` }));
+    } catch (error) {
+      if (error.status !== 404) throw error;
+      this.notice('Candidate workflow source is unavailable; physical quiescence is unknown.');
+      return null;
+    }
+    if (data?.type !== 'file' || data.encoding !== 'base64' || !SHA.test(data.sha)
+      || typeof data.content !== 'string' || data.content.length === 0) {
+      this.notice('Candidate workflow source metadata is incomplete; physical quiescence is unknown.');
+      return null;
+    }
+    const bytes = Buffer.from(data.content, 'base64');
+    const blob = createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
+    if (blob !== data.sha) {
+      this.notice('Candidate workflow source bytes do not match its blob; physical quiescence is unknown.');
+      return null;
+    }
+    const expected = workflowJobs(bytes.toString('utf8'), data.sha);
+    if (expected === null)
+      this.notice('Candidate workflow job schema is unknown; physical quiescence is unknown.');
+    return expected;
   }
   async cancel(runId) {
     try {

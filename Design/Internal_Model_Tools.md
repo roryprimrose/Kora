@@ -79,6 +79,8 @@ continuation, hosted disclosure or runtime qualification is implied.
 
 ### Bounded provider-neutral continuation implementation - 2026-10-20
 
+The existing explicit local clarification-only operation additionally accepts a [bounded typed form](Interaction_And_Sessions.md#delivered-bounded-local-clarification-forms---2026-10-30) through `ask_user`, using request schema 4. No tool ID, provider or observation capability is added. Only `prompt` and a finite closed `fields` array are accepted for this variant; original-user answers remain lower-trust data. Claude, ordinary requests and read-only clarification retain their existing schemas ([form protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Forms.cs)).
+
 The separately approved [explicit hosted clarification](Interaction_And_Sessions.md#explicit-hosted-conversational-clarification---2026-10-29) reuses the question/answer protocol only in host-selected `HostedClarification` mode with Claude.
 It advertises `ask_user` alone, not the observation catalogue or a generic hosted tool. Both answer-bearing physical POSTs need fresh native consent; ordinary hosted text and local schema/mode behavior remain unchanged ([guard](../src/Kora.Core/Dependencies/ModelToolProtocol.Questions.cs), [translation](../src/Kora.Windows/Dependencies/ClaudeObservationWire.cs)).
 

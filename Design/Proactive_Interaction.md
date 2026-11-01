@@ -117,6 +117,9 @@ After reviewing one exact ordinary conversation question notice, the deliberate 
 **Answer exact question** gesture activates only its existing canonical presenter.
 The host revalidates the held event revision, question/session/generation, audited source,
 original expiry, current run, original input and native lifetime before focus.
+Current-source validation uses the shared clarification policy and exact schema
+comparison, preserving original choice identities and optional/multiple-selection
+bounds without changing provider-gated form admission.
 It does not create a question, restore a closed presenter or start listening
 ([native owner](../src/Kora/QuestionWindowController.Conversation.cs),
 [durable validation](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.QuestionFocus.cs)).

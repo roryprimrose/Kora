@@ -394,6 +394,7 @@ public sealed partial class ModelTurnHostTests
 
     private sealed class McpModelTransport : IModelToolTransport
     {
+        internal string Arguments { get; init; } = """{"query":"reference"}""";
         internal bool NoTool { get; init; }
         internal string? Fault { get; set; }
         internal List<ModelToolRequest> Requests { get; } = [];
@@ -402,10 +403,18 @@ public sealed partial class ModelTurnHostTests
             request.Context.ToolMode.Should().Be(ModelToolMode.McpReadOnly);
             request.Provenance.Selection.Provider.Should().Be(ModelProviderIdentity.Ollama);
             Requests.Add(request);
+            if (Fault is "cancelled" && Requests.Count == 2)
+            { return Task.FromResult(new ModelToolTransportReply(ModelTurnOutcome.Cancelled, request.Provenance, null)); }
             ModelAssistantMessage message = ModelToolProtocol.ParseAssistant(Encoding.UTF8.GetBytes(Requests.Count == 1 && !NoTool
-                ? """{"kind":"toolCalls","calls":[{"callId":"read_1","capabilityId":"mcp.search","input":{"query":"reference"}}]}"""
+                ? "{\"kind\":\"toolCalls\",\"calls\":[{\"callId\":\"read_1\",\"capabilityId\":\"mcp.search\",\"input\":" + Arguments + "}]}"
                 : """{"kind":"answer","answer":"The reviewed MCP reference says value 42."}"""), mcpTool: request.Context.McpTool);
             const string permissive = """{"type":"object","additionalProperties":false,"properties":{"query":{"type":"string","maxLength":32},"undeclared":{"type":"boolean"}},"required":[]}""";
+            if (Fault is "different-arguments")
+            {
+                message = ModelToolProtocol.ParseAssistant(
+                    """{"kind":"toolCalls","calls":[{"callId":"read_1","capabilityId":"mcp.search","input":{"query":"changed"}}]}"""u8,
+                    mcpTool: request.Context.McpTool);
+            }
             if (Fault is "wrong-tool")
             {
                 message = ModelToolProtocol.ParseAssistant(
@@ -428,12 +437,17 @@ public sealed partial class ModelTurnHostTests
     private sealed class McpBroker(McpAccountReference account) : IMcpConnectionBroker, IMcpConnection
     {
         internal string? Fault { get; set; }
-        internal Action<string>? AfterExchange { get; init; }
+        internal Action<string>? AfterExchange { get; set; }
         internal TaskCompletionSource<ImmutableArray<byte>>? PendingCall { get; init; }
         internal TaskCompletionSource? EnteredCall { get; init; }
+        internal TaskCompletionSource? PendingDispose { get; init; }
+        internal TaskCompletionSource? EnteredDispose { get; init; }
         internal List<string> Methods { get; } = [];
+        internal string? InvocationArguments { get; private set; }
+        internal int Notifications { get; private set; }
         internal bool Connected { get; private set; }
         internal bool Disposed { get; private set; }
+        internal int DisposeCalls { get; private set; }
         internal Action? AfterDispose { get; set; }
         public McpAccountReference Account => Fault is "account-swap"
             ? new(Guid.NewGuid(), new(1), Guid.NewGuid(), account.Destination) : account;
@@ -455,13 +469,18 @@ public sealed partial class ModelTurnHostTests
         public Task NotifyAsync(ImmutableArray<byte> notification, CancellationToken token)
         {
             Encoding.UTF8.GetString(notification.AsSpan()).Should().Contain("notifications/initialized");
+            Notifications++;
             return Task.CompletedTask;
         }
         public Task<ImmutableArray<byte>> ExchangeAsync(ImmutableArray<byte> request, int maximumResponseBytes, CancellationToken token)
         {
             string method;
             using (var document = System.Text.Json.JsonDocument.Parse(request.AsMemory()))
-            { method = document.RootElement.GetProperty("method").GetString()!; }
+            {
+                method = document.RootElement.GetProperty("method").GetString()!;
+                if (method is "tools/call")
+                { InvocationArguments = document.RootElement.GetProperty("params").GetProperty("arguments").GetRawText(); }
+            }
             Methods.Add(method);
             if (method is "tools/call" && PendingCall is { } pending)
             {
@@ -484,7 +503,14 @@ public sealed partial class ModelTurnHostTests
             AfterExchange?.Invoke(method);
             return Task.FromResult(ImmutableArray.CreateRange(Encoding.UTF8.GetBytes(response)));
         }
-        public ValueTask DisposeAsync() { Disposed = true; AfterDispose?.Invoke(); return ValueTask.CompletedTask; }
+        public async ValueTask DisposeAsync()
+        {
+            DisposeCalls++;
+            EnteredDispose?.TrySetResult();
+            if (PendingDispose is { } pending) { await pending.Task; }
+            Disposed = true;
+            AfterDispose?.Invoke();
+        }
     }
 
     private sealed class McpApprovals(Fixture f) : IHostInteractionStore

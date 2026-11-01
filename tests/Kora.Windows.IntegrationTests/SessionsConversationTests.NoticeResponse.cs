@@ -115,7 +115,26 @@ public sealed partial class SessionsConversationTests
                 owner.Activate();
                 model.CanRefreshWork.Should().BeTrue("the original task's wait must not block notice observation");
                 var navigation = model.CaptureNavigationEligibility();
-                await model.RefreshWorkAsync();
+                var observed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                void NoticeObserved(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+                {
+                    if (model.LocalEvents.Any(item => item.Event.Source == LocalEventSource.ConversationQuestion
+                        && item.Event.SessionId == canonical.Key.Request.SessionId
+                        && item.Event.TaskId == canonical.Key.Request.TaskId
+                        && item.Event.SubjectId == canonical.Key.QuestionId.Value
+                        && item.Event.SourceRevision == canonical.Key.Revision.Value))
+                    { observed.TrySetResult(); }
+                }
+                model.PropertyChanged += NoticeObserved;
+                try
+                {
+                    await model.RefreshWorkAsync();
+                    // A passive refresh may already own observation; its task is not joined by another refresh call.
+                    NoticeObserved(null, new(null));
+                    await Task.WhenAny(observed.Task, operation).WaitAsync(f.Token);
+                    observed.Task.IsCompletedSuccessfully.Should().BeTrue(model.ConversationStatus);
+                }
+                finally { model.PropertyChanged -= NoticeObserved; }
                 model.LocalEvents.Should().ContainSingle(model.LocalEventStatus + " | " + model.WorkStatus
                     + " | " + model.ConversationStatus + " | navigation current: " + navigation());
                 var notice = model.LocalEvents.Single();

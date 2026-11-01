@@ -133,6 +133,7 @@ internal sealed partial class SessionsViewModel
         // New observations never silently renew an inspected cancellation target.
         inspectedTask = null;
         NotifyWork();
+        NotifyConversation();
     }
 
     private void NotifyWork()

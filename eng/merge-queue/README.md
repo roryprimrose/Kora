@@ -332,6 +332,60 @@ runner latency. Same-run handoff removes one startup, not the much larger cost
 of long-running validation and failed attempts. Main release builds remain
 independent and may overlap candidates; their execution is not an idle queue gap.
 
+On 31 October 2026, 12:39-21:39 UTC, 17 completed candidates produced three
+merges and 14 cancellations. Twelve cancelled candidates had a confirmed
+30-minute UI job timeout; cancelled runs consumed 413 minutes. This is failed
+validation occupancy, not a controller handoff delay.
+
+The Windows workflow builds exact-source test modules once, then scales out
+to twelve independent standard Windows hosted test jobs. Consumer jobs perform
+no restore or compilation; artifact revision/file hashes bind their binaries to
+the admitted source. Native-UX alone retains buffering; other jobs are synchronous.
+Theory rows stay together, and legacy logical ownership/`HostedShard` bootstrap
+assignments remain available while trusted main still uses predecessor scheduling.
+The original five Windows job names are lightweight fail-closed aggregates,
+not additional test runners. They join the producer and all twelve consumers.
+The protected Windows aggregate validates twelve reports against complete
+unfiltered source discovery, including exact method and theory-case identities.
+The portable required check joins
+independent test/coverage and exact-source payload producers. The installer can
+start after payload verification while portable tests continue; release still
+requires every existing protected check. The portable aggregate requires both
+producers to succeed; admission job identities stay compatible with predecessor
+workflows so completed runs can still retire during rollout. No test category
+is deferred.
+See the [development checks](../../CONTRIBUTING.md#development-checks) for
+partition discovery, execution-evidence checks and measured timing projections;
+shared-runner timing is not guaranteed by those projections.
+
+[The initial repair candidate](https://github.com/roryprimrose/Kora/actions/runs/41255145262)
+still exhausted definitions' 30-minute job budget. Portable, installer and four
+other Windows jobs succeeded, but only 842 of 857 conversation cases were
+recorded before cancellation. The subsequent finer partition retains all
+unfinished methods and all protected gates. Partial passing TRX counters do
+not establish a complete candidate pass or justify bypassing admission.
+[The nine-process same-runner candidate](https://github.com/roryprimrose/Kora/actions/runs/41288388916)
+also exhausted both UI jobs. The next repair distributes those same partitions
+across four synchronous hosted runners, consuming spare storage-job capacity
+without adding check identities or changing the trusted-main CI matrix. Timing
+regressions sum serial UI work on each host rather than treating extra processes
+as extra CPU capacity. This remains a scheduling repair, not hosted pass proof.
+[The cross-host candidate](https://github.com/roryprimrose/Kora/actions/runs/41292927647)
+completed definitions and platform but timed out storage-hosted conversation
+work. Controlled-clock repairs address isolated approval stalls; the twelve-job
+pipeline scales out further rather than requesting bigger runners. Its new
+workflow orchestration becomes active only after integration because candidate
+dispatch uses trusted main. Keep all existing `JOBS` names compatible with old
+runs; producer/consumer completeness is enforced through those aggregates,
+not by adding new required names that strand predecessor retirement.
+The 12-15 minute end-to-end target remains unverified until complete hosted
+results include build, transfer, runner scheduling and slowest-partition time.
+Local repair validation also exposed approval scenarios mixing fixed domain
+time with wall-clock cancellation or queue expiry. Those deterministic fixtures
+now share their clock, and lifecycle review cancellation uses the controller's
+injected clock with the same one-minute production budget. The default fixture
+and production clocks remain system time; no gate or job deadline is extended.
+
 Controller workflow success means reconciliation completed, not that a PR
 merged. Inspect its `Merge queue:` outcome and the durable active/blocked state.
 Conflicts still require a contributor repair; the controller does not resolve

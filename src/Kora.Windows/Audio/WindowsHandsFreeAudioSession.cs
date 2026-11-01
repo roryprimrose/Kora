@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+
 using Kora.Core.Voice;
 
 namespace Kora.Windows.Audio;
@@ -11,6 +12,7 @@ internal sealed class WindowsHandsFreeAudioSession : IHandsFreeAudioSession
     private readonly IHandsFreeCommandEndpoint endpoint;
     private readonly IAsyncDisposable assets;
     private readonly Func<BlockingAudioStream, Task<IActivatedCapture>> openCommand;
+    private readonly HandsFreeSetupRuntime.CaptureOwnership? ownership;
     private readonly Lock processing = new();
     private readonly Lock lifetime = new();
     private readonly WakeAudioBuffer ring = new(16000);
@@ -32,7 +34,8 @@ internal sealed class WindowsHandsFreeAudioSession : IHandsFreeAudioSession
 
     public WindowsHandsFreeAudioSession(HandsFreeAudioBinding binding, IHandsFreeMicrophone microphone,
         IHandsFreeKeywordDetector detector, IHandsFreeCommandEndpoint endpoint, IAsyncDisposable assets,
-        Func<BlockingAudioStream, Task<IActivatedCapture>> openCommand)
+        Func<BlockingAudioStream, Task<IActivatedCapture>> openCommand,
+        HandsFreeSetupRuntime.CaptureOwnership? ownership = null)
     {
         this.binding = binding;
         this.microphone = microphone;
@@ -40,6 +43,7 @@ internal sealed class WindowsHandsFreeAudioSession : IHandsFreeAudioSession
         this.endpoint = endpoint;
         this.assets = assets;
         this.openCommand = openCommand;
+        this.ownership = ownership;
         microphone.Samples += OnSamples;
         microphone.Failed += OnMicrophoneFailed;
     }
@@ -196,7 +200,21 @@ internal sealed class WindowsHandsFreeAudioSession : IHandsFreeAudioSession
 
     public ValueTask DisposeAsync()
     {
-        lock (lifetime) { return new(release ??= ReleaseAsync()); }
+        lock (lifetime) { return new(release ??= ReleaseOwnedAsync()); }
+    }
+
+    private async Task ReleaseOwnedAsync()
+    {
+        try
+        {
+            await ReleaseAsync().ConfigureAwait(false);
+            if (ownership is not null) { await ownership.DisposeAsync().ConfigureAwait(false); }
+        }
+        catch
+        {
+            ownership?.Fail();
+            throw;
+        }
     }
 
     private async Task ReleaseAsync()

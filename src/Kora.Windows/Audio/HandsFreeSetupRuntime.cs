@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Diagnostics.CodeAnalysis;
+
 using Kora.Core.Dependencies;
 using Kora.Windows.Dependencies;
 
@@ -10,6 +11,10 @@ public sealed class HandsFreeSetupRuntime : ISpeechComponentRuntime, IAsyncDispo
 {
     private readonly Lock ownership = new();
     private OwnershipLease? currentOwner;
+    private CaptureOwnership? captureOwner;
+    private bool mutationRequested;
+    private long consumerRevision;
+    private bool captureHeld;
     private bool disposed;
     private readonly SpeechComponentDefinition component;
     private readonly HandsFreeNativeProfile profile;
@@ -17,7 +22,8 @@ public sealed class HandsFreeSetupRuntime : ISpeechComponentRuntime, IAsyncDispo
 
     public HandsFreeSetupRuntime(ISpeechComponentFiles files)
         : this(HandsFreeSetupCatalogue.Component, HandsFreeNativeProfileCatalogue.CreatePreparedProfile(files),
-            OperatingSystem.IsWindows() && RuntimeInformation.ProcessArchitecture == Architecture.X64) { }
+            OperatingSystem.IsWindows() && RuntimeInformation.ProcessArchitecture == Architecture.X64)
+    { }
 
     internal HandsFreeSetupRuntime(SpeechComponentDefinition component, HandsFreeNativeProfile profile, bool compatible)
     {
@@ -28,17 +34,42 @@ public sealed class HandsFreeSetupRuntime : ISpeechComponentRuntime, IAsyncDispo
 
     internal IReadOnlyList<HandsFreeNativeProfile> Profiles => [profile];
     internal bool IsPlatformCompatible => compatible;
+    internal bool IsCaptureHeld { get { lock (ownership) { return captureHeld; } } }
     internal const string CaptureUnavailable = "Hands-free capture is Unavailable: name, playback and acoustic qualification is missing. "
         + "Use PTT, typed or native controls; preparation grants no capture/inference authority.";
 
     public SpeechComponentRuntimeObservation Observe(SpeechComponentDefinition component)
     {
         RequireIdentity(component);
-        return new(compatible ? SpeechComponentCompatibility.Compatible : SpeechComponentCompatibility.Incompatible,
-            SpeechComponentFunctionalEvidence.NotChecked,
-            "Windows x64 CPU only. Native/data binding is NotChecked. Review Verify; for corrupt owned data, Remove then Prepare. "
-            + "Preserve unknown/shared data. A bundled-native mismatch needs application repair, not another model download. "
-            + CaptureUnavailable);
+        var nativeIdentity = compatible ? profile.ObserveNativeIdentity() : null;
+        lock (ownership)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            return new(compatible ? SpeechComponentCompatibility.Compatible : SpeechComponentCompatibility.Incompatible,
+                SpeechComponentFunctionalEvidence.NotChecked,
+                "Windows x64 CPU only. Native/data binding is NotChecked. Review Verify; for corrupt owned data, Remove then Prepare. "
+                + "Preserve unknown/shared data. A bundled-native mismatch needs application repair, not another model download. "
+                + CaptureUnavailable)
+            {
+                NativeIdentity = nativeIdentity,
+                ConsumerRevision = consumerRevision,
+                ActiveConsumers = captureOwner is null ? 0 : 1,
+                ConsumersKnown = captureOwner?.Unconfirmed != true,
+                Dependents = captureOwner is null ? "None; no loaded model or capture uses these data."
+                    : "This profile's owned hands-free open/capture, command transcription and model resources.",
+            };
+        }
+    }
+
+    public void HoldUnavailable(SpeechComponentDefinition component)
+    {
+        RequireIdentity(component);
+        lock (ownership)
+        {
+            if (currentOwner is null || captureOwner is not null)
+            { throw new InvalidOperationException("Holding speech assets unavailable requires exclusive joined ownership."); }
+            captureHeld = true;
+        }
     }
 
     public async ValueTask<SpeechComponentMutationAdmission> TryAcquireExclusiveAsync(
@@ -46,19 +77,43 @@ public sealed class HandsFreeSetupRuntime : ISpeechComponentRuntime, IAsyncDispo
     {
         RequireIdentity(component);
         if (!compatible) { return new(SpeechComponentMutationState.Unavailable); }
-        var lease = await TryAcquireOwnershipAsync(cancellationToken).ConfigureAwait(false);
-        return lease is null ? new(SpeechComponentMutationState.Busy) : new(SpeechComponentMutationState.Acquired, lease);
+        cancellationToken.ThrowIfCancellationRequested();
+        CaptureOwnership? consumer;
+        lock (ownership)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (mutationRequested || currentOwner is not null) { return new(SpeechComponentMutationState.Busy); }
+            mutationRequested = true;
+            consumer = captureOwner;
+        }
+        try
+        {
+            if (consumer is not null) { await consumer.RetireAsync().ConfigureAwait(false); }
+            cancellationToken.ThrowIfCancellationRequested();
+            lock (ownership)
+            {
+                ObjectDisposedException.ThrowIf(disposed, this);
+                currentOwner = new(this);
+                return new(SpeechComponentMutationState.Acquired, currentOwner);
+            }
+        }
+        finally
+        {
+            lock (ownership) { mutationRequested = false; }
+        }
     }
 
-    internal ValueTask<IAsyncDisposable?> TryAcquireOwnershipAsync(CancellationToken cancellationToken)
+    internal ValueTask<CaptureOwnership?> TryAcquireOwnershipAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         lock (ownership)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
-            if (currentOwner is not null) { return ValueTask.FromResult<IAsyncDisposable?>(null); }
-            currentOwner = new(this);
-            return ValueTask.FromResult<IAsyncDisposable?>(currentOwner);
+            if (captureHeld || mutationRequested || currentOwner is not null || captureOwner is not null)
+            { return ValueTask.FromResult<CaptureOwnership?>(null); }
+            consumerRevision = checked(consumerRevision + 1);
+            captureOwner = new(this);
+            return ValueTask.FromResult<CaptureOwnership?>(captureOwner);
         }
     }
 
@@ -96,7 +151,86 @@ public sealed class HandsFreeSetupRuntime : ISpeechComponentRuntime, IAsyncDispo
         lock (ownership)
         {
             disposed = true;
+            if (captureOwner is { } capture) { return new(capture.RetireAsync()); }
             return currentOwner is { } owner ? new(owner.Joined.Task) : ValueTask.CompletedTask;
+        }
+    }
+
+    internal sealed class CaptureOwnership : IAsyncDisposable
+    {
+        private readonly HandsFreeSetupRuntime runtime;
+        private readonly CancellationTokenSource retirement = new();
+        private readonly TaskCompletionSource joined = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private Func<Task>? retireConsumer;
+        private bool retired;
+        private bool unconfirmed;
+        internal bool Unconfirmed => Volatile.Read(ref unconfirmed);
+        private Task? retiring;
+        private readonly CancellationToken token;
+        internal CaptureOwnership(HandsFreeSetupRuntime runtime)
+        {
+            this.runtime = runtime;
+            token = retirement.Token;
+        }
+        internal CancellationToken Token => token;
+
+        internal bool Attach(Func<Task> retire)
+        {
+            lock (runtime.ownership)
+            {
+                if (retired) { return false; }
+                retireConsumer = retire;
+                return true;
+            }
+        }
+
+        internal Task RetireAsync()
+        {
+            lock (runtime.ownership) { return retiring ??= RetireCoreAsync(); }
+        }
+
+        [SuppressMessage("Usage", "VSTHRD003:Avoid awaiting foreign Tasks",
+            Justification = "Removal must join the exact owned capture/open task, even when cancellation is ignored.")]
+        private async Task RetireCoreAsync()
+        {
+            Func<Task>? retire;
+            Task cancellation;
+            lock (runtime.ownership)
+            {
+                retired = true;
+                retire = retireConsumer;
+                cancellation = joined.Task.IsCompleted ? Task.CompletedTask : retirement.CancelAsync();
+            }
+            await cancellation.ConfigureAwait(false);
+            if (retire is not null) { await retire().ConfigureAwait(false); }
+            await joined.Task.ConfigureAwait(false);
+            if (Unconfirmed)
+            { throw new InvalidOperationException("Owned speech resources did not confirm quiescence. Assets remain held Unavailable."); }
+            retirement.Dispose();
+        }
+
+        internal void Fail()
+        {
+            lock (runtime.ownership)
+            {
+                retired = true;
+                unconfirmed = true;
+                joined.TrySetResult();
+            }
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            lock (runtime.ownership)
+            {
+                if (!joined.Task.IsCompleted)
+                {
+                    runtime.captureOwner = null;
+                    joined.SetResult();
+                    if (!retired) { retirement.Dispose(); }
+                }
+            }
+            return ValueTask.CompletedTask;
         }
     }
 

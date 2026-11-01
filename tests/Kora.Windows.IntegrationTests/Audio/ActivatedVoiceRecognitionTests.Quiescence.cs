@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+using System.Threading.Channels;
 
 using AwesomeAssertions;
 
@@ -65,6 +65,7 @@ public sealed partial class ActivatedVoiceRecognitionTests
                 service.IsCaptureQuiescent.Should().BeTrue("resource-free cleanup must not revoke a completed stop receipt");
             };
             lateAudio();
+            (await cleanup.WaitForCallbackAsync(TestContext.Current.CancellationToken)).Should().BeTrue();
             cleanup.RunNext();
             cleanup.Count.Should().Be(0);
             lateTranscript();
@@ -85,12 +86,15 @@ public sealed partial class ActivatedVoiceRecognitionTests
 
     private sealed class DeferredCleanupContext : SynchronizationContext
     {
-        private readonly ConcurrentQueue<(SendOrPostCallback Callback, object? State)> callbacks = new();
-        public int Count => callbacks.Count;
-        public override void Post(SendOrPostCallback d, object? state) => callbacks.Enqueue((d, state));
+        private readonly Channel<(SendOrPostCallback Callback, object? State)> callbacks =
+            Channel.CreateUnbounded<(SendOrPostCallback Callback, object? State)>();
+        public int Count => callbacks.Reader.Count;
+        public override void Post(SendOrPostCallback d, object? state) =>
+            callbacks.Writer.TryWrite((d, state)).Should().BeTrue();
+        public ValueTask<bool> WaitForCallbackAsync(CancellationToken token) => callbacks.Reader.WaitToReadAsync(token);
         public void RunNext()
         {
-            callbacks.TryDequeue(out var next).Should().BeTrue();
+            callbacks.Reader.TryRead(out var next).Should().BeTrue();
             next.Callback(next.State);
         }
     }

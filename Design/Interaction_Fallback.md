@@ -237,7 +237,7 @@ Passwords/tokens remain in secure authentication flows, never model-visible prom
 
 ### Delivered ordinary clarification clipboard answer
 
-The native [question window](../src/Kora/QuestionWindow.axaml) offers **Use clipboard as my answer** only for the existing ordinary conversation Text clarification purpose/source, without an operation proposal. Choice, action approval, authentication, permission, consent, security and unknown-purpose questions have no shortcut ([allowlist and owner](../src/Kora/QuestionClipboardAnswer.cs)).
+The native [question window](../src/Kora/QuestionWindow.axaml) offers **Use clipboard as my answer** only for the existing ordinary conversation Text clarification purpose/source, without an operation proposal. Single-choice, multiple-choice and Form questions retain their typed controls and explicit canonical submission, without clipboard capture or replacement of individual fields. Action approval, authentication, permission, consent, security and unknown-purpose questions also have no shortcut ([allowlist and owner](../src/Kora/QuestionClipboardAnswer.cs)).
 
 The deliberate gesture consumes the same built-in `clipboard.read` grant and immutable snapshot broker as native preview; opening the question grants nothing.
 Permission review is a separate native child, never a replacement of the original question. The read admission remains live through review, draft acceptance and independent Submit ([read workflow](../src/Kora.Application/Context/ClipboardReadWorkflow.cs)).

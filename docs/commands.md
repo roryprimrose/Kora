@@ -1940,6 +1940,12 @@ Instruction/Prompt kind selection. `list`, `create <id>`, `edit <id>`,
 `inspect <id>`, `validate`, `compare`, `rebase`, `save`, `copy <new-id>`, `reload`, `discard`, `delete`, `activate`, `disable`, `stop-use` and `cancel`
 are the exact controls after either plural kind name. Only create/edit/inspect/copy
 accept one canonical file ID; other controls target the open original.
+Instructions additionally support `instructions rename <new-id>` and
+`instructions recover-rename`. These use the same clean inspected owned source,
+complete identity/source/reference review and separate native confirmation for
+typed/current-name activated entry. No prompt/profile-original rename, overwrite
+or activation transfer is included; see
+[owned Instruction rename and recovery](instruction-editor.md#rename-one-owned-instruction).
 `instructions validate` / `prompts validate` observes the currently open same-kind supported owned draft/new draft using exact Save preparation, including BOM/native-marker overhead and observed structural/namespace checks. It never opens/switches sources, saves or enables.
 The bounded body-free result is historical structural compatibility, not harmlessness, current disk integrity or approval. Source/private/input changes retire it; Save separately revalidates and exactly confirms. No store I/O/reload, revision-preference write/hold, model/network or reference execution is added. See [draft validation](instruction-editor.md#validate-the-open-draft-without-saving).
 `instructions rebase` / `prompts rebase` explicitly observes latest for an already open supported same-kind source and reviews complete old/latest/raw bodies. Confirmation rereads the exact observed revision and adopts only that baseline in memory, preserving the raw draft; it neither merges nor saves/enables.

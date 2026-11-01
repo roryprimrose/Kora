@@ -120,6 +120,7 @@
             </WrapPanel>
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
               <StackPanel Spacing="8">
+                <local:AnswerReviewPanel />
                 <ItemsControl ItemsSource="{Binding ConversationMessages}" ItemTemplate="{StaticResource TimelineMessage}" />
                 <StackPanel IsVisible="{Binding HasProvisionalAnswer}" Spacing="4">
                   <TextBlock Text="Provisional answer — not retained; only a validated completed answer is saved."

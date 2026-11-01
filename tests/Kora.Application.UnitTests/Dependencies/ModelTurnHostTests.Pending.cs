@@ -189,7 +189,14 @@ public sealed partial class ModelTurnHostTests
                 () => true, Token).AsTask().IsCompletedSuccessfully.Should().BeTrue();
         }
         if (executing) { f.BeforeExecutionComplete = CompleteOtherRequest; }
-        else { f.BeforeSubmissionComplete = CompleteOtherRequest; }
+        else
+        {
+            f.BeforeSubmissionComplete = request =>
+            {
+                request.Should().BeSameAs(first);
+                CompleteOtherRequest();
+            };
+        }
         var expired = executing
             ? await f.CompleteConversationExecutionAsync(first,
                 new(ModelTurnOutcome.Denied, ModelTurnReason.ContextExpired, provenance), () => true, Token)

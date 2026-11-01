@@ -1735,6 +1735,12 @@ separately qualified input profile.
 - **stop reading aloud**
 - **stop the voice**
 
+Ordinary response and preview playback keep **Stop speaking** available while
+the speech provider reports active output, including after its operation returns.
+If Stop fails, is cancelled or returns with playback still active, Kora reports
+unconfirmed release rather than silence. Native and tray Stop remain available
+for recovery; no new speech or automatic replay is started before release.
+
 For a retained-answer reading, typed stop validates the original foreground
 conversation and exact playback; native **Cancel reading** is also available.
 Spoken stop uses the session and playback captured at explicit PTT activation,

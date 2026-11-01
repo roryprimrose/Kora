@@ -324,6 +324,15 @@ runner to verify the exact shape, original identity and real headless output.
   counts or an incomplete command task. Await cancellation acceptance, owned
   resource completion and the exact UI publication separately. Drain dispatcher
   work only after the operation it presents has joined.
+- An immediate dispatcher does not serialize UI-bound collection access across
+  worker continuations. Gate persistence while enqueuing native inputs, then join
+  the owning update before reading saved values or audit snapshots. Independently
+  completing operations share current response state; capture each complete
+  presentation and verify its exact receipt rather than treating the last title
+  as a durable command outcome.
+- Concurrent terminal-storage fakes must build message/task receipts from each
+  original request's retained snapshot, not mutable fixture-wide selection.
+  Force interleaving deterministically and verify both exact retained readbacks.
 - Inject one-shot observer faults atomically: cancellation acceptance and
   completion can publish the same Cancelling state concurrently. Retain the
   observer through physical join and verify the exact terminal receipt.

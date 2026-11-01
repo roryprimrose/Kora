@@ -20,4 +20,9 @@ public sealed record SpeechComponentRuntimeObservation
     public SpeechComponentCompatibility Compatibility { get; }
     public SpeechComponentFunctionalEvidence Functional { get; }
     public string Detail { get; }
+    public long ConsumerRevision { get; init; }
+    public int ActiveConsumers { get; init; }
+    public string? NativeIdentity { get; init; }
+    public bool ConsumersKnown { get; init; }
+    public string? Dependents { get; init; }
 }

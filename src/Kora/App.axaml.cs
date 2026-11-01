@@ -133,6 +133,17 @@ public sealed partial class App : Avalonia.Application
                     Services.GetRequiredService<ILogger<Kora.Application.Interaction.HostQuestionVoiceReplyService>>()));
             nativeQuestions.BindWorkspace(Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>());
             nativeQuestions.BindPrivateRevision(() => Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>().ControlRevision);
+            nativeQuestions.BindClipboardAnswers(model => new QuestionClipboardAnswer(model,
+                Services.GetRequiredService<Kora.Core.Context.IPlainTextClipboardReader>(),
+                Services.GetRequiredService<Kora.Application.Context.ClipboardExplanationAdmission>(),
+                Services.GetRequiredService<Kora.Windows.Storage.WindowsSqliteHostInteractionStore>(),
+                viewModel.CaptureLocalFilePresentationEligibility, () => viewModel.CallObservation,
+                () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision,
+                () => Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>().ControlRevision,
+                Services.GetRequiredService<TimeProvider>(),
+                Services.GetRequiredService<ILogger<Kora.Tools.Clipboard.ClipboardSnapshotBroker>>(),
+                Services.GetRequiredService<ILogger<NativeQuestionViewModel>>(),
+                new NativeDetailRenderer(Services.GetRequiredService<ILogger<NativeDetailRenderer>>())));
             questionWindow = new QuestionWindowController(viewModel,
                 nativeQuestions,
                 Services.GetRequiredService<Kora.Application.Hosting.DurableVersionQuery>(),
@@ -314,6 +325,8 @@ public sealed partial class App : Avalonia.Application
             viewModel.BindSessionCommands(Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>(),
                 Services.GetRequiredService<SessionRequestCommandService>(),
                 Services.GetRequiredService<ConversationSearchCommandService>());
+            viewModel.BindRemainingWork(Services.GetRequiredService<SessionRemainingWorkCommandService>(),
+                Services.GetRequiredService<SessionConversationService>());
             viewModel.BindSpeechSummarySuggestions(Services.GetRequiredService<SessionConversationService>(),
                 Services.GetRequiredService<TimeProvider>());
             viewModel.BindSessionProviderProfiles(Services.GetRequiredService<Kora.Application.Configuration.SessionProviderProfileConfigurationService>());

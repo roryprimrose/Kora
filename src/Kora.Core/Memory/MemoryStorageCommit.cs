@@ -6,4 +6,7 @@ public sealed record MemoryStorageCommit(
 {
     /// <summary>Host-owned unpersisted identities, including volatile tombstones, counted alongside all durable identities.</summary>
     public int VolatileIdentityCount { get; init; }
+
+    /// <summary>Exact live source to compare inside the authoritative transaction, never persisted as authority.</summary>
+    public MemoryRecord? SessionCopySource { get; init; }
 }

@@ -456,49 +456,15 @@ internal sealed partial class SessionsWindowController(
                     proposal.Request, generation, placeholder, proposal.ExpiresAt, admitted, token, proposal, address);
                 return new(receipt.Presented, receipt.Completed);
             };
-            model.McpPresenter = async (proposal, generation, review, admitted, token) =>
-            {
-                var spec = new Kora.Core.Interaction.QuestionSpec("Exact HTTPS MCP approval",
-                    Kora.Core.Interaction.QuestionKind.SingleChoice, [new("once", "Approve once")]);
-                var receipt = await questions.AskConversationAsync(window ?? (Avalonia.Controls.Window?)compact ?? interaction
-                    ?? throw new InvalidOperationException("The exact conversation window is unavailable."),
-                    proposal.Request, generation, spec, proposal.ExpiresAt, admitted, token,
-                    webProposal: proposal, mcpReview: review);
-                return new(receipt.Presented, receipt.Completed);
-            };
-            model.McpSelector = async (request, generation, expiresAt, tools, admitted, token) =>
-            {
-                var options = tools.Select((tool, index) => new Kora.Core.Interaction.QuestionOption(
-                    "tool-" + index.ToString(System.Globalization.CultureInfo.InvariantCulture), tool.Name)).ToArray();
-                var spec = new Kora.Core.Interaction.QuestionSpec("Select one discovered host-mapped read-only MCP tool. "
-                    + "Its complete schema and outgoing arguments still require separate exact review.",
-                    Kora.Core.Interaction.QuestionKind.SingleChoice, options, sourceId: "mcp-tool-selection");
-                var receipt = await questions.AskConversationAsync(window ?? (Avalonia.Controls.Window?)compact ?? interaction
-                    ?? throw new InvalidOperationException("The exact conversation window is unavailable."),
-                    request, generation, spec, expiresAt, admitted, token, mcpSelection: true);
-                if (receipt.Completed.Outcome != Kora.Core.Interaction.HostInteractionOutcome.Answered
-                    || receipt.Completed.Question?.Draft is not { Choices.Length: 1 } answer)
-                { return null; }
-                var selectedOption = Array.FindIndex(options, option => string.Equals(option.Id, answer.Choices[0], StringComparison.Ordinal));
-                return selectedOption < 0 ? null : tools[selectedOption].Name;
-            };
-            model.McpInput = async (request, generation, expiresAt, tool, admitted, token) =>
-            {
-                using var schema = System.Text.Json.JsonDocument.Parse(tool.InputSchema);
-                var spec = new Kora.Core.Interaction.QuestionSpec("Enter JSON arguments for " + tool.Id
-                    + ". Every required field must match this schema. Submitting input is NOT approval to send it.\n"
-                    + System.Text.Json.JsonSerializer.Serialize(schema.RootElement),
-                    Kora.Core.Interaction.QuestionKind.Text, [],
-                    maximumTextLength: Kora.Core.Mcp.McpToolSchema.MaximumArgumentsUtf8Bytes,
-                    sourceId: "mcp-tool-arguments");
-                var receipt = await questions.AskConversationAsync(window ?? (Avalonia.Controls.Window?)compact ?? interaction
-                    ?? throw new InvalidOperationException("The exact MCP input window is unavailable."),
-                    request, generation, spec, expiresAt, admitted, token, mcpInput: true);
-                return receipt.Completed.Outcome == Kora.Core.Interaction.HostInteractionOutcome.Answered
-                    ? receipt.Completed.Question?.Draft?.Text : null;
-            };
+            var mcp = new McpNativeReview(questions, () => window ?? (Avalonia.Controls.Window?)compact ?? interaction
+                ?? throw new InvalidOperationException("The exact conversation window is unavailable."));
+            model.McpPresenter = mcp.PresentAsync;
+            model.McpSelector = mcp.SelectAsync;
+            model.McpInput = mcp.InputAsync;
         }
         BindAdditionalRegisteredSettingSuggestions(model, main);
+        model.RemainingWorkAnswer = main.AnswerRemainingWorkAsync;
+        model.RemainingWorkAdmission = () => main.CanAnswerRemainingWork;
         presentation = new(model, main);
         model.OpenSessionInstructionScopes = () =>
         {

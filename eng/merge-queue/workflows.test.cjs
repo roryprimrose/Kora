@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { execution, CHECKS, GATE } = require('./policy.cjs');
+const { execution, controllerOperation, CHECKS, GATE, JOBS, terminalJobs } = require('./policy.cjs');
 const root = path.resolve(__dirname, '..', '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8').replaceAll('\r\n', '\n');
 const ci = process.env.KORA_QUEUE_WORKFLOW_TEST_PATH
@@ -77,37 +77,108 @@ test('candidate jobs check out the admitted SHA, preserve all required identitie
   assert.match(job('version'), /ref: \$\{\{ needs\.admission\.outputs\.source \}\}/);
   assert.match(job('version'), /publish: \$\{\{ needs\.admission\.outputs\.candidate != 'true'/);
   assert.match(job('version'), /if: steps\.version\.outputs\.publish == 'true' && needs\.admission\.outputs\.candidate != 'true'/);
-  for (const name of ['portable', 'windows-integration-shards', 'installer']) {
+  for (const name of ['portable-tests', 'payload', 'windows-test-build', 'windows-test-partitions', 'installer']) {
     assert.match(job(name), /ref: \$\{\{ needs\.version\.outputs\.source-revision \}\}/);
     assert.match(job(name), /persist-credentials: false/);
     assert.doesNotMatch(job(name), /permission[s]?:[\s\S]*write/);
   }
-  for (const name of ['portable', 'installer']) {
+  for (const name of ['portable-tests', 'payload', 'installer']) {
     assert.match(job(name), /SOURCE_REVISION: \$\{\{ needs\.version\.outputs\.source-revision \}\}/);
     assert.doesNotMatch(job(name), /SourceRevision "\$env:GITHUB_SHA"|Revision "\$env:GITHUB_SHA"/);
   }
   assert.match(job('release'), /inputs\.queue_ticket == ''/);
   assert.match(job('windows-integration'), /needs: \[admission, version, windows-integration-shards\]/);
+  assert.match(job('portable'), /needs: \[admission, version, portable-tests, payload\]/);
+  assert.match(job('installer'), /needs: \[version, payload\]/);
+  assert.match(job('payload'), /needs: version/);
+  assert.doesNotMatch(job('payload'), /needs:.*portable/);
   assert.match(ci, /cancel-in-progress: \$\{\{ !inputs\.queue_ticket \}\}/);
 });
 
+test('independent producers are joined without preventing retirement of predecessor workflow runs', () => {
+  const predecessorJobs = JOBS.map(name => ({ name, status: 'completed', conclusion: 'success' }));
+  assert.equal(terminalJobs(predecessorJobs), true);
+  assert.equal(terminalJobs([...predecessorJobs,
+    { name: 'Portable build, tests, and coverage', status: 'completed', conclusion: 'success' },
+    { name: 'Publish and inspect exact-source payloads', status: 'completed', conclusion: 'success' },
+  ]), true);
+  assert.ok(!JOBS.includes('Portable build, tests, and coverage'));
+  assert.ok(!JOBS.includes('Publish and inspect exact-source payloads'));
+  assert.match(job('portable-tests'), /name: Portable build, tests, and coverage/);
+  assert.match(job('payload'), /name: Publish and inspect exact-source payloads/);
+  assert.match(job('release'), /needs: \[version, portable, windows-integration, installer\]/);
+  assert.match(job('portable'), /needs: \[admission, version, portable-tests, payload\]/);
+});
+
+test('Windows tests scale out to twelve artifact-only jobs behind predecessor-compatible gates', () => {
+  const producer = job('windows-test-build');
+  const consumers = job('windows-test-partitions');
+  assert.match(producer, /runs-on: windows-latest/);
+  assert.equal((producer.match(/dotnet build tests\/Kora.Windows.IntegrationTests/g) || []).length, 1);
+  assert.match(producer, /Publish-WindowsTestArtifact\.ps1 -SourceRevision '\$\{\{ needs\.version\.outputs\.source-revision \}\}'/);
+  assert.match(consumers, /needs: \[version, windows-test-build\]/);
+  assert.match(consumers, /fail-fast: false/);
+  const partitions = consumers.match(/partition: \[([^\]]+)\]/)[1].split(',').map(value => value.trim());
+  assert.equal(partitions.length, 12);
+  assert.equal(new Set(partitions).size, 12);
+  assert.doesNotMatch(consumers, /dotnet (restore|build)|--project|max-threads|larger|xlarge/);
+  assert.match(consumers, /-Partition '\$\{\{ matrix\.partition \}\}' -TestModuleDirectory/);
+  assert.match(consumers, /-ExpectedSourceRevision '\$\{\{ needs\.version\.outputs\.source-revision \}\}'/);
+  assert.match(consumers, /KORA_TEST_NATIVE_EVIDENCE_MODE: \$\{\{ matrix\.partition == 'native-ux' && 'buffered' \|\| 'synchronous' \}\}/);
+  assert.match(consumers, /windows-test-build-\$\{\{ needs\.version\.outputs\.source-revision \}\}/);
+  assert.match(consumers, /windows-execution-results-\$\{\{ matrix\.partition \}\}/);
+  assert.match(job('windows-integration-shards'), /needs: \[admission, version, windows-test-build, windows-test-partitions\]/);
+  assert.ok(!JOBS.includes('Build exact-source Windows test modules'));
+  for (const partition of partitions) assert.ok(!JOBS.includes(`Windows test partition (${partition})`));
+  assert.match(job('windows-integration'), /Test-WindowsIntegrationScheduling\.ps1 -RetainedResultsDirectory/);
+  assert.match(job('windows-integration'), /-ExpectedCatalogPath.*-ExpectedSourceRevision/);
+});
+
+test('legacy Windows job identities fail closed unless the shared build and all twelve jobs succeed', () => {
+  const source = job('windows-integration-shards');
+  const guard = source.match(/        run: \|\n([\s\S]*)/)[1]
+    .split('\n').map(line => line.replace(/^          /, '')).join('\n');
+  assert.match(guard, /if \(\$env:BUILD_RESULT -cne 'success' -or \$env:PARTITION_RESULT -cne 'success'\)/);
+  assert.match(guard, /throw "Windows execution is incomplete/);
+  assert.match(source, /if: always\(\)/);
+});
+
 test('required aggregate skips only an explicitly waiting admission or an already-published release', () => {
-  const expression = job('windows-integration').match(/^    if: (.+)$/m)[1]
-    .replace('always()', 'true')
-    .replaceAll('needs.version.outputs.already-published', "needs.version.outputs['already-published']");
-  const evaluate = new Function('needs', `return ${expression};`);
-  for (const result of ['success', 'failure', 'cancelled', 'skipped']) {
-    for (const full of ['true', 'false', '']) {
-      for (const versionResult of ['success', 'failure', 'cancelled', 'skipped']) {
-        const needs = { admission: { result, outputs: { full } },
-          version: { result: versionResult, outputs: {} } };
-        assert.equal(evaluate(needs), !(result === 'success' && full === 'false'),
-          JSON.stringify(needs));
-        needs.version.outputs['already-published'] = 'true';
-        assert.equal(evaluate(needs), false);
+  for (const name of ['portable', 'windows-integration']) {
+    const expression = job(name).match(/^    if: (.+)$/m)[1]
+      .replace('always()', 'true')
+      .replaceAll('needs.version.outputs.already-published', "needs.version.outputs['already-published']");
+    const evaluate = new Function('needs', `return ${expression};`);
+    for (const result of ['success', 'failure', 'cancelled', 'skipped']) {
+      for (const full of ['true', 'false', '']) {
+        for (const versionResult of ['success', 'failure', 'cancelled', 'skipped']) {
+          const needs = { admission: { result, outputs: { full } },
+            version: { result: versionResult, outputs: {} } };
+          assert.equal(evaluate(needs), !(result === 'success' && full === 'false'),
+            JSON.stringify(needs));
+          needs.version.outputs['already-published'] = 'true';
+          assert.equal(evaluate(needs), false);
+        }
       }
     }
   }
+});
+
+test('portable aggregate requires both actual producers and fails closed for incomplete outcomes', () => {
+  const source = job('portable');
+  assert.match(source, /TEST_RESULT: \$\{\{ needs\.portable-tests\.result \}\}/);
+  assert.match(source, /PAYLOAD_RESULT: \$\{\{ needs\.payload\.result \}\}/);
+  const script = source.match(/        run: \|\n([\s\S]*)/)[1]
+    .split('\n').map(line => line.replace(/^          /, '')).join('\n');
+  const { spawnSync } = require('node:child_process');
+  const outcomes = ['success', 'failure', 'cancelled', 'skipped', '', 'unknown', 'SUCCESS'];
+  const checks = outcomes.flatMap(tests => outcomes.map(payload =>
+    `$env:TEST_RESULT = '${tests}'; $env:PAYLOAD_RESULT = '${payload}'; `
+    + `$failed = $false; try { & { ${script} } } catch { $failed = $true }; `
+    + `if ($failed -ne $${tests !== 'success' || payload !== 'success'}) { throw 'Incorrect aggregate outcome.' }`));
+  const result = spawnSync('pwsh', ['-NoProfile', '-NonInteractive', '-Command', checks.join('\n')], { encoding: 'utf8' });
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
 });
 
 test('controller wakes on both priority label additions and removals without trusting event labels', () => {
@@ -145,6 +216,7 @@ test('controller workflow awaits its summary on success and preserves reconcilia
       if (name === './eng/merge-queue/github.cjs') return { GitHubQueue: class {
         constructor(github, context, core, appId) { assert.equal(appId, '42'); return api; }
       } };
+      if (name === './eng/merge-queue/policy.cjs') return { controllerOperation };
       assert.equal(name, './eng/merge-queue/controller.cjs');
       return { reconcile: async value => {
         assert.equal(value, api);
@@ -156,6 +228,49 @@ test('controller workflow awaits its summary on success and preserves reconcilia
     else await operation;
     assert.deepEqual(calls, outcome === 'failed' ? [['summary', 'failed']]
       : [['notice', `Merge queue: ${outcome}.`], ['summary', outcome]]);
+  }
+});
+
+test('manual recovery uses the same trusted main checkout, App environment and serialized lane with explicit inputs', async () => {
+  assert.match(controller, /options: \[reconcile, recover-unobservable-dispatch\]/);
+  assert.match(controller, /acknowledge_uncertain_dispatch:[\s\S]*?type: boolean\n        default: false/);
+  assert.match(controller, /ref: refs\/heads\/main\n          persist-credentials: false/);
+  assert.match(controller, /environment: merge-queue/);
+  assert.match(controller, /concurrency:\n  group: merge-queue-controller\n  cancel-in-progress: false/);
+  assert.match(controller, /QUEUE_INPUTS: \$\{\{ toJSON\(inputs\) \}\}/);
+  assert.match(controller, /QUEUE_RUN_ATTEMPT: \$\{\{ github.run_attempt \}\}/);
+  const script = controller.match(/          script: \|\n([\s\S]*)/)[1]
+    .split('\n').map(line => line.replace(/^            /, '')).join('\n');
+  const execute = new AsyncFunction('process', 'context', 'core', 'github', 'require', script);
+  for (const scenario of ['recovered', 'failed', 'mixed', 'unknown']) {
+    const calls = [];
+    const context = { eventName: 'workflow_dispatch', ref: 'refs/heads/main', runId: 123, actor: 'operator' };
+    const inputs = { operation: 'recover-unobservable-dispatch', recovery_checkpoint: 'a'.repeat(40),
+      recovery_ticket: '01234567-89ab-cdef-0123-456789abcdef', acknowledge_uncertain_dispatch: true };
+    if (scenario === 'mixed') inputs.operation = 'reconcile';
+    if (scenario === 'unknown') inputs.operation = 'unknown';
+    const api = { summarize: async outcome => calls.push(['summary', outcome]) };
+    const operation = execute({ env: { QUEUE_APP_ID: '42', QUEUE_INPUTS: JSON.stringify(inputs), QUEUE_RUN_ATTEMPT: '1' } },
+      context, { notice: message => calls.push(['notice', message]) }, {}, name => {
+        if (name === './eng/merge-queue/github.cjs') return { GitHubQueue: class { constructor() { return api; } } };
+        if (name === './eng/merge-queue/policy.cjs') return { controllerOperation };
+        if (name === './eng/merge-queue/controller.cjs') return { reconcile: async () => assert.fail('Recovery must not select a candidate.') };
+        assert.equal(name, './eng/merge-queue/recovery.cjs');
+        return { recover: async (received, options) => {
+          assert.equal(received, api);
+          assert.deepEqual(options, { context, inputs, attempt: 1 });
+          calls.push(['recover']);
+          if (scenario === 'failed') throw new Error('Recovery denied');
+          return 'recovered';
+        } };
+      });
+    if (scenario === 'recovered') {
+      await operation;
+      assert.deepEqual(calls, [['recover'], ['notice', 'Merge queue: recovered.'], ['summary', 'recovered']]);
+    } else {
+      await assert.rejects(operation, /Recovery|Unknown/);
+      assert.deepEqual(calls.at(-1), ['summary', 'failed']);
+    }
   }
 });
 

@@ -300,6 +300,7 @@ public sealed partial class ModelTurnHostTests
         public async ValueTask<ConversationSubmissionReceipt> CompleteConversationSubmissionAsync(HostRequest request,
             ModelTurnOutcome outcome, ModelTurnReason reason, Func<bool> admitted, CancellationToken token)
         {
+            // Capture the request-owned terminal pair before the awaited callback can interleave completions.
             var source = ReadPendingRecord(request);
             if (BeforeSubmissionComplete is { } before) { await before(request); }
             var message = source.Message with { Revision = 2, Outcome = outcome, Reason = reason };

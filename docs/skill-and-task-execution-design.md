@@ -41,6 +41,15 @@ The [native permission review](../src/Kora/NativeQuestionHost.BundledControl.cs)
 An unaddressed request creates a fresh neutral control session. **Run in last reviewed control session** explicitly addresses the previous binding; the [controller](../src/Kora/BundledFixedActionController.cs) revalidates it instead of automatically recreating retired authority.
 The [power owner](../src/Kora/ApplicationLifecycle/ApplicationLifecycleController.cs) requires separate original-channel confirmation, a 30-second visible cancellable countdown, physically joined resources and current one-use authority. Model suggestions only open source inspection; they do not start this workflow.
 
+For **Shut down the computer** or **Restart the computer**, the exact package
+grant is not the separate **Confirm shutdown** or **Confirm computer restart**
+decision. The affected-work review and unsent-input/editor guards remain
+independent; cancelling power consent sends no Windows power request. A graceful
+request never promises to save other applications' documents or force them
+closed. Windows acceptance is not proof that shutdown or restart completed.
+The installed contained profile remains unavailable; there is no native fallback
+or user setting to bypass qualification.
+
 Bundled, Kora-owned and user/profile content obey the same host governance, but source discovery/enablement does not admit executable code. Skills and agents can propose only admitted operations; approving one does not blanket-approve its calls or other packages sharing a helper.
 Model-generated scripts remain proposals, not executable authority. General executable imports remain separately deferred under [R27](../Design/Implementation_Roadmap.md#optional-and-deferred-work).
 

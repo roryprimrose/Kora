@@ -82,6 +82,14 @@ even when the gate fails. Non-destructive Windows integration tests are not
 physical audio, provider or installed acceptance; CI must never lock or restart
 its runner.
 
+The [bundled computer-power regressions](tests/Kora.Windows.IntegrationTests/ApplicationLifecycle/SessionsConversationTests.BundledActions.cs)
+wait for enabled native question controls after the activation-triggered source
+refresh before editing or confirming. Window-open notification alone does not
+prove the question is ready for input. Exact typed shutdown/restart requests
+exercise the composed controller, separate power confirmation, fake countdown
+and fixed platform callback with terminal readback. All power effects and worker
+qualification are deterministic fakes; these tests do not enable a runtime.
+
 Portable CI runs the four projects in [Kora.UnitTests.slnx](Kora.UnitTests.slnx) together, using [MTP's processor-count-based module concurrency](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-test-mtp#options). The [workflow](.github/workflows/ci.yml) isolates TRX and coverage output in per-module directories and aggregates every module's coverage before enforcing the existing thresholds.
 
 Portable fixtures that require host-resolved absolute source paths must construct

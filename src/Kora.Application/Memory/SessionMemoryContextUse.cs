@@ -6,15 +6,13 @@ namespace Kora.Application.Memory;
 
 internal sealed class SessionMemoryContextUse : IDisposable
 {
-    private readonly ISessionMemoryContextSource source;
     private readonly SessionMemoryContextReview review;
     private readonly Func<bool> admitted;
     private readonly CancellationTokenSource cancellation;
 
-    internal SessionMemoryContextUse(ISessionMemoryContextSource source, SessionMemoryContextReview review,
+    internal SessionMemoryContextUse(SessionMemoryContextReview review,
         Func<bool> admitted, CancellationToken token)
     {
-        this.source = source;
         this.review = review;
         this.admitted = admitted;
         cancellation = CancellationTokenSource.CreateLinkedTokenSource(token, review.Revocation);
@@ -37,10 +35,7 @@ internal sealed class SessionMemoryContextUse : IDisposable
         {
             token.ThrowIfCancellationRequested();
             if (!Current()) { throw new InvalidOperationException("The reviewed memory use was revoked."); }
-            var original = review.ReadCurrent().Snapshot;
-            var observed = await source.ReadAsync(Target, review.Selection, Current, token).ConfigureAwait(false);
-            if (observed.Boundary != original.Boundary || !observed.Records.SequenceEqual(original.Records) || !Current())
-            { throw new InvalidDataException("The complete reviewed memory changed; select and review again."); }
+            await review.ValidateAsync(Current, token).ConfigureAwait(false);
         }
         catch
         {

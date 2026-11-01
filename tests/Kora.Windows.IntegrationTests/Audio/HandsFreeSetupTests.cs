@@ -166,14 +166,18 @@ public sealed class HandsFreeSetupTests : IDisposable
         unavailable.Observe(fixture.Component).Compatibility.Should().Be(SpeechComponentCompatibility.Incompatible);
         new WindowsHandsFreeAudioStage(unavailable).IsAvailable.Should().BeFalse();
         (await unavailable.TryAcquireExclusiveAsync(fixture.Component, TestContext.Current.CancellationToken)).State.Should().Be(SpeechComponentMutationState.Unavailable);
-        var owner = (await fixture.Runtime.TryAcquireExclusiveAsync(fixture.Component, TestContext.Current.CancellationToken)).RequireLease();
         var stage = new WindowsHandsFreeAudioStage(fixture.Runtime);
         stage.IsAvailable.Should().BeTrue();
+        var owner = (await fixture.Runtime.TryAcquireExclusiveAsync(fixture.Component, TestContext.Current.CancellationToken)).RequireLease();
+        stage.IsAvailable.Should().BeFalse();
+        stage.SupportsProfile("Nova", SpeechInputProfileCatalogue.NativeWakeSelection).Should().BeFalse();
         await FluentActions.Awaiting(() => stage.OpenAsync(Binding(), TestContext.Current.CancellationToken))
-            .Should().ThrowAsync<InvalidOperationException>().WithMessage("*owned by setup*");
+            .Should().ThrowAsync<InvalidOperationException>().WithMessage("*profile is unavailable*");
         await owner.DisposeAsync();
         await owner.DisposeAsync();
+        stage.IsAvailable.Should().BeTrue();
         await using var next = (await fixture.Runtime.TryAcquireExclusiveAsync(fixture.Component, TestContext.Current.CancellationToken)).RequireLease();
+        stage.IsAvailable.Should().BeFalse();
     }
 
     [Theory]
@@ -216,8 +220,7 @@ public sealed class HandsFreeSetupTests : IDisposable
     }
 
     private static HandsFreeAudioBinding Binding() => new(1, new("synthetic", "Synthetic"), "Nova",
-        new(1, SpeechInputSelection.Default))
-    { CanCapture = () => true };
+        new(1, SpeechInputProfileCatalogue.NativeWakeSelection)) { CanCapture = () => true };
     private static HostActivity Begin() => HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
         HostActivityLayer.Application, HostOperation.Request);
 

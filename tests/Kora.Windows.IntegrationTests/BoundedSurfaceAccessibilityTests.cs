@@ -225,7 +225,12 @@ public sealed class BoundedSurfaceAccessibilityTests
                 window.Activate();
                 window.UpdateLayout();
                 var actions = window.GetVisualDescendants().OfType<SettingActionsButton>().ToArray();
-                actions.Should().HaveCount(15);
+                actions.Should().HaveCount(16);
+                actions.Select(action => action.SettingName).Should().Equal(
+                    "Start Kora at Windows user logon", "Normal manual startup presentation",
+                    "Application theme", "Reading text size", "Always show responses", "Keep responses on top",
+                    "Response timeout", "Show presence", "Animation mode", "Presence timeout",
+                    "Presence size", "Dot size", "Dot density", "Movement speed", "Speech sizing", "Speech scale amount");
                 foreach (var action in actions)
                 {
                     action.Content.Should().BeOfType<Avalonia.Controls.Shapes.Path>();

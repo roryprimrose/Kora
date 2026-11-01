@@ -334,6 +334,67 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
+    [InlineData(RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.ActivatedVoice)]
+    public async Task PendingOnlyClearCancelsFreshExpiredTextRequestWithoutChangingItsHistoricalSource(RequestOrigin oldOrigin)
+    {
+        using var f = new Fixture(oldOrigin) { TrackPendingRecords = true };
+        var source = SeedExpiredOrdinary(f);
+        var original = f.PendingRecords[source.Request.RequestId];
+        var host = ConfigureCancellation(f);
+        await using var conversation = f.ConversationService(host, execution: host);
+        var target = new SessionWorkspaceEntry(f.Session, null);
+        var before = await conversation.ReadPendingConversationAsync(target, () => true, Token);
+        await conversation.SetManualDispatchHoldAsync(before.DispatchControl!, ConversationDispatchHoldReason.OriginalUser,
+            () => true, Token);
+        var older = await conversation.SubmitQueuedAsync(target, "independent held original", () => true, Token,
+            origin: oldOrigin, localAnswer: true);
+        var commands = conversation.CreateRequestCommands();
+        var review = (await commands.ExecuteAsync(ExpiredReview(source), RequestOrigin.LocalUi, () => true, Token)).RequestReview!;
+        var confirmedAt = f.Time.Now;
+        var fresh = (await commands.ExecuteAsync(FailedConfirm(review), RequestOrigin.LocalUi, () => true, Token)).RequestSubmission!;
+        fresh.Message.Body.Should().Be(source.Body);
+        fresh.Message.OriginalTextSource.Should().Be(source.Request);
+        fresh.Message.Request.Origin.Should().Be(RequestOrigin.LocalUi);
+        fresh.Message.Request.RequestId.Should().NotBe(source.Request.RequestId);
+        fresh.Message.Request.TaskId.Should().NotBe(source.Request.TaskId);
+        var clear = await conversation.ReviewPendingClearAsync(target, RequestOrigin.LocalUi, () => true, Token);
+        clear.Snapshot.Entries.Select(item => item.Request).Should().Equal(older.Receipt.Message.Request, fresh.Message.Request);
+        clear.Snapshot.Entries.Last().ExpiresAt.Should().Be(confirmedAt.AddSeconds(15));
+        f.PendingRecords[source.Request.RequestId].Should().Be(original);
+        f.PendingRecords[fresh.Message.Request.RequestId].Should().Be(fresh);
+        var result = await conversation.ConfirmPendingClearAsync(clear, () => true, Token);
+        result.Outcome.Should().Be("reviewed-pending-cancelled");
+        result.Outcomes.Should().HaveCount(2).And.OnlyContain(item => item.Confirmed && item.CancellationRequested
+            && item.RetainedState == HostTaskState.Cancelled);
+        result.RemainingPending.Should().BeEmpty();
+        result.Running.Should().BeNull();
+        foreach (var retained in new[] { older.Receipt, fresh })
+        {
+            var terminal = f.PendingRecords[retained.Message.Request.RequestId];
+            terminal.Message.Should().Be(retained.Message with
+                { Revision = 2, Outcome = ModelTurnOutcome.Cancelled, Reason = ModelTurnReason.CallerCancelled });
+            terminal.Task.Should().Be(retained.Task.Next(HostTaskState.Cancelled));
+        }
+        (await older.Completion).RequireReceipt().Task.State.Should().Be(HostTaskState.Cancelled);
+        f.PendingRecords[source.Request.RequestId].Should().Be(original);
+        var held = await conversation.ReadPendingConversationAsync(target, () => true, Token);
+        held.ManualHoldReason.Should().Be(ConversationDispatchHoldReason.OriginalUser);
+        held.Paused.Should().BeTrue();
+        var cancelled = f.PendingRecords[fresh.Message.Request.RequestId];
+        await commands.Invoking(value => value.ExecuteAsync(ExpiredReview(cancelled.Message), RequestOrigin.LocalUi, () => true, Token))
+            .Should().ThrowAsync<InvalidOperationException>();
+        f.PendingRecords[fresh.Message.Request.RequestId].Should().Be(cancelled);
+        f.PendingRecords[source.Request.RequestId].Should().Be(original);
+        f.RetainCalls.Should().Be(2);
+        f.Adapter.Calls.Should().Be(0);
+        f.ExecutionStarts.Should().Be(0);
+        f.ExecutionCompletions.Should().Be(0);
+        f.Audits.Should().NotContain(item => item.ActionId == "runtime.resource.acquire");
+        host.IsQuiescent.Should().BeTrue();
+    }
+
+    [Theory]
     [InlineData(5)]
     [InlineData(15)]
     public async Task FreshConfirmationRevalidationConsumesItsOwnContextLifetimeWithoutResettingIt(int elapsedSeconds)

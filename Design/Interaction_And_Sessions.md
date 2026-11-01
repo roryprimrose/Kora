@@ -116,6 +116,8 @@ unqualified providers retain their existing unavailable/review fences.
 Acceptance is not execution success, action approval, renewed source consent or
 foreground voice targeting. Unsent input remains memory-only and separate.
 
+The distinct [ordinary pending-only clear](Work_Management.md#clear-ordinary-pending-work-only) reviews the complete current set in one explicit Active conversation and separately confirms cancellation through the same workers and canonical ledger. It preserves running work and other conversations; source/lane changes require fresh review and partial/unconfirmed receipts remain explicit. It does not expose the retired public diagnostic queue commands.
+
 Explicit Claude streaming remains outside the ordinary submitted-turn queue:
 neither route replaces an active turn owned by the other. Refusal retains no
 new input and does not change pending order or renew provider/egress authority.
@@ -134,6 +136,15 @@ reviewed stop-and-delete boundary without changing FIFO or original authority
 The [approved product decision](MVP_Scope.md#approved-retirement-and-simplification) replaces first-class saved-conversation-draft management with unsent composer text. A session is an ongoing conversation/work stream, not a draft document; Active/Done lifecycle is independent of whether text is waiting in its input box.
 
 Keep unsent input per exact conversation in memory across view/session switching, share it consistently between Sessions and compact views, and never submit or merge it implicitly. Do not add disk autosave. Protect deliberate discard/exit and apply privacy/ownership retirement without cross-session leakage.
+
+Done/Resume and exact-session retirement discard the target's unsent input intentionally; they do not discard another conversation's buffer. Exact source invalidation retires selected content and stale controls without disposing the shared composer owner. Confirmed native lifecycle readback may present the changed target, but never restores its retired input or old authority. Privacy, device/instance ownership revision and mandatory host shutdown still retire all volatile buffers.
+
+Deferred submitted-work acceptance and terminal notifications retain the private
+control revision, exact selected source and selection epoch observed before native
+dispatch. Switching away and returning, arriving from another selection or
+observing a new generation does not reattach an old callback. Read the exact
+conversation or refresh submitted work explicitly to recover its retained result
+or current pending controls; neither operation transfers or submits unsent input.
 
 ### Deliberate exact retained-answer replies
 
@@ -308,6 +319,12 @@ This is an explicit private-native metadata operation using the existing native-
 ### Session-local unsent input and legacy compatibility - 2026-10-21
 
 Sessions and compact share independent memory-only input for each exact session. Switching topics preserves it; last-view and voluntary shutdown use Discard/Cancel. Privacy/ownership retirement releases volatile state. There is no ordinary conversation Save/Reload/Clear, saved-draft catalogue, comparison, rebase or disk autosave ([input owner](../src/Kora/SessionsViewModel.Unsent.cs)).
+
+Passive work refresh publishes changed lifecycle/generation to every native
+composer and submission control while retaining exact session-local unsent text.
+An observed Active generation does not renew the old composer source: explicitly
+read that exact conversation before continuing. Switching topics preserves the
+hold and leaves other conversations independent ([native regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Unsent.cs)).
 
 Legacy tables/audit/schema/retention stay compatible. Exact-session recovery copies observed old text only into EMPTY input; changed source/revision refuses publication. It neither submits nor renews activity ([read boundary](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs), [tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Unsent.cs)).
 
@@ -952,6 +969,26 @@ Repeated/mixed questions, arbitrary tools, source access, cross-session replies,
 
 This does not change ordinary local/hosted text, observations or streaming. Copilot/Codex questions remain unsupported ([provider guard](../src/Kora.Core/Dependencies/ModelToolProtocol.Questions.cs)).
 No provider/account approval, profile activation, automatic microphone opening, retry or production enablement is introduced; the shipped Claude deployment source stays unavailable ([availability](Runtime_Provider_Feasibility.md#native-claude-messages-profile---2026-10-24), [native controls](../tests/Kora.Windows.IntegrationTests/ClaudeUiContractTests.Questions.cs)).
+
+### Deliberate conversation-notice question response
+
+In already-open Sessions, select and Review an admitted current-run ordinary conversation
+QUESTION notice, inspect its exact session/task/question and expiry, then choose
+**Answer exact question**. This focuses only the original still-present canonical question.
+Bounded text, single-choice and multiple-choice clarifications keep their original
+host-owned schema and selection bounds; notice metadata neither reconstructs nor changes them.
+Native or eligible question-voice Submit and Cancel retain their existing purpose and
+validation; opening neither answers nor grants approval, listening or egress
+([response owner](../src/Kora/ConversationNotices/SessionsViewModel.ConversationNotices.cs)).
+
+The original wait and resource join remain owned by the existing conversation presenter;
+only the actual stored canonical answer can resume the same original task. Changed,
+expired, closed, foreign, retired, Done or revoked sources and intervening notice-ledger
+changes refuse without choosing another target. Other question/editor/dictation/decision
+owners retain precedence. No notice can migrate an approval, skill input or source-consent
+purpose into ordinary clarification; Claude's per-POST reviews above remain mandatory
+([exact binding](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.QuestionFocus.cs),
+[end-to-end evidence](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.NoticeResponse.cs)).
 
 Every supported Kora workflow has equivalent verbal and mouse/keyboard-accessible operations.
 Users can interact entirely by voice, entirely through UI, or change channels at any step without restarting the workflow.

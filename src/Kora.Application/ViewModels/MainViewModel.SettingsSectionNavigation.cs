@@ -24,7 +24,7 @@ public sealed partial class MainViewModel
         if (origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
             || initiator is not (SecurityAuditInitiator.TypedCommand or SecurityAuditInitiator.VoiceCommand)
             || !isAssistantNameAvailable
-            || origin == RequestOrigin.ActivatedVoice && !commandRouter.IsActivationPrefixed(original, AssistantName))
+            || origin == RequestOrigin.ActivatedVoice && !HasCurrentNameActivation(original))
         {
             Transcript = "Settings navigation unavailable: use original typed input or the current assistant-name voice prefix.";
             return;

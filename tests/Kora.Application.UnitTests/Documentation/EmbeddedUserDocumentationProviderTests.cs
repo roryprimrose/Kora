@@ -38,7 +38,8 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .And.Contain("**Release manual dispatch hold**")
             .And.Contain("**Resume held dispatch**")
             .And.Contain("cannot clear either hold or renew old authority")
-            .And.Contain("cannot be combined with a one-task output choice");
+            .And.Contain("cannot be combined with a one-task output choice")
+            .And.Contain("pending-only clear neither renews nor replays it");
     }
 
     [Fact]

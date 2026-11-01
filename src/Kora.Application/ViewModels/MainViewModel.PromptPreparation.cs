@@ -34,7 +34,7 @@ public sealed partial class MainViewModel
         SecurityAuditInitiator initiator, Func<bool> eligible)
     {
         if (initiator == SecurityAuditInitiator.VoiceCommand
-            && !commandRouter.IsActivationPrefixed(originalInput, AssistantName))
+            && !HasCurrentNameActivation(originalInput))
         {
             ReportHostInteractionFailure("Use the current assistant name to select the prompt, then enter required inputs in the native form.");
             return;

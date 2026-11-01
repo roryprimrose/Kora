@@ -114,6 +114,11 @@ Activity contains the existing task/question/answer/decision records; it is not
 a complete tool trace or exact-grant-change feed. Historical records and their
 Details are read-only, never live answer or approval buttons.
 
+Returning to a conversation does not replay delayed submission notifications.
+Use **Read conversation** for its retained result or **Refresh submitted work**
+for current pending requests. Your unsent text stays in its original conversation;
+refreshing does not submit it or renew the original request's permission.
+
 The composer explicitly sends to the selected conversation. Switching topics
 preserves each topic's separate memory-only unsent text. **Collapse** (or
 `collapse conversation`) returns to the original compact interaction without
@@ -201,6 +206,9 @@ provider or deadline changes still prevent dispatch; receipt presentation does
 not renew any authority. This source
 review cannot be combined with a one-task output choice; use that separate new-request
 review for its own original input.
+If the new request is still pending, **Clear queue - review all pending** can
+cancel it after its separate confirmation. The historical expired source stays
+unchanged; pending-only clear neither renews nor replays it.
 Normal capacity, message, byte, budget and resource limits still apply
 ([review fences](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)).
 
@@ -465,6 +473,13 @@ Read/Next show bounded chronological **USER** messages and separate **HOST** sta
 
 Typing writes nothing. Switching topics preserves a separate memory-only unsent message per exact session, shared by Sessions and compact views. No ordinary Save/Reload/Clear or saved-draft management exists ([buffers](../src/Kora/SessionsViewModel.Unsent.cs)).
 
+If work refresh observes a changed lifecycle or generation, all conversation
+views retain the unsent text but disable stale composer and Send controls.
+An Active observation alone does not restore eligibility. Use **Read conversation**
+for that exact session to recover its current source; other topics' unsent text
+remains independent. Submission uncertainty still requires exact receipt
+inspection and is not cleared by reading.
+
 **Recover existing legacy text into empty input** is a separate read-only action for the selected exact session. It verifies stable source/revision before importing, refuses nonempty input and never saves, deletes or submits. Missing/unavailable legacy text leaves history and unsent input unchanged. Retention and private authority checks remain; no migration or purge occurs ([recovery](../src/Kora/SessionsViewModel.Unsent.cs)).
 
 **Discard this unsent message...** requires confirmation and affects only that session's memory input. Last-view/application close protects all nonempty topic buffers with Discard/Cancel. Privacy/ownership/session retirement revokes affected private text without saving ([presentation owner](../src/Kora/SessionsPresentationOwner.cs)).
@@ -499,6 +514,10 @@ and their positions (at most ten pending). Select one and deliberately choose
 **Cancel selected pending request** to cancel only that request before any
 provider dispatch. Its submitted history remains; running work and your next
 unsent input are unchanged. Both conversation windows use the same controls.
+
+**Clear queue - review all pending** reviews every current never-dispatched request in this one Active conversation. Inspect the complete body-free identities, positions, count, expiry and impact, then independently choose **Confirm clear pending only** or **Cancel pending-only review**. Review/cancel has no execution effects; separate confirmation retains original USER/task/audit history while running work continues ([native operation](../src/Kora/SessionsViewModel.PendingConversation.cs)).
+
+New arrivals, dispatch or changed source/authority require fresh review. Results enumerate actual per-entry known/unconfirmed outcomes and remaining host-lane work; an unknown receipt is not a durable all-clear or rollback. Existing dispatch holds remain independent. [Exact typed/activated review](commands.md#clear-one-ordinary-conversations-pending-work) uses the same cancellation owner; the displayed native confirmation can preserve the original voice source without a new capture.
 
 Next dispatch requires the previous request's successful confirmed completion
 and physical resource closure, then current original session/source/provider/
@@ -1114,6 +1133,8 @@ Accepting never submits, approves an action or sends anything to a model; normal
 The source must wholly fit the displayed question bound (currently 500 characters for conversation clarification) and normal Unicode/credential rules. Invalid or overlong text is rejected, not shortened. Changing the system clipboard after capture cannot replace the reviewed text or trigger a reread ([regressions](../tests/Kora.Windows.IntegrationTests/QuestionClipboardAnswerTests.cs)).
 
 **Cancel clipboard answer** preserves the prior manual draft and leaves the question unanswered. Manual typing retires the capture without overwriting the new typing.
+You can select and replace text in the answer field before or after accepting the snapshot. The exact edit, caret and normal Undo/Redo remain intact; the clipboard review clears, leaving an ordinary unsubmitted manual answer. Over-limit edits remain fully visible with an **Invalid answer** warning and disabled Save/Submit controls. Separately choose **Submit answer** to record a valid edited answer.
+If a new edit arrives while clipboard acceptance or cancellation is updating the window, its own validation status remains visible; an older clipboard status cannot replace its **Invalid answer** warning.
 Permission loss, expiry, stale/replaced question or unavailable private presentation refuses the candidate; start a fresh deliberate review. Clipboard drafts cannot use **Save draft** before submission ([native answer state](../src/Kora/NativeQuestionViewModel.cs)).
 
 This shortcut is unavailable for choices, approvals, authentication, permission, consent and security questions. It is not clipboard explanation, source grounding, polling, automatic paste/answer or a new clipboard archive. Existing manual OS paste and source-copy restrictions are unchanged ([scope](../Design/Interaction_Fallback.md#delivered-ordinary-clarification-clipboard-answer)).

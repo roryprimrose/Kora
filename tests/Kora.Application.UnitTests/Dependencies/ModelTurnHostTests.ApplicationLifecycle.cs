@@ -272,13 +272,13 @@ public sealed partial class ModelTurnHostTests
         using var review = await service.ReviewApplicationLifecycleAsync(ApplicationLifecycleOperation.Exit,
             RequestOrigin.LocalUi, () => current, Token);
         if (fault is "terminal-readback" or "notification-and-readback") { f.TerminalReceiptFault = "revision"; }
-        var notificationFailed = false;
+        var notificationFailures = 0;
         service.RunningConversationChanged += status =>
         {
-            if (!notificationFailed && status.Phase == ConversationExecutionPhase.Cancelling
-                && fault is "notification" or "notification-and-readback")
+            if (status.Phase == ConversationExecutionPhase.Cancelling
+                && fault is "notification" or "notification-and-readback"
+                && Interlocked.CompareExchange(ref notificationFailures, 1, 0) == 0)
             {
-                notificationFailed = true;
                 throw new IOException("Synthetic observer failure after accepted stop.");
             }
         };
@@ -291,9 +291,24 @@ public sealed partial class ModelTurnHostTests
         submission.Completion.IsCompleted.Should().BeFalse();
         provider.SetResult(LateAnswer());
         await this.Invoking(_ => joining).Should().ThrowAsync<Exception>();
-        await submission.Completion;
+        var terminal = await submission.Completion;
         review.Joined.Should().BeFalse();
         f.Adapter.Calls.Should().Be(1);
+        Volatile.Read(ref notificationFailures).Should().Be(fault is "notification" or "notification-and-readback" ? 1 : 0);
+        host.IsQuiescent.Should().BeTrue();
+        if (fault is "notification")
+        {
+            var retained = terminal.RequireReceipt();
+            retained.Message.Request.Should().Be(submission.Receipt.Message.Request);
+            retained.Message.Body.Should().Be(submission.Receipt.Message.Body);
+            retained.Message.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+            retained.Message.Reason.Should().Be(ModelTurnReason.CallerCancelled);
+            retained.Message.Revision.Should().Be(3);
+            retained.Message.Execution.Should().NotBeNull();
+            retained.Task.State.Should().Be(HostTaskState.Unknown);
+            retained.Task.Revision.Value.Should().Be(3);
+            (await f.ReadTaskAsync(target.Authority.SessionId, retained.Task.Request.TaskId, Token))!.Task.Should().Be(retained.Task);
+        }
         review.Dispose();
         current = true;
         if (fault is "terminal-readback" or "notification-and-readback")

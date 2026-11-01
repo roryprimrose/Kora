@@ -121,6 +121,19 @@ internal sealed partial class SessionsViewModel(
         !closed && (selected?.Authority.SessionId == session || workSnapshot?.Session.Authority.SessionId == session
         || string.Equals(historySessionId, session.Value.ToString("D"), StringComparison.Ordinal));
 
+    internal void RevokeSessionPresentation(HostId<SessionIdentity> session)
+    {
+        RetireUnsent(session);
+        detailSelections.Remove(session);
+        if (ReferencesSession(session))
+        {
+            ClearContentSearch();
+            ClearSelection();
+            historySessionId = string.Empty;
+        }
+        RevokeSessionList();
+    }
+
     internal void RevokeSessionList()
     {
         ClearLocalEvents();
@@ -552,8 +565,12 @@ internal sealed partial class SessionsViewModel(
     public Task RenameAsync() => RunAsync(async () =>
     {
         var target = RequireSelected();
-        selected = await service.RenameAsync(target.Authority.SessionId, target.Authority.Generation,
+        var epoch = selectionEpoch;
+        var renamed = await service.RenameAsync(target.Authority.SessionId, target.Authority.Generation,
             target.Metadata?.Revision.Value ?? 0, new(nameDraft), RequestOrigin.LocalUi, lifetime.Token);
+        if (closed || selectionEpoch != epoch || selected != target)
+        { throw new OperationCanceledException("The original rename presentation was retired; inspect the exact committed receipt."); }
+        selected = renamed;
         Render();
         status = "Committed rename for exact ID " + selected.Authority.SessionId.Value.ToString("D")
             + ". Lifecycle, generation, work and approvals unchanged. Refresh for the current list.";

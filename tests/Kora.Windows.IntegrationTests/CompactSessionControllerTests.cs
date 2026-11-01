@@ -63,7 +63,7 @@ public sealed class CompactSessionControllerTests
     }
 
     [WindowsFact]
-    public async Task ExplicitRoutesActivateOneCompactSurfaceShareReopenedWorkspaceAndRevokeBothAtLifecycleAndPrivacy()
+    public async Task ExplicitRoutesShareOneOwnerRetireExactLifecycleSourceAndRevokeBothAtPrivacy()
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -119,14 +119,16 @@ public sealed class CompactSessionControllerTests
             newRequests.Should().Be(1);
             model.ComposerBody.Should().Be("same native buffer, no duplicate state");
             await Task.Run(fixture.AdvanceLifecycleTargetAsync);
-            workspace.IsVisible.Should().BeFalse();
-            compact.IsVisible.Should().BeFalse();
+            workspace.IsVisible.Should().BeTrue();
+            compact.IsVisible.Should().BeTrue();
             model.ComposerBody.Should().BeEmpty();
-            model.CanRead.Should().BeFalse();
+            model.SelectedSessionRecord.Should().BeNull();
+            model.CanCompose.Should().BeFalse();
+            model.CanRead.Should().BeTrue();
             controller.OpenCompact();
-            compactOpens.Should().Be(3);
+            compactOpens.Should().Be(2);
             var fresh = (SessionsViewModel)compact!.DataContext!;
-            fresh.Should().NotBeSameAs(model);
+            fresh.Should().BeSameAs(model);
             fresh.SelectedSessionRecord.Should().BeNull();
             controller.Open();
             var workspaceClosed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -140,11 +142,11 @@ public sealed class CompactSessionControllerTests
             workspace!.IsVisible.Should().BeFalse();
             compact.IsVisible.Should().BeFalse();
             controller.OpenCompact();
-            compactOpens.Should().Be(3);
+            compactOpens.Should().Be(2);
             controller.Dispose();
             fixture.Access.SetOpen(true);
             controller.OpenCompact();
-            compactOpens.Should().Be(3);
+            compactOpens.Should().Be(2);
         });
     }
 

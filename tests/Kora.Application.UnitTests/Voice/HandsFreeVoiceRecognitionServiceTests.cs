@@ -246,6 +246,17 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
 
     private sealed class Stage : IHandsFreeAudioStage
     {
+        public bool SupportsNative { get; set; }
+        public Exception? PrepareFailure { get; set; }
+        public ProfileAssets Assets { get; } = new();
+        public bool SupportsProfile(string assistantName, SpeechInputSelection selection) =>
+            SupportsNative && string.Equals(assistantName, "Nova", StringComparison.Ordinal)
+            && selection == SpeechInputProfileCatalogue.NativeWakeSelection;
+        public Task<IAsyncDisposable> PrepareProfileAsync(string assistantName, SpeechInputSelection selection, CancellationToken cancellationToken)
+        {
+            if (PrepareFailure is { } failure) { throw failure; }
+            return Task.FromResult<IAsyncDisposable>(Assets);
+        }
         private readonly Channel<AudioSession> openings = Channel.CreateUnbounded<AudioSession>();
         public bool IsAvailable { get; init; } = true;
         public int Opens { get; private set; }
@@ -262,6 +273,18 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
             return session;
         }
         public async Task<AudioSession> NextAsync() => await openings.Reader.ReadAsync(TestContext.Current.CancellationToken);
+    }
+
+    private sealed class ProfileAssets : IAsyncDisposable
+    {
+        public bool FailRelease { get; set; }
+        public int Releases { get; private set; }
+        public ValueTask DisposeAsync()
+        {
+            Releases++;
+            if (FailRelease) { throw new InvalidOperationException("Test profile release is unconfirmed."); }
+            return ValueTask.CompletedTask;
+        }
     }
 
     private sealed class AudioSession(HandsFreeAudioBinding binding) : IHandsFreeAudioSession

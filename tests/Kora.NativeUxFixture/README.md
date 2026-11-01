@@ -10,6 +10,13 @@ capture seam with a synthetic endpoint and transcript callbacks. This mode
 never opens an audio device and is not exposed by the interactive launcher.
 The default fixture still denies microphone permission and capture.
 
+The setup phase forwards the supplied typed voice runtime and speech-input
+configuration together into the real view model. Headless custom-name cutover
+regressions require their exact profile generation to agree and keep capture
+quiescent until consent and reviewed selection. Omitted overrides retain the
+default fixture boundaries; setup failures and cancellation propagate without
+substituting those defaults.
+
 Evidence capture serializes delivery per sink and provider disposal waits for active
 callbacks and joins accepted writes before scratch cleanup. The buffered presence
 fixture uses the desktop's independent bounded required-file/SQLite-projection

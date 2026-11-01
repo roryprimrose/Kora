@@ -31,6 +31,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
     private readonly IModelProviderRegistrationSource? registrationSource;
     private readonly HostedTransmissionReviewService? hostedReviews;
     private readonly RuntimeResourceAllocator resources;
+    private readonly ConversationExecutionConfigurationService? conversationExecution;
     private static readonly TimeSpan Deadline = ModelToolProtocol.Deadline;
     private readonly Lock dispatchGate = new();
     private readonly CancellationTokenSource lifetime = new();
@@ -67,7 +68,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         ProviderModeConfigurationService? providerModeConfiguration = null, ProviderProfileConfigurationService? providerProfileConfiguration = null,
         ISessionProviderProfileStore? sessionProfiles = null, IModelProviderRegistrationSource? registrationSource = null,
         HostedTransmissionReviewService? hostedReviews = null,
-        IRuntimeCapacityQualification? runtimeCapacity = null)
+        IRuntimeCapacityQualification? runtimeCapacity = null,
+        ConversationExecutionConfigurationService? conversationExecution = null)
     {
         this.workspace = workspace;
         this.access = access;
@@ -82,7 +84,9 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         this.sessionProfiles = sessionProfiles;
         this.registrationSource = registrationSource;
         this.hostedReviews = hostedReviews;
-        resources = new(owner, time, audit, runtimeCapacity);
+        this.conversationExecution = conversationExecution;
+        resources = new(owner, time, audit, runtimeCapacity, conversationExecution);
+        if (conversationExecution is not null) { conversationExecution.Changed += resources.PreferenceChanged; }
     }
 
     public Task<ModelTurnAdmission> AdmitAsync(ModelProviderSelection selection,
@@ -562,7 +566,11 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
                 catch (Exception exception) { failures.Add(exception); }
             }
         }
-        finally { lifetime.Dispose(); }
+        finally
+        {
+            if (conversationExecution is not null) { conversationExecution.Changed -= resources.PreferenceChanged; }
+            lifetime.Dispose();
+        }
         if (failures.Count == 1) { throw failures[0]; }
         if (failures.Count != 0) { throw new AggregateException("Model resource closure failed.", failures); }
     }

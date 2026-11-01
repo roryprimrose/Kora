@@ -111,6 +111,48 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
+    [InlineData(RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.ActivatedVoice)]
+    public async Task InterleavedExpiredFixtureCompletionsKeepEachOriginalMessageAndTaskPair(RequestOrigin origin)
+    {
+        using var f = new Fixture(origin) { TrackPendingRecords = true };
+        var head = await f.RetainConversationMessageAsync(f.Request, f.Session.Generation, 0,
+            " first immutable\r\n", () => true, Token);
+        var nextRequest = new HostRequest(new(Guid.NewGuid()), f.Session.SessionId, new(Guid.NewGuid()), origin);
+        var next = await f.RetainConversationMessageAsync(nextRequest, f.Session.Generation, 0,
+            "second immutable", () => true, Token);
+        Task<ConversationSubmissionReceipt>? interleaved = null;
+        f.BeforeSubmissionComplete = request =>
+        {
+            request.Should().BeSameAs(head.Message.Request);
+            f.BeforeSubmissionComplete = null;
+            interleaved = f.CompleteConversationSubmissionAsync(nextRequest, ModelTurnOutcome.Denied,
+                ModelTurnReason.ContextExpired, () => true, Token).AsTask();
+        };
+        var completed = await f.CompleteConversationSubmissionAsync(head.Message.Request, ModelTurnOutcome.Denied,
+            ModelTurnReason.ContextExpired, () => true, Token);
+        interleaved.Should().NotBeNull();
+        var nextCompleted = await interleaved!;
+        f.PendingRecords.Should().HaveCount(2);
+        foreach (var (original, terminal) in new[] { (head, completed), (next, nextCompleted) })
+        {
+            terminal.Message.Should().Be(original.Message with
+                { Revision = 2, Outcome = ModelTurnOutcome.Denied, Reason = ModelTurnReason.ContextExpired });
+            terminal.Message.Request.Should().BeSameAs(original.Message.Request);
+            terminal.Task.Should().Be(original.Task.Next(HostTaskState.Denied));
+            terminal.Task.Request.Should().BeSameAs(original.Task.Request);
+            f.PendingRecords[original.Message.Request.RequestId].Should().Be(terminal);
+            (await f.ReadConversationMessageAsync(original.Message.Request.SessionId,
+                original.Message.Request.RequestId, Token)).Should().Be(terminal.Message);
+            (await f.ReadTaskAsync(original.Task.Request.SessionId, original.Task.Request.TaskId, Token))!
+                .Task.Should().Be(terminal.Task);
+        }
+        f.Adapter.Calls.Should().Be(0);
+        f.ExecutionStarts.Should().Be(0);
+        f.ExecutionCompletions.Should().Be(0);
+    }
+
+    [Theory]
     [InlineData("expiry")]
     [InlineData("source")]
     [InlineData("provider")]
@@ -172,6 +214,9 @@ public sealed partial class ModelTurnHostTests
             foreach (var original in new[] { head, next })
             {
                 var completed = (await original.Completion).RequireReceipt();
+                completed.Message.Should().Be(original.Receipt.Message with
+                    { Revision = 2, Outcome = ModelTurnOutcome.Denied, Reason = ModelTurnReason.ContextExpired });
+                completed.Task.Should().Be(original.Receipt.Task.Next(HostTaskState.Denied));
                 var retained = f.PendingRecords[original.Receipt.Message.Request.RequestId];
                 retained.Should().Be(completed);
                 retained.Message.Request.Should().BeSameAs(original.Receipt.Message.Request);
@@ -189,6 +234,8 @@ public sealed partial class ModelTurnHostTests
                 retained.Message.Reason.Should().Be(ModelTurnReason.ContextExpired);
                 retained.Message.Execution.Should().BeNull();
                 retained.Message.AssistantResponse.Should().BeNull();
+                (await f.ReadConversationMessageAsync(target.Authority.SessionId,
+                    original.Receipt.Message.Request.RequestId, Token)).Should().Be(retained.Message);
                 (await f.ReadTaskAsync(target.Authority.SessionId, original.Receipt.Task.Request.TaskId, Token))!
                     .Task.Should().Be(retained.Task);
             }

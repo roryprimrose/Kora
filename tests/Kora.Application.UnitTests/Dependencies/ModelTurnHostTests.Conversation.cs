@@ -259,6 +259,7 @@ public sealed partial class ModelTurnHostTests
         internal Action? AfterRetain { get; set; }
         internal Exception? RetainError { get; set; }
         internal string CompletionFault { get; set; } = string.Empty;
+        internal Action<HostRequest>? BeforeSubmissionComplete { get; set; }
         private SavedConversationDraft? conversationDraft;
 
         internal SessionConversationService ConversationService(Kora.Application.Dependencies.IModelTurnAdmission host,
@@ -295,11 +296,13 @@ public sealed partial class ModelTurnHostTests
         public ValueTask<ConversationSubmissionReceipt> CompleteConversationSubmissionAsync(HostRequest request,
             ModelTurnOutcome outcome, ModelTurnReason reason, Func<bool> admitted, CancellationToken token)
         {
-            // Held requests can expire concurrently; the terminal pair must remain request-local.
+            // Expiry completions can interleave; the terminal pair must remain request-local.
             var pending = TrackPendingRecords ? PendingRecords[request.RequestId] : null;
-            var message = (pending?.Message ?? Retained!) with { Revision = 2, Outcome = outcome, Reason = reason };
+            var message = pending?.Message ?? Retained!;
             var observed = pending is null ? Task!
                 : new HostTaskObservation(pending.Task, pending.Message.Generation, "host", true, null);
+            BeforeSubmissionComplete?.Invoke(request);
+            message = message with { Revision = 2, Outcome = outcome, Reason = reason };
             observed = observed with { Task = observed.Task.Next(message.ExpectedTaskState) };
             Retained = message;
             Task = observed;

@@ -589,6 +589,8 @@
           <WrapPanel>
             <Button x:Name="ReviewLocalEvent" Content="Review exact event" IsEnabled="{Binding CanControlLocalEvent}"
                     AutomationProperties.Name="Review only the selected exact event ID and revision; does not answer or retarget any question" />
+            <Button x:Name="AnswerConversationNotice" Content="Answer exact question" IsEnabled="{Binding CanAnswerConversationNotice}"
+                    AutomationProperties.Name="Open only the reviewed notice's existing exact conversation question; answer or Cancel separately, no microphone or approval grant" />
             <Button x:Name="DismissLocalEvent" Content="Dismiss exact event" IsEnabled="{Binding CanControlLocalEvent}"
                     AutomationProperties.Name="Dismiss only the selected exact event revision; no task cancellation or maintenance action" />
             <Button x:Name="DeferLocalEvent" Content="Defer exact event 15 minutes" IsEnabled="{Binding CanControlLocalEvent}"

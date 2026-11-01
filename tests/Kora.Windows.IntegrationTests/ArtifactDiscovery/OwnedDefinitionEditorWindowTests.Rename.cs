@@ -21,6 +21,20 @@ public sealed partial class OwnedDefinitionEditorWindowTests
     [Theory]
     [InlineData("typed")]
     [InlineData("native")]
+    [InlineData("inventory")]
+    [InlineData("inventory-recovery")]
+    [InlineData("inventory-draft")]
+    [InlineData("inventory-destination")]
+    [InlineData("inventory-name")]
+    [InlineData("inventory-selection")]
+    [InlineData("inventory-filter")]
+    [InlineData("inventory-input")]
+    [InlineData("inventory-owner")]
+    [InlineData("inventory-privacy")]
+    [InlineData("inventory-late-dependent")]
+    [InlineData("inventory-prepared-reload")]
+    [InlineData("inventory-saved-restore")]
+    [InlineData("inventory-saved-restore-recovery")]
     [InlineData("voice")]
     [InlineData("cancel-review")]
     [InlineData("cancel-confirm")]
@@ -40,6 +54,8 @@ public sealed partial class OwnedDefinitionEditorWindowTests
     [InlineData("saved-restore-recovery")]
     public async Task CompleteOwnedRenameReviewsConfirmsReconcilesAndReopensExactDisabledSource(string scenario)
     {
+        var inventorySelection = scenario is "inventory" || scenario.StartsWith("inventory-", StringComparison.Ordinal);
+        if (scenario.StartsWith("inventory-", StringComparison.Ordinal)) { scenario = scenario["inventory-".Length..]; }
         await HeadlessSession.RunAsync(async () =>
         {
             var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
@@ -66,6 +82,8 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 () => true, () => ownership, NullLogger<OwnedInstructionEditorController>.Instance);
             var source = (await store.Write("example", null, Document(ArtifactKind.Instruction, "Exact original body"), () => true,
                 operation => Task.FromResult(operation()), f.Token)).Current!;
+            var unrelatedPath = Path.Combine(f.RoamingRoot, "Instructions", "unrelated.txt");
+            File.WriteAllBytes(unrelatedPath, [1, 2, 0, 3]);
             reload.ReconcileSavedCopy(source).Should().BeTrue();
             var consequencesChanged = false;
             void ChangeConsequences()
@@ -110,8 +128,19 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 editor.Source.Text.Should().Be(source.Document.Text);
                 reviewOpened = new(TaskCreationOptions.RunContinuationsAsynchronously);
             }
+            if (inventorySelection)
+            {
+                Click(editor!, "Refresh");
+                await controller.WaitForOperation();
+                editor!.Files.SelectedItem = editor.Files.Items.OfType<OwnedDefinitionInventoryRow>()
+                    .Single(item => string.Equals(item.Name, "example", StringComparison.Ordinal));
+                Click(editor, "Inspect");
+                await controller.WaitForOperation();
+                editor.Files.SelectedItem.Should().NotBeNull();
+                if (savedRestore) { editor.RestorePrevious.IsEnabled.Should().BeFalse("explicit inventory reselection retires the previous Save identity"); }
+            }
             Task rename;
-            if (scenario is "native")
+            if (scenario is "native" || inventorySelection)
             {
                 editor!.RenameNameInput.Text = "renamed";
                 Click(editor, "Rename");
@@ -147,6 +176,9 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 {
                     case "draft": editor.Source.Text += "New draft"; break;
                     case "destination": editor.RenameNameInput.Text = "different"; break;
+                    case "name": editor.NameInput.Text = "different"; break;
+                    case "selection": editor.Files.SelectedItem = null; break;
+                    case "filter": editor.QueryInput.Text = "different"; break;
                     case "input": f.Main.CommandText = "Unrelated later input"; break;
                     case "owner": ownership++; break;
                     case "source":
@@ -221,7 +253,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 Click(await reviewOpened.Task.WaitAsync(TimeSpan.FromSeconds(10), f.Token), "Confirm rename");
                 await recovering;
             }
-            var completed = scenario is "typed" or "native" or "voice" or "recovery" || savedRestore;
+            var completed = scenario is "typed" or "native" or "inventory" or "voice" or "recovery" || savedRestore;
             var oldPath = Path.Combine(f.RoamingRoot, "Instructions", source.CanonicalFileName);
             File.Exists(oldPath).Should().Be(!completed);
             var newPath = Path.Combine(f.RoamingRoot, "Instructions", "renamed.instructions.md");
@@ -230,6 +262,10 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             {
                 var saved = await store.Read("renamed", f.Token);
                 saved!.Document.CopyBytes().Should().Equal(new OwnedInstructionRename(source, "renamed").Proposed.CopyBytes());
+                saved.DirectoryIdentity.Should().Be(source.DirectoryIdentity);
+                saved.RootBindingIdentity.Should().Be(source.RootBindingIdentity);
+                (await store.ReadRenameRecovery(f.Token)).Should().BeNull();
+                Directory.GetFiles(Path.Combine(f.RoamingRoot, "Instructions"), ".instruction-rename-*").Should().BeEmpty();
                 catalogue.Candidates.Single(item => item.OwnedInstructionName is "renamed").IsUseEnabled.Should().BeFalse();
                 catalogue.Candidates.Should().NotContain(item => item.OwnedInstructionName == "example");
                 if (savedRestore)
@@ -269,12 +305,19 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                     editor.Source.Text.Should().Be(saved.Document.Text);
                     editor.NameInput.Text.Should().Be("renamed");
                     File.Exists(oldPath).Should().BeFalse();
-                    Directory.GetFiles(Path.Combine(f.RoamingRoot, "Instructions")).Should().Equal(newPath);
+                    Directory.GetFiles(Path.Combine(f.RoamingRoot, "Instructions")).Should().BeEquivalentTo([newPath, unrelatedPath]);
                     (await store.ReadRenameRecovery(f.Token)).Should().BeNull();
                     catalogue.Candidates.Should().NotContain(item => item.OwnedInstructionName == "example");
                     catalogue.Candidates.Single(item => item.OwnedInstructionName is "renamed").IsUseEnabled.Should().BeFalse();
                 }
-                await Run("instructions inspect renamed");
+                editor.NameInput.Text.Should().Be("renamed");
+                editor.Source.Text.Should().Be(saved.Document.Text);
+                if (inventorySelection && !savedRestore)
+                {
+                    Click(editor, "Inspect");
+                    await controller.WaitForOperation();
+                }
+                else { await Run("instructions inspect renamed"); }
                 editor.NameInput.Text.Should().Be("renamed");
                 editor.Source.Text.Should().Be(saved.Document.Text);
                 string.Join("\n", editor.GetVisualDescendants().OfType<TextBlock>().Select(item => item.Text)).Should().Contain("Disabled/held");
@@ -284,6 +327,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             { File.ReadAllBytes(oldPath).Should().Equal(source.Document.CopyBytes()); }
             if (scenario is "draft") { editor.Source.Text.Should().EndWith("New draft"); editor.Source.Text = source.Document.Text; }
             if (scenario is "privacy") { editor.Source.Text.Should().BeEmpty(); editor.RenameNameInput.Text.Should().BeEmpty(); }
+            File.ReadAllBytes(unrelatedPath).Should().Equal([1, 2, 0, 3]);
         });
     }
 }

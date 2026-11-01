@@ -53,7 +53,8 @@ internal sealed partial class OwnedInstructionEditorController
         inventory = null; inventoryPage = null; inventoryEligibility = null; inventoryChoiceWithdrawn = true;
         window?.RetireBufferFind(clearQuery: true);
         // A reviewed-use hold does not change source identity or the frozen body.
-        preservingOpenSourceInventory = preserveRefinement || preserveProfileReview;
+        // Rename owns catalogue/native revalidation; clearing its old row is not a user source edit.
+        preservingOpenSourceInventory = preserveRefinement || preserveProfileReview || renaming;
         try { window?.ClearInventory(); }
         finally { preservingOpenSourceInventory = false; }
         window?.ClearValidation();

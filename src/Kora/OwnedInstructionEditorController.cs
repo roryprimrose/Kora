@@ -272,6 +272,7 @@ internal sealed partial class OwnedInstructionEditorController(
                     break;
                 case "Rename":
                 case "Recover rename":
+                    renaming = true;
                     await RenameInstruction(opened, action is "Recover rename", Eligible, token);
                     break;
                 case "Create Kora copy from profile instruction":
@@ -363,7 +364,7 @@ internal sealed partial class OwnedInstructionEditorController(
                 + (profileOriginal is not null ? " Explicitly Reload/reconcile the registered original before further writes." : " Profile originals are never modified by owned operations."));
             }
         }
-        finally { busy = false; }
+        finally { renaming = false; busy = false; }
     }
 
     private async Task ValidateDraft(OwnedInstructionEditorWindow opened, Func<bool> eligible, CancellationToken token, bool compare = false)

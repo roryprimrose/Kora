@@ -1,7 +1,9 @@
 using Avalonia.Threading;
+using System.Text;
 
 using Kora.Application.Hosting;
 using Kora.Core.Conversation;
+using Kora.Core.Commands;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -15,6 +17,12 @@ internal sealed partial class SessionsViewModel
     private IReadOnlyList<ConversationPendingTurn> pendingConversationTurns = [];
     private ConversationPendingTurn? selectedPendingConversation;
     private bool changingPendingConversation;
+    private ConversationPendingClearReview? pendingClearReview;
+    private string pendingClearText = string.Empty;
+    public string PendingClearText => !closed && access.CanInspect ? pendingClearText : string.Empty;
+    public bool CanReviewPendingClear => CanRefreshPendingConversation && access.CanControl && selected?.Authority.IsActive == true;
+    public bool CanConfirmPendingClear => CanReviewPendingClear && pendingClearReview is not null;
+    public bool CanDiscardPendingClear => !changingPendingConversation && pendingClearReview is not null;
     public IReadOnlyList<ConversationPendingTurn> PendingConversationTurns => pendingConversation is { } snapshot
         && !closed && access.CanInspect && snapshot.Session == selected?.Authority.SessionId
         ? pendingConversationTurns : [];
@@ -127,9 +135,12 @@ internal sealed partial class SessionsViewModel
     private void PresentSubmittedConversation(SessionWorkspaceEntry target, ConversationTurnCompletion completion)
     {
         var control = access.ControlRevision;
+        var epoch = selectionEpoch;
+        var source = selected;
         void Present()
         {
-            if (closed || !access.CanInspect || access.ControlRevision != control || selected != target) { return; }
+            if (closed || !access.CanInspect || access.ControlRevision != control || selectionEpoch != epoch
+                || selected != source || source != target) { return; }
             if (completion.Receipt is { } receipt)
             {
                 if (conversationPage is not null || completedConversationMessage == receipt.Message) { return; }
@@ -145,15 +156,18 @@ internal sealed partial class SessionsViewModel
             NotifyConversation();
         }
         if (Dispatcher.UIThread.CheckAccess()) { Present(); }
-        else { Dispatcher.UIThread.Post(Present); }
+        else { conversationDispatcher.Post(Present); }
     }
 
     private void PresentPendingConversation(ConversationPendingSnapshot snapshot)
     {
         var control = access.ControlRevision;
+        var epoch = selectionEpoch;
+        var source = selected;
         void Present()
         {
             if (closed || !access.CanInspect || access.ControlRevision != control || snapshot.ControlRevision != control
+                || selectionEpoch != epoch || selected != source || snapshot.Session != source?.Authority.SessionId
                 || snapshot.Session != selected?.Authority.SessionId
                 || pendingConversation is { } prior && prior.Session == snapshot.Session && prior.Revision > snapshot.Revision) { return; }
             pendingConversation = snapshot;
@@ -163,7 +177,7 @@ internal sealed partial class SessionsViewModel
             NotifyPendingConversation();
         }
         if (Dispatcher.UIThread.CheckAccess()) { Present(); }
-        else { Dispatcher.UIThread.Post(Present); }
+        else { conversationDispatcher.Post(Present); }
     }
 
     public Task RefreshPendingConversationAsync() => ChangePendingConversationAsync(async (target, live) =>
@@ -194,6 +208,39 @@ internal sealed partial class SessionsViewModel
         if (live()) { PresentPendingConversation(snapshot); }
     });
 
+    public Task ReviewPendingClearAsync() => ChangePendingConversationAsync(async (target, live) =>
+    {
+        DiscardPendingClear();
+        var composer = composerBufferRevision;
+        var review = await conversation!.ReviewPendingClearAsync(target, RequestOrigin.LocalUi,
+            () => live() && composer == composerBufferRevision, lifetime.Token);
+        if (!live()) { conversation.DiscardPendingClearReview(review); return; }
+        pendingClearReview = review;
+        pendingClearText = Encoding.UTF8.GetString(SessionCommandResult.Serialize(
+            new("review", SessionConversationService.PendingClearImpact) { PendingClearReview = review.Snapshot }));
+    });
+
+    public Task ConfirmPendingClearAsync() => ChangePendingConversationAsync(async (_, live) =>
+    {
+        var review = pendingClearReview ?? throw new InvalidOperationException("Review ALL current pending requests before confirming Clear pending only.");
+        pendingClearReview = null;
+        var result = await conversation!.ConfirmPendingClearAsync(review, live, lifetime.Token);
+        if (live())
+        {
+            pendingClearText = Encoding.UTF8.GetString(SessionCommandResult.Serialize(
+                new(result.Outcome, "Actual per-entry retention/readback outcomes. RemainingPending describes the host lane, not durable all-clear for unconfirmed originals.")
+                { PendingClearResult = result }));
+        }
+    });
+
+    public void DiscardPendingClear()
+    {
+        if (pendingClearReview is { } review) { conversation!.DiscardPendingClearReview(review); }
+        pendingClearReview = null;
+        pendingClearText = string.Empty;
+        NotifyPendingConversation();
+    }
+
     private async Task ChangePendingConversationAsync(Func<SessionWorkspaceEntry, Func<bool>, Task> operation)
     {
         if (!CanRefreshPendingConversation) { return; }
@@ -216,6 +263,7 @@ internal sealed partial class SessionsViewModel
     {
         foreach (var name in new[] { nameof(PendingConversationTurns), nameof(SelectedPendingConversation), nameof(PendingConversationStatus),
             nameof(CanRefreshPendingConversation), nameof(CanCancelPendingConversation), nameof(CanResumePendingConversation),
+            nameof(PendingClearText), nameof(CanReviewPendingClear), nameof(CanConfirmPendingClear), nameof(CanDiscardPendingClear),
             nameof(CanHoldConversationDispatch), nameof(CanReleaseConversationDispatch) })
         { OnPropertyChanged(name); }
     }

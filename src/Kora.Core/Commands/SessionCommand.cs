@@ -36,7 +36,7 @@ public sealed partial record SessionCommand(
         + " " + SessionDispositionReviewCommand.Syntax + ". " + SessionDispositionReviewCommand.Boundary
         + " " + SessionDispositionReviewCommand.StopAndDeleteSyntax + ". Separate native confirmation required; voice-origin compound deletion is unavailable."
         + " " + SessionQueueCancellationReviewCommand.Syntax + ". " + SessionQueueCancellationReviewCommand.Boundary
-        + " " + ConversationDispatchSyntax;
+        + " " + ConversationDispatchSyntax + " " + PendingClearSyntax;
 
     public string PageKind { get; init; } = "tasks";
     public Guid? TaskId { get; init; }
@@ -72,6 +72,7 @@ public sealed partial record SessionCommand(
         if (ParseRemainingWork(text) is { } remaining) { return remaining; }
         if (ParseConversationDispatch(text, input) is { } dispatch) { return dispatch; }
         if (ParseRetention(text, input) is { } retention) { return retention; }
+        if (ParsePendingClear(text) is { } pendingClear) { return pendingClear; }
         if (ParseConversationSearch(text) is { } search) { return search; }
         if (ParseRequest(text) is { } request) { return request with { RequestActivationPrefixed = activationPrefixed }; }
         if (ParseInstructionScopes(text, input) is { } scope) { return scope; }

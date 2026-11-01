@@ -10,6 +10,12 @@ operations. Registering or inspecting a root grants none of the later
 authorities; see the [source contract](Skill_Storage.md#delivered-bounded-r21-native-inspection)
 and [reviewed invocation](Skill_Storage.md).
 
+Native v1/v2/v3 owned sources also support [explicit reviewed deletion](../docs/owned-skill-authoring.md#delete-one-saved-owned-source).
+Dirty drafts retain Save/Discard/Cancel. Full source/inventory/use-impact review
+precedes separate confirmation; deletion does not enable work or revoke
+independent grants, and an uncertain effect requires explicit recovery
+([admitted operation](../src/Kora.Application/Skills/OwnedSkillDeletionWorkflow.cs)).
+
 Related: [Extensibility](Extensibility.md), [Security and Data Flows](Security_Data_Flows.md), [Task Lifecycle](Task_Lifecycle.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
 [Definition Management](Definition_Management.md) owns the shared authoring
@@ -166,6 +172,9 @@ review of its exact revision and scope under the common lifecycle.
 
 The bounded [native v4 observation workflow](../docs/owned-skill-authoring.md#author-and-run-an-ordered-host-observation-workflow) now completes author/validate/save-disabled/reopen/review/enable/invoke/status/cancel for an explicit ordered sequence of the existing six host read-only observations.
 Its [separate native owner](../src/Kora/ObservationWorkflowController.cs) does not modify shared-source writers, interpret guidance as steps, or invoke a model.
+The [native confirmation lifetime](../src/Kora/ObservationWorkflowWindow.cs) is modal for package review, separate Save, each independent step and dirty-draft discard.
+It holds blocked owner input until native closure, starts keyboard focus on the complete review, declines on Cancel/Escape/native close, and retires on owner loss or cancellation.
+Approval and focus return are rechecked against the original visible eligible owner after closure; no remaining observation or partial-success result follows a declined step.
 
 The [closed declaration](../src/Kora.Core/Skills/ObservationWorkflowDefinition.cs) uses the existing immutable two-file owned store, exact registered input/result validation, host-assigned step numbers and strict count/byte/total-time budgets.
 The [host runner](../src/Kora.Application/Skills/ObservationSkillWorkflow.cs) revalidates exact source, original request/channel, Active target/profile, dependencies and independent action permission. It publishes only a complete native source-labelled result or explicit joined failure/cancellation, never partial success.
@@ -184,6 +193,7 @@ The MVP authoring writer accepts only a validated package:
 Use safe parsing with size/depth/step limits and reject unknown executable directives.
 No inline evaluation, shell commands, scripts, assemblies, native libraries, arbitrary executable paths, installer hooks, or custom validators are allowed.
 Registered tool references do not allow a skill to install or redefine the tool implementation.
+The separately reviewed [shared-skill MCP reference](Skill_Storage.md#reviewed-exact-read-only-mcp-skill) pins one existing host-admitted read-only dependency; it adds no MCP option to the owned skill writer and grants no account, connection or invocation permission.
 A skill needing a new executable capability can describe the missing dependency, but installing that implementation is an out-of-band developer/operator action.
 This restriction applies to user authoring. [Bundled skills](Built_In_Skills.md) may ship protected first-party scripts installed with the application.
 Neither bundled script execution nor user-authored executable skills ship in
@@ -282,6 +292,7 @@ Passing these tests is evidence of structure/example behaviour, not proof that t
 The delivered [simulated example subset](../docs/owned-skill-authoring.md#simulate-one-tool-free-example) uses the current inspected owned native v1 literal draft/revision and an ephemeral closed fixture, leaving both saved files unchanged ([host workflow](../src/Kora.Application/Skills/OwnedSkillFixtureWorkflow.cs)).
 The [closed parser](../src/Kora.Core/Skills/OwnedSkillFixture.cs) admits one complete input and one to eight ordinal `equals`/`contains` assertions. No mocked tool responses are accepted in this tool-free subset; native v2/v3/v4, reference-bearing definitions, unknown fields/assertions, hooks and custom validators are explicitly denied. Input-looking text and workflow-looking JSON in native v1 guidance remain literal evidence, not bindings or steps.
 The [existing editor](../src/Kora/OwnedSkillEditorController.Fixtures.cs) separately reviews complete source/fixture/local input before **Start SIMULATED test**, then displays complete exact output and host assertions. The isolated local tools-none route cannot authorize actual tool/network/effect execution; unavailable qualification stays unavailable, with no hosted fallback.
+Native **Escape** rejects the pending simulation review without inference or dismisses its volatile result through the existing review close path; it never confirms a choice or changes the draft/fixture.
 Fixture/source/selection, original channel, privacy, ownership, provider configuration, generation and two-minute expiry fences suppress stale output; cancellation/disposal joins owned source reads and model work. Every terminal retires its review even if source bytes or eligibility later recover. Results remain volatile simulated examples, not retained facts, grants, trust or enablement. Save, Enable and an independently admitted real trial remain separate.
 
 An optional real trial is a separately admitted task with the exact skill revision and selected context.

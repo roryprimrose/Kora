@@ -18,7 +18,7 @@ public sealed partial class SessionConversationService
     private ISessionStopAndDeleteStore StopAndDeleteStore => store as ISessionStopAndDeleteStore
         ?? throw new InvalidOperationException("The authoritative compound disposition reader is unavailable.");
 
-    private void RequireConversationDispatchOpen(HostId<SessionIdentity> session)
+    private void RequireConversationDispatchOpen(HostId<SessionIdentity> session, bool alreadyDispatching = false)
     {
         lock (cancellationGate)
         {
@@ -27,6 +27,8 @@ public sealed partial class SessionConversationService
             { throw new InvalidOperationException("A host operation is reviewing or stopping submitted work. Cancel its review before accepting or resuming requests; accepted stops must physically join."); }
             if (stopAndDeleteHolds.Contains(session))
             { throw new InvalidOperationException("This conversation is stopping for reviewed deletion. New dispatch is closed only for this conversation."); }
+            if (!alreadyDispatching && conversationLanes.TryGetValue(session, out var lane) && lane.PendingClearHeld)
+            { throw new InvalidOperationException("This conversation is confirming an exact pending-only clear. No new admission, dispatch or resume is permitted during its transaction."); }
         }
     }
 

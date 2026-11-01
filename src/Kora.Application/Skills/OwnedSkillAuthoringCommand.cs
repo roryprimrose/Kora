@@ -7,7 +7,7 @@ namespace Kora.Application.Skills;
 public sealed record OwnedSkillAuthoringCommand(string Operation, string? Id = null, string? Version = null, string? Literal = null,
     string? InputName = null)
 {
-    public const string Syntax = "create a skill that <purpose> | owned skill expected-input: <literal> | owned skill expected-output: <literal> | owned skill generate | owned skill create <id> <version> | owned skill name: <literal> | owned skill description: <literal> | owned skill guidance: <literal> | owned skill critique: <literal> | owned skill refine | owned skill cancel-refinement | owned skill tool none|web-page-get | owned skill inputs none|required-literal | owned skill validate | owned skill fixture: <closed-json> | owned skill test | owned skill cancel-test | owned skill save | owned skill list | owned skill reopen <id> <version> | owned skill use <id> <version> | owned skill enable | owned skill targets | owned skill next-targets | owned skill target <session-id> | owned skill request: <literal> | owned skill input <name>: <literal> | owned skill url: <absolute-url> | owned skill review-tool | owned skill review-use | owned skill invoke | owned skill close-use | owned skill cancel";
+    public const string Syntax = "create a skill that <purpose> | owned skill expected-input: <literal> | owned skill expected-output: <literal> | owned skill generate | owned skill create <id> <version> | owned skill name: <literal> | owned skill description: <literal> | owned skill guidance: <literal> | owned skill critique: <literal> | owned skill refine | owned skill cancel-refinement | owned skill tool none|web-page-get | owned skill inputs none|required-literal | owned skill validate | owned skill fixture: <closed-json> | owned skill test | owned skill cancel-test | owned skill save | owned skill list | owned skill reopen <id> <version> | owned skill delete <id> <version> | owned skill use <id> <version> | owned skill enable | owned skill targets | owned skill next-targets | owned skill target <session-id> | owned skill request: <literal> | owned skill input <name>: <literal> | owned skill url: <absolute-url> | owned skill review-tool | owned skill review-use | owned skill invoke | owned skill close-use | owned skill cancel";
     public static IReadOnlyList<string> FixedPhrases { get; } =
         Array.AsReadOnly(new[] { "owned skill editor", "owned skill list", "owned skill validate", "owned skill save", "owned skill cancel",
             "owned skill tool none", "owned skill tool web-page-get", "owned skill review-tool",
@@ -72,7 +72,7 @@ public sealed record OwnedSkillAuthoringCommand(string Operation, string? Id = n
         if (words.Length == 4 && !input.Any(char.IsControl) && words[2].Equals("target", StringComparison.OrdinalIgnoreCase)
             && Guid.TryParseExact(words[3], "D", out var target) && string.Equals(target.ToString("D"), words[3], StringComparison.Ordinal))
         { return new("target", Literal: words[3]); }
-        if (words.Length == 5 && !input.Any(char.IsControl) && words[2].ToLowerInvariant() is "create" or "reopen" or "use")
+        if (words.Length == 5 && !input.Any(char.IsControl) && words[2].ToLowerInvariant() is "create" or "reopen" or "use" or "delete")
         {
             try { OwnedDeclarativeSkillDocument.RequireIdentity(words[3], words[4]); }
             catch (InvalidDataException) { return new("Invalid"); }

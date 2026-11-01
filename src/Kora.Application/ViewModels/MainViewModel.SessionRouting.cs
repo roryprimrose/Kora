@@ -31,7 +31,7 @@ public sealed partial class MainViewModel
             return true;
         }
         if (origin == RequestOrigin.ActivatedVoice && wakeCurrent is null
-            && !commandRouter.IsActivationPrefixed(text, AssistantName))
+            && !HasCurrentNameActivation(text))
         {
             ShowInformation("Activate me before routing a request.", "Use the current assistant name. No destination was selected.");
             return true;

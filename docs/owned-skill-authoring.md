@@ -12,6 +12,32 @@ Start with [a purpose](#create-a-new-skill-from-a-purpose) or [manual create and
 The [file format](#native-v1-format) is needed only if you inspect the saved
 files; the native editor prepares them for you.
 
+## Rename one complete owned native package
+
+Rename changes a saved package's canonical ID, not its readable name, version or unsaved draft. It supports the current native v1/v2/v3/v4 two-file formats only, never a primary-only `SKILL.md` move or a shared/profile/reference-package mutation
+([rename proposal](../src/Kora.Core/Skills/OwnedSkillRename.cs), [native writer](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.Rename.cs)).
+
+1. Choose **List** in the owned skill editor, or type `owned skill list`. Save a dirty draft as a separate new immutable version, or explicitly discard it first; Rename never discards it.
+2. Select the exact saved package, enter a distinct **New owned package ID**, then choose **Rename selected package**. Alternatively, type `owned skill rename example 1.0.0 renamed`. The same exact command with the current assistant-name prefix is available through eligible activated voice.
+3. Review the complete original and proposed files, exact old/new destinations and revisions, unchanged version/readable name/guidance/declarations, and reference/authority consequences. Continue, then separately confirm **Rename only this complete package**. Cancel or **Escape** rejects either review without renaming; the editor and source remain intact.
+4. After verified completion, choose **List**, select the new package and **Reopen**, or type `owned skill reopen renamed 1.0.0`. Native v4 uses its existing separate `owned skill workflow reopen renamed 1.0.0` editor.
+   The new identity remains inactive and needs fresh independent use review, enablement and any action permission ([native operation](../src/Kora/OwnedSkillEditorController.Rename.cs), [review controls](../src/Kora/OwnedSkillEditorWindow.cs)).
+
+Only the exact manifest ID changes; complete guidance bytes, version, readable name and supported declarations remain unchanged. Other packages and other versions are retained.
+If you edit the open draft while the post-rename list refresh is running, your new text and its unsaved-draft prompt remain intact. An unconfirmed presentation does not undo the native rename; inspect the exact names before taking another action.
+New simulated-fixture input during that refresh is also retained. After adopting the renamed source, enter a fresh fixture and separately review any simulation; Rename itself never runs or approves the example.
+External references stay bound to the old identity and are not rewritten; old reviews cannot follow the new ID or revive when old bytes are restored ([use-authority regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.OwnedSkillRename.cs)).
+
+Publication and old-source retirement are **recoverable steps, not an atomic transaction**. After an uncertain result, do not repeat Rename or overwrite either name.
+**List** exposes retained pending renames; select one and choose **Recover selected rename**, or type `owned skill recover-rename example 1.0.0` using the original ID/version. Review both complete packages and separately confirm **Resume only retained rename**.
+Both identities remain unavailable while intent is retained, including after restart; unrelated packages remain available ([recovery tests](../tests/Kora.Windows.IntegrationTests/Skills/OwnedSkillRenameTests.cs)).
+**Delete** also refuses both affected identities until separately reviewed rename recovery completes. A completed renamed native v1/v2/v3 source requires fresh full-source deletion review and independent confirmation; rename or simulation never approves deletion.
+Pending renames still count toward the saved-version and total-byte limits. Resolve retained renames before adding packages when that reserved capacity is full; recovery refuses an already over-limit inventory rather than releasing a broken catalogue.
+
+Changed source components, destination identity/bytes, parents or corrupt retained intent stop recovery without overwrite or deletion of substitutions. Keep both names and the private local intent for explicit inspection; no automatic rollback/retry is claimed.
+If no pending intent remains after an unconfirmed terminal receipt, inspect both exact old/new names with List/Reopen rather than retrying.
+Rename does not run a model/tool, register or enable a definition, import executable content, archive a package or mutate a profile original ([dedicated writer](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.Rename.cs), [admission and audit](../src/Kora.Application/Skills/OwnedSkillRenameWorkflow.cs)).
+
 ## Author and run an ordered host observation workflow
 
 Use the separate **Kora-owned observation workflow** window, typed commands below, or the same commands with the current assistant-name voice prefix.

@@ -79,6 +79,8 @@ The [consumer](../src/Kora.Application/ViewModels/MainViewModel.HandsFreeVoice.c
 
 Wake admission binds both the voice-owner and call/control-owner binding revisions. Replacing an owner with another currently eligible binding retires the original utterance even when numeric call-policy and owner revisions are unchanged. The same admission check fences capture, physical closure, queued dispatch, destination review and terminal answer retention; replacement authority cannot renew earlier input.
 
+The assistant-name configuration revision is part of that same admission, even when the name text is unchanged. Name/profile cutover cannot renew an earlier wake, and original capture and speech-output resources still require their physical joins before replacement work.
+
 Ambient admission does not bind unsent composer text. At the validated native wake span, the host captures that utterance's composer revision before releasing wake or accepting subsequent PCM; changes after activation retire capture/evidence. Typing before wake neither retires ambient readiness nor causes transcription ([native boundary](../src/Kora.Windows/Audio/WindowsHandsFreeAudioSession.cs), [host binding](../src/Kora.Core/Voice/HandsFreeAudioBinding.cs)).
 
 Host admission and capture-owner observations run outside the hands-free state lock, so speech-profile status can retain its authoritative configuration lock without reversing capture's lock order. The host rechecks the exact admission instance, wake phase, generation, retirement/disposal and cancellation under its state lock after observation; an idle snapshot cannot authorize a subsequently activated utterance. Activation callbacks and state notifications also run outside that lock. Profile switching keeps its existing exclusive runtime lease and joined retirement; capture closure still joins the native PCM owner before dispatch.
@@ -98,6 +100,8 @@ The [service regressions](../tests/Kora.Application.UnitTests/Voice/HandsFreeVoi
 The [reviewed command owner](../src/Kora.Application/Voice/ReviewedVoiceCommandCapture.cs) implements supporting voice reliability: **Review one spoken command**, bounded local capture, **Finish capture**, exact inert transcript, optional correction, then separate **Dispatch this exact voice command once** or cancellation. This is one utterance, not a saved setting or a change to direct activated/PTT routing.
 
 The [host binding](../src/Kora.Application/ViewModels/MainViewModel.ReviewedVoiceCommand.cs) captures original foreground/source, channel, name, device, topology, call, privacy, ownership/control and input revisions before opening capture. Recognition generations and confirmed native release belong to the capture owner. Any changed source or target expires the candidate rather than retargeting another conversation, editor, question or generic reply.
+
+[Hands-free wake resumption](../src/Kora.Application/ViewModels/MainViewModel.HandsFreeVoice.cs) also waits for this owner to release capture and review; physical microphone release alone does not end the retained review.
 
 Editing applies only shared reject-only [text and credential bounds](../src/Kora.Core/Conversation/ConversationText.cs), never command parsing, tools, model rewriting or execution. Native confirmation enters the [existing activated command admission](../src/Kora.Application/ViewModels/MainViewModel.cs) as **ActivatedVoice**; it cannot cleanse call/privacy/authentication restrictions or approve the resulting operation. Independent high-risk approval and exact hosted-send consent remain mandatory.
 
@@ -370,11 +374,15 @@ cancellation and safety controls, including contention with local reasoning.
 Hardware suggestions require explicit acceptance; they cannot weaken selected
 protection or silently change an admitted turn.
 
-The bounded [native/typed/activated review](../src/Kora.Application/ViewModels/MainViewModel.SpeechInput.cs) now completes an explicit switch or recovery for the existing Windows activated tuple only. Review displays saved/desired/effective state, the immutable proposed tuple and required local capabilities; confirmation retains the admitted original request/channel through the [joined cutover](../src/Kora.Application/Configuration/SpeechInputConfigurationService.cs).
+The bounded [native/typed/activated review](../src/Kora.Application/ViewModels/MainViewModel.SpeechInput.cs) completes an explicit switch or recovery for the existing Windows activated tuple. It also composes exact configured-name selection for `pocketsphinx-5-1-1-en-us-cpu-v1 Cpu CaptureLifetime` when the trusted Windows platform independently qualifies that name/profile. Review displays saved/desired/effective state, the immutable proposed tuple, configured name and required local capabilities; confirmation retains the admitted original request/channel through the [joined cutover](../src/Kora.Application/Configuration/SpeechInputConfigurationService.cs).
 
 Cancellation or stale review does not replace saved intent. A pre-write retirement failure keeps the prior desired selection while withholding effective capture; uncertain persistence explicitly withholds saved-state confirmation. The [shared lifecycle](../src/Kora.Application/Voice/HandsFreeVoiceRecognitionService.Profiles.cs) excludes wake, PTT and reply capture throughout the exclusive cutover lease.
 
-Additional exact local wake/ASR/resource choices remain [unavailable](../src/Kora.Core/Voice/SpeechInputProfileCatalogue.cs). Optional hands-free asset preparation is not a selectable qualified profile. Unsupported legacy resource/residency intent is retained for inspection; only explicit review and confirmation of the compatible Windows tuple replaces it. No model download, automatic listening enablement, hosted audio, biometric enrollment or qualification claim is added.
+The [shared lifecycle](../src/Kora.Application/Voice/HandsFreeVoiceRecognitionService.Profiles.cs) physically joins the old keyword/capture/ASR generation before acquiring verified asset leases for the proposed profile. Unknown release quarantines ownership and blocks replacement. Rename still turns listening off; profile confirmation neither grants listening nor automatically rearms it. Unsupported names keep desired intent visible and effective wake unavailable, never retaining the old name or substituting Kora. The default Kora capture route is preserved; custom wake names require explicit native-profile selection.
+
+The [actual native consumer](../src/Kora.Windows/Audio/PocketSphinxKeywordDetector.cs) receives a [bounded literal keyword](../src/Kora.Windows/Audio/PocketSphinxKeywordConfiguration.cs) derived from exact entries in the installed, hash-bound CMU dictionary. Strict UTF-8 and byte/entry/token bounds reject malformed or ambiguous mappings. There is no generated phonetics, network lookup, arbitrary keyword-file syntax or dictionary mutation. Native keyword and clock readback must match before capture. A [separately typed host wake admission](../src/Kora.Application/Voice/HandsFreeCommandActivation.cs) preserves the original request and fresh name/profile/capture generations; final recognized command text is unchanged, not reconstructed with a synthetic name prefix. The admitted span's immediate command reaches existing local ASR and command routing. Privacy-reducing Stop listening precedence is retained, including the supported name `Stop`.
+
+Production native profiles still have **no qualified names** in the [platform catalogue](../src/Kora.Windows/Audio/HandsFreeNativeProfileCatalogue.cs). Installed assets, accepted keywords and deterministic [composed native API/resource fakes](../tests/Kora.Windows.IntegrationTests/Audio/CustomNameWakeCutoverTests.cs) do not establish acoustic, quality or playback qualification. The complete selection/cutover/native-configuration/span/ASR/command path is implemented (I); production availability remains independently gated (E/Q). Other wake/ASR/backend/residency choices remain unavailable. Unsupported legacy intent is retained until an explicit compatible reviewed switch. No download, automatic listening enablement, hosted audio, biometric enrollment or qualification claim is added.
 
 ## Optional Installation and Runtime Lifecycle
 
@@ -439,7 +447,12 @@ changed receipts/source, aliases, replacement objects or native identity fail cl
 
 The [shared runtime owner](../src/Kora.Windows/Audio/HandsFreeSetupRuntime.cs)
 excludes future consumers, invalidates only capture/model work using these
-assets and joins its opens/teardown before removal. A consumer admitted after
+assets and joins its opens/teardown before removal. Exact qualified-name
+profile preparation also retains a tracked asset consumer until its lease
+is released or joined by removal. Pending or acquired exclusive mutation
+withholds profile availability before publication; the removed profile's capture hold denies
+both preparation and capture without a default-name/profile fallback.
+A consumer admitted after
 review invalidates that review. The [store](../src/Kora.Windows/Dependencies/WindowsSpeechComponentStore.cs)
 rehashes and revalidates the exact inventory under the private store lease;
 [Windows bindings](../src/Kora.Windows/Dependencies/SpeechComponentFileBinding.cs)

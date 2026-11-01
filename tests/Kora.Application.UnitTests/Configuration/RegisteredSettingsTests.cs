@@ -14,7 +14,7 @@ public sealed class RegisteredSettingsTests
     public void ClosedRegistryInspectionAndPolicyDeclareOnlyTheExistingAdmittedSubset()
     {
         RegisteredSettingRegistry.Settings.Select(item => item.Setting).Should().Equal(Enum.GetValues<RegisteredSetting>());
-        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().OnlyHaveUniqueItems().And.HaveCount(14);
+        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().OnlyHaveUniqueItems().And.HaveCount(15);
         foreach (var descriptor in RegisteredSettingRegistry.Settings)
         {
             RegisteredSettingRegistry.Get(descriptor.Setting).Should().BeSameAs(descriptor);
@@ -72,6 +72,10 @@ public sealed class RegisteredSettingsTests
     [InlineData("set responses.default-mode to Hybrid", RegisteredSetting.ResponseMode)]
     [InlineData("set responses.default-mode to VoiceOnly", RegisteredSetting.ResponseMode)]
     [InlineData("set responses.default-mode to VisualOnly", RegisteredSetting.ResponseMode)]
+    [InlineData("set speech.windows-rate to -10", RegisteredSetting.WindowsSpeechRate)]
+    [InlineData("set speech.windows-rate to -1", RegisteredSetting.WindowsSpeechRate)]
+    [InlineData("set speech.windows-rate to 0", RegisteredSetting.WindowsSpeechRate)]
+    [InlineData("set speech.windows-rate to 10", RegisteredSetting.WindowsSpeechRate)]
     public void SharedParserReturnsTypedInertProposalAndExactDescriptor(string text, RegisteredSetting setting)
     {
         var proposal = RegisteredSettingSuggestions.Parse(text);
@@ -92,6 +96,10 @@ public sealed class RegisteredSettingsTests
                 Enum.IsDefined(mode.Value).Should().BeTrue();
                 mode.Descriptor.SuggestedValues.Should().Be("Hybrid/VoiceOnly/VisualOnly");
                 mode.Descriptor.Id.Should().Be(ResponseModeCommand.OptionId);
+                break;
+            case RegisteredSettingProposal.WindowsRate rate:
+                rate.Value.Value.Should().BeInRange(WindowsSpeechRate.Minimum, WindowsSpeechRate.Maximum);
+                rate.Descriptor.Units.Should().Be("Windows native units");
                 break;
         }
     }
@@ -130,6 +138,21 @@ public sealed class RegisteredSettingsTests
     [InlineData("set responses.session-mode to VoiceOnly")]
     [InlineData("set responses.default-mode to VoiceOnly\nset speech.playback-volume to 30")]
     [InlineData("reset responses.default-mode")]
+    [InlineData("set speech.windows-rate to -11")]
+    [InlineData("set speech.windows-rate to 11")]
+    [InlineData("set speech.windows-rate to +1")]
+    [InlineData("set speech.windows-rate to -0")]
+    [InlineData("set speech.windows-rate to -01")]
+    [InlineData("set speech.windows-rate to 01")]
+    [InlineData("set speech.windows-rate to 1.0")]
+    [InlineData("set speech.windows-rate to 1 percent")]
+    [InlineData(" set speech.windows-rate to -1")]
+    [InlineData("SET speech.windows-rate to -1")]
+    [InlineData("set speech.windows-rate to -1 ")]
+    [InlineData("set speech.windows-rate to -1\nconfirm rate change")]
+    [InlineData("set speech.windows-rate to -1\nset speech.playback-volume to 30")]
+    [InlineData("reset speech.windows-rate")]
+    [InlineData("speak slower")]
     public void SharedParserRejectsUnregisteredMixedOrNoncanonicalSuggestionData(string text)
     {
         FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse(text)).Should().Throw<Exception>();
@@ -197,4 +220,16 @@ public sealed class RegisteredSettingsTests
         RegisteredSettingRegistry.Get(RegisteredSetting.ResponseMode).SuggestedValues.Should()
             .Be(string.Join("/", Enum.GetValues<ResponseOutputMode>()));
     }
+
+    [Theory]
+    [InlineData("review rate suggestion", RegisteredSettingSuggestionOperation.Review)]
+    [InlineData("Nova, confirm rate change", RegisteredSettingSuggestionOperation.Confirm)]
+    [InlineData("Nova cancel rate review", RegisteredSettingSuggestionOperation.Cancel)]
+    [InlineData("Nova\t REVIEW RATE SUGGESTION", RegisteredSettingSuggestionOperation.Review)]
+    [InlineData("Novax review rate suggestion", null)]
+    [InlineData("review rate suggestion now", null)]
+    [InlineData("yes", null)]
+    [InlineData("Nova", null)]
+    public void WindowsRateReviewCommandsAreExactAndCurrentNameAware(string input, RegisteredSettingSuggestionOperation? expected) =>
+        WindowsSpeechRateSuggestionCommand.Parse(input, "Nova").Should().Be(expected);
 }

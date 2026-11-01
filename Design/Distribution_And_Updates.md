@@ -789,6 +789,14 @@ consent withdrawal persists across restart. See the
 Uninstallation removes startup/deployment registrations and offers to retain user skills/settings.
 It does not delete shared profile skills.
 
+### Normal manual startup presentation
+
+The [native reviewed manual preference](User_Configuration.md#delivered-normal-manual-startup-presentation) is separate from logon registration. The installed Start Menu shortcut passes the exact sole `--manual-startup` argument; deliberate command-line manual launches may use it too. Argument-free launches remain unclassified and preserve baseline behavior, including all existing and legacy logon registrations. No registry migration or startup entry rewrite is performed.
+
+Only that supported manual route consumes confirmed device-local presentation intent after ordinary desktop initialization. Main workspace opens the existing primary surface without activation, session selection, retained body reads or unsent restoration; tray/minimal adds no workspace. Absence/reset preserves the actual baseline, not a guessed fixed window default. Read failures and uncertain intent require explicit recovery rather than a default/reset write. Saved intent is neither a user gesture nor ownership, privacy, audio, provider or source-use authority.
+
+Existing same-build activation, handoff, setup completion, restart, errors and native authentication remain unchanged. Installed shortcut/upgrade/logon acceptance remains E/Q; deterministic desktop/native fixtures do not claim that qualification.
+
 ## Update Ownership and Deployment Mode
 
 Application maintenance is separate from the agent's model, tools, scripts, skills, and work queue.

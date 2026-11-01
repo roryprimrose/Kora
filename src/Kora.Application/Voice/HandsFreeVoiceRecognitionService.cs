@@ -16,7 +16,7 @@ public sealed partial class HandsFreeVoiceRecognitionService(
 {
     private readonly Lock gate = new();
     private Func<HandsFreeVoiceAdmission?>? observe;
-    private Func<VoiceTranscriptEventArgs, HostRequest, Task>? dispatch;
+    private Func<VoiceTranscriptEventArgs, HostRequest, HandsFreeCommandActivation, Task>? dispatch;
     private Func<bool> canOpen = static () => false;
     private Action<long> commandActivated = static _ => { };
     private Func<IReadOnlyList<string>> recognitionPhrases = static () => [];
@@ -56,6 +56,15 @@ public sealed partial class HandsFreeVoiceRecognitionService(
 
     public void Bind(Func<HandsFreeVoiceAdmission?> observation,
         Func<VoiceTranscriptEventArgs, HostRequest, Task> governedDispatch, Func<bool> canOpenCapture,
+        Action<long>? onCommandActivated = null, Func<IReadOnlyList<string>>? getRecognitionPhrases = null)
+    {
+        ArgumentNullException.ThrowIfNull(governedDispatch);
+        Bind(observation, (transcript, request, _) => governedDispatch(transcript, request), canOpenCapture,
+            onCommandActivated, getRecognitionPhrases);
+    }
+
+    public void Bind(Func<HandsFreeVoiceAdmission?> observation,
+        Func<VoiceTranscriptEventArgs, HostRequest, HandsFreeCommandActivation, Task> governedDispatch, Func<bool> canOpenCapture,
         Action<long>? onCommandActivated = null, Func<IReadOnlyList<string>>? getRecognitionPhrases = null)
     {
         ArgumentNullException.ThrowIfNull(observation);
@@ -167,6 +176,7 @@ public sealed partial class HandsFreeVoiceRecognitionService(
                 try
                 {
                     VoiceTranscriptEventArgs? transcript;
+                    WakeWordObservation wake;
                     lock (gate)
                     {
                         token.ThrowIfCancellationRequested();
@@ -198,7 +208,7 @@ public sealed partial class HandsFreeVoiceRecognitionService(
                         }
                         PublishStateChanged(openedState);
                         firstOpen.TrySetResult();
-                        var wake = await opened.WaitForWakeAsync(token);
+                        wake = await opened.WaitForWakeAsync(token);
                         AdmitWake(wake, generation, token);
                         lock (gate) { current = admission!; }
                         using var maximumDuration = new CancellationTokenSource(VoiceInputLimits.MaximumCommandDuration,
@@ -238,7 +248,7 @@ public sealed partial class HandsFreeVoiceRecognitionService(
                             state = HandsFreeVoiceState.CompletingOperation;
                         }
                         PublishStateChanged(HandsFreeVoiceState.CompletingOperation);
-                        try { await dispatch!(transcript, request); }
+                        try { await dispatch!(transcript, request, new(current, wake, request)); }
                         finally { lock (gate) { pendingWakeUtterance = null; } }
                     }
                     activity.Complete(HostOperationOutcome.Completed);

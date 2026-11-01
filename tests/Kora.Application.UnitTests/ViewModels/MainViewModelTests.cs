@@ -4703,6 +4703,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(SpeechCommand.FixedPhrases)
             .Concat(["review speech limit suggestion", "confirm speech limit change", "cancel speech limit review"])
             .Concat(PlaybackVolumeSuggestionCommand.FixedPhrases)
+            .Concat(WindowsSpeechRateSuggestionCommand.FixedPhrases)
             .Concat(Kora.Application.Configuration.RegisteredSettings.RegisteredSettingSuggestionCommand.FixedPhrases)
             .Concat(Kora.Application.Configuration.RegisteredSettings.RegisteredSettingUndoCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.OwnedSkillAuthoringCommand.FixedPhrases)
@@ -8724,7 +8725,8 @@ public sealed partial class MainViewModelTests : IDisposable
             Kora.Application.Communication.CommunicationActivityCallStateService? communicationActivity = null,
             CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
             bool enableConversationExecution = false,
-            LogonStartupConfigurationService? logonStartupConfiguration = null)
+            LogonStartupConfigurationService? logonStartupConfiguration = null,
+            StartupPresentationConfigurationService? startupPresentationConfiguration = null)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8786,7 +8788,9 @@ public sealed partial class MainViewModelTests : IDisposable
             RateConfiguration = enableWindowsSpeechRate ? new(RatePreferences, TextToSpeech, SpeechConfiguration, OutputAdmission, Audit,
                 NullLogger<WindowsSpeechRateConfigurationService>.Instance) : null;
             InputRuntime = new(Voice);
-            InputConfiguration = enableSpeechInput ? new(InputPreferences, InputRuntime, OutputAdmission, Audit,
+            var effectiveVoice = voiceDecorator is null ? (IActivatedVoiceRecognitionService?)ReplyVoice ?? Voice
+                : voiceDecorator(ReplyVoice ?? new QuestionVoiceAdapter(Voice));
+            InputConfiguration = enableSpeechInput ? new(InputPreferences, effectiveVoice as ISpeechInputProfileRuntime ?? InputRuntime, OutputAdmission, Audit,
                 NullLogger<SpeechInputConfigurationService>.Instance) : null;
             var diagnosticStore = new Kora.Application.UnitTests.Configuration.AudioControlTestStore();
             DiagnosticAdmission = new(diagnosticStore, diagnosticStore, new HostTaskCoordinator(diagnosticStore));
@@ -8856,8 +8860,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 ApprovalPreferences,
                 ModelExecutionPreferences,
                 MicrophoneAccess,
-                voiceDecorator is null ? (IActivatedVoiceRecognitionService?)ReplyVoice ?? Voice
-                    : voiceDecorator(ReplyVoice ?? new QuestionVoiceAdapter(Voice)),
+                effectiveVoice,
                 TextToSpeech,
                 new AssistantNameConfigurationService(NamePreferences, Catalog, Audit,
                     NullLogger<AssistantNameConfigurationService>.Instance),
@@ -8924,7 +8927,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 conversationalReplies: ConversationalConfiguration,
                 communicationActivityConfiguration: communicationActivityConfiguration,
                 conversationExecution: ConversationExecutionConfiguration,
-                logonStartupConfiguration: logonStartupConfiguration);
+                logonStartupConfiguration: logonStartupConfiguration,
+                startupPresentationConfiguration: startupPresentationConfiguration);
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
@@ -9821,6 +9825,8 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public Exception? SpeakException { get; set; }
 
+        public Exception? SpeakCompletionException { get; set; }
+
         public Action? BeforeSpeak { get; set; }
 
         public Exception? StopException { get; set; }
@@ -9902,6 +9908,7 @@ public sealed partial class MainViewModelTests : IDisposable
             {
                 await SpeakGate.Task.WaitAsync(IgnoreSpeakCancellation ? CancellationToken.None : cancellationToken);
             }
+            if (SpeakCompletionException is { } completionException) { throw completionException; }
             if (generation != Interlocked.Read(ref outputGeneration)) { throw new OperationCanceledException(); }
 
             IsSpeaking = false;

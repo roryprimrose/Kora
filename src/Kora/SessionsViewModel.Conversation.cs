@@ -334,7 +334,7 @@ internal sealed partial class SessionsViewModel
             conversationBusy = false;
             busy = false;
             Notify();
-            if (closed) { lifetime.Dispose(); }
+            if (closed && !changingConversationNotice && !refreshingWork && !changingRoutineQuiet && !changingQueueControl) { lifetime.Dispose(); }
         }
     }
 
@@ -352,6 +352,7 @@ internal sealed partial class SessionsViewModel
         CancelAppearanceSuggestion(reportCancellation: false);
         CancelSpeechSummarySuggestion(reportCancellation: false);
         CancelPlaybackVolumeSuggestion(reportCancellation: false);
+        CancelWindowsSpeechRateSuggestion();
         CancelModelMemoryProposal();
         if (preserveUnsent) { RememberUnsent(); }
         ClearAssistantReply();

@@ -123,6 +123,7 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
 
     [Theory]
     [InlineData("name")]
+    [InlineData("name-revision")]
     [InlineData("profile")]
     [InlineData("microphone")]
     [InlineData("topology")]
@@ -161,6 +162,7 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
             "call" => Admission with { CallRevision = 2 },
             "owner" => Admission with { OwnerRevision = 2 },
             "binding" => Admission with { OwnershipBindingRevision = 2 },
+            "name-revision" => Admission with { NameRevision = 2 },
             "control-binding" => Admission with { ControlBindingRevision = 2 },
             "consent" => Admission with { RecoveryRevision = 2 },
             "input" => Admission with { ComposerRevision = 2 },

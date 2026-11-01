@@ -45,7 +45,7 @@
       <Component Id="KoraExecutableComponent" Directory="INSTALLFOLDER">
         <File Id="KoraExecutable" Source="$(ApplicationPayload)\Kora.exe" KeyPath="yes">
           <Shortcut Id="KoraShortcut" Name="Kora" Directory="KoraStartMenu"
-                    Advertise="yes" WorkingDirectory="INSTALLFOLDER" Icon="KoraIcon.exe" />
+                    Advertise="yes" Arguments="--manual-startup" WorkingDirectory="INSTALLFOLDER" Icon="KoraIcon.exe" />
         </File>
         <RemoveFolder Id="RemoveStartMenuFolder" Directory="KoraStartMenu" On="uninstall" />
       </Component>

@@ -173,12 +173,13 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         IUiDispatcher? dispatcher = null, ILocalModelReasoner? modelReasoner = null, ISetupDependencyProbe? modelProbe = null,
         Kora.Application.Dependencies.SpeechComponentSetupService? speechComponentSetup = null,
         LogonStartupConfigurationService? logonStartupConfiguration = null,
-        IQuestionVoiceRecognitionService? voiceRecognition = null,
-        SpeechInputConfigurationService? speechInputConfiguration = null)
+        StartupPresentationConfigurationService? startupPresentationConfiguration = null,
+        IQuestionVoiceRecognitionService? voiceRecognition = null, SpeechInputConfigurationService? speechInputConfiguration = null)
     {
         using var setup = BeginPhase(NativeFixturePhase.Setup);
         await setup.RunAsync(() => InitializeCoreAsync(webPageGet, webSummary, callState, dispatcher, modelReasoner,
-            modelProbe, speechComponentSetup, logonStartupConfiguration, voiceRecognition, speechInputConfiguration));
+            modelProbe, speechComponentSetup, logonStartupConfiguration, startupPresentationConfiguration,
+            voiceRecognition, speechInputConfiguration));
     }
 
     private async Task InitializeCoreAsync(Kora.Tools.Network.WebPageGet? webPageGet,
@@ -187,8 +188,8 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         IUiDispatcher? dispatcher, ILocalModelReasoner? modelReasoner, ISetupDependencyProbe? modelProbe,
         Kora.Application.Dependencies.SpeechComponentSetupService? speechComponentSetup,
         LogonStartupConfigurationService? logonStartupConfiguration,
-        IQuestionVoiceRecognitionService? voiceRecognition,
-        SpeechInputConfigurationService? speechInputConfiguration)
+        StartupPresentationConfigurationService? startupPresentationConfiguration,
+        IQuestionVoiceRecognitionService? voiceRecognition, SpeechInputConfigurationService? speechInputConfiguration)
     {
         if (initialized) { throw new InvalidOperationException("A fixture session may be initialized only once."); }
         using (var context = BeginPhase(NativeFixturePhase.Context))
@@ -262,6 +263,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
                 NullLogger<Kora.Application.Presentation.AudioPlaybackSettings>.Instance),
             speechTextConfiguration: captionConfiguration,
             webPageGet: webPageGet, speechComponentSetup: speechComponentSetup, logonStartupConfiguration: logonStartupConfiguration,
+            startupPresentationConfiguration: startupPresentationConfiguration,
             speechInputConfiguration: speechInputConfiguration);
         if (webSummary is not null) { Main.BindWebSummaryWorkflow(webSummary); }
         Main.BindCallOwnershipGate(() => Access.Open);

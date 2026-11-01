@@ -9,6 +9,17 @@ namespace Kora.Application.ViewModels;
 
 public sealed partial class MainViewModel
 {
+    public Func<bool> CaptureQuestionNoticeNavigationEligibility()
+    {
+        var current = CapturePromptSelection();
+        bool Ready() => !IsBusy && !IsResponseInteractionPending && !IsGrantEditorVisible
+            && composerDictation?.IsActive != true && promptInputVoice?.IsActive != true
+            && questionVoiceReplies?.IsActive != true && customizationVoiceTarget?.IsCurrent != true
+            && retainedAnswerDecisionsEligible() && Volatile.Read(ref pushToTalkHeld) == 0;
+        var initiallyReady = Ready();
+        return () => initiallyReady && current() && Ready();
+    }
+
     private IPendingQuestionNavigation? pendingQuestionNavigation;
     private long pendingQuestionNavigationRevision;
     private string pendingQuestionNavigationStatus = string.Empty;
@@ -59,7 +70,7 @@ public sealed partial class MainViewModel
         if (initiator is not (SecurityAuditInitiator.TypedCommand or SecurityAuditInitiator.VoiceCommand)
             || origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
             || !isAssistantNameAvailable
-            || origin == RequestOrigin.ActivatedVoice && !commandRouter.IsActivationPrefixed(text, AssistantName))
+            || origin == RequestOrigin.ActivatedVoice && !HasCurrentNameActivation(text))
         {
             PendingQuestionNavigationStatus = unavailable;
             return;

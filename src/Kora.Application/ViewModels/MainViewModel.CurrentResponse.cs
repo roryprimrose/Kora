@@ -80,7 +80,7 @@ public sealed partial class MainViewModel
             || initiator is not (SecurityAuditInitiator.TypedCommand or SecurityAuditInitiator.VoiceCommand)
             || origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
             || (origin == RequestOrigin.ActivatedVoice) != (initiator == SecurityAuditInitiator.VoiceCommand)
-            || origin == RequestOrigin.ActivatedVoice && !commandRouter.IsActivationPrefixed(original, AssistantName))
+            || origin == RequestOrigin.ActivatedVoice && !HasCurrentNameActivation(original))
         {
             Transcript = "Current response command was not accepted. " + CurrentResponseCommand.Syntax;
             return;

@@ -10,6 +10,26 @@ capture seam with a synthetic endpoint and transcript callbacks. This mode
 never opens an audio device and is not exposed by the interactive launcher.
 The default fixture still denies microphone permission and capture.
 
+The setup phase forwards the supplied typed voice runtime and speech-input
+configuration together into the real view model. Headless custom-name cutover
+regressions require their exact profile generation to agree and keep capture
+quiescent until consent and reviewed selection. Omitted overrides retain the
+default fixture boundaries; setup failures and cancellation propagate without
+substituting those defaults.
+
+The same timed setup forwards optional Details and conversation-execution
+configuration independently; omitted services remain unavailable. The
+[composition regressions](../Kora.Windows.IntegrationTests/DetailPresentationSettingsTests.cs)
+retain separate reviewed confirmation, no audio effects and exact terminal phase
+evidence alongside custom-name voice overrides.
+
+The [settings reset inventory](../Kora.Windows.IntegrationTests/SettingsResetMenuTests.cs)
+includes the reviewed Details reset with its exact native lifetime guard.
+Inspect is counted separately from resets and refreshes; the Responses tab has
+five cogs, five reset actions, three refreshes and one nonmutating inspection.
+Native checks retain exact command identity, enabled state, accessible names and
+top-right layout, with no standalone reset buttons.
+
 Evidence capture serializes delivery per sink and provider disposal waits for active
 callbacks and joins accepted writes before scratch cleanup. The buffered presence
 fixture uses the desktop's independent bounded required-file/SQLite-projection

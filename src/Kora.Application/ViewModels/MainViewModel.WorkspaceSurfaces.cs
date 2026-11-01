@@ -22,7 +22,7 @@ public sealed partial class MainViewModel
         }
         if ((!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(input, AssistantName))
             || (initiator == SecurityAuditInitiator.VoiceCommand
-                && !commandRouter.IsActivationPrefixed(input, AssistantName)))
+                && !HasCurrentNameActivation(input)))
         {
             ReportHostInteractionFailure("Navigation unavailable: activated voice requires the current available assistant-name prefix.");
             return;

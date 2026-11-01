@@ -3,6 +3,9 @@ using System.Reflection;
 using AwesomeAssertions;
 using Kora.Application.ViewModels;
 using Kora.Application.Voice;
+using Kora.Application.Configuration;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
 using Kora.Core.Voice;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -10,6 +13,226 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData("Nova", "version")]
+    [InlineData("Nova", "request")]
+    [InlineData("Nova", "new-request")]
+    [InlineData("Nova", "refine")]
+    [InlineData("Nova", "rename")]
+    [InlineData("Nova", "recover-rename")]
+    [InlineData("Nova", "details")]
+    [InlineData("Stop", "collision")]
+    public async Task ReviewedCustomNameCutoverJoinsOldGenerationAndRetainsActualFinalText(string name, string operation)
+    {
+        var stage = new HandsFreeStage { SupportedNames = ["Nova", "Stop"] };
+        await using var details = operation is "details"
+            ? new Kora.Application.UnitTests.Configuration.DetailPresentationConfigurationServiceTests.Fixture() : null;
+        HandsFreeVoiceRecognitionService? decorated = null;
+        var fixture = CreateHandsFreeFixture(stage, value => decorated = value, detailPresentationConfiguration: details?.Service);
+        await using var configuration = fixture.InputConfiguration!;
+        await using var voice = decorated!;
+        await fixture.ViewModel.InitializeAsync();
+        var old = await stage.NextAsync();
+        old.HoldClose = true;
+        var rename = fixture.ViewModel.SetAssistantNameAsync(name);
+        await old.Closing.Task.WaitAsync(TestContext.Current.CancellationToken);
+        fixture.NamePreferences.SavedName.Should().BeNull();
+        stage.OpenCount.Should().Be(1);
+        old.ReleaseClose.SetResult();
+        await rename;
+        old.IsQuiescent.Should().BeTrue();
+        fixture.ViewModel.AssistantName.Should().Be(name);
+        fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        fixture.ViewModel.SpeechInputResources.Should().Contain(SpeechInputResource.Cpu);
+        fixture.ViewModel.SelectedSpeechInputProfile = SpeechInputProfileCatalogue.NativeWakeProfile;
+        fixture.ViewModel.SelectedSpeechInputResource = SpeechInputResource.Cpu;
+        await fixture.ViewModel.SaveSpeechInputCommand.ExecuteAsync();
+        fixture.ViewModel.HasSpeechInputReview.Should().BeTrue();
+        await fixture.ViewModel.ConfirmSpeechInputCommand.ExecuteAsync();
+        configuration.Get().Effective!.Selection.Should().Be(SpeechInputProfileCatalogue.NativeWakeSelection);
+        fixture.ViewModel.SpeechInputStatus.Should().Contain("Exact qualified local wake profile");
+        stage.OpenCount.Should().Be(1);
+        await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
+        var current = await stage.NextAsync();
+        current.Binding.AssistantName.Should().Be(name);
+        current.Binding.Profile.Selection.Should().Be(SpeechInputProfileCatalogue.NativeWakeSelection);
+        current.Binding.Generation.Should().NotBe(old.Binding.Generation);
+        old.Result.TrySetResult(new("what version are you running", 1, old.Binding.Generation));
+        var routed = new List<string>();
+        var navigated = 0;
+        fixture.ViewModel.NewRequestOpeningRequested += admitted =>
+        {
+            if (admitted()) { navigated++; }
+            return Task.FromResult(true);
+        };
+        Kora.Core.Hosting.RequestOrigin? routedOrigin = null;
+        bool? routedAdmission = null;
+        string? instructionOperation = null;
+        string? instructionId = null;
+        fixture.ViewModel.OwnedInstructionEditorRequested += (requested, id) =>
+        {
+            instructionOperation = requested;
+            instructionId = id;
+            routedOrigin = HostActivity.RequireCurrent().Request.Origin;
+            routedAdmission = fixture.ViewModel.CaptureInstructionRefinementEligibility()();
+            return Task.CompletedTask;
+        };
+        fixture.ViewModel.BindSessionRouting((text, origin, admitted) =>
+        {
+            routedOrigin = origin;
+            routedAdmission = admitted();
+            routed.Add(text);
+            return Task.FromResult<Kora.Application.Hosting.SessionRouting.SessionRoutingReceipt?>(null);
+        });
+        current.Wake.SetResult(new(current.Binding.Generation, 12, true));
+        await current.CaptureStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var final = operation switch
+        {
+            "request" => "read a fixture", "new-request" => "open new request",
+            "refine" => "instructions refine", "rename" => "instructions rename renamed",
+            "recover-rename" => "instructions recover-rename",
+            "details" => "stop asking about details",
+            "collision" => "listening", _ => "what version are you running",
+        };
+        current.Result.SetResult(new(final, 1, current.Binding.Generation));
+        if (operation is "collision")
+        {
+            await voice.Completion;
+            fixture.ViewModel.IsVoiceEnabled.Should().BeFalse();
+            stage.OpenCount.Should().Be(2);
+        }
+        else
+        {
+            var resumed = await stage.NextAsync();
+            if (operation is "request")
+            {
+                routed.Should().Equal([final], because: fixture.ViewModel.ResponseTitle + " / " + fixture.ViewModel.Transcript);
+                routedOrigin.Should().Be(Kora.Core.Hosting.RequestOrigin.ActivatedVoice);
+                routedAdmission.Should().BeTrue();
+            }
+            else if (operation is "new-request") { navigated.Should().Be(1); }
+            else if (operation is "details")
+            {
+                details!.Preferences.Writes.Should().Be(0);
+                fixture.ViewModel.DetailPresentationReviewText.Should().Contain("-> LinkOnly").And.Contain("Confirm separately");
+                routed.Should().BeEmpty();
+                resumed.Wake.SetResult(new(resumed.Binding.Generation, 12, true));
+                await resumed.CaptureStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+                resumed.Result.SetResult(new("confirm detail presentation change", 1, resumed.Binding.Generation));
+                await stage.NextAsync();
+                details.Preferences.Value.Should().Be(Kora.Core.Presentation.DetailPresentationMode.LinkOnly);
+                details.Preferences.Writes.Should().Be(1);
+                routed.Should().BeEmpty();
+            }
+            else if (operation is "refine" or "rename" or "recover-rename")
+            {
+                instructionOperation.Should().Be(operation switch
+                {
+                    "refine" => "Refine", "rename" => "Rename", _ => "Recover rename",
+                });
+                instructionId.Should().Be(operation is "rename" ? "renamed" : null);
+                routedOrigin.Should().Be(RequestOrigin.ActivatedVoice);
+                routedAdmission.Should().BeTrue();
+                routed.Should().BeEmpty();
+            }
+            else { fixture.ViewModel.ResponseTitle.Should().Be(name + " version"); }
+        }
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        fixture.ViewModel.Dispose();
+    }
+
+    [Fact]
+    public async Task HandsFree_wake_resume_waits_for_reviewed_command_owner_even_after_physical_capture_release()
+    {
+        var stage = new HandsFreeStage();
+        HandsFreeVoiceRecognitionService? decorated = null;
+        var fixture = CreateHandsFreeFixture(stage, value => decorated = value);
+        await using var voice = decorated!;
+        fixture.ViewModel.BindReviewedVoiceCommand(NullLogger<ReviewedVoiceCommandCapture>.Instance, TimeProvider.System);
+        await fixture.ViewModel.InitializeAsync();
+        var wake = await stage.NextAsync();
+        await voice.PauseWakeForReplyAsync();
+        await fixture.ViewModel.BeginReviewedVoiceCommandAsync(static () => true);
+        wake.IsQuiescent.Should().BeTrue();
+        fixture.Voice.RaiseTranscript("Kora, what version are you running", 1);
+        await fixture.ViewModel.FinishReviewedVoiceCommandAsync();
+        fixture.Voice.IsCaptureQuiescent.Should().BeTrue();
+        fixture.ViewModel.HasReviewedVoiceCommand.Should().BeTrue();
+        await voice.ResumeAfterActivatedInputAsync();
+        stage.OpenCount.Should().Be(1);
+        fixture.ViewModel.ResponseTitle.Should().NotBe("Kora version");
+        await fixture.ViewModel.CancelReviewedVoiceCommandAsync();
+        await voice.ResumeAfterActivatedInputAsync();
+        await stage.NextAsync();
+        stage.OpenCount.Should().Be(2);
+        fixture.ViewModel.ReviewedVoiceCommandText.Should().BeEmpty();
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        fixture.ViewModel.Dispose();
+    }
+
+    [Theory]
+    [InlineData("exact")]
+    [InlineData("different-text")]
+    [InlineData("different-request")]
+    [InlineData("no-host")]
+    [InlineData("different-channel")]
+    [InlineData("new-channel-operation")]
+    [InlineData("generation")]
+    [InlineData("wake-generation")]
+    [InlineData("playback")]
+    [InlineData("span")]
+    [InlineData("policy")]
+    public async Task WakeAdmissionRemainsExactAndCannotLeakToAnotherInput(string change)
+    {
+        var stage = new HandsFreeStage { IsAvailable = false };
+        HandsFreeVoiceRecognitionService? decorated = null;
+        var fixture = CreateHandsFreeFixture(stage, value => decorated = value);
+        await using var voice = decorated!;
+        await fixture.ViewModel.InitializeAsync();
+        var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        var admission = (HandsFreeVoiceAdmission)typeof(MainViewModel).GetMethod("ObserveHandsFreeVoiceAdmission", flags)!
+            .Invoke(fixture.ViewModel, null)!;
+        var origin = change is "different-channel" ? RequestOrigin.LocalUi : RequestOrigin.ActivatedVoice;
+        var request = HostRequest.Create(origin);
+        var transcript = new VoiceTranscriptEventArgs("read a fixture", 1,
+            change is "generation" ? voice.Generation - 1 : voice.Generation);
+        var wake = new WakeWordObservation(change is "wake-generation" ? voice.Generation - 1 : transcript.Generation,
+            change is "span" ? -1 : 12, change is not "playback");
+        var activation = new HandsFreeCommandActivation(admission, wake, request);
+        var scope = typeof(MainViewModel).GetField("wakeDispatch", flags)!.GetValue(fixture.ViewModel)!;
+        var value = scope.GetType().GetProperty("Value")!;
+        var record = typeof(MainViewModel).GetNestedType("WakeDispatch", BindingFlags.NonPublic)!;
+        value.SetValue(scope, Activator.CreateInstance(record, transcript, activation));
+        try
+        {
+            if (change is "policy") { fixture.ViewModel.BindVoiceOwnershipGate(static () => false); }
+            using var host = change is "no-host" ? null
+                : HostActivity.BeginRoot(change is "different-request" ? HostRequest.Create(origin) : request,
+                    HostActivityLayer.Application, HostOperation.Request);
+            var text = change is "different-text" ? "read another fixture" : transcript.Transcript;
+            typeof(MainViewModel).GetMethod("IsWakeCommand", flags)!.Invoke(fixture.ViewModel, [text])
+                .Should().Be(change is "exact" or "new-channel-operation");
+            var operationOrigin = change is "new-channel-operation" ? RequestOrigin.LocalUi : origin;
+            HostRequest? observed = null;
+            Func<Task> operation = () =>
+            {
+                observed = HostActivity.RequireCurrent().Request;
+                return Task.CompletedTask;
+            };
+            await (Task)typeof(MainViewModel).GetMethod("RunTranscriptOperationAsync", flags)!
+                .Invoke(fixture.ViewModel, [operationOrigin, operation])!;
+            if (change is "different-request" or "different-channel" or "new-channel-operation" or "no-host")
+            {
+                observed.Should().NotBeSameAs(request);
+            }
+            else { observed.Should().BeSameAs(request); }
+            host?.Complete(HostOperationOutcome.Completed);
+        }
+        finally { value.SetValue(scope, null); }
+        typeof(MainViewModel).GetMethod("IsWakeCommand", flags)!.Invoke(fixture.ViewModel, [transcript.Transcript]).Should().Be(false);
+        fixture.ViewModel.Dispose();
+    }
+
     [Fact]
     public async Task Configured_name_wake_completes_existing_operation_without_push_to_talk_and_rearms_only_afterward()
     {
@@ -184,13 +407,15 @@ public sealed partial class MainViewModelTests
         await using var voice = decorated!;
         await fixture.ViewModel.InitializeAsync();
         // Supplement live lifecycle tests by exercising a callback already queued at the host boundary.
-        var callback = (Func<VoiceTranscriptEventArgs, Kora.Core.Hosting.HostRequest, Task>)
+        var callback = (Func<VoiceTranscriptEventArgs, Kora.Core.Hosting.HostRequest, HandsFreeCommandActivation, Task>)
             typeof(HandsFreeVoiceRecognitionService).GetField("dispatch", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(voice)!;
         var request = Kora.Core.Hosting.HostRequest.Create(Kora.Core.Hosting.RequestOrigin.ActivatedVoice);
-        var foreign = () => callback(new("help", 1, voice.Generation - 1), request);
+        var activation = new HandsFreeCommandActivation(new(new("mic", "Headset"), "Kora",
+            new(0, SpeechInputSelection.Default), 0, 0, 0, 0), new(voice.Generation, 12, true), request);
+        var foreign = () => callback(new("help", 1, voice.Generation - 1), request, activation);
         await foreign.Should().ThrowAsync<InvalidOperationException>();
         fixture.ViewModel.BindVoiceOwnershipGate(static () => false);
-        var revoked = () => callback(new("help", 1, voice.Generation), request);
+        var revoked = () => callback(new("help", 1, voice.Generation), request, activation);
         await revoked.Should().ThrowAsync<InvalidOperationException>();
         fixture.ViewModel.Dispose();
         var changed = typeof(MainViewModel).GetMethod("OnHandsFreeVoiceStateChanged", BindingFlags.Instance | BindingFlags.NonPublic)!;
@@ -254,7 +479,8 @@ public sealed partial class MainViewModelTests
     }
 
     private static Fixture CreateHandsFreeFixture(IHandsFreeAudioStage stage,
-        Action<HandsFreeVoiceRecognitionService> created, bool enableProfile = true)
+        Action<HandsFreeVoiceRecognitionService> created, bool enableProfile = true,
+        DetailPresentationConfigurationService? detailPresentationConfiguration = null)
     {
         var fixture = new Fixture(enableSpeechInput: enableProfile, voiceDecorator: native =>
         {
@@ -262,7 +488,7 @@ public sealed partial class MainViewModelTests
                 NullLogger<HandsFreeVoiceRecognitionService>.Instance);
             created(voice);
             return voice;
-        });
+        }, detailPresentationConfiguration: detailPresentationConfiguration);
         fixture.VoiceConsent.Consent = true;
         fixture.Voice.Microphones = [new MicrophoneDevice("mic", "Headset")];
         fixture.Voice.DefaultMicrophoneId = "mic";
@@ -271,6 +497,15 @@ public sealed partial class MainViewModelTests
 
     private sealed class HandsFreeStage : IHandsFreeAudioStage
     {
+        public IReadOnlyList<string> SupportedNames { get; init; } = [];
+        public bool SupportsProfile(string assistantName, SpeechInputSelection selection) =>
+            SupportedNames.Contains(assistantName, StringComparer.Ordinal) && selection == SpeechInputProfileCatalogue.NativeWakeSelection;
+        public Task<IAsyncDisposable> PrepareProfileAsync(string assistantName, SpeechInputSelection selection, CancellationToken cancellationToken) =>
+            Task.FromResult<IAsyncDisposable>(new PreparedProfile());
+        private sealed class PreparedProfile : IAsyncDisposable
+        {
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
         private readonly Channel<HandsFreeSession> openings = Channel.CreateUnbounded<HandsFreeSession>();
         public bool IsAvailable { get; init; } = true;
         public int OpenCount { get; private set; }

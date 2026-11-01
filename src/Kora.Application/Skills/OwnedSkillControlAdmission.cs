@@ -34,7 +34,8 @@ public sealed class OwnedSkillControlAdmission(
                 catch (Exception exception) when (exception is not OutOfMemoryException)
                 {
                     return new(default!, ExceptionDispatchInfo.Capture(exception),
-                        exception is OwnedSkillPublicationUnconfirmedException or OwnedSkillDeletionUnconfirmedException ? HostTaskState.Unknown
+                        exception is OwnedSkillPublicationUnconfirmedException or OwnedSkillRenameUnconfirmedException
+                            or OwnedSkillDeletionUnconfirmedException ? HostTaskState.Unknown
                         : exception is OperationCanceledException ? HostTaskState.Cancelled : HostTaskState.Failed);
                 }
             }, static outcome => outcome.State, token).ConfigureAwait(false);

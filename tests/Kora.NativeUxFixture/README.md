@@ -10,6 +10,14 @@ capture seam with a synthetic endpoint and transcript callbacks. This mode
 never opens an audio device and is not exposed by the interactive launcher.
 The default fixture still denies microphone permission and capture.
 
+The [reviewed-command native regression](../Kora.Windows.IntegrationTests/PushToTalkUiContractTests.cs)
+uses the existing fixture clock and an injected response-inactivity clock to drive
+the native timeout callback during capture, review and a barrier-held dispatch.
+It verifies visible review, actual corrected VOICE-origin command completion,
+capture release, explicit hide cancellation and resumed ordinary auto-hide.
+The held dispatcher is released and joined before fixture disposal. Timeout
+expiry is clock-driven; no real microphone, provider or renewed authority is used.
+
 Headless startup settings tests pass the optional typed configuration services
 through the timed initialization wrapper into the real `MainViewModel`.
 The [manual startup regressions](../Kora.Windows.IntegrationTests/StartupPresentationTests.cs)

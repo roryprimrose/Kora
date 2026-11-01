@@ -406,6 +406,42 @@ public sealed partial class MainViewModelTests
         fixture.Voice.StartCalls.Should().Be(0);
     }
 
+    [Theory]
+    [InlineData("generation")]
+    [InlineData("admission")]
+    [InlineData("revoked")]
+    [InlineData("request")]
+    [InlineData("wake-generation")]
+    [InlineData("playback")]
+    [InlineData("span")]
+    public async Task QueuedWakeDispatchRejectsChangedTypedLineageBeforeConsumingEvidence(string change)
+    {
+        var stage = new HandsFreeStage { IsAvailable = false };
+        HandsFreeVoiceRecognitionService? decorated = null;
+        var fixture = CreateHandsFreeFixture(stage, value => decorated = value);
+        await using var voice = decorated!;
+        await fixture.ViewModel.InitializeAsync();
+        var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        var callback = (Func<VoiceTranscriptEventArgs, HostRequest, HandsFreeCommandActivation, Task>)
+            typeof(HandsFreeVoiceRecognitionService).GetField("dispatch", flags)!.GetValue(voice)!;
+        var admission = (HandsFreeVoiceAdmission)typeof(MainViewModel).GetMethod("ObserveHandsFreeVoiceAdmission", flags)!
+            .Invoke(fixture.ViewModel, null)!;
+        var request = HostRequest.Create(RequestOrigin.ActivatedVoice);
+        var activation = new HandsFreeCommandActivation(
+            change is "admission" ? admission with { NameRevision = admission.NameRevision + 1 } : admission,
+            new(change is "wake-generation" ? voice.Generation - 1 : voice.Generation,
+                change is "span" ? -1 : 12, change is not "playback"),
+            change is "request" ? HostRequest.Create(RequestOrigin.ActivatedVoice) : request);
+        if (change is "revoked") { fixture.ViewModel.BindVoiceOwnershipGate(static () => false); }
+        var rejected = () => callback(new("help", 1,
+            change is "generation" ? voice.Generation - 1 : voice.Generation, new UnknownWakeEvidence()), request, activation);
+        await rejected.Should().ThrowAsync<InvalidOperationException>();
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        fixture.Voice.StartCalls.Should().Be(0);
+        stage.OpenCount.Should().Be(0);
+        fixture.ViewModel.Dispose();
+    }
+
     [Fact]
     public async Task Rebinding_ownership_retires_wake_without_replaying_the_old_command()
     {

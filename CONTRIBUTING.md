@@ -320,6 +320,8 @@ runner to verify the exact shape, original identity and real headless output.
 
 ### Reliable fixture patterns
 
+- Native fixture setup-phase wrappers must forward every supplied dependency,
+  including admitted-wake recognition and speech-input configuration, unchanged.
 - Coordinate races with explicit completion signals, not sleeps, property-read
   counts or an incomplete command task. Await cancellation acceptance, owned
   resource completion and the exact UI publication separately. Drain dispatcher
@@ -339,6 +341,16 @@ runner to verify the exact shape, original identity and real headless output.
 - Preserve production deadlines; use existing fake clocks for non-deadline
   scenarios. Dispose asynchronous fixture owners and release held operations in
   `finally`. See the [microphone ownership regressions](tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.MicrophoneRefreshOwnership.cs).
+- Queued task-output fixtures hold the provider reply, assert exact cross-session
+  `ProviderBusy` refusal during overlap, and join the exact queued completion and
+  provider quiescence before a fresh review. See the [native output cases](tests/Kora.Windows.IntegrationTests/SessionsConversationTests.TaskResponseOutput.cs).
+- A lifecycle acceptance-notification fault must not race into terminal
+  retention. The [lifecycle cases](tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ApplicationLifecycle.cs)
+  hold the existing model terminal-audit seam until acceptance publication,
+  cover both audit/publication orderings, and separately assert terminal
+  notification, retained original request/body and exact receipt revisions,
+  authoritative task readback, and physical join. Terminal readback failure
+  still prevents fresh lifecycle review.
 - Concurrent conversation expiry fixtures derive the message/task terminal pair
   from the exact request-owned snapshot, not mutable last-observed fixture slots.
   A concurrent dictionary does not make shared selection/commit atomic; force

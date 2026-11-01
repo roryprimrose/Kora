@@ -4099,6 +4099,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         try
         {
+            if (eventArgs.ActivationEvidence is not null
+                && (originalRequest is null || voiceRecognition is not HandsFreeVoiceRecognitionService))
+            {
+                throw new InvalidOperationException("An audio provider cannot supply host wake activation.");
+            }
             var manualInput = CaptureManualCallInput(RequestOrigin.ActivatedVoice, CallPolicyRevision, eventArgs.Generation);
             if (AttachmentCataloguePreparationCommand.Parse(eventArgs.Transcript, AssistantName) is { } catalogue)
             {
@@ -4117,9 +4122,23 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             var editorTarget = Volatile.Read(ref capturedCustomizationVoiceTarget);
             var foregroundTarget = Volatile.Read(ref foregroundConversationTarget);
             var speechInput = Volatile.Read(ref capturedSpeechInterruption);
-            await uiDispatcher.InvokeAsync(
-                () => HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput, responseReadInput, reviewEligibility,
-                    newRequestEligibility, currentResponseInput, questionTarget, editorTarget, foregroundTarget, speechInput, reviewedEligibility));
+            await uiDispatcher.InvokeAsync(() =>
+            {
+                if (eventArgs.ActivationEvidence is not null)
+                {
+                    if (originalRequest is not { } wakeRequest
+                        || voiceRecognition is not HandsFreeVoiceRecognitionService wakeOwner)
+                    {
+                        throw new InvalidOperationException("The owning native wake producer is unavailable.");
+                    }
+                    manualInput = manualInput with
+                    {
+                        WakeActivationCurrent = wakeOwner.ConsumeWakeActivation(eventArgs, wakeRequest),
+                    };
+                }
+                return HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput, responseReadInput, reviewEligibility,
+                    newRequestEligibility, currentResponseInput, questionTarget, editorTarget, foregroundTarget, speechInput, reviewedEligibility);
+            });
             if (originalRequest is null && voiceRecognition is HandsFreeVoiceRecognitionService handsFree)
             {
                 await handsFree.ResumeAfterActivatedInputAsync();
@@ -4172,7 +4191,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         ForegroundConversationTarget? foregroundTarget, SpeechInterruptionInput? speechInput, Func<bool>? reviewedEligibility = null)
     {
         if (reviewedEligibility?.Invoke() == false || eventArgs.Generation != voiceRecognition.Generation || lifecycleAdmissionClosed
-            || !sessionController.IsCurrentSessionUnlocked())
+            || !sessionController.IsCurrentSessionUnlocked()
+            || manualInput.WakeActivationCurrent is { } wakeCurrent && !wakeCurrent())
         {
             ApplicationLog.Debug(logger, "Rejected an unactivated or stale voice transcript");
             ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "RejectedAfterQueue");
@@ -4246,7 +4266,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             }
         }
 
-        if (reviewedEligibility?.Invoke() == false || eventArgs.Generation != voiceRecognition.Generation || !IsHostInputEligible)
+        if (reviewedEligibility?.Invoke() == false || eventArgs.Generation != voiceRecognition.Generation || !IsHostInputEligible
+            || manualInput.WakeActivationCurrent is { } currentWake && !currentWake())
         {
             ApplicationLog.Debug(logger, "Discarded voice input retired while waiting for output shutdown");
             ReportRetiredSkillReview(eventArgs.Transcript);
@@ -5006,6 +5027,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (!match.IsMatch || match.Command is null)
         {
             if (await TryRouteSessionRequestAsync(spokenText, initiator, originalInput)) { return; }
+            if (originalInput?.WakeActivationCurrent is not null)
+            {
+                ShowInformation("Session routing unavailable.",
+                    "The ordinary conversation host is not bound. No model fallback or activation replay was attempted.");
+                return;
+            }
             await HandleUnmatchedRequestAsync(spokenText, initiator);
             return;
         }

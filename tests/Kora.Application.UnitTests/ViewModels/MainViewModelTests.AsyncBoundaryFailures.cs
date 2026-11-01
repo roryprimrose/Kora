@@ -13,6 +13,84 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task OverlappingPreviewAndResponseJoinTheOriginalOutputDiscovery(bool retireTopology)
+    {
+        var fixture = new Fixture(enableOutputConfiguration: true);
+        await using var admission = fixture.OutputAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
+        await fixture.ViewModel.PreferenceUpdate;
+        var metadata = fixture.OutputConfiguration!.Metadata;
+        var devices = fixture.ViewModel.OutputDevices.ToArray();
+        var selected = fixture.ViewModel.SelectedOutputDevice;
+        var enumerations = fixture.TextToSpeech.OutputEnumerationCalls;
+        var speechCalls = fixture.TextToSpeech.SpeakCalls;
+        fixture.TextToSpeech.OutputDevices = [new("next", "Discovered output")];
+        fixture.TextToSpeech.DefaultOutputDeviceId = "next";
+        fixture.TextToSpeech.ClearSpokenResponse();
+        fixture.WindowActions.Clear();
+        using var release = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var token = TestContext.Current.CancellationToken;
+        fixture.TextToSpeech.BeforeOutputEnumeration = () =>
+        {
+            entered.SetResult();
+            release.Wait(token);
+        };
+        var response = fixture.RunAsync("what power action is pending");
+        Task preview = Task.CompletedTask;
+        try
+        {
+            await entered.Task.WaitAsync(token);
+            var discovery = fixture.ViewModel.OutputRefresh;
+            preview = fixture.ViewModel.PreviewVoiceCommand.ExecuteAsync();
+            fixture.ViewModel.OutputRefresh.Should().BeSameAs(discovery);
+            discovery.IsCompleted.Should().BeFalse();
+            fixture.ViewModel.ResponseOutputUpdate.IsCompleted.Should().BeFalse();
+            preview.IsCompleted.Should().BeFalse();
+            response.IsCompleted.Should().BeFalse();
+            fixture.TextToSpeech.OutputEnumerationCalls.Should().Be(enumerations + 1);
+            fixture.OutputConfiguration.Metadata.Should().BeSameAs(metadata);
+            fixture.TextToSpeech.SpokenText.Should().BeNull();
+            fixture.WindowActions.Should().BeEmpty();
+            if (retireTopology)
+            {
+                var current = fixture.PrivacyObservation.Current;
+                fixture.PrivacyObservation.Current = current with { TopologyRevision = current.TopologyRevision + 1 };
+            }
+        }
+        finally { release.Set(); }
+        await Task.WhenAll(preview, response);
+        (await fixture.ViewModel.OutputRefresh).Should().Be(!retireTopology);
+        (await fixture.ViewModel.ResponseOutputUpdate).Should().Be(!retireTopology);
+        fixture.TextToSpeech.OutputEnumerationCalls.Should().Be(enumerations + 1);
+        fixture.ViewModel.ResponseTitle.Should().Be("No power action is pending.");
+        fixture.ViewModel.ResponseBody.Should().Be("Power execution is intentionally disabled in this bootstrap proof.");
+        fixture.AudioPreferences.SavedOutputDeviceId.Should().BeNull();
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        if (retireTopology)
+        {
+            fixture.OutputConfiguration.Metadata.Should().BeSameAs(metadata);
+            fixture.ViewModel.OutputDevices.Should().Equal(devices);
+            fixture.ViewModel.SelectedOutputDevice.Should().Be(selected);
+            fixture.TextToSpeech.SpeakCalls.Should().Be(speechCalls);
+            fixture.TextToSpeech.SpokenText.Should().BeNull();
+            fixture.WindowActions.Should().BeEmpty();
+        }
+        else
+        {
+            fixture.OutputConfiguration.Get(0).Effective.Should().Be("next");
+            fixture.TextToSpeech.SpeakCalls.Should().Be(speechCalls + 2);
+            fixture.TextToSpeech.SpokenText.Should().BeOneOf("Hello, I'm Kora.",
+                "No power action is pending.. Power execution is intentionally disabled in this bootstrap proof.");
+            fixture.WindowActions.Should().BeEmpty();
+        }
+        await fixture.ViewModel.DisposeAsync();
+    }
+
     [Fact]
     public async Task CompletedResponseOutputFailureIsConsumedWithoutStartingAnotherDiscovery()
     {

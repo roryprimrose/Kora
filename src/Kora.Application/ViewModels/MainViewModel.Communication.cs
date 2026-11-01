@@ -40,6 +40,7 @@ public sealed partial class MainViewModel
         internal Func<bool> CatalogueEligible { get; init; } = static () => true;
         internal Kora.Application.Presentation.ModelActionReviewTarget? ModelActionReview { get; init; }
         internal Func<bool> NamedSkillChoiceEligible { get; init; } = static () => false;
+        internal Func<bool>? WakeActivationCurrent { get; init; }
     }
 
     public string ManualCallConfigurationStatus => manualCallControl is null

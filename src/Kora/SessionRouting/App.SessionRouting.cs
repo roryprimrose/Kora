@@ -16,7 +16,8 @@ public partial class App
         sessionRouting = new(main, Services.GetRequiredService<SessionWorkspaceService>(),
             Services.GetRequiredService<SessionConversationService>(), Services.GetRequiredService<ISessionWorkspaceAccess>(),
             Services.GetRequiredService<TimeProvider>(), Services.GetRequiredService<ISessionRelatednessMatcher>(),
-            Services.GetRequiredService<SessionRoutingControlAdmission>());
+            Services.GetRequiredService<SessionRoutingControlAdmission>(),
+            () => sessionsWindow?.RetainRoutingPresentation());
         sessionRouting.Bind();
     }
 }

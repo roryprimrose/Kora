@@ -161,6 +161,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     internal WorkSessionAuthorization? LifecycleTarget { get; private set; }
     internal HostQuestionRecord? RevisionQuestion { get; private set; }
     internal MainViewModel Main => main ?? throw new InvalidOperationException("The native fixture has not initialized its presentation state.");
+    internal ILogger<MainViewModel>? MainLogger { get; set; }
     internal ArtifactCatalogue ArtifactCatalogue { get; private set; } = null!;
     internal IUserDocumentationProvider Documents { get; } = new EmbeddedUserDocumentationProvider();
 
@@ -250,7 +251,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             callState ?? new FixtureCallState(SilentSpeech is null && !Voice.SyntheticCapture
                 ? Kora.Core.Communication.CallState.Unavailable : Kora.Core.Communication.CallState.Clear),
             Access, execution, dispatcher ?? new AvaloniaUiDispatcher(), Access, new AssemblyApplicationInfo(), Audit,
-            NullLogger<MainViewModel>.Instance, consent, Access, VersionQuery, capabilities,
+            MainLogger ?? NullLogger<MainViewModel>.Instance, consent, Access, VersionQuery, capabilities,
             new AppearanceConfigurationService(appearances, Audit, NullLogger<AppearanceConfigurationService>.Instance),
             new SpeechConfigurationService(new LocalTextToSpeechPreferences(this, NullLogger<LocalTextToSpeechPreferences>.Instance),
                 speech, Audit, NullLogger<SpeechConfigurationService>.Instance),

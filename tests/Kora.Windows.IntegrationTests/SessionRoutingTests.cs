@@ -8,10 +8,12 @@ using AwesomeAssertions;
 using Kora.Application.Dependencies;
 using Kora.Application.Hosting;
 using Kora.Application.Hosting.SessionRouting;
+using Kora.Application.Configuration;
 using Kora.Core.Conversation.SessionRouting;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
+using Kora.Core.Voice;
 using Kora.NativeUxFixture;
 
 using Microsoft.Extensions.Logging.Abstractions;
@@ -197,7 +199,11 @@ public sealed partial class SessionRoutingTests
 
     private sealed class Fixture : IDisposable
     {
-        internal NativeUxFixtureSession Native { get; } = new(Path.GetFullPath("."), silentCaption: true);
+        internal Fixture(bool syntheticVoice = false)
+        {
+            Native = new(Path.GetFullPath("."), silentCaption: !syntheticVoice, syntheticVoice: syntheticVoice);
+        }
+        internal NativeUxFixtureSession Native { get; }
         internal Admission Admission { get; } = new();
         internal SessionRouteMatch Match { get; set; } = SessionRouteMatch.Clear;
         internal SessionRoutingController Routing { get; private set; } = null!;
@@ -206,18 +212,20 @@ public sealed partial class SessionRoutingTests
         internal SessionsViewModel Model => (SessionsViewModel)Window!.SessionView.DataContext!;
         internal ResponseWindow? Window { get; private set; }
         private SessionsWindowController? sessions;
+        internal SessionRoutingPresentationLease? RetainRoutingPresentation() => sessions?.RetainRoutingPresentation();
         private ResponseWindowController? responses;
         private IDisposable? adviceGestures;
         internal bool AutoAllowAdvice { get; set; } = true;
         internal int Matches { get; set; }
 
-        internal async Task Initialize(bool expanded)
+        internal async Task Initialize(bool expanded, IQuestionVoiceRecognitionService? voiceRecognition = null,
+            SpeechInputConfigurationService? speechInputConfiguration = null)
         {
             adviceGestures = Avalonia.Controls.Window.WindowOpenedEvent.AddClassHandler<SessionRoutingAdviceWindow>((window, _) =>
             {
                 if (AutoAllowAdvice) { Dispatcher.UIThread.Post(() => ClickAdvice(window, "RoutingAdviceAllow")); }
             });
-            await Native.InitializeAsync();
+            await Native.InitializeAsync(null, voiceRecognition: voiceRecognition, speechInputConfiguration: speechInputConfiguration);
             First = await Native.Sessions.CreateAsync(new("Alpha"), RequestOrigin.LocalUi, Native.Token);
             Second = await Native.Sessions.CreateAsync(new("Beta"), RequestOrigin.LocalUi, Native.Token);
             var conversation = new SessionConversationService(Native.Interactions, Native.Interactions, Native.Sessions,
@@ -229,7 +237,8 @@ public sealed partial class SessionRoutingTests
             await sessions.ShowInteractionAsync(expanded: true, static () => true);
             await Model.SelectAsync(Model.Sessions.Single(row => row.Authority.SessionId == First.Authority.SessionId));
             if (!expanded) { Window!.ShowSessions(expanded: false); }
-            Routing = new(Native.Main, Native.Sessions, conversation, Native.Access, TimeProvider.System, new Matcher(this));
+            Routing = new(Native.Main, Native.Sessions, conversation, Native.Access, TimeProvider.System, new Matcher(this),
+                retainPresentation: sessions.RetainRoutingPresentation);
             Routing.Bind();
         }
 

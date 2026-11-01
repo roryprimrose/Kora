@@ -296,38 +296,42 @@ public sealed partial class ModelTurnHostTests
         public async ValueTask<ConversationSubmissionReceipt> CompleteConversationSubmissionAsync(HostRequest request,
             ModelTurnOutcome outcome, ModelTurnReason reason, Func<bool> admitted, CancellationToken token)
         {
-            var original = TrackPendingRecords ? PendingRecords[request.RequestId] : new(Retained!, Task!.Task);
+            // Expiry completions can interleave; the terminal pair must remain request-local.
+            var pending = TrackPendingRecords ? PendingRecords[request.RequestId] : null;
+            var message = pending?.Message ?? Retained!;
+            var observed = pending is null ? Task!
+                : new HostTaskObservation(pending.Task, pending.Message.Generation, "host", true, null);
             if (BeforeSubmissionComplete is { } before) { await before(request); }
-            var message = original.Message with { Revision = 2, Outcome = outcome, Reason = reason };
-            var task = original.Task.Next(message.ExpectedTaskState);
-            var receipt = new ConversationSubmissionReceipt(message, task);
+            message = message with { Revision = 2, Outcome = outcome, Reason = reason };
+            observed = observed with { Task = observed.Task.Next(message.ExpectedTaskState) };
             Retained = message;
-            Task = TrackPendingRecords ? new(task, message.Generation, "host", true, null) : Task! with { Task = task };
+            Task = observed;
+            var receipt = new ConversationSubmissionReceipt(message, observed.Task);
             if (TrackPendingRecords) { PendingRecords[request.RequestId] = receipt; }
             if (CompletionFault is "body-receipt") { receipt = receipt with { Message = message with { Body = "wrong body" } }; }
             if (CompletionFault is "request-receipt") { receipt = receipt with { Message = message with { Request = HostRequest.Create(RequestOrigin.LocalUi) } }; }
             if (CompletionFault is "task-receipt") { receipt = receipt with { Task = new(request, new(3), HostTaskState.Failed) }; }
             if (CompletionFault is "nonterminal-receipt")
             {
-                task = new(request, new(1), HostTaskState.IntentRecorded);
-                Task = Task! with { Task = task };
-                receipt = receipt with { Task = task };
+                observed = observed with { Task = new(request, new(1), HostTaskState.IntentRecorded) };
+                Task = observed;
+                receipt = receipt with { Task = observed.Task };
             }
             if (CompletionFault is "receipt-admission") { ControlRevision++; }
             if (CompletionFault is "missing-task") { Task = null; }
             if (CompletionFault is "wrong-state")
             {
-                task = new(request, new(2), HostTaskState.Succeeded);
-                Task = Task! with { Task = task };
-                receipt = receipt with { Task = task };
+                observed = observed with { Task = new(request, new(2), HostTaskState.Succeeded) };
+                Task = observed;
+                receipt = receipt with { Task = observed.Task };
             }
             if (CompletionFault is "wrong-outcome")
             {
                 message = message with { Outcome = ModelTurnOutcome.Denied };
-                task = new(request, new(2), HostTaskState.Denied);
+                observed = observed with { Task = new(request, new(2), HostTaskState.Denied) };
                 Retained = message;
-                Task = Task! with { Task = task };
-                receipt = receipt with { Task = task, Message = message };
+                Task = observed;
+                receipt = receipt with { Task = observed.Task, Message = message };
             }
             if (CompletionFault is "wrong-reason")
             {

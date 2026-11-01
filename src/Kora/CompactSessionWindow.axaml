@@ -25,6 +25,7 @@
           AutomationProperties.Name="Conversation name and exact session identity for this message" />
       <TextBlock Text="{Binding SelectedSessionRecord.Authority.IsActive, TargetNullValue='No selected target', StringFormat='Observed Active lifecycle: {0}'}" />
       <local:SessionRequestReviewPanel x:Name="OriginalRequestReview" />
+      <local:AnswerReviewPanel />
       <controls:NamedTextBlock Text="{Binding WorkStatus}" TextWrapping="Wrap"
           AutomationProperties.Name="Observed exact selected-session work source and time; not inferred execution or current success" />
       <TextBlock Text="No target? Open Sessions and explicitly select one. Opening never selects, loads bodies, resumes work or grants permission. Questions, approvals and voice stay in their existing windows." TextWrapping="Wrap" />

@@ -15,7 +15,8 @@ public sealed class SharedSkillSnapshot
     private SharedSkillSnapshot(Guid sourceId, string relativeFile, byte[] content, string? text,
         string? name, string? version, string? description, IEnumerable<string> tools, IEnumerable<string> reasons,
         IEnumerable<string>? uninspectedFiles = null, SharedSkillReferenceDeclaration? declaration = null,
-        SharedSkillReferenceBundle? bundle = null, string? packageDirectoryIdentity = null)
+        SharedSkillReferenceBundle? bundle = null, string? packageDirectoryIdentity = null,
+        DeclarativeMcpToolReference? mcpReference = null)
     {
         SourceId = sourceId;
         RelativeFile = relativeFile;
@@ -30,6 +31,7 @@ public sealed class SharedSkillSnapshot
         ReferenceDeclaration = declaration;
         ReferenceBundle = bundle;
         PackageDirectoryIdentity = packageDirectoryIdentity;
+        McpReference = mcpReference;
         RevisionDigest = bundle?.RevisionDigest ?? Convert.ToHexStringLower(SHA256.HashData(bytes));
         SourceQualifiedIdentity = $"shared-profile:{sourceId:N}:{name ?? relativeFile}@{version ?? "unversioned"}";
     }
@@ -49,6 +51,7 @@ public sealed class SharedSkillSnapshot
     public SharedSkillReferenceDeclaration? ReferenceDeclaration { get; }
     public SharedSkillReferenceBundle? ReferenceBundle { get; }
     public string? PackageDirectoryIdentity { get; }
+    public DeclarativeMcpToolReference? McpReference { get; }
     public bool IsReferenceCandidate => ReferenceDeclaration is not null && ReferenceBundle is null
         && UnavailableReasons.SequenceEqual(["reference-read-consent-required"], StringComparer.Ordinal);
     public bool IsInstructionCompatible => UnavailableReasons.Count == 0;
@@ -84,7 +87,23 @@ public sealed class SharedSkillSnapshot
         var reasons = new List<string>();
         var fields = SharedSkillFrontMatter.Parse(text, reasons);
         SharedSkillReferenceDeclaration? declaration = null;
-        if (fields.TryGetValue("format", out var format) || fields.ContainsKey("references"))
+        fields.TryGetValue("format", out var format);
+        DeclarativeMcpToolReference? mcpReference = null;
+        if (format is DeclarativeMcpToolReference.Format)
+        {
+            if (fields.Count != 8 || !fields.TryGetValue("allowed-tools", out var tool)
+                || !tool.StartsWith("mcp.", StringComparison.Ordinal)
+                || !fields.TryGetValue("mcp-server", out var server)
+                || !fields.TryGetValue("mcp-source-revision", out var revision)
+                || !fields.TryGetValue("mcp-schema-digest", out var schema))
+            { reasons.Add("invalid-mcp-reference"); }
+            else
+            {
+                try { mcpReference = new(server, revision, tool["mcp.".Length..], schema); }
+                catch (InvalidDataException) { reasons.Add("invalid-mcp-reference"); }
+            }
+        }
+        else if (format is not null || fields.ContainsKey("references"))
         {
             if (!string.Equals(format, SharedSkillReferenceDeclaration.Format, StringComparison.Ordinal) || !fields.TryGetValue("references", out var references))
             { reasons.Add("unsupported-reference-format"); }
@@ -94,6 +113,9 @@ public sealed class SharedSkillSnapshot
                 catch (InvalidDataException) { reasons.Add("invalid-reference-declaration"); }
             }
         }
+        if (format is not DeclarativeMcpToolReference.Format
+            && fields.Keys.Any(key => key.StartsWith("mcp-", StringComparison.Ordinal)))
+        { reasons.Add("unsupported-mcp-reference-format"); }
         if (declaration is not null)
         {
             if (!declaration.MatchesInventory(relativeFile, uninspectedFiles ?? []))
@@ -114,14 +136,15 @@ public sealed class SharedSkillSnapshot
         {
             tools.AddRange(declared.Split([' ', ','], StringSplitOptions.RemoveEmptyEntries));
             if (tools.Count is 0 or > 16 || tools.Distinct(StringComparer.OrdinalIgnoreCase).Count() != tools.Count
-                || tools.Any(tool => tool.Length > 80 || tool.Any(c =>
+                || tools.Any(tool => tool.Length > 80 || mcpReference is null && tool.Any(c =>
                     c is not (>= 'a' and <= 'z' or >= '0' and <= '9' or '.' or '-' or '_'))))
             { reasons.Add("invalid-declared-tools"); }
             // No runtime tool/task dependency admission is provided by this inspection reader.
             reasons.Add("declared-tools-unavailable");
         }
         ValidateInstructionText(text, declaration, reasons);
-        return new(sourceId, relativeFile, copy, text, name, version, description, tools, reasons, uninspectedFiles, declaration);
+        return new(sourceId, relativeFile, copy, text, name, version, description, tools, reasons, uninspectedFiles,
+            declaration, mcpReference: mcpReference);
     }
 
     internal static void ValidateInstructionText(string text, SharedSkillReferenceDeclaration? declaration, List<string> reasons)
@@ -170,14 +193,14 @@ public sealed class SharedSkillSnapshot
 
     public SharedSkillSnapshot WithUnavailableReason(string reason) =>
         new(SourceId, RelativeFile, bytes, Text, Name, Version, Description, DeclaredTools, UnavailableReasons.Append(reason),
-            UninspectedFiles, ReferenceDeclaration, ReferenceBundle, PackageDirectoryIdentity);
+            UninspectedFiles, ReferenceDeclaration, ReferenceBundle, PackageDirectoryIdentity, McpReference);
 
     public SharedSkillSnapshot WithPackageDirectoryIdentity(string identity)
     {
         if (identity.Length != 48 || identity.Any(c => !char.IsAsciiHexDigit(c)))
         { throw new InvalidDataException("A pinned native package identity is required."); }
         return new(SourceId, RelativeFile, bytes, Text, Name, Version, Description, DeclaredTools, UnavailableReasons,
-            UninspectedFiles, ReferenceDeclaration, ReferenceBundle, identity);
+            UninspectedFiles, ReferenceDeclaration, ReferenceBundle, identity, McpReference);
     }
 
     public SharedSkillSnapshot WithReferenceBundle(SharedSkillReferenceBundle bundle)

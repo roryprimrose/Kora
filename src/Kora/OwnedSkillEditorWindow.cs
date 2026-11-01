@@ -7,7 +7,7 @@ using Kora.Core.Skills;
 
 namespace Kora;
 
-internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
+internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview, IOwnedSkillDeletionReview
 {
     internal readonly TextBox IdInput = new() { PlaceholderText = "canonical-skill-id" };
     internal readonly TextBox VersionInput = new() { Text = "1.0.0" };
@@ -62,7 +62,7 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
             TextWrapping = TextWrapping.Wrap,
         });
         var buttons = new WrapPanel { Orientation = Orientation.Horizontal };
-        foreach (var action in new[] { "Create", "Refine", "Cancel refinement", "Validate", "Test", "Cancel test", "Save", "List", "Reopen", "Use", "Cancel" })
+        foreach (var action in new[] { "Create", "Refine", "Cancel refinement", "Validate", "Test", "Cancel test", "Save", "List", "Reopen", "Delete", "Use", "Cancel" })
         {
             var button = new Button { Content = action, Margin = new(3) };
             button.Click += (_, _) => run(action.ToLowerInvariant().Replace(' ', '-'));
@@ -134,6 +134,24 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
             "Publish this exact reviewed TWO-file package at " + destination
                 + "? Existing versions will never be replaced. The saved package remains inactive. Use requires a separate exact-version review and enablement.",
             document.ManifestText, document.Guidance, ["Publish exact new version", "Cancel"], token) == 0;
+
+    public async Task<bool> ReviewDeletion(OwnedSkillDeletionSnapshot source, CancellationToken token) =>
+        await ChooseOnUi("Review exact owned skill source deletion", DeletionDisclosure(source),
+            source.Source.Document.ManifestText, source.Source.Document.Guidance,
+            ["Continue to separate deletion confirmation", "Cancel"], token) == 0;
+
+    public async Task<bool> ConfirmDeletion(OwnedSkillDeletionSnapshot source, CancellationToken token) =>
+        await ChooseOnUi("Confirm exact owned skill source deletion", DeletionDisclosure(source),
+            source.Source.Document.ManifestText, source.Source.Document.Guidance,
+            ["Delete only this exact owned source", "Cancel"], token) == 0;
+
+    private static string DeletionDisclosure(OwnedSkillDeletionSnapshot source) =>
+        "Delete owned " + source.Source.Document.Name + " (" + source.Source.Document.Id + " " + source.Source.Document.Version
+        + ") at " + source.Destination + "?\nExactly manifest.yaml, instructions.md and their now-empty version directory; the ID/root and all other entries remain."
+        + "\nDeclared dependency: " + source.Source.Document.Tool + "; references: none. Future use that needs this exact source fails closed."
+        + " External dependents are not exhaustively inventoried. Immutable admitted tasks are not cancelled; independent grants, history and audit are not erased or renewed."
+        + "\nNo reference packages, shared/profile originals, bundled sources, arbitrary paths or tree deletion. No backup/rollback, model, tools or egress."
+        + " Partial/unconfirmed deletion is held for explicit inspection, never retried automatically.";
 
     internal async Task<int> DirtyChoice(bool canSave, Func<bool> privateEligible, CancellationToken token)
     {
@@ -212,6 +230,10 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
         panel.Children.Add(new ScrollViewer { Content = files });
         dialog.Content = panel;
         review = dialog;
+        dialog.KeyDown += (_, key) =>
+        {
+            if (key.Key == Avalonia.Input.Key.Escape) { key.Handled = true; dialog.Close(); }
+        };
         dialog.Closed += (_, _) => { if (ReferenceEquals(review, dialog)) { review = null; } result.TrySetResult(-1); };
         using var cancellation = token.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(dialog.Close));
         dialog.Show(this);

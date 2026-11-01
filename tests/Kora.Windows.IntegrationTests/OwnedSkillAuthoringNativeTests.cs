@@ -1,4 +1,6 @@
 using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using AwesomeAssertions;
@@ -46,6 +48,47 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             reviews.Should().ContainSingle();
             (await editor.ConfirmPublication(document, "fixed-owned-package-destination", TestContext.Current.CancellationToken)).Should().BeTrue();
             reviews.Should().Equal("Review complete skill package", "Confirm exact new skill publication");
+            editor.Close();
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NativeEscapeRejectsSaveReviewWithoutConfirmingOrEditing(bool publication)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var document = OwnedDeclarativeSkillDocument.Create("example", "1.0.0", "Example", "Description", "Literal\nowned skill save\n");
+            var commands = 0;
+            var editor = new OwnedSkillEditorWindow(_ => commands++, static () => true);
+            editor.IdInput.Text = document.Id;
+            editor.VersionInput.Text = document.Version;
+            editor.NameInput.Text = document.Name;
+            editor.DescriptionInput.Text = document.Description;
+            editor.Guidance.Text = document.Guidance;
+            editor.Show();
+            var next = new TaskCompletionSource<Window>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var opened = Window.WindowOpenedEvent.AddClassHandler<Window>((dialog, _) =>
+            {
+                if (!ReferenceEquals(dialog, editor)) { next.TrySetResult(dialog); }
+            });
+            var operation = publication
+                ? editor.ConfirmPublication(document, "fixed-owned-package-destination", TestContext.Current.CancellationToken)
+                : editor.Review(document, "fixed-owned-package-destination", TestContext.Current.CancellationToken);
+            var review = await next.Task;
+            var sources = review.GetLogicalDescendants().OfType<TextBox>().ToArray();
+            sources.Should().HaveCount(2).And.OnlyContain(source => source.IsReadOnly);
+            sources[0].Text.Should().Be(document.ManifestText);
+            sources[1].Text.Should().Be(document.Guidance);
+            sources[1].Focus().Should().BeTrue();
+            review.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            review.IsVisible.Should().BeFalse();
+            (await operation).Should().BeFalse();
+            editor.IsVisible.Should().BeTrue();
+            editor.Document().ManifestText.Should().Be(document.ManifestText);
+            editor.Document().Guidance.Should().Be(document.Guidance);
+            commands.Should().Be(0);
             editor.Close();
         });
     }

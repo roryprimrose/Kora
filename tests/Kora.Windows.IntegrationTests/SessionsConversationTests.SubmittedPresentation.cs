@@ -1,0 +1,215 @@
+using Avalonia.Controls;
+using AwesomeAssertions;
+using Kora.Application.Hosting;
+using Kora.Core.Storage;
+using Kora.Windows.IntegrationTests.Storage;
+
+namespace Kora.Windows.IntegrationTests;
+
+public sealed partial class SessionsConversationTests
+{
+    [Theory]
+    [InlineData("current")]
+    [InlineData("aba")]
+    [InlineData("arrive-other")]
+    [InlineData("revision")]
+    [InlineData("privacy")]
+    [InlineData("close")]
+    public async Task DeferredSubmittedAcceptanceCannotReattachToRetiredComposerSource(string retirement)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            var original = f.Request.SessionId;
+            f.Request = InteractionStorageFixture.NewRequest();
+            await f.AdmitAsync(newSession: true);
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            var adapter = new PendingTurnAdapter();
+            await using var composed = new Composition(f, adapter: adapter);
+            var dispatcher = new DeferredConversationDispatcher();
+            var model = CreateDeferredPresentation(f, composed, dispatcher);
+            var accepted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            void Changed(Kora.Core.Conversation.ConversationPendingSnapshot snapshot)
+            {
+                if (snapshot.Turns.Any(turn => turn.Phase == Kora.Core.Conversation.ConversationPendingPhase.Pending))
+                { accepted.TrySetResult(); }
+            }
+            try
+            {
+                await model.RefreshAsync();
+                await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId == original));
+                var target = model.SelectedSessionRecord!;
+                model.ComposerBody = "independent unsent input";
+                if (retirement is "arrive-other")
+                { await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId != original)); }
+                composed.Conversation.PendingConversationChanged += Changed;
+                await Task.Run(() => composed.Conversation.SubmitQueuedAsync(target, "active original", static () => true, f.Token));
+                await adapter.NextAsync();
+                const string body = "  pending original e\u0301\r\n unchanged  ";
+                var queued = await Task.Run(() => composed.Conversation.SubmitQueuedAsync(target, body, static () => true, f.Token));
+                await accepted.Task.WaitAsync(f.Token);
+                queued.Position.Should().Be(1);
+                dispatcher.Count.Should().BeGreaterThan(0);
+                if (retirement is "aba")
+                {
+                    await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId != original));
+                    model.ComposerBody = "foreign composer";
+                    await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId == original));
+                }
+                else if (retirement is "arrive-other") { await model.SelectAsync(target); }
+                else if (retirement is "revision") { composed.Access.ControlRevision++; }
+                else if (retirement is "privacy")
+                {
+                    composed.Access.CanInspect = false;
+                    composed.Access.CanControl = false;
+                    composed.Access.ControlRevision++;
+                }
+                else if (retirement is "close") { model.Close(); }
+                dispatcher.Drain();
+                if (retirement is "current")
+                { model.PendingConversationTurns.Should().ContainSingle().Which.Submission.Message.Body.Should().Be(body); }
+                else { model.PendingConversationTurns.Should().BeEmpty("a late pending snapshot is not fresh native source admission"); }
+                adapter.Calls.Should().Be(1, "presentation cannot dispatch the submitted pending request");
+                f.Count("conversation_messages").Should().Be(2);
+                f.Count("conversation_drafts").Should().Be(0);
+                f.Count("host_questions").Should().Be(0);
+                f.Count("scoped_grants").Should().Be(0);
+                if (retirement is "current" or "aba" or "arrive-other")
+                {
+                    model.ComposerBody.Should().Be("independent unsent input");
+                    await model.RefreshPendingConversationAsync();
+                    model.PendingConversationTurns.Should().ContainSingle().Which.Submission.Message.Body.Should().Be(body);
+                    model.SelectedPendingConversation = model.PendingConversationTurns.Single();
+                    await model.CancelPendingConversationAsync();
+                    (await f.Store.ReadConversationMessageAsync(original, queued.Receipt.Message.Request.RequestId, f.Token))
+                        .Outcome.Should().Be(Kora.Core.Dependencies.ModelTurnOutcome.Cancelled);
+                    model.ComposerBody.Should().Be("independent unsent input");
+                    if (retirement is "aba")
+                    {
+                        await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId != original));
+                        model.ComposerBody.Should().Be("foreign composer");
+                    }
+                    adapter.Calls.Should().Be(1);
+                }
+            }
+            finally
+            {
+                composed.Conversation.PendingConversationChanged -= Changed;
+                model.Close();
+                adapter.ReleaseAll();
+                await composed.Conversation.DisposeAsync();
+                dispatcher.Drain();
+            }
+        });
+    }
+
+    [Theory]
+    [InlineData("current")]
+    [InlineData("switch")]
+    [InlineData("aba")]
+    [InlineData("arrive-other")]
+    [InlineData("generation")]
+    [InlineData("revision")]
+    [InlineData("privacy")]
+    [InlineData("close")]
+    public async Task DeferredSubmittedTerminalCannotReattachToRetiredComposerSource(string retirement)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            var original = f.Request.SessionId;
+            f.Request = InteractionStorageFixture.NewRequest();
+            await f.AdmitAsync(newSession: true);
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            await using var composed = new Composition(f);
+            var dispatcher = new DeferredConversationDispatcher();
+            var model = CreateDeferredPresentation(f, composed, dispatcher);
+            var interaction = new SessionInteractionView { DataContext = model };
+            var window = new Window { Content = interaction };
+            window.Show();
+            var terminal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            void Completed(SessionWorkspaceEntry target, ConversationTurnCompletion completion) => terminal.TrySetResult();
+            try
+            {
+                await model.RefreshAsync();
+                await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId == original));
+                var target = model.SelectedSessionRecord!;
+                const string body = "  original USER e\u0301\r\n unchanged  ";
+                const string unsent = "  independent unsent e\u0301\r\n next  ";
+                model.ComposerBody = unsent;
+                if (retirement is "arrive-other")
+                { await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId != original)); }
+                composed.Conversation.SubmittedConversationCompleted += Completed;
+                var submission = await Task.Run(() => composed.Conversation.SubmitAsync(target, body, static () => true, f.Token));
+                await terminal.Task.WaitAsync(f.Token);
+                dispatcher.Count.Should().BeGreaterThan(0);
+                submission.Message.Outcome.Should().Be(Kora.Core.Dependencies.ModelTurnOutcome.Unavailable);
+                if (retirement is "switch" or "aba")
+                {
+                    await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId != original));
+                    model.ComposerBody = "foreign composer";
+                    if (retirement is "aba")
+                    { await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId == original)); }
+                }
+                else if (retirement is "arrive-other") { await model.SelectAsync(target); }
+                else if (retirement is "generation")
+                {
+                    await composed.Workspace.ChangeLifecycleAsync(original, target.Authority.Generation, false,
+                        Kora.Core.Hosting.RequestOrigin.LocalUi, f.Token);
+                    await model.RefreshWorkAsync();
+                    await composed.Workspace.ChangeLifecycleAsync(original, model.SelectedSessionRecord!.Authority.Generation, true,
+                        Kora.Core.Hosting.RequestOrigin.LocalUi, f.Token);
+                    await model.RefreshWorkAsync();
+                }
+                else if (retirement is "revision") { composed.Access.ControlRevision++; }
+                else if (retirement is "privacy")
+                {
+                    composed.Access.CanInspect = false;
+                    composed.Access.CanControl = false;
+                    composed.Access.ControlRevision++;
+                }
+                else if (retirement is "close") { model.Close(); }
+                var status = model.ConversationStatus;
+                dispatcher.Drain();
+                if (retirement is "current")
+                {
+                    model.ConversationMessages.Should().ContainSingle().Which.Should().Be(submission.Message);
+                    model.ConversationStatus.Should().Contain("HOST Unavailable").And.Contain("UnregisteredModel");
+                }
+                else
+                {
+                    model.ConversationMessages.Should().BeEmpty("an old terminal callback cannot attach to a later native source");
+                    model.ConversationStatus.Should().Be(status);
+                }
+                if (retirement is "current" or "aba" or "arrive-other" or "generation")
+                {
+                    model.ComposerBody.Should().Be(unsent);
+                    interaction.FindControl<TextBox>("SessionComposer")!.Text.Should().Be(unsent);
+                }
+                if (retirement is "switch") { model.ComposerBody.Should().Be("foreign composer"); }
+                (await f.Store.ReadConversationPageAsync(original, null, 25, f.Token)).Messages
+                    .Should().ContainSingle().Which.Body.Should().Be(body);
+                f.Count("conversation_drafts").Should().Be(0);
+                f.Count("host_questions").Should().Be(0);
+                f.Count("scoped_grants").Should().Be(0);
+                if (retirement is "aba" or "arrive-other" or "generation")
+                {
+                    await model.ReadConversationAsync();
+                    model.ConversationMessages.Should().ContainSingle().Which.Body.Should().Be(body);
+                    model.ComposerBody.Should().Be(unsent);
+                }
+            }
+            finally
+            {
+                composed.Conversation.SubmittedConversationCompleted -= Completed;
+                model.Close();
+                window.Close();
+                dispatcher.Drain();
+            }
+        });
+    }
+}

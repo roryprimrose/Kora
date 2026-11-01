@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 
 using AwesomeAssertions;
@@ -46,7 +47,7 @@ public sealed class SessionComposerLifecycleTests
             var decisions = 0;
             model.DecideComposerDraft = () => { decisions++; return Task.FromResult(ComposerDraftDecision.Cancel); };
 
-            if (route is "native") { await model.ChangeLifecycleAsync(resume); }
+            if (route is "native") { await f.ChangeNativeLifecycleAsync(resume); }
             else
             {
                 var command = new SessionCommand(resume ? SessionCommandOperation.Resume : SessionCommandOperation.Done,
@@ -116,13 +117,21 @@ public sealed class SessionComposerLifecycleTests
             await f.Initialize();
             var model = f.Model;
             if (!targetSelected) { await model.SelectAsync(f.Other); }
+            var source = model.CaptureDraftPresentationEligibility();
             await Task.Run(() => f.Controller.RevokeSession(f.Target.Authority.SessionId));
             Dispatcher.UIThread.RunJobs();
+            source().Should().Be(!targetSelected);
             if (targetSelected)
             {
                 model.SelectedSessionRecord.Should().BeNull();
                 model.CanSubmitConversation.Should().BeFalse();
                 model.ConversationMessages.Should().BeEmpty();
+                f.Workspace.FindControl<Button>("Done")!.IsEnabled.Should().BeFalse();
+                f.Workspace.FindControl<Button>("Resume")!.IsEnabled.Should().BeFalse();
+                f.Workspace.FindControl<Button>("SubmitConversation")!.IsEnabled.Should().BeFalse();
+                f.Workspace.FindControl<TextBox>("ConversationComposer")!.Text.Should().BeNullOrEmpty();
+                f.Compact.FindControl<TextBox>("ConversationComposer")!.Text.Should().BeNullOrEmpty();
+                f.Interaction.SessionView.FindControl<TextBox>("SessionComposer")!.Text.Should().BeNullOrEmpty();
                 await model.RefreshAsync();
                 await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId == f.Other.Authority.SessionId));
             }
@@ -300,6 +309,25 @@ public sealed class SessionComposerLifecycleTests
             Model.ComposerBody = OtherBody;
             await Model.SelectAsync(Model.Sessions.Single(row => row.Authority.SessionId == Target.Authority.SessionId));
             Model.ComposerBody = TargetBody;
+        }
+
+        internal async Task ChangeNativeLifecycleAsync(bool resume)
+        {
+            var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            void Changed(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+            {
+                if (string.Equals(args.PropertyName, nameof(SessionsViewModel.CanRead), StringComparison.Ordinal) && Model.CanRead)
+                { completed.TrySetResult(); }
+            }
+            Model.PropertyChanged += Changed;
+            try
+            {
+                var button = Workspace.FindControl<Button>(resume ? "Resume" : "Done")!;
+                button.IsEnabled.Should().BeTrue();
+                button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await completed.Task.WaitAsync(Native.Token);
+            }
+            finally { Model.PropertyChanged -= Changed; }
         }
 
         public void Dispose()

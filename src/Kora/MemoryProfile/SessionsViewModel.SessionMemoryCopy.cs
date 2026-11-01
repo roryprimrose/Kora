@@ -66,12 +66,36 @@ internal sealed partial class SessionsViewModel
         if (result.Outcome != MemoryOutcome.Succeeded || operation == MemoryOperation.Admit) { CancelSessionMemoryCopy(); }
     }, requireOriginalInput: true);
 
-    public void CancelSessionMemoryCopy()
+    internal Func<bool> CaptureSessionMemoryCopyPresentation()
+    {
+        var epoch = memoryEpoch;
+        var selection = selectionEpoch;
+        var control = access.ControlRevision;
+        return () => MemorySourceCurrent && !deviceProfileMemory && memoryEpoch == epoch
+            && selectionEpoch == selection && access.ControlRevision == control;
+    }
+
+    internal void ReportSessionMemoryCopyPresentationFailure(Exception exception)
+    {
+        Failure(logger, exception.GetType().Name);
+        if (closed || !access.CanInspect) { return; }
+        conversationStatus += " Native scope-copy review/outcome presentation unavailable. "
+            + "Read the exact scope-copy status and profile/audit state; no admission, rollback or retry is inferred.";
+        NotifyConversation();
+    }
+
+    public void CancelSessionMemoryCopy(bool reportCancellation = false)
     {
         sessionMemoryCopy?.Dispose();
         sessionMemoryCopy = null;
         sessionMemoryCopyClass = null;
         NotifySessionMemoryCopy();
+        if (reportCancellation && !closed && access.CanInspect)
+        {
+            conversationStatus = "Scope-copy review cancelled. No admission, rollback or retry is inferred. "
+                + "Inspect profile memories and audit receipts if a save was in progress.";
+            NotifyConversation();
+        }
     }
 
     private void NotifySessionMemoryCopy()

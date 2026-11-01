@@ -7,7 +7,7 @@ namespace Kora.Core.Dependencies;
 public static partial class ModelToolProtocol
 {
     public static ModelAssistantMessage ParseAssistant(ReadOnlySpan<byte> wire, bool clarificationAllowed = false,
-        Mcp.McpModelTool? mcpTool = null)
+        Mcp.McpModelTool? mcpTool = null, bool formsAllowed = false)
     {
         using var document = ReadJson(wire, MaximumOutputUtf8Bytes);
         var root = document.RootElement;
@@ -24,7 +24,7 @@ public static partial class ModelToolProtocol
             return new ModelFinalResponse(answer);
         }
         if (clarificationAllowed && string.Equals(kind.GetString(), "question", StringComparison.Ordinal))
-        { return ReadQuestion(root); }
+        { return ReadQuestion(root, formsAllowed); }
         if (!string.Equals(kind.GetString(), "toolCalls", StringComparison.Ordinal))
         { throw new InvalidDataException("Unsupported assistant message kind."); }
         RequireFields(root, "kind", "calls");
@@ -137,13 +137,17 @@ public static partial class ModelToolProtocol
         {
             writer.WriteString("kind", "question");
             writer.WriteString("prompt", question.Question.Prompt);
-            writer.WriteStartArray("options");
-            foreach (var label in question.Question.Options) { writer.WriteStringValue(label); }
-            writer.WriteEndArray();
-            if (question.CallId is not null || question.Question.Minimum != 1 || question.Question.Maximum != 1)
+            if (question.Question.Fields is { } fields) { WriteFormFields(writer, fields); }
+            else
             {
-                writer.WriteNumber("minimum", question.Question.Minimum);
-                writer.WriteNumber("maximum", question.Question.Maximum);
+                writer.WriteStartArray("options");
+                foreach (var label in question.Question.Options) { writer.WriteStringValue(label); }
+                writer.WriteEndArray();
+                if (question.CallId is not null || question.Question.Minimum != 1 || question.Question.Maximum != 1)
+                {
+                    writer.WriteNumber("minimum", question.Question.Minimum);
+                    writer.WriteNumber("maximum", question.Question.Maximum);
+                }
             }
             if (question.CallId is { } callId) { writer.WriteString("callId", callId); }
         }
@@ -155,6 +159,19 @@ public static partial class ModelToolProtocol
             writer.WriteEndArray();
             writer.WriteString("text", answer.Answer.Text);
             writer.WriteString("channel", answer.Channel.ToString());
+            if (!answer.Answer.Fields.IsEmpty)
+            {
+                writer.WriteStartArray("fields");
+                foreach (var field in answer.Answer.Fields)
+                {
+                    writer.WriteStartObject();
+                    writer.WriteString("fieldId", field.FieldId);
+                    writer.WriteString("text", field.Text);
+                    writer.WriteString("choice", field.Choice);
+                    writer.WriteEndObject();
+                }
+                writer.WriteEndArray();
+            }
         }
         else
         {

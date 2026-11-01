@@ -327,7 +327,7 @@ public sealed partial class ModelTurnHostTests
             review.Joined.Should().BeFalse();
             f.Adapter.Calls.Should().Be(1);
             host.IsQuiescent.Should().BeTrue();
-            notificationFailures.Should().Be(failsNotification ? 1 : 0);
+            Volatile.Read(ref notificationFailures).Should().Be(failsNotification ? 1 : 0);
             review.Dispose();
             current = true;
             if (fault is "terminal-readback" or "notification-and-readback")
@@ -346,6 +346,15 @@ public sealed partial class ModelTurnHostTests
                 receipt.Message.Reason.Should().Be(ModelTurnReason.CallerCancelled);
                 receipt.Message.AssistantResponse.Should().BeNull();
                 receipt.Task.State.Should().Be(HostTaskState.Unknown);
+                if (fault is "notification")
+                {
+                    receipt.Message.Request.Should().Be(submission.Receipt.Message.Request);
+                    receipt.Message.Body.Should().Be(submission.Receipt.Message.Body);
+                    receipt.Message.Revision.Should().Be(3);
+                    receipt.Message.Execution.Should().NotBeNull();
+                    receipt.Task.Revision.Value.Should().Be(3);
+                    (await f.ReadTaskAsync(target.Authority.SessionId, receipt.Task.Request.TaskId, Token))!.Task.Should().Be(receipt.Task);
+                }
                 var notification = await terminal.Task.WaitAsync(TimeSpan.FromSeconds(20), Token);
                 notification.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
                 notification.TaskState.Should().Be(HostTaskState.Unknown);

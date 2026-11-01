@@ -178,8 +178,9 @@ consumers, including links embedded in the guide and historical experiments.
 - Concurrent conversation expiry fixtures derive the message/task terminal pair
   from the exact request-owned snapshot, not mutable last-observed fixture slots.
   The [manual-release regressions](tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ManualDispatch.cs)
-  hold one terminal commit while another expired worker completes, preserving
-  original authority, timestamps and recovery holds.
+  await the shared completion hook for nested completions and held expired
+  workers, verifying both exact retained readbacks and preserving original
+  authority, timestamps and recovery holds.
 - Put restricted-storage fixtures under the discovered repository root to avoid
   native path-length limits. Keep unique names, non-reparse checks and owner-only
   ACLs. Explicitly protect every enumerated root, including editor `User`,

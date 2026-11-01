@@ -28,6 +28,14 @@ public sealed class ConversationExecutionStoreTests
         var immediate = () => store.RetainPendingConversationMessageAsync(request, new(1), 0, "original",
             [], () => true, token).AsTask();
         await immediate.Should().ThrowAsync<NotSupportedException>();
+        var ordinary = () => store.RetainOrdinaryPendingConversationAsync(request, new(1), 0, "original",
+            [], null, () => true, token).AsTask();
+        await ordinary.Should().ThrowAsync<NotSupportedException>();
+        var source = new ConversationMessage(predecessor, new(1), 1, 2, DateTimeOffset.UnixEpoch,
+            "original", ModelTurnOutcome.Denied, ModelTurnReason.ContextExpired) { OrdinaryText = true };
+        var attributed = () => store.RetainOrdinaryPendingConversationAsync(request, new(1), 0, "original",
+            [], new(source, new(predecessor, new(2), HostTaskState.Denied)), () => true, token).AsTask();
+        await attributed.Should().ThrowAsync<InvalidOperationException>().WithMessage("*cannot attest*");
     }
 
     private sealed class LegacyStore : ISessionConversationStore

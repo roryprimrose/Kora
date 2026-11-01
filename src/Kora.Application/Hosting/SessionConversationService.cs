@@ -167,6 +167,9 @@ public sealed partial class SessionConversationService(
             var retained = pending is null
                 ? await conversations.RetainConversationMessageAsync(request, actual.Authority.Generation,
                     actual.Metadata?.Revision.Value ?? 0, body, Live, token).ConfigureAwait(false)
+                : pending.BareOrdinaryText
+                ? await conversations.RetainOrdinaryPendingConversationAsync(request, actual.Authority.Generation,
+                    actual.Metadata?.Revision.Value ?? 0, body, pending.Predecessors, pending.Fresh?.Source, Live, token).ConfigureAwait(false)
                 : await conversations.RetainPendingConversationMessageAsync(request, actual.Authority.Generation,
                     actual.Metadata?.Revision.Value ?? 0, body, pending.Predecessors, Live, token).ConfigureAwait(false);
             retained.Message.Validate();
@@ -228,9 +231,10 @@ public sealed partial class SessionConversationService(
                         Failure(logger, exception.GetType().Name);
                         admission = new(new(ModelTurnOutcome.Unknown, ModelTurnReason.ProviderOutcome));
                     }
-                    if (admission.Turn is { } reviewedTurn && pending?.Retry is { } retryIntent)
+                    var reviewedProvider = pending?.Fresh?.Provider ?? pending?.Retry?.Provider;
+                    if (admission.Turn is { } reviewedTurn && reviewedProvider is not null)
                     {
-                        if (!retryIntent.Provider.Matches(reviewedTurn))
+                        if (!reviewedProvider.Matches(reviewedTurn))
                         { admission = new(new(ModelTurnOutcome.Denied, ModelTurnReason.PolicyChanged)); }
                         else
                         {
@@ -238,7 +242,7 @@ public sealed partial class SessionConversationService(
                             beforeRetain = async cancellation =>
                             {
                                 await sourceValidation(cancellation).ConfigureAwait(false);
-                                if (!retryIntent.Provider.Matches(reviewedTurn))
+                                if (!reviewedProvider.Matches(reviewedTurn))
                                 { throw new InvalidOperationException("Original retry provider/profile changed before dispatch. Review again; nothing may be sent."); }
                             };
                         }

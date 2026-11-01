@@ -12,6 +12,7 @@ public sealed partial class ModelTurnHost
         long? sessionRevision, Func<bool> current, Func<CancellationToken, Task> validate)
     {
         internal ProviderProfileTuple? Profile { get; } = profile;
+        internal ModelProviderSelection Selection => selection;
         internal bool IsCurrent() => current();
         internal Task ValidateAsync(CancellationToken token) => validate(token);
         internal bool Matches(ModelTurn turn) => turn.Provenance.Selection == selection && turn.Profile == Profile
@@ -19,7 +20,7 @@ public sealed partial class ModelTurnHost
     }
 
     internal async Task<RetryProviderReview> ReviewRetryProviderAsync(SessionWorkspaceEntry target,
-        ModelProviderSelection expected, Func<bool> admitted, CancellationToken token)
+        ModelProviderSelection? expected, Func<bool> admitted, CancellationToken token)
     {
         var request = HostActivity.RequireCurrent().Request;
         if (request.SessionId != target.Authority.SessionId || request.InvocationId is not null
@@ -31,8 +32,18 @@ public sealed partial class ModelTurnHost
                 (value, current) => (Value: value, Current: current));
         ModelProviderPolicy? policy;
         lock (policyGate) { policy = policies.GetValueOrDefault(target.Authority.SessionId); }
+        var reviewedPolicy = policy ?? new ModelProviderPolicy(target.Authority.SessionId, new(1), mode.Value,
+            ModelProviderSelection.OllamaCandidate, ModelProviderSelection.CopilotCandidate);
+        bool PolicyCurrent()
+        {
+            lock (policyGate)
+            {
+                var actual = policies.GetValueOrDefault(target.Authority.SessionId);
+                return actual == reviewedPolicy || policy is null && actual is null;
+            }
+        }
         bool Live() => Eligible(control) && admitted() && mode.Current()
-            && (policy is null || IsCurrentPolicy(policy));
+            && PolicyCurrent();
         ProviderProfileTuple? tuple = null;
         SessionProviderProfile? session = null;
         Func<bool> resolvedCurrent = Live;
@@ -42,15 +53,15 @@ public sealed partial class ModelTurnHost
                 ?? throw new InvalidOperationException("Retry session provider authority is unavailable."))
                 .ReadProviderProfile(target.Authority.SessionId, token).ConfigureAwait(false);
             var resolved = await providerProfileConfiguration.ResolveTurnAsync(Live, session.Desired, token).ConfigureAwait(false);
-            if (session.Held || session.Session != target.Authority || resolved.Selection != expected || !resolved.Current())
+            expected ??= resolved.Selection?.Provider == ModelProviderIdentity.Ollama ? resolved.Selection : null;
+            if (expected is null || session.Held || session.Session != target.Authority || resolved.Selection != expected || !resolved.Current())
             { throw new InvalidOperationException("The original provider no longer matches the current session/account profile. Review current settings; no fallback."); }
             tuple = resolved.Tuple;
             resolvedCurrent = resolved.Current;
         }
         else
         {
-            var reviewedPolicy = policy ?? new ModelProviderPolicy(target.Authority.SessionId, new(1), mode.Value,
-                ModelProviderSelection.OllamaCandidate, ModelProviderSelection.CopilotCandidate);
+            expected ??= reviewedPolicy.Local;
             if (expected.Provider != ModelProviderIdentity.Ollama || expected != reviewedPolicy.Select(ModelTurnChoice.Default))
             { throw new InvalidOperationException("The recorded original provider has no matching current ordinary/account profile. No fallback is permitted."); }
         }

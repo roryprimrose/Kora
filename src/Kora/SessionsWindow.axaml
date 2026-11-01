@@ -103,6 +103,18 @@
         </WrapPanel>
         <controls:NamedTextBlock Text="{Binding AnswerReadStatus}" TextWrapping="Wrap"
             AutomationProperties.Name="Exact retained assistant answer speech outcome; selection never starts playback" />
+        <Button x:Name="ReviewExpiredOrdinary" Content="Review expired local text as a NEW ordinary request"
+            IsEnabled="{Binding CanReviewExpiredOrdinary}" />
+        <ScrollViewer MaxHeight="320">
+          <controls:NamedTextBlock x:Name="ExpiredOrdinaryReview" Text="{Binding ExpiredOrdinaryReviewText}" TextWrapping="Wrap"
+              AutomationProperties.Name="Complete immutable expired USER body, host no-dispatch evidence, original channel, current local provider and fresh request consequences" />
+        </ScrollViewer>
+        <WrapPanel>
+          <Button x:Name="ConfirmExpiredOrdinary" Content="Confirm one NEW ordinary LOCAL request"
+              IsEnabled="{Binding CanConfirmExpiredOrdinary}" />
+          <Button x:Name="CancelExpiredOrdinary" Content="Decline fresh request review"
+              IsEnabled="{Binding CanConfirmExpiredOrdinary}" />
+        </WrapPanel>
         <TextBox x:Name="ConversationQuery" Text="{Binding ConversationQuery, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
             PlaceholderText="Search this exact retained conversation; choose ASSISTANT for saved answers, All for USER/HOST only"
             AutomationProperties.Name="Private exact-session conversation lexical query; memory-only, not composer input, a model instruction or global search" />

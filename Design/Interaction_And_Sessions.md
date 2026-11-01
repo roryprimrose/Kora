@@ -27,6 +27,8 @@ The explicit native **Context submitted for this answer** operation inspects one
 
 The host freezes typed, content-free lineage at the canonical adapter handoff and binds it to the original request/task/session/generation/turn/profile in the genuine terminal transaction. The ordered collection and complete message/page/envelope retain existing bounds; overflow is rejection, not partial successful provenance. No source body, value, excerpt, private label/path, credential or transport token is newly retained ([capture](../src/Kora.Application/Dependencies/ModelTurnHost.Questions.cs), [commit](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.ConversationExecution.cs)).
 
+The shared history-evidence builder preserves that exact ordered lineage, including the ASSISTANT-only exact-reply subset; lineage remains host-only and absent from the canonical wire. Reusing the builder for mixed instruction/memory context does not make that consumer a recorded history-only handoff ([history/reply regressions](../tests/Kora.Core.UnitTests/Conversation/ConversationHistoryContextTests.cs), [mixed-context boundary](../tests/Kora.Application.UnitTests/Hosting/ModelTurnHostTests.ReviewedContext.cs)).
+
 The 32768-byte storage limit applies to the complete serialized UTF-8 conversation cell, including submitted metadata and JSON framing, not merely the canonical input envelope. A 32769-byte prospective successful cell cannot retain a partial answer or provenance ([domain boundary tests](../tests/Kora.Core.UnitTests/Conversation/SubmittedAnswerContextTests.cs), [host boundary tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.SubmittedContextBoundaries.cs), [transaction boundary tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteConversationTests.AnswerContext.cs)).
 
 This evidence establishes bytes handed to the admitted local adapter, not physical transmission, provider processing/use/reasoning, or that all reviewed inputs were sent. Source-row availability is a separate metadata-only observation, never fresh body admission. The inspector neither opens a source nor reconstructs it from model prose, audit, digest or a newer revision; missing/changed/unknown references remain unavailable ([inspection](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs), [projection](../src/Kora.Core/Conversation/AnswerContextInspection.cs)).
@@ -152,6 +154,8 @@ reviewed stop-and-delete boundary without changing FIFO or original authority
 The [approved product decision](MVP_Scope.md#approved-retirement-and-simplification) replaces first-class saved-conversation-draft management with unsent composer text. A session is an ongoing conversation/work stream, not a draft document; Active/Done lifecycle is independent of whether text is waiting in its input box.
 
 Keep unsent input per exact conversation in memory across view/session switching, share it consistently between Sessions and compact views, and never submit or merge it implicitly. Do not add disk autosave. Protect deliberate discard/exit and apply privacy/ownership retirement without cross-session leakage.
+
+Done/Resume and exact-session retirement discard the target's unsent input intentionally; they do not discard another conversation's buffer. Exact source invalidation retires selected content and stale controls without disposing the shared composer owner. Confirmed native lifecycle readback may present the changed target, but never restores its retired input or old authority. Privacy, device/instance ownership revision and mandatory host shutdown still retire all volatile buffers.
 
 Deferred submitted-work acceptance and terminal notifications retain the private
 control revision, exact selected source and selection epoch observed before native
@@ -983,6 +987,26 @@ Repeated/mixed questions, arbitrary tools, source access, cross-session replies,
 
 This does not change ordinary local/hosted text, observations or streaming. Copilot/Codex questions remain unsupported ([provider guard](../src/Kora.Core/Dependencies/ModelToolProtocol.Questions.cs)).
 No provider/account approval, profile activation, automatic microphone opening, retry or production enablement is introduced; the shipped Claude deployment source stays unavailable ([availability](Runtime_Provider_Feasibility.md#native-claude-messages-profile---2026-10-24), [native controls](../tests/Kora.Windows.IntegrationTests/ClaudeUiContractTests.Questions.cs)).
+
+### Deliberate conversation-notice question response
+
+In already-open Sessions, select and Review an admitted current-run ordinary conversation
+QUESTION notice, inspect its exact session/task/question and expiry, then choose
+**Answer exact question**. This focuses only the original still-present canonical question.
+Bounded text, single-choice and multiple-choice clarifications keep their original
+host-owned schema and selection bounds; notice metadata neither reconstructs nor changes them.
+Native or eligible question-voice Submit and Cancel retain their existing purpose and
+validation; opening neither answers nor grants approval, listening or egress
+([response owner](../src/Kora/ConversationNotices/SessionsViewModel.ConversationNotices.cs)).
+
+The original wait and resource join remain owned by the existing conversation presenter;
+only the actual stored canonical answer can resume the same original task. Changed,
+expired, closed, foreign, retired, Done or revoked sources and intervening notice-ledger
+changes refuse without choosing another target. Other question/editor/dictation/decision
+owners retain precedence. No notice can migrate an approval, skill input or source-consent
+purpose into ordinary clarification; Claude's per-POST reviews above remain mandatory
+([exact binding](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.QuestionFocus.cs),
+[end-to-end evidence](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.NoticeResponse.cs)).
 
 Every supported Kora workflow has equivalent verbal and mouse/keyboard-accessible operations.
 Users can interact entirely by voice, entirely through UI, or change channels at any step without restarting the workflow.

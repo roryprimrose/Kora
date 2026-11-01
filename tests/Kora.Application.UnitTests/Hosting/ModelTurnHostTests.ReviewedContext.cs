@@ -50,6 +50,7 @@ public sealed partial class ModelTurnHostTests
         receipt.Message.Request.Origin.Should().Be(origin);
         receipt.Message.Outcome.Should().Be(qualified ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.Unavailable);
         (receipt.Message.AssistantResponse?.Body).Should().Be(qualified ? "answer" : null);
+        receipt.Message.SubmittedContext.Should().BeNull("mixed context is not a recorded history-only handoff");
         if (qualified)
         {
             using var wire = JsonDocument.Parse(f.Adapter.Wire!);
@@ -59,6 +60,7 @@ public sealed partial class ModelTurnHostTests
             var evidence = wire.RootElement.GetProperty("Evidence").EnumerateArray().ToArray();
             evidence.Should().HaveCount(6);
             evidence.Should().OnlyContain(item => item.GetProperty("Disclosure").GetInt32() == (int)ModelEvidenceDisclosure.LocalOnly);
+            evidence.Select(item => item.TryGetProperty("HistorySource", out _)).Should().OnlyContain(value => !value);
             using var first = JsonDocument.Parse(evidence[0].GetProperty("Content").GetString()!);
             using var second = JsonDocument.Parse(evidence[1].GetProperty("Content").GetString()!);
             using var third = JsonDocument.Parse(evidence[2].GetProperty("Content").GetString()!);
@@ -213,16 +215,16 @@ public sealed partial class ModelTurnHostTests
     [InlineData("history-cancel")]
     [InlineData("memory-error")]
     [InlineData("memory-cancel")]
-    [InlineData("combined-budget")]
+    [InlineData("combined-count")]
     [InlineData("combined-cancel")]
     public async Task MixedContextFailedReviewNeverPublishesSourcesOrRetainsInput(string fault)
     {
         using var f = new Fixture();
         var earlier = Earlier(f);
-        var source = new ContextMemories(f);
+        var source = new ContextMemories(f, fault is "combined-count" ? 15 : 1);
         var instruction = new InstructionSource
         {
-            Snapshot = InstructionSnapshot(fault is "combined-budget" ? new string('x', 32000) : InstructionBody),
+            Snapshot = InstructionSnapshot(InstructionBody),
         };
         var (broker, catalogue, _) = InstructionBroker(f, instruction);
         var time = new MemoryReviewTime();

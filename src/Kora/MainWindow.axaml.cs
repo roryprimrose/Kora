@@ -46,6 +46,7 @@ public sealed partial class MainWindow : Window
     private bool positionInitialized;
     private bool shutdownRequested;
     private readonly PresenceReviewGesture reviewGesture;
+    internal Func<Task>? ApplyStartupPresentation { get; set; }
 
     public MainWindow()
         : this(
@@ -275,6 +276,7 @@ public sealed partial class MainWindow : Window
         }
 
         Opacity = 1;
+        if (ApplyStartupPresentation is { } apply) { await apply(); }
     }
 
     private void OnPresenceFrameUpdating(object? sender, EventArgs eventArgs) =>

@@ -12,14 +12,27 @@
     <StackPanel x:Name="ChoicePanel" Grid.Row="2" Spacing="8" />
     <TextBox x:Name="AnswerInput" Grid.Row="3" AcceptsReturn="True" TextWrapping="Wrap"
         TabIndex="40" AutomationProperties.Name="Bounded text answer - unsubmitted draft" />
-    <Grid Grid.Row="4" RowDefinitions="*,Auto" RowSpacing="8">
-    <TextBox x:Name="ExactReview" IsReadOnly="True" IsUndoEnabled="False"
-        AcceptsReturn="True" TextWrapping="Wrap" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
-        TabIndex="50" AutomationProperties.Name="Immutable exact host record review - not approval or execution" />
-    <TextBox x:Name="PolicyExplanation" Grid.Row="1" IsReadOnly="True" IsUndoEnabled="False"
-        AcceptsReturn="True" TextWrapping="Wrap" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
-        MaxHeight="240" TabIndex="54"
-        AutomationProperties.Name="Exact pending action policy snapshot - not execution authority" />
+    <Grid Grid.Row="4" RowDefinitions="*,Auto,Auto,Auto" RowSpacing="8">
+      <TextBox x:Name="ExactReview" IsReadOnly="True" IsUndoEnabled="False"
+          AcceptsReturn="True" TextWrapping="Wrap" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+          TabIndex="50" AutomationProperties.Name="Immutable exact host record review - not approval or execution" />
+      <TextBox x:Name="ClipboardAnswerReview" IsReadOnly="True" IsUndoEnabled="False" IsVisible="False"
+          AcceptsReturn="True" TextWrapping="Wrap" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+          TabIndex="59" AutomationProperties.Name="Complete immutable clipboard answer review and provenance - unsubmitted" />
+      <TextBox x:Name="PolicyExplanation" Grid.Row="1" IsReadOnly="True" IsUndoEnabled="False"
+          AcceptsReturn="True" TextWrapping="Wrap" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+          MaxHeight="240" TabIndex="54"
+          AutomationProperties.Name="Exact pending action policy snapshot - not execution authority" />
+      <CheckBox x:Name="ReplaceManualDraft" Grid.Row="2" IsVisible="False" TabIndex="60"
+          Content="I reviewed the current manual draft and want to replace it with this complete snapshot" />
+      <WrapPanel Grid.Row="3">
+        <Button x:Name="UseClipboardAnswer" Content="Use _clipboard as my answer" IsVisible="False" TabIndex="61"
+            AutomationProperties.Name="Request one permission-granted clipboard snapshot for this exact text question" />
+        <Button x:Name="AcceptClipboardDraft" Content="Accept reviewed text as _draft" IsVisible="False" TabIndex="62"
+            AutomationProperties.Name="Accept complete reviewed clipboard text as unsubmitted draft - does not submit" />
+        <Button x:Name="CancelClipboardAnswer" Content="Cancel clipboard answer" IsVisible="False" TabIndex="63"
+            AutomationProperties.Name="Cancel clipboard answer without cancelling question or losing prior manual draft" />
+      </WrapPanel>
     </Grid>
     <controls:NamedTextBlock x:Name="QuestionStatus" Grid.Row="5" TextWrapping="Wrap"
         AutomationProperties.Name="Question status and recovery" AutomationProperties.LiveSetting="Polite" />

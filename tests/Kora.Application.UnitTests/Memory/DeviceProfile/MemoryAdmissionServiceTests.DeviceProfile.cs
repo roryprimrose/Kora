@@ -241,7 +241,6 @@ public sealed partial class MemoryAdmissionServiceTests
     {
         public ValueTask<MemoryResult> TransactDeviceProfileMemoryAsync(HostRequest request, MemoryBoundary boundary,
             Func<ImmutableArray<MemoryRecord>, MemoryStorageCommit> transition, Func<bool> admitted, CancellationToken token) =>
-            TransactMemoryAsync(request, boundary, rows => transition([.. rows.Where(row => row.Scope.Kind == MemoryScopeKind.DeviceProfile)]),
-                admitted, token);
+            TransactMemoryCoreAsync(request, boundary, transition, admitted, MemoryScopeKind.DeviceProfile, token);
     }
 }

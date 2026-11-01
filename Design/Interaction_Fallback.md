@@ -235,6 +235,22 @@ Neither typing nor clipboard use is mandatory for the microphone-selection workf
 Clipboard input is an explicitly requested bounded snapshot with provenance and normal context/egress review, not silent polling or automatic submission.
 Passwords/tokens remain in secure authentication flows, never model-visible prompt fields or clipboard-answer shortcuts.
 
+### Delivered ordinary clarification clipboard answer
+
+The native [question window](../src/Kora/QuestionWindow.axaml) offers **Use clipboard as my answer** only for the existing ordinary conversation Text clarification purpose/source, without an operation proposal. Choice, action approval, authentication, permission, consent, security and unknown-purpose questions have no shortcut ([allowlist and owner](../src/Kora/QuestionClipboardAnswer.cs)).
+
+The deliberate gesture consumes the same built-in `clipboard.read` grant and immutable snapshot broker as native preview; opening the question grants nothing.
+Permission review is a separate native child, never a replacement of the original question. The read admission remains live through review, draft acceptance and independent Submit ([read workflow](../src/Kora.Application/Context/ClipboardReadWorkflow.cs)).
+
+The complete bounded capture and provenance are inert native text. **Accept reviewed text as draft** changes only the volatile answer field; an existing manual draft requires separate replacement acknowledgement.
+**Submit answer** independently records the canonical answer once through current question admission. Save draft is unavailable while this clipboard candidate is retained ([native state](../src/Kora/NativeQuestionViewModel.cs)).
+
+The whole source must satisfy strict Unicode, credential and question bounds; there is no truncation, silent reread, polling, automatic answer, command fallback or clipboard archive. Manual editing cancels review rather than overwriting typing.
+Cancellation, changed question/revision, expiry, revoked grant or private/owner/input/call loss retires the candidate and fences late callbacks ([behavioral tests](../tests/Kora.Windows.IntegrationTests/QuestionClipboardAnswerTests.cs)).
+
+Draft acceptance and submission convey no action approval, authentication, source-copy permission or hosted transmission consent. The original task resumes only through its existing independently revalidated continuation; physical-send review remains separate.
+Native OS paste in the ordinary editable field is unchanged, not a new programmatic read bypass ([continuation tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ClipboardAnswer.cs)).
+
 Only one foreground voice-reply target exists, distinct from session selection and task execution; explicitly addressed valid UI cards in other sessions remain usable.
 Device recovery is a separate host card; it cannot replace an action approval and let an old Confirm click apply to a new question.
 Changing voice focus withdraws generic spoken eligibility; present/revalidate a background proposal before accepting its verbally targeted response.

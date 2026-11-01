@@ -148,6 +148,31 @@ ownership until it joins. Rejection, cancellation, unavailable and malformed
 output never autosave. Ordinary manual authoring and dirty-draft recovery keep
 their existing separate authority.
 
+## Simulate one tool-free example
+
+Use the current editor's **native v1 literal, no-tools draft**, or explicitly **Reopen** one saved v1 revision. This subset does not support native v2 WebPageGet, native v3 required inputs, native v4 observation workflows, reference-bearing definitions, shared skills, mocked tool responses or arbitrary validators ([closed fixture rules](../src/Kora.Core/Skills/OwnedSkillFixture.cs)). Input-looking text and workflow-looking JSON in v1 guidance stay literal evidence; they are not bindings or executable steps.
+
+1. Enter one ephemeral fixture in the editor's simulated fixture field, or use `owned skill fixture: <closed-json>`. For example:
+
+   ```json
+   {"input":"Say example only.","assertions":[{"kind":"equals","value":"example"},{"kind":"contains","value":"example"}]}
+   ```
+
+2. Choose **Test**, or `owned skill test`. Review the complete manifest, guidance, unchanged fixture and complete serialized local tools-none input. Expected assertions stay host-side, not in the model request.
+3. Explicitly choose **Start SIMULATED test**. Only this starts one separately admitted local inference. Setup and **Validate** never start inference. No provider is qualified in this build, so the real operation reports unavailable; deterministic test adapters exercise the host flow, not runtime qualification.
+4. If available, inspect the **SIMULATED / PASS** or **SIMULATED / FAIL** result, exact complete output in its own read-only field, and each host assertion result. Matching is case-sensitive ordinal, without trimming, normalization, regex or evaluation. Dismiss the volatile result; it is not saved as conversation facts.
+5. **Cancel test** / `owned skill cancel-test` cancels only the example. Cancellation, closing and disposal retain ownership until actual source reads and model work join; late output is not disclosed. The draft stays intact. Completion, rejection or failure retires the test review; restoring source bytes does not renew it.
+
+Press **Escape** from a read-only source field or another control in the simulation review to reject it before inference, or in the result window to dismiss the volatile result. Escape never chooses **Start SIMULATED test**, saves, enables or grants anything; the draft and fixture stay intact.
+
+Generation/refinement and simulation share one busy editor slot. **Cancel test** does not close a generation/refinement review; **Cancel refinement** does not close a simulated-test review. A reviewed generated/refined native v1 proposal can be tested, but simulation neither consumes its separate Save approval nor publishes it ([editor ownership](../src/Kora/OwnedSkillEditorController.cs)).
+
+The [workflow](../src/Kora.Application/Skills/OwnedSkillFixtureWorkflow.cs) accepts at most **8192 UTF-8 bytes** of complete fixture JSON, **4096 bytes** of input, **1–8 assertions**, and **1024 bytes** per nonempty assertion value. Only `input` and `assertions` exist; each assertion has exactly `kind` and `value`. Unknown/duplicate fields, unknown assertions, malformed/control text and oversized input/output are denied, never ignored or default-passed.
+
+The complete model envelope must fit **32768 bytes**; output uses the existing model output bound. Nothing is truncated or automatically rewritten. Source, draft, fixture or saved-selection edits, original-channel/privacy/ownership loss, provider configuration changes, stale host generations and two-minute expiry invalidate the pending run/result ([editor owner](../src/Kora/OwnedSkillEditorController.Fixtures.cs)).
+
+This is **SIMULATED structure/example behavior only**, not a real observation, proof of harmlessness, qualification, trust or permission. No actual tools, network, shell, files, MCP, grants, history, memory, attachments, hosted fallback or source expansion are authorized. Fixtures stay in memory, separate from the unchanged skill format. **Save**, **Enable**, **Use** and any independently admitted real trial retain their own reviews and normal permissions; passing a fixture does none of them.
+
 ## Review and invoke one saved revision
 
 For an exact readable-name request spanning owned and registered shared instruction-only skills, use the [named invocation operation](commands.md#invoke-an-instruction-only-skill-by-readable-name).

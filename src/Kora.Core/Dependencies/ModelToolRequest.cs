@@ -26,4 +26,6 @@ public sealed class ModelToolRequest
     public int Round { get; }
     public ModelToolBudget Budget { get; }
     public bool ClarificationAllowed { get; }
+    public bool FormsAllowed => ClarificationAllowed
+        && ModelToolProtocol.AllowsForms(Context.ToolMode, Provenance.Selection.Provider);
 }

@@ -97,7 +97,7 @@ public static class MemoryPolicy
     {
         ArgumentNullException.ThrowIfNull(memory);
         ArgumentNullException.ThrowIfNull(boundary);
-        if (memory.Lineage.SessionGeneration.Value <= 0
+        if (!ValidSessionCopyLineage(memory) || memory.Lineage.SessionGeneration.Value <= 0
             || memory.Lineage.Origin is not (MemoryProposalOrigin.User or MemoryProposalOrigin.Model)
             || memory.Scope.Kind == MemoryScopeKind.DeviceProfile && memory.Lineage.Origin != MemoryProposalOrigin.User
             || memory.Lineage.Source.HasValue != memory.Lineage.SourceRevision.HasValue
@@ -123,6 +123,21 @@ public static class MemoryPolicy
         }
         return MemoryReason.None;
     }
+
+    public static bool ValidSessionCopyLineage(MemoryRecord memory) =>
+        memory.Lineage.CopiedFromSession is not { } source
+        || memory.Scope.Kind == MemoryScopeKind.DeviceProfile && memory.Lineage.Origin == MemoryProposalOrigin.User
+            && source.Id.Value != Guid.Empty && source.Id != memory.Id && source.Revision.Value > 0
+            && source.Session == memory.Lineage.Request.SessionId
+            && source.Generation == memory.Lineage.SessionGeneration;
+
+    public static bool MatchesSessionCopySource(MemoryRecord copy, MemoryRecord? source, MemoryBoundary boundary) =>
+        source is not null && ValidSessionCopyLineage(copy)
+        && copy.Lineage.CopiedFromSession == new MemorySessionCopySource(
+            source.Id, source.Revision, boundary.Session, boundary.Generation)
+        && source.Scope == MemoryScope.Session(boundary.Session)
+        && Eligible(source, boundary, MemoryDestination.Local) == MemoryReason.None
+        && string.Equals(copy.Candidate?.Value, source.Candidate!.Value, StringComparison.Ordinal);
 
     public static bool CanAdmit(MemoryRecord memory, MemoryBoundary boundary)
     {

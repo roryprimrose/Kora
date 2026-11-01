@@ -390,10 +390,11 @@ owns WiX/Burn integration and launch prerequisites.
 The bounded [shared lifecycle implementation](../src/Kora.Application/Dependencies/SpeechComponentSetupService.cs)
 now connects [Settings](../src/Kora/SettingsWindow.SpeechComponents.cs) and
 [Burn preparation](../installer/Kora.Setup/SpeechComponentInstallChoice.cs).
-The [production input-data catalogue](../src/Kora.Core/Dependencies/SpeechComponentCatalogue.cs)
-is deliberately empty until an authoritative exact profile is selected and
-qualified. Both surfaces report no offers; deterministic fixture preparation
-does not qualify a production backend or advertise an installed model.
+The portable [input-data catalogue](../src/Kora.Core/Dependencies/SpeechComponentCatalogue.cs)
+contains no platform offers; desktop and Burn use the existing
+[Windows hands-free CPU data offer](../src/Kora.Windows/Audio/HandsFreeSetupCatalogue.cs).
+It admits preparation only, not a selectable qualified capture profile.
+Deterministic fixture preparation does not qualify a production backend.
 
 The WiX MSI owns the protected application payload and first-party adapters.
 Burn may offer unchecked, individually actionable speech preparation choices
@@ -427,6 +428,40 @@ under distribution policy, disclose incompatible retained versions and never
 migrate/retrain learned profiles or delete them implicitly. Explicit profile
 deletion must include active, candidate and recovery revisions/cached features;
 model-file removal and biometric-profile deletion are distinct operations.
+
+The existing hands-free CPU data offer now has bounded native **Remove**
+review and separate destructive confirmation. [Review](../src/Kora.Application/Dependencies/SpeechComponentSetupPlan.cs)
+shows exact observed remaining file names/bytes/digests, ownership/receipt,
+model/source identity, current owned consumers, saved/desired/effective input,
+resource planning impact and independent privacy/consent exclusions.
+Unknown/foreign inventory cannot reach confirmation; oversize unbounded data,
+changed receipts/source, aliases, replacement objects or native identity fail closed.
+
+The [shared runtime owner](../src/Kora.Windows/Audio/HandsFreeSetupRuntime.cs)
+excludes future consumers, invalidates only capture/model work using these
+assets and joins its opens/teardown before removal. A consumer admitted after
+review invalidates that review. The [store](../src/Kora.Windows/Dependencies/WindowsSpeechComponentStore.cs)
+rehashes and revalidates the exact inventory under the private store lease;
+[Windows bindings](../src/Kora.Windows/Dependencies/SpeechComponentFileBinding.cs)
+pin ancestors, reject reparse/hard-link/canonical aliases, and delete finite
+files through the same identity/digest-checked handle. Only empty inventoried
+directories and exact recovery receipts are removed; no recursive cleanup.
+Final recovery-receipt cleanup retains the identity reviewed before mutation
+or created by that operation. An identical-byte replacement during deletion
+is preserved and reports failure; only a fresh exact native review can authorize
+its removal.
+
+Partial failure/cancellation reports the actual remaining inventory while the
+original host still permits disclosure, otherwise withholds it. Recovery is a
+fresh inspection/review/confirmation, never rollback, replay, reacquisition or
+a physical disk-release guarantee. Saved choices/consents remain unchanged;
+affected assets are visibly Unavailable without fallback. Native code,
+shared software, user originals and every biometric/learning/retention domain
+remain outside removal. This native-only destructive operation retains the
+[setup channel exception](Environment_Setup.md#optional-local-speech-component-lifecycle);
+typed/voice profile switching is not removal authority. Fixture
+[join/delete regressions](../tests/Kora.Windows.IntegrationTests/Audio/HandsFreeModelRemovalTests.cs)
+prove implementation, not capture or installed E/Q.
 
 ## Optional Learning and Calibration
 

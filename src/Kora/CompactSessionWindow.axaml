@@ -25,6 +25,7 @@
           AutomationProperties.Name="Conversation name and exact session identity for this message" />
       <TextBlock Text="{Binding SelectedSessionRecord.Authority.IsActive, TargetNullValue='No selected target', StringFormat='Observed Active lifecycle: {0}'}" />
       <local:SessionRequestReviewPanel x:Name="OriginalRequestReview" />
+      <local:AnswerReviewPanel />
       <controls:NamedTextBlock Text="{Binding WorkStatus}" TextWrapping="Wrap"
           AutomationProperties.Name="Observed exact selected-session work source and time; not inferred execution or current success" />
       <TextBlock Text="No target? Open Sessions and explicitly select one. Opening never selects, loads bodies, resumes work or grants permission. Questions, approvals and voice stay in their existing windows." TextWrapping="Wrap" />
@@ -32,7 +33,11 @@
         <Button x:Name="ReadConversation" Content="Read exact conversation" IsEnabled="{Binding CanReadConversation}" />
         <Button x:Name="NextConversation" Content="Next bounded page" IsEnabled="{Binding CanNextConversation}" />
         <Button x:Name="RefreshWork" Content="Refresh observed work" IsEnabled="{Binding CanRefreshWork}" />
+        <Button x:Name="AnswerRemainingWork" Content="What work remains?" IsEnabled="{Binding CanAnswerRemainingWork}"
+                AutomationProperties.Name="Answer what work remains in this selected conversation; execution continues" />
       </WrapPanel>
+      <controls:NamedTextBlock Text="{Binding RemainingWorkStatus}" TextWrapping="Wrap"
+          AutomationProperties.Name="Factual addressed remaining-work answer with source times, bounds and omissions" />
       <controls:ScrollableListBox x:Name="AnswerSourceRecords" ItemsSource="{Binding ConversationMessages}" MaxHeight="200"
           SelectedItem="{Binding SelectedAnswerRecord, Mode=TwoWay}"
           ItemTemplate="{StaticResource ConversationMessageTemplate}"

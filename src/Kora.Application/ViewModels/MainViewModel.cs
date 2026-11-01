@@ -283,6 +283,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         SpeechComponentSetupService? speechComponentSetup = null,
         ConversationalReplyConfigurationService? conversationalReplies = null,
         CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
+        ConversationExecutionConfigurationService? conversationExecution = null,
         LogonStartupConfigurationService? logonStartupConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
@@ -441,6 +442,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
         InitializeSpeechInputConfiguration(speechInputConfiguration, execute => CreateCommand(execute));
         InitializeConversationalReplies(conversationalReplies, execute => CreateCommand(execute));
+        InitializeConversationExecution(conversationExecution, execute => CreateCommand(execute));
         InitializeLogonStartup(logonStartupConfiguration, execute => CreateCommand(execute));
         ResetThemeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.Theme));
         ResetReaderTextScaleCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReaderTextScale));
@@ -4296,6 +4298,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ReportHostInteractionFailure("Conversation opening unavailable while a question, approval, review, editor or dictation owns input. Nothing was answered or submitted.");
             return;
         }
+        var addressedWorkCommand = SessionCommand.Parse(spokenText, AssistantName);
+        if (addressedWorkCommand?.IsRemainingWork != true) { remainingWorkCommands?.Retire(); }
+        if ((addressedWorkCommand?.IsRemainingWork == true || string.Equals(addressedWorkCommand?.Error, SessionCommand.RemainingWorkSyntax, StringComparison.Ordinal))
+            && (!CanAnswerRemainingWork || editorTarget is not null))
+        {
+            Transcript = "Remaining-work answer unavailable while a question, approval, editor or dictation owns input. Its exact decision remains unchanged.";
+            return;
+        }
         var selectedAnswerCommand = ResponseReadCommand.Parse(spokenText, AssistantName) is { SelectedAnswer: true } selectedRead
             ? selectedRead : null;
         var displacedAnswerDecision = initiator == SecurityAuditInitiator.TypedCommand
@@ -4319,7 +4329,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         Interlocked.Increment(ref workspaceSurfaceInputRevision);
         Interlocked.Increment(ref evidenceTraceInputRevision);
-        var sessionCommand = SessionCommand.Parse(spokenText, AssistantName);
+        var sessionCommand = addressedWorkCommand;
         var newRequestCommand = NewRequestOpenCommand.Parse(spokenText, AssistantName);
         var cataloguePreparation = manualInput?.CataloguePreparation
             ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName);
@@ -4554,6 +4564,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 return;
             }
             await ExecuteSpeechTextCommandAsync(speechTextCommand, initiator);
+            return;
+        }
+        if (ConversationExecutionCommand.Parse(spokenText, AssistantName) is { } executionCommand)
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Assistant prefix routing is unavailable; no conversation execution setting was changed.";
+                return;
+            }
+            await ExecuteConversationExecutionCommandAsync(executionCommand, initiator);
             return;
         }
         if (ResponseModeCommand.Parse(spokenText, AssistantName) is { } responseModeCommand)
@@ -6641,6 +6661,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
+            .Concat(ConversationExecutionCommand.FixedPhrases)
             .Concat(ResponseWindowCommand.FixedPhrases)
             .Concat(ProviderModeCommand.FixedPhrases)
             .Concat(ProviderProfileCommand.FixedPhrases)

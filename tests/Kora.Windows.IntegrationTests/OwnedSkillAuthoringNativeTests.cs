@@ -1,4 +1,6 @@
 using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using AwesomeAssertions;
@@ -50,6 +52,48 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             reviews.Should().ContainSingle();
             (await editor.ConfirmPublication(document, "fixed-owned-package-destination", TestContext.Current.CancellationToken)).Should().BeTrue();
             reviews.Should().Equal("Review complete skill package", "Confirm exact new skill publication");
+            editor.Close();
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NativeEscapeRejectsSaveReviewWithoutConfirmingOrEditing(bool publication)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var document = OwnedDeclarativeSkillDocument.Create("example", "1.0.0", "Example", "Description", "Literal\nowned skill save\n");
+            var commands = 0;
+            var editor = new OwnedSkillEditorWindow(_ => commands++, static () => true);
+            editor.IdInput.Text = document.Id;
+            editor.VersionInput.Text = document.Version;
+            editor.NameInput.Text = document.Name;
+            editor.DescriptionInput.Text = document.Description;
+            editor.Guidance.Text = document.Guidance;
+            editor.Show();
+            var next = new TaskCompletionSource<Window>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var opened = Window.WindowOpenedEvent.AddClassHandler<Window>((dialog, _) =>
+            {
+                if (!ReferenceEquals(dialog, editor)) { next.TrySetResult(dialog); }
+            });
+            var operation = publication
+                ? editor.ConfirmPublication(document, "fixed-owned-package-destination", TestContext.Current.CancellationToken)
+                : editor.Review(document, "fixed-owned-package-destination", TestContext.Current.CancellationToken);
+            var review = await next.Task;
+            AssertModalHandoff(editor, review);
+            var sources = review.GetLogicalDescendants().OfType<TextBox>().ToArray();
+            sources.Should().HaveCount(2).And.OnlyContain(source => source.IsReadOnly);
+            sources[0].Text.Should().Be(document.ManifestText);
+            sources[1].Text.Should().Be(document.Guidance);
+            sources[1].Focus().Should().BeTrue();
+            review.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            review.IsVisible.Should().BeFalse();
+            (await operation).Should().BeFalse();
+            editor.IsVisible.Should().BeTrue();
+            editor.Document().ManifestText.Should().Be(document.ManifestText);
+            editor.Document().Guidance.Should().Be(document.Guidance);
+            commands.Should().Be(0);
             editor.Close();
         });
     }
@@ -113,6 +157,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
     [InlineData("cancel")]
     [InlineData("owner-hidden")]
     [InlineData("owner-closed")]
+    [InlineData("escape")]
     public async Task AcceptedChoiceWaitsForNativeClosureAndRechecksOriginalEligibility(string scenario)
     {
         await HeadlessSession.RunAsync(async () =>
@@ -135,11 +180,16 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             try
             {
                 var dialog = review!;
+                AssertModalHandoff(editor, dialog);
                 var button = dialog.GetLogicalDescendants().OfType<Button>().First();
-                button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                if (scenario is "escape")
+                {
+                    dialog.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+                }
+                else { button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
                 dialog.IsVisible.Should().BeTrue();
                 Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-                choosing.IsCompleted.Should().BeFalse("a clicked choice cannot complete before its native window closes");
+                choosing.IsCompleted.Should().BeFalse("acceptance or Escape dismissal cannot complete before its native window closes");
                 if (scenario is "retire") { current = false; }
                 if (scenario is "cancel") { cancellation.Cancel(); }
                 if (scenario is "owner-hidden") { editor.Hide(); }

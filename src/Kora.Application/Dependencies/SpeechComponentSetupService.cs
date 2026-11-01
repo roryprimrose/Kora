@@ -3,6 +3,7 @@ using Kora.Core.Auditing;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+
 using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.Dependencies;
@@ -38,7 +39,7 @@ public sealed partial class SpeechComponentSetupService(
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException)
         {
-            InspectionFailed(logger, exception);
+            InspectionFailed(logger);
             activity.Complete(HostOperationOutcome.Failed);
             return new(identity, storage,
                 new(SpeechComponentCompatibility.Unknown, SpeechComponentFunctionalEvidence.Unknown,
@@ -64,6 +65,17 @@ public sealed partial class SpeechComponentSetupService(
         if (!readiness.CanOffer || !admitted())
         {
             throw new InvalidOperationException("This exact speech component is not offered for setup. " + readiness.Description);
+        }
+        if (operation == SpeechComponentOperation.Remove
+            && (request.Origin != RequestOrigin.LocalUi
+                || readiness.Runtime is not { NativeIdentity: not null, ConsumersKnown: true, Dependents: not null }
+                || readiness.Storage is not
+                {
+                    Ownership: SpeechComponentOwnership.Managed or SpeechComponentOwnership.RemovalPending,
+                    ExactBytes: not null, Inventory: not null
+                }))
+        {
+            throw new InvalidOperationException("Removal requires a native original-user review of a known exact managed inventory. Unknown, shared and absent data cannot be confirmed.");
         }
         return new(owner, component, operation, readiness, request, admitted, clock.GetUtcNow().AddMinutes(5));
     }
@@ -99,7 +111,10 @@ public sealed partial class SpeechComponentSetupService(
             bool Admitted() => consent && clock.GetUtcNow() < plan.Expires && plan.Admitted()
                 && ReferenceEquals(catalogue.Resolve(plan.Component.Identity), plan.Component)
                 && plan.Component.Qualified
-                && ObserveRuntime(plan.Component).Compatibility == SpeechComponentCompatibility.Compatible;
+                && ObserveRuntime(plan.Component) is { Compatibility: SpeechComponentCompatibility.Compatible } observedRuntime
+                && observedRuntime.ConsumerRevision == plan.Readiness.Runtime.ConsumerRevision
+                && string.Equals(observedRuntime.NativeIdentity, plan.Readiness.Runtime.NativeIdentity, StringComparison.Ordinal)
+                && (plan.Operation != SpeechComponentOperation.Remove || observedRuntime.ConsumersKnown);
             if (!Admitted())
             {
                 denied = true;
@@ -129,6 +144,7 @@ public sealed partial class SpeechComponentSetupService(
                 }
                 else if (plan.Operation == SpeechComponentOperation.Remove)
                 {
+                    runtime.HoldUnavailable(plan.Component);
                     await store.RemoveAsync(plan.Component, current, Admitted, cancellationToken).ConfigureAwait(false);
                 }
                 committed = plan.Operation != SpeechComponentOperation.Verify;
@@ -191,10 +207,15 @@ public sealed partial class SpeechComponentSetupService(
             {
                 MutationDenied(logger, plan.Operation, refusal.State);
             }
-            else { Failed(logger, plan.Operation, exception); }
+            else { Failed(logger, plan.Operation); }
             failure = exception;
             failureAudit = auditEvent.WithOutcome(denied ? SecurityAuditOutcome.Denied : SecurityAuditOutcome.Failed, failureReason);
             failureOutcome = HostOperationOutcome.Failed;
+        }
+        if (plan.Operation == SpeechComponentOperation.Remove && plan.Admitted())
+        {
+            var recovery = await InspectAsync(plan.Component.Identity, CancellationToken.None).ConfigureAwait(false);
+            if (plan.Admitted()) { plan.RemovalRecovery = recovery; }
         }
         await audit.WriteAsync(failureAudit, CancellationToken.None).ConfigureAwait(false);
         activity.Complete(failureOutcome);
@@ -210,7 +231,7 @@ public sealed partial class SpeechComponentSetupService(
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException)
         {
-            InspectionFailed(logger, exception);
+            InspectionFailed(logger);
             return new(SpeechComponentCompatibility.Unknown, SpeechComponentFunctionalEvidence.Unknown,
                 "Installed runtime evidence could not be read. Resolve adapter access and inspect again; no probe was run.");
         }

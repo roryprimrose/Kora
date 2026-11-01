@@ -506,7 +506,7 @@ public sealed partial class SessionsConversationTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task ActualTerminalEventHeldAfterJoinCannotReplaceNewPublicationAfterReadAndRetirement(bool reset)
+    public async Task ActualTerminalPresentationHeldAfterJoinCannotReplaceNewPublicationAfterReadAndRetirement(bool reset)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -522,26 +522,18 @@ public sealed partial class SessionsConversationTests
             var settings = new DetailPresentationConfigurationService(preferences, admission, new AuditLog(), f.Time);
             settings.Observe();
             var arrived = new TaskCompletionSource<ConversationSubmissionReceipt>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var dispatched = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            using var releaseEvent = new ManualResetEventSlim();
-            HostId<RequestIdentity>? heldRequest = null;
             var claimed = 0;
             composition.Conversation.SubmittedConversationCompleted += (_, completion) =>
             {
                 if (completion.Receipt is not { } receipt || Interlocked.CompareExchange(ref claimed, 1, 0) != 0) { return; }
-                heldRequest = receipt.Message.Request.RequestId;
                 arrived.SetResult(receipt);
-                releaseEvent.Wait(f.Token);
             };
-            var model = composition.Model;
+            var dispatcher = new DeferredConversationDispatcher();
+            var model = CreateDeferredPresentation(f, composition, dispatcher);
             model.BindDetailPresentation(settings);
             await model.RefreshAsync();
             await model.SelectAsync(model.Sessions.Single());
-            composition.Conversation.SubmittedConversationCompleted += (_, completion) =>
-            {
-                if (completion.Receipt?.Message.Request.RequestId == heldRequest) { dispatched.TrySetResult(); }
-            };
-            model.ComposerBody = "Join publishes before the terminal event";
+            model.ComposerBody = "Join publishes before deferred terminal presentation";
             var pending = model.SubmitConversationAsync();
             try
             {
@@ -550,6 +542,7 @@ public sealed partial class SessionsConversationTests
                     new(DetailAnswerAdapter.Body, null)));
                 var first = await arrived.Task.WaitAsync(f.Token);
                 await pending;
+                dispatcher.Count.Should().BeGreaterThan(0, "terminal observers must join while their native presentation remains deferred");
                 model.DetailsOfferMessage.Should().BeSameAs(first.Message);
                 if (reset)
                 {
@@ -558,16 +551,15 @@ public sealed partial class SessionsConversationTests
                 }
                 else { model.DismissDetailsOffer(first.Message); }
                 await model.ReadConversationAsync();
-                model.ComposerBody = "New request while old event waits";
+                model.ComposerBody = "New request while old presentation waits";
                 await model.SubmitConversationAsync();
                 var second = model.ConversationMessages.Single();
                 second.Request.Should().NotBe(first.Message.Request);
                 model.DetailsOfferMessage.Should().BeSameAs(second);
-                releaseEvent.Set();
-                await dispatched.Task.WaitAsync(f.Token);
+                dispatcher.Drain();
                 Dispatcher.UIThread.RunJobs();
                 model.ConversationMessages.Single().Should().BeSameAs(second);
-                model.DetailsOfferMessage.Should().BeSameAs(second, "the real late event must not recapture A's policy or replace B");
+                model.DetailsOfferMessage.Should().BeSameAs(second, "the real late terminal presentation must not recapture A's policy or replace B");
                 preferences.Writes.Should().Be(reset ? 2 : 0);
                 adapter.Calls.Should().Be(2);
                 f.Count("host_questions").Should().Be(0);
@@ -576,11 +568,11 @@ public sealed partial class SessionsConversationTests
             }
             finally
             {
-                releaseEvent.Set();
                 provider.TrySetResult(new(ModelTurnOutcome.Succeeded, ModelProviderSelection.OllamaCandidate,
                     new(DetailAnswerAdapter.Body, null)));
                 await pending;
-                await dispatched.Task.WaitAsync(f.Token);
+                dispatcher.Drain();
+                model.Close();
             }
         });
     }

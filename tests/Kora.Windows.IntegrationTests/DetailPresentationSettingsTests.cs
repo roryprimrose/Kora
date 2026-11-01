@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.Json;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using AwesomeAssertions;
@@ -18,6 +19,68 @@ public sealed class DetailPresentationSettingsTests
 {
     private static readonly string[] ControlNames =
         ["OfferDetailPresentation", "LinkOnlyDetailPresentation", "ConfirmDetailPresentation", "CancelDetailPresentation"];
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task TimedFixtureSetupPreservesIndependentOptionalConfigurationBindings(bool composeDetails, bool composeExecution)
+    {
+        var context = TestContext.Current;
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(Path.GetFullPath("."));
+            await using var admission = new AudioControlAdmission(fixture.Interactions, fixture.Interactions, new(fixture.Tasks));
+            var preferences = new Preferences();
+            var details = new DetailPresentationConfigurationService(preferences, admission, fixture.Audit, TimeProvider.System);
+            var executionPreferences = new LocalConversationExecutionPreferences(fixture);
+            var execution = new ConversationExecutionConfigurationService(executionPreferences, admission, fixture.Audit);
+            execution.Observe();
+            await fixture.InitializeAsync(null, detailPresentationConfiguration: composeDetails ? details : null,
+                conversationExecution: composeExecution ? execution : null);
+            fixture.Main.DetailPresentationStatus.Should().Be(composeDetails
+                ? details.Description : "Detail preference controls are not composed.");
+            fixture.Main.ConversationExecutionStatus.Should().Be(composeExecution
+                ? execution.Description : "Ordinary-conversation execution preferences unavailable.");
+            preferences.Writes.Should().Be(0);
+            executionPreferences.Load().Should().BeNull();
+            using var controller = new SettingsWindowController(fixture.Main, NullLogger<SettingsWindowController>.Instance);
+            controller.Navigate(SettingsSection.Responses, static () => true);
+            fixture.Main.CanControlDetailPresentationNative.Should().Be(composeDetails);
+            fixture.Main.CanChangeConversationExecution.Should().Be(composeExecution);
+            if (composeDetails)
+            {
+                await fixture.Main.LinkOnlyDetailPresentationCommand.ExecuteAsync();
+            }
+            var detailReview = fixture.Main.DetailPresentationReviewText;
+            if (composeExecution)
+            {
+                fixture.Main.SelectedConversationExecutionLimit = fixture.Main.ConversationExecutionLimits[0];
+                await fixture.Main.ReviewConversationExecutionCommand.ExecuteAsync();
+                executionPreferences.Load().Should().BeNull();
+                await fixture.Main.ConfirmConversationExecutionCommand.ExecuteAsync();
+                executionPreferences.Load()!.Value.Should().Be(1);
+                fixture.Main.DetailPresentationReviewText.Should().Be(detailReview);
+            }
+            preferences.Writes.Should().Be(0);
+            if (composeDetails)
+            {
+                await fixture.Main.ConfirmDetailPresentationCommand.ExecuteAsync();
+                preferences.Load().Should().Be(DetailPresentationMode.LinkOnly);
+            }
+            preferences.Writes.Should().Be(composeDetails ? 1 : 0);
+            executionPreferences.Load().Should().Be(composeExecution ? new Kora.Core.Configuration.ConversationExecutionLimit(1) : null);
+            fixture.Main.HasVoiceConsent.Should().BeFalse();
+            fixture.Main.IsVoiceEnabled.Should().BeFalse();
+        });
+        using var report = JsonDocument.Parse(context.Attachments![NativeFixturePhaseTimings.AttachmentName].AsString());
+        report.RootElement.GetProperty("TestUniqueId").GetString().Should().Be(context.Test!.UniqueID);
+        var phases = report.RootElement.GetProperty("PhaseStates").EnumerateArray().ToArray();
+        phases.Select(phase => phase.GetProperty("Phase").GetString())
+            .Should().Equal("native-ui", "owned-storage", "setup", "context", "disposal", "join", "evidence-flush");
+        phases.Should().OnlyContain(phase => phase.GetProperty("Outcome").GetString() == "completed");
+    }
 
     [Fact]
     public async Task OpenNativeDetailControlsReenableAfterBusyReadinessPublicationWithoutReopeningSettings()

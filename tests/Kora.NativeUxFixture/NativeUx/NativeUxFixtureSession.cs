@@ -177,7 +177,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     {
         using var setup = BeginPhase(NativeFixturePhase.Setup);
         await setup.RunAsync(() => InitializeCoreAsync(webPageGet, webSummary, callState, dispatcher, modelReasoner,
-            modelProbe, speechComponentSetup, logonStartupConfiguration));
+            modelProbe, speechComponentSetup, logonStartupConfiguration, detailPresentationConfiguration, conversationExecution));
     }
 
     private async Task InitializeCoreAsync(Kora.Tools.Network.WebPageGet? webPageGet,
@@ -185,7 +185,9 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         Kora.Core.Communication.ICallStateService? callState,
         IUiDispatcher? dispatcher, ILocalModelReasoner? modelReasoner, ISetupDependencyProbe? modelProbe,
         Kora.Application.Dependencies.SpeechComponentSetupService? speechComponentSetup,
-        LogonStartupConfigurationService? logonStartupConfiguration)
+        LogonStartupConfigurationService? logonStartupConfiguration,
+        DetailPresentationConfigurationService? detailPresentationConfiguration,
+        ConversationExecutionConfigurationService? conversationExecution)
     {
         if (initialized) { throw new InvalidOperationException("A fixture session may be initialized only once."); }
         using (var context = BeginPhase(NativeFixturePhase.Context))

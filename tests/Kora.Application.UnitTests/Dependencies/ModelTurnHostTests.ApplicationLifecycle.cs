@@ -437,7 +437,7 @@ public sealed partial class ModelTurnHostTests
         ConversationSubmissionReceipt? pendingTerminal = null;
         if (overlappingCompletions)
         {
-            f.BeforeSubmissionComplete = () => executionCompleting.Task;
+            f.BeforeSubmissionComplete = _ => executionCompleting.Task;
             f.BeforeExecutionComplete = () =>
             {
                 Kora.Core.Diagnostics.HostActivity.RequireCurrent().Request.Should().Be(first.Receipt.Message.Request);

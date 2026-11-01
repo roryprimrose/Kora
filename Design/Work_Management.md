@@ -416,6 +416,24 @@ Results identify completed, partial-unconfirmed, stale, cancelled or truly empty
 reviews, never a persistent global pause or future cancellation grant.
 See [interaction contract](Interaction_And_Sessions.md#stop-all-submitted-work-while-staying-open).
 
+### Clear ordinary pending work only
+
+The [ordinary lane owner](../src/Kora.Application/Hosting/SessionConversationService.PendingClear.cs) completes a distinct **Clear queue** operation for one explicitly addressed Active conversation. It is not Stop All, active-turn cancellation, or the retired public fixed-read diagnostic scheduler.
+
+Review captures every current never-dispatched pending identity, FIFO position, count, original expiry, session generation/metadata and lane revision in a complete body-free snapshot. Original bodies remain separately inspectable through the existing conversation reader. Review/discard changes no dispatch hold, task, history, grant, retention or provider state ([native regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.PendingClear.cs)).
+
+Separate original-source confirmation closes admission/dispatch only for that lane's transaction. The canonical [terminal transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Conversation.cs) additionally requires the exact current session/metadata and an undispatched intent; the existing workers retain Cancelled USER/task/audit receipts and join their readback. Running or already-dispatching work and other conversations are not cancelled.
+
+New arrivals, dispatch, expiry, ownership/private/control/channel/call/input changes invalidate review rather than selecting replacements. Acceptance cannot renew any original request, acquire a provider/resource lease or clear an independent manual/recovery hold. Partial durable effects and unconfirmed readback are enumerated per original; no rollback, replay, physical-stop or durable all-clear is inferred ([boundary regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.PendingClear.cs)).
+
+Native Sessions/expanded conversation and [exact typed/activated commands](../docs/commands.md#clear-one-ordinary-conversations-pending-work) share this owner. An activated review can be separately confirmed natively without replacing its original voice source; a new capture that retires that source requires fresh review. Model/source prose confers no control authority ([routing regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.PendingClear.cs)).
+
+Clearing reviewed pending work retains an existing manual hold and the cancellation recovery hold independently; releasing either cannot release the other. Changing a manual hold invalidates the captured lane review ([composition regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.PendingClear.cs)).
+
+Terminal observer failures are logged and retained as unconfirmed completion, not faulted orphan workers or successful clearing. Confirmation joins the captured workers through terminal notification delivery. Failure of the final clear notification preserves every per-original outcome with a partial/unconfirmed operation result; durable originals remain inspectable and no replay is permitted ([observer regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.PendingClear.cs)).
+
+Passive remaining-work inspection does not consume or invalidate a pending-clear review. Confirmed clearing invalidates the earlier remaining-work observation; a fresh answer reports the remaining running owner and independent dispatch holds without cancelled FIFO entries, new writes or an inferred all-clear ([native composition regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.PendingClear.cs)).
+
 ### Broader proposed management policy
 
 - Proposed initial capacity: 10 pending entries, configurable. Full means ask the user to remove/defer work; never evict silently.
@@ -427,7 +445,7 @@ See [interaction contract](Interaction_And_Sessions.md#stop-all-submitted-work-w
 - Normal successful completion dispatches the next ready entry automatically by default, after policy/context revalidation; user-selected manual dispatch adds a start decision. Queuing or approving dispatch is not action approval.
 - Failure, cancellation, or unknown side effects pause automatic dispatch and explain why. The user can resume or explicitly choose a replacement.
 - A cancellation request immediately pauses the addressed dispatch; deliberate exact voice or UI confirmation completes cancellation while preserving unrelated pending entries.
-- "Clear the queue" pauses the addressed queue and requires explicit voice or UI confirmation before removing its displayed pending entries from dispatch, not history.
+- "Clear the queue" for ordinary conversation requests uses the delivered pending-only operation above; reviewed removal is from dispatch, not history.
 - "Stop all work" uses the delivered reversible full-set review above; it does not clear retained history.
 - "Pause the queue" blocks new dispatch without suspending/cancelling the active task; resume still revalidates dependencies/policy.
 - A replacement waits for host-side execution quiescence. If remote work may still be running, report the uncertainty and require an explicit decision before dispatching more work.

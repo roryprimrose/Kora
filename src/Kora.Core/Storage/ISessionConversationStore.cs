@@ -33,6 +33,10 @@ public interface ISessionConversationStore
             : throw new InvalidOperationException("The conversation store does not support pending original requests.");
     ValueTask<ConversationSubmissionReceipt> CompleteConversationSubmissionAsync(HostRequest request,
         ModelTurnOutcome outcome, ModelTurnReason reason, Func<bool> admitted, CancellationToken token);
+    /// <summary>Cancels a never-dispatched original under an exact canonical session/metadata commit guard.</summary>
+    ValueTask<ConversationSubmissionReceipt> CancelPendingConversationSubmissionAsync(HostRequest request,
+        SessionWorkspaceEntry expected, Func<bool> admitted, CancellationToken token) =>
+        throw new InvalidOperationException("The conversation store does not support exact pending-only cancellation.");
     ValueTask<ConversationSubmissionReceipt> BeginConversationExecutionAsync(HostRequest request,
         ModelTurnProvenance provenance, long metadataRevision, Func<bool> admitted, CancellationToken token) =>
         throw new InvalidOperationException("The conversation store does not support admitted execution.");

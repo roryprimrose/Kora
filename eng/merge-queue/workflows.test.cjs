@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { execution, CHECKS, GATE, JOBS, terminalJobs } = require('./policy.cjs');
+const { execution, controllerOperation, CHECKS, GATE, JOBS, terminalJobs } = require('./policy.cjs');
 const root = path.resolve(__dirname, '..', '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8').replaceAll('\r\n', '\n');
 const ci = process.env.KORA_QUEUE_WORKFLOW_TEST_PATH
@@ -216,6 +216,7 @@ test('controller workflow awaits its summary on success and preserves reconcilia
       if (name === './eng/merge-queue/github.cjs') return { GitHubQueue: class {
         constructor(github, context, core, appId) { assert.equal(appId, '42'); return api; }
       } };
+      if (name === './eng/merge-queue/policy.cjs') return { controllerOperation };
       assert.equal(name, './eng/merge-queue/controller.cjs');
       return { reconcile: async value => {
         assert.equal(value, api);
@@ -227,6 +228,49 @@ test('controller workflow awaits its summary on success and preserves reconcilia
     else await operation;
     assert.deepEqual(calls, outcome === 'failed' ? [['summary', 'failed']]
       : [['notice', `Merge queue: ${outcome}.`], ['summary', outcome]]);
+  }
+});
+
+test('manual recovery uses the same trusted main checkout, App environment and serialized lane with explicit inputs', async () => {
+  assert.match(controller, /options: \[reconcile, recover-unobservable-dispatch\]/);
+  assert.match(controller, /acknowledge_uncertain_dispatch:[\s\S]*?type: boolean\n        default: false/);
+  assert.match(controller, /ref: refs\/heads\/main\n          persist-credentials: false/);
+  assert.match(controller, /environment: merge-queue/);
+  assert.match(controller, /concurrency:\n  group: merge-queue-controller\n  cancel-in-progress: false/);
+  assert.match(controller, /QUEUE_INPUTS: \$\{\{ toJSON\(inputs\) \}\}/);
+  assert.match(controller, /QUEUE_RUN_ATTEMPT: \$\{\{ github.run_attempt \}\}/);
+  const script = controller.match(/          script: \|\n([\s\S]*)/)[1]
+    .split('\n').map(line => line.replace(/^            /, '')).join('\n');
+  const execute = new AsyncFunction('process', 'context', 'core', 'github', 'require', script);
+  for (const scenario of ['recovered', 'failed', 'mixed', 'unknown']) {
+    const calls = [];
+    const context = { eventName: 'workflow_dispatch', ref: 'refs/heads/main', runId: 123, actor: 'operator' };
+    const inputs = { operation: 'recover-unobservable-dispatch', recovery_checkpoint: 'a'.repeat(40),
+      recovery_ticket: '01234567-89ab-cdef-0123-456789abcdef', acknowledge_uncertain_dispatch: true };
+    if (scenario === 'mixed') inputs.operation = 'reconcile';
+    if (scenario === 'unknown') inputs.operation = 'unknown';
+    const api = { summarize: async outcome => calls.push(['summary', outcome]) };
+    const operation = execute({ env: { QUEUE_APP_ID: '42', QUEUE_INPUTS: JSON.stringify(inputs), QUEUE_RUN_ATTEMPT: '1' } },
+      context, { notice: message => calls.push(['notice', message]) }, {}, name => {
+        if (name === './eng/merge-queue/github.cjs') return { GitHubQueue: class { constructor() { return api; } } };
+        if (name === './eng/merge-queue/policy.cjs') return { controllerOperation };
+        if (name === './eng/merge-queue/controller.cjs') return { reconcile: async () => assert.fail('Recovery must not select a candidate.') };
+        assert.equal(name, './eng/merge-queue/recovery.cjs');
+        return { recover: async (received, options) => {
+          assert.equal(received, api);
+          assert.deepEqual(options, { context, inputs, attempt: 1 });
+          calls.push(['recover']);
+          if (scenario === 'failed') throw new Error('Recovery denied');
+          return 'recovered';
+        } };
+      });
+    if (scenario === 'recovered') {
+      await operation;
+      assert.deepEqual(calls, [['recover'], ['notice', 'Merge queue: recovered.'], ['summary', 'recovered']]);
+    } else {
+      await assert.rejects(operation, /Recovery|Unknown/);
+      assert.deepEqual(calls.at(-1), ['summary', 'failed']);
+    }
   }
 });
 

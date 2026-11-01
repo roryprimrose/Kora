@@ -228,10 +228,13 @@ public sealed partial class SessionsConversationTests
         sources.Pending = gate.Task;
         var resolving = workflow.ResolveAsync(review, RequestOrigin.LocalUi, f.Token);
         sources.Reads.Should().Be(1);
+        var cancellationObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var observeCancellation = sources.ReadToken.Register(() => cancellationObserved.TrySetResult());
         var stopping = workflow.RevokeAsync(review);
         resolving.IsCompleted.Should().BeFalse();
         stopping.IsCompleted.Should().BeFalse();
         reader.Released.Should().BeFalse();
+        await cancellationObserved.Task.WaitAsync(f.Token);
         gate.SetResult(sources.Sources[0]);
         await resolving.Invoking(value => value).Should().ThrowAsync<OperationCanceledException>();
         await stopping;
@@ -352,10 +355,12 @@ public sealed partial class SessionsConversationTests
                     $"---\nkora-format: 1\nname: {name}\ndescription: Owned\n---\nExact owned {name} guidance.", false),
                     ArtifactKind.Instruction, "kora-profile", name))).ToArray();
         internal int Reads { get; private set; }
+        internal CancellationToken ReadToken { get; private set; }
         internal Task<OwnedInstructionSnapshot?>? Pending { get; set; }
         public Task<OwnedInstructionSnapshot?> Read(string name, CancellationToken token)
         {
             Reads++;
+            ReadToken = token;
             return Pending ?? Task.FromResult<OwnedInstructionSnapshot?>(Sources.Single(item => string.Equals(item.Name, name, StringComparison.Ordinal)));
         }
         public Task<IReadOnlyList<string>> List(CancellationToken token) => throw new InvalidOperationException("No discovery.");

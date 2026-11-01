@@ -437,6 +437,8 @@ public sealed partial class ModelTurnHostTests
             Conversation = PageService(model, host, approval ?? new PageApprovalStore(model), network ?? new());
             return new(Discovery, use, access ?? model, model, Conversation!, Audit, time ?? model.Time);
         }
+        internal ReviewedToolSkillInvocationWorkflow McpWorkflow(SessionConversationService service) =>
+            new(Discovery, use, model, model, service, Audit, model.Time);
         public async ValueTask DisposeAsync() { await use.DisposeAsync(); await native.DisposeAsync(); }
     }
 

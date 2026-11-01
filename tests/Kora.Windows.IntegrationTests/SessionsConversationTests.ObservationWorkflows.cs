@@ -30,12 +30,13 @@ public sealed partial class SessionsConversationTests
         await HeadlessSession.RunAsync(async () =>
         {
             using var f = new InteractionStorageFixture();
+            f.Time.UseFrozenTimers = true;
             await f.InitializeAsync();
             await WindowsSqliteConversationTests.FinishInitial(f);
             await using var composed = new Composition(f);
             var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
             Directory.CreateDirectory(parent);
-            using var native = new NativeUxFixtureSession(parent);
+            using var native = new NativeUxFixtureSession(parent, timeProvider: f.Time);
             await native.InitializeAsync();
             var store = new WindowsOwnedDeclarativeSkillStore(native);
             await using var admission = new OwnedSkillControlAdmission(native.Interactions, native.Interactions, new(native.Tasks));

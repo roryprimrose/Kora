@@ -1,8 +1,10 @@
 using System.Collections.Frozen;
 using System.Security.Cryptography;
+
 using Kora.Core.Configuration;
 
 using Kora.Windows.Storage;
+using Kora.Windows.Dependencies;
 
 namespace Kora.Windows.Audio;
 
@@ -54,6 +56,22 @@ internal sealed class HandsFreeNativeProfile
     public FrozenSet<string> Names { get; }
     public bool CaptureQualified { get; }
     public IReadOnlyDictionary<string, string> ConfigurationFiles { get; }
+
+    internal string ObserveNativeIdentity()
+    {
+        var asset = Assets.Single(candidate => string.Equals(candidate.Path, NativeLibraryPath, StringComparison.Ordinal));
+        using var pinned = new SpeechComponentFileBinding();
+        pinned.PinAncestors(Path.GetDirectoryName(NativeLibraryPath)!);
+        if (Directory.EnumerateFiles(Path.GetDirectoryName(NativeLibraryPath)!, "*.dll").Any(path =>
+            !Assets.Any(candidate => string.Equals(candidate.Path, path, StringComparison.OrdinalIgnoreCase))))
+        { throw new InvalidDataException("The native dependency inventory changed. Application repair is required."); }
+        using var handle = SpeechComponentFileBinding.Open(NativeLibraryPath, directory: false);
+        using var stream = new FileStream(handle, FileAccess.Read);
+        if (stream.Length != asset.Length
+            || !string.Equals(Convert.ToHexString(SHA256.HashData(stream)), asset.Sha256, StringComparison.Ordinal))
+        { throw new InvalidDataException("The exact bundled speech-native identity is unavailable. Application repair is required."); }
+        return WindowsFileIdentity.Read(handle);
+    }
 
     public async Task<HandsFreeAssetLease> BindAsync(CancellationToken cancellationToken, IAsyncDisposable? ownership = null)
     {

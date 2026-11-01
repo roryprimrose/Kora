@@ -32,6 +32,20 @@ public sealed record SharedSkillInvocationCommand(string Action, string Argument
         { return new("SecondAddress", text["shared skill second address ".Length..], true); }
         if (toolCapable && string.Equals(text, "shared skill clear second address", StringComparison.OrdinalIgnoreCase))
         { return new("SecondAddress", string.Empty, true); }
+        if (toolCapable && string.Equals(text, "shared skill mcp options", StringComparison.OrdinalIgnoreCase))
+        { return new("McpOptions", string.Empty, true); }
+        if (toolCapable)
+        {
+            foreach (var (phrase, action) in new[]
+            {
+                ("shared skill mcp server ", "McpServer"), ("shared skill mcp account ", "McpAccount"),
+                ("shared skill mcp arguments ", "McpArguments"),
+            })
+            {
+                if (text.StartsWith(phrase, StringComparison.OrdinalIgnoreCase))
+                { return new(action, text[phrase.Length..], true); }
+            }
+        }
         foreach (var (phrase, action) in new[]
         {
             ("shared skill request ", "Request"), ("shared skill target ", "Target"),

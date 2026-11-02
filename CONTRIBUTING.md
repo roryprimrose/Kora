@@ -91,6 +91,13 @@ its runner.
 The [installed SAPI stream fixture](tests/Kora.Windows.IntegrationTests/Audio/BlockingAudioStreamTests.cs) owns recognizer construction through completion and disposal on a thread-pool task, independent of the caller's synchronization context. Its regression withholds caller-context callbacks while retaining the five-second completion budget, real stream-consumption assertion and error/cancellation checks.
 This fixture correction does not qualify installed recognizer latency or enable a runtime capability.
 
+The [voice-input composition fixture](tests/Kora.Windows.IntegrationTests/Audio/VoiceInputCompositionTests.cs) supplies in-memory preferences, audit and
+audio-control admission dependencies while resolving the production timing
+service and recognition aliases. Composition alone must not write preferences,
+emit configuration audit events, create control tasks or open audio. The [listening
+grammar regression](tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.cs) includes capture-timing phrases and their assistant-name
+variants without relaxing exact phrase-set equality.
+
 The [bundled computer-power regressions](tests/Kora.Windows.IntegrationTests/ApplicationLifecycle/SessionsConversationTests.BundledActions.cs)
 wait for enabled native question controls after the activation-triggered source
 refresh before editing or confirming. Window-open notification alone does not

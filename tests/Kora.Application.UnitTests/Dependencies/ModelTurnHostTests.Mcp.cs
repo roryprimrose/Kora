@@ -153,6 +153,40 @@ public sealed partial class ModelTurnHostTests
         if (broker.Connected) { broker.Disposed.Should().BeTrue(); }
     }
 
+    [Theory]
+    [InlineData(RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.ActivatedVoice)]
+    public async Task Mcp_dismissed_tool_selection_cancels_the_original_conversation_without_a_model_or_tool_call(RequestOrigin origin)
+    {
+        using var f = new Fixture(origin);
+        using var source = new McpSource();
+        var approval = new McpApprovals(f);
+        var broker = new McpBroker(source.Account);
+        var service = McpService(f, f.Host, source, broker, approval, await source.Policy());
+        Kora.Core.Diagnostics.HostActivity? selection = null;
+        Task<string?> Dismiss(HostRequest request, HostRevision generation, DateTimeOffset expiresAt,
+            IReadOnlyList<McpDiscoveredTool> tools, Func<bool> admitted, CancellationToken token)
+        {
+            selection = Kora.Core.Diagnostics.HostActivity.RequireCurrent();
+            return Task.FromResult<string?>(null);
+        }
+        var published = false;
+        var receipt = await service.SubmitMcpAsync(new(f.Session, null), "Find the reviewed reference.",
+            source.ServerId, source.Account, approval.Present, Dismiss, static () => true, Token,
+            origin, onResult: (_, _) => published = true);
+        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+        receipt.Message.Request.Origin.Should().Be(origin);
+        receipt.Message.AssistantResponse.Should().BeNull();
+        f.Retained.Should().Be(receipt.Message);
+        selection.Should().NotBeNull();
+        selection!.Outcome.Should().Be(Kora.Core.Diagnostics.HostOperationOutcome.Cancelled);
+        broker.Methods.Should().Equal("initialize", "tools/list");
+        broker.Disposed.Should().BeTrue();
+        approval.Stages.Should().Equal(McpReviewStage.Connection);
+        f.Adapter.Calls.Should().Be(0);
+        published.Should().BeFalse();
+    }
+
     [Fact]
     public async Task Mcp_unqualified_connector_is_retained_as_unavailable_without_anonymous_fallback()
     {

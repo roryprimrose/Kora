@@ -20,4 +20,7 @@ public interface ICustomizationStore
         Func<Func<CustomizationSnapshot>, Task<CustomizationSnapshot>> commit, CancellationToken token,
         CustomizationSnapshot? copiedFrom = null);
     Task<CustomizationSnapshot> ReadRecovery(CustomizationSource source, CancellationToken token);
+    /// <summary>Deletes only the exact reviewed supported owned single file, without removing its directory.</summary>
+    Task Delete(CustomizationSnapshot reviewed, Func<bool> eligible,
+        Func<Action, Task> commit, CancellationToken token);
 }

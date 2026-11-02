@@ -2,6 +2,7 @@ using AwesomeAssertions;
 
 using Kora.Application.Dependencies;
 using Kora.Application.Hosting;
+using Kora.Core.Auditing;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
@@ -254,12 +255,14 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
-    [InlineData("early-release")]
-    [InlineData("terminal-readback")]
-    [InlineData("notification")]
-    [InlineData("notification-and-readback")]
-    [InlineData("private-during-join")]
-    public async Task LifecycleRetainsThePhysicalJoinAcrossReleaseRevocationAndTerminalFailure(string fault)
+    [InlineData("early-release", false)]
+    [InlineData("terminal-readback", false)]
+    [InlineData("notification", false)]
+    [InlineData("notification", true)]
+    [InlineData("notification-and-readback", false)]
+    [InlineData("notification-and-readback", true)]
+    [InlineData("private-during-join", false)]
+    public async Task LifecycleRetainsThePhysicalJoinAcrossReleaseRevocationAndTerminalFailure(string fault, bool terminalAuditFirst)
     {
         using var f = new Fixture { TrackPendingRecords = true };
         var host = ConfigureCancellation(f);
@@ -272,57 +275,106 @@ public sealed partial class ModelTurnHostTests
         using var review = await service.ReviewApplicationLifecycleAsync(ApplicationLifecycleOperation.Exit,
             RequestOrigin.LocalUi, () => current, Token);
         if (fault is "terminal-readback" or "notification-and-readback") { f.TerminalReceiptFault = "revision"; }
-        var notificationFailures = 0;
-        service.RunningConversationChanged += status =>
+        using var acceptancePublished = new ManualResetEventSlim();
+        using var terminalAuditEntered = new ManualResetEventSlim();
+        var failsNotification = fault is "notification" or "notification-and-readback";
+        if (failsNotification)
         {
-            if (status.Phase == ConversationExecutionPhase.Cancelling
-                && fault is "notification" or "notification-and-readback"
+            // Cancellation can resume execution before its acceptance publication. Keep this fault at acceptance, not terminal retention.
+            f.OnAudit = audit =>
+            {
+                if (string.Equals(audit.ActionId, "model.turn", StringComparison.Ordinal)
+                    && audit.Outcome != SecurityAuditOutcome.Requested)
+                {
+                    terminalAuditEntered.Set();
+                    acceptancePublished.Wait(TimeSpan.FromSeconds(20), Token).Should().BeTrue();
+                }
+            };
+        }
+        var notificationFailures = 0;
+        var terminal = new TaskCompletionSource<ConversationExecutionStatus>(TaskCreationOptions.RunContinuationsAsynchronously);
+        void Observe(ConversationExecutionStatus status)
+        {
+            status.Target.Request.Should().Be(submission.Receipt.Message.Request);
+            if (status.Phase == ConversationExecutionPhase.Terminal) { terminal.TrySetResult(status); }
+            if (failsNotification && status.Phase == ConversationExecutionPhase.Cancelling
                 && Interlocked.CompareExchange(ref notificationFailures, 1, 0) == 0)
             {
-                throw new IOException("Synthetic observer failure after accepted stop.");
+                try
+                {
+                    if (terminalAuditFirst)
+                    { terminalAuditEntered.Wait(TimeSpan.FromSeconds(20), Token).Should().BeTrue(); }
+                    throw new IOException("Synthetic observer failure after accepted stop.");
+                }
+                finally { acceptancePublished.Set(); }
             }
-        };
-        var joining = service.ConfirmApplicationLifecycleAsync(review, Token);
-        joining.IsCompleted.Should().BeFalse();
-        if (fault is "early-release") { review.Dispose(); }
-        if (fault is "private-during-join") { current = false; }
-        await service.Invoking(value => value.SubmitQueuedAsync(target, "must not escape the join", () => true, Token))
-            .Should().ThrowAsync<InvalidOperationException>();
-        submission.Completion.IsCompleted.Should().BeFalse();
-        provider.SetResult(LateAnswer());
-        await this.Invoking(_ => joining).Should().ThrowAsync<Exception>();
-        var terminal = await submission.Completion;
-        review.Joined.Should().BeFalse();
-        f.Adapter.Calls.Should().Be(1);
-        Volatile.Read(ref notificationFailures).Should().Be(fault is "notification" or "notification-and-readback" ? 1 : 0);
-        host.IsQuiescent.Should().BeTrue();
-        if (fault is "notification")
-        {
-            var retained = terminal.RequireReceipt();
-            retained.Message.Request.Should().Be(submission.Receipt.Message.Request);
-            retained.Message.Body.Should().Be(submission.Receipt.Message.Body);
-            retained.Message.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
-            retained.Message.Reason.Should().Be(ModelTurnReason.CallerCancelled);
-            retained.Message.Revision.Should().Be(3);
-            retained.Message.Execution.Should().NotBeNull();
-            retained.Task.State.Should().Be(HostTaskState.Unknown);
-            retained.Task.Revision.Value.Should().Be(3);
-            (await f.ReadTaskAsync(target.Authority.SessionId, retained.Task.Request.TaskId, Token))!.Task.Should().Be(retained.Task);
         }
-        review.Dispose();
-        current = true;
-        if (fault is "terminal-readback" or "notification-and-readback")
+        service.RunningConversationChanged += Observe;
+        try
         {
-            await service.Invoking(value => value.ReviewApplicationLifecycleAsync(ApplicationLifecycleOperation.Exit,
-                RequestOrigin.LocalUi, () => true, Token)).Should().ThrowAsync<InvalidOperationException>();
+            var joining = service.ConfirmApplicationLifecycleAsync(review, Token);
+            joining.IsCompleted.Should().BeFalse();
+            review.StopAccepted.Should().BeTrue();
+            if (fault is "early-release") { review.Dispose(); }
+            if (fault is "private-during-join") { current = false; }
+            await service.Invoking(value => value.SubmitQueuedAsync(target, "must not escape the join", () => true, Token))
+                .Should().ThrowAsync<InvalidOperationException>();
+            submission.Completion.IsCompleted.Should().BeFalse();
+            host.IsQuiescent.Should().BeFalse();
+            provider.SetResult(LateAnswer());
+            await this.Invoking(_ => joining).Should().ThrowAsync<Exception>();
+            var completed = await submission.Completion;
+            review.Joined.Should().BeFalse();
+            f.Adapter.Calls.Should().Be(1);
+            host.IsQuiescent.Should().BeTrue();
+            Volatile.Read(ref notificationFailures).Should().Be(failsNotification ? 1 : 0);
+            review.Dispose();
+            current = true;
+            if (fault is "terminal-readback" or "notification-and-readback")
+            {
+                completed.Failure.Should().BeOfType<ConversationSubmissionUnconfirmedException>();
+                terminal.Task.IsCompleted.Should().BeFalse();
+                review.Results.Should().ContainSingle().Which.Should().Be(
+                    new AllWorkStopResult.Original(submission.Receipt.Message.Request, true, false, null));
+                await service.Invoking(value => value.ReviewApplicationLifecycleAsync(ApplicationLifecycleOperation.Exit,
+                    RequestOrigin.LocalUi, () => true, Token)).Should().ThrowAsync<InvalidOperationException>();
+            }
+            else
+            {
+                var receipt = completed.RequireReceipt();
+                receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+                receipt.Message.Reason.Should().Be(ModelTurnReason.CallerCancelled);
+                receipt.Message.AssistantResponse.Should().BeNull();
+                receipt.Task.State.Should().Be(HostTaskState.Unknown);
+                if (fault is "notification")
+                {
+                    receipt.Message.Request.Should().Be(submission.Receipt.Message.Request);
+                    receipt.Message.Body.Should().Be(submission.Receipt.Message.Body);
+                    receipt.Message.Revision.Should().Be(3);
+                    receipt.Message.Execution.Should().NotBeNull();
+                    receipt.Task.Revision.Value.Should().Be(3);
+                    (await f.ReadTaskAsync(target.Authority.SessionId, receipt.Task.Request.TaskId, Token))!.Task.Should().Be(receipt.Task);
+                }
+                var notification = await terminal.Task.WaitAsync(TimeSpan.FromSeconds(20), Token);
+                notification.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+                notification.TaskState.Should().Be(HostTaskState.Unknown);
+                review.Results.Should().ContainSingle().Which.Should().Be(
+                    new AllWorkStopResult.Original(receipt.Message.Request, true, true, HostTaskState.Unknown));
+                using var fresh = await service.ReviewApplicationLifecycleAsync(ApplicationLifecycleOperation.Exit,
+                    RequestOrigin.LocalUi, () => true, Token);
+                fresh.Work.Should().BeEmpty();
+                await service.ConfirmApplicationLifecycleAsync(fresh, Token);
+                fresh.Joined.Should().BeTrue();
+            }
         }
-        else
+        finally
         {
-            using var fresh = await service.ReviewApplicationLifecycleAsync(ApplicationLifecycleOperation.Exit,
-                RequestOrigin.LocalUi, () => true, Token);
-            fresh.Work.Should().BeEmpty();
-            await service.ConfirmApplicationLifecycleAsync(fresh, Token);
-            fresh.Joined.Should().BeTrue();
+            acceptancePublished.Set();
+            provider.TrySetResult(LateAnswer());
+            await submission.Completion;
+            service.RunningConversationChanged -= Observe;
+            f.OnAudit = null;
+            review.Dispose();
         }
     }
 

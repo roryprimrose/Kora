@@ -328,6 +328,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         {
             Observations = reply.Outcome == ModelTurnOutcome.Succeeded && turn.RetainsLocalObservations
                 ? turn.SnapshotObservations() : null,
+            SubmittedContext = reply.Outcome == ModelTurnOutcome.Succeeded ? turn.SubmittedContext : null,
         };
     }
 

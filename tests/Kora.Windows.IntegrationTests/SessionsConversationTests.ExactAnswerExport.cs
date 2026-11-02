@@ -26,7 +26,12 @@ public sealed partial class SessionsConversationTests
             using var storage = new InteractionStorageFixture();
             await storage.InitializeAsync();
             await WindowsSqliteConversationTests.FinishInitial(storage);
-            await using var composition = new Composition(storage, adapter: new MemoryAnswerAdapter());
+            var inspected = new List<AdmittedDetailContent>();
+            await using var composition = new Composition(storage, (content, _, _, _) =>
+            {
+                inspected.Add(content);
+                return Task.FromResult("Exact context metadata opened");
+            }, adapter: new MemoryAnswerAdapter());
             var model = composition.Model;
             var presentation = new SessionsPresentationOwner(model);
             var primary = new SessionInteractionView { DataContext = model };
@@ -95,6 +100,18 @@ public sealed partial class SessionsConversationTests
                 if (surface != 0) { owner.FindControl<ListBox>("AnswerSourceRecords")!.ScrollIntoView(exact); }
                 owner.UpdateLayout();
                 Dispatcher.UIThread.RunJobs();
+                var context = owner.GetVisualDescendants().OfType<Button>().Single(control =>
+                    string.Equals(control.Name, "OpenSubmittedAnswerContext", StringComparison.Ordinal)
+                    && ReferenceEquals(control.DataContext, exact));
+                context.IsEnabled.Should().BeTrue();
+                context.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await (surface == 0 ? primary.Operation : presentation.DetailOperation);
+                var metadata = inspected.Should().ContainSingle().Subject;
+                metadata.Origin.Should().Be(DetailContentOrigin.RetainedAnswerContext);
+                metadata.ConversationMessage.Should().Be(exact);
+                metadata.Source.Should().Contain("Unknown / not recorded").And.NotContain(exact.AssistantResponse!.Body);
+                writes.Should().Be(0);
+                File.Exists(path).Should().BeFalse("metadata inspection never grants export authority");
                 var button = owner.GetVisualDescendants().OfType<Button>().Single(control =>
                     string.Equals(control.Name, "ExportExactAssistantAnswer", StringComparison.Ordinal)
                     && ReferenceEquals(control.DataContext, exact));
@@ -104,6 +121,7 @@ public sealed partial class SessionsConversationTests
                 await (surface == 0 ? primary.Operation : presentation.DetailOperation);
                 writes.Should().Be(cancel ? 0 : 1, model.ConversationStatus);
                 model.ConversationStatus.Should().Contain(cancel ? "cancelled" : "exact UTF-8 bytes verified");
+                inspected.Should().ContainSingle("export must not substitute the historical metadata projection");
                 model.ComposerBody.Should().Be("unsent stays unchanged");
                 (await storage.Store.ReadConversationPageAsync(exact.Request.SessionId, null, 25, storage.Token)).Messages.Should().HaveCount(2);
                 storage.Count("scoped_grants").Should().Be(0);

@@ -43,6 +43,9 @@ internal sealed partial class SessionsWindow : Window
         ReviewFailedRetry.Click += async (_, _) => await (ConversationOperation = model.ReviewFailedRetryAsync());
         ConfirmFailedRetry.Click += async (_, _) => await (ConversationOperation = model.ConfirmFailedRetryAsync());
         CancelFailedRetry.Click += (_, _) => model.CancelFailedRetry();
+        ReviewExpiredOrdinary.Click += async (_, _) => await (ConversationOperation = model.ReviewExpiredOrdinaryAsync());
+        BindExpiredOrdinaryDecision(ConfirmExpiredOrdinary, true, model);
+        BindExpiredOrdinaryDecision(CancelExpiredOrdinary, false, model);
         Closed += (_, _) => model.CancelAnswerRead();
         NextConversation.Click += async (_, _) => await (ConversationOperation = model.ReadConversationAsync(next: true));
         AnswerAttachment.Click += async (_, _) => await (ConversationOperation = model.OpenAttachmentAnswerAsync());

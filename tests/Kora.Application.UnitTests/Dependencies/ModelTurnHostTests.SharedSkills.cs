@@ -406,14 +406,14 @@ public sealed partial class ModelTurnHostTests
         internal SessionConversationService? Conversation { get; private set; }
         internal bool Open { get; set; } = true;
         internal bool Eligible() => Open;
-        internal SharedSkillHarness(Fixture model)
+        internal SharedSkillHarness(Fixture model, Kora.Core.Artifacts.IArtifactUsePolicy? usePolicy = null)
         {
             this.model = model;
             Preferences = new(new LocalSharedSkillPreferencesTests.Store());
             // Separate durable control domains, matching the production store's independent sessions.
             native = new(control, control, new(control));
             use = new(UseStore, UseStore, new(UseStore));
-            Discovery = new(Preferences, Reader, native, Audit, NullLogger<SharedSkillDiscoveryService>.Instance);
+            Discovery = new(Preferences, Reader, native, Audit, NullLogger<SharedSkillDiscoveryService>.Instance, usePolicy);
         }
         internal async Task Register()
         {

@@ -61,6 +61,15 @@ See the [editor guide](../docs/instruction-editor.md#find-within-selected-displa
 
 The [bounded owned skill editor](../src/Kora/OwnedSkillEditorWindow.cs) supports native v1 instruction-only packages and additive native v2 selection of exactly the existing host WebPageGet capability. This is immutable disabled publication followed by separate source/target review, enablement, exact request/URL confirmation, independent action approval and genuine retained model answer, not field preparation or automatic Customizations registration ([complete operation](../docs/owned-skill-authoring.md#author-and-use-one-host-webpageget-skill)). General package executors, arbitrary tools/effects and executable resources remain excluded.
 
+The same editor's [native v5 component operation](../docs/owned-skill-authoring.md#author-a-markdown-component-package)
+lets the original user add, edit and remove finite plain Markdown reference
+components, review complete old/new trees and publish the whole package disabled.
+It uses the same owned store and local tools-none consumer, not a second
+definition writer. Declaration inspection, reference-read consent, complete
+review, enablement and invocation are separate operations. Exact package bounds,
+version refusal/migration, whole-publication recovery and revocation remain
+owned by the [Skill Package Boundary](Skill_Authoring.md#skill-package-boundary).
+
 | Kind | Value and application |
 |---|---|
 | Skill | Primary reusable capability: selection guidance, inputs, workflow, and references to admitted tools or resources. Explicit voice/UI invocation and qualified model selection resolve the same enabled immutable revision. |
@@ -323,6 +332,14 @@ distinct, including on selection changes and dirty close. Changed source bytes
 are saved disabled; activation requires a separate current revision review.
 Errors and external conflicts retain the draft and offer explicit recovery.
 Do not claim unsupported reader/runtime compatibility after a successful write.
+
+The [native owned-agent editor](../src/Kora/AgentProfileEditorController.cs) supports explicit **Edit existing original**
+after inspecting a canonical `OwnedAgents-v1` v1/v4 original. It pins the source directory/ancestor binding,
+file identity and complete base; manual edits remain volatile. Complete old/new source review and separate native
+confirmation update only that same destination through the [authoritative store](../src/Kora.Windows/ArtifactDiscovery/WindowsOwnedAgentProfileStore.cs).
+Exact readback completes Save; changed bytes remain inert with no reference resolution, activation or new invocation authority.
+Detected conflicts offer Reload, separately reviewed Overwrite, or Cancel/keep draft. Missing originals cannot be recreated
+through Update. Conversational generation remains create-only; generic Customizations editing is unchanged.
 
 The same operations are addressed by exact original typed input or current-name
 activated voice: "Show skills", "Show me XYZ instruction", "Edit XYZ skill" and
@@ -699,7 +716,7 @@ Reject traversal, reparse/hard-link/alias escapes, replaced directories,
 protected roots, unexpected package members, and conflicting external writes.
 Retain the existing local-only/network-backed storage restrictions.
 
-For the bounded owned single-file instruction/prompt writer and selected compatible profile-original instruction writer, the user has explicitly
+For the bounded owned single-file instruction/prompt/native-agent writer and selected compatible profile-original instruction writer, the user has explicitly
 chosen **optimistic content conflict detection**, not content compare-and-swap.
 Immediately before atomic replacement, compare the live original identity and
 exact digest with the reviewed base. A detected changed, missing or replaced
@@ -736,6 +753,20 @@ Restoration is a new reviewed write, not restoration of revoked grants.
 A fork has distinct identity and attribution, no inherited enablement, grants,
 bundled trust, or privileged routing; later source changes never merge into it
 automatically. Closing a dirty editor requires Save/Discard/Cancel.
+
+### Reviewed shared owned single-file deletion
+
+The shared Customizations writer completes source deletion for supported saved Kora-group Instructions, Prompts and Agents, not a component-removal alias or a per-kind writer. Inspect the exact source, review its complete saved bytes and consequences, then separately confirm **Delete exact owned file** ([admitted operation](../src/Kora.Application/Definitions/CustomizationManagementService.Deletion.cs)).
+
+Native **Delete owned definition** and original typed/current-name activated `delete selected owned definition` use that same owner. Commands only initiate review; both destructive confirmations retain the existing native source-write exception. No model, tool, skill or arbitrary filesystem route acquires deletion authority ([native interaction](../src/Kora/CustomizationWindowController.Deletion.cs)).
+
+The native owner requires the current configured Kora kind root and canonical single-file identity, complete reviewed revision/bytes, verified ownership, no unfinished recovery, current admission and an unchanged available catalogue. It pins the native target against writes and replacement through final comparison and delete disposition; links, aliases, changed/missing/replaced sources and unknown authority fail closed. Only the exact file is removed, never its directory or a replacement ([native commit](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.Deletion.cs)).
+
+The same persisted source-use hold precedes deletion; catalogue reconciliation retires affected selections/reviews without retargeting. Already admitted captured work is not physically cancelled. Independent grants, history and audit are not erased, transferred or renewed; references are neither cascaded nor rewritten. Restored bytes remain held until new independent review ([use policy](../src/Kora.Application/Configuration/ArtifactUsePreferences.cs)).
+
+The raw unsaved editor draft and frozen baseline remain available independently of save validation; deletion does not encode or validate unsaved text. Ordinary Save cannot implicitly recreate a missing baseline. Recovery is an explicit distinct Kora copy followed by its separate Save review. The recovery constraint excludes the deleted source identity/path and case aliases before discard/rebase, and survives creating a recovery draft. Raw text remains in the editor, not an unbounded byte store, including through non-discard use-control redraws before and after recovery copying; separate Save retains the existing strict UTF-8, NUL and 64 KiB component bounds. The captured source-candidate catalogue and reload-failure fence are revalidated within admitted commit and native final eligibility, not only before audit/use hold. Review expiry, edits, selection attempts and source/control/catalogue/privacy/ownership changes retire the proposal. Post-effect readback, audit, admission or presentation uncertainty has a typed inspection-required outcome, never a rollback/failure-with-no-effect claim ([complete-operation regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.Deletion.cs)).
+
+Skills/packages have their separate deletion owner. Bundled/profile originals, MCP entries, directories, disk archives, automatic cascade, source-use revival and automatic enablement are excluded. External consumers/references are not exhaustively inventoried. This bounded implementation does not qualify broader native/runtime, provider or installed profiles; [current instructions](../docs/customizations.md#delete-one-owned-single-file-definition) state the operation and recovery.
 
 ## Consistent External Change and Reload Contract
 
@@ -874,6 +905,18 @@ or count as user activity/approval.
 ## Delivery and Verification
 
 ### Bounded owned instruction and prompt editor
+
+**Conversational Kora prompt template authoring** now uses the existing **Customizations > Prompts** source editor and local disclosure/proposal review, not the instruction-body refinement or owned-skill generation operation. The original user describes a repeatable USER request and separately declares zero to eight required native literal names. New drafts are native v2; supported existing v1/v2 metadata, attribution, original source and BOM are preserved ([host contract](../src/Kora.Application/Definitions/PromptTemplateAuthoring.cs)).
+
+The complete source, unchanged description, destination and host declaration precede independent local-only tool-free disclosure consent. Only a complete body proposal or explicit unsupported-capability refusal is admitted; the existing parser checks exact declared names/first occurrence, malformed placeholders and source bounds. Model output cannot choose metadata, files, destinations, defaults, tools or instruction authority ([local consumer](../src/Kora.Application/Definitions/CustomizationAuthoringService.cs)).
+
+Prompt and agent proposals share the admitted local-only runner, not their output schemas or authority. Prompt source freshness is revalidated at the actual model consumer and before publication; source-editing authoring retains the same freshness callback ([runner boundary](../src/Kora.Application/Dependencies/LocalContextTurnWorkflow.cs), [authoring owner](../src/Kora.Application/Definitions/CustomizationAuthoringService.cs)).
+
+The source-freshness helper shared with declarative skill adaptation checks live admission and cancellation both before and after exact source reads or create-only destination checks. A captured authoring callback cannot borrow the adaptation's read consent or bypass its own original source/draft admission. Changing the editor kind and returning to Prompts does not revive a retired disclosure or proposal; presentation loss also retires prompt authoring while owned model work joins.
+
+Complete proposed source/literal review and **Use proposed draft** adopt only volatile text. The existing independently confirmed exact writer saves disabled; reopen, exclusion removal, owned exact-template use review, explicit literal binding, complete expanded USER preview and exact-session submission remain separate. Cancellation, source/draft/critique/declaration/input/catalogue/provider/private/channel/call/ownership changes and expiry retire proposals and suppress late output while joining owned model work. No prompt-profile-original generation, recursive expansion, implicit use or runtime qualification is added ([native owner](../src/Kora/CustomizationWindowController.cs), [user operation](../docs/customizations.md#author-one-reusable-prompt-request), [native evidence](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.PromptAuthoring.cs)).
+
+For this Customizations owned-prompt Save, the native writer repeats the exact parent/file identity and complete-byte comparison **after private staging is flushed and immediately before rename**, then rechecks original admission and cancellation. Staging-time edits, same-byte replacements and occupied new destinations cannot be overwritten. The accepted narrow final-comparison-to-rename content race remains optimistic, not compare-and-swap. A staged or post-publication unconfirmed attempt stays disabled and recovery-required; the authoritative save audit reports Unknown rather than success, and cancellation never implies rollback ([publication owner](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.Transactions.cs), [boundary regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsCustomizationStoreTests.cs)).
 
 Native tray and exact `instructions` or `prompts` followed by
 `editor/list/create/edit/inspect/validate/compare/rebase/save/copy/reload/delete/activate/disable/stop-use/cancel` control routes share the same admitted actions, native review

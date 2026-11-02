@@ -272,15 +272,21 @@ public sealed partial class SessionsConversationTests
     private sealed class NativeMcpModel : IModelToolTransport
     {
         internal int Calls { get; private set; }
-        public Task<ModelToolTransportReply> CompleteAsync(ModelToolRequest request, CancellationToken cancellationToken)
+        internal List<ModelToolRequest> Requests { get; } = [];
+        internal Func<Task>? BeforeFreshAnswer { get; set; }
+        public async Task<ModelToolTransportReply> CompleteAsync(ModelToolRequest request, CancellationToken cancellationToken)
         {
             Calls++;
+            Requests.Add(request);
             request.Provenance.Selection.Provider.Should().Be(ModelProviderIdentity.Ollama);
-            var message = ModelToolProtocol.ParseAssistant(request.Round == 1
+            if (request.Context.ToolMode == ModelToolMode.None && BeforeFreshAnswer is { } before) { await before(); }
+            var message = ModelToolProtocol.ParseAssistant(request.Context.ToolMode == ModelToolMode.None
+                ? """{"kind":"answer","answer":"The unchanged observed reference is 42; no source was refreshed."}"""u8
+                : request.Round == 1
                 ? """{"kind":"toolCalls","calls":[{"callId":"reference_1","capabilityId":"mcp.search","input":{"query":"reference"}}]}"""u8
                 : """{"kind":"answer","answer":"Actual reviewed MCP reference: 42."}"""u8, mcpTool: request.Context.McpTool);
-            return Task.FromResult(new ModelToolTransportReply(ModelTurnOutcome.Succeeded, request.Provenance, message,
-                new(ModelToolProtocol.SerializeRequest(request).Length, ModelToolProtocol.SerializeMessage(message).Length)));
+            return new ModelToolTransportReply(ModelTurnOutcome.Succeeded, request.Provenance, message,
+                new(ModelToolProtocol.SerializeRequest(request).Length, ModelToolProtocol.SerializeMessage(message).Length));
         }
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }

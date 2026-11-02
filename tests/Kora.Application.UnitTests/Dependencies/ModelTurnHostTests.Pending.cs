@@ -165,6 +165,74 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
+    [InlineData(RequestOrigin.LocalUi, false)]
+    [InlineData(RequestOrigin.LocalUi, true)]
+    [InlineData(RequestOrigin.ActivatedVoice, false)]
+    [InlineData(RequestOrigin.ActivatedVoice, true)]
+    public async Task PendingStoreTerminalInterleavingPreservesExactOriginalDenialsWithoutCrossRequestReadback(
+        RequestOrigin origin, bool executing)
+    {
+        using var f = new Fixture(origin) { TrackPendingRecords = true };
+        var first = f.Request;
+        var second = new HostRequest(new(Guid.NewGuid()), first.SessionId, new(Guid.NewGuid()), origin);
+        var original = await f.RetainConversationMessageAsync(first, f.Session.Generation, 0,
+            "first private original", () => true, Token);
+        await f.RetainConversationMessageAsync(second, f.Session.Generation, 0,
+            "second private original", () => true, Token);
+        var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), first, ModelProviderSelection.OllamaCandidate);
+        if (executing)
+        { await f.BeginConversationExecutionAsync(first, provenance, 0, () => true, Token); }
+        void CompleteOtherRequest()
+        {
+            f.BeforeSubmissionComplete = null;
+            f.CompleteConversationSubmissionAsync(second, ModelTurnOutcome.Cancelled, ModelTurnReason.CallerCancelled,
+                () => true, Token).AsTask().IsCompletedSuccessfully.Should().BeTrue();
+        }
+        if (executing) { f.BeforeExecutionComplete = CompleteOtherRequest; }
+        else
+        {
+            f.BeforeSubmissionComplete = request =>
+            {
+                request.Should().BeSameAs(first);
+                CompleteOtherRequest();
+                return Task.CompletedTask;
+            };
+        }
+        var expired = executing
+            ? await f.CompleteConversationExecutionAsync(first,
+                new(ModelTurnOutcome.Denied, ModelTurnReason.ContextExpired, provenance), () => true, Token)
+            : await f.CompleteConversationSubmissionAsync(first, ModelTurnOutcome.Denied,
+                ModelTurnReason.ContextExpired, () => true, Token);
+        expired.Message.Request.Should().Be(first);
+        expired.Message.Body.Should().Be(original.Message.Body);
+        expired.Message.Outcome.Should().Be(ModelTurnOutcome.Denied);
+        expired.Message.Reason.Should().Be(ModelTurnReason.ContextExpired);
+        expired.Message.Revision.Should().Be(executing ? 3 : 2);
+        expired.Task.Request.Should().Be(first);
+        expired.Task.State.Should().Be(HostTaskState.Denied);
+        (await f.ReadTaskAsync(first.SessionId, first.TaskId, Token))!.Task.Should().Be(expired.Task);
+        (await f.ReadConversationMessageAsync(first.SessionId, first.RequestId, Token)).Should().Be(expired.Message);
+        var cancelled = f.PendingRecords[second.RequestId];
+        cancelled.Message.Request.Should().Be(second);
+        cancelled.Message.Body.Should().Be("second private original");
+        cancelled.Message.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+        cancelled.Message.Reason.Should().Be(ModelTurnReason.CallerCancelled);
+        cancelled.Message.Revision.Should().Be(2);
+        cancelled.Task.Request.Should().Be(second);
+        cancelled.Task.State.Should().Be(HostTaskState.Cancelled);
+        (await f.ReadTaskAsync(second.SessionId, second.TaskId, Token))!.Task.Should().Be(cancelled.Task);
+        foreach (var receipt in f.PendingRecords.Values)
+        {
+            receipt.Message.Validate();
+            receipt.Message.AssistantResponse.Should().BeNull();
+            receipt.Message.SubmittedContext.Should().BeNull();
+        }
+        f.Adapter.Calls.Should().Be(0);
+        f.Audits.Should().BeEmpty();
+        f.Messages.Should().BeEmpty();
+    }
+
+    [Theory]
     [InlineData("source")]
     [InlineData("private")]
     [InlineData("control")]

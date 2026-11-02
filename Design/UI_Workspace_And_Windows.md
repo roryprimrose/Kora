@@ -643,6 +643,7 @@ Streaming responses are visibly provisional until finalized; failed/interrupted 
 New events follow the tail only while the user is already following it; historical browsing preserves position and shows a New updates indicator.
 Keep pending interactions reachable via a dedicated attention region even when their chronological entries are off screen.
 History approval/question entries show past outcome in read-only form, not live replayable buttons.
+The [per-turn clarification reader](../docs/reviewed-context.md#read-a-turns-retained-clarification-exchange) deliberately projects existing admitted history beneath one exact original session/request/task. Its bounded pages retain the original snapshot ceiling; partial/gap/redacted/metadata-only observations and pending/cancelled/expired outcomes remain explicit, with no replay or renewed authority ([owner](../src/Kora/SessionsViewModel.ClarificationExchange.cs)).
 A current native card uses the host's current ID/revision; historical copies link to that current item only if it still exists and remains actionable.
 Done-session conversation is readable without resume. Sending new work requires explicit Resume or New session; no silent lifecycle transition.
 

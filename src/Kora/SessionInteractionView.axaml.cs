@@ -134,7 +134,9 @@ internal sealed partial class SessionInteractionView : UserControl
     {
         try
         {
-            if (args.Source is Button { Name: "ReplyToAssistantAnswer", DataContext: ConversationMessage replySource }
+            if (args.Source is Button { Name: "OpenSubmittedAnswerContext", DataContext: ConversationMessage answer })
+            { args.Handled = true; await Run(current => current.OpenConversationDetailAsync(answer, submittedContext: true)); }
+            else if (args.Source is Button { Name: "ReplyToAssistantAnswer", DataContext: ConversationMessage replySource }
                 && DataContext is SessionsViewModel)
             {
                 args.Handled = true;
@@ -165,7 +167,9 @@ internal sealed partial class SessionInteractionView : UserControl
     private void OnModelChanged(object? sender, PropertyChangedEventArgs args)
     {
         var current = observedModel?.SelectedSessionRecord?.Authority.SessionId.Value;
-        if (current != selectedSession || observedModel?.CanPresentDetails == false || evidenceAdmission?.Invoke() == false)
+        if (current != selectedSession || observedModel?.CanPresentDetails == false || evidenceAdmission?.Invoke() == false
+            || observedModel?.IsNoticeResult(activeDetails?.Content) == true
+                && !observedModel.CanReturnToNoticeResult(activeDetails?.Content))
         {
             selectedSession = current;
             HideDetails();
@@ -177,7 +181,8 @@ internal sealed partial class SessionInteractionView : UserControl
     private ConversationMessage? ConversationOrigin(AdmittedDetailContent? content)
     {
         if (!IsVisible || observedModel?.CanPresentDetails != true
-            || content?.Origin is not (DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant or DetailContentOrigin.RetainedLocalObservation)
+            || content?.Origin is not (DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant
+                or DetailContentOrigin.RetainedLocalObservation or DetailContentOrigin.RetainedAnswerContext)
             || content.ConversationMessage is not { } message
             || observedModel.SelectedSessionRecord?.Authority.SessionId != message.Request.SessionId)
         { return null; }
@@ -186,19 +191,27 @@ internal sealed partial class SessionInteractionView : UserControl
 
     private void RefreshReturnNavigation()
     {
-        BackToConversation.IsEnabled = DetailsVisible && ConversationOrigin(activeDetails?.Content) is not null;
+        var notice = observedModel?.IsNoticeResult(activeDetails?.Content) == true;
+        BackToConversation.Content = notice ? "Back to notice" : "Back to conversation";
+        BackToConversation.IsEnabled = DetailsVisible && (notice
+            ? observedModel!.CanReturnToNoticeResult(activeDetails?.Content)
+            : ConversationOrigin(activeDetails?.Content) is not null);
         DetailNavigationStatus.Text = BackToConversation.IsEnabled
-            ? "Back to conversation focuses the exact originating message and leaves Details open."
+            ? notice ? "Back to notice focuses the exact originating notice and leaves Details open."
+                : "Back to conversation focuses the exact originating message and leaves Details open."
             : "Return unavailable: this view has no message on the currently observed conversation page. "
                 + "Hide details returns to Show details.";
     }
 
     private bool FocusConversationOrigin(AdmittedDetailContent? content)
     {
+        if (observedModel?.IsNoticeResult(content) == true)
+        { return observedModel.ReturnToNoticeResult(content); }
         if (content is null || ConversationOrigin(content) is not { } message) { return false; }
         ConversationTabs.SelectedItem = ConversationTab;
         UpdateLayout();
-        var name = content.Origin == DetailContentOrigin.RetainedLocalObservation ? "OpenObservedResult"
+        var name = content.Origin == DetailContentOrigin.RetainedAnswerContext ? "OpenSubmittedAnswerContext"
+            : content.Origin == DetailContentOrigin.RetainedLocalObservation ? "OpenObservedResult"
             : content.Origin == DetailContentOrigin.RetainedAssistant
             ? "OpenAssistantConversationDetail" : "OpenConversationDetail";
         var origin = ConversationTabs.GetVisualDescendants().OfType<Button>().FirstOrDefault(button =>
@@ -350,7 +363,8 @@ internal sealed partial class SessionInteractionView : UserControl
         if (!choose && acceptOffer && model.DetailsOfferMessage is { } offered)
         { await model.OpenConversationDetailAsync(offered, assistant: true); return; }
         if (!choose && model.LastDetailMessage is { } previous)
-        { await model.OpenConversationDetailAsync(previous, model.LastDetailAssistant, model.LastDetailObservation); return; }
+        { await model.OpenConversationDetailAsync(previous, model.LastDetailAssistant, model.LastDetailObservation,
+            submittedContext: model.LastDetailContext); return; }
         if (!choose && model.LastEvidenceDetail is { } evidence)
         { await model.OpenEvidenceDetailsAsync(evidence); return; }
         if (!choose && model.CanRestoreHistoryDetail)

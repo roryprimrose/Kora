@@ -103,6 +103,8 @@ public sealed partial class ModelTurnHostTests
     [InlineData("tool")]
     [InlineData("parameters")]
     [InlineData("workflow")]
+    [InlineData("references")]
+    [InlineData("primary-references")]
     [InlineData("source-missing")]
     [InlineData("source-replaced")]
     [InlineData("target")]
@@ -119,9 +121,12 @@ public sealed partial class ModelTurnHostTests
                 guidanceFormat: OwnedSkillGuidanceFormat.RequiredLiteralInputs),
             "workflow" => OwnedDeclarativeSkillDocument.CreateObservationWorkflow("example", "2.0.0", "Example", "Description",
                 "{\"steps\":[{\"tool\":\"application.get_version\",\"input\":{}}]}"),
+            "references" or "primary-references" => OwnedDeclarativeSkillDocument.CreatePackage("example", "2.0.0", "Example", "Description",
+                "Complete guidance", new Dictionary<string, byte[]>(StringComparer.Ordinal) { ["notes.md"] = Encoding.UTF8.GetBytes("PRIVATE reference") }),
             "complete-input" => OwnedDeclarativeSkillDocument.Create("example", "2.0.0", "Example", "Description", new string('x', 32768)),
             _ => f.Draft,
         };
+        if (invalid is "primary-references") { draft = OwnedDeclarativeSkillDocument.Parse(draft.ManifestBytes.Span, draft.InstructionBytes.Span); }
         if (invalid is "source-missing") { f.Store.Source = null; }
         if (invalid is "source-replaced") { f.Store.Source = f.Source! with { ManifestIdentity = "replaced" }; }
         if (invalid is "target") { f.Store.Target = new(draft, "target", "manifest", "instructions"); }
@@ -132,6 +137,29 @@ public sealed partial class ModelTurnHostTests
             review: (_, _) => throw new InvalidOperationException("Review is forbidden"))).Should().ThrowAsync<Exception>();
         f.Model.Model.Adapter.Calls.Should().Be(0);
         f.Result.Should().BeNull();
+        f.AssertNoEffects();
+    }
+
+    [Fact]
+    public async Task SimulatedNativeV1DraftCannotInheritMarkdownSourceReadOrDisclosureAuthority()
+    {
+        await using var f = new SkillSimulationFixture();
+        var package = OwnedDeclarativeSkillDocument.CreatePackage("example", "1.0.0", "Example", "Description",
+            "PRIVATE primary", new Dictionary<string, byte[]>(StringComparer.Ordinal) { ["notes.md"] = Encoding.UTF8.GetBytes("PRIVATE reference") });
+        var source = new OwnedDeclarativeSkillSnapshot(package, "directory", "manifest", "instructions");
+        f.Store.Source = source;
+        var reads = 0;
+        f.Store.BeforeRead = () => { reads++; return Task.CompletedTask; };
+        var reviews = 0;
+        var displays = 0;
+        Func<Task> run = async () => await f.Service.Run(f.Draft, source, f.Example, f.Authority, f.Eligible,
+            (_, _) => { reviews++; return Task.FromResult(true); },
+            (_, _) => { displays++; return Task.CompletedTask; }, Token);
+        await run.Should().ThrowAsync<InvalidDataException>();
+        reads.Should().Be(0);
+        reviews.Should().Be(0);
+        displays.Should().Be(0);
+        f.Model.Model.Adapter.Calls.Should().Be(0);
         f.AssertNoEffects();
     }
 

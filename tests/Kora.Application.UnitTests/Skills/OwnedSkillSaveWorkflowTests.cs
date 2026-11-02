@@ -52,6 +52,75 @@ public sealed partial class OwnedSkillSaveWorkflowTests : IDisposable
     }
 
     [Theory]
+    [InlineData(0, false)]
+    [InlineData(1, false)]
+    [InlineData(2, false)]
+    [InlineData(3, false)]
+    [InlineData(4, false)]
+    [InlineData(4, true)]
+    public async Task ReopenedSourceIsRevalidatedWithinSaveAdmissionBeforeEachReviewAndCommit(int invalidAtRead, bool replaced)
+    {
+        var sessions = new Sessions();
+        await using var admission = new OwnedSkillControlAdmission(sessions, sessions, new(sessions));
+        var store = new Store();
+        var audit = new Audit();
+        var flow = new OwnedSkillSaveWorkflow(store, admission, audit);
+        var authority = new OwnedSkillAuthoringAuthority(RequestOrigin.LocalUi, static () => true);
+        var document = OwnedDeclarativeSkillDocument.CreatePackage("example", "1.0.0", "Example", "Description", "literal",
+            new Dictionary<string, byte[]>(StringComparer.Ordinal) { ["notes.md"] = "Private notes."u8.ToArray() });
+        var source = (await flow.Save(document, authority, static () => true, new NativeReview(), Token))!;
+        audit.Events.Clear();
+        store.MissingAtRead = replaced ? 0 : invalidAtRead;
+        store.ReplacedAtRead = replaced ? invalidAtRead : 0;
+        var next = OwnedDeclarativeSkillDocument.CreatePackage("example", "1.0.1", "Example", "Description", "changed literal",
+            new Dictionary<string, byte[]>(StringComparer.Ordinal) { ["notes.md"] = "Changed private notes."u8.ToArray() });
+        var review = new NativeReview();
+        var save = () => flow.Save(next, authority, static () => true, review, Token, expectedSource: source);
+        if (invalidAtRead == 0)
+        {
+            (await save())!.Document.Should().BeSameAs(next);
+            store.Reads.Should().Be(4);
+            store.Writes.Should().Be(2);
+            store.ExpectedSource.Should().BeSameAs(source);
+            review.Calls.Should().Equal("review", "confirm");
+            audit.Events.Select(entry => entry.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+        }
+        else
+        {
+            await save.Should().ThrowAsync<InvalidDataException>();
+            store.Reads.Should().Be(invalidAtRead);
+            store.Writes.Should().Be(1);
+            review.Calls.Should().HaveCount(Math.Min(invalidAtRead - 1, 2));
+            audit.Events.Should().NotContain(entry => entry.Outcome == SecurityAuditOutcome.Succeeded);
+        }
+        store.ReadPrimaries.Should().OnlyContain(primary => ReferenceEquals(primary, source));
+        source.Document.IsAvailableForInvocation.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task PrimaryOnlySourceCannotAuthorizeReferenceRereadsOrPublication()
+    {
+        var sessions = new Sessions();
+        await using var admission = new OwnedSkillControlAdmission(sessions, sessions, new(sessions));
+        var store = new Store();
+        var audit = new Audit();
+        var flow = new OwnedSkillSaveWorkflow(store, admission, audit);
+        var document = OwnedDeclarativeSkillDocument.CreatePackage("example", "1.0.0", "Example", "Description", "literal",
+            new Dictionary<string, byte[]>(StringComparer.Ordinal) { ["notes.md"] = "Private notes."u8.ToArray() });
+        var source = new OwnedDeclarativeSkillSnapshot(
+            OwnedDeclarativeSkillDocument.Parse(document.ManifestBytes.Span, document.InstructionBytes.Span),
+            "directory", "manifest", "instructions");
+        var review = new NativeReview();
+        var save = () => flow.Save(document, new(RequestOrigin.LocalUi, static () => true), static () => true,
+            review, Token, expectedSource: source);
+        await save.Should().ThrowAsync<InvalidOperationException>();
+        store.Reads.Should().Be(0);
+        store.Writes.Should().Be(0);
+        review.Calls.Should().BeEmpty();
+        audit.Events.Should().BeEmpty();
+    }
+
+    [Theory]
     [InlineData("review")]
     [InlineData("confirm")]
     [InlineData("original")]
@@ -280,20 +349,34 @@ public sealed partial class OwnedSkillSaveWorkflowTests : IDisposable
     private sealed class Store : IOwnedDeclarativeSkillStore
     {
         internal int Writes { get; private set; }
+        internal int Reads { get; private set; }
+        internal int MissingAtRead { get; set; }
+        internal int ReplacedAtRead { get; set; }
+        internal List<OwnedDeclarativeSkillSnapshot?> ReadPrimaries { get; } = [];
+        internal OwnedDeclarativeSkillSnapshot? ExpectedSource { get; private set; }
         internal Exception? Failure { get; init; }
         internal Action? AfterPublication { get; init; }
         private OwnedDeclarativeSkillSnapshot? saved;
         public string Destination(OwnedDeclarativeSkillDocument document) => "fixed-owned-destination";
         public Task<IReadOnlyList<OwnedDeclarativeSkillSnapshot>> List(CancellationToken token) =>
             Task.FromResult<IReadOnlyList<OwnedDeclarativeSkillSnapshot>>(saved is null ? [] : [saved]);
-        public Task<OwnedDeclarativeSkillSnapshot?> Read(string id, string version, CancellationToken token) => Task.FromResult(saved);
+        public Task<OwnedDeclarativeSkillSnapshot?> Read(string id, string version, CancellationToken token,
+            OwnedSkillReadScope scope = OwnedSkillReadScope.CompletePackage, OwnedDeclarativeSkillSnapshot? expectedPrimary = null)
+        {
+            Reads++;
+            ReadPrimaries.Add(expectedPrimary);
+            return Task.FromResult(Reads == MissingAtRead ? null
+                : saved is { } source && Reads == ReplacedAtRead ? source with { InstructionsIdentity = "replaced" } : saved);
+        }
         public Task<OwnedDeclarativeSkillSnapshot> Publish(OwnedDeclarativeSkillDocument document, Func<bool> eligible,
-            Func<Func<OwnedDeclarativeSkillSnapshot>, Task<OwnedDeclarativeSkillSnapshot>> commit, CancellationToken token) =>
+            Func<Func<OwnedDeclarativeSkillSnapshot>, Task<OwnedDeclarativeSkillSnapshot>> commit, CancellationToken token,
+            OwnedDeclarativeSkillSnapshot? expectedSource = null) =>
             commit(() =>
             {
                 eligible().Should().BeTrue();
                 if (Failure is not null) { throw Failure; }
                 Writes++;
+                ExpectedSource = expectedSource;
                 saved = new(document, "directory", "manifest", "instructions");
                 AfterPublication?.Invoke();
                 return saved;

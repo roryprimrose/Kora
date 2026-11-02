@@ -2147,12 +2147,17 @@ To stop Kora reading one source, select its registered metadata and choose
 **Withdraw local read consent**. Review and confirm the exact source ID,
 profile-relative root and directory identity in the native **Unregister source**
 confirmation. This removes only Kora's registration and local inspection
-snapshots, not your shared files. It changes no enablement, execution or grants;
-other source registrations remain intact. Even a missing original folder can
+snapshots, not your shared files. Existing volatile shared-skill reviews,
+enablement and pending reference-read consent are retired before saving the
+withdrawal, even if its final receipt is unconfirmed. No execution or grants
+are created or transferred; other source registrations remain intact. Even a missing original folder can
 be unregistered without reading or restoring it. A changed registration list
 requires refreshing and confirming again. Re-registering the path requires a
 fresh folder selection and receives a new source ID; old snapshots do not
-regain consent.
+regain consent. Refreshing or restoring saved registration metadata cannot
+revive old reviews. After fresh registration, separately consent to any declared
+reference reads, review the complete revision and enable it again. A reference
+read already in progress is still joined; its late result cannot restore use.
 
 The narrow reader requires flat YAML `name`, `version` (for example `1.0.0`)
 and `description`. Unsupported metadata/YAML, scripts or extra package files,

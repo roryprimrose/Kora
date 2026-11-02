@@ -1,4 +1,4 @@
-# Author a new owned agent profile
+# Author an owned agent profile
 
 An agent profile describes a role, allowed tools and limits for one task.
 This editor saves that description; it does not start an agent.
@@ -113,9 +113,9 @@ filesystem mutation. **agent author cancel review** cancels it without writing.
 Editing the source/name or changing privacy, call, ownership or original authority
 invalidates the review.
 
-Kora creates a new `.agent.md` file in its private agent directory. It never
+**Save as new** creates a new `.agent.md` file in its private agent directory. It never
 replaces an existing file: choose a different ID or cancel if the name is taken.
-This editor offers no overwrite, delete or rename. If saving is uncertain,
+This editor offers no delete or rename. If saving is uncertain,
 inspect the saved originals before another operation; uncertainty is
 **not success or rollback**, and Kora does not retry automatically.
 
@@ -124,6 +124,29 @@ selected original read-only**, or **agent author inspect example**. Saving does 
 select, enable or invoke the profile, refresh executable discovery or grant tools,
 providers, accounts or permissions. Later execution requires the existing separate
 explicit source/invocation review and its own readiness and consent.
+
+## Edit the same existing original
+
+Use the owned inventory or **agent author inspect example**, then explicitly choose **Edit existing original**.
+Edit the complete native v1 or v4 source in memory; the owned ID and destination cannot be changed.
+Conversational generation remains new-file-only. Generic Customizations editing is separate
+([native editor](../src/Kora/AgentProfileEditorController.cs)).
+
+**Validate complete v1 or v4 source** writes nothing. **Review Save (new or existing original)** shows the
+complete original and complete proposed source at the unchanged destination. Review is not consent.
+Choose **Confirm Save existing original...**, then **Save existing original** in the separate native confirmation.
+Save requires the same source-directory binding, file identity and exact reviewed base; successful completion verifies
+the exact saved bytes. Reopen that same inventory original to read them
+([review and audit](../src/Kora.Application/Agents/AgentProfileSaveWorkflow.cs),
+[owned store](../src/Kora.Windows/ArtifactDiscovery/WindowsOwnedAgentProfileStore.cs)).
+
+A changed, replaced or missing original does not silently overwrite or create a copy.
+**Reload from disk (abandon draft)** reads the current original after the unsaved-draft decision;
+**Overwrite with Kora changes** prepares another complete review of the observed base, requiring separate confirmation again;
+**Cancel (keep draft)** retains the volatile draft. A further external change conflicts again.
+Missing originals cannot be recreated through Update. The final filesystem comparison is optimistic, not compare-and-swap
+([conflict policy](../Design/Definition_Management.md#editing-ownership-and-confirmation)).
+Saved changes remain inert: Save does not resolve references, activate, select or invoke the profile, or grant new run authority.
 
 Drafts stay in memory only, not in conversation composer storage or disk autosave.
 Closing with changes offers **Save / Discard / Cancel**. Cancel keeps the editor

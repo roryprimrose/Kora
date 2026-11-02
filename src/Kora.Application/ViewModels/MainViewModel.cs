@@ -4712,6 +4712,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 () => ExecuteSettingsUndoAsync(undoCommand, initiator, CancellationToken.None));
             return;
         }
+        if (RegisteredSettingSuggestionCommand.ParseResponseTimeout(spokenText, AssistantName) is { } timeoutSuggestionCommand)
+        {
+            await ExecuteResponseTimeoutSuggestionAsync(timeoutSuggestionCommand, initiator,
+                HasCurrentNameActivation(spokenText));
+            return;
+        }
         if (RegisteredSettingSuggestionCommand.Parse(spokenText, AssistantName) is { } responseSuggestionCommand)
         {
             await ExecuteResponseModeSuggestionAsync(responseSuggestionCommand, initiator,
@@ -6751,6 +6757,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(PlaybackVolumeSuggestionCommand.FixedPhrases)
             .Concat(WindowsSpeechRateSuggestionCommand.FixedPhrases)
             .Concat(RegisteredSettingSuggestionCommand.FixedPhrases)
+            .Concat(RegisteredSettingSuggestionCommand.ResponseTimeoutPhrases)
             .Concat(RegisteredSettingUndoCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.OwnedSkillAuthoringCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)

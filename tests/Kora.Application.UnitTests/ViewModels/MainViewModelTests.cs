@@ -8727,7 +8727,8 @@ public sealed partial class MainViewModelTests : IDisposable
             Kora.Application.Voice.SpeechSetupComparison? speechSetupComparison = null,
             bool enableConversationExecution = false,
             LogonStartupConfigurationService? logonStartupConfiguration = null,
-            StartupPresentationConfigurationService? startupPresentationConfiguration = null)
+            StartupPresentationConfigurationService? startupPresentationConfiguration = null,
+            bool enableCaptureTiming = false)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8745,6 +8746,8 @@ public sealed partial class MainViewModelTests : IDisposable
             var audioStore = new Kora.Application.UnitTests.Configuration.AudioControlTestStore();
             ManualCallStore = audioStore;
             OutputAdmission = new(audioStore, audioStore, new HostTaskCoordinator(audioStore));
+            CaptureTimingConfiguration = enableCaptureTiming ? new(CaptureTimingPreferences, OutputAdmission,
+                Audit ??= new FakeSecurityAuditLog(), NullLogger<VoiceCaptureTimingConfigurationService>.Instance) : null;
             QueuePreferences.ReadFailure = queueReadFailure;
             QueueConfiguration = enableQueueConfiguration ? new(QueuePreferences, OutputAdmission, Audit ??= new FakeSecurityAuditLog()) : null;
             var outputCatalog = new Kora.Application.Voice.BoundedAudioOutputCatalog(
@@ -8930,7 +8933,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 speechSetupComparison: speechSetupComparison,
                 conversationExecution: ConversationExecutionConfiguration,
                 logonStartupConfiguration: logonStartupConfiguration,
-                startupPresentationConfiguration: startupPresentationConfiguration);
+                startupPresentationConfiguration: startupPresentationConfiguration,
+                voiceCaptureTimingConfiguration: CaptureTimingConfiguration);
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
@@ -8980,6 +8984,8 @@ public sealed partial class MainViewModelTests : IDisposable
         public FakeSpeechInputPreferences InputPreferences { get; } = new();
         public SpeechInputTestRuntime InputRuntime { get; }
         public SpeechInputConfigurationService? InputConfiguration { get; }
+        public Kora.Application.UnitTests.Configuration.VoiceCaptureTimingConfigurationServiceTests.Preferences CaptureTimingPreferences { get; } = new();
+        public VoiceCaptureTimingConfigurationService? CaptureTimingConfiguration { get; }
         public FakeInCallFeedbackPreferences FeedbackPreferences { get; } = new();
         public InCallFeedbackConfigurationService? FeedbackConfiguration { get; }
         public DiagnosticRetentionAdmission DiagnosticAdmission { get; }

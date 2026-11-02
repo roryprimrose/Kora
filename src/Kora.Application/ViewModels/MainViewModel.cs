@@ -286,7 +286,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         SpeechSetupComparison? speechSetupComparison = null,
         ConversationExecutionConfigurationService? conversationExecution = null,
         LogonStartupConfigurationService? logonStartupConfiguration = null,
-        StartupPresentationConfigurationService? startupPresentationConfiguration = null)
+        StartupPresentationConfigurationService? startupPresentationConfiguration = null,
+        VoiceCaptureTimingConfigurationService? voiceCaptureTimingConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -443,6 +444,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     () => HandleCommandException(exception)), canExecute);
 
         InitializeSpeechInputConfiguration(speechInputConfiguration, execute => CreateCommand(execute));
+        InitializeVoiceCaptureTiming(voiceCaptureTimingConfiguration, execute => CreateCommand(execute));
         InitializeSpeechComparison(speechSetupComparison, execute => CreateCommand(execute));
         InitializeConversationalReplies(conversationalReplies, execute => CreateCommand(execute));
         InitializeConversationExecution(conversationExecution, execute => CreateCommand(execute));
@@ -4629,6 +4631,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await ExecuteSpeechComparison(speechComparisonCommand, initiator);
             return;
         }
+        if (VoiceCaptureTimingCommand.Parse(spokenText, AssistantName) is { } timingCommand)
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Assistant prefix routing is unavailable; no capture timing change was dispatched.";
+                return;
+            }
+            await ExecuteVoiceCaptureTimingAsync(timingCommand, initiator);
+            return;
+        }
         if (SpeechInputCommand.Parse(spokenText, AssistantName) is { } speechInputCommand)
         {
             if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
@@ -6779,6 +6791,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(WindowsSpeechRateCommand.FixedPhrases)
             .Concat(SpeechInputCommand.FixedPhrases)
+            .Concat(VoiceCaptureTimingCommand.FixedPhrases)
             .Concat(SpeechComparisonCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
             .Concat(AuditRetentionCommand.FixedPhrases)

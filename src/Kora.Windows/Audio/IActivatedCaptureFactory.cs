@@ -4,6 +4,11 @@ namespace Kora.Windows.Audio;
 
 internal interface IActivatedCaptureFactory
 {
+    bool IsAvailable => true;
+    bool IsQuiescent => true;
+    string? GetUnavailableReason(SpeechInputSelection selection) => SpeechInputProfileCatalogue.UnavailableReason(selection);
+    Task RetireAsync() => Task.CompletedTask;
+
     // Installed recognition alone does not qualify the inert comparison profile.
     IReadOnlyList<SpeechComparisonProfile> GetComparisonProfiles() => [];
 

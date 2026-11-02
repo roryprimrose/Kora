@@ -19,7 +19,9 @@ public sealed partial class HandsFreeVoiceRecognitionService
     {
         selection.Validate();
         return selection == SpeechInputProfileCatalogue.NativeWakeSelection && audio.SupportsProfile(assistantName, selection)
-            ? null : SpeechInputProfileCatalogue.UnavailableReason(selection);
+            ? null : selection.ProfileId is SpeechInputProfileCatalogue.WindowsProfileId
+                ? ProfileRuntime.GetUnavailableReason(selection, assistantName)
+                : SpeechInputProfileCatalogue.UnavailableReason(selection);
     }
 
     private static SpeechInputSelection? ActivatedSelection(SpeechInputSelection? selection) =>

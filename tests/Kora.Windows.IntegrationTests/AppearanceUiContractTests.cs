@@ -74,6 +74,7 @@ public sealed class AppearanceUiContractTests
             "Appearance",
             "Application theme",
             "Reading text size",
+            "Reduced motion",
             "Always show responses",
             "Keep responses on top",
             "Response timeout",
@@ -119,6 +120,7 @@ public sealed class AppearanceUiContractTests
     [Theory]
     [InlineData("Application theme", "ResetThemeCommand", "SelectedItem", "ThemeMode")]
     [InlineData("Reading text size", "ResetReaderTextScaleCommand", "Value", "ReaderTextScalePercent")]
+    [InlineData("Reduced motion", "ResetReducedMotionCommand", "IsChecked", "IsReducedMotionEnabled")]
     [InlineData("Always show responses", "ResetResponseAlwaysVisibleCommand", "IsChecked", "IsResponseAlwaysVisible")]
     [InlineData("Keep responses on top", "ResetResponseWindowTopmostCommand", "IsChecked", "IsResponseWindowTopmost")]
     [InlineData("Response timeout", "ResetResponseTimeoutCommand", "Value", "ResponseTimeoutSeconds")]

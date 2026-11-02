@@ -10051,6 +10051,7 @@ public sealed partial class MainViewModelTests : IDisposable
             switch (setting)
             {
                 case AppearanceOption.Theme: Mode = null; break;
+                case AppearanceOption.ReducedMotion: ReducedMotionEnabled = null; break;
                 case AppearanceOption.ReaderTextScale: ReaderTextScalePercent = null; break;
                 case AppearanceOption.PresenceDisplay: PresenceDisplayEnabled = null; break;
                 case AppearanceOption.PresenceTimeout: PresenceTimeoutSeconds = null; break;
@@ -10064,6 +10065,14 @@ public sealed partial class MainViewModelTests : IDisposable
             }
         }
         public bool? NativePresenceRendererEnabled { get; private set; }
+        public bool? ReducedMotionEnabled { get; private set; }
+        public bool? LoadReducedMotionEnabled() => ReducedMotionEnabled;
+        public void SaveReducedMotionEnabled(bool enabled)
+        {
+            ThrowIfSaveFails();
+            ReducedMotionEnabled = enabled;
+        }
+
         public bool? LoadNativePresenceRendererEnabled() => NativePresenceRendererEnabled;
         public void SaveNativePresenceRendererEnabled(bool value)
         {

@@ -12,6 +12,7 @@ public sealed class LocalAppearancePreferences : IAppearancePreferences
 {
     private const string FileName = "appearance-theme.txt";
     private const string NativePresenceRendererFileName = "presence-native-renderer-enabled.txt";
+    private const string ReducedMotionFileName = "appearance-reduced-motion-enabled.txt";
     private const string PresenceDisplayEnabledFileName = "presence-display-enabled.txt";
     private const string PresenceTimeoutFileName = "presence-inactivity-timeout-seconds.txt";
     private const string ResponseTimeoutFileName = "response-timeout-seconds.txt";
@@ -45,6 +46,12 @@ public sealed class LocalAppearancePreferences : IAppearancePreferences
     }
 
     public int? LoadReaderTextScalePercent() => readerScale.LoadReaderTextScalePercent();
+    public bool? LoadReducedMotionEnabled() => store.ReadText(ReducedMotionFileName) is { } text
+        ? ReducedMotionSettings.ParseSaved(text) : null;
+
+    public void SaveReducedMotionEnabled(bool enabled) =>
+        store.WriteText(ReducedMotionFileName, ReducedMotionSettings.FormatSaved(enabled));
+
     public bool? LoadNativePresenceRendererEnabled() =>
         LoadBooleanPreference(NativePresenceRendererFileName, "native presence renderer");
 
@@ -62,6 +69,7 @@ public sealed class LocalAppearancePreferences : IAppearancePreferences
         store.Delete(setting switch
         {
             AppearanceOption.Theme => FileName,
+            AppearanceOption.ReducedMotion => ReducedMotionFileName,
             AppearanceOption.PresenceDisplay => PresenceDisplayEnabledFileName,
             AppearanceOption.PresenceTimeout => PresenceTimeoutFileName,
             AppearanceOption.PresenceSize => PresenceSizeFileName,

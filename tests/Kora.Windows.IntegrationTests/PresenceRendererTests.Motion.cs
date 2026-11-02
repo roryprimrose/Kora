@@ -21,6 +21,78 @@ public sealed partial class PresenceRendererTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task ExplicitReducedMotionFreezesBothParticleConsumersAndResetStillHonorsWindows(bool systemEnabled)
+    {
+        await HeadlessSession.RunAsync(() =>
+        {
+            var native = new MotionNative { Enabled = systemEnabled };
+            var dispatch = new MotionDispatch();
+            var scheduler = new RecordingScheduler();
+            using var control = new PresenceControl(scheduler)
+            {
+                IsPresentationEligible = true, State = AssistantState.Failure,
+                MovementSpeedPercent = 175, IsSpeechScalingEnabled = true,
+            };
+            using var binding = new PresenceMotionBinding(control, new WindowsMotionPreferenceSource(native),
+                dispatch.Post, exception => throw new InvalidOperationException("Unexpected motion failure.", exception));
+            binding.SetReducedMotion(true);
+            binding.SetEligible(true);
+            var window = Show(control);
+            try
+            {
+                scheduler.Advance(TimeSpan.FromSeconds(1));
+                var before = Positions(control);
+                scheduler.Advance(TimeSpan.FromHours(1));
+                Positions(control).Should().Equal(before);
+                scheduler.PendingCount.Should().Be(0);
+                control.CanInteract.Should().BeTrue();
+                control.CaptureRenderInputs(false, 360, 360, 1).ReducedMotion.Should().BeTrue();
+
+                native.Enabled = true;
+                native.Notify();
+                dispatch.Drain();
+                control.IsMotionEnabled.Should().BeFalse("Windows cannot undo explicit reduction");
+                binding.SetReducedMotion(false);
+                scheduler.Advance(TimeSpan.FromMilliseconds(198));
+                Positions(control).Should().NotEqual(before);
+                var inputs = control.CaptureRenderInputs(false, 360, 360, 1);
+                inputs.ReducedMotion.Should().BeFalse();
+                var field = new PresenceParticleField();
+                field.Advance(inputs.State, TimeSpan.FromMilliseconds(198),
+                    inputs.Density, inputs.MovementSpeed, inputs.ReducedMotion).Should().BeTrue();
+                binding.SetReducedMotion(true);
+                inputs = control.CaptureRenderInputs(false, 360, 360, 1);
+                var nativeBefore = new PresenceParticle[300];
+                var nativeAfter = new PresenceParticle[300];
+                field.Project(nativeBefore, inputs.Density, inputs.DotSize, inputs.Width, inputs.Height, 1);
+                field.Advance(inputs.State, TimeSpan.FromHours(1),
+                    inputs.Density, inputs.MovementSpeed, inputs.ReducedMotion).Should().BeFalse();
+                field.Project(nativeAfter, inputs.Density, inputs.DotSize, inputs.Width, inputs.Height, 1);
+                nativeAfter.Should().Equal(nativeBefore);
+
+                native.Enabled = false;
+                binding.SetReducedMotion(false);
+                control.IsMotionEnabled.Should().BeFalse("reset follows Windows, never forces animation");
+                control.State.Should().Be(AssistantState.Failure);
+                control.MovementSpeedPercent.Should().Be(175);
+                control.IsSpeechScalingEnabled.Should().BeTrue();
+                binding.SetEligible(false);
+                binding.SetReducedMotion(true);
+                binding.SetReducedMotion(false);
+                native.ActiveSubscriptions.Should().Be(0);
+                control.IsMotionEnabled.Should().BeFalse();
+                binding.Dispose();
+                binding.SetReducedMotion(true);
+                native.Notify();
+                control.IsMotionEnabled.Should().BeFalse();
+            }
+            finally { window.Close(); }
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task LiveWindowsMotionReachesRealParticlesWithoutChangingSettingsStateFocusOrLabel(bool initiallyEnabled)
     {
         await HeadlessSession.RunAsync(() =>
@@ -274,10 +346,13 @@ public sealed partial class PresenceRendererTests
     }
 
     [Theory]
-    [InlineData("subscribe")]
-    [InlineData("first-read")]
-    [InlineData("notification-read")]
-    public async Task NativeReadAndSubscriptionFailuresAreExplicitRetireResourcesAndNeverBecomeReady(string failureStage)
+    [InlineData("subscribe", false)]
+    [InlineData("first-read", false)]
+    [InlineData("notification-read", false)]
+    [InlineData("subscribe", true)]
+    [InlineData("first-read", true)]
+    [InlineData("notification-read", true)]
+    public async Task NativeReadAndSubscriptionFailuresAreExplicitRetireResourcesAndNeverBecomeReady(string failureStage, bool reduce)
     {
         await HeadlessSession.RunAsync(() =>
         {
@@ -289,10 +364,11 @@ public sealed partial class PresenceRendererTests
             if (string.Equals(failureStage, "first-read", StringComparison.Ordinal)) { native.ReadFailure = new Win32Exception(5); }
             using var binding = new PresenceMotionBinding(control, new WindowsMotionPreferenceSource(native),
                 dispatch.Post, failures.Add);
+            binding.SetReducedMotion(reduce);
             binding.SetEligible(true);
             if (string.Equals(failureStage, "notification-read", StringComparison.Ordinal))
             {
-                control.IsMotionEnabled.Should().BeTrue();
+                control.IsMotionEnabled.Should().Be(!reduce);
                 native.ReadFailure = new Win32Exception(5);
                 native.Notify();
                 dispatch.Drain();

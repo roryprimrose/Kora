@@ -17,6 +17,7 @@ public sealed partial class AppearanceConfigurationService(
     private readonly Dictionary<AppearanceOption, Action<AppearanceValue>> save = new()
     {
         [AppearanceOption.NativePresenceRenderer] = value => preferences.SaveNativePresenceRendererEnabled(value.GetToggle()),
+        [AppearanceOption.ReducedMotion] = value => preferences.SaveReducedMotionEnabled(value.GetToggle()),
         [AppearanceOption.Theme] = value => preferences.SaveThemeMode(value.GetTheme()),
         [AppearanceOption.PresenceDisplay] = value => preferences.SavePresenceDisplayEnabled(value.GetToggle()),
         [AppearanceOption.PresenceTimeout] = value => preferences.SavePresenceTimeoutSeconds(value.GetNumber()),
@@ -74,6 +75,8 @@ public sealed partial class AppearanceConfigurationService(
                 [AppearanceOption.NativePresenceRenderer] = preferences.LoadNativePresenceRendererEnabled() is { } native
                     ? new AppearanceValue.Toggle(native) : null,
                 [AppearanceOption.Theme] = preferences.LoadThemeMode() is { } theme ? new AppearanceValue.Theme(theme) : null,
+                [AppearanceOption.ReducedMotion] = preferences.LoadReducedMotionEnabled() is { } reducedMotion
+                    ? new AppearanceValue.Toggle(reducedMotion) : null,
                 [AppearanceOption.ReaderTextScale] = preferences.LoadReaderTextScalePercent() is { } scale ? new AppearanceValue.Number(scale) : null,
                 [AppearanceOption.PresenceDisplay] = preferences.LoadPresenceDisplayEnabled() is { } display ? new AppearanceValue.Toggle(display) : null,
                 [AppearanceOption.PresenceTimeout] = preferences.LoadPresenceTimeoutSeconds() is { } presenceTimeout ? new AppearanceValue.Number(presenceTimeout) : null,

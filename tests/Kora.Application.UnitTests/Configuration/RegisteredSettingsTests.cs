@@ -14,7 +14,7 @@ public sealed class RegisteredSettingsTests
     public void ClosedRegistryInspectionAndPolicyDeclareOnlyTheExistingAdmittedSubset()
     {
         RegisteredSettingRegistry.Settings.Select(item => item.Setting).Should().Equal(Enum.GetValues<RegisteredSetting>());
-        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().OnlyHaveUniqueItems().And.HaveCount(15);
+        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().OnlyHaveUniqueItems().And.HaveCount(16);
         foreach (var descriptor in RegisteredSettingRegistry.Settings)
         {
             RegisteredSettingRegistry.Get(descriptor.Setting).Should().BeSameAs(descriptor);
@@ -43,6 +43,8 @@ public sealed class RegisteredSettingsTests
 
     [Theory]
     [InlineData("set appearance.theme to system", RegisteredSetting.Theme)]
+    [InlineData("set appearance.reduced-motion to true", RegisteredSetting.ReducedMotion)]
+    [InlineData("set appearance.reduced-motion to false", RegisteredSetting.ReducedMotion)]
     [InlineData("set appearance.theme to light", RegisteredSetting.Theme)]
     [InlineData("set appearance.theme to dark", RegisteredSetting.Theme)]
     [InlineData("set appearance.reader-text-scale to 75", RegisteredSetting.ReaderTextScale)]
@@ -106,6 +108,11 @@ public sealed class RegisteredSettingsTests
 
     [Theory]
     [InlineData("")]
+    [InlineData("set appearance.reduced-motion to system")]
+    [InlineData("set appearance.reduced-motion to 1")]
+    [InlineData("set appearance reduced motion to true")]
+    [InlineData("set appearance.reduced-motion to True")]
+    [InlineData("use reduced motion")]
     [InlineData("set appearance.response-timeout to 10")]
     [InlineData("set appearance.native-presence-renderer to true")]
     [InlineData("set appearance.theme to ultraviolet")]

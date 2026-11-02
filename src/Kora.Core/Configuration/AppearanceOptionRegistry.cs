@@ -41,6 +41,9 @@ public static class AppearanceOptionRegistry
             new(AppearanceOption.NativePresenceRenderer, "appearance.native-presence-renderer", "Native presence renderer",
                 AppearanceValueType.Toggle, "boolean", new AppearanceValue.Toggle(false),
                 null, null, "configuration.native-presence-renderer"),
+            new(AppearanceOption.ReducedMotion, "appearance.reduced-motion", "Reduced motion (false follows Windows; true freezes presence particles)",
+                AppearanceValueType.Toggle, "boolean", new AppearanceValue.Toggle(ReducedMotionSettings.DefaultEnabled),
+                null, null, "configuration.reduced-motion"),
         ]);
 
     public static AppearanceOptionDescriptor Get(AppearanceOption option) =>
@@ -62,6 +65,7 @@ public static class AppearanceOptionRegistry
             case (AppearanceOption.PresenceDisplay, AppearanceValue.Toggle):
             case (AppearanceOption.SpeechScaling, AppearanceValue.Toggle):
             case (AppearanceOption.NativePresenceRenderer, AppearanceValue.Toggle):
+            case (AppearanceOption.ReducedMotion, AppearanceValue.Toggle):
                 return;
             case (AppearanceOption.PresenceTimeout, AppearanceValue.Number integer):
                 PresenceSettings.ValidateTimeoutSeconds(integer.Value);

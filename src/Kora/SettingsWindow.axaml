@@ -184,6 +184,20 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
+                  <TextBlock Text="Reduced motion" Classes="settings-title" />
+                  <TextBlock Text="Freeze presence particle movement in both animation modes. When off, follow Windows animation settings; Kora never overrides Windows reduced motion. Speech sizing and brief colour and visibility transitions remain independent."
+                             Classes="settings-description" TextWrapping="Wrap" />
+                </StackPanel>
+                <CheckBox Grid.Column="1" Content="Reduce motion" IsChecked="{Binding IsReducedMotionEnabled}"
+                          VerticalAlignment="Center" AutomationProperties.Name="Reduced motion" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Reduced motion"
+                                               ResetCommand="{Binding ResetReducedMotionCommand}" />
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
+                <StackPanel Spacing="4">
                   <TextBlock Text="Always show responses" Classes="settings-title" />
                   <TextBlock
                       Text="Keep the response window visible until you dismiss it."

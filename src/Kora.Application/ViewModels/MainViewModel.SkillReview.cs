@@ -30,11 +30,11 @@ public sealed partial class MainViewModel
         }
     }
 
-    private Func<bool> CaptureSkillReviewEligibility(ManualCallInput input)
+    private Func<bool> CaptureSkillReviewEligibility(ManualCallInput input, OwnedSkillQuestionContinuation? questions = null)
     {
         var binding = Interlocked.Read(ref skillReviewBindingRevision);
         var owner = skillReviewOwnershipRevision();
-        return () => input.Eligible() && input.Revision == CallPolicyRevision
+        return () => (questions?.IsCurrent() ?? input.Eligible()) && input.Revision == CallPolicyRevision
             && binding == Interlocked.Read(ref skillReviewBindingRevision) && owner == skillReviewOwnershipRevision()
             && IsSkillReviewCallEligible && !IsResponseInteractionPending;
     }

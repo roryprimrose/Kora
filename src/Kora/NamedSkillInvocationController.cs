@@ -12,7 +12,7 @@ namespace Kora;
 internal sealed partial class NamedSkillInvocationController(
     MainViewModel main, NamedSkillCatalogue catalogue, OwnedSkillInvocationWorkflow owned,
     SharedSkillInvocationWorkflow shared, Func<bool> ownsHost, Func<long> ownershipRevision,
-    ILogger<NamedSkillInvocationController> logger) : IAsyncDisposable
+    ILogger<NamedSkillInvocationController> logger, QuestionWindowController? questions = null) : IAsyncDisposable
 {
     private NamedSkillInvocationWindow? window;
     private NamedSkillCandidates? candidates;
@@ -54,9 +54,9 @@ internal sealed partial class NamedSkillInvocationController(
         && call == main.CallPolicyRevision && main.CanRevealPrivatePresentation && main.IsSkillReviewCallEligible
         && !main.IsResponseInteractionPending && original?.IsCurrent() == true && lifetime?.IsCancellationRequested == false;
 
-    private async Task Route(NamedSkillCommand command, RequestOrigin origin, Func<bool> eligible)
+    private async Task Route(NamedSkillCommand command, RequestOrigin origin, OwnedSkillAuthoringAuthority authority)
     {
-        if (!eligible()) { main.ReportHostInteractionFailure("Original named skill input expired. No fallback was run."); return; }
+        if (!authority.IsCurrent()) { main.ReportHostInteractionFailure("Original named skill input expired. No fallback was run."); return; }
         if (command.Action is "Close") { await CloseAndWait(); return; }
         if (command.Action is "Review")
         {
@@ -64,7 +64,7 @@ internal sealed partial class NamedSkillInvocationController(
             owner = ownershipRevision();
             call = main.CallPolicyRevision;
             lifetime = new();
-            original = new(origin, eligible);
+            original = authority;
             name = command.Name;
             if (!Eligible()) { Retire(); return; }
             window = new(name, Start);
@@ -205,11 +205,16 @@ internal sealed partial class NamedSkillInvocationController(
         else if (action is "Prepare")
         {
             RetirePreparation();
-            var revision = inputRevision;
-            bool Exact() => Current() && inputRevision == revision;
             var target = (opened.Targets.SelectedItem as SharedSkillConversationTarget)?.Entry
                 ?? throw new InvalidOperationException("Select exactly one current Active conversation.");
             var body = opened.Request.Text ?? "";
+            if (ownedReview is { } inputReview && inputReview.RequiredNames.Any(name =>
+                string.IsNullOrWhiteSpace(opened.LiteralInputs.Inputs[name].Text)))
+            {
+                await CollectMissingInputs(opened, inputReview, target, token);
+            }
+            var revision = inputRevision;
+            bool Exact() => Current() && inputRevision == revision;
             if (ownedReview is { } own)
             {
                 ownedInvocation = await owned.PrepareAsync(own, target, body, original!, Exact, token, opened.LiteralInputs.Capture());
@@ -247,6 +252,7 @@ internal sealed partial class NamedSkillInvocationController(
 
     private void RetirePreparation()
     {
+        inputQuestions?.Cancel();
         Interlocked.Increment(ref inputRevision);
         if (ownedInvocation is not null || sharedInvocation is not null)
         { ownedReview?.Dispose(); sharedReview?.Dispose(); }

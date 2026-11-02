@@ -16,7 +16,7 @@ public sealed class OwnedSkillUseReview : IDisposable
     private bool consumed;
 
     internal OwnedSkillUseReview(OwnedSkillInvocationWorkflow owner, OwnedDeclarativeSkillSnapshot snapshot,
-        Func<bool> current, TimeProvider time, ActivityLink cause)
+        Func<bool> current, TimeProvider time, ActivityLink cause, OwnedSkillAuthoringAuthority inputAuthority)
     {
         this.owner = owner;
         this.snapshot = snapshot;
@@ -25,9 +25,11 @@ public sealed class OwnedSkillUseReview : IDisposable
         created = time.GetUtcNow();
         ExpiresAt = created.AddMinutes(2);
         Cause = cause;
+        InputAuthority = inputAuthority;
     }
 
     internal ActivityLink Cause { get; }
+    internal OwnedSkillAuthoringAuthority InputAuthority { get; }
     public IReadOnlyList<string> RequiredNames
     {
         get { lock (gate) { return Require(owner).Document.InputTemplate?.RequiredNames.ToArray() ?? []; } }

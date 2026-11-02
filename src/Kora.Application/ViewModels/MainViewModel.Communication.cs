@@ -40,6 +40,7 @@ public sealed partial class MainViewModel
         internal Func<bool> CatalogueEligible { get; init; } = static () => true;
         internal Kora.Application.Presentation.ModelActionReviewTarget? ModelActionReview { get; init; }
         internal Func<bool> NamedSkillChoiceEligible { get; init; } = static () => false;
+        internal Func<bool> SkillQuestionEligible { get; init; } = static () => false;
     }
 
     public string ManualCallConfigurationStatus => manualCallControl is null
@@ -59,15 +60,18 @@ public sealed partial class MainViewModel
         var nativeRevision = Interlocked.Read(ref manualCallNativeRevision);
         bool NativeEligible() => !native || nativeRevision == Interlocked.Read(ref manualCallNativeRevision)
             && Volatile.Read(ref manualCallNativeAvailable) == 1;
-        return new(origin, revision, () => IsCallMutationHostEligible && NativeEligible()
+        bool StableInput() => IsCallMutationHostEligible && NativeEligible()
             && privacyObservation.Current.TopologyRevision == privacy.TopologyRevision
             && Interlocked.Read(ref voiceRecoveryRevision) == recovery
             && (capturedOrigin != RequestOrigin.ActivatedVoice || IsVoiceEnabled && HasVoiceConsent
-                && privacyObservation.Current.CanCapture && voiceRecognition.Generation == generation),
+                && privacyObservation.Current.CanCapture);
+        return new(origin, revision, () => StableInput()
+            && (capturedOrigin != RequestOrigin.ActivatedVoice || voiceRecognition.Generation == generation),
             () => IsCallMutationHostEligible && NativeEligible() && privacyObservation.Current.TopologyRevision == privacy.TopologyRevision
                 && Interlocked.Read(ref voiceRecoveryRevision) == recovery + 1
                 && !IsVoiceEnabled && Interlocked.Read(ref acceptedTranscriptGeneration) == -1)
         {
+            SkillQuestionEligible = StableInput,
             NavigationOwnerRevision = auditImpactOwnerRevision(),
             NavigationInitiallyAdmitted = IsCallMutationHostEligible && !IsProtectedCall,
             AssistantNameRevision = assistantNameConfiguration.Get().Revision,

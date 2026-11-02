@@ -442,10 +442,10 @@ public sealed partial class ModelTurnHostTests
         internal bool Open { get; set; } = true;
         internal bool Eligible() => Open;
         internal OwnedSkillHarness(Fixture model, RequestOrigin origin = RequestOrigin.LocalUi, bool qualified = true, bool inspect = true,
-            SessionConversationService? conversation = null, bool hasUsePolicy = true)
+            SessionConversationService? conversation = null, OwnedSkillQuestionContinuation? questions = null, bool hasUsePolicy = true)
         {
             this.model = model;
-            Authority = new(origin, Eligible);
+            Authority = new(origin, () => Eligible() && (questions?.IsCurrent() ?? true)) { Questions = questions };
             admission = new(Control, Control, new(Control));
             Saved = new(Store, admission, Audit);
             var host = qualified ? QualifiedHistoryHost(model) : model.ConfiguredProfiles(production: true);
@@ -462,6 +462,11 @@ public sealed partial class ModelTurnHostTests
 
     private sealed class OwnedControlStore : AudioControlTestStore, IOwnedSkillControlSessionStore
     {
+        internal bool MissingIntent { get; set; }
+        public override ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task,
+            CancellationToken cancellationToken) => ValueTask.FromResult<HostTaskObservation?>(
+                !MissingIntent && Tasks.LastOrDefault(record => record.Request.SessionId == session && record.Request.TaskId == task) is { } record
+                    ? new(record, Authority!.Generation, "owned-skill", true, null) : null);
         public ValueTask<WorkSessionAuthorization> CreateOwnedSkillSession(HostRequest request, Func<bool> admitted, CancellationToken token) =>
             CreateAudioControlSessionAsync(request, admitted, token);
         public ValueTask<T> WithOwnedSkillSession<T>(HostRequest request, HostRevision generation, Func<T> operation, CancellationToken token) =>

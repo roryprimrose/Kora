@@ -42,9 +42,14 @@ public sealed partial class MainViewModel
         var binding = Interlocked.Read(ref ownedSkillAuthoringBindingRevision);
         await uiDispatcher.InvokeAsync(() => HostRequestRunner.RunAsync(input.Origin, async () =>
         {
+            if (!captured()) { ReportHostInteractionFailure("Original owned skill input expired."); return; }
+            var questions = command.Operation is "use" && input.Origin == RequestOrigin.ActivatedVoice
+                ? new OwnedSkillQuestionContinuation(input.Eligible, input.SkillQuestionEligible, () => voiceRecognition.Generation) : null;
+            var useEligibility = questions is null ? captured : CaptureSkillReviewEligibility(input, questions);
+            var usePrivacy = questions is null ? privacy : () => input.SkillQuestionEligible() && CanRevealPrivatePresentation;
             var authority = new OwnedSkillAuthoringAuthority(input.Origin,
-                () => captured() && privacy() && !IsProtectedCall && !IsResponseInteractionPending && ReferenceEquals(handler, ownedSkillAuthoring)
-                    && binding == Interlocked.Read(ref ownedSkillAuthoringBindingRevision));
+                () => useEligibility() && usePrivacy() && !IsProtectedCall && !IsResponseInteractionPending && ReferenceEquals(handler, ownedSkillAuthoring)
+                    && binding == Interlocked.Read(ref ownedSkillAuthoringBindingRevision)) { Questions = questions };
             if (handler is null || !authority.IsCurrent())
             { ReportHostInteractionFailure("Owned skill authoring is unavailable or its original authority expired."); return; }
             await handler(command, authority);

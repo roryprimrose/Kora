@@ -69,6 +69,16 @@ limited to theme, reader text scale, both summary caps, playback volume and resp
    once through the same validated, audited writer as the existing controls.
    Or choose **Cancel setting review**; no new write is requested.
 
+Keyboard activation of **Review setting suggestion...** moves focus to the
+complete readback in either conversation view. Focus and Enter on the readback
+do not confirm a change. **Escape** from the readback or its confirmation/cancel
+buttons cancels only this setting review and returns focus to the same answer's
+review action when that exact source is still available. Escape outside these
+review controls keeps its existing search/window behavior. After cancellation,
+review the same answer again and confirm separately; no new model request is
+needed. Confirmation likewise returns to the source unless focus has moved
+elsewhere while the operation was pending.
+
 Only one native setting review is active at a time. A new review retires the
 old one. The original request, answer, session, preference revision, private
 control/ownership and call admission remain bound throughout source checks and

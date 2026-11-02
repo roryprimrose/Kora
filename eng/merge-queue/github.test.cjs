@@ -612,16 +612,34 @@ test('preflight rejection retirement authenticates the exact reviewed workflow b
   assert.equal(value.calls.some(call => ['merge', 'createWorkflowDispatch', 'updateRef'].includes(call[0])), false);
 });
 
-test('real schema-declared workflow resolves complete inventory; new unversioned source fails closed', async () => {
+test('real schema-declared and historical protected workflows resolve the same complete producer inventory', async () => {
   const source = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8')
     .replaceAll('\r\n', '\n');
-  const unversioned = source.replace('# merge-queue-job-schema: windows-12-v1\n', '');
-  assert.equal(await fixture({ getContent: () => workflowContent(unversioned) }).api.expectedJobs(BASE), null);
-  for (const workflow of [source]) {
+  const unversioned = fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-native-fixture-timing.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  assert.equal(workflowContent(unversioned).sha, 'd3db4c610d08468c508f09e63b10f7c6568b82ea');
+  for (const workflow of [source, unversioned]) {
     const value = fixture({ getContent: () => workflowContent(workflow) });
     assert.deepEqual(await value.api.expectedJobs(BASE), WINDOWS_12_JOBS);
     assert.deepEqual(value.calls, [['getContent', { owner: 'owner', repo: 'repo',
       ref: BASE, path: '.github/workflows/ci.yml' }]]);
+  }
+});
+
+test('removing the schema or modifying a predecessor does not authorize an unknown workflow blob', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  const predecessor = fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-native-fixture-timing.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  for (const workflow of [source.replace('# merge-queue-job-schema: windows-12-v1\n', ''),
+    `${predecessor}\n# Unrecognized revision\n`]) {
+    const value = fixture({ getContent: () => workflowContent(workflow) });
+    assert.equal(await value.api.expectedJobs(BASE), null);
+    assert.deepEqual(value.calls.filter(call => call[0] === 'getContent'),
+      [['getContent', { owner: 'owner', repo: 'repo', ref: BASE, path: '.github/workflows/ci.yml' }]]);
+    assert.equal(value.calls.filter(call => call[0] === 'warning').length, 1);
+    assert.match(value.calls.at(-1)[1], /physical quiescence is unknown/);
+    assert.equal(value.calls.some(call => ['update', 'merge', 'createWorkflowDispatch'].includes(call[0])), false);
   }
 });
 

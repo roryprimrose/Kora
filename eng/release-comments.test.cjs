@@ -12,7 +12,7 @@ const repository = 'roryprimrose/Kora';
 function workflowJob(workflow, name) {
   const start = workflow.indexOf(`\n  ${name}:`);
   assert.ok(start >= 0, `${name} job must exist in the repository workflow.`);
-  return workflow.slice(start).split(/\r?\n(?=  [a-z][\w-]*:)/)[0];
+  return workflow.slice(start + 1).split(/\r?\n(?=  [a-z][\w-]*:)/)[0];
 }
 
 function release(id, version, source, day) {

@@ -316,7 +316,9 @@ test('rejected admission retirement is restart-safe and still joins every matchi
 test('missing source-required producers cannot release failed, stale, merged or retiring lanes', async () => {
   const source = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8')
     .replaceAll('\r\n', '\n');
-  for (const workflow of [source]) {
+  const predecessor = fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-native-fixture-timing.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  for (const workflow of [source, predecessor]) {
     const bytes = Buffer.from(workflow);
     const blob = createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
     assert.deepEqual(workflowJobs(workflow, blob), WINDOWS_12_JOBS);

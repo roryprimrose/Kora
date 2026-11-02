@@ -158,12 +158,17 @@ internal static partial class OllamaToolWire
             WriteInteger(writer, "offset", 0, null);
             WriteInteger(writer, "count", 1, descriptor.Limits.MaximumRecords);
         }
-        else if (descriptor.Input == CapabilityInputShape.Id)
+        else if (descriptor.Input is CapabilityInputShape.Id or CapabilityInputShape.RegisteredSettingId)
         {
             writer.WriteStartObject("id");
             writer.WriteString("type", "string");
             writer.WriteStartArray("enum");
-            if (string.Equals(descriptor.Id, ReadOnlyCapabilityCatalog.Get, StringComparison.Ordinal))
+            if (descriptor.Input == CapabilityInputShape.RegisteredSettingId)
+            {
+                foreach (var item in Kora.Core.Configuration.RegisteredSettings.RegisteredSettingRegistry.Settings)
+                { writer.WriteStringValue(item.Id); }
+            }
+            else if (string.Equals(descriptor.Id, ReadOnlyCapabilityCatalog.Get, StringComparison.Ordinal))
             {
                 foreach (var item in ReadOnlyCapabilityCatalog.Descriptors) { writer.WriteStringValue(item.Id); }
             }
@@ -186,10 +191,11 @@ internal static partial class OllamaToolWire
             writer.WriteEndObject();
         }
         writer.WriteEndObject();
-        if (descriptor.Input is CapabilityInputShape.Id or CapabilityInputShape.WebPageAddress or CapabilityInputShape.MetadataReference)
+        if (descriptor.Input is CapabilityInputShape.Id or CapabilityInputShape.RegisteredSettingId
+            or CapabilityInputShape.WebPageAddress or CapabilityInputShape.MetadataReference)
         {
             writer.WriteStartArray("required");
-            writer.WriteStringValue(descriptor.Input == CapabilityInputShape.Id ? "id"
+            writer.WriteStringValue(descriptor.Input is CapabilityInputShape.Id or CapabilityInputShape.RegisteredSettingId ? "id"
                 : descriptor.Input == CapabilityInputShape.MetadataReference ? "ref" : "address");
             writer.WriteEndArray();
         }

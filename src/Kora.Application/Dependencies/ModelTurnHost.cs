@@ -267,6 +267,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
     private async Task<ModelTurnResult> ExecuteAsync(ModelTurn turn, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
+        if (!SettingsDiscoveryCurrent(turn))
+        { return Finish(ModelTurnOutcome.Denied, ModelTurnReason.ToolResultRejected, turn.Provenance); }
         if (!await CustomizationDiscoveryCurrent(turn, token).ConfigureAwait(false))
         { return Finish(ModelTurnOutcome.Denied, ModelTurnReason.ToolResultRejected, turn.Provenance); }
         if (!await SessionDiscoveryCurrentAsync(turn, token).ConfigureAwait(false))
@@ -361,7 +363,9 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             return new(CapabilityOutcome.Denied, "tool-call-budget-exhausted");
         }
         turn.PublishExecutionStep?.Invoke(Kora.Core.Conversation.ConversationExecutionStep.ReadingObservation);
-        var reply = customizationDiscoveries.TryGetValue(turn, out var customizations)
+        var reply = settingDiscoveries.TryGetValue(turn, out var settings)
+            ? SettingsDiscoveryTools.Read(settings.Observations, id, input)
+            : customizationDiscoveries.TryGetValue(turn, out var customizations)
             ? await customizations.Invoke(id, input, linked.Token).ConfigureAwait(false)
             : sessionDiscoveries.TryGetValue(turn, out var discovery)
             ? await discovery.InvokeAsync(id, input, linked.Token).ConfigureAwait(false)
@@ -411,6 +415,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
 
     private async ValueTask<ModelTurnReason> RevalidateContinuationAsync(ModelTurn turn, CancellationToken token)
     {
+        if (!SettingsDiscoveryCurrent(turn)) { return ModelTurnReason.ToolResultRejected; }
         if (!await CustomizationDiscoveryCurrent(turn, token).ConfigureAwait(false))
         { return ModelTurnReason.ToolResultRejected; }
         if (!await SessionDiscoveryCurrentAsync(turn, token).ConfigureAwait(false))

@@ -36,7 +36,7 @@ public sealed partial class HandsFreeVoiceRecognitionService
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
-            if (profileSwitchActive || !IsCaptureQuiescent) { throw new InvalidOperationException("Profile initialization requires unowned quiescent input."); }
+            if (comparisonActive || profileSwitchActive || !IsCaptureQuiescent) { throw new InvalidOperationException("Profile initialization requires unowned quiescent input."); }
             ProfileRuntime.InitializeProfile(ActivatedSelection(selection));
             if (selection is not null) { selectedProfile = new(ProfileRuntime.ProfileGeneration.Number, selection); }
         }
@@ -47,7 +47,7 @@ public sealed partial class HandsFreeVoiceRecognitionService
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
-            if (profileSwitchActive || quarantinedProfileAssets is not null) { throw new InvalidOperationException("A speech-input switch or unconfirmed resource release owns the runtime."); }
+            if (comparisonActive || profileSwitchActive || quarantinedProfileAssets is not null) { throw new InvalidOperationException("A speech-input comparison, switch or unconfirmed resource release owns the runtime."); }
             profileSwitchActive = true;
         }
         try

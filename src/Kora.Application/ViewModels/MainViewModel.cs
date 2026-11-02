@@ -284,6 +284,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         ConversationalReplyConfigurationService? conversationalReplies = null,
         CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
         OrdinaryTurnDeadlineConfigurationService? ordinaryDeadlineConfiguration = null,
+        SpeechSetupComparison? speechSetupComparison = null,
         ConversationExecutionConfigurationService? conversationExecution = null,
         LogonStartupConfigurationService? logonStartupConfiguration = null,
         StartupPresentationConfigurationService? startupPresentationConfiguration = null)
@@ -444,6 +445,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     () => HandleCommandException(exception)), canExecute);
 
         InitializeSpeechInputConfiguration(speechInputConfiguration, execute => CreateCommand(execute));
+        InitializeSpeechComparison(speechSetupComparison, execute => CreateCommand(execute));
         InitializeConversationalReplies(conversationalReplies, execute => CreateCommand(execute));
         InitializeConversationExecution(conversationExecution, execute => CreateCommand(execute));
         InitializeLogonStartup(logonStartupConfiguration, execute => CreateCommand(execute));
@@ -4357,6 +4359,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 manualInput ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision));
             return;
         }
+        if (SpeechComparisonCommand.Parse(spokenText, AssistantName) is { } comparisonDecision
+            && !string.Equals(comparisonDecision.Operation, "compare speech input", StringComparison.Ordinal))
+        {
+            await ExecuteSpeechComparison(comparisonDecision, initiator);
+            return;
+        }
         Interlocked.Increment(ref workspaceSurfaceInputRevision);
         Interlocked.Increment(ref evidenceTraceInputRevision);
         var sessionCommand = addressedWorkCommand;
@@ -4579,6 +4587,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (WindowsSpeechRateCommand.Parse(spokenText, AssistantName) is { } rateCommand)
         {
             await ExecuteWindowsSpeechRateCommandAsync(rateCommand, initiator);
+            return;
+        }
+        if (SpeechComparisonCommand.Parse(spokenText, AssistantName) is { } speechComparisonCommand)
+        {
+            await ExecuteSpeechComparison(speechComparisonCommand, initiator);
             return;
         }
         if (SpeechInputCommand.Parse(spokenText, AssistantName) is { } speechInputCommand)
@@ -6702,6 +6715,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(WindowsSpeechRateCommand.FixedPhrases)
             .Concat(SpeechInputCommand.FixedPhrases)
+            .Concat(SpeechComparisonCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
             .Concat(OrdinaryTurnDeadlineCommand.FixedPhrases)
             .Concat(AuditRetentionCommand.FixedPhrases)

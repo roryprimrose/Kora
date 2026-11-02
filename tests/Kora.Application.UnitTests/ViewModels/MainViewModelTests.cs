@@ -4683,6 +4683,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(WindowsSpeechRateCommand.FixedPhrases)
             .Concat(SpeechInputCommand.FixedPhrases)
+            .Concat(SpeechComparisonCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
             .Concat(OrdinaryTurnDeadlineCommand.FixedPhrases)
             .Concat(AuditRetentionCommand.FixedPhrases)
@@ -8726,6 +8727,7 @@ public sealed partial class MainViewModelTests : IDisposable
             Kora.Application.Communication.CommunicationActivityCallStateService? communicationActivity = null,
             CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
             OrdinaryTurnDeadlineConfigurationService? ordinaryDeadlineConfiguration = null,
+            Kora.Application.Voice.SpeechSetupComparison? speechSetupComparison = null,
             bool enableConversationExecution = false,
             LogonStartupConfigurationService? logonStartupConfiguration = null,
             StartupPresentationConfigurationService? startupPresentationConfiguration = null)
@@ -8929,6 +8931,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 conversationalReplies: ConversationalConfiguration,
                 communicationActivityConfiguration: communicationActivityConfiguration,
                 ordinaryDeadlineConfiguration: ordinaryDeadlineConfiguration,
+                speechSetupComparison: speechSetupComparison,
                 conversationExecution: ConversationExecutionConfiguration,
                 logonStartupConfiguration: logonStartupConfiguration,
                 startupPresentationConfiguration: startupPresentationConfiguration);

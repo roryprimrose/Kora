@@ -8,6 +8,7 @@ using Kora.Application.Dependencies;
 using Kora.Application.Hosting;
 using Kora.Application.Mcp;
 using Kora.Application.Skills;
+using Kora.Application.UnitTests.Configuration;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Mcp;
@@ -83,7 +84,10 @@ public sealed partial class SessionsConversationTests
                 NullLogger<SharedSkillDiscoveryService>.Instance);
             await discovery.LoadSourcesAsync(static () => true, native.Token);
             await discovery.RegisterAsync("selected test root", static () => true, native.Token);
-            await using var use = new SharedSkillUseAdmission(native.Interactions, native.Interactions, new(native.Tasks));
+            var useStore = followUp is "native" ? null : new AudioControlTestStore();
+            await using var use = useStore is null
+                ? new SharedSkillUseAdmission(native.Interactions, native.Interactions, new(native.Tasks))
+                : new SharedSkillUseAdmission(useStore, useStore, new(useStore));
             var ordinary = new SharedSkillInvocationWorkflow(discovery, use, composed.Access, f.Store, composed.Workspace,
                 composed.Conversation, composed.Audit, f.Time);
             var tools = new ReviewedToolSkillInvocationWorkflow(discovery, use, composed.Access, f.Store, composed.Conversation, composed.Audit, f.Time);
@@ -391,6 +395,15 @@ public sealed partial class SessionsConversationTests
             finally { opened.Close(); }
             opened.McpResult.Text.Should().BeEmpty();
             opened.McpArguments.Text.Should().BeEmpty();
+            if (useStore is not null)
+            {
+                useStore.Tasks.Should().NotBeEmpty();
+                foreach (var records in useStore.Tasks.GroupBy(record => record.Request))
+                {
+                    records.Select(record => record.State).Should().Equal(HostTaskState.IntentRecorded, HostTaskState.Succeeded);
+                    records.Select(record => record.Revision.Value).Should().Equal(1, 2);
+                }
+            }
         });
     }
 

@@ -35,7 +35,7 @@ public sealed partial class WindowsVoiceRecognitionService
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
-            if (profileSwitchActive) { throw new InvalidOperationException("A speech-input profile switch is already active."); }
+            if (profileSwitchActive || comparisonActive) { throw new InvalidOperationException("A speech-input profile switch or comparison already owns input."); }
             profileSwitchActive = true;
         }
         try

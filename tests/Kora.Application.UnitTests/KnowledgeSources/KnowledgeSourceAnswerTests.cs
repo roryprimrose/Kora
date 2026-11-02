@@ -10,6 +10,7 @@ using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.KnowledgeSources;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Application.UnitTests.KnowledgeSources;
@@ -382,6 +383,53 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData("review")]
+    [InlineData("local")]
+    public async Task UnavailableSourceDiagnosticsContainOnlyFailureTypeWithoutPrivateContentOrModelDispatch(string operation)
+    {
+        using var root = Root();
+        var logger = new RecordingLogger();
+        using var f = new Fixture(logger: logger);
+        LocalFileAnswerOutcome outcome;
+        if (operation is "review")
+        {
+            f.FailureStage = "inspect";
+            var prepared = await f.Prepare();
+            prepared.Review.Should().BeNull();
+            outcome = prepared.Outcome;
+        }
+        else
+        {
+            var review = (await f.Prepare()).Review!;
+            f.FailureStage = "policy";
+            var result = await f.Workflow.AnswerAsync(review, () => true, Token);
+            result.Claims.Should().BeEmpty();
+            outcome = result.Outcome;
+        }
+
+        outcome.Should().Be(LocalFileAnswerOutcome.Unavailable);
+        logger.Level.Should().Be(LogLevel.Warning);
+        logger.EventId.Id.Should().Be(1);
+        logger.Exception.Should().BeNull();
+        logger.Entries.Should().ContainSingle().Which.ToDictionary(item => item.Key, item => item.Value, StringComparer.Ordinal)
+            .Should().BeEquivalentTo(new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["FailureType"] = nameof(IOException),
+                ["{OriginalFormat}"] = "Named source answer unavailable. Failure type: {FailureType}",
+            });
+        f.ModelCalls.Should().Be(0);
+        f.Admissions.Should().Be(0);
+        f.Context.Should().BeNull();
+        f.OriginalReads.Should().Be(0);
+        f.DisposedSelections.Should().Be(0);
+        await f.Manager.RevokeAnswerUsesAsync();
+        f.DisposedSelections.Should().Be(operation is "review" ? 0 : 1);
+        f.Events.Where(item => string.Equals(item.ActionId, "knowledge.answer." + operation, StringComparison.Ordinal))
+            .Select(item => item.Outcome)
+            .Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Failed);
+    }
+
     [Fact]
     public async Task NonEvidenceFilesAreNotDisclosedAndCancellationBeforePolicyCannotDispatch()
     {
@@ -425,6 +473,24 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
         var result = await f.Workflow.AnswerAsync((await f.Prepare()).Review!, () => true, Token);
         result.Outcome.Should().Be(LocalFileAnswerOutcome.Unavailable);
         f.ModelCalls.Should().Be(0);
+    }
+
+    private sealed class RecordingLogger : ILogger<KnowledgeSourceAnswerWorkflow>
+    {
+        internal List<IReadOnlyList<KeyValuePair<string, object?>>> Entries { get; } = [];
+        internal LogLevel Level { get; private set; }
+        internal EventId EventId { get; private set; }
+        internal Exception? Exception { get; private set; }
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            Level = logLevel;
+            EventId = eventId;
+            Exception = exception;
+            Entries.Add(((IEnumerable<KeyValuePair<string, object?>>)state!).ToArray());
+        }
     }
 
     private sealed class Clock : TimeProvider
@@ -472,7 +538,7 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
         internal ModelContextEnvelope? Context;
 
         internal Fixture(string secondText = "alpha second retained evidence", int fileCount = 2, string? textOverride = null,
-            bool correlated = false)
+            bool correlated = false, ILogger<KnowledgeSourceAnswerWorkflow>? logger = null)
         {
             const string root = @"C:\SyntheticNamedSource";
             string[] texts = textOverride is null ? ["alpha first retained evidence", secondText]
@@ -490,7 +556,7 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
                 new(historical.ReviewId, historical.SourceId, historical.Request, file, historical.Cause), Encoding.UTF8.GetBytes(texts[index]), Clock.Now)));
             Manager = new(this, this, this, Clock);
             Workflow = new(Manager, new LocalFileLexicalRetrieval(), this, this, this, Clock,
-                NullLogger<KnowledgeSourceAnswerWorkflow>.Instance);
+                logger ?? NullLogger<KnowledgeSourceAnswerWorkflow>.Instance);
         }
 
         internal Task<KnowledgeSourceAnswerPreparation> Prepare() =>

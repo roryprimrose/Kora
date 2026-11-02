@@ -333,6 +333,14 @@ are saved disabled; activation requires a separate current revision review.
 Errors and external conflicts retain the draft and offer explicit recovery.
 Do not claim unsupported reader/runtime compatibility after a successful write.
 
+The [native owned-agent editor](../src/Kora/AgentProfileEditorController.cs) supports explicit **Edit existing original**
+after inspecting a canonical `OwnedAgents-v1` v1/v4 original. It pins the source directory/ancestor binding,
+file identity and complete base; manual edits remain volatile. Complete old/new source review and separate native
+confirmation update only that same destination through the [authoritative store](../src/Kora.Windows/ArtifactDiscovery/WindowsOwnedAgentProfileStore.cs).
+Exact readback completes Save; changed bytes remain inert with no reference resolution, activation or new invocation authority.
+Detected conflicts offer Reload, separately reviewed Overwrite, or Cancel/keep draft. Missing originals cannot be recreated
+through Update. Conversational generation remains create-only; generic Customizations editing is unchanged.
+
 The same operations are addressed by exact original typed input or current-name
 activated voice: "Show skills", "Show me XYZ instruction", "Edit XYZ skill" and
 "Add a skill". Ambiguous names open the filtered source-qualified choices.
@@ -708,7 +716,7 @@ Reject traversal, reparse/hard-link/alias escapes, replaced directories,
 protected roots, unexpected package members, and conflicting external writes.
 Retain the existing local-only/network-backed storage restrictions.
 
-For the bounded owned single-file instruction/prompt writer and selected compatible profile-original instruction writer, the user has explicitly
+For the bounded owned single-file instruction/prompt/native-agent writer and selected compatible profile-original instruction writer, the user has explicitly
 chosen **optimistic content conflict detection**, not content compare-and-swap.
 Immediately before atomic replacement, compare the live original identity and
 exact digest with the reviewed base. A detected changed, missing or replaced

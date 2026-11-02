@@ -1,64 +1,42 @@
 name: Merge queue controller
+run-name: Reviewed bootstrap retirement of PR 690
 
+# Recovery-only branch. Never merge this workflow into main.
 on:
-  pull_request_target:
-    branches: [main]
-    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, closed, edited, labeled, unlabeled, auto_merge_enabled, auto_merge_disabled]
-  push:
-    branches: [main]
-  workflow_run:
-    workflows: [CI]
-    types: [requested, completed]
-  schedule:
-    - cron: '*/5 * * * *'
   workflow_dispatch:
     inputs:
-      operation:
-        description: Controller operation; recovery requires separate administrator authorization
-        type: choice
-        options: [reconcile, recover-unobservable-dispatch, migrate-batch-v1, rollback-batch-v1, repair-batch, resume-batch]
-        default: reconcile
-      recovery_checkpoint:
-        description: Exact automation/merge-queue-state commit reviewed for recovery
-        type: string
-      recovery_ticket:
-        description: Exact retiring ticket with no observable workflow run
-        type: string
-      recovery_main:
-        description: Explicit actual main SHA for a separately reviewed repair preserving unrelated advances
-        type: string
-      acknowledge_uncertain_dispatch:
-        description: I am authorized to recover this reviewed uncertain dispatch; absence of a run is not proof of quiescence
+      acknowledge:
+        description: Separately authorized exact-ticket bootstrap with unchanged protected branches
         type: boolean
+        required: true
         default: false
-      acknowledge_batch_change:
-        description: Separately authorized reviewed batch rollout, rollback or repair; never activates settings
-        type: boolean
-        default: false
+      lock_ruleset:
+        description: Verified active no-bypass lock for this immutable bootstrap branch
+        type: string
+        required: true
 
 permissions:
   contents: read
 
-# Events are wakeups, not queue entries. Each short run reconciles durable GitHub state.
 concurrency:
   group: merge-queue-controller
   cancel-in-progress: false
-  queue: ${{ vars.KORA_MERGE_QUEUE_PROFILE == 'batch-v1' && 'max' || 'single' }}
+  queue: max
 
 jobs:
-  reconcile:
-    if: vars.KORA_MERGE_QUEUE_MODE == 'enabled'
+  bootstrap:
+    if: vars.KORA_MERGE_QUEUE_MODE == 'enabled' && inputs.acknowledge == true
     runs-on: ubuntu-latest
     timeout-minutes: 5
     environment: merge-queue
     steps:
-      - name: Check out trusted controller only
+      - name: Check out approved immutable recovery source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: refs/heads/main
+          ref: ${{ github.sha }}
           persist-credentials: false
 
-      - name: Create repository-scoped queue identity
+      - name: Create bounded repository queue identity
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
         id: app
         with:
@@ -66,38 +44,26 @@ jobs:
           private-key: ${{ secrets.KORA_MERGE_QUEUE_PRIVATE_KEY }}
           permission-actions: write
           permission-administration: read
-          permission-checks: write
+          permission-checks: read
           permission-contents: write
-          permission-pull-requests: write
 
-      - name: Reconcile selected candidate
+      - name: Retire only the reviewed terminal admission rejection
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           QUEUE_APP_ID: ${{ vars.KORA_MERGE_QUEUE_APP_ID }}
-          QUEUE_PROFILE: ${{ vars.KORA_MERGE_QUEUE_PROFILE }}
           QUEUE_INPUTS: ${{ toJSON(inputs) }}
           QUEUE_RUN_ATTEMPT: ${{ github.run_attempt }}
         with:
           github-token: ${{ steps.app.outputs.token }}
           script: |
             const { GitHubQueue } = require('./eng/merge-queue/github.cjs');
-            const { reconcile } = require('./eng/merge-queue/controller.cjs');
-            const { controllerOperation } = require('./eng/merge-queue/policy.cjs');
+            const { bootstrap } = require('./eng/merge-queue/bootstrap-retirement.cjs');
             const api = new GitHubQueue(github, context, core, process.env.QUEUE_APP_ID);
             let result = 'failed';
             try {
-              const inputs = JSON.parse(process.env.QUEUE_INPUTS ?? '{}');
-              const operation = controllerOperation(inputs);
-              if (operation === 'recover-unobservable-dispatch') {
-                const { recover } = require('./eng/merge-queue/recovery.cjs');
-                result = await recover(api, { context, inputs, attempt: Number(process.env.QUEUE_RUN_ATTEMPT) });
-              } else if (operation !== 'reconcile') {
-                const { changeBatchState } = require('./eng/merge-queue/recovery.cjs');
-                result = await changeBatchState(api, { context, inputs, attempt: Number(process.env.QUEUE_RUN_ATTEMPT) });
-              } else {
-                result = await reconcile(api, { profile: process.env.QUEUE_PROFILE });
-              }
-              core.notice(`Merge queue: ${result}.`);
+              result = await bootstrap(api, { context, inputs: JSON.parse(process.env.QUEUE_INPUTS),
+                attempt: Number(process.env.QUEUE_RUN_ATTEMPT) });
+              core.notice(`Reviewed bootstrap: ${result}.`);
             } finally {
               await api.summarize(result);
             }

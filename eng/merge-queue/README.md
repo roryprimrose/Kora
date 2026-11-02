@@ -513,6 +513,9 @@ queue state. An existing held lane can therefore block adoption of its own
 repair; that requires a separately reviewed operator decision, not a bypass or
 an automatic state rewrite.
 
+This recovery-only branch contains an explicitly authorized [one-time bootstrap](bootstrap-retirement.cjs), not a controller rollout. Its manual workflow requires an immutable no-bypass branch lock and temporary environment allowance, verifies the exact reviewed checkpoint and terminal run twice, preserves failed checks and blocked revisions, and wakes only ordinary reconciliation.
+Revoke that allowance before unlocking the branch. Never merge this branch's recovery-only workflow into main ([tests](bootstrap-retirement.test.cjs), [workflow](../../.github/workflows/merge-queue.yml)).
+
 One reconciliation quarantines up to ten newly selected conflicting revisions
 in priority/PR-number order and continues looking for a runnable candidate,
 rather than stopping at the first conflict. Previously blocked head/enrollment pairs do not

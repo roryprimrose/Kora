@@ -42,14 +42,16 @@ public sealed class SettingInspectionWorkflowTests
         f.Playback.Effects.Should().Be(0);
     }
 
-    [Fact]
-    public async Task OriginalVoiceRemainsVoiceClassifiedAndUnsupportedIsGenuine()
+    [Theory]
+    [InlineData(ModelToolMode.None)]
+    [InlineData(ModelToolMode.SettingsDiscovery)]
+    public async Task OriginalVoiceRemainsVoiceClassifiedAndUnsupportedIsGenuine(ModelToolMode mode)
     {
         await using var f = new SettingInspectionFixture { Body = SettingInspectionReview.Unsupported };
         f.Observe();
         using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice),
             HostActivityLayer.Application, HostOperation.Request);
-        var review = await f.Workflow.ReviewAsync("Can these settings answer this?", () => true, f.Token);
+        var review = await f.Workflow.ReviewAsync("Can these settings answer this?", () => true, f.Token, mode);
         var result = await f.Workflow.AnswerAsync(review, () => true, f.Token);
         result.Outcome.Should().Be(SettingInspectionOutcome.Unsupported);
         result.Receipt!.Message.Request.Origin.Should().Be(RequestOrigin.ActivatedVoice);

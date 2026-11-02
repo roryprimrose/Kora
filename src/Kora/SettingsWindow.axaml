@@ -1251,6 +1251,7 @@
             </Border>
 
             <Border Classes="settings-card">
+              <StackPanel Spacing="6">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Voice activation during calls" Classes="settings-title" />
@@ -1266,6 +1267,21 @@
                     IsEnabled="{Binding CanDisableCallVoiceActivation}"
                     VerticalAlignment="Center" />
               </Grid>
+              <controls:NamedTextBlock Text="{Binding CallVoiceActivationReviewStatus}" TextWrapping="Wrap"
+                  Classes="settings-description" AutomationProperties.LiveSetting="Polite"
+                  AutomationProperties.Name="Call-time activation exact review saved and effective status" />
+              <WrapPanel ItemSpacing="8" LineSpacing="6">
+                <Button Name="ReviewCallVoiceActivation" Content="Review enabling activation"
+                    Command="{Binding ReviewCallVoiceActivationCommand}" TabIndex="40"
+                    AutomationProperties.Name="Review enabling device-local voice activation during calls" />
+                <Button Name="ConfirmCallVoiceActivation" Content="Confirm reviewed activation"
+                    Command="{Binding ConfirmCallVoiceActivationCommand}" TabIndex="41"
+                    AutomationProperties.Name="Confirm the exact reviewed call-time activation preference only" />
+                <Button Name="CancelCallVoiceActivation" Content="Cancel activation review"
+                    Command="{Binding CancelCallVoiceActivationCommand}" TabIndex="42"
+                    AutomationProperties.Name="Cancel call-time activation review without saving" />
+              </WrapPanel>
+              </StackPanel>
             </Border>
             <Border Classes="settings-card">
               <StackPanel Spacing="6">

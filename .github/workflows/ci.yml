@@ -1,6 +1,6 @@
 name: CI
 # merge-queue-job-schema: windows-12-v1
-run-name: "${{ inputs.queue_ticket && format('Merge queue PR #{0} [{1}]', inputs.queue_pr, inputs.queue_ticket) || format('CI {0}', github.ref_name) }}"
+run-name: "${{ inputs.queue_batch && format('Merge queue batch [{0}]', inputs.queue_ticket) || inputs.queue_ticket && format('Merge queue PR #{0} [{1}]', inputs.queue_pr, inputs.queue_ticket) || format('CI {0}', github.ref_name) }}"
 
 on:
   push:
@@ -32,17 +32,21 @@ on:
       queue_ticket:
         description: Controller-owned admission ticket
         type: string
+      queue_batch:
+        description: Controller-owned immutable batch manifest digest; never supply manually
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ inputs.queue_ticket && 'merge-queue-candidate' || github.event.pull_request.head.ref || github.ref_name }}${{ (inputs.compare_portable_tests || inputs.compare_native_evidence) && '-test-comparison' || '' }}
-  cancel-in-progress: ${{ !inputs.queue_ticket }}
+  group: ci-${{ inputs.queue_ticket && 'merge-queue-candidate' || vars.KORA_MERGE_QUEUE_PROFILE == 'batch-v1' && github.ref == 'refs/heads/main' && github.sha || github.event.pull_request.head.ref || github.ref_name }}${{ (inputs.compare_portable_tests || inputs.compare_native_evidence) && '-test-comparison' || '' }}
+  cancel-in-progress: ${{ !inputs.queue_ticket && vars.KORA_MERGE_QUEUE_PROFILE != 'batch-v1' }}
 
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_NOLOGO: true
+  KORA_MERGE_QUEUE_PROFILE: ${{ vars.KORA_MERGE_QUEUE_PROFILE }}
 
 jobs:
   admission:
@@ -68,12 +72,16 @@ jobs:
           QUEUE_MODE: ${{ vars.KORA_MERGE_QUEUE_MODE }}
           QUEUE_INPUTS: ${{ toJSON(inputs) }}
           QUEUE_APP_ID: ${{ vars.KORA_MERGE_QUEUE_APP_ID }}
+          QUEUE_PROFILE: ${{ vars.KORA_MERGE_QUEUE_PROFILE }}
         with:
           script: |
             const mode = process.env.QUEUE_MODE;
             if (!['', 'disabled', 'enabled'].includes(mode)) throw new Error('Unknown merge queue mode.');
+            const queueProfile = process.env.QUEUE_PROFILE ?? '';
+            if (!['', 'singleton-v1', 'batch-v1'].includes(queueProfile)) throw new Error('Unknown merge queue profile.');
+            if (queueProfile === 'batch-v1' && mode !== 'enabled') throw new Error('Batch profile requires enabled queue.');
             const inputs = JSON.parse(process.env.QUEUE_INPUTS);
-            const candidate = ['queue_pr', 'queue_head', 'queue_base', 'queue_ticket'].some(key => inputs[key]);
+            const candidate = ['queue_pr', 'queue_head', 'queue_base', 'queue_ticket', 'queue_batch'].some(key => inputs[key]);
             let source = context.sha;
             let full = true;
             if (mode === 'enabled') {
@@ -82,7 +90,10 @@ jobs:
                 ref: context.ref, sha: context.sha, inputs }).full;
               if (candidate) {
                 const { admit } = require('./eng/merge-queue/github.cjs');
-                source = await admit({ github, context, inputs: { ...inputs, app_id: process.env.QUEUE_APP_ID } });
+                source = await admit({ github, context, inputs: { ...inputs, app_id: process.env.QUEUE_APP_ID, profile: queueProfile } });
+              } else if (queueProfile === 'batch-v1' && context.eventName !== 'pull_request') {
+                const { admitBatchTip } = require('./eng/merge-queue/github.cjs');
+                full = full && await admitBatchTip({ github, context, appId: process.env.QUEUE_APP_ID });
               }
             } else if (candidate) {
               throw new Error('Candidate dispatch requires the enabled queue.');
@@ -102,7 +113,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       product-version: ${{ steps.version.outputs.product-version }}
       publish: ${{ needs.admission.outputs.candidate != 'true' && steps.version.outputs.publish || 'false' }}
-      already-published: ${{ steps.publication.outputs.already-published }}
+      already-published: ${{ vars.KORA_MERGE_QUEUE_PROFILE == 'batch-v1' && 'false' || steps.publication.outputs.already-published }}
       source-revision: ${{ needs.admission.outputs.source }}
     steps:
       - name: Check out complete version history
@@ -767,7 +778,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [version, portable, windows-integration, installer]
-    if: needs.version.outputs.publish == 'true' && needs.version.outputs.already-published != 'true' && inputs.queue_ticket == ''
+    if: needs.version.outputs.publish == 'true' && needs.version.outputs.already-published != 'true' && inputs.queue_ticket == '' && vars.KORA_MERGE_QUEUE_PROFILE != 'batch-v1'
     permissions:
       contents: write
     concurrency:
@@ -812,3 +823,81 @@ jobs:
           -Version "$env:BUILD_VERSION"
           -SourceRevision "$env:GITHUB_SHA"
           -ArtifactPath artifacts/release
+
+  release-batch:
+    name: Publish completed batch release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [version, portable, windows-integration, installer]
+    if: needs.version.outputs.publish == 'true' && needs.version.outputs.already-published != 'true' && inputs.queue_ticket == '' && vars.KORA_MERGE_QUEUE_PROFILE == 'batch-v1'
+    permissions:
+      contents: write
+      actions: read
+    concurrency:
+      group: merge-queue-controller
+      cancel-in-progress: false
+      queue: max
+    steps:
+      - name: Check out actual completed main source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download x64 application
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: Kora-win-x64
+          path: artifacts/release/Kora-win-x64
+
+      - name: Download x86 application candidate
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: Kora-win-x86
+          path: artifacts/release/Kora-win-x86
+
+      - name: Download inspected installer
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: Kora-Setup-${{ needs.version.outputs.version }}-win-x64
+          path: artifacts/release/installer
+
+      - name: Download statically verified source tools
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: Kora-source-tools
+          path: artifacts/release/source-tools
+
+      - name: Verify and publish actual completed-tip bytes under the mutation lock
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_VERSION: ${{ needs.version.outputs.version }}
+        run: >
+          ./eng/Publish-GitHubRelease.ps1
+          -Action Publish
+          -Version "$env:BUILD_VERSION"
+          -SourceRevision "$env:GITHUB_SHA"
+          -ArtifactPath artifacts/release
+
+  batch-tip-qualified:
+    name: Qualify completed batch tip
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [admission, version, portable, windows-integration, installer, release, release-batch]
+    if: always() && vars.KORA_MERGE_QUEUE_PROFILE == 'batch-v1' && inputs.queue_ticket == '' && needs.admission.outputs.full == 'true'
+    steps:
+      - name: Require actual-source validation and terminal publication
+        env:
+          ADMISSION: ${{ needs.admission.result }}
+          VERSION: ${{ needs.version.result }}
+          PORTABLE: ${{ needs.portable.result }}
+          WINDOWS: ${{ needs.windows-integration.result }}
+          INSTALLER: ${{ needs.installer.result }}
+          RELEASE: ${{ needs.release-batch.result }}
+        run: |
+          test "$ADMISSION" = success
+          test "$VERSION" = success
+          test "$PORTABLE" = success
+          test "$WINDOWS" = success
+          test "$INSTALLER" = success
+          test "$RELEASE" = success

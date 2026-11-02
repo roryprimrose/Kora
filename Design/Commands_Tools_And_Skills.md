@@ -28,8 +28,12 @@ narratives here.
 
 ## Delivered Artifact Invocation
 
+For explicitly selected reviewed owned v3 guidance, missing required literal values are collected through [source-bound private questions](../src/Kora.Application/Skills/OwnedSkillInvocationWorkflow.InputQuestions.cs) before the existing complete invocation preview.
+Original-channel replies are data only; source selection, target selection, enablement and final native confirmation remain separate.
+Both direct ID/version and readable-name consumers use the same canonical binding/expansion and local execution path ([complete user operation](../docs/owned-skill-authoring.md#required-literal-guidance-inputs)). No tool parameters, parser aliases, provider fallback or new runtime are introduced.
+
 The separate [native owned observation workflow](../docs/owned-skill-authoring.md#author-and-run-an-ordered-host-observation-workflow) declares and executes one to six explicit original read-only catalogue actions in order.
-It saves disabled, separately reviews/enables the exact source/request/Active target, independently approves each action and shows a complete source-labelled native result or joined failure/cancellation. It does not expose a seventh tool or a model runner ([host owner](../src/Kora.Application/Skills/ObservationSkillWorkflow.cs)).
+Its native v4 declaration does not accept v3 literal input questions or template expansion. It saves disabled, separately reviews/enables the exact source/request/Active target, independently approves each action and shows a complete source-labelled native result or joined failure/cancellation. It does not expose a seventh tool or a model runner ([host owner](../src/Kora.Application/Skills/ObservationSkillWorkflow.cs)).
 
 The bounded [owned-package operation](../docs/owned-skill-authoring.md#author-and-use-one-host-webpageget-skill) is explicitly selected by exact saved ID/version, not automatically registered as an artifact. Native v2 declares only host WebPageGet; save stays disabled, source review/enablement and exact target/request/URL confirmation precede independent per-action approval. The [common reviewed consumer](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs) binds source-specific storage admission without changing instruction-only purposes or shared-root read consent.
 

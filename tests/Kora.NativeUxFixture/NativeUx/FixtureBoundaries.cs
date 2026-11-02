@@ -20,10 +20,18 @@ internal static class FixtureBoundaries
         public bool CanControl => Open;
         public bool IsCurrentHost => Open;
         public long ControlRevision { get; private set; }
-        public WindowsPrivacySnapshot Current => new(Open ? WindowsSessionState.Unlocked : WindowsSessionState.Unknown,
-            syntheticVoice ? MicrophoneAccessState.Allowed : MicrophoneAccessState.Denied, ControlRevision,
-            syntheticVoice ? [FixtureVoice.SyntheticMicrophone.Id] : [],
-            syntheticVoice ? FixtureVoice.SyntheticMicrophone.Id : null, null);
+        internal Action? BeforePrivacyObservation { get; set; }
+        public WindowsPrivacySnapshot Current
+        {
+            get
+            {
+                BeforePrivacyObservation?.Invoke();
+                return new(Open ? WindowsSessionState.Unlocked : WindowsSessionState.Unknown,
+                    syntheticVoice ? MicrophoneAccessState.Allowed : MicrophoneAccessState.Denied, ControlRevision,
+                    syntheticVoice ? [FixtureVoice.SyntheticMicrophone.Id] : [],
+                    syntheticVoice ? FixtureVoice.SyntheticMicrophone.Id : null, null);
+            }
+        }
         public event EventHandler<WindowsPrivacyChangedEventArgs>? Changed;
         public WindowsPrivacySnapshot Refresh() => Current;
         public bool IsCurrentSessionUnlocked() => Open;

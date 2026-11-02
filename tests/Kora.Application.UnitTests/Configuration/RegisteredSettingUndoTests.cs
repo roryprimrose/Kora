@@ -139,6 +139,10 @@ public sealed class RegisteredSettingUndoTests
     [InlineData(RegisteredSetting.Theme, "success")]
     [InlineData(RegisteredSetting.Theme, "write")]
     [InlineData(RegisteredSetting.Theme, "readback")]
+    [InlineData(RegisteredSetting.ResponseTimeout, "requested")]
+    [InlineData(RegisteredSetting.ResponseTimeout, "success")]
+    [InlineData(RegisteredSetting.ResponseTimeout, "write")]
+    [InlineData(RegisteredSetting.ResponseTimeout, "readback")]
     [InlineData(RegisteredSetting.ReaderTextScale, "success")]
     [InlineData(RegisteredSetting.SummaryWords, "success")]
     [InlineData(RegisteredSetting.SummaryWords, "write")]
@@ -214,6 +218,7 @@ public sealed class RegisteredSettingUndoTests
     [InlineData(RegisteredSetting.SummaryWords)]
     [InlineData(RegisteredSetting.PlaybackVolume)]
     [InlineData(RegisteredSetting.ResponseMode)]
+    [InlineData(RegisteredSetting.ResponseTimeout)]
     public async Task ProtectedCallRejectsOriginalVoiceUndoButAllowsNewNativeReview(RegisteredSetting setting)
     {
         await using var f = new Fixture();
@@ -240,6 +245,26 @@ public sealed class RegisteredSettingUndoTests
         using var request = Fixture.Input(initiator == SecurityAuditInitiator.VoiceCommand ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
         FluentActions.Invoking(() => f.Undo.ReviewLast(initiator, () => f.Eligible)).Should().Throw<InvalidOperationException>();
         f.Undo.CanConfirm.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(SecurityAuditInitiator.TypedCommand)]
+    [InlineData(SecurityAuditInitiator.VoiceCommand)]
+    public async Task ResponseTimeoutUndoSupportsExactOriginalChannelAndRetainsLegacyPreference(SecurityAuditInitiator initiator)
+    {
+        await using var f = new Fixture();
+        f.Store.Text["presence-timeout-seconds.txt"] = "12";
+        await f.Set(RegisteredSetting.ResponseTimeout, true);
+        var before = f.Audit.Events.Count;
+        using (Fixture.Input(initiator == SecurityAuditInitiator.VoiceCommand ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi))
+        { f.Undo.ReviewLast(initiator, () => f.Eligible); }
+        f.Undo.Description.Should().Contain("current 60 (saved); restore 12 (saved)");
+        (await f.Confirm(initiator)).Should().BeTrue();
+        f.AppearancePreferences.LoadResponseTimeoutSeconds().Should().Be(12);
+        f.Store.Text["presence-timeout-seconds.txt"].Should().Be("12");
+        f.Audit.Events.Skip(before).Select(item => item.Outcome).Should()
+            .Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+        f.Undo.CanReview.Should().BeFalse();
     }
 
     [Theory]
@@ -445,7 +470,6 @@ public sealed class RegisteredSettingUndoTests
 
     [Theory]
     [InlineData(AppearanceOption.NativePresenceRenderer)]
-    [InlineData(AppearanceOption.ResponseTimeout)]
     [InlineData((AppearanceOption)(-1))]
     public async Task ResetCannotBroadenTheRegisteredPreferenceSubset(AppearanceOption option)
     {
@@ -602,7 +626,7 @@ public sealed class RegisteredSettingUndoTests
         {
             using var request = Input();
             var descriptor = RegisteredSettingRegistry.Get(setting);
-            if (descriptor.RequiresNativeReview)
+            if (descriptor.Id.StartsWith("appearance.", StringComparison.Ordinal))
             {
                 var option = AppearanceOptionRegistry.Options.Single(item => string.Equals(item.Id, descriptor.Id, StringComparison.Ordinal));
                 var value = !alternative ? option.Default : option.Default switch

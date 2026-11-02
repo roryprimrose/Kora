@@ -8,6 +8,7 @@ namespace Kora.Application.ViewModels;
 public sealed partial class MainViewModel
 {
     private ForegroundConversationTarget? foregroundConversationTarget;
+    private long foregroundConversationRevision;
     private SessionRequestReview? foregroundRequestReview;
     public event Action<ConversationSubmissionReceipt>? ForegroundRequestSubmitted;
     public bool HasForegroundRequestReview => foregroundRequestReview is not null;
@@ -26,6 +27,7 @@ public sealed partial class MainViewModel
     {
         var previous = Interlocked.Exchange(ref foregroundConversationTarget, target);
         if (ReferenceEquals(previous, target)) { return; }
+        Interlocked.Increment(ref foregroundConversationRevision);
         previous?.Retire();
         reviewedVoiceCommand?.Revalidate();
         completionNotices?.Revalidate();

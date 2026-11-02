@@ -1,3 +1,3 @@
 namespace Kora.Core.Agents;
 
-public enum AgentProfileWriteState { Cancelled, Conflict, Saved }
+public enum AgentProfileWriteState { Cancelled, Conflict, Saved, Unchanged }

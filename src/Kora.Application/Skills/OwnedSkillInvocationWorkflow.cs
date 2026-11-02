@@ -14,7 +14,7 @@ using Kora.Core.Storage;
 namespace Kora.Application.Skills;
 
 /// <summary>Exact owned-package review and one separately confirmed local, tool-free conversation request.</summary>
-public sealed class OwnedSkillInvocationWorkflow(
+public sealed partial class OwnedSkillInvocationWorkflow(
     IOwnedDeclarativeSkillStore store, OwnedSkillControlAdmission admission, ISessionWorkspaceAccess access,
     ISessionWorkspaceStore sessions, SessionWorkspaceService workspace, SessionConversationService conversation,
     ISecurityAuditLog audit, TimeProvider time, IArtifactUsePolicy? usePolicy = null)
@@ -41,7 +41,7 @@ public sealed class OwnedSkillInvocationWorkflow(
         }, token).ConfigureAwait(false);
         Require(Current, token);
         using var activity = HostActivity.BeginOperation(HostActivityLayer.Application, HostOperation.Policy, authority.Origin);
-        var review = new OwnedSkillUseReview(this, snapshot, Current, time, new(activity.Activity!.Context));
+        var review = new OwnedSkillUseReview(this, snapshot, Current, time, new(activity.Activity!.Context), authority);
         activity.Complete(HostOperationOutcome.Completed);
         return review;
     }
@@ -131,7 +131,9 @@ public sealed class OwnedSkillInvocationWorkflow(
             string? guidanceEvidence = null;
             if (document.InputTemplate is { } template)
             {
+                foreach (var value in values.Values) { OwnedSkillInputQuestions.RequireValue(value); }
                 var expanded = template.Expand(values, token);
+                ConversationText.RequireNoCredentials(expanded);
                 guidanceEvidence = JsonSerializer.Serialize(new { RequiredLiteralInputs = values, ExpandedGuidance = expanded });
             }
             else if (!values.IsEmpty)

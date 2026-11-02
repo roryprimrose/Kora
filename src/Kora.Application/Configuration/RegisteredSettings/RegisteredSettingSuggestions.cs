@@ -17,12 +17,14 @@ public static class RegisteredSettingSuggestions
             + item.SuggestedValues
             + (item.RequiresNativeReview ? "; original local UI and separate native confirmation only)" : ")")))
         + ". Use 'set <exact ID> to <value>', canonical decimal integers for numeric values and true/false for booleans. "
-        + "Presence suggestions require that exact syntax, ID and canonical value, without aliases or surrounding text. "
+        + "Presence and response-timeout suggestions require that exact syntax, ID and canonical value, without aliases or surrounding text. "
         + "No reset, adjustment, batch, commentary, other setting, approval or claimed save. "
         + "Undo is a separate host-owned original-user operation: 'undo the last settings change' opens review, "
         + "'confirm settings undo' or 'cancel settings undo' is separate. Only one known successful compatible registered "
         + "preference in this run can qualify; never infer previous values or undo effects, consent or grants. "
-        + "Appearance undo remains native-only. A model suggestion cannot create or confirm an undo receipt. "
+        + "Appearance undo remains native-only except response timeout. A model suggestion cannot create or confirm an undo receipt. "
+        + "Response timeout is only the existing response-window inactivity hide delay, 1-60 seconds, default 5. "
+        + "It never changes provider deadlines, Always show, presence timeout, questions or approvals. "
         + "The original user must review exact current/proposed values and scope, then separately confirm or cancel. "
         + "Spoken-summary review includes both caps and preserves the companion cap. Volume review includes desired/effective "
         + "values and saved/default provenance; zero blocks future synthesis, preserving full visual output. "
@@ -44,7 +46,7 @@ public static class RegisteredSettingSuggestions
         if (AppearanceCommand.Parse(answer, AssistantNameRules.DefaultName) is
             { Operation: AppearanceCommandOperation.Set, Descriptor: { } appearance, Value: { } appearanceValue }
             && RegisteredSettingRegistry.Settings.FirstOrDefault(item =>
-                item.RequiresNativeReview && string.Equals(item.Id, appearance.Id, StringComparison.Ordinal)) is { } setting
+                string.Equals(item.Id, appearance.Id, StringComparison.Ordinal)) is { } setting
             && (appearance.Option is AppearanceOption.Theme or AppearanceOption.ReaderTextScale
                 || string.Equals(answer, $"set {appearance.Id} to {AppearanceCommand.Format(appearanceValue)}", StringComparison.Ordinal)))
         {

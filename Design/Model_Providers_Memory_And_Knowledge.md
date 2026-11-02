@@ -540,6 +540,8 @@ Users can:
 - see when a memory was used for a request; and
 - prevent a local memory from being sent to a hosted provider.
 
+The [retained-answer context inspector](../docs/responses-and-calls.md#inspect-context-submitted-for-a-retained-answer) implements host-recorded canonical adapter-handoff visibility only for explicitly reviewed same-session **history**. It does not yet record memory-use provenance: memory and other unsupported/legacy answers say unknown/not recorded, never infer use from model prose or review selection ([capture boundary](../src/Kora.Application/Dependencies/ModelTurnHost.Questions.cs)).
+
 Memory scopes are explicit:
 
 - **Session**: remains part of that session and follows session deletion.

@@ -20,11 +20,17 @@ public sealed partial class MainViewModelTests
         var unbound = new Fixture();
         unbound.ViewModel.SpeechInputProfiles.Should().Equal(SpeechInputProfileCatalogue.Profiles);
         unbound.ViewModel.SpeechInputResources.Should().Equal(SpeechInputResource.WindowsManaged);
+        unbound.ViewModel.SpeechInputResidencies.Should().Equal(SpeechInputResidency.CaptureLifetime);
         unbound.ViewModel.Dispose();
         var fixture = new Fixture(enableSpeechInput: true);
         await using var configuration = fixture.InputConfiguration!;
         await using var admission = fixture.OutputAdmission;
         await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.SpeechInputResidencies.Should().Equal(SpeechInputResidency.CaptureLifetime);
+        var selectedProfile = fixture.ViewModel.SelectedSpeechInputProfile;
+        fixture.ViewModel.SelectedSpeechInputProfile = null;
+        fixture.ViewModel.SpeechInputResidencies.Should().Equal(SpeechInputResidency.CaptureLifetime);
+        fixture.ViewModel.SelectedSpeechInputProfile = selectedProfile;
         var names = (AssistantNameConfigurationService)typeof(MainViewModel)
             .GetField("assistantNameConfiguration", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
             .GetValue(fixture.ViewModel)!;

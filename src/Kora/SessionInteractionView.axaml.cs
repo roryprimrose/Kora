@@ -143,6 +143,12 @@ internal sealed partial class SessionInteractionView : UserControl
                 var presenter = replyPresentation.Capture();
                 await Run(current => current.ReplyToAnswerAsync(replySource, presenter));
             }
+            else if (args.Source is Button { Name: "ExportExactAssistantAnswer", DataContext: ConversationMessage exportSource })
+            {
+                args.Handled = true;
+                var presenter = replyPresentation.Capture();
+                await Run(current => current.ExportExactAnswerAsync(exportSource, presenter));
+            }
             else if (args.Source is Button { Name: "OpenObservedResult", DataContext: ObservationDetailChoice observation })
             { args.Handled = true; await Run(current => current.OpenObservationAsync(observation)); }
             else if (args.Source is Button { Name: "DeclineSessionDetailsOffer", DataContext: ConversationMessage message }

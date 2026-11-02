@@ -218,10 +218,13 @@ public sealed partial class OwnedSkillAuthoringNativeTests
         internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public string Destination(OwnedDeclarativeSkillDocument document) => inner.Destination(document);
-        public Task<OwnedDeclarativeSkillSnapshot?> Read(string id, string version, CancellationToken token) => inner.Read(id, version, token);
+        public Task<OwnedDeclarativeSkillSnapshot?> Read(string id, string version, CancellationToken token,
+            OwnedSkillReadScope scope = OwnedSkillReadScope.CompletePackage, OwnedDeclarativeSkillSnapshot? expectedPrimary = null) =>
+            inner.Read(id, version, token, scope, expectedPrimary);
         public Task<OwnedDeclarativeSkillSnapshot> Publish(OwnedDeclarativeSkillDocument document, Func<bool> eligible,
-            Func<Func<OwnedDeclarativeSkillSnapshot>, Task<OwnedDeclarativeSkillSnapshot>> commit, CancellationToken token) =>
-            inner.Publish(document, eligible, commit, token);
+            Func<Func<OwnedDeclarativeSkillSnapshot>, Task<OwnedDeclarativeSkillSnapshot>> commit, CancellationToken token,
+            OwnedDeclarativeSkillSnapshot? expectedSource = null) =>
+            inner.Publish(document, eligible, commit, token, expectedSource);
         public async Task<IReadOnlyList<OwnedDeclarativeSkillSnapshot>> List(CancellationToken token)
         {
             var result = await inner.List(token).ConfigureAwait(false);

@@ -22,8 +22,8 @@ public sealed class OwnedSkillFixtureWorkflow(IOwnedDeclarativeSkillStore store,
         OwnedSkillFixture fixture, OwnedSkillAuthoringAuthority authority, Func<bool> eligible,
         Func<Preview, CancellationToken, Task<bool>> review, Func<Result, CancellationToken, Task> display, CancellationToken token)
     {
-        if (draft.Tool != OwnedSkillToolSelection.None || draft.InputTemplate is not null)
-        { throw new InvalidDataException("Simulated fixtures support native v1 tool-free literal guidance only. No tool response or parameter binding is accepted."); }
+        RequireNativeV1(draft);
+        if (source is not null) { RequireNativeV1(source.Document); }
         var started = time.GetUtcNow();
         var expires = started.AddMinutes(2);
         var retired = 0;
@@ -96,6 +96,13 @@ public sealed class OwnedSkillFixtureWorkflow(IOwnedDeclarativeSkillStore store,
         }
         if (await store.Read(draft.Id, draft.Version, token).ConfigureAwait(false) is not null)
         { throw new InvalidOperationException("An uninspected saved target occupies this draft identity. Explicitly reopen it first."); }
+    }
+
+    private static void RequireNativeV1(OwnedDeclarativeSkillDocument document)
+    {
+        if (document.Tool != OwnedSkillToolSelection.None || document.InputTemplate is not null
+            || document.ReferenceDeclaration is not null)
+        { throw new InvalidDataException("Simulated fixtures support native v1 tool-free literal guidance only. No tools, parameter bindings, observation workflows or references are accepted."); }
     }
 
     private static void Require(Func<bool> current, CancellationToken token)

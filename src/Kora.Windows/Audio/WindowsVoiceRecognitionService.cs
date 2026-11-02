@@ -14,7 +14,7 @@ using NAudio.CoreAudioApi;
 
 namespace Kora.Windows.Audio;
 
-public sealed partial class WindowsVoiceRecognitionService : IQuestionVoiceRecognitionService, ISpeechInputProfileRuntime
+public sealed partial class WindowsVoiceRecognitionService : IQuestionVoiceRecognitionService, ISpeechInputProfileRuntime, ISpeechSetupComparisonRuntime
 {
     private const float MinimumConfidence = 0.62f;
     private readonly Lock gate = new();
@@ -100,7 +100,7 @@ public sealed partial class WindowsVoiceRecognitionService : IQuestionVoiceRecog
         {
             lock (gate)
             {
-                return capture is null && !pendingBeginGeneration.HasValue && stopRequests == 0 && !resourceCleanupFailed &&
+                return !comparisonActive && capture is null && !pendingBeginGeneration.HasValue && stopRequests == 0 && !resourceCleanupFailed &&
                     pendingResourceOperations.All(task => task.IsCompletedSuccessfully);
             }
         }
@@ -196,7 +196,7 @@ public sealed partial class WindowsVoiceRecognitionService : IQuestionVoiceRecog
         SpeechInputGeneration requestedProfile;
         lock (gate)
         {
-            if (profileSwitchActive || !profileAvailable)
+            if (profileSwitchActive || comparisonActive || !profileAvailable)
             {
                 throw new InvalidOperationException("The selected speech-input profile is unavailable or switching. Use typed/native recovery or explicitly select a supported tuple.");
             }
@@ -387,6 +387,7 @@ public sealed partial class WindowsVoiceRecognitionService : IQuestionVoiceRecog
 
     public void InvalidateCapture()
     {
+        CancelComparison();
         long retiredGeneration;
         VoiceRecognitionCompletionReason reason;
         lock (gate)
@@ -503,6 +504,9 @@ public sealed partial class WindowsVoiceRecognitionService : IQuestionVoiceRecog
         var acquired = false;
         try
         {
+            ComparisonLease? comparison;
+            lock (gate) { comparison = comparisonLease; }
+            if (comparison is not null) { await comparison.DisposeAsync(); }
             await AcquireLifecycleLockAsync(cancellationToken);
             acquired = true;
             _ = DisposeCaptureAsync();

@@ -64,6 +64,14 @@ public sealed class OwnedSkillAuthoringGuideTests
             .And.Contain("complete generated manifest and guidance")
             .And.Contain("no-overwrite")
             .And.Contain("unqualified");
+        guide.Markdown.Should().Contain("owned skill format markdown-package")
+            .And.Contain("owned skill reference references\\guide.md:")
+            .And.Contain("owned skill remove-reference rubric.md")
+            .And.Contain("owned skill read-references")
+            .And.Contain("added/modified/removed")
+            .And.Contain("native v5")
+            .And.Contain("entire")
+            .And.Contain("no hosted fallback");
         guide.Markdown.Should().Contain("owned skill rename example 1.0.0 renamed")
             .And.Contain("owned skill recover-rename example 1.0.0")
             .And.Contain("your new text and its unsaved-draft prompt remain intact")
@@ -75,6 +83,8 @@ public sealed class OwnedSkillAuthoringGuideTests
             .And.Contain("does not undo the native rename");
         guide.Markdown.Should().Contain("owned skill delete daily-review 1.0.0")
             .And.Contain("Delete only this exact owned source")
+            .And.Contain("Native v5 Markdown packages are rejected")
+            .And.Contain("before reading reference bodies")
             .And.Contain("does not physically cancel immutable admitted tasks")
             .And.Contain("absence readback")
             .And.Contain("do not retry or recreate")

@@ -22,6 +22,7 @@ internal sealed class McpTransportFixture : IDisposable
     internal bool HandlerDisposed { get; private set; }
     internal int Resolutions { get; private set; }
     internal int Acquisitions { get; private set; }
+    internal int AccountReads { get; private set; }
     internal IReadOnlyList<IPAddress>? Pinned { get; private set; }
     internal Func<string, CancellationToken, Task<IPAddress[]>> Resolve { get; set; } =
         (_, _) => Task.FromResult(new[] { IPAddress.Parse("8.8.8.8") });
@@ -59,6 +60,7 @@ internal sealed class McpTransportFixture : IDisposable
     {
         public Task<IReadOnlyList<McpAccountChoice>> ReadAccountsAsync(CancellationToken token)
         {
+            owner.AccountReads++;
             token.ThrowIfCancellationRequested();
             if (!owner.Qualified) { throw new InvalidOperationException("Fake profile is unqualified."); }
             return Task.FromResult<IReadOnlyList<McpAccountChoice>>([new(owner.Account, "Native delegated test account")]);

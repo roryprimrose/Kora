@@ -41,6 +41,13 @@ internal sealed partial class OwnedSkillPackagePublication : IDisposable
     internal static SafeFileHandle OpenFile(string path)
         => OpenFileCore(path, delete: false);
 
+    internal void PinSourceFile(string path)
+    {
+        var handle = OpenFileCore(path, delete: false, sharing: 1);
+        try { handles.Add(handle); }
+        catch { handle.Dispose(); throw; }
+    }
+
     internal static SafeFileHandle OpenForDeletion(string path) => OpenFileCore(path, delete: true, sharing: 1);
 
     private static SafeFileHandle OpenFileCore(string path, bool delete, uint sharing = 5)

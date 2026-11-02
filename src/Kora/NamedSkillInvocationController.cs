@@ -12,7 +12,7 @@ namespace Kora;
 internal sealed partial class NamedSkillInvocationController(
     MainViewModel main, NamedSkillCatalogue catalogue, OwnedSkillInvocationWorkflow owned,
     SharedSkillInvocationWorkflow shared, Func<bool> ownsHost, Func<long> ownershipRevision,
-    ILogger<NamedSkillInvocationController> logger) : IAsyncDisposable
+    ILogger<NamedSkillInvocationController> logger, QuestionWindowController? questions = null) : IAsyncDisposable
 {
     private NamedSkillInvocationWindow? window;
     private NamedSkillCandidates? candidates;
@@ -54,9 +54,9 @@ internal sealed partial class NamedSkillInvocationController(
         && call == main.CallPolicyRevision && main.CanRevealPrivatePresentation && main.IsSkillReviewCallEligible
         && !main.IsResponseInteractionPending && original?.IsCurrent() == true && lifetime?.IsCancellationRequested == false;
 
-    private async Task Route(NamedSkillCommand command, RequestOrigin origin, Func<bool> eligible)
+    private async Task Route(NamedSkillCommand command, RequestOrigin origin, OwnedSkillAuthoringAuthority authority)
     {
-        if (!eligible()) { main.ReportHostInteractionFailure("Original named skill input expired. No fallback was run."); return; }
+        if (!authority.IsCurrent()) { main.ReportHostInteractionFailure("Original named skill input expired. No fallback was run."); return; }
         if (command.Action is "Close") { await CloseAndWait(); return; }
         if (command.Action is "Review")
         {
@@ -64,7 +64,7 @@ internal sealed partial class NamedSkillInvocationController(
             owner = ownershipRevision();
             call = main.CallPolicyRevision;
             lifetime = new();
-            original = new(origin, eligible);
+            original = authority;
             name = command.Name;
             if (!Eligible()) { Retire(); return; }
             window = new(name, Start);
@@ -109,7 +109,7 @@ internal sealed partial class NamedSkillInvocationController(
     {
         var opened = window!;
         opened.SetBusy(true);
-        using var activity = HostActivity.BeginRoot(HostRequest.Create(action is "Inspect" or "Invoke" ? RequestOrigin.LocalUi : original!.Origin),
+        using var activity = HostActivity.BeginRoot(HostRequest.Create(action is "Inspect" or "Invoke" or "ReadOwnedReferences" ? RequestOrigin.LocalUi : original!.Origin),
             HostActivityLayer.Desktop, HostOperation.Request,
             original!.OriginalActivityContext is { } cause ? [new ActivityLink(cause)] : []);
         try
@@ -164,12 +164,24 @@ internal sealed partial class NamedSkillInvocationController(
             if (!Current()) { RetireReview(); return; }
             opened.Instructions.Text = choice + "\n\n" + (ownedReview?.Text ?? sharedReview!.Text);
             opened.LiteralInputs.Configure(ownedReview?.RequiredNames ?? [], (_, _) => RetirePreparation());
-            opened.Status.Text = "Complete exact source captured. Review all content, then separately enable once. The original input channel is preserved.";
+            opened.Status.Text = ownedReview?.RequiresReferenceConsent == true
+                ? "Review the exact declaration, then separately authorize only those owned Markdown reads. No component contents read yet."
+                : "Complete exact source captured. Review all content, then separately enable once. The original input channel is preserved.";
             return;
         }
         if (!Current() || ownedReview is null && sharedReview is null)
         { throw new InvalidOperationException("Review the exact current source choice first."); }
-        if (action is "Enable")
+        if (action is "ReadOwnedReferences")
+        {
+            await owned.ReadReferencesAsync(ownedReview ?? throw new InvalidOperationException("Select an owned component package first."),
+                new(RequestOrigin.LocalUi, Current), Current, token);
+            if (Current())
+            {
+                opened.Instructions.Text = choice + "\n\n" + ownedReview.Text;
+                opened.Status.Text = "Review complete primary and all declared owned components, then separately enable once.";
+            }
+        }
+        else if (action is "Enable")
         {
             if (ownedReview is { } own) { await owned.EnableAsync(own, original!, Current, token); }
             else { await shared.EnableAsync(sharedReview!, Current, original!.Origin, token); }
@@ -193,11 +205,16 @@ internal sealed partial class NamedSkillInvocationController(
         else if (action is "Prepare")
         {
             RetirePreparation();
-            var revision = inputRevision;
-            bool Exact() => Current() && inputRevision == revision;
             var target = (opened.Targets.SelectedItem as SharedSkillConversationTarget)?.Entry
                 ?? throw new InvalidOperationException("Select exactly one current Active conversation.");
             var body = opened.Request.Text ?? "";
+            if (ownedReview is { } inputReview && inputReview.RequiredNames.Any(name =>
+                string.IsNullOrWhiteSpace(opened.LiteralInputs.Inputs[name].Text)))
+            {
+                await CollectMissingInputs(opened, inputReview, target, token);
+            }
+            var revision = inputRevision;
+            bool Exact() => Current() && inputRevision == revision;
             if (ownedReview is { } own)
             {
                 ownedInvocation = await owned.PrepareAsync(own, target, body, original!, Exact, token, opened.LiteralInputs.Capture());
@@ -235,6 +252,7 @@ internal sealed partial class NamedSkillInvocationController(
 
     private void RetirePreparation()
     {
+        inputQuestions?.Cancel();
         Interlocked.Increment(ref inputRevision);
         if (ownedInvocation is not null || sharedInvocation is not null)
         { ownedReview?.Dispose(); sharedReview?.Dispose(); }

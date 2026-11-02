@@ -96,6 +96,20 @@ single-file contract.
 
 ## Source Partitions
 
+Owned native v5 packages use the [bounded Markdown component authoring
+operation](Skill_Authoring.md#skill-package-boundary) under the existing
+`Skills\<id>\<version>` namespace. This is a distinct explicit version, not
+shared-source consent or reinterpretation of owned v1/v3 text. List and initial
+use read only manifest/instructions and exact declared inventory. Reference
+bodies require separate original-user consent before complete review and
+volatile enablement; the [owned reader and writer](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.cs)
+share the same central declaration, aggregate byte bounds, identities,
+no-replace publication and complete readback. No other roots are consulted.
+The owned catalogue admits at most 32 immutable versions and 1 MiB of complete
+stored package bytes, including declared references. List counts reference
+file sizes without reading their bodies and rejects an oversized catalogue
+without returning partial results.
+
 | Partition | Location | Kora access |
 |---|---|---|
 | Bundled | Embedded resources in the first-party `Kora.Definitions` binary | Current: immutable catalogue and read-only inspection only. Invocation unavailable; no user/agent editing, loose-file overrides, or writable extraction. Installed protection remains a separate admission gate. |
@@ -330,6 +344,14 @@ The unchanged request and skill guidance enter structurally separate local-only 
 The single-use [exchange owner](../src/Kora.Application/Mcp/McpInvocation.cs) joins its authenticated connection before releasing a successful result to any consumer, then revalidates the original source/session/grants. A pending or failed disposal cannot enter local continuation, publish the result or retain a successful answer; revocation and cancellation during that join remain fail-closed without another call.
 
 The [native and typed/activated-voice interaction](../docs/mcp-transport.md#reviewed-declarative-mcp-skill) displays the actual result separately from the retained answer. Input/selection changes retire confirmation; Stop closes publication, cancels and joins the same provider/transport owner. No retry, rollback claim, new credential, source authority, hosted disclosure or follow-up-send consent comes from the result. Unqualified production accounts, connectors, effect mappings and local providers remain unavailable; deterministic fixtures do not enable them.
+
+After genuine successful terminal retention and the physical transport join, that same private skill window can hold the host-issued complete actual [observation](../src/Kora.Application/Hosting/McpResultFollowUp/McpResultObservation.cs). The [shared native capture](../src/Kora/McpResultFollowUp/McpResultCapture.cs) uses the actual approved Skill-bearing invocation proposal, mapping, generation and causal link; rendered text, skill guidance, provider JSON and unconfirmed receipts confer no authority.
+
+A deliberately entered **new unchanged question** uses the existing [MCP result follow-up](../src/Kora.Application/Hosting/McpResultFollowUp/McpResultFollowUpWorkflow.cs), with separate Review and fresh original-user Confirm. The review shows all actual Text/StructuredJson, provenance/schema, exact original Active target, independent source/question channels, residual private-local risk, complete serialized cost and retention. The [production risk policy](Security_Data_Flows.md#reviewed-localonly-source-use-risk-admission) screens every complete part: detected credentials deny without override; incomplete or unknown screening remains unavailable.
+
+Only one new LocalOnly `ModelToolMode.None` request/task is submitted in that same conversation. The original skill message/task, grants and expiry are unchanged, and no extra raw result is saved. Complete serialized input is accepted at 32768 UTF-8 bytes and rejected at 32769 before retention or model dispatch; no shortening, normalization or budget increase. The fresh envelope carries neither skill guidance nor old context, tools, instructions, agents, memory or consent.
+
+Native **Review one fresh local-only no-tools answer**, **Confirm one fresh local-only no-tools answer** and **Cancel current MCP result answer** share `tool skill mcp question <unchanged new question>`, `tool skill mcp review answer`, `tool skill mcp confirm answer` and `tool skill mcp cancel answer`. Eligible activated voice adds the current assistant-name prefix and preserves its fresh origin independently of the source origin; MCP authentication and invocation approvals remain native. Question edits retire their separate review, not the old request or an unrelated composer. Source/target/account/original-input/control changes retire the observation; its original skill/invocation expiry is never extended. Cancel/Stop/close suppress late output and join cancellation-ignoring owned work before release; uncertain retained work prohibits retry and is not rollback. This fail-closed implementation does not qualify or enable any account, connector, model or wake profile.
 
 ### Future discovery and enablement
 

@@ -26,6 +26,9 @@ internal sealed partial class SharedSkillInvocationController
         var token = lifetime!.Token;
         bool Current() => Eligible() && eligible() && ReferenceEquals(window, opened);
         if (!Current()) { throw new InvalidOperationException("Original review admission expired."); }
+        if (action is "McpReviewAnswer" or "McpConfirmAnswer" or "McpCancelAnswer")
+        { await RunMcpAnswer(action, origin, eligible); return; }
+        await JoinMcpAnswer();
         if (action is "McpOptions")
         {
             if (toolSnapshot?.McpReference is null)
@@ -149,22 +152,43 @@ internal sealed partial class SharedSkillInvocationController
                 mcpInvocation = null;
                 opened.Confirm.IsEnabled = false;
                 var mcpRevision = inputRevision;
+                var validateSkillSource = service.CaptureMcpResultSourceValidation(captured);
+                var originalExpiry = captured.ExpiresAt;
+                var server = (Kora.Application.Configuration.McpServerConfigurationSummary)opened.McpServers.SelectedItem!;
+                var account = (Kora.Core.Mcp.McpAccountChoice)opened.McpAccounts.SelectedItem!;
+                var originalTarget = captured.Target;
+                var originalControl = service.McpResultControlRevision;
                 var native = new McpNativeReview(questions ?? throw new InvalidOperationException("Native MCP review is unavailable."), () => opened);
+                skillMcpCapture.Retire();
+                HostRequest? completedRequest = null;
+                Kora.Core.Mcp.McpModelResult? completedResult = null;
                 using var mcpRequest = HostActivity.BeginRoot(HostRequest.Create(origin), HostActivityLayer.Desktop, HostOperation.Request);
                 var mcpReceipt = await service.InvokeMcpAsync(preparedMcp, () => Reviewed() && inputRevision == mcpRevision,
-                    native.PresentAsync, native.SelectAsync, token, (_, result) =>
+                    (proposal, generation, mapping, admitted, check) =>
+                        skillMcpCapture.PresentAsync(native.PresentAsync, proposal, generation, mapping, admitted, check),
+                    native.SelectAsync, token, (request, result) =>
                     {
                         if (!Current() || inputRevision != mcpRevision) { return; }
-                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                        {
-                            if (Current() && inputRevision == mcpRevision)
-                            { opened.McpResult.Text = $"Actual inert tool result: {result.ToolId}\nSource revision: {result.SourceRevision}\n"
-                                + $"Observed UTC: {result.ObservedAt:O}\n{result.Text}\n{result.StructuredJson}"; }
-                        });
+                        completedRequest = request;
+                        completedResult = result;
                     });
                 mcpRequest.Complete(HostOperationOutcome.Completed);
                 if (Current())
                 {
+                    if (inputRevision == mcpRevision && completedRequest is { } resultRequest && completedResult is { } result)
+                    {
+                        var source = skillMcpCapture.Capture(originalTarget, resultRequest, result, originalControl,
+                            server.Id, server.Name, account.Reference, async check =>
+                            {
+                                await validateSkillSource(check).ConfigureAwait(false);
+                                await service.ValidateMcpResultConfigurationAsync(server.Id, account.Reference, result.SourceRevision, check).ConfigureAwait(false);
+                            }, originalExpiry, mcpReceipt)
+                            ?? throw new InvalidOperationException("The actual successful MCP skill has no exact native invocation approval.");
+                        skillMcpObservation = source;
+                        opened.McpResult.Text = $"Actual inert tool result: {source.Result.ToolId}\nSource revision: {source.Result.SourceRevision}\n"
+                            + $"Observed UTC: {source.Result.ObservedAt:O}\n{source.Result.Text}\n{source.Result.StructuredJson}";
+                        opened.McpQuestion.IsEnabled = true;
+                    }
                     opened.Confirmation.Text = string.Empty;
                     opened.Status.Text = $"Retained exact MCP skill request {mcpReceipt.Message.Request.RequestId.Value:D}: "
                         + $"{mcpReceipt.Message.Outcome} / {mcpReceipt.Message.Reason}. "

@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using Kora.Application.Mcp;
 using Kora.Core.Authorization;
+using Kora.Core.Conversation;
+using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Mcp;
 using Kora.Core.Mcp.ResultFollowUp;
@@ -13,7 +15,9 @@ internal sealed class McpResultObservation
 {
     internal McpResultObservation(SessionWorkspaceEntry target, HostRequest request, McpModelResult result,
         HostOperationProposal invocation, McpReview mapping, HostRevision generation, long control,
-        string serverId, string serverName, ActivityLink cause)
+        string serverId, string serverName, ActivityLink cause,
+        Func<CancellationToken, Task>? validateSource = null, DateTimeOffset? sourceExpiresAt = null,
+        ConversationSubmissionReceipt? sourceReceipt = null)
     {
         if (request.SessionId != target.Authority.SessionId || !target.Authority.IsActive
             || generation != target.Authority.Generation || !invocation.Request.IsWithinIntent(request)
@@ -22,6 +26,11 @@ internal sealed class McpResultObservation
             || !string.Equals(result.ToolId, "mcp." + mapping.ToolName, StringComparison.Ordinal)
             || !string.Equals(result.SourceRevision, invocation.Binding.TrackedContentDigest, StringComparison.Ordinal))
         { throw new InvalidDataException("Only a completed exact host-mapped read-only MCP observation can be captured."); }
+        if (sourceReceipt is { } receipt && (mapping.Skill is null || receipt.Message.Request != request
+            || receipt.Message.Generation != target.Authority.Generation || receipt.Message.Outcome != ModelTurnOutcome.Succeeded
+            || receipt.Task.Request != request || receipt.Task.State != HostTaskState.Succeeded
+            || receipt.Task.Revision.Value != receipt.Message.Revision))
+        { throw new InvalidDataException("Only the exact confirmed successful MCP skill terminal receipt can accompany this observation."); }
         Target = target;
         Request = request;
         Result = result;
@@ -30,6 +39,9 @@ internal sealed class McpResultObservation
         Control = control;
         ServerId = serverId;
         Cause = cause;
+        ValidateSource = validateSource;
+        SourceReceipt = sourceReceipt;
+        ExpiresAt = sourceExpiresAt is { } expiry && expiry < invocation.ExpiresAt ? expiry : invocation.ExpiresAt;
         Provenance = new(serverName, mapping.Endpoint.AbsoluteUri, mapping.AccountDisplayName, mapping.ToolName, request.Origin);
     }
 
@@ -42,6 +54,9 @@ internal sealed class McpResultObservation
     internal long Control { get; }
     internal string ServerId { get; }
     internal ActivityLink Cause { get; }
+    internal DateTimeOffset ExpiresAt { get; }
+    internal Func<CancellationToken, Task>? ValidateSource { get; }
+    internal ConversationSubmissionReceipt? SourceReceipt { get; }
     internal McpResultProvenance Provenance { get; }
     public override string ToString() => nameof(McpResultObservation);
 }

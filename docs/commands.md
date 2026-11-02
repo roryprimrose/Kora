@@ -975,6 +975,8 @@ Use `get speech.input` or `status speech.input` to inspect saved, desired and ef
 
 Only the existing compatible Windows activated tuple is confirmable. Additional local wake/ASR/resource profiles remain unavailable; old unsupported intent is not silently replaced. Confirmation joins owned runtime retirement before cutover, without enabling listening, downloading or opening capture ([complete workflow](voice-and-audio.md#speech-input-profile-preference)).
 
+`compare speech input` opens the distinct local setup-comparison review; `test speech comparison` explicitly confirms its disclosed microphone use, and `cancel speech comparison` cancels/joins and discards results. Calibration phrases never enter these command routes. Production comparison capabilities are currently unavailable; no installed profile is assumed qualified ([interaction, safety and limits](voice-and-audio.md#local-speech-setup-comparison)).
+
 ## Exact input-device preference
 
 Typed input and **activated** voice use:
@@ -1502,6 +1504,12 @@ Topmost is not a Windows-wide setting or foreground/activation authority ([nativ
 
 Missing preference files use declared defaults without claiming a save. Malformed, externally changed or uncertain saved evidence is explicitly unavailable: inspect the saved state and audit receipts before repair/restart and initiate a fresh request.
 No automatic rewrite, default-save, rollback or retry is claimed ([confirmation and commands](../src/Kora.Application/ViewModels/MainViewModel.ResponseWindowCommands.cs), [audited writer](../src/Kora.Application/ViewModels/MainViewModel.Preferences.cs)).
+
+### Review one retained response-timeout suggestion
+
+Use `review response timeout suggestion` to review the exact host-pinned successful answer, then separately `confirm response timeout change` or `cancel response timeout review`. Activated voice requires the current assistant-name prefix. Both conversation windows also offer **Review setting suggestion...** on the exact retained answer ([shared route](../src/Kora.Application/ViewModels/MainViewModel.ResponseTimeoutSuggestions.cs)).
+
+The answer must be one exact `set appearance.response-timeout to <integer>` using canonical digits, 1-60 seconds. It changes only the existing response-window inactivity hide delay, not provider deadlines or Always show. Review saves nothing; original-channel call policy, source, preference, privacy and host checks remain required through commit ([review and recovery](settings.md#review-a-response-timeout-suggestion)).
 
 ### Inspect or change the device-default response mode
 

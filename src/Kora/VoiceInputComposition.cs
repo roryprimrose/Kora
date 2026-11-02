@@ -19,6 +19,9 @@ internal static class VoiceInputComposition
             provider.GetRequiredService<ILogger<HandsFreeVoiceRecognitionService>>()));
         services.AddSingleton<ISpeechInputProfileRuntime>(provider =>
             provider.GetRequiredService<HandsFreeVoiceRecognitionService>());
+        services.AddSingleton<ISpeechSetupComparisonRuntime>(provider =>
+            provider.GetRequiredService<HandsFreeVoiceRecognitionService>());
+        services.AddSingleton<SpeechSetupComparison>();
         services.AddSingleton<IVoiceRecognitionService>(provider =>
             provider.GetRequiredService<HandsFreeVoiceRecognitionService>());
         services.AddSingleton<IActivatedVoiceRecognitionService>(provider =>

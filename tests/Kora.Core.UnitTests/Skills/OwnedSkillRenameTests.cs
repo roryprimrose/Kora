@@ -8,6 +8,20 @@ public sealed class OwnedSkillRenameTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public void MarkdownDeclarationsAndCompletePackagesCannotBecomeTwoFileRenameProposals(bool complete)
+    {
+        var package = OwnedDeclarativeSkillDocument.CreatePackage("example", "1.0.0", "Example", "Description",
+            "Literal", new Dictionary<string, byte[]>(StringComparer.Ordinal) { ["notes.md"] = "Private reference"u8.ToArray() });
+        var document = complete ? package : OwnedDeclarativeSkillDocument.Parse(package.ManifestBytes.Span, package.InstructionBytes.Span);
+        var create = () => new OwnedSkillRename(new(document, "d", "m", "i"), "renamed");
+        create.Should().Throw<InvalidDataException>();
+        document.ReferenceDeclaration!.Paths.Should().Equal("notes.md");
+        document.IsAvailableForInvocation.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public void RenamePreservesEveryByteExceptTheExactManifestIdAndTransfersNoAvailability(bool inputs)
     {
         var old = OwnedDeclarativeSkillDocument.Create("example", "1.0.0", "Readable original", "Attribution stays",

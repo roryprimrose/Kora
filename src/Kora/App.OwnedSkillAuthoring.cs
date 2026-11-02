@@ -28,7 +28,7 @@ public sealed partial class App
         var useWorkflow = new OwnedSkillInvocationWorkflow(store, admission, Services.GetRequiredService<ISessionWorkspaceAccess>(),
             Services.GetRequiredService<ISessionWorkspaceStore>(), Services.GetRequiredService<SessionWorkspaceService>(),
             Services.GetRequiredService<SessionConversationService>(), Services.GetRequiredService<ISecurityAuditLog>(),
-            Services.GetRequiredService<TimeProvider>());
+            Services.GetRequiredService<TimeProvider>(), Services.GetRequiredService<IArtifactUsePolicy>());
         var use = new OwnedSkillInvocationController(main, useWorkflow,
             () => ownership.IsReady && !ownership.IsHandoffRecoveryRequired, () => ownership.AdmissionRevision,
             Services.GetRequiredService<ILogger<OwnedSkillInvocationController>>(),
@@ -40,7 +40,7 @@ public sealed partial class App
                 Services.GetRequiredService<TimeProvider>()),
             useWorkflow, Services.GetRequiredService<SharedSkillInvocationWorkflow>(),
             () => ownership.IsReady && !ownership.IsHandoffRecoveryRequired, () => ownership.AdmissionRevision,
-            Services.GetRequiredService<ILogger<NamedSkillInvocationController>>());
+            Services.GetRequiredService<ILogger<NamedSkillInvocationController>>(), questionWindow);
         namedSkillInvocation.Bind();
         var observations = new ObservationWorkflowController(main, workflow, useWorkflow,
             new(useWorkflow, admission, Services.GetRequiredService<Kora.Application.Tools.ReadOnlyCapabilityRegistry>(),

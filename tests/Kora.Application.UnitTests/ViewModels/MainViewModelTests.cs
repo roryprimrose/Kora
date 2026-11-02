@@ -1371,9 +1371,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.AppearancePreferences.SavedResponseTimeoutSeconds.Should().Be(8);
         fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(PresenceSettings.DefaultTimeoutSeconds);
         fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().BeNull();
-        changedProperties.Should().Equal(
-            nameof(MainViewModel.SettingsUndoDescription), nameof(MainViewModel.CanReviewSettingsUndo),
-            nameof(MainViewModel.CanConfirmSettingsUndo), nameof(MainViewModel.ResponseTimeoutSeconds));
+        changedProperties.Should().Equal(WithUndoNotifications(nameof(MainViewModel.ResponseTimeoutSeconds)));
         AssertAuditPair(
             fixture,
             SecurityAuditCategory.ConfigurationWrite,
@@ -4683,6 +4681,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(WindowsSpeechRateCommand.FixedPhrases)
             .Concat(SpeechInputCommand.FixedPhrases)
+            .Concat(SpeechComparisonCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(Kora.Application.Communication.ManualCallCommand.FixedPhrases)
@@ -4705,6 +4704,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(PlaybackVolumeSuggestionCommand.FixedPhrases)
             .Concat(WindowsSpeechRateSuggestionCommand.FixedPhrases)
             .Concat(Kora.Application.Configuration.RegisteredSettings.RegisteredSettingSuggestionCommand.FixedPhrases)
+            .Concat(Kora.Application.Configuration.RegisteredSettings.RegisteredSettingSuggestionCommand.ResponseTimeoutPhrases)
             .Concat(Kora.Application.Configuration.RegisteredSettings.RegisteredSettingUndoCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.OwnedSkillAuthoringCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
@@ -8724,6 +8724,7 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableConversationalReplies = false, Exception? conversationalReadFailure = null,
             Kora.Application.Communication.CommunicationActivityCallStateService? communicationActivity = null,
             CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
+            Kora.Application.Voice.SpeechSetupComparison? speechSetupComparison = null,
             bool enableConversationExecution = false,
             LogonStartupConfigurationService? logonStartupConfiguration = null,
             StartupPresentationConfigurationService? startupPresentationConfiguration = null)
@@ -8926,6 +8927,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 speechComponentSetup: speechComponentSetup,
                 conversationalReplies: ConversationalConfiguration,
                 communicationActivityConfiguration: communicationActivityConfiguration,
+                speechSetupComparison: speechSetupComparison,
                 conversationExecution: ConversationExecutionConfiguration,
                 logonStartupConfiguration: logonStartupConfiguration,
                 startupPresentationConfiguration: startupPresentationConfiguration);
@@ -9169,7 +9171,8 @@ public sealed partial class MainViewModelTests : IDisposable
             }
         }
 
-        public async Task RaiseActivatedTranscriptAsync(string transcript, float confidence)
+        public async Task RaiseActivatedTranscriptAsync(string transcript, float confidence,
+            IVoiceActivationEvidence? activationEvidence = null)
         {
             if (Voice.Microphones.Count == 0)
             {
@@ -9189,7 +9192,7 @@ public sealed partial class MainViewModelTests : IDisposable
             await ViewModel.BeginPushToTalkAsync();
             await ViewModel.EndPushToTalkAsync();
             WindowActions.Clear();
-            await Voice.RaiseTranscriptAsync(transcript, confidence);
+            await Voice.RaiseTranscriptAsync(transcript, confidence, activationEvidence);
         }
 
         public sealed class FakeVoiceConsentPreferences : IVoiceConsentPreferences
@@ -9716,9 +9719,10 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
-        public async Task RaiseTranscriptAsync(string transcript, float confidence)
+        public async Task RaiseTranscriptAsync(string transcript, float confidence,
+            IVoiceActivationEvidence? activationEvidence = null)
         {
-            TranscriptRecognized?.Invoke(this, new VoiceTranscriptEventArgs(transcript, confidence, Generation));
+            TranscriptRecognized?.Invoke(this, new VoiceTranscriptEventArgs(transcript, confidence, Generation, activationEvidence));
             await dispatcher.LastInvocation;
         }
 
@@ -10051,6 +10055,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 case AppearanceOption.ReaderTextScale: ReaderTextScalePercent = null; break;
                 case AppearanceOption.PresenceDisplay: PresenceDisplayEnabled = null; break;
                 case AppearanceOption.PresenceTimeout: PresenceTimeoutSeconds = null; break;
+                case AppearanceOption.ResponseTimeout: ResponseTimeoutSeconds = null; break;
                 case AppearanceOption.PresenceSize: PresenceSizePixels = null; break;
                 case AppearanceOption.DotSize: PresenceDotSizePercent = null; break;
                 case AppearanceOption.DotDensity: PresenceDotDensityPercent = null; break;

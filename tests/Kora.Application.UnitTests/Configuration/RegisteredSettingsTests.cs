@@ -14,7 +14,7 @@ public sealed class RegisteredSettingsTests
     public void ClosedRegistryInspectionAndPolicyDeclareOnlyTheExistingAdmittedSubset()
     {
         RegisteredSettingRegistry.Settings.Select(item => item.Setting).Should().Equal(Enum.GetValues<RegisteredSetting>());
-        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().OnlyHaveUniqueItems().And.HaveCount(15);
+        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().OnlyHaveUniqueItems().And.HaveCount(16);
         foreach (var descriptor in RegisteredSettingRegistry.Settings)
         {
             RegisteredSettingRegistry.Get(descriptor.Setting).Should().BeSameAs(descriptor);
@@ -22,8 +22,9 @@ public sealed class RegisteredSettingsTests
             RegisteredSettingSuggestions.ModelPolicy.Should().Contain(descriptor.Id).And.Contain(descriptor.Description);
             descriptor.SuggestedValues.Should().NotBeNullOrWhiteSpace();
             RegisteredSettingSuggestions.ModelPolicy.Should().Contain(descriptor.SuggestedValues);
-            descriptor.RequiresNativeReview.Should().Be(descriptor.Id.StartsWith("appearance.", StringComparison.Ordinal));
-            if (descriptor.RequiresNativeReview)
+            descriptor.RequiresNativeReview.Should().Be(descriptor.Id.StartsWith("appearance.", StringComparison.Ordinal)
+                && descriptor.Setting != RegisteredSetting.ResponseTimeout);
+            if (descriptor.Id.StartsWith("appearance.", StringComparison.Ordinal))
             {
                 var appearance = AppearanceOptionRegistry.Options.Single(item => string.Equals(item.Id, descriptor.Id, StringComparison.Ordinal));
                 descriptor.Description.Should().Be(appearance.Description);
@@ -51,6 +52,9 @@ public sealed class RegisteredSettingsTests
     [InlineData("set appearance.presence-display to true", RegisteredSetting.PresenceDisplay)]
     [InlineData("set appearance.presence-timeout to 1", RegisteredSetting.PresenceTimeout)]
     [InlineData("set appearance.presence-timeout to 60", RegisteredSetting.PresenceTimeout)]
+    [InlineData("set appearance.response-timeout to 1", RegisteredSetting.ResponseTimeout)]
+    [InlineData("set appearance.response-timeout to 5", RegisteredSetting.ResponseTimeout)]
+    [InlineData("set appearance.response-timeout to 60", RegisteredSetting.ResponseTimeout)]
     [InlineData("set appearance.presence-size to 240", RegisteredSetting.PresenceSize)]
     [InlineData("set appearance.presence-size to 600", RegisteredSetting.PresenceSize)]
     [InlineData("set appearance.dot-size to 50", RegisteredSetting.DotSize)]
@@ -106,7 +110,7 @@ public sealed class RegisteredSettingsTests
 
     [Theory]
     [InlineData("")]
-    [InlineData("set appearance.response-timeout to 10")]
+    [InlineData("set appearance.response-timeout to 0")]
     [InlineData("set appearance.native-presence-renderer to true")]
     [InlineData("set appearance.theme to ultraviolet")]
     [InlineData("set appearance.reader-text-scale to 999")]
@@ -174,6 +178,17 @@ public sealed class RegisteredSettingsTests
     [InlineData("set appearance.speech-scaling to system")]
     [InlineData("set appearance.presence-timeout to 0")]
     [InlineData("set appearance.presence-timeout to 61")]
+    [InlineData("set appearance.response-timeout to 61")]
+    [InlineData("set appearance.response-timeout to -1")]
+    [InlineData("set appearance.response-timeout to +5")]
+    [InlineData("set appearance.response-timeout to 05")]
+    [InlineData("set appearance.response-timeout to 5.0")]
+    [InlineData("set appearance.response-timeout to 5 seconds")]
+    [InlineData("set appearance.response-timeout to false")]
+    [InlineData("set appearance.response-timeout to 5 ")]
+    [InlineData(" SET appearance.response-timeout to 5")]
+    [InlineData("reset appearance.response-timeout")]
+    [InlineData("set appearance.response-timeout to 5\nconfirm response timeout change")]
     [InlineData("set appearance.presence-size to 239")]
     [InlineData("set appearance.presence-size to 601")]
     [InlineData("set appearance.dot-size to 49")]
@@ -232,4 +247,16 @@ public sealed class RegisteredSettingsTests
     [InlineData("Nova", null)]
     public void WindowsRateReviewCommandsAreExactAndCurrentNameAware(string input, RegisteredSettingSuggestionOperation? expected) =>
         WindowsSpeechRateSuggestionCommand.Parse(input, "Nova").Should().Be(expected);
+
+    [Theory]
+    [InlineData("review response timeout suggestion", RegisteredSettingSuggestionOperation.Review)]
+    [InlineData("Nova, confirm response timeout change", RegisteredSettingSuggestionOperation.Confirm)]
+    [InlineData("Nova cancel response timeout review", RegisteredSettingSuggestionOperation.Cancel)]
+    [InlineData("Nova\t REVIEW RESPONSE TIMEOUT SUGGESTION", RegisteredSettingSuggestionOperation.Review)]
+    [InlineData("Novax review response timeout suggestion", null)]
+    [InlineData("review response timeout suggestion now", null)]
+    [InlineData("yes", null)]
+    [InlineData("Nova", null)]
+    public void ResponseTimeoutReviewCommandsAreExactAndCurrentNameAware(string input, RegisteredSettingSuggestionOperation? expected) =>
+        RegisteredSettingSuggestionCommand.ParseResponseTimeout(input, "Nova").Should().Be(expected);
 }

@@ -45,8 +45,8 @@ public sealed partial class SessionConversationService(
         workspace.SearchConversationAsync(session, query, cursor, limit, token, role, terminal, range, correlation);
 
     public Task<AdmittedDetailContent> ReadDetailAsync(SessionWorkspaceEntry target, ConversationMessage expected,
-        Func<bool> admitted, CancellationToken token, bool assistant = false, Guid? observationId = null) =>
-        workspace.ReadConversationDetailAsync(target, expected, admitted, token, assistant, observationId);
+        Func<bool> admitted, CancellationToken token, bool assistant = false, Guid? observationId = null, bool submittedContext = false) =>
+        workspace.ReadConversationDetailAsync(target, expected, admitted, token, assistant, observationId, submittedContext);
 
     public Task<ConversationMessage> ReadSpeechSummarySuggestionAsync(SessionWorkspaceEntry target,
         ConversationMessage expected, Func<bool> admitted, CancellationToken token) =>

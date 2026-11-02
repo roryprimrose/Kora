@@ -16,7 +16,7 @@ public sealed class OwnedSkillUseReview : IDisposable
     private bool consumed;
 
     internal OwnedSkillUseReview(OwnedSkillInvocationWorkflow owner, OwnedDeclarativeSkillSnapshot snapshot,
-        Func<bool> current, TimeProvider time, ActivityLink cause)
+        Func<bool> current, TimeProvider time, ActivityLink cause, OwnedSkillAuthoringAuthority inputAuthority)
     {
         this.owner = owner;
         this.snapshot = snapshot;
@@ -25,9 +25,11 @@ public sealed class OwnedSkillUseReview : IDisposable
         created = time.GetUtcNow();
         ExpiresAt = created.AddMinutes(2);
         Cause = cause;
+        InputAuthority = inputAuthority;
     }
 
     internal ActivityLink Cause { get; }
+    internal OwnedSkillAuthoringAuthority InputAuthority { get; }
     public IReadOnlyList<string> RequiredNames
     {
         get { lock (gate) { return Require(owner).Document.InputTemplate?.RequiredNames.ToArray() ?? []; } }
@@ -51,6 +53,7 @@ public sealed class OwnedSkillUseReview : IDisposable
         }
     }
     public bool IsEnabled { get { lock (gate) { return IsCurrent && enabled && !consumed; } } }
+    public bool RequiresReferenceConsent { get { lock (gate) { return IsCurrent && !snapshot!.Document.IsComplete; } } }
     public string Text
     {
         get
@@ -58,7 +61,7 @@ public sealed class OwnedSkillUseReview : IDisposable
             lock (gate)
             {
                 return IsCurrent
-                    ? $"manifest.yaml\n{snapshot!.Document.ManifestText}\ninstructions.md\n{snapshot.Document.Guidance}"
+                    ? snapshot!.Document.CompleteText
                     : string.Empty;
             }
         }
@@ -78,9 +81,21 @@ public sealed class OwnedSkillUseReview : IDisposable
     {
         lock (gate)
         {
-            _ = Require(expected);
+            Require(expected).Document.RequireComplete();
             if (enabled) { throw new InvalidOperationException("Enablement cannot renew an old or consumed review."); }
             enabled = true;
+        }
+    }
+
+    internal void CompleteReferences(OwnedSkillInvocationWorkflow expected, OwnedDeclarativeSkillSnapshot captured)
+    {
+        lock (gate)
+        {
+            var primary = Require(expected);
+            if (primary.Document.IsComplete || !primary.IsSamePrimary(captured))
+            { throw new InvalidOperationException("The reviewed primary changed or reference capture was already consumed. Review again."); }
+            captured.Document.RequireComplete();
+            snapshot = captured;
         }
     }
 

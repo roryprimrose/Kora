@@ -170,7 +170,8 @@ internal sealed partial class NativeDetailRenderer(
                 + (tables ? " Tables retain complete header-labelled rows; scoped Details adds read-only cell navigation and ordinal text sorting." : string.Empty)
                 + (checklists ? " Checklist states are display-only text, not host tasks or checkbox controls." : string.Empty)
                 + (strikethrough ? " Strikethrough wording is labelled display-only text, not a diff, task status, action or permission." : string.Empty),
-            false, sections, validation.Blocks, validation.Nodes, validation.Depth);
+            false, sections, validation.Blocks, validation.Nodes, validation.Depth,
+            ClipboardHtml: ClipboardHtml(document));
     }
 
     private static NativeDocumentResult Success(

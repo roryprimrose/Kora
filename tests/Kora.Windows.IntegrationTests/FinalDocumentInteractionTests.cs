@@ -475,7 +475,7 @@ public sealed class FinalDocumentInteractionTests
     }
     private sealed class DeniedClipboard : IDetailClipboard
     {
-        public Task WritePlainTextAsync(IDetailView view, string source) =>
+        public Task WriteAsync(IDetailView view, string source, string? htmlFragment) =>
             throw new InvalidOperationException("Final documents have no clipboard authority.");
     }
     private sealed class Launcher : IExternalBrowserLauncher

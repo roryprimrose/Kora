@@ -9,6 +9,10 @@ namespace Kora.Core.Storage;
 /// <summary>One private consolidated authority; no caller-supplied append, replay or provider choice.</summary>
 public interface ISessionConversationStore
 {
+    /// <summary>Observes source-row metadata only, without hydrating source bodies or renewing activity.</summary>
+    ValueTask<System.Collections.Immutable.ImmutableArray<SubmittedHistoryAvailability>> ReadSubmittedHistoryAvailabilityAsync(
+        ConversationMessage answer, CancellationToken token) =>
+        throw new InvalidOperationException("The conversation store does not support historical source metadata observation.");
     ValueTask<HostQuestionRecord> CreateVerifiedLocalHandoffAsync(LocalUnavailableObservation observation,
         ModelContextEnvelope context, ProviderProfileTuple profile, ModelProviderSelection destination,
         SessionProviderProfile providerState, Func<bool> admitted, CancellationToken token) =>

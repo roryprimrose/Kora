@@ -13,16 +13,20 @@ namespace Kora.Application.UnitTests.Configuration;
 public sealed partial class AppearanceConfigurationServiceTests
 {
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
-    public async Task ResponseTimeoutReviewPreservesEveryVoiceChannelThroughNativeConfirmation(bool sourceVoice, bool reviewVoice)
+    [InlineData(false, false, false)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, true)]
+    [InlineData(true, false, true)]
+    [InlineData(false, true, true)]
+    public async Task ResponseTimeoutReviewPreservesEveryVoiceChannelThroughNativeConfirmation(bool sourceVoice, bool reviewVoice, bool reset)
     {
         using var listener = ListenToSuggestions();
         var f = new Fixture();
+        if (reset) { f.Store.Text["response-timeout-seconds.txt"] = "15"; }
         using var policy = new CallCommunicationPolicy(new TimeoutCall());
         var clock = new TimeoutClock();
-        var message = Suggestion("set appearance.response-timeout to 15",
+        var message = Suggestion(reset ? "reset appearance.response-timeout" : "set appearance.response-timeout to 15",
             sourceVoice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
         AppearanceSuggestionReview review;
         using (BeginSuggestionInput(SuggestionInput(message.Request,
@@ -30,7 +34,8 @@ public sealed partial class AppearanceConfigurationServiceTests
         {
             review = await AppearanceSuggestionReview.ReviewAsync(f.Service, policy, clock, message, () => true,
                 _ => Task.CompletedTask, TestContext.Current.CancellationToken);
-            review.Description.Should().Contain("current 5 (default); proposed 15 seconds");
+            review.Description.Should().Contain(reset ? "current 15 (saved); proposed 5 seconds" : "current 5 (default); proposed 15 seconds");
+            if (reset) { review.Description.Should().Contain("Reset saves").And.Contain("authoritative default"); }
             f.Store.Writes.Should().Be(0);
         }
         using (review)
@@ -39,7 +44,8 @@ public sealed partial class AppearanceConfigurationServiceTests
             (await review.ConfirmAsync(TestContext.Current.CancellationToken)).Succeeded.Should().BeTrue();
             review.Available.Should().BeFalse();
         }
-        f.Store.Text["response-timeout-seconds.txt"].Should().Be("15");
+        f.Store.Text["response-timeout-seconds.txt"].Should().Be(reset ? "5" : "15");
+        f.Service.Get(AppearanceOption.ResponseTimeout).IsSaved.Should().BeTrue();
         f.Audit.Events.Select(item => item.Outcome).Should()
             .Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
         f.Audit.Events.Should().OnlyContain(item => item.ActionId == "configuration.response-timeout"
@@ -47,24 +53,35 @@ public sealed partial class AppearanceConfigurationServiceTests
     }
 
     [Theory]
-    [InlineData("expiry")]
-    [InlineData("call")]
-    [InlineData("source")]
-    [InlineData("source-read")]
-    [InlineData("requested-audit")]
-    [InlineData("write")]
-    [InlineData("readback")]
-    [InlineData("terminal-audit")]
-    [InlineData("cancelled")]
-    [InlineData("invalid-initiator")]
-    public async Task ResponseTimeoutReviewNeverReportsSuccessAfterRevocationOrUnconfirmedPersistence(string fault)
+    [InlineData("expiry", false)]
+    [InlineData("call", false)]
+    [InlineData("source", false)]
+    [InlineData("source-read", false)]
+    [InlineData("requested-audit", false)]
+    [InlineData("write", false)]
+    [InlineData("readback", false)]
+    [InlineData("terminal-audit", false)]
+    [InlineData("cancelled", false)]
+    [InlineData("invalid-initiator", false)]
+    [InlineData("expiry", true)]
+    [InlineData("call", true)]
+    [InlineData("source", true)]
+    [InlineData("source-read", true)]
+    [InlineData("requested-audit", true)]
+    [InlineData("write", true)]
+    [InlineData("readback", true)]
+    [InlineData("terminal-audit", true)]
+    [InlineData("cancelled", true)]
+    [InlineData("invalid-initiator", true)]
+    public async Task ResponseTimeoutReviewNeverReportsSuccessAfterRevocationOrUnconfirmedPersistence(string fault, bool reset)
     {
         using var listener = ListenToSuggestions();
         var f = new Fixture();
+        if (reset) { f.Store.Text["response-timeout-seconds.txt"] = "15"; }
         var call = new TimeoutCall();
         using var policy = new CallCommunicationPolicy(call);
         var clock = new TimeoutClock();
-        var message = Suggestion("set appearance.response-timeout to 15", RequestOrigin.ActivatedVoice);
+        var message = Suggestion(reset ? "reset appearance.response-timeout" : "set appearance.response-timeout to 15", RequestOrigin.ActivatedVoice);
         var eligible = true;
         var confirmed = false;
         Task Validate(CancellationToken _)
@@ -98,21 +115,24 @@ public sealed partial class AppearanceConfigurationServiceTests
             }
             catch (Exception exception) when (exception is InvalidOperationException or OperationCanceledException or IOException) { }
             succeeded.Should().BeFalse();
-            f.Store.Text.ContainsKey("response-timeout-seconds.txt").Should().Be(fault is "terminal-audit");
+            f.Store.Text.GetValueOrDefault("response-timeout-seconds.txt").Should()
+                .Be(fault is "terminal-audit" ? reset ? "5" : "15" : reset ? "15" : null);
             f.Audit.Events.Should().NotContain(item => item.Outcome == SecurityAuditOutcome.Succeeded
                 && !string.Equals(fault, "terminal-audit", StringComparison.Ordinal));
         }
     }
 
-    [Fact]
-    public async Task ResponseTimeoutVoiceReviewFailsClosedDuringProtectedCall()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ResponseTimeoutVoiceReviewFailsClosedDuringProtectedCall(bool reset)
     {
         using var listener = ListenToSuggestions();
         var f = new Fixture();
         var call = new TimeoutCall();
         call.Set(CallState.Active);
         using var policy = new CallCommunicationPolicy(call);
-        var message = Suggestion("set appearance.response-timeout to 15", RequestOrigin.ActivatedVoice);
+        var message = Suggestion(reset ? "reset appearance.response-timeout" : "set appearance.response-timeout to 15", RequestOrigin.ActivatedVoice);
         using var input = BeginSuggestionInput(SuggestionInput(message.Request));
         await FluentActions.Awaiting(() => AppearanceSuggestionReview.ReviewAsync(f.Service, policy, new TimeoutClock(),
             message, () => true, _ => Task.CompletedTask, TestContext.Current.CancellationToken))

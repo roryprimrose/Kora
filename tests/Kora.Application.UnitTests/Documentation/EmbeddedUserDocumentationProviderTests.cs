@@ -139,6 +139,9 @@ public sealed class EmbeddedUserDocumentationProviderTests
         guide.Should().Contain("review response timeout suggestion").And.Contain("confirm response timeout change")
             .And.Contain("cancel response timeout review").And.Contain("not a provider/request deadline")
             .And.Contain("Other appearance settings stay");
+        guide.Should().Contain("reset <exact ID>").And.Contain("model-supplied default")
+            .And.Contain("companion unchanged").And.Contain("unsaved default").And.Contain("saves **Hybrid**")
+            .And.Contain("already equals the default").And.Contain("no model undo authority");
     }
 
     [Fact]

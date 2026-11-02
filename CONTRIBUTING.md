@@ -63,6 +63,12 @@ directory restoration with fake commands; it never updates source or opens Kora.
 PR merge orchestration can run entirely on GitHub, without a local agent.
 See [GitHub-hosted merge admission](eng/merge-queue/README.md) for queue intent,
 failure/retry behaviour, the disabled-by-default rollout and administrator setup.
+The [dormant five-PR batch profile](eng/merge-queue/README.md#dormant-five-pr-batch-profile)
+is a separate versioned rollout. Default singleton admission, four required App
+checks and strict protection remain unchanged. Batch implementation tests use
+fake GitHub operations; they neither activate the profile nor replace complete
+candidate CI. Partial integration is release-blocked until verified recovery or
+actual-tip qualification/publication.
 
 Restore, build, and test with the pinned SDK and locked dependencies:
 

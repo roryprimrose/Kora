@@ -127,6 +127,25 @@ not provider enablement or native/acoustic RC qualification
 ([full-operation regressions](../tests/Kora.Windows.IntegrationTests/AgentProfileConversationalAuthoringTests.cs),
 [user operation](../docs/agent-profile-authoring.md#describe-and-review-a-new-tool-free-agent)).
 
+### Manual owned observation-only agent authoring (v1)
+
+The existing native owned-agent editor accepts the canonical reference-free v1
+format with either no tools/zero calls or a distinct subset of the six original
+read-only observation IDs and a positive call budget. It reuses
+`BoundedAgentProfile` validation and host clamps; there is no second tool
+catalogue or artificial instruction dependency. Complete source/destination
+review and separate native Save confirmation create or update only an inert
+owned original, with durable readback and the existing conflict/uncertainty
+recovery. Typed/current-name activated-voice source entry retains original
+channel authority; filesystem confirmation remains native-only.
+
+Conversational generation/refinement remains tool-free v1 and rejects an
+observation-capable manual draft before disclosure or inference. Save does not
+register, enable, select or run an agent, grant tools, or relax protected-source
+inspection. Later compatible-source review and exact single-use invocation
+retain the canonical local permissioned tool loop, retained answer/unavailable
+terminal and joined cancellation. See the [complete manual operation](../docs/agent-profile-authoring.md#manual-source-and-separate-save).
+
 ### Bounded local agent owned-instruction references (v2)
 
 The existing selected-source v1 agent operation remains unchanged, including its

@@ -13,6 +13,9 @@ public sealed class OwnedSkillControlAdmission(
     ISessionWorkspaceStore workspace, IOwnedSkillControlSessionStore sessions, HostTaskCoordinator coordinator)
     : HostControlAdmission(workspace, coordinator)
 {
+    internal ValueTask<HostTaskObservation?> ReadIntent(HostRequest request, CancellationToken token) =>
+        Workspace.ReadTaskAsync(request.SessionId, request.TaskId, token);
+
     protected override ValueTask<WorkSessionAuthorization> CreateSessionAsync(
         HostRequest request, Func<bool> eligible, CancellationToken token) =>
         sessions.CreateOwnedSkillSession(request, eligible, token);

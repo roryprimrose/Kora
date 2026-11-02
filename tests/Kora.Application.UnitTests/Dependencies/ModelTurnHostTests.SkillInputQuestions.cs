@@ -86,10 +86,11 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
-    [InlineData(OwnedSkillToolSelection.None)]
-    [InlineData(OwnedSkillToolSelection.WebPageGet)]
-    [InlineData(OwnedSkillToolSelection.ReadOnlyObservations)]
-    public async Task NonInputSkillVersionsCannotOpenRequiredQuestions(OwnedSkillToolSelection tool)
+    [InlineData(OwnedSkillToolSelection.None, false)]
+    [InlineData(OwnedSkillToolSelection.WebPageGet, false)]
+    [InlineData(OwnedSkillToolSelection.ReadOnlyObservations, false)]
+    [InlineData(OwnedSkillToolSelection.None, true)]
+    public async Task NonInputSkillVersionsCannotOpenRequiredQuestions(OwnedSkillToolSelection tool, bool markdown)
     {
         using var f = new Fixture();
         await using var skill = new OwnedSkillHarness(f);
@@ -97,7 +98,8 @@ public sealed partial class ModelTurnHostTests
             ? OwnedDeclarativeSkillDocument.CreateObservationWorkflow("example", "1.0.0", "Example", "Description",
                 "{\"steps\":[{\"tool\":\"application.get_version\",\"input\":{}}]}")
             : OwnedDeclarativeSkillDocument.Create("example", "1.0.0", "Example", "Description", "${input:topic}", tool);
-        skill.Store.Snapshot = skill.Store.Snapshot! with { Document = document };
+        skill.Store.Snapshot = markdown ? MarkdownPackage() : skill.Store.Snapshot! with { Document = document };
+        var expected = skill.Store.Snapshot;
         using var review = await skill.Review();
         review.RequiredNames.Should().BeEmpty();
         var calls = 0;
@@ -112,7 +114,8 @@ public sealed partial class ModelTurnHostTests
         f.Adapter.Calls.Should().Be(0);
         f.RetainCalls.Should().Be(0);
         skill.Store.Writes.Should().Be(0);
-        skill.Store.Snapshot!.Document.Should().BeSameAs(document);
+        skill.Store.ReferenceReads.Should().Be(0);
+        skill.Store.Snapshot.Should().BeSameAs(expected);
     }
 
     [Theory]

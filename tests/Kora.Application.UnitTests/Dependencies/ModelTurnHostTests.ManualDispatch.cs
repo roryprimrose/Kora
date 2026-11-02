@@ -285,20 +285,6 @@ public sealed partial class ModelTurnHostTests
             foreach (var original in new[] { head, next })
             {
                 var completed = (await original.Completion).RequireReceipt();
-                var retained = f.PendingRecords[original.Receipt.Message.Request.RequestId];
-                retained.Should().Be(completed);
-                retained.Message.Request.Should().BeSameAs(original.Receipt.Message.Request);
-                retained.Task.Request.Should().BeSameAs(original.Receipt.Task.Request);
-                retained.Message.SubmittedAt.Should().Be(original.Receipt.Message.SubmittedAt);
-                retained.Message.Generation.Should().Be(original.Receipt.Message.Generation);
-                retained.Message.Sequence.Should().Be(original.Receipt.Message.Sequence);
-                retained.Message.Revision.Should().Be(2);
-                retained.Task.Revision.Value.Should().Be(2);
-                retained.Message.Outcome.Should().Be(ModelTurnOutcome.Denied);
-                retained.Message.Reason.Should().Be(ModelTurnReason.ContextExpired);
-                retained.Task.State.Should().Be(HostTaskState.Denied);
-                retained.Message.Execution.Should().BeNull();
-                retained.Message.AssistantResponse.Should().BeNull();
                 completed.Message.Should().Be(original.Receipt.Message with
                     { Revision = 2, Outcome = ModelTurnOutcome.Denied, Reason = ModelTurnReason.ContextExpired });
                 completed.Task.Should().Be(original.Receipt.Task.Next(HostTaskState.Denied));

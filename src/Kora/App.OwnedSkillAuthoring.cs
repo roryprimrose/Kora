@@ -28,7 +28,7 @@ public sealed partial class App
         var useWorkflow = new OwnedSkillInvocationWorkflow(store, admission, Services.GetRequiredService<ISessionWorkspaceAccess>(),
             Services.GetRequiredService<ISessionWorkspaceStore>(), Services.GetRequiredService<SessionWorkspaceService>(),
             Services.GetRequiredService<SessionConversationService>(), Services.GetRequiredService<ISecurityAuditLog>(),
-            Services.GetRequiredService<TimeProvider>());
+            Services.GetRequiredService<TimeProvider>(), Services.GetRequiredService<IArtifactUsePolicy>());
         var use = new OwnedSkillInvocationController(main, useWorkflow,
             () => ownership.IsReady && !ownership.IsHandoffRecoveryRequired, () => ownership.AdmissionRevision,
             Services.GetRequiredService<ILogger<OwnedSkillInvocationController>>(),

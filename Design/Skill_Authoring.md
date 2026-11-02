@@ -184,6 +184,44 @@ review of its exact revision and scope under the common lifecycle.
 
 ## Skill Package Boundary
 
+The bounded owned **native v5 Markdown component package** adds a complete
+[author/edit, whole-tree review, disabled Save, restart inspection and separate
+review/use operation](../docs/owned-skill-authoring.md#author-a-markdown-component-package).
+It is not the shared v2 format or a migration of v1/v3 literal text. The
+[central owned document](../src/Kora.Core/Skills/OwnedDeclarativeSkillDocument.cs)
+reuses the [finite reference declaration](../src/Kora.Core/Skills/SharedSkillReferenceDeclaration.cs)
+and inert Markdown validation: one to four explicit plain Markdown paths, depth
+four, 16 KiB per reference, 64 KiB for the entire manifest/instructions/reference
+tree. The complete serialized zero-tool context must also fit 32768 bytes,
+including escaped paths/content; the stricter bound wins at capture, validation,
+save/readback, preview and actual use. Unknown versions/directives, undeclared
+files and missing components fail closed, never truncate or become old literal
+formats ([canonical envelope](../src/Kora.Core/Skills/OwnedSkillGuidanceContext.cs)).
+
+Only the original user chooses the relative component paths and literal bodies
+in the component editor or equivalent bounded commands. No file import,
+automatic reference discovery, profile-original/shared-root write, script,
+hook, assembly, tool, runtime/plugin/code component or executable authority is
+added. Native v5 has literal primary guidance and tools none; v3 required
+inputs and v2 WebPageGet retain their independent contracts. The complete old
+and proposed trees, exact UTF-8 content, added/modified/removed paths, source,
+destination and bundle digest precede separate publication confirmation
+([editor](../src/Kora/OwnedSkillEditorWindow.cs)).
+
+New immutable versions use the existing no-replace whole-directory publication
+with complete identity/byte readback. A reopened base is pinned against
+replacement/writes through publication; uncertainty is explicit recovery, not
+rollback, retry or a usable mixed tree. List and initial use inspect only
+primary files and declared inventory. A separate exact original-user consent
+precedes reference-body reads, followed by complete bundle review, independent
+volatile enablement, exact Active target/request preview and invocation.
+Every component remains untrusted LocalOnly evidence. Source freshness,
+exclusions/revocation, privacy, ownership, channel, call, task/session, audit,
+cancellation and actual resource joins remain mandatory; Save grants none of
+them ([store](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.cs),
+[use](../src/Kora.Application/Skills/OwnedSkillInvocationWorkflow.cs),
+[complete deterministic operation](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.OwnedSkillMarkdown.cs)).
+
 The bounded [native v4 observation workflow](../docs/owned-skill-authoring.md#author-and-run-an-ordered-host-observation-workflow) now completes author/validate/save-disabled/reopen/review/enable/invoke/status/cancel for an explicit ordered sequence of the existing six host read-only observations.
 Its [separate native owner](../src/Kora/ObservationWorkflowController.cs) does not modify shared-source writers, interpret guidance as steps, or invoke a model.
 The [native confirmation lifetime](../src/Kora/ObservationWorkflowWindow.cs) is modal for package review, separate Save, each independent step and dirty-draft discard.

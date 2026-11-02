@@ -40,10 +40,11 @@ internal sealed class NamedSkillInvocationWindow : Window
         panel.Children.Add(Choices);
         Add("Review exactly the selected source choice", "ReviewChoice");
         panel.Children.Add(Instructions);
+        Add("Authorize only the selected owned package's declared Markdown reads", "ReadOwnedReferences");
         panel.Children.Add(LiteralInputs);
         panel.Children.Add(new TextBlock
         {
-            Text = "Review all inert instructions. LocalOnly; no tools, scripts, MCP, references, nested agents, memory or hosted transfer. "
+            Text = "Review all inert instructions and separately consented declared owned Markdown. LocalOnly; no tools, scripts, MCP, undeclared references, nested agents, memory or hosted transfer. "
                 + "Separately enable one exact revision, choose one current Active conversation, enter the literal task, preview and confirm.",
             TextWrapping = TextWrapping.Wrap,
         });

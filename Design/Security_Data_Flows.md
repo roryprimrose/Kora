@@ -712,7 +712,7 @@ These implementation checks do not qualify local answering quality, physical/nat
 
 The [2026-10-29 explicit product decision](Decision_Register.md#automatic-reviewed-local-source-use-admission---2026-10-29)
 authorizes one shared [host policy](../src/Kora.Application/Context/LocalSourceUsePolicy.cs)
-for the existing file/folder/retained-attachment, web-result, diagnostic-page
+for the existing file/folder/retained-attachment, explicitly selected retained named-source, web-result, diagnostic-page
 and MCP-observation grounded-answer routes. It replaces only their unspecified
 affirmative-classifier prerequisite. It is not derived from the clipboard
 permission exception, does not change clipboard behavior and grants no capture,

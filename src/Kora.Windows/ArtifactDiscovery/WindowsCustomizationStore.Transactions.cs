@@ -10,6 +10,7 @@ public sealed partial class WindowsCustomizationStore
 {
     private const int MaximumJournalBytes = 4 * 1024 * 1024;
     internal Action? BeforeCopyPublication { get; set; }
+    internal Action? BeforePromptPublication { get; set; }
     private sealed record Journal(CustomizationSource Source, string DirectoryIdentity, DiskFile[] Before, DiskFile[] After);
     private string JournalDirectory => Path.Combine(paths.LocalRoot, "DefinitionTransactions");
     private static string JournalName(Target target) =>
@@ -102,10 +103,20 @@ public sealed partial class WindowsCustomizationStore
             {
                 identity = WindowsOwnedDefinitionFileAccess.WriteDefinitionFile(Path.GetDirectoryName(fullPath)!, parent,
                     Path.GetFileName(fullPath), next.Bytes, prior is not null, eligible, token,
-                    finalComparison: copyTarget is null ? null : () =>
+                    finalComparison: copyTarget is null && target.Source is not { Kind: CustomizationKind.Prompt, Scope: CustomizationScope.Kora }
+                        ? null : () =>
                     {
-                        BeforeCopyPublication?.Invoke();
-                        RequireCopySource(copyTarget, copiedFrom!, token);
+                        if (copyTarget is not null)
+                        {
+                            BeforeCopyPublication?.Invoke();
+                            RequireCopySource(copyTarget, copiedFrom!, token);
+                        }
+                        else
+                        {
+                            BeforePromptPublication?.Invoke();
+                            if (!string.Equals(Capture(target, token).Revision, current.Revision, StringComparison.Ordinal))
+                            { throw new InvalidOperationException("The reviewed prompt changed during staging. Publication was withheld; retain the draft and inspect recovery."); }
+                        }
                     });
             }
             var written = Capture(target, token);

@@ -21,15 +21,15 @@ public sealed class ProposedBoundedAgentUse
         this.observation = observation;
         this.sources = sources;
         Target = target;
-        Input = input;
-        Origin = origin;
+        DiscoveryQuestion = input;
+        DiscoveryOrigin = origin;
         this.current = current;
     }
 
     public ArtifactDefinition Definition { get; }
     public SessionWorkspaceEntry Target { get; }
-    public string Input { get; }
-    public RequestOrigin Origin { get; }
+    public string DiscoveryQuestion { get; }
+    public RequestOrigin DiscoveryOrigin { get; }
     public bool IsCurrent() => current();
 
     public async Task ConsumeForReviewAsync(CancellationToken token)

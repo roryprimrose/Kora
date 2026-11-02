@@ -171,7 +171,10 @@ public sealed class CustomizationDiscoverySnapshot : IDisposable
             var candidates = catalogue.Candidates;
             var definition = candidates.SingleOrDefault(item =>
                 string.Equals(item.UseControlId, observed.Source.Id, StringComparison.Ordinal)
-                && string.Equals(item.Id, observed.ArtifactId, StringComparison.Ordinal)
+                && (string.Equals(item.Id, observed.ArtifactId, StringComparison.Ordinal)
+                    || observed.Source.Scope == CustomizationScope.User
+                    && string.Equals(item.Id, $"disk.{item.Source}.agent.{item.CommandName}", StringComparison.Ordinal)
+                    && string.Equals(observed.ArtifactId, $"disk.user-profile.agent.{item.CommandName}", StringComparison.Ordinal))
                 && string.Equals(item.Digest, observed.Digest, StringComparison.Ordinal));
             if (definition is not { Kind: ArtifactKind.Agent, IsUseEnabled: true, IsUseDisabled: false })
             { return new(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse, result.Provenance); }
@@ -185,7 +188,7 @@ public sealed class CustomizationDiscoverySnapshot : IDisposable
                 Response = result.Response! with
                 {
                     Answer = $"Proposed agent: {definition.Name}. No agent has run. "
-                        + "Review the complete exact source, original request and original conversation in the private native agent review, "
+                        + "Choose the current exact source and supply a NEW original task in the private native agent review, "
                         + "then separately confirm once. This recommendation is not an answer from the agent or invocation authority.",
                 },
             };

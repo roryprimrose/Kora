@@ -543,9 +543,14 @@ Resolution consent and complete exact invocation review remain separate. V1 tool
 may return one strict opaque agent ref from the served enabled registered subset.
 This is untrusted selection data, not a tool invocation or approval.
 The [source-bound proposal](../src/Kora.Application/Agents/ProposedBoundedAgentUse.cs)
-retains the original question/channel/conversation and exact observed source.
-A separate original-user native action opens the existing complete invocation
-review, then requires separate confirmation through `BoundedAgentWorkflow`.
+retains the discovery question/channel/conversation and exact observed source as inert recommendation provenance, not invocation input or authority.
+The recommendation binds to the exact host-owned file identity and byte digest.
+Artifact IDs must match exactly or use the canonical User metadata projection:
+`user-profile` replaces the registered VS Code, Insiders or configured-root category,
+preserving the exact agent command identity. Arbitrary ID differences are refused.
+Matching category IDs or readable names never substitute for the exact file binding.
+A separate original-user **Review customization recommendation** action opens the existing native review with the original conversation fixed and an empty task field. The host offers current source-qualified same-name candidates without automatic selection. The user chooses an exact current source and supplies a fresh unchanged task with its own accurate channel and new request/task identity.
+Separate source-read consent displays the whole selected profile, exact new task, scope and budgets; separate confirmation invokes `BoundedAgentWorkflow`. Catalogue/source/use/private/ownership/call/session changes fail closed, and input/choice edits retire in-flight reviews ([native owner](../src/Kora/AgentRunController.ModelProposal.cs), [current-source resolver](../src/Kora.Application/Agents/NamedAgentResolver.cs)).
 Only v1 local instruction-only, tools-none/references-none profiles are admitted.
 The parent finishes before this new original-user action; no nested runtime chain,
 fabricated parent tool result or hosted transmission of profile/output is added.

@@ -67,6 +67,8 @@ public sealed class CustomizationTests
     [InlineData("Add a skill that explains logs", "Create", CustomizationKind.Skill, null)]
     [InlineData("create kora adaptation adapted", "Adapt", CustomizationKind.Skill, "adapted")]
     [InlineData("Kora, save skill adaptation", "SaveAdaptation", CustomizationKind.Skill, null)]
+    [InlineData("delete selected owned definition", "Delete", null, null)]
+    [InlineData("Kora, delete selected owned definition", "Delete", null, null)]
     public void Whole_original_commands_select_the_shared_management_operation(string input, string operation, CustomizationKind? kind, string? name)
     {
         var command = CustomizationCommand.Parse(input, "Kora")!;

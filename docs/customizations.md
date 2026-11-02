@@ -5,9 +5,27 @@ assistant-name prefix with activated voice, such as `Kora, show skills`.
 The same native window serves all these routes.
 
 **Choose a task:** [browse](#browse-by-type-and-source), [edit or add](#edit-or-add),
-[disable or enable use](#disable-or-enable-kora-use), or open the dedicated
+[disable or enable use](#disable-or-enable-kora-use), [delete one owned definition](#delete-one-owned-single-file-definition), or open the dedicated
 [instruction](instruction-editor.md), [skill](owned-skill-authoring.md) or
 [agent](agent-profile-authoring.md) editor.
+
+## Delete one owned single-file definition
+
+1. In **Instructions**, **Prompts** or **Agents**, inspect one supported saved entry from the **Kora** group. The exact source path distinguishes it from personal originals and same-name entries.
+2. Choose **Delete owned definition**. Review the complete saved source, kind, exact path and consequences, then choose **Continue deletion**.
+3. Separately choose **Delete exact owned file**. Only the unchanged reviewed file is deleted; its directory and unrelated definitions are not removed. There is no cascade, archive, grant deletion or automatic rollback.
+
+The [shared deletion owner](../src/Kora.Application/Definitions/CustomizationManagementService.Deletion.cs) holds the exact source against future use before mutation and reloads the catalogue afterward. Old reviews cannot authorize restored or replacement bytes. Already admitted captured work is not physically cancelled; independent history, grants and audit retain their own lifetimes.
+
+Unsaved editor text and its frozen baseline remain visible after deletion, even when that raw text is too large or invalid to save. Deletion reviews only the valid saved source. Save cannot silently recreate that missing baseline. To recover the draft, explicitly choose a distinct **New artifact ID**, then **Create Kora copy**, and complete the normal separate Save review. The deleted ID and its case aliases are refused before any discard/rebase review, including after a recovery copy. Copying and Disable retain the raw text, including before the recovery copy's separate Save; separate Save still requires strict UTF-8 text without NUL and at most 64 KiB including any BOM. Closing a dirty editor still requires Save/Discard/Cancel ([controller](../src/Kora/CustomizationWindowController.Deletion.cs)).
+
+After inspecting the source, typed `delete selected owned definition` or the current assistant-name activated equivalent opens the same two native reviews. The command itself is never confirmation; destructive source-write confirmation remains native, as with the dedicated editor's Delete exception. No model is called ([exact routing](../src/Kora.Application/Definitions/CustomizationCommand.cs)).
+
+The [native owner](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.Deletion.cs) revalidates the host-owned kind root, canonical filename, native file/directory identity, complete reviewed revision/bytes, ownership and current admission. Changed/missing/replaced files, aliases, links, withdrawn roots, unavailable catalogues and pending recovery fail closed. Reviews expire after two minutes; edits, selection attempts, privacy, ownership or control changes invalidate them.
+
+If deletion committed but readback, audit, admission or presentation is unconfirmed, the result explicitly requires inspection, not retry or an assumption of rollback. A failed catalogue reload is disclosed separately from the completed deletion. Personal originals, bundled sources, skills/packages, MCP entries, directories and arbitrary paths are excluded ([deterministic regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.Deletion.cs)).
+
+## Definition roles
 
 Instructions guide an answer; prompts are reusable requests; skills provide
 reusable task guidance; agents add a role and limits. MCP servers describe

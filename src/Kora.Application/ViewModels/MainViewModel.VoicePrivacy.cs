@@ -325,6 +325,7 @@ public sealed partial class MainViewModel
         }
         questionVoiceReplies?.CloseAdmission();
         CancelLogonStartupReview();
+        CancelQuietHoursReview();
         CancelStartupPresentationReview();
         if (conversationalReplies is not null) { conversationalReplies.Changed -= OnConversationalReplyPreferenceChanged; }
         RetireQuestionVoiceReply();

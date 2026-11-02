@@ -210,7 +210,7 @@ public sealed class SettingsResetMenuTests
 
     [Theory]
     [InlineData("Appearance", 17, 17, 0)]
-    [InlineData("Speech & audio", 8, 7, 5)]
+    [InlineData("Speech & audio", 9, 8, 5)]
     [InlineData("Responses", 4, 4, 3)]
     [InlineData("Sessions", 1, 1, 1)]
     [InlineData("Logging", 2, 2, 2)]

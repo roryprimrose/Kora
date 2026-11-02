@@ -95,8 +95,9 @@ state holds without defaults or replay. Restoring ownership or clearing a call
 does not automatically show/speak notices; only fresh already-open native
 observation may admit an unexpired deferral. Session retirement clears owned
 receipts, not unrelated preferences or global fatigue budgets. General
-reminders, quiet hours, proactive speech configuration and apply-now remain
-undelivered.
+reminders, broader proactive speech configuration and apply-now remain
+undelivered. The independent [scheduled speech-only quiet-hours operation](Proactive_Interaction.md#scheduled-proactive-speech-quiet-hours)
+does not change visual broker suppression.
 
 ### R12 Bounded Session Retention Delivered - 2026-10-09
 
@@ -1455,15 +1456,16 @@ The exact caption, rich rendering, viewer, and text-scale options are defined in
 | Busy/DND/meeting quieting | Call/Suspected meeting handling as in call policy; additional Busy/DND preference off | "Stay quiet when Teams says do not disturb" |
 | Temporary call override | Up to 1 hour or observed call end; never persistent implicitly | "Allow spoken answers for this call for fifteen minutes" |
 | Proactive speech consent | Explained and chosen in setup | "You can make suggestions again" |
-| Quiet hours | None until chosen; local time/time zone shown | "Don't interrupt me between nine and five on weekdays" |
+| Quiet hours (`notices.quiet-hours`) | Delivered bounded proactive completion speech only; Off until chosen; explicit days, local start/end and zone; separate review/confirmation | `set notices.quiet-hours to weekly Mon,Tue,Wed,Thu,Fri 09:00 17:00 UTC`, then `confirm notices.quiet-hours` |
 | Quiet mode | Off normally; conversation or persistent scope explicit | "Use quiet mode for this conversation" |
 | Notification categories | Eligible task/setup/update events; categories individually configurable | "Tell me about task failures but not completed tasks" |
 | Reminder deferral | 24 hours; 1 hour-7 days | "Remind me about updates tomorrow" |
 
 Detectors need explicit setup/account/network consent; setting a preference does not create Graph credentials.
-Only the bounded feedback/manual controls and existing protection settings are
-delivered here. Other table entries, including general proactive/quiet-hours/
-notification/temporary-exception configuration, remain proposed.
+Only the bounded feedback/manual controls, existing protection settings and
+[speech-only scheduled quiet hours](Proactive_Interaction.md#scheduled-proactive-speech-quiet-hours)
+are delivered here. General proactive, notification and temporary-exception
+configuration remain proposed.
 The in-call feedback override and voice-activation setting are device-local and independent: UI-only output does not close the microphone, while disabling call-time voice activation closes active capture and blocks re-enabling it until the call clears.
 Inherit restores normal task/queue/session/device feedback precedence; changing the feedback mode does not silently relax separate call speech suppression/privacy rules.
 The spoken-approval setting is independent of feedback/listening/speech suppression and does not alter stored grants or their retention, or the selected session permission level.

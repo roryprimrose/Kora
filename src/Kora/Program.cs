@@ -696,6 +696,9 @@ internal static class Program
         services.AddSingleton<ISpeechInputPreferences>(provider =>
             new LocalSpeechInputPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<SpeechInputConfigurationService>();
+        services.AddSingleton<IQuietHoursPreferences>(provider =>
+            new LocalQuietHoursPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<QuietHoursConfigurationService>();
         services.AddSingleton(new HttpClient
         {
             Timeout = TimeSpan.FromMinutes(15),

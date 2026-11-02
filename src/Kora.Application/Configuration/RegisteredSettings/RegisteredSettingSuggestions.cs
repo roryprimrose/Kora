@@ -13,10 +13,10 @@ public static class RegisteredSettingSuggestions
         "Registered Kora setting suggestions are inert data, never write authority. "
         + "Only when requested, the entire final answer may be one inert suggestion from this closed registry: "
         + string.Join("; ", RegisteredSettingRegistry.Settings.Select(item =>
-            $"'{item.Id}' ({item.Description}; {item.Scope}; "
+            $"'{item.Id}' ({item.Description}; "
             + item.SuggestedValues
             + (item.RequiresNativeReview ? "; original local UI and separate native confirmation only)" : ")")))
-        + ". Use 'set <exact ID> to <value>', canonical decimal integers for numeric values and true/false for booleans, "
+        + ". All have shared device-local scope. Use 'set <exact ID> to <value>', canonical decimal integers for numeric values and true/false for booleans, "
         + "or exactly 'reset <exact ID>' with no value. Only the host resolves the owner's default and saved/default result, "
         + "including companion fields; never supply a default value. Reset requires the same separate review and confirmation as Set. "
         + "Presence and response-timeout suggestions require that exact syntax, ID and canonical value, without aliases or surrounding text. "
@@ -36,12 +36,29 @@ public static class RegisteredSettingSuggestions
         + "Response-mode review shows saved/default, desired and configured effective modes. Use exact canonical "
         + "Hybrid, VoiceOnly or VisualOnly; mandatory full visual warnings, questions, approvals, security, speech-unavailable "
         + "fallback, privacy and call restrictions always win, including VoiceOnly. Response mode affects future eligible output only. "
+        + "speech.voice requires the exact installed 'provider / voice ID' supplied by the user; no invented IDs, catalogue discovery, acquisition or provider-only Set. "
         + "Speech changes apply to NEXT eligible ordinary speech only. Nothing is applied or spoken by the suggestion; "
         + "never truncate, regenerate, synthesize or replay this answer. Existing privacy, call and native/authentication exceptions remain mandatory.";
 
     public static RegisteredSettingProposal Parse(string answer)
     {
         ArgumentNullException.ThrowIfNull(answer);
+        const string voicePrefix = "set speech.voice to ";
+        const string qualification = " / ";
+        if (answer.StartsWith(voicePrefix, StringComparison.Ordinal))
+        {
+            var maximum = voicePrefix.Length + Math.Max(SpeechProviderIds.Windows.Length, SpeechProviderIds.Kokoro.Length)
+                + qualification.Length + SpeechSelection.MaximumVoiceIdLength;
+            if (answer.Length > maximum)
+            { throw new InvalidDataException("A voice suggestion must contain one bounded exact installed provider / voice ID."); }
+            var value = answer[voicePrefix.Length..];
+            var separator = value.IndexOf(qualification, StringComparison.Ordinal);
+            if (separator < 0)
+            { throw new InvalidDataException("A voice suggestion requires one exact qualified provider / voice ID."); }
+            var selection = new SpeechSelection(value[..separator], value[(separator + qualification.Length)..]);
+            selection.Validate();
+            return new RegisteredSettingProposal.InstalledVoice(selection);
+        }
         if (answer.Length > 256)
         { throw new InvalidDataException("A setting suggestion must be one bounded Set or Reset, not a batch or commentary."); }
 

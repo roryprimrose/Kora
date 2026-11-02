@@ -27,6 +27,7 @@ do not require you to remember these names.
 | `speech.playback-volume` | Integer 0-100 | Native or existing exact typed/activated-voice review |
 | `responses.default-mode` | Exact `Hybrid`, `VoiceOnly`, `VisualOnly` | Native or exact typed/activated-voice review |
 | `speech.windows-rate` | Canonical integer -10 through 10, normal 0 | Native or exact typed/activated-voice review |
+| `speech.voice` | Exact installed `provider / voice ID` supplied in your request | Native or exact typed/activated-voice review |
 
 For example, the complete answer may be `set appearance.theme to dark`,
 `set appearance.reduced-motion to true`, `set appearance.movement-speed to 50`,
@@ -46,6 +47,9 @@ Response-timeout suggestions use the same canonical lowercase syntax, for exampl
 Native renderer selection is not an admitted model suggestion.
 This suggestion registry does not expand setting inspection: inspection remains
 limited to theme, reader text scale, both summary caps, playback volume and response mode.
+
+For an [installed voice](voice-and-audio.md#review-an-installed-voice-suggestion), supply its exact qualified ID in your request. The complete answer must be `set speech.voice to <provider / voice ID>`.
+Kora validates that exact installed pair privately; the model cannot enumerate choices, select a provider alone, download assets or invent an available voice ([parser](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestions.cs)).
 
 ## Propose one Reset
 
@@ -78,6 +82,7 @@ Existing review-channel restrictions and uncertain-write recovery remain unchang
    native units (-10 through 10, normal 0), not percentages or a universal speed scale.
    It uses the same guarded, validated writer as Settings > Speech & audio.
    Only the already available Windows provider/adapter can apply; Kokoro is unchanged.
+   Installed voice review shows both current/proposed provider and voice, the current effective voice, saved/default provenance and the retained-answer/installed-catalogue binding. Confirmation saves the pair atomically, then checks exact persisted/current readback ([review owner](../src/Kora.Application/Configuration/InstalledSpeechVoiceSuggestionReview.cs)).
    Presence changes affect the existing display and animation immediately after a
    confirmed save. Disabling presence hides it; speech scaling only changes its
    animation, never speech permission, synthesis or playback.
@@ -104,7 +109,7 @@ old one. The original request, answer, session, preference revision, private
 control/ownership and call admission remain bound throughout source checks and
 confirmation. A copied message, stale page, changed settings or a changed source
 cannot silently select a newer answer. Speech, volume and response-mode reviews expire after
-60 seconds, including Windows rate and response timeout. Closing or losing private control retires the review.
+60 seconds, including Windows rate, response timeout and installed voice. Closing or losing private control retires the review.
 
 ## Activated voice and mandatory exceptions
 
@@ -121,6 +126,7 @@ review commands do not execute model text as a direct setting command.
 Windows rate uses **review rate suggestion**, **confirm rate change**, and
 **cancel rate review** against that same exact successful-submission pin.
 Response timeout uses **review response timeout suggestion**, **confirm response timeout change**, and **cancel response timeout review**, using the same exact retained answer and existing validated, audited appearance writer ([shared review](../src/Kora.Application/Configuration/AppearanceSuggestionReview.cs), [command route](../src/Kora.Application/ViewModels/MainViewModel.ResponseTimeoutSuggestions.cs)).
+Installed voice uses **review installed voice suggestion**, **confirm installed voice change**, and **cancel installed voice review**, with the same original-source and channel restrictions ([commands](../src/Kora.Application/Configuration/InstalledSpeechVoiceSuggestionCommand.cs)).
 
 Original voice provenance survives later typed/native confirmation; a protected
 or unknown call cannot be laundered into local UI authority. Other appearance settings stay
@@ -131,14 +137,14 @@ A generic "yes", the model's answer or the original request cannot confirm.
 ## Recovery and availability
 
 After a confirmed registered change, [Undo the last settings change](settings.md#undo-the-last-registered-settings-change) offers one exact run-only preference restoration through separate review and confirmation. A model suggestion cannot invent the prior value or create undo authority; the host receipt and current authoritative writer decide eligibility ([undo owner](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
-Windows rate is not added to that undo subset; direct rate Reset remains available
+Windows rate and installed voice are not added to that undo subset; direct Reset remains available
 through its existing admitted controls.
 Response timeout supports the same separate native/typed/activated-voice undo review and confirmation. Undo restores one compatible saved value or the unsaved default, with no redo or provider effect ([undo writer](../src/Kora.Application/Configuration/RegisteredSettings/AppearanceConfigurationService.Undo.cs)).
 
 Review and cancellation never invoke a model, synthesize audio or replay an
 answer. Confirmed speech changes apply to the **next** eligible ordinary speech,
 not truncation or regeneration of the current answer. No system/device/call
-volume, provider, microphone, consent, grant or unrelated preference is changed.
+volume, microphone, consent, grant or unrelated preference is changed. Only `speech.voice` changes the provider together with its exact installed voice ([atomic writer](../src/Kora.Application/Configuration/SpeechConfigurationService.cs)).
 Windows rate applies only to future eligible Windows synthesis. It never switches
 provider, sets system speech speed, qualifies an adapter or claims acoustic results.
 

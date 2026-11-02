@@ -29,7 +29,7 @@ const EXPECTED = {
   ],
 };
 
-async function boundary(api, context, lock, version) {
+async function boundary(api, context, lock, stamp) {
   await api.verifyProtection();
   invariant(await api.administrator(context.actor), 'Bootstrap requires a live repository administrator.');
   invariant(await api.main() === EXPECTED.active.base, 'Protected main changed; bootstrap is not authorized.');
@@ -46,12 +46,10 @@ async function boundary(api, context, lock, version) {
   `Bootstrap lock shape differs: ${JSON.stringify({ id: ruleset.id, target: ruleset.target,
     enforcement: ruleset.enforcement, conditions: ruleset.conditions, rules: ruleset.rules,
     bypassActorCount: ruleset.bypass_actors?.length })}.`);
-  // Read-only administration redacts bypass actors; the administrator attests their exact immutable revision.
-  const { data: history } = await api.github.request(
-    'GET /repos/{owner}/{repo}/rulesets/{ruleset_id}/history',
-    { ...api.repo, ruleset_id: Number(lock), per_page: 1 });
-  invariant(Array.isArray(history) && history.length === 1 && history[0].version_id === Number(version),
-    'The administrator-attested no-bypass lock revision changed or is unavailable.');
+  // Read-only administration redacts bypass actors; the administrator attests the full snapshot at this server stamp.
+  invariant(typeof ruleset.updated_at === 'string' && Number.isFinite(Date.parse(ruleset.updated_at))
+    && Date.parse(ruleset.updated_at) === Date.parse(stamp),
+  'The administrator-attested no-bypass lock revision changed or is unavailable.');
   const { data: policies } = await api.github.request(
     'GET /repos/{owner}/{repo}/environments/{environment_name}/deployment-branch-policies',
     { ...api.repo, environment_name: 'merge-queue', per_page: 100 });
@@ -97,12 +95,11 @@ async function bootstrap(api, { context, inputs, attempt }) {
     && Number.isSafeInteger(context.runId) && context.runId > 0 && attempt === 1
     && inputs.acknowledge === true && typeof inputs.lock_ruleset === 'string'
     && /^[1-9][0-9]*$/.test(inputs.lock_ruleset) && Number.isSafeInteger(Number(inputs.lock_ruleset))
-    && typeof inputs.lock_version === 'string' && /^[1-9][0-9]*$/.test(inputs.lock_version)
-    && Number.isSafeInteger(Number(inputs.lock_version)),
+    && typeof inputs.lock_stamp === 'string' && Number.isFinite(Date.parse(inputs.lock_stamp)),
   'Bootstrap requires explicit first-attempt administrator authorization on its exact locked branch.');
   let state;
   for (let pass = 0; pass < 2; pass++) {
-    await boundary(api, context, inputs.lock_ruleset, inputs.lock_version);
+    await boundary(api, context, inputs.lock_ruleset, inputs.lock_stamp);
     await evidence(api);
     state = await api.load();
     invariant(api.commit === CHECKPOINT && isDeepStrictEqual(state, EXPECTED),
@@ -113,7 +110,7 @@ async function bootstrap(api, { context, inputs, attempt }) {
   const next = { ...state, active: null };
   await api.save(next, `ci: retire reviewed admission-only rejection\n\nAdministrator: ${context.actor}\n`
     + `Bootstrap workflow run: ${context.runId}\nBootstrap source: ${context.sha}\n`
-    + `Administrator-attested no-bypass lock: ${inputs.lock_ruleset}; revision: ${inputs.lock_version}\n`
+    + `Administrator-attested no-bypass lock: ${inputs.lock_ruleset}; server revision stamp: ${inputs.lock_stamp}\n`
     + `Ticket: ${EXPECTED.active.ticket}\nPrevious checkpoint: ${CHECKPOINT}\n`
     + `Terminal failed CI run: ${RUN}\nFailed checks and blocked revisions retained unchanged.`);
   const committed = api.commit;

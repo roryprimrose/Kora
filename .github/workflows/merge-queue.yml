@@ -14,8 +14,8 @@ on:
         description: Verified active no-bypass lock for this immutable bootstrap branch
         type: string
         required: true
-      lock_version:
-        description: Immutable current ruleset history version verified by the administrator with full actor visibility
+      lock_stamp:
+        description: Server updated_at of the full no-bypass snapshot verified by the administrator
         type: string
         required: true
 

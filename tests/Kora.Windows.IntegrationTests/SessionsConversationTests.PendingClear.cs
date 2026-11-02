@@ -21,6 +21,7 @@ public sealed partial class SessionsConversationTests
         await HeadlessSession.RunAsync(async () =>
         {
             using var f = new InteractionStorageFixture();
+            f.Time.UseFrozenTimers = true;
             await f.InitializeAsync();
             await WindowsSqliteConversationTests.FinishInitial(f);
             var adapter = new PendingTurnAdapter();
@@ -72,6 +73,7 @@ public sealed partial class SessionsConversationTests
                     message.Execution.Should().BeNull();
                 }
                 await model.RefreshPendingConversationAsync();
+                await WhenModelAsync(model, () => model.PendingConversationTurns.Count == 0 && model.CanResumePendingConversation);
                 model.PendingConversationTurns.Should().BeEmpty();
                 model.CanResumePendingConversation.Should().BeTrue();
                 active.Completion.IsCompleted.Should().BeFalse();
@@ -80,6 +82,7 @@ public sealed partial class SessionsConversationTests
                 (await f.Store.ReadRetentionAsync(target.Authority.SessionId, f.Token)).Should().Be(retention);
                 f.Count("scoped_grants").Should().Be(0);
                 f.Count("conversation_drafts").Should().Be(0);
+                f.Time.SystemTimersCreated.Should().Be(0);
             }
             finally { adapter.ReleaseAll(); window.ClosePrivate(); await composed.Conversation.DisposeAsync(); }
         });
@@ -93,6 +96,7 @@ public sealed partial class SessionsConversationTests
         await HeadlessSession.RunAsync(async () =>
         {
             using var f = new InteractionStorageFixture();
+            f.Time.UseFrozenTimers = true;
             await f.InitializeAsync();
             await WindowsSqliteConversationTests.FinishInitial(f);
             var original = f.Request.SessionId;
@@ -197,6 +201,9 @@ public sealed partial class SessionsConversationTests
                 var cleared = await composed.Conversation.ReadPendingConversationAsync(target, () => true, f.Token);
                 cleared.ManualHoldReason.Should().Be(manualHold ? ConversationDispatchHoldReason.OriginalUser : ConversationDispatchHoldReason.None);
                 cleared.Paused.Should().BeTrue();
+                await WhenModelAsync(model, () => model.PendingConversationTurns.Count == 0
+                    && model.CanReleaseConversationDispatch == manualHold);
+                model.PendingConversationTurns.Should().BeEmpty();
                 model.CanReleaseConversationDispatch.Should().Be(manualHold);
                 if (manualHold)
                 {
@@ -229,6 +236,7 @@ public sealed partial class SessionsConversationTests
                 f.Count("conversation_messages").Should().Be(5);
                 f.Count("scoped_grants").Should().Be(0);
                 f.Count("conversation_drafts").Should().Be(0);
+                f.Time.SystemTimersCreated.Should().Be(0);
                 adapter.ReleaseAll();
                 (await active.Completion).RequireReceipt().Task.State.Should().Be(HostTaskState.Succeeded);
             }

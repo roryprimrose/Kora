@@ -287,11 +287,15 @@ public sealed partial class ModelTurnHostTests
             expectedMetadataRevision.Should().Be(Metadata?.Revision.Value ?? 0);
             admitted().Should().BeTrue();
             Request = request;
-            Task = new(new(request, new(1), HostTaskState.IntentRecorded), Session.Generation, "host", true, null);
-            Retained = new(request, generation, 1, 1, Time.Now, body, null, null);
+            var task = new HostTaskRecord(request, new(1), HostTaskState.IntentRecorded);
+            var message = new ConversationMessage(request, generation, 1, 1, Time.Now, body, null, null);
+            Task = new(task, Session.Generation, "host", true, null);
+            Retained = message;
+            var receipt = new ConversationSubmissionReceipt(message, task);
             AfterRetain?.Invoke();
-            RememberPendingRecord();
-            return ValueTask.FromResult(new ConversationSubmissionReceipt(Retained, Task.Task));
+            if (!TrackPendingRecords) { receipt = new(Retained, Task.Task); }
+            RememberPendingRecord(receipt);
+            return ValueTask.FromResult(receipt);
         }
         public async ValueTask<ConversationSubmissionReceipt> CompleteConversationSubmissionAsync(HostRequest request,
             ModelTurnOutcome outcome, ModelTurnReason reason, Func<bool> admitted, CancellationToken token)

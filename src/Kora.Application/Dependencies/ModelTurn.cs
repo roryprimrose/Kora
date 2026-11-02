@@ -84,6 +84,7 @@ public sealed class ModelTurn
     internal ModelProviderRegistration Registration { get; set; }
     internal ModelProviderPolicy? Policy { get; set; }
     internal ModelTurnResult? TerminalResult { get; set; }
+    internal OrdinaryTurnActiveBudget? OrdinaryActiveBudget { get; set; }
     internal LocalUnavailableObservation? LocalUnavailable { get; set; }
     internal RuntimeResourceAllocator.Lease? ResourceLease { get; set; }
     internal bool ResourceDispatched { get; set; }

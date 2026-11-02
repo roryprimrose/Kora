@@ -208,14 +208,20 @@ internal sealed class InteractionStorageFixture : IDisposable
 
     internal sealed class Clock : TimeProvider
     {
+        private int systemTimersCreated;
         internal DateTimeOffset Now { get; set; } = new(2026, 10, 6, 12, 0, 0, TimeSpan.Zero);
         internal long MonotonicTicks { get; set; }
         internal bool UseFrozenTimers { get; set; }
+        internal int SystemTimersCreated => Volatile.Read(ref systemTimersCreated);
         public override long TimestampFrequency => TimeSpan.TicksPerSecond;
         public override long GetTimestamp() => MonotonicTicks;
         public override DateTimeOffset GetUtcNow() => Now;
-        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period) =>
-            UseFrozenTimers ? new FrozenTimer() : base.CreateTimer(callback, state, dueTime, period);
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            if (UseFrozenTimers) { return new FrozenTimer(); }
+            Interlocked.Increment(ref systemTimersCreated);
+            return base.CreateTimer(callback, state, dueTime, period);
+        }
 
         private sealed class FrozenTimer : ITimer
         {

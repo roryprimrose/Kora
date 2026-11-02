@@ -975,6 +975,8 @@ Use `get speech.input` or `status speech.input` to inspect saved, desired and ef
 
 Only the existing compatible Windows activated tuple is confirmable. Additional local wake/ASR/resource profiles remain unavailable; old unsupported intent is not silently replaced. Confirmation joins owned runtime retirement before cutover, without enabling listening, downloading or opening capture ([complete workflow](voice-and-audio.md#speech-input-profile-preference)).
 
+`compare speech input` opens the distinct local setup-comparison review; `test speech comparison` explicitly confirms its disclosed microphone use, and `cancel speech comparison` cancels/joins and discards results. Calibration phrases never enter these command routes. Production comparison capabilities are currently unavailable; no installed profile is assumed qualified ([interaction, safety and limits](voice-and-audio.md#local-speech-setup-comparison)).
+
 ## Exact input-device preference
 
 Typed input and **activated** voice use:

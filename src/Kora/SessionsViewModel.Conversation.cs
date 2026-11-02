@@ -90,7 +90,7 @@ internal sealed partial class SessionsViewModel
         NotifyConversation();
     }
     public Task OpenConversationDetailAsync(ConversationMessage message, bool assistant = false, Guid? observationId = null,
-        Func<bool>? detailAdmission = null) => RunConversationAsync(async (target, live) =>
+        Func<bool>? detailAdmission = null, bool submittedContext = false) => RunConversationAsync(async (target, live) =>
     {
         if (!ObservedConversationMessages.Concat(ConversationSearchMessages).Any(record => ReferenceEquals(record, message)))
         { throw new InvalidOperationException("Select an actual record from the currently observed exact conversation page."); }
@@ -100,7 +100,7 @@ internal sealed partial class SessionsViewModel
         bool DetailLive() => live() && (detailAdmission?.Invoke() ?? true) && (!searchMatch || conversationSearchEpoch == searchEpoch);
         if (searchMatch) { conversationSearchDetailTarget = target; }
         var content = await conversation!.ReadDetailAsync(target, message, DetailLive, lifetime.Token,
-            assistant, observationId);
+            assistant, observationId, submittedContext);
         if (!DetailLive()) { throw new OperationCanceledException("The original conversation selection or search changed."); }
         var beginValidation = HostActivity.CaptureContinuation(HostActivityLayer.Desktop, HostOperation.Storage);
         async Task<Kora.Core.Presentation.AdmittedDetailContent> Resolve(CancellationToken token)
@@ -109,7 +109,7 @@ internal sealed partial class SessionsViewModel
             try
             {
                 var exact = await conversation.ReadDetailAsync(target, message, DetailLive, token,
-                    assistant, observationId);
+                    assistant, observationId, submittedContext);
                 validation.Complete(HostOperationOutcome.Completed);
                 return exact;
             }
@@ -129,7 +129,7 @@ internal sealed partial class SessionsViewModel
                 content, DetailLive, Resolve, lifetime.Token);
         if (!DetailLive()) { throw new OperationCanceledException("Search match navigation was revoked."); }
         conversationStatus = detailStatus;
-        RememberSelectedDetail(observationId is null ? assistant ? DetailPart.Assistant : DetailPart.Original : DetailPart.Observation,
+        RememberSelectedDetail(submittedContext ? DetailPart.Context : observationId is null ? assistant ? DetailPart.Assistant : DetailPart.Original : DetailPart.Observation,
             message.Request.RequestId.Value, observationId);
     }, sourceRead: true, searchDetailEpoch:
         ConversationSearchMessages.Any(record => ReferenceEquals(record, message)) ? conversationSearchEpoch : null);
@@ -361,6 +361,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversation(bool preserveUnsent = true)
     {
+        ClearClarificationExchange();
         ClearAnswerReviews();
         CancelTaskOutputReview();
         CancelLocalRequestProfile();
@@ -391,6 +392,7 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyConversation()
     {
+        NotifyClarificationExchange();
         NotifyAnswerReviews();
         NotifyTaskOutput();
         NotifyLocalRequestProfile();

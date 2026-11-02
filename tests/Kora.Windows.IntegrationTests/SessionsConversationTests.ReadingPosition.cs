@@ -12,6 +12,7 @@ using AwesomeAssertions;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
+using Kora.Core.Presentation;
 using Kora.Windows.IntegrationTests.Storage;
 
 namespace Kora.Windows.IntegrationTests;
@@ -309,6 +310,98 @@ public sealed partial class SessionsConversationTests
                 f.Count("conversation_drafts").Should().Be(0);
                 f.Count("host_questions").Should().Be(0);
                 f.Count("scoped_grants").Should().Be(0);
+            }
+            finally { model.Close(); window.Close(); }
+        });
+    }
+
+    [Theory]
+    [InlineData("primary")]
+    [InlineData("sessions")]
+    [InlineData("compact")]
+    public async Task ConversationReaderCompletionKeepsExactClarificationAndContextInspectionWithoutReplacingOldPage(string surface)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            await SeedReadingMessages(f, f.Request.SessionId, 8);
+            var reader = new SearchReader(f.Store.ReadConversationPageAsync,
+                readMetadata: f.Store.ReadMetadataAsync, readMessage: f.Store.ReadConversationMessageAsync);
+            var adapter = new MemoryAnswerAdapter();
+            var opened = new List<AdmittedDetailContent>();
+            await using var composition = new Composition(f, (content, _, _, _) =>
+            {
+                opened.Add(content);
+                return Task.FromResult("Exact context metadata opened");
+            }, adapter: adapter, conversationReader: reader);
+            var model = composition.Model;
+            var owner = new SessionsPresentationOwner(model);
+            var interaction = new SessionInteractionView { DataContext = model };
+            Window window = surface switch
+            {
+                "sessions" => new SessionsWindow(model, owner),
+                "compact" => new CompactSessionWindow(model, owner),
+                _ => ReadingWindow(interaction),
+            };
+            window.Show();
+            try
+            {
+                await model.RefreshAsync();
+                await model.SelectAsync(model.Sessions.Single());
+                await model.ReadConversationAsync();
+                var original = model.ConversationMessages.ToArray();
+                var result = await composition.Conversation.SubmitAsync(model.SelectedSessionRecord!,
+                    "Independent completion remains separate from the admitted page.", static () => true, f.Token);
+                model.ComposerBody = "independent unsent input";
+                ReadingLayout(window);
+                var completion = model.ConversationUpdates.Should().ContainSingle().Subject;
+                completion.Should().BeSameAs(result.Message);
+                var audit = WindowsSqliteConversationTests.AuditText(f);
+                var tasks = f.Count("host_task_events");
+                var history = f.Count("session_history");
+                var retention = await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token);
+                var exchange = window.GetVisualDescendants().OfType<ClarificationExchangeView>().Single(control =>
+                    ReferenceEquals(control.DataContext, completion));
+                exchange.GetVisualDescendants().OfType<Button>().Single(button =>
+                    string.Equals(button.Name, "ShowClarificationExchange", StringComparison.Ordinal))
+                    .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await exchange.Operation;
+                model.CurrentClarificationExchange.Should().NotBeNull(model.ConversationStatus);
+                model.CurrentClarificationExchange!.Message.Should().BeSameAs(completion);
+                model.CurrentClarificationExchange.Page.Should().NotBeNull(model.ConversationStatus);
+                var context = window.GetVisualDescendants().OfType<Button>().Single(button =>
+                    string.Equals(button.Name, "OpenSubmittedAnswerContext", StringComparison.Ordinal)
+                    && ReferenceEquals(button.DataContext, completion));
+                context.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await (surface is "primary" ? interaction.Operation : owner.DetailOperation);
+                opened.Should().ContainSingle().Which.Origin.Should().Be(DetailContentOrigin.RetainedAnswerContext);
+                opened[0].ConversationMessage.Should().Be(completion);
+                opened[0].Source.Should().Contain("Unknown / not recorded").And.NotContain(completion.AssistantResponse!.Body);
+                model.LastDetailMessage.Should().BeSameAs(completion);
+                model.LastDetailContext.Should().BeTrue();
+                if (surface is "primary")
+                {
+                    await interaction.ShowAvailableDetailsAsync(model);
+                    opened.Should().HaveCount(2);
+                    opened[1].IsSameSnapshot(opened[0]).Should().BeTrue("reopening must not substitute answer prose");
+                }
+                model.ConversationMessages.Should().Equal(original);
+                model.ConversationUpdates.Should().ContainSingle().Which.Should().BeSameAs(completion);
+                model.ComposerBody.Should().Be("independent unsent input");
+                reader.Reads.Should().Be(1);
+                adapter.Calls.Should().Be(1);
+                f.Count("host_task_events").Should().Be(tasks);
+                f.Count("session_history").Should().Be(history);
+                f.Count("conversation_drafts").Should().Be(0);
+                f.Count("host_questions").Should().Be(0);
+                f.Count("scoped_grants").Should().Be(0);
+                WindowsSqliteConversationTests.AuditText(f).Should().Be(audit);
+                (await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token)).Should().Be(retention);
+                composition.Access.ControlRevision++;
+                model.CurrentClarificationExchange.Should().BeNull();
+                model.LastDetailMessage.Should().BeNull();
             }
             finally { model.Close(); window.Close(); }
         });

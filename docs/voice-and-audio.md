@@ -17,6 +17,18 @@ The [optional conversational reply setting](settings.md#conversational-voice-rep
 is a different feature: only an eligible clarification can offer a short reply
 capture after Kora finishes speaking. It never approves work.
 
+A detected name is not permission to submit to a model. Destination review,
+model availability, original voice-channel restrictions, permissions and privacy
+still apply; the [source-only routing increment](../Design/Speech_Input.md#admitted-wake-utterance-routing-source-only)
+does not enable hands-free activation.
+
+In that source-only path, typing before a wake does not cancel idle readiness.
+The original utterance remains bound to the input observed at activation:
+later edits or source/session replacement cancel it. Only the routing-owned
+advice and destination windows can temporarily take focus without replacing
+that original source. Deterministic implementation tests do not qualify a
+production profile or change current hands-free availability.
+
 ## Prepare hands-free assets
 
 On Windows x64, **Settings > Speech & audio > Optional speech-input components**

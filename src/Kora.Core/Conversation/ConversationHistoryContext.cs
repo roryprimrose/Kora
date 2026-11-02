@@ -62,5 +62,9 @@ public static class ConversationHistoryContext
                 Role = item.Role == ConversationHistoryRole.User ? "USER" : "ASSISTANT",
                 item.Message.Sequence,
                 Body = item.Role == ConversationHistoryRole.User ? item.Message.Body : item.Message.AssistantResponse!.Body,
-            }), ModelEvidenceDisclosure.LocalOnly));
+            }), ModelEvidenceDisclosure.LocalOnly)
+        {
+            HistorySource = new(item.Message.Request.RequestId, item.Message.Generation,
+                item.Message.Sequence, item.Message.Revision, item.Role),
+        });
 }

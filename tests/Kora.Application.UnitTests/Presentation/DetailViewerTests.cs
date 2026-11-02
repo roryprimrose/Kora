@@ -11,6 +11,34 @@ namespace Kora.Application.UnitTests.Presentation;
 public sealed partial class DetailViewerTests
 {
     [Fact]
+    public void UnknownAnswerContextDetailsExposeOnlyMetadataNotTheSeparatelyRetainedAssistantBody()
+    {
+        var request = HostRequest.Create(RequestOrigin.LocalUi);
+        var provenance = new Kora.Core.Dependencies.ModelTurnProvenance(new(Guid.NewGuid()), request,
+            Kora.Core.Dependencies.ModelProviderSelection.OllamaCandidate);
+        var message = new Kora.Core.Conversation.ConversationMessage(request, new(1), 1, 3, DateTimeOffset.UnixEpoch,
+            "private original USER marker", Kora.Core.Dependencies.ModelTurnOutcome.Succeeded,
+            Kora.Core.Dependencies.ModelTurnReason.ProviderOutcome)
+        {
+            Version = 2, Execution = provenance, ExecutionMetadataRevision = 0,
+            AssistantResponse = new(provenance, "private retained ASSISTANT marker"),
+        };
+        var content = new AdmittedDetailContent(Kora.Core.Conversation.AnswerContextInspection.Reference(message),
+            DetailContentKind.PlainText, DetailContentOrigin.RetainedAnswerContext,
+            DetailSensitivity.DisclosureConfirmationRequired, "Context submitted for this answer",
+            "Private historical metadata", Kora.Core.Conversation.AnswerContextInspection.Describe(message),
+            conversationMessage: message);
+        var state = new DetailViewerState(content, () => true);
+        state.ActiveText.Should().Contain("Unknown / not recorded").And.NotContain(message.Body)
+            .And.NotContain(message.AssistantResponse.Body);
+        state.AssistantText.Should().BeEmpty("metadata inspection does not admit the answer body as secondary chrome");
+        state.HostText.Should().Contain("Succeeded").And.NotContain(message.AssistantResponse.Body);
+        state.CanInteractWithFinalDocument.Should().BeFalse();
+        state.TryGetCopySource(true, true, out _).Should().BeFalse();
+        state.TryGetCopySelection(true, true, 0, 8, out _).Should().BeFalse();
+    }
+
+    [Fact]
     public void FullAssistantDetailsKeepFindOnTheAnswerWithoutGainingClipboardAuthority()
     {
         var request = HostRequest.Create(RequestOrigin.LocalUi);

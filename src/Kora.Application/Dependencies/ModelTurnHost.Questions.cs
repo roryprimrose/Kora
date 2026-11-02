@@ -6,6 +6,11 @@ public sealed partial class ModelTurnHost
 {
     private Task<ModelProviderReply> RunAdapterAsync(ModelTurn turn, CancellationToken token)
     {
+        if (turn.ConversationTarget is not null)
+        {
+            turn.SubmittedContext = Kora.Core.Conversation.SubmittedAnswerContext.Capture(
+                turn.Provenance, turn.SessionGeneration, turn.Profile, turn.Context, turn.Wire, time.GetUtcNow());
+        }
         if (turn.QuestionContinuation is not { } questions)
         {
             if (turn.Context.ToolMode == ModelToolMode.HostedClarification)
@@ -37,6 +42,7 @@ public sealed partial class ModelTurnHost
                         previous = update.Answer;
                     }, token);
             }
+
             return turn.Registration.Adapter!.RunAsync(turn.Provenance, turn.Profile, turn.Wire.AsMemory(),
                 (id, input, toolToken) => InvokeToolAsync(turn, id, input, token, toolToken),
                 continuationToken => RevalidateAdapterContinuationAsync(turn, continuationToken), token);

@@ -46,7 +46,8 @@ public sealed partial class MainViewModel
         if (handsFreeVoice is not null || voiceRecognition is not HandsFreeVoiceRecognitionService handsFree) { return; }
         handsFree.Bind(ObserveHandsFreeVoiceAdmission, async (transcript, request, activation) =>
         {
-            if (transcript.Generation != voiceRecognition.Generation || ObserveHandsFreeVoiceAdmission() != activation.Admission
+            if (transcript.ActivationEvidence is null
+                || transcript.Generation != voiceRecognition.Generation || ObserveHandsFreeVoiceAdmission() != activation.Admission
                 || !ReferenceEquals(request, activation.Request) || activation.Wake.Generation != transcript.Generation
                 || !activation.Wake.PlaybackExcluded || activation.Wake.CommandStartSample < 0)
             {
@@ -87,12 +88,18 @@ public sealed partial class MainViewModel
         var privacy = privacyObservation.Current;
         var profile = speechInputConfiguration?.Get().Effective;
         return handsFreeVoice is not null && profile is not null && IsVoiceEnabled && IsHostInputEligible && voiceOwnershipEligible()
+            && (foregroundConversationTarget is null || foregroundConversationTarget.IsCurrent)
             && microphoneCatalogCurrent && catalogPrivacyRevision == privacy.TopologyRevision
             && IsVoiceReadinessEligible(privacy)
             && communicationPolicy.Current.EffectiveState is CallState.Unavailable or CallState.Clear or CallState.Active or CallState.Suspected
                 ? new(EffectiveMicrophone!, AssistantName, profile, Interlocked.Read(ref voiceRecoveryRevision),
                     privacy.TopologyRevision, CallPolicyRevision, auditImpactOwnerRevision(),
                     Interlocked.Read(ref voiceOwnershipBindingRevision), assistantNameConfiguration.Get().Revision)
+                {
+                    ControlBindingRevision = Interlocked.Read(ref settingsOwnershipBindingRevision),
+                    ComposerRevision = Interlocked.Read(ref attachmentCatalogueComposerRevision),
+                    ConversationRevision = Interlocked.Read(ref foregroundConversationRevision),
+                }
                 : null;
     }
 

@@ -14,6 +14,7 @@ do not require you to remember these names.
 | `appearance.reader-text-scale` | Integer 75-200 percent | Original local UI, native review and confirmation |
 | `appearance.presence-display` | `true`, `false` | Original local UI, native review and confirmation |
 | `appearance.presence-timeout` | Integer 1-60 seconds | Original local UI, native review and confirmation |
+| `appearance.response-timeout` | Canonical integer 1-60 seconds, default 5 | Native or exact typed/activated-voice review |
 | `appearance.presence-size` | Integer 240-600 pixels | Original local UI, native review and confirmation |
 | `appearance.dot-size` | Integer 50-200 percent | Original local UI, native review and confirmation |
 | `appearance.dot-density` | Integer 25-200 percent | Original local UI, native review and confirmation |
@@ -39,7 +40,8 @@ Response-mode answers require the exact spelling and case shown above; numeric
 enum values, aliases, surrounding commentary and batches are rejected.
 Presence suggestions likewise require the exact lowercase syntax and IDs above,
 canonical decimal integers or lowercase `true`/`false`, with no surrounding text.
-Response timeout and native renderer selection are not admitted model suggestions.
+Response-timeout suggestions use the same canonical lowercase syntax, for example `set appearance.response-timeout to 15`. This is the response-window inactivity hide delay, not a provider/request deadline ([existing preference](settings.md#independent-visibility-timeouts)).
+Native renderer selection is not an admitted model suggestion.
 This suggestion registry does not expand setting inspection: inspection remains
 limited to theme, reader text scale, both summary caps, playback volume and response mode.
 
@@ -62,6 +64,7 @@ limited to theme, reader text scale, both summary caps, playback volume and resp
    Presence changes affect the existing display and animation immediately after a
    confirmed save. Disabling presence hides it; speech scaling only changes its
    animation, never speech permission, synthesis or playback.
+   Response timeout changes only the existing inactivity hide delay. Always show, presence timeout, questions, approvals and response action links retain their existing visibility behavior ([visibility rules](settings.md#independent-visibility-timeouts)).
 3. Separately choose **Confirm exact setting change** to consume this review
    once through the same validated, audited writer as the existing controls.
    Or choose **Cancel setting review**; no new write is requested.
@@ -71,7 +74,7 @@ old one. The original request, answer, session, preference revision, private
 control/ownership and call admission remain bound throughout source checks and
 confirmation. A copied message, stale page, changed settings or a changed source
 cannot silently select a newer answer. Speech, volume and response-mode reviews expire after
-60 seconds, including Windows rate. Closing or losing private control retires the review.
+60 seconds, including Windows rate and response timeout. Closing or losing private control retires the review.
 
 ## Activated voice and mandatory exceptions
 
@@ -87,10 +90,11 @@ never a guessed latest answer. No new static setting aliases are added; these
 review commands do not execute model text as a direct setting command.
 Windows rate uses **review rate suggestion**, **confirm rate change**, and
 **cancel rate review** against that same exact successful-submission pin.
+Response timeout uses **review response timeout suggestion**, **confirm response timeout change**, and **cancel response timeout review**, using the same exact retained answer and existing validated, audited appearance writer ([shared review](../src/Kora.Application/Configuration/AppearanceSuggestionReview.cs), [command route](../src/Kora.Application/ViewModels/MainViewModel.ResponseTimeoutSuggestions.cs)).
 
 Original voice provenance survives later typed/native confirmation; a protected
-or unknown call cannot be laundered into local UI authority. Appearance stays
-native-only and requires an original local UI request. Authentication, secure
+or unknown call cannot be laundered into local UI authority. Other appearance settings stay
+native-only and require an original local UI request. Authentication, secure
 native workflows, privacy and pending question/approval exceptions are unchanged.
 A generic "yes", the model's answer or the original request cannot confirm.
 
@@ -99,6 +103,7 @@ A generic "yes", the model's answer or the original request cannot confirm.
 After a confirmed registered change, [Undo the last settings change](settings.md#undo-the-last-registered-settings-change) offers one exact run-only preference restoration through separate review and confirmation. A model suggestion cannot invent the prior value or create undo authority; the host receipt and current authoritative writer decide eligibility ([undo owner](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
 Windows rate is not added to that undo subset; direct rate Reset remains available
 through its existing admitted controls.
+Response timeout supports the same separate native/typed/activated-voice undo review and confirmation. Undo restores one compatible saved value or the unsaved default, with no redo or provider effect ([undo writer](../src/Kora.Application/Configuration/RegisteredSettings/AppearanceConfigurationService.Undo.cs)).
 
 Review and cancellation never invoke a model, synthesize audio or replay an
 answer. Confirmed speech changes apply to the **next** eligible ordinary speech,

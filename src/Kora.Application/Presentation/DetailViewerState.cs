@@ -60,7 +60,8 @@ public sealed class DetailViewerState : ObservableObject
             + $" · Reason: {message.Reason?.ToString() ?? "None recorded"} · Task status: {message.ExpectedTaskState}"
             + " · Not an assistant answer or execution permission.";
     public string FindText => findHost ? HostText : ActiveText;
-    public string AssistantText => !CanRead() ? string.Empty : content!.ConversationMessage?.AssistantResponse?.Body ?? string.Empty;
+    public string AssistantText => !CanRead() || content!.Origin == DetailContentOrigin.RetainedAnswerContext
+        ? string.Empty : content.ConversationMessage?.AssistantResponse?.Body ?? string.Empty;
 
     public bool CanInteractWithFinalDocument => CanRead() && readAdmission is not null
         && renderState == DetailRenderState.Rendered && content!.Kind == DetailContentKind.Markdown
@@ -208,7 +209,8 @@ public sealed class DetailViewerState : ObservableObject
             ReportStatus("Copy blocked: this exact revision is closed or no longer accessible.");
             return false;
         }
-        if (content!.Origin is DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant or DetailContentOrigin.RetainedLocalObservation)
+        if (content!.Origin is DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant
+            or DetailContentOrigin.RetainedLocalObservation or DetailContentOrigin.RetainedAnswerContext)
         {
             ReportStatus("Copy blocked: retained conversation Details do not grant clipboard disclosure authority.");
             return false;

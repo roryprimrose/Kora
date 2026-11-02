@@ -142,6 +142,19 @@ access. Closing or retiring the original result retires its navigation too.
 An unavailable table profile still shows the complete source, not an incomplete
 table; these controls do not enable an unqualified profile.
 
+### Wrap or horizontally scroll Details text
+
+In plain-text Details, **Continuous text**, **Exact source** or a labelled source
+fallback, clear **Wrap reader text** to inspect long aligned lines using horizontal
+scrolling. Check it again to fit the reader width. Tab to the checkbox and press
+Space, or use its native toggle automation. Structured Markdown and its separate
+code-block wrapping are unchanged.
+
+This is a view-only choice, not a saved setting. Text, selection and literal Find
+stay unchanged. Closing or losing source/private access clears the reader; reopen
+the exact source normally to recover, with wrapping on by default. Wrapping grants
+no copy permission and reads no additional source.
+
 ### Review a final-answer external link
 
 An available final-answer Markdown profile can show **Review external link**

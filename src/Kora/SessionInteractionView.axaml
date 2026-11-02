@@ -25,6 +25,10 @@
             <Button Name="OpenAssistantConversationDetail" Content="Open full detailed answer"
                 IsEnabled="{Binding $parent[UserControl].DataContext.CanOpenConversationDetails}"
                 HorizontalAlignment="Left" />
+            <Button Name="ExportExactAssistantAnswer" Content="Export exact answer..."
+                IsEnabled="{Binding $parent[UserControl].DataContext.CanExportExactAnswer}"
+                AutomationProperties.Name="Review and separately confirm exporting this exact retained ASSISTANT answer to one new local file"
+                HorizontalAlignment="Left" />
             <ItemsControl ItemsSource="{Binding Converter={StaticResource ObservationChoices}}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>

@@ -34,6 +34,18 @@ An admitted result retains the question and genuine ASSISTANT answer in the same
 
 The [shared local-use risk policy](privacy-safety-and-logs.md#reviewed-local-source-use-risk-admission) screens the whole retained source, question and excerpts. Content remains private LocalOnly, not proven non-sensitive; detected risks are refused without an override. Unqualified runtimes remain unavailable; no generation or provider qualification is enabled by these controls. Cancellation clears pending review; late results cannot be published as success. If retention/commit is unconfirmed, inspect exact conversation/task receipts without repeating the turn. Close/privacy retirement clears private source-review controls ([native lifecycle](../src/Kora/LocalFilePreviewWindow.AttachmentAnswer.cs), [execution fences](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
 
+## Export one exact retained answer
+
+In the conversation, choose **Export exact answer...** on the particular retained final ASSISTANT answer. Select a **new** local `.txt`, `.md` or `.markdown` destination.
+Review the complete original answer, conversation/result identity, exact destination, UTF-8/no-BOM format and retention warning. Separately choose **Confirm this one new-file export** ([native review](../src/Kora/ExactAnswerExportWindow.cs)).
+
+Opening Details, choosing a destination or cancelling does not authorize a write. Existing files are refused, not overwritten. Confirmed success means the complete original text was saved unchanged and its exact bytes read back after durable flush. The file is not opened automatically.
+On an uncertain result, inspect the chosen destination before any fresh review; Kora does not retry automatically
+([export owner](../src/Kora.Application/Presentation/ExactAnswerExportReview.cs), [native writer](../src/Kora.Windows/Presentation/WindowsExactAnswerExportWriter.cs)).
+
+The saved file is outside Kora's retention and may be copied, backed up or synced by the chosen location. Deleting the conversation or Kora data does **not** delete exports or those copies.
+There is no whole-conversation, original USER, HOST/audit, provisional-answer or arbitrary-source export in this action ([scope and retention](../Design/Information_Display.md#explicit-exact-retained-answer-file-export)).
+
 ## Response modes
 
 Kora supports three response modes:

@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 
 using AwesomeAssertions;
 
@@ -63,13 +64,14 @@ public sealed partial class ModelTurnHostTests
         var service = f.ConversationService(host, execution: host);
         f.ObservedVersion = fault switch
         {
-            "cell-bound" => new string('b', 128),
+            "cell-bound" => new string('\u0800', 128),
             "tool-credential" => "api_key=synthetic-only-secret",
             "tool-failed" => new string('b', 129),
             "tool-malformed" => "\ud800",
             _ => "1.0",
         };
         string? bytes = null;
+        var observations = new List<RetainedLocalObservation>();
         f.Adapter.OnTool = async invoke =>
         {
             var count = fault is "cell-bound" ? 6 : 1;
@@ -79,6 +81,11 @@ public sealed partial class ModelTurnHostTests
                 result.Outcome.Should().Be(fault.StartsWith("tool-", StringComparison.Ordinal)
                     ? CapabilityOutcome.Denied : CapabilityOutcome.Succeeded);
                 bytes = Encoding.UTF8.GetString(CapabilityReplyWire.Serialize(result));
+                if (fault is "cell-bound")
+                {
+                    observations.Add(RetainedLocalObservation.Capture(ReadOnlyCapabilityCatalog.Version, "{}",
+                        result, f.Time.Now));
+                }
             }
             f.Adapter.Reply = fault switch
             {
@@ -91,13 +98,27 @@ public sealed partial class ModelTurnHostTests
         };
         if (fault is "readback") { f.TerminalReceiptFault = "observations"; }
         var submit = () => service.SubmitAsync(new(f.Session, null),
-            fault is "cell-bound" ? new string('\u0800', 4096) : "original", static () => true, Token);
+            fault is "cell-bound" ? new string('\u0800', 3500) : "original", static () => true, Token);
         if (fault is "readback")
         {
             await submit.Should().ThrowAsync<ConversationSubmissionUnconfirmedException>();
             return;
         }
         var receipt = await submit();
+        if (fault is "cell-bound")
+        {
+            observations.Should().HaveCount(ModelToolProtocol.MaximumCalls);
+            var answer = new ConversationResponse(receipt.Message.Execution!, new string('a', 3900));
+            answer.Validate();
+            var oversized = receipt.Message with
+            {
+                Outcome = ModelTurnOutcome.Succeeded, Reason = ModelTurnReason.None,
+                AssistantResponse = answer, Observations = new(1, [.. observations]),
+            };
+            JsonSerializer.SerializeToUtf8Bytes(oversized).Length.Should().BeGreaterThan(ConversationMessage.MaximumStorageUtf8Bytes);
+            receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Unknown);
+            receipt.Message.Reason.Should().Be(ModelTurnReason.InvalidProviderResponse);
+        }
         if (fault is "success")
         {
             receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);

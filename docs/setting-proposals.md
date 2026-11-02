@@ -12,6 +12,7 @@ do not require you to remember these names.
 | --- | --- | --- |
 | `appearance.theme` | `system`, `light`, `dark` | Original local UI, native review and confirmation |
 | `appearance.reader-text-scale` | Integer 75-200 percent | Original local UI, native review and confirmation |
+| `appearance.reduced-motion` | `true`, `false` | Original local UI, native review and confirmation |
 | `appearance.presence-display` | `true`, `false` | Original local UI, native review and confirmation |
 | `appearance.presence-timeout` | Integer 1-60 seconds | Original local UI, native review and confirmation |
 | `appearance.response-timeout` | Canonical integer 1-60 seconds, default 5 | Native or exact typed/activated-voice review |
@@ -64,6 +65,9 @@ limited to theme, reader text scale, both summary caps, playback volume and resp
    Presence changes affect the existing display and animation immediately after a
    confirmed save. Disabling presence hides it; speech scaling only changes its
    animation, never speech permission, synthesis or playback.
+   Reduced motion freezes presence particle movement in both animation modes.
+   False/reset follows Windows and cannot enable motion against Windows reduced
+   motion. Speech sizing and brief colour and visibility transitions remain independent.
    Response timeout changes only the existing inactivity hide delay. Always show, presence timeout, questions, approvals and response action links retain their existing visibility behavior ([visibility rules](settings.md#independent-visibility-timeouts)).
 3. Separately choose **Confirm exact setting change** to consume this review
    once through the same validated, audited writer as the existing controls.

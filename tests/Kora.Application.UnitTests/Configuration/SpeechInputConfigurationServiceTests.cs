@@ -271,6 +271,49 @@ public sealed class SpeechInputConfigurationServiceTests : IDisposable
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExactResidencyQualificationControlsReviewChoicesButCannotAuthorizeRestart(bool qualified)
+    {
+        await using var fixture = new Fixture(keepLoadedQualified: qualified);
+        var selection = SpeechInputSelection.Default with { Residency = SpeechInputResidency.KeepLoaded };
+        fixture.Service.GetResidencies(selection.ProfileId, selection.Resource).Should().Equal(qualified
+            ? [SpeechInputResidency.CaptureLifetime, SpeechInputResidency.KeepLoaded]
+            : [SpeechInputResidency.CaptureLifetime]);
+        var reviewed = false;
+        var selecting = () => fixture.Service.SelectAsync(selection, 0, fixture.Policy.Current.Revision,
+            RequestOrigin.LocalUi, SecurityAuditInitiator.LocalUser, fixture.Policy, () => true,
+            TestContext.Current.CancellationToken, (review, _) =>
+            {
+                review.Proposed.Should().Be(new SpeechInputGeneration(1, selection));
+                review.Describe().Should().Contain("KeepLoaded").And.Contain("releases its microphone");
+                fixture.Runtime.Retirements.Should().Be(0);
+                reviewed = true;
+                return Task.FromResult(true);
+            });
+        if (!qualified)
+        {
+            await selecting.Should().ThrowAsync<InvalidOperationException>();
+            reviewed.Should().BeFalse();
+            fixture.Preferences.Writes.Should().Be(0);
+            return;
+        }
+        (await selecting()).Should().BeTrue();
+        reviewed.Should().BeTrue();
+        fixture.Service.Get().Saved.Should().Be(selection);
+        fixture.Service.Get().Effective.Should().Be(new SpeechInputGeneration(1, selection));
+        var restarted = new Runtime();
+        await using var configuration = new SpeechInputConfigurationService(fixture.Preferences, restarted,
+            fixture.Admission, fixture.Audit, NullLogger<SpeechInputConfigurationService>.Instance);
+        configuration.Get().Saved.Should().Be(selection);
+        configuration.Get().Desired.Should().Be(selection);
+        configuration.Get().Effective.Should().BeNull();
+        configuration.Get().UnavailableReason.Should().Contain("not qualified");
+        fixture.Preferences.Writes.Should().Be(1);
+        restarted.Retirements.Should().Be(0);
+    }
+
+    [Theory]
     [InlineData(SecurityAuditInitiator.ModelSuggestion, RequestOrigin.LocalUi)]
     [InlineData(SecurityAuditInitiator.VoiceCommand, RequestOrigin.LocalUi)]
     public async Task UntrustedInitiatorsCannotRetireCapture(SecurityAuditInitiator initiator, RequestOrigin origin)
@@ -528,8 +571,10 @@ public sealed class SpeechInputConfigurationServiceTests : IDisposable
 
     private sealed class Fixture : IAsyncDisposable
     {
-        internal Fixture(bool invalidStartup = false, string? startup = null, ILogger<SpeechInputConfigurationService>? logger = null)
+        internal Fixture(bool invalidStartup = false, string? startup = null, ILogger<SpeechInputConfigurationService>? logger = null,
+            bool keepLoadedQualified = false)
         {
+            Runtime.KeepLoadedQualified = keepLoadedQualified;
             Preferences.Invalid = invalidStartup;
             if (startup is "saved") { Preferences.Value = SpeechInputSelection.Default; }
             if (startup is "unavailable") { Preferences.Value = SpeechInputSelection.Default with { Residency = SpeechInputResidency.KeepLoaded }; }
@@ -601,6 +646,10 @@ public sealed class SpeechInputConfigurationServiceTests : IDisposable
         public SpeechInputGeneration ProfileGeneration { get; private set; } = new(0, SpeechInputSelection.Default);
         public bool IsProfileAvailable { get; private set; }
         internal bool ActiveLease { get; private set; }
+        internal bool KeepLoadedQualified { get; set; }
+        public string? GetUnavailableReason(SpeechInputSelection selection, string assistantName) =>
+            KeepLoadedQualified && selection == SpeechInputSelection.Default with { Residency = SpeechInputResidency.KeepLoaded }
+                ? null : SpeechInputProfileCatalogue.UnavailableReason(selection);
         internal int Retirements { get; private set; }
         internal Action? BeforeReturn { get; set; }
         internal Exception? RetirementFailure { get; set; }
@@ -609,7 +658,7 @@ public sealed class SpeechInputConfigurationServiceTests : IDisposable
         public void InitializeProfile(SpeechInputSelection? selection)
         {
             if (selection is not null) { ProfileGeneration = new(0, selection); }
-            IsProfileAvailable = selection is not null && SpeechInputProfileCatalogue.UnavailableReason(selection) is null;
+            IsProfileAvailable = selection is not null && GetUnavailableReason(selection, string.Empty) is null;
         }
         public Task<ISpeechInputProfileSwitch> RetireProfileAsync(CancellationToken cancellationToken)
         {
@@ -626,7 +675,7 @@ public sealed class SpeechInputConfigurationServiceTests : IDisposable
             public void Publish(SpeechInputGeneration generation)
             {
                 owner.ProfileGeneration = generation;
-                owner.IsProfileAvailable = SpeechInputProfileCatalogue.UnavailableReason(generation.Selection) is null;
+                owner.IsProfileAvailable = owner.GetUnavailableReason(generation.Selection, string.Empty) is null;
             }
             public void HoldUnavailable() => owner.IsProfileAvailable = false;
             public ValueTask DisposeAsync() { owner.ActiveLease = false; return ValueTask.CompletedTask; }

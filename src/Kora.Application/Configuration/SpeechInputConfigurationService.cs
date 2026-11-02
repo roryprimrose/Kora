@@ -36,9 +36,13 @@ public sealed partial class SpeechInputConfigurationService : IAsyncDisposable
     public IReadOnlyList<SpeechInputProfile> GetProfiles() =>
         names?.Get().Name is { } name ? runtime.GetProfiles(name) : SpeechInputProfileCatalogue.Profiles;
 
+    public IReadOnlyList<SpeechInputResidency> GetResidencies(string profileId, SpeechInputResource resource) =>
+        UnavailableReason(new(profileId, resource, SpeechInputResidency.KeepLoaded)) is null
+            ? [SpeechInputResidency.CaptureLifetime, SpeechInputResidency.KeepLoaded]
+            : [SpeechInputResidency.CaptureLifetime];
+
     private string? UnavailableReason(SpeechInputSelection selection) =>
-        names?.Get().Name is { } name ? runtime.GetUnavailableReason(selection, name)
-            : SpeechInputProfileCatalogue.UnavailableReason(selection);
+        runtime.GetUnavailableReason(selection, names?.Get().Name ?? string.Empty);
 
     public SpeechInputConfigurationService(ISpeechInputPreferences preferences, ISpeechInputProfileRuntime runtime,
         AudioControlAdmission admission, ISecurityAuditLog auditLog, ILogger<SpeechInputConfigurationService> logger)
@@ -55,7 +59,7 @@ public sealed partial class SpeechInputConfigurationService : IAsyncDisposable
             desired.Validate();
             runtime.InitializeProfile(desired);
             state = new(saved, desired, runtime.IsProfileAvailable ? runtime.ProfileGeneration : null, 0,
-                SpeechInputProfileCatalogue.UnavailableReason(desired));
+                UnavailableReason(desired));
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentOutOfRangeException)
         {

@@ -44,6 +44,7 @@ internal sealed partial class SessionsViewModel
             }
             RestoreUnsent();
             CancelLocalRequestProfile();
+            ClearExpiredOrdinary();
             CancelTaskOutputReview();
             RetireReplyReview();
             composerBody = value;
@@ -346,6 +347,7 @@ internal sealed partial class SessionsViewModel
         CancelTaskOutputReview();
         CancelLocalRequestProfile();
         ClearFailedRetry();
+        ClearExpiredOrdinary();
         ClearMixedContext();
         ClearAnswerRead();
         ClearInstructionContext();
@@ -376,6 +378,7 @@ internal sealed partial class SessionsViewModel
         NotifyTaskOutput();
         NotifyLocalRequestProfile();
         NotifyFailedRetry();
+        NotifyExpiredOrdinary();
         RestoreUnsent();
         NotifyAssistantReply();
         NotifyMixedContext();
@@ -401,7 +404,7 @@ internal sealed partial class SessionsViewModel
         NotifyConversationSearch();
         foreach (var name in new[] { nameof(ComposerBody), nameof(ComposerDirty), nameof(ComposerTarget),
             nameof(ConversationMessages), nameof(ConversationStatus), nameof(CanReadConversation), nameof(CanNextConversation),
-            nameof(CanOpenConversationDetails), nameof(CanReviewOriginalMessageReuse), nameof(CanCompose), nameof(CanSubmitConversation), nameof(CanSubmitLocalFirst),
+            nameof(CanOpenConversationDetails), nameof(CanExportExactAnswer), nameof(CanReviewOriginalMessageReuse), nameof(CanCompose), nameof(CanSubmitConversation), nameof(CanSubmitLocalFirst),
             nameof(CanShowDetails), nameof(DetailsAvailability),
             nameof(HasEvidenceDetails), nameof(EvidenceDetails), nameof(ObservationChoices),
             nameof(DetailsOfferMessage),

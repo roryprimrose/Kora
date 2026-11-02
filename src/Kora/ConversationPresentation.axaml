@@ -36,6 +36,7 @@
       <TextBlock Text="{Binding Outcome, TargetNullValue='Pending / inspect task recovery', StringFormat='HOST status: {0}'}" />
       <TextBlock Text="{Binding Reason, StringFormat='HOST reason: {0}'}" />
       <TextBlock Text="{Binding ExpectedTaskState, StringFormat='HOST task status: {0}'}" />
+      <local:ClarificationExchangeView Workspace="{Binding $parent[Window].DataContext}" />
       <Button Name="OpenConversationDetail" Content="Details - exact original USER / separate HOST"
           IsEnabled="{Binding $parent[Window].DataContext.CanOpenConversationDetails}"
           AutomationProperties.Name="Explicit passive Details for this exact retained original USER record and separate typed HOST outcome; no clipboard authority" />

@@ -37,6 +37,7 @@
           <TextBlock Text="{Binding Outcome, TargetNullValue='Pending / inspect work', StringFormat='Action outcome: {0}'}"
               TextWrapping="Wrap" Classes="muted" />
           <TextBlock Text="{Binding Reason, StringFormat='Reason: {0}'}" TextWrapping="Wrap" Classes="muted" />
+          <local:ClarificationExchangeView Workspace="{Binding $parent[UserControl].DataContext}" />
           <Button Name="OpenConversationDetail" Content="Message details"
               IsEnabled="{Binding $parent[UserControl].DataContext.CanOpenConversationDetails}"
               HorizontalAlignment="Left" />

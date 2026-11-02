@@ -14,6 +14,21 @@ namespace Kora.Application.UnitTests.Documentation;
 public sealed class EmbeddedUserDocumentationProviderTests
 {
     [Fact]
+    public void ClarificationGuideSeparatesExactBoundedHistoricalReadingFromLiveAuthority()
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "reviewed-context", StringComparison.Ordinal)).Markdown;
+        guide.Should().Contain("Show clarification exchange").And.Contain("More exchange records")
+            .And.Contain("50 records / 65536 bytes").And.Contain("same fixed snapshot")
+            .And.Contain("Only exact session/request/task matches")
+            .And.Contain("metadata-only, redacted and unavailable")
+            .And.Contain("Pending, cancelled and expired")
+            .And.Contain("never live answer or approval controls")
+            .And.Contain("does not submit historical answers")
+            .And.Contain("Activity reader remains separate");
+    }
+
+    [Fact]
     public void StorageGuideIsEmbeddedLinkedAndSeparatesRoamingContentFromLocalAuthorityAndHistory()
     {
         var pages = new EmbeddedUserDocumentationProvider().GetPages();

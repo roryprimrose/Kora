@@ -122,7 +122,7 @@ public sealed partial class SessionRequestCommandService(
                 {
                     if (command.RequestProvider != SessionRequestReview.ProviderChoice.Default || command.RequestFailedMessage is not null
                         || command.RequestForegroundTarget || !command.RequestClaudeTools.IsEmpty)
-                    { throw new InvalidOperationException("Request-only local selection cannot combine with another provider or retry route."); }
+                    { throw new InvalidOperationException("Request-only selection cannot combine with another provider, tools or retry route."); }
                     localProfile = await conversation.ReviewLocalRequestProfileAsync(target, body, origin, profile, Live, token).ConfigureAwait(false);
                 }
                 ModelTurnHost.RetryProviderReview? retryProvider = null;
@@ -147,7 +147,7 @@ public sealed partial class SessionRequestCommandService(
                 return new("review", output is not null
                     ? "This task only. Review unchanged input, exact conversation, original channel and declared/configured output. Confirm separately once; mandatory call/privacy/output policy wins. No saved preference, speech or submission yet."
                     : localProfile is not null
-                    ? "This request only - LOCAL. Review the exact destination, complete profile and unchanged original input below. Confirm separately once with session request confirm, or cancel with session request cancel. No preference write, submission or dispatch yet. Subsequent requests inherit normally; no fallback."
+                    ? "This request only - " + localProfile.Profile.Service + ". Review the exact destination, complete profile, original channel, expiry and unchanged input below. Confirm separately once, or cancel. No preference write or submission yet. Subsequent requests inherit normally; no fallback. Hosted processing additionally requires separate native approval of every physical send; this review grants no egress or authentication."
                     : "Review the exact original body, target, provider, origin and expiry. Confirm separately; no content is retained or dispatched yet. Copilot and Claude additionally require separate native approval of each final physical send.")
                 { RequestReview = review };
             }
@@ -176,7 +176,9 @@ public sealed partial class SessionRequestCommandService(
                 var actual = await workspace.ReadExactMetadataAsync(session, cancellation).ConfigureAwait(false);
                 if (actual != previous.Review.Target || !OriginalLive())
                 { throw new InvalidOperationException("The reviewed session generation, metadata or original admission changed."); }
-                if (previous.LocalProfile is { } local) { await local.ValidateAsync(cancellation).ConfigureAwait(false); }
+                if (previous.LocalProfile is { } local
+                    && (local.Profile.Service == Kora.Core.Providers.ProviderService.Local || !local.IsConsumed))
+                { await local.ValidateAsync(cancellation).ConfigureAwait(false); }
                 if (previous.Review.FailedSource is { } failed)
                 {
                     if (await workspace.ReadFailedRetrySourceAsync(actual, failed.Message, OriginalLive, cancellation).ConfigureAwait(false) != failed)

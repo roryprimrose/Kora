@@ -16,13 +16,14 @@ Auxiliary session views without an original-request review panel retain their ex
 
 Sessions and compact presenters also retain the separate [exact-answer reply review](reviewed-context.md). Choosing Reply on the retained answer does not submit the foreground request again or consume unsent input. Hiding and reopening that reply presenter invalidates its review rather than sending the follow-up as plain input.
 
-## Choose a local profile for this request only
+## Choose a profile for this request only
 
 In **Sessions**, select an existing Active conversation and enter the original
 message. Under **Selected-session provider overrides**, use **Refresh**, then
-the **This request only - LOCAL** controls to choose every advertised model,
+the **This request only** controls to choose **Local**, **Copilot** or **Claude**
+and every advertised model,
 reasoning and context value. These controls are separate from durable session
-override controls.
+override controls ([shared picker](../src/Kora/SessionsViewModel.LocalRequestProfile.cs)).
 
 Choose **Review this request only**, inspect the complete destination, profile
 and unchanged input, then **Confirm this request only once**. **Cancel** sends
@@ -33,17 +34,21 @@ session/app settings.
 The equivalent exact typed command is:
 
 ```text
-session request once <session-id> <generation> <metadata-revision> <local-account-id> <catalogue-revision> <model-id> <reasoning-id> <context-id> -- <original body>
+session request once <session-id> <generation> <metadata-revision> [local|copilot|claude] <account-id> <catalogue-revision> <model-id> <reasoning-id> <context-id> -- <original body>
 ```
 
 For activated voice, prefix it with the current assistant name. Confirm separately
 with `session request confirm`, or discard with `session request cancel`.
-The original channel and exact body are preserved. Existing instruction-scope
-review still applies; this grants no history, memory, tools or hosted transfer.
+The original channel and exact body are preserved. Omitted service means **Local**;
+its existing instruction-scope review still applies. Hosted requests remain
+tool-free and require [separate native approval of each physical send](hosted-requests.md#separately-approve-each-physical-send);
+request confirmation alone grants no hosted transfer, authentication, history or
+memory ([host consumer](../src/Kora.Application/Dependencies/ModelTurnHost.LocalRequestProfile.cs)).
 
-Production local profiles remain unavailable without their exact independent
+Production profiles remain unavailable without their exact independent
 qualification. Empty advertised choices mean unavailable, not a default model.
-There is no installation, download, automatic switch, hosted fallback or retry.
+There is no installation, download, automatic switch, hosted fallback or retry
+([request admission](../src/Kora.Application/Dependencies/ModelTurnHost.LocalRequestProfile.cs)).
 
 ## Untargeted requests
 

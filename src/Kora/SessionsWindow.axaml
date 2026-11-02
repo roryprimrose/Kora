@@ -318,24 +318,26 @@
           </ComboBox>
           <Button x:Name="ReviewProviderContext" Content="Review context only" IsEnabled="{Binding CanReviewProviderContextField}" />
         </WrapPanel>
-        <TextBlock Text="This request only - LOCAL: choose all three advertised values for the unchanged composer input. Review, then confirm separately. No preference write, model download, qualification, hosted fallback or automatic retry. Subsequent requests inherit normally." TextWrapping="Wrap" />
+        <TextBlock Text="This request only: choose an existing service and all three advertised values for the unchanged input. Review, then confirm separately. Hosted processing requires separate native approval of each physical send. No preference write, authentication, qualification, fallback or automatic retry. Subsequent requests inherit normally." TextWrapping="Wrap" />
         <WrapPanel>
+          <ComboBox x:Name="RequestProfileService" ItemsSource="{Binding RequestProfileServices}" SelectedItem="{Binding RequestProfileService, Mode=TwoWay}" Width="150"
+              IsEnabled="{Binding CanCompose}" AutomationProperties.Name="This request only: Local, Copilot or Claude service; does not change saved defaults" />
           <ComboBox ItemsSource="{Binding LocalRequestModels}" SelectedItem="{Binding LocalRequestModel, Mode=TwoWay}" Width="200"
-              IsEnabled="{Binding CanCompose}" AutomationProperties.Name="This request only: advertised local model; no implicit selection">
+              IsEnabled="{Binding CanCompose}" AutomationProperties.Name="This request only: currently advertised model; no implicit selection">
             <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
           </ComboBox>
           <ComboBox ItemsSource="{Binding LocalRequestReasonings}" SelectedItem="{Binding LocalRequestReasoning, Mode=TwoWay}" Width="150"
-              IsEnabled="{Binding CanCompose}" AutomationProperties.Name="This request only: exact local model reasoning">
+              IsEnabled="{Binding CanCompose}" AutomationProperties.Name="This request only: exact model reasoning">
             <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
           </ComboBox>
           <ComboBox ItemsSource="{Binding LocalRequestContexts}" SelectedItem="{Binding LocalRequestContext, Mode=TwoWay}" Width="150"
-              IsEnabled="{Binding CanCompose}" AutomationProperties.Name="This request only: exact local model context; envelope ceilings unchanged">
+              IsEnabled="{Binding CanCompose}" AutomationProperties.Name="This request only: exact model context; envelope ceilings unchanged">
             <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
           </ComboBox>
           <Button x:Name="ReviewLocalRequestProfile" Content="Review this request only" IsEnabled="{Binding CanReviewLocalRequestProfile}" />
         </WrapPanel>
         <TextBox Text="{Binding LocalRequestProfileText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="260"
-            AutomationProperties.Name="This request only review: complete exact destination, local tuple, original input and expiry" />
+            AutomationProperties.Name="This request only review: complete exact destination, profile, original input and expiry; not hosted transmission approval" />
         <WrapPanel>
           <Button x:Name="ConfirmLocalRequestProfile" Content="Confirm this request only once" IsEnabled="{Binding CanConfirmLocalRequestProfile}" />
           <Button x:Name="CancelLocalRequestProfile" Content="Cancel this request-only review (no submission)" />

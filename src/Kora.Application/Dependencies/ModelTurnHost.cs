@@ -396,6 +396,9 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
 
     private async ValueTask<ModelTurnReason> RevalidateProfileAsync(ModelTurn turn, CancellationToken token)
     {
+        if (turn.RequestProfileReview is { } requestProfile
+            && !await requestProfile.IsCurrentAsync(token).ConfigureAwait(false))
+        { return ModelTurnReason.PolicyChanged; }
         if (turn.Profile is not { } profile) { return ModelTurnReason.None; }
         if (sessionProfiles is null || providerProfileConfiguration is null)
         { return ModelTurnReason.SessionNotAdmitted; }

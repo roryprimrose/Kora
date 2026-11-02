@@ -312,8 +312,8 @@ public sealed class ProviderProfileConfigurationService(
             if (applying || !eligible() || token.IsCancellationRequested) { throw new InvalidOperationException("Provider profile admission changed during observation."); }
             var value = Read();
             var resolved = value ?? new ProviderProfilePreferences(Initial(current.Installation), []);
-            if (localRequest is not null && localRequest.Service != ProviderService.Local)
-            { throw new InvalidOperationException("Request-only selection is local only."); }
+            if (localRequest is not null && localRequest.Service is not (ProviderService.Local or ProviderService.Copilot or ProviderService.Claude))
+            { throw new InvalidOperationException("Request-only selection requires an existing Local, Copilot or Claude route."); }
             var service = localRequest?.Service ?? reviewedService ?? overrides.EffectiveService(resolved);
             var tuple = localRequest ?? (reviewedService is null || overrides.EffectiveService(resolved) == service
                 ? overrides.ResolveDesired(resolved) : resolved.For(service));

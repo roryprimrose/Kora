@@ -57,6 +57,16 @@ remain separate ([strict advisory](../src/Kora.Core/Conversation/ModelHistoryCon
 [host binding](../src/Kora.Application/Hosting/SessionConversationService.ModelHistoryContext.cs),
 [native interaction](../src/Kora/ModelHistoryContext/ModelHistoryContextWindow.axaml)).
 
+## Read a turn's retained clarification exchange
+
+In the conversation pane, Sessions or compact conversation, choose **Show clarification exchange** under the exact original turn. Read its retained structured questions/options, accepted text or choices, original answer channel and observed terminal outcomes inline. These are historical observations, never live answer or approval controls ([native reader](../src/Kora/ClarificationExchangeView.cs)).
+
+Each explicit read scans at most **50 records / 65536 bytes** of admitted session history. Only exact session/request/task matches appear under the turn; similar wording does not link records. **More exchange records** advances the same fixed snapshot, even after a page with no matches, and replaces the displayed page rather than accumulating content ([bounded projection](../src/Kora/ClarificationExchange.cs)).
+
+Partial pages, gaps, baseline observations, metadata-only, redacted and unavailable content stay labelled. Pending, cancelled and expired questions do not acquire an accepted answer. Reaching the snapshot's end is not a guarantee of a complete exchange. Changed sources or private admission require a fresh explicit read; no newer snapshot is silently substituted ([source-bound read](../src/Kora/SessionsViewModel.ClarificationExchange.cs)).
+
+**Hide exchange** clears this volatile read. Reading does not submit historical answers, renew authority or session activity, alter unsent input, call a provider/tool, export content or save another copy. Use the separate current question surface for any still-actionable question; the session-level Activity reader remains separate ([read-only regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ClarificationExchange.cs)).
+
 ## Reply deliberately to one exact assistant answer
 
 In the native conversation or Sessions window, explicitly read the conversation, then choose **Reply to this answer** on the retained ASSISTANT answer you mean. Reply mode shows that exact complete answer and **Cancel reply**. Write your new follow-up (for example, `expand the second point`) in the session's existing memory-only composer; choosing Reply never pastes old text into your input ([native reply operation](../src/Kora/ReviewedContext/SessionsViewModel.AssistantReply.cs)).

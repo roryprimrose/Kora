@@ -341,6 +341,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversation(bool preserveUnsent = true)
     {
+        ClearClarificationExchange();
         ClearAnswerReviews();
         CancelTaskOutputReview();
         CancelLocalRequestProfile();
@@ -370,6 +371,7 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyConversation()
     {
+        NotifyClarificationExchange();
         NotifyAnswerReviews();
         NotifyTaskOutput();
         NotifyLocalRequestProfile();

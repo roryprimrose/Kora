@@ -79,6 +79,8 @@
         <WrapPanel>
           <Button x:Name="ReadConversation" Content="Read exact conversation" IsEnabled="{Binding CanReadConversation}" />
           <Button x:Name="NextConversation" Content="Next bounded conversation page" IsEnabled="{Binding CanNextConversation}" />
+          <Button x:Name="NewConversationUpdates" Content="{Binding ConversationUpdatesLabel}" IsEnabled="{Binding CanPresentConversationReader}"
+              AutomationProperties.Name="New updates: deliberately read the latest bounded page of this exact conversation; keep unsent input and keyboard focus" />
           <Button x:Name="AnswerAttachment" Content="Answer from this session's retained attachment" IsEnabled="{Binding CanCompose}" />
           <Button x:Name="ReviewHistoryContext" Content="Review earlier messages for a follow-up" IsEnabled="{Binding CanOpenHistoryContext}" />
           <Button x:Name="OpenMixedContext" Content="Review history, instruction and session memory together" IsEnabled="{Binding CanOpenMixedContext}" />
@@ -87,6 +89,9 @@
             SelectedItem="{Binding SelectedAnswerRecord, Mode=TwoWay}"
             ItemTemplate="{StaticResource ConversationMessageTemplate}"
             AutomationProperties.Name="Original USER messages, separate retained ASSISTANT answers and typed HOST outcomes; selection never starts speech" />
+        <TextBlock Text="Separately confirmed update; the earlier page is unchanged. Read latest messages for a fresh coherent page."
+            IsVisible="{Binding HasConversationUpdates}" TextWrapping="Wrap" />
+        <ItemsControl ItemsSource="{Binding ConversationUpdates}" ItemTemplate="{StaticResource ConversationMessageTemplate}" />
         <WrapPanel>
           <Button x:Name="ReadSelectedAnswer" Content="Read selected ASSISTANT answer once" IsEnabled="{Binding CanReadSelectedAnswer}" />
           <Button x:Name="CancelAnswerRead" Content="Cancel answer reading" IsEnabled="{Binding CanCancelAnswerRead}" />

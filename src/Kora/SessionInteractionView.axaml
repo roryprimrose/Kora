@@ -111,13 +111,21 @@
             <WrapPanel>
               <Button x:Name="ReadConversation" Content="Read conversation" IsEnabled="{Binding CanReadConversation}" />
               <Button x:Name="NextConversation" Content="More messages" IsEnabled="{Binding CanNextConversation}" />
+              <Button x:Name="NewConversationUpdates" Content="{Binding ConversationUpdatesLabel}"
+                  IsEnabled="{Binding CanPresentConversationReader}"
+                  AutomationProperties.Name="New updates: deliberately read the latest bounded page of this exact conversation; keep unsent input and keyboard focus" />
               <Button x:Name="ReadSessionLogs" Content="Session logs" IsEnabled="{Binding CanEvidence}" />
               <Button x:Name="ReadSessionAudit" Content="Session audit" IsEnabled="{Binding CanEvidence}" />
             </WrapPanel>
-            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <ScrollViewer Grid.Row="1" x:Name="ConversationScroll" VerticalScrollBarVisibility="Auto"
+                HorizontalScrollBarVisibility="Disabled" Focusable="True"
+                AutomationProperties.Name="Admitted conversation page and separately confirmed latest completion">
               <StackPanel Spacing="8">
                 <local:AnswerReviewPanel />
-                <ItemsControl ItemsSource="{Binding ConversationMessages}" ItemTemplate="{StaticResource TimelineMessage}" />
+                <ItemsControl x:Name="ConversationMessageItems" ItemsSource="{Binding ConversationMessages}" ItemTemplate="{StaticResource TimelineMessage}" />
+                <TextBlock Text="Separately confirmed update; the earlier page and its snapshot ceiling are unchanged. Read latest messages for a fresh coherent page."
+                    IsVisible="{Binding HasConversationUpdates}" TextWrapping="Wrap" Classes="muted" />
+                <ItemsControl x:Name="ConversationUpdateItems" ItemsSource="{Binding ConversationUpdates}" ItemTemplate="{StaticResource TimelineMessage}" />
                 <StackPanel IsVisible="{Binding HasProvisionalAnswer}" Spacing="4">
                   <TextBlock Text="Provisional answer — not retained; only a validated completed answer is saved."
                       TextWrapping="Wrap" AutomationProperties.Name="Provisional answer, not retained" />
@@ -152,7 +160,11 @@
                 </ItemsControl>
               </StackPanel>
             </ScrollViewer>
-            <TextBlock Grid.Row="2" Text="{Binding ConversationStatus}" Classes="muted" TextWrapping="Wrap" />
+            <StackPanel Grid.Row="2" Spacing="4">
+              <TextBlock x:Name="ConversationReaderStatus" TextWrapping="Wrap" Classes="muted"
+                  AutomationProperties.Name="Conversation reading position and exact anchor availability" />
+              <TextBlock Text="{Binding ConversationStatus}" Classes="muted" TextWrapping="Wrap" />
+            </StackPanel>
           </Grid>
         </TabItem>
         <TabItem Header="Activity">

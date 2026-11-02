@@ -9,6 +9,10 @@ namespace Kora;
 
 internal sealed partial class NativeQuestionHost
 {
+    internal Task<bool> ValidateConversationNoticeAsync(NativeQuestionViewModel model, LocalEvent notice,
+        CancellationToken token) =>
+        store.ValidateConversationNoticeQuestionAsync(model.Question, notice, token).AsTask();
+
     private HostRequest? mcpObservationRequest;
     private long mcpObservationRevision;
     private HostRequest? pageObservationRequest;
@@ -87,6 +91,8 @@ internal sealed partial class NativeQuestionHost
                 || initial.SessionGeneration != generation || !Eligible())
             { throw new InvalidOperationException("The exact clarification could not be durably presented."); }
             opened = new(initial, questions, authorization, reviews, Eligible, time, logger);
+            if (QuestionClipboardAnswer.Supports(initial) && createClipboardAnswer is not null)
+            { opened.BindClipboardAnswer(createClipboardAnswer(opened)); }
             if (mcpReview is not null) { opened.BindMcpReview(mcpReview); }
             current = opened;
             Interlocked.Exchange(ref currentFocusRevision, Interlocked.Read(ref focusRevision));

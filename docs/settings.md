@@ -69,7 +69,19 @@ This is opt-in and current-user installed Kora only. A developer checkout, older
 A failed/unconfirmed result can mean a write persisted: inspect registration, saved intent and audit before manual recovery, not an automatic retry ([Windows boundary](../src/Kora.Windows/Startup/WindowsLogonStartupRegistration.cs)).
 
 Nothing launches during confirmation. Next logon uses the ordinary tray/minimal-shell launch and fresh host, storage, consent, privacy and audio checks. Startup registration does not enable listening or grant model/network permission.
-Optional details-at-startup customization is not delivered ([startup contract](../Design/Distribution_And_Updates.md#running-and-logon-startup)).
+The separate manual presentation setting below does not affect logon ([startup contract](../Design/Distribution_And_Updates.md#running-and-logon-startup)).
+
+## Normal manual startup presentation
+
+In **Settings > Appearance > Normal manual startup presentation**, choose **Inspect**, then **Review tray/minimal** or **Review Main workspace**, read the review and separately choose **Confirm presentation change**. **Cancel presentation review** changes nothing. **Reset setting** in the cog menu also needs separate confirmation ([review and save](../src/Kora.Application/ViewModels/MainViewModel.StartupPresentation.cs)).
+
+This setting requires the native Settings controls; voice, typed and model input cannot confirm it. Reviews expire after 60 seconds and retire when the original native view or host/input/call/privacy state changes. Only confirmed intent is saved. An unavailable or unconfirmed result may mean a write persisted: inspect saved intent and audit before manual recovery; there is no automatic retry or rollback.
+
+The next launch through the supported installed Start Menu shortcut uses the choice. For a deliberate command-line manual launch, use `Kora.exe --manual-startup`. Argument-free direct launches, older shortcuts, Windows logon, setup completion, handoff and restart keep existing behavior. Older installations need the updated manual shortcut; Kora does not rewrite logon registration.
+
+**Main workspace** opens the existing workspace without focus activation, loading a session list, selecting a conversation, reading retained content or restoring unsent text. Use the existing controls to select/read or start input. **Tray/minimal** adds no workspace. No saved choice/reset preserves current initialization, including existing readiness, error and consent views; it is not a promise of one fixed window default.
+
+Locked/unknown privacy or ownership, an active/unknown call, pending decisions or changed intent hold presentation without deferred replay. This setting does not enable listening, AI services, network access or permissions. Saved intent is not startup readiness, and no installed logon or hardware qualification is claimed ([scope](../Design/User_Configuration.md#delivered-normal-manual-startup-presentation)).
 
 ## Conversational voice replies
 
@@ -1178,12 +1190,13 @@ dependency readiness. Refresh does not enable listening.
 ## Optional speech-input data
 
 **Speech & audio → Optional speech-input components** manages only exact
-host-catalogued optional model data. This release has no qualified optional
-input offers, so the panel reports that state and cannot download or claim
-installation success ([catalogue](../src/Kora.Core/Dependencies/SpeechComponentCatalogue.cs),
+host-catalogued optional model data. The existing **Hands-free CPU assets**
+offer supports preparation and removal, not qualified listening. Preparing it
+does not make it a selectable speech-input profile
+([catalogue](../src/Kora.Windows/Audio/HandsFreeSetupCatalogue.cs),
 [Settings panel](../src/Kora/SettingsWindow.SpeechComponents.cs)).
 
-For an admitted future offer, **Inspect** reports installed bytes, integrity,
+**Inspect** reports installed bytes, integrity,
 compatibility, qualification and ownership separately. **Prepare / retry**,
 **Verify** and **Remove** require a fresh complete review of the exact model,
 sources, licence, download/storage/resource costs and operation before approval.
@@ -1207,6 +1220,30 @@ exact managed model data after exclusive quiescence; saved selections, personal
 profiles, calibration and secrets are outside this operation. Burn uses the
 same lifecycle with individually unchecked choices; skipping optional work
 keeps a valid Kora-only installation ([installer](../installer/README.md#optional-local-speech-component-lifecycle)).
+
+For **Remove**, choose that one exact offer and read the complete native review,
+including actual remaining file names/bytes/digests, managed ownership, model/source
+identity, current asset consumers, saved/desired/effective input and resource impact.
+Read the independent privacy/consent exclusions, then select **Confirm exact model-data
+removal** or **Decline**. Inspection/preparation alone never confirms deletion.
+Unknown/foreign inventory cannot be confirmed
+([review](../src/Kora.Application/Dependencies/SpeechComponentSetupPlan.cs)).
+
+Kora excludes new asset consumers, retires only its owned work using these bytes
+and waits for actual joins before deleting the exact inventoried files.
+Changes to consumers, native identity, selection, private/owner/call state or the
+reviewed files invalidate confirmation. Typed or spoken profile switching is not
+destructive removal consent; this operation requires the live native Settings host
+([admission](../src/Kora.Application/ViewModels/MainViewModel.SpeechComponents.cs),
+[runtime](../src/Kora.Windows/Audio/HandsFreeSetupRuntime.cs)).
+
+Failure/cancellation leaves affected assets **Unavailable** and, while disclosure
+remains permitted, shows the exact observed remainder. Inspect again and explicitly
+review a new removal; Kora does not claim rollback, discarded bytes or physical disk
+release, automatically retry/download, or silently select Windows/another model.
+Enablement/acquisition stay separate. This does not delete biometric/learning data,
+history or user originals, or uninstall Kora/native code, Windows, .NET, VC++ or shared
+runtimes ([bounded storage](../src/Kora.Windows/Dependencies/WindowsSpeechComponentStore.cs)).
 
 ## Responses
 

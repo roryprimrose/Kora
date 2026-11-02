@@ -262,7 +262,8 @@ public sealed partial class SessionsConversationTests
             Kora.Core.Mcp.IMcpConnectionBroker? mcpBroker = null,
             Kora.Application.Mcp.McpReadOnlyPolicy? mcpEffects = null,
             PlaybackVolumeConfigurationService? volume = null, bool localFirst = false,
-            HandoffCatalogue? localFirstCatalogue = null, IProviderCapabilityCatalogue? localRequestCatalogue = null)
+            HandoffCatalogue? localFirstCatalogue = null, IProviderCapabilityCatalogue? localRequestCatalogue = null,
+            Kora.Core.Memory.IMemoryStore? memoryStore = null)
         {
             var workspace = WindowsSqliteSessionWorkspaceTests.Service(f, Access);
             Workspace = workspace;
@@ -330,7 +331,7 @@ public sealed partial class SessionsConversationTests
                 LocalHandoff = new(workflow, turns, conversation, f.Store, f.Store, f.Time);
                 HandoffPresentation = new(workflow);
             }
-            memories = memoryContext ? new(workspace, f.Store, Access, boundary, f.Store, Audit,
+            memories = memoryContext ? new(workspace, f.Store, Access, boundary, memoryStore ?? f.Store, Audit,
                 NullLogger<Kora.Application.Memory.MemoryAdmissionService>.Instance, f.Time) : null;
             var sink = new WindowsSqliteEvidenceSink(f.Paths);
             sink.Initialize();

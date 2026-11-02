@@ -87,6 +87,29 @@ internal sealed partial class SessionsWindowController(
         }
     }
 
+    internal void ShowStartupWorkspace(Func<bool> admitted)
+    {
+        if (disposed || !access.CanInspect || !main.CanRevealPrivatePresentation || !admitted())
+        { throw new InvalidOperationException("The startup workspace is held by current private desktop ownership."); }
+        if (presentation is not null)
+        { throw new InvalidOperationException("An existing workspace/source presentation cannot be replaced by startup intent."); }
+        EnsurePresentation();
+        var owner = presentation!;
+        if (DetailOwner() is not ResponseWindow surface)
+        { throw new InvalidOperationException("The existing Main workspace is not composed."); }
+        if (!admitted() || !access.CanInspect || !main.CanRevealPrivatePresentation)
+        {
+            owner.Revoke();
+            throw new InvalidOperationException("Startup workspace admission changed before native publication.");
+        }
+        surface.ShowSessions(expanded: true, activate: false);
+        if (!admitted() || !access.CanInspect || !surface.IsVisible)
+        {
+            owner.Revoke();
+            throw new InvalidOperationException("Startup workspace admission changed during native publication.");
+        }
+    }
+
     internal Func<Task> CaptureSessionSelection(int? position, Func<bool> admitted)
     {
         var source = model;
@@ -443,6 +466,7 @@ internal sealed partial class SessionsWindowController(
         };
         if (ConversationQuestions is { } questions)
         {
+            model.ConversationNoticeQuestion = questions.CaptureConversationNoticeQuestion;
             model.QuestionPresenter = (request, generation, spec, expiry, admitted, token) =>
                 questions.AskConversationAsync(window ?? (Avalonia.Controls.Window?)compact ?? interaction
                     ?? throw new InvalidOperationException("The exact conversation window is unavailable."),
@@ -456,47 +480,11 @@ internal sealed partial class SessionsWindowController(
                     proposal.Request, generation, placeholder, proposal.ExpiresAt, admitted, token, proposal, address);
                 return new(receipt.Presented, receipt.Completed);
             };
-            model.McpPresenter = async (proposal, generation, review, admitted, token) =>
-            {
-                var spec = new Kora.Core.Interaction.QuestionSpec("Exact HTTPS MCP approval",
-                    Kora.Core.Interaction.QuestionKind.SingleChoice, [new("once", "Approve once")]);
-                var receipt = await questions.AskConversationAsync(window ?? (Avalonia.Controls.Window?)compact ?? interaction
-                    ?? throw new InvalidOperationException("The exact conversation window is unavailable."),
-                    proposal.Request, generation, spec, proposal.ExpiresAt, admitted, token,
-                    webProposal: proposal, mcpReview: review);
-                return new(receipt.Presented, receipt.Completed);
-            };
-            model.McpSelector = async (request, generation, expiresAt, tools, admitted, token) =>
-            {
-                var options = tools.Select((tool, index) => new Kora.Core.Interaction.QuestionOption(
-                    "tool-" + index.ToString(System.Globalization.CultureInfo.InvariantCulture), tool.Name)).ToArray();
-                var spec = new Kora.Core.Interaction.QuestionSpec("Select one discovered host-mapped read-only MCP tool. "
-                    + "Its complete schema and outgoing arguments still require separate exact review.",
-                    Kora.Core.Interaction.QuestionKind.SingleChoice, options, sourceId: "mcp-tool-selection");
-                var receipt = await questions.AskConversationAsync(window ?? (Avalonia.Controls.Window?)compact ?? interaction
-                    ?? throw new InvalidOperationException("The exact conversation window is unavailable."),
-                    request, generation, spec, expiresAt, admitted, token, mcpSelection: true);
-                if (receipt.Completed.Outcome != Kora.Core.Interaction.HostInteractionOutcome.Answered
-                    || receipt.Completed.Question?.Draft is not { Choices.Length: 1 } answer)
-                { return null; }
-                var selectedOption = Array.FindIndex(options, option => string.Equals(option.Id, answer.Choices[0], StringComparison.Ordinal));
-                return selectedOption < 0 ? null : tools[selectedOption].Name;
-            };
-            model.McpInput = async (request, generation, expiresAt, tool, admitted, token) =>
-            {
-                using var schema = System.Text.Json.JsonDocument.Parse(tool.InputSchema);
-                var spec = new Kora.Core.Interaction.QuestionSpec("Enter JSON arguments for " + tool.Id
-                    + ". Every required field must match this schema. Submitting input is NOT approval to send it.\n"
-                    + System.Text.Json.JsonSerializer.Serialize(schema.RootElement),
-                    Kora.Core.Interaction.QuestionKind.Text, [],
-                    maximumTextLength: Kora.Core.Mcp.McpToolSchema.MaximumArgumentsUtf8Bytes,
-                    sourceId: "mcp-tool-arguments");
-                var receipt = await questions.AskConversationAsync(window ?? (Avalonia.Controls.Window?)compact ?? interaction
-                    ?? throw new InvalidOperationException("The exact MCP input window is unavailable."),
-                    request, generation, spec, expiresAt, admitted, token, mcpInput: true);
-                return receipt.Completed.Outcome == Kora.Core.Interaction.HostInteractionOutcome.Answered
-                    ? receipt.Completed.Question?.Draft?.Text : null;
-            };
+            var mcp = new McpNativeReview(questions, () => window ?? (Avalonia.Controls.Window?)compact ?? interaction
+                ?? throw new InvalidOperationException("The exact conversation window is unavailable."));
+            model.McpPresenter = mcp.PresentAsync;
+            model.McpSelector = mcp.SelectAsync;
+            model.McpInput = mcp.InputAsync;
         }
         BindAdditionalRegisteredSettingSuggestions(model, main);
         model.RemainingWorkAnswer = main.AnswerRemainingWorkAsync;
@@ -597,9 +585,7 @@ internal sealed partial class SessionsWindowController(
         details?.RevokeSession(session);
         if (model is { } state)
         {
-            state.RetireUnsent(session);
-            if (state.ReferencesSession(session)) { presentation?.Revoke(); }
-            else { state.RevokeSessionList(); }
+            state.RevokeSessionPresentation(session);
         }
     }
 

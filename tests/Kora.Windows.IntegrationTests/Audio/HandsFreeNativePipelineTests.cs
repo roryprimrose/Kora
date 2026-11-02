@@ -1,12 +1,65 @@
 using System.Runtime.InteropServices;
+using System.Diagnostics;
+
 using AwesomeAssertions;
+
 using Kora.Core.Voice;
 using Kora.Windows.Audio;
+using Kora.Core.Dependencies;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
+using Kora.Application.Dependencies;
 
 namespace Kora.Windows.IntegrationTests.Audio;
 
+[Collection("Host tracing")]
 public sealed class HandsFreeNativePipelineTests
 {
+    [Fact]
+    public async Task ConfirmedRemovalJoinsProductionSessionWithIgnoringNativeOpenAndRejectsLateTranscriptBeforeDeletingFixtureBytes()
+    {
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name.StartsWith("Kora.", StringComparison.Ordinal),
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+        };
+        ActivitySource.AddActivityListener(listener);
+        using var assets = new HandsFreeSetupTests.Fixture();
+        using var host = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Application, HostOperation.Request);
+        var setup = assets.Setup();
+        var preparation = await setup.ReviewAsync(assets.Component.Identity, SpeechComponentOperation.Prepare,
+            () => true, TestContext.Current.CancellationToken);
+        await setup.ApplyAsync(preparation, true, assets.Progress, TestContext.Current.CancellationToken);
+        var ownership = (await assets.Runtime.TryAcquireOwnershipAsync(TestContext.Current.CancellationToken))!;
+        var fixture = new Fixture(ownership) { HoldOpen = true };
+        ownership.Attach(() => fixture.Session.DisposeAsync().AsTask()).Should().BeTrue();
+        var wake = await fixture.WakeAsync();
+        var command = fixture.Session.CaptureCommandAsync(wake, TestContext.Current.CancellationToken);
+        await fixture.OpenEntered.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var review = await setup.ReviewAsync(assets.Component.Identity, SpeechComponentOperation.Remove,
+            () => true, TestContext.Current.CancellationToken);
+        var retiring = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var invalidation = ownership.Token.Register(() => retiring.SetResult());
+        var removal = setup.ApplyAsync(review, true, assets.Progress, TestContext.Current.CancellationToken);
+        await retiring.Task.WaitAsync(TestContext.Current.CancellationToken);
+        removal.IsCompleted.Should().BeFalse();
+        fixture.Session.IsQuiescent.Should().BeFalse();
+        Directory.GetFiles(assets.FinalPath).Should().HaveCount(3);
+        fixture.Capture.Transcript("late fixture command", 1);
+        fixture.ReleaseOpen.SetResult(fixture.Capture);
+        await FluentActions.Awaiting(() => command).Should().ThrowAsync<OperationCanceledException>();
+        await removal;
+        fixture.Session.IsQuiescent.Should().BeTrue();
+        fixture.Microphone.Disposed.Should().BeTrue();
+        fixture.Detector.Disposed.Should().BeTrue();
+        fixture.Endpoint.Disposed.Should().BeTrue();
+        fixture.Capture.Disposed.Should().BeTrue();
+        fixture.Assets.Disposed.Should().BeTrue();
+        Directory.Exists(assets.FinalPath).Should().BeFalse();
+        File.Exists(assets.Native).Should().BeTrue();
+        assets.Acquisition.Calls.Should().Be(2);
+    }
+
     [Theory]
     [InlineData(0, 0, 160L)]
     [InlineData(1, 1, 320L)]
@@ -266,18 +319,18 @@ public sealed class HandsFreeNativePipelineTests
         public int OpenCount { get; private set; }
         public BlockingAudioStream? Stream { get; private set; }
         public WindowsHandsFreeAudioSession Session { get; }
-        public Fixture()
+        public Fixture(HandsFreeSetupRuntime.CaptureOwnership? ownership = null)
         {
             Session = new(new(-21, new("synthetic", "Synthetic"), "Nova", new(1, SpeechInputSelection.Default))
             {
-                CanCapture = () => Admitted,
+                CanCapture = () => Admitted && ownership?.Token.IsCancellationRequested != true,
             }, Microphone, Detector, Endpoint, Assets, stream =>
             {
                 OpenCount++;
                 Stream = stream;
                 OpenEntered.TrySetResult();
                 return HoldOpen ? ReleaseOpen.Task : Task.FromResult<IActivatedCapture>(Capture);
-            });
+            }, ownership);
         }
         public async Task<WakeWordObservation> WakeAsync()
         {

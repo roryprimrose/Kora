@@ -24,11 +24,15 @@ do not require you to remember these names.
 | `speech.summary-sentences` | Integer 1-3 | Native or existing exact typed/activated-voice review |
 | `speech.playback-volume` | Integer 0-100 | Native or existing exact typed/activated-voice review |
 | `responses.default-mode` | Exact `Hybrid`, `VoiceOnly`, `VisualOnly` | Native or exact typed/activated-voice review |
+| `speech.windows-rate` | Canonical integer -10 through 10, normal 0 | Native or exact typed/activated-voice review |
 
 For example, the complete answer may be `set appearance.theme to dark`,
 `set appearance.movement-speed to 50`, `set speech.summary-words to 40`, `set speech.playback-volume to 30`, or
 `set responses.default-mode to VoiceOnly`.
-Numeric speech suggestions use canonical decimal digits, without signs,
+For slower Windows speech, the complete retained answer may be
+`set speech.windows-rate to -1`. Rate alone permits canonical negative integers;
+plus signs, negative zero, padding, leading zeroes, suffixes and commentary are rejected.
+Other numeric speech suggestions use canonical decimal digits, without signs,
 leading zeroes, fractions or commentary. Mixed settings, batches, resets,
 relative changes and other setting families are not admitted as suggestions.
 Response-mode answers require the exact spelling and case shown above; numeric
@@ -51,6 +55,10 @@ limited to theme, reader text scale, both summary caps, playback volume and resp
    Response mode shows saved/default provenance, desired and configured effective
    modes, the exact proposal, future-output timing and mandatory visual/privacy/call
    exceptions. It changes the shared device default, not session/task/queue/call overrides.
+   Windows rate shows provider/support, saved/default provenance and desired/effective
+   native units (-10 through 10, normal 0), not percentages or a universal speed scale.
+   It uses the same guarded, validated writer as Settings > Speech & audio.
+   Only the already available Windows provider/adapter can apply; Kokoro is unchanged.
    Presence changes affect the existing display and animation immediately after a
    confirmed save. Disabling presence hides it; speech scaling only changes its
    animation, never speech permission, synthesis or playback.
@@ -63,7 +71,7 @@ old one. The original request, answer, session, preference revision, private
 control/ownership and call admission remain bound throughout source checks and
 confirmation. A copied message, stale page, changed settings or a changed source
 cannot silently select a newer answer. Speech, volume and response-mode reviews expire after
-60 seconds. Closing or losing private control retires the review.
+60 seconds, including Windows rate. Closing or losing private control retires the review.
 
 ## Activated voice and mandatory exceptions
 
@@ -77,6 +85,8 @@ Activated voice requires the current assistant-name prefix, voice consent and
 eligible call policy. They use the exact host-pinned successful session request,
 never a guessed latest answer. No new static setting aliases are added; these
 review commands do not execute model text as a direct setting command.
+Windows rate uses **review rate suggestion**, **confirm rate change**, and
+**cancel rate review** against that same exact successful-submission pin.
 
 Original voice provenance survives later typed/native confirmation; a protected
 or unknown call cannot be laundered into local UI authority. Appearance stays
@@ -87,11 +97,15 @@ A generic "yes", the model's answer or the original request cannot confirm.
 ## Recovery and availability
 
 After a confirmed registered change, [Undo the last settings change](settings.md#undo-the-last-registered-settings-change) offers one exact run-only preference restoration through separate review and confirmation. A model suggestion cannot invent the prior value or create undo authority; the host receipt and current authoritative writer decide eligibility ([undo owner](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
+Windows rate is not added to that undo subset; direct rate Reset remains available
+through its existing admitted controls.
 
 Review and cancellation never invoke a model, synthesize audio or replay an
 answer. Confirmed speech changes apply to the **next** eligible ordinary speech,
 not truncation or regeneration of the current answer. No system/device/call
 volume, provider, microphone, consent, grant or unrelated preference is changed.
+Windows rate applies only to future eligible Windows synthesis. It never switches
+provider, sets system speech speed, qualifies an adapter or claims acoustic results.
 
 Response-mode confirmation affects the **next** eligible response only. Even
 `VoiceOnly` retains the complete visual answer for warnings, security, questions,

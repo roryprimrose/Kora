@@ -24,6 +24,10 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
             .Should().ThrowAsync<InvalidOperationException>();
         await FluentActions.Awaiting(() => voice.AcquireComparisonAsync(generation, Admission.Microphone, static () => true,
             TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+        await FluentActions.Awaiting(() => voice.RetireProfileAsync(TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<InvalidOperationException>();
+        await FluentActions.Awaiting(() => voice.RetireProfileAsync(SpeechInputProfileCatalogue.NativeWakeSelection,
+            "Nova", TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
         FluentActions.Invoking(() => voice.InitializeProfile(SpeechInputSelection.Default)).Should().Throw<InvalidOperationException>();
         await voice.ResumeAfterActivatedInputAsync();
         var observation = await lease.CaptureAsync(SpeechSetupComparisonTests.Profile, TestContext.Current.CancellationToken);
@@ -48,6 +52,30 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
     }
 
     [Fact]
+    public async Task ProfilePreparationAndUnconfirmedAssetReleaseCannotAcquireComparison()
+    {
+        var stage = new Stage { SupportsNative = true };
+        var native = new ComparisonActivated();
+        await using var voice = Create(native, stage);
+        var original = voice.ProfileGeneration;
+        var switching = await voice.RetireProfileAsync(SpeechInputProfileCatalogue.NativeWakeSelection,
+            "Nova", TestContext.Current.CancellationToken);
+        await FluentActions.Awaiting(() => voice.AcquireComparisonAsync(original, Admission.Microphone,
+            static () => true, TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+        switching.Publish(new(2, SpeechInputProfileCatalogue.NativeWakeSelection));
+        stage.Assets.FailRelease = true;
+        await FluentActions.Awaiting(() => switching.DisposeAsync().AsTask()).Should().ThrowAsync<InvalidOperationException>();
+        voice.ProfileGeneration.Should().Be(new SpeechInputGeneration(2, SpeechInputProfileCatalogue.NativeWakeSelection));
+        native.ProfileGeneration.Selection.Should().Be(SpeechInputSelection.Default);
+        voice.IsProfileAvailable.Should().BeFalse();
+        await FluentActions.Awaiting(() => voice.AcquireComparisonAsync(voice.ProfileGeneration, Admission.Microphone,
+            static () => true, TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+        native.ComparisonAcquires.Should().Be(0);
+        native.PushToTalkCalls.Should().Be(0);
+        stage.Opens.Should().Be(0);
+    }
+
+    [Fact]
     public async Task MissingDeniedBusyAndFailedNativeAcquisitionCannotInventComparisonReadiness()
     {
         await using var missing = Create(new Activated(), new Stage());
@@ -69,11 +97,13 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
     private sealed class ComparisonActivated : Activated, ISpeechSetupComparisonRuntime
     {
         public bool FailAcquire { get; set; }
+        public int ComparisonAcquires { get; private set; }
         public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public IReadOnlyList<SpeechComparisonProfile> GetComparisonProfiles() => [SpeechSetupComparisonTests.Profile];
         public Task<ISpeechSetupComparisonLease> AcquireComparisonAsync(SpeechInputGeneration generation,
             MicrophoneDevice microphone, Func<bool> eligible, CancellationToken cancellationToken)
         {
+            ComparisonAcquires++;
             if (FailAcquire) { throw new IOException("Synthetic acquisition failure"); }
             return Task.FromResult<ISpeechSetupComparisonLease>(new Lease(this));
         }

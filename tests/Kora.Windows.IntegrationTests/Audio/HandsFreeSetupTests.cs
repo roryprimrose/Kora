@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
+
 using AwesomeAssertions;
+
 using Kora.Application.Dependencies;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
@@ -10,6 +12,7 @@ using Kora.Core.Voice;
 using Kora.Testing;
 using Kora.Windows.Audio;
 using Kora.Windows.Dependencies;
+using Kora.Windows.Storage;
 
 namespace Kora.Windows.IntegrationTests.Audio;
 
@@ -163,14 +166,18 @@ public sealed class HandsFreeSetupTests : IDisposable
         unavailable.Observe(fixture.Component).Compatibility.Should().Be(SpeechComponentCompatibility.Incompatible);
         new WindowsHandsFreeAudioStage(unavailable).IsAvailable.Should().BeFalse();
         (await unavailable.TryAcquireExclusiveAsync(fixture.Component, TestContext.Current.CancellationToken)).State.Should().Be(SpeechComponentMutationState.Unavailable);
-        var owner = (await fixture.Runtime.TryAcquireExclusiveAsync(fixture.Component, TestContext.Current.CancellationToken)).RequireLease();
         var stage = new WindowsHandsFreeAudioStage(fixture.Runtime);
         stage.IsAvailable.Should().BeTrue();
+        var owner = (await fixture.Runtime.TryAcquireExclusiveAsync(fixture.Component, TestContext.Current.CancellationToken)).RequireLease();
+        stage.IsAvailable.Should().BeFalse();
+        stage.SupportsProfile("Nova", SpeechInputProfileCatalogue.NativeWakeSelection).Should().BeFalse();
         await FluentActions.Awaiting(() => stage.OpenAsync(Binding(), TestContext.Current.CancellationToken))
-            .Should().ThrowAsync<InvalidOperationException>().WithMessage("*owned by setup*");
+            .Should().ThrowAsync<InvalidOperationException>().WithMessage("*profile is unavailable*");
         await owner.DisposeAsync();
         await owner.DisposeAsync();
+        stage.IsAvailable.Should().BeTrue();
         await using var next = (await fixture.Runtime.TryAcquireExclusiveAsync(fixture.Component, TestContext.Current.CancellationToken)).RequireLease();
+        stage.IsAvailable.Should().BeFalse();
     }
 
     [Theory]
@@ -185,10 +192,11 @@ public sealed class HandsFreeSetupTests : IDisposable
         await setup.ApplyAsync(prepare, true, fixture.Progress, TestContext.Current.CancellationToken);
         await File.WriteAllBytesAsync(extraLibrary ? Path.Combine(Path.GetDirectoryName(fixture.Native)!, "unadmitted.dll") : fixture.Native,
             [4, 3, 2, 1], TestContext.Current.CancellationToken);
-        var verify = await setup.ReviewAsync(fixture.Component.Identity, SpeechComponentOperation.Verify, () => true, TestContext.Current.CancellationToken);
-        await FluentActions.Awaiting(() => setup.ApplyAsync(verify, true, fixture.Progress, TestContext.Current.CancellationToken))
-            .Should().ThrowAsync<InvalidDataException>();
-        fixture.Audit.Events.Last().Outcome.Should().Be(Kora.Core.Auditing.SecurityAuditOutcome.Failed);
+        await FluentActions.Awaiting(() => setup.ReviewAsync(fixture.Component.Identity, SpeechComponentOperation.Verify,
+            () => true, TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+        setup.Offers.Should().BeEmpty();
+        (await setup.InspectAsync(fixture.Component.Identity, TestContext.Current.CancellationToken))
+            .Runtime.Compatibility.Should().Be(SpeechComponentCompatibility.Unknown);
         await using var next = (await fixture.Runtime.TryAcquireExclusiveAsync(fixture.Component, TestContext.Current.CancellationToken)).RequireLease();
     }
 
@@ -212,7 +220,7 @@ public sealed class HandsFreeSetupTests : IDisposable
     }
 
     private static HandsFreeAudioBinding Binding() => new(1, new("synthetic", "Synthetic"), "Nova",
-        new(1, SpeechInputSelection.Default)) { CanCapture = () => true };
+        new(1, SpeechInputProfileCatalogue.NativeWakeSelection)) { CanCapture = () => true };
     private static HostActivity Begin() => HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
         HostActivityLayer.Application, HostOperation.Request);
 
@@ -252,6 +260,7 @@ public sealed class HandsFreeSetupTests : IDisposable
 
     internal sealed class DiskFiles(string root) : ISpeechComponentFiles
     {
+        internal Action<string>? AfterVerifiedDelete { get; set; }
         public string Root => root;
         public bool RootExists() => Directory.Exists(Root);
         public void EnsureRoot() => Directory.CreateDirectory(Root);
@@ -262,10 +271,47 @@ public sealed class HandsFreeSetupTests : IDisposable
         public Stream Read(string path) => new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.Asynchronous);
         public Stream Create(string path) => new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, FileOptions.Asynchronous);
         public void CreateDirectory(string path) => Directory.CreateDirectory(path);
-        public void MoveDirectory(string source, string destination) => Directory.Move(source, destination);
+        public string Identity(string path)
+        {
+            using var handle = SpeechComponentFileBinding.Open(path, Directory.Exists(path));
+            return WindowsFileIdentity.Read(handle);
+        }
+        public IDisposable PinDirectory(string path)
+        {
+            var pinned = new SpeechComponentFileBinding();
+            try { pinned.PinAncestors(path); return pinned; }
+            catch { pinned.Dispose(); throw; }
+        }
+        public async Task DeleteVerifiedFileAsync(string path, string identity, long bytes, string digest,
+            Func<bool> admitted, CancellationToken cancellationToken)
+        {
+            using var handle = SpeechComponentFileBinding.Open(path, directory: false, deleting: true);
+            SpeechComponentFileBinding.RequireIdentity(handle, identity);
+            await using var stream = new FileStream(handle, FileAccess.Read);
+            if (stream.Length != bytes || !string.Equals(
+                Convert.ToHexString(await SHA256.HashDataAsync(stream, cancellationToken)), digest, StringComparison.Ordinal))
+            { throw new InvalidDataException("Changed fixture content."); }
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!admitted()) { throw new UnauthorizedAccessException("Fixture admission changed."); }
+            SpeechComponentFileBinding.Delete(handle);
+            AfterVerifiedDelete?.Invoke(path);
+        }
+        public void MoveDirectory(string source, string destination, string? expectedIdentity = null)
+        {
+            using var pinned = new SpeechComponentFileBinding();
+            pinned.PinAncestors(Path.GetDirectoryName(destination)!);
+            using var handle = SpeechComponentFileBinding.Open(source, directory: true, deleting: true);
+            if (expectedIdentity is not null) { SpeechComponentFileBinding.RequireIdentity(handle, expectedIdentity); }
+            SpeechComponentFileBinding.Rename(handle, pinned.Last, Path.GetFileName(destination));
+        }
         public void MoveFile(string source, string destination) => File.Move(source, destination);
         public void DeleteFile(string path) => File.Delete(path);
-        public void DeleteDirectory(string path) => Directory.Delete(path);
+        public void DeleteDirectory(string path, string? expectedIdentity = null)
+        {
+            using var handle = SpeechComponentFileBinding.Open(path, directory: true, deleting: true);
+            if (expectedIdentity is not null) { SpeechComponentFileBinding.RequireIdentity(handle, expectedIdentity); }
+            SpeechComponentFileBinding.Delete(handle);
+        }
         private sealed class Lease : IAsyncDisposable { public ValueTask DisposeAsync() => ValueTask.CompletedTask; }
     }
 

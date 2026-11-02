@@ -607,7 +607,8 @@ public sealed partial class ClipboardExplanationWorkflowTests
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
             Func<TState, Exception?, string> formatter) => Messages.Add(formatter(state, exception));
         internal Fixture(bool qualified = true, ClipboardSnapshotBroker? broker = null,
-            bool productionSourcePolicy = false, bool bindPermissionPresenter = true, bool productionReadPolicy = false)
+            bool productionSourcePolicy = false, bool bindPermissionPresenter = true, bool productionReadPolicy = false,
+            Func<ClipboardSnapshot, Func<CancellationToken, Task>, CancellationToken, Task<ClipboardOutcome>>? readReview = null)
         {
             ActivitySource.AddActivityListener(listener);
             var dependencies = new DependencyBootstrapper([], NullLogger<DependencyBootstrapper>.Instance);
@@ -628,7 +629,7 @@ public sealed partial class ClipboardExplanationWorkflowTests
             admission = new(store, store, new(store));
             GrantedPolicy = new(store, store, Time);
             if (bindPermissionPresenter) { GrantedPolicy.BindPresenter(PresentPermission); }
-            ReadAction = new(productionReadPolicy ? new ClipboardReadWorkflow(Broker, admission, GrantedPolicy) : new ReadWorkflow(Broker));
+            ReadAction = new(productionReadPolicy ? new ClipboardReadWorkflow(Broker, admission, GrantedPolicy, readReview) : new ReadWorkflow(Broker));
             Workflow = new(Broker, ReadAction, admission, models, this, Time, this,
                 productionSourcePolicy ? GrantedPolicy : SourcePolicy);
             Action = new(Workflow);

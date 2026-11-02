@@ -6,6 +6,7 @@ namespace Kora;
 
 internal sealed partial class SessionsViewModel
 {
+    private const string UnsentHeldStatus = "Unsent input retained for this exact session. Changed/unknown source or submission remains held; inspect exact receipts.";
     private readonly Dictionary<HostId<SessionIdentity>, UnsentMessage> unsent = [];
     private HostId<SessionIdentity>? composerSession;
     private WorkSessionAuthorization? composerAuthority;
@@ -47,6 +48,8 @@ internal sealed partial class SessionsViewModel
         if (selected is not { } target) { return; }
         if (composerSession == target.Authority.SessionId)
         {
+            if (!conversationSourceHeld && composerAuthority != target.Authority)
+            { conversationStatus = UnsentHeldStatus; }
             conversationSourceHeld |= composerAuthority != target.Authority;
             return;
         }
@@ -64,7 +67,7 @@ internal sealed partial class SessionsViewModel
         conversationHeld = value.Held;
         conversationSourceHeld = value.SourceHeld || value.Authority != target.Authority;
         if (conversationHeld || conversationSourceHeld)
-        { conversationStatus = "Unsent input retained for this exact session. Changed/unknown source or submission remains held; inspect exact receipts."; }
+        { conversationStatus = UnsentHeldStatus; }
     }
 
     internal void RetireUnsent(HostId<SessionIdentity> session)

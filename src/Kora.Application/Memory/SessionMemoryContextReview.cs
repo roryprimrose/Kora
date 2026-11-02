@@ -53,7 +53,7 @@ internal sealed class SessionMemoryContextReview : IDisposable
     }
 
     internal SessionWorkspaceEntry Target { get; }
-    internal ImmutableArray<MemorySummary> Selection { get; }
+    internal ImmutableArray<MemorySummary> Selection { get; private set; }
     internal RequestOrigin Origin { get; }
     internal event Action? Retired;
     internal CancellationToken Revocation => revocationToken;
@@ -93,6 +93,36 @@ internal sealed class SessionMemoryContextReview : IDisposable
             if (consumed || !Current) { return false; }
             consumed = true;
             return true;
+        }
+    }
+
+    internal void RemoveWholeMemory(Guid id)
+    {
+        lock (stateGate)
+        {
+            if (!Current || consumed || Selection.Length <= 1 || !Selection.Any(item => item.Id == id))
+            { throw new InvalidOperationException("Keep at least one current reviewed SESSION memory; a fresh source read is required otherwise."); }
+            Selection = [.. Selection.Where(item => item.Id != id)];
+            snapshot = snapshot! with { Records = [.. snapshot.Records.Where(item => item.Id.Value != id)] };
+        }
+    }
+
+    internal async Task ValidateAsync(Func<bool> live, CancellationToken token)
+    {
+        try
+        {
+            token.ThrowIfCancellationRequested();
+            var original = ReadCurrent().Snapshot;
+            bool CurrentUse() => Current && live();
+            var observed = await source.ReadAsync(Target, Selection, CurrentUse, token).ConfigureAwait(false);
+            token.ThrowIfCancellationRequested();
+            if (observed.Boundary != original.Boundary || !observed.Records.SequenceEqual(original.Records) || !CurrentUse())
+            { throw new InvalidDataException("The complete reviewed memory changed; select and review again."); }
+        }
+        catch
+        {
+            Dispose();
+            throw;
         }
     }
 

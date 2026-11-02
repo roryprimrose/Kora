@@ -273,6 +273,7 @@ public sealed partial class AdaptiveInteractionTests
         {
             Native.Main.CommandText = phrase;
             await Native.Main.RunTypedCommand.ExecuteAsync();
+            await Sessions.InteractionOperation;
             Dispatcher.UIThread.RunJobs();
         }
 

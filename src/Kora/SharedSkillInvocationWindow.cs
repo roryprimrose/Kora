@@ -12,6 +12,16 @@ internal sealed class SharedSkillInvocationWindow : Window
     internal TextBox Request { get; } = new() { AcceptsReturn = true, IsUndoEnabled = false, Height = 100 };
     internal TextBox Address { get; } = new() { IsUndoEnabled = false };
     internal TextBox SecondAddress { get; } = new() { IsUndoEnabled = false };
+    internal ComboBox McpServers { get; } = new() { HorizontalAlignment = HorizontalAlignment.Stretch,
+        DisplayMemberBinding = new Avalonia.Data.Binding("Display") };
+    internal ComboBox McpAccounts { get; } = new() { HorizontalAlignment = HorizontalAlignment.Stretch,
+        DisplayMemberBinding = new Avalonia.Data.Binding("DisplayName") };
+    internal TextBox McpArguments { get; } = new() { AcceptsReturn = true, IsUndoEnabled = false, Height = 100 };
+    internal TextBox McpResult { get; } = new() { IsReadOnly = true, AcceptsReturn = true, IsUndoEnabled = false, Height = 160 };
+    internal TextBox McpQuestion { get; } = new() { AcceptsReturn = true, IsUndoEnabled = false, Height = 100, IsEnabled = false };
+    internal TextBox McpAnswerReview { get; } = new() { IsReadOnly = true, AcceptsReturn = true, IsUndoEnabled = false, Height = 200 };
+    internal TextBox McpAnswerOutcome { get; } = new() { IsReadOnly = true, AcceptsReturn = true, IsUndoEnabled = false, Height = 100 };
+    internal Button McpConfirmAnswer { get; } = new() { Content = "Confirm one fresh local-only no-tools answer", IsEnabled = false };
     internal ComboBox Targets { get; } = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     internal TextBlock Status { get; } = new NamedTextBlock { TextWrapping = Avalonia.Media.TextWrapping.Wrap };
     internal TextBox Confirmation { get; } = new() { IsReadOnly = true, AcceptsReturn = true, IsUndoEnabled = false, Height = 150 };
@@ -20,9 +30,9 @@ internal sealed class SharedSkillInvocationWindow : Window
     internal Button Stop { get; } = new() { Content = "Stop and close reviewed use" };
     private readonly List<Button> operationButtons = [];
 
-    internal SharedSkillInvocationWindow(Action<string> run, bool toolCapable = false)
+    internal SharedSkillInvocationWindow(Action<string> run, bool toolCapable = false, bool mcp = false)
     {
-        Title = toolCapable ? "Reviewed one-tool shared skill" : "Reviewed instruction-only shared skill";
+        Title = mcp ? "Reviewed read-only MCP skill" : toolCapable ? "Reviewed one-tool shared skill" : "Reviewed instruction-only shared skill";
         Width = 850;
         Height = 850;
         AutomationProperties.SetName(Instructions, "Complete inert shared skill instructions");
@@ -33,7 +43,11 @@ internal sealed class SharedSkillInvocationWindow : Window
         var panel = new StackPanel { Margin = new Thickness(20), Spacing = 10 };
         panel.Children.Add(new TextBlock
         {
-            Text = (toolCapable
+            Text = (mcp
+                ? "Complete inert untrusted guidance for ONE exact host-admitted read-only MCP tool and local continuation. "
+                    + "Independently choose an included server and delegated account, enter the unchanged request and exact JSON arguments. "
+                    + "Source, current discovery/schema, permission and egress reviews remain separate. No scripts, other tools or hosted disclosure. "
+                : toolCapable
                 ? "Complete inert untrusted instructions. Local model only; one or two explicit destinations, at most one host WebPageGet call per destination. "
                     + "Source reading, model context consent and per-action permission are separate. No scripts, agents, MCP or hosted disclosure. "
                     + "Select a target, then review the exact tool revision. "
@@ -48,7 +62,19 @@ internal sealed class SharedSkillInvocationWindow : Window
         AddButton("Refresh existing Active conversations", "Targets");
         AddButton("Next conversation page", "NextTargets");
         panel.Children.Add(Targets);
-        if (toolCapable)
+        if (mcp)
+        {
+            AddButton("Refresh included MCP servers and delegated accounts", "McpOptions");
+            AutomationProperties.SetName(McpServers, "Independently selected included MCP server");
+            AutomationProperties.SetName(McpAccounts, "Independently selected delegated MCP account");
+            AutomationProperties.SetName(McpArguments, "Exact original MCP JSON arguments");
+            AutomationProperties.SetName(McpResult, "Actual inert MCP result and provenance");
+            panel.Children.Add(McpServers);
+            panel.Children.Add(McpAccounts);
+            panel.Children.Add(new TextBlock { Text = "Exact original JSON arguments (schema review and send approval remain separate)" });
+            panel.Children.Add(McpArguments);
+        }
+        else if (toolCapable)
         {
             panel.Children.Add(new TextBlock { Text = "First explicit public page address (separately authorized per action)" });
             AutomationProperties.SetName(Address, "First explicit public page address");
@@ -63,7 +89,22 @@ internal sealed class SharedSkillInvocationWindow : Window
         if (toolCapable) { AddButton("Review exact target and tool revision", "ReviewToolRevision"); }
         AddButton("Review exact invocation", "Prepare");
         panel.Children.Add(Confirmation);
+        if (mcp) { panel.Children.Add(McpResult); }
         panel.Children.Add(Confirm);
+        if (mcp)
+        {
+            AutomationProperties.SetName(McpQuestion, "Independent unchanged new question about the current MCP skill result");
+            AutomationProperties.SetName(McpAnswerReview, "Complete result, provenance, channels and independent source-use consent");
+            AutomationProperties.SetName(McpAnswerOutcome, "Actual retained MCP result answer or host terminal");
+            panel.Children.Add(new TextBlock { Text = "New question about this complete current result (no rerun; original expiry unchanged)" });
+            panel.Children.Add(McpQuestion);
+            AddButton("Review one fresh local-only no-tools answer", "McpReviewAnswer");
+            panel.Children.Add(McpAnswerReview);
+            panel.Children.Add(McpConfirmAnswer);
+            panel.Children.Add(McpAnswerOutcome);
+            AddButton("Cancel current MCP result answer", "McpCancelAnswer");
+            McpConfirmAnswer.Click += (_, _) => run("McpConfirmAnswer");
+        }
         panel.Children.Add(Stop);
         panel.Children.Add(Status);
         Confirm.Click += (_, _) => run("Invoke");
@@ -73,6 +114,12 @@ internal sealed class SharedSkillInvocationWindow : Window
         Instructions.ContextFlyout = null;
         Confirmation.ContextMenu = null;
         Confirmation.ContextFlyout = null;
+        McpResult.ContextMenu = null;
+        McpResult.ContextFlyout = null;
+        McpAnswerReview.ContextMenu = null;
+        McpAnswerReview.ContextFlyout = null;
+        McpAnswerOutcome.ContextMenu = null;
+        McpAnswerOutcome.ContextFlyout = null;
 
         void AddButton(string text, string action)
         {
@@ -98,6 +145,15 @@ internal sealed class SharedSkillInvocationWindow : Window
         Request.Text = string.Empty;
         Address.Text = string.Empty;
         SecondAddress.Text = string.Empty;
+        McpServers.ItemsSource = null;
+        McpAccounts.ItemsSource = null;
+        McpArguments.Text = string.Empty;
+        McpResult.Text = string.Empty;
+        McpQuestion.Text = string.Empty;
+        McpQuestion.IsEnabled = false;
+        McpAnswerReview.Text = string.Empty;
+        McpAnswerOutcome.Text = string.Empty;
+        McpConfirmAnswer.IsEnabled = false;
         Confirmation.Text = string.Empty;
         Targets.ItemsSource = null;
         Status.Text = string.Empty;

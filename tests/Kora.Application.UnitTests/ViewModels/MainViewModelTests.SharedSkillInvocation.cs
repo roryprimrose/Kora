@@ -10,6 +10,37 @@ public sealed partial class MainViewModelTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task McpResultAnswerCommandsUseFreshCurrentNameOriginalInputAndTheExistingRoute(bool voice)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        await f.ViewModel.SetAssistantNameAsync("Nova", Kora.Core.Auditing.SecurityAuditInitiator.LocalUser);
+        var received = new List<SharedSkillInvocationCommand>();
+        f.ViewModel.SharedSkillInvocationRequested += (command, origin, eligible) =>
+        {
+            origin.Should().Be(voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
+            eligible().Should().BeTrue();
+            HostActivity.RequireCurrent().Request.Origin.Should().Be(origin);
+            command.ToolCapable.Should().BeTrue();
+            received.Add(command);
+            return Task.CompletedTask;
+        };
+        foreach (var command in new[]
+        {
+            "tool skill mcp question   unchanged new question\r\n ",
+            "tool skill mcp review answer", "tool skill mcp confirm answer", "tool skill mcp cancel answer",
+        })
+        {
+            if (voice) { await f.RaiseActivatedTranscriptAsync("Nova, " + command, 1); }
+            else { await f.RunAsync(command); }
+        }
+        received.Select(command => command.Action).Should().Equal("McpQuestion", "McpReviewAnswer", "McpConfirmAnswer", "McpCancelAnswer");
+        received[0].Argument.Should().Be("  unchanged new question\r\n ");
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task TwoSourceSkillCommandsShareCurrentNameActivatedAndTypedRouteWithoutModelRetargeting(bool voice)
     {
         var f = await Fixture.CreateInitializedAsync();

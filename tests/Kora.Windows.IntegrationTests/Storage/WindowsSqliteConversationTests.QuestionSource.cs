@@ -14,6 +14,9 @@ public sealed partial class WindowsSqliteConversationTests
     [InlineData("exact", true)]
     [InlineData("zero", true)]
     [InlineData("text", true)]
+    [InlineData("form", true)]
+    [InlineData("multi-choice", true)]
+    [InlineData("optional-choice", true)]
     [InlineData("draft", true)]
     [InlineData("answered", true)]
     [InlineData("expired", false)]
@@ -44,7 +47,15 @@ public sealed partial class WindowsSqliteConversationTests
             if (scenario is not ("approval" or "zero"))
             {
                 var spec = LocalModelQuestionPolicy.CreateSpec(new("Choose format",
-                    scenario is "text" ? [] : ["Compact", "Detailed"]));
+                    scenario is "text" ? [] : ["Compact", "Detailed"],
+                    Minimum: scenario is "optional-choice" ? 0 : 1,
+                    Maximum: scenario is "multi-choice" or "optional-choice" ? 2 : 1));
+                if (scenario is "form")
+                {
+                    spec = LocalModelQuestionPolicy.CreateSpec(ModelToolProtocol.ParseAskUser(
+                        """{"prompt":"Describe the answer","fields":[{"label":"Audience","type":"text","maximumLength":100,"maximumUtf8Bytes":200}]}"""u8,
+                        "ask_1", formsAllowed: true).Question);
+                }
                 if (scenario is "purpose" or "source")
                 {
                     spec = new(spec.Text, spec.Kind, spec.Options,

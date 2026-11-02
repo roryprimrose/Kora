@@ -467,6 +467,21 @@ admits one local-only tool-free answer or cancellation. Source brokers and reten
 remain independent; device-profile/model-proposed memories and provider qualification
 are not implementation prerequisites or implicitly enabled capabilities.
 
+The [complete-input recovery interaction](../docs/reviewed-context.md#recover-when-the-complete-input-is-over-budget)
+keeps an over-budget original question and exact source selection private and
+inert. The host measures the complete serialized envelope, explains which whole
+optional messages or SESSION memories can be omitted, and requires an explicit
+omission followed by a fresh complete source/input/destination review and separate
+confirmation. The existing consumer still requires one whole history message,
+one enabled instruction and one SESSION memory; missing required input cannot be
+silently omitted. Removing a unit retires prior review/consent without renewing
+the original source-read deadline. Expiry/revocation, source/session/channel,
+privacy/owner/control and canonical model admission remain fail-closed. No
+automatic shortening, reordering, summarization, provider change, larger context
+window, new source purpose or persistence is introduced
+([workflow](../src/Kora.Application/Hosting/ReviewedContext/MixedContextWorkflow.cs),
+[behavioral evidence](../tests/Kora.Application.UnitTests/Hosting/ModelTurnHostTests.ContextBudgetRecovery.cs)).
+
 Its [exact-answer Reply subset](../docs/reviewed-context.md#reply-deliberately-to-one-exact-assistant-answer) consumes one deliberately selected retained ASSISTANT answer without requiring or reading an instruction or memory. It uses the same history resolver, canonical LocalOnly evidence envelope and original-input submission. Complete source/new-input review and separate one-use confirmation never authorize future recall or hosted routing ([workflow](../src/Kora.Application/Hosting/ReviewedContext/MixedContextWorkflow.cs), [execution evidence](../tests/Kora.Application.UnitTests/Hosting/ModelTurnHostTests.AssistantReply.cs)).
 
 ## User-Governed Durable Memory
@@ -482,6 +497,24 @@ typed commands, model proposals and session-context consumers remain
 Session-only. No automatic recall, provider learning, Project/Source scope
 or hosted disclosure is enabled. Historical session-only availability notes
 below describe the earlier increments, not this explicit profile route.
+
+### Explicit selected Session-to-profile copy
+
+An original user can select and inspect ONE current enabled, admitted Session memory, choose **Keep for later sessions in this device profile**, inspect its full current value/class/source and independent lifetimes, choose a fresh classification, then propose a NEW unadmitted DeviceProfile candidate.
+Separate acceptance and admission use the [existing profile admission owner](../src/Kora.Application/Memory/DeviceProfile/MemoryManagementService.SessionCopy.cs) and canonical store; the [complete native journey](../docs/profile-memory.md#keep-one-reviewed-session-memory-for-later-sessions) includes reopening and inspecting the distinct record, not only preparing a copy button.
+
+The [native keyboard handoff](../src/Kora/MemoryProfile/SessionsWindow.SessionMemoryCopy.cs) focuses the complete current review after review transitions and the adjacent read-only outcome after admission, cancellation or a held failure. It never focuses an affirmative decision or creates readback authority. Original memory selection/control and native surface currentness fence late focus; a stale source yields the held/error outcome, not its old review. Explicit profile list/inspect remains separate.
+
+Native root activation and effective ancestor visibility are observed for the entire handoff. Returning to a deactivated or hidden presenter does not renew late focus; source/surface currentness is rechecked after synchronous scroll callbacks and before focus. This presentation retirement neither cancels the independent admitted transaction nor changes its truthful adjacent status. In-flight cancellation retains the operation handle until storage joins. A copy committed before terminal/readback failure remains independently inspectable after restart; uncertainty never claims rollback or renews copy/use authority.
+
+The [content-free copy lineage](../src/Kora.Core/Memory/MemorySessionCopySource.cs) records exact source identity/revision/session/generation, never copied authority. Live original input, current private owner/control/profile/session and expiry are checked across review; the [destination transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Memory.cs) compares the exact enabled source inside the same authoritative mutation.
+Source edits, disablement, forgetting, deletion or replacement retire pending copy authority. The new value remains volatile until fresh separate review/admission; ordinary profile CRUD cannot admit an unvalidated copied candidate.
+
+After independent admission, the source reference is provenance only. Original Session content, receipt, grants and lifetime remain unchanged; Session deletion does not delete the new profile memory. Existing global byte/count/identity bounds and no-eviction rules apply. Cancellation and uncertain storage/audit/readback remain held, not inferred rollback.
+No automatic promotion, model recall/read, hosted disclosure, new scope, bulk transfer or generic import journal is added. Native original-user copy controls do not add a spoken/model promotion route. Later explicit one-shot local use remains the existing independent operation.
+
+[Native journey and revocation tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.SessionMemoryCopy.cs), [canonical storage tests](../tests/Kora.Windows.IntegrationTests/MemoryProfile/WindowsSqliteMemoryTests.SessionCopy.cs) and [application boundary tests](../tests/Kora.Application.UnitTests/Memory/DeviceProfile/MemoryAdmissionServiceTests.SessionCopy.cs) cover fresh classification/review, original preservation, restart, source races, independent deletion, capacity and failed outcomes.
+These deterministic checks do not qualify or enable any provider, physical voice route or hosted memory disclosure.
 
 Durable user memory is optional application data, not hidden model learning.
 The model may propose a candidate memory, but only Kora can admit it.

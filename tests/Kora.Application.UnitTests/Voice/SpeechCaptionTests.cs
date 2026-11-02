@@ -152,6 +152,7 @@ public sealed class SpeechCaptionTests
 
     [Theory]
     [InlineData("generation")]
+    [InlineData("negative-generation")]
     [InlineData("segment")]
     [InlineData("response")]
     [InlineData("ownership")]
@@ -169,6 +170,7 @@ public sealed class SpeechCaptionTests
         switch (transition)
         {
             case "generation": frame = frame with { Generation = 9 }; break;
+            case "negative-generation": frame = frame with { Generation = -1 }; break;
             case "segment": frame = frame with { Segment = 1 }; break;
             case "response": response = Guid.NewGuid(); break;
             case "ownership": eligible = false; break;

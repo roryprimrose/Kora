@@ -1357,7 +1357,7 @@ never used as original source. The matching **actual device** position selects
 the last reached sentence start; reader position, output level, elapsed wall time
 and duration estimates cannot advance captions. Completion retains only the last
 sentence actually observed, never an unplayed final sentence. This implementation
-does not chunk/resynthesize speech, change prosody or add word highlighting.
+does not chunk/resynthesize speech or change prosody. The optional word projection below consumes the same sealed native events.
 
 Response replacement/retirement, playback stop/cancel/failure, configuration
 revision, original request/session/channel, input recovery/activation generation,
@@ -1395,12 +1395,25 @@ exclusion, not caption enablement, speech, identity, privacy/call gates or pin
 and display lifetimes.
 
 **Current sentence implementation** consumes native source-range evidence through the shared caption path; [deterministic native callback fixtures](../tests/Kora.Windows.IntegrationTests/WindowsSpeechSentenceAlignmentTests.cs) cover the consumed seam, not installed-profile qualification.
-Production sentence captions remain unavailable because [no exact voice/rate/output profile is qualified](../src/Kora.Windows/Audio/WindowsTextToSpeechService.SentenceAlignment.cs). Word alignment/highlighting remains open; estimated boundaries are not advertised as
-host-admitted playback alignment. Arbitrary coordinates and
+Production sentence captions and word emphasis remain unavailable because [no exact voice/rate/output profile is qualified](../src/Kora.Windows/Audio/WindowsTextToSpeechService.SentenceAlignment.cs). Word projection is implemented but independently gated; estimated boundaries are not advertised as host-admitted playback alignment. Arbitrary coordinates and
 caption/navigation commands outside the [bounded natural grammar](#bounded-natural-speech-caption-commands) remain proposed. Native
 accessibility properties/selection/pin/settings are source-tested, not installed
 accessibility, installed multimonitor or acoustic qualification. Rich HTML/browser/diagram rendering is
 not delivered. The acoustic experiment remains maintained and is not retired.
+
+### Source-bound word emphasis
+
+The optional off-default [word-emphasis preference](User_Configuration.md#delivered-bounded-caption-ux-options-r25---2026-10-09) uses the existing caption configuration route. Saving it does not qualify alignment, enable captions or synthesize/replay speech; native status distinguishes saved/effective preference from actual playback availability ([shared owner](../src/Kora.Application/ViewModels/MainViewModel.SpeechText.cs)).
+
+The [Windows timeline](../src/Kora.Windows/Audio/WindowsTextToSpeechService.SentenceAlignment.cs) retains at most 8,192 distinct exact native UTF-16 ranges, within the existing 32,768-character, 256-sentence and 65,536-callback limits. Only identical repeated ranges coalesce, preserving their first native audio time; normalized-number ranges remain grouped, without tokenization or rendered-text matching.
+
+Word availability requires the shared complete lexical coverage and valid source/surrogate boundaries, plus strictly increasing distinct-range audio starts and independent exact-profile qualification. Word-buffer overflow or simultaneous distinct starts can retain valid sentence fallback without claiming word accuracy ([native seam regressions](../tests/Kora.Windows.IntegrationTests/WindowsSpeechSentenceAlignmentTests.cs)).
+
+The [immutable frame evidence](../src/Kora.Core/Voice/SpeechWordPosition.cs) binds source range, playback token/generation, actual device position, next native-event position (or audio end) and audio duration. Synthesis/queue progress cannot advance it. The [consumer](../src/Kora.Application/Voice/SpeechCaption.cs) rejects foreign, stale, regressing or malformed word evidence and projects offsets only into its admitted sentence/utterance slice; unavailable words leave ordinary text unchanged.
+
+The [native underline layer](../src/Kora/SpeechCaptionEmphasisLayer.cs) uses that slice's layout geometry, never selection or a second accessible text source. Keyboard/pointer selection, copying the user's selection, independent Find focus and reader scaling remain separate ([native interaction regressions](../tests/Kora.Windows.IntegrationTests/SpeechCaptionDisplayTests.WordEmphasis.cs)).
+
+Normal completion clears active emphasis even while retaining **PREVIOUS SPEECH**. Stop/cancel, replacement, privacy/call/ownership, preference/display retirement and disposal retain the existing immediate clearing rules; late frames cannot restore authority. No content persistence, new synthesis/network route or telemetry is added ([host lifecycle regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.SpeechText.cs)).
 
 ### Broader proposed contract
 

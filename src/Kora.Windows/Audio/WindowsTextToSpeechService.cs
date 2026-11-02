@@ -139,7 +139,9 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
                         playback.GetPosition() / (double)playback.OutputWaveFormat.AverageBytesPerSecond);
                     return new SpeechPlaybackFrame(true, outputEnvelope.GetLevel(position),
                         currentPlaybackId, playbackGeneration, Sentence: sentenceAlignment?.At(position),
-                        SentenceAlignmentAvailable: sentenceAlignment?.Available == true);
+                        SentenceAlignmentAvailable: sentenceAlignment?.Available == true,
+                        Word: sentenceAlignment?.WordAt(position),
+                        WordAlignmentAvailable: sentenceAlignment?.WordsAvailable == true);
                 }
                 catch (COMException exception)
                 {
@@ -748,7 +750,8 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
             lock (stateLock)
             {
                 outputEnvelope = envelope;
-                sentenceAlignment?.Seal(audioReader.TotalTime, IsSentenceAlignmentProfileQualified());
+                sentenceAlignment?.Seal(audioReader.TotalTime, IsSentenceAlignmentProfileQualified(),
+                    IsWordAlignmentProfileQualified());
             }
             var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             try

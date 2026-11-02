@@ -363,11 +363,19 @@ resets only that option. These device-local options do not enable captions:
 |---|---|---|
 | `display.speech-text-placement` | `BottomRight`, `BottomLeft`, `TopRight`, `TopLeft` on the chosen working area, 24-DIP margin | `BottomRight`; primary display unless explicitly selected this run |
 | `display.speech-text-dismissal-delay` | Canonical integer seconds, 0-30 | 5 |
+| `display.speech-text-word-emphasis` | `true` / `false`; requires qualified source alignment | `false` |
 | `display.speech-text-pin` | `true` / `false`, current observed caption only; run-only | `false` |
 
 Each has exact `get/status <id>`, `set <id> to <value>` and `reset <id>`.
 `list speech text settings` discovers the persisted options; exact pin status
 shows its run-only scope. Invalid saved options are rejected, not defaulted.
+
+For optional emphasis choose **Word emphasis (requires qualified alignment)**, inspect the offered value, choose `true` or `false`, then **Save**. The status shows the actual saved/effective preference. Typed or current-name activated input can use `set display.speech-text-word-emphasis to true`; reset saves `false` without changing caption mode, position or delay ([shared controls](../src/Kora.Application/ViewModels/MainViewModel.SpeechText.cs)).
+
+**Word emphasis is unavailable in this build:** no exact Windows voice/rate/output profile is qualified. A saved `true` is a request, not a claim that highlighting is active. Unavailable word alignment leaves ordinary sentence/utterance text unchanged; it never estimates timings or starts new speech ([alignment gate](../src/Kora.Windows/Audio/WindowsTextToSpeechService.SentenceAlignment.cs)).
+
+When qualified evidence is available, only the exact engine source range already reached by the output device is underlined. Emphasis never replaces your keyboard/pointer selection or the text you copy; retained **PREVIOUS SPEECH** has no active word ([native surface](../src/Kora/SpeechCaptionWindow.axaml.cs), [source consumer](../src/Kora.Application/Voice/SpeechCaption.cs)).
+
 Sentence alignment has a [native callback implementation](../src/Kora.Windows/Audio/WindowsTextToSpeechService.SentenceAlignment.cs), but no qualified production Windows profile. Kokoro and legacy providers do not attest alignment; there is no timing, utterance or rewritten-text fallback.
 Recover ordinary utterance captions by explicitly selecting **Show spoken words** for future playback; changing modes never replays retired text ([shared consumer](../src/Kora.Application/ViewModels/MainViewModel.SpeechText.cs)).
 Broad natural caption commands and rich browser/HTML/

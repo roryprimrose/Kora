@@ -268,25 +268,29 @@ The same schema-1 native/exact typed/current-name ACTIVATED workflow now exposes
 |---|---|---|---|
 | `display.speech-text-placement` | Working-area corner: `BottomRight`, `BottomLeft`, `TopRight`, `TopLeft`; primary by default, or the explicit run-only display below | `BottomRight` | Next eligible playback; retires old caption immediately; reset changes only this option |
 | `display.speech-text-dismissal-delay` | Canonical integer seconds, 0-30 inclusive | 5 seconds | Delay after normal completion only; reset preserves placement and mode |
+| `display.speech-text-word-emphasis` | Boolean `true` / `false`; requires independently qualified source alignment | `false` | Next eligible playback; retires old caption immediately; reset preserves placement, delay and mode |
 | `display.speech-text-pin` | Boolean `true` / `false`, run-only current-caption state | `false` | Retains already-observed text until unpinned or source retirement; reset unpins, never persists |
 
-`list speech text settings` includes placement/delay IDs, typed choices, bounds,
+`list speech text settings` includes placement/delay/word-emphasis IDs, typed choices, bounds,
 defaults, saved/effective values, source, revision, scope, timing, reset and
 recovery. `get/status <id>`, `set <id> to <exact value>` and `reset <id>` work
-for each option. Placement/delay use the existing host-held choice identity,
+for each option. Placement/delay/word emphasis use the existing host-held choice identity,
 original channel, admitted session/generation, revision, call/ownership/privacy
 gates, requested/terminal typed audit, atomic save/readback, completed intent
 receipt and durable unconfirmed marker. Native **Inspect speech text**, option/
 value selectors, **Save caption option only** and **Reset selected caption option**
-use the same service. Neither option enables speech text or changes its mode.
+use the same service. These options do not enable speech text or change its mode ([shared configuration](../src/Kora.Application/Configuration/SpeechTextConfigurationService.cs)).
 
-The independent version-1 **`speech-caption-options.txt`** stores only the exact
-placement/delay tuple through `IApplicationDataPaths` and the shared atomic store.
+The independent version-2 **`speech-caption-options.txt`** stores only the exact placement/delay/word-emphasis tuple through `IApplicationDataPaths` and the shared atomic store. Version-1 placement/delay values remain readable with emphasis off; writes use version 2 with canonical `true`/`false` ([store](../src/Kora.Application/Configuration/LocalSpeechTextPreferences.cs)).
 Existing **`speech-text-mode.txt`** bytes and Off default are unchanged; the
 existing **`speech-text-mode-unconfirmed.txt`** marker covers all caption writes.
 Unknown schema/corner, noncanonical or out-of-range delay, malformed UTF-8,
 unreadable storage or pending evidence throws/refuses, holds captions unavailable
 and requires explicit repair. No corrupt companion is guessed by reset.
+
+Word emphasis is a saved/effective preference, not alignment readiness. No exact production Windows voice/rate/output profile is qualified; it remains unavailable while ordinary caption text stays readable. `get/status display.speech-text-word-emphasis` reports both values and this boundary; native option selection, Save and reset use the same path ([state](../src/Kora.Application/Configuration/SpeechTextState.cs)).
+
+The implemented [source-bound projection](Information_Display.md#source-bound-word-emphasis) never estimates timing, splits normalized numbers or changes the user's selection. It clears on completion, including retained **PREVIOUS SPEECH**, and every existing source/privacy retirement ([consumer regressions](../tests/Kora.Application.UnitTests/Voice/SpeechCaptionWordTests.cs)).
 
 The caption's native **Pin / Unpin** control and exact pin commands affect only
 one already-observed response/playback identity. Pin state is passive ephemeral

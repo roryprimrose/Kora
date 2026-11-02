@@ -4,6 +4,7 @@ using Kora.Application.Configuration.SettingInspection;
 using Kora.Application.Hosting;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Dependencies;
 
 namespace Kora.SettingInspection;
 
@@ -21,6 +22,7 @@ internal sealed class SettingInspectionPresenter(SettingInspectionWorkflow workf
     private bool closed;
     private bool busy;
     private bool confirmed;
+    private bool discoverSettings;
 
     public event PropertyChangedEventHandler? PropertyChanged;
     public string Question
@@ -35,6 +37,19 @@ internal sealed class SettingInspectionPresenter(SettingInspectionWorkflow workf
         }
     }
     public string Status => status;
+    public bool DiscoverSettings
+    {
+        get => discoverSettings;
+        set
+        {
+            if (discoverSettings == value) { return; }
+            Retire();
+            discoverSettings = value;
+            Notify();
+        }
+    }
+    public string ConfirmLabel => discoverSettings ? "Confirm ONE settings-discovery LocalOnly request"
+        : "Confirm ONE tool-free LocalOnly request";
     public string Answer => answer;
     public string ReviewText => session?.Review.Text ?? string.Empty;
     public bool IsBusy => busy;
@@ -64,7 +79,8 @@ internal sealed class SettingInspectionPresenter(SettingInspectionWorkflow workf
             var host = captureAdmission();
             var lifetime = captureLifetime();
             bool Current() => !closed && revision == version && host() && lifetime();
-            var reviewed = await workflow.ReviewAsync(question, Current, operation.Token);
+            var reviewed = await workflow.ReviewAsync(question, Current, operation.Token,
+                discoverSettings ? ModelToolMode.SettingsDiscovery : ModelToolMode.None);
             if (!Current() || operation.IsCancellationRequested)
             { throw new OperationCanceledException("The native source review was retired."); }
             admitted = Current;
@@ -186,7 +202,7 @@ internal sealed class SettingInspectionPresenter(SettingInspectionWorkflow workf
     private void Notify()
     {
         foreach (var name in new[] { nameof(Question), nameof(Status), nameof(Answer), nameof(ReviewText),
-            nameof(IsBusy), nameof(CanReview), nameof(CanConfirm) })
+            nameof(IsBusy), nameof(CanReview), nameof(CanConfirm), nameof(DiscoverSettings), nameof(ConfirmLabel) })
         { OnPropertyChanged(name); }
     }
     private void OnPropertyChanged([CallerMemberName] string? name = null) =>

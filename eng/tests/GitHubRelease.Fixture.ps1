@@ -10,7 +10,81 @@ function New-ReleaseFixtureState {
         HideCreatedDrafts = $false; CreateResponse = ''; DirectReadChange = ''; ReadTimeout = $false
         CompetingAfterCreate = $false; TagVisibilityDelayReads = 0
         DriftBodyOnUpload = $false
+        SafetyRecords = @{}; SafetySequences = @{}; SafetyAfterUpload = @{}; SafetyAfterTag = @{}
     }
+}
+
+function New-ReleaseSafetyFile {
+    param([string] $Path, [string] $Text)
+    $bytes = [Text.Encoding]::UTF8.GetBytes($Text)
+    $gitBytes = [byte[]] ([Text.Encoding]::ASCII.GetBytes("blob $($bytes.Length)`0") + $bytes)
+    $sha = [Convert]::ToHexString([Security.Cryptography.SHA1]::HashData($gitBytes)).ToLowerInvariant()
+    return @{ Status = 200; Record = @{
+        path = $Path; type = 'file'; encoding = 'base64'; sha = $sha
+        size = $bytes.Length; content = [Convert]::ToBase64String($bytes)
+    } }
+}
+
+function New-ReleaseQueueReference {
+    return @{ Status = 200; Record = @{
+        ref = 'refs/heads/automation/merge-queue-state'; object = @{ type = 'commit'; sha = 'f' * 40 }
+    } }
+}
+
+function Set-ReleaseBatchFixture {
+    param([string] $Revision, [switch] $CurrentWorkflow)
+    $state = $global:KoraReleaseTestState
+    $prefix = 'repos/roryprimrose/Kora'
+    $queue = @{
+        version = 2; profile = 'batch-v1'; active = $null
+        completedTip = @{ sha = $Revision; tree = 'd' * 40; ticket = '4481e32e-38db-4029-8d80-4489d472dd88' }
+    }
+    $state.SafetyRecords["$prefix/git/ref/heads/automation/merge-queue-state"] = New-ReleaseQueueReference
+    $state.SafetyRecords["$prefix/contents/queue.json?ref=$('f' * 40)"] =
+        New-ReleaseSafetyFile 'queue.json' ($queue | ConvertTo-Json -Depth 10)
+    $state.SafetyRecords["$prefix/branches/main"] = @{ Status = 200; Record = @{
+        name = 'main'; protected = $true; commit = @{ sha = $Revision; commit = @{ tree = @{ sha = 'd' * 40 } } }
+    } }
+    $state.SafetyRecords["$prefix/actions/runs/123"] = @{ Status = 200; Record = @{
+        id = 123; run_attempt = 1; repository = @{ full_name = 'roryprimrose/Kora' }
+        head_repository = @{ full_name = 'roryprimrose/Kora' }; path = '.github/workflows/ci.yml'
+        workflow_id = 456; head_branch = 'main'; head_sha = $Revision; event = 'push'; status = 'in_progress'
+    } }
+    $state.SafetyRecords["$prefix/actions/workflows/ci.yml"] = @{ Status = 200; Record = @{
+        id = 456; path = '.github/workflows/ci.yml'; state = 'active'
+    } }
+    $state.SafetyRecords["$prefix/actions/runs/123/attempts/1/jobs?per_page=100&page=1"] = @{
+        Status = 200; Record = @{ total_count = 1; jobs = @(@{
+            name = 'Publish completed batch release'; status = 'in_progress'; run_id = 123; head_sha = $Revision
+        }) }
+    }
+    $workflow = @'
+name: CI
+on:
+  push:
+    branches: [main]
+jobs:
+  release-batch:
+    name: Publish completed batch release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [version, portable, windows-integration, installer]
+    if: vars.KORA_MERGE_QUEUE_PROFILE == 'batch-v1'
+    permissions:
+      contents: write
+      actions: read
+    concurrency:
+      group: merge-queue-controller
+      cancel-in-progress: false
+      queue: max
+    steps:
+      - run: echo fixture
+'@
+    if ($CurrentWorkflow) {
+        $workflow = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\..\.github\workflows\ci.yml') -Raw
+    }
+    $state.SafetyRecords["$prefix/contents/.github/workflows/ci.yml?ref=$Revision"] =
+        New-ReleaseSafetyFile '.github/workflows/ci.yml' $workflow
 }
 
 function gh {
@@ -44,7 +118,25 @@ function gh {
             return 'Synthetic direct-ID API timeout'
         }
         $record = $null
-        if ($path -like '*/releases/tags/*') {
+        if ($state.SafetySequences.ContainsKey($path) -and $state.SafetySequences[$path].Count -gt 0) {
+            $state.SafetyRecords[$path] = $state.SafetySequences[$path][0]
+            $state.SafetySequences[$path] = @($state.SafetySequences[$path] | Select-Object -Skip 1)
+        }
+        if ($state.SafetyRecords.ContainsKey($path)) {
+            $status = $state.SafetyRecords[$path].Status
+            $record = $state.SafetyRecords[$path].Record
+        } elseif ($path -like '*/git/ref/heads/automation/merge-queue-state') {
+            $status = 404
+        } elseif ($path -ceq "repos/roryprimrose/Kora/git/commits/$('f' * 40)") {
+            $status = 200
+            $record = @{ sha = 'f' * 40; tree = @{ sha = 'e' * 40 } }
+        } elseif ($path -ceq "repos/roryprimrose/Kora/git/trees/$('e' * 40)") {
+            $status = 200
+            $file = $state.SafetyRecords["repos/roryprimrose/Kora/contents/queue.json?ref=$('f' * 40)"]
+            $blob = if ($null -ne $file -and $file.Status -eq 200) { $file.Record.sha } else { 'b' * 40 }
+            $record = @{ sha = 'e' * 40; truncated = $false
+                tree = @(@{ path = 'queue.json'; mode = '100644'; type = 'blob'; sha = $blob }) }
+        } elseif ($path -like '*/releases/tags/*') {
             $record = @($state.Releases | Where-Object { -not $_.draft -and $_.tag_name -eq $path.Split('/')[-1] })
             $status = if ($state.ReleaseStatus -notin @(200, 404)) { $state.ReleaseStatus }
                 elseif ($record.Count -gt 0) { 200 } else { 404 }
@@ -168,6 +260,9 @@ function gh {
                 $state.Content[$id] = [IO.File]::ReadAllBytes($file)
             }
             if ($state.DriftBodyOnUpload) { $release.body += "`nchanged after upload" }
+            if ($release.assets.Count -eq 9) {
+                foreach ($key in $state.SafetyAfterUpload.Keys) { $state.SafetyRecords[$key] = $state.SafetyAfterUpload[$key] }
+            }
         }
         'tag' {
             if ($null -ne $state.Tag) { throw 'Fixture forbids moving existing tags.' }
@@ -176,6 +271,7 @@ function gh {
             if ($state.DriftOnTag) { $state.Releases[0].target_commitish = 'b' * 40 }
             $reference = @($arguments | Where-Object { $_ -like 'ref=*' })[0].Substring(4)
             $response = @{ ref = $reference; object = $state.Tag.object } | ConvertTo-Json -Depth 4
+            foreach ($key in $state.SafetyAfterTag.Keys) { $state.SafetyRecords[$key] = $state.SafetyAfterTag[$key] }
         }
         'publish' {
             $release = @($state.Releases | Where-Object id -eq $path.Split('/')[-1])[0]

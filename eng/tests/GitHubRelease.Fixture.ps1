@@ -31,6 +31,21 @@ function New-ReleaseQueueReference {
     } }
 }
 
+function Set-ReleaseQueueRevisionFixture {
+    param([string] $Revision, [string] $Tree, [string] $Text)
+    $prefix = 'repos/roryprimrose/Kora'
+    $file = New-ReleaseSafetyFile 'queue.json' $Text
+    $records = $global:KoraReleaseTestState.SafetyRecords
+    $records["$prefix/git/commits/$Revision"] = @{ Status = 200; Record = @{
+        sha = $Revision; tree = @{ sha = $Tree }
+    } }
+    $records["$prefix/git/trees/$Tree"] = @{ Status = 200; Record = @{
+        sha = $Tree; truncated = $false
+        tree = @(@{ path = 'queue.json'; mode = '100644'; type = 'blob'; sha = $file.Record.sha })
+    } }
+    $records["$prefix/contents/queue.json?ref=$Revision"] = $file
+}
+
 function Set-ReleaseBatchFixture {
     param([string] $Revision, [switch] $CurrentWorkflow)
     $state = $global:KoraReleaseTestState

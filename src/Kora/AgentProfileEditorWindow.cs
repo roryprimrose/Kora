@@ -20,19 +20,19 @@ internal sealed class AgentProfileEditorWindow : Window
 
     internal AgentProfileEditorWindow(Action<string> run)
     {
-        Title = "New Kora-owned agent profile";
+        Title = "Kora-owned agent profile";
         Width = 900; Height = 900;
         var panel = new StackPanel { Margin = new(20), Spacing = 10 };
         panel.Children.Add(new TextBlock
         {
             Text = "Author a new inert local text profile: tool-free v1, or v4 declaring exact owned instruction IDs and existing observation tools. "
                 + "Saving never resolves, enables or invokes references or grants tool authority. "
-                + "Only new files under the private owned-agent directory; existing originals reopen read-only.",
+                + "Create new files or explicitly edit the same inspected original under the private owned-agent directory.",
             TextWrapping = TextWrapping.Wrap,
         });
         AutomationProperties.SetName(NameInput, "New owned agent ID");
         AutomationProperties.SetName(Source, "Complete original agent source");
-        AutomationProperties.SetName(Review, "Complete exact new-file review");
+        AutomationProperties.SetName(Review, "Complete exact original and proposed source review");
         AutomationProperties.SetName(Inventory, "Owned inert agent originals");
         panel.Children.Add(NameInput);
         Add("Create new volatile draft", "Create");
@@ -42,7 +42,7 @@ internal sealed class AgentProfileEditorWindow : Window
         Add("Ask Kora: review local authoring disclosure", "Ask");
         panel.Children.Add(Source);
         Add("Validate complete v1 or v4 source", "Validate");
-        Add("Review Save as new", "Review");
+        Add("Review Save (new or existing original)", "Review");
         panel.Children.Add(Review);
         panel.Children.Add(Confirm);
         Confirm.Click += (_, _) => run("Confirm");
@@ -50,6 +50,8 @@ internal sealed class AgentProfileEditorWindow : Window
         Add("Refresh owned inventory", "List");
         panel.Children.Add(Inventory);
         Add("Reopen selected original read-only", "Inspect");
+        Add("Edit existing original", "Edit");
+        Add("Reload from disk (abandon draft)", "Reload");
         panel.Children.Add(Status);
         Content = new ScrollViewer { Content = panel };
         void Add(string label, string action)
@@ -63,16 +65,20 @@ internal sealed class AgentProfileEditorWindow : Window
     internal void ShowReview(AgentProfileSaveReview review)
     {
         var profile = review.Document.Profile;
-        Review.Text = $"NEW ORIGINAL: {review.Destination.DisplayPath}\n"
-            + "CREATE ONLY; NO REPLACEMENT. Local text -> text; references are unresolved declarations, not enabled guidance.\n"
+        Review.Text = (review.Original is null
+            ? $"NEW ORIGINAL: {review.Destination.DisplayPath}\nCREATE ONLY; NO REPLACEMENT.\n"
+            : $"EXISTING ORIGINAL: {review.Destination.DisplayPath}\nUPDATE ONLY THIS EXACT REVIEWED BASE; NO NEW COPY.\n"
+                + $"BEFORE: COMPLETE ORIGINAL SOURCE\n{review.Original.Document.Document.Text}\n\nAFTER: COMPLETE PROPOSED SOURCE\n")
+            + "Local text -> text; references are unresolved declarations, not enabled guidance.\n"
             + $"Declared references: {review.Document.Document.Metadata["references"]}\n"
             + $"Declared tools: {review.Document.Document.Metadata["tools"]}\n"
             + $"Host clamps: calls {profile.MaximumCalls}, rounds {profile.MaximumRounds}, input {profile.MaximumInputUtf8Bytes} bytes, "
             + $"output {profile.MaximumOutputUtf8Bytes} bytes, deadline {profile.Deadline.TotalMilliseconds}ms.\n"
-            + $"Complete proposed UTF-8 source ({review.Document.Document.ByteCount} bytes, no BOM):\n\n"
+            + $"Complete proposed UTF-8 source ({review.Document.Document.ByteCount} bytes, BOM: {review.Document.Document.HasBom}):\n\n"
             + review.Document.Document.Text
             + "\n\nSaving does not select, enable or invoke this profile. Separate native confirmation is required.";
         Confirm.IsEnabled = true;
+        Confirm.Content = review.Original is null ? "Confirm Save as new..." : "Confirm Save existing original...";
     }
 
     internal async Task<int> Choose(string title, string message, string[] choices, CancellationToken token)

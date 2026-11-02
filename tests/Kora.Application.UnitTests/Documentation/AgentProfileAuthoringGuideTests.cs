@@ -26,5 +26,8 @@ public sealed class AgentProfileAuthoringGuideTests
         guide.Should().Contain("agent author draft example:").And.Contain("Use proposed draft")
             .And.Contain("agent author describe").And.Contain("agent author ask")
             .And.Contain("two-minute").And.Contain("not sent to the model");
+        guide.Should().Contain("Edit existing original").And.Contain("Save existing original")
+            .And.Contain("Overwrite with Kora changes").And.Contain("Cancel (keep draft)")
+            .And.Contain("not compare-and-swap").And.Contain("Missing originals cannot be recreated");
     }
 }

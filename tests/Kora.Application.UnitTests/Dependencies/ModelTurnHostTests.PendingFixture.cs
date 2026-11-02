@@ -33,9 +33,12 @@ public sealed partial class ModelTurnHostTests
         {
             var retained = await RetainPendingConversationMessageAsync(request, generation,
                 expectedMetadataRevision, body, predecessors, admitted, token);
-            Retained = retained.Message with { OrdinaryText = true, OriginalTextSource = original?.Message.Request };
-            RememberPendingRecord();
-            return new(Retained, retained.Task);
+            var receipt = retained with
+            {
+                Message = retained.Message with { OrdinaryText = true, OriginalTextSource = original?.Message.Request }
+            };
+            RememberPendingRecord(receipt);
+            return receipt;
         }
 
         public ValueTask<ConversationSubmissionReceipt> CancelPendingConversationSubmissionAsync(HostRequest request,

@@ -1,11 +1,12 @@
 using System.Globalization;
 using System.Text;
+using System.Collections.ObjectModel;
 using Kora.Core.Artifacts;
 using Kora.Core.Network;
 
 namespace Kora.Core.Skills;
 
-/// <summary>The closed native two-file formats. Guidance is data, never executable metadata.</summary>
+/// <summary>Closed native guidance formats. Declarations never authorize component reads or use.</summary>
 public sealed class OwnedDeclarativeSkillDocument
 {
     private static readonly UTF8Encoding Encoding = new(false, true);
@@ -13,7 +14,8 @@ public sealed class OwnedDeclarativeSkillDocument
     private readonly byte[] instructions;
 
     private OwnedDeclarativeSkillDocument(string id, string version, string name, string description,
-        byte[] manifest, byte[] instructions, OwnedSkillToolSelection tool, OwnedPromptTemplate? inputTemplate)
+        byte[] manifest, byte[] instructions, OwnedSkillToolSelection tool, OwnedPromptTemplate? inputTemplate,
+        SharedSkillReferenceDeclaration? declaration, IReadOnlyDictionary<string, byte[]>? contents)
     {
         Id = id;
         Version = version;
@@ -23,8 +25,15 @@ public sealed class OwnedDeclarativeSkillDocument
         InputTemplate = inputTemplate;
         this.manifest = manifest;
         this.instructions = instructions;
+        ReferenceDeclaration = declaration;
+        References = Array.AsReadOnly(declaration is not null && contents is not null
+            ? declaration.Paths.Select(path => new SharedSkillReferenceBundle.ReferenceContent(path, contents[path])).ToArray()
+            : []);
+        if (TotalBytes > SharedSkillReferenceDeclaration.MaximumBundleBytes)
+        { throw new InvalidDataException("The whole owned package exceeds 64 KiB, including every declared component."); }
         RevisionDigest = SkillPackageDigest.Compute(SkillPackageDigest.DefinitionVersion,
-            [new("manifest.yaml", "owned.manifest", manifest), new("instructions.md", "owned.instructions", instructions)]);
+            [new("manifest.yaml", "owned.manifest", manifest), new("instructions.md", "owned.instructions", instructions),
+                .. References.Select((item, index) => new SkillResourceSnapshot(item.RelativePath, "owned.reference." + index, item.Bytes))]);
     }
 
     public string Id { get; }
@@ -33,6 +42,10 @@ public sealed class OwnedDeclarativeSkillDocument
     public string Description { get; }
     public OwnedSkillToolSelection Tool { get; }
     public OwnedPromptTemplate? InputTemplate { get; }
+    public SharedSkillReferenceDeclaration? ReferenceDeclaration { get; }
+    public ReadOnlyCollection<SharedSkillReferenceBundle.ReferenceContent> References { get; }
+    public bool IsComplete => ReferenceDeclaration is null || References.Count == ReferenceDeclaration.Paths.Count;
+    public int TotalBytes => manifest.Length + instructions.Length + References.Sum(item => item.Bytes.Length);
     public ObservationWorkflowDefinition? ObservationWorkflow { get; private init; }
     public string RevisionDigest { get; }
     public string ManifestText => Encoding.GetString(manifest);
@@ -40,6 +53,23 @@ public sealed class OwnedDeclarativeSkillDocument
     public ReadOnlyMemory<byte> ManifestBytes => manifest;
     public ReadOnlyMemory<byte> InstructionBytes => instructions;
     public bool IsAvailableForInvocation => false;
+    public string CompleteText => "manifest.yaml\n" + ManifestText + "\ninstructions.md\n" + Guidance
+        + string.Concat(References.Select(item => "\n" + item.RelativePath + "\n" + item.Text));
+
+    public static OwnedDeclarativeSkillDocument CreatePackage(string id, string version, string name,
+        string description, string guidance, IReadOnlyDictionary<string, byte[]> references)
+    {
+        var declaration = SharedSkillReferenceDeclaration.Parse(string.Join(", ", references.Keys));
+        var primary = Create(id, version, name, description, guidance);
+        var metadata = primary.ManifestText.Replace("kora-skill-format: 1", "kora-skill-format: 5", StringComparison.Ordinal)
+            .Replace("references: none", "references: " + string.Join(", ", declaration.Paths), StringComparison.Ordinal);
+        return Parse(Encoding.GetBytes(metadata), primary.instructions, references);
+    }
+
+    public void RequireComplete()
+    {
+        if (!IsComplete) { throw new InvalidOperationException("Authorize the exact declared component reads and review the complete package first."); }
+    }
 
     public static void RequireIdentity(string id, string version)
     {
@@ -75,7 +105,8 @@ public sealed class OwnedDeclarativeSkillDocument
         return ParseText(text, guidance);
     }
 
-    public static OwnedDeclarativeSkillDocument Parse(ReadOnlySpan<byte> manifest, ReadOnlySpan<byte> instructions)
+    public static OwnedDeclarativeSkillDocument Parse(ReadOnlySpan<byte> manifest, ReadOnlySpan<byte> instructions,
+        IReadOnlyDictionary<string, byte[]>? references = null)
     {
         if (manifest.Length is 0 or > 4096 || instructions.Length == 0
             || manifest.Length + instructions.Length > SharedSkillSnapshot.MaximumBytes)
@@ -108,9 +139,10 @@ public sealed class OwnedDeclarativeSkillDocument
             ("1", "none") => OwnedSkillToolSelection.None,
             ("2", WebPageCapability.Id) => OwnedSkillToolSelection.WebPageGet,
             ("3", "none") => OwnedSkillToolSelection.None,
-            ("4", var declaration) when string.Equals(declaration, workflow!.ToolDeclaration, StringComparison.Ordinal)
+            ("4", var toolDeclaration) when string.Equals(toolDeclaration, workflow!.ToolDeclaration, StringComparison.Ordinal)
                 => OwnedSkillToolSelection.ReadOnlyObservations,
-            _ => throw new InvalidDataException("Only native v1 literal, v2 host WebPageGet, v3 literal inputs or v4 original host observation workflows are supported."),
+            ("5", "none") => OwnedSkillToolSelection.None,
+            _ => throw new InvalidDataException("Only native v1 literal, v2 exact host WebPageGet, v3 required literal inputs, v4 original host observation workflows or v5 declared Markdown guidance are supported here. Unknown formats require explicit migration, not reinterpretation."),
         };
         OwnedPromptTemplate? template = null;
         if (format is "3")
@@ -123,8 +155,25 @@ public sealed class OwnedDeclarativeSkillDocument
         }
         else if (fields.Count != 8)
         { throw new InvalidDataException("Literal native v1/v2 skills cannot declare inputs."); }
-        if (Field("runtime") is not "local" || Field("references") is not "none")
-        { throw new InvalidDataException("Only local, reference-free native skills can be saved."); }
+        SharedSkillReferenceDeclaration? declaration = null;
+        if (format is "5")
+        {
+            declaration = SharedSkillReferenceDeclaration.Parse(Field("references"));
+            if (declaration.Paths.Contains("instructions.md", StringComparer.Ordinal))
+            { throw new InvalidDataException("A reference cannot alias the primary instructions."); }
+            var reasons = new List<string>();
+            SharedSkillSnapshot.ValidateInstructionText(guidance, declaration, reasons);
+            if (reasons.Count != 0)
+            { throw new InvalidDataException("Owned v5 guidance permits only inert Markdown and explicitly declared local links."); }
+        }
+        else if (Field("references") is not "none")
+        { throw new InvalidDataException("Old native formats remain reference-free; opt into v5 explicitly."); }
+        if (Field("runtime") is not "local")
+        { throw new InvalidDataException("Only local native skills can be saved."); }
+        if (references is not null && (declaration is null
+            || references.Count != declaration.Paths.Count
+            || !references.Keys.ToHashSet(StringComparer.Ordinal).SetEquals(declaration.Paths)))
+        { throw new InvalidDataException("Supply every exact declared component, with no extras or aliases."); }
         var id = Field("id");
         var version = Field("version");
         RequireIdentity(id, version);
@@ -132,8 +181,11 @@ public sealed class OwnedDeclarativeSkillDocument
         var description = Field("description");
         RequireScalar(name, 128);
         RequireScalar(description, 1024);
-        return new(id, version, name, description, manifest.ToArray(), instructions.ToArray(), tool, template)
+        var document = new OwnedDeclarativeSkillDocument(id, version, name, description,
+            manifest.ToArray(), instructions.ToArray(), tool, template, declaration, references)
         { ObservationWorkflow = workflow };
+        if (declaration is not null && document.IsComplete) { OwnedSkillGuidanceContext.RequirePackageLimit(document); }
+        return document;
     }
 
     public static OwnedDeclarativeSkillDocument CreateObservationWorkflow(string id, string version, string name,

@@ -94,7 +94,9 @@ internal sealed partial class OwnedSkillInvocationController(
                 opened.Closed += (_, _) => Retire();
                 opened.Show();
                 if (!Eligible()) { Retire(); return; }
-                opened.Status.Text = "Review both complete files, then separately Enable. Nothing invoked.";
+                opened.Status.Text = captured.RequiresReferenceConsent
+                    ? "Only primary files were read. Review the declaration, then separately authorize exact owned component reads. Nothing enabled or invoked."
+                    : "Review both complete files, then separately Enable. Nothing invoked.";
                 return;
             }
             var currentWindow = window ?? throw new InvalidOperationException("Review an exact saved ID/version with owned skill use first.");
@@ -105,6 +107,14 @@ internal sealed partial class OwnedSkillInvocationController(
             var token = lifetime!.Token;
             switch (command.Operation)
             {
+                case "read-references":
+                    await workflow.ReadReferencesAsync(currentReview, authority, Current, token);
+                    if (Current())
+                    {
+                        currentWindow.Instructions.Text = currentReview.Text;
+                        currentWindow.Status.Text = "Complete exact primary and every declared component captured. Review all files, then separately Enable.";
+                    }
+                    break;
                 case "enable":
                     if (currentReview.Tool == OwnedSkillToolSelection.WebPageGet)
                     {

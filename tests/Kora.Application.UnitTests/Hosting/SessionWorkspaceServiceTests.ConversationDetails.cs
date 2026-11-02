@@ -42,6 +42,40 @@ public sealed partial class SessionWorkspaceServiceTests
     }
 
     [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task HistoricalDetailsKeepExactBodyAndSubmittedContextAsSeparateSources(bool assistant, bool submittedContext)
+    {
+        using var f = new ConversationFixture();
+        var original = Message(f, 1, "private original USER marker");
+        var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), original.Request, ModelProviderSelection.OllamaCandidate);
+        var expected = original with
+        {
+            Version = 2, Revision = 3, Execution = provenance, ExecutionMetadataRevision = 0,
+            Outcome = ModelTurnOutcome.Succeeded, Reason = ModelTurnReason.ProviderOutcome,
+            AssistantResponse = new(provenance, "private retained ASSISTANT marker"),
+        };
+        f.Messages = [expected];
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        var content = await f.Service.ReadConversationDetailAsync(new(f.Session, null), expected, () => true, f.Token,
+            assistant: assistant, submittedContext: submittedContext);
+        content.Provenance.Should().Be("Historical private immutable conversation source; not current execution, an approval or clipboard authority.");
+        content.ConversationMessage.Should().Be(expected);
+        content.Origin.Should().Be(submittedContext ? DetailContentOrigin.RetainedAnswerContext
+            : assistant ? DetailContentOrigin.RetainedAssistant : DetailContentOrigin.RetainedConversation);
+        if (submittedContext)
+        {
+            content.Source.Should().Contain("Unknown / not recorded")
+                .And.NotContain(original.Body).And.NotContain(expected.AssistantResponse!.Body);
+        }
+        else { content.Source.Should().Be(assistant ? expected.AssistantResponse!.Body : original.Body); }
+        f.ExactReads.Should().Be(2);
+        f.TaskWrites.Should().BeEmpty();
+        f.ControlCalls.Should().Be(0);
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public async Task ConversationDetailsResolveOnlyActualExactRecordWithPassiveDoneAndSeparateHost(bool active)

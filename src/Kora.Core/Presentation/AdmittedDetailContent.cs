@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Collections.Immutable;
 using System.Security.Cryptography;
 using System.Text;
 using Kora.Core.Conversation;
@@ -24,7 +25,8 @@ public sealed class AdmittedDetailContent
         DetailSessionSource? sessionSource = null,
         HostId<SessionIdentity>? historySession = null,
         WebResultSnapshot? webResult = null,
-        ConversationMessage? conversationMessage = null)
+        ConversationMessage? conversationMessage = null,
+        ImmutableArray<SubmittedHistoryAvailability> contextAvailability = default)
     {
         using var admission = ActivitySource.StartActivity("presentation.admit");
         admission?.SetStatus(ActivityStatusCode.Error);
@@ -67,22 +69,27 @@ public sealed class AdmittedDetailContent
             throw new InvalidDataException("Web-result source, reference and inert disclosure classification cannot change.");
         }
         if ((origin is DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant
-            or DetailContentOrigin.RetainedLocalObservation) != (conversationMessage is not null))
+            or DetailContentOrigin.RetainedLocalObservation or DetailContentOrigin.RetainedAnswerContext) != (conversationMessage is not null))
         {
             throw new InvalidDataException("Conversation details require their exact retained original USER record and typed HOST observation.");
         }
+        if (origin != DetailContentOrigin.RetainedAnswerContext && !contextAvailability.IsDefault)
+        { throw new InvalidDataException("Only answer context inspection may carry current source metadata."); }
         if (conversationMessage is not null)
         {
             conversationMessage.Validate();
             var assistant = origin == DetailContentOrigin.RetainedAssistant;
+            var context = origin == DetailContentOrigin.RetainedAnswerContext;
             var observation = origin == DetailContentOrigin.RetainedLocalObservation
                 ? conversationMessage.Observations?.Items.SingleOrDefault(item => item.Id == reference.ItemId.Value)
                     ?? throw new InvalidDataException("The exact observation is absent from its original successful message.")
                 : null;
-            var expectedSource = observation?.ResultJson ?? (assistant ? conversationMessage.AssistantResponse?.Body : conversationMessage.Body);
+            var expectedSource = context ? AnswerContextInspection.Describe(conversationMessage, contextAvailability)
+                : observation?.ResultJson ?? (assistant ? conversationMessage.AssistantResponse?.Body : conversationMessage.Body);
             if (kind != (assistant ? DetailContentKind.Markdown : DetailContentKind.PlainText)
                 || sensitivity != DetailSensitivity.DisclosureConfirmationRequired
-                || reference.ItemId.Value != (observation?.Id ?? (assistant ? conversationMessage.AssistantResponse?.Provenance.Turn.Value
+                || reference.ItemId.Value != (context ? AnswerContextInspection.Reference(conversationMessage, contextAvailability).ItemId.Value
+                    : observation?.Id ?? (assistant ? conversationMessage.AssistantResponse?.Provenance.Turn.Value
                     : conversationMessage.Request.RequestId.Value))
                 || reference.Revision != conversationMessage.Revision
                 || !string.Equals(source, expectedSource, StringComparison.Ordinal))

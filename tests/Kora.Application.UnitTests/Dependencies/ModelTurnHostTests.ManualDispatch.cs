@@ -201,9 +201,21 @@ public sealed partial class ModelTurnHostTests
             terminalChecks.Should().Be(1);
             f.PendingRecords[head.Message.Request.RequestId].Should().Be(head);
             f.PendingRecords[nextRequest.RequestId].Should().Be(second);
+            foreach (var retained in new[] { head, second })
+            {
+                retained.Message.SubmittedContext.Should().BeNull();
+                retained.Message.Execution.Should().BeNull();
+                retained.Message.AssistantResponse.Should().BeNull();
+                (await f.ReadConversationMessageAsync(retained.Message.Request.SessionId,
+                    retained.Message.Request.RequestId, Token)).Should().Be(retained.Message);
+                (await f.ReadTaskAsync(retained.Task.Request.SessionId, retained.Task.Request.TaskId, Token))!
+                    .Task.Should().Be(retained.Task);
+            }
             f.Adapter.Calls.Should().Be(0);
             f.ExecutionStarts.Should().Be(0);
             f.ExecutionCompletions.Should().Be(0);
+            f.Audits.Should().BeEmpty();
+            f.Messages.Should().BeEmpty();
         }
         finally { release.TrySetResult(); }
     }
@@ -354,6 +366,10 @@ public sealed partial class ModelTurnHostTests
             first.Message.Request.Should().Be(head.Receipt.Message.Request);
             foreach (var receipt in new[] { first, second })
             {
+                var original = receipt.Message.Request == head.Receipt.Message.Request ? head.Receipt : next.Receipt;
+                receipt.Message.Should().Be(original.Message with
+                    { Revision = 2, Outcome = ModelTurnOutcome.Denied, Reason = ModelTurnReason.ContextExpired });
+                receipt.Task.Should().Be(original.Task.Next(HostTaskState.Denied));
                 receipt.Message.Body.Should().Be(receipt.Message.Request == head.Receipt.Message.Request
                     ? head.Receipt.Message.Body : next.Receipt.Message.Body);
                 receipt.Task.Request.Should().Be(receipt.Message.Request);
@@ -362,7 +378,12 @@ public sealed partial class ModelTurnHostTests
                 receipt.Message.Reason.Should().Be(ModelTurnReason.ContextExpired);
                 receipt.Message.Execution.Should().BeNull();
                 receipt.Message.AssistantResponse.Should().BeNull();
+                receipt.Message.SubmittedContext.Should().BeNull();
                 f.PendingRecords[receipt.Message.Request.RequestId].Should().Be(receipt);
+                (await f.ReadConversationMessageAsync(receipt.Message.Request.SessionId,
+                    receipt.Message.Request.RequestId, Token)).Should().Be(receipt.Message);
+                (await f.ReadTaskAsync(receipt.Task.Request.SessionId, receipt.Task.Request.TaskId, Token))!
+                    .Task.Should().Be(receipt.Task);
             }
             f.PendingRecords.Values.Select(item => item.Task.Request.TaskId).Should().OnlyHaveUniqueItems();
             f.Adapter.Calls.Should().Be(0);

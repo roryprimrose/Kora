@@ -371,6 +371,23 @@ expiry fences. An expired/invalid head cannot be skipped to dispatch a later
 request. Expiry is denied without acquiring resources; fresh input/review is
 required, never renewal or replay. Manual start decisions are not action approval.
 
+Independent pending expirations may finish concurrently, but each terminal
+receipt and readback remains bound to its exact original request, task, session
+and channel. Another request's terminal state cannot confirm or replace it.
+The fixture captures the exact request-local receipt before awaiting its typed
+terminal-completion hook; concurrent completions cannot retarget that capture.
+The fixture serializes capture and terminal publication separately, with the
+original admission callback checked by the pre-terminal hook after the await.
+Revocation there leaves the original message/task pair unchanged, even when
+another request has already completed.
+Both terminal rows derive from that one immutable receipt through the shared
+request-local helpers, preserving the original generation, sequence and UTC
+timestamp as well as identity and body. Awaited concurrent-expiry regressions
+check exact terminal revisions and both retained message and task readbacks.
+The request-local fixture regressions cover both [interleaved expirations](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ManualDispatch.cs)
+and [pending/executing terminal interleavings](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Pending.cs)
+for UI and activated-voice origins, without provider execution or retained answers.
+
 The [exact typed/activated-voice adapter](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)
 uses `session dispatch status|pause|resume <session-id>` and the same admitted
 manual-control action as native Sessions/compact. Current input, channel,

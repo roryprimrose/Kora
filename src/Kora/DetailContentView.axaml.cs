@@ -138,8 +138,9 @@ public sealed partial class DetailContentView : UserControl
             host.IsVisible = true;
             host.Text = state.HostText;
             var assistant = Required<TextBlock>("ConversationAssistantLabel");
-            assistant.IsVisible = content.Origin != DetailContentOrigin.RetainedAssistant && message.AssistantResponse is not null;
-            assistant.Text = content.Origin == DetailContentOrigin.RetainedAssistant || message.AssistantResponse is not { } answer ? string.Empty
+            assistant.IsVisible = content.Origin is not (DetailContentOrigin.RetainedAssistant or DetailContentOrigin.RetainedAnswerContext)
+                && message.AssistantResponse is not null;
+            assistant.Text = !assistant.IsVisible || message.AssistantResponse is not { } answer ? string.Empty
                 : $"ASSISTANT - finalized local answer | host turn {answer.Provenance.Turn.Value:D}\n" + state.AssistantText;
             Required<CheckBox>("FindHostToggle").IsVisible = true;
             Required<TextBlock>("CopyPolicyLabel").Text = "Passive retained conversation Details grant no clipboard/export disclosure authority. Exact-source and selection copy are blocked.";

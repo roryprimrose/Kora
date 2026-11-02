@@ -58,7 +58,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
     {
         if (!Enum.IsDefined(result.Outcome) || !Enum.IsDefined(result.Reason)
             || result.Provenance is null || result.Provenance.Request != request
-            || result.Outcome != ModelTurnOutcome.Succeeded && (result.Response is not null || result.Observations is not null))
+            || result.Outcome != ModelTurnOutcome.Succeeded && (result.Response is not null || result.Observations is not null || result.SubmittedContext is not null))
         { throw new InvalidDataException("The admitted execution terminal result is invalid."); }
         return RunHostMutationAsync(request, "conversation.answer", (connection, transaction, intent, audit) =>
         {
@@ -71,12 +71,26 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 || session.Authority.Generation != previous.Generation || intent.State != HostTaskState.DispatchRecorded
                 || intent.Revision.Value != 2 || ReadRun(connection, request.TaskId) != runId)
             { throw new InvalidOperationException("The original execution or terminal outcome conflicts; inspect without replay."); }
+            if (result.SubmittedContext is { } context)
+            {
+                context.Validate();
+                foreach (var source in context.Sources)
+                {
+                    var original = ReadConversationMessage(connection, source.Request);
+                    if (original is null || original.Request.SessionId != request.SessionId
+                        || original.Generation != source.Generation || original.Sequence != source.Sequence
+                        || original.Revision != source.Revision || original.Outcome is null
+                        || source.Role == ConversationHistoryRole.Assistant && original.AssistantResponse is null)
+                    { throw new InvalidOperationException("The exact submitted history source changed before answer retention."); }
+                }
+            }
             var message = previous with
             {
                 Revision = 3, Outcome = result.Outcome, Reason = result.Reason,
                 AssistantResponse = result.Outcome == ModelTurnOutcome.Succeeded
                     ? ConversationResponse.FromResult(result, previous.Execution!) : null,
                 Observations = result.Observations,
+                SubmittedContext = result.SubmittedContext,
             };
             message.Validate();
             var completed = intent.Next(message.ExpectedTaskState);

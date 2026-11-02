@@ -67,6 +67,12 @@ public sealed class ModelContextEnvelope
                 throw new InvalidDataException("Evidence must have unique, current, exact-request host provenance.");
             }
             ValidateText(item.Content);
+            if (item.HistorySource is { } history)
+            {
+                history.Validate();
+                if (history.Revision != item.Revision.Value || item.Disclosure != ModelEvidenceDisclosure.LocalOnly)
+                { throw new InvalidDataException("Host history lineage must bind the exact local-only evidence revision."); }
+            }
         }
         return items;
     }

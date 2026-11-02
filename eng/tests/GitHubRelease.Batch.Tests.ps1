@@ -40,6 +40,86 @@ function Test-BatchReleaseSafety {
         $good = Copy-State $global:KoraReleaseTestState
         $queue = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($good.SafetyRecords[$queuePath].Record.content)) |
             ConvertFrom-Json -AsHashtable
+        foreach ($snapshot in @('', 'singleton-v1', 'batch-v1')) {
+            $env:KORA_MERGE_QUEUE_PROFILE = $snapshot
+            foreach ($action in @('Check', 'Publish')) {
+                $global:KoraReleaseTestState = Copy-State $good
+                $next = New-ReleaseQueueReference
+                $next.Record.object.sha = 'a' * 40
+                $text = if ($snapshot -eq 'batch-v1') { $queue | ConvertTo-Json -Depth 10 }
+                    else { @{ version = 1; active = @{ phase = 'validating' }; blocked = @() } | ConvertTo-Json -Depth 10 }
+                if ($snapshot -ne 'batch-v1') {
+                    $global:KoraReleaseTestState.SafetyRecords[$queuePath] =
+                        New-ReleaseSafetyFile 'queue.json' (@{ version = 1; active = $null; blocked = @() } | ConvertTo-Json)
+                }
+                Set-ReleaseQueueRevisionFixture ('a' * 40) ('c' * 40) $text
+                $global:KoraReleaseTestState.SafetySequences[$queueRefPath] = @((New-ReleaseQueueReference), $next)
+                $result = Invoke-Release $action
+                Assert (@($global:KoraReleaseTestState.Calls | Where-Object { $_ -contains "$prefix/contents/queue.json?ref=$('a' * 40)" }).Count -gt 0) 'Moved queue contents were not revalidated at the new exact commit.'
+                if ($action -eq 'Publish') {
+                    Assert (-not $global:KoraReleaseTestState.Releases[0].draft) 'Snapshot retry did not complete publication.'
+                } else {
+                    Assert (-not $result.AlreadyPublished) 'A stable verified checkpoint after ref movement was rejected.'
+                    Assert ($global:KoraReleaseTestState.Writes.Count -eq 0) 'Snapshot retry made Check mutate publication.'
+                }
+            }
+        }
+        $env:KORA_MERGE_QUEUE_PROFILE = 'batch-v1'
+        foreach ($settles in @($false, $true)) {
+            $global:KoraReleaseTestState = Copy-State $good
+            Set-ReleaseQueueRevisionFixture ('a' * 40) ('c' * 40) ($queue | ConvertTo-Json -Depth 10)
+            $first = New-ReleaseQueueReference
+            $second = New-ReleaseQueueReference
+            $second.Record.object.sha = 'a' * 40
+            $last = if ($settles) { $second } else { $first }
+            $global:KoraReleaseTestState.SafetySequences[$queueRefPath] =
+                @($first, $second, $first, $second, $first, $second, $last)
+            if ($settles) {
+                Assert (-not (Invoke-Release Check).AlreadyPublished) 'The sixth verified stable attempt was rejected.'
+            } else {
+                Reject { Invoke-Release Publish } 'after six attempts'
+            }
+            Assert ($global:KoraReleaseTestState.Writes.Count -eq 0) 'Unstable snapshot caused release mutation.'
+            Assert (@($global:KoraReleaseTestState.Calls | Where-Object { $_ -contains $queueRefPath }).Count -eq 7) 'Snapshot acquisition exceeded its six-attempt request bound.'
+        }
+        foreach ($change in @('active-batch', 'legacy', 'malformed', 'missing', 'forbidden', 'blob')) {
+            $global:KoraReleaseTestState = Copy-State $good
+            $next = New-ReleaseQueueReference
+            $next.Record.object.sha = 'a' * 40
+            $invalid = Copy-State $queue
+            if ($change -eq 'active-batch') { $invalid.active = @{ index = 1 } }
+            $text = switch ($change) {
+                'legacy' { '{"version":1,"active":null,"blocked":[]}' }
+                'malformed' { '{broken' }
+                default { $invalid | ConvertTo-Json -Depth 10 }
+            }
+            Set-ReleaseQueueRevisionFixture ('a' * 40) ('c' * 40) $text
+            $nextPath = "$prefix/contents/queue.json?ref=$('a' * 40)"
+            switch ($change) {
+                'missing' { $global:KoraReleaseTestState.SafetyRecords[$nextPath] = @{ Status = 404; Record = $null } }
+                'forbidden' { $global:KoraReleaseTestState.SafetyRecords[$nextPath] = @{ Status = 403; Record = $null } }
+                'blob' { $global:KoraReleaseTestState.SafetyRecords[$nextPath].Record.sha = '0' * 40 }
+            }
+            $global:KoraReleaseTestState.SafetySequences[$queueRefPath] = @((New-ReleaseQueueReference), $next)
+            Reject { Invoke-Release Publish }
+            Assert ($global:KoraReleaseTestState.Writes.Count -eq 0) "Retry accepted invalid replacement state: $change."
+        }
+        foreach ($snapshot in @('', 'singleton-v1')) {
+            $env:KORA_MERGE_QUEUE_PROFILE = $snapshot
+            $global:KoraReleaseTestState = Copy-State $good
+            $global:KoraReleaseTestState.SafetyRecords[$queuePath] =
+                New-ReleaseSafetyFile 'queue.json' '{"version":1,"active":null,"blocked":[]}'
+            $invalid = Copy-State $queue
+            $invalid.active = @{ index = 1 }
+            Set-ReleaseQueueRevisionFixture ('a' * 40) ('c' * 40) ($invalid | ConvertTo-Json -Depth 10)
+            $next = New-ReleaseQueueReference
+            $next.Record.object.sha = 'a' * 40
+            $global:KoraReleaseTestState.SafetySequences[$queueRefPath] = @((New-ReleaseQueueReference), $next)
+            Reject { Invoke-Release Publish } 'active explicitly null'
+            Assert ($global:KoraReleaseTestState.Writes.Count -eq 0) 'Snapshot retry downgraded a concurrent batch migration.'
+        }
+        $env:KORA_MERGE_QUEUE_PROFILE = 'batch-v1'
+        $global:KoraReleaseTestState = Copy-State $good
         Assert (-not (Invoke-Release).AlreadyPublished) 'Completed batch tip cannot pass Check.'
         Assert ($global:KoraReleaseTestState.Writes.Count -eq 0) 'Check mutated release state.'
         Invoke-Release Publish | Out-Null
@@ -309,6 +389,32 @@ function Test-BatchReleaseSafety {
         $late[$runPath].Record.status = 'cancelled'
         $late[$jobsPath].Record.jobs[0].status = 'completed'
         foreach ($boundary in @('tag', 'publication')) {
+            foreach ($change in @('stable', 'active', 'legacy', 'missing')) {
+                $global:KoraReleaseTestState = Copy-State $good
+                $next = New-ReleaseQueueReference
+                $next.Record.object.sha = 'a' * 40
+                $replacement = Copy-State $queue
+                if ($change -eq 'active') { $replacement.active = @{ index = 1 } }
+                $text = if ($change -eq 'legacy') { '{"version":1,"active":null,"blocked":[]}' }
+                    else { $replacement | ConvertTo-Json -Depth 10 }
+                Set-ReleaseQueueRevisionFixture ('a' * 40) ('c' * 40) $text
+                if ($change -eq 'missing') {
+                    $global:KoraReleaseTestState.SafetyRecords["$prefix/contents/queue.json?ref=$('a' * 40)"] =
+                        @{ Status = 404; Record = $null }
+                }
+                $sequence = @((New-ReleaseQueueReference), (New-ReleaseQueueReference), (New-ReleaseQueueReference))
+                if ($boundary -eq 'publication') { $sequence += @((New-ReleaseQueueReference), (New-ReleaseQueueReference)) }
+                $global:KoraReleaseTestState.SafetySequences[$queueRefPath] = @($sequence) + @($next)
+                if ($change -eq 'stable') {
+                    Invoke-Release Publish | Out-Null
+                    Assert (-not $global:KoraReleaseTestState.Releases[0].draft) "Verified late $boundary snapshot retry failed."
+                    Assert ($global:KoraReleaseTestState.Tag.object.sha -ceq $source) 'Late retry changed the release source.'
+                } else {
+                    Reject { Invoke-Release Publish }
+                    Assert ($global:KoraReleaseTestState.Writes -notcontains 'publish') "Late $boundary retry accepted $change state."
+                    Assert (($global:KoraReleaseTestState.Writes -contains 'tag') -eq ($boundary -eq 'publication')) 'Retried snapshot crossed the wrong mutation boundary.'
+                }
+            }
             foreach ($path in $late.Keys) {
                 $global:KoraReleaseTestState = Copy-State $good
                 if ($boundary -eq 'tag') { $global:KoraReleaseTestState.SafetyAfterUpload[$path] = $late[$path] }

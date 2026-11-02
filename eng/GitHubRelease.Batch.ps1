@@ -8,6 +8,7 @@ A changed durable profile requires a fresh run. Batch publication also authentic
 static release-batch job from CI source at the exact protected main commit.
 Each state snapshot resolves the queue ref to an exact commit and tree, verifies the file
 blob against that tree and its bytes, then checks that the queue ref has not changed.
+Verified ref movement restarts the pinned read, at most six attempts without sleeps.
 The caller credential needs Actions and contents read access, not Variables API permission.
 The static concurrency contract requires queue: max so controller events cannot replace
 a pending release while cancel-in-progress remains false.
@@ -50,36 +51,40 @@ function Get-ReleaseQueueSnapshot {
     $refPath = "repos/$script:KoraRepository/git/ref/heads/automation/merge-queue-state"
     $reference = Get-GitHubRecord $refPath
     if ($null -eq $reference) { return $null }
-    if ($reference.ref -isnot [string] -or $reference.ref -cne 'refs/heads/automation/merge-queue-state' -or
-        $reference.object.type -isnot [string] -or $reference.object.type -cne 'commit' -or
-        $reference.object.sha -isnot [string] -or $reference.object.sha -cnotmatch '^[a-f0-9]{40}$') {
-        throw 'Invalid release queue reference identity.'
+    for ($attempt = 1; $attempt -le 6; $attempt++) {
+        if ($reference.ref -isnot [string] -or $reference.ref -cne 'refs/heads/automation/merge-queue-state' -or
+            $reference.object.type -isnot [string] -or $reference.object.type -cne 'commit' -or
+            $reference.object.sha -isnot [string] -or $reference.object.sha -cnotmatch '^[a-f0-9]{40}$') {
+            throw 'Invalid release queue reference identity.'
+        }
+        $revision = $reference.object.sha
+        $commit = Get-GitHubRecord "repos/$script:KoraRepository/git/commits/$revision"
+        if ($null -eq $commit -or $commit.sha -isnot [string] -or $commit.sha -cne $revision -or
+            $commit.tree.sha -isnot [string] -or $commit.tree.sha -cnotmatch '^[a-f0-9]{40}$') {
+            throw 'Release queue commit differs from the resolved reference.'
+        }
+        $tree = Get-GitHubRecord "repos/$script:KoraRepository/git/trees/$($commit.tree.sha)"
+        if ($null -eq $tree -or $tree.sha -isnot [string] -or $tree.sha -cne $commit.tree.sha -or $tree.truncated -isnot [bool] -or
+            $tree.truncated -or $tree.tree -isnot [array]) {
+            throw 'Cannot establish the complete pinned release queue tree.'
+        }
+        $files = @($tree.tree | Where-Object path -CEQ 'queue.json')
+        if ($files.Count -ne 1 -or $files[0].type -isnot [string] -or $files[0].type -cne 'blob' -or
+            $files[0].mode -isnot [string] -or $files[0].mode -cne '100644' -or
+            $files[0].sha -isnot [string] -or $files[0].sha -cnotmatch '^[a-f0-9]{40}$') {
+            throw 'Pinned release queue tree requires one regular queue.json blob.'
+        }
+        $text = Get-ReleaseRepositoryText 'queue.json' $revision $files[0].sha
+        $current = Get-GitHubRecord $refPath
+        if ($null -eq $current -or $current.ref -isnot [string] -or $current.ref -cne $reference.ref -or
+            $current.object.type -isnot [string] -or $current.object.type -cne 'commit' -or
+            $current.object.sha -isnot [string] -or $current.object.sha -cnotmatch '^[a-f0-9]{40}$') {
+            throw 'Invalid release queue reference during snapshot verification.'
+        }
+        if ($current.object.sha -ceq $revision) { return $text }
+        $reference = $current
     }
-    $revision = $reference.object.sha
-    $commit = Get-GitHubRecord "repos/$script:KoraRepository/git/commits/$revision"
-    if ($null -eq $commit -or $commit.sha -isnot [string] -or $commit.sha -cne $revision -or
-        $commit.tree.sha -isnot [string] -or $commit.tree.sha -cnotmatch '^[a-f0-9]{40}$') {
-        throw 'Release queue commit differs from the resolved reference.'
-    }
-    $tree = Get-GitHubRecord "repos/$script:KoraRepository/git/trees/$($commit.tree.sha)"
-    if ($null -eq $tree -or $tree.sha -isnot [string] -or $tree.sha -cne $commit.tree.sha -or $tree.truncated -isnot [bool] -or
-        $tree.truncated -or $tree.tree -isnot [array]) {
-        throw 'Cannot establish the complete pinned release queue tree.'
-    }
-    $files = @($tree.tree | Where-Object path -CEQ 'queue.json')
-    if ($files.Count -ne 1 -or $files[0].type -isnot [string] -or $files[0].type -cne 'blob' -or
-        $files[0].mode -isnot [string] -or $files[0].mode -cne '100644' -or
-        $files[0].sha -isnot [string] -or $files[0].sha -cnotmatch '^[a-f0-9]{40}$') {
-        throw 'Pinned release queue tree requires one regular queue.json blob.'
-    }
-    $text = Get-ReleaseRepositoryText 'queue.json' $revision $files[0].sha
-    $current = Get-GitHubRecord $refPath
-    if ($null -eq $current -or $current.ref -isnot [string] -or $current.ref -cne $reference.ref -or
-        $current.object.type -isnot [string] -or $current.object.type -cne 'commit' -or
-        $current.object.sha -isnot [string] -or $current.object.sha -cne $revision) {
-        throw 'Release queue reference changed during snapshot verification.'
-    }
-    return $text
+    throw 'Release queue reference changed during snapshot verification after six attempts.'
 }
 
 function Assert-BatchReleaseWorkflow {

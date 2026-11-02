@@ -384,6 +384,18 @@ The [actual native consumer](../src/Kora.Windows/Audio/PocketSphinxKeywordDetect
 
 Production native profiles still have **no qualified names** in the [platform catalogue](../src/Kora.Windows/Audio/HandsFreeNativeProfileCatalogue.cs). Installed assets, accepted keywords and deterministic [composed native API/resource fakes](../tests/Kora.Windows.IntegrationTests/Audio/CustomNameWakeCutoverTests.cs) do not establish acoustic, quality or playback qualification. The complete selection/cutover/native-configuration/span/ASR/command path is implemented (I); production availability remains independently gated (E/Q). Other wake/ASR/backend/residency choices remain unavailable. Unsupported legacy intent is retained until an explicit compatible reviewed switch. No download, automatic listening enablement, hosted audio, biometric enrollment or qualification claim is added.
 
+### Windows activated model residency implementation
+
+The [Windows lease owner](../src/Kora.Windows/Audio/WindowsRecognizerResidency.cs) implements only `windows-activated-v1 / WindowsManaged` with `CaptureLifetime` or `KeepLoaded`. Acquisition is lazy and exclusive. Its immutable key binds the profile generation, exact grammar snapshot and consumed speech-start timing; a mismatch joins disposal before replacement. The current native end-silence values remain fixed.
+
+The [capture owner](../src/Kora.Windows/Audio/WindowsActivatedCapture.cs) releases each microphone/endpoint independently. Return requires actual recognition completion, callback retirement/join, native input detachment and clearing/disposal of the capture-owned stream. Stop listening, privacy closure, profile cutover and shutdown retire and join retained model state. Unknown reset/release quarantines input; it never substitutes another engine or claims a confirmed stop.
+
+The [native adapter](../src/Kora.Windows/Audio/WindowsActivatedNativeFactory.cs) implements the real System.Speech branches behind a deterministic seam, but deliberately reports KeepLoaded unqualified. The [existing tuple review/persistence route](../src/Kora.Application/Configuration/SpeechInputConfigurationService.cs) remains authoritative; production saved/desired KeepLoaded intent stays inspectable and effective capture unavailable. Fixture admission does not enable production.
+
+The [residency regressions](../tests/Kora.Windows.IntegrationTests/Audio/WindowsActivatedCaptureResidencyTests.cs) and [composed review regressions](../tests/Kora.Windows.IntegrationTests/Audio/WindowsRecognizerResidencyReviewTests.cs) provide I evidence, not E/Q. Exact native reset/content-release, callback and installed-profile proof remains required by [qualification policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy).
+
+There is no eager load, automatic listening, idle-unload preset, adaptation or audio/transcript cache. The existing [timing argument](../src/Kora.Windows/Audio/IActivatedCaptureFactory.cs) remains consumed unchanged; integration of [the unmerged timing request](https://github.com/roryprimrose/Kora/pull/685) must retain its complete immutable timing key without mutating an in-use engine or transplanting that feature here.
+
 ## Optional Installation and Runtime Lifecycle
 
 Additional wake, VAD, ASR and optional verifier model assets must support both

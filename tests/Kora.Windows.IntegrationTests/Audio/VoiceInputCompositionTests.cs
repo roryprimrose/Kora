@@ -25,6 +25,9 @@ public sealed class VoiceInputCompositionTests
         provider.GetRequiredService<IVoiceRecognitionService>().Should().BeSameAs(lifecycle);
         provider.GetRequiredService<IActivatedVoiceRecognitionService>().Should().BeSameAs(lifecycle);
         provider.GetRequiredService<ISpeechInputProfileRuntime>().Should().BeSameAs(lifecycle);
+        provider.GetRequiredService<ISpeechSetupComparisonRuntime>().Should().BeSameAs(lifecycle);
+        provider.GetRequiredService<SpeechSetupComparison>().Status.Should().Contain("No microphone");
+        lifecycle.GetComparisonProfiles().Should().BeEmpty();
         provider.GetRequiredService<IHandsFreeAudioStage>().Should().BeOfType<WindowsHandsFreeAudioStage>();
         provider.GetRequiredService<Kora.Core.Dependencies.ISpeechComponentRuntime>()
             .Should().BeSameAs(provider.GetRequiredService<HandsFreeSetupRuntime>());

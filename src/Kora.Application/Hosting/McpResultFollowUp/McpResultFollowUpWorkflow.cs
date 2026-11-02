@@ -54,7 +54,7 @@ internal sealed class McpResultFollowUpWorkflow(
         bool Live() => !token.IsCancellationRequested && admitted() && Interlocked.Read(ref revision) == version;
         var task = await conversation.ValidateMcpObservationAsync(observation, Live, token).ConfigureAwait(false);
         var now = time.GetUtcNow();
-        var expires = observation.Invocation.ExpiresAt < now.AddSeconds(60) ? observation.Invocation.ExpiresAt : now.AddSeconds(60);
+        var expires = observation.ExpiresAt < now.AddSeconds(60) ? observation.ExpiresAt : now.AddSeconds(60);
         var review = new McpResultFollowUpReview(this, observation, task, question, origin,
             sourceUse.Check(observation, question, origin, token), now, expires);
         try

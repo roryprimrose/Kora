@@ -11,7 +11,8 @@ public sealed partial class WindowsVoiceRecognitionService
     private bool profileSwitchActive;
 
     public SpeechInputGeneration ProfileGeneration { get { lock (gate) { return profileGeneration; } } }
-    public bool IsProfileAvailable { get { lock (gate) { return profileAvailable && !profileSwitchActive; } } }
+    public bool IsProfileAvailable { get { lock (gate) { return profileAvailable && !profileSwitchActive && factory.IsAvailable; } } }
+    public string? GetUnavailableReason(SpeechInputSelection selection, string assistantName) => factory.GetUnavailableReason(selection);
 
     public void InitializeProfile(SpeechInputSelection? selection)
     {
@@ -24,7 +25,7 @@ public sealed partial class WindowsVoiceRecognitionService
                 throw new InvalidOperationException("Speech-input startup binding must precede capture and can run only once.");
             }
             profileInitialized = true;
-            profileAvailable = selection is not null && SpeechInputProfileCatalogue.UnavailableReason(selection) is null;
+            profileAvailable = selection is not null && factory.GetUnavailableReason(selection) is null;
             if (selection is not null) { profileGeneration = new(0, selection); }
         }
     }
@@ -78,7 +79,7 @@ public sealed partial class WindowsVoiceRecognitionService
                     throw new InvalidOperationException("Profile publication requires the next exact generation and confirmed quiescence.");
                 }
                 owner.profileGeneration = selection;
-                owner.profileAvailable = SpeechInputProfileCatalogue.UnavailableReason(selection.Selection) is null;
+                owner.profileAvailable = owner.factory.GetUnavailableReason(selection.Selection) is null;
                 published = true;
             }
         }

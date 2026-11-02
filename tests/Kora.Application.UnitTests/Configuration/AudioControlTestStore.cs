@@ -7,6 +7,8 @@ using Kora.Core.Communication;
 
 namespace Kora.Application.UnitTests.Configuration;
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1852:Seal internal types",
+    Justification = "Shared fixture has application-test subclasses and is also linked into integration tests.")]
 internal class AudioControlTestStore : ISessionWorkspaceStore, IAudioControlSessionStore, IMaintenanceControlSessionStore,
     IDiagnosticRetentionSessionStore, IAuditRetentionSessionStore, ISharedSkillSessionStore, IInstructionControlSessionStore,
     IManualCallControlStore, IHostTaskStore, ILogonStartupSessionStore

@@ -112,6 +112,14 @@ fixture repairs do not relax production authority or receipt checks.
 Await interleaving hooks outside the fixture lock, then run the original-source
 terminal guard and write together under the lock using that request-local pair.
 
+Conversation completion regressions must distinguish an explicitly admitted
+reader page from `ConversationUpdates`. With a nonempty admitted page, reviewed
+context completion preserves those messages and publishes the exact new retained
+request separately. Assert both surfaces and unchanged unrelated unsent input;
+only an explicit fresh read admits the completion into the reader page.
+For independently submitted work, await the completion's UI publication signal;
+joining the service receipt does not join its posted dispatcher notification.
+
 Run [Test-PortableTestScheduling.ps1](eng/Test-PortableTestScheduling.ps1) to check solution membership, main-build coverage, parallel scheduling, report isolation, and coverage-gate arguments without building or running test modules.
 
 For a controlled comparison, manually dispatch [CI](.github/workflows/ci.yml) with `compare_portable_tests=true`. Its opt-in job builds the main solution once, then runs [Compare-PortableTestScheduling.ps1](eng/Compare-PortableTestScheduling.ps1) in sequential/parallel/parallel/sequential order with identical coverage and reporting options. The artifact retains all four runs and their mean wall times.

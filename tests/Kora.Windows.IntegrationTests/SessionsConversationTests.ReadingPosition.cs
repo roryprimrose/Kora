@@ -346,6 +346,14 @@ public sealed partial class SessionsConversationTests
                 _ => ReadingWindow(interaction),
             };
             window.Show();
+            var published = new TaskCompletionSource<ConversationMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            void Published(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+            {
+                if (string.Equals(args.PropertyName, nameof(SessionsViewModel.ConversationUpdates), StringComparison.Ordinal)
+                    && model.ConversationUpdates.Count == 1)
+                { published.TrySetResult(model.ConversationUpdates[0]); }
+            }
+            model.PropertyChanged += Published;
             try
             {
                 await model.RefreshAsync();
@@ -354,9 +362,10 @@ public sealed partial class SessionsConversationTests
                 var original = model.ConversationMessages.ToArray();
                 var result = await composition.Conversation.SubmitAsync(model.SelectedSessionRecord!,
                     "Independent completion remains separate from the admitted page.", static () => true, f.Token);
+                var completion = await published.Task.WaitAsync(f.Token);
                 model.ComposerBody = "independent unsent input";
                 ReadingLayout(window);
-                var completion = model.ConversationUpdates.Should().ContainSingle().Subject;
+                model.ConversationUpdates.Should().ContainSingle().Which.Should().BeSameAs(completion);
                 completion.Should().BeSameAs(result.Message);
                 var audit = WindowsSqliteConversationTests.AuditText(f);
                 var tasks = f.Count("host_task_events");
@@ -403,7 +412,7 @@ public sealed partial class SessionsConversationTests
                 model.CurrentClarificationExchange.Should().BeNull();
                 model.LastDetailMessage.Should().BeNull();
             }
-            finally { model.Close(); window.Close(); }
+            finally { model.PropertyChanged -= Published; model.Close(); window.Close(); }
         });
     }
 

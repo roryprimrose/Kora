@@ -341,6 +341,9 @@ public sealed class AgentProfileConversationalAuthoringTests
     private sealed class ObservedStore(IOwnedAgentProfileStore inner) : IOwnedAgentProfileStore
     {
         internal int Creates;
+        public Task<AgentProfileWriteResult> Update(OwnedAgentProfileSnapshot expected, OwnedAgentProfileDocument document,
+            Func<bool> eligible, Func<Func<AgentProfileWriteResult>, Task<AgentProfileWriteResult>> commit, CancellationToken token) =>
+            inner.Update(expected, document, eligible, commit, token);
         public Task<IReadOnlyList<string>> List(CancellationToken token) => inner.List(token);
         public Task<OwnedAgentProfileSnapshot?> Read(string name, CancellationToken token) => inner.Read(name, token);
         public Task<OwnedAgentProfileDestination> PrepareNew(string name, CancellationToken token) => inner.PrepareNew(name, token);

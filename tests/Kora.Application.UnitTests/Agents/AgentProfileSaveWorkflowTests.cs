@@ -261,24 +261,167 @@ public sealed class AgentProfileSaveWorkflowTests : IDisposable
         f.Files.Writes.Should().Be(0);
     }
 
+    [Theory]
+    [InlineData(RequestOrigin.LocalUi, false)]
+    [InlineData(RequestOrigin.ActivatedVoice, true)]
+    public async Task ExistingOriginalReviewConfirmsExactBaseAndBytesWithoutCreatingAnotherCopy(RequestOrigin origin, bool bom)
+    {
+        await using var f = new Fixture();
+        var original = await f.CreateOriginal(bom);
+        var source = Source + "\nChanged inert guidance.";
+        using var review = await f.Workflow.ReviewUpdateAsync(original, source, 2, origin, f.Eligible, CancellationToken.None);
+        review.Original.Should().BeSameAs(original);
+        review.Destination.Should().Be(original.Destination);
+        review.Document.Document.HasBom.Should().Be(bom);
+        f.Files.Writes.Should().Be(1);
+        var wrongOperation = () => f.Save(review);
+        await wrongOperation.Should().ThrowAsync<InvalidOperationException>();
+        review.IsCurrent.Should().BeTrue();
+        var result = await f.Workflow.SaveAsync(review, RequestOrigin.LocalUi, _ =>
+        {
+            f.Files.Writes.Should().Be(1);
+            return Task.FromResult(true);
+        }, f.Eligible, CancellationToken.None);
+        result.State.Should().Be(AgentProfileWriteState.Saved);
+        result.Snapshot!.Destination.Should().Be(original.Destination);
+        result.Snapshot.Document.Document.CopyBytes().Should().Equal(review.Document.Document.CopyBytes());
+        (await f.Workflow.ReadAsync("example", f.Eligible, CancellationToken.None)).Should().BeSameAs(result.Snapshot);
+        f.Files.Creates.Should().Be(1);
+        f.Files.Updates.Should().Be(1);
+        f.Audit.Events.TakeLast(2).Select(item => item.ActionId).Should().Equal("definition.agent.update", "definition.agent.update");
+        f.Audit.Events.Last().ReasonCode.Should().Be("exact-updated-file-readback");
+        var replay = () => f.Workflow.SaveAsync(review, RequestOrigin.LocalUi, _ => Task.FromResult(true), f.Eligible, CancellationToken.None);
+        await replay.Should().ThrowAsync<InvalidOperationException>();
+        var foreign = () => f.Workflow.ReviewUpdateAsync(original, source, 3, RequestOrigin.HostSystem, f.Eligible, CancellationToken.None);
+        await foreign.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task ExistingUnchangedSourceRetainsBytesAndDoesNotPublish()
+    {
+        await using var f = new Fixture();
+        var original = await f.CreateOriginal(bom: true);
+        using var review = await f.Workflow.ReviewUpdateAsync(original, Source, 2, RequestOrigin.LocalUi, f.Eligible, CancellationToken.None);
+        var result = await f.Workflow.SaveAsync(review, RequestOrigin.LocalUi, _ => Task.FromResult(true), f.Eligible, CancellationToken.None);
+        result.State.Should().Be(AgentProfileWriteState.Unchanged);
+        result.Snapshot.Should().BeSameAs(original);
+        f.Files.Writes.Should().Be(1);
+        f.Audit.Events.Last().Outcome.Should().Be(SecurityAuditOutcome.Succeeded);
+        f.Audit.Events.Last().ReasonCode.Should().Be("exact-unchanged-file-readback");
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task InvalidUpdateDraftCannotPrepareAReviewOrWrite(bool malformedUnicode)
+    {
+        await using var f = new Fixture();
+        var original = await f.CreateOriginal();
+        var source = malformedUnicode ? Source + "\ud800"
+            : Source.Replace("kora-agent-format: 1", "kora-agent-format: 2", StringComparison.Ordinal);
+        var review = () => f.Workflow.ReviewUpdateAsync(original, source, 2, RequestOrigin.LocalUi, f.Eligible, CancellationToken.None);
+        await review.Should().ThrowAsync<InvalidDataException>();
+        f.Files.Writes.Should().Be(1);
+        f.Files.Updates.Should().Be(0);
+        f.Audit.Events.Should().HaveCount(2);
+    }
+
+    [Theory]
+    [InlineData("cancel")]
+    [InlineData("draft")]
+    [InlineData("session")]
+    [InlineData("read-only-session")]
+    [InlineData("foreign-session")]
+    [InlineData("inactive-session")]
+    [InlineData("privacy")]
+    [InlineData("requested-audit")]
+    [InlineData("failure")]
+    [InlineData("cancelled-io")]
+    [InlineData("readback")]
+    [InlineData("terminal-audit")]
+    [InlineData("conflict")]
+    public async Task UpdateRetainsExactAdmissionAuditAndNoUnauthorizedWrite(string scenario)
+    {
+        await using var f = new Fixture();
+        var original = await f.CreateOriginal();
+        var current = true;
+        using var review = await f.Workflow.ReviewUpdateAsync(original, Source + "\nDraft", 2,
+            RequestOrigin.LocalUi, () => f.Open && current, CancellationToken.None);
+        if (scenario is "draft") { current = false; }
+        if (scenario is "session") { f.Files.BeforeCommit = () => f.Control.Authority = null; }
+        if (scenario is "read-only-session") { f.Files.BeforeCommit = () => f.Control.Authority = f.Control.Authority! with { Generation = new(99) }; }
+        if (scenario is "foreign-session") { f.Files.BeforeCommit = () => f.Control.Authority = f.Control.Authority! with { SessionId = new(Guid.NewGuid()) }; }
+        if (scenario is "inactive-session") { f.Files.BeforeCommit = () => f.Control.Authority = f.Control.Authority! with { IsActive = false }; }
+        if (scenario is "privacy") { f.Files.BeforeCommit = () => f.Open = false; }
+        if (scenario is "requested-audit") { f.Audit.Fail = SecurityAuditOutcome.Requested; }
+        if (scenario is "failure") { f.Files.Failure = new IOException("Synthetic failure"); }
+        if (scenario is "cancelled-io") { f.Files.Failure = new OperationCanceledException(); }
+        if (scenario is "readback") { f.Files.Unconfirmed = true; }
+        if (scenario is "terminal-audit") { f.Audit.Fail = SecurityAuditOutcome.Succeeded; }
+        if (scenario is "conflict") { f.Files.Conflict = true; }
+        var save = () => f.Workflow.SaveAsync(review, RequestOrigin.LocalUi, _ => Task.FromResult(scenario is not "cancel"),
+            f.Eligible, CancellationToken.None);
+        if (scenario is "cancel" or "conflict")
+        {
+            (await save()).State.Should().Be(scenario is "cancel" ? AgentProfileWriteState.Cancelled : AgentProfileWriteState.Conflict);
+            if (scenario is "conflict") { f.Audit.Events.Last().ReasonCode.Should().Be("original-base-changed"); }
+        }
+        else { await save.Should().ThrowAsync<Exception>(); }
+        f.Files.Writes.Should().Be(scenario is "readback" or "terminal-audit" ? 2 : 1);
+        f.Audit.Events.Skip(2).Should().NotContain(item => item.Outcome == SecurityAuditOutcome.Succeeded);
+        f.Files.Creates.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task UpdateCancellationIgnoringStorageJoinsBeforeReturningWithoutWriting()
+    {
+        await using var f = new Fixture();
+        var original = await f.CreateOriginal();
+        using var review = await f.Workflow.ReviewUpdateAsync(original, Source + "\nDraft", 2,
+            RequestOrigin.LocalUi, f.Eligible, CancellationToken.None);
+        f.Files.BeforeWrite = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.Files.Release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var cancellation = new CancellationTokenSource();
+        var saving = f.Workflow.SaveAsync(review, RequestOrigin.LocalUi, _ => Task.FromResult(true), f.Eligible, cancellation.Token);
+        try
+        {
+            await f.Files.BeforeWrite.Task;
+            cancellation.Cancel();
+            saving.IsCompleted.Should().BeFalse();
+        }
+        finally { f.Files.Release.TrySetResult(); }
+        var join = async () => await saving;
+        await join.Should().ThrowAsync<OperationCanceledException>();
+        f.Files.Writes.Should().Be(1);
+    }
+
     private sealed class Fixture : IAsyncDisposable
     {
         internal readonly Files Files = new();
         internal readonly Audit Audit = new();
         internal readonly InstructionControlAdmission Admission;
         internal readonly AgentProfileSaveWorkflow Workflow;
+        internal readonly AudioControlTestStore Control = new();
         internal bool Open = true;
         internal bool Eligible() => Open;
         internal Fixture()
         {
-            var control = new AudioControlTestStore();
-            Admission = new(control, control, new HostTaskCoordinator(control));
+            Admission = new(Control, Control, new HostTaskCoordinator(Control));
             Workflow = new(Files, Admission, Audit);
         }
         internal Task<AgentProfileSaveReview> Review(RequestOrigin origin = RequestOrigin.LocalUi) =>
             Workflow.ReviewAsync("example", Source, 1, origin, Eligible, CancellationToken.None);
         internal Task<AgentProfileWriteResult> Save(AgentProfileSaveReview review) =>
             Workflow.SaveAsNewAsync(review, RequestOrigin.LocalUi, _ => Task.FromResult(true), Eligible, CancellationToken.None);
+        internal async Task<OwnedAgentProfileSnapshot> CreateOriginal(bool bom = false)
+        {
+            var destination = await Files.PrepareNew("example", CancellationToken.None);
+            var document = OwnedAgentProfileDocument.Parse("example", Kora.Core.Artifacts.ArtifactFileDocument.Encode(Source, bom));
+            using var review = await Review();
+            _ = await Save(review);
+            Files.Saved = new(destination, "pinned-file-1", document);
+            return Files.Saved;
+        }
         public ValueTask DisposeAsync() => Admission.DisposeAsync();
     }
 
@@ -296,6 +439,8 @@ public sealed class AgentProfileSaveWorkflowTests : IDisposable
     private sealed class Files : IOwnedAgentProfileStore
     {
         internal int Writes;
+        internal int Creates;
+        internal int Updates;
         internal bool Conflict;
         internal bool Unconfirmed;
         internal bool InvalidReadback;
@@ -305,16 +450,30 @@ public sealed class AgentProfileSaveWorkflowTests : IDisposable
         internal Exception? Failure;
         internal Action? AfterWrite;
         internal Action? AfterObservation;
+        internal Action? BeforeCommit;
         internal TaskCompletionSource? BeforeWrite;
         internal TaskCompletionSource? Release;
-        private OwnedAgentProfileSnapshot? saved;
+        internal OwnedAgentProfileSnapshot? Saved;
         public Task<IReadOnlyList<string>> List(CancellationToken token)
-        { AfterObservation?.Invoke(); return Task.FromResult<IReadOnlyList<string>>(saved is null ? [] : ["example"]); }
+        { AfterObservation?.Invoke(); return Task.FromResult<IReadOnlyList<string>>(Saved is null ? [] : ["example"]); }
         public Task<OwnedAgentProfileSnapshot?> Read(string name, CancellationToken token)
-        { AfterObservation?.Invoke(); return Task.FromResult(saved); }
+        { AfterObservation?.Invoke(); return Task.FromResult(Saved); }
         public Task<OwnedAgentProfileDestination> PrepareNew(string name, CancellationToken token)
-        { AfterObservation?.Invoke(); return Task.FromResult(new OwnedAgentProfileDestination(name, "closed-owned-root\\example.agent.md", "pinned-root")); }
-        public async Task<AgentProfileWriteResult> Create(OwnedAgentProfileDestination destination, OwnedAgentProfileDocument document,
+        { AfterObservation?.Invoke(); return Task.FromResult(new OwnedAgentProfileDestination(name, "closed-owned-root\\example.agent.md", "pinned-root") { RootBindingIdentity = "pinned-ancestors" }); }
+        public Task<AgentProfileWriteResult> Create(OwnedAgentProfileDestination destination, OwnedAgentProfileDocument document,
+            Func<bool> eligible, Func<Func<AgentProfileWriteResult>, Task<AgentProfileWriteResult>> commit, CancellationToken token)
+        {
+            Creates++;
+            return Write(destination, null, document, eligible, commit, token);
+        }
+        public Task<AgentProfileWriteResult> Update(OwnedAgentProfileSnapshot expected, OwnedAgentProfileDocument document,
+            Func<bool> eligible, Func<Func<AgentProfileWriteResult>, Task<AgentProfileWriteResult>> commit, CancellationToken token)
+        {
+            Updates++;
+            return Write(expected.Destination, expected, document, eligible, commit, token);
+        }
+        private async Task<AgentProfileWriteResult> Write(OwnedAgentProfileDestination destination, OwnedAgentProfileSnapshot? expected,
+            OwnedAgentProfileDocument document,
             Func<bool> eligible, Func<Func<AgentProfileWriteResult>, Task<AgentProfileWriteResult>> commit, CancellationToken token)
         {
             BeforeWrite?.SetResult();
@@ -324,18 +483,22 @@ public sealed class AgentProfileSaveWorkflowTests : IDisposable
                 await Release.Task;
 #pragma warning restore VSTHRD003
             }
+            BeforeCommit?.Invoke();
             return await commit(() =>
             {
                 token.ThrowIfCancellationRequested();
                 if (!eligible()) { throw new InvalidOperationException("Admission revoked"); }
                 if (Failure is not null) { throw Failure; }
-                if (Conflict) { return new(AgentProfileWriteState.Conflict, null); }
+                if (Conflict || expected is not null && !ReferenceEquals(expected, Saved))
+                { return new(AgentProfileWriteState.Conflict, Saved); }
                 if (Cancelled) { return new(AgentProfileWriteState.Cancelled, null); }
+                if (expected is not null && document.Document.CopyBytes().AsSpan().SequenceEqual(expected.Document.Document.CopyBytes()))
+                { return new(AgentProfileWriteState.Unchanged, Saved); }
                 Writes++;
-                saved = new(destination, "pinned-file", document);
+                Saved = new(destination, "pinned-file-" + Writes, document);
                 AfterWrite?.Invoke();
                 if (Unconfirmed) { throw new AgentProfilePublicationUnconfirmedException(new IOException("Readback failed")); }
-                var observed = !ChangeReadbackDestination && !ChangeReadbackBytes ? saved : saved with
+                var observed = !ChangeReadbackDestination && !ChangeReadbackBytes ? Saved : Saved with
                 {
                     Destination = ChangeReadbackDestination ? destination with { DirectoryIdentity = "changed" } : destination,
                     Document = ChangeReadbackBytes ? OwnedAgentProfileDocument.Parse("example", Source + "\nchanged") : document,

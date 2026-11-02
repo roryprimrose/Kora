@@ -267,13 +267,17 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task OwnedSkillUnavailableProviderAndForbiddenToolAttemptsRetainTruthfulTerminal(bool hostile)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task OwnedSkillUnavailableProviderAndForbiddenToolAttemptsRetainTruthfulTerminal(bool hostile, bool markdown)
     {
         using var f = new Fixture();
         await using var skill = new OwnedSkillHarness(f, qualified: hostile);
+        if (markdown) { skill.Store.Snapshot = MarkdownPackage(); }
         using var review = await skill.Review();
+        if (markdown) { await skill.Workflow.ReadReferencesAsync(review, skill.Authority, skill.Eligible, Token); }
         await skill.Workflow.EnableAsync(review, skill.Authority, skill.Eligible, Token);
         using var invocation = await skill.Prepare(review);
         if (hostile)
@@ -292,12 +296,14 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task OwnedSkillCancellationJoinsRealReadOrModelDespiteIgnoredCancellation(bool model)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task OwnedSkillCancellationJoinsRealReadOrModelDespiteIgnoredCancellation(bool model, bool markdown)
     {
         using var f = new Fixture();
         await using var skill = new OwnedSkillHarness(f);
+        if (markdown) { skill.Store.Snapshot = MarkdownPackage(); }
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         if (!model)
@@ -315,6 +321,7 @@ public sealed partial class ModelTurnHostTests
         else
         {
             using var review = await skill.Review();
+            if (markdown) { await skill.Workflow.ReadReferencesAsync(review, skill.Authority, skill.Eligible, Token); }
             await skill.Workflow.EnableAsync(review, skill.Authority, skill.Eligible, Token);
             using var invocation = await skill.Prepare(review);
             var pending = new TaskCompletionSource<ModelProviderReply>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -427,6 +434,7 @@ public sealed partial class ModelTurnHostTests
         private readonly Fixture model;
         internal OwnedPackageStore Store { get; } = new();
         internal SharedSkillAudit Audit { get; } = new();
+        internal NamedUsePolicy UsePolicy { get; } = new();
         internal OwnedSkillAuthoringAuthority Authority { get; }
         internal OwnedSkillInvocationWorkflow Workflow { get; }
         internal OwnedSkillSaveWorkflow Saved { get; }
@@ -434,7 +442,7 @@ public sealed partial class ModelTurnHostTests
         internal bool Open { get; set; } = true;
         internal bool Eligible() => Open;
         internal OwnedSkillHarness(Fixture model, RequestOrigin origin = RequestOrigin.LocalUi, bool qualified = true, bool inspect = true,
-            SessionConversationService? conversation = null)
+            SessionConversationService? conversation = null, bool hasUsePolicy = true)
         {
             this.model = model;
             Authority = new(origin, Eligible);
@@ -444,7 +452,7 @@ public sealed partial class ModelTurnHostTests
             var workspace = new SessionWorkspaceService(model, new(model), model, NullLogger<SessionWorkspaceService>.Instance);
             Conversation = conversation ?? model.ConversationService(host, execution: host);
             Workflow = new(Store, admission, inspect ? model : new SharedSkillInspectDenied(), model, workspace,
-                Conversation, Audit, model.Time);
+                Conversation, Audit, model.Time, hasUsePolicy ? UsePolicy : null);
         }
         internal Task<OwnedSkillUseReview> Review() => Workflow.ReviewAsync("example", "1.0.0", Authority, Eligible, Token);
         internal Task<OwnedSkillInvocation> Prepare(OwnedSkillUseReview review, string body = "original") =>
@@ -470,22 +478,40 @@ public sealed partial class ModelTurnHostTests
         internal int Writes { get; private set; }
         internal Func<Task>? DuringList { get; set; }
         internal int Lists { get; private set; }
+        internal int ReferenceReads { get; private set; }
+        internal Func<Task>? DuringReferenceRead { get; set; }
         public string Destination(OwnedDeclarativeSkillDocument document) => Path.Combine(Environment.CurrentDirectory, "owned");
         public async Task<IReadOnlyList<OwnedDeclarativeSkillSnapshot>> List(CancellationToken token)
         {
             Lists++;
             if (DuringList is { } during) { await during(); }
             if (Failure is not null) { throw Failure; }
-            return Snapshot is null ? [] : [Snapshot];
+            return Snapshot is null ? [] : [Primary(Snapshot)];
         }
-        public async Task<OwnedDeclarativeSkillSnapshot?> Read(string id, string version, CancellationToken token)
+        public async Task<OwnedDeclarativeSkillSnapshot?> Read(string id, string version, CancellationToken token,
+            OwnedSkillReadScope scope = OwnedSkillReadScope.CompletePackage, OwnedDeclarativeSkillSnapshot? expectedPrimary = null)
         {
             if (DuringRead is { } during) { await during(); }
             if (Failure is not null) { throw Failure; }
+            if (Snapshot is not null && expectedPrimary is not null && !expectedPrimary.IsSamePrimary(Snapshot))
+            { throw new InvalidDataException("Reviewed primary changed; no reference bodies read."); }
+            if (scope == OwnedSkillReadScope.PrimaryDeclaration) { return Snapshot is null ? null : Primary(Snapshot); }
+            if (Snapshot?.Document.ReferenceDeclaration is not null)
+            {
+                ReferenceReads++;
+                if (DuringReferenceRead is { } reading) { await reading(); }
+            }
             return Snapshot;
         }
+        private static OwnedDeclarativeSkillSnapshot Primary(OwnedDeclarativeSkillSnapshot snapshot) =>
+            snapshot.Document.ReferenceDeclaration is null ? snapshot : snapshot with
+            {
+                Document = OwnedDeclarativeSkillDocument.Parse(snapshot.Document.ManifestBytes.Span, snapshot.Document.InstructionBytes.Span),
+                ReferenceIdentities = System.Collections.Immutable.ImmutableDictionary<string, string>.Empty,
+            };
         public Task<OwnedDeclarativeSkillSnapshot> Publish(OwnedDeclarativeSkillDocument document, Func<bool> eligible,
-            Func<Func<OwnedDeclarativeSkillSnapshot>, Task<OwnedDeclarativeSkillSnapshot>> commit, CancellationToken token)
+            Func<Func<OwnedDeclarativeSkillSnapshot>, Task<OwnedDeclarativeSkillSnapshot>> commit, CancellationToken token,
+            OwnedDeclarativeSkillSnapshot? expectedSource = null)
         { Writes++; throw new InvalidOperationException("Invocation must never publish."); }
     }
 }

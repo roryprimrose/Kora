@@ -1088,6 +1088,12 @@ not send cookies, ambient credentials, proxy credentials, referrers, or a model
 conversation. HTML is returned as bounded normalized text; scripts, styles,
 markup and external resources are not executed or loaded.
 
+Cancellation prevents later connections and suppresses late results even if a
+transport or body read ignores its token. Kora waits for the owned response to
+be released before reporting a terminal result, and rechecks address authority
+before returning successful text. A response-release failure is a retrieval
+failure, never a successful result; retry requires a fresh explicit request.
+
 After success, select **Open exact web-result details** in the actual response. This opens the same immutable, volatile native plain-text result, not the website. Search, exact source, reopen and close perform no additional network request or navigation.
 The viewer shares the existing eight-window limit and private copy requires explicit disclosure confirmation.
 

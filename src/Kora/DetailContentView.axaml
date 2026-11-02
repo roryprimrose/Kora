@@ -57,7 +57,7 @@
         <controls:NamedTextBlock x:Name="FindSpan" Focusable="True" IsVisible="False" TextWrapping="Wrap" TabIndex="14"
                                 AutomationProperties.Name="Exact inert admitted detail literal match" />
       </ScrollViewer>
-      <TextBlock x:Name="CopyPolicyLabel" Text="Copy exact source as Unicode plain text only. Clipboard content leaves Kora's boundary and may be read by other apps. Rich HTML copy is not supported."
+      <TextBlock x:Name="CopyPolicyLabel" Text="Copy preserves exact Unicode plain text; authorized rendered Markdown also includes inert HTML. Clipboard content leaves Kora's boundary and may be read by other apps or clipboard history/sync."
                  TextWrapping="Wrap" />
       <CheckBox x:Name="DisclosureConfirmation" TabIndex="9"
                 Content="I confirm disclosure of this private source outside Kora."
@@ -65,8 +65,8 @@
       <WrapPanel>
         <Button x:Name="CopySelection" Content="Copy selection (Ctrl+C)" TabIndex="10"
                 AutomationProperties.Name="Copy selected text from the continuous reader" />
-        <Button x:Name="CopySource" Content="Copy exact source (plain text)" TabIndex="11" Margin="8,0,0,0"
-                AutomationProperties.Name="Copy exact source as plain text" />
+        <Button x:Name="CopySource" Content="Copy all" TabIndex="11" Margin="8,0,0,0"
+                AutomationProperties.Name="Copy exact source with supported rendered Markdown formatting when authorized" />
         <Button x:Name="CloseDetail" Content="Close (Escape)" TabIndex="12" Margin="8,0,0,0"
                 AutomationProperties.Name="Close passive details" />
       </WrapPanel>

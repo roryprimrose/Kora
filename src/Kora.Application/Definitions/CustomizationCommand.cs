@@ -21,6 +21,8 @@ public sealed record CustomizationCommand(string Operation, CustomizationKind? K
         { return new("Adapt", CustomizationKind.Skill, text[adaptation.Length..].Trim()); }
         if (text.Equals("save skill adaptation", StringComparison.OrdinalIgnoreCase))
         { return new("SaveAdaptation", CustomizationKind.Skill); }
+        if (text.Equals("delete selected owned definition", StringComparison.OrdinalIgnoreCase))
+        { return new("Delete"); }
         if (text.Equals("customizations", StringComparison.OrdinalIgnoreCase)
             || text.Equals("show customizations", StringComparison.OrdinalIgnoreCase)
             || text.Equals("open customizations", StringComparison.OrdinalIgnoreCase))

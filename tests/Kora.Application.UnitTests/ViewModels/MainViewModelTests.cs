@@ -9171,7 +9171,8 @@ public sealed partial class MainViewModelTests : IDisposable
             }
         }
 
-        public async Task RaiseActivatedTranscriptAsync(string transcript, float confidence)
+        public async Task RaiseActivatedTranscriptAsync(string transcript, float confidence,
+            IVoiceActivationEvidence? activationEvidence = null)
         {
             if (Voice.Microphones.Count == 0)
             {
@@ -9191,7 +9192,7 @@ public sealed partial class MainViewModelTests : IDisposable
             await ViewModel.BeginPushToTalkAsync();
             await ViewModel.EndPushToTalkAsync();
             WindowActions.Clear();
-            await Voice.RaiseTranscriptAsync(transcript, confidence);
+            await Voice.RaiseTranscriptAsync(transcript, confidence, activationEvidence);
         }
 
         public sealed class FakeVoiceConsentPreferences : IVoiceConsentPreferences
@@ -9718,9 +9719,10 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
-        public async Task RaiseTranscriptAsync(string transcript, float confidence)
+        public async Task RaiseTranscriptAsync(string transcript, float confidence,
+            IVoiceActivationEvidence? activationEvidence = null)
         {
-            TranscriptRecognized?.Invoke(this, new VoiceTranscriptEventArgs(transcript, confidence, Generation));
+            TranscriptRecognized?.Invoke(this, new VoiceTranscriptEventArgs(transcript, confidence, Generation, activationEvidence));
             await dispatcher.LastInvocation;
         }
 

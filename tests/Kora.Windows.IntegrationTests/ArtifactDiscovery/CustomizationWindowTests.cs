@@ -641,7 +641,8 @@ public sealed partial class CustomizationWindowTests
         internal TaskCompletionSource? Started { get; set; }
         internal CustomizationAuthoringContext? Context { get; private set; }
         public async Task<CustomizationAuthoringResult> Refine(CustomizationSource source, IReadOnlyList<CustomizationFile> files,
-            CustomizationAuthoringContext context, string requestText, Func<bool> eligible, CancellationToken token)
+            CustomizationAuthoringContext context, string requestText, Func<bool> eligible, CancellationToken token,
+            Func<CancellationToken, Task>? validateSource = null)
         {
             Calls++;
             Context = context;

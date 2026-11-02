@@ -6,6 +6,7 @@ namespace Kora.Application.Skills;
 /// <summary>Original authority can only be narrowed, never recaptured by a later native confirmation.</summary>
 public sealed class OwnedSkillAuthoringAuthority(RequestOrigin origin, Func<bool> eligible)
 {
+    internal OwnedSkillQuestionContinuation? Questions { get; init; }
     private int retired;
     public ActivityContext? OriginalActivityContext { get; } = Activity.Current?.Context;
     public RequestOrigin Origin { get; } = origin is RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice

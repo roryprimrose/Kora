@@ -285,7 +285,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
         ConversationExecutionConfigurationService? conversationExecution = null,
         LogonStartupConfigurationService? logonStartupConfiguration = null,
-        DetailPresentationConfigurationService? detailPresentationConfiguration = null)
+        DetailPresentationConfigurationService? detailPresentationConfiguration = null,
+        StartupPresentationConfigurationService? startupPresentationConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -446,6 +447,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         InitializeConversationExecution(conversationExecution, execute => CreateCommand(execute));
         InitializeLogonStartup(logonStartupConfiguration, execute => CreateCommand(execute));
         InitializeDetailPresentation(detailPresentationConfiguration, execute => CreateCommand(execute));
+        InitializeStartupPresentation(startupPresentationConfiguration, execute => CreateCommand(execute));
         ResetThemeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.Theme));
         ResetReaderTextScaleCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReaderTextScale));
         ResetResponseTimeoutCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ResponseTimeout));
@@ -2511,6 +2513,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public async Task HideApplicationAsync()
     {
+        CancelStartupPresentationReview();
         Interlocked.Increment(ref approvalPreparationRevision);
         RetireWebResultDetails();
         var actionRetirement = ClearPendingModelActionAsync("dismissed");
@@ -4273,6 +4276,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget = null,
         ForegroundConversationTarget? foregroundTarget = null)
     {
+        CancelStartupPresentationReview();
         if (IsWakeCommand(spokenText) && string.Equals(AssistantName, "Stop", StringComparison.OrdinalIgnoreCase)
             && string.Equals(spokenText.Trim(), "listening", StringComparison.OrdinalIgnoreCase))
         {
@@ -6651,6 +6655,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         OnPropertyChanged(nameof(CanControlLogonStartupNative));
         OnPropertyChanged(nameof(CanControlDetailPresentation));
         OnPropertyChanged(nameof(CanControlDetailPresentationNative));
+        OnPropertyChanged(nameof(CanControlStartupPresentation));
         OnPropertyChanged(nameof(WindowsSpeechRateStatus));
         OnPropertyChanged(nameof(PlaybackVolumeStatus));
         OnPropertyChanged(nameof(CanChangeDiagnosticRetention));

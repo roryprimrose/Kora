@@ -296,6 +296,78 @@ public sealed partial class SessionsConversationTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task DeferredPassiveRefreshCannotNotifyOrRestoreClosedDetailsConsumer(bool close)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            await using var composition = new Composition(f);
+            var model = composition.Model;
+            await model.RefreshAsync();
+            await model.SelectAsync(model.Sessions.Single());
+            model.ComposerBody = "Exact unsent input";
+            var source = model.CaptureDraftPresentationEligibility();
+            var join = new DetailPublicationJoinContext();
+            var previous = SynchronizationContext.Current;
+            Task refresh;
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(join);
+                refresh = model.RefreshWorkAsync();
+            }
+            finally { SynchronizationContext.SetSynchronizationContext(previous); }
+            try
+            {
+                refresh.IsCompleted.Should().BeFalse();
+                await join.WaitForPostAsync(f.Token);
+                if (close) { model.Close(); }
+                var notifications = 0;
+                model.PropertyChanged += (_, _) => notifications++;
+                while (!refresh.IsCompleted)
+                {
+                    await join.WaitForPostAsync(f.Token);
+                    join.RunNext();
+                }
+                await refresh;
+                Dispatcher.UIThread.RunJobs();
+                if (close)
+                {
+                    notifications.Should().Be(0, "a joined passive observation cannot republish a closed consumer");
+                    source().Should().BeFalse();
+                    model.SelectedSessionRecord.Should().BeNull();
+                    model.ConversationMessages.Should().BeEmpty();
+                    model.DetailsOfferMessage.Should().BeNull();
+                    model.ComposerBody.Should().BeEmpty();
+                }
+                else
+                {
+                    notifications.Should().BeGreaterThan(0);
+                    source().Should().BeTrue();
+                    model.SelectedSessionRecord.Should().NotBeNull();
+                    model.ComposerBody.Should().Be("Exact unsent input");
+                }
+                f.Count("conversation_messages").Should().Be(0);
+                f.Count("conversation_drafts").Should().Be(0);
+                f.Count("host_questions").Should().Be(0);
+                f.Count("scoped_grants").Should().Be(0);
+            }
+            finally
+            {
+                while (!refresh.IsCompleted)
+                {
+                    await join.WaitForPostAsync(f.Token);
+                    join.RunNext();
+                }
+                await refresh;
+            }
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task HeldProviderCompletionUsesCurrentConfirmedPreferenceWithoutRedispatchOrQuestionAuthority(bool restoreOffer)
     {
         await HeadlessSession.RunAsync(async () =>

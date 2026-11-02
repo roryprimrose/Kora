@@ -319,6 +319,7 @@ public sealed partial class MainViewModel
         if (composerDictation is not null) { composerDictation.Changed -= OnDetailPresentationDecisionChanged; }
         if (questionVoiceReplies is not null) { questionVoiceReplies.Changed -= OnDetailPresentationDecisionChanged; }
         if (detailPresentation is not null) { detailPresentation.Changed -= OnDetailPresentationChanged; }
+        CancelStartupPresentationReview();
         if (conversationalReplies is not null) { conversationalReplies.Changed -= OnConversationalReplyPreferenceChanged; }
         RetireQuestionVoiceReply();
         PropertyChanged -= OnQuestionVoiceReadinessChanged;

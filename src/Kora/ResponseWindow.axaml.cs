@@ -22,7 +22,7 @@ public sealed partial class ResponseWindow : Window
 {
     private readonly MainViewModel viewModel;
     private readonly DispatcherTimer responseTimeoutTimer;
-    private readonly PresentationInactivityTimeout responseInactivity = new();
+    private readonly PresentationInactivityTimeout responseInactivity;
     private readonly DispatcherTimer positionSaveTimer;
     private readonly PushToTalkButtonBinding pushToTalk;
     private bool positionInitialized;
@@ -33,10 +33,12 @@ public sealed partial class ResponseWindow : Window
     {
     }
 
-    public ResponseWindow(MainViewModel viewModel, DetailWindowController? detailController = null)
+    public ResponseWindow(MainViewModel viewModel, DetailWindowController? detailController = null,
+        TimeProvider? timeProvider = null)
     {
         this.viewModel = viewModel;
         details = detailController;
+        responseInactivity = new(timeProvider ?? TimeProvider.System);
         InitializeComponent();
         DataContext = viewModel;
         var pushToTalkButton = this.FindControl<Button>("PushToTalkButton")
@@ -359,6 +361,7 @@ public sealed partial class ResponseWindow : Window
                 eventArgs.PropertyName,
                 nameof(MainViewModel.IsCurrentResponseReadActive),
                 StringComparison.Ordinal)
+            || string.Equals(eventArgs.PropertyName, nameof(MainViewModel.IsReviewedVoiceCommandActive), StringComparison.Ordinal)
             || string.Equals(eventArgs.PropertyName, nameof(MainViewModel.CanConfirmCallSpeech), StringComparison.Ordinal))
         {
             RestartResponseTimeout();
@@ -375,6 +378,7 @@ public sealed partial class ResponseWindow : Window
         }
         if (!viewModel.IsResponseAlwaysVisible && !viewModel.IsResponseInteractionPending
             && !viewModel.HasResponseActions && !viewModel.IsCurrentResponseReadActive
+            && !viewModel.IsReviewedVoiceCommandActive
             && !viewModel.CanConfirmCallSpeech
             && viewModel.State != AssistantState.Failure)
         {
@@ -453,6 +457,7 @@ public sealed partial class ResponseWindow : Window
         if (!IsVisible || IsExpanded || viewModel.IsResponseAlwaysVisible
             || viewModel.IsResponseInteractionPending
             || viewModel.HasResponseActions || viewModel.IsCurrentResponseReadActive
+            || viewModel.IsReviewedVoiceCommandActive
             || viewModel.CanConfirmCallSpeech
             || viewModel.State == AssistantState.Failure)
         {

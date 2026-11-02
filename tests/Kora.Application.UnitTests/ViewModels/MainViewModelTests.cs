@@ -8727,7 +8727,8 @@ public sealed partial class MainViewModelTests : IDisposable
             CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
             bool enableConversationExecution = false,
             LogonStartupConfigurationService? logonStartupConfiguration = null,
-            DetailPresentationConfigurationService? detailPresentationConfiguration = null)
+            DetailPresentationConfigurationService? detailPresentationConfiguration = null,
+            StartupPresentationConfigurationService? startupPresentationConfiguration = null)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8929,7 +8930,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 communicationActivityConfiguration: communicationActivityConfiguration,
                 conversationExecution: ConversationExecutionConfiguration,
                 logonStartupConfiguration: logonStartupConfiguration,
-                detailPresentationConfiguration: detailPresentationConfiguration);
+                detailPresentationConfiguration: detailPresentationConfiguration,
+                startupPresentationConfiguration: startupPresentationConfiguration);
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);

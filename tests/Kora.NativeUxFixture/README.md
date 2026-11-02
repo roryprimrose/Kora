@@ -10,6 +10,20 @@ capture seam with a synthetic endpoint and transcript callbacks. This mode
 never opens an audio device and is not exposed by the interactive launcher.
 The default fixture still denies microphone permission and capture.
 
+The [reviewed-command native regression](../Kora.Windows.IntegrationTests/PushToTalkUiContractTests.cs)
+uses the existing fixture clock and an injected response-inactivity clock to drive
+the native timeout callback during capture, review and a barrier-held dispatch.
+It verifies visible review, actual corrected VOICE-origin command completion,
+capture release, explicit hide cancellation and resumed ordinary auto-hide.
+The held dispatcher is released and joined before fixture disposal. Timeout
+expiry is clock-driven; no real microphone, provider or renewed authority is used.
+
+Headless startup settings tests pass the optional typed configuration services
+through the timed initialization wrapper into the real `MainViewModel`.
+The [manual startup regressions](../Kora.Windows.IntegrationTests/StartupPresentationTests.cs)
+verify that the injected service owns native status, review, confirmation and
+saved-intent readback; ordinary fixture initialization leaves it unavailable.
+
 The setup phase forwards the supplied typed voice runtime and speech-input
 configuration together into the real view model. Headless custom-name cutover
 regressions require their exact profile generation to agree and keep capture
@@ -17,8 +31,8 @@ quiescent until consent and reviewed selection. Omitted overrides retain the
 default fixture boundaries; setup failures and cancellation propagate without
 substituting those defaults.
 
-The same timed setup forwards optional Details and conversation-execution
-configuration independently; omitted services remain unavailable. The
+The same timed setup forwards optional Details, conversation-execution and
+manual startup-presentation configuration independently; omitted services remain unavailable. The
 [composition regressions](../Kora.Windows.IntegrationTests/DetailPresentationSettingsTests.cs)
 retain separate reviewed confirmation, no audio effects and exact terminal phase
 evidence alongside custom-name voice overrides.
@@ -29,6 +43,12 @@ Inspect is counted separately from resets and refreshes; the Responses tab has
 five cogs, five reset actions, three refreshes and one nonmutating inspection.
 Native checks retain exact command identity, enabled state, accessible names and
 top-right layout, with no standalone reset buttons.
+Together with the independent manual startup setting, the complete inventory
+contains 35 unique reset bindings and 38 cogs; Appearance retains 16 cogs and resets.
+The [Details lifecycle regressions](../Kora.Windows.IntegrationTests/SessionsConversationTests.DetailOffers.cs)
+hold an actual passive refresh continuation across native consumer closure.
+Its cancellation and resource join must complete without clearing or notifying
+the retired presentation again; an open consumer still publishes normally.
 
 Evidence capture serializes delivery per sink and provider disposal waits for active
 callbacks and joins accepted writes before scratch cleanup. The buffered presence

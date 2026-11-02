@@ -174,11 +174,13 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         LogonStartupConfigurationService? logonStartupConfiguration = null,
         DetailPresentationConfigurationService? detailPresentationConfiguration = null,
         ConversationExecutionConfigurationService? conversationExecution = null,
+        StartupPresentationConfigurationService? startupPresentationConfiguration = null,
         IQuestionVoiceRecognitionService? voiceRecognition = null, SpeechInputConfigurationService? speechInputConfiguration = null)
     {
         using var setup = BeginPhase(NativeFixturePhase.Setup);
         await setup.RunAsync(() => InitializeCoreAsync(webPageGet, webSummary, callState, dispatcher, modelReasoner,
             modelProbe, speechComponentSetup, logonStartupConfiguration, detailPresentationConfiguration, conversationExecution,
+            startupPresentationConfiguration,
             voiceRecognition, speechInputConfiguration));
     }
 
@@ -190,6 +192,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         LogonStartupConfigurationService? logonStartupConfiguration,
         DetailPresentationConfigurationService? detailPresentationConfiguration,
         ConversationExecutionConfigurationService? conversationExecution,
+        StartupPresentationConfigurationService? startupPresentationConfiguration,
         IQuestionVoiceRecognitionService? voiceRecognition, SpeechInputConfigurationService? speechInputConfiguration)
     {
         if (initialized) { throw new InvalidOperationException("A fixture session may be initialized only once."); }
@@ -265,6 +268,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             speechTextConfiguration: captionConfiguration,
             webPageGet: webPageGet, speechComponentSetup: speechComponentSetup, logonStartupConfiguration: logonStartupConfiguration,
             detailPresentationConfiguration: detailPresentationConfiguration, conversationExecution: conversationExecution,
+            startupPresentationConfiguration: startupPresentationConfiguration,
             speechInputConfiguration: speechInputConfiguration);
         if (webSummary is not null) { Main.BindWebSummaryWorkflow(webSummary); }
         Main.BindCallOwnershipGate(() => Access.Open);

@@ -121,6 +121,19 @@ internal sealed partial class SessionsViewModel(
         !closed && (selected?.Authority.SessionId == session || workSnapshot?.Session.Authority.SessionId == session
         || string.Equals(historySessionId, session.Value.ToString("D"), StringComparison.Ordinal));
 
+    internal void RevokeSessionPresentation(HostId<SessionIdentity> session)
+    {
+        RetireUnsent(session);
+        detailSelections.Remove(session);
+        if (ReferencesSession(session))
+        {
+            ClearContentSearch();
+            ClearSelection();
+            historySessionId = string.Empty;
+        }
+        RevokeSessionList();
+    }
+
     internal void RevokeSessionList()
     {
         ClearLocalEvents();
@@ -552,8 +565,12 @@ internal sealed partial class SessionsViewModel(
     public Task RenameAsync() => RunAsync(async () =>
     {
         var target = RequireSelected();
-        selected = await service.RenameAsync(target.Authority.SessionId, target.Authority.Generation,
+        var epoch = selectionEpoch;
+        var renamed = await service.RenameAsync(target.Authority.SessionId, target.Authority.Generation,
             target.Metadata?.Revision.Value ?? 0, new(nameDraft), RequestOrigin.LocalUi, lifetime.Token);
+        if (closed || selectionEpoch != epoch || selected != target)
+        { throw new OperationCanceledException("The original rename presentation was retired; inspect the exact committed receipt."); }
+        selected = renamed;
         Render();
         status = "Committed rename for exact ID " + selected.Authority.SessionId.Value.ToString("D")
             + ". Lifecycle, generation, work and approvals unchanged. Refresh for the current list.";
@@ -619,7 +636,7 @@ internal sealed partial class SessionsViewModel(
         bool dispatchControl = false, RequestOrigin origin = RequestOrigin.LocalUi,
         IEnumerable<ActivityLink>? activityLinks = null)
     {
-        if (busy || closed || passive && refreshingWork
+        if (busy && !(passive && conversationBusy) || closed || passive && refreshingWork
             || routineNoticeControl && changingRoutineQuiet || dispatchControl && changingQueueControl) { return; }
         var subject = selected?.Authority.SessionId;
         var epoch = selectionEpoch;
@@ -639,7 +656,11 @@ internal sealed partial class SessionsViewModel(
         }
         catch (OperationCanceledException)
         {
-            if (dispatchControl && !closed && access.CanInspect
+            if (closed)
+            {
+                activity.Complete(HostOperationOutcome.Cancelled);
+            }
+            else if (dispatchControl && !closed && access.CanInspect
                 && (selected?.Authority.SessionId != subject || selectionEpoch != epoch))
             {
                 activity.Complete(HostOperationOutcome.Cancelled);
@@ -669,7 +690,11 @@ internal sealed partial class SessionsViewModel(
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            if (dispatchControl && !closed && access.CanInspect
+            if (closed)
+            {
+                activity.Complete(HostOperationOutcome.Failed);
+            }
+            else if (dispatchControl && !closed && access.CanInspect
                 && (selected?.Authority.SessionId != subject || selectionEpoch != epoch))
             {
                 activity.Complete(HostOperationOutcome.Failed);
@@ -701,7 +726,14 @@ internal sealed partial class SessionsViewModel(
         }
         finally
         {
-            if (dispatchControl)
+            if (closed)
+            {
+                if (dispatchControl) { changingQueueControl = false; }
+                else if (routineNoticeControl) { changingRoutineQuiet = false; }
+                else if (passive) { refreshingWork = false; }
+                else { busy = false; }
+            }
+            else if (dispatchControl)
             {
                 changingQueueControl = false;
                 NotifyQueue();
@@ -730,7 +762,7 @@ internal sealed partial class SessionsViewModel(
                 NotifyHistory();
             }
             else { busy = false; Notify(); }
-            if (closed && !busy && !refreshingWork && !changingRoutineQuiet && !changingQueueControl) { lifetime.Dispose(); }
+            if (closed && !busy && !refreshingWork && !changingRoutineQuiet && !changingQueueControl && !changingConversationNotice) { lifetime.Dispose(); }
         }
     }
 
@@ -785,7 +817,7 @@ internal sealed partial class SessionsViewModel(
         composerBody = string.Empty;
         RevokeListSearchPresentation();
         lifetime.Cancel();
-        if (!busy && !protectingComposer && !refreshingWork && !changingRoutineQuiet && !changingQueueControl) { lifetime.Dispose(); }
+        if (!busy && !protectingComposer && !refreshingWork && !changingRoutineQuiet && !changingQueueControl && !changingConversationNotice) { lifetime.Dispose(); }
         sessions = null;
         ClearSelection();
         Notify();

@@ -49,6 +49,16 @@ public sealed partial class MainViewModel
 
     public Func<bool> CaptureDefinitionObservationEligibility() => CapturePromptSelection();
 
+    public Func<bool> CapturePromptAuthoringEligibility()
+    {
+        var input = CaptureDefinitionObservationEligibility();
+        var channel = CaptureInstructionRefinementEligibility();
+        var mode = providerModeConfiguration?.Get().Revision;
+        var profile = providerProfileConfiguration?.Get();
+        return () => input() && channel() && providerModeConfiguration?.Get().Revision == mode
+            && providerProfileConfiguration?.Get() == profile;
+    }
+
     public Func<bool> CaptureInstructionRefinementEligibility()
     {
         var input = CaptureManualCallInput(Kora.Core.Diagnostics.HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi, CallPolicyRevision);

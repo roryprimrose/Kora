@@ -26,8 +26,10 @@ public static class CustomizationLayout
     public static string Template(CustomizationKind kind, string name) => kind switch
     {
         CustomizationKind.McpServer => "{\n  \"type\": \"http\",\n  \"url\": \"https://example.invalid/mcp\"\n}\n",
-        CustomizationKind.Instruction or CustomizationKind.Prompt =>
+        CustomizationKind.Instruction =>
             $"---\nkora-format: 1\nname: {name}\ndescription: Describe when to use this {kind.ToString().ToLowerInvariant()}.\n---\n\nWrite the guidance here.\n",
+        CustomizationKind.Prompt =>
+            $"---\nkora-format: 2\nname: {name}\ndescription: Describe when to use this prompt.\n---\n\nWrite the saved user request here.\n",
         _ => $"---\nname: {name}\ndescription: Describe when to use this {kind.ToString().ToLowerInvariant()}.\n---\n\nWrite the guidance here.\n",
     };
 }

@@ -1,4 +1,4 @@
 namespace Kora.Application.Definitions;
 
 public sealed record CustomizationAuthoringContext(string? Component,
-    CustomizationAuthoringMode Mode = CustomizationAuthoringMode.FromRequest);
+    CustomizationAuthoringMode Mode = CustomizationAuthoringMode.FromRequest, string? RequiredPromptInputs = null);

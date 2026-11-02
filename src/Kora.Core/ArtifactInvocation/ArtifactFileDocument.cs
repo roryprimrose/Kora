@@ -37,6 +37,15 @@ public sealed partial class ArtifactFileDocument
             Definition.Kind, Definition.Source, Definition.OwnedInstructionName!);
     }
 
+    public ArtifactFileDocument WithPromptBody(string body)
+    {
+        RequireEditableInstruction();
+        if (Definition.Kind != ArtifactKind.Prompt)
+        { throw new InvalidDataException("Template authoring supports owned user-request prompts only."); }
+        return Parse(Encode(Text[..(Text.Length - Body.Length)] + body, HasBom),
+            Definition.Kind, Definition.Source, Definition.OwnedInstructionName!);
+    }
+
     public static ArtifactFileDocument PrepareOwnedSave(ArtifactKind kind, string name,
         OwnedInstructionSnapshot? original, string draft)
     {

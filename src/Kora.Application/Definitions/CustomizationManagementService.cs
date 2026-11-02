@@ -94,9 +94,14 @@ public sealed partial class CustomizationManagementService(ICustomizationStore s
             return true;
         }, token);
 
+    public Func<CancellationToken, Task> CaptureAuthoringSourceValidation(CustomizationSource source,
+        CustomizationSnapshot? expected, Func<bool> eligible) =>
+        token => RequireUnchangedSourceCore(source, expected, eligible, token);
+
     private async Task RequireUnchangedSourceCore(CustomizationSource source, CustomizationSnapshot? expected,
         Func<bool> current, CancellationToken token)
     {
+        Require(current, token);
         if (expected is null)
         {
             var destination = await store.Create(source.Kind, source.Scope, source.Name, token).ConfigureAwait(false);

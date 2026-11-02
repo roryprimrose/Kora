@@ -37,6 +37,8 @@ manual startup-presentation configuration independently; omitted services remain
 retain separate reviewed confirmation, no audio effects and exact terminal phase
 evidence alongside custom-name voice overrides.
 
+The [native speech-comparison regression](../Kora.Windows.IntegrationTests/SpeechComparisonNativeUiTests.cs) composes those three preferences alongside the inert comparison runtime through both initialization layers. Review, capture, cancellation, recovery and close leave all three preferences unsaved; fixture composition alone grants no microphone or preference-write authority.
+
 The [settings reset inventory](../Kora.Windows.IntegrationTests/SettingsResetMenuTests.cs)
 includes the reviewed Details reset with its exact native lifetime guard.
 Inspect is counted separately from resets and refreshes; the Responses tab has

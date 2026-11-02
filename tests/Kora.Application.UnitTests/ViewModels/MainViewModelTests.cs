@@ -4686,6 +4686,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(Kora.Application.Communication.ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
+            .Concat(ForegroundPttCommand.FixedPhrases)
             .Concat(ResponseWindowCommand.FixedPhrases)
             .Concat(ProviderModeCommand.FixedPhrases)
             .Concat(ProviderProfileCommand.FixedPhrases)

@@ -1,4 +1,3 @@
-using Avalonia;
 using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Headless;
@@ -41,7 +40,7 @@ public sealed class ForegroundPttUiContractTests
             var response = new ResponseWindow(fixture.Main);
             try
             {
-                response.Show(); await Activate(response); response.UpdateLayout();
+                response.Show(); Activate(response); response.UpdateLayout();
                 response.FindControl<Button>("ExpandSessions")!.Focus().Should().BeTrue();
                 response.IsActive.Should().BeTrue();
                 Press(response, key);
@@ -103,11 +102,11 @@ public sealed class ForegroundPttUiContractTests
             var other = new Window();
             try
             {
-                response.Show(); await Activate(response); response.UpdateLayout();
+                response.Show(); Activate(response); response.UpdateLayout();
                 if (boundary is "background")
                 {
                     Deactivate(response);
-                    other.Show(); await Activate(other);
+                    other.Show(); Activate(other);
                     response.IsActive.Should().BeFalse();
                 }
                 if (boundary is "editor")
@@ -156,7 +155,7 @@ public sealed class ForegroundPttUiContractTests
             var response = new ResponseWindow(fixture.Main);
             try
             {
-                response.Show(); await Activate(response); response.UpdateLayout();
+                response.Show(); Activate(response); response.UpdateLayout();
                 var button = response.FindControl<Button>("PushToTalkButton")!;
                 button.Focus().Should().BeTrue();
                 Press(response, Key.Space); Release(response, Key.Space);
@@ -196,7 +195,7 @@ public sealed class ForegroundPttUiContractTests
             using var binding = new PushToTalkButtonBinding(window, button, fixture.Main);
             try
             {
-                window.Show(); await Activate(window); button.Focus().Should().BeTrue();
+                window.Show(); Activate(window); button.Focus().Should().BeTrue();
                 window.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
                 await fixture.Voice.Started.Task.WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
                 Release(window, Key.Space);
@@ -239,14 +238,14 @@ public sealed class ForegroundPttUiContractTests
             var other = new Window();
             try
             {
-                response.Show(); await Activate(response); response.UpdateLayout();
+                response.Show(); Activate(response); response.UpdateLayout();
                 Press(response, Key.Space);
                 await fixture.Voice.Started.Task.WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
                 switch (boundary)
                 {
                     case "deactivate":
                         Deactivate(response);
-                        other.Show(); await Activate(other);
+                        other.Show(); Activate(other);
                         response.IsActive.Should().BeFalse();
                         break;
                     case "hide": response.Hide(); break;
@@ -310,29 +309,18 @@ public sealed class ForegroundPttUiContractTests
 
     private static void Release(Window window, Key key) => window.KeyRelease(key, RawInputModifiers.None,
         key == Key.Space ? PhysicalKey.Space : key == Key.F9 ? PhysicalKey.F9 : PhysicalKey.None, null);
-    private static void Deactivate(Window window)
+    private static void Deactivate(Window window) => SetActivation(window, false);
+
+    private static void Activate(Window window) => SetActivation(window, true);
+
+    private static void SetActivation(Window window, bool active)
     {
-        // The native callback is an internal Avalonia interface member; invoke that seam, not window or authority fields.
-        var callback = typeof(Avalonia.Platform.IWindowBaseImpl).GetProperty("Deactivated",
+        // Drive the native callback deterministically; headless activation has no OS focus acknowledgement.
+        var callback = typeof(Avalonia.Platform.IWindowBaseImpl).GetProperty(active ? "Activated" : "Deactivated",
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
         callback.Should().NotBeNull();
         callback!.GetValue(window.PlatformImpl).Should().BeOfType<Action>().Which.Invoke();
-    }
-
-    private static async Task Activate(Window window)
-    {
-        var active = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        void Changed(object? sender, AvaloniaPropertyChangedEventArgs args)
-        {
-            if (args.Property == Window.IsActiveProperty && window.IsActive) { active.TrySetResult(); }
-        }
-        window.PropertyChanged += Changed;
-        try
-        {
-            window.Activate();
-            if (!window.IsActive) { await active.Task.WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken); }
-        }
-        finally { window.PropertyChanged -= Changed; }
+        window.IsActive.Should().Be(active);
     }
     private static async Task SaveShortcut(NativeUxFixtureSession fixture, ForegroundPttShortcut shortcut)
     {

@@ -405,7 +405,9 @@ internal sealed partial class SessionsViewModel(
     {
         LeaveListSearch();
         var retained = selected?.Authority.SessionId;
-        sessions = await service.ReadMetadataAsync(null, 25, lifetime.Token);
+        var page = await service.ReadMetadataAsync(null, 25, lifetime.Token);
+        if (closed || !access.CanInspect) { throw new OperationCanceledException("Private presentation closed."); }
+        sessions = page;
         if (retained is { } id && Sessions.Any(record => record.Authority.SessionId == id))
         {
             await RefreshSelectedWorkAsync();
@@ -419,8 +421,10 @@ internal sealed partial class SessionsViewModel(
     {
         if (!await ProtectComposerAsync()) { return; }
         if (listSearchMode) { throw new InvalidOperationException("Use Next metadata search or Refresh the ordinary list."); }
-        sessions = await service.ReadMetadataAsync(sessions?.Next
+        var page = await service.ReadMetadataAsync(sessions?.Next
             ?? throw new InvalidOperationException("Refresh before requesting a next page."), 25, lifetime.Token);
+        if (closed || !access.CanInspect) { throw new OperationCanceledException("Private presentation closed."); }
+        sessions = page;
         ClearSelection();
         status = "Next bounded authority page. Refresh for concurrent additions/changes.";
     });
@@ -805,6 +809,7 @@ internal sealed partial class SessionsViewModel(
         if (!busy && !protectingComposer && !refreshingWork && !changingRoutineQuiet && !changingQueueControl && !changingConversationNotice) { lifetime.Dispose(); }
         sessions = null;
         ClearSelection();
+        status = "Sessions closed; no late content or rollback of a possible committed lifecycle is claimed.";
         Notify();
     }
 

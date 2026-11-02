@@ -91,6 +91,11 @@ its runner.
 The [installed SAPI stream fixture](tests/Kora.Windows.IntegrationTests/Audio/BlockingAudioStreamTests.cs) owns recognizer construction through completion and disposal on a thread-pool task, independent of the caller's synchronization context. Its regression withholds caller-context callbacks while retaining the five-second completion budget, real stream-consumption assertion and error/cancellation checks.
 This fixture correction does not qualify installed recognizer latency or enable a runtime capability.
 
+Sessions metadata regressions hold both Refresh and Next reads across viewer
+closure, including stores that complete despite cancellation. Late pages must
+not repopulate rows or publish content through change notifications, alter
+session lifecycle, or admit work.
+
 The [bundled computer-power regressions](tests/Kora.Windows.IntegrationTests/ApplicationLifecycle/SessionsConversationTests.BundledActions.cs)
 wait for enabled native question controls after the activation-triggered source
 refresh before editing or confirming. Window-open notification alone does not

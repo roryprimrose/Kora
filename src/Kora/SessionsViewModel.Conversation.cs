@@ -55,6 +55,7 @@ internal sealed partial class SessionsViewModel
             }
             RestoreUnsent();
             CancelLocalRequestProfile();
+            ClearExpiredOrdinary();
             CancelTaskOutputReview();
             RetireReplyReview();
             composerBody = value;
@@ -366,6 +367,7 @@ internal sealed partial class SessionsViewModel
         CancelTaskOutputReview();
         CancelLocalRequestProfile();
         ClearFailedRetry();
+        ClearExpiredOrdinary();
         ClearMixedContext();
         ClearAnswerRead();
         ClearInstructionContext();
@@ -397,6 +399,7 @@ internal sealed partial class SessionsViewModel
         NotifyTaskOutput();
         NotifyLocalRequestProfile();
         NotifyFailedRetry();
+        NotifyExpiredOrdinary();
         RestoreUnsent();
         NotifyAssistantReply();
         NotifyMixedContext();

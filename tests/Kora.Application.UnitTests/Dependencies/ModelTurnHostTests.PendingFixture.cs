@@ -26,6 +26,21 @@ public sealed partial class ModelTurnHostTests
             HostRevision generation, long expectedMetadataRevision, string body, IReadOnlyList<HostRequest> predecessors,
             Func<bool> admitted, CancellationToken token) =>
             RetainConversationMessageAsync(request, generation, expectedMetadataRevision, body, admitted, token);
+
+        public async ValueTask<ConversationSubmissionReceipt> RetainOrdinaryPendingConversationAsync(HostRequest request,
+            HostRevision generation, long expectedMetadataRevision, string body, IReadOnlyList<HostRequest> predecessors,
+            ExpiredOrdinaryRequestSource? original, Func<bool> admitted, CancellationToken token)
+        {
+            var retained = await RetainPendingConversationMessageAsync(request, generation,
+                expectedMetadataRevision, body, predecessors, admitted, token);
+            var receipt = retained with
+            {
+                Message = retained.Message with { OrdinaryText = true, OriginalTextSource = original?.Message.Request }
+            };
+            RememberPendingRecord(receipt);
+            return receipt;
+        }
+
         public ValueTask<ConversationSubmissionReceipt> CancelPendingConversationSubmissionAsync(HostRequest request,
             SessionWorkspaceEntry expected, Func<bool> admitted, CancellationToken token)
         {

@@ -164,9 +164,15 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
         Func<bool> admitted, CancellationToken token) =>
         RetainConversationMessageCoreAsync(request, generation, expectedMetadataRevision, body, predecessors, admitted, token);
 
+    public ValueTask<ConversationSubmissionReceipt> RetainOrdinaryPendingConversationAsync(HostRequest request,
+        HostRevision generation, long expectedMetadataRevision, string body, IReadOnlyList<HostRequest> predecessors,
+        ExpiredOrdinaryRequestSource? original, Func<bool> admitted, CancellationToken token) =>
+        RetainConversationMessageCoreAsync(request, generation, expectedMetadataRevision, body, predecessors,
+            admitted, token, ordinaryText: true, original);
+
     private async ValueTask<ConversationSubmissionReceipt> RetainConversationMessageCoreAsync(HostRequest request,
         HostRevision generation, long expectedMetadataRevision, string body, IReadOnlyList<HostRequest>? predecessors,
-        Func<bool> admitted, CancellationToken token)
+        Func<bool> admitted, CancellationToken token, bool ordinaryText = false, ExpiredOrdinaryRequestSource? original = null)
     {
         try { ConversationText.Validate(body, submission: true); }
         catch (ConversationCredentialException)
@@ -185,10 +191,20 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
                 || session.Authority.Generation != generation
                 || (ReadMetadata(connection, request.SessionId)?.Revision.Value ?? 0) != expectedMetadataRevision || !admitted())
             { throw new InvalidOperationException("Submission requires the exact existing Active session and current private generation."); }
+            if (original is not null)
+            {
+                original.Validate();
+                if (!ordinaryText || original.Message.Request.SessionId != request.SessionId
+                    || original.Message.Generation != generation || !Same(original.Message.Body, body)
+                    || ReadConversationMessage(connection, original.Message.Request.RequestId) != original.Message
+                    || ReadTask(connection, original.Task.Request.TaskId) != original.Task)
+                { throw new InvalidOperationException("The reviewed historical original or no-dispatch evidence changed. No new request was accepted."); }
+            }
             var duplicate = ReadConversationMessage(connection, request.RequestId);
             if (duplicate is not null)
             {
-                if (duplicate.Request != request || duplicate.Generation != generation || !Same(duplicate.Body, body))
+                if (duplicate.Request != request || duplicate.Generation != generation || !Same(duplicate.Body, body)
+                    || duplicate.OrdinaryText != ordinaryText || duplicate.OriginalTextSource != original?.Message.Request)
                 { throw new InvalidOperationException("This submission identity already belongs to different immutable content."); }
                 return new ConversationSubmissionReceipt(duplicate, ReadTask(connection, request.TaskId)!);
             }
@@ -200,13 +216,17 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
             if (count >= ConversationText.MaximumSessionMessages)
             { throw new ConversationCapacityException(); }
             var message = new ConversationMessage(request, generation, count + 1, 1, time.GetUtcNow().ToUniversalTime(),
-                body, null, null);
+                body, null, null) { OrdinaryText = ordinaryText, OriginalTextSource = original?.Message.Request };
             var audit = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.SecurityApproval, "conversation.submit",
                 SecurityAuditOutcome.Succeeded,
                 request.Origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.TypedCommand,
                 Id(request.TaskId));
             using var activity = HostActivity.BeginAudit(request, audit);
             using var transaction = connection.BeginTransaction();
+            if (original is not null
+                && (ReadConversationMessage(connection, original.Message.Request.RequestId) != original.Message
+                    || ReadTask(connection, original.Task.Request.TaskId) != original.Task))
+            { throw new InvalidOperationException("The exact expired original changed before fresh request COMMIT."); }
             WindowsSqliteHostTaskStore.WriteTask(connection, transaction, intent);
             Execute(connection, transaction, "INSERT INTO host_task_runs VALUES($task,$run);",
                 ("$task", Id(request.TaskId)), ("$run", runId.ToString("D")));

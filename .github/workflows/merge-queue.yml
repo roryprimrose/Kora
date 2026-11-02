@@ -6,12 +6,16 @@ on:
   workflow_dispatch:
     inputs:
       acknowledge:
-        description: Separately authorized exact-ticket bootstrap with unchanged protected branches
+        description: Administrator verified no bypass actors on the exact lock revision and authorizes this ticket only
         type: boolean
         required: true
         default: false
       lock_ruleset:
         description: Verified active no-bypass lock for this immutable bootstrap branch
+        type: string
+        required: true
+      lock_version:
+        description: Immutable current ruleset history version verified by the administrator with full actor visibility
         type: string
         required: true
 

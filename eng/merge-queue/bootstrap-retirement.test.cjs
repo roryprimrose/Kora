@@ -8,7 +8,7 @@ const COMMITTED = 'e'.repeat(40);
 const clone = value => structuredClone(value);
 const options = () => ({ context: { repo: { owner: 'roryprimrose', repo: 'Kora' },
   actor: 'administrator', eventName: 'workflow_dispatch', ref: `refs/heads/${BRANCH}`,
-  sha: SOURCE, runId: 123 }, inputs: { acknowledge: true, lock_ruleset: '456' }, attempt: 1 });
+  sha: SOURCE, runId: 123 }, inputs: { acknowledge: true, lock_ruleset: '456', lock_version: '789' }, attempt: 1 });
 function fixture() {
   const caller = { id: 123, run_attempt: 1, event: 'workflow_dispatch', head_branch: BRANCH,
     head_sha: SOURCE, path: '.github/workflows/merge-queue.yml', status: 'in_progress',
@@ -24,6 +24,7 @@ function fixture() {
     ruleset: { id: 456, target: 'branch', enforcement: 'active', bypass_actors: [],
       conditions: { ref_name: { exclude: [], include: [`refs/heads/${BRANCH}`] } },
       rules: ['creation', 'update', 'deletion'].map(type => ({ type })) },
+    history: [{ version_id: 789 }],
     policies: { total_count: 2, branch_policies: ['main', BRANCH].map(name => ({ name, type: 'branch' })) },
     jobList: REJECTED_ADMISSION_JOBS.map((name, index) => ({ id: index + 1, name,
       run_id: RUN, run_attempt: 1, head_sha: EXPECTED.active.base, status: 'completed',
@@ -55,7 +56,10 @@ function fixture() {
         head_sha: EXPECTED.active.head, status: 'completed', conclusion: 'failure', ...api.checkChange } };
       } },
     },
-    async request(route) { return { data: clone(route.includes('rulesets') ? api.ruleset : api.policies) }; },
+    async request(route) {
+      return { data: clone(route.endsWith('/history') ? api.history
+        : route.includes('rulesets') ? api.ruleset : api.policies) };
+    },
   };
   return api;
 }
@@ -99,6 +103,8 @@ for (const [name, change] of Object.entries({
   'modified failed check': api => { api.checkChange = { conclusion: 'success' }; },
   'foreign check publisher': api => { api.checkChange = { app: { id: 100 } }; },
   'foreign repository': api => { api.repository = 'other/repository'; },
+  'changed lock revision': api => { api.history[0].version_id = 790; },
+  'missing lock revision': api => { api.history = []; },
 })) {
   test(`bootstrap rejects ${name} without writes or wakeups`, async () => {
     const api = fixture(); change(api);
@@ -113,6 +119,7 @@ test('fresh boundary observes authority, jobs and checkpoint changes on the seco
     api => { api.admin = false; },
     api => { api.jobList[0].status = 'in_progress'; },
     api => { api.commit = COMMITTED; },
+    api => { api.history[0].version_id = 790; },
   ]) {
     const api = fixture();
     api.hook = event => { if (event === 'load' && api.loads === 1) change(api); };
@@ -137,6 +144,7 @@ test('unknown acknowledgement, event, branch, attempt, repository and ruleset fa
     input => { input.inputs.acknowledge = false; },
     input => { input.inputs.acknowledge = 'true'; },
     input => { input.inputs.lock_ruleset = '456x'; },
+    input => { delete input.inputs.lock_version; },
     input => { input.attempt = 2; },
     input => { input.context.eventName = 'push'; },
     input => { input.context.ref = 'refs/heads/main'; },
@@ -145,4 +153,15 @@ test('unknown acknowledgement, event, branch, attempt, repository and ruleset fa
     await assert.rejects(bootstrap(api, input));
     assert.equal(api.saves.length, 0);
   }
+});
+
+test('redacted bypass inventory requires the exact still-current administrator-attested immutable revision', async () => {
+  const api = fixture();
+  delete api.ruleset.bypass_actors;
+  assert.equal(await bootstrap(api, options()), 'recovered');
+  const changed = fixture();
+  delete changed.ruleset.bypass_actors;
+  changed.history[0].version_id = 790;
+  await assert.rejects(bootstrap(changed, options()), /lock revision changed/);
+  assert.equal(changed.saves.length, 0);
 });

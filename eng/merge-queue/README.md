@@ -515,6 +515,7 @@ an automatic state rewrite.
 
 This recovery-only branch contains an explicitly authorized [one-time bootstrap](bootstrap-retirement.cjs), not a controller rollout. Its manual workflow requires an immutable no-bypass branch lock and temporary environment allowance, verifies the exact reviewed checkpoint and terminal run twice, preserves failed checks and blocked revisions, and wakes only ordinary reconciliation.
 Revoke that allowance before unlocking the branch. Never merge this branch's recovery-only workflow into main ([tests](bootstrap-retirement.test.cjs), [workflow](../../.github/workflows/merge-queue.yml)).
+Read-only App administration omits bypass actors. The administrator verifies their complete absence and attests the exact immutable ruleset history version; the App requires that version to remain current at both boundaries. Missing or changed history denies recovery without increasing App permissions ([revision fence](bootstrap-retirement.cjs)).
 
 One reconciliation quarantines up to ten newly selected conflicting revisions
 in priority/PR-number order and continues looking for a runnable candidate,

@@ -804,13 +804,13 @@ settings, consent/privacy downgrade, general registry or full R10/R09 acceptance
 
 ### Delivered bounded appearance subset (R10)
 
-Twelve independently persisted options are admitted:
+Thirteen independently persisted options are admitted:
 `appearance.theme`, `appearance.presence-display`, `appearance.presence-timeout`,
 `appearance.response-timeout`, `appearance.presence-size`,
 `appearance.dot-size`, `appearance.dot-density`,
 `appearance.movement-speed`, `appearance.speech-scaling` and
 `appearance.speech-scale-amount`, `appearance.reader-text-scale`, and
-`appearance.native-presence-renderer`. The [end-user reference](../docs/settings.md#appearance)
+`appearance.native-presence-renderer` and `appearance.reduced-motion`. The [end-user reference](../docs/settings.md#appearance)
 lists their exact types, units, defaults and bounds. Each descriptor declares
 device-local scope, appearance-only effect, local-host availability,
 immediate-after-save timing and per-option reset. Animation driven by playback
@@ -838,8 +838,8 @@ use the same service and notify all open surfaces. Cancellation is checked
 before the existing synchronous atomic write; cancellation after commit does
 not report an unsaved change. Save failure retains the previous value/revision
 and produces visible failure; stale proposals require a new operation.
-Reset restores one admitted default; no multi-file transaction, whole-profile
-reset or undo is implemented. Shared response-window pin/topmost/position
+Reset restores one admitted default; no multi-file transaction or whole-profile
+reset is implemented. Registered appearance options retain [single-change undo](#delivered-single-registered-preference-undo). Shared response-window pin/topmost/position
 and presence placement remain outside the appearance registry. The two existing
 response-window Booleans additionally have [bounded exact typed/current-name command parity](../docs/commands.md#inspect-or-change-koras-response-window-visibility-preferences),
 using the same native setters, tuple-preserving atomic path and
@@ -849,6 +849,10 @@ using the same native setters, tuple-preserving atomic path and
 Other voice/audio/call/manual state, grants, models, retention, dependencies and
 startup are not registered. No model tools or broader execution authority
 are exposed by the appearance slice.
+
+The explicit reduced-motion Boolean defaults to false (follow Windows); true freezes particle movement in both presenters. False/reset never overrides Windows reduced motion. Speech sizing and finite colour/visibility transitions remain independent. Native controls, exact typed/current-name voice commands and inert model suggestions use the existing shared service; model suggestions and undo retain separate native review/confirmation ([domain precedence](../src/Kora.Core/Configuration/ReducedMotionSettings.cs), [live binding](../src/Kora/Controls/PresenceMotionBinding.cs)).
+
+The preference uses the shared atomic store and strict domain parsing. Save/readback/audit failures remain explicit; no failed operation grants undo authority. Successful changes qualify for the existing run-only last-change receipt, not a durable history or rollback promise ([persistence](../src/Kora.Application/Configuration/LocalAppearancePreferences.cs), [setting owner](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs), [undo](../src/Kora.Application/Configuration/RegisteredSettings/AppearanceConfigurationService.Undo.cs)).
 
 The reader option is the separately bounded native [source/detail, complete serialized Evidence-page and observed speech-caption content typography contract](Information_Display.md#bounded-native-reader-text-scale): absolute integer percent, default 100, inclusive 75–200. Its original input/host eligibility is rechecked at commit; atomic pending evidence stays held until exact readback and successful audit. A failed terminal receipt does not claim disk rollback and new readers reject unconfirmed evidence. Open Evidence readers and captions retire explicitly when preference evidence becomes unavailable; no chrome or global UI scale is added. Caption labels, pin/display controls, accessible names, geometry, enablement, speech and privacy/call/source lifetimes are unchanged. Existing option formats and migrations are preserved ([workflow](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs), [store](../src/Kora.Application/Configuration/LocalReaderTextScalePreferences.cs)).
 

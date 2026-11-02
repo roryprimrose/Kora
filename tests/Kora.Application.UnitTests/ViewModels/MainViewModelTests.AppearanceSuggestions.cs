@@ -30,6 +30,8 @@ public sealed partial class MainViewModelTests
     [Theory]
     [InlineData(AppearanceOption.PresenceDisplay, "false")]
     [InlineData(AppearanceOption.PresenceDisplay, "true")]
+    [InlineData(AppearanceOption.ReducedMotion, "false")]
+    [InlineData(AppearanceOption.ReducedMotion, "true")]
     [InlineData(AppearanceOption.PresenceTimeout, "1")]
     [InlineData(AppearanceOption.PresenceTimeout, "60")]
     [InlineData(AppearanceOption.PresenceSize, "240")]
@@ -80,6 +82,7 @@ public sealed partial class MainViewModelTests
             AppearanceValue consumer = option switch
             {
                 AppearanceOption.PresenceDisplay => new AppearanceValue.Toggle(f.ViewModel.IsPresenceDisplayEnabled),
+                AppearanceOption.ReducedMotion => new AppearanceValue.Toggle(f.ViewModel.IsReducedMotionEnabled),
                 AppearanceOption.PresenceTimeout => new AppearanceValue.Number(f.ViewModel.PresenceTimeoutSeconds),
                 AppearanceOption.PresenceSize => new AppearanceValue.Number(f.ViewModel.PresenceSizePixels),
                 AppearanceOption.DotSize => new AppearanceValue.Number(f.ViewModel.PresenceDotSizePercent),
@@ -111,6 +114,7 @@ public sealed partial class MainViewModelTests
 
     [Theory]
     [InlineData(AppearanceOption.PresenceDisplay, "false")]
+    [InlineData(AppearanceOption.ReducedMotion, "true")]
     [InlineData(AppearanceOption.PresenceTimeout, "60")]
     [InlineData(AppearanceOption.PresenceSize, "600")]
     [InlineData(AppearanceOption.DotSize, "50")]

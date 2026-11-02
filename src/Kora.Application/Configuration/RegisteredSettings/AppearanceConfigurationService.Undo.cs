@@ -13,6 +13,8 @@ public sealed partial class AppearanceConfigurationService
     private readonly Dictionary<AppearanceOption, Func<AppearanceValue?>> readRegistered = new()
     {
         [AppearanceOption.Theme] = () => preferences.LoadThemeMode() is { } theme ? new AppearanceValue.Theme(theme) : null,
+        [AppearanceOption.ReducedMotion] = () => preferences.LoadReducedMotionEnabled() is { } reducedMotion
+            ? new AppearanceValue.Toggle(reducedMotion) : null,
         [AppearanceOption.ReaderTextScale] = () => Number(preferences.LoadReaderTextScalePercent()),
         [AppearanceOption.PresenceDisplay] = () => preferences.LoadPresenceDisplayEnabled() is { } display ? new AppearanceValue.Toggle(display) : null,
         [AppearanceOption.PresenceTimeout] = () => Number(preferences.LoadPresenceTimeoutSeconds()),

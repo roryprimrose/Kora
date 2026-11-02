@@ -8,6 +8,18 @@ namespace Kora.Application.UnitTests.Configuration;
 public sealed class NaturalAppearanceCommandTests
 {
     [Theory]
+    [InlineData("use reduced motion", true)]
+    [InlineData("follow system motion", false)]
+    [InlineData("Nova, USE REDUCED MOTION", true)]
+    public void ParseReducedMotionIsAnAbsolutePreferenceNotASystemOverride(string text, bool reduce)
+    {
+        var command = NaturalAppearanceCommand.Parse(text, "Nova")!;
+        command.Operation.Should().Be(AppearanceCommandOperation.Set);
+        command.Descriptor!.Option.Should().Be(AppearanceOption.ReducedMotion);
+        command.Value.Should().Be(new AppearanceValue.Toggle(reduce));
+    }
+
+    [Theory]
     [InlineData("use dark mode", ApplicationThemeMode.Dark)]
     [InlineData("use light mode", ApplicationThemeMode.Light)]
     [InlineData("use system theme", ApplicationThemeMode.System)]
@@ -64,6 +76,8 @@ public sealed class NaturalAppearanceCommandTests
 
     [Theory]
     [InlineData("use dark mode")]
+    [InlineData("use reduced motion")]
+    [InlineData("follow system motion")]
     [InlineData("get reader text scale")]
     [InlineData("set reader text scale to 125 percent")]
     public void ParseRequiresCurrentNameForVoiceButNotTypedInput(string text)

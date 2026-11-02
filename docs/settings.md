@@ -721,12 +721,12 @@ required queued setup task.
 
 ## Appearance
 
-The tab groups **Appearance** controls first (theme, reader text scale and response-window behavior), followed by **Presence** controls (visibility, timeout and animation). Each field has a cog actions button at the top right of its card, inside the card padding. Clicking it opens **Reset setting**, affecting only that field ([settings layout](../src/Kora/SettingsWindow.axaml)).
+The tab groups **Appearance** controls first (theme, reader text scale, reduced motion and response-window behavior), followed by **Presence** controls (visibility, timeout and animation). Each field has a cog actions button at the top right of its card, inside the card padding. Clicking it opens **Reset setting**, affecting only that field ([settings layout](../src/Kora/SettingsWindow.axaml)).
 
 The existing controls and exact typed/activated-voice commands share one
 host-owned, typed appearance service. No model or network is needed. Enter
-**list appearance settings** to inspect the twelve admitted options, units,
-defaults, bounds, scope and application timing.
+**list appearance settings** to inspect the thirteen admitted options, units,
+defaults, bounds, scope and application timing ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs)).
 
 | ID | Default | Values / units |
 |---|---|---|
@@ -742,6 +742,7 @@ defaults, bounds, scope and application timing.
 | `appearance.speech-scale-amount` | `100` | 0-200 percent |
 | `appearance.reader-text-scale` | `100` | 75-200 integer percent; native source/detail and complete serialized Evidence bodies only ([domain](../src/Kora.Core/Configuration/ReaderTextScaleSettings.cs)) |
 | `appearance.native-presence-renderer` | `false` | `false` = Avalonia; `true` = Native (experimental); an environment startup default applies only without a saved choice |
+| `appearance.reduced-motion` | `false` | `true` freezes presence particles; `false` follows Windows, never overrides Windows reduced motion ([precedence](../src/Kora.Core/Configuration/ReducedMotionSettings.cs)) |
 
 Use **get appearance.theme**, **set appearance.theme to dark**, or
 **reset appearance.theme**; substitute another listed ID and its typed value.
@@ -793,8 +794,9 @@ the other backend. Uncertain retirement requires normal exit, not a storage or
 ownership reset. Native remains experimental; this does not qualify laptop
 rendering performance or full physical interaction.
 Both modes keep every visible state gently moving, including coral failures.
-Windows reduced-motion preferences still freeze particle movement, and hidden
-or ineligible surfaces do not keep animating.
+The **Reduced motion** checkbox, **use reduced motion** command or **set appearance.reduced-motion to true** freezes particle movement immediately after confirmed save in both modes. **Follow system motion**, false or reset returns to Windows behavior; Windows reduced motion still wins. Speech sizing and brief colour/visibility transitions remain independent, and hidden or ineligible surfaces do not keep animating ([binding](../src/Kora/Controls/PresenceMotionBinding.cs), [particle consumer](../src/Kora/Controls/PresenceControl.cs)).
+
+The preference reloads on restart. A model's exact reduced-motion suggestion changes nothing until a separate native review and confirmation; the existing **Undo the last settings change** also requires native review/confirmation for appearance. Failed writes are reported rather than shown as saved, and unknown outcomes never promise rollback ([appearance review](../src/Kora.Application/Configuration/AppearanceSuggestionReview.cs), [storage](../src/Kora.Application/Configuration/LocalAppearancePreferences.cs), [undo](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
 
 The saved renderer choice overrides `KORA_PRESENCE_RENDERER` on later startups.
 With no saved choice, unset/`avalonia` uses Avalonia and `native` opts into the

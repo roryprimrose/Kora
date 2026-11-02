@@ -31,6 +31,7 @@ public sealed partial class MainViewModel
     private readonly AppearanceConfigurationService appearanceConfiguration;
     private string appearanceSettingStatus = AppearanceCommand.Syntax;
     private int readerTextScalePercent = ReaderTextScaleSettings.DefaultPercent;
+    private bool isReducedMotionEnabled = ReducedMotionSettings.DefaultEnabled;
     private readonly Dictionary<AppearanceOption, PendingAppearance> pendingAppearance = [];
     private bool applyingAppearance;
     private Task appearancePersistence = Task.CompletedTask;
@@ -75,6 +76,12 @@ public sealed partial class MainViewModel
         set => QueueAppearance(AppearanceOption.ReaderTextScale, new AppearanceValue.Number(value), nameof(ReaderTextScalePercent));
     }
 
+    public bool IsReducedMotionEnabled
+    {
+        get => isReducedMotionEnabled;
+        set => QueueAppearance(AppearanceOption.ReducedMotion, new AppearanceValue.Toggle(value), nameof(IsReducedMotionEnabled));
+    }
+
     public void EnsureReaderTypographyAvailable()
     {
         if (IsReaderTypographyUpdatePending)
@@ -101,6 +108,7 @@ public sealed partial class MainViewModel
     public IReadOnlyList<AppearanceOptionDescriptor> AppearanceOptions => AppearanceOptionRegistry.Options;
     public AsyncCommand ResetThemeCommand { get; }
     public AsyncCommand ResetReaderTextScaleCommand { get; }
+    public AsyncCommand ResetReducedMotionCommand { get; }
     public AsyncCommand ResetResponseTimeoutCommand { get; }
     public AsyncCommand ResetResponseAlwaysVisibleCommand { get; }
     public AsyncCommand ResetResponseWindowTopmostCommand { get; }
@@ -132,6 +140,8 @@ public sealed partial class MainViewModel
         {
             switch (descriptor.Option, appearanceConfiguration.Get(descriptor.Option).Value)
             {
+                case (AppearanceOption.ReducedMotion, AppearanceValue.Toggle boolean):
+                    SetProperty(ref isReducedMotionEnabled, boolean.Value, nameof(IsReducedMotionEnabled)); break;
                 case (AppearanceOption.NativePresenceRenderer, AppearanceValue.Toggle boolean):
                     nativePresenceRendererObserved = true;
                     if (isNativePresenceRenderer != boolean.Value)
@@ -255,8 +265,12 @@ public sealed partial class MainViewModel
                     finally
                     {
                         AppearanceSettingStatus = "Appearance preference not confirmed. Inspect saved preference evidence before explicit repair.";
-                        ShowFailure(next.Key == AppearanceOption.ReaderTextScale
-                            ? "Native reader text scale is unavailable." : "The appearance setting was not saved.", AppearanceSettingStatus);
+                        ShowFailure(next.Key switch
+                        {
+                            AppearanceOption.ReaderTextScale => "Native reader text scale is unavailable.",
+                            AppearanceOption.ReducedMotion => "Reduced motion preference is not confirmed.",
+                            _ => "The appearance setting was not saved.",
+                        }, AppearanceSettingStatus);
                     }
                 }
                 finally

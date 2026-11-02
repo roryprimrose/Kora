@@ -1385,6 +1385,8 @@ Original typed input also accepts these whole-utterance commands; voice requires
 - **use dark mode**
 - **use light mode**
 - **use system theme**
+- **use reduced motion**
+- **follow system motion**
 - **get reader text scale**
 - **status reader text scale**
 - **reset reader text scale**
@@ -1401,8 +1403,10 @@ Invalid results clarify without clamping. Missing/corrupt/unconfirmed evidence i
 ([parser](../src/Kora.Application/Configuration/NaturalAppearanceCommand.cs), [confirmed state](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
 
 These aliases use the same admitted service, atomic preference/audit path and live notifications as exact IDs and native controls.
-They change only Kora's app theme or bounded native reader content typography: no OS/global UI scale, new content access, permission, speech/caption enablement or model-derived authority
+They change only Kora's app theme, bounded native reader content typography or presence particle-motion preference: no OS/global UI scale, new content access, permission, speech/caption enablement or model-derived authority
 ([executor](../src/Kora.Application/ViewModels/MainViewModel.Appearance.cs), [reader scope](../Design/Information_Display.md#bounded-native-reader-text-scale)).
+
+**Use reduced motion** sets `appearance.reduced-motion` to true; **follow system motion** sets it to false. False/reset follows Windows and cannot enable motion against a Windows reduced-motion request. Both use the same validated, audited preference as the native checkbox. Exact **get/status/set/reset appearance.reduced-motion** and its spoken target **appearance reduced motion** also work ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs), [precedence](../src/Kora.Core/Configuration/ReducedMotionSettings.cs)).
 
 ### Inspect or change an exact output choice
 

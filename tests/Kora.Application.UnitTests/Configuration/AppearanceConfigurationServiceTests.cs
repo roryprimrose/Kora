@@ -15,15 +15,17 @@ namespace Kora.Application.UnitTests.Configuration;
 public sealed partial class AppearanceConfigurationServiceTests
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void AppearanceCommitRechecksEligibilityBeforeAndAfterRequestedAudit(bool afterRequested)
+    [InlineData(false, AppearanceOption.Theme)]
+    [InlineData(true, AppearanceOption.Theme)]
+    [InlineData(false, AppearanceOption.ReducedMotion)]
+    [InlineData(true, AppearanceOption.ReducedMotion)]
+    public void AppearanceCommitRechecksEligibilityBeforeAndAfterRequestedAudit(bool afterRequested, AppearanceOption option)
     {
         var fixture = new Fixture();
-        var state = fixture.Service.Get(AppearanceOption.Theme);
+        var state = fixture.Service.Get(option);
         var eligible = afterRequested;
         fixture.Audit.BeforeRequested = () => eligible = false;
-        var proposal = fixture.Service.Propose(AppearanceOption.Theme, new AppearanceValue.Theme(ApplicationThemeMode.Dark),
+        var proposal = fixture.Service.Propose(option, Alternative(state.Descriptor),
             state.Revision, SecurityAuditInitiator.LocalUser, RequestOrigin.LocalUi, () => eligible);
         var apply = () => fixture.Service.Apply(proposal);
         apply.Should().Throw<InvalidOperationException>();
@@ -215,17 +217,19 @@ public sealed partial class AppearanceConfigurationServiceTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void Failed_save_retains_old_state_revision_and_disk_and_emits_failed_audit(bool accessDenied)
+    [InlineData(false, AppearanceOption.Theme)]
+    [InlineData(true, AppearanceOption.Theme)]
+    [InlineData(false, AppearanceOption.ReducedMotion)]
+    [InlineData(true, AppearanceOption.ReducedMotion)]
+    public void Failed_save_retains_old_state_revision_and_disk_and_emits_failed_audit(bool accessDenied, AppearanceOption option)
     {
         var fixture = new Fixture();
-        var before = fixture.Service.Get(AppearanceOption.Theme);
+        var before = fixture.Service.Get(option);
         var notifications = 0;
         fixture.Service.Changed += (_, _) => notifications++;
         fixture.Store.Failure = accessDenied ? new UnauthorizedAccessException("fixture access denied") : new IOException("fixture disk full");
-        var result = fixture.Service.Apply(fixture.Service.Propose(AppearanceOption.Theme,
-            new AppearanceValue.Theme(ApplicationThemeMode.Dark), before.Revision, SecurityAuditInitiator.VoiceCommand), TestContext.Current.CancellationToken);
+        var result = fixture.Service.Apply(fixture.Service.Propose(option,
+            Alternative(before.Descriptor), before.Revision, SecurityAuditInitiator.VoiceCommand), TestContext.Current.CancellationToken);
         result.Outcome.Should().Be(AppearanceApplyOutcome.Failed);
         result.Succeeded.Should().BeFalse();
         result.State.Should().Be(before);

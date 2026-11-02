@@ -488,6 +488,31 @@ the PR named in a payload.
 A five-minute scheduled reconciliation provides recovery from missed events and
 eventual review/mergeability updates; GitHub may delay schedules under load.
 
+### Admission rejection without candidate execution
+
+GitHub may leave a single skipped, unexpanded matrix job when **Admit CI
+execution** fails before version resolution. The controller can retire that
+first-attempt failed run only against an exact reviewed workflow blob and a
+complete, unique terminal job plan. Every candidate-executing producer,
+publication job and the literal matrix placeholder must be skipped; only the
+known guard-only aggregates may have failed or been cancelled. Missing, extra,
+duplicate, nonterminal, wrong-source or wrong-attempt observations retain the
+lane ([policy](policy.cjs), [adapter](github.cjs), [regressions](controller.test.cjs)).
+
+This is non-execution evidence, not successful validation. Required producer
+inventories, merge checks and coverage thresholds are unchanged. A successful
+admission, an expanded matrix, or a new workflow blob cannot use this exception.
+Workflow changes require a separate review of their execution gates and an
+explicit update of the pinned rejected-admission inventory. Both singleton and
+dormant batch retirement use the same classifier; a rejected batch still needs
+new full singleton proofs before any member can merge ([batch](batch.cjs)).
+
+The controller loads from protected main. Publishing a retirement repair does
+not itself update an already-running controller or authorize editing durable
+queue state. An existing held lane can therefore block adoption of its own
+repair; that requires a separately reviewed operator decision, not a bypass or
+an automatic state rewrite.
+
 One reconciliation quarantines up to ten newly selected conflicting revisions
 in priority/PR-number order and continues looking for a runnable candidate,
 rather than stopping at the first conflict. Previously blocked head/enrollment pairs do not

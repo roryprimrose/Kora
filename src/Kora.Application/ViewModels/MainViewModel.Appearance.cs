@@ -36,31 +36,48 @@ public sealed partial class MainViewModel
     private Task appearancePersistence = Task.CompletedTask;
     private Task appearanceSuggestionPersistence = Task.CompletedTask;
 
-    public async Task<AppearanceApplyResult> ConfirmAppearanceSuggestionAsync(AppearanceSuggestionReview review, CancellationToken token)
+    public Task<AppearanceApplyResult> ConfirmAppearanceSuggestionAsync(AppearanceSuggestionReview review, CancellationToken token) =>
+        ConfirmAppearanceSuggestionAsync(review, SecurityAuditInitiator.LocalUser, token);
+
+    private async Task<AppearanceApplyResult> ConfirmAppearanceSuggestionAsync(AppearanceSuggestionReview review,
+        SecurityAuditInitiator initiator, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(review);
         if (disposed || !appearanceSuggestionPersistence.IsCompleted)
         { throw new InvalidOperationException("Appearance confirmation is unavailable while the host is closing or another confirmation is pending."); }
-        var work = review.ConfirmAsync(token);
+        var work = review.ConfirmAsync(token, initiator);
         appearanceSuggestionPersistence = work;
         try { return await work; }
         finally { appearanceSuggestionPersistence = Task.CompletedTask; }
     }
 
-    public Task<AppearanceSuggestionReview> ReviewAppearanceSuggestionAsync(
+    public async Task<AppearanceSuggestionReview> ReviewAppearanceSuggestionAsync(
         Kora.Core.Conversation.ConversationMessage message, Func<bool> sourceCurrent,
         Func<CancellationToken, Task> validateSource, CancellationToken token)
     {
+        if (disposed || !appearanceSuggestionPersistence.IsCompleted)
+        { throw new InvalidOperationException("Appearance review is unavailable while closing or another operation is pending."); }
         var privacy = privacyObservation.Current.TopologyRevision;
         var call = CallPolicyRevision;
         var ownership = settingsOwnershipRevision();
         var binding = Interlocked.Read(ref settingsOwnershipBindingRevision);
+        var recovery = Volatile.Read(ref voiceRecoveryRevision);
+        var name = AssistantName;
+        var voice = message.Request.Origin == RequestOrigin.ActivatedVoice
+            || HostActivity.RequireCurrent().Request.Origin == RequestOrigin.ActivatedVoice;
         bool Eligible() => !disposed && IsCallMutationHostEligible && !IsProtectedCall
             && !IsBusy && !IsResponseInteractionPending && !applyingAppearance
             && privacyObservation.Current.TopologyRevision == privacy && CallPolicyRevision == call
             && settingsOwnershipRevision() == ownership
-            && Interlocked.Read(ref settingsOwnershipBindingRevision) == binding && sourceCurrent();
-        return AppearanceSuggestionReview.ReviewAsync(appearanceConfiguration, message, Eligible, validateSource, token);
+            && Interlocked.Read(ref settingsOwnershipBindingRevision) == binding
+            && Volatile.Read(ref voiceRecoveryRevision) == recovery
+            && string.Equals(AssistantName, name, StringComparison.Ordinal)
+            && (!voice || IsVoiceEnabled && HasVoiceConsent) && sourceCurrent();
+        var work = AppearanceSuggestionReview.ReviewAsync(appearanceConfiguration, communicationPolicy,
+            speechSuggestionBinding?.Time ?? TimeProvider.System, message, Eligible, validateSource, token);
+        appearanceSuggestionPersistence = work;
+        try { return await work.ConfigureAwait(false); }
+        finally { appearanceSuggestionPersistence = Task.CompletedTask; }
     }
 
     public Task AppearanceUpdate { get; private set; } = Task.CompletedTask;

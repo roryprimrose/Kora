@@ -92,6 +92,9 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .And.Contain("Only one native setting review").And.Contain("original local UI request")
             .And.Contain("Unconfirmed").And.Contain("not success or rollback")
             .And.Contain("No new static setting aliases").And.Contain("Unqualified/unavailable models remain unavailable");
+        guide.Should().Contain("review response timeout suggestion").And.Contain("confirm response timeout change")
+            .And.Contain("cancel response timeout review").And.Contain("not a provider/request deadline")
+            .And.Contain("Other appearance settings stay");
     }
 
     [Fact]
@@ -412,7 +415,13 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 26);
+        sections.Should().HaveCount(commands.Count + 27);
+        var timeoutSuggestion = sections.Single(section => section.StartsWith(
+            "Review one retained response-timeout suggestion", StringComparison.Ordinal));
+        foreach (var phrase in Kora.Application.Configuration.RegisteredSettings.RegisteredSettingSuggestionCommand.ResponseTimeoutPhrases)
+        { timeoutSuggestion.Should().Contain("`" + phrase + "`"); }
+        timeoutSuggestion.Should().Contain("not provider deadlines").And.Contain("Review saves nothing")
+            .And.Contain("Activated voice requires the current assistant-name prefix");
         var namedOpening = sections.Single(section => section.StartsWith(
             "Open a conversation by its readable name", StringComparison.Ordinal));
         namedOpening.Should().Contain("open conversation \"Exact readable name\"")
@@ -610,6 +619,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             && !ReferenceEquals(section, sessions) && !ReferenceEquals(section, speech)
             && !ReferenceEquals(section, sessionCommands) && !ReferenceEquals(section, summaries)).ToArray();
         sections = sections.Where(section => !ReferenceEquals(section, sharedSkills)
+            && !ReferenceEquals(section, timeoutSuggestion)
             && !ReferenceEquals(section, namedOpening)
             && !ReferenceEquals(section, speechSuggestion)
             && !ReferenceEquals(section, volumeSuggestion)

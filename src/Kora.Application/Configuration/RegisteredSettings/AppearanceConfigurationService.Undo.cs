@@ -16,6 +16,7 @@ public sealed partial class AppearanceConfigurationService
         [AppearanceOption.ReaderTextScale] = () => Number(preferences.LoadReaderTextScalePercent()),
         [AppearanceOption.PresenceDisplay] = () => preferences.LoadPresenceDisplayEnabled() is { } display ? new AppearanceValue.Toggle(display) : null,
         [AppearanceOption.PresenceTimeout] = () => Number(preferences.LoadPresenceTimeoutSeconds()),
+        [AppearanceOption.ResponseTimeout] = () => Number(preferences.LoadResponseTimeoutSeconds()),
         [AppearanceOption.PresenceSize] = () => Number(preferences.LoadPresenceSizePixels()),
         [AppearanceOption.DotSize] = () => Number(preferences.LoadPresenceDotSizePercent()),
         [AppearanceOption.DotDensity] = () => Number(preferences.LoadPresenceDotDensityPercent()),
@@ -45,14 +46,17 @@ public sealed partial class AppearanceConfigurationService
         UndoChanged?.Invoke(new(descriptor, Format(before), Format(after), () => MatchesRegistered(after),
             async (origin, initiator, policy, call, eligible, token) =>
             {
-                if (origin != RequestOrigin.LocalUi || initiator != SecurityAuditInitiator.LocalUser)
+                if (before.Descriptor.Option != AppearanceOption.ResponseTimeout
+                    && (origin != RequestOrigin.LocalUi || initiator != SecurityAuditInitiator.LocalUser))
                 { throw new InvalidOperationException("Registered appearance undo requires a new native review and confirmation."); }
                 bool Current() => eligible() && MatchesRegistered(after)
                     && policy.CheckMutation(origin, call, eligible) is null;
                 var proposal = Propose(before.Descriptor.Option, before.Value, after.Revision, initiator, origin, Current);
                 proposal = new(owner, proposal.Option, proposal.Value, proposal.Revision, initiator, origin, Current)
                 { RestoreDefault = !before.IsSaved };
-                return (await ApplyAsync(proposal, token).ConfigureAwait(false)).Succeeded;
+                return (before.Descriptor.Option == AppearanceOption.ResponseTimeout
+                    ? await ApplyAsync(proposal, policy, call, token).ConfigureAwait(false)
+                    : await ApplyAsync(proposal, token).ConfigureAwait(false)).Succeeded;
             }));
     }
 

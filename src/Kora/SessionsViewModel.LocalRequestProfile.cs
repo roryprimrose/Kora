@@ -14,10 +14,28 @@ internal sealed partial class SessionsViewModel
     private ProviderProfileOption? localRequestReasoning;
     private ProviderProfileOption? localRequestContext;
     private long localRequestEpoch;
+    private ProviderService requestProfileService = ProviderService.Local;
+
+    public IReadOnlyList<ProviderService> RequestProfileServices { get; } =
+        [ProviderService.Local, ProviderService.Copilot, ProviderService.Claude];
+    public ProviderService RequestProfileService
+    {
+        get => requestProfileService;
+        set
+        {
+            CancelLocalRequestProfile();
+            requestProfileService = value;
+            localRequestModel = null;
+            localRequestReasoning = null;
+            localRequestContext = null;
+            NotifyLocalRequestProfile();
+        }
+    }
 
     public IReadOnlyList<ProviderCatalogueModel> LocalRequestModels =>
-        providerDraft is { Observation.Installation: LocalProviderInstallation.Installed } draft
-            ? draft.Observation.For(ProviderService.Local).Models : [];
+        providerDraft is { } draft && RequestProfileServices.Contains(requestProfileService)
+            && (requestProfileService != ProviderService.Local || draft.Observation.Installation == LocalProviderInstallation.Installed)
+            ? draft.Observation.For(requestProfileService).Models : [];
     public ProviderCatalogueModel? LocalRequestModel
     {
         get => localRequestModel;
@@ -46,26 +64,29 @@ internal sealed partial class SessionsViewModel
         && localRequestModel is not null && localRequestReasoning is not null && localRequestContext is not null;
     public bool CanConfirmLocalRequestProfile => CanCompose && localRequestReview is not null;
     public string LocalRequestProfileText => !closed && access.CanInspect && localRequestReview is { } review
-        ? "This request only - Local. No session or app preference write.\nConversation: "
+        ? "This request only - " + review.LocalRequestProfile!.Service + ". No session or app preference write.\nConversation: "
             + (review.Target.Metadata?.Name.Value ?? "Unnamed conversation")
             + "\nExact destination: " + review.Target.Authority.SessionId.Value.ToString("D")
             + "\nGeneration: " + review.Target.Authority.Generation.Value
             + "\nComplete profile: " + review.LocalRequestProfile
             + "\nOriginal channel: " + review.Origin + "\nExpires UTC: " + review.ExpiresAt.ToString("O")
             + "\nComplete unchanged input:\n" + review.Body
-            + "\nConfirm separately once, or Cancel without submission. Existing instruction-scope review still applies."
-        : "Choose all three advertised LOCAL values after Refresh providers. Production catalogue/runtime remains unavailable. No default choices or fallback.";
+            + "\nConfirm separately once, or Cancel without submission. Local instruction-scope review still applies. "
+            + "Hosted processing requires separate native approval of each exact physical send; this review grants no egress, authentication or readiness."
+        : "Choose a service and all three currently advertised values after Refresh providers. Unavailable catalogue/runtime stays unavailable. No default choices or fallback.";
 
     public Task ReviewLocalRequestProfileAsync() => RunConversationAsync(async (target, live) =>
     {
         CancelLocalRequestProfile();
         var draft = providerDraft ?? throw new InvalidOperationException("Refresh providers for this exact Active session.");
-        var current = draft.Observation.For(ProviderService.Local);
-        if (draft.Observation.Installation != LocalProviderInstallation.Installed
+        if (!RequestProfileServices.Contains(requestProfileService))
+        { throw new InvalidOperationException("Choose an existing Local, Copilot or Claude request route."); }
+        var current = draft.Observation.For(requestProfileService);
+        if (requestProfileService == ProviderService.Local && draft.Observation.Installation != LocalProviderInstallation.Installed
             || localRequestModel is not { } model || !current.Models.Any(item => ReferenceEquals(item, model))
             || localRequestReasoning is not { } reasoning || !model.Reasoning.Any(item => ReferenceEquals(item, reasoning))
             || localRequestContext is not { } context || !model.Context.Any(item => ReferenceEquals(item, context)))
-        { throw new InvalidOperationException("Explicitly select one complete advertised local tuple. Nothing was submitted."); }
+        { throw new InvalidOperationException("Explicitly select one complete currently advertised tuple. Nothing was submitted."); }
         var body = composerBody;
         var buffer = composerBufferRevision;
         var proposal = localRequestEpoch;
@@ -77,11 +98,11 @@ internal sealed partial class SessionsViewModel
             target.Authority.SessionId.Value, target.Authority.Generation.Value, target.Metadata?.Revision.Value ?? 0)
         {
             RequestBody = body,
-            RequestLocalProfile = new(ProviderService.Local, current.Account!, current.Revision, model.Id, reasoning.Id, context.Id),
+            RequestLocalProfile = new(requestProfileService, current.Account!, current.Revision, model.Id, reasoning.Id, context.Id),
         }, RequestOrigin.LocalUi, SourceLive, lifetime.Token);
         if (!SourceLive()) { throw new OperationCanceledException("The original input, selection or tuple changed."); }
         localRequestReview = result.RequestReview;
-        conversationStatus = "Review This request only, exact conversation, local profile and original input. Nothing submitted or saved.";
+        conversationStatus = "Review This request only, exact conversation, complete profile and original input. Nothing submitted or saved. Hosted egress requires separate native consent.";
     });
 
     internal Func<Task> CaptureLocalRequestProfileDecision(bool confirm)
@@ -130,6 +151,7 @@ internal sealed partial class SessionsViewModel
     {
         foreach (var name in new[] { nameof(LocalRequestModels), nameof(LocalRequestModel), nameof(LocalRequestReasonings),
             nameof(LocalRequestContexts), nameof(LocalRequestReasoning), nameof(LocalRequestContext),
+            nameof(RequestProfileService),
             nameof(CanReviewLocalRequestProfile), nameof(CanConfirmLocalRequestProfile), nameof(LocalRequestProfileText) })
         { OnPropertyChanged(name); }
     }

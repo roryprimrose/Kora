@@ -1535,6 +1535,9 @@ Remote endpoints require a validated destination and setup/network decision, not
 Provider changes do not transplant active task context or continue a task under another account automatically.
 Credentials/tokens/passwords are not dictatable option values; voice starts supported sign-in/sign-out/configuration flows.
 
+The [delivered request-only profile operation](Model_Providers_Memory_And_Knowledge.md#delivered-hosted-request-only-profile) completes one exact Local/Copilot/Claude request through the existing shared request review and provider admission.
+It never writes app/session defaults or supplies credentials, provider qualification or hosted transmission approval. Broader natural-language multi-action interpretation remains proposed.
+
 ### Delivered app-default provider profiles
 
 The [bounded canonical provider increment](Model_Providers_Memory_And_Knowledge.md#delivered-bounded-app-provider-profile-configuration) is app-scope only. Native Providers, typed and activated commands share original-user audited atomic save/readback/confirmation. `providers.default-mode` remains LocalOnly by default/reset and is not changed by desired-service selection.

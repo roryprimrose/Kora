@@ -150,7 +150,7 @@ public sealed partial class ModelTurnHostTests
         var host = f.ConfiguredProfiles(missingSessionStore: fault is "missing-store");
         await using var conversation = f.ConversationService(fault is "missing-consumer" ? f.Host : host, execution: host);
         var commands = LocalProfileCommands(f, conversation);
-        var command = LocalProfileCommand(f, "original", fault is "service" ? Profile(ProviderService.Claude)
+        var command = LocalProfileCommand(f, "original", fault is "service" ? Profile(ProviderService.Codex)
             : fault is "missing-model" ? Profile() with { Model = new("missing") } : Profile());
         if (fault is "hosted") { command = command with { RequestProvider = SessionRequestReview.ProviderChoice.Copilot }; }
         if (fault is "retry") { command = command with { RequestFailedMessage = new(f.Request, new(1), 1, 2, f.Time.Now, "original", ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel) }; }
@@ -304,7 +304,7 @@ public sealed partial class ModelTurnHostTests
         new(SessionCommandOperation.RequestConfirm, review.Target.Authority.SessionId.Value) { RequestReviewId = review.Id };
 
     [Fact]
-    public async Task MissingConsumerCannotReviewOrDispatchAnExplicitLocalProfileAndHostedTupleCannotResolveAsLocal()
+    public async Task MissingConsumerCannotReviewOrDispatchAnExplicitLocalProfileAndUnsupportedTupleCannotResolve()
     {
         using var f = new Fixture();
         f.ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
@@ -316,7 +316,7 @@ public sealed partial class ModelTurnHostTests
         await missing.Invoking(value => value.ReviewLocalRequestProfileAsync(target, "original", RequestOrigin.LocalUi,
             Profile(), static () => true, Token)).Should().ThrowAsync<InvalidOperationException>();
         await f.ProfileConfiguration.Invoking(value => value.ResolveTurnAsync(static () => true,
-            SessionProviderOverrides.Inherit, Token, localRequest: Profile(ProviderService.Claude)))
+            SessionProviderOverrides.Inherit, Token, localRequest: Profile(ProviderService.Codex)))
             .Should().ThrowAsync<InvalidOperationException>();
         var receipt = await missing.SubmitLocalRequestProfileAsync(review, static () => true,
             _ => Task.CompletedTask, [], Token);

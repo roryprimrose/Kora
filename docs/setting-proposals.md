@@ -29,7 +29,8 @@ do not require you to remember these names.
 | `speech.windows-rate` | Canonical integer -10 through 10, normal 0 | Native or exact typed/activated-voice review |
 
 For example, the complete answer may be `set appearance.theme to dark`,
-`set appearance.movement-speed to 50`, `set speech.summary-words to 40`, `set speech.playback-volume to 30`, or
+`set appearance.reduced-motion to true`, `set appearance.movement-speed to 50`,
+`set speech.summary-words to 40`, `set speech.playback-volume to 30`, or
 `set responses.default-mode to VoiceOnly`.
 For slower Windows speech, the complete retained answer may be
 `set speech.windows-rate to -1`. Rate alone permits canonical negative integers;

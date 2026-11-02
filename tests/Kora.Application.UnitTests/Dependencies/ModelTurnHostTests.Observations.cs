@@ -116,6 +116,10 @@ public sealed partial class ModelTurnHostTests
                 AssistantResponse = answer, Observations = new(1, [.. observations]),
             };
             JsonSerializer.SerializeToUtf8Bytes(oversized).Length.Should().BeGreaterThan(ConversationMessage.MaximumStorageUtf8Bytes);
+            (oversized with { Observations = null }).Validate();
+            var validate = () => oversized.Validate();
+            validate.Should().Throw<InvalidDataException>()
+                .WithMessage("The complete conversation cell exceeds 32768 UTF-8 bytes; nothing was retained partially.");
             receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Unknown);
             receipt.Message.Reason.Should().Be(ModelTurnReason.InvalidProviderResponse);
         }

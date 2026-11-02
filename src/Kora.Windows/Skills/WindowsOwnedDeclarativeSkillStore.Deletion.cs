@@ -27,9 +27,10 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore
                 directory.VerifyOwnedSkillDirectory(parent);
                 var selected = ExactChild(parent, version, SharedSkillCatalogue.MaximumPackages)
                     ?? throw new InvalidDataException("The exact owned skill source is absent; absence is not a deletion receipt.");
-                var saved = ReadPackage(selected, token);
+                var saved = ReadPackage(selected, token, scope: OwnedSkillReadScope.PrimaryDeclaration);
                 if (!string.Equals(saved.Document.Id, id, StringComparison.Ordinal)
-                    || !string.Equals(saved.Document.Version, version, StringComparison.Ordinal) || saved.Document.ObservationWorkflow is not null)
+                    || !string.Equals(saved.Document.Version, version, StringComparison.Ordinal)
+                    || saved.Document.ReferenceDeclaration is not null || saved.Document.ObservationWorkflow is not null)
                 { throw new InvalidDataException("Deletion supports only exact native owned v1/v2/v3 sources, never reference/observation packages or other sources."); }
                 return new OwnedSkillDeletionSnapshot(saved, target, rootIdentity!, WindowsFileIdentity.Read(parentHandle), CatalogueIdentity(token));
             }
@@ -49,7 +50,8 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore
     {
         var source = expected.Source;
         RequireNoPendingRename(source.Document.Id, source.Document.Version, token);
-        if (source.Document.ObservationWorkflow is not null || deletionHolds.Contains(expected.Destination)
+        if (source.Document.ReferenceDeclaration is not null || source.Document.ObservationWorkflow is not null
+            || deletionHolds.Contains(expected.Destination)
             || !string.Equals(expected.Destination, Destination(source.Document), StringComparison.Ordinal)
             || !string.Equals(rootIdentity, expected.RootIdentity, StringComparison.Ordinal))
         { throw new InvalidDataException("The exact owned deletion destination is changed or held."); }

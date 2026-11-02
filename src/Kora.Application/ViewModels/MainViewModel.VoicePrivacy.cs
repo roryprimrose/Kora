@@ -80,6 +80,7 @@ public sealed partial class MainViewModel
     private void OnWindowsPrivacyChanged(object? sender, WindowsPrivacyChangedEventArgs eventArgs)
     {
         if (disposed) { return; }
+        speechComparison?.Clear();
         communicationActivity?.Refresh();
         auditImpactPreview?.Retire("Private/lock/desktop revision changed; preview retired.");
         diagnosticImpactPreview?.Retire("Private/lock/desktop revision changed; preview retired.");
@@ -279,6 +280,17 @@ public sealed partial class MainViewModel
         {
             if (disposed) { return; }
             disposed = true;
+        }
+        if (speechComparison is not null)
+        {
+            speechComparison.Changed -= OnSpeechComparisonChanged;
+            PropertyChanged -= RevalidateSpeechComparison;
+            appearanceConfiguration.Changed -= OnSpeechComparisonSettingsChanged;
+            speechConfiguration.Changed -= OnSpeechComparisonSettingsChanged;
+            audioPlaybackSettings.Changed -= OnSpeechComparisonAudioSettingsChanged;
+            if (responseModeConfiguration is not null)
+            { responseModeConfiguration.Changed -= OnSpeechComparisonSettingsChanged; }
+            speechComparison.Clear();
         }
         completionNotices?.Retire();
         PropertyChanged -= CompletionNoticeHostChanged;

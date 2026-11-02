@@ -25,7 +25,7 @@ public sealed class OwnedSkillRenameWorkflow(IOwnedDeclarativeSkillStore store, 
                             string.Equals(p.Original.Document.Id, id, StringComparison.Ordinal)
                             && string.Equals(p.Original.Document.Version, version, StringComparison.Ordinal))
                             ?? throw new InvalidOperationException("No retained rename matches that exact original ID/version. Inspect both names; no retry is authorized.")
-                        : new OwnedSkillRename(await store.Read(id, version, admitted).ConfigureAwait(false)
+                        : new OwnedSkillRename(await store.Read(id, version, admitted, OwnedSkillReadScope.PrimaryDeclaration).ConfigureAwait(false)
                             ?? throw new InvalidDataException("The exact source package is absent."), newId
                             ?? throw new InvalidDataException("A new canonical ID is required."));
                     var started = time.GetTimestamp();

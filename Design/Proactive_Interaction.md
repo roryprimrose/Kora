@@ -129,6 +129,17 @@ answer can continue the original task. Independent source/egress approvals remai
 Busy editor/dictation/decision precedence and stale/withdrawn-source refusal are preserved;
 the waiting conversation does not block bounded work/notice refresh
 ([complete-flow regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.NoticeResponse.cs)).
+
+### Explicit terminal-result reading
+
+The approved readable-conversation-results outcome includes a deliberate **Read exact result** gesture on one selected current terminal notice in the already-open Sessions window. The host resolves its canonical task/request to the exact retained ASSISTANT record, rather than treating notice metadata as a body or execution authority ([resolver](../src/Kora.Application/Hosting/SessionWorkspaceService.ConversationNoticeResult.cs)).
+
+The existing integrated Details reader shows the complete bounded immutable answer with Historical provenance; **Back to notice** returns to the exact existing origin. Missing answers are explicitly Unavailable, with ordinary typed HOST/history inspection as recovery. Done sources remain excluded by current notice policy; ordinary history remains passive ([native owner](../src/Kora/ConversationNotices/SessionsViewModel.ConversationNotices.cs), [origin return](../src/Kora/SessionInteractionView.axaml.cs)).
+
+The retained reader confirms successful native publication, not just source resolution or rendering. Unavailable controls/capacity and failed show/activation propagate through the originating operation's logged failure path and retire unconfirmed private state; they cannot produce a completed read receipt ([publication owner](../src/Kora/DetailWindowController.cs)).
+
+Fresh receipt/source/private/control/channel/expiry validation surrounds every body resolution and native disclosure. No cached-body recovery, latest-task substitution, model/provider operation, source capture, copy/export, question/approval change, execution continuation, listening, activity renewal or retention write is added. Reading a terminal result does not acknowledge review of a pending question. Existing fatigue, bounds and retirement remain authoritative ([broker](../src/Kora.Application/Interaction/LocalEventBroker.cs), [behavioral regressions](../tests/Kora.Windows.IntegrationTests/ConversationNoticeTests.ExactResult.cs)).
+
 ## Run-consented conversation completion speech
 
 The approved outcome is one content-free success statement during an explicitly active voice conversation, without changing its target, opening capture or answering a prompt ([delivery policy](#delivery-policy)). This is host-owned because only the host can join durable task authority, native consent, source revalidation and the exclusive speech lifecycle.

@@ -81,7 +81,7 @@ public sealed partial class SessionWorkspaceService
                     : assistant ? "Retained complete ASSISTANT answer" : "Retained original USER message",
                 observation is not null ? "Original local host observation at " + observation.ObservedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture)
                     + "; not current truth, execution, context, speech, export or clipboard authority."
-                    : "Private immutable conversation source; not execution permission, an approval or clipboard authority.",
+                    : "Historical private immutable conversation source; not current execution, an approval or clipboard authority.",
                 observation?.ResultJson ?? answer?.Body ?? actual.Body,
                 conversationMessage: actual);
             var finalTarget = await store.ReadMetadataAsync(target.Authority.SessionId, token).ConfigureAwait(false);

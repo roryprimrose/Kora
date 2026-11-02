@@ -31,6 +31,25 @@ public sealed class OwnedSkillLiteralInputTests
     }
 
     [Fact]
+    public void V4ObservationsRetainTheirExactDeclarationAndCannotAcquireV3Inputs()
+    {
+        const string source = "{\"steps\":[{\"tool\":\"application.get_version\",\"input\":{}}]}";
+        var document = OwnedDeclarativeSkillDocument.CreateObservationWorkflow("example", "1.0.0",
+            "Example", "Description", source);
+        var reopened = OwnedDeclarativeSkillDocument.Parse(document.ManifestBytes.Span, document.InstructionBytes.Span);
+        reopened.Tool.Should().Be(OwnedSkillToolSelection.ReadOnlyObservations);
+        reopened.InputTemplate.Should().BeNull();
+        reopened.ManifestBytes.ToArray().Should().Equal(document.ManifestBytes.ToArray());
+        reopened.InstructionBytes.ToArray().Should().Equal(Encoding.UTF8.GetBytes(source));
+        reopened.RevisionDigest.Should().Be(document.RevisionDigest);
+        reopened.ObservationWorkflow!.Steps.Should().ContainSingle();
+        reopened.IsAvailableForInvocation.Should().BeFalse();
+        var parse = () => OwnedDeclarativeSkillDocument.Parse(
+            Encoding.UTF8.GetBytes(document.ManifestText + "inputs: required-literal\n"), document.InstructionBytes.Span);
+        parse.Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
     public void ExplicitV3RoundtripUsesTheExistingSinglePassLiteralContract()
     {
         var document = Document();
@@ -54,6 +73,8 @@ public sealed class OwnedSkillLiteralInputTests
     [InlineData("references: none", "references: other.md")]
     [InlineData("kora-skill-format: 3", "kora-skill-format: 1")]
     [InlineData("kora-skill-format: 3", "kora-skill-format: 2")]
+    [InlineData("kora-skill-format: 3", "kora-skill-format: 4")]
+    [InlineData("kora-skill-format: 3", "kora-skill-format: 5")]
     public void ExplicitFieldsetCannotBeOmittedDuplicatedDowngradedOrAcquireAuthority(string original, string replacement)
     {
         var document = Document();

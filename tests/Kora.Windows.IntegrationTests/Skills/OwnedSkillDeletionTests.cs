@@ -49,6 +49,47 @@ public sealed partial class OwnedSkillDeletionTests
     }
 
     [Theory]
+    [InlineData("prepare")]
+    [InlineData("validate")]
+    [InlineData("delete")]
+    public async Task MarkdownPackageDeletionIsRejectedBeforeReferenceReadsOrEffects(string operation)
+    {
+        using var paths = new OwnedStorageFixture();
+        var store = new WindowsOwnedDeclarativeSkillStore(paths);
+        var document = OwnedDeclarativeSkillDocument.CreatePackage("example", "1.0.0", "Example", "Description",
+            "Complete literal guidance", new Dictionary<string, byte[]>(StringComparer.Ordinal)
+            {
+                ["notes.md"] = "Private reference body."u8.ToArray(),
+            });
+        var saved = await Save(store, document);
+        var other = await Save(store, Document("1.0.1"));
+        var admitted = await store.PrepareDeletion("example", "1.0.1", Token);
+        var forged = admitted with { Source = saved, Destination = store.Destination(document) };
+        var referenceReads = 0;
+        var deletionEffects = 0;
+        store.Checkpoint = point =>
+        {
+            if (point is "before-reference-read") { referenceReads++; }
+            if (point is "before-delete") { deletionEffects++; }
+        };
+        Func<Task> attempt = operation switch
+        {
+            "prepare" => () => store.PrepareDeletion("example", "1.0.0", Token),
+            "validate" => () => store.ValidateDeletion(forged, Token),
+            _ => () => Delete(store, forged),
+        };
+        await attempt.Should().ThrowAsync<InvalidDataException>();
+        referenceReads.Should().Be(0);
+        deletionEffects.Should().Be(0);
+        (await store.List(Token)).Should().HaveCount(2);
+        referenceReads.Should().Be(0);
+        store.Checkpoint = null;
+        saved.IsSameRevision((await store.Read("example", "1.0.0", Token))!).Should().BeTrue();
+        other.IsSameRevision((await store.Read("example", "1.0.1", Token))!).Should().BeTrue();
+        saved.Document.IsAvailableForInvocation.Should().BeFalse();
+    }
+
+    [Theory]
     [InlineData("bytes")]
     [InlineData("file")]
     [InlineData("parent")]

@@ -165,7 +165,9 @@ internal sealed partial class SessionInteractionView : UserControl
     private void OnModelChanged(object? sender, PropertyChangedEventArgs args)
     {
         var current = observedModel?.SelectedSessionRecord?.Authority.SessionId.Value;
-        if (current != selectedSession || observedModel?.CanPresentDetails == false || evidenceAdmission?.Invoke() == false)
+        if (current != selectedSession || observedModel?.CanPresentDetails == false || evidenceAdmission?.Invoke() == false
+            || observedModel?.IsNoticeResult(activeDetails?.Content) == true
+                && !observedModel.CanReturnToNoticeResult(activeDetails?.Content))
         {
             selectedSession = current;
             HideDetails();
@@ -186,15 +188,22 @@ internal sealed partial class SessionInteractionView : UserControl
 
     private void RefreshReturnNavigation()
     {
-        BackToConversation.IsEnabled = DetailsVisible && ConversationOrigin(activeDetails?.Content) is not null;
+        var notice = observedModel?.IsNoticeResult(activeDetails?.Content) == true;
+        BackToConversation.Content = notice ? "Back to notice" : "Back to conversation";
+        BackToConversation.IsEnabled = DetailsVisible && (notice
+            ? observedModel!.CanReturnToNoticeResult(activeDetails?.Content)
+            : ConversationOrigin(activeDetails?.Content) is not null);
         DetailNavigationStatus.Text = BackToConversation.IsEnabled
-            ? "Back to conversation focuses the exact originating message and leaves Details open."
+            ? notice ? "Back to notice focuses the exact originating notice and leaves Details open."
+                : "Back to conversation focuses the exact originating message and leaves Details open."
             : "Return unavailable: this view has no message on the currently observed conversation page. "
                 + "Hide details returns to Show details.";
     }
 
     private bool FocusConversationOrigin(AdmittedDetailContent? content)
     {
+        if (observedModel?.IsNoticeResult(content) == true)
+        { return observedModel.ReturnToNoticeResult(content); }
         if (content is null || ConversationOrigin(content) is not { } message) { return false; }
         ConversationTabs.SelectedItem = ConversationTab;
         UpdateLayout();

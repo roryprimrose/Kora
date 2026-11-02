@@ -144,7 +144,7 @@ public sealed partial class DetailWindowController : IDisposable
             if (!windows.TryGetValue(content.Reference, out _))
             {
                 conversationSources.Remove(content.Reference);
-                return result;
+                throw new InvalidOperationException(result);
             }
             current = await resolve(token);
             token.ThrowIfCancellationRequested();
@@ -152,7 +152,9 @@ public sealed partial class DetailWindowController : IDisposable
                 || !windows.TryGetValue(content.Reference, out var prepared)
                 || !conversationSources.TryGetValue(content.Reference, out var finalSource) || finalSource.Lease != lease)
             { throw new InvalidOperationException("Exact conversation detail admission changed at final publication."); }
-            result = PublishContent(content, owner, prepared, result, activateOnly);
+            var acknowledged = false;
+            result = PublishContent(content, owner, prepared, result, activateOnly, () => acknowledged = true);
+            if (!acknowledged) { throw new InvalidOperationException(result); }
             conversationValidation?.Start();
             return result;
         }

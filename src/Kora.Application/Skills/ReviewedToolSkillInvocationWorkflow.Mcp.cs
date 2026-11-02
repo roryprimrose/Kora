@@ -1,5 +1,6 @@
 using System.Text;
 using Kora.Application.Hosting;
+using Kora.Application.Hosting.McpResultFollowUp;
 using Kora.Application.Mcp;
 using Kora.Core.Auditing;
 using Kora.Core.Conversation;
@@ -15,6 +16,31 @@ public sealed partial class ReviewedToolSkillInvocationWorkflow
     public IReadOnlyList<Configuration.McpServerConfigurationSummary> ReadMcpServers() => conversation.ReadMcpServers();
     public Task<IReadOnlyList<McpAccountChoice>> ReadMcpAccountsAsync(CancellationToken token) =>
         conversation.ReadMcpAccountsAsync(token);
+
+    internal McpResultFollowUpWorkflow CreateMcpResultFollowUpWorkflow() =>
+        conversation.CreateMcpResultFollowUpWorkflow(Context.LocalSourceUsePolicy.Instance);
+
+    internal long McpResultControlRevision => access.ControlRevision;
+
+    internal Func<CancellationToken, Task> CaptureMcpResultSourceValidation(ReviewedToolSkillReview review)
+    {
+        var shared = (SharedToolSkillSource)review.Require(this, review.Origin);
+        var snapshot = shared.Snapshot;
+        var registration = shared.Registration;
+        var consent = discovery.ConsentRevision;
+        var useRevision = discovery.UseRevision;
+        var control = access.ControlRevision;
+        var expiresAt = review.ExpiresAt;
+        return token => discovery.ValidateCapturedRevisionAsync(snapshot, registration,
+            () => access.CanControl && access.CanInspect && access.ControlRevision == control
+                && discovery.ConsentRevision == consent && discovery.UseRevision == useRevision
+                && time.GetUtcNow() < expiresAt && discovery.IsUseAllowed(registration, snapshot),
+            token);
+    }
+
+    internal Task ValidateMcpResultConfigurationAsync(string serverId, McpAccountReference account,
+        string sourceRevision, CancellationToken token) =>
+        conversation.ValidateMcpResultConfigurationAsync(serverId, account, sourceRevision, token);
 
     public async Task<ReviewedMcpSkillInvocation> PrepareMcpAsync(ReviewedToolSkillReview review, string originalRequest,
         string serverId, McpAccountReference account, string arguments, Func<bool> eligible,

@@ -9777,12 +9777,13 @@ public sealed partial class MainViewModelTests : IDisposable
         {
             Interlocked.Increment(ref outputGeneration);
             events.Add("speech.invalidate");
-            IsSpeaking = false;
+            if (!IgnoreOutputInvalidation) { IsSpeaking = false; }
             PlaybackFrame = SpeechPlaybackFrame.Inactive;
             PlaybackFrameException = null;
         }
 
         public bool IsSpeaking { get; private set; }
+        public bool IgnoreOutputInvalidation { get; set; }
 
         private SpeechPlaybackFrame playbackFrame = SpeechPlaybackFrame.Inactive;
 

@@ -331,6 +331,8 @@ unauthorized, ambiguous, or invented actions fail closed. Catalogue tests must
 also detect conflicting normalized phrases and descriptors that advertise an
 action with no registered dispatcher.
 
+The bounded [current-answer read proposal](Internal_Model_Tools.md#structured-interaction-presentation-and-speech) uses a separate explicitly reviewed local tools-none interpretation phase, not an ordinary tool callback. It captures the current ordinary source before inference, joins the planner, preserves the visual source through separate review and reaches the native/exact `SpeechReadOnce` executor only after the eligible original-user decision. Model output can repeat only the served opaque target reference, never speech text ([owner and protocol](../src/Kora.Application/ViewModels/MainViewModel.ResponseReadProposal.cs)).
+
 Report completion against the approved user operation. Merely opening a surface or filling a field is navigation/preparation, not completion of Find, rename, request submission or task management. Provide equivalent voice/UI review and confirmation where permitted; mandatory OS/provider authentication and documented privacy/channel exceptions remain intact.
 
 An executable task here means a registered effect; a scheduled user task in the work ledger can contain several such invocations.

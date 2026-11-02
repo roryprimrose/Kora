@@ -25,6 +25,10 @@
             <Button Name="OpenAssistantConversationDetail" Content="Open full detailed answer"
                 IsEnabled="{Binding $parent[UserControl].DataContext.CanOpenConversationDetails}"
                 HorizontalAlignment="Left" />
+            <Button Name="ExportExactAssistantAnswer" Content="Export exact answer..."
+                IsEnabled="{Binding $parent[UserControl].DataContext.CanExportExactAnswer}"
+                AutomationProperties.Name="Review and separately confirm exporting this exact retained ASSISTANT answer to one new local file"
+                HorizontalAlignment="Left" />
             <Button Name="OpenSubmittedAnswerContext" Content="Context submitted for this answer"
                 IsEnabled="{Binding $parent[UserControl].DataContext.CanOpenConversationDetails}"
                 AutomationProperties.Name="Inspect historical host-recorded canonical context metadata for this exact answer; no model or source-body read"

@@ -1612,6 +1612,14 @@ Exact-answer review acknowledgements are metadata owned by the retained conversa
 | Shared profile definition snapshots | Admitted immutable in-memory revisions, refreshed/revalidated under the common source lifecycle; no silent content cache persistence. Inspection, refresh, and unregister leave originals untouched; only separately confirmed dedicated editor mutations change supported originals |
 | Approved export | User-selected location with an explicit content preview |
 
+The bounded [exact retained-answer export](Information_Display.md#explicit-exact-retained-answer-file-export) requires separate original local-UI confirmation of one complete retained final ASSISTANT source, destination and strict UTF-8 format.
+Its dedicated native writer refuses protected/reparse/network/noncanonical destinations and existing files, revalidates source/private/control/destination identities before publication, and certifies success only after durable exact-byte readback.
+Read/Details, clipboard and definition-write authority are not export grants.
+
+Export audit carries only typed content-free operation/outcome and source identity, never answer content or destination paths. Failed/cancelled/uncertain outcomes do not renew authority or justify automatic retry.
+Saved files and external copies/sync are outside Kora retention; deleting a conversation or Kora data does not delete those files
+([review and audit owner](../src/Kora.Application/Presentation/ExactAnswerExportReview.cs), [native writer](../src/Kora.Windows/Presentation/WindowsExactAnswerExportWriter.cs)).
+
 Windows-managed definition roaming moves content, not local authority.
 The [definition reconciliation owner](Definition_Management.md#windows-managed-roaming-and-local-revision-admission)
 requires local exact-revision review for file-backed catalogue use and withholds

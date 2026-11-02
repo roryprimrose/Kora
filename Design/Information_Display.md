@@ -16,6 +16,18 @@ Responses-tab navigation is not a retained-body, retired-response, model or priv
 
 Apply [product admission](MVP_Scope.md#product-admission-and-realignment) to display additions. Readable complex data, Markdown, admitted browser content, ordinary Find, wrapping and accessibility support the product. Standalone content-analysis buttons and engineering-only normal-workspace filters are not justified by the existence of a viewer or immutable snapshot.
 
+## Explicit exact retained-answer file export
+
+The native conversation row's **Export exact answer...** action reviews one currently admitted retained final ASSISTANT body, never a session-wide latest result or rendered projection. Destination selection and passive Details grant no write authority.
+The [separate review](../src/Kora/ExactAnswerExportWindow.cs) shows complete original text, conversation/result identity, exact destination, UTF-8/no-BOM format and the retention disclosure before a separate original local-UI confirmation.
+
+The [single-use review owner](../src/Kora.Application/Presentation/ExactAnswerExportReview.cs) revalidates the exact source and private/control/presenter lifetime across selection, review and staging.
+The [dedicated Windows writer](../src/Kora.Windows/Presentation/WindowsExactAnswerExportWriter.cs) admits canonical fixed-drive text/Markdown destinations outside protected storage, holds ancestor identities, creates without replacement, flushes durably and verifies exact saved bytes. Existing destinations require a fresh new-file selection.
+
+Cancellation/failure before publication and uncertain committed effects remain distinct; no uncertain automatic retry, overwrite, shell/browser open, clipboard disclosure, model execution or activity renewal is added.
+Files leave Kora retention and may be copied or synced by the selected location; conversation/data deletion does not delete exports or inherited copies.
+Deterministic [native transaction tests](../tests/Kora.Windows.IntegrationTests/ExactAnswerExportWriterTests.cs) and [authority/audit tests](../tests/Kora.Application.UnitTests/Presentation/ExactAnswerExportReviewTests.cs) do not qualify installed accessibility or provider/hardware readiness.
+
 ## Bounded provisional local answers
 
 **Answer locally (no tools)** submits the selected conversation's original input through the ordinary session/instruction owner, explicitly selecting local, tool-free execution. The primary conversation, Sessions and compact views label arriving text **Provisional answer - not retained**. Existing Send, tool loops, clarification and ordinary hosted paths remain buffered ([submission](../src/Kora.Application/Hosting/SessionConversationService.SessionInstructions.cs), [native controls](../src/Kora/SessionInteractionView.axaml), [adapter selection](../src/Kora.Application/Dependencies/ModelTurnHost.Questions.cs)).

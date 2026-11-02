@@ -695,6 +695,8 @@ Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Ambient UI](A
 
 ## Delivered Native Profile - 2026-10-06
 
+Retained ASSISTANT entries expose **Context submitted for this answer** as a separate exact native metadata source, with immutable host provenance rather than model-produced citations. It reuses private Details admission, bounded inert rendering, exact-answer return and no-copy restrictions; it neither opens source bodies nor replaces approval/question controls ([user operation](../docs/responses-and-calls.md#inspect-context-submitted-for-a-retained-answer), [admission](../src/Kora.Core/Presentation/AdmittedDetailContent.cs)).
+
 The existing Documentation page has an explicit native **Open details**
 action. It opens a separate passive native window for the exact embedded page
 snapshot, not the latest response, a website, or a newly inferred answer.

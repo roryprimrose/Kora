@@ -29,6 +29,15 @@ source `871e56a55c88e0614b2e3286815e8c17e2884c08`, as well as deterministic
 fixtures passed through the pinned ReportGenerator. There are no provider,
 hardware or product enablement prerequisites.
 
+Candidate run `41331643579`, source
+`c4eda39c7d954cbb94bd84998cbab3f314fa0250`, retained complete passing TRX
+and raw coverage for all four modules but failed the unchanged branch threshold:
+`MainViewModel.RefreshOutputEndpointsAsync` had one uncovered branch at
+`MainViewModel.VoicePrivacy.cs:196`. The overlapping preview/response regression
+joins one pending discovery and checks both successful output observation and
+topology retirement without stale metadata, speech or window publication.
+This is behavioral coverage, not a module-evidence or threshold change.
+
 Run the focused regression suite from the repository root:
 
 ```powershell

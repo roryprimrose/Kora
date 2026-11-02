@@ -50,6 +50,7 @@ public sealed partial class ModelTurnHostTests
         receipt.Message.Request.Origin.Should().Be(origin);
         receipt.Message.Outcome.Should().Be(qualified ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.Unavailable);
         (receipt.Message.AssistantResponse?.Body).Should().Be(qualified ? "answer" : null);
+        receipt.Message.SubmittedContext.Should().BeNull("mixed context is not a recorded history-only handoff");
         if (qualified)
         {
             using var wire = JsonDocument.Parse(f.Adapter.Wire!);
@@ -59,6 +60,7 @@ public sealed partial class ModelTurnHostTests
             var evidence = wire.RootElement.GetProperty("Evidence").EnumerateArray().ToArray();
             evidence.Should().HaveCount(6);
             evidence.Should().OnlyContain(item => item.GetProperty("Disclosure").GetInt32() == (int)ModelEvidenceDisclosure.LocalOnly);
+            evidence.Select(item => item.TryGetProperty("HistorySource", out _)).Should().OnlyContain(value => !value);
             using var first = JsonDocument.Parse(evidence[0].GetProperty("Content").GetString()!);
             using var second = JsonDocument.Parse(evidence[1].GetProperty("Content").GetString()!);
             using var third = JsonDocument.Parse(evidence[2].GetProperty("Content").GetString()!);

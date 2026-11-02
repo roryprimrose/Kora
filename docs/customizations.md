@@ -5,9 +5,27 @@ assistant-name prefix with activated voice, such as `Kora, show skills`.
 The same native window serves all these routes.
 
 **Choose a task:** [browse](#browse-by-type-and-source), [edit or add](#edit-or-add),
-[disable or enable use](#disable-or-enable-kora-use), or open the dedicated
+[disable or enable use](#disable-or-enable-kora-use), [delete one owned definition](#delete-one-owned-single-file-definition), or open the dedicated
 [instruction](instruction-editor.md), [skill](owned-skill-authoring.md) or
 [agent](agent-profile-authoring.md) editor.
+
+## Delete one owned single-file definition
+
+1. In **Instructions**, **Prompts** or **Agents**, inspect one supported saved entry from the **Kora** group. The exact source path distinguishes it from personal originals and same-name entries.
+2. Choose **Delete owned definition**. Review the complete saved source, kind, exact path and consequences, then choose **Continue deletion**.
+3. Separately choose **Delete exact owned file**. Only the unchanged reviewed file is deleted; its directory and unrelated definitions are not removed. There is no cascade, archive, grant deletion or automatic rollback.
+
+The [shared deletion owner](../src/Kora.Application/Definitions/CustomizationManagementService.Deletion.cs) holds the exact source against future use before mutation and reloads the catalogue afterward. Old reviews cannot authorize restored or replacement bytes. Already admitted captured work is not physically cancelled; independent history, grants and audit retain their own lifetimes.
+
+Unsaved editor text and its frozen baseline remain visible after deletion, even when that raw text is too large or invalid to save. Deletion reviews only the valid saved source. Save cannot silently recreate that missing baseline. To recover the draft, explicitly choose a distinct **New artifact ID**, then **Create Kora copy**, and complete the normal separate Save review. The deleted ID and its case aliases are refused before any discard/rebase review, including after a recovery copy. Copying and Disable retain the raw text, including before the recovery copy's separate Save; separate Save still requires strict UTF-8 text without NUL and at most 64 KiB including any BOM. Closing a dirty editor still requires Save/Discard/Cancel ([controller](../src/Kora/CustomizationWindowController.Deletion.cs)).
+
+After inspecting the source, typed `delete selected owned definition` or the current assistant-name activated equivalent opens the same two native reviews. The command itself is never confirmation; destructive source-write confirmation remains native, as with the dedicated editor's Delete exception. No model is called ([exact routing](../src/Kora.Application/Definitions/CustomizationCommand.cs)).
+
+The [native owner](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.Deletion.cs) revalidates the host-owned kind root, canonical filename, native file/directory identity, complete reviewed revision/bytes, ownership and current admission. Changed/missing/replaced files, aliases, links, withdrawn roots, unavailable catalogues and pending recovery fail closed. Reviews expire after two minutes; edits, selection attempts, privacy, ownership or control changes invalidate them.
+
+If deletion committed but readback, audit, admission or presentation is unconfirmed, the result explicitly requires inspection, not retry or an assumption of rollback. A failed catalogue reload is disclosed separately from the completed deletion. Personal originals, bundled sources, skills/packages, MCP entries, directories and arbitrary paths are excluded ([deterministic regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.Deletion.cs)).
+
+## Definition roles
 
 Instructions guide an answer; prompts are reusable requests; skills provide
 reusable task guidance; agents add a role and limits. MCP servers describe
@@ -167,6 +185,24 @@ offers **Save / Discard / Cancel**. Privacy/ownership withdrawal closes private
 presentation and suppresses late results, without autosaving draft text.
 
 ## Discuss or generate a proposal
+
+### Author one reusable prompt request
+
+In **Customizations > Prompts**, choose **Kora**, enter a new ID and select **Add**, or reopen one existing Kora prompt. New prompt templates use native v2; generation never upgrades existing metadata or edits profile originals ([template](../src/Kora.Core/Customizations/CustomizationLayout.cs), [validation](../src/Kora.Application/Definitions/PromptTemplateAuthoring.cs)).
+
+Save checks the exact source again after staging, immediately before publication. An edit or replacement during staging keeps your draft and withholds the write. If an attempt requires recovery, inspect the exact source and **Review recovery** before another Save; cancellation is not a promise of rollback. The final comparison remains optimistic, not a lock against concurrent content edits.
+
+1. Describe the repeatable **request**, not a skill workflow or system instruction, in the request field. Enter the required literal names in the separate host-owned field, for example `topic,audience`, in their intended first-use order. Empty means no inputs; otherwise declare at most eight distinct native names without spaces, defaults or expressions.
+2. Select **Ask Kora (review local disclosure)**. Review the exact description, complete current source, destination and declared literals. Only **Send for local authoring** authorizes this local, tool-free model disclosure. The existing typed or activated-voice refinement route reaches the same draft and independent native reviews.
+3. Inspect **Review proposed draft**: the exact complete template/source and required literals. Model output may replace only the request body; metadata, format, attribution, filename and BOM stay host-owned. Missing, additional, malformed or oversized literals/proposals are rejected without stripping or truncation.
+4. **Use proposed draft** changes memory only. Separately select **Review and save**, inspect the complete original/proposed source and destination, then **Save disabled**. Cancellation retains the draft; changed sources and occupied new destinations require explicit recovery, not an automatic overwrite.
+5. Reopen the saved prompt. **Enable** removes the Customizations exclusion only; the existing owned prompt review is still independent: `prompts inspect <id>`, then `prompts activate` and its native exact-template review. Select `/prompt <id>`, enter every required literal, inspect **Preview complete expanded USER REQUEST**, and separately review/confirm submission to one explicitly chosen Active session ([existing use operation](instruction-editor.md#prepare-required-native-prompt-inputs)).
+
+The [host validator](../src/Kora.Application/Definitions/PromptTemplateAuthoring.cs) uses the existing native parser: names start with a lowercase ASCII letter and contain only lowercase letters, digits or hyphens, at most 64 characters. Each value is nonblank and bounded to 512 UTF-16 units / 2,048 UTF-8 bytes; the expanded request is bounded to 4,096 / 16,384. Substitution visits original markers once: marker-looking input stays literal. No reads, secrets, defaults, expressions, recursive expansion, tools, automatic activation or submission are added.
+
+**Cancel prompt authoring**, edits to the description/declaration/draft, changed input/source/catalogue/provider, privacy/channel/call/ownership loss, close or the two-minute proposal lifetime retire pending work. Late output cannot replace the draft; cancellation retains model ownership until actual termination. Unknown capabilities and unavailable local models report refusal without hosted fallback. Production model qualification remains unavailable; deterministic implementation tests do not enable a provider ([lifecycle](../src/Kora/CustomizationWindowController.cs), [complete-operation regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.PromptAuthoring.cs)).
+
+### Refine other definitions
 
 Enter a request in **Describe or discuss a change with Kora**, then choose
 **Ask Kora (review local disclosure)**. The typed or activated-voice equivalent is

@@ -9,6 +9,20 @@ Long results can have [a brief and full Details](#brief-answers-and-full-details
 workflows below describe their reviews and limits; their controls do not enable
 a model. Built-in command responses and local speech still work.
 
+## Inspect context submitted for a retained answer
+
+Select one exact retained ASSISTANT answer in Sessions or the conversation pane, then choose **Context submitted for this answer**. The private native Details view shows historical host metadata, not a new answer or source-body recall ([native route](../src/Kora/ConversationPresentation.axaml), [inspection owner](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs)).
+
+The supported subset is one explicitly reviewed, same-session history request that completed successfully through a qualified local adapter. It shows original host-admitted local model/reasoning/context option IDs, locality, handoff time, complete canonical byte count and ordered source kinds; account/revision bindings stay internal ([record](../src/Kora.Core/Conversation/SubmittedAnswerContext.cs)).
+
+The evidence means **canonical bytes handed to the admitted adapter**, not physical provider delivery, processing, reasoning or proof that the model used a source. Merely reviewing/selecting input and a model claiming a source prove neither. Memory, instruction, attachment, tool and hosted context are not supported by this recorder; legacy/unsupported answers explicitly say **Unknown / not recorded** ([projection](../src/Kora.Core/Conversation/AnswerContextInspection.cs)).
+
+Only metadata appears in this inspector, including its native labels. The original USER and retained ASSISTANT bodies are not displayed as a secondary answer or substituted for unknown provenance; use the separate exact conversation Details actions to read them.
+
+Current source-row metadata may report the exact revision retained, or missing/changed and unavailable. That does not validate or admit its body. Opening a body requires a separate existing fresh source-admission operation; this inspector has no body-opening, refresh, automatic transfer or fallback action ([metadata-only reader](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.AnswerContext.cs)).
+
+Use **Back to conversation** in the conversation pane to return to the exact originating answer; a separate Details window can be closed to return to its owner. No model call, source-body read, speech, clipboard copy, grant, history write or retention renewal occurs. Source/private/session changes retire stale presentation. The metadata follows its answer's existing session deletion and retention, not audit retention ([native return](../src/Kora/SessionInteractionView.axaml.cs), [passive inspection](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs)).
+
 ## Ask another question about the same reviewed file snapshot
 
 For an already admitted single-file preview, `answer file` focuses its native question control; it does not read a file or invoke a model.

@@ -111,8 +111,7 @@ internal sealed partial class SessionsViewModel
             var receipt = await (mcpFollowUpWorkflow ?? throw new InvalidOperationException("The observation workflow is unavailable."))
                 .ConfirmAsync(review, Current, lifetime.Token);
             if (!Current()) { throw new OperationCanceledException("The exact observation's private presentation changed."); }
-            completedConversationMessage = receipt.Message;
-            conversationPage = null;
+            PublishCompletedConversationMessage(receipt.Message);
             mcpFollowUpOutcome = receipt.Message.AssistantResponse is { } answer ? "ASSISTANT\n" + answer.Body
                 : "HOST " + receipt.Message.Outcome + "/" + receipt.Message.Reason + "\nNo assistant answer was retained.";
             conversationStatus = "MCP observation follow-up retained in the exact Active conversation. "

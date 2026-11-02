@@ -7,7 +7,9 @@ using Avalonia.VisualTree;
 
 using AwesomeAssertions;
 
+using Kora.Application.Configuration;
 using Kora.Application.Infrastructure;
+using Kora.Application.Presentation;
 using Kora.Application.Voice;
 using Kora.Core.Voice;
 using Kora.NativeUxFixture;
@@ -27,7 +29,23 @@ public sealed class SpeechComparisonNativeUiTests
             var runtime = new Runtime();
             await using var comparison = new SpeechSetupComparison(runtime, runtime);
             using var fixture = new NativeUxFixtureSession(Path.GetTempPath(), syntheticVoice: true);
-            await fixture.InitializeAsync(null, speechSetupComparison: comparison);
+            await using var admission = new AudioControlAdmission(fixture.Interactions, fixture.Interactions, new(fixture.Tasks));
+            var detailPreferences = new LocalDetailPresentationPreferences(fixture);
+            var details = new DetailPresentationConfigurationService(detailPreferences, admission, fixture.Audit, TimeProvider.System);
+            var executionPreferences = new LocalConversationExecutionPreferences(fixture);
+            var execution = new ConversationExecutionConfigurationService(executionPreferences, admission, fixture.Audit);
+            execution.Observe();
+            await using var startupAdmission = new LogonStartupAdmission(fixture.Interactions, fixture.Interactions, new(fixture.Tasks));
+            var startupPreferences = new LocalStartupPresentationPreferences(fixture);
+            var startup = new StartupPresentationConfigurationService(startupPreferences, startupAdmission, fixture.Audit, TimeProvider.System);
+            await fixture.InitializeAsync(null, speechSetupComparison: comparison, detailPresentationConfiguration: details,
+                conversationExecution: execution, startupPresentationConfiguration: startup);
+            fixture.Main.DetailPresentationStatus.Should().Be(details.Description);
+            fixture.Main.ConversationExecutionStatus.Should().Be(execution.Description);
+            fixture.Main.StartupPresentationStatus.Should().Be(startup.Status);
+            detailPreferences.Load().Should().BeNull();
+            executionPreferences.Load().Should().BeNull();
+            startupPreferences.Load().Should().BeNull();
             fixture.Main.BindVoiceOwnershipGate(static () => true);
             await fixture.Main.SetVoiceConsentAsync(true);
             await fixture.Main.ToggleListeningCommand.ExecuteAsync();
@@ -84,6 +102,9 @@ public sealed class SpeechComparisonNativeUiTests
             Dispatcher.UIThread.RunJobs();
             fixture.Main.SpeechComparisonResults.Should().BeEmpty();
             fixture.Main.SpeechComparisonPhrase.Should().NotContain("confirm operation");
+            detailPreferences.Load().Should().BeNull();
+            executionPreferences.Load().Should().BeNull();
+            startupPreferences.Load().Should().BeNull();
 
             Button Button(AsyncCommand command) => controls.OfType<Button>().Single(button => ReferenceEquals(button.Command, command));
         });

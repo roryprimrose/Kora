@@ -173,12 +173,15 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         Kora.Application.Dependencies.SpeechComponentSetupService? speechComponentSetup = null,
         SpeechSetupComparison? speechSetupComparison = null,
         LogonStartupConfigurationService? logonStartupConfiguration = null,
+        DetailPresentationConfigurationService? detailPresentationConfiguration = null,
+        ConversationExecutionConfigurationService? conversationExecution = null,
         StartupPresentationConfigurationService? startupPresentationConfiguration = null,
         IQuestionVoiceRecognitionService? voiceRecognition = null, SpeechInputConfigurationService? speechInputConfiguration = null)
     {
         using var setup = BeginPhase(NativeFixturePhase.Setup);
         await setup.RunAsync(() => InitializeCoreAsync(webPageGet, webSummary, callState, dispatcher, modelReasoner,
-            modelProbe, speechComponentSetup, speechSetupComparison, logonStartupConfiguration, startupPresentationConfiguration,
+            modelProbe, speechComponentSetup, speechSetupComparison, logonStartupConfiguration, detailPresentationConfiguration,
+            conversationExecution, startupPresentationConfiguration,
             voiceRecognition, speechInputConfiguration));
     }
 
@@ -189,6 +192,8 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         Kora.Application.Dependencies.SpeechComponentSetupService? speechComponentSetup,
         SpeechSetupComparison? speechSetupComparison,
         LogonStartupConfigurationService? logonStartupConfiguration,
+        DetailPresentationConfigurationService? detailPresentationConfiguration,
+        ConversationExecutionConfigurationService? conversationExecution,
         StartupPresentationConfigurationService? startupPresentationConfiguration,
         IQuestionVoiceRecognitionService? voiceRecognition, SpeechInputConfigurationService? speechInputConfiguration)
     {
@@ -265,6 +270,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             speechTextConfiguration: captionConfiguration,
             webPageGet: webPageGet, speechComponentSetup: speechComponentSetup,
             speechSetupComparison: speechSetupComparison, logonStartupConfiguration: logonStartupConfiguration,
+            detailPresentationConfiguration: detailPresentationConfiguration, conversationExecution: conversationExecution,
             startupPresentationConfiguration: startupPresentationConfiguration,
             speechInputConfiguration: speechInputConfiguration);
         if (webSummary is not null) { Main.BindWebSummaryWorkflow(webSummary); }

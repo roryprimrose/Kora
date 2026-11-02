@@ -57,8 +57,7 @@ internal sealed partial class SessionsViewModel
         var receipt = result.RequestSubmission!;
         if (receipt.Message.Outcome is not null)
         {
-            conversationPage = null;
-            completedConversationMessage = receipt.Message;
+            PublishCompletedConversationMessage(receipt.Message);
         }
         conversationStatus = "New retry attempt: HOST " + receipt.Message.Outcome + " / " + receipt.Message.Reason
             + " | task " + receipt.Task.State

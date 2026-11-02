@@ -132,8 +132,7 @@ internal sealed partial class SessionsViewModel
             var receipt = await (mixedWorkflow ?? throw new InvalidOperationException("The source workflow was closed."))
                 .ConfirmAsync(review, live, lifetime.Token);
             if (!live() || !MixedCurrent) { throw new OperationCanceledException("The original private selection changed."); }
-            completedConversationMessage = receipt.Message;
-            conversationPage = null;
+            PublishCompletedConversationMessage(receipt.Message);
             if (string.Equals(composerBody, body, StringComparison.Ordinal))
             { composerBody = string.Empty; Interlocked.Increment(ref composerBufferRevision); }
             RememberUnsent();

@@ -54,8 +54,7 @@ public sealed partial class MainViewModel
                 {
                     var presentation = AnswerPresentation.From(answer.Body);
                     PresentResponse(AssistantState.Information, "Request destination: " + name + ".",
-                        status + "\n\nAssistant answer (generated locally; verify important details):\n" + presentation.Brief
-                            + (presentation.HasDetails ? "\n\n" + AnswerPresentation.Offer : string.Empty),
+                        status + "\n\nAssistant answer (generated locally; verify important details):\n" + presentation.Brief,
                         modelAnswer: new(answer.Body));
                 }
                 else { ShowInformation("Request destination: " + name + ".", status); }

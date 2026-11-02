@@ -54,6 +54,7 @@ public sealed class SettingsResetMenuTests
         { "ResetOutputDeviceCommand", "Use system default speaker", "CanChangeAudioOutputDevice" },
         { "ResetPlaybackVolumeCommand", "Reset volume to 100%", "CanChangePlaybackVolume" },
         { "ResetWindowsSpeechRateCommand", "Reset voice speed to normal (0)", "CanChangeWindowsSpeechRateNative" },
+        { "ResetDetailPresentationCommand", "Review reset to Offer", "CanControlDetailPresentationNative" },
         { "ResetResponseModeCommand", "Reset to text and speech", "CanChangeResponseMode" },
         { "ResetSpeechTextCommand", "Turn captions off", "CanChangeSpeechText" },
         { "ResetSpeechCaptionOptionCommand", "Reset selected caption option", "CanChangeSpeechText" },
@@ -156,11 +157,11 @@ public sealed class SettingsResetMenuTests
             .Where(attribute => attribute.Name.LocalName is "Command" or "ResetCommand"
                 && attribute.Value.StartsWith("{Binding Reset", StringComparison.Ordinal))
             .ToArray();
-        bindings.Should().HaveCount(34);
-        bindings.Select(attribute => attribute.Value).Distinct(StringComparer.Ordinal).Should().HaveCount(34);
+        bindings.Should().HaveCount(35);
+        bindings.Select(attribute => attribute.Value).Distinct(StringComparer.Ordinal).Should().HaveCount(35);
         elements.Count(element =>
             string.Equals(element.Name.LocalName, nameof(SettingActionsButton), StringComparison.Ordinal))
-            .Should().Be(37);
+            .Should().Be(38);
         foreach (var binding in bindings)
         {
             var element = binding.Parent!;
@@ -209,18 +210,18 @@ public sealed class SettingsResetMenuTests
     }
 
     [Theory]
-    [InlineData("Appearance", 16, 16, 0)]
-    [InlineData("Speech & audio", 8, 7, 5)]
-    [InlineData("Responses", 4, 4, 3)]
-    [InlineData("Sessions", 1, 1, 1)]
-    [InlineData("Logging", 2, 2, 2)]
-    [InlineData("Calls", 2, 2, 2)]
-    [InlineData("Providers", 2, 3, 2)]
-    [InlineData("Network", 0, 0, 0)]
-    [InlineData("Custom content", 1, 0, 1)]
-    [InlineData("Readiness", 1, 0, 1)]
+    [InlineData("Appearance", 16, 16, 0, 0)]
+    [InlineData("Speech & audio", 8, 7, 5, 0)]
+    [InlineData("Responses", 5, 5, 3, 1)]
+    [InlineData("Sessions", 1, 1, 1, 0)]
+    [InlineData("Logging", 2, 2, 2, 0)]
+    [InlineData("Calls", 2, 2, 2, 0)]
+    [InlineData("Providers", 2, 3, 2, 0)]
+    [InlineData("Network", 0, 0, 0, 0)]
+    [InlineData("Custom content", 1, 0, 1, 0)]
+    [InlineData("Readiness", 1, 0, 1, 0)]
     public async Task Every_tab_has_top_right_cogs_with_live_named_reset_commands(
-        string tabName, int expectedCogs, int expectedResets, int expectedRefreshes)
+        string tabName, int expectedCogs, int expectedResets, int expectedRefreshes, int expectedInspections)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -243,6 +244,7 @@ public sealed class SettingsResetMenuTests
                 cogs.Should().HaveCount(expectedCogs);
                 var resets = 0;
                 var refreshes = 0;
+                var inspections = 0;
                 foreach (var cog in cogs)
                 {
                     cog.Content.Should().BeOfType<Avalonia.Controls.Shapes.Path>();
@@ -282,6 +284,11 @@ public sealed class SettingsResetMenuTests
                                 item.IsEffectivelyEnabled.Should().Be(admitted);
                             }
                             if (item.Header is "Refresh") { refreshes++; }
+                            else if (item.Header is "Inspect")
+                            {
+                                item.Command.Should().BeSameAs(fixture.Main.InspectDetailPresentationCommand);
+                                inspections++;
+                            }
                             else { resets++; }
                         }
                     }
@@ -289,6 +296,7 @@ public sealed class SettingsResetMenuTests
                 }
                 resets.Should().Be(expectedResets);
                 refreshes.Should().Be(expectedRefreshes);
+                inspections.Should().Be(expectedInspections);
             }
             finally { window.Close(); }
         });

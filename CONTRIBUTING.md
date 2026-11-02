@@ -287,7 +287,17 @@ The stable phase allowlist is `native-ui`, `owned-storage`, `setup`, `context`,
 `join`, `evidence-flush` and `disposal`. `native-ui` measures the dispatched
 callback, not its queue wait; storage measures fixture construction, context
 measures task/interaction-store initialization, and setup measures the complete
-fixture initialization. Join and evidence flush measure the existing shutdown
+fixture initialization. The timed setup wrapper forwards the optional typed
+Details and conversation-execution configuration services to the core
+initializer unchanged; omitted services remain unavailable. The native settings
+regression covers all four composition combinations, independent review and
+confirmation, and terminal phase evidence without granting voice consent.
+Submitted-conversation completion joins terminal observers before signaling
+the worker result. Late-publication regressions defer native presentation with
+the existing dispatcher seam, not by blocking a terminal observer while
+awaiting that same worker. Keep both dismissal/reset cases and the exact
+new-publication, preference-write and forbidden-effect assertions.
+Join and evidence flush measure the existing shutdown
 owners inside disposal. These intervals can nest and must not be summed as
 exclusive CPU time. Repeated phases have distinct ordinal IDs.
 

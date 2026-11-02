@@ -412,7 +412,14 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 26);
+        sections.Should().HaveCount(commands.Count + 27);
+        var detailPresentation = sections.Single(section => section.StartsWith(
+            "Detail presentation preference", StringComparison.Ordinal));
+        foreach (var phrase in Kora.Application.Configuration.DetailPresentationCommand.FixedPhrases)
+        { detailPresentation.Should().Contain(phrase); }
+        detailPresentation.Should().Contain("confirmation is separate")
+            .And.Contain("future publications").And.Contain("never saves a preference")
+            .And.Contain("no new question").And.Contain("automatic opening");
         var namedOpening = sections.Single(section => section.StartsWith(
             "Open a conversation by its readable name", StringComparison.Ordinal));
         namedOpening.Should().Contain("open conversation \"Exact readable name\"")
@@ -600,6 +607,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .And.Contain("session inspect").And.Contain("session create").And.Contain("session rename")
             .And.Contain("session done").And.Contain("session resume");
         sections = sections.Where(section => !ReferenceEquals(section, appearance)
+            && !ReferenceEquals(section, detailPresentation)
             && !ReferenceEquals(section, naturalAppearance)
             && !ReferenceEquals(section, disposition)
             && !ReferenceEquals(section, responseWindow)

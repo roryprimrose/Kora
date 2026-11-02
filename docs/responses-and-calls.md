@@ -95,6 +95,8 @@ The [integrated pane](windows-and-tray.md#details-beside-the-conversation)
 keeps the composer visible while reading either source. Provider/runtime readiness
 remains independent: these presentation controls do not enable a model.
 
+The [detail-offer preference](settings.md#detailed-result-offers) adds a reviewed **Link only** choice for future publications. It suppresses only existing host proactive cues, retaining the exact manual links/commands and all source/privacy rules. Returning to **Offer** does not replay past offers/content/speech; automatic opening and new hands-free questions remain out of scope ([owner](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs)).
+
 ### Reading headings and final tables
 
 In rendered Markdown **Details**, use **Go to heading** buttons for local

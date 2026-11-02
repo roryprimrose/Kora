@@ -126,7 +126,7 @@
                 </StackPanel>
                 <local:ModelMemoryProposalPanel />
                 <local:AssistantReplyPanel />
-                <ContentControl Content="{Binding DetailsOfferMessage}">
+                <ContentControl Content="{Binding DetailsOfferMessage}" IsVisible="{Binding HasDetailsOffer}">
                   <ContentControl.ContentTemplate>
                     <DataTemplate>
                       <StackPanel Spacing="6">

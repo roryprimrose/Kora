@@ -830,6 +830,42 @@
             </StackPanel>
 
             <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Text="Detailed result offers" Classes="settings-title" />
+                  <controls:SettingActionsButton Grid.Column="1" SettingName="Detailed result offers"
+                      IsEnabled="{Binding CanControlDetailPresentationNative}">
+                    <controls:SettingActionsButton.Flyout>
+                      <MenuFlyout>
+                        <MenuItem Header="Inspect" Command="{Binding InspectDetailPresentationCommand}"
+                            IsEnabled="{Binding CanControlDetailPresentationNative}" />
+                        <Separator />
+                        <MenuItem Header="Review reset to Offer" Command="{Binding ResetDetailPresentationCommand}"
+                            IsEnabled="{Binding CanControlDetailPresentationNative}" />
+                      </MenuFlyout>
+                    </controls:SettingActionsButton.Flyout>
+                  </controls:SettingActionsButton>
+                </Grid>
+                <TextBlock Text="Choose whether new results retain existing proactive offers or only manual details access. Automatic opening is unavailable."
+                    Classes="settings-description" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding DetailPresentationStatus}" TextWrapping="Wrap"
+                    AutomationProperties.Name="Detail presentation preference status" />
+                <WrapPanel ItemSpacing="8" LineSpacing="6">
+                  <Button x:Name="OfferDetailPresentation" Content="Review Offer" Command="{Binding OfferDetailPresentationCommand}" IsEnabled="{Binding CanControlDetailPresentationNative}" />
+                  <Button x:Name="LinkOnlyDetailPresentation" Content="Review Link only" Command="{Binding LinkOnlyDetailPresentationCommand}" IsEnabled="{Binding CanControlDetailPresentationNative}" />
+                </WrapPanel>
+                <TextBlock Text="{Binding DetailPresentationReviewText}" TextWrapping="Wrap"
+                    AutomationProperties.Name="Exact detail presentation preference review" />
+                <WrapPanel ItemSpacing="8" LineSpacing="6">
+                  <Button x:Name="ConfirmDetailPresentation" Content="Confirm detail presentation change" Command="{Binding ConfirmDetailPresentationCommand}"
+                      IsEnabled="{Binding CanControlDetailPresentationNative}" />
+                  <Button x:Name="CancelDetailPresentation" Content="Cancel detail presentation change" Command="{Binding CancelDetailPresentationCommand}"
+                      IsEnabled="{Binding CanControlDetailPresentationNative}" />
+                </WrapPanel>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,260,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Device default" Classes="settings-title" />

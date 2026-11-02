@@ -20,12 +20,15 @@ public sealed partial class MainViewModelTests
     [InlineData("Nova", "refine")]
     [InlineData("Nova", "rename")]
     [InlineData("Nova", "recover-rename")]
+    [InlineData("Nova", "details")]
     [InlineData("Stop", "collision")]
     public async Task ReviewedCustomNameCutoverJoinsOldGenerationAndRetainsActualFinalText(string name, string operation)
     {
         var stage = new HandsFreeStage { SupportedNames = ["Nova", "Stop"] };
+        await using var details = operation is "details"
+            ? new Kora.Application.UnitTests.Configuration.DetailPresentationConfigurationServiceTests.Fixture() : null;
         HandsFreeVoiceRecognitionService? decorated = null;
-        var fixture = CreateHandsFreeFixture(stage, value => decorated = value);
+        var fixture = CreateHandsFreeFixture(stage, value => decorated = value, detailPresentationConfiguration: details?.Service);
         await using var configuration = fixture.InputConfiguration!;
         await using var voice = decorated!;
         await fixture.ViewModel.InitializeAsync();
@@ -88,6 +91,7 @@ public sealed partial class MainViewModelTests
             "request" => "read a fixture", "new-request" => "open new request",
             "refine" => "instructions refine", "rename" => "instructions rename renamed",
             "recover-rename" => "instructions recover-rename",
+            "details" => "stop asking about details",
             "collision" => "listening", _ => "what version are you running",
         };
         current.Result.SetResult(new(final, 1, current.Binding.Generation));
@@ -99,7 +103,7 @@ public sealed partial class MainViewModelTests
         }
         else
         {
-            await stage.NextAsync();
+            var resumed = await stage.NextAsync();
             if (operation is "request")
             {
                 routed.Should().Equal([final], because: fixture.ViewModel.ResponseTitle + " / " + fixture.ViewModel.Transcript);
@@ -107,6 +111,19 @@ public sealed partial class MainViewModelTests
                 routedAdmission.Should().BeTrue();
             }
             else if (operation is "new-request") { navigated.Should().Be(1); }
+            else if (operation is "details")
+            {
+                details!.Preferences.Writes.Should().Be(0);
+                fixture.ViewModel.DetailPresentationReviewText.Should().Contain("-> LinkOnly").And.Contain("Confirm separately");
+                routed.Should().BeEmpty();
+                resumed.Wake.SetResult(new(resumed.Binding.Generation, 12, true));
+                await resumed.CaptureStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+                resumed.Result.SetResult(new("confirm detail presentation change", 1, resumed.Binding.Generation));
+                await stage.NextAsync();
+                details.Preferences.Value.Should().Be(Kora.Core.Presentation.DetailPresentationMode.LinkOnly);
+                details.Preferences.Writes.Should().Be(1);
+                routed.Should().BeEmpty();
+            }
             else if (operation is "refine" or "rename" or "recover-rename")
             {
                 instructionOperation.Should().Be(operation switch
@@ -462,7 +479,8 @@ public sealed partial class MainViewModelTests
     }
 
     private static Fixture CreateHandsFreeFixture(IHandsFreeAudioStage stage,
-        Action<HandsFreeVoiceRecognitionService> created, bool enableProfile = true)
+        Action<HandsFreeVoiceRecognitionService> created, bool enableProfile = true,
+        DetailPresentationConfigurationService? detailPresentationConfiguration = null)
     {
         var fixture = new Fixture(enableSpeechInput: enableProfile, voiceDecorator: native =>
         {
@@ -470,7 +488,7 @@ public sealed partial class MainViewModelTests
                 NullLogger<HandsFreeVoiceRecognitionService>.Instance);
             created(voice);
             return voice;
-        });
+        }, detailPresentationConfiguration: detailPresentationConfiguration);
         fixture.VoiceConsent.Consent = true;
         fixture.Voice.Microphones = [new MicrophoneDevice("mic", "Headset")];
         fixture.Voice.DefaultMicrophoneId = "mic";

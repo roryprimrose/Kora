@@ -63,6 +63,12 @@ directory restoration with fake commands; it never updates source or opens Kora.
 PR merge orchestration can run entirely on GitHub, without a local agent.
 See [GitHub-hosted merge admission](eng/merge-queue/README.md) for queue intent,
 failure/retry behaviour, the disabled-by-default rollout and administrator setup.
+The [dormant five-PR batch profile](eng/merge-queue/README.md#dormant-five-pr-batch-profile)
+is a separate versioned rollout. Default singleton admission, four required App
+checks and strict protection remain unchanged. Batch implementation tests use
+fake GitHub operations; they neither activate the profile nor replace complete
+candidate CI. Partial integration is release-blocked until verified recovery or
+actual-tip qualification/publication.
 
 Restore, build, and test with the pinned SDK and locked dependencies:
 
@@ -221,6 +227,13 @@ Native approval fixtures await exact-review publication and restored editability
 before selecting an answer; review text can appear before the operation is idle.
 Adaptive interaction fixtures join the exposed session-navigation operation
 before asserting unchanged selected-row identity and independent composer text.
+
+MCP skill regressions keep approval and denial on fully SQLite-backed admission.
+The eighteen follow-up cases retain native controls, real MCP approvals and
+execution, captured results, and SQLite-backed conversation receipts. Only their
+repeated local source-use admission bookkeeping uses the shared in-memory
+control-store fixture; the real admission/coordinator logic still records intent
+and terminal transitions. All twenty scenarios remain in PR validation.
 
 Portable tests and exact-source payload production run independently after
 version resolution. The installer consumes the verified payload immediately,

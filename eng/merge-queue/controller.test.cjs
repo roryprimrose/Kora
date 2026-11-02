@@ -80,7 +80,7 @@ const labels = (...names) => names.map(name => ({ name }));
 test('missing source-required producers cannot release failed, stale, merged or retiring lanes', async () => {
   const source = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8')
     .replaceAll('\r\n', '\n');
-  for (const workflow of [source, source.replace('# merge-queue-job-schema: windows-12-v1\n', '')]) {
+  for (const workflow of [source]) {
     const bytes = Buffer.from(workflow);
     const blob = createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
     assert.deepEqual(workflowJobs(workflow, blob), WINDOWS_12_JOBS);

@@ -46,12 +46,17 @@ public static class CapabilityInputPolicy
             }
             if (descriptor.Input == CapabilityInputShape.None)
             { return new(fields.Length == 0 ? null : "unknown-input-field"); }
-            if (descriptor.Input == CapabilityInputShape.Id)
+            if (descriptor.Input is CapabilityInputShape.Id or CapabilityInputShape.RegisteredSettingId)
             {
                 if (fields.Length != 1 || !string.Equals(fields[0].Name, "id", StringComparison.Ordinal)
                     || fields[0].Value.ValueKind != JsonValueKind.String)
                 { return new("invalid-id-input"); }
                 var id = new CapabilityIdInput(fields[0].Value.GetString()!);
+                if (descriptor.Input == CapabilityInputShape.RegisteredSettingId)
+                {
+                    return SettingsDiscoveryTools.FindSetting(id.Id) is not null
+                        ? new(null, Id: id) : new("unknown-setting");
+                }
                 var valid = string.Equals(descriptor.Id, ReadOnlyCapabilityCatalog.Get, StringComparison.Ordinal)
                     ? ReadOnlyCapabilityCatalog.FindExact(id.Id) is not null
                     : string.Equals(id.Id, ReadOnlyCapabilityCatalog.LocalRuntimeId, StringComparison.Ordinal);

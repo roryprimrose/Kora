@@ -64,20 +64,51 @@ public sealed class CallCommunicationPolicy : IDisposable, IHostAuthorizationPol
 
     public CallMutationOutcome SetSettings(CallAwareSettings settings, RequestOrigin origin, long revision,
         Func<bool> hostEligible, Func<CallAwareSettings, bool> persist, bool spokenApprovalDowngradeConfirmed = false)
+        => SetSettingsCore(settings, origin, revision, hostEligible, persist, spokenApprovalDowngradeConfirmed);
+
+    internal CallVoiceActivationReview ReviewVoiceActivation(RequestOrigin origin, long revision,
+        CallAwareSettings? savedSettings, Func<bool> eligible)
     {
         lock (sync)
         {
+            if (origin != RequestOrigin.LocalUi || CheckMutation(origin, revision, eligible) is not null
+                || current.Settings.AllowVoiceActivationDuringCalls
+                || (savedSettings ?? CallAwareSettings.Default) != current.Settings)
+            {
+                throw new InvalidOperationException("The exact call activation preference cannot be reviewed. Start a fresh native review.");
+            }
+            return new(this, current, savedSettings, eligible);
+        }
+    }
+
+    internal CallMutationOutcome SetReviewedVoiceActivation(CallVoiceActivationReview review, RequestOrigin origin,
+        Func<CallAwareSettings, bool> persist) =>
+        SetSettingsCore(review.Observation.Settings with { AllowVoiceActivationDuringCalls = true }, origin,
+            review.Observation.Revision, () => review.IsEligible, persist, activationReview: review);
+
+    private CallMutationOutcome SetSettingsCore(CallAwareSettings settings, RequestOrigin origin, long revision,
+        Func<bool> hostEligible, Func<CallAwareSettings, bool> persist, bool spokenApprovalDowngradeConfirmed = false,
+        CallVoiceActivationReview? activationReview = null)
+    {
+        lock (sync)
+        {
+            if (activationReview is not null
+                && (!activationReview.TryConsume(this, settings) || origin != RequestOrigin.LocalUi))
+            { return CallMutationOutcome.ExactReviewUnavailable; }
             var denied = CheckMutation(origin, revision, hostEligible);
             if (denied is { } result) { return result; }
             if (settings == current.Settings) { return CallMutationOutcome.Unchanged; }
             if (!settings.ShowVisualTextDuringCalls && current.Settings.ShowVisualTextDuringCalls
                 || settings.AllowVoiceActivationDuringCalls && !current.Settings.AllowVoiceActivationDuringCalls
+                    && activationReview is null
                 || settings.AllowSpokenApprovalsDuringCalls && !current.Settings.AllowSpokenApprovalsDuringCalls
                     && (origin != RequestOrigin.LocalUi || !spokenApprovalDowngradeConfirmed))
             {
                 return CallMutationOutcome.ExactReviewUnavailable;
             }
             if (!persist(settings)) { return CallMutationOutcome.PersistenceFailed; }
+            if (activationReview is not null && CheckMutation(origin, revision, hostEligible) is { } invalidated)
+            { return invalidated; }
             return Publish(current with { Settings = settings });
         }
     }

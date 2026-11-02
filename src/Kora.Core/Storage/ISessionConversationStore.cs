@@ -9,6 +9,10 @@ namespace Kora.Core.Storage;
 /// <summary>One private consolidated authority; no caller-supplied append, replay or provider choice.</summary>
 public interface ISessionConversationStore
 {
+    /// <summary>Observes source-row metadata only, without hydrating source bodies or renewing activity.</summary>
+    ValueTask<System.Collections.Immutable.ImmutableArray<SubmittedHistoryAvailability>> ReadSubmittedHistoryAvailabilityAsync(
+        ConversationMessage answer, CancellationToken token) =>
+        throw new InvalidOperationException("The conversation store does not support historical source metadata observation.");
     ValueTask<HostQuestionRecord> CreateVerifiedLocalHandoffAsync(LocalUnavailableObservation observation,
         ModelContextEnvelope context, ProviderProfileTuple profile, ModelProviderSelection destination,
         SessionProviderProfile providerState, Func<bool> admitted, CancellationToken token) =>
@@ -33,6 +37,13 @@ public interface ISessionConversationStore
             : throw new InvalidOperationException("The conversation store does not support pending original requests.");
     ValueTask<ConversationSubmissionReceipt> CompleteConversationSubmissionAsync(HostRequest request,
         ModelTurnOutcome outcome, ModelTurnReason reason, Func<bool> admitted, CancellationToken token);
+    /// <summary>Retains host-classified bare ordinary text and optional historical attribution in the normal FIFO transaction.</summary>
+    ValueTask<ConversationSubmissionReceipt> RetainOrdinaryPendingConversationAsync(HostRequest request,
+        HostRevision generation, long expectedMetadataRevision, string body, IReadOnlyList<HostRequest> predecessors,
+        ExpiredOrdinaryRequestSource? original, Func<bool> admitted, CancellationToken token) =>
+        original is null
+            ? RetainPendingConversationMessageAsync(request, generation, expectedMetadataRevision, body, predecessors, admitted, token)
+            : throw new InvalidOperationException("The conversation store cannot attest ordinary original-text provenance.");
     /// <summary>Cancels a never-dispatched original under an exact canonical session/metadata commit guard.</summary>
     ValueTask<ConversationSubmissionReceipt> CancelPendingConversationSubmissionAsync(HostRequest request,
         SessionWorkspaceEntry expected, Func<bool> admitted, CancellationToken token) =>

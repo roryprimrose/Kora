@@ -128,7 +128,23 @@ Known placeholders/references are inert; arbitrary secrets and undeclared
 formats may be missed. The general never-credentials-in-history requirement
 and broader product screening/redaction direction are unchanged.
 
+## Expired ordinary-text fresh-review boundary
+
+The separate [expired ordinary-text fresh-review operation](Work_Management.md#fresh-review-of-expired-ordinary-local-text)
+admits only host-classified local tool-free bare text with exact pre-dispatch expiry
+message/task evidence. It does not derive no-effect or resource-join claims from a
+terminal task status. A new native confirmation is a new intent/channel/context and
+normal FIFO transaction, with historical original-channel attribution retained
+separately. It cannot replay an identity, restore an old deadline, implicitly consume
+instructions/evidence/memory/grants or launder a retained voice operation as continued
+voice authority. Legacy/unclassified and specialized sources are unavailable, not
+reinterpreted. [Source validation](../src/Kora.Core/Conversation/ExpiredOrdinaryRequestSource.cs)
+and the [fresh transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Conversation.cs)
+preserve the original rows, typed audit, independent retention and unavailable
+qualification boundaries.
+
 ## Explicit expanded-prompt retention boundary
+
 An owned-v2 parameter preview may be retained only after a separate original native exact-session confirmation. Preview/nonpersisting Use are not retention consent. The whole current expansion enters the existing conversation screening/store/admission path once as USER text, without hidden template/value/source-path persistence, prompt-source task authority or double admission.
 Exact target/source/private/preview epochs remain eligible at physical COMMIT after repeated native source validation; this is not global filesystem/SQLite atomicity. Unknown completion is held for exact receipt inspection, with no replay or rollback claims. Existing reject-only credential limitations, independent saved drafts, retention/migration/copy gates and unavailable provider/egress boundaries remain unchanged.
 
@@ -792,8 +808,14 @@ cannot fetch resources, access files or trigger navigation/host controls.
 There is no HTML/browser renderer, renderer acquisition, export, context
 capture or implicit clipboard operation in this profile.
 Only native explicit copy writes exact Unicode source/selection after current
-access/privacy and required disclosure checks. Rich clipboard formats remain
-gated; the multi-format contract below is not an implemented claim.
+access/privacy and required disclosure checks. Independently copy-authorized,
+already rendered Markdown additionally supplies host-serialized inert HTML in
+the same clipboard transfer, without changing its existing plain-text bytes or
+selection scope ([bounded delivered contract](Information_Display.md#delivered-authorized-markdown-copy-increment),
+[copy boundary](../src/Kora/DetailWindowController.cs)). Source views, unavailable
+profiles and unsupported content remain plain-text-only. Readable finalized
+responses and retained conversation Details still grant no copy authority.
+The broader multi-format contract below is not a full implementation claim.
 Privacy closure clears source, selection and pending render generation.
 Close/search/copy do not refresh meaningful session activity or mutate work,
 retained content, approvals or session lifecycle.
@@ -1589,6 +1611,14 @@ Exact-answer review acknowledgements are metadata owned by the retained conversa
 | Kora-owned definitions/revisions | Skills, prompts, instructions, and agent profiles persist in their kind-specific roaming data stores until explicitly removed; not cleared with conversation history; no credentials or grants in content |
 | Shared profile definition snapshots | Admitted immutable in-memory revisions, refreshed/revalidated under the common source lifecycle; no silent content cache persistence. Inspection, refresh, and unregister leave originals untouched; only separately confirmed dedicated editor mutations change supported originals |
 | Approved export | User-selected location with an explicit content preview |
+
+The bounded [exact retained-answer export](Information_Display.md#explicit-exact-retained-answer-file-export) requires separate original local-UI confirmation of one complete retained final ASSISTANT source, destination and strict UTF-8 format.
+Its dedicated native writer refuses protected/reparse/network/noncanonical destinations and existing files, revalidates source/private/control/destination identities before publication, and certifies success only after durable exact-byte readback.
+Read/Details, clipboard and definition-write authority are not export grants.
+
+Export audit carries only typed content-free operation/outcome and source identity, never answer content or destination paths. Failed/cancelled/uncertain outcomes do not renew authority or justify automatic retry.
+Saved files and external copies/sync are outside Kora retention; deleting a conversation or Kora data does not delete those files
+([review and audit owner](../src/Kora.Application/Presentation/ExactAnswerExportReview.cs), [native writer](../src/Kora.Windows/Presentation/WindowsExactAnswerExportWriter.cs)).
 
 Windows-managed definition roaming moves content, not local authority.
 The [definition reconciliation owner](Definition_Management.md#windows-managed-roaming-and-local-revision-admission)

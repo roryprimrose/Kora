@@ -52,6 +52,15 @@ internal sealed partial class SessionsPresentationOwner
     {
         this.model = model;
         this.requestCommands = requestCommands;
+        if (requestCommands is not null)
+        {
+            model.CaptureFreshOrdinaryInput = () =>
+            {
+                var input = requestCommands.CaptureFreshOrdinaryRequestEligibility();
+                var native = CaptureForegroundSourceEligibility();
+                return () => input() && native();
+            };
+        }
         model.PropertyChanged += OnForegroundModelChanged;
         if (requestCommands is not null) { requestCommands.ForegroundRequestSubmitted += OnForegroundRequestSubmitted; }
 #pragma warning disable MA0147 // Avalonia routed-event boundary; the model operation handles and reports failures.
@@ -106,6 +115,25 @@ internal sealed partial class SessionsPresentationOwner
         Justification = "Avalonia routed Click requires void; failures route to the session model's logged recovery status.")]
     private async void OpenConversationDetail(object? sender, RoutedEventArgs args)
     {
+        if (!revoked && !args.Handled && sender is Window exportPresenter
+            && args.Source is Button { Name: "ExportExactAssistantAnswer", DataContext: ConversationMessage exportSource })
+        {
+            args.Handled = true;
+            try { await (DetailOperation = model.ExportExactAnswerAsync(exportSource, replyPresenters[exportPresenter].Capture())); }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            { model.ReportDetailPresentationFailure(exception); }
+            return;
+        }
+        if (!revoked && !args.Handled
+            && args.Source is Button { Name: "OpenSubmittedAnswerContext", DataContext: ConversationMessage answer }
+            && model.CanOpenConversationDetails)
+        {
+            args.Handled = true;
+            try { await (DetailOperation = model.OpenConversationDetailAsync(answer, submittedContext: true)); }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            { model.ReportDetailPresentationFailure(exception); }
+            return;
+        }
         if (!revoked && !args.Handled
             && args.Source is Button { Name: "OpenObservedResult", DataContext: ObservationDetailChoice choice }
             && model.CanOpenConversationDetails)

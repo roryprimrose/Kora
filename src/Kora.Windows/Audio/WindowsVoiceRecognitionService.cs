@@ -100,7 +100,7 @@ public sealed partial class WindowsVoiceRecognitionService : IQuestionVoiceRecog
         {
             lock (gate)
             {
-                return !comparisonActive && capture is null && !pendingBeginGeneration.HasValue && stopRequests == 0 && !resourceCleanupFailed &&
+                return factory.IsQuiescent && !comparisonActive && capture is null && !pendingBeginGeneration.HasValue && stopRequests == 0 && !resourceCleanupFailed &&
                     pendingResourceOperations.All(task => task.IsCompletedSuccessfully);
             }
         }
@@ -196,7 +196,7 @@ public sealed partial class WindowsVoiceRecognitionService : IQuestionVoiceRecog
         SpeechInputGeneration requestedProfile;
         lock (gate)
         {
-            if (profileSwitchActive || comparisonActive || !profileAvailable)
+            if (profileSwitchActive || comparisonActive || !profileAvailable || !factory.IsAvailable)
             {
                 throw new InvalidOperationException("The selected speech-input profile is unavailable or switching. Use typed/native recovery or explicitly select a supported tuple.");
             }
@@ -415,6 +415,7 @@ public sealed partial class WindowsVoiceRecognitionService : IQuestionVoiceRecog
             RetireProvisionalObservation();
             // Initiate native release now; do not wait for UI dispatch or recognition cancellation.
             _ = capture?.ReleaseRecorder();
+            TrackResourceOperation(factory.RetireAsync());
         }
 
         NotifyCaptureState();

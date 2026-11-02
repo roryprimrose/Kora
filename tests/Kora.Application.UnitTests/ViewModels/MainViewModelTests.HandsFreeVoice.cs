@@ -18,6 +18,7 @@ public sealed partial class MainViewModelTests
     [InlineData("Nova", "request")]
     [InlineData("Nova", "new-request")]
     [InlineData("Nova", "refine")]
+    [InlineData("Nova", "restore")]
     [InlineData("Nova", "rename")]
     [InlineData("Nova", "recover-rename")]
     [InlineData("Stop", "collision")]
@@ -71,7 +72,9 @@ public sealed partial class MainViewModelTests
             instructionOperation = requested;
             instructionId = id;
             routedOrigin = HostActivity.RequireCurrent().Request.Origin;
-            routedAdmission = fixture.ViewModel.CaptureInstructionRefinementEligibility()();
+            routedAdmission = operation is "restore"
+                ? fixture.ViewModel.CaptureInstructionRestoreEligibility()()
+                : fixture.ViewModel.CaptureInstructionRefinementEligibility()();
             return Task.CompletedTask;
         };
         fixture.ViewModel.BindSessionRouting((text, origin, admitted) =>
@@ -87,6 +90,7 @@ public sealed partial class MainViewModelTests
         {
             "request" => "read a fixture", "new-request" => "open new request",
             "refine" => "instructions refine", "rename" => "instructions rename renamed",
+            "restore" => "instructions restore",
             "recover-rename" => "instructions recover-rename",
             "collision" => "listening", _ => "what version are you running",
         };
@@ -107,11 +111,12 @@ public sealed partial class MainViewModelTests
                 routedAdmission.Should().BeTrue();
             }
             else if (operation is "new-request") { navigated.Should().Be(1); }
-            else if (operation is "refine" or "rename" or "recover-rename")
+            else if (operation is "refine" or "restore" or "rename" or "recover-rename")
             {
                 instructionOperation.Should().Be(operation switch
                 {
-                    "refine" => "Refine", "rename" => "Rename", _ => "Recover rename",
+                    "refine" => "Refine", "restore" => "Restore previous saved content",
+                    "rename" => "Rename", _ => "Recover rename",
                 });
                 instructionId.Should().Be(operation is "rename" ? "renamed" : null);
                 routedOrigin.Should().Be(RequestOrigin.ActivatedVoice);
@@ -404,6 +409,42 @@ public sealed partial class MainViewModelTests
         var changed = typeof(MainViewModel).GetMethod("OnHandsFreeVoiceStateChanged", BindingFlags.Instance | BindingFlags.NonPublic)!;
         changed.Invoke(fixture.ViewModel, [voice, EventArgs.Empty]);
         fixture.Voice.StartCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("generation")]
+    [InlineData("admission")]
+    [InlineData("revoked")]
+    [InlineData("request")]
+    [InlineData("wake-generation")]
+    [InlineData("playback")]
+    [InlineData("span")]
+    public async Task QueuedWakeDispatchRejectsChangedTypedLineageBeforeConsumingEvidence(string change)
+    {
+        var stage = new HandsFreeStage { IsAvailable = false };
+        HandsFreeVoiceRecognitionService? decorated = null;
+        var fixture = CreateHandsFreeFixture(stage, value => decorated = value);
+        await using var voice = decorated!;
+        await fixture.ViewModel.InitializeAsync();
+        var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        var callback = (Func<VoiceTranscriptEventArgs, HostRequest, HandsFreeCommandActivation, Task>)
+            typeof(HandsFreeVoiceRecognitionService).GetField("dispatch", flags)!.GetValue(voice)!;
+        var admission = (HandsFreeVoiceAdmission)typeof(MainViewModel).GetMethod("ObserveHandsFreeVoiceAdmission", flags)!
+            .Invoke(fixture.ViewModel, null)!;
+        var request = HostRequest.Create(RequestOrigin.ActivatedVoice);
+        var activation = new HandsFreeCommandActivation(
+            change is "admission" ? admission with { NameRevision = admission.NameRevision + 1 } : admission,
+            new(change is "wake-generation" ? voice.Generation - 1 : voice.Generation,
+                change is "span" ? -1 : 12, change is not "playback"),
+            change is "request" ? HostRequest.Create(RequestOrigin.ActivatedVoice) : request);
+        if (change is "revoked") { fixture.ViewModel.BindVoiceOwnershipGate(static () => false); }
+        var rejected = () => callback(new("help", 1,
+            change is "generation" ? voice.Generation - 1 : voice.Generation, new UnknownWakeEvidence()), request, activation);
+        await rejected.Should().ThrowAsync<InvalidOperationException>();
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        fixture.Voice.StartCalls.Should().Be(0);
+        stage.OpenCount.Should().Be(0);
+        fixture.ViewModel.Dispose();
     }
 
     [Fact]

@@ -263,9 +263,10 @@ public sealed partial class SessionsConversationTests
             Kora.Application.Mcp.McpReadOnlyPolicy? mcpEffects = null,
             PlaybackVolumeConfigurationService? volume = null, bool localFirst = false,
             HandoffCatalogue? localFirstCatalogue = null, IProviderCapabilityCatalogue? localRequestCatalogue = null,
-            Kora.Core.Memory.IMemoryStore? memoryStore = null)
+            Kora.Core.Memory.IMemoryStore? memoryStore = null, ISessionWorkspaceStore? workspaceReader = null)
         {
-            var workspace = WindowsSqliteSessionWorkspaceTests.Service(f, Access);
+            var workspace = workspaceReader is null ? WindowsSqliteSessionWorkspaceTests.Service(f, Access)
+                : new SessionWorkspaceService(workspaceReader, new(f.Tasks), Access, NullLogger<SessionWorkspaceService>.Instance);
             Workspace = workspace;
             admission = new(f.Store, f.Store, new(f.Tasks));
             var mode = new ProviderModeConfigurationService(new LocalModelProviderModePreferences(f.Paths), admission, Audit);

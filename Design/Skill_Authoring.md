@@ -5,6 +5,8 @@ authoring, and reviewed Customizations source writes are implemented through
 [Definition Management](Definition_Management.md). Broader conversational/package
 authoring and executable skills remain gated.
 
+The bounded [conversational prompt operation](../docs/customizations.md#author-one-reusable-prompt-request) is now implemented in existing **Customizations > Prompts**: user-described reusable USER request, separately host-declared required literals, independent local disclosure, complete body-only proposal review, volatile adoption and separately confirmed disabled Save. Reopen and existing reviewed literal expansion/submission complete later use; instruction refinement and skill generation are distinct operations ([host validator](../src/Kora.Application/Definitions/PromptTemplateAuthoring.cs), [complete native regression](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.PromptAuthoring.cs)).
+
 Discovery, source-read consent, editing, enablement and invocation are separate
 operations. Registering or inspecting a root grants none of the later
 authorities; see the [source contract](Skill_Storage.md#delivered-bounded-r21-native-inspection)
@@ -70,6 +72,11 @@ and named owned-skill use review original source, exact bindings and single-pass
 expansion through the same canonical local workflow. Old v1/v2 guidance bytes
 remain literal; tool parameters and shared/agent guidance-reference policy are
 not extended.
+
+Missing v3 invocation values now use [host-owned private questions](../src/Kora.Application/Skills/OwnedSkillInvocationWorkflow.InputQuestions.cs) after exact source, Active target and original-task selection.
+Original typed/native or eligible activated-voice replies supply only literal data through the shared question presenter, not Save/Enable/Use approval.
+The existing complete binding/expansion preview and separate native Use remain authoritative; [user steps and refusal boundaries](../docs/owned-skill-authoring.md#required-literal-guidance-inputs) describe the bounded operation. This changes neither authoring nor the v3 format.
+The separate native v4 observation workflow remains an ordered host-action declaration, not a template or a question consumer. Reference-bearing and MCP formats cannot inherit v3 input-question authority or enter this tool-free operation.
 
 1. Capture the voice request and admit an authoring task through normal work management.
 2. Clarify the skill's purpose, inputs, expected output, tool dependencies, and success conditions.
@@ -150,12 +157,14 @@ channel, source/target, draft, privacy and resource-joining checks remain
 authoritative; an unqualified provider is unavailable, not a fallback. This is
 not fixture generation or the full conversational Builder.
 The [explicit literal owned Instruction body increment](../docs/instruction-editor.md#dictate-literal-instruction-body-text) now binds one foreground canonical owned draft/body caret or range before shared local capture, reviews the complete insertion/replacement and accepts into volatile memory only. Normal exact Save, dirty-close and separate enablement remain independent; metadata, prompts, profile originals and other definition kinds are excluded ([target owner](../src/Kora/OwnedInstructionEditorController.Dictation.cs)).
+The same editor supports [one volatile last-confirmed-save restore](../docs/instruction-editor.md#restore-the-last-confirmed-save-in-this-editor) for an existing owned native-v1 Instruction: complete current/previous-source review, separate normal Save and readback as a NEW disabled revision.
+It is not general history or a profile-original restore and cannot revive a renamed source identity.
 The separate [bounded owned Instruction rename](Definition_Management.md#bounded-recoverable-owned-instruction-rename)
 now completes exact identity/source/reference review, separate confirmation,
 native no-replace recoverable publication, disabled reconciliation and reopening.
 It does not rename prompts, profile originals or packages, rewrite dependencies,
 transfer grants or enable content. Broader conversational/package authoring,
-restore and expanded applicability remain unavailable. The same native editor also supports immediate
+general history and expanded applicability remain unavailable. The same native editor also supports immediate
 Kora-owned `.prompt.md` versioned saved requests: select Prompt, then use the same
 Save/Delete, conflict and separate exact-use reviews. Prompts are request content,
 not instructions, skill workflows or policy. Native v1 stays literal; owned native v2 supports required `${input:name}` text only, with a private native field form, complete expanded user-request preview and separately admitted Use. No defaults/expressions/reads/recursive substitution; profile prompt writing remains unavailable.
@@ -306,6 +315,9 @@ Only its declarative behaviour can be copied/refined; a bundled script remains a
 User skill updates create validated, digest-pinned revisions.
 Active tasks retain the revision they started with; enable a new revision for future tasks only.
 Disable or restore a prior revision through the same reviewed data-only registry operations.
+The delivered bounded Instruction restore retains only the previous complete bytes from one known changed Save in the same open private editor.
+Fresh current-source authority, full current/previous review and separate normal Save create a new disabled revision; old activation, review and grants are never restored.
+No persistent version archive, restart recovery or general skill-package history is added ([exact contract and evidence](Definition_Management.md#bounded-owned-instruction-and-prompt-editor), [user operation](../docs/instruction-editor.md#restore-the-last-confirmed-save-in-this-editor)).
 The registry cannot select arbitrary executable code, modify trust roots, or change tool/security configuration.
 External changes use the common reconciliation pipeline. A dirty voice/UI draft
 keeps its base and reports a conflict; save cannot overwrite a changed source,

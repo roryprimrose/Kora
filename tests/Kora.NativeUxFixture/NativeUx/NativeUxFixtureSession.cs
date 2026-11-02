@@ -171,13 +171,14 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         Kora.Core.Communication.ICallStateService? callState = null,
         IUiDispatcher? dispatcher = null, ILocalModelReasoner? modelReasoner = null, ISetupDependencyProbe? modelProbe = null,
         Kora.Application.Dependencies.SpeechComponentSetupService? speechComponentSetup = null,
+        SpeechSetupComparison? speechSetupComparison = null,
         LogonStartupConfigurationService? logonStartupConfiguration = null,
         StartupPresentationConfigurationService? startupPresentationConfiguration = null,
         IQuestionVoiceRecognitionService? voiceRecognition = null, SpeechInputConfigurationService? speechInputConfiguration = null)
     {
         using var setup = BeginPhase(NativeFixturePhase.Setup);
         await setup.RunAsync(() => InitializeCoreAsync(webPageGet, webSummary, callState, dispatcher, modelReasoner,
-            modelProbe, speechComponentSetup, logonStartupConfiguration, startupPresentationConfiguration,
+            modelProbe, speechComponentSetup, speechSetupComparison, logonStartupConfiguration, startupPresentationConfiguration,
             voiceRecognition, speechInputConfiguration));
     }
 
@@ -186,6 +187,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         Kora.Core.Communication.ICallStateService? callState,
         IUiDispatcher? dispatcher, ILocalModelReasoner? modelReasoner, ISetupDependencyProbe? modelProbe,
         Kora.Application.Dependencies.SpeechComponentSetupService? speechComponentSetup,
+        SpeechSetupComparison? speechSetupComparison,
         LogonStartupConfigurationService? logonStartupConfiguration,
         StartupPresentationConfigurationService? startupPresentationConfiguration,
         IQuestionVoiceRecognitionService? voiceRecognition, SpeechInputConfigurationService? speechInputConfiguration)
@@ -261,7 +263,8 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             new Kora.Application.Presentation.AudioPlaybackSettings(dispatcher ?? new AvaloniaUiDispatcher(),
                 NullLogger<Kora.Application.Presentation.AudioPlaybackSettings>.Instance),
             speechTextConfiguration: captionConfiguration,
-            webPageGet: webPageGet, speechComponentSetup: speechComponentSetup, logonStartupConfiguration: logonStartupConfiguration,
+            webPageGet: webPageGet, speechComponentSetup: speechComponentSetup,
+            speechSetupComparison: speechSetupComparison, logonStartupConfiguration: logonStartupConfiguration,
             startupPresentationConfiguration: startupPresentationConfiguration,
             speechInputConfiguration: speechInputConfiguration);
         if (webSummary is not null) { Main.BindWebSummaryWorkflow(webSummary); }

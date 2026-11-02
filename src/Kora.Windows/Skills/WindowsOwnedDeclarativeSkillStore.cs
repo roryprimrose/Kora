@@ -1,4 +1,5 @@
 using System.Security.Principal;
+using System.Collections.Immutable;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Skills;
@@ -31,7 +32,8 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
         }
     }, token);
 
-    public Task<OwnedDeclarativeSkillSnapshot?> Read(string id, string version, CancellationToken token) => Task.Run(() =>
+    public Task<OwnedDeclarativeSkillSnapshot?> Read(string id, string version, CancellationToken token,
+        OwnedSkillReadScope scope = OwnedSkillReadScope.CompletePackage, OwnedDeclarativeSkillSnapshot? expectedPrimary = null) => Task.Run(() =>
     {
         OwnedDeclarativeSkillDocument.RequireIdentity(id, version);
         lock (gate)
@@ -45,7 +47,7 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
             directory.VerifyOwnedSkillDirectory(idPath);
             var versionPath = ExactChild(idPath, version, SharedSkillCatalogue.MaximumPackages);
             if (versionPath is null) { return null; }
-            var saved = ReadPackage(versionPath, token);
+            var saved = ReadPackage(versionPath, token, scope: scope, expectedPrimary: expectedPrimary);
             if (!string.Equals(saved.Document.Id, id, StringComparison.Ordinal)
                 || !string.Equals(saved.Document.Version, version, StringComparison.Ordinal))
             { throw new InvalidDataException("The saved package manifest does not match the exact requested identity."); }
@@ -64,12 +66,15 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
     }
 
     public Task<OwnedDeclarativeSkillSnapshot> Publish(OwnedDeclarativeSkillDocument document, Func<bool> eligible,
-        Func<Func<OwnedDeclarativeSkillSnapshot>, Task<OwnedDeclarativeSkillSnapshot>> commit, CancellationToken token) =>
-        Task.Run(async () => await commit(() => PublishCore(document, eligible, token)).ConfigureAwait(false), token);
+        Func<Func<OwnedDeclarativeSkillSnapshot>, Task<OwnedDeclarativeSkillSnapshot>> commit, CancellationToken token,
+        OwnedDeclarativeSkillSnapshot? expectedSource = null) =>
+        Task.Run(async () => await commit(() => PublishCore(document, eligible, token, expectedSource: expectedSource)).ConfigureAwait(false), token);
 
     private OwnedDeclarativeSkillSnapshot PublishCore(OwnedDeclarativeSkillDocument document, Func<bool> eligible, CancellationToken token,
-        Action<OwnedDeclarativeSkillSnapshot>? beforeCommit = null, OwnedSkillRename? rename = null)
+        Action<OwnedDeclarativeSkillSnapshot>? beforeCommit = null, OwnedSkillRename? rename = null,
+        OwnedDeclarativeSkillSnapshot? expectedSource = null)
     {
+        document.RequireComplete();
         using var activity = HostActivity.Current is null ? null : HostActivity.BeginChild(HostActivityLayer.Windows, HostOperation.Storage);
         try
         {
@@ -80,6 +85,21 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
                 using var pins = PinRoot(token);
                 using var lease = beforeCommit is null ? directory.AcquireBoundedLease(requireExisting: false, token) : null;
                 if (beforeCommit is null) { RequireNoPendingRename(document.Id, document.Version, token); }
+                using var sourcePins = new OwnedSkillPackagePublication();
+                if (expectedSource is not null)
+                {
+                    expectedSource.Document.RequireComplete();
+                    RequireNoPendingRename(expectedSource.Document.Id, expectedSource.Document.Version, token);
+                    var sourcePath = Destination(expectedSource.Document);
+                    sourcePins.PinDirectory(sourcePath);
+                    _ = Inventory(sourcePath, expectedSource.Document.ReferenceDeclaration, sourcePins, token);
+                    foreach (var file in expectedSource.Document.References.Select(item => item.RelativePath)
+                        .Prepend("instructions.md").Prepend("manifest.yaml"))
+                    { sourcePins.PinSourceFile(Path.Combine(sourcePath, file)); }
+                    var actual = ReadPackage(sourcePath, token, expectedPrimary: expectedSource);
+                    if (!expectedSource.IsSameRevision(actual))
+                    { throw new InvalidDataException("The exact reopened package changed or was replaced; no new version was published."); }
+                }
                 var existing = Catalogue(pins, token);
                 var count = existing.Count + (rename is null ? 1 : 0);
                 var bytes = existing.TotalBytes + PackageBytes(document);
@@ -108,6 +128,8 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
                 using var stagePins = new OwnedSkillPackagePublication();
                 SafeFileHandle? stageHandle = null;
                 var createdFiles = new Dictionary<string, string>(StringComparer.Ordinal);
+                var createdDirectories = new Dictionary<string, string>(StringComparer.Ordinal);
+                var contentPins = new List<SafeFileHandle>();
                 var observed = false;
                 try
                 {
@@ -117,8 +139,25 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
                     Checkpoint?.Invoke("manifest-flushed");
                     Write(Path.Combine(stage, "instructions.md"), document.InstructionBytes, createdFiles, token);
                     Checkpoint?.Invoke("instructions-flushed");
-                    using var manifestPin = OwnedSkillPackagePublication.OpenFile(Path.Combine(stage, "manifest.yaml"));
-                    using var instructionsPin = OwnedSkillPackagePublication.OpenFile(Path.Combine(stage, "instructions.md"));
+                    foreach (var reference in document.References)
+                    {
+                        var parentPath = stage;
+                        var parts = reference.RelativePath.Split('\\');
+                        foreach (var part in parts[..^1])
+                        {
+                            parentPath = Path.Combine(parentPath, part);
+                            if (createdDirectories.ContainsKey(parentPath)) { continue; }
+                            directory.CreateOwnedSkillDirectory(parentPath);
+                            using var child = new OwnedSkillPackagePublication();
+                            createdDirectories.Add(parentPath, WindowsFileIdentity.Read(child.PinDirectory(parentPath)));
+                        }
+                        Write(Path.Combine(stage, reference.RelativePath), reference.Bytes.ToArray(), createdFiles, token);
+                        Checkpoint?.Invoke("reference-flushed");
+                    }
+                    foreach (var file in createdFiles.Keys)
+                    { contentPins.Add(OwnedSkillPackagePublication.OpenFile(file)); }
+                    var manifestPin = contentPins[0];
+                    var instructionsPin = contentPins[1];
                     var staged = ReadPackage(stage, token, stageHandle);
                     RequireExact(document, staged.Document);
                     RequireCurrent(eligible, token);
@@ -137,14 +176,14 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
                     OwnedSkillPackagePublication.Verify(instructionsPin, Path.Combine(stage, "instructions.md"), directory: false);
                     var finalStage = ReadPackage(stage, token, stageHandle);
                     if (!string.Equals(finalStage.ManifestIdentity, staged.ManifestIdentity, StringComparison.Ordinal)
-                        || !string.Equals(finalStage.InstructionsIdentity, staged.InstructionsIdentity, StringComparison.Ordinal))
+                        || !string.Equals(finalStage.InstructionsIdentity, staged.InstructionsIdentity, StringComparison.Ordinal)
+                        || !staged.IsSameRevision(finalStage))
                     { throw new InvalidDataException("The staged package names no longer identify the reviewed files."); }
                     RequireExact(document, finalStage.Document);
                     // NTFS cannot rename a directory containing open child files. Keep root, ID and source
                     // directory handles pinned; join file handles, then verify both identities/bytes after the
                     // single no-replace directory commit. Any intervening file change is an uncertain publication.
-                    manifestPin.Dispose();
-                    instructionsPin.Dispose();
+                    foreach (var pin in contentPins) { pin.Dispose(); }
                     beforeCommit?.Invoke(staged);
                     RequireCurrent(eligible, token);
                     OwnedSkillPackagePublication.Commit(stageHandle, parent, document.Version);
@@ -156,7 +195,8 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
                     var saved = ReadPackage(target, token, stageHandle);
                     if (!string.Equals(saved.DirectoryIdentity, staged.DirectoryIdentity, StringComparison.Ordinal)
                         || !string.Equals(saved.ManifestIdentity, staged.ManifestIdentity, StringComparison.Ordinal)
-                        || !string.Equals(saved.InstructionsIdentity, staged.InstructionsIdentity, StringComparison.Ordinal))
+                        || !string.Equals(saved.InstructionsIdentity, staged.InstructionsIdentity, StringComparison.Ordinal)
+                        || !staged.IsSameRevision(saved))
                     { throw new IOException("The published package identity changed before durable readback."); }
                     RequireExact(document, saved.Document);
                     activity?.Complete(HostOperationOutcome.Completed);
@@ -168,7 +208,8 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
                 {
                     // Only an unpublished operation-created directory is eligible for cleanup, after all handles join.
                     // Uncertain published targets are never removed or silently retried.
-                    if (!observed && stageHandle is not null) { CleanupStage(stage, stageHandle, createdFiles); }
+                    foreach (var pin in contentPins) { pin.Dispose(); }
+                    if (!observed && stageHandle is not null) { CleanupStage(stage, stageHandle, createdFiles, createdDirectories); }
                     stagePins.Dispose();
                 }
             }
@@ -181,7 +222,7 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
     {
         token.ThrowIfCancellationRequested();
         using var stream = directory.CreateNewFile(path, FileOptions.WriteThrough);
-        createdFiles.Add(Path.GetFileName(path), WindowsFileIdentity.Read(stream.SafeFileHandle));
+        createdFiles.Add(path, WindowsFileIdentity.Read(stream.SafeFileHandle));
         stream.Write(content.Span);
         stream.Flush(flushToDisk: true);
         token.ThrowIfCancellationRequested();
@@ -230,11 +271,11 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
     private sealed record CatalogueInventory(OwnedDeclarativeSkillSnapshot[] Packages, OwnedSkillRename[] Pending)
     {
         internal int Count => Packages.Length + Pending.Length;
-        internal long TotalBytes => Packages.Sum(s => (long)PackageBytes(s.Document)) + Pending.Sum(p => (long)RenameBytes(p));
+        internal long TotalBytes => Packages.Sum(s => s.TotalBytes) + Pending.Sum(p => (long)RenameBytes(p));
     }
 
     private static int PackageBytes(OwnedDeclarativeSkillDocument document) =>
-        document.ManifestBytes.Length + document.InstructionBytes.Length;
+        document.TotalBytes;
 
     private static int RenameBytes(OwnedSkillRename rename) =>
         Math.Max(PackageBytes(rename.Original.Document), PackageBytes(rename.Renamed));
@@ -280,27 +321,25 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
                 }
                 OwnedDeclarativeSkillDocument.RequireIdentity(id, version);
                 if (pending.Any(intent => Affects(intent, id, version))) { continue; }
-                var saved = ReadPackage(versionPath, token);
+                var saved = ReadPackage(versionPath, token, scope: OwnedSkillReadScope.PrimaryDeclaration);
                 if (!string.Equals(saved.Document.Id, id, StringComparison.Ordinal)
                     || !string.Equals(saved.Document.Version, version, StringComparison.Ordinal))
                 { throw new InvalidDataException("The saved package manifest does not match its canonical destination."); }
                 result.Add(saved);
                 RequireCatalogueCapacity(result.Count + reservations.Length,
-                    result.Sum(s => (long)PackageBytes(s.Document)) + reservedBytes);
+                    result.Sum(s => s.TotalBytes) + reservedBytes);
             }
         }
         return new(result.OrderBy(s => s.Document.Id, StringComparer.Ordinal)
             .ThenBy(s => s.Document.Version, StringComparer.Ordinal).ToArray(), reservations);
     }
 
-    private OwnedDeclarativeSkillSnapshot ReadPackage(string path, CancellationToken token, SafeFileHandle? pinnedDirectory = null)
+    private OwnedDeclarativeSkillSnapshot ReadPackage(string path, CancellationToken token, SafeFileHandle? pinnedDirectory = null,
+        OwnedSkillReadScope scope = OwnedSkillReadScope.CompletePackage, OwnedDeclarativeSkillSnapshot? expectedPrimary = null)
     {
         using var packagePins = new OwnedSkillPackagePublication();
         var handle = pinnedDirectory ?? packagePins.PinDirectory(path);
         directory.VerifyOwnedSkillDirectory(path);
-        var entries = Directory.EnumerateFileSystemEntries(path).Take(3).Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray();
-        if (!entries.SequenceEqual(new[] { "instructions.md", "manifest.yaml" }, StringComparer.Ordinal))
-        { throw new InvalidDataException("A saved skill must contain exactly manifest.yaml and instructions.md."); }
         var manifestPath = Path.Combine(path, "manifest.yaml");
         var instructionsPath = Path.Combine(path, "instructions.md");
         using var manifest = OwnedSkillPackagePublication.OpenFile(manifestPath);
@@ -309,10 +348,90 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
         directory.VerifyFile(instructionsPath);
         var metadata = ReadBytes(manifest, 4096, token);
         var guidance = ReadBytes(instructions, SharedSkillSnapshot.MaximumBytes - metadata.Length, token);
+        if (scope is not (OwnedSkillReadScope.PrimaryDeclaration or OwnedSkillReadScope.CompletePackage))
+        { throw new ArgumentOutOfRangeException(nameof(scope)); }
         var document = OwnedDeclarativeSkillDocument.Parse(metadata, guidance);
+        if (expectedPrimary is not null && !expectedPrimary.IsSamePrimary(new(document,
+            WindowsFileIdentity.Read(handle), WindowsFileIdentity.Read(manifest), WindowsFileIdentity.Read(instructions))))
+        { throw new InvalidDataException("The exact reviewed primary declaration changed; no reference bodies were read."); }
+        var entries = Inventory(path, document.ReferenceDeclaration, packagePins, token);
+        var referenceIdentities = ImmutableDictionary.CreateBuilder<string, string>(StringComparer.Ordinal);
+        long storedBytes = metadata.Length + guidance.Length;
+        foreach (var relative in document.ReferenceDeclaration?.Paths ?? [])
+        {
+            var referencePath = Path.Combine(path, relative);
+            var attributes = File.GetAttributes(referencePath);
+            if (attributes.HasFlag(FileAttributes.ReparsePoint) || attributes.HasFlag(FileAttributes.Directory))
+            { throw new InvalidDataException("A declared component is reparse or not a plain file."); }
+            var length = new FileInfo(referencePath).Length;
+            if (length is <= 0 or > SharedSkillReferenceDeclaration.MaximumReferenceBytes)
+            { throw new InvalidDataException("A declared component exceeds its complete byte bound."); }
+            storedBytes += length;
+        }
+        if (storedBytes > SharedSkillReferenceDeclaration.MaximumBundleBytes)
+        { throw new InvalidDataException("The whole declared tree exceeds the aggregate byte bound."); }
+        if (document.ReferenceDeclaration is { } declaration && scope == OwnedSkillReadScope.CompletePackage)
+        {
+            var contents = new Dictionary<string, byte[]>(StringComparer.Ordinal);
+            var referencePins = new List<SafeFileHandle>();
+            try
+            {
+                var remaining = SharedSkillReferenceDeclaration.MaximumBundleBytes - metadata.Length - guidance.Length;
+                foreach (var relative in declaration.Paths)
+                {
+                    Checkpoint?.Invoke("before-reference-read");
+                    var referencePath = Path.Combine(path, relative);
+                    var pin = OwnedSkillPackagePublication.OpenFile(referencePath);
+                    referencePins.Add(pin);
+                    directory.VerifyFile(referencePath);
+                    var bytes = ReadBytes(pin, Math.Min(remaining, SharedSkillReferenceDeclaration.MaximumReferenceBytes), token);
+                    remaining -= bytes.Length;
+                    contents.Add(relative, bytes);
+                    referenceIdentities.Add(relative, WindowsFileIdentity.Read(pin));
+                }
+                document = OwnedDeclarativeSkillDocument.Parse(metadata, guidance, contents);
+                if (!entries.SequenceEqual(Inventory(path, declaration, packagePins, token), StringComparer.Ordinal))
+                { throw new InvalidDataException("The selected package inventory changed during capture."); }
+            }
+            finally { foreach (var pin in referencePins) { pin.Dispose(); } }
+        }
         directory.VerifyFile(manifestPath);
         directory.VerifyFile(instructionsPath);
-        return new(document, WindowsFileIdentity.Read(handle), WindowsFileIdentity.Read(manifest), WindowsFileIdentity.Read(instructions));
+        return new(document, WindowsFileIdentity.Read(handle), WindowsFileIdentity.Read(manifest), WindowsFileIdentity.Read(instructions))
+        { ReferenceIdentities = referenceIdentities.ToImmutable(), StoredBytes = storedBytes };
+    }
+
+    private string[] Inventory(string root, SharedSkillReferenceDeclaration? declaration,
+        OwnedSkillPackagePublication pins, CancellationToken token)
+    {
+        var expected = new HashSet<string>(StringComparer.Ordinal) { "manifest.yaml", "instructions.md" };
+        foreach (var file in declaration?.Paths ?? [])
+        {
+            expected.Add(file);
+            for (var split = file.IndexOf('\\'); split >= 0; split = file.IndexOf('\\', split + 1))
+            { expected.Add(file[..split]); }
+        }
+        var found = new HashSet<string>(StringComparer.Ordinal);
+        var pending = new Queue<string>();
+        pending.Enqueue(root);
+        while (pending.TryDequeue(out var current))
+        {
+            token.ThrowIfCancellationRequested();
+            foreach (var entry in Directory.EnumerateFileSystemEntries(current).Take(expected.Count + 1))
+            {
+                var relative = Path.GetRelativePath(root, entry);
+                if (!expected.Contains(relative) || !found.Add(relative))
+                { throw new InvalidDataException("The exact declared tree contains unknown, aliased or excessive entries."); }
+                if (expected.Any(item => item.StartsWith(relative + '\\', StringComparison.Ordinal)))
+                {
+                    pins.PinDirectory(entry);
+                    directory.VerifyOwnedSkillDirectory(entry);
+                    pending.Enqueue(entry);
+                }
+            }
+        }
+        if (!found.SetEquals(expected)) { throw new InvalidDataException("The exact declared package tree is incomplete."); }
+        return found.Order(StringComparer.Ordinal).ToArray();
     }
 
     private static byte[] ReadBytes(SafeFileHandle handle, int maximum, CancellationToken token)
@@ -331,17 +450,27 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
         return bytes;
     }
 
-    private void CleanupStage(string stage, SafeFileHandle handle, Dictionary<string, string> createdFiles)
+    private void CleanupStage(string stage, SafeFileHandle handle, Dictionary<string, string> createdFiles,
+        Dictionary<string, string> createdDirectories)
     {
         OwnedSkillPackagePublication.Verify(handle, stage, directory: true);
         directory.VerifyOwnedSkillDirectory(stage);
-        foreach (var path in Directory.EnumerateFileSystemEntries(stage).Take(3))
+        foreach (var path in createdFiles.Keys)
         {
-            if (!createdFiles.TryGetValue(Path.GetFileName(path), out var identity))
-            { throw new InvalidDataException("Unexpected staging data was retained; no external entry was deleted."); }
             directory.VerifyFile(path);
-            OwnedSkillPackagePublication.DeleteExactFile(path, identity);
+            OwnedSkillPackagePublication.DeleteExactFile(path, createdFiles[path]);
         }
+        foreach (var path in createdDirectories.Keys.OrderByDescending(item => item.Length))
+        {
+            using var pins = new OwnedSkillPackagePublication();
+            var child = pins.PinDirectory(path, forRename: true);
+            if (!string.Equals(createdDirectories[path], WindowsFileIdentity.Read(child), StringComparison.Ordinal)
+                || Directory.EnumerateFileSystemEntries(path).Any())
+            { throw new InvalidDataException("Unexpected staging data was retained; no external entry was deleted."); }
+            OwnedSkillPackagePublication.MarkDeleted(child);
+        }
+        if (Directory.EnumerateFileSystemEntries(stage).Any())
+        { throw new InvalidDataException("Unexpected staging data was retained; no external entry was deleted."); }
         OwnedSkillPackagePublication.MarkDeleted(handle);
     }
 
@@ -353,7 +482,8 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
     private static void RequireExact(OwnedDeclarativeSkillDocument expected, OwnedDeclarativeSkillDocument actual)
     {
         if (!expected.ManifestBytes.Span.SequenceEqual(actual.ManifestBytes.Span)
-            || !expected.InstructionBytes.Span.SequenceEqual(actual.InstructionBytes.Span))
-        { throw new IOException("Both durable skill files must match the exact reviewed bytes."); }
+            || !expected.InstructionBytes.Span.SequenceEqual(actual.InstructionBytes.Span)
+            || !actual.IsComplete || !string.Equals(expected.RevisionDigest, actual.RevisionDigest, StringComparison.Ordinal))
+        { throw new IOException("Every durable skill component must match the exact reviewed bytes."); }
     }
 }

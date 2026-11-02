@@ -9,6 +9,30 @@ namespace Kora.Application.UnitTests.Skills;
 public sealed partial class OwnedSkillSaveWorkflowTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task MarkdownRenameRequestsOnlyPrimaryDeclarationAndRejectsBeforeReviewsAuditOrEffects(bool complete)
+    {
+        var package = OwnedDeclarativeSkillDocument.CreatePackage("example", "1.0.0", "Example", "Description",
+            "Literal", new Dictionary<string, byte[]>(StringComparer.Ordinal) { ["notes.md"] = "Private reference"u8.ToArray() });
+        var document = complete ? package : OwnedDeclarativeSkillDocument.Parse(package.ManifestBytes.Span, package.InstructionBytes.Span);
+        var sessions = new Sessions();
+        await using var admission = new OwnedSkillControlAdmission(sessions, sessions, new(sessions));
+        var store = new RenameStore { Original = new(document, "d", "m", "i") };
+        var audit = new Audit();
+        var review = new RenameReview();
+        var flow = new OwnedSkillRenameWorkflow(store, store, admission, audit, TimeProvider.System);
+        var run = () => flow.Rename("example", "1.0.0", "renamed", false,
+            new(RequestOrigin.LocalUi, static () => true), static () => true, review, Token);
+        await run.Should().ThrowAsync<InvalidDataException>();
+        store.ReadScope.Should().Be(OwnedSkillReadScope.PrimaryDeclaration);
+        review.Calls.Should().BeEmpty();
+        store.Writes.Should().Be(0);
+        audit.Events.Should().BeEmpty();
+        store.Original.Document.Should().BeSameAs(document);
+    }
+
+    [Theory]
     [InlineData(RequestOrigin.LocalUi, false)]
     [InlineData(RequestOrigin.ActivatedVoice, false)]
     [InlineData(RequestOrigin.LocalUi, true)]
@@ -171,15 +195,16 @@ public sealed partial class OwnedSkillSaveWorkflowTests
 
     private sealed class RenameStore : IOwnedDeclarativeSkillStore, IOwnedSkillRenameStore
     {
-        private readonly OwnedDeclarativeSkillSnapshot original = new(
+        internal OwnedDeclarativeSkillSnapshot Original { get; init; } = new(
             OwnedDeclarativeSkillDocument.Create("example", "1.0.0", "Example", "Description", "Literal"), "d", "m", "i");
+        internal OwnedSkillReadScope? ReadScope { get; private set; }
         internal int Writes { get; private set; }
         internal bool Missing { get; init; }
         internal Exception? Failure { get; init; }
         internal Action? After { get; init; }
         public string Destination(OwnedDeclarativeSkillDocument document) => document.Id;
         public Task<IReadOnlyList<OwnedSkillRename>> PendingRenames(CancellationToken token) =>
-            Task.FromResult<IReadOnlyList<OwnedSkillRename>>([new(original, "renamed")]);
+            Task.FromResult<IReadOnlyList<OwnedSkillRename>>([new(Original, "renamed")]);
         public Task<OwnedDeclarativeSkillSnapshot> Rename(OwnedSkillRename proposal, bool recovery, Func<bool> eligible,
             Func<Func<OwnedDeclarativeSkillSnapshot>, Task<OwnedDeclarativeSkillSnapshot>> commit, CancellationToken token) =>
             commit(() =>
@@ -190,11 +215,16 @@ public sealed partial class OwnedSkillSaveWorkflowTests
                 After?.Invoke();
                 return new(proposal.Renamed, "new-d", "new-m", "new-i");
             });
-        public Task<OwnedDeclarativeSkillSnapshot?> Read(string id, string version, CancellationToken token) =>
-            Task.FromResult(Missing ? null : original);
+        public Task<OwnedDeclarativeSkillSnapshot?> Read(string id, string version, CancellationToken token,
+            OwnedSkillReadScope scope = OwnedSkillReadScope.CompletePackage, OwnedDeclarativeSkillSnapshot? expectedPrimary = null)
+        {
+            ReadScope = scope;
+            return Task.FromResult(Missing ? null : Original);
+        }
         public Task<IReadOnlyList<OwnedDeclarativeSkillSnapshot>> List(CancellationToken token) => throw new NotSupportedException();
         public Task<OwnedDeclarativeSkillSnapshot> Publish(OwnedDeclarativeSkillDocument document, Func<bool> eligible,
-            Func<Func<OwnedDeclarativeSkillSnapshot>, Task<OwnedDeclarativeSkillSnapshot>> commit, CancellationToken token) =>
+            Func<Func<OwnedDeclarativeSkillSnapshot>, Task<OwnedDeclarativeSkillSnapshot>> commit, CancellationToken token,
+            OwnedDeclarativeSkillSnapshot? expectedSource = null) =>
             throw new NotSupportedException();
     }
 }

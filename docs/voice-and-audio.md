@@ -84,6 +84,26 @@ A failed or unconfirmed write does not advance the profile generation or enable 
 
 Inspect preference and audit evidence before explicit repair/restart; do not remove an evidence hold merely to retry. Typed/native recovery remains available. Deterministic lifecycle tests do not qualify another provider, runtime/resource/residency profile or acoustic behaviour ([typed persistence](../src/Kora.Application/Configuration/LocalSpeechInputPreferences.cs), [qualification boundary](../Design/Speech_Input.md#delivery-and-open-decisions)).
 
+## Local speech setup comparison
+
+In **Settings > Speech & audio > Local speech setup comparison**, edit the expected phrase, select **Start / review local comparison**, and read the exact installed profiles and microphone-use disclosure. **Test with microphone** explicitly starts two short inert captures per reviewed profile, at most two profiles and ten seconds per capture ([native controls](../src/Kora/SettingsWindow.axaml), [bounded workflow](../src/Kora.Application/Voice/SpeechSetupComparison.cs)).
+
+Review names the microphone. Wait through **Opening** until **Speak now** identifies the current profile and first/repeat capture, then say the reviewed phrase. The ready indication comes from actual native recording start, not a startup estimate ([capture lifecycle](../src/Kora.Windows/Audio/WindowsVoiceRecognitionService.Comparison.cs)).
+
+The result shows expected and final text, case-insensitive exact correctness or mismatch, and measured open-to-start time. First/repeat trials are not proof of cold/warm caches; cold/warm startup, end-of-speech-to-final delay and resource use stay **unknown** when the native seam cannot measure them. This is setup support, not release qualification ([result semantics](../src/Kora.Application/Voice/SpeechComparisonResult.cs)).
+
+**Cancel and discard** cancels and joins owned capture cleanup. Closing Settings or a privacy change clears visible text; raw buffers are discarded after each joined capture. Edits and changed source/profile/device/owner/call admission invalidate the review. No phrase is executed, used as source context, sent to a model, archived or learned. Prior listening, consent, settings and selected profile remain unchanged ([isolated native capture](../src/Kora.Windows/Audio/WindowsVoiceRecognitionService.Comparison.cs), [host admission](../src/Kora.Application/ViewModels/MainViewModel.SpeechComparison.cs)).
+
+Test phrases cannot confirm a prepared [ordinary-conversation maximum change](settings.md#independent-ordinary-conversations). That setting still requires its own separate confirmation.
+
+Equivalent exact typed or already activated commands are `compare speech input`, `test speech comparison` and `cancel speech comparison`, with the current assistant-name prefix for activated voice. The first opens the same native review; the second explicitly confirms microphone use. During a comparison all other voice capture is excluded, so use native or typed cancellation, not a calibration phrase ([entry parser](../src/Kora.Application/Configuration/SpeechComparisonCommand.cs)).
+
+Shared appearance, speech, playback and response settings changes, including confirmed settings undo, discard the comparison and cancel active captures without reopening listening or replaying results. Capture ownership remains held until cleanup joins ([settings invalidation](../src/Kora.Application/ViewModels/MainViewModel.SpeechComparison.cs)).
+
+If native recorder release or disposal fails or is itself cancelled, the comparison reports failed/unconfirmed cleanup, not a joined cancellation. No results are retained and further capture remains unavailable; fresh review does not clear that resource hold ([native cleanup](../src/Kora.Windows/Audio/WindowsVoiceRecognitionService.Comparison.cs)).
+
+**Currently unavailable:** no production profile is qualified for this inert comparison operation. The review truthfully shows zero offers and does not open the microphone, download/install anything, select a fallback or change readiness. Installed Windows recognition and profile switching alone do not enable comparison. Fake-driven tests demonstrate implementation only ([capability gate](../src/Kora.Windows/Audio/IActivatedCaptureFactory.cs), [qualification contract](../Design/Speech_Input.md#comparison-and-qualification)).
+
 ## Microphone selection
 
 [Windows-native speech rate](settings.md#windows-native-speech-rate) is a

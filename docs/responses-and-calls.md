@@ -425,8 +425,9 @@ When manual mode or an enabled Active, Suspected or Unknown observation applies:
 
 These settings are independent. You can allow listening while forcing visual
 responses, or disable listening during calls. Existing saved output/activation
-choices are retained. New protection downgrades are disabled pending complete
-exact trusted review; call-wide temporary exceptions remain unavailable. The
+choices are retained. Restore a disabled activation preference using the
+[separate native review](#restore-call-time-voice-activation). General speech
+protection downgrades and call-wide temporary exceptions remain unavailable. The
 [separate current-response speak-once review](#speak-one-current-response-during-call-protection)
 does not change those preferences.
 Enabling visual protection or disabling call-time activation remains supported.
@@ -434,6 +435,14 @@ The new **In-call feedback override** is independent of both. UI is its default;
 even a legacy suppression-Off preference does not disable that UI selection.
 Unknown/invalid detector evidence always suppresses speech. Feedback changes
 never enable input, clear calls, grant consent/permission or edit reusable grants.
+
+### Restore call-time voice activation
+
+In the active **Settings > Calls** window, choose **Review enabling activation**. Inspect the exact Off -> On device-local preference, current call observation and privacy limits, then separately choose **Confirm reviewed activation**, or **Cancel activation review** without saving ([native controls](../src/Kora/SettingsWindow.axaml)).
+
+The saved status confirms the preference only. Saving does not open the microphone, grant listening consent, clear a manual/recovery hold, permit speech or enable spoken approvals. Use the existing separate **Enable listening** action when permitted. Voice/model requests cannot prepare this privacy relaxation; a later confirmation cannot relabel them ([review boundary](../src/Kora.Application/ViewModels/MainViewModel.CallVoiceActivation.cs)).
+
+Hiding, deactivating, leaving Calls or closing Settings retires the review. Changed call/privacy/ownership/input or saved settings also require a fresh review. A failed or unconfirmed save/audit is not a rollback guarantee and is never automatically retried ([shared writer](../src/Kora.Application/ViewModels/MainViewModel.Communication.cs)).
 
 Protected-call entry invalidates pending synthesis/playback before slower UI
 work. Results and questions stay visual; clearing protection does not replay

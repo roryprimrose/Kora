@@ -57,8 +57,15 @@ public sealed partial class SettingsWindow : Window
         callsTab = this.FindControl<TabItem>("CallsTab")
             ?? throw new InvalidOperationException("The call settings tab is unavailable.");
         DataContext = viewModel;
+        Activated += (_, _) => BindCallActivationReviewLifetime();
+        Deactivated += (_, _) => model.BindCallVoiceActivationNativeLifetime(false);
+        settingsTabs.SelectionChanged += (_, args) =>
+        {
+            if (ReferenceEquals(args.Source, settingsTabs)) { BindCallActivationReviewLifetime(); }
+        };
         PropertyChanged += (_, args) =>
         {
+            if (args.Property == IsVisibleProperty) { BindCallActivationReviewLifetime(); }
             if (args.Property == IsVisibleProperty) { Volatile.Write(ref undoVisible, IsVisible ? 1 : 0); }
             if (args.Property == IsVisibleProperty && !IsVisible)
             {
@@ -68,6 +75,7 @@ public sealed partial class SettingsWindow : Window
         };
         Closed += (_, _) =>
         {
+            model.BindCallVoiceActivationNativeLifetime(false);
             Volatile.Write(ref undoVisible, 0);
             Interlocked.Increment(ref undoLifetime);
             model.CancelSpokenApprovalReview();
@@ -86,6 +94,9 @@ public sealed partial class SettingsWindow : Window
         BindUndo("ConfirmSettingsUndo", RegisteredSettingSuggestionOperation.Confirm);
         BindUndo("CancelSettingsUndo", RegisteredSettingSuggestionOperation.Cancel);
     }
+
+    private void BindCallActivationReviewLifetime() =>
+        model.BindCallVoiceActivationNativeLifetime(IsVisible && IsActive && ReferenceEquals(settingsTabs.SelectedItem, callsTab));
 
     private void BindUndo(string name, RegisteredSettingSuggestionOperation operation)
     {

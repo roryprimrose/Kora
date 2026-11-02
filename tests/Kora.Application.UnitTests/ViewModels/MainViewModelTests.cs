@@ -10603,10 +10603,15 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public Exception? SaveException { get; set; }
 
-        public CallAwareSettings? Load() => Settings;
+        public Func<CallAwareSettings?>? Read { get; set; }
+        public Action? BeforeSave { get; set; }
+        public int SaveCalls { get; private set; }
+        public CallAwareSettings? Load() => Read is null ? Settings : Read();
 
         public void Save(CallAwareSettings settings)
         {
+            SaveCalls++;
+            BeforeSave?.Invoke();
             if (SaveException is not null)
             {
                 throw SaveException;

@@ -43,13 +43,21 @@ public sealed class LocalAppearancePreferencesTests : IDisposable
     {
         var preferences = CreatePreferences();
         preferences.SaveThemeMode(ApplicationThemeMode.Dark);
+        preferences.SaveResponseTimeoutSeconds(15);
         preferences.SaveReducedMotionEnabled(!value);
         preferences.SaveReducedMotionEnabled(value);
         CreatePreferences().LoadReducedMotionEnabled().Should().Be(value);
         CreatePreferences().LoadThemeMode().Should().Be(ApplicationThemeMode.Dark);
-        Directory.GetFiles(Path.Combine(root, "Preferences")).Should().HaveCount(2);
+        CreatePreferences().LoadResponseTimeoutSeconds().Should().Be(15);
+        Directory.GetFiles(Path.Combine(root, "Preferences")).Should().HaveCount(3);
         preferences.ResetRegisteredOption(AppearanceOption.ReducedMotion);
         CreatePreferences().LoadReducedMotionEnabled().Should().BeNull();
+        CreatePreferences().LoadThemeMode().Should().Be(ApplicationThemeMode.Dark);
+        CreatePreferences().LoadResponseTimeoutSeconds().Should().Be(15);
+        preferences.SaveReducedMotionEnabled(value);
+        preferences.ResetRegisteredOption(AppearanceOption.ResponseTimeout);
+        CreatePreferences().LoadResponseTimeoutSeconds().Should().BeNull();
+        CreatePreferences().LoadReducedMotionEnabled().Should().Be(value);
         CreatePreferences().LoadThemeMode().Should().Be(ApplicationThemeMode.Dark);
     }
 

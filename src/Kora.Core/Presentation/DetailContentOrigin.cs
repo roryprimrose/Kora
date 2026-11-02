@@ -12,4 +12,6 @@ public enum DetailContentOrigin
     /// <summary>Complete separately retained assistant answer; not an approval, original USER or host receipt.</summary>
     RetainedAssistant,
     RetainedLocalObservation,
+    /// <summary>Host-recorded canonical context handoff metadata for one exact retained answer.</summary>
+    RetainedAnswerContext,
 }

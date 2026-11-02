@@ -61,8 +61,8 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess(IApplicationDataP
             name = OwnedInstructionNames.WriteName(name);
             if (kind == ArtifactKind.Agent)
             {
-                if (expected is not null || replacement is null)
-                { throw new InvalidDataException("Owned agents only support new-file publication."); }
+                if (replacement is null)
+                { throw new InvalidDataException("Owned agent deletion is unsupported."); }
                 _ = Kora.Core.Agents.OwnedAgentProfileDocument.Parse(name, replacement.CopyBytes());
             }
             else { replacement?.RequireEditableInstruction(); }
@@ -73,7 +73,8 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess(IApplicationDataP
             var current = ReadCore(name, pinned, token);
             if (current is not null && !string.Equals(current.CanonicalFileName, name + extension, StringComparison.Ordinal))
             { throw new InvalidDataException("The selected filename is a case alias, not the original canonical owned write target."); }
-            if (!Same(expected, current))
+            if (!Same(expected, current) || kind == ArtifactKind.Agent && expected is not null
+                && !string.Equals(expected.RootBindingIdentity, current!.RootBindingIdentity, StringComparison.Ordinal))
             { return new WriteResult(false, false, true, current); }
             RequireEligible(eligible, token);
             if (replacement is not null && current is not null
@@ -116,6 +117,11 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess(IApplicationDataP
                 // never following a subsequently substituted link or taking a caller-supplied destination.
                 AfterFinalComparison?.Invoke();
                 RequireEligible(eligible, token);
+                if (kind == ArtifactKind.Agent && current is not null)
+                {
+                    var observed = ReadCore(name, pinned, token);
+                    if (!Same(current, observed)) { return new WriteResult(false, false, true, observed); }
+                }
                 Rename(staged, pinned.Last, name + extension, replace: current is not null, token);
                 published = true;
             }
@@ -156,7 +162,8 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess(IApplicationDataP
                 using var pinned = PinRoot(token);
                 if (ReadCore(name, pinned, token) is not null)
                 { throw new InvalidOperationException("The new destination is occupied. Choose a different ID or cancel."); }
-                return new Kora.Core.Agents.OwnedAgentProfileDestination(name, Target(name), WindowsFileIdentity.Read(pinned.Last));
+                return new Kora.Core.Agents.OwnedAgentProfileDestination(name, Target(name), WindowsFileIdentity.Read(pinned.Last))
+                { RootBindingIdentity = pinned.BindingIdentity };
             }
         }, token);
 
@@ -200,6 +207,8 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess(IApplicationDataP
         }
         VerifyFile(handle, Target(name));
         var canonicalFile = Path.GetFileName(CoordinationNative.CanonicalPath(handle));
+        if (kind == ArtifactKind.Agent && !string.Equals(canonicalFile, name + extension, StringComparison.Ordinal))
+        { throw new InvalidDataException("The owned agent filename is not the exact canonical original."); }
         var canonicalName = canonicalFile[..^extension.Length];
         var snapshot = ReadHandle(canonicalName, pinned, handle, token) with { CanonicalFileName = canonicalFile };
         if (kind == ArtifactKind.Prompt && snapshot.Document.Metadata.ContainsKey("kora-format")

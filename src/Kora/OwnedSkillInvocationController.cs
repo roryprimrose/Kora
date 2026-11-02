@@ -172,9 +172,14 @@ internal sealed partial class OwnedSkillInvocationController(
                     RetireConfirmation(false);
                     var target = (currentWindow.Targets.SelectedItem as OwnedSkillConversationTarget)?.Entry
                         ?? throw new InvalidOperationException("Select exactly one current Active conversation.");
+                    var inputAuthority = requestAuthority ?? authority;
+                    if (currentReview.RequiredNames.Any(name =>
+                        string.IsNullOrWhiteSpace(currentWindow.LiteralInputs.Inputs[name].Text)))
+                    {
+                        await CollectMissingInputs(currentWindow, currentReview, target, inputAuthority, Current, token);
+                    }
                     var exact = inputRevision;
                     bool Exact() => Current() && inputRevision == exact;
-                    var inputAuthority = requestAuthority ?? authority;
                     using (var request = HostActivity.BeginRoot(HostRequest.Create(inputAuthority.Origin),
                         HostActivityLayer.Desktop, HostOperation.Request))
                     {
@@ -266,6 +271,7 @@ internal sealed partial class OwnedSkillInvocationController(
 
     private void RetireConfirmation(bool edited = true)
     {
+        inputQuestions?.Cancel();
         Interlocked.Increment(ref inputRevision);
         if (edited && (invocation is not null || toolInvocation is not null)) { review?.Dispose(); toolReview?.Dispose(); }
         invocation?.Dispose();

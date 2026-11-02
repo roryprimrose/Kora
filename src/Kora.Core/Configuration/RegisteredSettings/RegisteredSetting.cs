@@ -17,5 +17,6 @@ public enum RegisteredSetting
     SpeechScaling,
     SpeechScaleAmount,
     WindowsSpeechRate,
+    ResponseTimeout,
     ReducedMotion,
 }

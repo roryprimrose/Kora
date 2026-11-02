@@ -45,6 +45,17 @@ public sealed class OwnedAgentProfileDocumentTests
         saved.Document.CopyBytes()[0].Should().Be((byte)'-');
     }
 
+    [Fact]
+    public void OwnedDestinationPinsAncestorBindingAsPartOfTheExactSourceIdentity()
+    {
+        var destination = new OwnedAgentProfileDestination("example", "owned-original", "directory");
+        destination.RootBindingIdentity.Should().BeEmpty();
+        var pinned = destination with { RootBindingIdentity = "admitted-ancestors" };
+        pinned.RootBindingIdentity.Should().Be("admitted-ancestors");
+        pinned.Should().NotBe(destination);
+        (pinned with { RootBindingIdentity = "replacement-ancestors" }).Should().NotBe(pinned);
+    }
+
     [Theory]
     [InlineData("../example")]
     [InlineData("Example")]

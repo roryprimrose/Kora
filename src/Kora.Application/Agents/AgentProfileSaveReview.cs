@@ -7,20 +7,22 @@ public sealed class AgentProfileSaveReview : IDisposable
 {
     private int consumed;
     internal AgentProfileSaveReview(AgentProfileSaveWorkflow owner, OwnedAgentProfileDestination destination,
-        OwnedAgentProfileDocument document, long revision, RequestOrigin origin, Func<bool> eligible)
-    { Owner = owner; Destination = destination; Document = document; Revision = revision; Origin = origin; Eligible = eligible; }
+        OwnedAgentProfileDocument document, long revision, RequestOrigin origin, Func<bool> eligible,
+        OwnedAgentProfileSnapshot? original = null)
+    { Owner = owner; Destination = destination; Document = document; Revision = revision; Origin = origin; Eligible = eligible; Original = original; }
 
     internal AgentProfileSaveWorkflow Owner { get; }
     internal Func<bool> Eligible { get; }
     internal RequestOrigin Origin { get; }
     public OwnedAgentProfileDestination Destination { get; }
     public OwnedAgentProfileDocument Document { get; }
+    public OwnedAgentProfileSnapshot? Original { get; }
     public long Revision { get; }
     public bool IsCurrent => Volatile.Read(ref consumed) == 0 && Eligible();
     internal void Consume()
     {
         if (Interlocked.Exchange(ref consumed, 1) != 0 || !Eligible())
-        { throw new InvalidOperationException("The exact new-file review expired or was already consumed."); }
+        { throw new InvalidOperationException("The exact source review expired or was already consumed."); }
     }
     public void Dispose() => Interlocked.Exchange(ref consumed, 1);
 }

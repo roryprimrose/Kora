@@ -436,7 +436,7 @@ public sealed class MarkdownStrikethroughTests
     private sealed class TestClipboard : IDetailClipboard
     {
         public int Writes { get; private set; }
-        public Task WritePlainTextAsync(IDetailView view, string source)
+        public Task WriteAsync(IDetailView view, string source, string? htmlFragment)
         {
             Writes++;
             return Task.CompletedTask;

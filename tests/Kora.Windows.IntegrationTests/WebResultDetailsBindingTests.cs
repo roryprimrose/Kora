@@ -197,7 +197,7 @@ public sealed class WebResultDetailsBindingTests
     private sealed class Clipboard : IDetailClipboard
     {
         public List<string> Writes { get; } = [];
-        public Task WritePlainTextAsync(IDetailView view, string source)
+        public Task WriteAsync(IDetailView view, string source, string? htmlFragment)
         {
             Writes.Add(source);
             return Task.CompletedTask;

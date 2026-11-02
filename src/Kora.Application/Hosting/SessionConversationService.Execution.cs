@@ -133,6 +133,7 @@ public sealed partial class SessionConversationService
                     || result.Outcome != ModelTurnOutcome.Succeeded && result.Response is not null)
                 { throw new InvalidDataException("A host source response projection cannot change turn authority or promote a failure."); }
             }
+            result = result with { SubmittedContext = result.Outcome == ModelTurnOutcome.Succeeded ? turn.SubmittedContext : null };
             ConversationResponse? answer = null;
             if (result.Outcome == ModelTurnOutcome.Succeeded)
             {
@@ -142,7 +143,7 @@ public sealed partial class SessionConversationService
                     (dispatched.Message with
                     {
                         Revision = 3, Outcome = result.Outcome, Reason = result.Reason,
-                        AssistantResponse = answer, Observations = result.Observations,
+                        AssistantResponse = answer, Observations = result.Observations, SubmittedContext = result.SubmittedContext,
                     }).Validate();
                 }
                 catch (Exception exception) when (exception is InvalidDataException or ConversationCredentialException)
@@ -172,6 +173,7 @@ public sealed partial class SessionConversationService
                 ?? await conversations.CompleteConversationExecutionAsync(request, result, RetainCurrent, token).ConfigureAwait(false);
             if (completed.Message.Outcome != result.Outcome || completed.Message.Reason != result.Reason
                 || completed.Message.AssistantResponse != answer || completed.Message.Observations != result.Observations
+                || completed.Message.SubmittedContext != result.SubmittedContext
                 || completed.Message.Execution != turn.Provenance
                 || completed.Message.Generation != target.Authority.Generation || completed.Message.Sequence != retained.Message.Sequence
                 || completed.Message.Revision != 3 || completed.Task.Revision.Value != 3)

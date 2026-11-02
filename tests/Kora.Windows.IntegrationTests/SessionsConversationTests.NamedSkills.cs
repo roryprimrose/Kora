@@ -7,6 +7,7 @@ using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Application.Dependencies;
 using Kora.Application.Hosting;
+using Kora.Application.Interaction;
 using Kora.Application.Skills;
 using Kora.Core.Artifacts;
 using Kora.Core.Dependencies;
@@ -22,16 +23,19 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class SessionsConversationTests
 {
     [Theory]
-    [InlineData(false, false, false, false)]
-    [InlineData(false, true, false, false)]
-    [InlineData(true, false, false, false)]
-    [InlineData(true, true, false, false)]
-    [InlineData(false, false, true, false)]
-    [InlineData(true, true, true, false)]
-    [InlineData(false, false, false, true)]
-    [InlineData(true, false, false, true)]
-    [InlineData(false, false, true, true)]
-    public async Task NamedSkillOriginalTypedOrVoiceChoiceAndNativeKeyboardUseRetainCanonicalAnswer(bool voice, bool sharedChoice, bool stop, bool parameterized)
+    [InlineData(false, false, false, false, false)]
+    [InlineData(false, true, false, false, false)]
+    [InlineData(true, false, false, false, false)]
+    [InlineData(true, true, false, false, false)]
+    [InlineData(false, false, true, false, false)]
+    [InlineData(true, true, true, false, false)]
+    [InlineData(false, false, false, true, false)]
+    [InlineData(true, false, false, true, false)]
+    [InlineData(false, false, true, true, false)]
+    [InlineData(false, false, false, true, true)]
+    [InlineData(true, false, false, true, true)]
+    public async Task NamedSkillOriginalTypedOrVoiceChoiceAndNativeKeyboardUseRetainCanonicalAnswer(
+        bool voice, bool sharedChoice, bool stop, bool parameterized, bool questionDriven)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -65,13 +69,24 @@ public sealed partial class SessionsConversationTests
                 composed.Conversation, native.Audit, f.Time);
             var catalogue = new NamedSkillCatalogue(store, new(store, admission, native.Audit), discovery,
                 composed.Access, new NamedNativeUsePolicy(), f.Time);
+            HostQuestionVoiceReplyService? replies = null;
+            using var host = new NativeQuestionHost(f.Store, f.Time, NullLogger<NativeQuestionViewModel>.Instance,
+                service => replies = native.Main.BindQuestionVoiceReplies(service, f.Time,
+                    NullLogger<HostQuestionVoiceReplyService>.Instance));
+            await using var replyLifetime = replies;
+            host.BindPrivateRevision(static () => 1);
+            using var questions = new QuestionWindowController(native.Main, host, native.VersionQuery, new HostBoundary(),
+                new(NullLogger<NativeDetailRenderer>.Instance), static () => true,
+                NullLogger<QuestionWindowController>.Instance, static () => 1);
             await using var controller = new NamedSkillInvocationController(native.Main, catalogue, owned, shared,
-                static () => true, static () => 1, NullLogger<NamedSkillInvocationController>.Instance);
+                static () => true, static () => 1, NullLogger<NamedSkillInvocationController>.Instance, questions);
             controller.Bind();
             NamedSkillInvocationWindow? invocation = null;
             var opened = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             using var observation = Window.WindowOpenedEvent.AddClassHandler<NamedSkillInvocationWindow>((window, _) =>
             { invocation = window; opened.TrySetResult(); });
+            var questionShown = new TaskCompletionSource<QuestionWindow>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var questionObservation = Window.WindowOpenedEvent.AddClassHandler<QuestionWindow>((window, _) => questionShown.TrySetResult(window));
             try
             {
                 if (voice)
@@ -121,13 +136,29 @@ public sealed partial class SessionsConversationTests
                 window.Request.Focus().Should().BeTrue();
                 window.KeyTextInput(body);
                 window.Request.Text.Should().Be(body);
-                if (parameterized)
+                if (parameterized && !questionDriven)
                 {
                     var input = window.LiteralInputs.Inputs["topic"];
                     input.Focus().Should().BeTrue();
                     window.KeyTextInput("literal ${input:topic} e\u0301");
                 }
-                await Press("Review exact invocation");
+                if (questionDriven)
+                {
+                    var preparing = Press("Review exact invocation");
+                    var question = await questionShown.Task.WaitAsync(TimeSpan.FromSeconds(20), native.Token);
+                    adapter.Calls.Should().Be(0);
+                    if (voice)
+                    {
+                        var answerByVoice = question.FindControl<Button>("AnswerByVoice")!;
+                        await WaitForSkillButton(answerByVoice, native.Token);
+                        answerByVoice.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+                        await native.Voice.ReplyStarted.Task.WaitAsync(TimeSpan.FromSeconds(20), native.Token);
+                        native.Voice.PublishTranscript("literal ${input:topic} e\u0301");
+                    }
+                    else { await AnswerSkillQuestion(question, "literal ${input:topic} e\u0301", native.Token); }
+                    await preparing.WaitAsync(TimeSpan.FromSeconds(20), native.Token);
+                }
+                else { await Press("Review exact invocation"); }
                 window.Confirm.IsEnabled.Should().BeTrue();
                 if (sharedChoice) { window.Confirmation.Text.Should().Contain(body); }
                 else

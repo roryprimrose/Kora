@@ -263,6 +263,7 @@ internal sealed class McpInvocation(
 
     private bool Admitted(CancellationToken token) => !disposed && !token.IsCancellationRequested
         && access.CanControl && access.ControlRevision == control && configuration.UseControlRevision == useRevision
+        && (descriptor is null || configuration.SourceControlRevision(serverId) == descriptor.SourceControlRevision)
         && admitted() && time.GetUtcNow() < expiresAt
         && (skill is null || time.GetUtcNow() < skill.ExpiresAt);
 

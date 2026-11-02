@@ -204,6 +204,15 @@ inspection still supports its existing stdio/HTTP shapes, but duplicate JSON
 fields now fail closed rather than selecting an ambiguous definition. A source
 revision or inclusion change requires fresh review and discovery.
 
+Metadata reads also retire the in-flight source lifetime when they observe changed
+complete file bytes, exclusion or source withdrawal. A failed configuration read
+withholds all previously observed source lifetimes. Restoring old bytes or
+inclusion cannot revive an old discovery or native review; an unchanged successful
+refresh preserves it. This bounded in-memory retirement is independent of grants
+and does not claim detection of filesystem changes never observed by the host.
+Recovery requires a fresh explicit request with current source resolution,
+discovery and native approvals; no automatic reconnect or retry is added.
+
 The [bounded source editor](Definition_Management.md#bounded-kora-owned-https-mcp-entry-editing) completes creation/editing
 of one Kora-owned canonical `Mcp\mcp.json` HTTPS entry through native URL/type fields, complete exact-entry review
 and a separate atomic Save confirmation/readback. It accepts a sole `servers` or `mcpServers` root collection and preserves all unrelated bytes.

@@ -96,6 +96,20 @@ single-file contract.
 
 ## Source Partitions
 
+Owned native v5 packages use the [bounded Markdown component authoring
+operation](Skill_Authoring.md#skill-package-boundary) under the existing
+`Skills\<id>\<version>` namespace. This is a distinct explicit version, not
+shared-source consent or reinterpretation of owned v1/v3 text. List and initial
+use read only manifest/instructions and exact declared inventory. Reference
+bodies require separate original-user consent before complete review and
+volatile enablement; the [owned reader and writer](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.cs)
+share the same central declaration, aggregate byte bounds, identities,
+no-replace publication and complete readback. No other roots are consulted.
+The owned catalogue admits at most 32 immutable versions and 1 MiB of complete
+stored package bytes, including declared references. List counts reference
+file sizes without reading their bodies and rejects an oversized catalogue
+without returning partial results.
+
 | Partition | Location | Kora access |
 |---|---|---|
 | Bundled | Embedded resources in the first-party `Kora.Definitions` binary | Current: immutable catalogue and read-only inspection only. Invocation unavailable; no user/agent editing, loose-file overrides, or writable extraction. Installed protection remains a separate admission gate. |

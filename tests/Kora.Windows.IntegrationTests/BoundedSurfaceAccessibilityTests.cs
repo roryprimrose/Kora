@@ -356,7 +356,7 @@ public sealed class BoundedSurfaceAccessibilityTests
 
     private sealed class RejectingClipboard : IDetailClipboard
     {
-        public Task WritePlainTextAsync(IDetailView owner, string source) =>
+        public Task WriteAsync(IDetailView owner, string source, string? htmlFragment) =>
             throw new InvalidOperationException("Clipboard operations are not authorized by this accessibility test.");
     }
 

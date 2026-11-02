@@ -131,6 +131,14 @@ retirement or withdrawal invalidates the review. No automatic fetch, model
 call, new grant or clipboard permission is introduced. Unavailable renderer
 profiles retain their labelled source fallback without active links.
 
+### Copy already-authorized Markdown
+
+Where **Copy** is already available for an admitted Markdown item, copying from rendered view also includes supported rich formatting for applications that accept HTML. The existing plain-text copy remains the complete original source; an exact selected range remains only that selected text. Rendered selections add escaped preformatted text, not reconstructed Markdown formatting ([copy route](../src/Kora/DetailWindowController.cs)).
+
+Headings, emphasis, lists, quotes, code and already-available tables can retain formatting. Link destinations stay visible inert text; images and remote resources are never fetched or included. **Exact source**, plain-text content and unavailable/unsupported renderers keep plain-text-only copying ([serializer](../src/Kora/NativeDetailRenderer.Clipboard.cs)).
+
+Existing private-content confirmation, privacy and source-access checks still apply. Copying discloses content outside Kora, including to other applications and clipboard history/sync. A failed write reports failure rather than retrying or claiming success. Current-response and retained conversation Details still do not acquire Copy permission ([permission boundary](../src/Kora.Application/Presentation/DetailViewerState.cs), [copy controller](../src/Kora/DetailWindowController.cs)).
+
 ## Exact current-response window actions
 
 `dismiss current response` and `open current response details` use the same native

@@ -264,6 +264,160 @@ public sealed class LocalFileRefreshTests : IDisposable
         HostActivityLayer.Application, HostOperation.Request);
 
     [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task CancelledConfirmationReleasesReviewBeforeTerminalAudit(bool folder, bool releaseFails)
+    {
+        using var host = Host();
+        var inspector = new Inspector();
+        var audit = new Audit();
+        using var preview = Preview(inspector, audit);
+        await Select(preview, folder, () => true);
+        var id = preview.Review?.ReviewId ?? preview.FolderReview!.ReviewId;
+        audit.Events.Clear();
+        var terminalDisposals = new List<int>();
+        audit.Callback = item =>
+        {
+            if (item.Outcome != SecurityAuditOutcome.Requested) { terminalDisposals.Add(inspector.Disposals); }
+        };
+        inspector.FailRelease = releaseFails;
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var result = folder
+            ? await preview.ConfirmFolderAsync(id, () => true, cancellation.Token)
+            : await preview.ConfirmAsync(id, () => true, cancellation.Token);
+
+        await AssertTerminal(preview, inspector, audit, result, releaseFails, LocalFileOutcome.Cancelled);
+        terminalDisposals.Should().Equal(1);
+        inspector.Reads.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(true, true, false)]
+    [InlineData(false, false, true)]
+    [InlineData(true, false, true)]
+    [InlineData(false, true, true)]
+    [InlineData(true, true, true)]
+    public async Task CancelledCaptureJoinsOwnedReadAndReleaseBeforeTruthfulTerminal(
+        bool folder, bool cooperative, bool releaseFails)
+    {
+        using var host = Host();
+        var inspector = new Inspector { HonorReadCancellation = cooperative };
+        var audit = new Audit();
+        using var preview = Preview(inspector, audit);
+        await Select(preview, folder, () => true);
+        var id = preview.Review?.ReviewId ?? preview.FolderReview!.ReviewId;
+        audit.Events.Clear();
+        inspector.CaptureGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var cancellation = new CancellationTokenSource();
+        var pending = folder
+            ? preview.ConfirmFolderAsync(id, () => true, cancellation.Token)
+            : preview.ConfirmAsync(id, () => true, cancellation.Token);
+        await inspector.CaptureStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var wait = preview.WaitForQuiescenceAsync();
+        cancellation.Cancel();
+        inspector.FailRelease = releaseFails;
+        pending.IsCompleted.Should().BeFalse();
+        wait.IsCompleted.Should().BeFalse();
+        preview.IsBusy.Should().BeTrue();
+        preview.IsQuiescent.Should().BeFalse();
+        inspector.Disposals.Should().Be(0);
+        audit.Events.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested);
+        inspector.CaptureGate.SetResult();
+
+        await AssertTerminal(preview, inspector, audit, await pending, releaseFails, LocalFileOutcome.Cancelled);
+        if (releaseFails)
+        {
+            await FluentActions.Awaiting(() => wait).Should().ThrowAsync<InvalidOperationException>();
+        }
+        else { await wait; }
+        inspector.Reads.Should().Be(1);
+        inspector.Buffers.SelectMany(bytes => bytes).Should().OnlyContain(value => value == 0);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task RevocationDuringReviewAuditCannotHideFailedHandleRelease(bool folder, bool clear)
+    {
+        using var host = Host();
+        var inspector = new Inspector { FailRelease = true };
+        var audit = new Audit();
+        using var preview = Preview(inspector, audit);
+        var control = true;
+        audit.Callback = item =>
+        {
+            if (item.Outcome != SecurityAuditOutcome.Succeeded) { return; }
+            if (clear) { preview.Clear(); }
+            else { control = false; }
+        };
+
+        var result = await Select(preview, folder, () => control);
+
+        await AssertTerminal(preview, inspector, audit, result, true, LocalFileOutcome.Cancelled);
+        audit.Events.Last().ReasonCode.Should().Be("resource-release-unverified");
+        inspector.Reads.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task InvalidCaptureCannotHideFailedHandleRelease(bool folder, bool releaseFails)
+    {
+        using var host = Host();
+        var inspector = new Inspector { Text = "ab", InvalidUtf8 = true, FailRelease = releaseFails };
+        var audit = new Audit();
+        using var preview = Preview(inspector, audit);
+        await Select(preview, folder, () => true);
+        var id = preview.Review?.ReviewId ?? preview.FolderReview!.ReviewId;
+        audit.Events.Clear();
+
+        var result = await Confirm(preview, folder, id);
+
+        await AssertTerminal(preview, inspector, audit, result, releaseFails, LocalFileOutcome.InvalidText);
+        audit.Events.Last().ReasonCode.Should().Be(releaseFails ? "resource-release-unverified" : "invalid-utf8");
+        inspector.Reads.Should().Be(1);
+        inspector.Buffers.SelectMany(bytes => bytes).Should().OnlyContain(value => value == 0);
+    }
+
+    private static async Task AssertTerminal(LocalFilePreview preview, Inspector inspector, Audit audit,
+        LocalFileOutcome result, bool releaseFails, LocalFileOutcome releasedOutcome)
+    {
+        result.Should().Be(releaseFails ? LocalFileOutcome.Unavailable : releasedOutcome);
+        preview.Review.Should().BeNull();
+        preview.FolderReview.Should().BeNull();
+        preview.Current.Should().BeNull();
+        preview.CurrentFolder.Should().BeNull();
+        preview.IsBusy.Should().BeFalse();
+        inspector.Disposals.Should().Be(1);
+        audit.Events.Last().Outcome.Should().Be(!releaseFails && releasedOutcome == LocalFileOutcome.Cancelled
+            ? SecurityAuditOutcome.Cancelled : SecurityAuditOutcome.Failed);
+        if (releaseFails)
+        {
+            preview.IsQuiescent.Should().BeFalse();
+            await preview.Invoking(service => service.WaitForQuiescenceAsync()).Should().ThrowAsync<InvalidOperationException>();
+            (await Select(preview, folder: false, () => true)).Should().Be(LocalFileOutcome.Denied);
+            inspector.Inspections.Should().Be(1);
+        }
+        else
+        {
+            preview.IsQuiescent.Should().BeTrue();
+            await preview.WaitForQuiescenceAsync();
+        }
+        string.Join(" ", audit.Events.Select(item => item.ActionId + item.TargetId + item.ReasonCode))
+            .Should().NotContain("private marker").And.NotContain("C:\\");
+    }
+
+    [Theory]
     [InlineData(false, "clear")]
     [InlineData(true, "clear")]
     [InlineData(false, "original-control")]
@@ -383,6 +537,8 @@ public sealed class LocalFileRefreshTests : IDisposable
         public string[] Names { get; set; } = ["a.md", "b.md"];
         public string Refusal { get; set; } = "";
         public bool FailRelease { get; set; }
+        public bool HonorReadCancellation { get; init; }
+        public bool InvalidUtf8 { get; init; }
         public TaskCompletionSource? Gate { get; set; }
         public TaskCompletionSource? CaptureGate { get; set; }
         public TaskCompletionSource CaptureStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -416,11 +572,12 @@ public sealed class LocalFileRefreshTests : IDisposable
                 Refusal is "identity" && identity is "file" ? "replacement" : identity,
                 Refusal is "oversize" or "bounds" ? LocalFilePolicy.MaximumBytes + 1 : Encoding.UTF8.GetByteCount(Text),
                 DateTimeOffset.UtcNow);
-        public async Task<byte[]> ReadAsync()
+        public async Task<byte[]> ReadAsync(CancellationToken token)
         {
             Reads++;
             if (CaptureGate is not null) { CaptureStarted.TrySetResult(); await CaptureGate.Task; }
-            var bytes = Encoding.UTF8.GetBytes(Text);
+            if (HonorReadCancellation) { token.ThrowIfCancellationRequested(); }
+            byte[] bytes = InvalidUtf8 ? [0xc0, 0xaf] : Encoding.UTF8.GetBytes(Text);
             Buffers.Add(bytes);
             return bytes;
         }
@@ -433,14 +590,14 @@ public sealed class LocalFileRefreshTests : IDisposable
     private sealed class Selection(Inspector owner, LocalFileMetadata metadata) : ILocalFileSelection
     {
         public LocalFileMetadata Metadata => metadata;
-        public Task<byte[]> ReadAsync(CancellationToken cancellationToken) => owner.ReadAsync();
+        public Task<byte[]> ReadAsync(CancellationToken cancellationToken) => owner.ReadAsync(cancellationToken);
         public void Dispose() => owner.Release();
     }
     private sealed class FolderSelection(Inspector owner, LocalFolderMetadata metadata) : ILocalFolderSelection
     {
         public LocalFolderMetadata Metadata => metadata;
         public Task ValidateAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-        public Task<byte[]> ReadAsync(LocalFileMetadata exactItem, CancellationToken cancellationToken) => owner.ReadAsync();
+        public Task<byte[]> ReadAsync(LocalFileMetadata exactItem, CancellationToken cancellationToken) => owner.ReadAsync(cancellationToken);
         public void Dispose() => owner.Release();
     }
     private sealed class Audit : ISecurityAuditLog

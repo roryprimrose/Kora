@@ -257,7 +257,15 @@ collection, not a claimed cryptographic memory erasure. Close, `clear file
 preview`, Cancel task, privacy/lock, generation changes, exit or ownership
 loss discard the selected revision and release review handles. Pending
 selection/read and unverified release block clean handoff; cancellation does
-not fabricate quiescence. No watcher, automatic refresh/retry, ambient collection,
+not fabricate quiescence. File/folder selection, confirmation and refresh release
+discarded review handles before recording a cancelled or failed terminal.
+Unverified release takes precedence over cancellation or invalid content:
+the result is `Unavailable`, with a content-free failed typed audit reason
+`resource-release-unverified`; clean handoff and further selection remain blocked.
+This also applies when revocation occurs during terminal audit publication.
+Cancellation-ignoring reads remain owned until they actually return and cleanup
+has been attempted; no late preview is disclosed.
+No watcher, automatic refresh/retry, ambient collection,
 network parsing, inference, egress or document-derived authority exists.
 
 R26.1c below extends this foundation to immediate-folder preview and search.

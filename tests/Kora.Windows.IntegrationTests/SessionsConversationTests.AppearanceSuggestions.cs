@@ -26,6 +26,7 @@ public sealed partial class SessionsConversationTests
     [Theory]
     [InlineData(AppearanceOption.MovementSpeed, "50")]
     [InlineData(AppearanceOption.PresenceDisplay, "false")]
+    [InlineData(AppearanceOption.ResponseTimeout, "15")]
     public async Task RetainedPresenceAnswerNativeConfirmationReachesActualMainConsumerAndReopenedPreferences(
         AppearanceOption option, string value)
     {
@@ -75,6 +76,8 @@ public sealed partial class SessionsConversationTests
                 model.ConversationStatus.Should().Be("Appearance setting saved on this device.");
                 if (option == AppearanceOption.MovementSpeed)
                 { native.Main.PresenceMovementSpeedPercent.Should().Be(50); }
+                else if (option == AppearanceOption.ResponseTimeout)
+                { native.Main.ResponseTimeoutSeconds.Should().Be(15); }
                 else
                 {
                     native.Main.IsPresenceDisplayEnabled.Should().BeFalse();
@@ -162,7 +165,8 @@ public sealed partial class SessionsConversationTests
         {
             var data = new TheoryData<bool, AppearanceOption, string>();
             foreach (var compact in new[] { false, true })
-            foreach (var registered in RegisteredSettingRegistry.Settings.Where(item => item.RequiresNativeReview))
+            foreach (var registered in RegisteredSettingRegistry.Settings.Where(item =>
+                item.Id.StartsWith("appearance.", StringComparison.Ordinal)))
             {
                 var descriptor = AppearanceOptionRegistry.Options.Single(item => string.Equals(item.Id, registered.Id, StringComparison.Ordinal));
                 string[] values = descriptor.Type switch

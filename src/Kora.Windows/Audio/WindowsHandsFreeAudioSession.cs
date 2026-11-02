@@ -130,6 +130,8 @@ internal sealed class WindowsHandsFreeAudioSession : IHandsFreeAudioSession
                     throw new InvalidDataException("The native name end is outside the current original-PCM interval.");
                 }
                 observation = new(binding.Generation, boundary, PlaybackExcluded: true);
+                binding.WakeActivated(observation);
+                RequireCurrent();
                 wake.TrySetResult(observation);
             }
         }

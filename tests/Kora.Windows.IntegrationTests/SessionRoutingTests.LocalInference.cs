@@ -20,6 +20,7 @@ using Kora.Core.Hosting;
 using Kora.Core.Providers;
 using Kora.Core.Storage;
 using Kora.Core.Tools;
+using Kora.Core.Voice;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -269,7 +270,8 @@ public sealed partial class SessionRoutingTests
 
     private sealed class LocalComposition : IAsyncDisposable
     {
-        internal Fixture Ui { get; } = new();
+        internal LocalComposition(bool syntheticVoice = false) => Ui = new(syntheticVoice);
+        internal Fixture Ui { get; }
         internal LocalRoutingAdapter Adapter { get; } = new();
         internal SessionRoutingController Routing { get; private set; } = null!;
         internal ModelTurnHost Turns { get; private set; } = null!;
@@ -277,9 +279,11 @@ public sealed partial class SessionRoutingTests
         private AudioControlAdmission preferences = null!;
         private SessionRoutingControlAdmission admission = null!;
 
-        internal async Task Initialize(bool expanded, bool qualified = true)
+        internal async Task Initialize(bool expanded, bool qualified = true,
+            IQuestionVoiceRecognitionService? voiceRecognition = null,
+            SpeechInputConfigurationService? speechInputConfiguration = null)
         {
-            await Ui.Initialize(expanded);
+            await Ui.Initialize(expanded, voiceRecognition, speechInputConfiguration);
             Ui.Routing.Dispose();
             Adapter.TargetName = Ui.First.Metadata!.Name.Value;
             var native = Ui.Native;
@@ -300,7 +304,8 @@ public sealed partial class SessionRoutingTests
                 native.Access, Turns, TimeProvider.System, NullLogger<SessionConversationService>.Instance,
                 execution: Turns, cancellationAudit: native.Audit, interactions: native.Interactions);
             Routing = new(native.Main, native.Sessions, conversation, native.Access, TimeProvider.System,
-                new LocalSessionRelatednessMatcher(Turns, Turns, TimeProvider.System), admission);
+                new LocalSessionRelatednessMatcher(Turns, Turns, TimeProvider.System), admission,
+                Ui.RetainRoutingPresentation);
             Routing.Bind();
         }
 

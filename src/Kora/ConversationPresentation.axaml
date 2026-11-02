@@ -16,6 +16,9 @@
         <Button Name="ReplyToAssistantAnswer" Content="_Reply to this answer"
             IsEnabled="{Binding $parent[Window].DataContext.CanReplyToAnswer}"
             AutomationProperties.Name="Reply to this exact displayed retained assistant answer in the same Active conversation; review and separate local-only confirmation required" />
+        <Button Name="OpenSubmittedAnswerContext" Content="Context submitted for this answer"
+            IsEnabled="{Binding $parent[Window].DataContext.CanOpenConversationDetails}"
+            AutomationProperties.Name="Inspect host-recorded historical context handoff metadata for this exact retained answer; no model or source-body read" />
         <TextBlock Text="{Binding AssistantResponse.Provenance.Turn.Value, StringFormat='Host-owned model turn {0}'}" TextWrapping="Wrap" />
         <ItemsControl ItemsSource="{Binding Converter={StaticResource ObservedResultChoices}}">
           <ItemsControl.ItemTemplate>

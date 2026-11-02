@@ -86,17 +86,21 @@ public sealed class SettingInspectionWorkflowTests
     {
         private readonly DependencyBootstrapper dependencies = new([], NullLogger<DependencyBootstrapper>.Instance);
         private readonly AudioControlAdmission audio;
-        internal Fixture(string mode = "success")
+        private readonly BoundedModelTurnAdapter? loop;
+        internal Fixture(string mode = "success", IModelToolTransport? transport = null)
         {
             Controls = new();
             Adapter = new() { Mode = mode };
+            if (transport is not null)
+            { loop = new(transport, Storage.Time, NullLogger<BoundedModelTurnAdapter>.Instance); }
             var runtimes = new Kora.Tools.Runtime.RecordedRuntimeObservation(dependencies);
             var registry = new ReadOnlyCapabilityRegistry(Controls, new(), new(), new(Controls), new(dependencies),
                 new(runtimes), new(runtimes), NullLogger<ReadOnlyCapabilityRegistry>.Instance);
             var gates = mode is "unqualified" ? ModelQualificationGate.None
                 : ModelQualificationGate.LocalCandidateSelection | ModelQualificationGate.IntegratedHost;
             Host = new(Storage.Store, Controls, Controls, registry, Controls, NullLogger<ModelTurnHost>.Instance,
-                Storage.Time, [new(ModelProviderSelection.OllamaCandidate, gates, Storage.Time.Now.AddHours(1), Adapter)]);
+                Storage.Time, [new(ModelProviderSelection.OllamaCandidate, gates, Storage.Time.Now.AddHours(1),
+                    loop is not null ? loop : Adapter)]);
             var sessions = new SessionWorkspaceService(Storage.Store, new(Storage.Tasks), Controls, NullLogger<SessionWorkspaceService>.Instance);
             Conversation = new(Storage.Store, Storage.Store, sessions, Controls, new AdmissionData(Host),
                 Storage.Time, NullLogger<SessionConversationService>.Instance, Host);
@@ -140,6 +144,7 @@ public sealed class SettingInspectionWorkflowTests
         {
             await Conversation.DisposeAsync();
             await Host.DisposeAsync();
+            if (loop is not null) { await loop.DisposeAsync(); }
             await audio.DisposeAsync();
             dependencies.Dispose();
             Storage.Dispose();
@@ -167,7 +172,7 @@ public sealed class SettingInspectionWorkflowTests
             CancellationToken token)
         {
             choice.Should().Be(ModelTurnChoice.Local);
-            context.ToolMode.Should().Be(ModelToolMode.None);
+            context.ToolMode.Should().BeOneOf(ModelToolMode.None, ModelToolMode.SettingsDiscovery);
             return host.AdmitAsync(ModelProviderSelection.OllamaCandidate, context, token);
         }
     }

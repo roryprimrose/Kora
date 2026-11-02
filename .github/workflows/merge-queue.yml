@@ -16,7 +16,7 @@ on:
       operation:
         description: Controller operation; recovery requires separate administrator authorization
         type: choice
-        options: [reconcile, recover-unobservable-dispatch]
+        options: [reconcile, recover-unobservable-dispatch, migrate-batch-v1, rollback-batch-v1, repair-batch, resume-batch]
         default: reconcile
       recovery_checkpoint:
         description: Exact automation/merge-queue-state commit reviewed for recovery
@@ -24,8 +24,15 @@ on:
       recovery_ticket:
         description: Exact retiring ticket with no observable workflow run
         type: string
+      recovery_main:
+        description: Explicit actual main SHA for a separately reviewed repair preserving unrelated advances
+        type: string
       acknowledge_uncertain_dispatch:
         description: I am authorized to recover this reviewed uncertain dispatch; absence of a run is not proof of quiescence
+        type: boolean
+        default: false
+      acknowledge_batch_change:
+        description: Separately authorized reviewed batch rollout, rollback or repair; never activates settings
         type: boolean
         default: false
 
@@ -36,6 +43,7 @@ permissions:
 concurrency:
   group: merge-queue-controller
   cancel-in-progress: false
+  queue: ${{ vars.KORA_MERGE_QUEUE_PROFILE == 'batch-v1' && 'max' || 'single' }}
 
 jobs:
   reconcile:
@@ -66,6 +74,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           QUEUE_APP_ID: ${{ vars.KORA_MERGE_QUEUE_APP_ID }}
+          QUEUE_PROFILE: ${{ vars.KORA_MERGE_QUEUE_PROFILE }}
           QUEUE_INPUTS: ${{ toJSON(inputs) }}
           QUEUE_RUN_ATTEMPT: ${{ github.run_attempt }}
         with:
@@ -78,11 +87,15 @@ jobs:
             let result = 'failed';
             try {
               const inputs = JSON.parse(process.env.QUEUE_INPUTS ?? '{}');
-              if (controllerOperation(inputs) === 'recover-unobservable-dispatch') {
+              const operation = controllerOperation(inputs);
+              if (operation === 'recover-unobservable-dispatch') {
                 const { recover } = require('./eng/merge-queue/recovery.cjs');
                 result = await recover(api, { context, inputs, attempt: Number(process.env.QUEUE_RUN_ATTEMPT) });
+              } else if (operation !== 'reconcile') {
+                const { changeBatchState } = require('./eng/merge-queue/recovery.cjs');
+                result = await changeBatchState(api, { context, inputs, attempt: Number(process.env.QUEUE_RUN_ATTEMPT) });
               } else {
-                result = await reconcile(api);
+                result = await reconcile(api, { profile: process.env.QUEUE_PROFILE });
               }
               core.notice(`Merge queue: ${result}.`);
             } finally {

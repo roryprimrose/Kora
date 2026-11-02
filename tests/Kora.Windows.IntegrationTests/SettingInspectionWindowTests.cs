@@ -15,6 +15,49 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class SettingInspectionWindowTests
 {
     [Fact]
+    public async Task ExplicitNativeDiscoveryChoiceRequiresFreshReviewAndSeparateExactConfirmation()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var transport = new SettingsDiscoveryWorkflowTests.Transport(
+                """{"kind":"toolCalls","calls":[{"callId":"get_1","capabilityId":"settings.get","input":{"id":"speech.summary-words"}}]}""",
+                """{"kind":"answer","answer":"The confirmed default summary cap is 80 words."}""");
+            await using var f = new SettingInspectionWorkflowTests.Fixture(transport: transport);
+            await f.InitializeAsync();
+            var presenter = new SettingInspectionPresenter(f.Workflow, () => () => true, () => () => true, f.Storage.Time)
+            { Question = "What controls spoken summaries?" };
+            var failures = new List<Exception>();
+            var window = new SettingInspectionWindow(presenter, failures.Add);
+            window.Show();
+            try
+            {
+                await presenter.ReviewAsync();
+                presenter.CanConfirm.Should().BeTrue();
+                var checkbox = window.GetVisualDescendants().OfType<CheckBox>().Single();
+                checkbox.IsChecked = true;
+                presenter.DiscoverSettings.Should().BeTrue();
+                presenter.CanConfirm.Should().BeFalse();
+                presenter.ReviewText.Should().BeEmpty();
+                transport.Requests.Should().BeEmpty();
+                await ((AsyncCommand)Button(window, "Inspect confirmed settings and review").Command!).ExecuteAsync();
+                presenter.ReviewText.Should().Contain("ONLY settings.list/settings.get")
+                    .And.Contain("speech.summary-words").And.Contain("value-unavailable");
+                await ((AsyncCommand)Button(window, "Confirm ONE settings-discovery LocalOnly request").Command!).ExecuteAsync();
+                presenter.Answer.Should().Be("The confirmed default summary cap is 80 words.");
+                transport.Requests.Should().HaveCount(2);
+                f.Preferences.Writes.Should().Be(0);
+                f.Playback.Effects.Should().Be(0);
+                checkbox.IsChecked = false;
+                presenter.Answer.Should().BeEmpty();
+                presenter.ReviewText.Should().BeEmpty();
+                presenter.CanConfirm.Should().BeFalse();
+                failures.Should().BeEmpty();
+            }
+            finally { window.Close(); await presenter.CloseAsync(); }
+        });
+    }
+
+    [Fact]
     public async Task NativeCloseHidesImmediatelyAndOnlyClosesAfterActualIgnoringModelJoin()
     {
         await HeadlessSession.RunAsync(async () =>

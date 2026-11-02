@@ -13,4 +13,5 @@ public sealed record EvidenceRecord(
     DailyEvidenceProvenance? DailyProvenance = null, DateTimeOffset? ObservedUtc = null,
     string? EventName = null, string? ExceptionType = null,
     IReadOnlyList<IReadOnlyDictionary<string, EvidenceValue>>? Scopes = null,
-    AuthorityAuditProvenance? AuthorityProvenance = null);
+    AuthorityAuditProvenance? AuthorityProvenance = null,
+    ExceptionReportSignature? ExceptionReport = null);

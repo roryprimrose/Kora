@@ -239,7 +239,7 @@ public sealed class EvidenceViewModelTests
         var source = Read("EvidenceWindow.axaml");
         var document = XDocument.Parse(source);
         source.Should().Contain("DynamicResource").And.Contain("AutomationProperties.Name")
-            .And.Contain("No copy, export, model, browser, deletion or execution.")
+            .And.Contain("Raw evidence stays local. Exception reporting requires a separate public-content review.")
             .And.NotContain("WebView").And.NotContain("SelectableTextBlock").And.NotContain("MaxLength");
         document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal)).Should().HaveCount(25);
         source.Should().Contain("Advanced filters (optional)").And.Contain("Both time edges are inclusive");

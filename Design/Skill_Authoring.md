@@ -5,6 +5,8 @@ authoring, and reviewed Customizations source writes are implemented through
 [Definition Management](Definition_Management.md). Broader conversational/package
 authoring and executable skills remain gated.
 
+The bounded [conversational prompt operation](../docs/customizations.md#author-one-reusable-prompt-request) is now implemented in existing **Customizations > Prompts**: user-described reusable USER request, separately host-declared required literals, independent local disclosure, complete body-only proposal review, volatile adoption and separately confirmed disabled Save. Reopen and existing reviewed literal expansion/submission complete later use; instruction refinement and skill generation are distinct operations ([host validator](../src/Kora.Application/Definitions/PromptTemplateAuthoring.cs), [complete native regression](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.PromptAuthoring.cs)).
+
 Discovery, source-read consent, editing, enablement and invocation are separate
 operations. Registering or inspecting a root grants none of the later
 authorities; see the [source contract](Skill_Storage.md#delivered-bounded-r21-native-inspection)

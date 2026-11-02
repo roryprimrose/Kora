@@ -6,6 +6,8 @@ public sealed class OwnedSkillRename
 {
     public OwnedSkillRename(OwnedDeclarativeSkillSnapshot original, string newId)
     {
+        if (original.Document.ReferenceDeclaration is not null)
+        { throw new InvalidDataException("Rename supports only complete native v1/v2/v3/v4 two-file sources, never Markdown reference packages."); }
         OwnedDeclarativeSkillDocument.RequireIdentity(newId, original.Document.Version);
         if (string.Equals(original.Document.Id, newId, StringComparison.Ordinal))
         { throw new InvalidDataException("Choose a distinct canonical skill ID. Rename does not change the version or readable name."); }

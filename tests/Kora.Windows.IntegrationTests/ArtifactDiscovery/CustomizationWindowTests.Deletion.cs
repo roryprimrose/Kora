@@ -48,7 +48,9 @@ public sealed partial class CustomizationWindowTests
     [InlineData(CustomizationKind.Prompt, "oversize")]
     [InlineData(CustomizationKind.Agent, "oversize")]
     [InlineData(CustomizationKind.Instruction, "nul")]
+    [InlineData(CustomizationKind.Prompt, "nul")]
     [InlineData(CustomizationKind.Instruction, "unicode")]
+    [InlineData(CustomizationKind.Prompt, "unicode")]
     [InlineData(CustomizationKind.Instruction, "final-catalogue")]
     [InlineData(CustomizationKind.Instruction, "final-reload-failure")]
     public async Task SharedDefinitionDeletionCompletesTheActualReviewedOperationOrPreservesSourceAndDraft(
@@ -255,6 +257,7 @@ public sealed partial class CustomizationWindowTests
                     editor.Editor.Text.Should().Be(rawDraft);
                 }
                 editor.NewName.Text = "recovered";
+                if (kind is CustomizationKind.Prompt) { editor.RequiredPromptInputs.Text = "stale"; }
                 Choose(editor, "Create Kora copy");
                 var copying = controller.WaitForOperation();
                 var dirty = await Review();
@@ -273,6 +276,7 @@ public sealed partial class CustomizationWindowTests
                 await copying;
                 var recoveredText = rawDraft!.Replace("name: example", "name: recovered", StringComparison.Ordinal);
                 editor.Editor.Text.Should().Be(recoveredText);
+                if (kind is CustomizationKind.Prompt) { editor.RequiredPromptInputs.Text.Should().BeEmpty(); }
                 var recovered = await store.Create(kind, CustomizationScope.Kora, "recovered", f.Token);
                 recovered.Id.Should().NotBe(original.Id);
                 File.Exists(recovered.Location).Should().BeFalse("copy creates only a draft until its separate Save");

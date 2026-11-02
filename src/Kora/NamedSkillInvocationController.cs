@@ -109,7 +109,7 @@ internal sealed partial class NamedSkillInvocationController(
     {
         var opened = window!;
         opened.SetBusy(true);
-        using var activity = HostActivity.BeginRoot(HostRequest.Create(action is "Inspect" or "Invoke" ? RequestOrigin.LocalUi : original!.Origin),
+        using var activity = HostActivity.BeginRoot(HostRequest.Create(action is "Inspect" or "Invoke" or "ReadOwnedReferences" ? RequestOrigin.LocalUi : original!.Origin),
             HostActivityLayer.Desktop, HostOperation.Request,
             original!.OriginalActivityContext is { } cause ? [new ActivityLink(cause)] : []);
         try
@@ -164,12 +164,24 @@ internal sealed partial class NamedSkillInvocationController(
             if (!Current()) { RetireReview(); return; }
             opened.Instructions.Text = choice + "\n\n" + (ownedReview?.Text ?? sharedReview!.Text);
             opened.LiteralInputs.Configure(ownedReview?.RequiredNames ?? [], (_, _) => RetirePreparation());
-            opened.Status.Text = "Complete exact source captured. Review all content, then separately enable once. The original input channel is preserved.";
+            opened.Status.Text = ownedReview?.RequiresReferenceConsent == true
+                ? "Review the exact declaration, then separately authorize only those owned Markdown reads. No component contents read yet."
+                : "Complete exact source captured. Review all content, then separately enable once. The original input channel is preserved.";
             return;
         }
         if (!Current() || ownedReview is null && sharedReview is null)
         { throw new InvalidOperationException("Review the exact current source choice first."); }
-        if (action is "Enable")
+        if (action is "ReadOwnedReferences")
+        {
+            await owned.ReadReferencesAsync(ownedReview ?? throw new InvalidOperationException("Select an owned component package first."),
+                new(RequestOrigin.LocalUi, Current), Current, token);
+            if (Current())
+            {
+                opened.Instructions.Text = choice + "\n\n" + ownedReview.Text;
+                opened.Status.Text = "Review complete primary and all declared owned components, then separately enable once.";
+            }
+        }
+        else if (action is "Enable")
         {
             if (ownedReview is { } own) { await owned.EnableAsync(own, original!, Current, token); }
             else { await shared.EnableAsync(sharedReview!, Current, original!.Origin, token); }

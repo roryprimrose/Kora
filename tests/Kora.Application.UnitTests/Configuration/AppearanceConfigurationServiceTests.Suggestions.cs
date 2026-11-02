@@ -151,6 +151,7 @@ public sealed partial class AppearanceConfigurationServiceTests
     [Theory]
     [InlineData("set appearance.theme to dark", "current system (default); proposed dark mode", "appearance-theme.txt", "Dark")]
     [InlineData("set appearance.reader-text-scale to 125", "current 100 (default); proposed 125 percent", "reader-text-scale-percent.txt", "125")]
+    [InlineData("set appearance.response-timeout to 15", "current 5 (default); proposed 15 seconds", "response-timeout-seconds.txt", "15")]
     public async Task SuggestionReviewIsInertUntilSeparateOriginalUserConfirmation(string text, string description,
         string file, string saved)
     {
@@ -193,7 +194,7 @@ public sealed partial class AppearanceConfigurationServiceTests
     [InlineData("set appearance.theme to ultraviolet")]
     [InlineData("set appearance.reader-text-scale to 999")]
     [InlineData("set appearance.reader-text-scale to 1.25")]
-    [InlineData("set appearance.response-timeout to 10")]
+    [InlineData("set appearance.response-timeout to 0")]
     [InlineData("set speech.summary-words to 40")]
     [InlineData("reset appearance.theme")]
     [InlineData("set appearance.theme to dark\nand do something else")]

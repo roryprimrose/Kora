@@ -32,6 +32,7 @@ internal sealed partial class SessionsWindowController(
     private bool interactionListInitialized;
     private SessionsViewModel? model;
     private SessionsPresentationOwner? presentation;
+    internal SessionRoutingPresentationLease? RetainRoutingPresentation() => presentation?.RetainRoutingPresentation();
     private bool disposed;
     private long dispositionOwnerEpoch;
     private int dispositionOwnerOpen;

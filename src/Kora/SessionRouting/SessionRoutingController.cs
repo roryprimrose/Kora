@@ -22,19 +22,23 @@ internal sealed class SessionRoutingController : IDisposable
     private Task<SessionRoutingReceipt?>? active;
     private readonly Lock inferenceGate = new();
     private CancellationTokenSource? inference;
+    private readonly Func<SessionRoutingPresentationLease?>? retainPresentation;
+    private SessionRoutingPresentationLease? presentation;
 
     internal SessionRoutingController(MainViewModel main, SessionWorkspaceService workspace,
         SessionConversationService conversation, ISessionWorkspaceAccess access, TimeProvider time,
-        ISessionRelatednessMatcher? matcher = null, SessionRoutingControlAdmission? admission = null)
+        ISessionRelatednessMatcher? matcher = null, SessionRoutingControlAdmission? admission = null,
+        Func<SessionRoutingPresentationLease?>? retainPresentation = null)
     {
         this.main = main;
         this.workspace = workspace;
+        this.retainPresentation = retainPresentation;
         routing = new(workspace, conversation, access, time, matcher, admission, ReviewAdviceAsync);
     }
 
     internal void Bind()
     {
-        main.BindSessionRouting(RouteAsync);
+        main.BindSessionRouting(RouteAsync, () => presentation = retainPresentation?.Invoke());
         main.PrivacyClosureRequested += PrivacyClosed;
         workspace.SessionMetadataChanging += SourceChanged;
         workspace.SessionLifecycleChanged += SourceChanged;
@@ -83,7 +87,7 @@ internal sealed class SessionRoutingController : IDisposable
                 exception => main.ReportHostInteractionFailure("Destination review stopped. No rerouting or submission retry. Failure type: " + exception.GetType().Name));
             window = opened;
             opened.Closed += (_, _) => result.TrySetResult(opened.Result);
-            opened.Show();
+            Show(opened);
 #pragma warning disable VSTHRD003 // Exact native close completion; awaiting leaves the dispatcher responsive.
             var selection = await result.Task;
 #pragma warning restore VSTHRD003
@@ -97,10 +101,11 @@ internal sealed class SessionRoutingController : IDisposable
         {
             routing.Retire();
             lock (inferenceGate) { inference = null; }
-            window?.Withdraw();
+            if (window is { } destination) { Withdraw(destination); }
             window = null;
-            adviceWindow?.Withdraw();
+            if (adviceWindow is { } advice) { Withdraw(advice); }
             adviceWindow = null;
+            presentation = null;
             busy = false;
         }
     }
@@ -114,7 +119,7 @@ internal sealed class SessionRoutingController : IDisposable
             var opened = new SessionRoutingAdviceWindow(advice, () => !disposed && admitted());
             adviceWindow = opened;
             opened.Closed += (_, _) => result.TrySetResult(opened.Result);
-            opened.Show();
+            Show(opened);
             try
             {
                 var choice = await result.Task.WaitAsync(token);
@@ -124,10 +129,24 @@ internal sealed class SessionRoutingController : IDisposable
             }
             finally
             {
-                opened.Withdraw();
+                Withdraw(opened);
                 adviceWindow = null;
             }
         });
+
+    private void Show(Avalonia.Controls.Window opened)
+    {
+        if (presentation is { } retained) { retained.Show(opened); }
+        else { opened.Show(); }
+    }
+
+    private void Withdraw(Avalonia.Controls.Window opened)
+    {
+        if (presentation is { } retained) { retained.Withdraw(opened); }
+        else if (opened is SessionRoutingAdviceWindow advice) { advice.Withdraw(); }
+        else if (opened is SessionRoutingWindow destination) { destination.Withdraw(); }
+        else { throw new InvalidOperationException("Only exact routing windows are owned."); }
+    }
 
     private void PrivacyClosed(object? sender, EventArgs args) => Revoke();
     private void SourceChanged(HostId<SessionIdentity> session) => Revoke();

@@ -75,7 +75,12 @@ public sealed partial class WindowsCustomizationStoreTests : IDisposable
         var store = Create();
         var source = await store.Create(kind, scope, "example", TestContext.Current.CancellationToken);
         var saved = await Save(store, source, null, Primary(source));
-        saved.Files.Single().Text.Should().Contain(kind == CustomizationKind.McpServer ? "https://example.invalid" : "Write the guidance");
+        saved.Files.Single().Text.Should().Contain(kind switch
+        {
+            CustomizationKind.McpServer => "https://example.invalid",
+            CustomizationKind.Prompt => "Write the saved user request here.",
+            _ => "Write the guidance",
+        });
         var content = saved.Files.Single().WithText(kind == CustomizationKind.McpServer
             ? "{\"url\":\"https://changed.invalid/mcp\"}" : saved.Files.Single().Text + "Changed.");
         var edited = await Save(store, source, saved, content);
@@ -104,6 +109,56 @@ public sealed partial class WindowsCustomizationStoreTests : IDisposable
         var completed = await Save(restarted, pending, recovery, recovery.Files.ToArray());
         completed.Files.Select(file => file.Name).Should().Equal("SKILL.md", "references\\notes.md");
         (await restarted.Read(pending, TestContext.Current.CancellationToken)).RecoveryDetails.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("changed")]
+    [InlineData("replacement")]
+    [InlineData("occupied")]
+    [InlineData("cancel")]
+    [InlineData("revoked")]
+    [InlineData("post-cancel")]
+    public async Task Prompt_publication_rechecks_staged_source_and_admission_without_overwrite_or_rollback(string change)
+    {
+        var store = Create();
+        var source = await store.Create(CustomizationKind.Prompt, CustomizationScope.Kora, "example", TestContext.Current.CancellationToken);
+        var original = change is "occupied" ? null : await Save(store, source, null, Primary(source));
+        var proposed = Primary(source, "Generated request.");
+        var retained = change is "changed" or "occupied" ? Primary(source, "External request.") : original!.Files.Single();
+        var eligible = true;
+        var finalChecks = 0;
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        store.BeforePromptPublication = () =>
+        {
+            finalChecks++;
+            if (change is "changed") { File.WriteAllBytes(source.Location, retained.CopyBytes()); }
+            if (change is "replacement")
+            {
+                File.Move(source.Location, source.Location + ".previous");
+                WindowsOwnedInstructionStoreTests.WriteOwnedFile(source.Location, retained.CopyBytes());
+            }
+            if (change is "occupied") { WindowsOwnedInstructionStoreTests.WriteOwnedFile(source.Location, retained.CopyBytes()); }
+            if (change is "cancel") { cancellation.Cancel(); }
+            if (change is "revoked") { eligible = false; }
+        };
+        var publications = 0;
+        store.AfterComponentPublished = _ =>
+        {
+            publications++;
+            if (change is "post-cancel") { cancellation.Cancel(); }
+        };
+        var publish = () => store.Save(source, original, [proposed], () => eligible,
+            operation => Task.FromResult(operation()), cancellation.Token);
+        if (change is "cancel" or "post-cancel") { await publish.Should().ThrowAsync<OperationCanceledException>(); }
+        else { await publish.Should().ThrowAsync<InvalidOperationException>(); }
+        finalChecks.Should().Be(1);
+        publications.Should().Be(change is "post-cancel" ? 1 : 0);
+        File.ReadAllBytes(source.Location).Should().Equal(change is "post-cancel" ? proposed.CopyBytes() : retained.CopyBytes());
+        Directory.GetFiles(Path.GetDirectoryName(source.Location)!, ".customization-*.tmp").Should().BeEmpty();
+        Directory.GetFiles(Path.Combine(root, "local", "DefinitionTransactions")).Should().ContainSingle();
+        var recovery = await store.ReadRecovery(source, TestContext.Current.CancellationToken);
+        recovery.Files.Single().CopyBytes().Should().Equal(proposed.CopyBytes());
+        recovery.RecoveryDetails.Should().NotBeNull("uncertain attempts remain explicitly inspection-required, not automatically retried");
     }
 
     [Fact]

@@ -53,11 +53,14 @@ function mode(value) {
 function controllerOperation(inputs) {
   invariant(inputs && typeof inputs === 'object' && !Array.isArray(inputs), 'Invalid controller inputs.');
   const operation = inputs.operation ?? 'reconcile';
-  invariant(['reconcile', 'recover-unobservable-dispatch'].includes(operation), 'Unknown controller operation.');
+  invariant(['reconcile', 'recover-unobservable-dispatch', 'migrate-batch-v1', 'rollback-batch-v1',
+    'repair-batch', 'resume-batch'].includes(operation), 'Unknown controller operation.');
   invariant(inputs.acknowledge_uncertain_dispatch === undefined
     || typeof inputs.acknowledge_uncertain_dispatch === 'boolean', 'Invalid recovery acknowledgement.');
   if (operation === 'reconcile') {
-    invariant(!inputs.recovery_checkpoint && !inputs.recovery_ticket && inputs.acknowledge_uncertain_dispatch !== true,
+    invariant(!inputs.recovery_checkpoint && !inputs.recovery_ticket && !inputs.recovery_main
+      && inputs.acknowledge_uncertain_dispatch !== true
+      && inputs.acknowledge_batch_change !== true,
       'Recovery inputs require the explicit recovery operation.');
   }
   return operation;
@@ -65,7 +68,7 @@ function controllerOperation(inputs) {
 
 function execution({ modeValue, eventName, ref, sha, inputs }) {
   const enabled = mode(modeValue);
-  const candidate = ['queue_pr', 'queue_head', 'queue_base', 'queue_ticket'].some(key => inputs[key]);
+  const candidate = ['queue_pr', 'queue_head', 'queue_base', 'queue_ticket', 'queue_batch'].some(key => inputs[key]);
   if (candidate) invariant(enabled && eventName === 'workflow_dispatch' && ref === 'refs/heads/main',
     'Candidate dispatch requires the enabled queue on trusted main.');
   const comparison = eventName === 'workflow_dispatch'
@@ -76,7 +79,7 @@ function execution({ modeValue, eventName, ref, sha, inputs }) {
 }
 
 function validateState(state) {
-  invariant(state?.version === 1 && Array.isArray(state.blocked), 'Invalid merge queue state version.');
+  invariant([1, 2].includes(state?.version) && Array.isArray(state.blocked), 'Invalid merge queue state version.');
   invariant(state.blocked.length <= 1000, 'Merge queue blocked revision limit exceeded.');
   for (const item of state.blocked) {
     invariant(Number.isSafeInteger(item.number) && item.number > 0 && SHA.test(item.head)
@@ -84,6 +87,11 @@ function validateState(state) {
       && typeof item.reason === 'string', 'Invalid blocked revision.');
   }
   const active = state.active;
+  if (state.version === 2) {
+    require('./batch-policy.cjs').validateBatchState(state);
+    return state;
+  }
+  invariant(state.profile === undefined || state.profile === 'singleton-v1', 'Unknown legacy queue state profile.');
   if (active !== null) {
     invariant(active && Number.isSafeInteger(active.number) && active.number > 0
       && SHA.test(active.head) && SHA.test(active.base) && TICKET.test(active.ticket)
@@ -145,6 +153,7 @@ function priority(pr) {
 }
 
 function title(active) {
+  if (active.kind === 'batch') return `Merge queue batch [${active.ticket}]`;
   return `Merge queue PR #${active.number} [${active.ticket}]`;
 }
 

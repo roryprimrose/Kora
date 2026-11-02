@@ -29,6 +29,7 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
     private long revision;
     private string baseline = string.Empty;
     private string? draftName;
+    private OwnedAgentProfileSnapshot? originalSnapshot;
     private bool uncertain;
     private bool closing;
     private bool stopped;
@@ -126,6 +127,8 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
             descriptionOrigin = origin;
             return;
         }
+        if (command.Action == AgentProfileAuthoringAction.ReviewSave && originalSnapshot is not null)
+        { throw new InvalidOperationException("Save as new cannot replace an existing original. Use native Review Save for this existing original."); }
         await Run(command.Action switch
         {
             AgentProfileAuthoringAction.Validate => "Validate",
@@ -185,6 +188,8 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
         if (!await Abandon(opened) || !Eligible() || !eligible()) { return; }
         Retire();
         draftName = name;
+        originalSnapshot = null;
+        opened.NameInput.IsReadOnly = false;
         originalOrigin = origin;
         originalEligible = eligible;
         proposalDestination = null;
@@ -202,7 +207,7 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
         if (!Eligible() || window!.Source.IsReadOnly || draftName is null
             || !string.Equals(draftName, window.NameInput.Text, StringComparison.Ordinal)
             || originalEligible?.Invoke() != true || uncertain)
-        { throw new InvalidOperationException("Create an exact new draft with current original authority. An uncertain destination must be inspected; no retry is approved."); }
+        { throw new InvalidOperationException("Create a new draft or explicitly edit the inspected existing original with current authority. An uncertain destination must be inspected; no retry is approved."); }
     }
 
     private async Task Run(string action, Func<bool> eligible, string? argument = null)
@@ -220,12 +225,13 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
             if (!Current()) { return; }
             opened.Inventory.ItemsSource = names;
             opened.Inventory.SelectedIndex = -1;
-            opened.Status.Text = "Owned originals only. All remain inert and unselected for execution; reopen is read-only.";
+            opened.Status.Text = "Owned originals only. Inspect, then explicitly Edit existing original. All remain inert and unselected for execution.";
             return;
         }
-        if (action is "Inspect")
+        if (action is "Inspect" or "Reload")
         {
-            var name = string.IsNullOrEmpty(argument) ? opened.Inventory.SelectedItem as string : argument;
+            var name = action is "Reload" ? originalSnapshot?.Destination.Name
+                : string.IsNullOrEmpty(argument) ? opened.Inventory.SelectedItem as string : argument;
             if (name is null) { throw new InvalidOperationException("Select one owned original or provide its exact owned ID."); }
             if (!await Abandon(opened) || !Current()) { return; }
             Retire();
@@ -234,15 +240,34 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
                 ?? throw new InvalidOperationException("The selected owned original is missing.");
             if (!Current() || revision != captured) { return; }
             draftName = null; originalEligible = null; uncertain = false;
-                proposalDestination = null; proposalEligible = null;
+            originalSnapshot = saved;
+            proposalDestination = null; proposalEligible = null;
             opened.NameInput.Text = name;
+            opened.NameInput.IsReadOnly = true;
             opened.Source.IsReadOnly = true;
             opened.Source.Text = baseline = saved.Document.Document.Text;
             opened.Status.Text = $"Exact saved original reopened read-only: {saved.Destination.DisplayPath}. Not selected, enabled or invoked.";
             return;
         }
+        if (action is "Edit")
+        {
+            if (originalSnapshot is null || !opened.Source.IsReadOnly || uncertain)
+            { throw new InvalidOperationException("Inspect the exact saved original before choosing Edit existing original."); }
+            Retire();
+            draftName = originalSnapshot.Destination.Name;
+            originalOrigin = RequestOrigin.LocalUi;
+            originalEligible = eligible;
+            opened.Source.IsReadOnly = false;
+            opened.Status.Text = "Editing the same pinned existing original in memory only. Validate, Review Save, then separately confirm. No activation or invocation.";
+            return;
+        }
         RequireDraft();
-        if (action is "Ask") { await Propose(opened, Current, token); return; }
+        if (action is "Ask")
+        {
+            if (originalSnapshot is not null)
+            { throw new InvalidOperationException("Existing-original editing is manual only. Conversational generation remains create-only."); }
+            await Propose(opened, Current, token); return;
+        }
         if (action is "Validate")
         {
             Retire();
@@ -261,51 +286,98 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
         var captured = Interlocked.Read(ref revision);
         bool Exact() => current() && originalEligible?.Invoke() == true && (proposalEligible?.Invoke() ?? true)
             && captured == Interlocked.Read(ref revision);
-        var proposed = await workflow.ReviewAsync(draftName!, opened.Source.Text ?? string.Empty,
-            captured, originalOrigin, Exact, token);
+        var proposed = await (originalSnapshot is { } original
+            ? workflow.ReviewUpdateAsync(original, opened.Source.Text ?? string.Empty, captured, originalOrigin, Exact, token)
+            : workflow.ReviewAsync(draftName!, opened.Source.Text ?? string.Empty, captured, originalOrigin, Exact, token));
         if (proposalDestination is { } destination && proposed.Destination != destination)
         { proposed.Dispose(); throw new InvalidOperationException("The generated draft's reviewed destination changed. No new root or fallback is approved."); }
         if (!Exact()) { proposed.Dispose(); return; }
         review = proposed;
         opened.ShowReview(proposed);
-        opened.Status.Text = "Review the entire exact source and new destination, then use the separate native confirmation. No file written.";
+        opened.Status.Text = "Review the complete original/proposed source and exact destination, then use the separate native confirmation. No file written.";
     }
 
     private async Task Commit(AgentProfileEditorWindow opened, Func<bool> current, CancellationToken token)
     {
-        var pending = review ?? throw new InvalidOperationException("Review the complete exact source and new destination first.");
+        var pending = review ?? throw new InvalidOperationException("Review the complete exact source, base and destination first.");
         review = null;
         opened.Confirm.IsEnabled = false;
         var completeReview = opened.Review.Text ?? string.Empty;
+        var updating = pending.Original is not null;
+        var label = updating ? "Save existing original" : "Save as new";
         try
         {
-            var result = await workflow.SaveAsNewAsync(pending, RequestOrigin.LocalUi,
-                async admitted => await opened.Choose("Confirm Save as new",
-                    completeReview, ["Save as new", "Cancel"], admitted) == 0,
+            var result = await workflow.SaveAsync(pending, RequestOrigin.LocalUi,
+                async admitted => await opened.Choose("Confirm " + label,
+                    completeReview, [label, "Cancel"], admitted) == 0,
                 current, token);
             if (!current()) { return; }
-            if (result.State != AgentProfileWriteState.Saved)
+            if (result.State is not (AgentProfileWriteState.Saved or AgentProfileWriteState.Unchanged))
             {
+                if (updating && result.State == AgentProfileWriteState.Conflict)
+                { await RecoverConflict(opened, result.Snapshot, current, token); return; }
                 opened.Status.Text = result.State == AgentProfileWriteState.Conflict
                     ? "Destination occupied. Choose a different new ID or cancel; no overwrite."
-                    : "Save cancelled. No new profile created.";
+                    : "Save cancelled. Volatile draft retained; no write requested.";
                 return;
             }
             var saved = result.Snapshot!;
             baseline = saved.Document.Document.Text;
             opened.Source.IsReadOnly = true;
+            originalSnapshot = saved;
+            opened.NameInput.IsReadOnly = true;
             draftName = null; originalEligible = null;
             opened.Inventory.ItemsSource = new[] { saved.Destination.Name };
             opened.Inventory.SelectedItem = null;
             opened.Status.Text = $"Saved exact durable original: {saved.Destination.DisplayPath}. Inert and unselected. Reopen read-only from owned inventory.";
         }
         catch (AgentProfilePublicationUnconfirmedException) { uncertain = true; throw; }
-        finally { pending.Dispose(); opened.RetireReview(); }
+        finally
+        {
+            pending.Dispose();
+            if (review is null) { opened.RetireReview(); }
+        }
     }
 
-    private async Task<bool> Abandon(AgentProfileEditorWindow opened) =>
-        !Dirty || await opened.Choose("Unsaved agent draft", "Discard the current unsaved volatile draft?",
-            ["Discard", "Cancel"], lifetime!.Token) == 0;
+    private async Task RecoverConflict(AgentProfileEditorWindow opened, OwnedAgentProfileSnapshot? observed,
+        Func<bool> current, CancellationToken token)
+    {
+        opened.RetireReview();
+        var captured = Interlocked.Read(ref revision);
+        bool Exact() => current() && originalEligible?.Invoke() == true && captured == Interlocked.Read(ref revision);
+        var choice = await opened.Choose("Existing original changed",
+            "The reviewed base is changed, replaced or missing. No update was published. "
+            + "Reload abandons this draft only after a successful read. Overwrite prepares a NEW complete mutation review "
+            + "against the observed conflict; it does not save or approve another change.\n\n"
+            + $"DESTINATION\n{originalSnapshot!.Destination.DisplayPath}\n\nOBSERVED SOURCE\n"
+            + (observed?.Document.Document.Text ?? "(missing; recreation is not approved)")
+            + $"\n\nRETAINED KORA DRAFT\n{opened.Source.Text}",
+            ["Reload from disk (abandon draft)", "Overwrite with Kora changes", "Cancel (keep draft)"], token);
+        if (!Exact()) { throw new InvalidOperationException("The conflict decision expired. Draft retained."); }
+        if (choice == 0)
+        { await Run("Reload", current); return; }
+        if (choice == 1)
+        {
+            if (observed is null || observed.Destination != originalSnapshot.Destination)
+            { throw new InvalidOperationException("The same existing owned original is unavailable. No recreation or new destination is approved."); }
+            originalSnapshot = observed;
+            await PrepareReview(opened, current, token);
+            return;
+        }
+        opened.Status.Text = "Conflict cancelled. Volatile draft retained. No overwrite, retry or new copy.";
+    }
+
+    private async Task<bool> Abandon(AgentProfileEditorWindow opened)
+    {
+        if (!Dirty) { return true; }
+        var choice = await opened.Choose("Unsaved agent draft", "Save, discard, or keep the current volatile draft?",
+            ["Save", "Discard", "Cancel"], lifetime!.Token);
+        if (choice == 1) { return true; }
+        if (choice != 0) { return false; }
+        RequireDraft();
+        await SaveOnClose(opened, main.CaptureInstructionEditorEligibility());
+        return !Dirty && !uncertain;
+    }
 
     private void Closing(object? sender, WindowClosingEventArgs args)
     {
@@ -399,7 +471,7 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
         closing = false;
         window = null;
         lifetime?.Dispose(); lifetime = null;
-        originalEligible = null; draftName = null; baseline = string.Empty;
+        originalEligible = null; draftName = null; originalSnapshot = null; baseline = string.Empty;
         descriptionEligible = null; proposalDestination = null; proposalEligible = null;
     }
     private void Report(Exception exception)

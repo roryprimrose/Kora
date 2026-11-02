@@ -430,11 +430,13 @@ public sealed partial class DetailWindowControllerTests
     private sealed class FakeClipboard : IDetailClipboard
     {
         public List<string> Writes { get; } = [];
+        public List<string?> HtmlWrites { get; } = [];
         public bool Fail { get; set; }
-        public Task WritePlainTextAsync(IDetailView view, string source)
+        public Task WriteAsync(IDetailView view, string source, string? htmlFragment)
         {
             if (Fail) { throw new InvalidOperationException("fake platform failure"); }
             Writes.Add(source);
+            HtmlWrites.Add(htmlFragment);
             return Task.CompletedTask;
         }
     }

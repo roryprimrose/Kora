@@ -313,6 +313,6 @@ public sealed partial class ConversationNoticeTests
     private sealed class ResultClipboard : IDetailClipboard
     {
         internal int Writes { get; private set; }
-        public Task WritePlainTextAsync(IDetailView view, string source) { Writes++; return Task.CompletedTask; }
+        public Task WriteAsync(IDetailView view, string source, string? htmlFragment) { Writes++; return Task.CompletedTask; }
     }
 }

@@ -792,8 +792,14 @@ cannot fetch resources, access files or trigger navigation/host controls.
 There is no HTML/browser renderer, renderer acquisition, export, context
 capture or implicit clipboard operation in this profile.
 Only native explicit copy writes exact Unicode source/selection after current
-access/privacy and required disclosure checks. Rich clipboard formats remain
-gated; the multi-format contract below is not an implemented claim.
+access/privacy and required disclosure checks. Independently copy-authorized,
+already rendered Markdown additionally supplies host-serialized inert HTML in
+the same clipboard transfer, without changing its existing plain-text bytes or
+selection scope ([bounded delivered contract](Information_Display.md#delivered-authorized-markdown-copy-increment),
+[copy boundary](../src/Kora/DetailWindowController.cs)). Source views, unavailable
+profiles and unsupported content remain plain-text-only. Readable finalized
+responses and retained conversation Details still grant no copy authority.
+The broader multi-format contract below is not a full implementation claim.
 Privacy closure clears source, selection and pending render generation.
 Close/search/copy do not refresh meaningful session activity or mutate work,
 retained content, approvals or session lifecycle.

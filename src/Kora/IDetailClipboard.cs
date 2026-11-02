@@ -2,5 +2,5 @@ namespace Kora;
 
 internal interface IDetailClipboard
 {
-    Task WritePlainTextAsync(IDetailView view, string source);
+    Task WriteAsync(IDetailView view, string source, string? htmlFragment);
 }

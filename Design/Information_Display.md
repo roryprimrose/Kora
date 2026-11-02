@@ -1082,6 +1082,20 @@ viewer/item and remain available in every preference mode.
 
 ### Clipboard Copy
 
+#### Delivered authorized Markdown copy increment
+
+The existing native Copy action adds Windows HTML Clipboard Format only for an already rendered Markdown item whose exact content is independently copy-authorized. The [controller](../src/Kora/DetailWindowController.cs) retains its current access, immutable revision/generation, privacy and disclosure-confirmation checks; readable finalized responses and retained conversation Details still grant no copy authority.
+
+The [serializer](../src/Kora/NativeDetailRenderer.Clipboard.cs) consumes the same bounded validated Markdig tree as native rendering, not another parse or renderer DOM. It preserves supported headings, emphasis, lists, quotations, code and independently available tables. Destinations remain encoded inert visible text, not active links or resource attributes. There are no images, styles, external assets or renderer-profile enablement.
+
+For compatibility, Copy all still includes the complete original admitted source as Unicode plain text, even in rendered view; it does not yet switch to the target semantic plain representation below. Rendered selections add only an escaped preformatted HTML representation of the exact selected text, without reparsing or expanding the selection. Source/plain-text views and unsupported/unavailable renderer fallbacks remain plain-text-only ([routing regressions](../tests/Kora.Windows.IntegrationTests/DetailWindowControllerTests.RichCopy.cs)).
+
+The [native adapter](../src/Kora/NativeDetailClipboard.cs) publishes plain text and optional UTF-8 HTML with byte-accurate fragment boundaries as one clipboard transfer. It never reads, clears, flushes or retries a failed rich write as a plain-only success. Existing explicit error notification and content-free logging remain; no persistence/schema/audit change is introduced ([adapter regressions](../tests/Kora.Windows.IntegrationTests/NativeDetailClipboardTests.cs)).
+
+This is bounded implementation evidence, not installed paste-consumer/accessibility or provider qualification. Registered Markdown, rich static HTML/source styling, fully styled rich selections and the broader target representation/interaction contract below remain undelivered; no new Copy entry point or content scope is enabled.
+
+#### Target clipboard contract
+
 The detailed response window and every textual skill-file/source viewer provide
 a native **Copy all** action for the current item or selected file. Copy all
 uses the complete admitted immutable content, not only visible, loaded,

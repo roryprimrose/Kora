@@ -27,7 +27,7 @@ public sealed partial class DetailWindowController : IDisposable
     private readonly Func<DetailViewerState, NativeDocumentResult, Func<bool, int?, int, Task>, IDetailView> createView;
     private readonly ILogger<DetailWindowController> logger;
     private readonly DetailViewerRegistry registry = new();
-    private readonly Dictionary<DetailContentReference, (DetailViewerState State, IDetailView View)> windows = [];
+    private readonly Dictionary<DetailContentReference, (DetailViewerState State, IDetailView View, string? ClipboardHtml)> windows = [];
     private readonly Dictionary<string, (HostId<EvidenceIdentity> Id, long Revision, string Digest, string Title)> pages =
         new(StringComparer.Ordinal);
     private bool disposed;
@@ -348,8 +348,8 @@ public sealed partial class DetailWindowController : IDisposable
             windows.Remove(reference);
             registry.Close(reference);
         };
-        windows.Add(reference, (state, view));
-        return deferPublication ? result.Status : PublishContent(content, owner, (state, view), result.Status, activateOnly: false, acknowledge);
+        windows.Add(reference, (state, view, result.ClipboardHtml));
+        return deferPublication ? result.Status : PublishContent(content, owner, (state, view, result.ClipboardHtml), result.Status, activateOnly: false, acknowledge);
     }
 
     private static string ReaderSource(AdmittedDetailContent content)
@@ -365,10 +365,10 @@ public sealed partial class DetailWindowController : IDisposable
             : NativeDetailFormat.PipeTablesV2;
 
     private string PublishContent(AdmittedDetailContent content, Window? owner,
-        (DetailViewerState State, IDetailView View) entry, string status, bool activateOnly, Action? acknowledge = null)
+        (DetailViewerState State, IDetailView View, string? ClipboardHtml) entry, string status, bool activateOnly, Action? acknowledge = null)
     {
         var reference = content.Reference;
-        var (state, view) = entry;
+        var (state, view, _) = entry;
         var generation = state.Generation;
         if (disposed || !CanAccess(content) || state.Content is null)
         {
@@ -445,6 +445,11 @@ public sealed partial class DetailWindowController : IDisposable
         if (!allowed) { return; }
         try
         {
+            var html = !state.IsSource && state.RenderState == DetailRenderState.Rendered
+                && state.Content?.Kind == DetailContentKind.Markdown && entry.ClipboardHtml is not null
+                ? selectionStart is null ? entry.ClipboardHtml
+                    : "<pre>" + System.Net.WebUtility.HtmlEncode(source) + "</pre>"
+                : null;
             // Revalidate the exact live state immediately before invoking the platform write.
             if (disposed || state.Content is null || !CanAccess(state.Content) || state.Generation != generation
                 || !windows.TryGetValue(reference, out var current) || !ReferenceEquals(current.State, state))
@@ -452,12 +457,14 @@ public sealed partial class DetailWindowController : IDisposable
                 state.ReportStatus("Copy blocked: revision/access/privacy changed.");
                 return;
             }
-            await clipboard.WritePlainTextAsync(entry.View, source!);
+            await clipboard.WriteAsync(entry.View, source!, html);
             if (state.Generation == generation && state.Content is not null && CanAccess(state.Content))
             {
                 state.ReportStatus(selectionStart is null
                     ? "Exact source copied as Unicode plain text outside Kora."
-                    : "Selected text copied as Unicode plain text outside Kora.");
+                        + (html is null ? string.Empty : " Supported Markdown formatting included as sanitized HTML.")
+                    : "Selected text copied as Unicode plain text outside Kora."
+                        + (html is null ? string.Empty : " Exact selected text also included as inert HTML."));
             }
         }
         catch (Exception exception) when (exception is InvalidOperationException or NotSupportedException

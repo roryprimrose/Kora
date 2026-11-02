@@ -165,6 +165,53 @@ saves it to disk, and no tools/effects are replayed automatically.
 Retained voice content also cannot acquire fresh activated-voice authority from
 a native button: a retry review needs current admission of the original channel.
 
+### Review expired local text as a new ordinary request
+
+In expanded **Sessions**, choose **Read exact conversation**, select the original
+expired USER row, then **Review expired local text as a NEW ordinary request**.
+Read its complete unchanged body, host no-dispatch evidence, original channel,
+current Active destination and current local provider/profile. Separately choose
+**Confirm one NEW ordinary LOCAL request**, or **Decline fresh request review**.
+This completes a new ordinary request, not composer preparation or an old-task retry
+([operation](../src/Kora/SessionsViewModel.ExpiredOrdinary.cs)).
+
+Only newly recorded bare **Answer locally (no tools)** sources with confirmed
+pre-dispatch **Denied / ContextExpired** in the current Active session generation
+are supported. History from before Done/Resume remains readable but cannot supply
+this fresh review. Old records without this
+provenance, ordinary tool-capable Send, interrupted/uncertain/dispatched work,
+hosted, clipboard, files, MCP and reviewed evidence need their independent existing
+fresh routes. An applying session instruction is refused here rather than silently
+reused or omitted. No model/account/profile is guessed when the original never
+recorded it ([source boundary](../Design/Work_Management.md#fresh-review-of-expired-ordinary-local-text)).
+
+Confirmation retains a distinct USER/task at the normal FIFO tail with new IDs and
+a fifteen-second context from this new confirmation, including time spent validating
+it; validation does not restart the clock. The original task, denied
+outcome, history and unrelated unsent input remain unchanged. The new record keeps
+historical source attribution separate from its fresh native initiator; clicking
+cannot renew a voice operation. A qualified runtime can retain its actual answer;
+unqualified runtime admission remains unavailable, never fallback
+([admission](../src/Kora.Application/Hosting/SessionConversationService.ExpiredOrdinary.cs)).
+
+Review/decline writes nothing and invokes no provider. New work, source/input/capture,
+session, provider/default/profile, privacy, ownership or call changes require fresh
+review. Confirm once within sixty seconds; expired/consumed reviews cannot replay.
+If dispatch is held, use **Release manual dispatch hold** and/or the independent
+**Resume held dispatch** as applicable first, then review again. Confirmation may
+join a held FIFO but cannot clear either hold or renew old authority. The accepted
+request remains eligible after its acceptance receipt replaces the selected
+historical row. Actual input/capture, private authority, stored source, session,
+provider or deadline changes still prevent dispatch; receipt presentation does
+not renew any authority. This source
+review cannot be combined with a one-task output choice; use that separate new-request
+review for its own original input.
+If the new request is still pending, **Clear queue - review all pending** can
+cancel it after its separate confirmation. The historical expired source stays
+unchanged; pending-only clear neither renews nor replays it.
+Normal capacity, message, byte, budget and resource limits still apply
+([review fences](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)).
+
 ### Answers not marked reviewed
 
 Return to the exact conversation in the expanded, Sessions or compact view. Expand **Answers not marked reviewed**, then:

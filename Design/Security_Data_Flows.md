@@ -128,7 +128,23 @@ Known placeholders/references are inert; arbitrary secrets and undeclared
 formats may be missed. The general never-credentials-in-history requirement
 and broader product screening/redaction direction are unchanged.
 
+## Expired ordinary-text fresh-review boundary
+
+The separate [expired ordinary-text fresh-review operation](Work_Management.md#fresh-review-of-expired-ordinary-local-text)
+admits only host-classified local tool-free bare text with exact pre-dispatch expiry
+message/task evidence. It does not derive no-effect or resource-join claims from a
+terminal task status. A new native confirmation is a new intent/channel/context and
+normal FIFO transaction, with historical original-channel attribution retained
+separately. It cannot replay an identity, restore an old deadline, implicitly consume
+instructions/evidence/memory/grants or launder a retained voice operation as continued
+voice authority. Legacy/unclassified and specialized sources are unavailable, not
+reinterpreted. [Source validation](../src/Kora.Core/Conversation/ExpiredOrdinaryRequestSource.cs)
+and the [fresh transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Conversation.cs)
+preserve the original rows, typed audit, independent retention and unavailable
+qualification boundaries.
+
 ## Explicit expanded-prompt retention boundary
+
 An owned-v2 parameter preview may be retained only after a separate original native exact-session confirmation. Preview/nonpersisting Use are not retention consent. The whole current expansion enters the existing conversation screening/store/admission path once as USER text, without hidden template/value/source-path persistence, prompt-source task authority or double admission.
 Exact target/source/private/preview epochs remain eligible at physical COMMIT after repeated native source validation; this is not global filesystem/SQLite atomicity. Unknown completion is held for exact receipt inspection, with no replay or rollback claims. Existing reject-only credential limitations, independent saved drafts, retention/migration/copy gates and unavailable provider/egress boundaries remain unchanged.
 

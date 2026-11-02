@@ -20,6 +20,7 @@ internal sealed partial class SessionsViewModel
         {
             if (ReferenceEquals(selectedAnswerRecord, value)) { return; }
             ClearFailedRetry();
+            ClearExpiredOrdinary();
             CancelAnswerRead();
             selectedAnswerRecord = value is not null && ConversationMessages.Any(item => ReferenceEquals(item, value))
                 ? value : null;

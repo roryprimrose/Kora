@@ -95,6 +95,14 @@ trusted serialized-caller contract as well as existing source/version/asset
 safeguards. It rechecks at irreversible publication boundaries, including late
 jobs. Missing or unknown state/provenance fails closed.
 
+The [release snapshot reader](../GitHubRelease.Batch.ps1) pins queue commit,
+tree and blob bytes, then rechecks the queue ref. A valid ref move restarts that
+entire read, up to six attempts without sleeps; routine singleton checkpoints
+must not turn one transient move into a main-build failure. Only a stable,
+fully verified snapshot is evaluated. Exhausted retries, deletion, malformed
+identities and API failures still block publication, including at the late tag
+and publish boundaries ([regressions](../tests/GitHubRelease.Batch.Tests.ps1)).
+
 The controller does not reserve the next batch until complete actual-tip CI and
 the publication join (`Qualify completed batch tip`) succeed. It persists the
 exact run/job/source qualification receipt. This deliberately gives publication

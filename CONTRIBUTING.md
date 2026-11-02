@@ -63,6 +63,12 @@ directory restoration with fake commands; it never updates source or opens Kora.
 PR merge orchestration can run entirely on GitHub, without a local agent.
 See [GitHub-hosted merge admission](eng/merge-queue/README.md) for queue intent,
 failure/retry behaviour, the disabled-by-default rollout and administrator setup.
+The [dormant five-PR batch profile](eng/merge-queue/README.md#dormant-five-pr-batch-profile)
+is a separate versioned rollout. Default singleton admission, four required App
+checks and strict protection remain unchanged. Batch implementation tests use
+fake GitHub operations; they neither activate the profile nor replace complete
+candidate CI. Partial integration is release-blocked until verified recovery or
+actual-tip qualification/publication.
 
 Restore, build, and test with the pinned SDK and locked dependencies:
 
@@ -222,6 +228,13 @@ before selecting an answer; review text can appear before the operation is idle.
 Adaptive interaction fixtures join the exposed session-navigation operation
 before asserting unchanged selected-row identity and independent composer text.
 
+MCP skill regressions keep approval and denial on fully SQLite-backed admission.
+The eighteen follow-up cases retain native controls, real MCP approvals and
+execution, captured results, and SQLite-backed conversation receipts. Only their
+repeated local source-use admission bookkeeping uses the shared in-memory
+control-store fixture; the real admission/coordinator logic still records intent
+and terminal transitions. All twenty scenarios remain in PR validation.
+
 Portable tests and exact-source payload production run independently after
 version resolution. The installer consumes the verified payload immediately,
 without waiting for unrelated portable tests. The existing required
@@ -320,6 +333,8 @@ runner to verify the exact shape, original identity and real headless output.
 
 ### Reliable fixture patterns
 
+- Native fixture setup-phase wrappers must forward every supplied dependency,
+  including admitted-wake recognition and speech-input configuration, unchanged.
 - Coordinate races with explicit completion signals, not sleeps, property-read
   counts or an incomplete command task. Await cancellation acceptance, owned
   resource completion and the exact UI publication separately. Drain dispatcher
@@ -339,6 +354,16 @@ runner to verify the exact shape, original identity and real headless output.
 - Preserve production deadlines; use existing fake clocks for non-deadline
   scenarios. Dispose asynchronous fixture owners and release held operations in
   `finally`. See the [microphone ownership regressions](tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.MicrophoneRefreshOwnership.cs).
+- Queued task-output fixtures hold the provider reply, assert exact cross-session
+  `ProviderBusy` refusal during overlap, and join the exact queued completion and
+  provider quiescence before a fresh review. See the [native output cases](tests/Kora.Windows.IntegrationTests/SessionsConversationTests.TaskResponseOutput.cs).
+- A lifecycle acceptance-notification fault must not race into terminal
+  retention. The [lifecycle cases](tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ApplicationLifecycle.cs)
+  hold the existing model terminal-audit seam until acceptance publication,
+  cover both audit/publication orderings, and separately assert terminal
+  notification, retained original request/body and exact receipt revisions,
+  authoritative task readback, and physical join. Terminal readback failure
+  still prevents fresh lifecycle review.
 - Concurrent conversation expiry fixtures derive the message/task terminal pair
   from the exact request-owned snapshot, not mutable last-observed fixture slots.
   A concurrent dictionary does not make shared selection/commit atomic; force

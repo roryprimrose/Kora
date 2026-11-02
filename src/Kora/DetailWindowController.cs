@@ -27,7 +27,7 @@ public sealed partial class DetailWindowController : IDisposable
     private readonly Func<DetailViewerState, NativeDocumentResult, Func<bool, int?, int, Task>, IDetailView> createView;
     private readonly ILogger<DetailWindowController> logger;
     private readonly DetailViewerRegistry registry = new();
-    private readonly Dictionary<DetailContentReference, (DetailViewerState State, IDetailView View)> windows = [];
+    private readonly Dictionary<DetailContentReference, (DetailViewerState State, IDetailView View, string? ClipboardHtml)> windows = [];
     private readonly Dictionary<string, (HostId<EvidenceIdentity> Id, long Revision, string Digest, string Title)> pages =
         new(StringComparer.Ordinal);
     private bool disposed;
@@ -51,7 +51,8 @@ public sealed partial class DetailWindowController : IDisposable
                 && response.Content.IsSameSnapshot(content) && response.Admitted())
         && (content.Origin != DetailContentOrigin.RetrievedWebResult
             || ReferenceEquals(webResultSource(content.Reference), content))
-        && (content.Origin is not (DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant or DetailContentOrigin.RetainedLocalObservation)
+        && (content.Origin is not (DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant
+            or DetailContentOrigin.RetainedLocalObservation or DetailContentOrigin.RetainedAnswerContext)
             || conversationSources.TryGetValue(content.Reference, out var source)
                 && source.Content.IsSameSnapshot(content) && source.Admitted());
 
@@ -120,7 +121,8 @@ public sealed partial class DetailWindowController : IDisposable
     internal async Task<string> OpenConversationDetailAsync(AdmittedDetailContent content, Window? owner,
         Func<bool> admitted, Func<CancellationToken, Task<AdmittedDetailContent>> resolve, CancellationToken token)
     {
-        if (content.Origin is not (DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant or DetailContentOrigin.RetainedLocalObservation) || content.ConversationMessage is null)
+        if (content.Origin is not (DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant
+            or DetailContentOrigin.RetainedLocalObservation or DetailContentOrigin.RetainedAnswerContext) || content.ConversationMessage is null)
         { throw new InvalidDataException("Only an exact retained original conversation record may enter this detail route."); }
         if (disposed) { throw new InvalidOperationException("The conversation detail owner is disposed."); }
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token, conversationLifetime.Token);
@@ -292,7 +294,8 @@ public sealed partial class DetailWindowController : IDisposable
         try
         {
             state = registry.Open(content, CanAccess(content),
-                content.Origin is DetailContentOrigin.RetrievedWebResult or DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant or DetailContentOrigin.RetainedLocalObservation or DetailContentOrigin.FinalizedResponse
+                content.Origin is DetailContentOrigin.RetrievedWebResult or DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant
+                    or DetailContentOrigin.RetainedLocalObservation or DetailContentOrigin.RetainedAnswerContext or DetailContentOrigin.FinalizedResponse
                     ? () => CanAccess(content) : null,
                 () => !disposed && CanAccess(content),
                 content.Origin == DetailContentOrigin.RetainedAssistant ? token => ValidateFinalSourceAsync(content, token) : null);
@@ -326,7 +329,8 @@ public sealed partial class DetailWindowController : IDisposable
             Task Copy(bool confirmed, int? selectionStart, int selectionLength) =>
                 CopyAsync(reference, generation, confirmed, selectionStart, selectionLength);
             view = owner is ResponseWindow primary && viewModel is not null
-                && content.Origin is DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant or DetailContentOrigin.RetainedLocalObservation or DetailContentOrigin.SessionHistory or DetailContentOrigin.FinalizedResponse
+                && content.Origin is DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant
+                    or DetailContentOrigin.RetainedLocalObservation or DetailContentOrigin.RetainedAnswerContext or DetailContentOrigin.SessionHistory or DetailContentOrigin.FinalizedResponse
                 ? new SessionDetailView(primary.SessionView, state, result, Copy, viewModel)
                 : createView(state, result, Copy);
         }
@@ -348,8 +352,8 @@ public sealed partial class DetailWindowController : IDisposable
             windows.Remove(reference);
             registry.Close(reference);
         };
-        windows.Add(reference, (state, view));
-        return deferPublication ? result.Status : PublishContent(content, owner, (state, view), result.Status, activateOnly: false, acknowledge);
+        windows.Add(reference, (state, view, result.ClipboardHtml));
+        return deferPublication ? result.Status : PublishContent(content, owner, (state, view, result.ClipboardHtml), result.Status, activateOnly: false, acknowledge);
     }
 
     private static string ReaderSource(AdmittedDetailContent content)
@@ -365,10 +369,10 @@ public sealed partial class DetailWindowController : IDisposable
             : NativeDetailFormat.PipeTablesV2;
 
     private string PublishContent(AdmittedDetailContent content, Window? owner,
-        (DetailViewerState State, IDetailView View) entry, string status, bool activateOnly, Action? acknowledge = null)
+        (DetailViewerState State, IDetailView View, string? ClipboardHtml) entry, string status, bool activateOnly, Action? acknowledge = null)
     {
         var reference = content.Reference;
-        var (state, view) = entry;
+        var (state, view, _) = entry;
         var generation = state.Generation;
         if (disposed || !CanAccess(content) || state.Content is null)
         {
@@ -445,6 +449,11 @@ public sealed partial class DetailWindowController : IDisposable
         if (!allowed) { return; }
         try
         {
+            var html = !state.IsSource && state.RenderState == DetailRenderState.Rendered
+                && state.Content?.Kind == DetailContentKind.Markdown && entry.ClipboardHtml is not null
+                ? selectionStart is null ? entry.ClipboardHtml
+                    : "<pre>" + System.Net.WebUtility.HtmlEncode(source) + "</pre>"
+                : null;
             // Revalidate the exact live state immediately before invoking the platform write.
             if (disposed || state.Content is null || !CanAccess(state.Content) || state.Generation != generation
                 || !windows.TryGetValue(reference, out var current) || !ReferenceEquals(current.State, state))
@@ -452,12 +461,14 @@ public sealed partial class DetailWindowController : IDisposable
                 state.ReportStatus("Copy blocked: revision/access/privacy changed.");
                 return;
             }
-            await clipboard.WritePlainTextAsync(entry.View, source!);
+            await clipboard.WriteAsync(entry.View, source!, html);
             if (state.Generation == generation && state.Content is not null && CanAccess(state.Content))
             {
                 state.ReportStatus(selectionStart is null
                     ? "Exact source copied as Unicode plain text outside Kora."
-                    : "Selected text copied as Unicode plain text outside Kora.");
+                        + (html is null ? string.Empty : " Supported Markdown formatting included as sanitized HTML.")
+                    : "Selected text copied as Unicode plain text outside Kora."
+                        + (html is null ? string.Empty : " Exact selected text also included as inert HTML."));
             }
         }
         catch (Exception exception) when (exception is InvalidOperationException or NotSupportedException

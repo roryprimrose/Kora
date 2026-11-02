@@ -64,6 +64,7 @@ public sealed class LocalAppearancePreferences : IAppearancePreferences
             AppearanceOption.Theme => FileName,
             AppearanceOption.PresenceDisplay => PresenceDisplayEnabledFileName,
             AppearanceOption.PresenceTimeout => PresenceTimeoutFileName,
+            AppearanceOption.ResponseTimeout => ResponseTimeoutFileName,
             AppearanceOption.PresenceSize => PresenceSizeFileName,
             AppearanceOption.DotSize => PresenceDotSizeFileName,
             AppearanceOption.DotDensity => PresenceDotDensityFileName,

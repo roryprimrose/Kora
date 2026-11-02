@@ -16,6 +16,18 @@ Responses-tab navigation is not a retained-body, retired-response, model or priv
 
 Apply [product admission](MVP_Scope.md#product-admission-and-realignment) to display additions. Readable complex data, Markdown, admitted browser content, ordinary Find, wrapping and accessibility support the product. Standalone content-analysis buttons and engineering-only normal-workspace filters are not justified by the existence of a viewer or immutable snapshot.
 
+## Explicit exact retained-answer file export
+
+The native conversation row's **Export exact answer...** action reviews one currently admitted retained final ASSISTANT body, never a session-wide latest result or rendered projection. Destination selection and passive Details grant no write authority.
+The [separate review](../src/Kora/ExactAnswerExportWindow.cs) shows complete original text, conversation/result identity, exact destination, UTF-8/no-BOM format and the retention disclosure before a separate original local-UI confirmation.
+
+The [single-use review owner](../src/Kora.Application/Presentation/ExactAnswerExportReview.cs) revalidates the exact source and private/control/presenter lifetime across selection, review and staging.
+The [dedicated Windows writer](../src/Kora.Windows/Presentation/WindowsExactAnswerExportWriter.cs) admits canonical fixed-drive text/Markdown destinations outside protected storage, holds ancestor identities, creates without replacement, flushes durably and verifies exact saved bytes. Existing destinations require a fresh new-file selection.
+
+Cancellation/failure before publication and uncertain committed effects remain distinct; no uncertain automatic retry, overwrite, shell/browser open, clipboard disclosure, model execution or activity renewal is added.
+Files leave Kora retention and may be copied or synced by the selected location; conversation/data deletion does not delete exports or inherited copies.
+Deterministic [native transaction tests](../tests/Kora.Windows.IntegrationTests/ExactAnswerExportWriterTests.cs) and [authority/audit tests](../tests/Kora.Application.UnitTests/Presentation/ExactAnswerExportReviewTests.cs) do not qualify installed accessibility or provider/hardware readiness.
+
 ## Bounded provisional local answers
 
 **Answer locally (no tools)** submits the selected conversation's original input through the ordinary session/instruction owner, explicitly selecting local, tool-free execution. The primary conversation, Sessions and compact views label arriving text **Provisional answer - not retained**. Existing Send, tool loops, clarification and ordinary hosted paths remain buffered ([submission](../src/Kora.Application/Hosting/SessionConversationService.SessionInstructions.cs), [native controls](../src/Kora/SessionInteractionView.axaml), [adapter selection](../src/Kora.Application/Dependencies/ModelTurnHost.Questions.cs)).
@@ -695,6 +707,8 @@ Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Ambient UI](A
 
 ## Delivered Native Profile - 2026-10-06
 
+Retained ASSISTANT entries expose **Context submitted for this answer** as a separate exact native metadata source, with immutable host provenance rather than model-produced citations. It reuses private Details admission, bounded inert rendering, exact-answer return and no-copy restrictions; it neither opens source bodies nor replaces approval/question controls ([user operation](../docs/responses-and-calls.md#inspect-context-submitted-for-a-retained-answer), [admission](../src/Kora.Core/Presentation/AdmittedDetailContent.cs)).
+
 The existing Documentation page has an explicit native **Open details**
 action. It opens a separate passive native window for the exact embedded page
 snapshot, not the latest response, a website, or a newly inferred answer.
@@ -1081,6 +1095,20 @@ Rendered/Source, search, copy, and navigation commands target the current
 viewer/item and remain available in every preference mode.
 
 ### Clipboard Copy
+
+#### Delivered authorized Markdown copy increment
+
+The existing native Copy action adds Windows HTML Clipboard Format only for an already rendered Markdown item whose exact content is independently copy-authorized. The [controller](../src/Kora/DetailWindowController.cs) retains its current access, immutable revision/generation, privacy and disclosure-confirmation checks; readable finalized responses and retained conversation Details still grant no copy authority.
+
+The [serializer](../src/Kora/NativeDetailRenderer.Clipboard.cs) consumes the same bounded validated Markdig tree as native rendering, not another parse or renderer DOM. It preserves supported headings, emphasis, lists, quotations, code and independently available tables. Destinations remain encoded inert visible text, not active links or resource attributes. There are no images, styles, external assets or renderer-profile enablement.
+
+For compatibility, Copy all still includes the complete original admitted source as Unicode plain text, even in rendered view; it does not yet switch to the target semantic plain representation below. Rendered selections add only an escaped preformatted HTML representation of the exact selected text, without reparsing or expanding the selection. Source/plain-text views and unsupported/unavailable renderer fallbacks remain plain-text-only ([routing regressions](../tests/Kora.Windows.IntegrationTests/DetailWindowControllerTests.RichCopy.cs)).
+
+The [native adapter](../src/Kora/NativeDetailClipboard.cs) publishes plain text and optional UTF-8 HTML with byte-accurate fragment boundaries as one clipboard transfer. It never reads, clears, flushes or retries a failed rich write as a plain-only success. Existing explicit error notification and content-free logging remain; no persistence/schema/audit change is introduced ([adapter regressions](../tests/Kora.Windows.IntegrationTests/NativeDetailClipboardTests.cs)).
+
+This is bounded implementation evidence, not installed paste-consumer/accessibility or provider qualification. Registered Markdown, rich static HTML/source styling, fully styled rich selections and the broader target representation/interaction contract below remain undelivered; no new Copy entry point or content scope is enabled.
+
+#### Target clipboard contract
 
 The detailed response window and every textual skill-file/source viewer provide
 a native **Copy all** action for the current item or selected file. Copy all

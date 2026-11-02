@@ -196,7 +196,7 @@ public sealed class CurrentResponseNativeTests
 
     private sealed class NoClipboard : IDetailClipboard
     {
-        public Task WritePlainTextAsync(IDetailView view, string source) =>
+        public Task WriteAsync(IDetailView view, string source, string? htmlFragment) =>
             throw new InvalidOperationException("Current response actions must never write the clipboard.");
     }
 

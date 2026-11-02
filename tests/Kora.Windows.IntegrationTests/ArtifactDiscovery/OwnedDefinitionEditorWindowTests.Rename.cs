@@ -33,6 +33,8 @@ public sealed partial class OwnedDefinitionEditorWindowTests
     [InlineData("inventory-privacy")]
     [InlineData("inventory-late-dependent")]
     [InlineData("inventory-prepared-reload")]
+    [InlineData("inventory-saved-restore")]
+    [InlineData("inventory-saved-restore-recovery")]
     [InlineData("voice")]
     [InlineData("cancel-review")]
     [InlineData("cancel-confirm")]
@@ -48,6 +50,8 @@ public sealed partial class OwnedDefinitionEditorWindowTests
     [InlineData("late-reload")]
     [InlineData("prepared-dependent")]
     [InlineData("prepared-reload")]
+    [InlineData("saved-restore")]
+    [InlineData("saved-restore-recovery")]
     public async Task CompleteOwnedRenameReviewsConfirmsReconcilesAndReopensExactDisabledSource(string scenario)
     {
         var inventorySelection = scenario is "inventory" || scenario.StartsWith("inventory-", StringComparison.Ordinal);
@@ -112,6 +116,18 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 .Single(button => Equals(button.Content, label)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Run("instructions inspect example");
             editor.Should().NotBeNull();
+            var savedRestore = scenario.StartsWith("saved-restore", StringComparison.Ordinal);
+            if (savedRestore)
+            {
+                editor!.Source.Text += "\r\nConfirmed changed body before rename";
+                var saving = Run("instructions save");
+                Click(await reviewOpened.Task.WaitAsync(TimeSpan.FromSeconds(10), f.Token), "Confirm save");
+                await saving;
+                source = (await store.Read("example", f.Token))!;
+                editor.RestorePrevious.IsEnabled.Should().BeTrue();
+                editor.Source.Text.Should().Be(source.Document.Text);
+                reviewOpened = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            }
             if (inventorySelection)
             {
                 Click(editor!, "Refresh");
@@ -121,6 +137,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 Click(editor, "Inspect");
                 await controller.WaitForOperation();
                 editor.Files.SelectedItem.Should().NotBeNull();
+                if (savedRestore) { editor.RestorePrevious.IsEnabled.Should().BeFalse("explicit inventory reselection retires the previous Save identity"); }
             }
             Task rename;
             if (scenario is "native" || inventorySelection)
@@ -177,6 +194,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                         await f.Main.PrivacyClosureTask;
                         break;
                     case "recovery":
+                    case "saved-restore-recovery":
                         store.AfterRenamePhase = phase =>
                         {
                             if (phase == OwnedInstructionRenamePhase.OriginalHeld) { throw new IOException("Synthetic interruption"); }
@@ -211,9 +229,21 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 editor.NameInput.Text.Should().Be(source.Name);
                 catalogue.Artifacts.Should().NotContain(item => item.OwnedInstructionName == "renamed");
             }
-            if (scenario is "recovery")
+            if (scenario is "recovery" or "saved-restore-recovery")
             {
-                (await store.ReadRenameRecovery(f.Token))!.Phase.Should().Be(OwnedInstructionRenamePhase.OriginalHeld);
+                var unfinished = (await store.ReadRenameRecovery(f.Token))!;
+                unfinished.Phase.Should().Be(OwnedInstructionRenamePhase.OriginalHeld);
+                if (savedRestore)
+                {
+                    editor.RestorePrevious.IsEnabled.Should().BeFalse();
+                    editor.Source.Text.Should().Be(source.Document.Text);
+                    reviewOpened = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                    await Run("instructions restore");
+                    reviewOpened.Task.IsCompleted.Should().BeFalse("old saved content must not review or publish through rename recovery");
+                    (await store.ReadRenameRecovery(f.Token))!.ObservationRevision.Should().Be(unfinished.ObservationRevision);
+                    Directory.GetFiles(Path.Combine(f.RoamingRoot, "Instructions"), "*.instructions.md").Should().BeEmpty();
+                    editor.Source.Text.Should().Be(source.Document.Text);
+                }
                 store.AfterRenamePhase = null;
                 reviewOpened = new(TaskCreationOptions.RunContinuationsAsynchronously);
                 var recovering = Run("instructions recover-rename");
@@ -223,7 +253,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 Click(await reviewOpened.Task.WaitAsync(TimeSpan.FromSeconds(10), f.Token), "Confirm rename");
                 await recovering;
             }
-            var completed = scenario is "typed" or "native" or "inventory" or "voice" or "recovery";
+            var completed = scenario is "typed" or "native" or "inventory" or "voice" or "recovery" || savedRestore;
             var oldPath = Path.Combine(f.RoamingRoot, "Instructions", source.CanonicalFileName);
             File.Exists(oldPath).Should().Be(!completed);
             var newPath = Path.Combine(f.RoamingRoot, "Instructions", "renamed.instructions.md");
@@ -238,9 +268,51 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 Directory.GetFiles(Path.Combine(f.RoamingRoot, "Instructions"), ".instruction-rename-*").Should().BeEmpty();
                 catalogue.Candidates.Single(item => item.OwnedInstructionName is "renamed").IsUseEnabled.Should().BeFalse();
                 catalogue.Candidates.Should().NotContain(item => item.OwnedInstructionName == "example");
+                if (savedRestore)
+                {
+                    editor.RestorePrevious.IsEnabled.Should().BeFalse();
+                    var renamedBytes = File.ReadAllBytes(newPath);
+                    reviewOpened = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                    await Run("instructions restore");
+                    reviewOpened.Task.IsCompleted.Should().BeFalse("rename must not supply a same-source Save restore point");
+                    File.ReadAllBytes(newPath).Should().Equal(renamedBytes);
+                    File.Exists(oldPath).Should().BeFalse();
+                    editor.Source.Text.Should().Be(saved.Document.Text);
+                    editor.NameInput.Text.Should().Be("renamed");
+                    await Run("instructions reload");
+                    editor.Source.Text += "\r\nConfirmed changed body after rename";
+                    reviewOpened = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                    var saving = Run("instructions save");
+                    Click(await reviewOpened.Task.WaitAsync(TimeSpan.FromSeconds(10), f.Token), "Confirm save");
+                    await saving;
+                    var changed = (await store.Read("renamed", f.Token))!;
+                    editor.RestorePrevious.IsEnabled.Should().BeTrue();
+                    reviewOpened = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                    var restoring = Run("instructions restore");
+                    var preview = await reviewOpened.Task.WaitAsync(TimeSpan.FromSeconds(10), f.Token);
+                    preview.GetVisualDescendants().OfType<TextBox>().Select(box => box.Text)
+                        .Should().Equal(changed.Document.Text, saved.Document.Text);
+                    reviewOpened = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                    Click(preview, "Review separate Save confirmation");
+                    var confirmation = await reviewOpened.Task.WaitAsync(TimeSpan.FromSeconds(10), f.Token);
+                    confirmation.GetVisualDescendants().OfType<TextBox>().Select(box => box.Text)
+                        .Should().Equal(changed.Document.Text, saved.Document.Text);
+                    Click(confirmation, "Confirm save");
+                    await restoring;
+                    var restored = (await store.Read("renamed", f.Token))!;
+                    restored.Document.CopyBytes().Should().Equal(renamedBytes);
+                    restored.Revision.Should().NotBe(saved.Revision).And.NotBe(changed.Revision);
+                    editor.Source.Text.Should().Be(saved.Document.Text);
+                    editor.NameInput.Text.Should().Be("renamed");
+                    File.Exists(oldPath).Should().BeFalse();
+                    Directory.GetFiles(Path.Combine(f.RoamingRoot, "Instructions")).Should().BeEquivalentTo([newPath, unrelatedPath]);
+                    (await store.ReadRenameRecovery(f.Token)).Should().BeNull();
+                    catalogue.Candidates.Should().NotContain(item => item.OwnedInstructionName == "example");
+                    catalogue.Candidates.Single(item => item.OwnedInstructionName is "renamed").IsUseEnabled.Should().BeFalse();
+                }
                 editor.NameInput.Text.Should().Be("renamed");
                 editor.Source.Text.Should().Be(saved.Document.Text);
-                if (inventorySelection)
+                if (inventorySelection && !savedRestore)
                 {
                     Click(editor, "Inspect");
                     await controller.WaitForOperation();

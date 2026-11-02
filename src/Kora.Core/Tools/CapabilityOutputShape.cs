@@ -11,4 +11,5 @@ public enum CapabilityOutputShape
     WebPage,
     Sessions,
     CustomizationMetadata,
+    RegisteredSettings,
 }

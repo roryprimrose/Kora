@@ -354,7 +354,8 @@ public sealed partial class MainViewModel
         || InCallFeedbackRules.Resolve(Kora.Core.Voice.ResponseOutputMode.Hybrid,
             DesiredInCallFeedback, observation.EffectiveState) == Kora.Core.Voice.ResponseOutputMode.VisualOnly;
 
-    private async Task SetCallSettingsAsync(CallAwareSettings settings, bool spokenApprovalDowngradeConfirmed = false)
+    private async Task<CallMutationOutcome> SetCallSettingsAsync(CallAwareSettings settings,
+        bool spokenApprovalDowngradeConfirmed = false, CallVoiceActivationReview? activationReview = null)
     {
         var origin = OriginalOrigin();
         var revision = CallPolicyRevision;
@@ -363,31 +364,51 @@ public sealed partial class MainViewModel
             origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.LocalUser,
             DeviceLocalPreferencesTarget);
         CallMutationOutcome outcome;
+        string? failureReason = null;
         try
         {
-            outcome = await Task.Run(() => communicationPolicy.SetSettings(settings, origin, revision,
-                () => IsCallMutationHostEligible, value =>
+            outcome = await Task.Run(() =>
+            {
+                CallMutationOutcome? persistenceDenial = null;
+                bool Persist(CallAwareSettings value)
                 {
+                    if (activationReview is not null && callAwarePreferences.Load() != activationReview.SavedSettings)
+                    { throw new InvalidDataException("Saved call settings changed; start a fresh review. No retry was queued."); }
+                    if (activationReview is not null)
+                    {
+                        persistenceDenial = communicationPolicy.CheckMutation(origin, activationReview.Observation.Revision,
+                            () => activationReview.IsEligible);
+                        if (persistenceDenial is not null) { return false; }
+                    }
                     callAwarePreferences.Save(value);
+                    if (activationReview is not null && callAwarePreferences.Load() != value)
+                    { throw new InvalidDataException("Call settings readback did not confirm the reviewed value."); }
                     return true;
-                }, spokenApprovalDowngradeConfirmed));
-            await CompleteAuditAsync(audit, outcome is CallMutationOutcome.Applied or CallMutationOutcome.Unchanged
-                ? SecurityAuditOutcome.Succeeded : SecurityAuditOutcome.Denied, outcome.ToString().ToLowerInvariant());
+                }
+                var result = activationReview is not null
+                    ? communicationPolicy.SetReviewedVoiceActivation(activationReview, origin, Persist)
+                    : communicationPolicy.SetSettings(settings, origin, revision,
+                        () => IsCallMutationHostEligible, Persist, spokenApprovalDowngradeConfirmed);
+                return persistenceDenial ?? result;
+            });
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
         {
             outcome = CallMutationOutcome.PersistenceFailed;
-            await CompleteAuditAsync(audit, SecurityAuditOutcome.Failed,
-                exception is UnauthorizedAccessException ? "access-denied" : "io-error");
+            failureReason = exception is UnauthorizedAccessException ? "access-denied" : "io-error";
             ApplicationLog.Error(logger, exception, "Saving call-aware settings");
             ShowFailure("The call-aware settings could not be saved.", exception.Message);
         }
+        await CompleteAuditAsync(audit, outcome is CallMutationOutcome.Applied or CallMutationOutcome.Unchanged
+            ? SecurityAuditOutcome.Succeeded : outcome == CallMutationOutcome.PersistenceFailed
+                ? SecurityAuditOutcome.Failed : SecurityAuditOutcome.Denied, failureReason ?? outcome.ToString().ToLowerInvariant());
         ReportCallMutation(outcome, CallAwareConfigurationAction, origin);
         activity.Complete(outcome is CallMutationOutcome.Applied or CallMutationOutcome.Unchanged
             ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
 #pragma warning disable VSTHRD003 // This mutation synchronously starts the owned transition; await its audio release.
         await callClosureTask;
 #pragma warning restore VSTHRD003
+        return outcome;
     }
 
     private bool CanReuseLegacyModelGrant(BuiltInAction action) =>

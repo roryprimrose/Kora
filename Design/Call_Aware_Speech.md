@@ -65,8 +65,9 @@ approval readbacks and voice previews. Call entry invalidates pending synthesis/
 playback before asynchronous UI dispatch or cleanup. Clearance does not replay
 suppressed output, answer questions or reopen capture. Saved explicit visual/
 activation preferences retain their existing format and behavior; Unknown now
-uses the same conservative protection. New general speech/activation protection
-downgrades and call-wide temporary overrides remain unavailable. The separate
+uses the same conservative protection. New general speech protection
+downgrades and call-wide temporary overrides remain unavailable. Call-time activation has a
+[separate exact native preference review](#reviewed-call-time-activation-preference). The separate
 [exact local speak-once review](#delivered-exact-local-speak-once-review) composes
 only one current otherwise-eligible response; it does not disable protection.
 
@@ -304,6 +305,17 @@ capture. A visual question shown during that state cannot bypass disabled
 call-time activation merely because Kora asked it before the observation
 changed.
 Locked-session microphone and speech restrictions remain mandatory and cannot be overridden.
+
+### Reviewed call-time activation preference
+
+The [native Calls controls](../src/Kora/SettingsWindow.axaml) can restore a previously disabled device-local activation preference through **Review enabling activation**, then separate **Confirm reviewed activation** or **Cancel activation review**.
+The [review owner](../src/Kora.Application/ViewModels/MainViewModel.CallVoiceActivation.cs) shows Off -> On, device scope, current call observation and the independent consent/speech/approval boundaries. Original voice, model invocation and unknown origins cannot prepare or relabel this review.
+
+The single-use [policy review](../src/Kora.Application/Communication/CallCommunicationPolicy.cs) binds the exact settings, call/privacy/ownership/input/recovery revisions and original active Calls window lifetime. Hide, deactivation, tab change or close retires it. The shared audited writer revalidates after requested audit, checks unchanged saved state, saves atomically and verifies readback before publishing.
+Unconfirmed persistence, audit or invalidated authority is not success or a rollback guarantee; start a fresh review rather than retrying the old confirmation ([regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.CallVoiceActivation.cs)).
+
+Saving permits only otherwise eligible activation/question replies. It never opens capture, clears manual/recovery holds, grants listening consent, changes speech/spoken approval preferences or changes grants. Separate **Enable listening** still requires fresh existing gates. Unknown/manual-evidence-unavailable protection remains authoritative ([native regressions](../tests/Kora.Windows.IntegrationTests/CallVoiceActivationNativeTests.cs)).
+This is bounded implementation, not detector, provider, hardware, acoustic or installed accessibility qualification.
 
 The separate in-call feedback override defaults to UI-only, with Voice/UI/Both/Inherit choices through the shared settings registry.
 It takes precedence over ordinary task/queue/session/device response mode, subject to mandatory privacy/lock/mute/speech policy and an explicitly permitted single-response exception.

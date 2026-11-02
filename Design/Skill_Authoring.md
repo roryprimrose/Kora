@@ -5,6 +5,8 @@ authoring, and reviewed Customizations source writes are implemented through
 [Definition Management](Definition_Management.md). Broader conversational/package
 authoring and executable skills remain gated.
 
+The bounded [conversational prompt operation](../docs/customizations.md#author-one-reusable-prompt-request) is now implemented in existing **Customizations > Prompts**: user-described reusable USER request, separately host-declared required literals, independent local disclosure, complete body-only proposal review, volatile adoption and separately confirmed disabled Save. Reopen and existing reviewed literal expansion/submission complete later use; instruction refinement and skill generation are distinct operations ([host validator](../src/Kora.Application/Definitions/PromptTemplateAuthoring.cs), [complete native regression](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.PromptAuthoring.cs)).
+
 Discovery, source-read consent, editing, enablement and invocation are separate
 operations. Registering or inspecting a root grants none of the later
 authorities; see the [source contract](Skill_Storage.md#delivered-bounded-r21-native-inspection)
@@ -70,6 +72,11 @@ and named owned-skill use review original source, exact bindings and single-pass
 expansion through the same canonical local workflow. Old v1/v2 guidance bytes
 remain literal; tool parameters and shared/agent guidance-reference policy are
 not extended.
+
+Missing v3 invocation values now use [host-owned private questions](../src/Kora.Application/Skills/OwnedSkillInvocationWorkflow.InputQuestions.cs) after exact source, Active target and original-task selection.
+Original typed/native or eligible activated-voice replies supply only literal data through the shared question presenter, not Save/Enable/Use approval.
+The existing complete binding/expansion preview and separate native Use remain authoritative; [user steps and refusal boundaries](../docs/owned-skill-authoring.md#required-literal-guidance-inputs) describe the bounded operation. This changes neither authoring nor the v3 format.
+The separate native v4 observation workflow remains an ordered host-action declaration, not a template or a question consumer. Reference-bearing and MCP formats cannot inherit v3 input-question authority or enter this tool-free operation.
 
 1. Capture the voice request and admit an authoring task through normal work management.
 2. Clarify the skill's purpose, inputs, expected output, tool dependencies, and success conditions.

@@ -77,12 +77,14 @@ public sealed partial class SessionsConversationTests
             window.UpdateLayout();
             window.SessionView.DetailsVisible.Should().BeTrue(state.ConversationStatus);
             var reader = window.SessionView.GetVisualDescendants().OfType<DetailContentView>().Single();
+            reader.FindControl<TextBlock>("ProvenanceLabel")!.Text.Should().Contain("Historical").And.Contain("not current execution");
             reader.FindControl<TextBox>("ContentReader")!.Text.Should().Contain("exact source-row revision is retained")
                 .And.NotContain(source.Body).And.NotContain(source.AssistantResponse!.Body)
                 .And.NotContain(retained.Body).And.NotContain(retained.AssistantResponse!.Body);
             window.SessionView.FindControl<TabControl>("ConversationTabs")!.SelectedIndex = 1;
             var back = window.SessionView.FindControl<Button>("BackToConversation")!;
             back.IsEnabled.Should().BeTrue();
+            back.Content.Should().Be("Back to conversation");
             back.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             button.IsFocused.Should().BeTrue("the return control must target this exact answer, not the latest source");
             window.SessionView.GetVisualDescendants().OfType<DetailContentView>().Single().Should().BeSameAs(reader);

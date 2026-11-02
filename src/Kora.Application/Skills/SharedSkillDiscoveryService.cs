@@ -167,6 +167,19 @@ public sealed partial class SharedSkillDiscoveryService(
             return true;
         }, token);
 
+    internal async Task ValidateCapturedRevisionAsync(SharedSkillSnapshot snapshot, SharedSkillSource source,
+        Func<bool> eligible, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        if (!eligible()) { throw new InvalidOperationException("The original skill result source was retired."); }
+        RequireRegistration(source);
+        var current = await reader.DiscoverAsync(source, token).ConfigureAwait(false);
+        token.ThrowIfCancellationRequested();
+        RequireRegistration(source);
+        if (!eligible() || current.Source != source || !Matches(current, snapshot))
+        { throw new InvalidOperationException("The original skill result source changed; no source refresh or authority renewal is admitted."); }
+    }
+
     internal Task<SharedSkillSnapshot> ReadReferencesAsync(SharedSkillSnapshot snapshot, SharedSkillSource source,
         SharedSkillUseAdmission useAdmission, Func<bool> eligible, Kora.Core.Hosting.RequestOrigin origin, CancellationToken token) =>
         useAdmission.RunAsync(origin, eligible, async (request, session, live, currentToken) =>

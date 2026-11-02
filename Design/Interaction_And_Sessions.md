@@ -39,6 +39,8 @@ The existing exact native Details source/private/current-target fences, return-t
 
 Metadata-only inspection also excludes the separately retained ASSISTANT body from shared native chrome, including unknown/not-recorded answers. Ordinary original-message Details retains its separate answer display; inspecting metadata does not substitute that body for unavailable provenance ([presentation boundary](../src/Kora.Application/Presentation/DetailViewerState.cs), [native chrome](../src/Kora/DetailContentView.axaml.cs)).
 
+Shared Details marks retained sources as historical, not current execution authority. Context inspection remains metadata-only with **Back to conversation** targeting its exact answer; the separate terminal-notice result reader shows that notice's exact retained answer and uses **Back to notice**. Neither route substitutes the other source or renews its private-reader lifetime ([source separation regressions](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.ConversationDetails.cs), [notice-result contract](Proactive_Interaction.md#explicit-terminal-result-reading)).
+
 ## Cross-conversation content search and exact message opening
 
 The [native content search owner](../src/Kora/SessionsViewModel.ContentSearch.cs)

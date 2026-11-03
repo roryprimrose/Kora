@@ -176,13 +176,14 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         ConversationExecutionConfigurationService? conversationExecution = null,
         SpeechSetupComparison? speechSetupComparison = null,
         LogonStartupConfigurationService? logonStartupConfiguration = null,
+        DetailPresentationConfigurationService? detailPresentationConfiguration = null,
         StartupPresentationConfigurationService? startupPresentationConfiguration = null,
         IQuestionVoiceRecognitionService? voiceRecognition = null, SpeechInputConfigurationService? speechInputConfiguration = null)
     {
         using var setup = BeginPhase(NativeFixturePhase.Setup);
         await setup.RunAsync(() => InitializeCoreAsync(webPageGet, webSummary, callState, dispatcher, modelReasoner,
             modelProbe, speechComponentSetup, ordinaryDeadlineConfiguration, conversationExecution,
-            speechSetupComparison, logonStartupConfiguration, startupPresentationConfiguration,
+            speechSetupComparison, logonStartupConfiguration, detailPresentationConfiguration, startupPresentationConfiguration,
             voiceRecognition, speechInputConfiguration));
     }
 
@@ -195,6 +196,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         ConversationExecutionConfigurationService? conversationExecution,
         SpeechSetupComparison? speechSetupComparison,
         LogonStartupConfigurationService? logonStartupConfiguration,
+        DetailPresentationConfigurationService? detailPresentationConfiguration,
         StartupPresentationConfigurationService? startupPresentationConfiguration,
         IQuestionVoiceRecognitionService? voiceRecognition, SpeechInputConfigurationService? speechInputConfiguration)
     {
@@ -273,6 +275,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             ordinaryDeadlineConfiguration: ordinaryDeadlineConfiguration,
             conversationExecution: conversationExecution,
             speechSetupComparison: speechSetupComparison, logonStartupConfiguration: logonStartupConfiguration,
+            detailPresentationConfiguration: detailPresentationConfiguration,
             startupPresentationConfiguration: startupPresentationConfiguration,
             speechInputConfiguration: speechInputConfiguration);
         if (webSummary is not null) { Main.BindWebSummaryWorkflow(webSummary); }

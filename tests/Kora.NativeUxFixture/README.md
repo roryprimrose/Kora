@@ -31,6 +31,27 @@ quiescent until consent and reviewed selection. Omitted overrides retain the
 default fixture boundaries; setup failures and cancellation propagate without
 substituting those defaults.
 
+The same timed setup forwards optional Details, conversation-execution and
+manual startup-presentation configuration independently; omitted services remain unavailable. The
+[composition regressions](../Kora.Windows.IntegrationTests/DetailPresentationSettingsTests.cs)
+retain separate reviewed confirmation, no audio effects and exact terminal phase
+evidence alongside custom-name voice overrides.
+
+The [native speech-comparison regression](../Kora.Windows.IntegrationTests/SpeechComparisonNativeUiTests.cs) composes those three preferences alongside the inert comparison runtime through both initialization layers. Review, capture, cancellation, recovery and close leave all three preferences unsaved; fixture composition alone grants no microphone or preference-write authority.
+
+The [settings reset inventory](../Kora.Windows.IntegrationTests/SettingsResetMenuTests.cs)
+includes the reviewed Details reset with its exact native lifetime guard.
+Inspect is counted separately from resets and refreshes; the Responses tab has
+five cogs, five reset actions, three refreshes and one nonmutating inspection.
+Native checks retain exact command identity, enabled state, accessible names and
+top-right layout, with no standalone reset buttons.
+Together with the independent manual startup setting, the complete inventory
+contains 35 unique reset bindings and 38 cogs; Appearance retains 16 cogs and resets.
+The [Details lifecycle regressions](../Kora.Windows.IntegrationTests/SessionsConversationTests.DetailOffers.cs)
+hold an actual passive refresh continuation across native consumer closure.
+Its cancellation and resource join must complete without clearing or notifying
+the retired presentation again; an open consumer still publishes normally.
+
 Evidence capture serializes delivery per sink and provider disposal waits for active
 callbacks and joins accepted writes before scratch cleanup. The buffered presence
 fixture uses the desktop's independent bounded required-file/SQLite-projection

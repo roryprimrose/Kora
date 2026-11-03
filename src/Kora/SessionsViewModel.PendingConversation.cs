@@ -85,12 +85,14 @@ internal sealed partial class SessionsViewModel
             if (composerBufferRevision == buffer && string.Equals(composerBody, body, StringComparison.Ordinal))
             { composerBody = string.Empty; }
             RememberUnsent();
-            PublishConversationCompletion(submitted.Receipt.Message);
-            conversationStatus = submitted.Receipt.Message.Outcome is not null
-                ? TerminalConversationStatus(submitted.Receipt)
-                : submitted.Position > 0
-                    ? "Submitted and queued at position " + submitted.Position + ". Original request retained; no provider execution yet."
-                    : "Original request accepted. Running or waiting for admitted resources; another ordinary request may now be submitted.";
+            if (PublishConversationCompletion(submitted.Receipt.Message))
+            {
+                conversationStatus = submitted.Receipt.Message.Outcome is not null
+                    ? TerminalConversationStatus(submitted.Receipt)
+                    : submitted.Position > 0
+                        ? "Submitted and queued at position " + submitted.Position + ". Original request retained; no provider execution yet."
+                        : "Original request accepted. Running or waiting for admitted resources; another ordinary request may now be submitted.";
+            }
             conversationBusy = false;
             busy = false;
             released = true;
@@ -98,9 +100,8 @@ internal sealed partial class SessionsViewModel
             if (submitted.Position == 0)
             {
                 var completed = (await submitted.Completion.WaitAsync(token)).RequireReceipt();
-                if (PresentLive())
+                if (PresentLive() && PublishConversationCompletion(completed.Message))
                 {
-                    PublishConversationCompletion(completed.Message);
                     conversationStatus = TerminalConversationStatus(completed);
                 }
             }
@@ -143,7 +144,7 @@ internal sealed partial class SessionsViewModel
             {
                 if (completedConversationMessage == receipt.Message
                     || conversationPage?.Messages.Any(message => message == receipt.Message) == true) { return; }
-                PublishConversationCompletion(receipt.Message);
+                if (!PublishConversationCompletion(receipt.Message)) { return; }
                 conversationStatus = TerminalConversationStatus(receipt);
             }
             else

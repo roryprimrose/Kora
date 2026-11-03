@@ -114,7 +114,8 @@ public sealed partial class SessionConversationService(
         Func<HostRequest, Func<bool>, CancellationToken, Task<ModelContextEnvelope>>? prepareContext = null,
         bool claude = false, bool claudeStreamAnswer = false, PendingConversation? pending = null,
         LocalUnavailableContinuation? localHandoff = null, bool joinCancelledResources = false,
-        bool ordinaryActiveDeadline = false, LocalRequestProfileReview? localRequestProfile = null)
+        bool ordinaryActiveDeadline = false, LocalRequestProfileReview? localRequestProfile = null,
+        bool retainAgentObservations = false)
     {
         RequireOriginalSource(origin);
         using var lifecycle = EnterLifecycleSubmission(target, body, admitted);
@@ -256,7 +257,7 @@ public sealed partial class SessionConversationService(
                         {
                         BindQuestionContinuation(admission.Turn, questionPresenter, Live);
                         bindWebPage?.Invoke(admission.Turn, Live);
-                        admission.Turn.RetainLocalObservations = createContext is null && prepareContext is null
+                        admission.Turn.RetainLocalObservations = (createContext is null || retainAgentObservations) && prepareContext is null
                             && !copilot && !claude;
                         using var deferred = pending is null ? null : HostActivity.BeginRoot(request,
                             HostActivityLayer.Application, HostOperation.Request,

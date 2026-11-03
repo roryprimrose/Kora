@@ -54,7 +54,8 @@ public sealed partial class SessionsConversationTests
                     window.FindControl<Button>("Confirm")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     await window.Operation;
                     adapter.Calls.Should().Be(2);
-                    var completed = model.ConversationMessages.Single();
+                    model.ConversationMessages.Should().ContainSingle().Which.Should().BeSameAs(original);
+                    var completed = model.ConversationUpdates.Single();
                     completed.Body.Should().Be("What follows from those messages?");
                     completed.AssistantResponse!.Body.Should().Be("genuine retained follow-up");
                     completed.Request.SessionId.Should().Be(original.Request.SessionId);

@@ -12,9 +12,17 @@ public sealed record McpReview(McpReviewStage Stage, Uri Endpoint, McpAccountRef
 {
     public McpReviewSource? Source { get; init; }
     public McpSkillReview? Skill { get; init; }
+    public McpContinuationReview? Continuation { get; init; }
+
+    internal string InvocationDigest => Continuation is { } continuation
+        ? Hash(JsonSerializer.Serialize(new { stage = Stage, arguments = Arguments, skill = Skill, continuation }))
+        : Skill is { } skill
+            ? Hash(JsonSerializer.Serialize(new { stage = Stage, arguments = Arguments, skill }))
+            : Hash(JsonSerializer.Serialize(new { stage = Stage, arguments = Arguments }));
 
     public bool IsBoundTo(HostOperationProposal proposal) =>
-        Enum.IsDefined(Stage) && string.Equals(proposal.Binding.ActionId, "mcp.read-only", StringComparison.Ordinal)
+        Enum.IsDefined(Stage) && (Stage == McpReviewStage.ResultContinuation) == (Continuation is not null)
+        && string.Equals(proposal.Binding.ActionId, "mcp.read-only", StringComparison.Ordinal)
         && string.Equals(proposal.Binding.SourcePartition, "mcp", StringComparison.Ordinal)
         && proposal.Effect == HostOperationEffect.BoundedRead && Account.Destination == new McpEndpoint(Endpoint)
         && string.Equals(proposal.Binding.DestinationDigest, Account.Destination.Digest, StringComparison.Ordinal)
@@ -25,13 +33,10 @@ public sealed record McpReview(McpReviewStage Stage, Uri Endpoint, McpAccountRef
             ? string.Equals(proposal.Binding.DeclaredResourceDigest, Hash(JsonSerializer.Serialize(source)), StringComparison.Ordinal)
                 && string.Equals(proposal.Binding.TrackedContentDigest, source.Revision, StringComparison.Ordinal)
             : string.Equals(proposal.Binding.DeclaredResourceDigest, proposal.Binding.TrackedContentDigest, StringComparison.Ordinal))
-        && (Skill is { } skill
-            ? string.Equals(proposal.Binding.InvocationDigest, Hash(JsonSerializer.Serialize(new
-                { stage = Stage, arguments = Arguments, skill })), StringComparison.Ordinal)
-            : string.Equals(proposal.Binding.InvocationDigest, Hash(JsonSerializer.Serialize(new
-                { stage = Stage, arguments = Arguments })), StringComparison.Ordinal)
-            || string.Equals(proposal.Binding.InvocationDigest, Hash(JsonSerializer.Serialize(new
-                { invocation = proposal.Request, stage = Stage, arguments = Arguments })), StringComparison.Ordinal));
+        && (string.Equals(proposal.Binding.InvocationDigest, InvocationDigest, StringComparison.Ordinal)
+            || Continuation is null && Skill is null
+                && string.Equals(proposal.Binding.InvocationDigest, Hash(JsonSerializer.Serialize(new
+                    { invocation = proposal.Request, stage = Stage, arguments = Arguments })), StringComparison.Ordinal));
 
     public string NativeText => "HTTPS MCP " + Stage + "\nDestination: " + Endpoint.AbsoluteUri
         + (Source is { } source ? "\nConfigured server: " + source.ServerName + "\nConfiguration source: " + source.Path
@@ -45,6 +50,20 @@ public sealed record McpReview(McpReviewStage Stage, Uri Endpoint, McpAccountRef
         + (Skill is { } skill ? "\nReviewed declarative skill: " + skill.Identity + "\nExact skill revision: " + skill.Revision
             + "\nOriginal request:\n" + skill.OriginalRequest + "\nOriginal arguments SHA-256: " + skill.ArgumentsDigest
             + "\nOne local skill continuation only; the skill and result are untrusted evidence, not authority." : string.Empty)
+        + (Continuation is { } continuation
+            ? "\nSEPARATE ONE-USE LOCAL MODEL CONTINUATION CONSENT"
+                + "\nOriginal Active conversation: " + continuation.ConversationName
+                + "\nOriginal channel: " + continuation.Origin
+                + "\nUnchanged original task:\n" + continuation.Question
+                + "\nObserved UTC: " + continuation.Result.ObservedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture)
+                + "\nCOMPLETE UNCHANGED TEXT\n" + continuation.Result.Text
+                + "\nCOMPLETE UNCHANGED STRUCTURED JSON\n" + (continuation.Result.StructuredJson ?? "(none)")
+                + "\n" + Kora.Core.Context.LocalSourceRiskPolicy.Disclosure
+                + "\nConsent permits only the same bounded original local model task to continue with this exact inert result."
+                + " It grants no further MCP call, refresh, hosted transfer, memory write or export."
+                + " Retain only the original task and genuine answer or truthful HOST terminal in this conversation;"
+                + " no extra durable raw-result copy. Decline or cancellation does not roll back the completed external read."
+            : string.Empty)
         + "\nExternal processing destination. No redirect, remote mutation, other tool, ambient credentials or hosted-model disclosure is approved.";
 
     public override string ToString() => nameof(McpReview);

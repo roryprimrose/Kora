@@ -66,7 +66,8 @@ public sealed partial class SessionsConversationTests
             await using var composed = new Composition(f, adapter: bounded, mcpConfiguration: configuration, mcpBroker: broker.Broker, mcpEffects: policy);
             var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
             Directory.CreateDirectory(parent);
-            using var native = new NativeUxFixtureSession(parent, syntheticVoice: followUp is "voice" or "wrong-channel");
+            using var native = new NativeUxFixtureSession(parent, syntheticVoice: followUp is "voice" or "wrong-channel",
+                timeProvider: f.Time);
             await native.InitializeAsync();
             if (followUp is "voice" or "wrong-channel")
             {
@@ -105,7 +106,11 @@ public sealed partial class SessionsConversationTests
             using var inspect = Window.WindowOpenedEvent.AddClassHandler<SharedSkillSourcesWindow>((window, _) => inspector = window);
             using var invoke = Window.WindowOpenedEvent.AddClassHandler<SharedSkillInvocationWindow>((window, _) =>
             { invocation = window; openedUse.TrySetResult(); });
-            using var asked = Window.WindowOpenedEvent.AddClassHandler<QuestionWindow>((window, _) => questionOpened.TrySetResult(window));
+            using var asked = Window.WindowOpenedEvent.AddClassHandler<QuestionWindow>((window, _) =>
+            {
+                var pending = questionOpened;
+                window.Activated += (_, _) => pending.TrySetResult(window);
+            });
             packages.TryOpen(SkillReviewSurface.SharedSources, static () => true).Should().BeTrue();
             var sources = inspector ?? throw new InvalidOperationException("Source inspector did not open.");
             var refresh = sources.FindControl<Button>("SearchSharedPackages")!;
@@ -129,13 +134,13 @@ public sealed partial class SessionsConversationTests
             }
             async Task WaitEnabled(Button button)
             {
-                if (button.IsEnabled) { return; }
                 var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                 void Changed(object? sender, Avalonia.AvaloniaPropertyChangedEventArgs args)
                 { if (args.Property == Avalonia.Input.InputElement.IsEnabledProperty && button.IsEnabled) { ready.TrySetResult(); } }
                 button.PropertyChanged += Changed;
                 try
                 {
+                    if (button.IsEnabled) { return; }
                     try { await Task.WhenAny(ready.Task, controller.ActiveOperation).WaitAsync(TimeSpan.FromSeconds(20), native.Token); }
                     catch (TimeoutException exception)
                     {
@@ -173,7 +178,7 @@ public sealed partial class SessionsConversationTests
                 await Review();
                 broker.Connected.Should().BeFalse("review, enablement and invocation preparation grant no connection");
                 opened.Confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                for (var stage = 0; stage < 4; stage++)
+                for (var stage = 0; stage < 5; stage++)
                 {
                     await Task.WhenAny(questionOpened.Task, controller.ActiveOperation).WaitAsync(native.Token);
                     questionOpened.Task.IsCompleted.Should().BeTrue(opened.Status.Text);
@@ -210,9 +215,12 @@ public sealed partial class SessionsConversationTests
                         exact.Text.Should().Contain("Native delegated test account").And.Contain("Exact skill revision")
                             .And.Contain(reader.Snapshot().RevisionDigest).And.Contain("Summarize the exact reference with this skill.");
                         if (stage == 3) { exact.Text.Should().Contain("""{"query":"reference"}"""); }
-                        choices.Single(choice => Equals(choice.Content, "Once")).IsChecked = true;
                     }
-                    else { choices.Single(choice => Equals(choice.Content, "search")).IsChecked = true; }
+                    var selected = choices.Single(choice => Equals(choice.Content,
+                        stage == 1 ? "search" : stage == 4 ? "Consent to one local continuation" : "Once"));
+                    await WaitEnabled(selected);
+                    selected.IsChecked = true;
+                    selected.IsChecked.Should().BeTrue($"stage {stage}: {question.FindControl<TextBlock>("QuestionStatus")!.Text}");
                     var submit = question.FindControl<Button>("SubmitAnswer")!;
                     await WaitEnabled(submit);
                     var submitted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

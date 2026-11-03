@@ -85,8 +85,7 @@ internal sealed partial class SessionsViewModel
             if (composerBufferRevision == buffer && string.Equals(composerBody, body, StringComparison.Ordinal))
             { composerBody = string.Empty; }
             RememberUnsent();
-            conversationPage = null;
-            completedConversationMessage = submitted.Receipt.Message;
+            PublishConversationCompletion(submitted.Receipt.Message);
             conversationStatus = submitted.Receipt.Message.Outcome is not null
                 ? TerminalConversationStatus(submitted.Receipt)
                 : submitted.Position > 0
@@ -101,8 +100,7 @@ internal sealed partial class SessionsViewModel
                 var completed = (await submitted.Completion.WaitAsync(token)).RequireReceipt();
                 if (PresentLive())
                 {
-                    conversationPage = null;
-                    completedConversationMessage = completed.Message;
+                    PublishConversationCompletion(completed.Message);
                     conversationStatus = TerminalConversationStatus(completed);
                 }
             }
@@ -130,7 +128,7 @@ internal sealed partial class SessionsViewModel
         "Original user message retained exactly | HOST " + receipt.Message.Outcome + " / " + receipt.Message.Reason
         + " | task " + receipt.Task.State
         + (receipt.Message.AssistantResponse is null ? ". No assistant answer retained." : ". Genuine ASSISTANT answer retained separately.")
-        + " No fallback or automatic retry. Refresh for the bounded conversation.";
+        + " No fallback or automatic retry. Read latest messages for a fresh bounded page; the earlier page is unchanged.";
 
     private void PresentSubmittedConversation(SessionWorkspaceEntry target, ConversationTurnCompletion completion)
     {
@@ -143,9 +141,9 @@ internal sealed partial class SessionsViewModel
                 || selected != source || source != target) { return; }
             if (completion.Receipt is { } receipt)
             {
-                if (conversationPage is not null || completedConversationMessage == receipt.Message) { return; }
-                conversationPage = null;
-                completedConversationMessage = receipt.Message;
+                if (completedConversationMessage == receipt.Message
+                    || conversationPage?.Messages.Any(message => message == receipt.Message) == true) { return; }
+                PublishConversationCompletion(receipt.Message);
                 conversationStatus = TerminalConversationStatus(receipt);
             }
             else

@@ -22,13 +22,13 @@ public sealed class WebPageResponse(
 
     public void Dispose()
     {
-        Content.Dispose();
-        owner?.Dispose();
+        try { Content.Dispose(); }
+        finally { owner?.Dispose(); }
     }
 
     public async ValueTask DisposeAsync()
     {
-        await Content.DisposeAsync().ConfigureAwait(false);
-        owner?.Dispose();
+        try { await Content.DisposeAsync().ConfigureAwait(false); }
+        finally { owner?.Dispose(); }
     }
 }

@@ -22,6 +22,7 @@ using Kora.Core.Hosting;
 using Kora.Core.Tools;
 using Kora.NativeUxFixture;
 using Kora.Windows.Artifacts;
+using Kora.Windows.IntegrationTests.Storage;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -38,7 +39,8 @@ public sealed class CustomizationDiscoveryWindowTests
         {
             var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
             Directory.CreateDirectory(parent);
-            using var f = new NativeUxFixtureSession(parent);
+            var time = new InteractionStorageFixture.Clock { UseFrozenTimers = true };
+            using var f = new NativeUxFixtureSession(parent, timeProvider: time);
             await f.InitializeAsync();
             f.Main.BindVoiceOwnershipGate(static () => true);
             var store = new WindowsCustomizationStore(f, Path.Combine(f.LocalRoot, "editor"), Path.Combine(f.LocalRoot, "user"));
@@ -51,7 +53,7 @@ public sealed class CustomizationDiscoveryWindowTests
             var use = new ArtifactUsePreferences(f);
             var definition = ArtifactFileDocument.Parse(bytes, ArtifactKind.Skill, "kora-profile", source.Name).Definition with { UseControlId = source.Id };
             using var catalogue = new ArtifactCatalogue([definition], use);
-            var metadata = new CustomizationDiscoveryService(store, catalogue, use, f.Access, TimeProvider.System);
+            var metadata = new CustomizationDiscoveryService(store, catalogue, use, f.Access, time);
             using var dependencies = new DependencyBootstrapper([], NullLogger<DependencyBootstrapper>.Instance);
             var recorded = new Kora.Tools.Runtime.RecordedRuntimeObservation(dependencies);
             var registry = new ReadOnlyCapabilityRegistry(f.Access, new(), new(), new(new AssemblyApplicationInfo()), new(dependencies),
@@ -59,14 +61,14 @@ public sealed class CustomizationDiscoveryWindowTests
             await using var admission = new AudioControlAdmission(f.Interactions, f.Interactions, new(f.Tasks));
             var mode = new ProviderModeConfigurationService(new LocalModelProviderModePreferences(f), admission, f.Audit);
             var transport = new MetadataModel();
-            await using var adapter = new BoundedModelTurnAdapter(transport, TimeProvider.System, NullLogger<BoundedModelTurnAdapter>.Instance);
+            await using var adapter = new BoundedModelTurnAdapter(transport, time, NullLogger<BoundedModelTurnAdapter>.Instance);
             await using var host = new ModelTurnHost(f.Interactions, f.Access, f.Access, registry, f.Audit,
-                NullLogger<ModelTurnHost>.Instance, TimeProvider.System,
+                NullLogger<ModelTurnHost>.Instance, time,
                 [new(ModelProviderSelection.OllamaCandidate,
                     ModelQualificationGate.LocalCandidateSelection | ModelQualificationGate.IntegratedHost,
-                    DateTimeOffset.UtcNow.AddMinutes(5), adapter)], mode);
+                    time.GetUtcNow().AddMinutes(5), adapter)], mode);
             var conversations = new SessionConversationService(f.Interactions, f.Interactions, f.Sessions, f.Access, host,
-                TimeProvider.System, NullLogger<SessionConversationService>.Instance, host, f.Audit);
+                time, NullLogger<SessionConversationService>.Instance, host, f.Audit);
             await using var controller = new CustomizationDiscoveryController(f.Main, metadata, f.Sessions, conversations,
                 static () => true, static () => 1, NullLogger<CustomizationDiscoveryController>.Instance);
             controller.Bind();

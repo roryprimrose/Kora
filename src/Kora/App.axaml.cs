@@ -339,6 +339,8 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<SessionConversationService>());
             viewModel.BindSpeechSummarySuggestions(Services.GetRequiredService<SessionConversationService>(),
                 Services.GetRequiredService<TimeProvider>());
+            viewModel.BindResponseReadPlanner(Services.GetRequiredService<Kora.Core.Dependencies.IModelContextRunner>(),
+                Services.GetRequiredService<TimeProvider>());
             viewModel.BindSessionProviderProfiles(Services.GetRequiredService<Kora.Application.Configuration.SessionProviderProfileConfigurationService>());
             viewModel.BindMemoryCommands(memories);
             clipboardWindow = new ClipboardPreviewWindowController(viewModel);

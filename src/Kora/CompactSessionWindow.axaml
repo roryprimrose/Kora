@@ -129,7 +129,7 @@
           AutomationProperties.Name="Exact current and proposed registered setting values, provenance, shared scope, timing and recovery; review is not approval" />
       <WrapPanel>
         <Button Name="ConfirmRegisteredSettingSuggestion" Content="Confirm exact setting change" IsEnabled="{Binding CanConfirmRegisteredSettingSuggestion}" />
-        <Button Name="CancelRegisteredSettingSuggestion" Content="Cancel setting review" IsEnabled="{Binding CanConfirmRegisteredSettingSuggestion}" />
+        <Button Name="CancelRegisteredSettingSuggestion" Content="Cancel setting review" IsEnabled="{Binding CanCancelRegisteredSettingSuggestion}" />
       </WrapPanel>
       <Button x:Name="CloseView" Content="_Close compact view (work unchanged)" HorizontalAlignment="Right" />
     </StackPanel>

@@ -7,6 +7,7 @@ namespace Kora;
 internal sealed partial class SessionsViewModel
 {
     private enum SettingReviewFamily { Appearance, Summary, Volume, ResponseMode, WindowsRate }
+    private volatile object? registeredSettingReviewIdentity;
 
     public string RegisteredSettingsDescription => "Supported inert suggestions: " + string.Join("; ",
         RegisteredSettingRegistry.Settings.Select(item => $"{item.Id}: "
@@ -18,6 +19,8 @@ internal sealed partial class SessionsViewModel
         || CanReviewSpeechSummarySuggestion || CanReviewPlaybackVolumeSuggestion || CanReviewResponseModeSuggestion || CanReviewWindowsSpeechRateSuggestion;
     public bool CanConfirmRegisteredSettingSuggestion => CanConfirmAppearanceSuggestion
         || CanConfirmSpeechSummarySuggestion || CanConfirmPlaybackVolumeSuggestion || CanConfirmResponseModeSuggestion || CanConfirmWindowsSpeechRateSuggestion;
+    public bool CanCancelRegisteredSettingSuggestion => !closed && access.CanInspect && access.CanControl
+        && selected?.Authority.IsActive == true && registeredSettingReviewIdentity is not null;
     public string RegisteredSettingSuggestionDescription => AppearanceSuggestionDescription
         + SpeechSummarySuggestionDescription + PlaybackVolumeSuggestionDescription + ResponseModeSuggestionDescription + WindowsSpeechRateSuggestionDescription;
 
@@ -28,6 +31,8 @@ internal sealed partial class SessionsViewModel
         RunConversationAsync(async (target, live) =>
         {
             CancelRegisteredSettingSuggestion(reportCancellation: false);
+            var identity = new object();
+            registeredSettingReviewIdentity = identity;
             if (!access.CanControl || !target.Authority.IsActive || message.Generation != target.Authority.Generation
                 || !ConversationMessages.Any(row => ReferenceEquals(row, message)))
             { throw new InvalidOperationException("Select an exact admitted answer from this Active conversation's current page for setting review."); }
@@ -46,12 +51,14 @@ internal sealed partial class SessionsViewModel
             { throw new InvalidDataException("The exact suggestion belongs to a different setting family; nothing was applied."); }
             var page = conversationPage;
             var completed = completedConversationMessage;
-            bool Current() => live() && access.CanControl && !conversationSourceHeld
+            bool Current() => ReferenceEquals(identity, registeredSettingReviewIdentity)
+                && live() && access.CanControl && !conversationSourceHeld
                 && ReferenceEquals(page, conversationPage) && ReferenceEquals(completed, completedConversationMessage);
             async Task Validate(CancellationToken token)
             {
                 _ = await conversation!.ReadSettingSuggestionAsync(target, message, Current, token).ConfigureAwait(false);
             }
+            NotifyRegisteredSettings();
             switch (family)
             {
                 case SettingReviewFamily.Appearance:
@@ -91,6 +98,7 @@ internal sealed partial class SessionsViewModel
 
     public void CancelRegisteredSettingSuggestion(bool reportCancellation = true)
     {
+        registeredSettingReviewIdentity = null;
         CancelAppearanceSuggestion(reportCancellation: false);
         CancelSpeechSummarySuggestion(reportCancellation: false);
         CancelPlaybackVolumeSuggestion(reportCancellation: false);
@@ -108,8 +116,11 @@ internal sealed partial class SessionsViewModel
     {
         if (responseModeReview is { Available: false }) { CancelResponseModeSuggestion(); }
         if (windowsSpeechRateReview is { Available: false }) { CancelWindowsSpeechRateSuggestion(); }
+        if (!busy && !conversationBusy && !CanConfirmRegisteredSettingSuggestion)
+        { registeredSettingReviewIdentity = null; }
         OnPropertyChanged(nameof(CanReviewRegisteredSettingSuggestion));
         OnPropertyChanged(nameof(CanConfirmRegisteredSettingSuggestion));
+        OnPropertyChanged(nameof(CanCancelRegisteredSettingSuggestion));
         OnPropertyChanged(nameof(RegisteredSettingSuggestionDescription));
     }
 }

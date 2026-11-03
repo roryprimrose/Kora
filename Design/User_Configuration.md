@@ -16,6 +16,8 @@ or restore retired public diagnostic-queue settings. The
 [roadmap](Implementation_Roadmap.md#current-delivery) owns delivery status;
 the contracts below distinguish implemented controls from proposed scopes.
 
+Native single-setting review cancellation also retires pending source checks and confirmation eligibility, not just the visible readback. A late review cannot revive cancelled consent; recovery explicitly reviews the retained answer against current authoritative values before separate confirmation. In-flight persistence is not rolled back ([interaction and recovery](../docs/setting-proposals.md#review-confirm-or-cancel)).
+
 ## Fixed Reviewed Session Memory Management Boundary
 
 The [reviewed selected-subset memory workflow](Model_Providers_Memory_And_Knowledge.md#reviewed-selected-subset-session-memory-forget---2026-10-19)

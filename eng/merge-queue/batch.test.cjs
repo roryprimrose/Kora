@@ -1,7 +1,8 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { reconcile } = require('./controller.cjs');
-const { validateState, WINDOWS_12_JOBS, GATE, title } = require('./policy.cjs');
+const { validateState, WINDOWS_12_JOBS, GATE, title,
+  REJECTED_ADMISSION_JOBS, terminalRejectedAdmission } = require('./policy.cjs');
 const { profile, CONTROL_PATH, digest, manifestFor } = require('./batch-policy.cjs');
 const { changeBatchState } = require('./recovery.cjs');
 const sha = n => n.toString(16).padStart(40, '0');
@@ -42,6 +43,9 @@ class BatchFake {
   async files() { return ['src/Kora.Core/Feature.cs']; }
   async trustedInventory() { return clone(this.inventory); }
   async expectedJobs() { return [...WINDOWS_12_JOBS]; }
+  async rejectedAdmission(source, run, jobs) {
+    return run.head_sha === source && terminalRejectedAdmission(run, jobs, this.inventory.blob);
+  }
   async syntheticPrefix(active, index) {
     this.calls.push(['synthetic', index]);
     if (this.conflict) return null;
@@ -108,6 +112,33 @@ async function until(api, target, limit = 40) {
   for (let index = 0; index < limit; index++) if (await step(api) === target) return;
   assert.fail(`Did not reach ${target}`);
 }
+
+test('an admission-rejected batch can retire but never attest proof or merge a member', async () => {
+  for (const incomplete of [false, true]) {
+    const api = new BatchFake();
+    api.inventory.blob = '97e22a8f88bcdc9bbaef32cf9e7200dd6e5c43cd';
+    await reconcile(api, { profile: 'batch-v1', now: NOW, ticket: TICKET });
+    api.state.active.phase = 'retiring';
+    api.state.active.reason = 'Admission rejected before execution.';
+    api.workflowRuns[0].conclusion = 'failure';
+    api.workflowJobs = REJECTED_ADMISSION_JOBS.map((name, index) => ({ id: index + 1, name, run_id: 9,
+      run_attempt: 1, head_sha: BASE, status: 'completed',
+      conclusion: name === 'Admit CI execution' ? 'failure' : 'skipped' }));
+    if (incomplete) api.workflowJobs.pop();
+    assert.equal(await reconcile(api, { profile: 'batch-v1', now: NOW, ticket: TICKET }),
+      incomplete ? 'retiring' : 'retired');
+    assert.equal(api.calls.some(call => call[0] === 'merge'), false);
+    assert.equal(api.calls.some(call => call[0] === 'finish' && call[2] === 'success'), false);
+    if (incomplete) {
+      assert.equal(api.state.active.ticket, TICKET);
+      assert.equal(api.state.singletonRetries.length, 0);
+    } else {
+      assert.equal(api.state.active, null);
+      assert.equal(api.state.singletonRetries.length, 5);
+      assert.equal(api.state.completedTip, null);
+    }
+  }
+});
 
 test('batch profile is explicit, bounded and never implicitly migrates legacy state', async () => {
   assert.equal(profile(), 'singleton-v1');

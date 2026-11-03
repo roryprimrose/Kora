@@ -29,7 +29,7 @@ internal sealed partial class SessionsViewModel
         {
             CancelRegisteredSettingSuggestion(reportCancellation: false);
             if (!access.CanControl || !target.Authority.IsActive || message.Generation != target.Authority.Generation
-                || !ConversationMessages.Any(row => ReferenceEquals(row, message)))
+                || !ObservedConversationMessages.Any(row => ReferenceEquals(row, message)))
             { throw new InvalidOperationException("Select an exact admitted answer from this Active conversation's current page for setting review."); }
             var proposal = RegisteredSettingSuggestions.Parse(message.AssistantResponse?.Body
                 ?? throw new InvalidDataException("The selected message has no setting suggestion."));

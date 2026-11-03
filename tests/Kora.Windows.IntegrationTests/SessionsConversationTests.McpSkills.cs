@@ -173,7 +173,7 @@ public sealed partial class SessionsConversationTests
                 await Review();
                 broker.Connected.Should().BeFalse("review, enablement and invocation preparation grant no connection");
                 opened.Confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                for (var stage = 0; stage < 4; stage++)
+                for (var stage = 0; stage < 5; stage++)
                 {
                     await Task.WhenAny(questionOpened.Task, controller.ActiveOperation).WaitAsync(native.Token);
                     questionOpened.Task.IsCompleted.Should().BeTrue(opened.Status.Text);
@@ -210,7 +210,8 @@ public sealed partial class SessionsConversationTests
                         exact.Text.Should().Contain("Native delegated test account").And.Contain("Exact skill revision")
                             .And.Contain(reader.Snapshot().RevisionDigest).And.Contain("Summarize the exact reference with this skill.");
                         if (stage == 3) { exact.Text.Should().Contain("""{"query":"reference"}"""); }
-                        choices.Single(choice => Equals(choice.Content, "Once")).IsChecked = true;
+                        choices.Single(choice => Equals(choice.Content,
+                            stage == 4 ? "Consent to one local continuation" : "Once")).IsChecked = true;
                     }
                     else { choices.Single(choice => Equals(choice.Content, "search")).IsChecked = true; }
                     var submit = question.FindControl<Button>("SubmitAnswer")!;

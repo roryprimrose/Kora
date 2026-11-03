@@ -230,6 +230,12 @@ or tool implicitly. Authentication/approval still uses mandatory native review.
 The original voice/UI channel is preserved. Cancellation closes new dispatch
 and publication; the owner joins late provider/transport work before disconnect.
 
+After the authenticated exchange is physically joined, the [canonical owner](../src/Kora.Application/Mcp/McpInvocation.cs) screens the complete observed result for private LocalOnly use and pauses before returning it to the model. The [native review](../src/Kora.Application/Mcp/McpReview.cs) shows unchanged Text/StructuredJson, observation time, source/server/account/schema, original Active conversation/task/channel and retention.
+
+Separate **Consent to one local continuation** is mandatory for that exact result and original bounded task. Connection, schema and invocation grants, including This session/Always, cannot supply or renew result-use consent. The [authorization owner](../src/Kora.Application/Interaction/HostAuthorizationService.cs) offers only one-use consent and does not reuse grants or automatic session-level approval. The same gate applies to the reviewed MCP skill bridge.
+
+Declining retains a truthful `Denied` / `ToolResultRejected` original conversation terminal without a result-bearing model request or fabricated answer. The completed external read is not rolled back. Source/account/session/privacy changes or cancellation suppress continuation; uncertain completion remains unconfirmed without retry. The model-free invocation below is unchanged and requires separate follow-up review only if the user later asks a new question ([regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.McpContinuation.cs)).
+
 For provider-independent execution, **Invoke reviewed MCP tool without a model**
 or `invoke selected mcp tool` uses the same explicit foreground server/account,
 connection review, host read-only mapping and tool/schema selection. The original

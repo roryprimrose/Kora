@@ -179,13 +179,14 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         DetailPresentationConfigurationService? detailPresentationConfiguration = null,
         StartupPresentationConfigurationService? startupPresentationConfiguration = null,
         IQuestionVoiceRecognitionService? voiceRecognition = null, SpeechInputConfigurationService? speechInputConfiguration = null,
+        VoiceCaptureTimingConfigurationService? voiceCaptureTimingConfiguration = null,
         QuietHoursConfigurationService? quietHoursConfiguration = null)
     {
         using var setup = BeginPhase(NativeFixturePhase.Setup);
         await setup.RunAsync(() => InitializeCoreAsync(webPageGet, webSummary, callState, dispatcher, modelReasoner,
             modelProbe, speechComponentSetup, ordinaryDeadlineConfiguration, conversationExecution,
             speechSetupComparison, logonStartupConfiguration, detailPresentationConfiguration, startupPresentationConfiguration,
-            voiceRecognition, speechInputConfiguration, quietHoursConfiguration));
+            voiceRecognition, speechInputConfiguration, voiceCaptureTimingConfiguration, quietHoursConfiguration));
     }
 
     private async Task InitializeCoreAsync(Kora.Tools.Network.WebPageGet? webPageGet,
@@ -200,6 +201,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         DetailPresentationConfigurationService? detailPresentationConfiguration,
         StartupPresentationConfigurationService? startupPresentationConfiguration,
         IQuestionVoiceRecognitionService? voiceRecognition, SpeechInputConfigurationService? speechInputConfiguration,
+        VoiceCaptureTimingConfigurationService? voiceCaptureTimingConfiguration,
         QuietHoursConfigurationService? quietHoursConfiguration)
     {
         if (initialized) { throw new InvalidOperationException("A fixture session may be initialized only once."); }
@@ -280,6 +282,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             detailPresentationConfiguration: detailPresentationConfiguration,
             startupPresentationConfiguration: startupPresentationConfiguration,
             speechInputConfiguration: speechInputConfiguration,
+            voiceCaptureTimingConfiguration: voiceCaptureTimingConfiguration,
             quietHoursConfiguration: quietHoursConfiguration);
         if (webSummary is not null) { Main.BindWebSummaryWorkflow(webSummary); }
         Main.BindCallOwnershipGate(() => Access.Open);

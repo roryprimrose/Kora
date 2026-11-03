@@ -21,11 +21,16 @@ public sealed class DetailPresentationSettingsTests
         ["OfferDetailPresentation", "LinkOnlyDetailPresentation", "ConfirmDetailPresentation", "CancelDetailPresentation"];
 
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(false, true)]
-    [InlineData(true, false)]
-    [InlineData(true, true)]
-    public async Task TimedFixtureSetupPreservesIndependentOptionalConfigurationBindings(bool composeDetails, bool composeExecution)
+    [InlineData(false, false, false)]
+    [InlineData(false, false, true)]
+    [InlineData(false, true, false)]
+    [InlineData(false, true, true)]
+    [InlineData(true, false, false)]
+    [InlineData(true, false, true)]
+    [InlineData(true, true, false)]
+    [InlineData(true, true, true)]
+    public async Task TimedFixtureSetupPreservesIndependentOptionalConfigurationBindings(
+        bool composeDetails, bool composeExecution, bool composeStartup)
     {
         var context = TestContext.Current;
         await HeadlessSession.RunAsync(async () =>
@@ -37,12 +42,18 @@ public sealed class DetailPresentationSettingsTests
             var executionPreferences = new LocalConversationExecutionPreferences(fixture);
             var execution = new ConversationExecutionConfigurationService(executionPreferences, admission, fixture.Audit);
             execution.Observe();
+            await using var startupAdmission = new LogonStartupAdmission(fixture.Interactions, fixture.Interactions, new(fixture.Tasks));
+            var startupPreferences = new LocalStartupPresentationPreferences(fixture);
+            var startup = new StartupPresentationConfigurationService(startupPreferences, startupAdmission, fixture.Audit, TimeProvider.System);
             await fixture.InitializeAsync(null, detailPresentationConfiguration: composeDetails ? details : null,
-                conversationExecution: composeExecution ? execution : null);
+                conversationExecution: composeExecution ? execution : null,
+                startupPresentationConfiguration: composeStartup ? startup : null);
             fixture.Main.DetailPresentationStatus.Should().Be(composeDetails
                 ? details.Description : "Detail preference controls are not composed.");
             fixture.Main.ConversationExecutionStatus.Should().Be(composeExecution
                 ? execution.Description : "Ordinary-conversation execution preferences unavailable.");
+            fixture.Main.StartupPresentationStatus.Should().Be(composeStartup
+                ? startup.Status : "Manual startup presentation is unavailable. No saved intent is assumed.");
             preferences.Writes.Should().Be(0);
             executionPreferences.Load().Should().BeNull();
             using var controller = new SettingsWindowController(fixture.Main, NullLogger<SettingsWindowController>.Instance);
@@ -71,6 +82,9 @@ public sealed class DetailPresentationSettingsTests
             }
             preferences.Writes.Should().Be(composeDetails ? 1 : 0);
             executionPreferences.Load().Should().Be(composeExecution ? new Kora.Core.Configuration.ConversationExecutionLimit(1) : null);
+            startupPreferences.Load().Should().BeNull();
+            fixture.Main.StartupPresentationStatus.Should().Be(composeStartup
+                ? startup.Status : "Manual startup presentation is unavailable. No saved intent is assumed.");
             fixture.Main.HasVoiceConsent.Should().BeFalse();
             fixture.Main.IsVoiceEnabled.Should().BeFalse();
         });
@@ -91,8 +105,12 @@ public sealed class DetailPresentationSettingsTests
             await using var admission = new AudioControlAdmission(f.Interactions, f.Interactions, new(f.Tasks));
             var preferences = new Preferences();
             var configuration = new DetailPresentationConfigurationService(preferences, admission, f.Audit, TimeProvider.System);
+            var executionPreferences = new LocalConversationExecutionPreferences(f);
+            var execution = new ConversationExecutionConfigurationService(executionPreferences, admission, f.Audit);
+            execution.Observe();
             var probe = new DetailReadinessProbe();
-            await f.InitializeAsync(null, modelProbe: probe, detailPresentationConfiguration: configuration);
+            await f.InitializeAsync(null, modelProbe: probe, detailPresentationConfiguration: configuration,
+                conversationExecution: execution);
             using var controller = new SettingsWindowController(f.Main, NullLogger<SettingsWindowController>.Instance);
             controller.Navigate(SettingsSection.Responses, static () => true);
             var window = (SettingsWindow)typeof(SettingsWindowController).GetField("window", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(controller)!;
@@ -118,10 +136,19 @@ public sealed class DetailPresentationSettingsTests
             window.IsVisible.Should().BeTrue();
             controls.Should().OnlyContain(button => button.IsEnabled, "the final busy=false must refresh the already-open native bindings");
             await f.Main.LinkOnlyDetailPresentationCommand.ExecuteAsync();
+            var detailReview = f.Main.DetailPresentationReviewText;
+            f.Main.SelectedConversationExecutionLimit = f.Main.ConversationExecutionLimits[0];
+            await f.Main.ReviewConversationExecutionCommand.ExecuteAsync();
             preferences.Writes.Should().Be(0);
+            executionPreferences.Load().Should().BeNull();
+            await f.Main.ConfirmConversationExecutionCommand.ExecuteAsync();
+            executionPreferences.Load()!.Value.Should().Be(1);
+            preferences.Writes.Should().Be(0);
+            f.Main.DetailPresentationReviewText.Should().Be(detailReview);
             await f.Main.ConfirmDetailPresentationCommand.ExecuteAsync();
             preferences.Load().Should().Be(DetailPresentationMode.LinkOnly);
             preferences.Writes.Should().Be(1);
+            executionPreferences.Load()!.Value.Should().Be(1);
             f.Main.HasVoiceConsent.Should().BeFalse();
             window.Close();
         });

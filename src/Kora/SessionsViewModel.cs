@@ -660,7 +660,11 @@ internal sealed partial class SessionsViewModel(
         }
         catch (OperationCanceledException)
         {
-            if (dispatchControl && !closed && access.CanInspect
+            if (closed)
+            {
+                activity.Complete(HostOperationOutcome.Cancelled);
+            }
+            else if (dispatchControl && !closed && access.CanInspect
                 && (selected?.Authority.SessionId != subject || selectionEpoch != epoch))
             {
                 activity.Complete(HostOperationOutcome.Cancelled);
@@ -690,7 +694,11 @@ internal sealed partial class SessionsViewModel(
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            if (dispatchControl && !closed && access.CanInspect
+            if (closed)
+            {
+                activity.Complete(HostOperationOutcome.Failed);
+            }
+            else if (dispatchControl && !closed && access.CanInspect
                 && (selected?.Authority.SessionId != subject || selectionEpoch != epoch))
             {
                 activity.Complete(HostOperationOutcome.Failed);
@@ -722,7 +730,14 @@ internal sealed partial class SessionsViewModel(
         }
         finally
         {
-            if (dispatchControl)
+            if (closed)
+            {
+                if (dispatchControl) { changingQueueControl = false; }
+                else if (routineNoticeControl) { changingRoutineQuiet = false; }
+                else if (passive) { refreshingWork = false; }
+                else { busy = false; }
+            }
+            else if (dispatchControl)
             {
                 changingQueueControl = false;
                 NotifyQueue();

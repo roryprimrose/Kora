@@ -24,6 +24,68 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class SessionsConversationTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DetailOffersPreserveTheAdmittedReaderPageAndCannotReplayAfterFreshReading(bool linkOnly)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            await SeedReadingMessages(f, f.Request.SessionId, 1);
+            await using var admission = new AudioControlAdmission(f.Store, f.Store, new(f.Tasks));
+            using var policy = new CallCommunicationPolicy(new DetailCall());
+            var preferences = new DetailPresentationSettingsTests.Preferences
+            { Value = linkOnly ? DetailPresentationMode.LinkOnly : null };
+            var settings = new DetailPresentationConfigurationService(preferences, admission, new AuditLog(), f.Time);
+            settings.Observe();
+            var adapter = new DetailAnswerAdapter();
+            await using var composition = new Composition(f, adapter: adapter);
+            var model = composition.Model;
+            model.BindDetailPresentation(settings);
+            await model.RefreshAsync();
+            await model.SelectAsync(model.Sessions.Single());
+            await model.ReadConversationAsync();
+            var page = model.ConversationMessages;
+            var terminal = new TaskCompletionSource<ConversationSubmissionReceipt>(TaskCreationOptions.RunContinuationsAsynchronously);
+            composition.Conversation.SubmittedConversationCompleted += (_, completion) =>
+            {
+                if (completion.Receipt is { } receipt) { terminal.TrySetResult(receipt); }
+            };
+            model.ComposerBody = "New detailed answer beside the admitted page";
+            await model.SubmitConversationAsync();
+            var completed = await terminal.Task.WaitAsync(f.Token);
+            Dispatcher.UIThread.RunJobs();
+            model.ConversationMessages.Should().Equal(page, (actual, expected) => ReferenceEquals(actual, expected));
+            model.ConversationUpdates.Should().ContainSingle().Which.Should().Be(completed.Message);
+            model.HasConversationUpdates.Should().BeTrue();
+            model.DetailsOfferMessage.Should().Be(linkOnly ? null : completed.Message);
+            await ChooseDetailMode(settings, policy, f, DetailPresentationMode.LinkOnly);
+            await ChooseDetailMode(settings, policy, f, DetailPresentationMode.Offer);
+            model.PresentOriginalRequestSubmission(completed);
+            model.DetailsOfferMessage.Should().BeNull("duplicate completion cannot renew its first offer epoch");
+            model.ConversationMessages.Should().Equal(page, (actual, expected) => ReferenceEquals(actual, expected));
+            model.ConversationUpdates.Should().ContainSingle().Which.Should().Be(completed.Message);
+            await model.ReadLatestConversationAsync();
+            var latest = model.ConversationMessages;
+            latest.Should().HaveCount(2);
+            model.ConversationUpdates.Should().BeEmpty();
+            model.DetailsOfferMessage.Should().BeNull();
+            model.PresentOriginalRequestSubmission(completed);
+            model.ConversationMessages.Should().Equal(latest, (actual, expected) => ReferenceEquals(actual, expected));
+            model.HasConversationUpdates.Should().BeFalse();
+            model.DetailsOfferMessage.Should().BeNull();
+            adapter.Calls.Should().Be(1);
+            preferences.Writes.Should().Be(2);
+            f.Count("conversation_messages").Should().Be(2);
+            f.Count("host_questions").Should().Be(0);
+            f.Count("scoped_grants").Should().Be(0);
+            f.Count("conversation_drafts").Should().Be(0);
+        });
+    }
+
+    [Theory]
     [InlineData("ordinary")]
     [InlineData("original-typed")]
     [InlineData("original-voice")]
@@ -296,6 +358,78 @@ public sealed partial class SessionsConversationTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task DeferredPassiveRefreshCannotNotifyOrRestoreClosedDetailsConsumer(bool close)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            await using var composition = new Composition(f);
+            var model = composition.Model;
+            await model.RefreshAsync();
+            await model.SelectAsync(model.Sessions.Single());
+            model.ComposerBody = "Exact unsent input";
+            var source = model.CaptureDraftPresentationEligibility();
+            var join = new DetailPublicationJoinContext();
+            var previous = SynchronizationContext.Current;
+            Task refresh;
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(join);
+                refresh = model.RefreshWorkAsync();
+            }
+            finally { SynchronizationContext.SetSynchronizationContext(previous); }
+            try
+            {
+                refresh.IsCompleted.Should().BeFalse();
+                await join.WaitForPostAsync(f.Token);
+                if (close) { model.Close(); }
+                var notifications = 0;
+                model.PropertyChanged += (_, _) => notifications++;
+                while (!refresh.IsCompleted)
+                {
+                    await join.WaitForPostAsync(f.Token);
+                    join.RunNext();
+                }
+                await refresh;
+                Dispatcher.UIThread.RunJobs();
+                if (close)
+                {
+                    notifications.Should().Be(0, "a joined passive observation cannot republish a closed consumer");
+                    source().Should().BeFalse();
+                    model.SelectedSessionRecord.Should().BeNull();
+                    model.ConversationMessages.Should().BeEmpty();
+                    model.DetailsOfferMessage.Should().BeNull();
+                    model.ComposerBody.Should().BeEmpty();
+                }
+                else
+                {
+                    notifications.Should().BeGreaterThan(0);
+                    source().Should().BeTrue();
+                    model.SelectedSessionRecord.Should().NotBeNull();
+                    model.ComposerBody.Should().Be("Exact unsent input");
+                }
+                f.Count("conversation_messages").Should().Be(0);
+                f.Count("conversation_drafts").Should().Be(0);
+                f.Count("host_questions").Should().Be(0);
+                f.Count("scoped_grants").Should().Be(0);
+            }
+            finally
+            {
+                while (!refresh.IsCompleted)
+                {
+                    await join.WaitForPostAsync(f.Token);
+                    join.RunNext();
+                }
+                await refresh;
+            }
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task HeldProviderCompletionUsesCurrentConfirmedPreferenceWithoutRedispatchOrQuestionAuthority(bool restoreOffer)
     {
         await HeadlessSession.RunAsync(async () =>
@@ -451,7 +585,7 @@ public sealed partial class SessionsConversationTests
                         target.Authority.SessionId.Value) { RequestReviewId = review.RequestReview!.Id },
                         RequestOrigin.LocalUi, static () => true, f.Token);
                     model.PresentOriginalRequestSubmission(completed.RequestSubmission!);
-                    second = model.ConversationMessages.Single();
+                    second = model.ConversationUpdates.Single();
                     second.Request.Should().NotBe(first.Message.Request);
                     second.AssistantResponse!.Body.Should().Be(first.Message.AssistantResponse!.Body);
                     model.DetailsOfferMessage.Should().BeSameAs(second);
@@ -464,7 +598,7 @@ public sealed partial class SessionsConversationTests
                     "duplicate presentation cannot write retained content, audit or renewed authority");
                 if (replace)
                 {
-                    model.ConversationMessages.Single().Should().BeSameAs(second);
+                    model.ConversationUpdates.Single().Should().BeSameAs(second);
                     model.DetailsOfferMessage.Should().BeSameAs(second, "old A must not replace B or renew its own retired cue");
                 }
                 else
@@ -472,14 +606,16 @@ public sealed partial class SessionsConversationTests
                     model.ConversationMessages.Single().Should().BeSameAs(page.Single());
                     model.DetailsOfferMessage.Should().BeNull("the late join must not clear an explicitly read page");
                 }
+                model.ConversationMessages.Should().Equal(page, (actual, expected) => ReferenceEquals(actual, expected));
                 opened.Should().BeEmpty("neither first publication nor duplicates can auto-open Details");
                 await model.OpenConversationDetailAsync(model.ConversationMessages.Single(), assistant: true);
                 opened.Should().ContainSingle().Which.Source.Should().Be(DetailAnswerAdapter.Body);
                 model.ComposerBody = "Genuinely new terminal publication";
                 await model.SubmitConversationAsync();
                 Dispatcher.UIThread.RunJobs();
-                model.DetailsOfferMessage.Should().BeSameAs(model.ConversationMessages.Single());
-                model.ConversationMessages.Single().Request.Should().NotBe(first.Message.Request);
+                model.DetailsOfferMessage.Should().BeSameAs(model.ConversationUpdates.Single());
+                model.ConversationUpdates.Single().Request.Should().NotBe(first.Message.Request);
+                model.ConversationMessages.Should().Equal(page, (actual, expected) => ReferenceEquals(actual, expected));
                 adapter.Calls.Should().Be(replace ? 3 : 2);
                 preferences.Writes.Should().Be(reset ? 2 : 0);
                 settingsAudit.Events.Count(item => string.Equals(item.ActionId, "configuration.detail-presentation", StringComparison.Ordinal)
@@ -551,14 +687,16 @@ public sealed partial class SessionsConversationTests
                 }
                 else { model.DismissDetailsOffer(first.Message); }
                 await model.ReadConversationAsync();
+                var page = model.ConversationMessages;
                 model.ComposerBody = "New request while old presentation waits";
                 await model.SubmitConversationAsync();
-                var second = model.ConversationMessages.Single();
+                var second = model.ConversationUpdates.Single();
                 second.Request.Should().NotBe(first.Message.Request);
                 model.DetailsOfferMessage.Should().BeSameAs(second);
                 dispatcher.Drain();
                 Dispatcher.UIThread.RunJobs();
-                model.ConversationMessages.Single().Should().BeSameAs(second);
+                model.ConversationMessages.Should().Equal(page, (actual, expected) => ReferenceEquals(actual, expected));
+                model.ConversationUpdates.Single().Should().BeSameAs(second);
                 model.DetailsOfferMessage.Should().BeSameAs(second, "the real late terminal presentation must not recapture A's policy or replace B");
                 preferences.Writes.Should().Be(reset ? 2 : 0);
                 adapter.Calls.Should().Be(2);
@@ -587,13 +725,20 @@ public sealed partial class SessionsConversationTests
             await WindowsSqliteConversationTests.FinishInitial(f);
             var provider = new TaskCompletionSource<ModelProviderReply>(TaskCreationOptions.RunContinuationsAsynchronously);
             var adapter = new MemoryAnswerAdapter { Pending = provider.Task };
+            var opened = new List<AdmittedDetailContent>();
             await using var composition = new Composition(f, adapter: adapter);
             await using var admission = new AudioControlAdmission(f.Store, f.Store, new(f.Tasks));
             using var policy = new CallCommunicationPolicy(new DetailCall());
             var preferences = new DetailPresentationSettingsTests.Preferences();
             var settings = new DetailPresentationConfigurationService(preferences, admission, new AuditLog(), f.Time);
             settings.Observe();
-            var model = composition.Model;
+            var dispatcher = new DeferredConversationDispatcher();
+            var model = CreateDeferredPresentation(f, composition, dispatcher, (content, live, _, _) =>
+            {
+                live().Should().BeTrue();
+                opened.Add(content);
+                return Task.FromResult("Exact assistant Details opened");
+            });
             model.BindDetailPresentation(settings);
             await model.RefreshAsync();
             await model.SelectAsync(model.Sessions.Single());
@@ -626,7 +771,8 @@ public sealed partial class SessionsConversationTests
                 var first = await terminal.Task.WaitAsync(f.Token);
                 await join.WaitForPostAsync(f.Token);
                 Dispatcher.UIThread.RunJobs();
-                model.ConversationMessages.Single().Outcome.Should().BeNull("the read page fences A's terminal event while its join is still held");
+                model.ConversationMessages.Single().Outcome.Should().BeNull("the admitted page is unchanged while A's terminal callback and join are held");
+                model.ConversationUpdates.Should().BeEmpty();
                 await ChooseDetailMode(settings, policy, f, DetailPresentationMode.Offer);
                 var commands = new SessionRequestCommandService(composition.Workspace, composition.Conversation, composition.Access, f.Time);
                 var review = await commands.ExecuteAsync(new(SessionCommandOperation.RequestReview,
@@ -646,6 +792,10 @@ public sealed partial class SessionsConversationTests
                 await pending;
                 model.DetailsOfferMessage.Should().BeSameAs(first.Message,
                     "sequence ordering and pending acceptance must not misclassify A's first terminal publication as a duplicate");
+                model.ConversationUpdates.Single().Should().BeSameAs(second.Message,
+                    "the newest completion slot must not move backwards when A first captures its offer epoch");
+                await model.OpenConversationDetailAsync(first.Message, assistant: true);
+                opened.Should().ContainSingle(because: model.ConversationStatus).Which.Source.Should().Be(DetailAnswerAdapter.Body);
                 model.PresentOriginalRequestSubmission(second);
                 model.DetailsOfferMessage.Should().BeSameAs(first.Message, "B's duplicate must not replace A or recapture its retired epoch");
                 model.DismissDetailsOffer(first.Message);
@@ -671,6 +821,8 @@ public sealed partial class SessionsConversationTests
                     join.RunNext();
                 }
                 await pending;
+                dispatcher.Drain();
+                model.Close();
             }
         });
     }

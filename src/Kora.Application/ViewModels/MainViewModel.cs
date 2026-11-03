@@ -4334,7 +4334,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (DetailPresentationCommand.Parse(spokenText, AssistantName) is { } detailCommand)
         {
             if (!isAssistantNameAvailable || initiator == SecurityAuditInitiator.VoiceCommand
-                && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+                && !HasCurrentNameActivation(spokenText))
             {
                 Transcript = "Detail preferences require original typed input or the current assistant-name voice prefix.";
                 return;

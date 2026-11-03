@@ -175,6 +175,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         SpeechSetupComparison? speechSetupComparison = null,
         LogonStartupConfigurationService? logonStartupConfiguration = null,
         DetailPresentationConfigurationService? detailPresentationConfiguration = null,
+        ConversationExecutionConfigurationService? conversationExecution = null,
         StartupPresentationConfigurationService? startupPresentationConfiguration = null,
         IQuestionVoiceRecognitionService? voiceRecognition = null, SpeechInputConfigurationService? speechInputConfiguration = null)
     {
@@ -270,9 +271,9 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             speechTextConfiguration: captionConfiguration,
             webPageGet: webPageGet, speechComponentSetup: speechComponentSetup,
             speechSetupComparison: speechSetupComparison, logonStartupConfiguration: logonStartupConfiguration,
+            detailPresentationConfiguration: detailPresentationConfiguration, conversationExecution: conversationExecution,
             startupPresentationConfiguration: startupPresentationConfiguration,
-            speechInputConfiguration: speechInputConfiguration,
-            detailPresentationConfiguration: detailPresentationConfiguration);
+            speechInputConfiguration: speechInputConfiguration);
         if (webSummary is not null) { Main.BindWebSummaryWorkflow(webSummary); }
         Main.BindCallOwnershipGate(() => Access.Open);
         Main.BindClipboardOwnershipGate(static () => false);

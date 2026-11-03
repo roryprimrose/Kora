@@ -81,7 +81,7 @@ internal sealed partial class SessionsViewModel
         && (CanOpenConversationDetails && ObservedConversationMessages.Any() || CanOpenHistoryDetail || HasEvidenceDetails);
     public string DetailsAvailability => CanShowDetails ? "Open an exact result from this session's observed messages or selected activity."
         : "No available details on the selected session's observed page. Select a session and explicitly read conversation or activity.";
-    public ConversationMessage? DetailsOfferMessage => CanPresentDetails
+    public ConversationMessage? DetailsOfferMessage => ConversationReadingAvailable
         && completedDetailPublication is { Dismissed: false, Message: { AssistantResponse: { } response } message } publication
         && (detailPresentation is null || detailPresentation.IsOfferCurrent(publication.OfferEpoch))
         && Kora.Core.Presentation.AnswerPresentation.From(response.Body).HasDetails ? message : null;
@@ -95,12 +95,15 @@ internal sealed partial class SessionsViewModel
     public Task OpenConversationDetailAsync(ConversationMessage message, bool assistant = false, Guid? observationId = null,
         Func<bool>? detailAdmission = null, bool submittedContext = false) => RunConversationAsync(async (target, live) =>
     {
-        if (!ObservedConversationMessages.Concat(ConversationSearchMessages).Any(record => ReferenceEquals(record, message)))
+        var offered = ReferenceEquals(message, DetailsOfferMessage);
+        if (!offered && !ObservedConversationMessages.Concat(ConversationSearchMessages).Any(record => ReferenceEquals(record, message)))
         { throw new InvalidOperationException("Select an actual record from the currently observed exact conversation page."); }
         noticeResultOrigin = null;
         var searchMatch = ConversationSearchMessages.Any(record => ReferenceEquals(record, message));
         var searchEpoch = conversationSearchEpoch;
-        bool DetailLive() => live() && (detailAdmission?.Invoke() ?? true) && (!searchMatch || conversationSearchEpoch == searchEpoch);
+        bool DetailLive() => live() && (detailAdmission?.Invoke() ?? true)
+            && (!offered || ReferenceEquals(message, DetailsOfferMessage))
+            && (!searchMatch || conversationSearchEpoch == searchEpoch);
         if (searchMatch) { conversationSearchDetailTarget = target; }
         var content = await conversation!.ReadDetailAsync(target, message, DetailLive, lifetime.Token,
             assistant, observationId, submittedContext);

@@ -27,8 +27,8 @@ internal sealed partial class SessionsViewModel
         if (!CanPresentDetails || selected?.Authority.SessionId != message.Request.SessionId
             || selected.Authority.Generation != message.Generation)
         { throw new InvalidOperationException("The completion does not belong to the current exact private conversation."); }
-        if (!TryCaptureDetailPublication(message)) { return false; }
         if (!ConversationReadingAvailable) { conversationPage = null; completedConversationMessage = null; }
+        if (!TryCaptureDetailPublication(message)) { return false; }
         if (completedConversationMessage is null || message.Sequence >= completedConversationMessage.Sequence)
         { completedConversationMessage = message; }
         conversationReadingControl = access.ControlRevision;

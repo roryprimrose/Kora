@@ -361,6 +361,7 @@ public sealed partial class LocalEventBrokerWindowTests
     private sealed class PausedSource(ILocalEventSource source) : ILocalEventSource
     {
         internal bool Pause { get; set; }
+        internal bool IgnoreCancellation { get; set; }
         internal Exception? Failure { get; set; }
         internal int Reads { get; private set; }
         internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -370,7 +371,7 @@ public sealed partial class LocalEventBrokerWindowTests
         {
             Reads++;
             var observed = await source.ReadAsync(session, cancellationToken);
-            if (Pause) { Entered.TrySetResult(); await Release.Task.WaitAsync(cancellationToken); }
+            if (Pause) { Entered.TrySetResult(); await Release.Task.WaitAsync(IgnoreCancellation ? CancellationToken.None : cancellationToken); }
             if (Failure is { } failure) { throw failure; }
             return observed;
         }

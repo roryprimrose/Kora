@@ -43,14 +43,19 @@ internal sealed class WindowsActivatedCaptureFactory : IActivatedCaptureFactory
         IReadOnlyList<string> phrases, BlockingAudioStream stream, Func<bool> canOpen, TimeSpan speechStartWindow) =>
         OpenAsync(microphone, phrases, stream, canOpen, speechStartWindow, new(0, SpeechInputSelection.Default));
 
-    public async Task<IActivatedCapture> OpenAsync(MicrophoneDevice microphone,
+    public Task<IActivatedCapture> OpenAsync(MicrophoneDevice microphone,
         IReadOnlyList<string> phrases, BlockingAudioStream stream, Func<bool> canOpen, TimeSpan speechStartWindow,
-        SpeechInputGeneration profile)
+        SpeechInputGeneration profile) =>
+        OpenAsync(microphone, phrases, stream, canOpen, speechStartWindow, VoiceCaptureTiming.Default.TrailingSilence, profile);
+
+    public async Task<IActivatedCapture> OpenAsync(MicrophoneDevice microphone,
+        IReadOnlyList<string> phrases, BlockingAudioStream stream, Func<bool> canOpen,
+        TimeSpan speechStartWindow, TimeSpan trailingSilence, SpeechInputGeneration profile)
     {
         if (GetUnavailableReason(profile.Selection) is { } reason) { throw new InvalidOperationException(reason); }
         native.RequireEligible(microphone);
         if (!canOpen()) { throw new OperationCanceledException("Capture admission was retired before model acquisition."); }
-        var lease = await residency.AcquireAsync(profile, phrases, speechStartWindow, canOpen).ConfigureAwait(false);
+        var lease = await residency.AcquireAsync(profile, phrases, speechStartWindow, trailingSilence, canOpen).ConfigureAwait(false);
         IWindowsActivatedMicrophone? recorder = null;
         try
         {
@@ -83,12 +88,14 @@ internal sealed class WindowsActivatedCaptureFactory : IActivatedCaptureFactory
     }
 
     internal static async Task<IActivatedCapture> OpenCommandAsync(
-        MicrophoneDevice microphone, IReadOnlyList<string> phrases, BlockingAudioStream stream, Func<bool> canOpen)
+        MicrophoneDevice microphone, IReadOnlyList<string> phrases, BlockingAudioStream stream, Func<bool> canOpen,
+        VoiceCaptureTiming timing)
     {
         if (!canOpen()) { throw new OperationCanceledException("Command audio admission was retired."); }
+        timing.Validate();
         var commandNative = new WindowsActivatedNativeFactory();
         commandNative.RequireEligible(microphone);
-        var recognizer = commandNative.CreateRecognizer(phrases, VoiceCaptureLimits.Default.EmptySpeechDeadline);
+        var recognizer = commandNative.CreateRecognizer(phrases, timing.CommandStart, timing.TrailingSilence);
         try
         {
             recognizer.BindInput(stream);

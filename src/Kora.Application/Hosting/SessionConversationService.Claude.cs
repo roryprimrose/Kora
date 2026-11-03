@@ -20,12 +20,12 @@ public sealed partial class SessionConversationService
     public Task<ConversationSubmissionReceipt> SubmitClaudeAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, CancellationToken token) =>
         SubmitCoreAsync(target, body, admitted, null, null, RequestOrigin.LocalUi, null,
-            ModelTurnChoice.Hosted, token, claude: true);
+            ModelTurnChoice.Hosted, token, claude: true, ordinaryActiveDeadline: true);
 
     public Task<ConversationSubmissionReceipt> SubmitClaudeAnswerStreamAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, CancellationToken token) =>
         SubmitCoreAsync(target, body, admitted, null, null, RequestOrigin.LocalUi, null,
-            ModelTurnChoice.Hosted, token, claude: true, claudeStreamAnswer: true);
+            ModelTurnChoice.Hosted, token, claude: true, claudeStreamAnswer: true, ordinaryActiveDeadline: true);
 
     /// <summary>One explicit Claude clarification; answering never approves a physical transmission.</summary>
     public Task<ConversationSubmissionReceipt> SubmitClaudeWithClarificationAsync(SessionWorkspaceEntry target, string body,
@@ -50,7 +50,7 @@ public sealed partial class SessionConversationService
         var constraints = ClaudeObservationTools.Constrain(toolIds);
         return SubmitCoreAsync(target, body, admitted, null, null, RequestOrigin.LocalUi,
             (request, now) => new(request, ClaudeObservationPolicy, body, [], now, now.Add(HostedTurnAuthorization.MaximumDuration),
-                ModelToolMode.ReadOnly, constraints), ModelTurnChoice.Hosted, token, claude: true);
+                ModelToolMode.ReadOnly, constraints), ModelTurnChoice.Hosted, token, claude: true, ordinaryActiveDeadline: true);
     }
 
     internal Task<ConversationSubmissionReceipt> SubmitReviewedClaudeAsync(SessionWorkspaceEntry target, string body,
@@ -62,6 +62,6 @@ public sealed partial class SessionConversationService
         return SubmitCoreAsync(target, body, admitted, beforeRetain, links, origin,
             (request, now) => new(request, constraints is null ? Policy : ClaudeObservationPolicy, body, [], now, now.Add(HostedTurnAuthorization.MaximumDuration),
                 constraints is null ? ModelToolMode.None : ModelToolMode.ReadOnly, constraints),
-            ModelTurnChoice.Hosted, token, claude: true);
+            ModelTurnChoice.Hosted, token, claude: true, ordinaryActiveDeadline: true);
     }
 }

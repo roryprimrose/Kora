@@ -22,6 +22,7 @@ public sealed partial class WindowsVoiceRecognitionService : IQuestionVoiceRecog
     private readonly ILogger<WindowsVoiceRecognitionService> logger;
     private readonly IActivatedCaptureFactory factory;
     private readonly VoiceCaptureLimits limits;
+    private readonly IVoiceCaptureTimingSource? timingSource;
     private readonly HashSet<Task> pendingResourceOperations = [];
     private readonly bool ownsPrivacy;
     private IWindowsPrivacyObservationService? privacy;
@@ -58,8 +59,9 @@ public sealed partial class WindowsVoiceRecognitionService : IQuestionVoiceRecog
 
     public WindowsVoiceRecognitionService(
         ILogger<WindowsVoiceRecognitionService> logger,
-        IWindowsPrivacyObservationService? privacy = null)
-        : this(logger, privacy, new WindowsActivatedCaptureFactory(), VoiceCaptureLimits.Default)
+        IWindowsPrivacyObservationService? privacy = null,
+        IVoiceCaptureTimingSource? timingSource = null)
+        : this(logger, privacy, new WindowsActivatedCaptureFactory(), VoiceCaptureLimits.Default, timingSource: timingSource)
     {
     }
 
@@ -67,12 +69,13 @@ public sealed partial class WindowsVoiceRecognitionService : IQuestionVoiceRecog
         ILogger<WindowsVoiceRecognitionService> logger,
         IWindowsPrivacyObservationService? privacy,
         IActivatedCaptureFactory factory,
-        VoiceCaptureLimits limits, TimeProvider? time = null)
+        VoiceCaptureLimits limits, TimeProvider? time = null, IVoiceCaptureTimingSource? timingSource = null)
     {
         this.logger = logger;
         this.privacy = privacy;
         this.factory = factory;
         this.limits = limits;
+        this.timingSource = timingSource;
         this.time = time ?? TimeProvider.System;
         ownsPrivacy = privacy is null;
         if (privacy is not null)
@@ -171,17 +174,17 @@ public sealed partial class WindowsVoiceRecognitionService : IQuestionVoiceRecog
 
     public Task BeginReplyAsync(MicrophoneDevice microphone, IEnumerable<string> phrases,
         Func<bool> isAdmitted, CancellationToken cancellationToken) =>
-        BeginCaptureAsync(microphone, phrases, isAdmitted, TimeSpan.FromSeconds(15), cancellationToken);
+        BeginCaptureAsync(microphone, phrases, isAdmitted, cancellationToken);
 
     public Task BeginPushToTalkAsync(
         MicrophoneDevice microphone,
         IEnumerable<string> phrases,
         string? assistantName = null,
         CancellationToken cancellationToken = default) =>
-        BeginCaptureAsync(microphone, phrases, null, limits.EmptySpeechDeadline, cancellationToken);
+        BeginCaptureAsync(microphone, phrases, null, cancellationToken);
 
     private async Task BeginCaptureAsync(MicrophoneDevice microphone, IEnumerable<string> phrases,
-        Func<bool>? isAdmitted, TimeSpan speechStartWindow, CancellationToken cancellationToken)
+        Func<bool>? isAdmitted, CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         ArgumentNullException.ThrowIfNull(microphone);
@@ -192,6 +195,10 @@ public sealed partial class WindowsVoiceRecognitionService : IQuestionVoiceRecog
             throw new InvalidOperationException("The exact native question no longer admits reply capture.");
         }
         var commandPhrases = phrases.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        var timing = timingSource is null ? VoiceCaptureTiming.Default : timingSource.GetTiming();
+        timing.Validate();
+        var speechStartWindow = isAdmitted is not null ? timing.ReplyStart
+            : timingSource is not null ? timing.CommandStart : limits.EmptySpeechDeadline;
         long requestedGeneration;
         SpeechInputGeneration requestedProfile;
         lock (gate)
@@ -267,7 +274,7 @@ public sealed partial class WindowsVoiceRecognitionService : IQuestionVoiceRecog
                     return CaptureGeneration == requestedGeneration && !openCancellation.IsCancellationRequested &&
                         snapshot.TopologyRevision == beforeOpen.TopologyRevision && snapshot.CanCaptureFrom(microphone)
                         && (isAdmitted?.Invoke() ?? true);
-                }, speechStartWindow, requestedProfile), CancellationToken.None);
+                }, speechStartWindow, timing.TrailingSilence, requestedProfile), CancellationToken.None);
             IActivatedCapture opened;
             try
             {

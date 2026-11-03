@@ -19,6 +19,33 @@ namespace Kora.Windows.IntegrationTests.Audio;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class CustomNameWakeCutoverTests
 {
+    [Fact]
+    public async Task CommandOnlyNativeConsumersShareOneFrozenTimingWithoutQualifyingProductionProfiles()
+    {
+        using var assets = new Assets();
+        var factory = new Factory();
+        var stage = new WindowsHandsFreeAudioStage([assets.Profile], factory);
+        var timing = new VoiceCaptureTiming(7, 20, 2);
+        var binding = new HandsFreeAudioBinding(3, new("fixture", "Fixture"), "Nova",
+            new(1, SpeechInputProfileCatalogue.NativeWakeSelection)) { CanCapture = static () => true, Timing = timing };
+        await using var session = await stage.OpenAsync(binding, TestContext.Current.CancellationToken);
+        var resources = await factory.NextAsync();
+        factory.EndpointTiming.Should().Be(timing);
+        resources.Binding!.Timing.Should().Be(timing);
+        binding = binding with { Timing = new(10, 60, 3) };
+        binding.Timing.Should().NotBe(resources.Binding.Timing);
+        resources.Api.HasSegment = true;
+        var wake = session.WaitForWakeAsync(TestContext.Current.CancellationToken);
+        resources.Microphone.Emit(new short[640]);
+        var observed = await wake;
+        var capture = session.CaptureCommandAsync(observed, TestContext.Current.CancellationToken);
+        await resources.Command.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
+        factory.CommandTiming.Should().Be(timing);
+        resources.Command.Final("one admitted command");
+        (await capture)!.Transcript.Should().Be("one admitted command");
+        new WindowsHandsFreeAudioStage().IsAvailable.Should().BeFalse();
+    }
+
     [Theory]
     [InlineData("Kora", false)]
     [InlineData("Nova", false)]
@@ -301,6 +328,8 @@ public sealed class CustomNameWakeCutoverTests
         internal Resources? Current { get; private set; }
         internal string? Failure { get; init; }
         internal TaskCompletionSource? MicrophoneOpenRelease { get; init; }
+        internal VoiceCaptureTiming? EndpointTiming { get; private set; }
+        internal VoiceCaptureTiming? CommandTiming { get; private set; }
         public IHandsFreeKeywordDetector CreateKeyword(HandsFreeNativeProfile profile, PocketSphinxKeywordConfiguration configuration)
         {
             Created++;
@@ -308,6 +337,11 @@ public sealed class CustomNameWakeCutoverTests
             return new PocketSphinxKeywordDetector(profile, configuration, Current.Api);
         }
         public IHandsFreeCommandEndpoint CreateEndpoint(HandsFreeNativeProfile profile) => new Endpoint();
+        public IHandsFreeCommandEndpoint CreateEndpoint(HandsFreeNativeProfile profile, VoiceCaptureTiming timing)
+        {
+            EndpointTiming = timing;
+            return CreateEndpoint(profile);
+        }
         public async Task<IHandsFreeMicrophone> OpenMicrophoneAsync(HandsFreeAudioBinding binding, Func<bool> admitted)
         {
             admitted().Should().BeTrue();
@@ -320,6 +354,7 @@ public sealed class CustomNameWakeCutoverTests
         public Task<IActivatedCapture> OpenCommandAsync(HandsFreeAudioBinding binding, BlockingAudioStream stream, Func<bool> admitted)
         {
             admitted().Should().BeTrue();
+            CommandTiming = binding.Timing;
             Current!.Stream = stream;
             return Task.FromResult<IActivatedCapture>(Current.Command);
         }

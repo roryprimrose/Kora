@@ -24,6 +24,37 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class BoundedSurfaceAccessibilityTests
 {
     [Fact]
+    public async Task ReducedMotionCheckboxIsNamedSavesConfirmedStateAndResetsOnlyMotion()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
+            await fixture.InitializeAsync();
+            var window = new SettingsWindow(fixture.Main);
+            try
+            {
+                window.Show();
+                window.UpdateLayout();
+                var checkbox = window.GetVisualDescendants().OfType<CheckBox>()
+                    .Single(control => string.Equals(
+                        ControlAutomationPeer.CreatePeerForElement(control)!.GetName(), "Reduced motion", StringComparison.Ordinal));
+                checkbox.IsChecked.Should().BeFalse();
+                fixture.Main.ThemeMode = ApplicationThemeMode.Dark;
+                await fixture.Main.AppearanceUpdate;
+                checkbox.IsChecked = true;
+                await fixture.Main.AppearanceUpdate;
+                fixture.Main.IsReducedMotionEnabled.Should().BeTrue();
+                checkbox.IsChecked.Should().BeTrue();
+                await fixture.Main.ResetReducedMotionCommand.ExecuteAsync();
+                checkbox.IsChecked.Should().BeFalse();
+                fixture.Main.IsReducedMotionEnabled.Should().BeFalse();
+                fixture.Main.ThemeMode.Should().Be(ApplicationThemeMode.Dark);
+            }
+            finally { window.Close(); }
+        });
+    }
+
+    [Fact]
     public async Task Assistant_name_editor_has_a_stable_label_and_authoritative_help_after_save_and_reset()
     {
         await HeadlessSession.RunAsync(async () =>
@@ -140,11 +171,11 @@ public sealed class BoundedSurfaceAccessibilityTests
                 var cycle = ReadCycle(window, first, reverse);
                 cycle.Select(control => ControlAutomationPeer.CreatePeerForElement(control)!.GetName())
                     .Should().BeEquivalentTo(
-                        "Appearance", "Reading text size percentage", "Show animated presence", "Application theme",
+                        "Appearance", "Reading text size percentage", "Reduced motion", "Show animated presence", "Application theme",
                         "Always show", "Stay on top", "Response timeout in seconds", "Animation mode", "Presence timeout in seconds",
                         "Presence size in pixels", "Dot size percent", "Dot density percent", "Movement speed percent",
                         "Scale presence with speech playback", "Speech scale amount percent",
-                        "Application theme actions", "Reading text size actions", "Always show responses actions",
+                        "Application theme actions", "Reading text size actions", "Reduced motion actions", "Always show responses actions",
                         "Keep responses on top actions", "Response timeout actions", "Show presence actions", "Animation mode actions",
                         "Presence timeout actions", "Presence size actions", "Dot size actions", "Dot density actions",
                         "Movement speed actions", "Speech sizing actions", "Speech scale amount actions");
@@ -225,10 +256,10 @@ public sealed class BoundedSurfaceAccessibilityTests
                 window.Activate();
                 window.UpdateLayout();
                 var actions = window.GetVisualDescendants().OfType<SettingActionsButton>().ToArray();
-                actions.Should().HaveCount(16);
+                actions.Should().HaveCount(17);
                 actions.Select(action => action.SettingName).Should().Equal(
                     "Start Kora at Windows user logon", "Normal manual startup presentation",
-                    "Application theme", "Reading text size", "Always show responses", "Keep responses on top",
+                    "Application theme", "Reading text size", "Reduced motion", "Always show responses", "Keep responses on top",
                     "Response timeout", "Show presence", "Animation mode", "Presence timeout",
                     "Presence size", "Dot size", "Dot density", "Movement speed", "Speech sizing", "Speech scale amount");
                 foreach (var action in actions)

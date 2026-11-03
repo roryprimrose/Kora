@@ -283,6 +283,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         SpeechComponentSetupService? speechComponentSetup = null,
         ConversationalReplyConfigurationService? conversationalReplies = null,
         CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
+        OrdinaryTurnDeadlineConfigurationService? ordinaryDeadlineConfiguration = null,
         SpeechSetupComparison? speechSetupComparison = null,
         ConversationExecutionConfigurationService? conversationExecution = null,
         LogonStartupConfigurationService? logonStartupConfiguration = null,
@@ -381,6 +382,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         this.diagnosticRetentionConfiguration = diagnosticRetentionConfiguration;
         this.sessionRetentionConfiguration = sessionRetentionConfiguration;
+        this.ordinaryDeadlineConfiguration = ordinaryDeadlineConfiguration;
         this.sessionRetentionPlanner = sessionRetentionPlanner;
         if (sessionRetentionPlanner is not null) { sessionRetentionPlanner.Changed += OnSessionRetentionPlannerChanged; }
         this.auditRetentionConfiguration = auditRetentionConfiguration;
@@ -450,6 +452,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         InitializeStartupPresentation(startupPresentationConfiguration, execute => CreateCommand(execute));
         ResetThemeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.Theme));
         ResetReaderTextScaleCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReaderTextScale));
+        ResetReducedMotionCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReducedMotion));
         ResetResponseTimeoutCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ResponseTimeout));
         ResetPresenceDisplayCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.PresenceDisplay));
         ResetPresenceRendererCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.NativePresenceRenderer));
@@ -489,6 +492,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         RefreshSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: false, reset: false));
         SaveSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: true, reset: false));
         ResetSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: true, reset: true));
+        RefreshOrdinaryDeadlineCommand = CreateCommand(() => ExecuteOrdinaryDeadlineCommandAsync(
+            new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
+        SaveOrdinaryDeadlineCommand = CreateCommand(SaveOrdinaryDeadlineAsync);
+        ResetOrdinaryDeadlineCommand = CreateCommand(() => ExecuteOrdinaryDeadlineCommandAsync(
+            new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
         PreviewSessionRetentionCommand = new(PreviewSessionRetentionAsync,
             exception => ApplicationLog.SessionRetentionPreviewFailed(logger, exception.GetType().Name),
             () => CanPreviewSessionRetention);
@@ -626,6 +634,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || Kora.Application.Skills.SkillReviewCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Application.Skills.SharedSkillInvocationCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Application.Skills.NamedSkillCommand.Parse(CommandText, AssistantName) is not null
+                      || Kora.Application.KnowledgeSources.KnowledgeSourceAnswerCommand.Parse(CommandText, AssistantName) is not null
                       || NewRequestOpenCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Core.Interaction.LocalEventCommand.Parse(CommandText, AssistantName) is not null
                       || ManualCallCommand.Parse(CommandText, AssistantName) is not null));
@@ -638,6 +647,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         speechReadOnce = new Kora.Tools.Speech.SpeechReadOnce(this);
         ReadCurrentResponseCommand = CreateCommand(
             () => ReadCurrentResponseAsync(CaptureResponseReadInput()), () => CanReadCurrentResponse);
+        PlanCurrentResponseReadCommand = CreateCommand(
+            () => RunResponseReadProposalDecision(responseReadProposal, "plan"), () => CanPlanCurrentResponseRead);
+        ConfirmCurrentResponseReadCommand = CreateCommand(
+            () => CaptureResponseReadProposalDecision(confirm: true)(), () => CanConfirmCurrentResponseRead);
+        CancelCurrentResponseReadCommand = CreateCommand(
+            () => CaptureResponseReadProposalDecision(confirm: false)());
         ReviewCallSpeechCommand = CreateCallSpeechCommand(CallSpeechOperation.Review,
             () => CanReviewCallSpeech);
         ConfirmCallSpeechCommand = CreateCallSpeechCommand(CallSpeechOperation.Confirm,
@@ -1538,6 +1553,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         get => isSpeechProviderOperationActive;
         private set
         {
+            Interlocked.Increment(ref responseReadOperationRevision);
             SetProperty(ref isSpeechProviderOperationActive, value);
             UpdateSpeechPreparation();
             NotifySpeechProviderStateChanged();
@@ -2033,6 +2049,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         {
             if (SetProperty(ref isBusy, value))
             {
+                Interlocked.Increment(ref responseReadOperationRevision);
                 NotifyModelActionReviewAvailability();
                 ToggleListeningCommand.NotifyCanExecuteChanged();
                 OnPropertyChanged(nameof(CanPushToTalk));
@@ -3830,6 +3847,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     private async Task StopSpeakingAsync()
     {
+        if (responseReadProposal is not null || responseReadPlanCancellation is not null)
+        {
+            await CloseResponseReadProposal();
+            return;
+        }
         RetireResponseReadPlayback();
         RetireSpeechCaption();
         try
@@ -3837,6 +3859,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await textToSpeech.StopAsync();
 #pragma warning disable VSTHRD003 // Stop retires the owned read before replacing its source with recovery text.
             await responseReadQuiescence;
+            await responseReadPlanQuiescence;
 #pragma warning restore VSTHRD003
             ConfirmSpeechOutputReleased();
             activeCallSpeechLease = null;
@@ -3880,6 +3903,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await Task.WhenAll(captureClosure, textToSpeech.StopAsync(), actionRetirement, grantRetirement);
 #pragma warning disable VSTHRD003 // Join the retired, independently owned one-shot before host resource handoff.
             await responseReadQuiescence;
+            await responseReadPlanQuiescence;
 #pragma warning restore VSTHRD003
 #pragma warning disable VSTHRD003 // Await owned reply retirement asynchronously so no queued UI commit survives host handoff/close.
             if (questionVoiceReplies is not null) { await questionVoiceReplies.Quiescence; }
@@ -4297,6 +4321,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         ForegroundConversationTarget? foregroundTarget = null)
     {
         CancelStartupPresentationReview();
+        if (await TryHandleResponseReadProposal(spokenText, initiator, responseReadInput)) { return; }
+        if (responseReadPlanCancellation is not null
+            && commandRouter.Match(spokenText, AssistantName).Command?.Action is not
+                (BuiltInAction.CancelTask or BuiltInAction.StopSpeaking or BuiltInAction.ExitApplication))
+        {
+            ReportResponseRead("Local read planning is still running or joining. Cancel task before another request; the original answer is unchanged.");
+            return;
+        }
         if (IsWakeCommand(spokenText) && string.Equals(AssistantName, "Stop", StringComparison.OrdinalIgnoreCase)
             && string.Equals(spokenText.Trim(), "listening", StringComparison.OrdinalIgnoreCase))
         {
@@ -4414,6 +4446,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (Kora.Application.Agents.AgentRunCommand.Parse(spokenText, AssistantName) is { } agentCommand)
         {
             await ExecuteAgentCommand(agentCommand, spokenText, manualInput
+                ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision), reviewEligibility);
+            return;
+        }
+        if (Kora.Application.KnowledgeSources.KnowledgeSourceAnswerCommand.Parse(spokenText, AssistantName) is { } namedAnswer)
+        {
+            await ExecuteKnowledgeSourceAnswer(namedAnswer, spokenText, manualInput
                 ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision), reviewEligibility);
             return;
         }
@@ -4581,6 +4619,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 return;
             }
             await ExecuteDiagnosticRetentionCommandAsync(diagnosticRetentionCommand, initiator);
+            return;
+        }
+        if (OrdinaryTurnDeadlineCommand.Parse(spokenText, AssistantName) is { } ordinaryDeadlineCommand)
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Assistant prefix routing is unavailable; no task deadline change was dispatched.";
+                return;
+            }
+            await ExecuteOrdinaryDeadlineCommandAsync(ordinaryDeadlineCommand, initiator);
             return;
         }
         if (SessionQueueConfigurationCommand.Parse(spokenText, AssistantName) is not null)
@@ -5056,9 +5104,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
 
+        var cancellingReadProposal = match.Command.Action == BuiltInAction.CancelTask
+            && (responseReadProposal is not null || responseReadPlanCancellation is not null);
         await ExecuteAsync(match.Command, initiator, sourceCurrent: match.Command.Action == BuiltInAction.LockMachine
             && originalInput is not null ? CaptureLockSource(originalInput) : originalInput?.Eligible);
-        if (ShouldSpeakResponse(match.Command.Action))
+        if (!cancellingReadProposal && ShouldSpeakResponse(match.Command.Action))
         {
             await SpeakCurrentResponseAsync(expectedSpeechRevision: speechRevision);
         }
@@ -5136,7 +5186,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return Task.CompletedTask;
         }
 
-        if (IsLocalReasoningBusy(activeReasoningCancellation is not null,
+        if (IsLocalReasoningBusy(activeReasoningCancellation is not null || responseReadPlanCancellation is not null,
             isModelActionDispatchActive, isModelApprovalPromptActive,
             IsBusy, IsLocalModelSetupActive, IsPowerShellSetupActive))
         {
@@ -5555,6 +5605,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public async Task CancelCurrentTaskAsync()
     {
+        if (responseReadProposal is not null || responseReadPlanCancellation is not null)
+        {
+            await CloseResponseReadProposal();
+            return;
+        }
         RetireResponseReadPlayback();
         Interlocked.Increment(ref approvalPreparationRevision);
         RetireWebResultDetails();
@@ -5880,7 +5935,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     private async Task<bool> TrySpeakCurrentResponseAsync(string? spokenText = null, long? expectedSpeechRevision = null,
         Func<bool>? additionalEligibility = null, bool boundedExactReadback = false,
         Func<CancellationToken, Task>? validateReadSource = null, CallSpeechLease? callSpeechLease = null,
-        CancellationToken cancellationToken = default)
+        Action<SpeechReadOutcome>? readOutcome = null, CancellationToken cancellationToken = default)
     {
         if (speechInterruptionActive) { return false; }
         if (textToSpeech.IsSpeaking)
@@ -5938,6 +5993,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         ApplicationLog.Debug(logger, "Starting spoken response output");
         var completedSpeech = false;
         var startedSpeech = false;
+        SpeechReadOutcome? readFailure = null;
         try
         {
             // Admission checks cancellation; generation invalidation and StopAsync own resource release.
@@ -5968,6 +6024,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         catch (OperationCanceledException)
         {
+            readFailure = SpeechReadOutcome.Cancelled;
             ApplicationLog.Information(logger, "Spoken response was invalidated by a privacy transition");
             forceVisualResponse = true;
             NotifyOutputPolicyChanged();
@@ -5975,34 +6032,40 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         catch (PlaybackVolumeUnavailableException exception)
         {
+            readFailure = SpeechReadOutcome.Failed;
             LogSpokenResponseFailure(exception, "Playing a response with unavailable Kora playback volume", additionalEligibility is not null);
             PreserveSpokenResponseFailure("Kora playback volume is zero or unavailable. Full visual output is retained; refresh volume preferences.");
         }
         catch (WindowsSpeechRateUnavailableException exception)
         {
+            readFailure = SpeechReadOutcome.Failed;
             LogSpokenResponseFailure(exception, "Playing a response with unavailable Windows speech rate", additionalEligibility is not null);
             audioPlaybackSettings.HoldRateUnavailable();
             PreserveSpokenResponseFailure("Windows speech rate is unavailable. Full visual output is retained; explicitly refresh rate preferences.");
         }
         catch (ArgumentOutOfRangeException exception)
         {
+            readFailure = SpeechReadOutcome.Failed;
             LogSpokenResponseFailure(exception, "Playing a response with the selected speech voice", additionalEligibility is not null);
             ClearActiveSpeechVoice();
             PreserveSpokenResponseFailure("The selected speech voice is unavailable. Refresh installed voices; the complete visual response is retained.");
         }
         catch (AudioOutputDeviceUnavailableException exception)
         {
+            readFailure = SpeechReadOutcome.Failed;
             LogSpokenResponseFailure(exception, "Playing a response through audio output", additionalEligibility is not null);
             HandleAudioOutputFailure(exception, "The selected audio output is unavailable.", preserveResponseOnMute: true);
         }
         catch (InvalidOperationException exception)
         {
+            readFailure = SpeechReadOutcome.Failed;
             LogSpokenResponseFailure(exception, "Playing a response with text-to-speech", additionalEligibility is not null);
             ClearActiveSpeechVoice();
             PreserveSpokenResponseFailure("Text-to-speech is unavailable. Refresh speech readiness; the complete visual response is retained.");
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
+            readFailure = SpeechReadOutcome.Failed;
             LogSpokenResponseFailure(exception, "Playing a spoken response unexpectedly", additionalEligibility is not null);
             PreserveSpokenResponseFailure("Speech playback failed. The complete visual response is retained; no automatic retry.");
         }
@@ -6023,14 +6086,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 callSpeechLease?.HoldUnconfirmedRelease();
                 throw;
             }
-            if (callSpeechLease is not null && textToSpeech.IsSpeaking)
+            if (textToSpeech.IsSpeaking)
             {
                 IsSpeaking = true;
-                callSpeechLease.HoldUnconfirmedRelease();
+                callSpeechLease?.HoldUnconfirmedRelease();
                 throw new InvalidOperationException("Owned response playback release is unconfirmed.");
             }
             IsSpeaking = false;
         }
+        readOutcome?.Invoke(completedSpeech ? SpeechReadOutcome.Played
+            : readFailure ?? (startedSpeech ? SpeechReadOutcome.Cancelled : SpeechReadOutcome.Denied));
         return completedSpeech;
     }
 
@@ -6733,6 +6798,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(SpeechInputCommand.FixedPhrases)
             .Concat(SpeechComparisonCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
+            .Concat(OrdinaryTurnDeadlineCommand.FixedPhrases)
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)

@@ -366,7 +366,14 @@ The full visual answer is retained on length/output failure. Replacement (even i
 Refresh, unlock, call end and output recovery never retry it ([playback](../src/Kora.Application/ViewModels/MainViewModel.cs), [boundary tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseRead.cs)).
 
 Push-to-talk preserves an existing eligible current answer while showing capture progress separately; it does not select an older answer. **Stop speaking** remains available during playback.
-The model lane remains unavailable with `current-response-model-tool-loop-not-qualified`; the six read-only descriptors and model transport are unchanged ([capture](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs), [action boundary](../src/Kora.Tools/Speech/SpeechReadOnce.cs)).
+Ordinary model tools remain unavailable for speech; the six read-only descriptors and their transport are unchanged ([capture](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs), [action boundary](../src/Kora.Tools/Speech/SpeechReadOnce.cs)).
+
+For a natural-language request such as `please read this answer out loud` or `read this current answer`, Kora captures the eligible current ordinary answer before interpretation and opens a separate review without replacing it ([proposal owner](../src/Kora.Application/ViewModels/MainViewModel.ResponseReadProposal.cs)).
+Choose **Interpret read request locally**, then **Confirm captured answer read once** after planning joins. Local interpretation receives only your unchanged request and one opaque target reference, not the answer.
+
+The equivalent typed/current-name activated commands are `interpret current response read`, `confirm current response read` and `cancel current response read`. The planning review explicitly discloses creation of a Local context session with content-free lifecycle receipts; request text, answer and proposal are not saved there. No hosted fallback, tools or playback occurs during planning ([local context lifecycle](../src/Kora.Application/Dependencies/LocalContextTurnWorkflow.cs)).
+
+Both decisions retain the original input channel and exact target. Expiry, replacement (including identical text), privacy/owner/call/output/speech changes or original voice revocation refuse use. Cancel task joins even a cancellation-ignoring planner. A malformed, forged or stale model reference never selects another answer. Playback returns actual Played, Denied, Cancelled, Failed or Unknown; partial output and failed audit are not success or automatic retry ([boundary regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseReadProposal.cs), [terminal contract](../src/Kora.Core/Voice/SpeechReadOutcome.cs)).
 
 ## Open existing skill reviews
 
@@ -1088,6 +1095,12 @@ not send cookies, ambient credentials, proxy credentials, referrers, or a model
 conversation. HTML is returned as bounded normalized text; scripts, styles,
 markup and external resources are not executed or loaded.
 
+Cancellation prevents later connections and suppresses late results even if a
+transport or body read ignores its token. Kora waits for the owned response to
+be released before reporting a terminal result, and rechecks address authority
+before returning successful text. A response-release failure is a retrieval
+failure, never a successful result; retry requires a fresh explicit request.
+
 After success, select **Open exact web-result details** in the actual response. This opens the same immutable, volatile native plain-text result, not the website. Search, exact source, reopen and close perform no additional network request or navigation.
 The viewer shares the existing eight-window limit and private copy requires explicit disclosure confirmation.
 
@@ -1385,6 +1398,8 @@ Original typed input also accepts these whole-utterance commands; voice requires
 - **use dark mode**
 - **use light mode**
 - **use system theme**
+- **use reduced motion**
+- **follow system motion**
 - **get reader text scale**
 - **status reader text scale**
 - **reset reader text scale**
@@ -1401,8 +1416,10 @@ Invalid results clarify without clamping. Missing/corrupt/unconfirmed evidence i
 ([parser](../src/Kora.Application/Configuration/NaturalAppearanceCommand.cs), [confirmed state](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
 
 These aliases use the same admitted service, atomic preference/audit path and live notifications as exact IDs and native controls.
-They change only Kora's app theme or bounded native reader content typography: no OS/global UI scale, new content access, permission, speech/caption enablement or model-derived authority
+They change only Kora's app theme, bounded native reader content typography or presence particle-motion preference: no OS/global UI scale, new content access, permission, speech/caption enablement or model-derived authority
 ([executor](../src/Kora.Application/ViewModels/MainViewModel.Appearance.cs), [reader scope](../Design/Information_Display.md#bounded-native-reader-text-scale)).
+
+**Use reduced motion** sets `appearance.reduced-motion` to true; **follow system motion** sets it to false. False/reset follows Windows and cannot enable motion against a Windows reduced-motion request. Both use the same validated, audited preference as the native checkbox. Exact **get/status/set/reset appearance.reduced-motion** and its spoken target **appearance reduced motion** also work ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs), [precedence](../src/Kora.Core/Configuration/ReducedMotionSettings.cs)).
 
 ### Inspect or change an exact output choice
 
@@ -2147,12 +2164,17 @@ To stop Kora reading one source, select its registered metadata and choose
 **Withdraw local read consent**. Review and confirm the exact source ID,
 profile-relative root and directory identity in the native **Unregister source**
 confirmation. This removes only Kora's registration and local inspection
-snapshots, not your shared files. It changes no enablement, execution or grants;
-other source registrations remain intact. Even a missing original folder can
+snapshots, not your shared files. Existing volatile shared-skill reviews,
+enablement and pending reference-read consent are retired before saving the
+withdrawal, even if its final receipt is unconfirmed. No execution or grants
+are created or transferred; other source registrations remain intact. Even a missing original folder can
 be unregistered without reading or restoring it. A changed registration list
 requires refreshing and confirming again. Re-registering the path requires a
 fresh folder selection and receives a new source ID; old snapshots do not
-regain consent.
+regain consent. Refreshing or restoring saved registration metadata cannot
+revive old reviews. After fresh registration, separately consent to any declared
+reference reads, review the complete revision and enable it again. A reference
+read already in progress is still joined; its late result cannot restore use.
 
 The narrow reader requires flat YAML `name`, `version` (for example `1.0.0`)
 and `description`. Unsupported metadata/YAML, scripts or extra package files,

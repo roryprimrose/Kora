@@ -70,6 +70,8 @@ The existing [viewer controller](../src/Kora/DetailWindowController.cs) renders 
 
 Exact storage/session/source/private/control/owner checks run at resolution and final publication. Only explicitly opened records receive bounded passive source revalidation. Selection/source loss, session disposition/retention, privacy and disposal revoke content/search and fence delayed publication. Retained Done stays Done without Resume or meaningful activity renewal.
 
+An explicit conversation refresh that fails with an unavailable or changed exact source retires that session's open conversation Details, selected text and Find state before returning, rather than waiting for periodic reader revalidation. It preserves independent unsent input and retained records; recovery requires a fresh explicit read/open. A pending or successful unchanged refresh alone does not retire the reader or its Find/selection.
+
 This route grants no clipboard/export authority: exact-source, selection and automatic copy remain blocked by [viewer state policy](../src/Kora.Application/Presentation/DetailViewerState.cs), including keyboard/programmatic paths. Existing document/history/web copy policy is unchanged. No model, tool, provider, egress, generated content, auto-offer or broader runtime/hardware/accessibility qualification is delivered.
 
 ### Native admitted-text literal Find
@@ -87,6 +89,23 @@ Ctrl+A in the focused Find query selects only that query for replacement, withou
 Find adds no admission/open route, clipboard/export, persistence/schema, logging/query telemetry, provider/egress, meaningful activity or execution authority. Existing independently admitted copy controls are unchanged; retained conversation copy stays blocked. Portable and headless tests are implementation evidence, not installed/accessibility/hardware or full qualification.
 
 The inert match viewport scrolls within a 100-DIP height bound without shortening text. Headless checks exercise the complete maximum-length match at 75%, 100% and 200% reader scale in the minimum-size window while retaining a visible reader; they do not replace installed visual/accessibility qualification.
+
+### Volatile Details reader wrapping
+
+The native Details reader offers **Wrap reader text**, checked by default, for
+plain text, exact source, continuous semantic text and labelled source fallback.
+Uncheck it to inspect long aligned lines with horizontal scrolling; check it again
+to fit the reader width. The native checkbox supports pointer, keyboard and toggle
+automation. It is hidden while reading the structured document, whose code-block
+wrapping remains separate.
+
+The choice belongs only to that view's lifetime, not a saved setting. It does not
+change the immutable source, logical lines, selection, caret or literal Find
+cursor/count, and it neither reads another source nor acquires clipboard authority.
+Source/private retirement clears the reader and disables the old control; reopen
+the exact source through its normal admission route to recover. A newly opened
+reader starts wrapped. Deterministic native regressions are implementation
+evidence, not installed assistive-technology qualification.
 
 ## Delivered passive exact-conversation search - 2026-10-13
 

@@ -804,13 +804,13 @@ settings, consent/privacy downgrade, general registry or full R10/R09 acceptance
 
 ### Delivered bounded appearance subset (R10)
 
-Twelve independently persisted options are admitted:
+Thirteen independently persisted options are admitted:
 `appearance.theme`, `appearance.presence-display`, `appearance.presence-timeout`,
 `appearance.response-timeout`, `appearance.presence-size`,
 `appearance.dot-size`, `appearance.dot-density`,
 `appearance.movement-speed`, `appearance.speech-scaling` and
 `appearance.speech-scale-amount`, `appearance.reader-text-scale`, and
-`appearance.native-presence-renderer`. The [end-user reference](../docs/settings.md#appearance)
+`appearance.native-presence-renderer` and `appearance.reduced-motion`. The [end-user reference](../docs/settings.md#appearance)
 lists their exact types, units, defaults and bounds. Each descriptor declares
 device-local scope, appearance-only effect, local-host availability,
 immediate-after-save timing and per-option reset. Animation driven by playback
@@ -838,8 +838,8 @@ use the same service and notify all open surfaces. Cancellation is checked
 before the existing synchronous atomic write; cancellation after commit does
 not report an unsaved change. Save failure retains the previous value/revision
 and produces visible failure; stale proposals require a new operation.
-Reset restores one admitted default; no multi-file transaction, whole-profile
-reset or undo is implemented. Shared response-window pin/topmost/position
+Reset restores one admitted default; no multi-file transaction or whole-profile
+reset is implemented. Registered appearance options retain [single-change undo](#delivered-single-registered-preference-undo). Shared response-window pin/topmost/position
 and presence placement remain outside the appearance registry. The two existing
 response-window Booleans additionally have [bounded exact typed/current-name command parity](../docs/commands.md#inspect-or-change-koras-response-window-visibility-preferences),
 using the same native setters, tuple-preserving atomic path and
@@ -849,6 +849,12 @@ using the same native setters, tuple-preserving atomic path and
 Other voice/audio/call/manual state, grants, models, retention, dependencies and
 startup are not registered. No model tools or broader execution authority
 are exposed by the appearance slice.
+
+The explicit reduced-motion Boolean defaults to false (follow Windows); true freezes particle movement in both presenters. False/reset never overrides Windows reduced motion. Speech sizing and finite colour/visibility transitions remain independent. Native controls, exact typed/current-name voice commands and inert model suggestions use the existing shared service; model suggestions and undo retain separate native review/confirmation ([domain precedence](../src/Kora.Core/Configuration/ReducedMotionSettings.cs), [live binding](../src/Kora/Controls/PresenceMotionBinding.cs)).
+
+The preference uses the shared atomic store and strict domain parsing. Save/readback/audit failures remain explicit; no failed operation grants undo authority. Successful changes qualify for the existing run-only last-change receipt, not a durable history or rollback promise ([persistence](../src/Kora.Application/Configuration/LocalAppearancePreferences.cs), [setting owner](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs), [undo](../src/Kora.Application/Configuration/RegisteredSettings/AppearanceConfigurationService.Undo.cs)).
+
+Reduced motion and response timeout remain independent registered preferences. Reduced-motion suggestions and undo require native review/confirmation; the [response-timeout interaction](#delivered-registered-response-timeout-proposal) retains its original-channel review and confirmation.
 
 The reader option is the separately bounded native [source/detail, complete serialized Evidence-page and observed speech-caption content typography contract](Information_Display.md#bounded-native-reader-text-scale): absolute integer percent, default 100, inclusive 75–200. Its original input/host eligibility is rechecked at commit; atomic pending evidence stays held until exact readback and successful audit. A failed terminal receipt does not claim disk rollback and new readers reject unconfirmed evidence. Open Evidence readers and captions retire explicitly when preference evidence becomes unavailable; no chrome or global UI scale is added. Caption labels, pin/display controls, accessible names, geometry, enablement, speech and privacy/call/source lifetimes are unchanged. Existing option formats and migrations are preserved ([workflow](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs), [store](../src/Kora.Application/Configuration/LocalReaderTextScalePreferences.cs)).
 
@@ -1470,14 +1476,14 @@ Notification settings cannot hide necessary action approval from the visual inte
 
 ## 4. Work and Context
 
-The table is the broader proposed contract, not the enabled fixed local-version queue catalogue. Its shipped subset is only [pending 1-10/default-reset 10 and read-only slots 1-2/default-reset 1](#delivered-bounded-fixed-local-version-queue-settings-r10r13); deadline editing and automatic dispatch remain unavailable.
+The table includes proposed controls as well as the [delivered future ordinary conversation deadline](#delivered-future-ordinary-conversation-deadline). The [fixed local-version compatibility queue](#delivered-bounded-fixed-local-version-queue-settings-r10r13) remains a separate internal contract; its retired public scheduling/configuration routes are not restored.
 
 | Option | Default / limits | Example verbal setter |
 |---|---|---|
 | Pending queue capacity | 10; 1-50 entries | "Set the queue limit to twenty" |
 | Successful-completion dispatch | Automatic next ready item; manual mode optional | "Ask before starting each queued task" |
 | Pending request lifetime | Delivered fixed local-version subset: canonical integer 1-120 minutes, default/reset 30, future newly enqueued entries only; broader routing remains proposed | `set queue.pending-lifetime-minutes to 60` |
-| Active-task deadline | 5 minutes excluding user waits; 1-60 minutes within tool/provider limits | "Give tasks ten minutes by default" |
+| Active-task deadline | Delivered future ordinary conversation subset: default/reset 5, canonical integer 1-60 minutes within earlier context and fixed tool/provider limits; no user-wait turns | `set work.active-deadline-minutes to 10` |
 | Session automatic archive inactivity | 24 hours; configurable finite positive duration | "Mark sessions done after two idle days" |
 | Session automatic deletion inactivity | 30 days from last meaningful activity; configurable and later than archive | "Delete sessions after sixty idle days" |
 | Concurrent session task limit | Proposed default 2; positive limit within verified provider/hardware envelope; one task per session | "Run up to three sessions at once" |
@@ -1504,6 +1510,31 @@ Extending a default deadline affects future tasks; changing the current task req
 Manual dispatch is an additional admission decision, never a substitute for tool approval.
 Concurrency is bounded by verified provider/hardware capability and host resource coordination, never a permission to share context/grants or race writes.
 Fixed approval lifetimes, process cancellation grace, power confirmations, secret blocking, and bounded raw-audio retention are safety controls, not arbitrary user knobs.
+
+### Delivered future ordinary conversation deadline
+
+In Settings > Sessions, refresh **Future ordinary task deadline**, choose 1-60 whole minutes, then Save.
+Readback distinguishes saved/default/unavailable state; Reset restores five minutes.
+Typed or activated voice uses `get work.active-deadline-minutes`, `status work.active-deadline-minutes`, `set work.active-deadline-minutes to 10`, or `reset work.active-deadline-minutes` ([shared control](../src/Kora.Application/ViewModels/MainViewModel.OrdinaryTurnDeadline.cs)).
+
+The device-local preference is confirmed through original-user host admission, atomic storage, exact readback, required audit and terminal receipt before future dispatch can consume it.
+Stale observations, malformed values and unconfirmed writes fail explicitly; an unconfirmed preference cannot silently become the default
+([configuration owner](../src/Kora.Application/Configuration/OrdinaryTurnDeadlineConfigurationService.cs), [preference store](../src/Kora.Application/Configuration/LocalOrdinaryTurnDeadlinePreferences.cs)).
+
+Only newly dispatched queued ordinary conversations, including their ordinary instruction/retry routes, and explicit Copilot/Claude ordinary requests capture this preference.
+Their admitted subset has no approval/clarification waits: tool-free answers and already-admitted read-only observation tools.
+Specialized source workflows and clarification turns keep their existing fixed limits; no output-text inference or speculative pause/resume clock is added ([dispatch owner](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
+
+Pending work has no active budget. At durable dispatch the host captures one immutable preference and starts monotonic elapsed accounting; pending expiry and the original context timestamps are not renewed.
+A later saved default never changes a running turn. The shorter fixed provider/tool maximum and original context expiry always win.
+The ordinary conversation execution maximum is a separate reviewed preference: saving or resetting a deadline cannot confirm or overwrite it, and changing concurrency does not renew an active deadline.
+The current local/read-only cap is 15 seconds, and ordinary hosted adapters are capped at two minutes, so choosing five or sixty minutes does not extend those caps ([budget ownership](../src/Kora.Application/Dependencies/ModelTurnHost.OrdinaryDeadline.cs)).
+
+Expiry requests runtime cancellation and suppresses late success; the existing conversation owner retains the session/resource lease and waits for physical quiescence before terminal retention.
+Already-published provisional answers also become noncurrent at the captured monotonic deadline, even before a delayed timer callback or physical provider join.
+A cancellation-ignoring or unconfirmed provider cannot free the lease or publish success.
+No socket-close or physical provider-stop claim is added, and provider qualification remains independently gated
+([host execution](../src/Kora.Application/Dependencies/ModelTurnHost.cs), [deterministic regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.OrdinaryDeadline.cs)).
 
 ## 5. Providers, Local Models, and Connections
 

@@ -3,6 +3,7 @@ using System.Text;
 using AwesomeAssertions;
 
 using Kora.Core.Agents;
+using Kora.Core.Tools;
 
 namespace Kora.Core.UnitTests.Agents;
 
@@ -81,7 +82,7 @@ public sealed class OwnedAgentProfileDocumentTests
     [InlineData("input: text", "input: audio")]
     [InlineData("output: text", "output: files")]
     [InlineData("description: Original tool-free profile", "unknown: value")]
-    public void UnsupportedOrNonToolFreeProposalsAreRejected(string before, string after)
+    public void UnsupportedOrInconsistentProposalsAreRejected(string before, string after)
     {
         var parse = () => OwnedAgentProfileDocument.Parse("example", Source.Replace(before, after, StringComparison.Ordinal));
         parse.Should().Throw<InvalidDataException>();
@@ -94,13 +95,46 @@ public sealed class OwnedAgentProfileDocumentTests
         parse.Should().Throw<InvalidDataException>();
     }
 
-    [Fact]
-    public void OtherwiseValidToolCapableV1ProfileCannotBeAuthored()
+    [Theory]
+    [InlineData(ReadOnlyCapabilityCatalog.List)]
+    [InlineData(ReadOnlyCapabilityCatalog.Get)]
+    [InlineData(ReadOnlyCapabilityCatalog.Version)]
+    [InlineData(ReadOnlyCapabilityCatalog.Readiness)]
+    [InlineData(ReadOnlyCapabilityCatalog.RuntimeList)]
+    [InlineData(ReadOnlyCapabilityCatalog.RuntimeStatus)]
+    public void ObservationOnlyV1OriginalUsesCanonicalToolValidationAndHostClamps(string tool)
     {
-        var text = Source.Replace("tools: none", "tools: application.get_version", StringComparison.Ordinal)
+        var text = Source.Replace("tools: none", "tools: " + tool, StringComparison.Ordinal)
+            .Replace("maximum-calls: 0", "maximum-calls: 1", StringComparison.Ordinal);
+        var document = OwnedAgentProfileDocument.Parse("example", text);
+        document.Document.Text.Should().Be(text);
+        document.Profile.Tools.Should().Equal(tool);
+        document.Profile.References.Should().BeEmpty();
+        document.Profile.MaximumCalls.Should().Be(1);
+        document.Profile.MaximumRounds.Should().Be(2);
+    }
+
+    [Theory]
+    [InlineData("application.get_version,application.get_version")]
+    [InlineData("computer.lock")]
+    [InlineData("mcp.read")]
+    [InlineData("agent.invoke")]
+    [InlineData("unknown")]
+    public void OwnedObservationOnlyOriginalCannotDeclareDuplicateOrAdditionalTools(string tools)
+    {
+        var text = Source.Replace("tools: none", "tools: " + tools, StringComparison.Ordinal)
             .Replace("maximum-calls: 0", "maximum-calls: 1", StringComparison.Ordinal);
         var parse = () => OwnedAgentProfileDocument.Parse("example", text);
         parse.Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
+    public void ConversationalRefinementCannotAdoptAnObservationCapableManualOriginal()
+    {
+        var source = Source.Replace("tools: none", "tools: application.get_version", StringComparison.Ordinal)
+            .Replace("maximum-calls: 0", "maximum-calls: 1", StringComparison.Ordinal);
+        var propose = () => OwnedAgentProfileDocument.ProposeToolFree("example", source, "New description", "New guidance");
+        propose.Should().Throw<InvalidDataException>();
     }
 
     [Fact]

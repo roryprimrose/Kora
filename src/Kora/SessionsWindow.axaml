@@ -256,7 +256,8 @@
         </Expander>
         <local:ModelMemoryProposalPanel />
         <TextBlock Text="{Binding RegisteredSettingsDescription}" TextWrapping="Wrap" />
-        <TextBlock Text="{Binding RegisteredSettingSuggestionDescription}" TextWrapping="Wrap"
+        <TextBlock Name="RegisteredSettingReviewReadback" Text="{Binding RegisteredSettingSuggestionDescription}" TextWrapping="Wrap"
+            Focusable="True"
             AutomationProperties.Name="Exact current and proposed registered setting values, provenance, shared scope, timing and recovery; review is not approval" />
         <WrapPanel>
           <Button Name="ConfirmRegisteredSettingSuggestion" Content="Confirm exact setting change" IsEnabled="{Binding CanConfirmRegisteredSettingSuggestion}" />

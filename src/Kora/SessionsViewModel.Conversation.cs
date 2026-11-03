@@ -312,6 +312,7 @@ internal sealed partial class SessionsViewModel
             }
             else if (sourceRead && exception is ConversationSnapshotChangedException && Live())
             {
+                revokeConversationDetails?.Invoke(target.Authority.SessionId);
                 ClearConversationSearch();
                 conversationPage = null;
                 completedConversationMessage = null;
@@ -321,6 +322,7 @@ internal sealed partial class SessionsViewModel
             }
             else if (sourceRead)
             {
+                revokeConversationDetails?.Invoke(target.Authority.SessionId);
                 ClearConversationSearch();
                 conversationPage = null;
                 completedConversationMessage = null;

@@ -172,6 +172,8 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         Kora.Core.Communication.ICallStateService? callState = null,
         IUiDispatcher? dispatcher = null, ILocalModelReasoner? modelReasoner = null, ISetupDependencyProbe? modelProbe = null,
         Kora.Application.Dependencies.SpeechComponentSetupService? speechComponentSetup = null,
+        OrdinaryTurnDeadlineConfigurationService? ordinaryDeadlineConfiguration = null,
+        ConversationExecutionConfigurationService? conversationExecution = null,
         SpeechSetupComparison? speechSetupComparison = null,
         LogonStartupConfigurationService? logonStartupConfiguration = null,
         StartupPresentationConfigurationService? startupPresentationConfiguration = null,
@@ -179,7 +181,8 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     {
         using var setup = BeginPhase(NativeFixturePhase.Setup);
         await setup.RunAsync(() => InitializeCoreAsync(webPageGet, webSummary, callState, dispatcher, modelReasoner,
-            modelProbe, speechComponentSetup, speechSetupComparison, logonStartupConfiguration, startupPresentationConfiguration,
+            modelProbe, speechComponentSetup, ordinaryDeadlineConfiguration, conversationExecution,
+            speechSetupComparison, logonStartupConfiguration, startupPresentationConfiguration,
             voiceRecognition, speechInputConfiguration));
     }
 
@@ -188,6 +191,8 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         Kora.Core.Communication.ICallStateService? callState,
         IUiDispatcher? dispatcher, ILocalModelReasoner? modelReasoner, ISetupDependencyProbe? modelProbe,
         Kora.Application.Dependencies.SpeechComponentSetupService? speechComponentSetup,
+        OrdinaryTurnDeadlineConfigurationService? ordinaryDeadlineConfiguration,
+        ConversationExecutionConfigurationService? conversationExecution,
         SpeechSetupComparison? speechSetupComparison,
         LogonStartupConfigurationService? logonStartupConfiguration,
         StartupPresentationConfigurationService? startupPresentationConfiguration,
@@ -265,6 +270,8 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
                 NullLogger<Kora.Application.Presentation.AudioPlaybackSettings>.Instance),
             speechTextConfiguration: captionConfiguration,
             webPageGet: webPageGet, speechComponentSetup: speechComponentSetup,
+            ordinaryDeadlineConfiguration: ordinaryDeadlineConfiguration,
+            conversationExecution: conversationExecution,
             speechSetupComparison: speechSetupComparison, logonStartupConfiguration: logonStartupConfiguration,
             startupPresentationConfiguration: startupPresentationConfiguration,
             speechInputConfiguration: speechInputConfiguration);

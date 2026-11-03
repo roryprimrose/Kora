@@ -57,6 +57,23 @@ read-only Preview and cog reset actions retain their admission checks. Queue
 changes still require a fresh Refresh from the cog menu before each Save or
 Reset. Settings that already save a selection immediately retain that behavior.
 
+## Future ordinary task deadline
+
+In **Settings > Sessions**, use **Refresh** in the **Future ordinary task deadline** cog menu, choose **1-60 whole minutes**, then **Save**. **Reset to 5 minutes** restores the default.
+The status shows the confirmed saved/default value; editing the field alone changes nothing ([shared controls](../src/Kora.Application/ViewModels/MainViewModel.OrdinaryTurnDeadline.cs)).
+
+Typed or activated voice can use `get work.active-deadline-minutes`, `status work.active-deadline-minutes`, `set work.active-deadline-minutes to 10`, or `reset work.active-deadline-minutes`.
+These routes use the same host admission, preference readback and required audit ([configuration owner](../src/Kora.Application/Configuration/OrdinaryTurnDeadlineConfigurationService.cs)).
+
+This preference applies only when an ordinary conversation turn dispatches, including its admitted read-only tools.
+Pending work has no active budget; running turns do not change when you save a new default.
+Clarification/approval turns and specialized source workflows keep their existing fixed limits ([scope](../Design/User_Configuration.md#delivered-future-ordinary-conversation-deadline)).
+
+**Shorter safety limits always win:** current local/read-only turns are capped at 15 seconds and ordinary hosted adapters at two minutes, with original context authorization able to expire earlier.
+A longer preference cannot renew that authorization or enable an unavailable provider.
+Provisional answers become noncurrent when the captured active deadline expires, even while the provider is still running.
+Timeout waits for owned runtime resources to finish before final retention; cancelling a request does not prove a remote provider physically stopped ([lifecycle](../Design/Task_Lifecycle.md#defaults-and-bounds)).
+
 ## Start Kora at Windows logon
 
 In **Settings > Appearance > Start Kora at Windows user logon**, choose **Inspect** to see last confirmed saved intent and the observed registration. Choose **Review enable**, **Review disable**, or **Reset setting** in the startup cog menu, read the complete review, then separately choose **Confirm startup change** ([native controls](../src/Kora/SettingsWindow.axaml)).
@@ -731,12 +748,12 @@ required queued setup task.
 
 ## Appearance
 
-The tab groups **Appearance** controls first (theme, reader text scale and response-window behavior), followed by **Presence** controls (visibility, timeout and animation). Each field has a cog actions button at the top right of its card, inside the card padding. Clicking it opens **Reset setting**, affecting only that field ([settings layout](../src/Kora/SettingsWindow.axaml)).
+The tab groups **Appearance** controls first (theme, reader text scale, reduced motion and response-window behavior), followed by **Presence** controls (visibility, timeout and animation). Each field has a cog actions button at the top right of its card, inside the card padding. Clicking it opens **Reset setting**, affecting only that field ([settings layout](../src/Kora/SettingsWindow.axaml)).
 
 The existing controls and exact typed/activated-voice commands share one
 host-owned, typed appearance service. No model or network is needed. Enter
-**list appearance settings** to inspect the twelve admitted options, units,
-defaults, bounds, scope and application timing.
+**list appearance settings** to inspect the thirteen admitted options, units,
+defaults, bounds, scope and application timing ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs)).
 
 | ID | Default | Values / units |
 |---|---|---|
@@ -752,6 +769,7 @@ defaults, bounds, scope and application timing.
 | `appearance.speech-scale-amount` | `100` | 0-200 percent |
 | `appearance.reader-text-scale` | `100` | 75-200 integer percent; native source/detail and complete serialized Evidence bodies only ([domain](../src/Kora.Core/Configuration/ReaderTextScaleSettings.cs)) |
 | `appearance.native-presence-renderer` | `false` | `false` = Avalonia; `true` = Native (experimental); an environment startup default applies only without a saved choice |
+| `appearance.reduced-motion` | `false` | `true` freezes presence particles; `false` follows Windows, never overrides Windows reduced motion ([precedence](../src/Kora.Core/Configuration/ReducedMotionSettings.cs)) |
 
 Use **get appearance.theme**, **set appearance.theme to dark**, or
 **reset appearance.theme**; substitute another listed ID and its typed value.
@@ -803,8 +821,9 @@ the other backend. Uncertain retirement requires normal exit, not a storage or
 ownership reset. Native remains experimental; this does not qualify laptop
 rendering performance or full physical interaction.
 Both modes keep every visible state gently moving, including coral failures.
-Windows reduced-motion preferences still freeze particle movement, and hidden
-or ineligible surfaces do not keep animating.
+The **Reduced motion** checkbox, **use reduced motion** command or **set appearance.reduced-motion to true** freezes particle movement immediately after confirmed save in both modes. **Follow system motion**, false or reset returns to Windows behavior; Windows reduced motion still wins. Speech sizing and brief colour/visibility transitions remain independent, and hidden or ineligible surfaces do not keep animating ([binding](../src/Kora/Controls/PresenceMotionBinding.cs), [particle consumer](../src/Kora/Controls/PresenceControl.cs)).
+
+The preference reloads on restart. A model's exact reduced-motion suggestion changes nothing until a separate native review and confirmation; the existing **Undo the last settings change** also requires native review/confirmation for appearance. Failed writes are reported rather than shown as saved, and unknown outcomes never promise rollback ([appearance review](../src/Kora.Application/Configuration/AppearanceSuggestionReview.cs), [storage](../src/Kora.Application/Configuration/LocalAppearancePreferences.cs), [undo](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
 
 The saved renderer choice overrides `KORA_PRESENCE_RENDERER` on later startups.
 With no saved choice, unset/`avalonia` uses Avalonia and `native` opts into the

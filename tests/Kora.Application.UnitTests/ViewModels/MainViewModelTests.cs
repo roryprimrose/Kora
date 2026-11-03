@@ -4683,6 +4683,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(SpeechInputCommand.FixedPhrases)
             .Concat(SpeechComparisonCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
+            .Concat(OrdinaryTurnDeadlineCommand.FixedPhrases)
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(Kora.Application.Communication.ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
@@ -8724,6 +8725,7 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableConversationalReplies = false, Exception? conversationalReadFailure = null,
             Kora.Application.Communication.CommunicationActivityCallStateService? communicationActivity = null,
             CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
+            OrdinaryTurnDeadlineConfigurationService? ordinaryDeadlineConfiguration = null,
             Kora.Application.Voice.SpeechSetupComparison? speechSetupComparison = null,
             bool enableConversationExecution = false,
             LogonStartupConfigurationService? logonStartupConfiguration = null,
@@ -8927,6 +8929,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 speechComponentSetup: speechComponentSetup,
                 conversationalReplies: ConversationalConfiguration,
                 communicationActivityConfiguration: communicationActivityConfiguration,
+                ordinaryDeadlineConfiguration: ordinaryDeadlineConfiguration,
                 speechSetupComparison: speechSetupComparison,
                 conversationExecution: ConversationExecutionConfiguration,
                 logonStartupConfiguration: logonStartupConfiguration,
@@ -9778,12 +9781,13 @@ public sealed partial class MainViewModelTests : IDisposable
         {
             Interlocked.Increment(ref outputGeneration);
             events.Add("speech.invalidate");
-            IsSpeaking = false;
+            if (!IgnoreOutputInvalidation) { IsSpeaking = false; }
             PlaybackFrame = SpeechPlaybackFrame.Inactive;
             PlaybackFrameException = null;
         }
 
         public bool IsSpeaking { get; private set; }
+        public bool IgnoreOutputInvalidation { get; set; }
 
         private SpeechPlaybackFrame playbackFrame = SpeechPlaybackFrame.Inactive;
 
@@ -10052,6 +10056,7 @@ public sealed partial class MainViewModelTests : IDisposable
             switch (setting)
             {
                 case AppearanceOption.Theme: Mode = null; break;
+                case AppearanceOption.ReducedMotion: ReducedMotionEnabled = null; break;
                 case AppearanceOption.ReaderTextScale: ReaderTextScalePercent = null; break;
                 case AppearanceOption.PresenceDisplay: PresenceDisplayEnabled = null; break;
                 case AppearanceOption.PresenceTimeout: PresenceTimeoutSeconds = null; break;
@@ -10066,6 +10071,14 @@ public sealed partial class MainViewModelTests : IDisposable
             }
         }
         public bool? NativePresenceRendererEnabled { get; private set; }
+        public bool? ReducedMotionEnabled { get; private set; }
+        public bool? LoadReducedMotionEnabled() => ReducedMotionEnabled;
+        public void SaveReducedMotionEnabled(bool enabled)
+        {
+            ThrowIfSaveFails();
+            ReducedMotionEnabled = enabled;
+        }
+
         public bool? LoadNativePresenceRendererEnabled() => NativePresenceRendererEnabled;
         public void SaveNativePresenceRendererEnabled(bool value)
         {

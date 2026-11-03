@@ -119,6 +119,7 @@ public sealed partial class MainViewModel
 
     private async Task CloseVoluntaryOperationsAsync()
     {
+        await CloseResponseReadProposal();
         await ClosePromptPreparation();
         await CloseAgentRun();
         await CloseNamedSkillUse();

@@ -1,3 +1,5 @@
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Text;
 
 using AwesomeAssertions;
@@ -6,6 +8,7 @@ using Kora.Core.Artifacts;
 using Kora.Core.Configuration;
 using Kora.Core.Customizations;
 using Kora.Windows.Artifacts;
+using Kora.Windows.Storage;
 
 namespace Kora.Windows.IntegrationTests.ArtifactDiscovery;
 
@@ -22,10 +25,27 @@ public sealed partial class WindowsCustomizationStoreTests
         var profile = Path.Combine(root, "editor-profile");
         var directory = editor is "additional" ? Path.Combine(root, "custom-agents")
             : Path.Combine(profile, editor, "User", "prompts");
-        Directory.CreateDirectory(directory);
+        using var identity = WindowsIdentity.GetCurrent();
+        var owner = identity.User ?? throw new InvalidOperationException("The private fixture owner is unavailable.");
+        var parent = Path.GetDirectoryName(directory)!;
+        if (editor is "additional") { Directory.CreateDirectory(parent); }
+        else
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(parent)!);
+            RestrictedStorageDirectory.CreateRestrictedDirectory(parent, owner);
+        }
+        RestrictedStorageDirectory.CreateRestrictedDirectory(directory, owner);
+        foreach (var inventoryDirectory in editor is "additional"
+            ? new[] { directory } : new[] { Path.GetDirectoryName(directory)!, directory })
+        {
+            var security = new DirectoryInfo(inventoryDirectory).GetAccessControl(AccessControlSections.Owner | AccessControlSections.Access);
+            security.GetOwner(typeof(SecurityIdentifier)).Should().Be(owner);
+            security.AreAccessRulesProtected.Should().BeTrue();
+        }
         var file = Path.Combine(directory, "helper.agent.md");
         WindowsOwnedInstructionStoreTests.WriteOwnedFile(file,
             Encoding.UTF8.GetBytes("---\nname: Helper\ndescription: Local role\n---\nInert role."));
+        var before = await File.ReadAllBytesAsync(file, token);
         var settings = editor is "additional"
             ? new ArtifactDirectorySettings([], [], [], [directory], [], [], false)
             : ArtifactDirectorySettings.Empty;
@@ -41,6 +61,8 @@ public sealed partial class WindowsCustomizationStoreTests
         registered.Digest.Should().Be(observed.Digest);
         registered.Id.Should().NotBe(observed.ArtifactId);
         observed.ArtifactId.Should().Be("disk.user-profile.agent.helper");
+        (await File.ReadAllBytesAsync(file, token)).Should().Equal(before);
+        Directory.Exists(Path.Combine(root, "local", "DefinitionTransactions")).Should().BeFalse();
     }
 
     [Theory]

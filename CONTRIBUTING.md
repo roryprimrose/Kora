@@ -399,6 +399,12 @@ runner to verify the exact shape, original identity and real headless output.
   and [MCP missing-root fixture](tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsCustomizationStoreTests.Mcp.cs).
   Default directory ownership may differ on elevated runners; a changed-binding
   regression must establish the admitted owner before testing that boundary.
+- Missing-root customization fixtures create a unique private current-user-owned
+  ancestor, not the storage root itself. The [MCP preparation regression](tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsCustomizationStoreTests.Mcp.cs)
+  asserts that preparation leaves the ancestor empty and its security unchanged;
+  the [metadata fixtures](tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsCustomizationStoreTests.Metadata.cs)
+  explicitly protect their enumerated source directories. Reuse exclusive
+  restricted-directory creation; never repair an existing source's owner or ACL.
 - Reuse migration staging helpers; remove only empty later-version tables,
   never current authority records. Resolve a fresh admitted invocation for each
   grant use. Metadata-only reads must not create/edit files or publish journals.

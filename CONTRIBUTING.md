@@ -275,6 +275,14 @@ The native MCP review/exchange fixture uses its existing frozen test timers:
 it verifies exact native approval, real fake-broker results and physical joins,
 not elapsed-time policy. Deadline regressions retain their explicit clock/timer
 boundaries; production model and transport deadlines are unchanged.
+The one-task output regressions separately verify `ProviderBusy` for another
+session while the unqualified shared runtime is held, and successful queued
+work followed by a fresh review after the exact terminal receipt and resource join.
+The native metadata-discovery success/source-edit fixture uses the shared frozen
+clock across admission, storage and model execution; production deadlines remain unchanged.
+The speech-suggestion receipt-pin consent race controls capture closure to cover
+both notification orders; its canonical receipt and consent-withdrawal checks
+are described above.
 Native stop-and-delete assertions await the exact cancellation-accepted event.
 Paging gestures await the existing Next readiness notification when passive
 work refresh is outstanding; draining dispatcher jobs does not join that I/O.
@@ -391,6 +399,12 @@ runner to verify the exact shape, original identity and real headless output.
   and [MCP missing-root fixture](tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsCustomizationStoreTests.Mcp.cs).
   Default directory ownership may differ on elevated runners; a changed-binding
   regression must establish the admitted owner before testing that boundary.
+- Missing-root customization fixtures create a unique private current-user-owned
+  ancestor, not the storage root itself. The [MCP preparation regression](tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsCustomizationStoreTests.Mcp.cs)
+  asserts that preparation leaves the ancestor empty and its security unchanged;
+  the [metadata fixtures](tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsCustomizationStoreTests.Metadata.cs)
+  explicitly protect their enumerated source directories. Reuse exclusive
+  restricted-directory creation; never repair an existing source's owner or ACL.
 - Reuse migration staging helpers; remove only empty later-version tables,
   never current authority records. Resolve a fresh admitted invocation for each
   grant use. Metadata-only reads must not create/edit files or publish journals.

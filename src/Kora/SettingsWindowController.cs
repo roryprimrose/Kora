@@ -184,11 +184,19 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
         viewModel.BindSessionRetentionNativeLifetime(() =>
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
+        viewModel.BindOrdinaryDeadlineNativeLifetime(() =>
+            Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
         viewModel.BindWindowsSpeechRateNativeLifetime(() =>
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
         viewModel.BindSpeechInputNativeLifetime(() =>
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
+        viewModel.BindQuietHoursNativeLifetime(() =>
+            Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
+        viewModel.BindForegroundPttNativeLifetime(() =>
+            Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
         viewModel.BindConversationalReplyNativeLifetime(() =>
+            Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
+        viewModel.BindDetailPresentationNativeLifetime(() =>
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
         viewModel.BindSpeechComponentNativeLifetime(() =>
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);

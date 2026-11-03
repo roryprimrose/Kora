@@ -1,5 +1,5 @@
 const { randomUUID } = require('node:crypto');
-const { invariant, validateState, readinessIssue, matchingRuns, requiredJobsState, terminalJobs,
+const { SHA, invariant, validateState, readinessIssue, matchingRuns, requiredJobsState, terminalJobs,
   JOB_OBSERVATION_MS, DISPATCH_OBSERVATION_MS, MERGE_CONFIRMATION_MS } = require('./policy.cjs');
 const { PROFILE, MAX_MEMBERS, CONTROL_PATH, digest, manifestFor, liveMember, ordered, gateMessage, GATE,
   BatchUpdateError } = require('./batch-policy.cjs');
@@ -91,10 +91,19 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
   }
   async function authorized(member) {
     const pr = await api.pull(member.number);
+    invariant(pr && ['open', 'closed'].includes(pr.state) && typeof pr.draft === 'boolean'
+      && typeof pr.base?.ref === 'string' && pr.base.ref.length > 0 && SHA.test(pr.head?.sha)
+      && typeof pr.head?.repo?.full_name === 'string' && pr.head.repo.full_name.length > 0
+      && (pr.auto_merge === null || ['squash', 'merge', 'rebase'].includes(pr.auto_merge?.merge_method)),
+    'Batch live source or intent metadata is unavailable; staleness is not established.');
     invariant(pr.state !== 'open' || typeof pr.mergeable === 'boolean',
       'Batch mergeability is unavailable; authority and physical quiescence remain unconfirmed.');
-    return liveMember(pr, member, api.repository, await api.enrollment(member.number),
-      await api.reviewState(member.number));
+    const enrollment = await api.enrollment(member.number);
+    const review = await api.reviewState(member.number);
+    invariant((enrollment === null || typeof enrollment === 'string' && Number.isFinite(Date.parse(enrollment)))
+      && [null, 'APPROVED', 'REVIEW_REQUIRED', 'CHANGES_REQUESTED'].includes(review),
+    'Batch enrollment or review authority is unavailable; staleness is not established.');
+    return liveMember(pr, member, api.repository, enrollment, review);
   }
   async function recoverRequired(reason) {
     active.phase = 'recovery-required';

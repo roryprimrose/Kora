@@ -370,6 +370,30 @@ test('missing evidence or failed authority reads do not invent a failure or canc
   assert.equal(api.state.active.phase, 'dispatched');
 });
 
+test('incomplete live authority metadata is not conclusive staleness and cannot cancel candidate work', async () => {
+  for (const change of ['state', 'draft', 'base', 'head', 'repository', 'intent', 'mergeability', 'enrollment', 'review']) {
+    const api = new BatchFake();
+    await step(api);
+    api.workflowRuns[0].status = 'in_progress';
+    api.workflowRuns[0].conclusion = null;
+    const pr = api.prs[0];
+    if (change === 'state') pr.state = undefined;
+    if (change === 'draft') pr.draft = undefined;
+    if (change === 'base') pr.base.ref = undefined;
+    if (change === 'head') pr.head.sha = undefined;
+    if (change === 'repository') pr.head.repo = undefined;
+    if (change === 'intent') pr.auto_merge = undefined;
+    if (change === 'mergeability') pr.mergeable = null;
+    if (change === 'enrollment') pr.enrollment = undefined;
+    if (change === 'review') pr.review = undefined;
+    await assert.rejects(step(api), /unavailable/, change);
+    assert.equal(api.state.active.phase, 'dispatched', change);
+    assert.equal(count(api, 'cancel'), 0, change);
+    assert.equal(count(api, 'merge'), 0, change);
+    assert.equal(count(api, 'dispatch'), 1, change);
+  }
+});
+
 test('cancellation and continuation errors preserve the doomed checkpoint and never release or redispatch its lane', async () => {
   for (const boundary of ['cancel', 'wake']) {
     const api = new BatchFake();

@@ -70,6 +70,8 @@ The existing [viewer controller](../src/Kora/DetailWindowController.cs) renders 
 
 Exact storage/session/source/private/control/owner checks run at resolution and final publication. Only explicitly opened records receive bounded passive source revalidation. Selection/source loss, session disposition/retention, privacy and disposal revoke content/search and fence delayed publication. Retained Done stays Done without Resume or meaningful activity renewal.
 
+An explicit conversation refresh that fails with an unavailable or changed exact source retires that session's open conversation Details, selected text and Find state before returning, rather than waiting for periodic reader revalidation. It preserves independent unsent input and retained records; recovery requires a fresh explicit read/open. A pending or successful unchanged refresh alone does not retire the reader or its Find/selection.
+
 This route grants no clipboard/export authority: exact-source, selection and automatic copy remain blocked by [viewer state policy](../src/Kora.Application/Presentation/DetailViewerState.cs), including keyboard/programmatic paths. Existing document/history/web copy policy is unchanged. No model, tool, provider, egress, generated content, auto-offer or broader runtime/hardware/accessibility qualification is delivered.
 
 ### Native admitted-text literal Find

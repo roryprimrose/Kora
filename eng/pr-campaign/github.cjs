@@ -247,10 +247,14 @@ class Reader {
     for (const status of ['in_progress', 'queued', 'waiting', 'pending', 'requested']) {
       for (const run of await this.pages(this.repo(`actions/workflows/merge-queue.yml/runs?status=${status}`),
         'workflow_runs')) {
-        boundary(id(run.id) && SHA.test(run.head_sha) && run.head_branch === 'main', 'controller run identity');
-        controllers.push({ id: run.id, url: safeUrl(run.html_url, this.repository), status: run.status });
+        boundary(id(run.id) && SHA.test(run.head_sha) && typeof run.head_branch === 'string'
+          && ['pull_request_target', 'push', 'workflow_run', 'schedule', 'workflow_dispatch'].includes(run.event)
+          && run.status === status, 'controller trigger/run identity');
+        controllers.push({ id: run.id, url: safeUrl(run.html_url, this.repository), status: run.status,
+          triggerHead: run.head_sha, event: run.event });
       }
     }
+    boundary(new Set(controllers.map(run => run.id)).size === controllers.length, 'stable controller pagination');
     controllers.sort((a, b) => (a.status === 'in_progress' ? 0 : 1) - (b.status === 'in_progress' ? 0 : 1) || a.id - b.id);
     await this.command('git', ['fetch', '--no-tags', 'origin', 'refs/heads/main']);
     const main = await this.command('git', ['rev-parse', 'FETCH_HEAD']);

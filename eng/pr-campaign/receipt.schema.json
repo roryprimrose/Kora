@@ -134,7 +134,11 @@
           "properties": {
             "kind": { "enum": ["candidate", "controller-handoff", "tip-qualification"] },
             "run": { "$ref": "#/$defs/id" },
-            "url": { "$ref": "#/$defs/url" }
+            "url": { "$ref": "#/$defs/url" },
+            "triggerHead": { "$ref": "#/$defs/sha" },
+            "event": { "enum": ["pull_request_target", "push", "workflow_run", "schedule", "workflow_dispatch"] },
+            "status": { "$ref": "#/$defs/status" },
+            "classification": { "const": "trigger-context-not-validation-source" }
           }
         }
       ]

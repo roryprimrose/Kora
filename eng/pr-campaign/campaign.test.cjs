@@ -238,6 +238,14 @@ test('unknown/corrupt previous schema, owner, principal, targets, proof and refe
   previous.principal = 'other';
   assert.throws(() => supersede(evaluate(receipt(), snapshot()), previous), /principal/);
 });
+test('changed observer source or bytes explicitly supersede old validation identity', () => {
+  const previous = evaluate(receipt(), snapshot());
+  const current = evaluate(receipt(), snapshot());
+  current.observer.source = MERGE;
+  current.observer.digest = 'f'.repeat(64);
+  const result = supersede(current, previous);
+  assert.deepEqual(result.superseded[0].changes, ['observer.source', 'observer.digest']);
+});
 test('CLI requires explicit unique fixed targets, rejects unknown switches and bounds watch', () => {
   const args = ['--repository', REPO, '--prs', '2,1', '--owner', 'delivery-1', '--output', '.scratch\\campaign'];
   assert.deepEqual(parseArgs(args).campaign.targets, [1, 2]);
@@ -433,6 +441,18 @@ test('exact current-ticket run is read by identity and attempt, not latest unrel
   assert.equal(result.candidate.id, 10);
   assert.equal(result.candidate.source, HEAD);
   assert.ok(fixture.calls.some(call => call.args.some(arg => arg.includes('/attempts/1/jobs?'))));
+});
+test('PR-triggered controller handoff preserves trigger head without claiming it is tested workflow source', async () => {
+  const fixture = fakeCli({ transform: (endpoint, result) => endpoint.includes('merge-queue.yml/runs?status=pending')
+    ? { total_count: 1, workflow_runs: [run({ id: 44, head_sha: HEAD, head_branch: 'feature',
+      status: 'pending', conclusion: null, event: 'pull_request_target', html_url: `${URL}/actions/runs/44` })] }
+    : result });
+  const data = await fixture.reader.snapshot(campaign(), 'publisher');
+  const result = evaluate(receipt(), data);
+  assert.equal(result.following.run, 44);
+  assert.equal(result.following.triggerHead, HEAD);
+  assert.equal(result.following.classification, 'trigger-context-not-validation-source');
+  assert.equal(result.pulls[0].proofKind, 'none');
 });
 test('Git ancestry exit 1 differs from fatal Git/transport failure', async () => {
   const data = snapshot();

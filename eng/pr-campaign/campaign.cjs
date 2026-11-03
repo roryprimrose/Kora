@@ -224,7 +224,9 @@ function evaluate(receipt, snapshot) {
     receipt.blockers.push(problem('main-moved-before-qualification'));
   receipt.following = candidateCurrent && candidate && candidate.status !== 'completed'
     ? { kind: 'candidate', run: candidate.id, url: candidate.url }
-    : controllers.length ? { kind: 'controller-handoff', run: controllers[0].id, url: controllers[0].url }
+    : controllers.length ? { kind: 'controller-handoff', run: controllers[0].id, url: controllers[0].url,
+      triggerHead: controllers[0].triggerHead, event: controllers[0].event, status: controllers[0].status,
+      classification: 'trigger-context-not-validation-source' }
       : !qualified && !active && duplicates.find(run => run.status !== 'completed')
         ? { kind: 'tip-qualification', run: duplicates.find(run => run.status !== 'completed').id,
           url: duplicates.find(run => run.status !== 'completed').url } : null;
@@ -295,9 +297,11 @@ function supersede(receipt, previous) {
   boundary(!previous.principal || !receipt.principal || previous.principal === receipt.principal,
     'recorded receipt principal');
   const previousId = digest(previous);
-  if (previous.observer.digest !== receipt.observer.digest)
+  const observerChanges = ['source', 'digest'].filter(key => previous.observer[key] !== receipt.observer[key]);
+  if (observerChanges.length)
     receipt.superseded.push({ previousReceipt: previousId, target: null,
-      classification: 'superseded-observer-validation-not-history-deletion', changes: ['observer.digest'] });
+      classification: 'superseded-observer-validation-not-history-deletion',
+      changes: observerChanges.map(key => `observer.${key}`) });
   for (const pull of receipt.pulls) {
     const old = previous.pulls.find(item => item.number === pull.number);
     if (!old) continue;

@@ -86,7 +86,8 @@ public sealed partial class ModelTurnHostTests
         observed.Should().ContainSingle().Which.Text.Should().Contain("value 42");
         broker.Methods.Should().Equal("initialize", "tools/list", "tools/call");
         broker.Disposed.Should().BeTrue();
-        approval.Stages.Should().Equal(McpReviewStage.Connection, McpReviewStage.ToolSelection, McpReviewStage.Invocation);
+        approval.Stages.Should().Equal(McpReviewStage.Connection, McpReviewStage.ToolSelection, McpReviewStage.Invocation,
+            McpReviewStage.ResultContinuation);
         approval.LastReview!.Arguments.Should().Be(arguments);
         approval.LastReview.Skill!.ArgumentsDigest.Should().Be(Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(arguments))));
         broker.InvocationArguments.Should().Be(arguments, "native approval and outgoing bytes must not be normalized");
@@ -122,7 +123,7 @@ public sealed partial class ModelTurnHostTests
         f.TrackPendingRecords = true;
         f.PendingRecords[receipt.Message.Request.RequestId] = receipt;
         var observation = new McpResultObservation(new(f.Session, null), receipt.Message.Request, observed[0],
-            approval.LastProposal!, approval.LastReview!, f.Session.Generation, f.ControlRevision, source.ServerId,
+            approval.InvocationProposal!, approval.InvocationReview!, f.Session.Generation, f.ControlRevision, source.ServerId,
             "Reference server", new(root.Activity!.Context), sourceValidation, review.ExpiresAt, receipt);
         var wrongRequest = HostRequest.Create(origin);
         foreach (var corrupted in new[]
@@ -367,7 +368,8 @@ public sealed partial class ModelTurnHostTests
             ModelToolProtocol.SerializeRequest(model.Requests[0]).Length.Should().BeLessThanOrEqualTo(32768);
             approval.LastReview!.Skill!.ArgumentsDigest.Should().Be(binding.Review.ArgumentsDigest);
             broker.Methods.Should().Equal("initialize", "tools/list", "tools/call");
-            approval.Stages.Should().Equal(McpReviewStage.Connection, McpReviewStage.ToolSelection, McpReviewStage.Invocation);
+            approval.Stages.Should().Equal(McpReviewStage.Connection, McpReviewStage.ToolSelection, McpReviewStage.Invocation,
+                McpReviewStage.ResultContinuation);
             broker.Disposed.Should().BeTrue();
             return;
         }
@@ -806,7 +808,7 @@ public sealed partial class ModelTurnHostTests
         var receipt = await service.SubmitMcpAsync(new(f.Session, null), "Review reference", source.ServerId, source.Account,
             Present, Select, static () => true, Token);
         receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
-        callbacks.Should().HaveCount(4).And.OnlyContain(callback => !callback());
+        callbacks.Should().HaveCount(5).And.OnlyContain(callback => !callback());
         broker.Methods.Count(method => string.Equals(method, "tools/call", StringComparison.Ordinal)).Should().Be(1);
     }
 }

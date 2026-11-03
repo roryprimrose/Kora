@@ -9,7 +9,9 @@ The [CLI](cli.cjs) observes a caller-owned, fixed explicit list of PRs. It does 
 
 Campaign ownership is an explicit caller-supplied delivery ID, separate from the authenticated repository CLI principal and PR authors. `--expected-principal` optionally pins that principal; a previous receipt also pins its recorded principal. No contributor is a shared default. The HTTPS origin and authenticated repository read access must agree with `--repository` ([preflight](github.cjs)).
 
-The controller remains the sole admission policy owner. This tool reuses its [state/job/ticket policy](../merge-queue/policy.cjs) and [batch contract](../merge-queue/batch-policy.cjs), not a copy of the scratch backlog watcher or another merge controller. It neither installs itself nor continues after its process/host exits. A runtime observer **cannot prevent, recall or alter delivery of older host chat messages**; receipt comparisons classify their old observations, not the host message itself ([supersession](campaign.cjs)).
+The controller remains the sole admission policy owner. This tool reuses its [state/job/ticket policy](../merge-queue/policy.cjs) and [batch contract](../merge-queue/batch-policy.cjs), not a copy of the scratch backlog watcher or another merge controller. It neither installs itself nor continues after its process/host exits.
+
+A runtime observer **cannot prevent, recall or alter delivery of older host chat messages**; receipt comparisons classify their old observations, not the host message itself ([supersession](campaign.cjs)).
 
 ## Commands
 
@@ -28,7 +30,9 @@ node .\eng\pr-campaign\cli.cjs --repository OWNER/REPO --prs 12,34 --owner deliv
 
 Limits are 100 unique targets, 1,000 observations, 86,400 total seconds, 300 seconds per command, 3,600 seconds between observations and 1,000 records per paginated boundary. Hitting a limit never proves completion. Defaults are one observation, 120 total seconds, 20 per command and 30 between observations ([argument validation](cli.cjs), [pagination](github.cjs)).
 
-Each completed observation creates a **new immutable** JSON file, prints its path and SHA-256 receipt ID to stderr, emits one machine-readable JSON line to stdout and prints a concise progress line to stderr. There is no mutable latest receipt and no automatic history deletion. An I/O/startup/invalid-previous-receipt failure returns nonzero and explicitly retains existing files; it never reinterprets an old file as current success ([persistence](cli.cjs)).
+Each completed observation creates a **new immutable** JSON file, prints its path and SHA-256 receipt ID to stderr, emits one machine-readable JSON line to stdout and prints a concise progress line to stderr. There is no mutable latest receipt and no automatic history deletion ([persistence](cli.cjs)).
+
+An I/O/startup/invalid-previous-receipt failure returns nonzero and explicitly retains existing files; it never reinterprets an old file as current success ([persistence](cli.cjs)).
 
 | Exit | Meaning |
 |---|---|
@@ -43,11 +47,15 @@ These are [implemented exit meanings](cli.cjs); authoritative merge evidence is 
 
 - **Fixed targets:** the GraphQL query names every requested PR. Null/missing PRs, GraphQL errors (even with partial data), missing fields, missing label pages, inconsistent/duplicate REST pages or API/auth errors fail closed. Active batch members may be read as context to detect source changes; they are never added to campaign ownership ([collector](github.cjs)).
 - **Revision:** queue state is read at a pinned ref commit and verified blob digest. PR metadata and the queue ref are re-read after fresh-main fetch/ancestry checks. Any intervening change invalidates that observation, rather than producing a mixed-revision receipt ([snapshot](github.cjs)).
-- **Source and runs:** candidate ticket/title, trusted workflow source, first attempt, exact run ID, each job's run/attempt/source, workflow blob and maintained job inventory remain distinct. Combined-batch proof is explicitly `combined-batch-not-solo-head`; original and admitted branch-update heads are retained separately. Missing/skipped/waiting jobs are not successful producer evidence ([classifier](campaign.cjs)).
-- **Qualification:** a durable completed-tip `{run, job, source}` is checked against that exact successful first-attempt ordinary-main run and qualification join. Other runs at the same SHA are retained as non-authoritative duplicates, not selected instead of the controller handoff. A failed duplicate is **not** diagnosed as a benign publication-guard failure from job names alone; the receipt says `publication-guard-cause-unconfirmed` ([qualification evaluation](campaign.cjs)).
-- **Controller context:** PR-triggered controller runs can expose a PR head in their trigger metadata while the [maintained workflow](../../.github/workflows/merge-queue.yml) separately checks out main. Handoff metadata labels this as `triggerHead` and `trigger-context-not-validation-source`, never tested source or merge proof ([collector](github.cjs)).
+- **Source and runs:** candidate ticket/title, trusted workflow source, first attempt, exact run ID, each job's run/attempt/source, workflow blob and maintained job inventory remain distinct.
+  Combined-batch proof is explicitly `combined-batch-not-solo-head`; original and admitted branch-update heads are retained separately. Missing/skipped/waiting jobs are not successful producer evidence ([classifier](campaign.cjs)).
+- **Qualification:** a durable completed-tip `{run, job, source}` is checked against that exact successful first-attempt ordinary-main run and qualification join.
+  Other runs at the same SHA are retained as non-authoritative duplicates, not selected instead of the controller handoff. A failed duplicate is **not** diagnosed as a benign publication-guard failure from job names alone; the receipt says `publication-guard-cause-unconfirmed` ([qualification evaluation](campaign.cjs)).
+- **Controller context:** while an exact candidate is nonterminal, it is followed without querying unconsumed controller lists. At handoff, complete controller lists are required.
+  PR-triggered runs can expose a PR trigger head while the [workflow](../../.github/workflows/merge-queue.yml) separately checks out main; `triggerHead` is `trigger-context-not-validation-source`, not merge proof ([collector](github.cjs)).
 - **Transport:** a nonzero read CLI result may be reconciled once by a new successful read of the **same endpoint/query**. Auth denial, timeout, cancellation, invalid/partial JSON or a failed second read remain failures. No `gh run watch` exit or log phrase clears producer failure. Error output/logs/HTML are not dumped into receipts ([transport](github.cjs)).
-- **Blockers:** closed-unmerged, conflict, reviews, invalid enrollment/priority, exact blocked revision, recovery, changed source, actual required producer failure, other workflow failure, incomplete jobs, unknown metadata and unqualified main movement have explicit codes/actions. Timeout is not failure of an actual producer; green CI/enrollment is not merge completion ([problem codes](campaign.cjs)).
+- **Blockers:** closed-unmerged, conflict, reviews, invalid enrollment/priority, exact blocked revision, recovery, changed source, actual required producer failure, other workflow failure, incomplete jobs, unknown metadata and unqualified main movement have explicit codes/actions.
+  Timeout is not failure of an actual producer; green CI/enrollment is not merge completion ([problem codes](campaign.cjs)).
 
 ## Previous observations and schema
 
@@ -57,11 +65,15 @@ Pass an explicitly retained receipt from the **same repository, target set, owne
 node .\eng\pr-campaign\cli.cjs --repository OWNER/REPO --prs 12,34 --owner delivery-2026-11 --output .scratch\pr-campaign\delivery-2026-11 --previous .scratch\pr-campaign\delivery-2026-11\receipt-PREVIOUS.json
 ```
 
-The [versioned machine schema](receipt.schema.json) describes `kora-pr-campaign-v1`. Receipts bind the observer's Git source and code digest, authenticated principal, queue commit/blob, freshly fetched main, each PR/head/ticket/source, exact run/attempt/job/inventory and qualification identity. No credentials, titles, PR bodies, review text, raw logs or arbitrary server error content are persisted ([receipt construction](campaign.cjs), [metadata projection](github.cjs)).
+The [versioned machine schema](receipt.schema.json) describes `kora-pr-campaign-v1`. Receipts bind the observer's Git source and code digest, authenticated principal, queue commit/blob, freshly fetched main, each PR/head/ticket/source, exact run/attempt/job/inventory and qualification identity ([receipt construction](campaign.cjs)).
+
+No credentials, titles, PR bodies, review text, raw logs or arbitrary server error content are persisted ([metadata projection](github.cjs)).
 
 The [synthetic merge receipt example](receipt.example.json) is a format fixture, not evidence about an actual repository or permission to write one. Its merge SHA differs from fetched main to demonstrate reachability rather than tip equality ([example regression](campaign.test.cjs)).
 
-Changed head/ticket/enrollment/source or observer code produces explicit `superseded` entries with the prior receipt digest and old/current identities. Completed-tip context changes are also classified. The previous file is never edited; no terminal success or failure is copied into current authority. Receipts are local evidence, **not signed attestations, queue authority, or permission to write GitHub** ([comparison](campaign.cjs)).
+Changed head/ticket/enrollment/source or observer code produces explicit `superseded` entries with the prior receipt digest and old/current identities. Completed-tip context changes are also classified. The previous file is never edited; no terminal success or failure is copied into current authority ([comparison](campaign.cjs)).
+
+Receipts are local evidence, **not signed attestations, queue authority, or permission to write GitHub** ([comparison](campaign.cjs)).
 
 ## Deterministic validation
 

@@ -244,14 +244,16 @@ class Reader {
       }
     }
     const controllers = [];
-    for (const status of ['in_progress', 'queued', 'waiting', 'pending', 'requested']) {
-      for (const run of await this.pages(this.repo(`actions/workflows/merge-queue.yml/runs?status=${status}`),
-        'workflow_runs')) {
-        boundary(id(run.id) && SHA.test(run.head_sha) && typeof run.head_branch === 'string'
-          && ['pull_request_target', 'push', 'workflow_run', 'schedule', 'workflow_dispatch'].includes(run.event)
-          && run.status === status, 'controller trigger/run identity');
-        controllers.push({ id: run.id, url: safeUrl(run.html_url, this.repository), status: run.status,
-          triggerHead: run.head_sha, event: run.event });
+    if (!candidate || candidate.status === 'completed') {
+      for (const status of ['in_progress', 'queued', 'waiting', 'pending', 'requested']) {
+        for (const run of await this.pages(this.repo(`actions/workflows/merge-queue.yml/runs?status=${status}`),
+          'workflow_runs')) {
+          boundary(id(run.id) && SHA.test(run.head_sha) && typeof run.head_branch === 'string'
+            && ['pull_request_target', 'push', 'workflow_run', 'schedule', 'workflow_dispatch'].includes(run.event)
+            && run.status === status, 'controller trigger/run identity');
+          controllers.push({ id: run.id, url: safeUrl(run.html_url, this.repository), status: run.status,
+            triggerHead: run.head_sha, event: run.event });
+        }
       }
     }
     boundary(new Set(controllers.map(run => run.id)).size === controllers.length, 'stable controller pagination');

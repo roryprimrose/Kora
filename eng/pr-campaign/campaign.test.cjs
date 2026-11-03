@@ -454,6 +454,21 @@ test('PR-triggered controller handoff preserves trigger head without claiming it
   assert.equal(result.following.classification, 'trigger-context-not-validation-source');
   assert.equal(result.pulls[0].proofKind, 'none');
 });
+test('active exact candidate observation does not query unconsumed controller listings', async () => {
+  const data = snapshot();
+  data.state.active = { number: 1, head: HEAD, base: BASE, ticket: TICKET, phase: 'dispatched',
+    dispatchRecorded: true, created: NOW, enrollment: NOW, checks: {} };
+  const item = run({ status: 'in_progress', conclusion: null, display_title: title(data.state.active) });
+  const fixture = fakeCli({ data, transform: (endpoint, result) => {
+    assert.ok(!endpoint.includes('merge-queue.yml/runs?'), 'controller listing is not consumed before handoff');
+    if (endpoint.includes('/ci.yml/runs?')) return { total_count: 1, workflow_runs: [item] };
+    if (endpoint.endsWith('/actions/runs/10')) return item;
+    return result;
+  } });
+  const observed = await fixture.reader.snapshot(campaign(), 'publisher');
+  assert.equal(evaluate(receipt(), observed).following.kind, 'candidate');
+  assert.equal(observed.controllers.length, 0);
+});
 test('malformed current or retained App ticket identity is not silently treated as historical evidence', async () => {
   const check = { id: 44, app: { id: 42 }, name: GATE, head_sha: HEAD, status: 'completed',
     conclusion: 'failure', external_id: '-'.repeat(36), html_url: `${URL}/runs/44` };

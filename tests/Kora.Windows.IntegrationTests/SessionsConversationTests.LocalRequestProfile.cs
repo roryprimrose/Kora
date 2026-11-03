@@ -15,6 +15,73 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class SessionsConversationTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NativeHostedRequestProfileUsesSharedPickerAndSeparateEgressWithoutChangingDefaults(bool changeService)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            var runtime = new CopilotConversationRuntime();
+            await using var composed = new Composition(f, copilot: runtime, localRequestCatalogue: new CopilotCatalogue(f));
+            var model = composed.Model;
+            var window = new SessionsWindow(model);
+            window.Show();
+            try
+            {
+                await model.RefreshAsync();
+                await model.SelectAsync(model.Sessions.Single());
+                await model.RefreshProviders();
+                var previous = await f.Store.ReadProviderProfile(f.Request.SessionId, f.Token);
+                var preferences = new Kora.Application.Configuration.LocalProviderProfilePreferences(f.Paths);
+                var app = preferences.Load()!.Serialize();
+                model.ComposerBody = "Exact native hosted request";
+                window.FindControl<ComboBox>("RequestProfileService")!.SelectedItem = ProviderService.Copilot;
+                model.RequestProfileService.Should().Be(ProviderService.Copilot);
+                model.LocalRequestModel = model.LocalRequestModels.Single();
+                model.LocalRequestReasoning = model.LocalRequestReasonings.Single();
+                model.LocalRequestContext = model.LocalRequestContexts.Single();
+                await model.ReviewLocalRequestProfileAsync();
+                model.CanConfirmLocalRequestProfile.Should().BeTrue(model.ConversationStatus);
+                model.LocalRequestProfileText.Should().Contain("Copilot").And.Contain("Exact native hosted request")
+                    .And.Contain("separate native approval");
+                runtime.Sends.Should().Be(0);
+                var captured = model.CaptureLocalRequestProfileDecision(true);
+                composed.Reviews.Offered += offered =>
+                {
+                    runtime.Sends.Should().Be(0);
+                    offered.Transmission.Profile.Should().Be(CopilotCatalogue.Profile);
+                    using var presentation = offered.Presentation();
+                    composed.Reviews.Confirm(offered, true, RequestOrigin.LocalUi).Should().BeTrue();
+                };
+                if (changeService) { model.RequestProfileService = ProviderService.Claude; }
+                await captured();
+                runtime.Sends.Should().Be(changeService ? 0 : 1);
+                if (changeService)
+                {
+                    f.Count("conversation_messages").Should().Be(0);
+                    model.ComposerBody.Should().Be("Exact native hosted request");
+                    model.LocalRequestModel.Should().BeNull();
+                    model.LocalRequestModels.Should().BeEmpty();
+                }
+                else
+                {
+                    model.ConversationMessages.Single().AssistantResponse!.Body.Should().Be("genuine hosted boundary answer");
+                    model.ComposerBody.Should().BeEmpty();
+                }
+                var after = await f.Store.ReadProviderProfile(f.Request.SessionId, f.Token);
+                after.Revision.Should().Be(previous.Revision);
+                after.Desired.Serialize().Should().Be(previous.Desired.Serialize());
+                preferences.Load()!.Serialize().Should().Be(app);
+                f.Count("scoped_grants").Should().Be(0);
+            }
+            finally { window.ClosePrivate(); }
+        });
+    }
+
+    [Theory]
     [InlineData("confirm")]
     [InlineData("cancel")]
     [InlineData("input")]

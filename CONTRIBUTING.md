@@ -88,6 +88,24 @@ even when the gate fails. Non-destructive Windows integration tests are not
 physical audio, provider or installed acceptance; CI must never lock or restart
 its runner.
 
+The existing [version job](.github/workflows/ci.yml) is also the exact-source
+early preflight barrier: scheduling contracts, static source-tool policy,
+locked dependency/tool restore and the complete dependency license/notice
+check must succeed before portable, payload, Windows or installer work fans
+out. No build, broad test suite or coverage collection is serialized there.
+The [preflight regressions](eng/Test-CiPreflight.ps1) exercise failure,
+cancellation, skipped/missing evidence and wrong-source rejection; run
+`.\eng\Test-CiPreflight.ps1` after changing this ordering.
+
+Payload production downloads the immutable license audit from the same
+workflow run, named for the admitted revision, and verifies its source receipt
+before publishing bytes. It does not import another run's evidence or rescan
+the same dependency graph. Complete portable coverage, Windows discovery and
+partition evidence, payload inspection, installer validation and actual-tip
+qualification/publication remain downstream requirements; the
+[workflow inventory regressions](eng/merge-queue/workflows.test.cjs) preserve
+current and predecessor job identities.
+
 The [installed SAPI stream fixture](tests/Kora.Windows.IntegrationTests/Audio/BlockingAudioStreamTests.cs) owns recognizer construction through completion and disposal on a thread-pool task, independent of the caller's synchronization context. Its regression withholds caller-context callbacks while retaining the five-second completion budget, real stream-consumption assertion and error/cancellation checks.
 This fixture correction does not qualify installed recognizer latency or enable a runtime capability.
 

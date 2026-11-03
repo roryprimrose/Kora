@@ -62,6 +62,8 @@ internal sealed partial class SessionsViewModel
     }
     public bool CanReviewLocalRequestProfile => CanSubmitConversation && !assistantReply && CanReviewProviders
         && localRequestModel is not null && localRequestReasoning is not null && localRequestContext is not null;
+    public bool CanReviewFailedLocalProfile => CanReviewFailedRetry && CanReviewProviders && requestProfileService == ProviderService.Local
+        && localRequestModel is not null && localRequestReasoning is not null && localRequestContext is not null;
     public bool CanConfirmLocalRequestProfile => CanCompose && localRequestReview is not null;
     public string LocalRequestProfileText => !closed && access.CanInspect && localRequestReview is { } review
         ? "This request only - " + review.LocalRequestProfile!.Service + ". No session or app preference write.\nConversation: "
@@ -70,14 +72,25 @@ internal sealed partial class SessionsViewModel
             + "\nGeneration: " + review.Target.Authority.Generation.Value
             + "\nComplete profile: " + review.LocalRequestProfile
             + "\nOriginal channel: " + review.Origin + "\nExpires UTC: " + review.ExpiresAt.ToString("O")
+            + (review.FailedSource is { } source
+                ? "\nNEW LOCAL attempt from the selected confirmed failure. Original provider: " + source.Provider.Provider
+                    + " | original model revision: " + source.Provider.Revision.Value
+                    + "\nOriginal failure and unrelated unsent input remain unchanged. No replay or hosted send."
+                : string.Empty)
             + "\nComplete unchanged input:\n" + review.Body
             + "\nConfirm separately once, or Cancel without submission. Local instruction-scope review still applies. "
             + "Hosted processing requires separate native approval of each exact physical send; this review grants no egress, authentication or readiness."
         : "Choose a service and all three currently advertised values after Refresh providers. Unavailable catalogue/runtime stays unavailable. No default choices or fallback.";
 
-    public Task ReviewLocalRequestProfileAsync() => RunConversationAsync(async (target, live) =>
+    public Task ReviewLocalRequestProfileAsync() => ReviewLocalRequestProfileAsync(false);
+
+    public Task ReviewFailedLocalProfileAsync() => ReviewLocalRequestProfileAsync(true);
+
+    private Task ReviewLocalRequestProfileAsync(bool failed) => RunConversationAsync(async (target, live) =>
     {
         CancelLocalRequestProfile();
+        if (failed && requestProfileService != ProviderService.Local)
+        { throw new InvalidOperationException("Selected-failure recovery requires an explicitly reviewed LOCAL profile. Nothing was submitted."); }
         var draft = providerDraft ?? throw new InvalidOperationException("Refresh providers for this exact Active session.");
         if (!RequestProfileServices.Contains(requestProfileService))
         { throw new InvalidOperationException("Choose an existing Local, Copilot or Claude request route."); }
@@ -87,17 +100,25 @@ internal sealed partial class SessionsViewModel
             || localRequestReasoning is not { } reasoning || !model.Reasoning.Any(item => ReferenceEquals(item, reasoning))
             || localRequestContext is not { } context || !model.Context.Any(item => ReferenceEquals(item, context)))
         { throw new InvalidOperationException("Explicitly select one complete currently advertised tuple. Nothing was submitted."); }
-        var body = composerBody;
+        var source = failed ? selectedAnswerRecord
+            ?? throw new InvalidOperationException("Select one exact confirmed failed USER request.") : null;
+        if (source is not null && !ConversationMessages.Any(item => ReferenceEquals(item, source)))
+        { throw new InvalidOperationException("The failed source is no longer observed. Read the exact conversation again."); }
+        var selection = Interlocked.Read(ref answerSelectionRevision);
+        var body = source?.Body ?? composerBody;
         var buffer = composerBufferRevision;
         var proposal = localRequestEpoch;
         var providersRevision = providerReviewRevision;
         bool SourceLive() => live() && access.CanControl && providerSurfaceOpen && localRequestEpoch == proposal
-            && composerBufferRevision == buffer && providerReviewRevision == providersRevision;
+            && (source is null ? composerBufferRevision == buffer
+                : selection == Interlocked.Read(ref answerSelectionRevision) && ReferenceEquals(source, selectedAnswerRecord))
+            && providerReviewRevision == providersRevision;
         localRequestCommands ??= conversation!.CreateRequestCommands();
         var result = await localRequestCommands.ExecuteAsync(new(SessionCommandOperation.RequestReview,
             target.Authority.SessionId.Value, target.Authority.Generation.Value, target.Metadata?.Revision.Value ?? 0)
         {
-            RequestBody = body,
+            RequestBody = source is null ? body : null,
+            RequestFailedMessage = source,
             RequestLocalProfile = new(requestProfileService, current.Account!, current.Revision, model.Id, reasoning.Id, context.Id),
         }, RequestOrigin.LocalUi, SourceLive, lifetime.Token);
         if (!SourceLive()) { throw new OperationCanceledException("The original input, selection or tuple changed."); }
@@ -129,12 +150,15 @@ internal sealed partial class SessionsViewModel
             review.Target.Authority.SessionId.Value) { RequestReviewId = review.Id },
             RequestOrigin.LocalUi, () => !closed && access.CanInspect && access.CanControl, lifetime.Token);
         var receipt = result.RequestSubmission!;
-        PublishConversationCompletion(receipt.Message);
-        if (string.Equals(composerBody, review.Body, StringComparison.Ordinal))
+        if (receipt.Message.Outcome is not null) { PublishConversationCompletion(receipt.Message); }
+        if (review.FailedSource is null && string.Equals(composerBody, review.Body, StringComparison.Ordinal))
         { composerBody = string.Empty; Interlocked.Increment(ref composerBufferRevision); }
-        conversationStatus = "This request only: HOST " + receipt.Message.Outcome + " / " + receipt.Message.Reason
-            + " | task " + receipt.Task.State
-            + (receipt.Message.AssistantResponse is null ? ". No answer retained." : ". Genuine ASSISTANT answer retained.")
+        conversationStatus = (receipt.Message.Outcome is null
+            ? "This request only: accepted in the existing queue; inspect pending work. No answer retained."
+            : "This request only: HOST " + receipt.Message.Outcome + " / " + receipt.Message.Reason
+                + " | task " + receipt.Task.State
+                + (receipt.Message.AssistantResponse is null ? ". No answer retained." : ". Genuine ASSISTANT answer retained."))
+            + (review.FailedSource is null ? string.Empty : " Original failure and unrelated unsent input unchanged.")
             + " Session/app preferences unchanged; subsequent requests inherit normally. No fallback or automatic retry.";
     }, submission: true);
 
@@ -151,7 +175,7 @@ internal sealed partial class SessionsViewModel
         foreach (var name in new[] { nameof(LocalRequestModels), nameof(LocalRequestModel), nameof(LocalRequestReasonings),
             nameof(LocalRequestContexts), nameof(LocalRequestReasoning), nameof(LocalRequestContext),
             nameof(RequestProfileService),
-            nameof(CanReviewLocalRequestProfile), nameof(CanConfirmLocalRequestProfile), nameof(LocalRequestProfileText) })
+            nameof(CanReviewLocalRequestProfile), nameof(CanReviewFailedLocalProfile), nameof(CanConfirmLocalRequestProfile), nameof(LocalRequestProfileText) })
         { OnPropertyChanged(name); }
     }
 }

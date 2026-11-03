@@ -175,6 +175,30 @@ saves it to disk, and no tools/effects are replayed automatically.
 Retained voice content also cannot acquire fresh activated-voice authority from
 a native button: a retry review needs current admission of the original channel.
 
+### Review a confirmed failure with an alternate local profile
+
+After **Read conversation**, select one confirmed failed USER request.
+**Refresh providers**, explicitly choose all three advertised
+**This request only - LOCAL** values, then choose
+**Review selected failure with this LOCAL profile**. Review the unchanged failed
+input, original provider/channel, exact conversation, complete new local tuple
+and expiry ([native review](../src/Kora/SessionsViewModel.LocalRequestProfile.cs)).
+
+**Confirm this request only once** submits one fresh local attempt through ordinary
+queue and model admission; it does not replay or reset the old task.
+**Cancel this request-only review** submits nothing. Original failure and unrelated
+unsent input remain unchanged, even when the original provider is no longer
+available. Held queues still require their existing separate **Resume**
+([host route](../src/Kora.Application/Hosting/SessionConversationService.FailedRetry.cs)).
+
+The selected local tuple must remain advertised and admitted. Missing qualification
+returns a truthful HOST/task Unavailable without an answer or provider call.
+Source/task, selection, profile/account, session, expiry and private authority remain
+live fences; cancellation retains ownership until physical work joins. Existing
+instruction-scope review remains required. No preference write, acquisition, new
+hosted channel, fallback or renewed voice authority is added
+([admission](../src/Kora.Application/Dependencies/ModelTurnHost.LocalRequestProfile.cs)).
+
 ### Review expired local text as a new ordinary request
 
 In expanded **Sessions**, choose **Read exact conversation**, select the original

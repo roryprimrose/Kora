@@ -1,4 +1,7 @@
+using Avalonia.Controls;
 using Avalonia.Headless;
+
+using AwesomeAssertions;
 
 using Xunit;
 
@@ -14,6 +17,16 @@ internal static class HeadlessSession
         HeadlessUnitTestSession.GetOrStartForAssembly(typeof(HeadlessSession).Assembly);
 
     internal static Task RunAsync(Action action) => RunAsync(() => { action(); return Task.CompletedTask; });
+
+    internal static void SetActivation(Window window, bool active)
+    {
+        // Drive the native callback; headless activation has no OS focus acknowledgement.
+        var callback = typeof(Avalonia.Platform.IWindowBaseImpl).GetProperty(active ? "Activated" : "Deactivated",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+        callback.Should().NotBeNull();
+        callback!.GetValue(window.PlatformImpl).Should().BeOfType<Action>().Which.Invoke();
+        window.IsActive.Should().Be(active);
+    }
 
     internal static Task RunAsync(Func<Task> action)
     {

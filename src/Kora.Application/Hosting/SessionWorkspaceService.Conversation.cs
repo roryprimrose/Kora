@@ -73,7 +73,7 @@ public sealed partial class SessionWorkspaceService
             if (assistant && observation is not null || submittedContext && (assistant || observation is not null))
             { throw new InvalidOperationException("Choose one exact retained source, not a combined source."); }
             var availability = submittedContext && actual.SubmittedContext is not null
-                ? await Conversations.ReadSubmittedHistoryAvailabilityAsync(actual, token).ConfigureAwait(false)
+                ? await Conversations.ReadSubmittedContextAvailabilityAsync(actual, token).ConfigureAwait(false)
                 : default;
             var content = new AdmittedDetailContent(submittedContext ? AnswerContextInspection.Reference(actual, availability)
                     : new(new(observation?.Id ?? answer?.Provenance.Turn.Value ?? actual.Request.RequestId.Value), actual.Revision),
@@ -94,7 +94,7 @@ public sealed partial class SessionWorkspaceService
             var final = await Conversations.ReadConversationMessageAsync(target.Authority.SessionId,
                 expected.Request.RequestId, token).ConfigureAwait(false);
             var finalAvailability = submittedContext && actual.SubmittedContext is not null
-                ? await Conversations.ReadSubmittedHistoryAvailabilityAsync(actual, token).ConfigureAwait(false)
+                ? await Conversations.ReadSubmittedContextAvailabilityAsync(actual, token).ConfigureAwait(false)
                 : default;
             token.ThrowIfCancellationRequested();
             if (!admitted() || finalTarget != target || final != actual

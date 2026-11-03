@@ -227,6 +227,12 @@ remain available in Sessions when the bounded lookup has more results.
 | `hide details` | Hide Details without closing the conversation or discarding input |
 | `show session logs`, `show session audit` | Explicit bounded diagnostic-log / typed committed-audit query for the selected session; original local UI only |
 
+Generic Details phrases accept the current response only while its exact offer
+is pending. After **Not now**, or in **Link only**, they retain the selected
+session route; an older current response does not override that selection.
+Use `open current response details` to request that exact current response
+manually, independently of the offer preference.
+
 Activated voice requires the current available assistant name, for example `Kora, open all work`. Renaming replaces that prefix in the recognition grammar.
 These phrases accept no extra words, body queries or trailing punctuation; malformed reserved navigation input is refused, not sent to a model.
 
@@ -366,7 +372,14 @@ The full visual answer is retained on length/output failure. Replacement (even i
 Refresh, unlock, call end and output recovery never retry it ([playback](../src/Kora.Application/ViewModels/MainViewModel.cs), [boundary tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseRead.cs)).
 
 Push-to-talk preserves an existing eligible current answer while showing capture progress separately; it does not select an older answer. **Stop speaking** remains available during playback.
-The model lane remains unavailable with `current-response-model-tool-loop-not-qualified`; the six read-only descriptors and model transport are unchanged ([capture](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs), [action boundary](../src/Kora.Tools/Speech/SpeechReadOnce.cs)).
+Ordinary model tools remain unavailable for speech; the six read-only descriptors and their transport are unchanged ([capture](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs), [action boundary](../src/Kora.Tools/Speech/SpeechReadOnce.cs)).
+
+For a natural-language request such as `please read this answer out loud` or `read this current answer`, Kora captures the eligible current ordinary answer before interpretation and opens a separate review without replacing it ([proposal owner](../src/Kora.Application/ViewModels/MainViewModel.ResponseReadProposal.cs)).
+Choose **Interpret read request locally**, then **Confirm captured answer read once** after planning joins. Local interpretation receives only your unchanged request and one opaque target reference, not the answer.
+
+The equivalent typed/current-name activated commands are `interpret current response read`, `confirm current response read` and `cancel current response read`. The planning review explicitly discloses creation of a Local context session with content-free lifecycle receipts; request text, answer and proposal are not saved there. No hosted fallback, tools or playback occurs during planning ([local context lifecycle](../src/Kora.Application/Dependencies/LocalContextTurnWorkflow.cs)).
+
+Both decisions retain the original input channel and exact target. Expiry, replacement (including identical text), privacy/owner/call/output/speech changes or original voice revocation refuse use. Cancel task joins even a cancellation-ignoring planner. A malformed, forged or stale model reference never selects another answer. Playback returns actual Played, Denied, Cancelled, Failed or Unknown; partial output and failed audit are not success or automatic retry ([boundary regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseReadProposal.cs), [terminal contract](../src/Kora.Core/Voice/SpeechReadOutcome.cs)).
 
 ## Open existing skill reviews
 
@@ -565,8 +578,8 @@ Review is local and volatile, with no content logging/persistence, copy/export o
 Native **Sessions > Quiet routine notices for this run** affects Work/Maintenance deliveries and notice rows only, until **Turn routine quiet off**, **Reset routine quiet to Off**, or restart. Default is Off; no choice is saved.
 Status separates hidden/omitted counts from `RoutineSuppressedNoReplay` sources; suppressed sources are not Presented and consume no fatigue budget. Clear authorizes future new notices, not a backlog.
 
-Failures, Attention, mandatory output, required questions/approvals and authoritative work/status/citations/recovery remain unchanged. There is no quiet typed/voice grammar or model tool in this bounded increment.
-The exact event commands below still share their existing broker; routine defer cannot revive quiet-suppressed sources. Scheduled quiet hours, multi-session reminders and proactive speech beyond [separately consented conversation completion](conversation-notices.md#optional-completion-voice-notices-for-this-run) remain unavailable.
+Failures, Attention, mandatory output, required questions/approvals and authoritative work/status/citations/recovery remain unchanged. Run-only routine quiet remains native-only; it has no typed/voice grammar or model tool.
+The exact event commands below share their existing broker; routine defer cannot revive quiet-suppressed sources. Independent [scheduled speech-only quiet hours](conversation-notices.md#scheduled-proactive-speech-quiet-hours) support exact get/set/reset and separate confirmation. Multi-session reminders and broader proactive speech remain unavailable.
 
 An already-open **Sessions** selected work surface shows bounded trusted
 local-version queue/question observations and already-verified maintenance
@@ -970,6 +983,8 @@ provider, MCP adapter, or model tool/result loop is delivered by this registry.
 Existing help, version, setup/status, lock and power phrases retain their behavior.
 
 ## Exact speech-input profile review
+
+For capture timing, use `get voice.timing`, `set voice.command-start-wait to 7`, `set voice.reply-start-wait to 20`, or `set voice.trailing-silence to 2`. Values are seconds without a suffix. Review, then `confirm voice.timing` or `cancel voice.timing`; `reset <exact timing option>` is also reviewed. Saving affects the next eligible capture, never listening authority ([bounds and complete operation](voice-and-audio.md#speech-capture-timing)).
 
 Use `get speech.input` or `status speech.input` to inspect saved, desired and effective selection. `set speech.input to windows-activated-v1 WindowsManaged CaptureLifetime` opens review, not an immediate save. Complete the same original-channel operation with `confirm speech.input` or `cancel speech.input` ([parser](../src/Kora.Application/Configuration/SpeechInputCommand.cs)).
 
@@ -1520,6 +1535,24 @@ No automatic rewrite, default-save, rollback or retry is claimed ([confirmation 
 Use `review response timeout suggestion` to review the exact host-pinned successful answer, then separately `confirm response timeout change` or `cancel response timeout review`. Activated voice requires the current assistant-name prefix. Both conversation windows also offer **Review setting suggestion...** on the exact retained answer ([shared route](../src/Kora.Application/ViewModels/MainViewModel.ResponseTimeoutSuggestions.cs)).
 
 The answer must be one exact `set appearance.response-timeout to <integer>` using canonical digits, 1-60 seconds. It changes only the existing response-window inactivity hide delay, not provider deadlines or Always show. Review saves nothing; original-channel call policy, source, preference, privacy and host checks remain required through commit ([review and recovery](settings.md#review-a-response-timeout-suggestion)).
+
+### Detail presentation preference
+
+These exact commands share the native reviewed preference workflow. Prefix activated voice with the current assistant name. Set/reset stage a review only; confirmation is separate ([parser](../src/Kora.Application/Configuration/DetailPresentationCommand.cs), [interaction](../src/Kora.Application/ViewModels/MainViewModel.DetailPresentation.cs)).
+
+```text
+get responses.detail-presentation
+status responses.detail-presentation
+set responses.detail-presentation to Offer
+set responses.detail-presentation to LinkOnly
+stop asking about details
+offer detailed results
+reset responses.detail-presentation
+confirm detail presentation change
+cancel detail presentation change
+```
+
+Only existing proactive cues on future publications are affected. **Open details**, `open current response details` and selected-session detail commands retain their existing source/privacy admission. Accepting/declining an individual offer never saves a preference. Protected-call voice writes remain denied; no new question, reply turn, model tool, automatic opening or historical replay is introduced ([shared policy](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs), [manual route](../src/Kora.Application/ViewModels/MainViewModel.CurrentResponse.cs)).
 
 ### Inspect or change the device-default response mode
 
@@ -2157,12 +2190,17 @@ To stop Kora reading one source, select its registered metadata and choose
 **Withdraw local read consent**. Review and confirm the exact source ID,
 profile-relative root and directory identity in the native **Unregister source**
 confirmation. This removes only Kora's registration and local inspection
-snapshots, not your shared files. It changes no enablement, execution or grants;
-other source registrations remain intact. Even a missing original folder can
+snapshots, not your shared files. Existing volatile shared-skill reviews,
+enablement and pending reference-read consent are retired before saving the
+withdrawal, even if its final receipt is unconfirmed. No execution or grants
+are created or transferred; other source registrations remain intact. Even a missing original folder can
 be unregistered without reading or restoring it. A changed registration list
 requires refreshing and confirming again. Re-registering the path requires a
 fresh folder selection and receives a new source ID; old snapshots do not
-regain consent.
+regain consent. Refreshing or restoring saved registration metadata cannot
+revive old reviews. After fresh registration, separately consent to any declared
+reference reads, review the complete revision and enable it again. A reference
+read already in progress is still joined; its late result cannot restore use.
 
 The narrow reader requires flat YAML `name`, `version` (for example `1.0.0`)
 and `description`. Unsupported metadata/YAML, scripts or extra package files,

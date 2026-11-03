@@ -175,7 +175,10 @@ profile-relative root and pinned directory identity and binds the write to the
 complete observed registration revision. It removes only Kora's registration
 and owned catalogue/text/hex presentation snapshots; user-owned shared files are
 never written, deleted or repaired. Unrelated registrations retain their exact
-metadata and order. No enablement, execution, grant or model exposure changes.
+metadata and order. Withdrawal advances the host's shared-source consent revision
+before publication, retiring existing volatile shared-skill reviews, enablement
+and pending reference-read consent even if the write or terminal receipt is
+unconfirmed. It creates no execution, grant or model exposure authority.
 A missing original directory remains withdrawable using verified saved metadata
 without selecting or reading that directory again. Re-registering its path
 requires a fresh native folder selection and a **new host-issued source ID**;
@@ -285,6 +288,10 @@ recovery. The attempted source identity remains read-closed for the owning
 host lifetime even if an old registration is restored; refresh permits retrying
 withdrawal of saved metadata, not silently regranting that identity. A fresh
 native selection with a new source ID is required to read it again.
+New use also requires fresh declaration consent where applicable, complete
+review and separate enablement; neither restored metadata nor refresh revives
+an old review. An already-running reference capture remains owned until it
+joins and cannot publish a late review after withdrawal.
 Corrupt preferences cannot be reset, repaired or unregistered through
 this workflow. Privacy closure and window disposal cancel pending work and
 destroy native content views, including confirmation metadata.

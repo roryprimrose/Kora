@@ -4713,6 +4713,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(SettingsSectionCommand.FixedPhrases)
             .Concat(ConversationExecutionCommand.FixedPhrases)
             .Concat(LogonStartupCommand.FixedPhrases)
+            .Concat(DetailPresentationCommand.FixedPhrases)
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases);
         fixture.Voice.StartedPhrases.Should().BeEquivalentTo(
@@ -8731,6 +8732,7 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableConversationExecution = false,
             LogonStartupConfigurationService? logonStartupConfiguration = null,
             StartupPresentationConfigurationService? startupPresentationConfiguration = null,
+            DetailPresentationConfigurationService? detailPresentationConfiguration = null,
             QuietHoursConfigurationService? quietHoursConfiguration = null)
         {
             Catalog = new BuiltInCommandCatalog();
@@ -8936,6 +8938,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 conversationExecution: ConversationExecutionConfiguration,
                 logonStartupConfiguration: logonStartupConfiguration,
                 startupPresentationConfiguration: startupPresentationConfiguration,
+                detailPresentationConfiguration: detailPresentationConfiguration,
                 quietHoursConfiguration: quietHoursConfiguration);
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);

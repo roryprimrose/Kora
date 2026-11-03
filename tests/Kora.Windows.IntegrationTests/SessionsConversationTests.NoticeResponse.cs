@@ -151,6 +151,7 @@ public sealed partial class SessionsConversationTests
                 var tasks = f.Count("host_tasks");
                 var questions = f.Count("host_questions");
                 var activations = 0;
+                string? closedStatus = null;
                 questionWindow.Activated += (_, _) => activations++;
                 var acceptedGesture = fault is "valid" or "voice" or "multiple" or "output-choice";
                 if (!acceptedGesture)
@@ -185,7 +186,11 @@ public sealed partial class SessionsConversationTests
                                 case "private": composed.Access.ControlRevision++; composed.Access.CanControl = false; break;
                                 case "input": native.Main.CommandText = "independent input"; break;
                                 case "editor": native.Main.BindRetainedAnswerReadDecisionGate(() => false); break;
-                                case "source-close": owner.ClosePrivate(); break;
+                                case "source-close":
+                                    owner.ClosePrivate();
+                                    closedStatus = model.Status;
+                                    closedStatus.Should().Be("Sessions closed; no late content or rollback of a possible committed lifecycle is claimed.");
+                                    break;
                             }
                         });
                     };
@@ -194,7 +199,15 @@ public sealed partial class SessionsConversationTests
                 await owner.ConversationNoticeOperation;
                 if (!acceptedGesture)
                 {
-                    model.Status.Should().Contain("Conversation notice unavailable");
+                    if (closedStatus is not null)
+                    {
+                        model.Status.Should().Be(closedStatus, "refused late notice feedback cannot replace closed presentation");
+                        model.LocalEvents.Should().BeEmpty();
+                        model.SelectedLocalEvent.Should().BeNull();
+                        model.Detail.Should().BeEmpty();
+                        model.CanAnswerConversationNotice.Should().BeFalse();
+                    }
+                    else { model.Status.Should().Contain("Conversation notice unavailable"); }
                     activations.Should().Be(0, "a refused gesture must not activate any question presenter");
                     transport.Requests.Should().ContainSingle();
                     f.Count("host_tasks").Should().Be(tasks);

@@ -204,6 +204,8 @@ public sealed partial class LocalEventBrokerWindowTests
     [InlineData("close")]
     [InlineData("failure")]
     [InlineData("cancel")]
+    [InlineData("close-late-cancel")]
+    [InlineData("close-late-failure")]
     public async Task PendingExactActionCannotRestoreSelectionOrDetailAfterItsPresentationWasRetired(string change)
     {
         using var f = new Fixture();
@@ -229,6 +231,7 @@ public sealed partial class LocalEventBrokerWindowTests
         var tasks = f.Storage.Count("host_tasks");
         var audits = f.Storage.Count("security_audit_events");
         source.Pause = true;
+        source.IgnoreCancellation = change is "close-late-cancel" or "close-late-failure";
         var pending = viewer.ReviewLocalEventAsync();
         await source.Entered.Task;
         viewer.Detail.Should().BeEmpty("the admitted notice action owns its detail pane before awaiting the source");
@@ -245,10 +248,23 @@ public sealed partial class LocalEventBrokerWindowTests
             case "workspace": viewer.RevokeSessionList(); break;
             case "session": viewer.HistorySessionId = Guid.NewGuid().ToString("D"); break;
             case "close": viewer.Close(); break;
+            case "close-late-cancel":
+                viewer.Close();
+                source.Failure = new OperationCanceledException("test late cancellation");
+                break;
+            case "close-late-failure":
+                viewer.Close();
+                source.Failure = new IOException("test late source failure");
+                break;
             case "failure": source.Failure = new IOException("test source unavailable"); break;
             case "cancel": source.Failure = new OperationCanceledException("test cancellation"); break;
         }
         if (change is not ("failure" or "cancel")) { viewer.SelectedLocalEvent.Should().BeNull(); }
+        var closedStatus = change is "close" or "close-late-cancel" or "close-late-failure" ? viewer.Status : null;
+        if (closedStatus is not null)
+        {
+            closedStatus.Should().Be("Sessions closed; no late content or rollback of a possible committed lifecycle is claimed.");
+        }
         source.Release.TrySetResult();
         await pending;
         viewer.SelectedLocalEvent.Should().BeNull();
@@ -256,7 +272,8 @@ public sealed partial class LocalEventBrokerWindowTests
         viewer.Detail.Should().BeEmpty();
         viewer.CanControlLocalEvent.Should().BeFalse();
         viewer.CanAnswerConversationNotice.Should().BeFalse();
-        viewer.Status.Should().Contain("unavailable");
+        if (closedStatus is not null) { viewer.Status.Should().Be(closedStatus, "late notice completion cannot replace closed presentation"); }
+        else { viewer.Status.Should().Contain("unavailable"); }
         f.State.Load().Should().BeEquivalentTo(suppression);
         f.Storage.Count("host_tasks").Should().Be(tasks);
         f.Storage.Count("security_audit_events").Should().Be(audits);

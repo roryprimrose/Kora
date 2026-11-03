@@ -61,7 +61,8 @@ public sealed partial class SessionsConversationTests
                 Click("ConfirmFailedRetry");
                 await window.ConversationOperation;
                 adapter.Calls.Should().Be(2);
-                model.ConversationMessages.Single().AssistantResponse!.Body.Should().Be("genuine new answer");
+                model.ConversationMessages.Should().ContainSingle().Which.Should().Be(failed);
+                model.ConversationUpdates.Single().AssistantResponse!.Body.Should().Be("genuine new answer");
                 await model.ReadConversationAsync();
                 model.ConversationMessages.Should().HaveCount(2);
                 var answer = model.ConversationMessages.Single(item => item.AssistantResponse is not null);

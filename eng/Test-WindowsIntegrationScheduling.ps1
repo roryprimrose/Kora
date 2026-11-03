@@ -511,6 +511,10 @@ function Assert-RetainedResults {
                     'ui-presentation' { 'ui-platform' }
                     default { $sourceName }
                 }
+                if ($qualified.StartsWith('Kora.Windows.IntegrationTests.SessionsConversationTests.Owned', [StringComparison]::Ordinal) -or
+                    $qualified.StartsWith('Kora.Windows.IntegrationTests.SessionsConversationTests.Named', [StringComparison]::Ordinal)) {
+                    $sourceName = 'ui-conversation-actions'
+                }
             }
             if ($reports.Count -eq $expected.Count) { $sourceName = $execution[0].Shard }
             elseif ($reports.Count -eq $legacyPartitions.Count) {
@@ -712,6 +716,40 @@ try {
         try { Assert-RetainedResults $catalogRoot $catalogPath $revision }
         catch { $failure = $_ }
         Assert ($null -ne $failure) "The actual twelve-report join must reject $fault catalog evidence."
+    }
+    foreach ($reportCount in @(5, 7, 9)) {
+        $legacyRoot = Join-Path $fixtureRoot "legacy-$reportCount"
+        $legacyReports = @{}
+        foreach ($report in Get-ChildItem -LiteralPath $catalogRoot -Filter '*.trx' -Recurse -File) {
+            [xml] $trx = Get-Content -Raw -LiteralPath $report.FullName
+            $current = $partitions | Where-Object Name -CEQ $report.Directory.Name
+            $sourceName = $current.Name
+            if ($sourceName -cin @('ui-conversation-core', 'ui-workflows', 'ui-presentation')) {
+                $sourceName = if ($sourceName -ceq 'ui-conversation-core') { 'ui-conversations' } else { 'ui-platform' }
+            }
+            if ($current.Name -ceq 'ui-conversations') { $sourceName = 'ui-conversation-actions' }
+            if ($reportCount -eq 7) {
+                if ($sourceName -ceq 'ui-definition-dialogs') { $sourceName = 'ui-definitions' }
+                if ($sourceName -ceq 'ui-conversation-actions') { $sourceName = 'ui-conversations' }
+            }
+            if ($reportCount -eq 5) { $sourceName = $current.Shard }
+            if (-not $legacyReports.ContainsKey($sourceName)) {
+                $legacyReports[$sourceName] = [xml] '<TestRun><TestDefinitions/><Results/><ResultSummary><Counters total="0" passed="0"/></ResultSummary></TestRun>'
+            }
+            $legacy = $legacyReports[$sourceName]
+            $legacy.TestRun.SelectSingleNode('TestDefinitions').AppendChild($legacy.ImportNode($trx.TestRun.TestDefinitions.UnitTest, $true)) | Out-Null
+            $legacy.TestRun.SelectSingleNode('Results').AppendChild($legacy.ImportNode($trx.TestRun.Results.UnitTestResult, $true)) | Out-Null
+            $count = @($legacy.TestRun.Results.UnitTestResult).Count.ToString([Globalization.CultureInfo]::InvariantCulture)
+            $legacy.TestRun.ResultSummary.Counters.total = $count
+            $legacy.TestRun.ResultSummary.Counters.passed = $count
+        }
+        Assert ($legacyReports.Count -eq $reportCount) 'Exercise every maintained historical report shape.'
+        foreach ($name in $legacyReports.Keys) {
+            $directory = Join-Path $legacyRoot $name
+            New-Item -ItemType Directory -Path $directory -Force | Out-Null
+            $legacyReports[$name].Save((Join-Path $directory 'results.trx'))
+        }
+        Assert-RetainedResults $legacyRoot '' ''
     }
 }
 finally {

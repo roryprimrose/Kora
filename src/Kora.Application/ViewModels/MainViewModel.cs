@@ -288,6 +288,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         ConversationExecutionConfigurationService? conversationExecution = null,
         LogonStartupConfigurationService? logonStartupConfiguration = null,
         StartupPresentationConfigurationService? startupPresentationConfiguration = null,
+        ForegroundPttConfigurationService? foregroundPtt = null,
         VoiceCaptureTimingConfigurationService? voiceCaptureTimingConfiguration = null,
         DetailPresentationConfigurationService? detailPresentationConfiguration = null)
     {
@@ -450,6 +451,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         InitializeVoiceCaptureTiming(voiceCaptureTimingConfiguration, execute => CreateCommand(execute));
         InitializeSpeechComparison(speechSetupComparison, execute => CreateCommand(execute));
         InitializeConversationalReplies(conversationalReplies, execute => CreateCommand(execute));
+        InitializeForegroundPtt(foregroundPtt, execute => CreateCommand(execute));
         InitializeConversationExecution(conversationExecution, execute => CreateCommand(execute));
         InitializeLogonStartup(logonStartupConfiguration, execute => CreateCommand(execute));
         InitializeStartupPresentation(startupPresentationConfiguration, execute => CreateCommand(execute));
@@ -4662,6 +4664,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await ExecuteSpeechComparison(speechComparisonCommand, initiator);
             return;
         }
+        if (ForegroundPttCommand.Parse(spokenText, AssistantName) is { } foregroundPttCommand)
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Assistant prefix routing is unavailable; no foreground shortcut setting was changed.";
+                return;
+            }
+            await ExecuteForegroundPttCommandAsync(foregroundPttCommand, initiator);
+            return;
+        }
         if (VoiceCaptureTimingCommand.Parse(spokenText, AssistantName) is { } timingCommand)
         {
             if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
@@ -6774,6 +6786,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         OnPropertyChanged(nameof(CanChangeWindowsSpeechRateNative));
         OnPropertyChanged(nameof(CanChangeSpeechInputNative));
         OnPropertyChanged(nameof(CanChangeConversationalReplies));
+        OnPropertyChanged(nameof(CanChangeForegroundPtt));
         OnPropertyChanged(nameof(CanControlLogonStartup));
         OnPropertyChanged(nameof(CanControlLogonStartupNative));
         OnPropertyChanged(nameof(CanControlStartupPresentation));
@@ -6832,6 +6845,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(WindowsSpeechRateCommand.FixedPhrases)
             .Concat(SpeechInputCommand.FixedPhrases)
+            .Concat(ForegroundPttCommand.FixedPhrases)
             .Concat(VoiceCaptureTimingCommand.FixedPhrases)
             .Concat(SpeechComparisonCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)

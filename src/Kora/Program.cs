@@ -701,6 +701,9 @@ internal static class Program
         services.AddSingleton<ISpeechInputPreferences>(provider =>
             new LocalSpeechInputPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<SpeechInputConfigurationService>();
+        services.AddSingleton<LocalForegroundPttPreferences>(provider =>
+            new LocalForegroundPttPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<ForegroundPttConfigurationService>();
         services.AddSingleton(new HttpClient
         {
             Timeout = TimeSpan.FromMinutes(15),

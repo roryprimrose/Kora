@@ -578,8 +578,8 @@ Review is local and volatile, with no content logging/persistence, copy/export o
 Native **Sessions > Quiet routine notices for this run** affects Work/Maintenance deliveries and notice rows only, until **Turn routine quiet off**, **Reset routine quiet to Off**, or restart. Default is Off; no choice is saved.
 Status separates hidden/omitted counts from `RoutineSuppressedNoReplay` sources; suppressed sources are not Presented and consume no fatigue budget. Clear authorizes future new notices, not a backlog.
 
-Failures, Attention, mandatory output, required questions/approvals and authoritative work/status/citations/recovery remain unchanged. There is no quiet typed/voice grammar or model tool in this bounded increment.
-The exact event commands below still share their existing broker; routine defer cannot revive quiet-suppressed sources. Scheduled quiet hours, multi-session reminders and proactive speech beyond [separately consented conversation completion](conversation-notices.md#optional-completion-voice-notices-for-this-run) remain unavailable.
+Failures, Attention, mandatory output, required questions/approvals and authoritative work/status/citations/recovery remain unchanged. Run-only routine quiet remains native-only; it has no typed/voice grammar or model tool.
+The exact event commands below share their existing broker; routine defer cannot revive quiet-suppressed sources. Independent [scheduled speech-only quiet hours](conversation-notices.md#scheduled-proactive-speech-quiet-hours) support exact get/set/reset and separate confirmation. Multi-session reminders and broader proactive speech remain unavailable.
 
 An already-open **Sessions** selected work surface shows bounded trusted
 local-version queue/question observations and already-verified maintenance

@@ -159,16 +159,18 @@ public sealed class SettingsResetMenuTests
             .Where(attribute => attribute.Name.LocalName is "Command" or "ResetCommand"
                 && attribute.Value.StartsWith("{Binding Reset", StringComparison.Ordinal))
             .ToArray();
-        bindings.Should().HaveCount(37);
-        bindings.Select(attribute => attribute.Value).Distinct(StringComparer.Ordinal).Should().HaveCount(37);
+        bindings.Should().HaveCount(38);
+        bindings.Select(attribute => attribute.Value).Distinct(StringComparer.Ordinal).Should().HaveCount(38);
         bindings.Select(attribute => attribute.Value).Should().Contain(
-            ["{Binding ResetOrdinaryDeadlineCommand}", "{Binding ResetLogonStartupCommand}", "{Binding ResetDetailPresentationCommand}"]);
+            ["{Binding ResetOrdinaryDeadlineCommand}", "{Binding ResetLogonStartupCommand}",
+                "{Binding ResetQuietHoursCommand}", "{Binding ResetDetailPresentationCommand}"]);
         elements.Count(element =>
             string.Equals(element.Name.LocalName, nameof(SettingActionsButton), StringComparison.Ordinal))
-            .Should().Be(40);
+            .Should().Be(41);
         elements.Where(element => element.Name.LocalName is nameof(SettingActionsButton))
             .Select(element => element.Attribute("SettingName")?.Value).Should().Contain(
-                ["Ordinary task deadline", "Ordinary conversation execution maximum", "Detailed result offers"]);
+                ["Ordinary task deadline", "Ordinary conversation execution maximum",
+                    "Scheduled proactive speech quiet hours", "Detailed result offers"]);
         foreach (var binding in bindings)
         {
             var element = binding.Parent!;
@@ -218,7 +220,7 @@ public sealed class SettingsResetMenuTests
 
     [Theory]
     [InlineData("Appearance", 17, 17, 0, 0)]
-    [InlineData("Speech & audio", 8, 7, 5, 0)]
+    [InlineData("Speech & audio", 9, 8, 5, 0)]
     [InlineData("Responses", 5, 5, 3, 1)]
     [InlineData("Sessions", 2, 2, 2, 0)]
     [InlineData("Logging", 2, 2, 2, 0)]

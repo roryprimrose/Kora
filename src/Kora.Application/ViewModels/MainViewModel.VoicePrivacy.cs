@@ -325,6 +325,7 @@ public sealed partial class MainViewModel
         }
         questionVoiceReplies?.CloseAdmission();
         CancelLogonStartupReview();
+        CancelQuietHoursReview();
         CancelDetailPresentationReview();
         NotifyDetailPresentationAvailability();
         PropertyChanged -= OnDetailPresentationHostChanged;

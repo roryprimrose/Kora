@@ -4681,6 +4681,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(WindowsSpeechRateCommand.FixedPhrases)
             .Concat(SpeechInputCommand.FixedPhrases)
+            .Concat(QuietHoursCommand.FixedPhrases)
             .Concat(VoiceCaptureTimingCommand.FixedPhrases)
             .Concat(SpeechComparisonCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
@@ -8735,7 +8736,8 @@ public sealed partial class MainViewModelTests : IDisposable
             StartupPresentationConfigurationService? startupPresentationConfiguration = null,
             ForegroundPttConfigurationService? foregroundPtt = null,
             bool enableCaptureTiming = false,
-            DetailPresentationConfigurationService? detailPresentationConfiguration = null)
+            DetailPresentationConfigurationService? detailPresentationConfiguration = null,
+            QuietHoursConfigurationService? quietHoursConfiguration = null)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8944,7 +8946,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 startupPresentationConfiguration: startupPresentationConfiguration,
                 foregroundPtt: foregroundPtt,
                 voiceCaptureTimingConfiguration: CaptureTimingConfiguration,
-                detailPresentationConfiguration: detailPresentationConfiguration);
+                detailPresentationConfiguration: detailPresentationConfiguration,
+                quietHoursConfiguration: quietHoursConfiguration);
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);

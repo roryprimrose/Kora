@@ -290,7 +290,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         StartupPresentationConfigurationService? startupPresentationConfiguration = null,
         ForegroundPttConfigurationService? foregroundPtt = null,
         VoiceCaptureTimingConfigurationService? voiceCaptureTimingConfiguration = null,
-        DetailPresentationConfigurationService? detailPresentationConfiguration = null)
+        DetailPresentationConfigurationService? detailPresentationConfiguration = null,
+        QuietHoursConfigurationService? quietHoursConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -455,6 +456,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         InitializeConversationExecution(conversationExecution, execute => CreateCommand(execute));
         InitializeLogonStartup(logonStartupConfiguration, execute => CreateCommand(execute));
         InitializeStartupPresentation(startupPresentationConfiguration, execute => CreateCommand(execute));
+        InitializeQuietHours(quietHoursConfiguration, execute => CreateCommand(execute));
         InitializeDetailPresentation(detailPresentationConfiguration, execute => CreateCommand(execute));
         ResetThemeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.Theme));
         ResetReaderTextScaleCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReaderTextScale));
@@ -4274,6 +4276,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
         if (SettingsSectionCommand.Parse(eventArgs.Transcript, AssistantName) is not null
+            || QuietHoursCommand.Parse(eventArgs.Transcript, AssistantName) is not null
             || LogonStartupCommand.Parse(eventArgs.Transcript, AssistantName) is not null
             || DetailPresentationCommand.Parse(eventArgs.Transcript, AssistantName) is not null
             || manualInput.CataloguePreparation is not null
@@ -4336,6 +4339,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ReportResponseRead("Local read planning is still running or joining. Cancel task before another request; the original answer is unchanged.");
             return;
         }
+        if (QuietHoursCommand.Parse(spokenText, AssistantName) is { } quietHoursCommand)
+        {
+            CancelLogonStartupReview();
+            if (!isAssistantNameAvailable || initiator == SecurityAuditInitiator.VoiceCommand
+                && !HasCurrentNameActivation(spokenText))
+            {
+                CancelQuietHoursReview();
+                Transcript = "Quiet hours require original typed input or the current assistant-name voice prefix.";
+                return;
+            }
+            await ExecuteQuietHoursCommandAsync(quietHoursCommand, initiator, manualInput);
+            return;
+        }
+        CancelQuietHoursReview();
         if (IsWakeCommand(spokenText) && string.Equals(AssistantName, "Stop", StringComparison.OrdinalIgnoreCase)
             && string.Equals(spokenText.Trim(), "listening", StringComparison.OrdinalIgnoreCase))
         {
@@ -6819,6 +6836,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         OnPropertyChanged(nameof(CanChangeInCallFeedbackNative));
         OnPropertyChanged(nameof(CanEnableCommunicationActivity));
         OnPropertyChanged(nameof(CanChangeCommunicationActivity));
+        NotifyQuietHours();
     }
 
     private string[] GetRecognitionPhrases()
@@ -6845,6 +6863,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(WindowsSpeechRateCommand.FixedPhrases)
             .Concat(SpeechInputCommand.FixedPhrases)
+            .Concat(QuietHoursCommand.FixedPhrases)
             .Concat(ForegroundPttCommand.FixedPhrases)
             .Concat(VoiceCaptureTimingCommand.FixedPhrases)
             .Concat(SpeechComparisonCommand.FixedPhrases)

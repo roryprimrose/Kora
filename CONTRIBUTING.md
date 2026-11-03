@@ -96,6 +96,13 @@ callbacks explicitly instead of waiting for OS focus acknowledgement. They retai
 the foreground, consent, ownership and capture-quiescence assertions; this fixture
 evidence does not qualify physical keyboard or microphone behavior.
 
+The [voice-input composition fixture](tests/Kora.Windows.IntegrationTests/Audio/VoiceInputCompositionTests.cs) supplies in-memory preferences, audit and
+audio-control admission dependencies while resolving the production timing
+service and recognition aliases. Composition alone must not write preferences,
+emit configuration audit events, create control tasks or open audio. The [listening
+grammar regression](tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.cs) includes capture-timing phrases and their assistant-name
+variants without relaxing exact phrase-set equality.
+
 Sessions metadata regressions hold both Refresh and Next reads across viewer
 closure, including stores that complete despite cancellation. Late pages must
 not repopulate rows or publish content through change notifications, alter

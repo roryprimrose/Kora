@@ -26,6 +26,8 @@ class BatchFake {
   inventory = { schema: 'windows-12-v1', blob: sha(999), jobs: [...WINDOWS_12_JOBS] };
   qualified = false;
   conflict = false;
+  conflicts = new Set();
+  qualificationObservation = null;
   commit = sha(800);
   administratorAllowed = true;
   quiet = true;
@@ -48,7 +50,7 @@ class BatchFake {
   }
   async syntheticPrefix(active, index) {
     this.calls.push(['synthetic', index]);
-    if (this.conflict) return null;
+    if (this.conflict || this.conflicts.has(active.members[index].number)) return null;
     const prefix = { sha: sha(300 + index), tree: sha(400 + index) };
     this.commits.set(prefix.sha, { tree: prefix.tree,
       parents: [index ? active.prefixes[index - 1].sha : active.base, active.members[index].head] });
@@ -101,7 +103,10 @@ class BatchFake {
   }
   async wake() { this.calls.push(['wake']); }
   async cancel(id) { this.calls.push(['cancel', id]); }
-  async tipQualification() { return this.qualified ? { run: 10, job: 11, source: this.base } : null; }
+  async tipQualification() {
+    return this.qualified ? { owner: { run: 10, source: this.base, attempt: 1 },
+      qualification: { run: 10, job: 11, source: this.base } } : clone(this.qualificationObservation);
+  }
   async dispatchQualification(tip) { this.calls.push(['qualification', tip.sha]); }
   async administrator() { return this.administratorAllowed; }
   async ciQuiescent() { return this.quiet; }
@@ -246,7 +251,7 @@ test('batch-profile control singleton retains complete exact-head proof and reco
   assert.equal(await step(api), 'waiting-for-tip-qualification');
 });
 
-test('synthetic conflicts integrate nothing and retire without falsely quarantining individual members', async () => {
+test('a first-member construction conflict isolates only the oldest member without quarantining its peers', async () => {
   const api = new BatchFake();
   api.conflict = true;
   assert.equal(await step(api), 'retiring');
@@ -258,7 +263,192 @@ test('synthetic conflicts integrate nothing and retire without falsely quarantin
   assert.equal(count(api, 'merge'), 0);
   assert.equal(count(api, 'dispatch'), 0);
   assert.equal(api.state.blocked.length, 0);
-  assert.equal(api.state.singletonRetries.length, 5);
+  assert.deepEqual(api.state.singletonRetries.map(member => member.number), [1]);
+});
+
+test('construction seals a new complete manifest for the compatible prefix, never skipping an older conflict', async () => {
+  const api = new BatchFake();
+  api.conflicts.add(3);
+  assert.equal(await step(api), 'dispatched');
+  const active = api.state.active;
+  assert.deepEqual(active.members.map(member => member.number), [1, 2]);
+  assert.equal(active.prefixes.length, 2);
+  assert.equal(active.head, active.prefixes[1].sha);
+  assert.equal(active.digest, digest(manifestFor(active)));
+  assert.deepEqual(api.state.singletonRetries.map(member => member.number), [3]);
+  assert.deepEqual(api.calls.filter(call => call[0] === 'synthetic').map(call => call[1]), [0, 1, 2]);
+  const frozen = clone(manifestFor(active));
+  await until(api, 'batch-completed');
+  assert.equal(count(api, 'merge'), 2);
+  assert.deepEqual(api.state.completedTip.members.map(member => member.number), [1, 2]);
+  assert.equal(api.state.completedTip.manifest, digest(frozen));
+  api.qualified = true;
+  api.commits.set(sha(3), { tree: sha(700), parents: [api.base] });
+  assert.equal(await step(api), 'dispatched');
+  assert.equal(api.state.active.kind, undefined);
+  assert.equal(api.state.active.number, 3, 'oldest conflicting member must not be repeatedly skipped');
+});
+
+test('every conflict boundary preserves priority order and freezes only the admitted prefix', async () => {
+  for (let boundary = 1; boundary < 5; boundary++) {
+    const api = new BatchFake();
+    api.prs[5].labels = ['queue:priority-high'];
+    const order = [6, 1, 2, 3, 4];
+    api.conflicts.add(order[boundary]);
+    await step(api);
+    assert.deepEqual(api.state.active.members.map(member => member.number), order.slice(0, boundary));
+    assert.equal(api.state.active.digest, digest(manifestFor(api.state.active)));
+    assert.deepEqual(api.state.singletonRetries.map(member => member.number), [order[boundary]]);
+    assert.equal(count(api, 'dispatch'), 1);
+    assert.equal(count(api, 'merge'), 0);
+    assert.equal(count(api, 'synthetic'), boundary + 1);
+  }
+});
+
+test('a compatible prefix survives restart before its final subset checkpoint without replaying dispatch', async () => {
+  const api = new BatchFake();
+  api.conflicts.add(3);
+  const save = api.save.bind(api);
+  let interrupted = false;
+  api.save = async state => {
+    if (!interrupted && state.active?.phase === 'reserved') {
+      interrupted = true;
+      throw new Error('subset checkpoint unavailable');
+    }
+    return save(state);
+  };
+  await assert.rejects(step(api), /subset checkpoint unavailable/);
+  assert.equal(api.state.active.phase, 'constructing');
+  assert.equal(count(api, 'dispatch'), 0);
+  api.save = save;
+  assert.equal(await step(api), 'dispatched');
+  assert.deepEqual(api.state.active.members.map(member => member.number), [1, 2]);
+  assert.equal(api.state.singletonRetries.filter(member => member.number === 3).length, 1);
+  assert.equal(count(api, 'dispatch'), 1);
+});
+
+test('running failed or stale batch work is cancelled promptly but keeps its exact lane until all jobs are terminal', async () => {
+  for (const change of ['failure', 'duplicate', 'head', 'base', 'enrollment', 'review', 'priority']) {
+    const api = new BatchFake();
+    await step(api);
+    api.workflowRuns[0].status = 'in_progress';
+    api.workflowRuns[0].conclusion = null;
+    Object.assign(api.workflowJobs.at(-1), { status: 'in_progress', conclusion: null });
+    if (change === 'failure') api.workflowJobs[0].conclusion = 'failure';
+    if (change === 'duplicate') api.workflowJobs.push({ ...api.workflowJobs[0], id: 999 });
+    if (change === 'head') api.prs[0].head.sha = sha(999);
+    if (change === 'base') api.base = sha(999);
+    if (change === 'enrollment') api.prs[0].enrollment = null;
+    if (change === 'review') api.prs[0].review = 'CHANGES_REQUESTED';
+    if (change === 'priority') api.prs[0].labels = ['queue:priority-low'];
+    assert.equal(await step(api), 'retiring', change);
+    assert.equal(count(api, 'cancel'), 1, change);
+    assert.equal(api.state.active.ticket, TICKET);
+    assert.equal(count(api, 'wake'), 1, 'halt wakeup must survive the prompt cancellation change');
+    api.workflowRuns[0].status = 'completed';
+    api.workflowRuns[0].conclusion = 'cancelled';
+    assert.equal(await step(api), 'retiring');
+    assert.equal(count(api, 'merge'), 0);
+    assert.equal(count(api, 'dispatch'), 1);
+    Object.assign(api.workflowJobs.at(-1), { status: 'completed', conclusion: 'cancelled' });
+    assert.equal(await step(api), change === 'duplicate' ? 'retiring' : 'retired');
+    if (change === 'duplicate') assert.ok(api.state.active, 'duplicate evidence never proves physical quiescence');
+  }
+});
+
+test('missing evidence or failed authority reads do not invent a failure or cancel unrelated work', async () => {
+  const api = new BatchFake();
+  await step(api);
+  api.workflowRuns[0].status = 'in_progress';
+  api.workflowRuns[0].conclusion = null;
+  api.workflowJobs = [];
+  assert.equal(await step(api), 'validating');
+  assert.equal(count(api, 'cancel'), 0);
+  api.reviewState = async () => { throw new Error('authority unavailable'); };
+  await assert.rejects(step(api), /authority unavailable/);
+  assert.equal(count(api, 'cancel'), 0);
+  assert.equal(api.state.active.phase, 'dispatched');
+});
+
+test('cancellation and continuation errors preserve the doomed checkpoint and never release or redispatch its lane', async () => {
+  for (const boundary of ['cancel', 'wake']) {
+    const api = new BatchFake();
+    await step(api);
+    api.workflowRuns[0].status = 'in_progress';
+    api.workflowRuns[0].conclusion = null;
+    api.workflowJobs[0].conclusion = 'failure';
+    const original = api[boundary].bind(api);
+    api[boundary] = async () => { throw new Error(`${boundary} unavailable`); };
+    await assert.rejects(step(api), /unavailable/);
+    assert.equal(api.state.active.phase, 'retiring');
+    assert.equal(api.state.active.ticket, TICKET);
+    api[boundary] = original;
+    assert.equal(await step(api), 'retiring');
+    assert.equal(count(api, 'dispatch'), 1);
+    assert.equal(count(api, 'merge'), 0);
+    assert.equal(api.state.singletonRetries.length, 0);
+  }
+});
+
+test('completed-tip ownership reconciles running work before dispatch and persists the exact first attempt', async () => {
+  const api = new BatchFake();
+  await until(api, 'batch-completed');
+  const owner = { run: 42, source: api.base, attempt: 1 };
+  api.qualificationObservation = { owner, qualification: null };
+  assert.equal(await step(api), 'waiting-for-tip-qualification');
+  assert.deepEqual(api.state.completedTip.qualificationOwner, owner);
+  assert.equal(count(api, 'qualification'), 0);
+  assert.equal(await step(api), 'waiting-for-tip-qualification');
+  assert.equal(count(api, 'qualification'), 0);
+  api.qualificationObservation.qualification = { run: 42, source: api.base, job: 43 };
+  await step(api);
+  assert.equal(api.state.completedTip.qualification.run, 42);
+  assert.equal(count(api, 'dispatch'), 2);
+});
+
+test('a provisional ordinary push delays dispatch without claiming a qualification owner or consuming dispatch intent', async () => {
+  const api = new BatchFake();
+  await until(api, 'batch-completed');
+  api.qualificationObservation = { owner: { run: 42, source: api.base, attempt: 1 },
+    qualification: null, provisional: true };
+  assert.equal(await step(api), 'waiting-for-tip-qualification');
+  assert.equal(api.state.completedTip.qualificationOwner, undefined);
+  assert.equal(api.state.completedTip.qualificationRequested, undefined);
+  assert.equal(count(api, 'qualification'), 0);
+  api.qualificationObservation = null;
+  assert.equal(await step(api), 'waiting-for-tip-qualification');
+  assert.equal(count(api, 'qualification'), 1);
+});
+
+test('qualification owner state is bounded and compatible with existing unowned receipts and dispatch intents', async () => {
+  const api = new BatchFake();
+  api.state.completedTip = { sha: BASE, tree: sha(200), ticket: TICKET, qualificationRequested: true };
+  assert.doesNotThrow(() => validateState(api.state));
+  api.state.completedTip.qualification = { run: 42, source: BASE, job: 43 };
+  assert.doesNotThrow(() => validateState(api.state));
+  api.state.completedTip.qualificationOwner = { run: 42, source: BASE, attempt: 1 };
+  assert.doesNotThrow(() => validateState(api.state));
+  for (const owner of [{ run: 0, source: BASE, attempt: 1 }, { run: 42, source: sha(999), attempt: 1 },
+    { run: 42, source: BASE, attempt: 2 }, { run: 44, source: BASE, attempt: 1 }]) {
+    const state = clone(api.state);
+    state.completedTip.qualificationOwner = owner;
+    assert.throws(() => validateState(state));
+  }
+});
+
+test('ambiguous completed-tip dispatch is reconciled to its owner without redispatch across restart', async () => {
+  const api = new BatchFake();
+  await until(api, 'batch-completed');
+  api.dispatchQualification = async tip => {
+    api.calls.push(['qualification', tip.sha]);
+    api.qualificationObservation = { owner: { run: 42, source: tip.sha, attempt: 1 }, qualification: null };
+    throw new Error('ambiguous qualification dispatch');
+  };
+  await assert.rejects(step(api), /ambiguous qualification dispatch/);
+  assert.equal(api.state.completedTip.qualificationRequested, true);
+  assert.equal(await step(api), 'waiting-for-tip-qualification');
+  assert.equal(api.state.completedTip.qualificationOwner.run, 42);
+  assert.equal(count(api, 'qualification'), 1);
 });
 
 test('failed terminal validation requests a retirement pass before normal isolation resumes', async () => {
@@ -328,7 +518,7 @@ test('head/enrollment/review withdrawal is re-read before every merge boundary, 
       if (change === 'main') api.base = sha(999);
       await step(api);
       assert.equal(count(api, 'merge'), prefix);
-      assert.equal(api.state.active.phase, prefix || change === 'main' ? 'recovery-required' : 'retiring');
+      assert.equal(api.state.active.phase, prefix ? 'recovery-required' : 'retiring');
     }
   }
 });

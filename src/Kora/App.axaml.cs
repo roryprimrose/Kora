@@ -276,7 +276,14 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<SessionInstructionScopeCommandService>(),
                 Services.GetRequiredService<SessionInstructionScopeBroker>(),
                 Services.GetRequiredService<Kora.Application.Dependencies.VerifiedLocalHandoffOperation>(),
-                Services.GetRequiredService<SessionRetentionApplyService>());
+                Services.GetRequiredService<SessionRetentionApplyService>(),
+                new ExactAnswerExportWindowController(
+                    new Kora.Windows.Presentation.WindowsExactAnswerExportWriter(
+                        Services.GetRequiredService<Kora.Core.Dependencies.IApplicationDataPaths>(),
+                        Services.GetRequiredService<ILogger<Kora.Windows.Presentation.WindowsExactAnswerExportWriter>>()),
+                    Services.GetRequiredService<Kora.Core.Auditing.ISecurityAuditLog>(),
+                    Services.GetRequiredService<ILogger<Kora.Application.Presentation.ExactAnswerExportReview>>(),
+                    ExactAnswerExportWindowController.SelectDestinationAsync));
             sessionsWindow.Bind();
             sessionsWindow.CreateInteraction = (state, owner) =>
                 responseWindow.PrepareSessions(state, owner, sessionsWindow.Open,

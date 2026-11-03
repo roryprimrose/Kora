@@ -641,8 +641,19 @@ Show ordered user/assistant exchanges, structured questions, accepted answers, p
 Collapsible task/event groups reduce noise but cannot replace or discard full evidence.
 Streaming responses are visibly provisional until finalized; failed/interrupted streams are retained with honest status.
 New events follow the tail only while the user is already following it; historical browsing preserves position and shows a New updates indicator.
+
+The delivered main conversation reader follows within **24 device-independent pixels** of its admitted tail. Otherwise it keeps the exact request/task/sequence/revision anchor and relative vertical offset through completions and layout changes, without moving keyboard focus
+([viewport owner](../src/Kora/ConversationViewport.cs), [measured regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ReadingPosition.cs)).
+
+A confirmed submission/completion is shown separately while the admitted page and its original ceiling remain unchanged. **New updates - read latest** deliberately traverses bounded pages of one fresh exact-session snapshot, retains only its final page, and moves to its tail.
+It does not repair stale cursors or accumulate a transcript ([shared read/publication owner](../src/Kora/SessionsViewModel.ConversationReading.cs)).
+
+Switching sessions never fetches conversation bodies. An explicit read can restore that session's memory-only anchor if the exact message/revision is still admitted; otherwise the reader reports unavailable/reopen state without selecting a replacement. Hide/compact changes retain volatile position; privacy/ownership retirement clears it.
+Unsent input remains independently owned and is never saved by reading ([viewport lifetime](../src/Kora/ConversationViewport.cs), [unsent owner](../src/Kora/SessionsViewModel.Unsent.cs)).
+
 Keep pending interactions reachable via a dedicated attention region even when their chronological entries are off screen.
 History approval/question entries show past outcome in read-only form, not live replayable buttons.
+The [per-turn clarification reader](../docs/reviewed-context.md#read-a-turns-retained-clarification-exchange) deliberately projects existing admitted history beneath one exact original session/request/task. Its bounded pages retain the original snapshot ceiling; partial/gap/redacted/metadata-only observations and pending/cancelled/expired outcomes remain explicit, with no replay or renewed authority ([owner](../src/Kora/SessionsViewModel.ClarificationExchange.cs)).
 A current native card uses the host's current ID/revision; historical copies link to that current item only if it still exists and remains actionable.
 Done-session conversation is readable without resume. Sending new work requires explicit Resume or New session; no silent lifecycle transition.
 

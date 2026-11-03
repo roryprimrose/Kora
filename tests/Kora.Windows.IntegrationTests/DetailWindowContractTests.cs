@@ -67,7 +67,7 @@ public sealed class DetailWindowContractTests
         Named(document, "FindSpan").Parent!.Attribute("MaxHeight")!.Value.Should().Be("100");
         Named(document, "FindSummary").Attribute("AutomationProperties.Name")!.Value.Should().Contain("current admitted text only");
         Named(document, "FindSummary").Attribute("AutomationProperties.LiveSetting")!.Value.Should().Be("Off");
-        Read("DetailContentView.axaml").Should().Contain("DynamicResource").And.Contain("Rich HTML copy is not supported")
+        Read("DetailContentView.axaml").Should().Contain("DynamicResource").And.Contain("authorized rendered Markdown also includes inert HTML")
             .And.Contain("Clipboard content leaves Kora").And.NotContain("Animation").And.NotContain("WebView");
     }
 
@@ -86,8 +86,9 @@ public sealed class DetailWindowContractTests
             .And.Contain("state.Close()")
             .And.NotContain("NotifyPresenceInteraction").And.NotContain("Clipboard.");
         Read("DetailWindow.axaml.cs").Should().Contain("Show(owner)").And.Contain("Reader.ClearPresentation()");
-        Read("NativeDetailClipboard.cs").Should().Contain("SetTextAsync(source)")
-            .And.NotContain("TryGet").And.NotContain("Html").And.NotContain("SetFile");
+        Read("NativeDetailClipboard.cs").Should().Contain("clipboard.SetDataAsync").And.Contain("item.SetText(source)")
+            .And.NotContain("TryGet").And.NotContain("SetFile")
+            .And.NotContain("FlushAsync").And.NotContain("ClearAsync");
     }
 
     [Theory]

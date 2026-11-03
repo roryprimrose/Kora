@@ -13,5 +13,5 @@ internal sealed class HandsFreeNativeFactory : IHandsFreeNativeFactory
         return new HandsFreeMicrophone(opened.Recorder, opened.Endpoint);
     }
     public Task<IActivatedCapture> OpenCommandAsync(HandsFreeAudioBinding binding, BlockingAudioStream stream, Func<bool> admitted) =>
-        Task.Run(() => WindowsActivatedCaptureFactory.OpenCommand(binding.Microphone, binding.CommandPhrases, stream, admitted), CancellationToken.None);
+        Task.Run(() => WindowsActivatedCaptureFactory.OpenCommandAsync(binding.Microphone, binding.CommandPhrases, stream, admitted), CancellationToken.None);
 }

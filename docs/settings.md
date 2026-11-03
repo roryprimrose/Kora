@@ -139,7 +139,7 @@ At the top of Settings, choose **Undo the last settings change**. Inspect the ex
 
 There is only one candidate from this run: the last confirmed registered appearance/presence, summary-cap, Kora-volume or ordinary response-mode change. Restoring a default removes the saved override; summary limits restore the exact previous pair. Undo is unavailable after restart or privacy/lifecycle closure, and cannot overwrite externally changed or unconfirmed preferences. A successful undo is a new audited save, consumes that candidate and offers no redo ([registered settings](../src/Kora.Core/Configuration/RegisteredSettings/RegisteredSettingRegistry.cs), [undo validation](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
 
-For summary caps, Kora volume and ordinary response mode, type **undo the last settings change**, then separately **confirm settings undo** or **cancel settings undo**. Activated voice uses the current name, for example **"Kora, undo the last settings change"**. Appearance requires a new native Settings review. Voice requests blocked by call policy cannot become permitted by clicking Confirm later ([command route](../src/Kora.Application/ViewModels/MainViewModel.RegisteredSettingUndo.cs)).
+For summary caps, Kora volume, ordinary response mode and response timeout, type **undo the last settings change**, then separately **confirm settings undo** or **cancel settings undo**. Activated voice uses the current name, for example **"Kora, undo the last settings change"**. Other appearance preferences require native Settings review ([command route](../src/Kora.Application/ViewModels/MainViewModel.RegisteredSettingUndo.cs)).
 
 Only future eligible output changes. Undo does not replay speech, call an AI, restore microphone consent, listening, permissions or grants, change providers/devices/retention/security, or reverse external actions. If a save is unconfirmed, inspect the saved preference and audit before explicit recovery; Kora does not guess whether to retry or roll back ([scope and recovery](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
 
@@ -162,7 +162,7 @@ size, dot size/density, speech scaling and speech scale amount are also supporte
 see the exact [registered IDs, types and bounds](setting-proposals.md).
 Presence answers require exact lowercase IDs and syntax, canonical decimal
 integers or `true`/`false`; no aliases, batches or commentary.
-Response timeout and experimental renderer selection are excluded. This answer is inert
+Experimental renderer selection is excluded. This answer is inert
 text, never a command or permission to write. Other answers remain readable
 but cannot be used as appearance suggestions.
 
@@ -188,6 +188,16 @@ produce a reviewable successful answer. No provider is enabled by this feature.
 The same [registered-setting review](setting-proposals.md) handles the existing
 spoken-summary and Kora-volume suggestion families without expanding settings
 or granting model write authority. Only one native review is active at a time.
+
+### Review a response-timeout suggestion
+
+Ask for the existing response-window hide delay in an Active conversation. One admitted answer is `set appearance.response-timeout to 15`: an exact canonical integer from 1 through 60 seconds, default 5. This is not a provider/request deadline ([preference](#independent-visibility-timeouts), [registered values](setting-proposals.md)).
+
+Choose **Review setting suggestion...** on that exact answer in either conversation window, or type `review response timeout suggestion` for the host-pinned successful answer. Activated voice uses the current name, for example **"Kora, review response timeout suggestion"**. Review shows current/proposed seconds, saved/default provenance and shared device-local scope; it saves nothing ([shared review](../src/Kora.Application/Configuration/AppearanceSuggestionReview.cs)).
+
+Separately choose **Confirm exact setting change**, or use `confirm response timeout change`. Use **Cancel setting review** or `cancel response timeout review` to write nothing. Reviews expire after 60 seconds and recheck source, preference, host/privacy and original-channel call admission. A UI click cannot relabel a voice request as native authority ([command route](../src/Kora.Application/ViewModels/MainViewModel.ResponseTimeoutSuggestions.cs)).
+
+Always show, presence timeout, questions, approvals and response action links retain their existing visibility behavior. No response is regenerated or replayed, and no provider deadline, microphone consent or other setting changes. Unconfirmed saves require explicit Settings/audit inspection, not automatic retry or a rollback claim. A confirmed change supports the [shared one-change undo](#undo-the-last-registered-settings-change).
 
 ### Navigate without changing a preference
 
@@ -721,12 +731,12 @@ required queued setup task.
 
 ## Appearance
 
-The tab groups **Appearance** controls first (theme, reader text scale and response-window behavior), followed by **Presence** controls (visibility, timeout and animation). Each field has a cog actions button at the top right of its card, inside the card padding. Clicking it opens **Reset setting**, affecting only that field ([settings layout](../src/Kora/SettingsWindow.axaml)).
+The tab groups **Appearance** controls first (theme, reader text scale, reduced motion and response-window behavior), followed by **Presence** controls (visibility, timeout and animation). Each field has a cog actions button at the top right of its card, inside the card padding. Clicking it opens **Reset setting**, affecting only that field ([settings layout](../src/Kora/SettingsWindow.axaml)).
 
 The existing controls and exact typed/activated-voice commands share one
 host-owned, typed appearance service. No model or network is needed. Enter
-**list appearance settings** to inspect the twelve admitted options, units,
-defaults, bounds, scope and application timing.
+**list appearance settings** to inspect the thirteen admitted options, units,
+defaults, bounds, scope and application timing ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs)).
 
 | ID | Default | Values / units |
 |---|---|---|
@@ -742,6 +752,7 @@ defaults, bounds, scope and application timing.
 | `appearance.speech-scale-amount` | `100` | 0-200 percent |
 | `appearance.reader-text-scale` | `100` | 75-200 integer percent; native source/detail and complete serialized Evidence bodies only ([domain](../src/Kora.Core/Configuration/ReaderTextScaleSettings.cs)) |
 | `appearance.native-presence-renderer` | `false` | `false` = Avalonia; `true` = Native (experimental); an environment startup default applies only without a saved choice |
+| `appearance.reduced-motion` | `false` | `true` freezes presence particles; `false` follows Windows, never overrides Windows reduced motion ([precedence](../src/Kora.Core/Configuration/ReducedMotionSettings.cs)) |
 
 Use **get appearance.theme**, **set appearance.theme to dark**, or
 **reset appearance.theme**; substitute another listed ID and its typed value.
@@ -793,8 +804,9 @@ the other backend. Uncertain retirement requires normal exit, not a storage or
 ownership reset. Native remains experimental; this does not qualify laptop
 rendering performance or full physical interaction.
 Both modes keep every visible state gently moving, including coral failures.
-Windows reduced-motion preferences still freeze particle movement, and hidden
-or ineligible surfaces do not keep animating.
+The **Reduced motion** checkbox, **use reduced motion** command or **set appearance.reduced-motion to true** freezes particle movement immediately after confirmed save in both modes. **Follow system motion**, false or reset returns to Windows behavior; Windows reduced motion still wins. Speech sizing and brief colour/visibility transitions remain independent, and hidden or ineligible surfaces do not keep animating ([binding](../src/Kora/Controls/PresenceMotionBinding.cs), [particle consumer](../src/Kora/Controls/PresenceControl.cs)).
+
+The preference reloads on restart. A model's exact reduced-motion suggestion changes nothing until a separate native review and confirmation; the existing **Undo the last settings change** also requires native review/confirmation for appearance. Failed writes are reported rather than shown as saved, and unknown outcomes never promise rollback ([appearance review](../src/Kora.Application/Configuration/AppearanceSuggestionReview.cs), [storage](../src/Kora.Application/Configuration/LocalAppearancePreferences.cs), [undo](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
 
 The saved renderer choice overrides `KORA_PRESENCE_RENDERER` on later startups.
 With no saved choice, unset/`avalonia` uses Avalonia and `native` opts into the

@@ -28,8 +28,12 @@ narratives here.
 
 ## Delivered Artifact Invocation
 
+For explicitly selected reviewed owned v3 guidance, missing required literal values are collected through [source-bound private questions](../src/Kora.Application/Skills/OwnedSkillInvocationWorkflow.InputQuestions.cs) before the existing complete invocation preview.
+Original-channel replies are data only; source selection, target selection, enablement and final native confirmation remain separate.
+Both direct ID/version and readable-name consumers use the same canonical binding/expansion and local execution path ([complete user operation](../docs/owned-skill-authoring.md#required-literal-guidance-inputs)). No tool parameters, parser aliases, provider fallback or new runtime are introduced.
+
 The separate [native owned observation workflow](../docs/owned-skill-authoring.md#author-and-run-an-ordered-host-observation-workflow) declares and executes one to six explicit original read-only catalogue actions in order.
-It saves disabled, separately reviews/enables the exact source/request/Active target, independently approves each action and shows a complete source-labelled native result or joined failure/cancellation. It does not expose a seventh tool or a model runner ([host owner](../src/Kora.Application/Skills/ObservationSkillWorkflow.cs)).
+Its native v4 declaration does not accept v3 literal input questions or template expansion. It saves disabled, separately reviews/enables the exact source/request/Active target, independently approves each action and shows a complete source-labelled native result or joined failure/cancellation. It does not expose a seventh tool or a model runner ([host owner](../src/Kora.Application/Skills/ObservationSkillWorkflow.cs)).
 
 The bounded [owned-package operation](../docs/owned-skill-authoring.md#author-and-use-one-host-webpageget-skill) is explicitly selected by exact saved ID/version, not automatically registered as an artifact. Native v2 declares only host WebPageGet; save stays disabled, source review/enablement and exact target/request/URL confirmation precede independent per-action approval. The [common reviewed consumer](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs) binds source-specific storage admission without changing instruction-only purposes or shared-root read consent.
 
@@ -225,6 +229,12 @@ foreground selected-session route; they never choose a server, account, session
 or tool implicitly. Authentication/approval still uses mandatory native review.
 The original voice/UI channel is preserved. Cancellation closes new dispatch
 and publication; the owner joins late provider/transport work before disconnect.
+
+After the authenticated exchange is physically joined, the [canonical owner](../src/Kora.Application/Mcp/McpInvocation.cs) screens the complete observed result for private LocalOnly use and pauses before returning it to the model. The [native review](../src/Kora.Application/Mcp/McpReview.cs) shows unchanged Text/StructuredJson, observation time, source/server/account/schema, original Active conversation/task/channel and retention.
+
+Separate **Consent to one local continuation** is mandatory for that exact result and original bounded task. Connection, schema and invocation grants, including This session/Always, cannot supply or renew result-use consent. The [authorization owner](../src/Kora.Application/Interaction/HostAuthorizationService.cs) offers only one-use consent and does not reuse grants or automatic session-level approval. The same gate applies to the reviewed MCP skill bridge.
+
+Declining retains a truthful `Denied` / `ToolResultRejected` original conversation terminal without a result-bearing model request or fabricated answer. The completed external read is not rolled back. Source/account/session/privacy changes or cancellation suppress continuation; uncertain completion remains unconfirmed without retry. The model-free invocation below is unchanged and requires separate follow-up review only if the user later asks a new question ([regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.McpContinuation.cs)).
 
 For provider-independent execution, **Invoke reviewed MCP tool without a model**
 or `invoke selected mcp tool` uses the same explicit foreground server/account,
@@ -545,9 +555,14 @@ Resolution consent and complete exact invocation review remain separate. V1 tool
 may return one strict opaque agent ref from the served enabled registered subset.
 This is untrusted selection data, not a tool invocation or approval.
 The [source-bound proposal](../src/Kora.Application/Agents/ProposedBoundedAgentUse.cs)
-retains the original question/channel/conversation and exact observed source.
-A separate original-user native action opens the existing complete invocation
-review, then requires separate confirmation through `BoundedAgentWorkflow`.
+retains the discovery question/channel/conversation and exact observed source as inert recommendation provenance, not invocation input or authority.
+The recommendation binds to the exact host-owned file identity and byte digest.
+Artifact IDs must match exactly or use the canonical User metadata projection:
+`user-profile` replaces the registered VS Code, Insiders or configured-root category,
+preserving the exact agent command identity. Arbitrary ID differences are refused.
+Matching category IDs or readable names never substitute for the exact file binding.
+A separate original-user **Review customization recommendation** action opens the existing native review with the original conversation fixed and an empty task field. The host offers current source-qualified same-name candidates without automatic selection. The user chooses an exact current source and supplies a fresh unchanged task with its own accurate channel and new request/task identity.
+Separate source-read consent displays the whole selected profile, exact new task, scope and budgets; separate confirmation invokes `BoundedAgentWorkflow`. Catalogue/source/use/private/ownership/call/session changes fail closed, and input/choice edits retire in-flight reviews ([native owner](../src/Kora/AgentRunController.ModelProposal.cs), [current-source resolver](../src/Kora.Application/Agents/NamedAgentResolver.cs)).
 Only v1 local instruction-only, tools-none/references-none profiles are admitted.
 The parent finishes before this new original-user action; no nested runtime chain,
 fabricated parent tool result or hosted transmission of profile/output is added.

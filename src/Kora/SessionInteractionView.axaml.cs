@@ -25,6 +25,7 @@ internal sealed partial class SessionInteractionView : UserControl
     private SessionDetailView? activeDetails;
     private SessionsViewModel? observedModel;
     private readonly ReplyPresentationFence replyPresentation;
+    private readonly ConversationViewport conversationReader;
     private Guid? selectedSession;
     private readonly Dictionary<DetailContentReference, DetailReadingPosition> readingPositions = [];
     private GridLength conversationWidth = new(1, GridUnitType.Star);
@@ -38,16 +39,18 @@ internal sealed partial class SessionInteractionView : UserControl
     private readonly EventHandler<RoutedEventArgs> detailCommandClick;
     internal Task EvidenceValidationOperation { get; private set; } = Task.CompletedTask;
     internal bool DetailsVisible => DetailsPane.IsVisible;
-    internal bool IsConversationPresented => IsVisible && ConversationTabs.SelectedItem == ConversationTab;
+    internal bool IsConversationPresented => IsEffectivelyVisible && TopLevel.GetTopLevel(this)?.IsVisible == true
+        && ConversationTabs.SelectedItem == ConversationTab;
     private long conversationPresentationRevision;
     internal long ConversationPresentationRevision => Interlocked.Read(ref conversationPresentationRevision);
 
     public SessionInteractionView()
     {
         InitializeComponent();
+        conversationReader = new(this, ConversationScroll, ConversationMessageItems, ConversationUpdateItems, ConversationReaderStatus);
         replyPresentation = new(this);
         ConversationTabs.SelectionChanged += (_, _) =>
-        { Interlocked.Increment(ref conversationPresentationRevision); replyPresentation.Retire(); };
+        { Interlocked.Increment(ref conversationPresentationRevision); replyPresentation.Retire(); conversationReader.Suspend(); };
         RefreshSessions.Click += async (_, _) => await Run(model => model.RefreshAsync());
         NextSessions.Click += async (_, _) => await Run(model => model.NextAsync());
         SearchSessionNames.Click += async (_, _) => await Run(model => model.SearchSessionNamesAsync());
@@ -76,6 +79,11 @@ internal sealed partial class SessionInteractionView : UserControl
         };
         ReadConversation.Click += async (_, _) => await Run(model => model.ReadConversationAsync());
         NextConversation.Click += async (_, _) => await Run(model => model.ReadConversationAsync(next: true));
+        NewConversationUpdates.Click += async (_, _) =>
+        {
+            var admitted = conversationReader.CaptureAdmission();
+            if (admitted()) { await Run(model => model.ReadLatestConversationAsync(admitted)); }
+        };
         ReadSessionLogs.Click += async (_, _) => await Run(model => model.ReadEvidenceDetailsAsync(EvidenceSource.Log));
         ReadSessionAudit.Click += async (_, _) => await Run(model => model.ReadEvidenceDetailsAsync(EvidenceSource.AuthorityAudit));
         ReadActivity.Click += async (_, _) => await Run(model => model.ReadHistoryAsync());
@@ -124,7 +132,8 @@ internal sealed partial class SessionInteractionView : UserControl
         PropertyChanged += (_, args) =>
         {
             if (args.Property == IsVisibleProperty && !IsVisible) { HideDetails(); }
-            if (args.Property == IsVisibleProperty) { Interlocked.Increment(ref conversationPresentationRevision); }
+            if (args.Property == IsVisibleProperty)
+            { Interlocked.Increment(ref conversationPresentationRevision); conversationReader.Suspend(); }
         };
     }
 
@@ -134,12 +143,20 @@ internal sealed partial class SessionInteractionView : UserControl
     {
         try
         {
-            if (args.Source is Button { Name: "ReplyToAssistantAnswer", DataContext: ConversationMessage replySource }
+            if (args.Source is Button { Name: "OpenSubmittedAnswerContext", DataContext: ConversationMessage answer })
+            { args.Handled = true; await Run(current => current.OpenConversationDetailAsync(answer, submittedContext: true)); }
+            else if (args.Source is Button { Name: "ReplyToAssistantAnswer", DataContext: ConversationMessage replySource }
                 && DataContext is SessionsViewModel)
             {
                 args.Handled = true;
                 var presenter = replyPresentation.Capture();
                 await Run(current => current.ReplyToAnswerAsync(replySource, presenter));
+            }
+            else if (args.Source is Button { Name: "ExportExactAssistantAnswer", DataContext: ConversationMessage exportSource })
+            {
+                args.Handled = true;
+                var presenter = replyPresentation.Capture();
+                await Run(current => current.ExportExactAnswerAsync(exportSource, presenter));
             }
             else if (args.Source is Button { Name: "OpenObservedResult", DataContext: ObservationDetailChoice observation })
             { args.Handled = true; await Run(current => current.OpenObservationAsync(observation)); }
@@ -158,12 +175,14 @@ internal sealed partial class SessionInteractionView : UserControl
         if (observedModel is not null) { observedModel.PropertyChanged -= OnModelChanged; }
         HideDetails();
         observedModel = DataContext as SessionsViewModel;
+        conversationReader.Bind(observedModel);
         selectedSession = observedModel?.SelectedSessionRecord?.Authority.SessionId.Value;
         if (observedModel is not null) { observedModel.PropertyChanged += OnModelChanged; }
     }
 
     private void OnModelChanged(object? sender, PropertyChangedEventArgs args)
     {
+        conversationReader.Refresh();
         var current = observedModel?.SelectedSessionRecord?.Authority.SessionId.Value;
         if (current != selectedSession || observedModel?.CanPresentDetails == false || evidenceAdmission?.Invoke() == false
             || observedModel?.IsNoticeResult(activeDetails?.Content) == true
@@ -179,11 +198,12 @@ internal sealed partial class SessionInteractionView : UserControl
     private ConversationMessage? ConversationOrigin(AdmittedDetailContent? content)
     {
         if (!IsVisible || observedModel?.CanPresentDetails != true
-            || content?.Origin is not (DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant or DetailContentOrigin.RetainedLocalObservation)
+            || content?.Origin is not (DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant
+                or DetailContentOrigin.RetainedLocalObservation or DetailContentOrigin.RetainedAnswerContext)
             || content.ConversationMessage is not { } message
             || observedModel.SelectedSessionRecord?.Authority.SessionId != message.Request.SessionId)
         { return null; }
-        return observedModel.ConversationMessages.FirstOrDefault(current => current == message);
+        return observedModel.ObservedConversationMessages.FirstOrDefault(current => current == message);
     }
 
     private void RefreshReturnNavigation()
@@ -207,7 +227,8 @@ internal sealed partial class SessionInteractionView : UserControl
         if (content is null || ConversationOrigin(content) is not { } message) { return false; }
         ConversationTabs.SelectedItem = ConversationTab;
         UpdateLayout();
-        var name = content.Origin == DetailContentOrigin.RetainedLocalObservation ? "OpenObservedResult"
+        var name = content.Origin == DetailContentOrigin.RetainedAnswerContext ? "OpenSubmittedAnswerContext"
+            : content.Origin == DetailContentOrigin.RetainedLocalObservation ? "OpenObservedResult"
             : content.Origin == DetailContentOrigin.RetainedAssistant
             ? "OpenAssistantConversationDetail" : "OpenConversationDetail";
         var origin = ConversationTabs.GetVisualDescendants().OfType<Button>().FirstOrDefault(button =>
@@ -359,14 +380,15 @@ internal sealed partial class SessionInteractionView : UserControl
         if (!choose && acceptOffer && model.DetailsOfferMessage is { } offered)
         { await model.OpenConversationDetailAsync(offered, assistant: true); return; }
         if (!choose && model.LastDetailMessage is { } previous)
-        { await model.OpenConversationDetailAsync(previous, model.LastDetailAssistant, model.LastDetailObservation); return; }
+        { await model.OpenConversationDetailAsync(previous, model.LastDetailAssistant, model.LastDetailObservation,
+            submittedContext: model.LastDetailContext); return; }
         if (!choose && model.LastEvidenceDetail is { } evidence)
         { await model.OpenEvidenceDetailsAsync(evidence); return; }
         if (!choose && model.CanRestoreHistoryDetail)
         { await model.OpenHistoryDetailAsync(); return; }
         if (TopLevel.GetTopLevel(this) is not ResponseWindow window || !window.PrepareDetailsLayout()) { return; }
         var choices = new StackPanel { Spacing = 8 };
-        foreach (var message in model.ConversationMessages)
+        foreach (var message in model.ObservedConversationMessages)
         {
             choices.Children.Add(new Button
             {

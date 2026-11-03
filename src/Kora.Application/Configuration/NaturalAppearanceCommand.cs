@@ -9,7 +9,7 @@ public static class NaturalAppearanceCommand
     private static readonly string[] Operations = ["get", "status", "reset", "set", "increase", "decrease"];
     private static readonly string[] Mutations = ["set", "increase", "decrease"];
 
-    public const string Syntax = "Use dark mode, use light mode, or use system theme. Use get/status reader text scale, reset reader text scale, set reader text scale to <integer> percent, or increase/decrease reader text scale by <positive integer> percentage points. Voice requires the current assistant-name prefix.";
+    public const string Syntax = "Use dark mode, use light mode, or use system theme. Use reduced motion, or follow system motion. Use get/status reader text scale, reset reader text scale, set reader text scale to <integer> percent, or increase/decrease reader text scale by <positive integer> percentage points. Voice requires the current assistant-name prefix.";
 
     public static AppearanceCommand? Parse(string transcript, string assistantName, bool requireActivation = false)
     {
@@ -31,10 +31,21 @@ public static class NaturalAppearanceCommand
         var reader = Operations.Any(operation =>
             text.Equals(operation + " reader text scale", StringComparison.OrdinalIgnoreCase)
             || text.StartsWith(operation + " reader text scale ", StringComparison.OrdinalIgnoreCase));
-        if (theme is null && !reader) { return null; }
+        var reducedMotion = text.ToLowerInvariant() switch
+        {
+            "use reduced motion" => true,
+            "follow system motion" => false,
+            _ => (bool?)null,
+        };
+        if (theme is null && !reader && reducedMotion is null) { return null; }
         if (text.Length > 256 || text.Any(char.IsControl) || (requireActivation && !activated))
         {
             return Clarify();
+        }
+        if (reducedMotion is { } reduce)
+        {
+            return new(AppearanceCommandOperation.Set, AppearanceOptionRegistry.Get(AppearanceOption.ReducedMotion),
+                new AppearanceValue.Toggle(reduce));
         }
         if (theme is { } mode)
         {

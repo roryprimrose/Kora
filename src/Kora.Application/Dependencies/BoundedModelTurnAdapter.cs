@@ -242,8 +242,12 @@ internal sealed partial class BoundedModelTurnAdapter(
                 { return Finish(provenance, ModelTurnOutcome.Unknown, ModelTurnReason.ToolResultRejected); }
                 if (toolReply.Outcome != CapabilityOutcome.Succeeded)
                 {
-                    return Finish(provenance, toolReply.Outcome == CapabilityOutcome.Denied
-                        ? ModelTurnOutcome.Denied : ModelTurnOutcome.Unknown, ModelTurnReason.ToolResultRejected);
+                    return Finish(provenance, toolReply.Outcome switch
+                    {
+                        CapabilityOutcome.Denied => ModelTurnOutcome.Denied,
+                        CapabilityOutcome.Unavailable => ModelTurnOutcome.Unavailable,
+                        _ => ModelTurnOutcome.Unknown,
+                    }, ModelTurnReason.ToolResultRejected);
                 }
                 if (toolReply.WebPage is { } page && page.Request != provenance.Request)
                 { return Finish(provenance, ModelTurnOutcome.Unknown, ModelTurnReason.ToolResultRejected); }

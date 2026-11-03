@@ -32,36 +32,54 @@ public sealed partial class MainViewModel
     private readonly AppearanceConfigurationService appearanceConfiguration;
     private string appearanceSettingStatus = AppearanceCommand.Syntax;
     private int readerTextScalePercent = ReaderTextScaleSettings.DefaultPercent;
+    private bool isReducedMotionEnabled = ReducedMotionSettings.DefaultEnabled;
     private readonly Dictionary<AppearanceOption, PendingAppearance> pendingAppearance = [];
     private bool applyingAppearance;
     private Task appearancePersistence = Task.CompletedTask;
     private Task appearanceSuggestionPersistence = Task.CompletedTask;
 
-    public async Task<AppearanceApplyResult> ConfirmAppearanceSuggestionAsync(AppearanceSuggestionReview review, CancellationToken token)
+    public Task<AppearanceApplyResult> ConfirmAppearanceSuggestionAsync(AppearanceSuggestionReview review, CancellationToken token) =>
+        ConfirmAppearanceSuggestionAsync(review, SecurityAuditInitiator.LocalUser, token);
+
+    private async Task<AppearanceApplyResult> ConfirmAppearanceSuggestionAsync(AppearanceSuggestionReview review,
+        SecurityAuditInitiator initiator, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(review);
         if (disposed || !appearanceSuggestionPersistence.IsCompleted)
         { throw new InvalidOperationException("Appearance confirmation is unavailable while the host is closing or another confirmation is pending."); }
-        var work = review.ConfirmAsync(token);
+        var work = review.ConfirmAsync(token, initiator);
         appearanceSuggestionPersistence = work;
         try { return await work; }
         finally { appearanceSuggestionPersistence = Task.CompletedTask; }
     }
 
-    public Task<AppearanceSuggestionReview> ReviewAppearanceSuggestionAsync(
+    public async Task<AppearanceSuggestionReview> ReviewAppearanceSuggestionAsync(
         Kora.Core.Conversation.ConversationMessage message, Func<bool> sourceCurrent,
         Func<CancellationToken, Task> validateSource, CancellationToken token)
     {
+        if (disposed || !appearanceSuggestionPersistence.IsCompleted)
+        { throw new InvalidOperationException("Appearance review is unavailable while closing or another operation is pending."); }
         var privacy = privacyObservation.Current.TopologyRevision;
         var call = CallPolicyRevision;
         var ownership = settingsOwnershipRevision();
         var binding = Interlocked.Read(ref settingsOwnershipBindingRevision);
+        var recovery = Volatile.Read(ref voiceRecoveryRevision);
+        var name = AssistantName;
+        var voice = message.Request.Origin == RequestOrigin.ActivatedVoice
+            || HostActivity.RequireCurrent().Request.Origin == RequestOrigin.ActivatedVoice;
         bool Eligible() => !disposed && IsCallMutationHostEligible && !IsProtectedCall
             && !IsBusy && !IsResponseInteractionPending && !applyingAppearance
             && privacyObservation.Current.TopologyRevision == privacy && CallPolicyRevision == call
             && settingsOwnershipRevision() == ownership
-            && Interlocked.Read(ref settingsOwnershipBindingRevision) == binding && sourceCurrent();
-        return AppearanceSuggestionReview.ReviewAsync(appearanceConfiguration, message, Eligible, validateSource, token);
+            && Interlocked.Read(ref settingsOwnershipBindingRevision) == binding
+            && Volatile.Read(ref voiceRecoveryRevision) == recovery
+            && string.Equals(AssistantName, name, StringComparison.Ordinal)
+            && (!voice || IsVoiceEnabled && HasVoiceConsent) && sourceCurrent();
+        var work = AppearanceSuggestionReview.ReviewAsync(appearanceConfiguration, communicationPolicy,
+            speechSuggestionBinding?.Time ?? TimeProvider.System, message, Eligible, validateSource, token);
+        appearanceSuggestionPersistence = work;
+        try { return await work.ConfigureAwait(false); }
+        finally { appearanceSuggestionPersistence = Task.CompletedTask; }
     }
 
     public Task AppearanceUpdate { get; private set; } = Task.CompletedTask;
@@ -74,6 +92,12 @@ public sealed partial class MainViewModel
     {
         get => readerTextScalePercent;
         set => QueueAppearance(AppearanceOption.ReaderTextScale, new AppearanceValue.Number(value), nameof(ReaderTextScalePercent));
+    }
+
+    public bool IsReducedMotionEnabled
+    {
+        get => isReducedMotionEnabled;
+        set => QueueAppearance(AppearanceOption.ReducedMotion, new AppearanceValue.Toggle(value), nameof(IsReducedMotionEnabled));
     }
 
     public void EnsureReaderTypographyAvailable()
@@ -102,6 +126,7 @@ public sealed partial class MainViewModel
     public IReadOnlyList<AppearanceOptionDescriptor> AppearanceOptions => AppearanceOptionRegistry.Options;
     public AsyncCommand ResetThemeCommand { get; }
     public AsyncCommand ResetReaderTextScaleCommand { get; }
+    public AsyncCommand ResetReducedMotionCommand { get; }
     public AsyncCommand ResetResponseTimeoutCommand { get; }
     public AsyncCommand ResetResponseAlwaysVisibleCommand { get; }
     public AsyncCommand ResetResponseWindowTopmostCommand { get; }
@@ -133,6 +158,8 @@ public sealed partial class MainViewModel
         {
             switch (descriptor.Option, appearanceConfiguration.Get(descriptor.Option).Value)
             {
+                case (AppearanceOption.ReducedMotion, AppearanceValue.Toggle boolean):
+                    SetProperty(ref isReducedMotionEnabled, boolean.Value, nameof(IsReducedMotionEnabled)); break;
                 case (AppearanceOption.NativePresenceRenderer, AppearanceValue.Toggle boolean):
                     nativePresenceRendererObserved = true;
                     if (isNativePresenceRenderer != boolean.Value)
@@ -256,8 +283,12 @@ public sealed partial class MainViewModel
                     finally
                     {
                         AppearanceSettingStatus = "Appearance preference not confirmed. Inspect saved preference evidence before explicit repair.";
-                        ShowFailure(next.Key == AppearanceOption.ReaderTextScale
-                            ? "Native reader text scale is unavailable." : "The appearance setting was not saved.", AppearanceSettingStatus);
+                        ShowFailure(next.Key switch
+                        {
+                            AppearanceOption.ReaderTextScale => "Native reader text scale is unavailable.",
+                            AppearanceOption.ReducedMotion => "Reduced motion preference is not confirmed.",
+                            _ => "The appearance setting was not saved.",
+                        }, AppearanceSettingStatus);
                     }
                 }
                 finally

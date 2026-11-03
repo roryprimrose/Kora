@@ -4,7 +4,9 @@ const { createHash } = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { GitHubQueue, admit } = require('./github.cjs');
-const { CHECKS, GATE, STATE_BRANCH, WINDOWS_12_JOBS } = require('./policy.cjs');
+const { admitBatchTip } = require('./github.cjs');
+const { manifestFor, digest } = require('./batch-policy.cjs');
+const { CHECKS, GATE, STATE_BRANCH, WINDOWS_12_JOBS, REJECTED_ADMISSION_JOBS } = require('./policy.cjs');
 const BASE = 'a'.repeat(40);
 const HEAD = 'b'.repeat(40);
 const OTHER = 'c'.repeat(40);
@@ -19,6 +21,14 @@ const pr = () => ({ state: 'open', draft: false, base: { ref: 'main' },
   head: { sha: HEAD, repo: { full_name: 'owner/repo' } }, auto_merge: { merge_method: 'squash' } });
 const inputs = () => ({ queue_pr: '1', queue_head: HEAD, queue_base: BASE, queue_ticket: TICKET, app_id: '42' });
 const error = status => Object.assign(new Error(`HTTP ${status}`), { status });
+function batchState() {
+  const active = { kind: 'batch', ticket: TICKET, base: BASE, head: OTHER, created: new Date(ENROLLED).toISOString(),
+    phase: 'dispatched', dispatchRecorded: true, members: [{ number: 1, head: HEAD, enrollment: ENROLLED, review: null }],
+    prefixes: [{ sha: OTHER, tree: HEAD }],
+    inventory: { schema: 'windows-12-v1', blob: workflowContent().sha, jobs: [...WINDOWS_12_JOBS] } };
+  active.digest = digest(manifestFor(active));
+  return { version: 2, profile: 'batch-v1', active, blocked: [], completedTip: null, singletonRetries: [] };
+}
 function workflowContent(source = '# merge-queue-job-schema: windows-12-v1\n') {
   const bytes = Buffer.from(source);
   return { type: 'file', encoding: 'base64', content: bytes.toString('base64'),
@@ -42,9 +52,9 @@ function fixture(overrides = {}) {
   };
   const groups = {
     git: ['getRef', 'createBlob', 'createTree', 'createCommit', 'updateRef', 'createRef'],
-    repos: ['getContent', 'getBranchProtection', 'compareCommits', 'getCollaboratorPermissionLevel'],
-    pulls: ['list', 'get', 'updateBranch', 'merge'],
-    checks: ['create', 'update'],
+    repos: ['getContent', 'getBranchProtection', 'compareCommits', 'getCollaboratorPermissionLevel', 'getCommit', 'merge'],
+    pulls: ['list', 'get', 'updateBranch', 'merge', 'listFiles'],
+    checks: ['create', 'update', 'listForRef'],
     actions: ['createWorkflowDispatch', 'listWorkflowRuns', 'listJobsForWorkflowRunAttempt', 'cancelWorkflowRun', 'getWorkflowRun'],
   };
   const rest = {};
@@ -54,6 +64,7 @@ function fixture(overrides = {}) {
       return { data: await (responses[name]?.(args) ?? {}) };
     }]));
   }
+
   const github = { rest,
     paginate: async (method, args, transform) => {
       const response = await method(args);
@@ -72,6 +83,155 @@ function fixture(overrides = {}) {
   return { github, core, calls, responses, api: new GitHubQueue(github, context, core, '42') };
 }
 
+  test('batch protection is a separate explicit App-owned admission-only profile; current four-check default is unchanged', async () => {
+    const value = fixture();
+    await value.api.verifyProtection();
+    await assert.rejects(value.api.verifyProtection('batch-v1'), /separately authorized/);
+    const protection = value.responses.getBranchProtection();
+    protection.required_status_checks.checks = [{ context: 'Merge admission', app_id: 42 }];
+    value.responses.getBranchProtection = () => protection;
+    await value.api.verifyProtection('batch-v1');
+    await assert.rejects(value.api.verifyProtection(), /missing/);
+    protection.required_status_checks.checks[0].app_id = 99;
+    await assert.rejects(value.api.verifyProtection('batch-v1'), /missing/);
+  });
+
+  test('synthetic adapter uses only trusted GitHub merge/ref operations and reconciles ambiguous responses by exact parents', async () => {
+    for (const ambiguous of [false, true]) {
+      let ref = null;
+      let requests = 0;
+      const value = fixture({
+        getRef: () => { if (!ref) throw error(404); return { object: { sha: ref } }; },
+        createRef: args => { ref = args.sha; return {}; },
+        merge: () => { requests++; ref = OTHER; if (ambiguous) throw error(502); return {}; },
+        getCommit: ({ ref: source }) => ({ sha: source, commit: { tree: { sha: HEAD } },
+          parents: [{ sha: BASE }, { sha: HEAD }] }),
+      });
+      const active = batchState().active;
+      if (ambiguous) await assert.rejects(value.api.syntheticPrefix(active, 0), /502/);
+      assert.deepEqual(await value.api.syntheticPrefix(active, 0), { sha: OTHER, tree: HEAD });
+      assert.equal(requests, 1);
+      assert.deepEqual(value.calls.filter(call => call[0] === 'createRef').map(call => call[1]), [{
+        owner: 'owner', repo: 'repo', ref: `refs/heads/automation/merge-queue-batch/${TICKET}/1`, sha: BASE }]);
+      assert.ok(!value.calls.some(call => ['updateRef', 'createBlob', 'createTree', 'createCommit', 'dispatch'].includes(call[0])));
+      value.responses.getCommit = ({ ref: source }) => ({ sha: source, commit: { tree: { sha: HEAD } },
+        parents: [{ sha: HEAD }, { sha: BASE }] });
+      await assert.rejects(value.api.syntheticPrefix(active, 0), /parent identities/);
+    }
+  });
+
+  test('synthetic conflicts and unknown commit metadata cannot manufacture candidate trees', async () => {
+    const value = fixture({ getRef: () => ({ object: { sha: BASE } }), merge: () => { throw error(409); } });
+    assert.equal(await value.api.syntheticPrefix(batchState().active, 0), null);
+    for (const commit of [{}, { sha: OTHER }, { sha: OTHER, commit: { tree: { sha: HEAD } }, parents: [{}] }]) {
+      value.responses.getCommit = () => commit;
+      await assert.rejects(value.api.commitInfo(OTHER), /Incomplete/);
+    }
+  });
+
+  test('expected base updates require exact parents/tree, verified commit and the configured App bot, not an author change', async () => {
+    const member = batchState().active.members[0];
+    const value = fixture({
+      get: () => ({ ...pr(), head: { ...pr().head, sha: OTHER } }),
+      getCommit: () => ({ sha: OTHER, commit: { tree: { sha: HEAD }, verification: { verified: true } },
+        parents: [{ sha: HEAD }, { sha: BASE }], author: { login: 'queue[bot]' } }),
+      listForRef: () => [{ app: { id: 42, slug: 'queue' } }],
+    });
+    assert.equal(await value.api.expectedUpdate(member, BASE, HEAD), OTHER);
+    for (const change of ['parents', 'tree', 'verified', 'author', 'app']) {
+      const data = { sha: OTHER, commit: { tree: { sha: HEAD }, verification: { verified: true } },
+        parents: [{ sha: HEAD }, { sha: BASE }], author: { login: 'queue[bot]' } };
+      if (change === 'parents') data.parents.reverse();
+      if (change === 'tree') data.commit.tree.sha = BASE;
+      if (change === 'verified') data.commit.verification.verified = false;
+      if (change === 'author') data.author.login = 'author';
+      value.responses.getCommit = () => data;
+      value.responses.listForRef = () => [{ app: { id: change === 'app' ? 99 : 42, slug: 'queue' } }];
+      await assert.rejects(value.api.expectedUpdate(member, BASE, HEAD), /expected queue-App/);
+    }
+  });
+
+  test('batch changed-file inventory is complete and bounded; truncation and duplicates cannot hide control changes', async () => {
+    const value = fixture({ get: () => ({ ...pr(), changed_files: 2 }),
+      listFiles: () => [{ filename: 'src/feature.cs' }, { filename: '.github/workflows/ci.yml' }] });
+    assert.deepEqual(await value.api.files(1), ['src/feature.cs', '.github/workflows/ci.yml']);
+    value.responses.listFiles = () => [{ filename: 'src/feature.cs' },
+      { filename: 'docs/old-policy.txt', previous_filename: 'eng/merge-queue/policy.cjs' }];
+    assert.deepEqual(await value.api.files(1), ['src/feature.cs', 'docs/old-policy.txt', 'eng/merge-queue/policy.cjs']);
+    for (const count of [undefined, 0, 3000, 3001]) {
+      value.responses.get = () => ({ ...pr(), changed_files: count });
+      await assert.rejects(value.api.files(1), /inventory/);
+    }
+    value.responses.get = () => ({ ...pr(), changed_files: 2 });
+    for (const files of [[{ filename: 'one' }], [{ filename: 'one' }, { filename: 'one' }]]) {
+      value.responses.listFiles = () => files;
+      await assert.rejects(value.api.files(1), /Incomplete or duplicate/);
+    }
+  });
+
+  test('batch dispatch admits only the frozen live manifest and returns combined source, never an individual source', async () => {
+    const state = batchState();
+    const value = fixture({
+      getContent: ({ path: file }) => file === '.github/workflows/ci.yml' ? workflowContent()
+        : { type: 'file', encoding: 'base64', content: Buffer.from(JSON.stringify(state)).toString('base64') },
+      get: () => ({ ...pr(), mergeable: true }),
+      getCommit: () => ({ sha: OTHER, commit: { tree: { sha: HEAD } }, parents: [] }),
+    });
+    const dispatch = { ...inputs(), queue_head: OTHER, queue_batch: state.active.digest, profile: 'batch-v1' };
+    assert.equal(await admit({ github: value.github, context, inputs: dispatch }), OTHER);
+    assert.equal(value.calls.some(call => ['merge', 'createRef', 'updateBranch'].includes(call[0])), false);
+    for (const change of ['head', 'base', 'ticket', 'manifest', 'pr', 'profile']) {
+      const changed = { ...dispatch };
+      changed[{ head: 'queue_head', base: 'queue_base', ticket: 'queue_ticket',
+        manifest: 'queue_batch', pr: 'queue_pr', profile: 'profile' }[change]] = change === 'pr' ? '2' : 'unknown';
+      await assert.rejects(admit({ github: value.github, context, inputs: changed }));
+    }
+    for (const change of ['enrollment', 'review', 'head', 'mergeability', 'workflow']) {
+      value.github.graphql = async () => ({ repository: { pullRequest: { reviewDecision: change === 'review'
+        ? 'CHANGES_REQUESTED' : null, autoMergeRequest: change === 'enrollment' ? null : { enabledAt: ENROLLED } } } });
+      value.responses.get = () => ({ ...pr(), mergeable: change === 'mergeability' ? null : true,
+        head: { ...pr().head, sha: change === 'head' ? OTHER : HEAD } });
+      value.responses.getContent = ({ path: file }) => file === '.github/workflows/ci.yml'
+        ? workflowContent(change === 'workflow' ? '# merge-queue-job-schema: unknown\n' : undefined)
+        : { type: 'file', encoding: 'base64', content: Buffer.from(JSON.stringify(state)).toString('base64') };
+      await assert.rejects(admit({ github: value.github, context, inputs: dispatch }));
+    }
+  });
+
+  test('main/tag/manual admission suppresses every active prefix and unknown main while accepting only the completed actual tip', async () => {
+    const state = batchState();
+    const value = fixture({ getContent: () => ({ type: 'file', encoding: 'base64',
+      content: Buffer.from(JSON.stringify(state)).toString('base64') }) });
+    const options = { github: value.github, context, appId: 42 };
+    assert.equal(await admitBatchTip(options), false);
+    state.active = null;
+    assert.equal(await admitBatchTip(options), false);
+    state.completedTip = { sha: BASE, tree: HEAD, ticket: TICKET };
+    assert.equal(await admitBatchTip(options), true);
+    assert.equal(await admitBatchTip({ ...options, context: { ...context, sha: HEAD } }), false);
+    value.responses.getRef = ({ ref }) => ({ object: { sha: ref === 'heads/main' ? OTHER : HEAD } });
+    assert.equal(await admitBatchTip(options), false);
+  });
+
+  test('tip qualification requires complete actual-source jobs and the unique successful publication join', async () => {
+    const run = { id: 9, run_attempt: 1, head_sha: BASE, status: 'completed', conclusion: 'success',
+      event: 'push', display_title: 'CI main' };
+    const jobs = [...WINDOWS_12_JOBS, 'Qualify completed batch tip'].map((name, index) => ({
+      id: index + 1, name, status: 'completed', conclusion: 'success', run_id: 9, run_attempt: 1, head_sha: BASE }));
+    const value = fixture({ getContent: () => workflowContent(),
+      listWorkflowRuns: () => ({ total_count: 1, workflow_runs: [run] }),
+      listJobsForWorkflowRunAttempt: () => ({ total_count: jobs.length, jobs }) });
+    assert.deepEqual(await value.api.tipQualification({ sha: BASE }),
+      { run: 9, source: BASE, job: jobs.length });
+    for (const name of [...WINDOWS_12_JOBS, 'Qualify completed batch tip']) {
+      const target = jobs.find(job => job.name === name);
+      target.conclusion = 'skipped';
+      assert.equal(await value.api.tipQualification({ sha: BASE }), null, name);
+      target.conclusion = 'success';
+    }
+    jobs.push({ ...jobs.at(-1), id: 999 });
+    assert.equal(await value.api.tipQualification({ sha: BASE }), null);
+  });
 test('App check protection must include every required identity, strict freshness and administrators', async () => {
   await fixture().api.verifyProtection();
   for (const missing of ['strict', 'admins', ...CHECKS, GATE, 'source']) {
@@ -324,12 +484,40 @@ test('workflow inventory reads and validates exact source bytes, never main, can
   assert.equal(value.calls.length, 1);
 });
 
-test('real schema-declared and unversioned protected workflows resolve the same complete producer inventory', async () => {
+test('admission rejection retirement authenticates an exact historical workflow blob, not its schema marker alone', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  const run = { id: 9, run_attempt: 1, head_sha: BASE, head_branch: 'main', event: 'workflow_dispatch',
+    status: 'completed', conclusion: 'failure' };
+  const jobs = REJECTED_ADMISSION_JOBS.map((name, index) => ({ id: index + 1, name, run_id: 9,
+    run_attempt: 1, head_sha: BASE, status: 'completed',
+    conclusion: name === 'Admit CI execution' ? 'failure' : 'skipped' }));
+  const value = fixture({ getContent: () => workflowContent(source) });
+  assert.equal(await value.api.rejectedAdmission(BASE, run, jobs), true);
+  assert.equal(await value.api.rejectedAdmission(OTHER, run, jobs), false);
+  assert.equal(value.calls.length, 1);
+  assert.equal(value.calls[0][1].ref, BASE);
+  for (const text of [source + '\n# changed execution contract\n', '# merge-queue-job-schema: windows-12-v1\n',
+    'name: CI\n', '# merge-queue-job-schema: future-v2\n']) {
+    assert.equal(await fixture({ getContent: () => workflowContent(text) }).api.rejectedAdmission(BASE, run, jobs), false);
+  }
+  for (const response of [{ ...workflowContent(source), sha: OTHER }, { ...workflowContent(source), encoding: 'utf-8' }]) {
+    assert.equal(await fixture({ getContent: () => response }).api.rejectedAdmission(BASE, run, jobs), false);
+  }
+  assert.equal(await fixture({ getContent: () => { throw error(404); } }).api.rejectedAdmission(BASE, run, jobs), false);
+  for (const status of [401, 403, 429, 500]) {
+    await assert.rejects(fixture({ getContent: () => { throw error(status); } }).api.rejectedAdmission(BASE, run, jobs), /HTTP/);
+  }
+  assert.equal(await value.api.rejectedAdmission(BASE, { ...run, run_attempt: 2 }, jobs), false);
+  assert.equal(value.calls.some(call => ['update', 'merge', 'createWorkflowDispatch'].includes(call[0])), false);
+});
+
+test('real schema-declared workflow resolves complete inventory; new unversioned source fails closed', async () => {
   const source = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8')
     .replaceAll('\r\n', '\n');
   const unversioned = source.replace('# merge-queue-job-schema: windows-12-v1\n', '');
-  assert.equal(workflowContent(unversioned).sha, 'd3db4c610d08468c508f09e63b10f7c6568b82ea');
-  for (const workflow of [source, unversioned]) {
+  assert.equal(await fixture({ getContent: () => workflowContent(unversioned) }).api.expectedJobs(BASE), null);
+  for (const workflow of [source]) {
     const value = fixture({ getContent: () => workflowContent(workflow) });
     assert.deepEqual(await value.api.expectedJobs(BASE), WINDOWS_12_JOBS);
     assert.deepEqual(value.calls, [['getContent', { owner: 'owner', repo: 'repo',

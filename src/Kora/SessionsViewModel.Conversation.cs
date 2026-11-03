@@ -11,7 +11,18 @@ internal sealed partial class SessionsViewModel
 {
     private string composerBody = string.Empty;
     private ConversationPage? conversationPage;
-    private ConversationMessage? completedConversationMessage;
+    private ConversationMessage? completedMessage;
+    private IReadOnlyList<ConversationMessage> completionMessages = [];
+    private ConversationMessage? completedConversationMessage
+    {
+        get => completedMessage;
+        set
+        {
+            if (ReferenceEquals(completedMessage, value)) { return; }
+            completedMessage = value;
+            completionMessages = value is { } message ? [message] : [];
+        }
+    }
     private bool conversationHeld;
     private bool conversationSourceHeld;
     private bool conversationBusy;
@@ -44,6 +55,7 @@ internal sealed partial class SessionsViewModel
             }
             RestoreUnsent();
             CancelLocalRequestProfile();
+            ClearExpiredOrdinary();
             CancelTaskOutputReview();
             RetireReplyReview();
             composerBody = value;
@@ -57,14 +69,15 @@ internal sealed partial class SessionsViewModel
         ? "Conversation: " + (target.Metadata?.Name.Value ?? "Unnamed conversation")
             + "\nSession: " + target.Authority.SessionId.Value.ToString("D")
         : "Select an exact session to write a message.";
-    public IReadOnlyList<ConversationMessage> ConversationMessages => conversationPage is { } page ? page.Messages
-        : completedConversationMessage is { } completed ? [completed] : [];
+    public IReadOnlyList<ConversationMessage> ConversationMessages => !ConversationReadingAvailable ? []
+        : conversationPage is { Messages.Length: > 0 } page ? page.Messages
+        : completionMessages;
     public bool CanReadConversation => CanRead && !conversationBusy && selected is not null && conversation is not null;
-    public bool CanNextConversation => CanReadConversation && conversationPage?.Next is not null;
+    public bool CanNextConversation => CanReadConversation && ConversationReadingAvailable && conversationPage?.Next is not null;
     public bool CanOpenConversationDetails => CanReadConversation && openConversationDetail is not null;
     internal bool CanPresentDetails => !closed && access.CanInspect;
     public bool CanShowDetails => CanRead && selected is not null
-        && (CanOpenConversationDetails && ConversationMessages.Count != 0 || CanOpenHistoryDetail || HasEvidenceDetails);
+        && (CanOpenConversationDetails && ObservedConversationMessages.Any() || CanOpenHistoryDetail || HasEvidenceDetails);
     public string DetailsAvailability => CanShowDetails ? "Open an exact result from this session's observed messages or selected activity."
         : "No available details on the selected session's observed page. Select a session and explicitly read conversation or activity.";
     private Guid? dismissedSessionDetailsOffer;
@@ -78,9 +91,9 @@ internal sealed partial class SessionsViewModel
         NotifyConversation();
     }
     public Task OpenConversationDetailAsync(ConversationMessage message, bool assistant = false, Guid? observationId = null,
-        Func<bool>? detailAdmission = null) => RunConversationAsync(async (target, live) =>
+        Func<bool>? detailAdmission = null, bool submittedContext = false) => RunConversationAsync(async (target, live) =>
     {
-        if (!ConversationMessages.Concat(ConversationSearchMessages).Any(record => ReferenceEquals(record, message)))
+        if (!ObservedConversationMessages.Concat(ConversationSearchMessages).Any(record => ReferenceEquals(record, message)))
         { throw new InvalidOperationException("Select an actual record from the currently observed exact conversation page."); }
         noticeResultOrigin = null;
         var searchMatch = ConversationSearchMessages.Any(record => ReferenceEquals(record, message));
@@ -88,7 +101,7 @@ internal sealed partial class SessionsViewModel
         bool DetailLive() => live() && (detailAdmission?.Invoke() ?? true) && (!searchMatch || conversationSearchEpoch == searchEpoch);
         if (searchMatch) { conversationSearchDetailTarget = target; }
         var content = await conversation!.ReadDetailAsync(target, message, DetailLive, lifetime.Token,
-            assistant, observationId);
+            assistant, observationId, submittedContext);
         if (!DetailLive()) { throw new OperationCanceledException("The original conversation selection or search changed."); }
         var beginValidation = HostActivity.CaptureContinuation(HostActivityLayer.Desktop, HostOperation.Storage);
         async Task<Kora.Core.Presentation.AdmittedDetailContent> Resolve(CancellationToken token)
@@ -97,7 +110,7 @@ internal sealed partial class SessionsViewModel
             try
             {
                 var exact = await conversation.ReadDetailAsync(target, message, DetailLive, token,
-                    assistant, observationId);
+                    assistant, observationId, submittedContext);
                 validation.Complete(HostOperationOutcome.Completed);
                 return exact;
             }
@@ -117,7 +130,7 @@ internal sealed partial class SessionsViewModel
                 content, DetailLive, Resolve, lifetime.Token);
         if (!DetailLive()) { throw new OperationCanceledException("Search match navigation was revoked."); }
         conversationStatus = detailStatus;
-        RememberSelectedDetail(observationId is null ? assistant ? DetailPart.Assistant : DetailPart.Original : DetailPart.Observation,
+        RememberSelectedDetail(submittedContext ? DetailPart.Context : observationId is null ? assistant ? DetailPart.Assistant : DetailPart.Original : DetailPart.Observation,
             message.Request.RequestId.Value, observationId);
     }, sourceRead: true, searchDetailEpoch:
         ConversationSearchMessages.Any(record => ReferenceEquals(record, message)) ? conversationSearchEpoch : null);
@@ -145,13 +158,20 @@ internal sealed partial class SessionsViewModel
 
     public Task ReadConversationAsync(bool next = false) => RunConversationAsync(async (target, live) =>
     {
+        if (next && !ConversationReadingAvailable)
+        { throw new InvalidOperationException("The original private conversation page is retired. Read again explicitly."); }
         var page = await conversation!.ReadPageAsync(target.Authority.SessionId,
             next ? conversationPage?.Next ?? throw new InvalidOperationException("No conversation continuation; refresh the exact source.") : null,
             25, lifetime.Token);
         if (!live() || page.Session != target.Authority)
         { throw new OperationCanceledException("Conversation source or exact selected generation changed."); }
         conversationPage = page;
-        completedConversationMessage = null;
+        conversationReadingControl = access.ControlRevision;
+        if (!next)
+        {
+            completedConversationMessage = null;
+            conversationUpdates = false;
+        }
         conversationSourceHeld = false;
         composerAuthority = target.Authority;
         RememberUnsent();
@@ -226,14 +246,13 @@ internal sealed partial class SessionsViewModel
         if (!live()) { throw new OperationCanceledException("The selected private presentation changed."); }
         if (string.Equals(composerBody, body, StringComparison.Ordinal)) { composerBody = string.Empty; }
         RememberUnsent();
-        conversationPage = null;
-        completedConversationMessage = receipt.Message;
+        PublishConversationCompletion(receipt.Message);
         conversationStatus = "Original user message retained exactly; request " + receipt.Message.Request.RequestId.Value.ToString("D")
             + " | sequence " + receipt.Message.Sequence.ToString(CultureInfo.InvariantCulture)
             + " | HOST " + receipt.Message.Outcome + " / " + receipt.Message.Reason
             + " | task " + receipt.Task.State
             + (receipt.Message.AssistantResponse is null ? ". No assistant answer retained." : ". Genuine ASSISTANT answer retained separately below.")
-            + " No fallback or automatic retry. Refresh for the full bounded conversation.";
+            + " No fallback or automatic retry. Read latest messages for a fresh bounded page; the earlier page is unchanged.";
     }, submission: true, origin: mcpOrigin);
 
     internal Task<bool> ProtectComposerAsync(Func<bool>? admitted = null)
@@ -296,7 +315,9 @@ internal sealed partial class SessionsViewModel
                 ClearConversationSearch();
                 conversationPage = null;
                 completedConversationMessage = null;
-                conversationStatus = "Terminal snapshot changed; Refresh conversation. Memory draft retained; no retry or submission.";
+                conversationUpdates = false;
+                conversationSourceHeld = true;
+                conversationStatus = "Terminal snapshot changed; read the exact conversation again. Unsent input retained and held; no retry or submission.";
             }
             else if (sourceRead)
             {
@@ -341,10 +362,12 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversation(bool preserveUnsent = true)
     {
+        ClearClarificationExchange();
         ClearAnswerReviews();
         CancelTaskOutputReview();
         CancelLocalRequestProfile();
         ClearFailedRetry();
+        ClearExpiredOrdinary();
         ClearMixedContext();
         ClearAnswerRead();
         ClearInstructionContext();
@@ -362,6 +385,7 @@ internal sealed partial class SessionsViewModel
         composerBody = string.Empty;
         conversationPage = null;
         completedConversationMessage = null;
+        conversationUpdates = false;
         conversationHeld = false;
         conversationSourceHeld = false;
         composerSession = null;
@@ -370,10 +394,12 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyConversation()
     {
+        NotifyClarificationExchange();
         NotifyAnswerReviews();
         NotifyTaskOutput();
         NotifyLocalRequestProfile();
         NotifyFailedRetry();
+        NotifyExpiredOrdinary();
         RestoreUnsent();
         NotifyAssistantReply();
         NotifyMixedContext();
@@ -397,9 +423,10 @@ internal sealed partial class SessionsViewModel
         NotifyInstructionContext();
         NotifyHistoryContext();
         NotifyConversationSearch();
+        NotifyConversationReading();
         foreach (var name in new[] { nameof(ComposerBody), nameof(ComposerDirty), nameof(ComposerTarget),
             nameof(ConversationMessages), nameof(ConversationStatus), nameof(CanReadConversation), nameof(CanNextConversation),
-            nameof(CanOpenConversationDetails), nameof(CanReviewOriginalMessageReuse), nameof(CanCompose), nameof(CanSubmitConversation), nameof(CanSubmitLocalFirst),
+            nameof(CanOpenConversationDetails), nameof(CanExportExactAnswer), nameof(CanReviewOriginalMessageReuse), nameof(CanCompose), nameof(CanSubmitConversation), nameof(CanSubmitLocalFirst),
             nameof(CanShowDetails), nameof(DetailsAvailability),
             nameof(HasEvidenceDetails), nameof(EvidenceDetails), nameof(ObservationChoices),
             nameof(DetailsOfferMessage),

@@ -5,9 +5,27 @@ assistant-name prefix with activated voice, such as `Kora, show skills`.
 The same native window serves all these routes.
 
 **Choose a task:** [browse](#browse-by-type-and-source), [edit or add](#edit-or-add),
-[disable or enable use](#disable-or-enable-kora-use), or open the dedicated
+[disable or enable use](#disable-or-enable-kora-use), [delete one owned definition](#delete-one-owned-single-file-definition), or open the dedicated
 [instruction](instruction-editor.md), [skill](owned-skill-authoring.md) or
 [agent](agent-profile-authoring.md) editor.
+
+## Delete one owned single-file definition
+
+1. In **Instructions**, **Prompts** or **Agents**, inspect one supported saved entry from the **Kora** group. The exact source path distinguishes it from personal originals and same-name entries.
+2. Choose **Delete owned definition**. Review the complete saved source, kind, exact path and consequences, then choose **Continue deletion**.
+3. Separately choose **Delete exact owned file**. Only the unchanged reviewed file is deleted; its directory and unrelated definitions are not removed. There is no cascade, archive, grant deletion or automatic rollback.
+
+The [shared deletion owner](../src/Kora.Application/Definitions/CustomizationManagementService.Deletion.cs) holds the exact source against future use before mutation and reloads the catalogue afterward. Old reviews cannot authorize restored or replacement bytes. Already admitted captured work is not physically cancelled; independent history, grants and audit retain their own lifetimes.
+
+Unsaved editor text and its frozen baseline remain visible after deletion, even when that raw text is too large or invalid to save. Deletion reviews only the valid saved source. Save cannot silently recreate that missing baseline. To recover the draft, explicitly choose a distinct **New artifact ID**, then **Create Kora copy**, and complete the normal separate Save review. The deleted ID and its case aliases are refused before any discard/rebase review, including after a recovery copy. Copying and Disable retain the raw text, including before the recovery copy's separate Save; separate Save still requires strict UTF-8 text without NUL and at most 64 KiB including any BOM. Closing a dirty editor still requires Save/Discard/Cancel ([controller](../src/Kora/CustomizationWindowController.Deletion.cs)).
+
+After inspecting the source, typed `delete selected owned definition` or the current assistant-name activated equivalent opens the same two native reviews. The command itself is never confirmation; destructive source-write confirmation remains native, as with the dedicated editor's Delete exception. No model is called ([exact routing](../src/Kora.Application/Definitions/CustomizationCommand.cs)).
+
+The [native owner](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.Deletion.cs) revalidates the host-owned kind root, canonical filename, native file/directory identity, complete reviewed revision/bytes, ownership and current admission. Changed/missing/replaced files, aliases, links, withdrawn roots, unavailable catalogues and pending recovery fail closed. Reviews expire after two minutes; edits, selection attempts, privacy, ownership or control changes invalidate them.
+
+If deletion committed but readback, audit, admission or presentation is unconfirmed, the result explicitly requires inspection, not retry or an assumption of rollback. A failed catalogue reload is disclosed separately from the completed deletion. Personal originals, bundled sources, skills/packages, MCP entries, directories and arbitrary paths are excluded ([deterministic regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.Deletion.cs)).
+
+## Definition roles
 
 Instructions guide an answer; prompts are reusable requests; skills provide
 reusable task guidance; agents add a role and limits. MCP servers describe
@@ -89,27 +107,29 @@ Before reviewing metadata, select **Ask for one agent recommendation (never invo
 The same bounded local metadata request may recommend exactly one enabled registered
 Agent from the entries actually returned to it. A recommendation runs nothing and
 is labelled as a proposal, not an answer from that agent.
+Eligible User agents from VS Code, VS Code Insiders and configured agent roots
+use the same exact file-and-bytes binding as Kora agents. Different catalogue
+category labels do not make the same reviewed source unavailable.
 
-1. Select **Review proposed agent in its original conversation**. This opens the
-   existing private agent review with the exact source, unchanged original question,
-   original channel and original conversation fixed. It cannot redirect to another
-   conversation or substitute model-generated input.
-2. Select **Read source and review exact invocation**. Review the complete inert
-   profile, source, original question, conversation, local destination, tools and
+1. Select **Review customization recommendation**. This opens the existing private agent review in the exact original conversation. The strict whole-answer opaque `agentRef` is only an inert hint into the current registered catalogue; rendered prose, paths and claimed approvals are not accepted ([proposal resolution](../src/Kora.Application/Tools/CustomizationDiscoverySnapshot.cs)).
+2. Deliberately choose one **current source-qualified Agent**. Nothing is selected automatically, including when names collide. Readable name, actual host-owned source binding and current use state are shown; executable availability is not inferred. A missing, changed, disabled or unbound source refuses without latest/by-name fallback ([source resolver](../src/Kora.Application/Agents/NamedAgentResolver.cs)).
+3. Enter a **NEW original task** in the empty request field. The metadata question is shown separately as historical context, never copied into invocation input. Native entry is a new local-UI request even when discovery began by voice; exact `agent request <new task>` preserves that new request's actual typed/activated channel. Existing protected-call exceptions remain unchanged ([native owner](../src/Kora/AgentRunController.ModelProposal.cs)).
+4. Select **Read source and review exact invocation**. Only this separate source-read consent reads the chosen profile. Review the complete inert
+   profile, source, fresh unchanged task, conversation, local destination, tools and
    cumulative budgets. Only local v1 instruction-only profiles with `tools: none`
    and `references: none` are eligible for this route.
-3. Separately confirm that exact invocation. The existing bounded agent workflow
+5. Separately confirm that exact invocation. The existing bounded agent workflow
    runs once and retains its genuine answer or truthful terminal in the original
    conversation. The native agent review displays that actual result. Stop/close
    joins owned execution; cancellation-ignoring work cannot publish a late answer.
 
 The recommendation expires with its two-minute metadata review. Source, use control,
-input, session, privacy or ownership changes require a fresh request and review;
-neither a retained recommendation nor profile guidance grants authority.
+catalogue, session, privacy, ownership or call changes retire it; task/source-choice edits retire any in-flight read or invocation review. A new complete review is required before confirmation.
+Neither a retained recommendation nor profile guidance grants authority.
 The parent recommendation has finished before the agent review opens: no fabricated
 tool reply or parent continuation is sent, and no private profile or child answer
 is transmitted to a hosted model. Hosted parents, tools, referenced profiles,
-automatic invocation, nested agent chains and provider fallback remain unavailable.
+automatic invocation, nested agent chains and provider fallback remain unavailable. Arbitrary ordinary or retained prose answers do not gain review buttons or executable meaning. No extra model tool, source activation, grant, source writer, context/egress consent or retained authorization token is introduced ([canonical bounded consumer](../src/Kora.Application/Agents/BoundedAgentWorkflow.cs)).
 
 ## Edit or add
 

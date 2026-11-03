@@ -1095,6 +1095,12 @@ not send cookies, ambient credentials, proxy credentials, referrers, or a model
 conversation. HTML is returned as bounded normalized text; scripts, styles,
 markup and external resources are not executed or loaded.
 
+Cancellation prevents later connections and suppresses late results even if a
+transport or body read ignores its token. Kora waits for the owned response to
+be released before reporting a terminal result, and rechecks address authority
+before returning successful text. A response-release failure is a retrieval
+failure, never a successful result; retry requires a fresh explicit request.
+
 After success, select **Open exact web-result details** in the actual response. This opens the same immutable, volatile native plain-text result, not the website. Search, exact source, reopen and close perform no additional network request or navigation.
 The viewer shares the existing eight-window limit and private copy requires explicit disclosure confirmation.
 
@@ -1392,6 +1398,8 @@ Original typed input also accepts these whole-utterance commands; voice requires
 - **use dark mode**
 - **use light mode**
 - **use system theme**
+- **use reduced motion**
+- **follow system motion**
 - **get reader text scale**
 - **status reader text scale**
 - **reset reader text scale**
@@ -1408,8 +1416,10 @@ Invalid results clarify without clamping. Missing/corrupt/unconfirmed evidence i
 ([parser](../src/Kora.Application/Configuration/NaturalAppearanceCommand.cs), [confirmed state](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
 
 These aliases use the same admitted service, atomic preference/audit path and live notifications as exact IDs and native controls.
-They change only Kora's app theme or bounded native reader content typography: no OS/global UI scale, new content access, permission, speech/caption enablement or model-derived authority
+They change only Kora's app theme, bounded native reader content typography or presence particle-motion preference: no OS/global UI scale, new content access, permission, speech/caption enablement or model-derived authority
 ([executor](../src/Kora.Application/ViewModels/MainViewModel.Appearance.cs), [reader scope](../Design/Information_Display.md#bounded-native-reader-text-scale)).
+
+**Use reduced motion** sets `appearance.reduced-motion` to true; **follow system motion** sets it to false. False/reset follows Windows and cannot enable motion against a Windows reduced-motion request. Both use the same validated, audited preference as the native checkbox. Exact **get/status/set/reset appearance.reduced-motion** and its spoken target **appearance reduced motion** also work ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs), [precedence](../src/Kora.Core/Configuration/ReducedMotionSettings.cs)).
 
 ### Inspect or change an exact output choice
 
@@ -1511,6 +1521,12 @@ Topmost is not a Windows-wide setting or foreground/activation authority ([nativ
 
 Missing preference files use declared defaults without claiming a save. Malformed, externally changed or uncertain saved evidence is explicitly unavailable: inspect the saved state and audit receipts before repair/restart and initiate a fresh request.
 No automatic rewrite, default-save, rollback or retry is claimed ([confirmation and commands](../src/Kora.Application/ViewModels/MainViewModel.ResponseWindowCommands.cs), [audited writer](../src/Kora.Application/ViewModels/MainViewModel.Preferences.cs)).
+
+### Review one retained response-timeout suggestion
+
+Use `review response timeout suggestion` to review the exact host-pinned successful answer, then separately `confirm response timeout change` or `cancel response timeout review`. Activated voice requires the current assistant-name prefix. Both conversation windows also offer **Review setting suggestion...** on the exact retained answer ([shared route](../src/Kora.Application/ViewModels/MainViewModel.ResponseTimeoutSuggestions.cs)).
+
+The answer must be one exact `set appearance.response-timeout to <integer>` using canonical digits, 1-60 seconds. It changes only the existing response-window inactivity hide delay, not provider deadlines or Always show. Review saves nothing; original-channel call policy, source, preference, privacy and host checks remain required through commit ([review and recovery](settings.md#review-a-response-timeout-suggestion)).
 
 ### Inspect or change the device-default response mode
 
@@ -1982,6 +1998,9 @@ or activation transfer is included; see
 The bounded body-free result is historical structural compatibility, not harmlessness, current disk integrity or approval. Source/private/input changes retire it; Save separately revalidates and exactly confirms. No store I/O/reload, revision-preference write/hold, model/network or reference execution is added. See [draft validation](instruction-editor.md#validate-the-open-draft-without-saving).
 `instructions rebase` / `prompts rebase` explicitly observes latest for an already open supported same-kind source and reviews complete old/latest/raw bodies. Confirmation rereads the exact observed revision and adopts only that baseline in memory, preserving the raw draft; it neither merges nor saves/enables.
 Cancel preserves the prior baseline/draft ([source-preserving Rebase](instruction-editor.md#rebase-the-open-draft-without-saving)).
+`instructions restore` (or current-name activated `Kora, instructions restore`) reviews the complete current source versus the previous complete source from the last confirmed changed Save in that same open private owned native-v1 Instruction editor.
+A separate normal native Save confirmation creates and reads back a NEW disabled revision. Dirty Save/Discard/Cancel is separate; detected source changes retire restore, never authorize historical overwrite.
+No persistent history, profile-original restore, old grants or activation return ([complete interaction and volatile limits](instruction-editor.md#restore-the-last-confirmed-save-in-this-editor)).
 **Disable reviewed use** / `instructions disable` or `prompts stop-use` separately confirms the clean inspected canonical native v1 owned source/kind/digest/native revision. It durably withdraws new selections without writing/deleting/unregistering the source.
 Disabled files stay inspectable/editable. Dirty drafts remain intact with an explicit Save/Reload prerequisite; current-name activated controls focus the same native confirmation, never voice-only approval.
 Already captured reasoning keeps immutable content; pending unadmitted questions/action choices expire without dispatch or retargeting. Mandatory access/privacy/action/egress checks remain. Reload/restart/restored bytes cannot re-enable use: require fresh exact review. Failed audit/state readback reports held/unavailable recovery, not success or rollback.

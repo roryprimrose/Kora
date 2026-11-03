@@ -804,13 +804,13 @@ settings, consent/privacy downgrade, general registry or full R10/R09 acceptance
 
 ### Delivered bounded appearance subset (R10)
 
-Twelve independently persisted options are admitted:
+Thirteen independently persisted options are admitted:
 `appearance.theme`, `appearance.presence-display`, `appearance.presence-timeout`,
 `appearance.response-timeout`, `appearance.presence-size`,
 `appearance.dot-size`, `appearance.dot-density`,
 `appearance.movement-speed`, `appearance.speech-scaling` and
 `appearance.speech-scale-amount`, `appearance.reader-text-scale`, and
-`appearance.native-presence-renderer`. The [end-user reference](../docs/settings.md#appearance)
+`appearance.native-presence-renderer` and `appearance.reduced-motion`. The [end-user reference](../docs/settings.md#appearance)
 lists their exact types, units, defaults and bounds. Each descriptor declares
 device-local scope, appearance-only effect, local-host availability,
 immediate-after-save timing and per-option reset. Animation driven by playback
@@ -838,8 +838,8 @@ use the same service and notify all open surfaces. Cancellation is checked
 before the existing synchronous atomic write; cancellation after commit does
 not report an unsaved change. Save failure retains the previous value/revision
 and produces visible failure; stale proposals require a new operation.
-Reset restores one admitted default; no multi-file transaction, whole-profile
-reset or undo is implemented. Shared response-window pin/topmost/position
+Reset restores one admitted default; no multi-file transaction or whole-profile
+reset is implemented. Registered appearance options retain [single-change undo](#delivered-single-registered-preference-undo). Shared response-window pin/topmost/position
 and presence placement remain outside the appearance registry. The two existing
 response-window Booleans additionally have [bounded exact typed/current-name command parity](../docs/commands.md#inspect-or-change-koras-response-window-visibility-preferences),
 using the same native setters, tuple-preserving atomic path and
@@ -849,6 +849,12 @@ using the same native setters, tuple-preserving atomic path and
 Other voice/audio/call/manual state, grants, models, retention, dependencies and
 startup are not registered. No model tools or broader execution authority
 are exposed by the appearance slice.
+
+The explicit reduced-motion Boolean defaults to false (follow Windows); true freezes particle movement in both presenters. False/reset never overrides Windows reduced motion. Speech sizing and finite colour/visibility transitions remain independent. Native controls, exact typed/current-name voice commands and inert model suggestions use the existing shared service; model suggestions and undo retain separate native review/confirmation ([domain precedence](../src/Kora.Core/Configuration/ReducedMotionSettings.cs), [live binding](../src/Kora/Controls/PresenceMotionBinding.cs)).
+
+The preference uses the shared atomic store and strict domain parsing. Save/readback/audit failures remain explicit; no failed operation grants undo authority. Successful changes qualify for the existing run-only last-change receipt, not a durable history or rollback promise ([persistence](../src/Kora.Application/Configuration/LocalAppearancePreferences.cs), [setting owner](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs), [undo](../src/Kora.Application/Configuration/RegisteredSettings/AppearanceConfigurationService.Undo.cs)).
+
+Reduced motion and response timeout remain independent registered preferences. Reduced-motion suggestions and undo require native review/confirmation; the [response-timeout interaction](#delivered-registered-response-timeout-proposal) retains its original-channel review and confirmation.
 
 The reader option is the separately bounded native [source/detail, complete serialized Evidence-page and observed speech-caption content typography contract](Information_Display.md#bounded-native-reader-text-scale): absolute integer percent, default 100, inclusive 75–200. Its original input/host eligibility is rechecked at commit; atomic pending evidence stays held until exact readback and successful audit. A failed terminal receipt does not claim disk rollback and new readers reject unconfirmed evidence. Open Evidence readers and captions retire explicitly when preference evidence becomes unavailable; no chrome or global UI scale is added. Caption labels, pin/display controls, accessible names, geometry, enablement, speech and privacy/call/source lifetimes are unchanged. Existing option formats and migrations are preserved ([workflow](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs), [store](../src/Kora.Application/Configuration/LocalReaderTextScalePreferences.cs)).
 
@@ -913,6 +919,16 @@ Playback volume is delivered by its separate admitted audio-control slice below.
 Windows-native rate is delivered by its separate admitted provider-qualified
 slice above; the original provider/voice slice supplies no rate authority.
 
+### Delivered registered response-timeout proposal
+
+The existing `appearance.response-timeout` preference joins the [closed shared registry](../src/Kora.Core/Configuration/RegisteredSettings/RegisteredSettingRegistry.cs): canonical integer 1-60 seconds, default 5. It is the existing response-window inactivity hide delay, not a provider or conversation deadline; its [visibility exceptions](../docs/settings.md#independent-visibility-timeouts) are unchanged.
+
+Both conversation windows and exact typed/current-name activated-voice review/confirm/cancel use the [same appearance review](../src/Kora.Application/Configuration/AppearanceSuggestionReview.cs) and authoritative appearance proposal/writer. Timeout-only voice admission preserves the most restrictive original source/review/confirmation channel, exact retained source, current preference revision, private host eligibility and a 60-second review.
+
+The call-policy lock encloses final admission, atomic preference write and exact readback. Requested/terminal audit failures remain unconfirmed, with no automatic retry or rollback. The shared [one-change undo](../src/Kora.Application/Configuration/RegisteredSettings/AppearanceConfigurationService.Undo.cs) restores a compatible saved value or unsaved default through a new audited write. Other appearance review/undo remains native-only; no provider, visibility override, consent, grant or capability is enabled.
+
+See the [complete interaction](../docs/settings.md#review-a-response-timeout-suggestion) and [deterministic regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseTimeoutSuggestions.cs). This is bounded implementation evidence, not provider, acoustic or installed enablement/qualification.
+
 ### Delivered bounded spoken summary limits (R10)
 
 The [closed registered-setting proposal registry](../src/Kora.Core/Configuration/RegisteredSettings/RegisteredSettingRegistry.cs)
@@ -936,7 +952,7 @@ timing. A distinct fresh original-user confirmation consumes a memory-only,
 60-second, revision/source-bound review through the existing speech proposal,
 atomic call-policy/write and typed audit path. Source or confirmation voice
 classification is preserved, including later native confirmation. Appearance
-uses the shared surface but remains original-local-UI/native-only. Existing direct setters/resets
+uses the shared surface but remains original-local-UI/native-only except the bounded response-timeout slice below. Existing direct setters/resets
 are unchanged; no option, cap, batch, provider qualification or approval grant is
 added. Uncertain writes require explicit Settings/audit inspection, not retry,
 rollback claims or fabricated success. The current answer is never shortened,
@@ -1433,7 +1449,7 @@ The exact caption, rich rendering, viewer, and text-scale options are defined in
 | Call speech mode | Suppress automatic requested/proactive speech; one-shot override allowed | "Only suppress unsolicited suggestions during calls" |
 | In-call feedback override (`calls.feedback-mode`) | **Bounded delivered** UI default; Voice / UI / Both / Inherit; Active/Suspected only, ahead of ordinary response mode with all hard speech/privacy gates | Exact `set calls.feedback-mode to UI`; natural-language example remains proposed |
 | Allow spoken approvals during calls (`calls.allowSpokenApprovals`) | **Delivered native review/confirmation**, Off by default; Boolean device-local setting; UI approval remains available, grants and session levels unchanged; enabling requires fresh native initiation and confirmation | Use Calls native controls; natural-language setter remains proposed |
-| Voice activation during calls | On; independently configurable and does not reopen capture without explicit listening consent | "Disable voice activation during calls" |
+| Voice activation during calls | On; safe disable plus [exact native review/confirmation to restore](Call_Aware_Speech.md#reviewed-call-time-activation-preference); saving never reopens capture or clears manual/recovery holds | "Disable voice activation during calls"; restoring requires fresh Calls native controls |
 | Unknown enabled-detector behaviour | Suppress automatic speech | "Use normal speech when detection is unavailable" |
 | Detector enablement/account | Explicitly configured supported sources only | "Use Teams presence to decide when to stay quiet" |
 | Busy/DND/meeting quieting | Call/Suspected meeting handling as in call policy; additional Busy/DND preference off | "Stay quiet when Teams says do not disturb" |
@@ -1830,7 +1846,9 @@ Never treat undo as reinstating expired grants or microphone consent.
 
 The host retains **one run-only last confirmed change** from the [closed registered subset](../src/Kora.Core/Configuration/RegisteredSettings/RegisteredSettingRegistry.cs): registered appearance/presence, spoken-summary caps, Kora playback volume and ordinary response mode. It is not a general settings history, durable journal, undo queue or rollback product ([receipt owner](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
 
-**Undo the last settings change** in Settings opens an inert exact current/prior saved-or-default review, including both summary caps and shared device-local scope. **Confirm settings undo** is a separate fresh request; **Cancel settings undo** writes nothing. Reviews expire after 60 seconds. Appearance retains native-only review; ordinary response settings also support exact typed/current-name activated-voice review/confirm/cancel ([native controls](../src/Kora/SettingsWindow.axaml), [shared routes](../src/Kora.Application/ViewModels/MainViewModel.RegisteredSettingUndo.cs)).
+**Undo the last settings change** in Settings opens an inert exact current/prior saved-or-default review, including both summary caps and shared device-local scope. **Confirm settings undo** is separate; **Cancel settings undo** writes nothing. Reviews expire after 60 seconds. Appearance except response timeout retains native-only review ([native controls](../src/Kora/SettingsWindow.axaml)).
+
+Response timeout and ordinary response settings support exact typed/current-name activated-voice undo review/confirm/cancel under the same original-channel and call-policy checks ([shared routes](../src/Kora.Application/ViewModels/MainViewModel.RegisteredSettingUndo.cs)).
 
 Only exact successful setter readback and required audit completion create a receipt. Confirmation revalidates the committed configuration revision, saved/default provenance, current preference and companion fields, compatible prior value, original channel, private host/lifetime and call policy. External drift, unknown writes and stale reviews cannot infer an inverse or overwrite newer state. A successful undo is a **new audited write through the same authoritative setter**, consumes the receipt and creates no redo. Privacy closure, lifecycle disposal and restart discard the receipt; no audit/history is deleted ([owner](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs), [writer integration](../src/Kora.Application/Configuration/RegisteredSettings/AppearanceConfigurationService.Undo.cs), [summary pair](../src/Kora.Application/Configuration/RegisteredSettings/SpeechConfigurationService.Undo.cs)).
 

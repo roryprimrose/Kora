@@ -42,6 +42,7 @@ public sealed class AgentProfileConversationalAuthoringTests
     [InlineData("oversize")]
     [InlineData("unavailable")]
     [InlineData("tool-attempt")]
+    [InlineData("manual-observation")]
     [InlineData("late-cancel")]
     [InlineData("late-source")]
     [InlineData("late-request")]
@@ -119,6 +120,25 @@ public sealed class AgentProfileConversationalAuthoringTests
             }
             const string request = "Explain just user-supplied text e\u0301\U0001f642.";
             var target = Path.Combine(f.RoamingRoot, "OwnedAgents-v1", "example.agent.md");
+            if (scenario is "manual-observation")
+            {
+                await Run("agent author create example");
+                var manual = Kora.Windows.IntegrationTests.ArtifactDiscovery.WindowsOwnedAgentProfileStoreTests.Source
+                    .Replace("tools: none", "tools: application.get_version", StringComparison.Ordinal)
+                    .Replace("maximum-calls: 0", "maximum-calls: 1", StringComparison.Ordinal);
+                editor!.Source.Text = manual;
+                await Run("agent author describe " + request);
+                await Run("agent author ask");
+                editor.Source.Text.Should().Be(manual);
+                editor.Status.Text.Should().Contain("unavailable");
+                next.Task.IsCompleted.Should().BeFalse("a tool-capable draft cannot reach model disclosure");
+                adapter.Calls.Should().Be(0);
+                store.Creates.Should().Be(0);
+                File.Exists(target).Should().BeFalse();
+                models.IsQuiescent.Should().BeTrue();
+                await CloseDiscard(f, editor);
+                return;
+            }
             var late = scenario.StartsWith("late-", StringComparison.Ordinal);
             if (late) { adapter.Pending = new(TaskCreationOptions.RunContinuationsAsynchronously); }
             Task generating;
@@ -341,6 +361,9 @@ public sealed class AgentProfileConversationalAuthoringTests
     private sealed class ObservedStore(IOwnedAgentProfileStore inner) : IOwnedAgentProfileStore
     {
         internal int Creates;
+        public Task<AgentProfileWriteResult> Update(OwnedAgentProfileSnapshot expected, OwnedAgentProfileDocument document,
+            Func<bool> eligible, Func<Func<AgentProfileWriteResult>, Task<AgentProfileWriteResult>> commit, CancellationToken token) =>
+            inner.Update(expected, document, eligible, commit, token);
         public Task<IReadOnlyList<string>> List(CancellationToken token) => inner.List(token);
         public Task<OwnedAgentProfileSnapshot?> Read(string name, CancellationToken token) => inner.Read(name, token);
         public Task<OwnedAgentProfileDestination> PrepareNew(string name, CancellationToken token) => inner.PrepareNew(name, token);

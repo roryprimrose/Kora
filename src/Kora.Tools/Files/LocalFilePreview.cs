@@ -469,32 +469,27 @@ public sealed partial class LocalFilePreview(
                 {
                     candidateOutcome = LocalFileOutcome.Cancelled;
                 }
-                audit.Write(auditEvent.WithOutcome(candidateOutcome is LocalFileOutcome.Admitted or LocalFileOutcome.Reviewed
-                    ? SecurityAuditOutcome.Succeeded : candidateOutcome == LocalFileOutcome.Cancelled
-                        ? SecurityAuditOutcome.Cancelled : SecurityAuditOutcome.Failed, candidateOutcome.ToString().ToLowerInvariant()));
-                outcome = IsCurrent(admittedGeneration, gate, cancellation.Token) && eligible is not null && eligible()
-                    ? candidateOutcome : LocalFileOutcome.Cancelled;
-                if (outcome == LocalFileOutcome.Cancelled && candidateOutcome is LocalFileOutcome.Reviewed or LocalFileOutcome.Admitted)
+                outcome = Finish(candidateOutcome);
+                if (outcome is LocalFileOutcome.Reviewed or LocalFileOutcome.Admitted
+                    && (releaseFailed || !IsCurrent(admittedGeneration, gate, cancellation.Token) || eligible is null || !eligible()))
                 {
-                    audit.Write(auditEvent.WithOutcome(SecurityAuditOutcome.Cancelled, "revoked-before-publication"));
+                    outcome = Finish(LocalFileOutcome.Cancelled, "revoked-before-publication");
                 }
             }
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
-            outcome = LocalFileOutcome.Cancelled;
-            audit.Write(auditEvent.WithOutcome(SecurityAuditOutcome.Cancelled, "cancelled"));
+            lock (sync) { outcome = Finish(LocalFileOutcome.Cancelled, "cancelled"); }
         }
         catch (DecoderFallbackException)
         {
-            outcome = LocalFileOutcome.InvalidText;
-            audit.Write(auditEvent.WithOutcome(SecurityAuditOutcome.Failed, "invalid-utf8"));
+            lock (sync) { outcome = Finish(LocalFileOutcome.InvalidText, "invalid-utf8"); }
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException)
         {
             outcome = LocalFileOutcome.Unavailable;
             Failure(logger, exception.GetType().Name);
-            audit.Write(auditEvent.WithOutcome(SecurityAuditOutcome.Failed, "source-unavailable"));
+            lock (sync) { outcome = Finish(outcome, "source-unavailable"); }
         }
         finally
         {
@@ -515,6 +510,25 @@ public sealed partial class LocalFilePreview(
             : outcome == LocalFileOutcome.Cancelled ? HostOperationOutcome.Cancelled : HostOperationOutcome.Failed);
         Changed?.Invoke(this, EventArgs.Empty);
         return outcome;
+
+        LocalFileOutcome Finish(LocalFileOutcome result, string? reason = null)
+        {
+            if (result is not (LocalFileOutcome.Reviewed or LocalFileOutcome.Admitted))
+            {
+                ReleaseSelection();
+                DiscardContent();
+            }
+            if (releaseFailed)
+            {
+                result = LocalFileOutcome.Unavailable;
+                reason = "resource-release-unverified";
+            }
+            audit.Write(auditEvent.WithOutcome(result is LocalFileOutcome.Admitted or LocalFileOutcome.Reviewed
+                ? SecurityAuditOutcome.Succeeded : result == LocalFileOutcome.Cancelled
+                    ? SecurityAuditOutcome.Cancelled : SecurityAuditOutcome.Failed,
+                reason ?? result.ToString().ToLowerInvariant()));
+            return result;
+        }
     }
 
     private void ReleaseSelection()

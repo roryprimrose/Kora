@@ -184,6 +184,20 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
+                  <TextBlock Text="Reduced motion" Classes="settings-title" />
+                  <TextBlock Text="Freeze presence particle movement in both animation modes. When off, follow Windows animation settings; Kora never overrides Windows reduced motion. Speech sizing and brief colour and visibility transitions remain independent."
+                             Classes="settings-description" TextWrapping="Wrap" />
+                </StackPanel>
+                <CheckBox Grid.Column="1" Content="Reduce motion" IsChecked="{Binding IsReducedMotionEnabled}"
+                          VerticalAlignment="Center" AutomationProperties.Name="Reduced motion" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Reduced motion"
+                                               ResetCommand="{Binding ResetReducedMotionCommand}" />
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
+                <StackPanel Spacing="4">
                   <TextBlock Text="Always show responses" Classes="settings-title" />
                   <TextBlock
                       Text="Keep the response window visible until you dismiss it."
@@ -1251,6 +1265,7 @@
             </Border>
 
             <Border Classes="settings-card">
+              <StackPanel Spacing="6">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Voice activation during calls" Classes="settings-title" />
@@ -1266,6 +1281,21 @@
                     IsEnabled="{Binding CanDisableCallVoiceActivation}"
                     VerticalAlignment="Center" />
               </Grid>
+              <controls:NamedTextBlock Text="{Binding CallVoiceActivationReviewStatus}" TextWrapping="Wrap"
+                  Classes="settings-description" AutomationProperties.LiveSetting="Polite"
+                  AutomationProperties.Name="Call-time activation exact review saved and effective status" />
+              <WrapPanel ItemSpacing="8" LineSpacing="6">
+                <Button Name="ReviewCallVoiceActivation" Content="Review enabling activation"
+                    Command="{Binding ReviewCallVoiceActivationCommand}" TabIndex="40"
+                    AutomationProperties.Name="Review enabling device-local voice activation during calls" />
+                <Button Name="ConfirmCallVoiceActivation" Content="Confirm reviewed activation"
+                    Command="{Binding ConfirmCallVoiceActivationCommand}" TabIndex="41"
+                    AutomationProperties.Name="Confirm the exact reviewed call-time activation preference only" />
+                <Button Name="CancelCallVoiceActivation" Content="Cancel activation review"
+                    Command="{Binding CancelCallVoiceActivationCommand}" TabIndex="42"
+                    AutomationProperties.Name="Cancel call-time activation review without saving" />
+              </WrapPanel>
+              </StackPanel>
             </Border>
             <Border Classes="settings-card">
               <StackPanel Spacing="6">

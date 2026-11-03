@@ -5,6 +5,8 @@ const { CHECKS, GATE, MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS, D
 const MAX_CANDIDATES = 10;
 
 async function reconcile(api, options = {}) {
+  const { profile } = require('./batch-policy.cjs');
+  if (profile(options.profile) === 'batch-v1') return require('./batch.cjs').reconcileBatch(api, options);
   api.info(`Starting reconciliation for ${api.repository}; verifying required queue App checks and branch protection.`);
   const result = await reconcileOnce(api, options);
   let continuation = result;
@@ -26,6 +28,7 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
   await api.verifyProtection();
   api.info('Required queue App checks and strict administrator-enforced branch protection verified.');
   const state = validateState(await api.load());
+  invariant(state.version === 1, 'The legacy profile cannot consume v2 batch state; explicit idle rollback is required.');
   api.info(`Loaded queue state: ${state.active ? `active PR #${state.active.number} (${state.active.phase})` : 'no active candidate'}; ${state.blocked.length} blocked revision(s).`);
   const base = await api.main();
   api.info(`Current main: ${base}; listing open PRs targeting main.`);
@@ -135,7 +138,10 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
     for (const run of runs) {
       const jobs = observed?.runId === run.id ? observed.jobs : await observeJobs(run);
       const expected = observed?.runId === run.id ? observed.expected : await expectedInventory(active, run);
-      if (!terminalJobs(jobs, expected)) {
+      const rejected = Array.isArray(expected) && !terminalJobs(jobs, expected)
+        && await api.rejectedAdmission(active.base, run, jobs);
+      if (rejected) api.info(`PR #${active.number}: run ${run.id} rejected admission before candidate execution; exact terminal skipped-job plan verified.`);
+      if (!terminalJobs(jobs, expected) && !rejected) {
         api.info(`PR #${active.number}: run ${run.id} is completed but workflow inventory or job metadata is incomplete; requesting cancellation and retaining the lane.`);
         await api.cancel(run.id);
         terminal = false;

@@ -196,6 +196,8 @@ public sealed partial class OwnedDefinitionEditorWindowTests
         internal long Ownership = 1;
         internal bool Owned = true;
         internal string Prefix { get; }
+        private readonly RestoreTestTime restoreClock = new();
+        internal void ExpireRestore() => restoreClock.Now += TimeSpan.FromMinutes(2);
         internal string SourcePath => Path.Combine(Session.RoamingRoot, Prefix is "instructions" ? "Instructions" : "Prompts",
             "example" + (Prefix is "instructions" ? ".instructions.md" : ".prompt.md"));
         internal string Status => Editor is null ? string.Empty : string.Join("\n", Editor.GetVisualDescendants().OfType<TextBlock>().Select(block => block.Text));
@@ -226,11 +228,18 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 new McpServerConfigurationService(session, preferences, Path.Combine(session.LocalRoot, "no-profile")),
                 NullLogger<ArtifactCatalogueReloadService>.Instance, instructions, nativeInstructions, Path.Combine(session.LocalRoot, "no-profile"), prompts, nativePrompts);
             controller = new(session.Main, instructionActions, new(instructionActions), reload, session,
-                () => Owned, () => Ownership, session.Loggers.CreateLogger<OwnedInstructionEditorController>(), promptActions, new(promptActions));
+                () => Owned, () => Ownership, session.Loggers.CreateLogger<OwnedInstructionEditorController>(), promptActions, new(promptActions),
+                restoreTime: restoreClock);
             Prefix = kind == ArtifactKind.Instruction ? "instructions" : "prompts";
             opened = Window.WindowOpenedEvent.AddClassHandler<Window>((window, _) =>
             { if (window is OwnedInstructionEditorWindow editor) { Editor = editor; } });
             controller.Bind();
+        }
+
+        private sealed class RestoreTestTime : TimeProvider
+        {
+            internal DateTimeOffset Now = DateTimeOffset.UtcNow;
+            public override DateTimeOffset GetUtcNow() => Now;
         }
 
         internal static async Task<DraftValidationFixture> Create(ArtifactKind kind, bool newDraft,
@@ -258,6 +267,8 @@ public sealed partial class OwnedDefinitionEditorWindowTests
         internal async Task Run(string command)
         { Session.Main.CommandText = command; await Session.Main.RunTypedCommand.ExecuteAsync(); }
         internal void DisposeController() => controller.Dispose();
+        internal Task WaitForEditorOperation() => controller.WaitForOperation();
+        internal void FailAfterInstructionPublication() => nativeInstructions.AfterPublication = () => throw new IOException("Synthetic readback unavailable");
         public async ValueTask DisposeAsync()
         {
             controller.Dispose();
@@ -292,6 +303,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
     {
         internal Func<string, CancellationToken, Task<OwnedInstructionSnapshot?>>? ReadOverride;
         internal bool DenyAccess;
+        internal Action? AfterWrite;
         internal int Reads;
         internal int Lists;
         internal int Writes;
@@ -301,8 +313,13 @@ public sealed partial class OwnedDefinitionEditorWindowTests
         { Lists++; RequireAccess(); return inner.List(token); }
         public Task<OwnedInstructionSnapshot?> Read(string name, CancellationToken token)
         { Reads++; RequireAccess(); return ReadOverride is { } read ? read(name, token) : inner.Read(name, token); }
-        public Task<InstructionWriteResult> Write(string name, OwnedInstructionSnapshot? expected, ArtifactFileDocument? replacement,
+        public async Task<InstructionWriteResult> Write(string name, OwnedInstructionSnapshot? expected, ArtifactFileDocument? replacement,
             Func<bool> eligible, Func<Func<InstructionWriteResult>, Task<InstructionWriteResult>> commit, CancellationToken token)
-        { Writes++; RequireAccess(); return inner.Write(name, expected, replacement, eligible, commit, token); }
+        {
+            Writes++; RequireAccess();
+            var result = await inner.Write(name, expected, replacement, eligible, commit, token);
+            AfterWrite?.Invoke();
+            return result;
+        }
     }
 }

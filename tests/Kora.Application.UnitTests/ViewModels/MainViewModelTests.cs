@@ -1371,9 +1371,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.AppearancePreferences.SavedResponseTimeoutSeconds.Should().Be(8);
         fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(PresenceSettings.DefaultTimeoutSeconds);
         fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().BeNull();
-        changedProperties.Should().Equal(
-            nameof(MainViewModel.SettingsUndoDescription), nameof(MainViewModel.CanReviewSettingsUndo),
-            nameof(MainViewModel.CanConfirmSettingsUndo), nameof(MainViewModel.ResponseTimeoutSeconds));
+        changedProperties.Should().Equal(WithUndoNotifications(nameof(MainViewModel.ResponseTimeoutSeconds)));
         AssertAuditPair(
             fixture,
             SecurityAuditCategory.ConfigurationWrite,
@@ -4706,6 +4704,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(PlaybackVolumeSuggestionCommand.FixedPhrases)
             .Concat(WindowsSpeechRateSuggestionCommand.FixedPhrases)
             .Concat(Kora.Application.Configuration.RegisteredSettings.RegisteredSettingSuggestionCommand.FixedPhrases)
+            .Concat(Kora.Application.Configuration.RegisteredSettings.RegisteredSettingSuggestionCommand.ResponseTimeoutPhrases)
             .Concat(Kora.Application.Configuration.RegisteredSettings.RegisteredSettingUndoCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.OwnedSkillAuthoringCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
@@ -9172,7 +9171,8 @@ public sealed partial class MainViewModelTests : IDisposable
             }
         }
 
-        public async Task RaiseActivatedTranscriptAsync(string transcript, float confidence)
+        public async Task RaiseActivatedTranscriptAsync(string transcript, float confidence,
+            IVoiceActivationEvidence? activationEvidence = null)
         {
             if (Voice.Microphones.Count == 0)
             {
@@ -9192,7 +9192,7 @@ public sealed partial class MainViewModelTests : IDisposable
             await ViewModel.BeginPushToTalkAsync();
             await ViewModel.EndPushToTalkAsync();
             WindowActions.Clear();
-            await Voice.RaiseTranscriptAsync(transcript, confidence);
+            await Voice.RaiseTranscriptAsync(transcript, confidence, activationEvidence);
         }
 
         public sealed class FakeVoiceConsentPreferences : IVoiceConsentPreferences
@@ -9719,9 +9719,10 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
-        public async Task RaiseTranscriptAsync(string transcript, float confidence)
+        public async Task RaiseTranscriptAsync(string transcript, float confidence,
+            IVoiceActivationEvidence? activationEvidence = null)
         {
-            TranscriptRecognized?.Invoke(this, new VoiceTranscriptEventArgs(transcript, confidence, Generation));
+            TranscriptRecognized?.Invoke(this, new VoiceTranscriptEventArgs(transcript, confidence, Generation, activationEvidence));
             await dispatcher.LastInvocation;
         }
 
@@ -10052,9 +10053,11 @@ public sealed partial class MainViewModelTests : IDisposable
             switch (setting)
             {
                 case AppearanceOption.Theme: Mode = null; break;
+                case AppearanceOption.ReducedMotion: ReducedMotionEnabled = null; break;
                 case AppearanceOption.ReaderTextScale: ReaderTextScalePercent = null; break;
                 case AppearanceOption.PresenceDisplay: PresenceDisplayEnabled = null; break;
                 case AppearanceOption.PresenceTimeout: PresenceTimeoutSeconds = null; break;
+                case AppearanceOption.ResponseTimeout: ResponseTimeoutSeconds = null; break;
                 case AppearanceOption.PresenceSize: PresenceSizePixels = null; break;
                 case AppearanceOption.DotSize: PresenceDotSizePercent = null; break;
                 case AppearanceOption.DotDensity: PresenceDotDensityPercent = null; break;
@@ -10065,6 +10068,14 @@ public sealed partial class MainViewModelTests : IDisposable
             }
         }
         public bool? NativePresenceRendererEnabled { get; private set; }
+        public bool? ReducedMotionEnabled { get; private set; }
+        public bool? LoadReducedMotionEnabled() => ReducedMotionEnabled;
+        public void SaveReducedMotionEnabled(bool enabled)
+        {
+            ThrowIfSaveFails();
+            ReducedMotionEnabled = enabled;
+        }
+
         public bool? LoadNativePresenceRendererEnabled() => NativePresenceRendererEnabled;
         public void SaveNativePresenceRendererEnabled(bool value)
         {
@@ -10604,10 +10615,15 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public Exception? SaveException { get; set; }
 
-        public CallAwareSettings? Load() => Settings;
+        public Func<CallAwareSettings?>? Read { get; set; }
+        public Action? BeforeSave { get; set; }
+        public int SaveCalls { get; private set; }
+        public CallAwareSettings? Load() => Read is null ? Settings : Read();
 
         public void Save(CallAwareSettings settings)
         {
+            SaveCalls++;
+            BeforeSave?.Invoke();
             if (SaveException is not null)
             {
                 throw SaveException;

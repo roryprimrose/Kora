@@ -11,6 +11,10 @@ public sealed record ConversationMessage(HostRequest Request, HostRevision Gener
 {
     public const int MaximumStorageUtf8Bytes = 32768;
     public int Version { get; init; } = 1;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool OrdinaryText { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public HostRequest? OriginalTextSource { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ModelTurnProvenance? Execution { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -21,6 +25,8 @@ public sealed record ConversationMessage(HostRequest Request, HostRevision Gener
     public ConversationHandoffLineage? Handoff { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public RetainedLocalObservations? Observations { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SubmittedAnswerContext? SubmittedContext { get; init; }
     [JsonIgnore]
     public bool HasAssistantResponse => AssistantResponse is not null;
     [JsonIgnore]
@@ -54,9 +60,27 @@ public sealed record ConversationMessage(HostRequest Request, HostRevision Gener
         Request.RequestId.Validate();
         Request.SessionId.Validate();
         Request.TaskId.Validate();
+        if (OriginalTextSource is { } original)
+        {
+            original.RequestId.Validate();
+            original.TaskId.Validate();
+            if (!OrdinaryText || original.SessionId != Request.SessionId
+                || original.RequestId == Request.RequestId || original.TaskId == Request.TaskId
+                || original.InvocationId is not null
+                || original.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice))
+            { throw new InvalidDataException("Historical text attribution must remain separate from this new ordinary request's authority."); }
+        }
         Execution?.Turn.Validate();
         Handoff?.Validate(Request);
         AssistantResponse?.Validate();
+        if (SubmittedContext is { } context)
+        {
+            context.Validate();
+            if (Version != 2 || Outcome != ModelTurnOutcome.Succeeded || context.Provenance != Execution
+                || context.Generation != Generation || context.SubmittedAt < SubmittedAt
+                || context.Sources.Any(source => source.Sequence >= Sequence || source.Generation.Value > Generation.Value))
+            { throw new InvalidDataException("Submitted context does not belong to this exact successful original answer."); }
+        }
         if (Observations is not null)
         {
             if (Version != 2 || Outcome != ModelTurnOutcome.Succeeded

@@ -28,6 +28,8 @@ public static class RegisteredSettingRegistry
         new(RegisteredSetting.WindowsSpeechRate, "speech.windows-rate",
             "future Windows-provider-native speech rate only; Kokoro unchanged", "Windows native units",
             WindowsSpeechRate.Minimum, WindowsSpeechRate.Maximum, false),
+        Appearance(RegisteredSetting.ResponseTimeout, AppearanceOption.ResponseTimeout),
+        Appearance(RegisteredSetting.ReducedMotion, AppearanceOption.ReducedMotion),
     ]);
 
     public static RegisteredSettingDescriptor Get(RegisteredSetting setting) =>
@@ -37,6 +39,6 @@ public static class RegisteredSettingRegistry
     {
         var descriptor = AppearanceOptionRegistry.Get(option);
         return new(setting, descriptor.Id, descriptor.Description, descriptor.Units,
-            descriptor.Minimum, descriptor.Maximum, true);
+            descriptor.Minimum, descriptor.Maximum, option != AppearanceOption.ResponseTimeout);
     }
 }

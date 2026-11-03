@@ -150,7 +150,9 @@ public sealed partial class AppearanceConfigurationServiceTests
 
     [Theory]
     [InlineData("set appearance.theme to dark", "current system (default); proposed dark mode", "appearance-theme.txt", "Dark")]
+    [InlineData("set appearance.reduced-motion to true", "current false (default); proposed true boolean", "appearance-reduced-motion-enabled.txt", "True")]
     [InlineData("set appearance.reader-text-scale to 125", "current 100 (default); proposed 125 percent", "reader-text-scale-percent.txt", "125")]
+    [InlineData("set appearance.response-timeout to 15", "current 5 (default); proposed 15 seconds", "response-timeout-seconds.txt", "15")]
     public async Task SuggestionReviewIsInertUntilSeparateOriginalUserConfirmation(string text, string description,
         string file, string saved)
     {
@@ -193,7 +195,7 @@ public sealed partial class AppearanceConfigurationServiceTests
     [InlineData("set appearance.theme to ultraviolet")]
     [InlineData("set appearance.reader-text-scale to 999")]
     [InlineData("set appearance.reader-text-scale to 1.25")]
-    [InlineData("set appearance.response-timeout to 10")]
+    [InlineData("set appearance.response-timeout to 0")]
     [InlineData("set speech.summary-words to 40")]
     [InlineData("reset appearance.theme")]
     [InlineData("set appearance.theme to dark\nand do something else")]
@@ -249,18 +251,25 @@ public sealed partial class AppearanceConfigurationServiceTests
     }
 
     [Theory]
-    [InlineData("cancel")]
-    [InlineData("privacy")]
-    [InlineData("foreign")]
-    [InlineData("voice")]
-    [InlineData("source")]
-    [InlineData("cancelled")]
-    [InlineData("during-validation")]
-    public async Task SuggestionConfirmationRevokesOnLifecycleOrAdmissionChange(string fault)
+    [InlineData("cancel", "set appearance.theme to dark")]
+    [InlineData("privacy", "set appearance.theme to dark")]
+    [InlineData("foreign", "set appearance.theme to dark")]
+    [InlineData("voice", "set appearance.theme to dark")]
+    [InlineData("source", "set appearance.theme to dark")]
+    [InlineData("cancelled", "set appearance.theme to dark")]
+    [InlineData("during-validation", "set appearance.theme to dark")]
+    [InlineData("cancel", "set appearance.reduced-motion to true")]
+    [InlineData("privacy", "set appearance.reduced-motion to true")]
+    [InlineData("foreign", "set appearance.reduced-motion to true")]
+    [InlineData("voice", "set appearance.reduced-motion to true")]
+    [InlineData("source", "set appearance.reduced-motion to true")]
+    [InlineData("cancelled", "set appearance.reduced-motion to true")]
+    [InlineData("during-validation", "set appearance.reduced-motion to true")]
+    public async Task SuggestionConfirmationRevokesOnLifecycleOrAdmissionChange(string fault, string text)
     {
         using var listener = ListenToSuggestions();
         var fixture = new Fixture();
-        var message = Suggestion();
+        var message = Suggestion(text);
         var eligible = true;
         var failRead = false;
         AppearanceSuggestionReview? review = null;

@@ -8,15 +8,16 @@ namespace Kora;
 
 internal sealed partial class SessionsViewModel
 {
-    private enum DetailPart { Original, Assistant, History, Evidence, Observation }
+    private enum DetailPart { Original, Assistant, History, Evidence, Observation, Context }
     private sealed record DetailSelection(DetailPart Part, Guid Item, Guid? Observation);
     private readonly Dictionary<HostId<SessionIdentity>, DetailSelection> detailSelections = [];
     private DetailSelection? CurrentDetailSelection => selected is { } entry
         ? detailSelections.GetValueOrDefault(entry.Authority.SessionId) : null;
     internal bool LastDetailAssistant => CurrentDetailSelection?.Part == DetailPart.Assistant;
     internal Guid? LastDetailObservation => CurrentDetailSelection?.Observation;
-    internal ConversationMessage? LastDetailMessage => CurrentDetailSelection is { Part: DetailPart.Original or DetailPart.Assistant or DetailPart.Observation } choice
-        ? ConversationMessages.FirstOrDefault(message => message.Request.RequestId.Value == choice.Item) : null;
+    internal bool LastDetailContext => CurrentDetailSelection?.Part == DetailPart.Context;
+    internal ConversationMessage? LastDetailMessage => CurrentDetailSelection is { Part: DetailPart.Original or DetailPart.Assistant or DetailPart.Observation or DetailPart.Context } choice
+        ? ObservedConversationMessages.FirstOrDefault(message => message.Request.RequestId.Value == choice.Item) : null;
     internal bool CanRestoreHistoryDetail => CanOpenHistoryDetail && CurrentDetailSelection is { Part: DetailPart.History } choice
         && selectedHistory?.Id == choice.Item;
     internal SessionEvidenceDetail? LastEvidenceDetail => CurrentDetailSelection is { Part: DetailPart.Evidence } choice

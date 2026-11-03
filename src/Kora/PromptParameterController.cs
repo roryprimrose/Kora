@@ -119,6 +119,7 @@ internal sealed partial class PromptParameterController(
         if (busy || draft is not { } captured || window is not { } opened || lifetime is null) { return; }
         var token = lifetime.Token;
         busy = true;
+        main.NotifyResponseReadDecisionAvailability();
         opened.ConfirmSubmit.IsEnabled = false;
         opened.ReviewSubmit.IsEnabled = false;
         try
@@ -254,7 +255,7 @@ internal sealed partial class PromptParameterController(
                     ? exception.Message : "Prompt preparation unavailable. Cancel and reselect the exact reviewed revision.";
             }
         }
-        finally { busy = false; EnableReview(); }
+        finally { busy = false; EnableReview(); main.NotifyResponseReadDecisionAvailability(); }
     }
 
     private void OnPrivacyClosed(object? sender, EventArgs args) => DispatchClose();
@@ -329,6 +330,7 @@ internal sealed partial class PromptParameterController(
     internal async Task CloseAndWait()
     {
         closing = true;
+        main.NotifyResponseReadDecisionAvailability();
         try
         {
             if (Dispatcher.UIThread.CheckAccess()) { Close(); }
@@ -339,7 +341,7 @@ internal sealed partial class PromptParameterController(
             if (voice is not null) { await voice.Quiescence; }
 #pragma warning restore VSTHRD003
         }
-        finally { activeOperation = Task.CompletedTask; closing = false; }
+        finally { activeOperation = Task.CompletedTask; closing = false; main.NotifyResponseReadDecisionAvailability(); }
     }
 
     private void Clear()
@@ -359,6 +361,7 @@ internal sealed partial class PromptParameterController(
         var opened = window;
         window = null;
         opened?.ClearPrivateText();
+        main.NotifyResponseReadDecisionAvailability();
         try { cancellation?.Cancel(); }
         finally { cancellation?.Dispose(); }
     }

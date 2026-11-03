@@ -1,6 +1,7 @@
 using System.Text;
 
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -24,6 +25,110 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SessionsConversationTests
 {
+    [Theory]
+    [InlineData(false, "RegisteredSettingReviewReadback")]
+    [InlineData(true, "RegisteredSettingReviewReadback")]
+    [InlineData(false, "ConfirmRegisteredSettingSuggestion")]
+    [InlineData(true, "CancelRegisteredSettingSuggestion")]
+    public async Task RegisteredSettingKeyboardReviewReadsCancelsAndReturnsToExactSource(bool compact, string escapeControl)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            var preferences = new LocalAppearancePreferences(new LocalPreferenceStore(f.Paths),
+                NullLogger<LocalAppearancePreferences>.Instance);
+            var audit = new AuditLog();
+            var appearance = new AppearanceConfigurationService(preferences, audit,
+                NullLogger<AppearanceConfigurationService>.Instance);
+            var adapter = new AppearanceAnswerAdapter("set appearance.theme to dark");
+            await using var composed = new Composition(f, adapter: adapter, appearance: appearance);
+            var model = composed.Model;
+            await model.RefreshAsync();
+            await model.SelectAsync(model.Sessions.Single());
+            await model.ReadConversationAsync();
+            model.ComposerBody = "Suggest a dark theme.";
+            await model.SubmitConversationAsync();
+            var answer = model.ConversationMessages.Single();
+            model.ComposerBody = "Unsent text must remain unchanged.";
+            var owner = new SessionsPresentationOwner(model);
+            Window window = compact ? new CompactSessionWindow(model, owner) : new SessionsWindow(model, owner);
+            window.Show();
+            try
+            {
+                await ActivateOriginalRequestWindow(window);
+                window.UpdateLayout();
+                Dispatcher.UIThread.RunJobs();
+                Button Source() => window.GetVisualDescendants().OfType<Button>().Single(button =>
+                    string.Equals(button.Name, "ReviewRegisteredSettingSuggestion", StringComparison.Ordinal)
+                    && ReferenceEquals(button.DataContext, answer));
+                var source = Source();
+                source.Focus().Should().BeTrue();
+                source.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await owner.RegisteredSettingOperation;
+                Dispatcher.UIThread.RunJobs();
+                var readback = window.FindControl<TextBlock>("RegisteredSettingReviewReadback")!;
+                readback.IsFocused.Should().BeTrue();
+                readback.Text.Should().Contain("current system (default); proposed dark mode").And.Contain("shared device-local");
+                readback.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+                model.CanConfirmRegisteredSettingSuggestion.Should().BeTrue("readback focus or Enter is not confirmation");
+                preferences.LoadThemeMode().Should().BeNull();
+                audit.Events.Should().BeEmpty();
+
+                var composer = window.FindControl<TextBox>("ConversationComposer")!;
+                composer.Focus().Should().BeTrue();
+                var unrelatedKey = new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.F6 };
+                composer.RaiseEvent(unrelatedKey);
+                unrelatedKey.Handled.Should().BeFalse("settings review does not intercept unrelated composer keys");
+                model.CanConfirmRegisteredSettingSuggestion.Should().BeTrue();
+                model.ComposerBody.Should().Be("Unsent text must remain unchanged.");
+                var control = window.FindControl<Control>(escapeControl)!;
+                control.Focus().Should().BeTrue();
+                var escape = new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape };
+                control.RaiseEvent(escape);
+                escape.Handled.Should().BeTrue();
+                Dispatcher.UIThread.RunJobs();
+                model.CanConfirmRegisteredSettingSuggestion.Should().BeFalse();
+                model.RegisteredSettingSuggestionDescription.Should().BeEmpty();
+                model.ConversationStatus.Should().Contain("cancelled").And.Contain("No new setting write");
+                source = Source();
+                source.IsFocused.Should().BeTrue();
+                model.ComposerBody.Should().Be("Unsent text must remain unchanged.");
+                preferences.LoadThemeMode().Should().BeNull();
+                audit.Events.Should().BeEmpty();
+
+                source.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await owner.RegisteredSettingOperation;
+                window.FindControl<Button>("ConfirmRegisteredSettingSuggestion")!
+                    .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await owner.RegisteredSettingOperation;
+                preferences.LoadThemeMode().Should().Be(ApplicationThemeMode.Dark);
+                audit.Events.Select(item => item.Outcome).Should()
+                    .Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+                source = Source();
+                source.IsFocused.Should().BeTrue();
+                adapter.Calls.Should().Be(1, "review recovery reuses the exact source without another model request");
+                model.ComposerBody.Should().Be("Unsent text must remain unchanged.");
+                f.Count("scoped_grants").Should().Be(0);
+                f.Count("host_questions").Should().Be(0);
+
+                composer.Focus().Should().BeTrue();
+                source.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await owner.RegisteredSettingOperation;
+                composer.IsFocused.Should().BeTrue("a review opened without source focus must not steal composer focus");
+                window.FindControl<Button>("ConfirmRegisteredSettingSuggestion")!
+                    .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await owner.RegisteredSettingOperation;
+                composer.IsFocused.Should().BeTrue("completion must not steal focus moved outside the review");
+                preferences.LoadThemeMode().Should().Be(ApplicationThemeMode.Dark);
+                model.ComposerBody.Should().Be("Unsent text must remain unchanged.");
+                adapter.Calls.Should().Be(1);
+            }
+            finally { owner.Revoke(); }
+        });
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

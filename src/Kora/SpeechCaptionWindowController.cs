@@ -61,6 +61,7 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
     {
         if (string.Equals(args.PropertyName, nameof(ISpeechCaptionPresentation.ReaderTextScalePercent), StringComparison.Ordinal)) { Refresh(); }
         else if (string.Equals(args.PropertyName, nameof(ISpeechCaptionPresentation.SpeechCaptionText), StringComparison.Ordinal)
+            || string.Equals(args.PropertyName, nameof(ISpeechCaptionPresentation.SpeechCaptionEmphasis), StringComparison.Ordinal)
             || string.Equals(args.PropertyName, nameof(ISpeechCaptionPresentation.IsSpeechCaptionVisible), StringComparison.Ordinal))
         {
             if (!presentation.IsSpeechCaptionVisible || presentation.SpeechCaptionText is null) { ClearAndHide(); }
@@ -118,7 +119,7 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
                 ClearAndHide();
                 return;
             }
-            window.ApplyCaption(text, presentation.ReaderTextScalePercent);
+            window.ApplyCaption(text, presentation.ReaderTextScalePercent, presentation.SpeechCaptionEmphasis);
             Place(target);
             // Recheck source privacy after layout and before exposing the native text surface.
             if (presentation.IsSpeechCaptionVisible) { if (!window.IsVisible) { window.Show(); } }

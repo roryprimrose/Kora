@@ -57,6 +57,23 @@ read-only Preview and cog reset actions retain their admission checks. Queue
 changes still require a fresh Refresh from the cog menu before each Save or
 Reset. Settings that already save a selection immediately retain that behavior.
 
+## Future ordinary task deadline
+
+In **Settings > Sessions**, use **Refresh** in the **Future ordinary task deadline** cog menu, choose **1-60 whole minutes**, then **Save**. **Reset to 5 minutes** restores the default.
+The status shows the confirmed saved/default value; editing the field alone changes nothing ([shared controls](../src/Kora.Application/ViewModels/MainViewModel.OrdinaryTurnDeadline.cs)).
+
+Typed or activated voice can use `get work.active-deadline-minutes`, `status work.active-deadline-minutes`, `set work.active-deadline-minutes to 10`, or `reset work.active-deadline-minutes`.
+These routes use the same host admission, preference readback and required audit ([configuration owner](../src/Kora.Application/Configuration/OrdinaryTurnDeadlineConfigurationService.cs)).
+
+This preference applies only when an ordinary conversation turn dispatches, including its admitted read-only tools.
+Pending work has no active budget; running turns do not change when you save a new default.
+Clarification/approval turns and specialized source workflows keep their existing fixed limits ([scope](../Design/User_Configuration.md#delivered-future-ordinary-conversation-deadline)).
+
+**Shorter safety limits always win:** current local/read-only turns are capped at 15 seconds and ordinary hosted adapters at two minutes, with original context authorization able to expire earlier.
+A longer preference cannot renew that authorization or enable an unavailable provider.
+Provisional answers become noncurrent when the captured active deadline expires, even while the provider is still running.
+Timeout waits for owned runtime resources to finish before final retention; cancelling a request does not prove a remote provider physically stopped ([lifecycle](../Design/Task_Lifecycle.md#defaults-and-bounds)).
+
 ## Start Kora at Windows logon
 
 In **Settings > Appearance > Start Kora at Windows user logon**, choose **Inspect** to see last confirmed saved intent and the observed registration. Choose **Review enable**, **Review disable**, or **Reset setting** in the startup cog menu, read the complete review, then separately choose **Confirm startup change** ([native controls](../src/Kora/SettingsWindow.axaml)).

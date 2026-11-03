@@ -172,17 +172,18 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         Kora.Core.Communication.ICallStateService? callState = null,
         IUiDispatcher? dispatcher = null, ILocalModelReasoner? modelReasoner = null, ISetupDependencyProbe? modelProbe = null,
         Kora.Application.Dependencies.SpeechComponentSetupService? speechComponentSetup = null,
+        OrdinaryTurnDeadlineConfigurationService? ordinaryDeadlineConfiguration = null,
+        ConversationExecutionConfigurationService? conversationExecution = null,
         SpeechSetupComparison? speechSetupComparison = null,
         LogonStartupConfigurationService? logonStartupConfiguration = null,
         DetailPresentationConfigurationService? detailPresentationConfiguration = null,
-        ConversationExecutionConfigurationService? conversationExecution = null,
         StartupPresentationConfigurationService? startupPresentationConfiguration = null,
         IQuestionVoiceRecognitionService? voiceRecognition = null, SpeechInputConfigurationService? speechInputConfiguration = null)
     {
         using var setup = BeginPhase(NativeFixturePhase.Setup);
         await setup.RunAsync(() => InitializeCoreAsync(webPageGet, webSummary, callState, dispatcher, modelReasoner,
-            modelProbe, speechComponentSetup, speechSetupComparison, logonStartupConfiguration, detailPresentationConfiguration,
-            conversationExecution, startupPresentationConfiguration,
+            modelProbe, speechComponentSetup, ordinaryDeadlineConfiguration, conversationExecution,
+            speechSetupComparison, logonStartupConfiguration, detailPresentationConfiguration, startupPresentationConfiguration,
             voiceRecognition, speechInputConfiguration));
     }
 
@@ -191,10 +192,11 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         Kora.Core.Communication.ICallStateService? callState,
         IUiDispatcher? dispatcher, ILocalModelReasoner? modelReasoner, ISetupDependencyProbe? modelProbe,
         Kora.Application.Dependencies.SpeechComponentSetupService? speechComponentSetup,
+        OrdinaryTurnDeadlineConfigurationService? ordinaryDeadlineConfiguration,
+        ConversationExecutionConfigurationService? conversationExecution,
         SpeechSetupComparison? speechSetupComparison,
         LogonStartupConfigurationService? logonStartupConfiguration,
         DetailPresentationConfigurationService? detailPresentationConfiguration,
-        ConversationExecutionConfigurationService? conversationExecution,
         StartupPresentationConfigurationService? startupPresentationConfiguration,
         IQuestionVoiceRecognitionService? voiceRecognition, SpeechInputConfigurationService? speechInputConfiguration)
     {
@@ -270,8 +272,10 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
                 NullLogger<Kora.Application.Presentation.AudioPlaybackSettings>.Instance),
             speechTextConfiguration: captionConfiguration,
             webPageGet: webPageGet, speechComponentSetup: speechComponentSetup,
+            ordinaryDeadlineConfiguration: ordinaryDeadlineConfiguration,
+            conversationExecution: conversationExecution,
             speechSetupComparison: speechSetupComparison, logonStartupConfiguration: logonStartupConfiguration,
-            detailPresentationConfiguration: detailPresentationConfiguration, conversationExecution: conversationExecution,
+            detailPresentationConfiguration: detailPresentationConfiguration,
             startupPresentationConfiguration: startupPresentationConfiguration,
             speechInputConfiguration: speechInputConfiguration);
         if (webSummary is not null) { Main.BindWebSummaryWorkflow(webSummary); }

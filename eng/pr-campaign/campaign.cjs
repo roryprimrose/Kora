@@ -133,6 +133,14 @@ function pendingTipRun(active, qualification, observations) {
     .sort((a, b) => (a.status === 'in_progress' ? 0 : 1) - (b.status === 'in_progress' ? 0 : 1)
       || a.id - b.id)[0] || null;
 }
+function completedMembers(members, tip) {
+  boundary(Array.isArray(members) && members.length > 0 && members.length <= 5
+    && new Set(members.map(member => member?.number)).size === members.length
+    && members.every(member => id(member?.number) && SHA.test(member.source)
+      && SHA.test(member.admittedHead) && SHA.test(member.merged))
+    && members.at(-1).merged === tip, 'completed-tip member identities');
+  return members.map(({ number, source, admittedHead, merged }) => ({ number, source, admittedHead, merged }));
+}
 function evaluate(receipt, snapshot) {
   const { campaign } = receipt;
   const { state, pulls, checks, candidate, qualification, duplicates, controllers } = snapshot;
@@ -141,6 +149,10 @@ function evaluate(receipt, snapshot) {
   receipt.principal = snapshot.principal;
   receipt.references = snapshot.references;
   const active = state.active;
+  const tip = state.completedTip;
+  boundary(!tip || (tip.combined === undefined || SHA.test(tip.combined))
+    && (tip.manifest === undefined || /^[a-f0-9]{64}$/.test(tip.manifest)), 'completed-tip source/manifest identity');
+  const members = tip?.members === undefined ? null : completedMembers(tip.members, tip.sha);
   receipt.queue = { version: state.version, profile: snapshot.profile,
     active: active === null ? null : { ticket: active.ticket, phase: active.phase,
       kind: active.kind || 'singleton', source: active.head || null, base: active.base,
@@ -151,6 +163,7 @@ function evaluate(receipt, snapshot) {
       })) : [{ number: active.number, source: active.head, admittedHead: active.head, enrollment: active.enrollment }] },
     completedTip: state.completedTip ? { sha: state.completedTip.sha, ticket: state.completedTip.ticket,
       combined: state.completedTip.combined || null, manifest: state.completedTip.manifest || null,
+      members,
       qualification: state.completedTip.qualification || null } : null };
   if (active && ['recovery-required', 'retiring', 'merge-refused', 'merge-unconfirmed'].includes(active.phase))
     receipt.blockers.push(problem('recovery-required', null, receipt.references.queue.commit));
@@ -295,6 +308,7 @@ function validateReceipt(receipt, campaign) {
         && (tip.manifest === null || /^[a-f0-9]{64}$/.test(tip.manifest)), 'previous completed-tip source');
       if (tip.qualification !== null) boundary(tip.qualification && id(tip.qualification.run)
         && id(tip.qualification.job) && tip.qualification.source === tip.sha, 'previous qualification run/job/source');
+      if (tip.members !== undefined && tip.members !== null) completedMembers(tip.members, tip.sha);
     }
   }
   boundary(receipt.runs.every(run => id(run.id) && id(run.attempt) && SHA.test(run.source)

@@ -71,6 +71,8 @@ The [versioned machine schema](receipt.schema.json) describes `kora-pr-campaign-
 
 No credentials, titles, PR bodies, review text, raw logs or arbitrary server error content are persisted ([metadata projection](github.cjs)).
 
+Completed-tip member references retain the controller's original source, admitted head and actual merge identities after retirement. Historical state without that optional inventory is represented as `members: null`, not invented proof. These references do not establish solo-head validation ([projection](campaign.cjs)).
+
 The [synthetic merge receipt example](receipt.example.json) is a format fixture, not evidence about an actual repository or permission to write one. Its merge SHA differs from fetched main to demonstrate reachability rather than tip equality ([example regression](campaign.test.cjs)).
 
 Changed head/ticket/enrollment/source or observer code produces explicit `superseded` entries with the prior receipt digest and old/current identities. Completed-tip context changes are also classified. The previous file is never edited; no terminal success or failure is copied into current authority ([comparison](campaign.cjs)).

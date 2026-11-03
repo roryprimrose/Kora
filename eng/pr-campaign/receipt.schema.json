@@ -102,6 +102,26 @@
                     "ticket": { "$ref": "#/$defs/ticket" },
                     "combined": { "$ref": "#/$defs/nullableSha" },
                     "manifest": { "anyOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+                    "members": {
+                      "anyOf": [
+                        { "type": "null" },
+                        {
+                          "type": "array",
+                          "minItems": 1,
+                          "maxItems": 5,
+                          "items": {
+                            "type": "object",
+                            "required": ["number", "source", "admittedHead", "merged"],
+                            "properties": {
+                              "number": { "$ref": "#/$defs/id" },
+                              "source": { "$ref": "#/$defs/sha" },
+                              "admittedHead": { "$ref": "#/$defs/sha" },
+                              "merged": { "$ref": "#/$defs/sha" }
+                            }
+                          }
+                        }
+                      ]
+                    },
                     "qualification": {
                       "anyOf": [
                         { "type": "null" },

@@ -75,6 +75,34 @@ test('all fixed targets need actual merged state and fresh main ancestry', () =>
   data.reachable[2] = false;
   assert.equal(evaluate(receipt(), data).blockers[0].code, 'merge-unreachable');
 });
+test('completed batch member source/admitted/merge identities survive retirement without inventing solo-head proof', () => {
+  const data = snapshot();
+  data.state.completedTip = { sha: MERGE, tree: HEAD, ticket: TICKET, combined: COMBINED,
+    manifest: 'e'.repeat(64), members: [{ number: 1, source: HEAD, admittedHead: BASE, merged: MERGE }] };
+  const result = evaluate(receipt(), data);
+  assert.deepEqual(result.queue.completedTip.members,
+    [{ number: 1, source: HEAD, admittedHead: BASE, merged: MERGE }]);
+  assert.equal(result.pulls[0].proofKind, 'none');
+  assert.equal(validateReceipt(result, campaign()), result);
+  delete data.state.completedTip.members;
+  assert.equal(evaluate(receipt(), data).queue.completedTip.members, null, 'historical inventory is unavailable, not empty proof');
+});
+test('malformed optional completed-tip source or member identities fail before receipt projection', () => {
+  for (const change of [
+    tip => { tip.combined = 'unknown'; }, tip => { tip.manifest = 'unknown'; },
+    tip => { tip.members = null; }, tip => { tip.members = []; },
+    tip => { tip.members[0].source = 'unknown'; }, tip => { tip.members[0].admittedHead = null; },
+    tip => { tip.members[0].merged = BASE; }, tip => { tip.members.push(tip.members[0]); },
+  ]) {
+    const data = snapshot();
+    data.state.completedTip = { sha: MERGE, tree: HEAD, ticket: TICKET, combined: COMBINED,
+      manifest: 'e'.repeat(64), members: [{ number: 1, source: HEAD, admittedHead: BASE, merged: MERGE }] };
+    change(data.state.completedTip);
+    const output = receipt();
+    assert.throws(() => evaluate(output, data), /completed-tip/);
+    assert.equal(output.queue, null);
+  }
+});
 test('missing targets and missing merged identities fail closed', () => {
   const data = snapshot();
   data.pulls.pop();

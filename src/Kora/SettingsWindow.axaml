@@ -655,6 +655,38 @@
             </Border>
 
             <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                <StackPanel Spacing="8">
+                <TextBlock Text="Scheduled proactive speech quiet hours" Classes="settings-title" />
+                <TextBlock Text="{Binding QuietHoursStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                <TextBlock Text="One weekly interval in an explicit time zone. Off until confirmed. Use ordered days Mon,Tue,Wed,Thu,Fri,Sat,Sun and 24-hour HH:mm times. Overnight intervals belong to their starting day. Visual notices, ordinary requested answers, questions and approvals remain unchanged."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <TextBox Name="QuietHoursDays" Text="{Binding QuietHoursDays}" MaxLength="27" PlaceholderText="Mon,Tue,Wed,Thu,Fri"
+                         IsEnabled="{Binding CanChangeQuietHoursNative}" AutomationProperties.Name="Quiet hours days" />
+                <TextBox Name="QuietHoursStart" Text="{Binding QuietHoursStart}" MaxLength="5" PlaceholderText="09:00"
+                         IsEnabled="{Binding CanChangeQuietHoursNative}" AutomationProperties.Name="Quiet hours start time HH:mm" />
+                <TextBox Name="QuietHoursEnd" Text="{Binding QuietHoursEnd}" MaxLength="5" PlaceholderText="17:00"
+                         IsEnabled="{Binding CanChangeQuietHoursNative}" AutomationProperties.Name="Quiet hours end time HH:mm" />
+                <TextBox Name="QuietHoursZone" Text="{Binding QuietHoursZone}" MaxLength="128" PlaceholderText="UTC"
+                         IsEnabled="{Binding CanChangeQuietHoursNative}" AutomationProperties.Name="Quiet hours explicit time zone ID" />
+                <WrapPanel Orientation="Horizontal">
+                  <Button Content="Inspect quiet hours" Command="{Binding InspectQuietHoursCommand}" IsEnabled="{Binding CanChangeQuietHoursNative}" />
+                  <Button Name="ReviewQuietHours" Content="Review weekly quiet hours" Command="{Binding ReviewQuietHoursCommand}" IsEnabled="{Binding CanChangeQuietHoursNative}" />
+                </WrapPanel>
+                <TextBlock Text="{Binding QuietHoursReviewText}" Classes="settings-description" TextWrapping="Wrap" />
+                <WrapPanel Orientation="Horizontal">
+                  <Button Name="ConfirmQuietHours" Content="Confirm quiet hours" Command="{Binding ConfirmQuietHoursCommand}" IsEnabled="{Binding CanConfirmQuietHoursNative}" />
+                  <Button Content="Cancel quiet hours review" Command="{Binding CancelQuietHoursCommand}" IsEnabled="{Binding CanChangeQuietHoursNative}" />
+                </WrapPanel>
+                </StackPanel>
+                <controls:SettingActionsButton Name="QuietHoursActions" Grid.Column="1"
+                                               SettingName="Scheduled proactive speech quiet hours"
+                                               ResetCommand="{Binding ResetQuietHoursCommand}"
+                                               IsEnabled="{Binding CanChangeQuietHoursNative}" />
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
               <StackPanel Spacing="8">
                 <TextBlock Text="Local speech setup comparison" Classes="settings-title" />
                 <TextBlock Text="{Binding SpeechComparisonDisclosure}" Classes="settings-description" TextWrapping="Wrap" />

@@ -180,13 +180,14 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         StartupPresentationConfigurationService? startupPresentationConfiguration = null,
         IQuestionVoiceRecognitionService? voiceRecognition = null, SpeechInputConfigurationService? speechInputConfiguration = null,
         ForegroundPttConfigurationService? foregroundPtt = null,
-        VoiceCaptureTimingConfigurationService? voiceCaptureTimingConfiguration = null)
+        VoiceCaptureTimingConfigurationService? voiceCaptureTimingConfiguration = null,
+        QuietHoursConfigurationService? quietHoursConfiguration = null)
     {
         using var setup = BeginPhase(NativeFixturePhase.Setup);
         await setup.RunAsync(() => InitializeCoreAsync(webPageGet, webSummary, callState, dispatcher, modelReasoner,
             modelProbe, speechComponentSetup, ordinaryDeadlineConfiguration, conversationExecution,
             speechSetupComparison, logonStartupConfiguration, detailPresentationConfiguration, startupPresentationConfiguration,
-            voiceRecognition, speechInputConfiguration, foregroundPtt, voiceCaptureTimingConfiguration));
+            voiceRecognition, speechInputConfiguration, foregroundPtt, voiceCaptureTimingConfiguration, quietHoursConfiguration));
     }
 
     private async Task InitializeCoreAsync(Kora.Tools.Network.WebPageGet? webPageGet,
@@ -202,7 +203,8 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         StartupPresentationConfigurationService? startupPresentationConfiguration,
         IQuestionVoiceRecognitionService? voiceRecognition, SpeechInputConfigurationService? speechInputConfiguration,
         ForegroundPttConfigurationService? foregroundPtt,
-        VoiceCaptureTimingConfigurationService? voiceCaptureTimingConfiguration)
+        VoiceCaptureTimingConfigurationService? voiceCaptureTimingConfiguration,
+        QuietHoursConfigurationService? quietHoursConfiguration)
     {
         if (initialized) { throw new InvalidOperationException("A fixture session may be initialized only once."); }
         using (var context = BeginPhase(NativeFixturePhase.Context))
@@ -281,8 +283,10 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             speechSetupComparison: speechSetupComparison, logonStartupConfiguration: logonStartupConfiguration,
             detailPresentationConfiguration: detailPresentationConfiguration,
             startupPresentationConfiguration: startupPresentationConfiguration,
-            speechInputConfiguration: speechInputConfiguration, foregroundPtt: foregroundPtt,
-            voiceCaptureTimingConfiguration: voiceCaptureTimingConfiguration);
+            speechInputConfiguration: speechInputConfiguration,
+            foregroundPtt: foregroundPtt,
+            voiceCaptureTimingConfiguration: voiceCaptureTimingConfiguration,
+            quietHoursConfiguration: quietHoursConfiguration);
         if (webSummary is not null) { Main.BindWebSummaryWorkflow(webSummary); }
         Main.BindCallOwnershipGate(() => Access.Open);
         Main.BindClipboardOwnershipGate(static () => false);

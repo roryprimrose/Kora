@@ -14,7 +14,8 @@ public sealed class SpeechReadOnceTests
         var action = new SpeechReadOnce(host);
         var target = new ResponseSpeechTarget(Guid.NewGuid(), 41, 73);
         using var cancellation = new CancellationTokenSource();
-        await action.ExecuteAsync(target, SecurityAuditInitiator.TypedCommand, cancellation.Token);
+        var result = await action.ExecuteAsync(target, SecurityAuditInitiator.TypedCommand, cancellation.Token);
+        result.Should().Be(SpeechReadOutcome.Played);
         host.Target.Should().Be(target);
         host.Initiator.Should().Be(SecurityAuditInitiator.TypedCommand);
         host.Token.Should().Be(cancellation.Token);
@@ -33,21 +34,38 @@ public sealed class SpeechReadOnceTests
         host.Calls.Should().Be(1);
     }
 
+    [Theory]
+    [InlineData(SpeechReadOutcome.Played)]
+    [InlineData(SpeechReadOutcome.Denied)]
+    [InlineData(SpeechReadOutcome.Cancelled)]
+    [InlineData(SpeechReadOutcome.Failed)]
+    [InlineData(SpeechReadOutcome.Unknown)]
+    public async Task ExecuteReturnsTheActualHostTerminalWithoutReinterpretation(SpeechReadOutcome outcome)
+    {
+        var host = new Playback { Outcome = outcome };
+        var action = new SpeechReadOnce(host);
+        var actual = await action.ExecuteAsync(new(Guid.NewGuid(), 1, 1), SecurityAuditInitiator.LocalUser,
+            TestContext.Current.CancellationToken);
+        actual.Should().Be(outcome);
+        host.Calls.Should().Be(1);
+    }
+
     private sealed class Playback : ISpeechReadOncePlayback
     {
         public ResponseSpeechTarget Target { get; private set; }
         public SecurityAuditInitiator Initiator { get; private set; }
         public CancellationToken Token { get; private set; }
         public int Calls { get; private set; }
+        public SpeechReadOutcome Outcome { get; init; } = SpeechReadOutcome.Played;
 
-        public Task ReadOnceAsync(ResponseSpeechTarget target, SecurityAuditInitiator initiator, CancellationToken cancellationToken)
+        public Task<SpeechReadOutcome> ReadOnceAsync(ResponseSpeechTarget target, SecurityAuditInitiator initiator, CancellationToken cancellationToken)
         {
             Calls++;
             Target = target;
             Initiator = initiator;
             Token = cancellationToken;
             cancellationToken.ThrowIfCancellationRequested();
-            return Task.CompletedTask;
+            return Task.FromResult(Outcome);
         }
     }
 }

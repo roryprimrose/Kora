@@ -118,6 +118,21 @@ function newReceipt(campaign, now, observer) {
     principal: null, references: null, pulls: [], queue: null, runs: [],
     following: null, reconciliations: [], superseded: [], blockers: [], outcome: 'blocked' };
 }
+function tipSucceeded(run) {
+  return run?.attempt === 1 && run.source === run.workflowSource && run.branch === 'main'
+    && ['push', 'workflow_dispatch'].includes(run.event) && run.status === 'completed'
+    && run.conclusion === 'success' && run.outcome === 'required-jobs-success'
+    && Array.isArray(run.jobs) && run.jobs.filter(job => job.name === QUALIFY).length === 1
+    && run.jobs.some(job => job.name === QUALIFY && job.status === 'completed' && job.conclusion === 'success');
+}
+function pendingTipRun(active, qualification, observations) {
+  if (active || qualification || observations.some(tipSucceeded)) return null;
+  return [...observations].filter(run => run.attempt === 1 && run.status !== 'completed'
+    && run.source === run.workflowSource && run.branch === 'main'
+    && ['push', 'workflow_dispatch'].includes(run.event))
+    .sort((a, b) => (a.status === 'in_progress' ? 0 : 1) - (b.status === 'in_progress' ? 0 : 1)
+      || a.id - b.id)[0] || null;
+}
 function evaluate(receipt, snapshot) {
   const { campaign } = receipt;
   const { state, pulls, checks, candidate, qualification, duplicates, controllers } = snapshot;
@@ -199,11 +214,8 @@ function evaluate(receipt, snapshot) {
   if (qualification) {
     receipt.runs.push(qualification);
     const proof = state.completedTip.qualification;
-    qualified = qualification.id === proof?.run && qualification.attempt === 1
-      && qualification.source === proof.source && qualification.workflowSource === proof.source
-      && qualification.branch === 'main' && ['push', 'workflow_dispatch'].includes(qualification.event)
-      && qualification.status === 'completed' && qualification.conclusion === 'success'
-      && qualification.outcome === 'required-jobs-success'
+    qualified = tipSucceeded(qualification) && qualification.id === proof?.run
+      && qualification.source === proof.source
       && qualification.jobs.filter(job => job.name === QUALIFY && job.id === proof.job
         && job.status === 'completed' && job.conclusion === 'success').length === 1;
     qualification.classification = qualified ? 'authoritative-tip-receipt' : 'invalid-tip-receipt';
@@ -222,14 +234,14 @@ function evaluate(receipt, snapshot) {
   }
   if (!active && state.completedTip && !qualified && state.completedTip.sha !== receipt.references.main.sha)
     receipt.blockers.push(problem('main-moved-before-qualification'));
+  const pendingTip = pendingTipRun(active, qualification, duplicates);
   receipt.following = candidateCurrent && candidate && candidate.status !== 'completed'
     ? { kind: 'candidate', run: candidate.id, url: candidate.url }
-    : controllers.length ? { kind: 'controller-handoff', run: controllers[0].id, url: controllers[0].url,
+    : pendingTip ? { kind: 'tip-qualification', run: pendingTip.id, url: pendingTip.url }
+      : controllers.length ? { kind: 'controller-handoff', run: controllers[0].id, url: controllers[0].url,
       triggerHead: controllers[0].triggerHead, event: controllers[0].event, status: controllers[0].status,
       classification: 'trigger-context-not-validation-source' }
-      : !qualified && !active && duplicates.find(run => run.status !== 'completed')
-        ? { kind: 'tip-qualification', run: duplicates.find(run => run.status !== 'completed').id,
-          url: duplicates.find(run => run.status !== 'completed').url } : null;
+        : null;
   receipt.outcome = receipt.blockers.length ? 'blocked'
     : receipt.pulls.every(pull => pull.outcome === 'MERGED_VERIFIED') ? 'MERGED_VERIFIED' : 'observing';
   return receipt;
@@ -324,4 +336,5 @@ function supersede(receipt, previous) {
 }
 
 module.exports = { SCHEMA, QUALIFY, ACTIONS, ObservationError, problem, boundary, id, login, timestamp,
-  digest, validateCampaign, safeUrl, validatePull, summarizeRun, newReceipt, evaluate, validateReceipt, supersede };
+  digest, validateCampaign, safeUrl, validatePull, summarizeRun, newReceipt, evaluate, validateReceipt, supersede,
+  pendingTipRun };

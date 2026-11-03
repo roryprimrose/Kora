@@ -169,6 +169,22 @@ test('failed duplicate cannot override exact durable actual-tip receipt; prefer 
   assert.equal(result.following.kind, 'controller-handoff');
   assert.equal(result.following.run, 12);
 });
+test('before qualification follow oldest running first-attempt tip, then hand off after observed join without inventing a receipt', () => {
+  const data = snapshot();
+  data.state.completedTip = { sha: MERGE, tree: HEAD, ticket: TICKET };
+  const older = run({ head_sha: MERGE, status: 'in_progress', conclusion: null });
+  const newer = run({ id: 11, head_sha: MERGE, status: 'queued', conclusion: null });
+  data.duplicates = [evidence(newer, 'qualification', MERGE), evidence(older, 'qualification', MERGE)];
+  data.controllers = [{ id: 12, url: `${URL}/actions/runs/12` }];
+  const pending = evaluate(receipt(), data);
+  assert.equal(pending.following.kind, 'tip-qualification');
+  assert.equal(pending.following.run, 10);
+  data.duplicates[1] = evidence(run({ head_sha: MERGE }), 'qualification', MERGE);
+  const joined = evaluate(receipt(), data);
+  assert.equal(joined.following.kind, 'controller-handoff');
+  assert.equal(joined.queue.completedTip.qualification, null);
+  assert.ok(joined.runs.every(item => item.classification === 'unreceipted-tip-observation'));
+});
 test('stale qualification source or changed proof job never clears failure', () => {
   for (const field of ['source', 'job', 'run']) {
     const data = snapshot();
@@ -467,6 +483,21 @@ test('active exact candidate observation does not query unconsumed controller li
   } });
   const observed = await fixture.reader.snapshot(campaign(), 'publisher');
   assert.equal(evaluate(receipt(), observed).following.kind, 'candidate');
+  assert.equal(observed.controllers.length, 0);
+});
+test('pending actual-tip producer does not query unconsumed controller listings before its join', async () => {
+  const data = snapshot();
+  data.state.completedTip = { sha: MERGE, tree: HEAD, ticket: TICKET };
+  const item = run({ head_sha: MERGE, status: 'in_progress', conclusion: null });
+  const fixture = fakeCli({ data, transform: (endpoint, result) => {
+    assert.ok(!endpoint.includes('merge-queue.yml/runs?'), 'controller is not consumed before tip join');
+    if (endpoint.includes('/ci.yml/runs?')) return { total_count: 1, workflow_runs: [item] };
+    if (endpoint.endsWith('/actions/runs/10')) return item;
+    if (endpoint.includes('/attempts/1/jobs?')) return { total_count: jobs(item).length, jobs: jobs(item) };
+    return result;
+  } });
+  const observed = await fixture.reader.snapshot(campaign(), 'publisher');
+  assert.equal(evaluate(receipt(), observed).following.kind, 'tip-qualification');
   assert.equal(observed.controllers.length, 0);
 });
 test('malformed current or retained App ticket identity is not silently treated as historical evidence', async () => {

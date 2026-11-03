@@ -3,7 +3,7 @@ const { createHash } = require('node:crypto');
 const { SHA, TICKET, STATE_BRANCH, mode, validateState, matchingRuns, workflowJobs, GATE } =
   require('../merge-queue/policy.cjs');
 const { profile } = require('../merge-queue/batch-policy.cjs');
-const { ObservationError, boundary, id, login, timestamp, safeUrl, validatePull, summarizeRun } = require('./campaign.cjs');
+const { ObservationError, boundary, id, login, safeUrl, validatePull, summarizeRun, pendingTipRun } = require('./campaign.cjs');
 
 function execute(file, args, { cwd, signal, timeout }) {
   return new Promise((resolve, reject) => {
@@ -244,7 +244,7 @@ class Reader {
       }
     }
     const controllers = [];
-    if (!candidate || candidate.status === 'completed') {
+    if ((!candidate || candidate.status === 'completed') && !pendingTipRun(active, qualification, duplicates)) {
       for (const status of ['in_progress', 'queued', 'waiting', 'pending', 'requested']) {
         for (const run of await this.pages(this.repo(`actions/workflows/merge-queue.yml/runs?status=${status}`),
           'workflow_runs')) {

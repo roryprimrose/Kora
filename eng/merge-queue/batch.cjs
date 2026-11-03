@@ -141,7 +141,8 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
   }
   async function quiescent() {
     if (!observed) return !active.dispatchRecorded;
-    if (observed.run.status !== 'completed' || !terminalJobs(observed.jobs, active.inventory.jobs)) {
+    if (observed.run.status !== 'completed' || (!terminalJobs(observed.jobs, active.inventory.jobs)
+      && !await api.rejectedAdmission(active.base, observed.run, observed.jobs))) {
       await api.cancel(observed.run.id);
       return false;
     }

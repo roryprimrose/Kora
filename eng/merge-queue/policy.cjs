@@ -17,6 +17,16 @@ const WINDOWS_12_JOBS = Object.freeze([...SPLIT_JOBS, 'Build exact-source Window
     'ui-conversation-core', 'ui-conversation-actions', 'native-ux', 'ui-platform', 'ui-editors',
     'ui-workflows', 'ui-presentation'].map(partition => `Windows test partition (${partition})`),
 ]);
+// Only reviewed immutable execution gates can establish that an unexpanded matrix did no work.
+const REJECTED_ADMISSION_BLOBS = Object.freeze(['97e22a8f88bcdc9bbaef32cf9e7200dd6e5c43cd']);
+const REJECTED_ADMISSION_JOBS = Object.freeze([
+  ...WINDOWS_12_JOBS.filter(name => !name.startsWith('Windows test partition (')),
+  'Windows test partition (${{ matrix.partition }})', 'Queue policy feedback',
+  'Compare native fixture evidence', 'Compare portable test scheduling',
+  'Publish GitHub release', 'Publish completed batch release', 'Qualify completed batch tip',
+]);
+const REJECTION_AGGREGATES = Object.freeze([CHECKS[0], CHECKS[1],
+  ...JOBS.filter(name => name.startsWith('Windows integration shard ('))]);
 // Unversioned workflows are recognized only by their exact trusted Contents API blob identity.
 const PREDECESSOR_WORKFLOWS = Object.freeze({
   '854e26b112e57ff003daedb0c6a2183e7355ff54': JOBS,
@@ -192,11 +202,28 @@ function terminalJobs(jobs, expected = JOBS) {
     && jobs.every(job => jobOutcome(job) !== 'pending');
 }
 
+function terminalRejectedAdmission(run, jobs, blob) {
+  if (!run || !Number.isSafeInteger(run.id) || run.id <= 0
+    || !REJECTED_ADMISSION_BLOBS.includes(blob) || run.status !== 'completed'
+    || run.conclusion !== 'failure' || run.event !== 'workflow_dispatch' || run.head_branch !== 'main'
+    || run.run_attempt !== 1 || typeof run.head_sha !== 'string' || !SHA.test(run.head_sha) || !Array.isArray(jobs)
+    || !jobs.every(job => job && typeof job === 'object')
+    || jobs.length !== REJECTED_ADMISSION_JOBS.length
+    || !REJECTED_ADMISSION_JOBS.every(name => jobs.filter(job => job.name === name).length === 1)
+    || new Set(jobs.map(job => job.id)).size !== jobs.length) return false;
+  return jobs.every(job => Number.isSafeInteger(job.id) && job.id > 0 && job.run_id === run.id
+    && job.run_attempt === 1 && job.head_sha === run.head_sha && jobOutcome(job) === 'failure'
+    && (job.name === 'Admit CI execution' ? job.conclusion === 'failure'
+      : REJECTION_AGGREGATES.includes(job.name)
+        ? ['failure', 'cancelled', 'skipped'].includes(job.conclusion) : job.conclusion === 'skipped'));
+}
+
 function successfulJobs(jobs, expected = JOBS) {
   return requiredJobsState(jobs, expected) === 'success';
 }
 
 module.exports = { CHECKS, GATE, JOBS, SPLIT_JOBS, WINDOWS_12_JOBS, PREDECESSOR_WORKFLOWS, workflowJobs,
+  REJECTED_ADMISSION_JOBS, terminalRejectedAdmission,
   STATE_BRANCH, SHA, TICKET, MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS,
   DISPATCH_OBSERVATION_MS, invariant, mode, controllerOperation, execution,
   validateState, ready, readinessIssue, priority, title, matchingRuns, requiredJobsState, terminalJobs, successfulJobs };

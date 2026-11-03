@@ -14,9 +14,20 @@ public sealed partial class WindowsCustomizationStoreTests
     [Fact]
     public async Task McpPreparationDoesNotCreateStorageAndAtomicSaveReadbackSurvivesReopen()
     {
+        var ancestor = Path.GetDirectoryName(root)!;
+        using var identity = WindowsIdentity.GetCurrent();
+        var sections = AccessControlSections.Owner | AccessControlSections.Group | AccessControlSections.Access;
+        var security = new DirectoryInfo(ancestor).GetAccessControl(sections);
+        security.GetOwner(typeof(SecurityIdentifier)).Should().Be(identity.User);
+        security.AreAccessRulesProtected.Should().BeTrue("the missing-root fixture needs a private admitted ancestor");
+        Directory.EnumerateFileSystemEntries(ancestor).Should().BeEmpty();
+        var descriptor = security.GetSecurityDescriptorSddlForm(sections);
+        Directory.Exists(root).Should().BeFalse();
         var store = Create();
         var source = await store.Create(CustomizationKind.McpServer, CustomizationScope.Kora, "example", TestContext.Current.CancellationToken);
         Directory.Exists(root).Should().BeFalse();
+        Directory.EnumerateFileSystemEntries(ancestor).Should().BeEmpty("preparation must not persist storage or journals");
+        new DirectoryInfo(ancestor).GetAccessControl(sections).GetSecurityDescriptorSddlForm(sections).Should().Be(descriptor);
         var saved = await Save(store, source, null, Primary(source));
         File.ReadAllText(source.Location).Should().Be("{\n  \"servers\": {\n\"example\": " + Primary(source).Text + "}\n}\n");
         Directory.Exists(Path.Combine(root, "local", "DefinitionTransactions")).Should().BeFalse("one file has no package journal");

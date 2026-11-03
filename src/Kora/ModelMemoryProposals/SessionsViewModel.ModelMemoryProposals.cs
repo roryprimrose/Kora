@@ -17,7 +17,7 @@ internal sealed partial class SessionsViewModel
     {
         CancelModelMemoryProposal();
         if (memories is null || !access.CanControl || !target.Authority.IsActive || conversationSourceHeld
-            || !ConversationMessages.Any(row => ReferenceEquals(row, message)))
+            || !ObservedConversationMessages.Any(row => ReferenceEquals(row, message)))
         { throw new InvalidOperationException("Select the exact retained ASSISTANT answer in this Active session."); }
         var page = conversationPage;
         var completed = completedConversationMessage;

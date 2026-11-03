@@ -98,6 +98,7 @@ session lifecycle, or admit work.
 
 The [local-event retirement regressions](tests/Kora.Windows.IntegrationTests/LocalEventBrokerWindowTests.Filters.cs#L197) preserve the exact closed Sessions status across late notice cancellation and source failure, including sources that ignore cancellation.
 Open-viewer failures retain unavailable feedback; neither path restores event selection/detail or changes durable work, questions, retention, history or audit.
+The [native notice-response regression](tests/Kora.Windows.IntegrationTests/SessionsConversationTests.NoticeResponse.cs#L49) also preserves closed Sessions status when its owner closes during question focus admission, without answering, activating a presenter or restoring notice content.
 
 The [bundled computer-power regressions](tests/Kora.Windows.IntegrationTests/ApplicationLifecycle/SessionsConversationTests.BundledActions.cs)
 wait for enabled native question controls after the activation-triggered source

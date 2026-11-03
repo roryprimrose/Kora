@@ -1,6 +1,9 @@
 using Avalonia.Controls;
 using AwesomeAssertions;
+using Kora.Application.Configuration;
 using Kora.Application.Hosting;
+using Kora.Application.Voice;
+using Kora.Core.Presentation;
 using Kora.Core.Storage;
 using Kora.Windows.IntegrationTests.Storage;
 
@@ -106,15 +109,32 @@ public sealed partial class SessionsConversationTests
     }
 
     [Theory]
-    [InlineData("current")]
-    [InlineData("switch")]
-    [InlineData("aba")]
-    [InlineData("arrive-other")]
-    [InlineData("generation")]
-    [InlineData("revision")]
-    [InlineData("privacy")]
-    [InlineData("close")]
-    public async Task DeferredSubmittedTerminalCannotReattachToRetiredComposerSource(string retirement)
+    [InlineData("current", null)]
+    [InlineData("switch", null)]
+    [InlineData("aba", null)]
+    [InlineData("arrive-other", null)]
+    [InlineData("generation", null)]
+    [InlineData("revision", null)]
+    [InlineData("privacy", null)]
+    [InlineData("close", null)]
+    [InlineData("current", DetailPresentationMode.Offer)]
+    [InlineData("switch", DetailPresentationMode.Offer)]
+    [InlineData("aba", DetailPresentationMode.Offer)]
+    [InlineData("arrive-other", DetailPresentationMode.Offer)]
+    [InlineData("generation", DetailPresentationMode.Offer)]
+    [InlineData("revision", DetailPresentationMode.Offer)]
+    [InlineData("privacy", DetailPresentationMode.Offer)]
+    [InlineData("close", DetailPresentationMode.Offer)]
+    [InlineData("current", DetailPresentationMode.LinkOnly)]
+    [InlineData("switch", DetailPresentationMode.LinkOnly)]
+    [InlineData("aba", DetailPresentationMode.LinkOnly)]
+    [InlineData("arrive-other", DetailPresentationMode.LinkOnly)]
+    [InlineData("generation", DetailPresentationMode.LinkOnly)]
+    [InlineData("revision", DetailPresentationMode.LinkOnly)]
+    [InlineData("privacy", DetailPresentationMode.LinkOnly)]
+    [InlineData("close", DetailPresentationMode.LinkOnly)]
+    public async Task DeferredSubmittedTerminalCannotReattachToRetiredComposerSource(string retirement,
+        DetailPresentationMode? detailMode)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -125,9 +145,15 @@ public sealed partial class SessionsConversationTests
             f.Request = InteractionStorageFixture.NewRequest();
             await f.AdmitAsync(newSession: true);
             await WindowsSqliteConversationTests.FinishInitial(f);
-            await using var composed = new Composition(f);
+            var adapter = detailMode is null ? null : new DetailAnswerAdapter();
+            await using var composed = new Composition(f, adapter: adapter);
             var dispatcher = new DeferredConversationDispatcher();
             var model = CreateDeferredPresentation(f, composed, dispatcher);
+            await using var admission = new AudioControlAdmission(f.Store, f.Store, new(f.Tasks));
+            var preferences = new DetailPresentationSettingsTests.Preferences { Value = detailMode };
+            var settings = new DetailPresentationConfigurationService(preferences, admission, new AuditLog(), f.Time);
+            settings.Observe();
+            model.BindDetailPresentation(settings);
             var interaction = new SessionInteractionView { DataContext = model };
             var window = new Window { Content = interaction };
             window.Show();
@@ -147,7 +173,8 @@ public sealed partial class SessionsConversationTests
                 var submission = await Task.Run(() => composed.Conversation.SubmitAsync(target, body, static () => true, f.Token));
                 await terminal.Task.WaitAsync(f.Token);
                 dispatcher.Count.Should().BeGreaterThan(0);
-                submission.Message.Outcome.Should().Be(Kora.Core.Dependencies.ModelTurnOutcome.Unavailable);
+                submission.Message.Outcome.Should().Be(detailMode is null
+                    ? Kora.Core.Dependencies.ModelTurnOutcome.Unavailable : Kora.Core.Dependencies.ModelTurnOutcome.Succeeded);
                 if (retirement is "switch" or "aba")
                 {
                     await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId != original));
@@ -174,25 +201,38 @@ public sealed partial class SessionsConversationTests
                 }
                 else if (retirement is "close") { model.Close(); }
                 var status = model.ConversationStatus;
+                var audit = WindowsSqliteConversationTests.AuditText(f);
                 dispatcher.Drain();
                 if (retirement is "current")
                 {
                     model.ConversationMessages.Should().ContainSingle().Which.Should().Be(submission.Message);
-                    model.ConversationStatus.Should().Contain("HOST Unavailable").And.Contain("UnregisteredModel");
+                    if (detailMode is null)
+                    { model.ConversationStatus.Should().Contain("HOST Unavailable").And.Contain("UnregisteredModel"); }
+                    else
+                    { model.ConversationStatus.Should().Contain("HOST Succeeded").And.Contain("Genuine ASSISTANT answer retained"); }
+                    model.DetailsOfferMessage.Should().Be(detailMode is DetailPresentationMode.Offer ? submission.Message : null);
                 }
                 else
                 {
                     model.ConversationMessages.Should().BeEmpty("an old terminal callback cannot attach to a later native source");
                     model.ConversationStatus.Should().Be(status);
+                    model.DetailsOfferMessage.Should().BeNull("a retired callback cannot capture a future offer epoch");
                 }
+                WindowsSqliteConversationTests.AuditText(f).Should().Be(audit);
+                preferences.Writes.Should().Be(0);
+                if (adapter is not null) { adapter.Calls.Should().Be(1); }
                 if (retirement is "current" or "aba" or "arrive-other" or "generation")
                 {
                     model.ComposerBody.Should().Be(unsent);
                     interaction.FindControl<TextBox>("SessionComposer")!.Text.Should().Be(unsent);
                 }
                 if (retirement is "switch") { model.ComposerBody.Should().Be("foreign composer"); }
-                (await f.Store.ReadConversationPageAsync(original, null, 25, f.Token)).Messages
-                    .Should().ContainSingle().Which.Body.Should().Be(body);
+                var retained = (await f.Store.ReadConversationPageAsync(original, null, 25, f.Token)).Messages.Single();
+                retained.Body.Should().Be(body);
+                retained.Request.Should().Be(submission.Message.Request);
+                retained.Generation.Should().Be(submission.Message.Generation);
+                retained.Revision.Should().Be(submission.Message.Revision);
+                if (detailMode is not null) { retained.AssistantResponse!.Body.Should().Be(DetailAnswerAdapter.Body); }
                 f.Count("conversation_drafts").Should().Be(0);
                 f.Count("host_questions").Should().Be(0);
                 f.Count("scoped_grants").Should().Be(0);
@@ -201,6 +241,9 @@ public sealed partial class SessionsConversationTests
                     await model.ReadConversationAsync();
                     model.ConversationMessages.Should().ContainSingle().Which.Body.Should().Be(body);
                     model.ComposerBody.Should().Be(unsent);
+                    model.DetailsOfferMessage.Should().BeNull("explicit retained reading never renews a retired offer");
+                    if (detailMode is not null)
+                    { model.ConversationMessages.Single().AssistantResponse!.Body.Should().Be(DetailAnswerAdapter.Body); }
                 }
             }
             finally

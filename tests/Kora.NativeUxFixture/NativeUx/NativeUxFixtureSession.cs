@@ -179,6 +179,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         DetailPresentationConfigurationService? detailPresentationConfiguration = null,
         StartupPresentationConfigurationService? startupPresentationConfiguration = null,
         IQuestionVoiceRecognitionService? voiceRecognition = null, SpeechInputConfigurationService? speechInputConfiguration = null,
+        ForegroundPttConfigurationService? foregroundPtt = null,
         VoiceCaptureTimingConfigurationService? voiceCaptureTimingConfiguration = null,
         QuietHoursConfigurationService? quietHoursConfiguration = null)
     {
@@ -186,7 +187,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         await setup.RunAsync(() => InitializeCoreAsync(webPageGet, webSummary, callState, dispatcher, modelReasoner,
             modelProbe, speechComponentSetup, ordinaryDeadlineConfiguration, conversationExecution,
             speechSetupComparison, logonStartupConfiguration, detailPresentationConfiguration, startupPresentationConfiguration,
-            voiceRecognition, speechInputConfiguration, voiceCaptureTimingConfiguration, quietHoursConfiguration));
+            voiceRecognition, speechInputConfiguration, foregroundPtt, voiceCaptureTimingConfiguration, quietHoursConfiguration));
     }
 
     private async Task InitializeCoreAsync(Kora.Tools.Network.WebPageGet? webPageGet,
@@ -201,6 +202,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         DetailPresentationConfigurationService? detailPresentationConfiguration,
         StartupPresentationConfigurationService? startupPresentationConfiguration,
         IQuestionVoiceRecognitionService? voiceRecognition, SpeechInputConfigurationService? speechInputConfiguration,
+        ForegroundPttConfigurationService? foregroundPtt,
         VoiceCaptureTimingConfigurationService? voiceCaptureTimingConfiguration,
         QuietHoursConfigurationService? quietHoursConfiguration)
     {
@@ -282,6 +284,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             detailPresentationConfiguration: detailPresentationConfiguration,
             startupPresentationConfiguration: startupPresentationConfiguration,
             speechInputConfiguration: speechInputConfiguration,
+            foregroundPtt: foregroundPtt,
             voiceCaptureTimingConfiguration: voiceCaptureTimingConfiguration,
             quietHoursConfiguration: quietHoursConfiguration);
         if (webSummary is not null) { Main.BindWebSummaryWorkflow(webSummary); }

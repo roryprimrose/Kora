@@ -383,6 +383,7 @@ public sealed partial class MainViewModel
         if (providerProfileConfiguration is not null) { providerProfileConfiguration.Changed -= OnProviderProfileConfigurationChanged; }
         if (inCallFeedbackConfiguration is not null) { inCallFeedbackConfiguration.Changed -= OnInCallFeedbackChanged; }
         if (speechTextConfiguration is not null) { speechTextConfiguration.Changed -= OnSpeechTextConfigurationChanged; }
+        if (foregroundPtt is not null) { foregroundPtt.Changed -= OnForegroundPttChanged; }
         assistantNameConfiguration.Changed -= OnAssistantNameConfigurationChanged;
         artifactCatalogue.Changed -= OnArtifactCatalogueChanged;
         artifactCatalogue.ReloadFailed -= OnArtifactCatalogueReloadFailed;

@@ -4689,6 +4689,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(Kora.Application.Communication.ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
+            .Concat(ForegroundPttCommand.FixedPhrases)
             .Concat(ResponseWindowCommand.FixedPhrases)
             .Concat(ProviderModeCommand.FixedPhrases)
             .Concat(ProviderProfileCommand.FixedPhrases)
@@ -8733,6 +8734,7 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableConversationExecution = false,
             LogonStartupConfigurationService? logonStartupConfiguration = null,
             StartupPresentationConfigurationService? startupPresentationConfiguration = null,
+            ForegroundPttConfigurationService? foregroundPtt = null,
             bool enableCaptureTiming = false,
             DetailPresentationConfigurationService? detailPresentationConfiguration = null,
             QuietHoursConfigurationService? quietHoursConfiguration = null)
@@ -8942,6 +8944,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 conversationExecution: ConversationExecutionConfiguration,
                 logonStartupConfiguration: logonStartupConfiguration,
                 startupPresentationConfiguration: startupPresentationConfiguration,
+                foregroundPtt: foregroundPtt,
                 voiceCaptureTimingConfiguration: CaptureTimingConfiguration,
                 detailPresentationConfiguration: detailPresentationConfiguration,
                 quietHoursConfiguration: quietHoursConfiguration);

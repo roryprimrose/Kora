@@ -1333,7 +1333,7 @@ registered by this design.
 | Input device | System by default and follows live Windows multimedia-default changes; a specific endpoint-ID override remains pinned until changed back to System; changing selection after manual disablement does not restart capture | "Use my headset microphone" |
 | Listening enabled | Closed until explicit first-launch ongoing consent; saved consent permits automatic ordinary safe startup; manual disablement/recovery holds release capture for the current run | "Stop listening" |
 | Assistant display and command name | "Kora" initially; one validated custom-only name of 1-3 words and at most 32 characters | "Change your name to Nova" |
-| Optional PTT shortcut | Unassigned until selected; validate conflicts | "Set push-to-talk to Control Shift Space" |
+| [Optional foreground PTT shortcut](../docs/voice-and-audio.md#optional-foreground-push-to-talk-shortcut) | Unassigned until selected; Control Shift Space or Control Shift F9 in the foreground Response window only; other editing/navigation/system chords reserved | "Set push-to-talk to Control Shift Space" |
 | Activation feedback | Visual always; non-speech cue when output policy permits | "Turn off the activation sound" |
 | Command speech-start wait | 5 seconds; 2-10 seconds | "Wait seven seconds after I say Kora" |
 | Conversational replies | On after ongoing listening consent; allows prefix-free answers only to the unique question Kora just presented | "Require me to say Kora for every answer" |

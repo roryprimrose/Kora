@@ -704,6 +704,9 @@ internal static class Program
         services.AddSingleton<IQuietHoursPreferences>(provider =>
             new LocalQuietHoursPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<QuietHoursConfigurationService>();
+        services.AddSingleton<LocalForegroundPttPreferences>(provider =>
+            new LocalForegroundPttPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<ForegroundPttConfigurationService>();
         services.AddSingleton(new HttpClient
         {
             Timeout = TimeSpan.FromMinutes(15),

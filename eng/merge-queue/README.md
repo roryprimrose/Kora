@@ -166,6 +166,9 @@ intent. Restart observes outcomes before acting. Cancellation acknowledgement,
 workflow aggregate success, absent metadata, or a deadline cannot release
 unknown owned work. No operation resets main or discards unrelated advances.
 
+Entering batch retirement checkpoints the phase before requesting one trusted controller reconciliation, including a construction conflict with no candidate dispatch ([controller](batch.cjs#L77), [regressions](batch.test.cjs#L249)).
+The follow-up still joins owned work before releasing the lane. An uncertain retiring lane does not repeatedly self-dispatch; later workflow events or scheduled reconciliation retain recovery responsibility. A failed continuation is explicit and preserves the checkpoint for recovery.
+
 - Before the first original merge, failed combined evidence retires only after
   exact owned work is terminal. Members receive full singleton retries; group
   failure is not independent member failure. A failed singleton retains the

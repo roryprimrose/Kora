@@ -15,6 +15,45 @@ namespace Kora.Application.UnitTests.Configuration;
 
 public sealed partial class ResponseModeConfigurationServiceTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ResponseResetMatchesNativeHybridSelectionAndRemainsSaved(bool saved)
+    {
+        await using var f = new Fixture();
+        await using var native = new Fixture();
+        if (saved) { f.Preferences.Mode = native.Preferences.Mode = ResponseOutputMode.VisualOnly; }
+        f.Service.Observe();
+        native.Service.Observe();
+        var message = ModeSuggestion("reset responses.default-mode");
+        ResponseModeSuggestionReview review;
+        using (ModeInput(message))
+        {
+            review = await ResponseModeSuggestionReview.ReviewAsync(f.Service, f.Policy, new ResponseSuggestionClock(),
+                message, () => true, _ => Task.CompletedTask, f.Token);
+            review.Description.Should().Contain("Proposed: Hybrid").And.Contain("Reset saves Hybrid as a saved preference");
+            f.Preferences.Writes.Should().Be(0);
+            f.Store.Tasks.Should().BeEmpty();
+            f.Audit.Events.Should().BeEmpty();
+        }
+        using (review)
+        using (ModeInput(message))
+        { (await review.ConfirmAsync(f.Token, SecurityAuditInitiator.TypedCommand)).Should().BeTrue(); }
+        await native.Refresh();
+        (await native.Service.ResetAsync(native.Policy.Current.Revision, RequestOrigin.LocalUi,
+            SecurityAuditInitiator.TypedCommand, native.Policy, () => true, native.Token)).Should().BeTrue();
+        f.Service.Get().Should().Be(native.Service.Get());
+        f.Preferences.Mode.Should().Be(ResponseOutputMode.Hybrid);
+        f.Preferences.Pending.Should().BeFalse();
+        var restarted = f.CreateService();
+        restarted.Observe();
+        restarted.Get().Saved.Should().Be(ResponseOutputMode.Hybrid);
+        restarted.Get().Source.Should().Be("saved");
+        f.Audit.Events.Select(item => (item.ActionId, item.Outcome, item.Initiator)).Should()
+            .Equal(native.Audit.Events.Select(item => (item.ActionId, item.Outcome, item.Initiator)));
+        f.Playback.SpeechCalls.Should().Be(0);
+    }
+
     private sealed class ResponseSuggestionClock : TimeProvider
     {
         internal DateTimeOffset Now { get; set; } = DateTimeOffset.UnixEpoch;
@@ -223,11 +262,21 @@ public sealed partial class ResponseModeConfigurationServiceTests
     [InlineData("refresh-provenance")]
     [InlineData("audit-denied")]
     [InlineData("confirmation-completed")]
+    [InlineData("reset-source-request")]
+    [InlineData("reset-invalid-initiator")]
+    [InlineData("reset-second-source")]
+    [InlineData("reset-second-cancel")]
+    [InlineData("reset-second-settings")]
+    [InlineData("reset-refresh-provenance")]
+    [InlineData("reset-audit-denied")]
+    [InlineData("reset-confirmation-completed")]
     public async Task ResponseModeSuggestionRevalidatesSourceAcrossAdmissionAndImmediatelyBeforeCommit(string failure)
     {
         await using var f = new Fixture();
         f.Service.Observe();
-        var message = ModeSuggestion();
+        var reset = failure.StartsWith("reset-", StringComparison.Ordinal);
+        if (reset) { failure = failure[6..]; }
+        var message = ModeSuggestion(reset ? "reset responses.default-mode" : "set responses.default-mode to VoiceOnly");
         var live = true;
         var reads = 0;
         Task Validate(CancellationToken _)

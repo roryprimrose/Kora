@@ -34,6 +34,7 @@ public sealed partial class MainViewModelTests
         fixture.WindowActions.Clear();
         using var release = new ManualResetEventSlim();
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var previewContinuation = new HeldProbeContinuation();
         var token = TestContext.Current.CancellationToken;
         fixture.TextToSpeech.BeforeOutputEnumeration = () =>
         {
@@ -44,25 +45,40 @@ public sealed partial class MainViewModelTests
         Task preview = Task.CompletedTask;
         try
         {
-            await entered.Task.WaitAsync(token);
-            var discovery = fixture.ViewModel.OutputRefresh;
-            preview = fixture.ViewModel.PreviewVoiceCommand.ExecuteAsync();
-            fixture.ViewModel.OutputRefresh.Should().BeSameAs(discovery);
-            discovery.IsCompleted.Should().BeFalse();
-            fixture.ViewModel.ResponseOutputUpdate.IsCompleted.Should().BeFalse();
-            preview.IsCompleted.Should().BeFalse();
-            response.IsCompleted.Should().BeFalse();
-            fixture.TextToSpeech.OutputEnumerationCalls.Should().Be(enumerations + 1);
-            fixture.OutputConfiguration.Metadata.Should().BeSameAs(metadata);
-            fixture.TextToSpeech.SpokenText.Should().BeNull();
-            fixture.WindowActions.Should().BeEmpty();
-            if (retireTopology)
+            try
             {
-                var current = fixture.PrivacyObservation.Current;
-                fixture.PrivacyObservation.Current = current with { TopologyRevision = current.TopologyRevision + 1 };
+                await entered.Task.WaitAsync(token);
+                var discovery = fixture.ViewModel.OutputRefresh;
+                var originalContext = SynchronizationContext.Current;
+                try
+                {
+                    // Discovery overlaps; playback continuations remain serialized as on the desktop UI context.
+                    SynchronizationContext.SetSynchronizationContext(previewContinuation);
+                    preview = fixture.ViewModel.PreviewVoiceCommand.ExecuteAsync();
+                }
+                finally { SynchronizationContext.SetSynchronizationContext(originalContext); }
+                fixture.ViewModel.OutputRefresh.Should().BeSameAs(discovery);
+                discovery.IsCompleted.Should().BeFalse();
+                fixture.ViewModel.ResponseOutputUpdate.IsCompleted.Should().BeFalse();
+                preview.IsCompleted.Should().BeFalse();
+                response.IsCompleted.Should().BeFalse();
+                fixture.TextToSpeech.OutputEnumerationCalls.Should().Be(enumerations + 1);
+                fixture.OutputConfiguration.Metadata.Should().BeSameAs(metadata);
+                fixture.TextToSpeech.SpokenText.Should().BeNull();
+                fixture.WindowActions.Should().BeEmpty();
+                if (retireTopology)
+                {
+                    var current = fixture.PrivacyObservation.Current;
+                    fixture.PrivacyObservation.Current = current with { TopologyRevision = current.TopologyRevision + 1 };
+                }
             }
+            finally { release.Set(); }
+            await response;
+            await previewContinuation.WaitForPostAsync(token);
+            preview.IsCompleted.Should().BeFalse();
+            fixture.TextToSpeech.SpeakCalls.Should().Be(speechCalls + (retireTopology ? 0 : 1));
         }
-        finally { release.Set(); }
+        finally { previewContinuation.Release(); }
         await Task.WhenAll(preview, response);
         (await fixture.ViewModel.OutputRefresh).Should().Be(!retireTopology);
         (await fixture.ViewModel.ResponseOutputUpdate).Should().Be(!retireTopology);

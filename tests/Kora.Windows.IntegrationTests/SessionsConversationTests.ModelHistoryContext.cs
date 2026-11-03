@@ -51,6 +51,7 @@ public sealed partial class SessionsConversationTests
                 transport.Requests[1].Context.SystemPolicy.Should().Contain(ModelHistoryContextProposal.ModelPolicy);
                 transport.Requests[1].Context.Evidence.Should().BeEmpty();
                 await model.ReadConversationAsync();
+                var previous = model.ConversationMessages.ToArray();
                 model.ComposerBody = " \r\n unrelated unsent composer e\u0301 \t ";
                 var unsent = model.ComposerBody;
                 var source = model.ConversationMessages.Single(message => message.Request == original.Message.Request);
@@ -90,7 +91,11 @@ public sealed partial class SessionsConversationTests
                     request.Context.Evidence.Should().ContainSingle();
                     request.Context.Evidence[0].Disclosure.Should().Be(ModelEvidenceDisclosure.LocalOnly);
                     request.Context.Evidence[0].Content.Should().Contain(chosen.Body).And.NotContain(NativeHistoryAdvisory);
-                    var completed = model.ConversationMessages.Single();
+                    model.ConversationMessages.Should().Equal(previous);
+                    model.HasConversationUpdates.Should().BeTrue();
+                    var completed = model.ConversationUpdates.Should().ContainSingle().Subject;
+                    completed.Sequence.Should().Be(3);
+                    completed.Request.Should().Be(request.Provenance.Request);
                     completed.Body.Should().Be(question);
                     completed.AssistantResponse!.Body.Should().Be("genuine answer using selected context");
                     var stored = await f.Store.ReadConversationMessageAsync(f.Request.SessionId, completed.Request.RequestId, f.Token);
@@ -102,6 +107,11 @@ public sealed partial class SessionsConversationTests
                     f.Count("conversation_messages").Should().Be(3);
                     f.Count("scoped_grants").Should().Be(0);
                     f.Count("host_questions").Should().Be(0);
+                    await model.ReadConversationAsync();
+                    model.ConversationMessages.Take(2).Should().Equal(previous);
+                    model.ConversationMessages[^1].Should().Be(completed);
+                    model.ConversationUpdates.Should().BeEmpty();
+                    model.ComposerBody.Should().Be(unsent);
                 }
                 finally { window.Close(); }
             }

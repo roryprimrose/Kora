@@ -22,7 +22,7 @@ internal sealed partial class SessionsViewModel
             bool Original() => live() && selected == target && exchangeEpoch == clarificationExchangeEpoch
                 && (search ? searchEpoch == conversationSearchEpoch
                     && ConversationSearchMessages.Any(record => ReferenceEquals(record, message))
-                    : ConversationMessages.Any(record => ReferenceEquals(record, message)));
+                    : ObservedConversationMessages.Any(record => ReferenceEquals(record, message)));
             if (!Original() || message.Request.SessionId != target.Authority.SessionId)
             { throw new InvalidOperationException("Choose the exact original turn from the admitted conversation page."); }
             var exchange = next

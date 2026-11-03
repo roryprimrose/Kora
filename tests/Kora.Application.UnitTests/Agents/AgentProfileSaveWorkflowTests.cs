@@ -42,17 +42,21 @@ public sealed class AgentProfileSaveWorkflowTests : IDisposable
     public void Dispose() => listener.Dispose();
 
     [Theory]
-    [InlineData(RequestOrigin.LocalUi)]
-    [InlineData(RequestOrigin.ActivatedVoice)]
-    public async Task CompleteReviewNativeConfirmCreateReadbackAndReadOnlyInventory(RequestOrigin origin)
+    [InlineData(RequestOrigin.LocalUi, false)]
+    [InlineData(RequestOrigin.ActivatedVoice, false)]
+    [InlineData(RequestOrigin.LocalUi, true)]
+    [InlineData(RequestOrigin.ActivatedVoice, true)]
+    public async Task CompleteReviewNativeConfirmCreateReadbackAndReadOnlyInventory(RequestOrigin origin, bool observation)
     {
         await using var f = new Fixture();
-        f.Workflow.Validate("example", Source).Document.Text.Should().Be(Source);
+        var source = observation ? Source.Replace("tools: none", "tools: application.get_version", StringComparison.Ordinal)
+            .Replace("maximum-calls: 0", "maximum-calls: 1", StringComparison.Ordinal) : Source;
+        f.Workflow.Validate("example", source).Document.Text.Should().Be(source);
         (await f.Workflow.PrepareNewAsync("example", f.Eligible, CancellationToken.None)).Name.Should().Be("example");
         f.Files.Writes.Should().Be(0);
-        using var review = await f.Review(origin);
+        using var review = await f.Workflow.ReviewAsync("example", source, 1, origin, f.Eligible, CancellationToken.None);
         review.Revision.Should().Be(1);
-        review.Document.Document.Text.Should().Be(Source);
+        review.Document.Document.Text.Should().Be(source);
         review.IsCurrent.Should().BeTrue();
         f.Files.Writes.Should().Be(0);
         var confirmations = 0;

@@ -33,12 +33,19 @@ source or every registered folder instead.
 
 Snapshots are historical admitted revisions, not current filesystem observations. Inspection revalidates original access, every retained physical directory/file identity and exact complete tree membership without rereading original content. Changed or unavailable originals require an explicit new refresh review. Private presentation withdrawal, protected call state or closing the window clears displayed text and retires pending work ([source lifecycle](../src/Kora.Application/KnowledgeSources/KnowledgeSourceManager.cs)).
 
-**AI answers are unavailable here.** Saving or refreshing a source cannot
-enable a model or approve model use of your files. The separate
-[folder-preview answer review](folder-answers.md) still requires a
-[qualified local model](../Design/Local_Inference.md#future-candidate-gate), unavailable in this build.
-That separate volatile route uses [reviewed private-LocalOnly risk admission](../Design/Security_Data_Flows.md#reviewed-localonly-source-use-risk-admission);
-it does not grant model use of named saved sources.
+## One reviewed local answer
+
+Select one enabled source, enter one new question in **New named-source answer question**, and choose **Review selected named source excerpts for this question**. Review the unchanged question, exact retained revision, root-relative locations and complete retrieved excerpts. This does not invoke a model ([review owner](../src/Kora/KnowledgeSources/KnowledgeSourcesWindow.Answers.cs)).
+
+Separately choose **Confirm one private local-only no-tools named-source answer** within the displayed deadline. Consent is one-shot, private LocalOnly and limited to the shown question and excerpts. Saving, enabling or refreshing never grants it. Every evidence-bearing complete file passes the [shared risk policy](../src/Kora.Application/Context/LocalSourceUsePolicy.cs); this is not a secret-free guarantee.
+
+The limits remain 8 citations, 16 KiB combined excerpts and 32 KiB complete serialized model input, including overhead. Excess input is rejected without dropping evidence. No match invokes no model. Missing [qualified local runtime](../Design/Local_Inference.md#future-candidate-gate) returns unavailable; there is no hosted fallback, tool use or other-source search ([answer workflow](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerWorkflow.cs)).
+
+Operational failure diagnostics record only the failure type, not the question, source content or exception message. A failed review or source-use check does not dispatch a model or return answer claims.
+
+The deliberate typed command `answer using source "Team notes": What does alpha mean?` and current-name activated voice request open the same review. Replace the example name with an exact enabled source name; an unmatched or ambiguous name requires explicit inventory selection, never an all-source scan. Existing channel, privacy, ownership and call restrictions remain applicable ([entry route](../src/Kora.Application/ViewModels/MainViewModel.KnowledgeSources.cs)).
+
+Supported answers show host-bound citations. **Inspect exact answer citation** selects only the retained exact item's span, without disk recapture. The result remains private in this window, not a saved conversation, speech or renewed consent. Refresh, disable, removal, session retirement and private window closure revoke use; cancellation-ignoring model work must actually finish before native ownership is released, and cannot publish late output ([native lifecycle](../src/Kora/KnowledgeSources/KnowledgeSourcesWindow.Answers.cs), [use owner](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerUse.cs)).
 
 ## Refresh, disable and remove
 

@@ -15,6 +15,7 @@ public sealed class SpeechCaptionPresentationContractTests
     {
         ISpeechCaptionPresentation caption = new PassiveCaption();
         caption.IsReaderTypographyUpdatePending.Should().BeFalse();
+        caption.SpeechCaptionEmphasis.Should().BeNull();
     }
 
     private sealed class PassiveCaption : ISpeechCaptionPresentation

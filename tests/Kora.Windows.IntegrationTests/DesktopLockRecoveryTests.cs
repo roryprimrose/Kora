@@ -82,7 +82,7 @@ public sealed class DesktopLockRecoveryTests
                 native.Main.BindCallOwnershipGate(static () => false);
                 native.Main.CloseForObservedPrivacyEvent("Synthetic desktop owner loss", hidePresentation: true);
             }
-            else { native.Access.SetOpen(false); }
+            else { native.Access.SetLocked(); }
             Dispatcher.UIThread.RunJobs();
             oldWorkspace.IsVisible.Should().BeFalse();
             oldCompact.IsVisible.Should().BeFalse();

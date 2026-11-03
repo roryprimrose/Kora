@@ -38,6 +38,12 @@ internal sealed partial class SessionsPresentationOwner
                 await panel.Operation;
 #pragma warning restore VSTHRD003
             }
+            foreach (var panel in surfaces.SelectMany(surface => surface.GetLogicalDescendants()).OfType<ComposerRequestReviewPanel>().ToArray())
+            {
+#pragma warning disable VSTHRD003 // Join this owner's exact reviewed composer operation before voluntary shutdown.
+                await panel.Operation;
+#pragma warning restore VSTHRD003
+            }
             if (!model.CanRead) { throw new InvalidOperationException("Finish the current native operation before voluntary shutdown."); }
             return await model.ConfirmUnsentDiscardAsync(all: true);
         }

@@ -54,6 +54,7 @@ internal sealed partial class SessionsViewModel
                 return;
             }
             RestoreUnsent();
+            RetireComposerRequest();
             CancelLocalRequestProfile();
             ClearExpiredOrdinary();
             CancelTaskOutputReview();
@@ -362,6 +363,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversation(bool preserveUnsent = true)
     {
+        RetireComposerRequest();
         ClearClarificationExchange();
         ClearAnswerReviews();
         CancelTaskOutputReview();
@@ -394,6 +396,7 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyConversation()
     {
+        NotifyComposerRequest();
         NotifyClarificationExchange();
         NotifyAnswerReviews();
         NotifyTaskOutput();

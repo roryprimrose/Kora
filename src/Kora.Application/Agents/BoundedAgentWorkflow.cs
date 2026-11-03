@@ -63,6 +63,7 @@ public sealed class BoundedAgentWorkflow(IAgentProfileReader reader, ISessionWor
             Require(Current, token);
             if (!target.Authority.IsActive || await sessions.ReadMetadataAsync(target.Authority.SessionId, token).ConfigureAwait(false) != target)
             { throw new InvalidOperationException("Select exactly one current Active session before reviewing."); }
+            Require(Current, token);
             var source = await reader.OpenAsync(path, token).ConfigureAwait(false);
             BoundedAgentReview? pending = null;
             try
@@ -91,6 +92,9 @@ public sealed class BoundedAgentWorkflow(IAgentProfileReader reader, ISessionWor
                         .Review(profile, review.Dispose);
                 }
                 else { _ = CreateContext(review, HostRequest.Create(origin), now); }
+                Require(() => IsCurrent(review), token);
+                if (await sessions.ReadMetadataAsync(target.Authority.SessionId, token).ConfigureAwait(false) != target)
+                { throw new InvalidOperationException("The exact Active target changed during agent review."); }
                 Require(() => IsCurrent(review), token);
                 owned = review;
                 activity.Complete(HostOperationOutcome.Completed);

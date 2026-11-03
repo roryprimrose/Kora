@@ -536,6 +536,12 @@ The [native reader](../src/Kora.Windows/ArtifactDiscovery/WindowsAgentProfileRea
 
 Profile prose is inert untrusted guidance: paths, URLs and instructions in it are never resolved as dependencies or authority. The [review](../src/Kora.Application/Agents/BoundedAgentReview.cs) fixes exact native source revision, original input/origin, Active session metadata, locality, tool subset and clamped budgets. It expires after two minutes and requires a separate single-use invocation confirmation. Input, session, privacy, ownership or source changes retire applicability.
 
+Review creation rechecks private admission after awaited target inspection and
+before opening the profile. After source I/O, it rereads the exact Active target
+and rechecks admission before returning a review. A changed target refuses the
+review and releases its pinned source; recovery requires a fresh review of the
+current target, not automatic retargeting or invocation.
+
 The [agent conversation consumer](../src/Kora.Application/Hosting/SessionConversationService.Agents.cs) uses local model admission and canonical retained request/task/answer terminal receipts. Exact source-qualified revision fingerprints correlate through typed request/terminal audit; raw profile/input/answer text never enters diagnostics or audit. Stop/revoke closes dispatch and publication; native source and provider ownership remain held until actual quiescence, including cancellation-ignoring transport. See the [user interaction](../docs/tools-and-built-in-skills.md#run-one-reviewed-local-agent-profile).
 
 The same exact running-conversation lease projects content-free host model and

@@ -52,8 +52,17 @@ public sealed partial class ModelTurnHostTests
             var evidence = wire.RootElement.GetProperty("Evidence").EnumerateArray().Single();
             evidence.GetProperty("Content").GetString().Should().Contain("reviewed memory value");
             evidence.GetProperty("Disclosure").GetInt32().Should().Be((int)ModelEvidenceDisclosure.LocalOnly);
+            evidence.TryGetProperty("MemorySource", out _).Should().BeFalse();
+            var submitted = receipt.Message.SubmittedContext!;
+            submitted.Should().NotBeNull();
+            submitted.Provenance.Should().Be(receipt.Message.Execution);
+            submitted.CanonicalUtf8Bytes.Should().Be(f.Adapter.Wire!.Length);
+            submitted.MemorySources.Should().Equal(source.Snapshot.Records.Select(record =>
+                new SubmittedMemorySource(record.Id, record.Revision, f.Session.SessionId)));
+            JsonSerializer.Serialize(submitted).Should().NotContain("reviewed memory value");
             source.Reads.Should().BeGreaterThan(4);
         }
+        else { receipt.Message.SubmittedContext.Should().BeNull(); }
         await service.Invoking(value => value.SubmitMemoryContextAsync(workflow, review, static () => true, Token))
             .Should().ThrowAsync<InvalidOperationException>();
         f.RetainCalls.Should().Be(1);

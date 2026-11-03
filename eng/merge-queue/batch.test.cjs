@@ -250,11 +250,48 @@ test('synthetic conflicts integrate nothing and retire without falsely quarantin
   const api = new BatchFake();
   api.conflict = true;
   assert.equal(await step(api), 'retiring');
+  assert.equal(count(api, 'wake'), 1);
+  assert.equal(api.state.active.phase, 'retiring');
+  assert.equal(api.state.active.dispatchRecorded, false);
   assert.equal(await step(api), 'retired');
+  assert.equal(count(api, 'wake'), 2);
   assert.equal(count(api, 'merge'), 0);
   assert.equal(count(api, 'dispatch'), 0);
   assert.equal(api.state.blocked.length, 0);
   assert.equal(api.state.singletonRetries.length, 5);
+});
+
+test('failed terminal validation requests a retirement pass before normal isolation resumes', async () => {
+  const api = new BatchFake();
+  await step(api);
+  api.workflowRuns[0].conclusion = 'failure';
+  api.workflowJobs[0].conclusion = 'failure';
+  assert.equal(await step(api), 'retiring');
+  assert.equal(count(api, 'wake'), 1);
+  assert.equal(api.state.active.phase, 'retiring');
+  assert.equal(count(api, 'dispatch'), 1);
+  assert.equal(count(api, 'merge'), 0);
+  assert.equal(await step(api), 'retired');
+  assert.equal(count(api, 'wake'), 2);
+  assert.equal(api.state.singletonRetries.length, 5);
+});
+
+test('a failed retirement continuation retains its checkpoint and later reconciliation recovers without replay', async () => {
+  const api = new BatchFake();
+  api.conflict = true;
+  const wake = api.wake.bind(api);
+  api.wake = async () => { throw new Error('continuation unavailable'); };
+  await assert.rejects(step(api), /continuation unavailable/);
+  assert.equal(api.state.active.phase, 'retiring');
+  assert.equal(api.state.active.dispatchRecorded, false);
+  assert.equal(count(api, 'synthetic'), 1);
+  api.wake = wake;
+  assert.equal(await step(api), 'retired');
+  assert.equal(api.state.active, null);
+  assert.equal(count(api, 'synthetic'), 1);
+  assert.equal(count(api, 'dispatch'), 0);
+  assert.equal(count(api, 'merge'), 0);
+  assert.equal(count(api, 'wake'), 1);
 });
 
 test('each missing, duplicate, skipped or nonterminal producer denies proof and retains uncertain work', async () => {
@@ -396,7 +433,9 @@ test('no observable dispatch, duplicate runs, wrong attempts and stale job metad
     if (kind === 'job-identity') api.workflowJobs[0].id = api.workflowJobs[1].id;
     if (kind === 'absent') {
       assert.equal(await step(api, { now: new Date(NOW.valueOf() + 600_000) }), 'retiring');
+      assert.equal(count(api, 'wake'), 1);
       assert.equal(await step(api), 'retiring');
+      assert.equal(count(api, 'wake'), 1, 'uncertain owned work must not create a self-dispatch loop');
     } else await assert.rejects(step(api));
     assert.equal(count(api, 'merge'), 0);
     assert.ok(api.state.active);

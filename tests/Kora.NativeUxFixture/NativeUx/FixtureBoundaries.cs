@@ -93,6 +93,8 @@ internal static class FixtureBoundaries
         internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource? PendingLiteralOpen { get; set; }
         internal TaskCompletionSource? PendingLiteralStop { get; set; }
+        internal TaskCompletionSource? PendingCommandEnd { get; set; }
+        internal TaskCompletionSource CommandEndStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public event EventHandler<VoiceTranscriptEventArgs>? TranscriptRecognized;
         public event EventHandler<VoiceRecognitionFailureEventArgs>? RecognitionFailed { add { } remove { } }
         public event EventHandler<VoiceCaptureStateChangedEventArgs>? CaptureStateChanged;
@@ -138,10 +140,11 @@ internal static class FixtureBoundaries
             IsListening = false;
         }
         public Task EndCaptureAsync(CancellationToken cancellationToken = default) => EndPushToTalkAsync(cancellationToken);
-        public Task EndPushToTalkAsync(CancellationToken cancellationToken = default)
+        public async Task EndPushToTalkAsync(CancellationToken cancellationToken = default)
         {
+            CommandEndStarted.TrySetResult();
+            if (PendingCommandEnd is { } pending) { await pending.Task; }
             if (IsListening) { EndCalls++; IsListening = false; }
-            return Task.CompletedTask;
         }
         internal void PublishTranscript(string text)
         {

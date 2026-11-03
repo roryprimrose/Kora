@@ -8,4 +8,6 @@ public sealed record ModelContextEvidence(
 {
     [System.Text.Json.Serialization.JsonIgnore]
     public Conversation.SubmittedHistorySource? HistorySource { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Conversation.SubmittedMemorySource? MemorySource { get; init; }
 }

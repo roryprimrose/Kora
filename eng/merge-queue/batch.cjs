@@ -79,6 +79,7 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
     active.reason = reason;
     await save();
     api.notice(reason);
+    await api.wake();
     return active.phase;
   }
   async function authorized(member) {

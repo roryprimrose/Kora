@@ -412,6 +412,9 @@ internal static class Program
         services.AddSingleton<Kora.Application.Voice.BoundedAudioOutputCatalog>();
         services.AddSingleton<OutputDeviceConfigurationService>();
         services.AddSingleton<ResponseModeConfigurationService>();
+        services.AddSingleton<Kora.Core.Presentation.IDetailPresentationPreferences>(provider =>
+            new LocalDetailPresentationPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<DetailPresentationConfigurationService>();
         services.AddSingleton<ProviderModeConfigurationService>();
         ProviderProfileComposition.Configure(services);
         services.AddSingleton<IModelProviderModePreferences>(provider =>
@@ -625,6 +628,8 @@ internal static class Program
         services.AddSingleton<ISessionRetentionPreferences>(provider =>
             new LocalSessionRetentionPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<SessionRetentionConfigurationService>();
+        services.AddSingleton(provider => new LocalOrdinaryTurnDeadlinePreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<OrdinaryTurnDeadlineConfigurationService>();
         services.AddSingleton<ISessionRetentionPlannerReader>(provider =>
             new WindowsSqliteSessionRetentionPlannerReader(interactions, paths));
         services.AddSingleton<SessionRetentionPlannerService>();
@@ -696,6 +701,12 @@ internal static class Program
         services.AddSingleton<ISpeechInputPreferences>(provider =>
             new LocalSpeechInputPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<SpeechInputConfigurationService>();
+        services.AddSingleton<IQuietHoursPreferences>(provider =>
+            new LocalQuietHoursPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<QuietHoursConfigurationService>();
+        services.AddSingleton<LocalForegroundPttPreferences>(provider =>
+            new LocalForegroundPttPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<ForegroundPttConfigurationService>();
         services.AddSingleton(new HttpClient
         {
             Timeout = TimeSpan.FromMinutes(15),

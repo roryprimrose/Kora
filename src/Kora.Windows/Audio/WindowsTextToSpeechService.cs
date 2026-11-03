@@ -443,8 +443,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
                     synthesisTask = completion.Task;
                 }
             }
-            if (admission is null) { StartSynthesis(); }
-            else { await admission(StartSynthesis, cancellationToken).ConfigureAwait(false); }
+            await AdmitSpeechBoundaryAsync(StartSynthesis, admission, cancellationToken).ConfigureAwait(false);
             if (synthesisTask is null)
             { throw new OperationCanceledException("Host speech start was not admitted."); }
 
@@ -475,7 +474,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
             await synthesisTask.WaitAsync(cancellationToken).ConfigureAwait(false);
             if (!IsStopRequested() && generation == Interlocked.Read(ref outputGeneration))
             {
-                await StartPlaybackAsync(generation, cancellationToken).ConfigureAwait(false);
+                await StartPlaybackAsync(generation, admission, cancellationToken).ConfigureAwait(false);
             }
             if (generation != Interlocked.Read(ref outputGeneration))
             {
@@ -728,7 +727,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
         }
     }
 
-    private async Task StartPlaybackAsync(long generation, CancellationToken cancellationToken)
+    private async Task StartPlaybackAsync(long generation, SpeechStartAdmission? admission, CancellationToken cancellationToken)
     {
         await lifecycleLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         Task completionTask;
@@ -784,12 +783,19 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
                     {
                         completion.TrySetResult();
                     }
-                    else
+                }
+                void StartPlayer()
+                {
+                    lock (stateLock)
                     {
-                        playback.Init(audioReader);
-                        playback.Play();
+                        cancellationToken.ThrowIfCancellationRequested();
+                        RequireCurrentOutput(generation);
+                        if (stopRequested) { throw new OperationCanceledException("Speech playback was retired before start."); }
+                        player.Init(audioReader);
+                        player.Play();
                     }
                 }
+                await AdmitSpeechBoundaryAsync(StartPlayer, admission, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception exception) when (
                 exception is COMException or InvalidOperationException)
@@ -808,6 +814,30 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
         }
 
         await completionTask.WaitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    internal static async Task AdmitSpeechBoundaryAsync(Action start, SpeechStartAdmission? admission, CancellationToken token)
+    {
+        var gate = new Lock();
+        var open = true;
+        var started = false;
+        void Start()
+        {
+            lock (gate)
+            {
+                if (!open || started) { throw new OperationCanceledException("The exact speech boundary is already retired or consumed."); }
+                token.ThrowIfCancellationRequested();
+                started = true;
+                start();
+            }
+        }
+        try
+        {
+            if (admission is null) { Start(); }
+            else { await admission(Start, token).ConfigureAwait(false); }
+        }
+        finally { lock (gate) { open = false; } }
+        if (!started) { throw new OperationCanceledException("The exact speech boundary was not admitted."); }
     }
 
     private void OnSpeakCompleted(object? sender, SpeakCompletedEventArgs eventArgs)

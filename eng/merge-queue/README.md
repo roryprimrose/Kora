@@ -110,6 +110,24 @@ a turn under sustained arrivals; no throughput benchmark or fivefold speedup is
 claimed. Failed qualification or an unobservable dispatch holds the lane for
 repair rather than starving release behind further batches.
 
+### Retrying failed completed-tip qualification
+
+A failed actual-tip run keeps admission paused. The [qualification reader](github.cjs#L268) accepts only a successful first attempt at the exact completed tip, with complete expected jobs and the successful qualification join. Rerunning the failed workflow creates a later attempt and cannot supply that receipt.
+
+An authorized operator can request a **fresh ordinary main run**, using the same empty-input dispatch as the [controller](github.cjs#L287):
+
+1. Recheck live mode/profile, durable state and actual main. Require `batch-v1`, no active candidate, and `completedTip.sha` equal to actual main. Inspect the failed job and confirm all prior qualification and candidate CI is terminal.
+2. With authority to retry validation, dispatch once without candidate or comparison inputs:
+
+   ```powershell
+   gh workflow run ci.yml --repo github.com/roryprimrose/Kora --ref main
+   ```
+
+3. Read back the new run's source SHA, `workflow_dispatch` event and first-attempt identity. An accepted or ambiguous dispatch must be reconciled before another request; do not blindly repeat it.
+4. Require the complete ordinary main gates and `Qualify completed batch tip` to succeed. The controller then records the exact receipt and resumes normal selection. A failed retry remains a failure requiring investigation, not permission to skip tests or change admission.
+
+This retry does not dispatch candidate CI, edit queue state, change protection or bypass a check. A source change, active candidate, uncertain owned work or incomplete evidence requires the corresponding reviewed recovery instead ([batch admission](github.cjs#L383), [recovery](#interrupted-batches-repair-and-rollback)).
+
 ### Operator cutover: separate administrator authorization required
 
 These are rollout instructions, **not actions performed by the implementation**:

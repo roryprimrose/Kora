@@ -21,6 +21,7 @@ public sealed partial class MainViewModel
             appearanceSuggestionPersistence, speechSummaryPersistence, volumeSuggestionPersistence, volumeSuggestionReviewWork,
             rateSuggestionPersistence, rateSuggestionReviewWork,
             responseModeSuggestionWork, settingsUndoWork,
+            responseReadPlanQuiescence, responseReadQuiescence,
             AuditPersistence, outputDiscoveryPersistence,
             outputCatalog.WaitForQuiescenceAsync()).ConfigureAwait(false);
         if (communicationActivity is not null)

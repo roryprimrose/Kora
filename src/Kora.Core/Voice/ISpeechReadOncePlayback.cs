@@ -9,5 +9,5 @@ public interface ISpeechReadOncePlayback
     /// <param name="target">The exact host-issued response and policy revision.</param>
     /// <param name="initiator">The original host input lane; it cannot override the current host request origin.</param>
     /// <param name="cancellationToken">Cancellation of this invocation.</param>
-    Task ReadOnceAsync(ResponseSpeechTarget target, SecurityAuditInitiator initiator, CancellationToken cancellationToken);
+    Task<SpeechReadOutcome> ReadOnceAsync(ResponseSpeechTarget target, SecurityAuditInitiator initiator, CancellationToken cancellationToken);
 }

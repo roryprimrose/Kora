@@ -176,6 +176,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         ConversationExecutionConfigurationService? conversationExecution = null,
         SpeechSetupComparison? speechSetupComparison = null,
         LogonStartupConfigurationService? logonStartupConfiguration = null,
+        DetailPresentationConfigurationService? detailPresentationConfiguration = null,
         StartupPresentationConfigurationService? startupPresentationConfiguration = null,
         IQuestionVoiceRecognitionService? voiceRecognition = null, SpeechInputConfigurationService? speechInputConfiguration = null,
         VoiceCaptureTimingConfigurationService? voiceCaptureTimingConfiguration = null)
@@ -183,7 +184,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         using var setup = BeginPhase(NativeFixturePhase.Setup);
         await setup.RunAsync(() => InitializeCoreAsync(webPageGet, webSummary, callState, dispatcher, modelReasoner,
             modelProbe, speechComponentSetup, ordinaryDeadlineConfiguration, conversationExecution,
-            speechSetupComparison, logonStartupConfiguration, startupPresentationConfiguration,
+            speechSetupComparison, logonStartupConfiguration, detailPresentationConfiguration, startupPresentationConfiguration,
             voiceRecognition, speechInputConfiguration, voiceCaptureTimingConfiguration));
     }
 
@@ -196,6 +197,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         ConversationExecutionConfigurationService? conversationExecution,
         SpeechSetupComparison? speechSetupComparison,
         LogonStartupConfigurationService? logonStartupConfiguration,
+        DetailPresentationConfigurationService? detailPresentationConfiguration,
         StartupPresentationConfigurationService? startupPresentationConfiguration,
         IQuestionVoiceRecognitionService? voiceRecognition, SpeechInputConfigurationService? speechInputConfiguration,
         VoiceCaptureTimingConfigurationService? voiceCaptureTimingConfiguration)
@@ -275,6 +277,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             ordinaryDeadlineConfiguration: ordinaryDeadlineConfiguration,
             conversationExecution: conversationExecution,
             speechSetupComparison: speechSetupComparison, logonStartupConfiguration: logonStartupConfiguration,
+            detailPresentationConfiguration: detailPresentationConfiguration,
             startupPresentationConfiguration: startupPresentationConfiguration,
             speechInputConfiguration: speechInputConfiguration,
             voiceCaptureTimingConfiguration: voiceCaptureTimingConfiguration);

@@ -30,6 +30,7 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
     {
         RetireCurrentResponseSpeech();
         responseReadDecisionsEligible = eligible;
+        NotifyResponseReadDecisionAvailability();
     }
 
     private sealed record ResponseReadInput(ResponseSpeechTarget? Target, SecurityAuditInitiator Initiator, Func<bool> Eligible,

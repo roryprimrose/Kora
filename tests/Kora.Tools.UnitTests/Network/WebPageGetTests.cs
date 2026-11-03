@@ -9,7 +9,7 @@ using Kora.Tools.Network;
 
 namespace Kora.Tools.UnitTests.Network;
 
-public sealed class WebPageGetTests
+public sealed partial class WebPageGetTests
 {
     private static readonly IPAddress PublicAddress = IPAddress.Parse("93.184.216.34");
 
@@ -67,6 +67,7 @@ public sealed class WebPageGetTests
         authorized.Should().Equal(
             new Uri("https://example.com/start"),
             new Uri("https://example.com/start"),
+            new Uri("https://other.example/final"),
             new Uri("https://other.example/final"),
             new Uri("https://other.example/final"));
         transport.ResolvedHosts.Should().Equal("example.com", "other.example");

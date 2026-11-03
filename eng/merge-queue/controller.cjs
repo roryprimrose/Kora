@@ -138,7 +138,10 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
     for (const run of runs) {
       const jobs = observed?.runId === run.id ? observed.jobs : await observeJobs(run);
       const expected = observed?.runId === run.id ? observed.expected : await expectedInventory(active, run);
-      if (!terminalJobs(jobs, expected)) {
+      const rejected = Array.isArray(expected) && !terminalJobs(jobs, expected)
+        && await api.rejectedAdmission(active.base, run, jobs);
+      if (rejected) api.info(`PR #${active.number}: run ${run.id} rejected admission before candidate execution; exact terminal skipped-job plan verified.`);
+      if (!terminalJobs(jobs, expected) && !rejected) {
         api.info(`PR #${active.number}: run ${run.id} is completed but workflow inventory or job metadata is incomplete; requesting cancellation and retaining the lane.`);
         await api.cancel(run.id);
         terminal = false;

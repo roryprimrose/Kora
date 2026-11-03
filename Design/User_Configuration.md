@@ -49,6 +49,16 @@ No format/limit override, folder attachment, managed source, extra version, mode
 
 ## Configuration Contract
 
+### Implemented existing detail-offer suppression
+
+The bounded `responses.detail-presentation` implementation has only Offer (unsaved legacy/default) and LinkOnly. Native Responses settings and exact original typed/current-name activated commands share inspect/review/confirm/cancel/reset. Set/reset require separate confirmation; reset explicitly saves Offer, not file deletion. This is not a new model setting observation/proposal catalogue ([workflow](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs), [parser](../src/Kora.Application/Configuration/DetailPresentationCommand.cs), [native controls](../src/Kora/SettingsWindow.axaml)).
+
+The strict domain format and shared atomic preference store use application data paths with a pre-write unconfirmed marker, exact readback and trusted requested/terminal audit. Missing legacy state retains existing Offer behavior; malformed/current unknown state throws rather than silently defaulting. Failed audit/receipt/readback stays held for explicit saved-state/evidence recovery ([domain](../src/Kora.Core/Presentation/DetailPresentationPreference.cs), [store adapter](../src/Kora.Application/Configuration/LocalDetailPresentationPreferences.cs), [configuration owner](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs)).
+
+Only future existing proactive cues are affected; manual Details and original source/privacy/currentness gates remain. Protected/Unknown call evidence rejects voice-originated writes, including later native confirmation of that voice review. Closed microphone, missing recognizer, lost ownership/private host or native lifetime still prevent the corresponding route. No new question/reply/capture, automatic opening, historical replay, window visibility/position policy or persistent session timing is added ([shared interaction](../src/Kora.Application/ViewModels/MainViewModel.DetailPresentation.cs), [display boundary](Information_Display.md#implemented-existing-offer-versus-link-only-suppression)).
+
+Deterministic behavioral regressions exercise the complete bounded workflow and forbidden effects. Build/analyzers, required module/shard evidence and 100% portable line/branch coverage remain mandatory; implementation does not establish full three-way preference completion or enablement/qualification ([tests](../tests/Kora.Application.UnitTests/Configuration/DetailPresentationConfigurationServiceTests.cs), [delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
+
 ### Conversational voice replies
 
 **Settings > Speech & audio > Conversational voice replies** provides explicit **Enable conversational replies** and **Turn off** actions ([native controls](../src/Kora/SettingsWindow.axaml)).
@@ -95,8 +105,9 @@ state holds without defaults or replay. Restoring ownership or clearing a call
 does not automatically show/speak notices; only fresh already-open native
 observation may admit an unexpired deferral. Session retirement clears owned
 receipts, not unrelated preferences or global fatigue budgets. General
-reminders, quiet hours, proactive speech configuration and apply-now remain
-undelivered.
+reminders, broader proactive speech configuration and apply-now remain
+undelivered. The independent [scheduled speech-only quiet-hours operation](Proactive_Interaction.md#scheduled-proactive-speech-quiet-hours)
+does not change visual broker suppression.
 
 ### R12 Bounded Session Retention Delivered - 2026-10-09
 
@@ -1322,7 +1333,7 @@ registered by this design.
 | Input device | System by default and follows live Windows multimedia-default changes; a specific endpoint-ID override remains pinned until changed back to System; changing selection after manual disablement does not restart capture | "Use my headset microphone" |
 | Listening enabled | Closed until explicit first-launch ongoing consent; saved consent permits automatic ordinary safe startup; manual disablement/recovery holds release capture for the current run | "Stop listening" |
 | Assistant display and command name | "Kora" initially; one validated custom-only name of 1-3 words and at most 32 characters | "Change your name to Nova" |
-| Optional PTT shortcut | Unassigned until selected; validate conflicts | "Set push-to-talk to Control Shift Space" |
+| [Optional foreground PTT shortcut](../docs/voice-and-audio.md#optional-foreground-push-to-talk-shortcut) | Unassigned until selected; Control Shift Space or Control Shift F9 in the foreground Response window only; other editing/navigation/system chords reserved | "Set push-to-talk to Control Shift Space" |
 | Activation feedback | Visual always; non-speech cue when output policy permits | "Turn off the activation sound" |
 | Command speech-start wait | 5 seconds; 2-10 seconds | "Wait seven seconds after I say Kora" |
 | Conversational replies | On after ongoing listening consent; allows prefix-free answers only to the unique question Kora just presented | "Require me to say Kora for every answer" |
@@ -1335,6 +1346,10 @@ registered by this design.
 | Speech resource profile (planned) | Measured Low resource, Balanced, Accuracy focused or Custom choices; supported CPU/GPU and explicit keep-loaded/idle-unload policy; no silent protection changes | "Show the speech accuracy and resource trade-offs" |
 | Learn my voice (`voice.learnFrequentSpeaker`) | Off until separate explained consent; local Windows-profile/device-scoped adaptation from new activated commands only; non-authorizing; status/test/correct/reset/delete workflows | "Learn my voice to improve recognition" |
 | Owner-aware private speech | Optional; On for an explicitly enrolled supported verifier, not baseline voice or learning; while enabled, private content is visual-only for `Uncertain`, `NotOwner`, or `Unavailable`, without silently switching protection Off | "Only read private information when you recognise my voice" |
+
+The [delivered capture-timing controls](../docs/voice-and-audio.md#speech-capture-timing) support the three bounded speech-start/trailing-silence preferences through native and exact typed/already-activated review. Confirmed values snapshot into the next eligible capture; in-flight captures retain their timing. Natural-language examples above remain design intent, not additional exact aliases. No profile, consent or listening authority is enabled ([shared action](../src/Kora.Application/ViewModels/MainViewModel.VoiceCaptureTiming.cs)).
+
+The [Windows recognizer residency key](../src/Kora.Windows/Audio/WindowsRecognizerResidency.cs) includes both speech-start and trailing-silence timing. A changed value joins release of the previous model before creating its replacement; reuse never retains microphone or stream ownership ([regression](../tests/Kora.Windows.IntegrationTests/Audio/WindowsActivatedCaptureResidencyTests.cs)).
 
 The [delivered speech-input review](../docs/voice-and-audio.md#speech-input-profile-preference) is narrower than the planned local-provider/resource rows: native controls and exact typed/activated commands review, confirm or cancel the existing compatible Windows activated tuple. The [host workflow](../src/Kora.Application/Configuration/SpeechInputConfigurationService.cs) joins runtime retirement before persistence/publication and preserves prior desired intent on cancellation.
 
@@ -1455,15 +1470,16 @@ The exact caption, rich rendering, viewer, and text-scale options are defined in
 | Busy/DND/meeting quieting | Call/Suspected meeting handling as in call policy; additional Busy/DND preference off | "Stay quiet when Teams says do not disturb" |
 | Temporary call override | Up to 1 hour or observed call end; never persistent implicitly | "Allow spoken answers for this call for fifteen minutes" |
 | Proactive speech consent | Explained and chosen in setup | "You can make suggestions again" |
-| Quiet hours | None until chosen; local time/time zone shown | "Don't interrupt me between nine and five on weekdays" |
+| Quiet hours (`notices.quiet-hours`) | Delivered bounded proactive completion speech only; Off until chosen; explicit days, local start/end and zone; separate review/confirmation | `set notices.quiet-hours to weekly Mon,Tue,Wed,Thu,Fri 09:00 17:00 UTC`, then `confirm notices.quiet-hours` |
 | Quiet mode | Off normally; conversation or persistent scope explicit | "Use quiet mode for this conversation" |
 | Notification categories | Eligible task/setup/update events; categories individually configurable | "Tell me about task failures but not completed tasks" |
 | Reminder deferral | 24 hours; 1 hour-7 days | "Remind me about updates tomorrow" |
 
 Detectors need explicit setup/account/network consent; setting a preference does not create Graph credentials.
-Only the bounded feedback/manual controls and existing protection settings are
-delivered here. Other table entries, including general proactive/quiet-hours/
-notification/temporary-exception configuration, remain proposed.
+Only the bounded feedback/manual controls, existing protection settings and
+[speech-only scheduled quiet hours](Proactive_Interaction.md#scheduled-proactive-speech-quiet-hours)
+are delivered here. General proactive, notification and temporary-exception
+configuration remain proposed.
 The in-call feedback override and voice-activation setting are device-local and independent: UI-only output does not close the microphone, while disabling call-time voice activation closes active capture and blocks re-enabling it until the call clears.
 Inherit restores normal task/queue/session/device feedback precedence; changing the feedback mode does not silently relax separate call speech suppression/privacy rules.
 The spoken-approval setting is independent of feedback/listening/speech suppression and does not alter stored grants or their retention, or the selected session permission level.

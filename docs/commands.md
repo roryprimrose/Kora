@@ -227,6 +227,12 @@ remain available in Sessions when the bounded lookup has more results.
 | `hide details` | Hide Details without closing the conversation or discarding input |
 | `show session logs`, `show session audit` | Explicit bounded diagnostic-log / typed committed-audit query for the selected session; original local UI only |
 
+Generic Details phrases accept the current response only while its exact offer
+is pending. After **Not now**, or in **Link only**, they retain the selected
+session route; an older current response does not override that selection.
+Use `open current response details` to request that exact current response
+manually, independently of the offer preference.
+
 Activated voice requires the current available assistant name, for example `Kora, open all work`. Renaming replaces that prefix in the recognition grammar.
 These phrases accept no extra words, body queries or trailing punctuation; malformed reserved navigation input is refused, not sent to a model.
 
@@ -572,8 +578,8 @@ Review is local and volatile, with no content logging/persistence, copy/export o
 Native **Sessions > Quiet routine notices for this run** affects Work/Maintenance deliveries and notice rows only, until **Turn routine quiet off**, **Reset routine quiet to Off**, or restart. Default is Off; no choice is saved.
 Status separates hidden/omitted counts from `RoutineSuppressedNoReplay` sources; suppressed sources are not Presented and consume no fatigue budget. Clear authorizes future new notices, not a backlog.
 
-Failures, Attention, mandatory output, required questions/approvals and authoritative work/status/citations/recovery remain unchanged. There is no quiet typed/voice grammar or model tool in this bounded increment.
-The exact event commands below still share their existing broker; routine defer cannot revive quiet-suppressed sources. Scheduled quiet hours, multi-session reminders and proactive speech beyond [separately consented conversation completion](conversation-notices.md#optional-completion-voice-notices-for-this-run) remain unavailable.
+Failures, Attention, mandatory output, required questions/approvals and authoritative work/status/citations/recovery remain unchanged. Run-only routine quiet remains native-only; it has no typed/voice grammar or model tool.
+The exact event commands below share their existing broker; routine defer cannot revive quiet-suppressed sources. Independent [scheduled speech-only quiet hours](conversation-notices.md#scheduled-proactive-speech-quiet-hours) support exact get/set/reset and separate confirmation. Multi-session reminders and broader proactive speech remain unavailable.
 
 An already-open **Sessions** selected work surface shows bounded trusted
 local-version queue/question observations and already-verified maintenance
@@ -977,6 +983,8 @@ provider, MCP adapter, or model tool/result loop is delivered by this registry.
 Existing help, version, setup/status, lock and power phrases retain their behavior.
 
 ## Exact speech-input profile review
+
+For capture timing, use `get voice.timing`, `set voice.command-start-wait to 7`, `set voice.reply-start-wait to 20`, or `set voice.trailing-silence to 2`. Values are seconds without a suffix. Review, then `confirm voice.timing` or `cancel voice.timing`; `reset <exact timing option>` is also reviewed. Saving affects the next eligible capture, never listening authority ([bounds and complete operation](voice-and-audio.md#speech-capture-timing)).
 
 Use `get speech.input` or `status speech.input` to inspect saved, desired and effective selection. `set speech.input to windows-activated-v1 WindowsManaged CaptureLifetime` opens review, not an immediate save. Complete the same original-channel operation with `confirm speech.input` or `cancel speech.input` ([parser](../src/Kora.Application/Configuration/SpeechInputCommand.cs)).
 
@@ -1527,6 +1535,24 @@ No automatic rewrite, default-save, rollback or retry is claimed ([confirmation 
 Use `review response timeout suggestion` to review the exact host-pinned successful answer, then separately `confirm response timeout change` or `cancel response timeout review`. Activated voice requires the current assistant-name prefix. Both conversation windows also offer **Review setting suggestion...** on the exact retained answer ([shared route](../src/Kora.Application/ViewModels/MainViewModel.ResponseTimeoutSuggestions.cs)).
 
 The answer must be one exact `set appearance.response-timeout to <integer>` using canonical digits, 1-60 seconds. It changes only the existing response-window inactivity hide delay, not provider deadlines or Always show. Review saves nothing; original-channel call policy, source, preference, privacy and host checks remain required through commit ([review and recovery](settings.md#review-a-response-timeout-suggestion)).
+
+### Detail presentation preference
+
+These exact commands share the native reviewed preference workflow. Prefix activated voice with the current assistant name. Set/reset stage a review only; confirmation is separate ([parser](../src/Kora.Application/Configuration/DetailPresentationCommand.cs), [interaction](../src/Kora.Application/ViewModels/MainViewModel.DetailPresentation.cs)).
+
+```text
+get responses.detail-presentation
+status responses.detail-presentation
+set responses.detail-presentation to Offer
+set responses.detail-presentation to LinkOnly
+stop asking about details
+offer detailed results
+reset responses.detail-presentation
+confirm detail presentation change
+cancel detail presentation change
+```
+
+Only existing proactive cues on future publications are affected. **Open details**, `open current response details` and selected-session detail commands retain their existing source/privacy admission. Accepting/declining an individual offer never saves a preference. Protected-call voice writes remain denied; no new question, reply turn, model tool, automatic opening or historical replay is introduced ([shared policy](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs), [manual route](../src/Kora.Application/ViewModels/MainViewModel.CurrentResponse.cs)).
 
 ### Inspect or change the device-default response mode
 

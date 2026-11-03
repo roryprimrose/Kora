@@ -27,6 +27,7 @@ public sealed partial class MainViewModel
         questionVoiceReplies = new(questions, capture, time, uiDispatcher, ObserveQuestionVoiceAdmission,
             SpeakExactQuestionAsync, replyLogger, TryStopQuestionListeningAsync, GetListeningStopPhrases,
             () => conversationalReplies?.Get());
+        questionVoiceReplies.Changed += OnDetailPresentationDecisionChanged;
         PropertyChanged += OnQuestionVoiceReadinessChanged;
         dictationQuestions = questions;
         questions.ReplyTargetChanging += OnComposerQuestionChanging;

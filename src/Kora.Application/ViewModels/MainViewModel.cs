@@ -287,7 +287,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         SpeechSetupComparison? speechSetupComparison = null,
         ConversationExecutionConfigurationService? conversationExecution = null,
         LogonStartupConfigurationService? logonStartupConfiguration = null,
-        StartupPresentationConfigurationService? startupPresentationConfiguration = null)
+        StartupPresentationConfigurationService? startupPresentationConfiguration = null,
+        ForegroundPttConfigurationService? foregroundPtt = null,
+        VoiceCaptureTimingConfigurationService? voiceCaptureTimingConfiguration = null,
+        DetailPresentationConfigurationService? detailPresentationConfiguration = null,
+        QuietHoursConfigurationService? quietHoursConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -445,11 +449,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     () => HandleCommandException(exception)), canExecute);
 
         InitializeSpeechInputConfiguration(speechInputConfiguration, execute => CreateCommand(execute));
+        InitializeVoiceCaptureTiming(voiceCaptureTimingConfiguration, execute => CreateCommand(execute));
         InitializeSpeechComparison(speechSetupComparison, execute => CreateCommand(execute));
         InitializeConversationalReplies(conversationalReplies, execute => CreateCommand(execute));
+        InitializeForegroundPtt(foregroundPtt, execute => CreateCommand(execute));
         InitializeConversationExecution(conversationExecution, execute => CreateCommand(execute));
         InitializeLogonStartup(logonStartupConfiguration, execute => CreateCommand(execute));
         InitializeStartupPresentation(startupPresentationConfiguration, execute => CreateCommand(execute));
+        InitializeQuietHours(quietHoursConfiguration, execute => CreateCommand(execute));
+        InitializeDetailPresentation(detailPresentationConfiguration, execute => CreateCommand(execute));
         ResetThemeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.Theme));
         ResetReaderTextScaleCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReaderTextScale));
         ResetReducedMotionCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReducedMotion));
@@ -4268,7 +4276,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
         if (SettingsSectionCommand.Parse(eventArgs.Transcript, AssistantName) is not null
+            || QuietHoursCommand.Parse(eventArgs.Transcript, AssistantName) is not null
             || LogonStartupCommand.Parse(eventArgs.Transcript, AssistantName) is not null
+            || DetailPresentationCommand.Parse(eventArgs.Transcript, AssistantName) is not null
             || manualInput.CataloguePreparation is not null
             || EvidenceTraceCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
         {
@@ -4329,10 +4339,35 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ReportResponseRead("Local read planning is still running or joining. Cancel task before another request; the original answer is unchanged.");
             return;
         }
+        if (QuietHoursCommand.Parse(spokenText, AssistantName) is { } quietHoursCommand)
+        {
+            CancelLogonStartupReview();
+            if (!isAssistantNameAvailable || initiator == SecurityAuditInitiator.VoiceCommand
+                && !HasCurrentNameActivation(spokenText))
+            {
+                CancelQuietHoursReview();
+                Transcript = "Quiet hours require original typed input or the current assistant-name voice prefix.";
+                return;
+            }
+            await ExecuteQuietHoursCommandAsync(quietHoursCommand, initiator, manualInput);
+            return;
+        }
+        CancelQuietHoursReview();
         if (IsWakeCommand(spokenText) && string.Equals(AssistantName, "Stop", StringComparison.OrdinalIgnoreCase)
             && string.Equals(spokenText.Trim(), "listening", StringComparison.OrdinalIgnoreCase))
         {
             await ExecuteAsync(commandCatalog.GetCommands(AssistantName).Single(command => command.Action == BuiltInAction.DisableListening), initiator);
+            return;
+        }
+        if (DetailPresentationCommand.Parse(spokenText, AssistantName) is { } detailCommand)
+        {
+            if (!isAssistantNameAvailable || initiator == SecurityAuditInitiator.VoiceCommand
+                && !HasCurrentNameActivation(spokenText))
+            {
+                Transcript = "Detail preferences require original typed input or the current assistant-name voice prefix.";
+                return;
+            }
+            await ExecuteDetailPresentation(detailCommand, initiator, manualInput);
             return;
         }
         if (LogonStartupCommand.Parse(spokenText, AssistantName) is { } startupOperation)
@@ -4644,6 +4679,26 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (SpeechComparisonCommand.Parse(spokenText, AssistantName) is { } speechComparisonCommand)
         {
             await ExecuteSpeechComparison(speechComparisonCommand, initiator);
+            return;
+        }
+        if (ForegroundPttCommand.Parse(spokenText, AssistantName) is { } foregroundPttCommand)
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Assistant prefix routing is unavailable; no foreground shortcut setting was changed.";
+                return;
+            }
+            await ExecuteForegroundPttCommandAsync(foregroundPttCommand, initiator);
+            return;
+        }
+        if (VoiceCaptureTimingCommand.Parse(spokenText, AssistantName) is { } timingCommand)
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Assistant prefix routing is unavailable; no capture timing change was dispatched.";
+                return;
+            }
+            await ExecuteVoiceCaptureTimingAsync(timingCommand, initiator);
             return;
         }
         if (SpeechInputCommand.Parse(spokenText, AssistantName) is { } speechInputCommand)
@@ -5408,8 +5463,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             {
                 var presentation = AnswerPresentation.From(decision.Answer!);
                 PresentResponse(AssistantState.Information, "Local model response",
-                    $"Generated locally; verify important details.\n\n{presentation.Brief}"
-                        + (presentation.HasDetails ? "\n\n" + AnswerPresentation.Offer : string.Empty),
+                    $"Generated locally; verify important details.\n\n{presentation.Brief}",
                     modelAnswer: new(decision.Answer!));
                 await SpeakCurrentResponseAsync(cancellationToken: cancellation.Token, expectedSpeechRevision: speechRevision);
             }
@@ -6697,6 +6751,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         State = responseState;
         spokenSummaryRecovery = null;
         ResponseTitle = title;
+        if (modelAnswer is not null)
+        {
+            modelAnswer = modelAnswer with
+            {
+                OfferEpoch = detailPresentation is null ? 0 : detailPresentation.CaptureOfferEpoch(),
+            };
+            if (AnswerPresentation.From(modelAnswer.Body).HasDetails && modelAnswer.OfferEpoch is not null)
+            { body += "\n\n" + AnswerPresentation.Offer; }
+        }
         ResponseBody = body;
         forceVisualResponse = ShouldForceVisualResponse(
             IsGrantEditorVisible, IsResponseInteractionPending, responseState);
@@ -6740,9 +6803,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         OnPropertyChanged(nameof(CanChangeWindowsSpeechRateNative));
         OnPropertyChanged(nameof(CanChangeSpeechInputNative));
         OnPropertyChanged(nameof(CanChangeConversationalReplies));
+        OnPropertyChanged(nameof(CanChangeForegroundPtt));
         OnPropertyChanged(nameof(CanControlLogonStartup));
         OnPropertyChanged(nameof(CanControlLogonStartupNative));
         OnPropertyChanged(nameof(CanControlStartupPresentation));
+        OnPropertyChanged(nameof(CanControlDetailPresentation));
+        OnPropertyChanged(nameof(CanControlDetailPresentationNative));
         OnPropertyChanged(nameof(WindowsSpeechRateStatus));
         OnPropertyChanged(nameof(PlaybackVolumeStatus));
         OnPropertyChanged(nameof(CanChangeDiagnosticRetention));
@@ -6770,6 +6836,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         OnPropertyChanged(nameof(CanChangeInCallFeedbackNative));
         OnPropertyChanged(nameof(CanEnableCommunicationActivity));
         OnPropertyChanged(nameof(CanChangeCommunicationActivity));
+        NotifyQuietHours();
     }
 
     private string[] GetRecognitionPhrases()
@@ -6796,6 +6863,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(WindowsSpeechRateCommand.FixedPhrases)
             .Concat(SpeechInputCommand.FixedPhrases)
+            .Concat(QuietHoursCommand.FixedPhrases)
+            .Concat(ForegroundPttCommand.FixedPhrases)
+            .Concat(VoiceCaptureTimingCommand.FixedPhrases)
             .Concat(SpeechComparisonCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
             .Concat(OrdinaryTurnDeadlineCommand.FixedPhrases)
@@ -6829,6 +6899,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
             .Concat(SettingsSectionCommand.FixedPhrases)
             .Concat(LogonStartupCommand.FixedPhrases)
+            .Concat(DetailPresentationCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
             .Concat(ClipboardPreview is { } snapshot

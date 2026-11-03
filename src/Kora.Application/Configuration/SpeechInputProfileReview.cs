@@ -12,7 +12,7 @@ public sealed record SpeechInputProfileReview(
         + (Proposed.Selection.ProfileId is SpeechInputProfileCatalogue.NativeWakeProfileId
             ? $"Required: independently host-qualified exact name '{AssistantName}', installed PocketSphinx 5.1.1 en-US dictionary/acoustic/VAD assets and native ABI, CPU / CaptureLifetime, existing Windows command ASR and playback exclusion. "
             : "Required: the installed English Windows activated recognizer and an admitted microphone at explicit capture. "
-                + "WindowsManaged / CaptureLifetime uses the existing capture-owned runtime; no additional model assets are selected. ")
+                + $"WindowsManaged / {Proposed.Selection.Residency} controls model memory only; each capture owns and releases its microphone and stream. No additional model assets are selected. ")
         + Environment.NewLine
         + "Confirm stops and physically joins owned capture, transcription and runtime cleanup before saving and publishing the next immutable generation. "
         + "It never downloads assets, enables listening, opens capture, changes consent or selects hosted audio. "

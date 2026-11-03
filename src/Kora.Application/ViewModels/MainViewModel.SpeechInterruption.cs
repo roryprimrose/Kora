@@ -76,6 +76,7 @@ public sealed partial class MainViewModel
                 return;
             }
             speechInterruptionActive = true;
+            NotifyDetailPresentationAvailability();
             playback.Interrupted = true;
             RetireResponseReadPlayback();
             RetireSpeechCaption();
@@ -106,6 +107,7 @@ public sealed partial class MainViewModel
         finally
         {
             speechInterruptionActive = false;
+            NotifyDetailPresentationAvailability();
             NotifyResponseReadChanged();
         }
     }

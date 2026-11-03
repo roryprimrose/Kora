@@ -276,7 +276,15 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<SessionInstructionScopeCommandService>(),
                 Services.GetRequiredService<SessionInstructionScopeBroker>(),
                 Services.GetRequiredService<Kora.Application.Dependencies.VerifiedLocalHandoffOperation>(),
-                Services.GetRequiredService<SessionRetentionApplyService>());
+                Services.GetRequiredService<SessionRetentionApplyService>(),
+                new ExactAnswerExportWindowController(
+                    new Kora.Windows.Presentation.WindowsExactAnswerExportWriter(
+                        Services.GetRequiredService<Kora.Core.Dependencies.IApplicationDataPaths>(),
+                        Services.GetRequiredService<ILogger<Kora.Windows.Presentation.WindowsExactAnswerExportWriter>>()),
+                    Services.GetRequiredService<Kora.Core.Auditing.ISecurityAuditLog>(),
+                    Services.GetRequiredService<ILogger<Kora.Application.Presentation.ExactAnswerExportReview>>(),
+                    ExactAnswerExportWindowController.SelectDestinationAsync),
+                Services.GetRequiredService<Kora.Application.Configuration.DetailPresentationConfigurationService>());
             sessionsWindow.Bind();
             sessionsWindow.CreateInteraction = (state, owner) =>
                 responseWindow.PrepareSessions(state, owner, sessionsWindow.Open,
@@ -331,6 +339,8 @@ public sealed partial class App : Avalonia.Application
             viewModel.BindRemainingWork(Services.GetRequiredService<SessionRemainingWorkCommandService>(),
                 Services.GetRequiredService<SessionConversationService>());
             viewModel.BindSpeechSummarySuggestions(Services.GetRequiredService<SessionConversationService>(),
+                Services.GetRequiredService<TimeProvider>());
+            viewModel.BindResponseReadPlanner(Services.GetRequiredService<Kora.Core.Dependencies.IModelContextRunner>(),
                 Services.GetRequiredService<TimeProvider>());
             viewModel.BindSessionProviderProfiles(Services.GetRequiredService<Kora.Application.Configuration.SessionProviderProfileConfigurationService>());
             viewModel.BindMemoryCommands(memories);

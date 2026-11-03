@@ -48,6 +48,19 @@ An admitted result retains the question and genuine ASSISTANT answer in the same
 
 The [shared local-use risk policy](privacy-safety-and-logs.md#reviewed-local-source-use-risk-admission) screens the whole retained source, question and excerpts. Content remains private LocalOnly, not proven non-sensitive; detected risks are refused without an override. Unqualified runtimes remain unavailable; no generation or provider qualification is enabled by these controls. Cancellation clears pending review; late results cannot be published as success. If retention/commit is unconfirmed, inspect exact conversation/task receipts without repeating the turn. Close/privacy retirement clears private source-review controls ([native lifecycle](../src/Kora/LocalFilePreviewWindow.AttachmentAnswer.cs), [execution fences](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
 
+## Export one exact retained answer
+
+In the conversation, choose **Export exact answer...** on the particular retained final ASSISTANT answer. Select a **new** local `.txt`, `.md` or `.markdown` destination.
+This action is separate from **Context submitted for this answer** in the primary conversation pane, compact view and Sessions: inspecting historical metadata does not select export content or confirm a write.
+Review the complete original answer, conversation/result identity, exact destination, UTF-8/no-BOM format and retention warning. Separately choose **Confirm this one new-file export** ([native review](../src/Kora/ExactAnswerExportWindow.cs)).
+
+Opening Details, choosing a destination or cancelling does not authorize a write. Existing files are refused, not overwritten. Confirmed success means the complete original text was saved unchanged and its exact bytes read back after durable flush. The file is not opened automatically.
+On an uncertain result, inspect the chosen destination before any fresh review; Kora does not retry automatically
+([export owner](../src/Kora.Application/Presentation/ExactAnswerExportReview.cs), [native writer](../src/Kora.Windows/Presentation/WindowsExactAnswerExportWriter.cs)).
+
+The saved file is outside Kora's retention and may be copied, backed up or synced by the chosen location. Deleting the conversation or Kora data does **not** delete exports or those copies.
+There is no whole-conversation, original USER, HOST/audit, provisional-answer or arbitrary-source export in this action ([scope and retention](../Design/Information_Display.md#explicit-exact-retained-answer-file-export)).
+
 ## Response modes
 
 Kora supports three response modes:
@@ -109,6 +122,8 @@ The [integrated pane](windows-and-tray.md#details-beside-the-conversation)
 keeps the composer visible while reading either source. Provider/runtime readiness
 remains independent: these presentation controls do not enable a model.
 
+The [detail-offer preference](settings.md#detailed-result-offers) adds a reviewed **Link only** choice for future publications. It suppresses only existing host proactive cues, retaining the exact manual links/commands and all source/privacy rules. Returning to **Offer** does not replay past offers/content/speech; automatic opening and new hands-free questions remain out of scope ([owner](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs)).
+
 ### Reading headings and final tables
 
 In rendered Markdown **Details**, use **Go to heading** buttons for local
@@ -128,6 +143,19 @@ literal Find behavior. No table action copies content or grants clipboard
 access. Closing or retiring the original result retires its navigation too.
 An unavailable table profile still shows the complete source, not an incomplete
 table; these controls do not enable an unqualified profile.
+
+### Wrap or horizontally scroll Details text
+
+In plain-text Details, **Continuous text**, **Exact source** or a labelled source
+fallback, clear **Wrap reader text** to inspect long aligned lines using horizontal
+scrolling. Check it again to fit the reader width. Tab to the checkbox and press
+Space, or use its native toggle automation. Structured Markdown and its separate
+code-block wrapping are unchanged.
+
+This is a view-only choice, not a saved setting. Text, selection and literal Find
+stay unchanged. Closing or losing source/private access clears the reader; reopen
+the exact source normally to recover, with wrapping on by default. Wrapping grants
+no copy permission and reads no additional source.
 
 ### Review a final-answer external link
 

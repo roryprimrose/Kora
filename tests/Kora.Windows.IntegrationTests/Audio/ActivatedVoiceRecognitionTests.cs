@@ -1160,6 +1160,14 @@ public sealed partial class ActivatedVoiceRecognitionTests(
         public MicrophoneDevice? SelectedMicrophone { get; private set; }
         public IReadOnlyList<string> Phrases { get; private set; } = [];
         public TimeSpan SpeechStartWindow { get; private set; }
+        public TimeSpan TrailingSilence { get; private set; }
+        public Task<IActivatedCapture> OpenAsync(MicrophoneDevice microphone, IReadOnlyList<string> phrases,
+            BlockingAudioStream stream, Func<bool> canOpen, TimeSpan speechStartWindow, TimeSpan trailingSilence, SpeechInputGeneration profile)
+        {
+            if (SpeechInputProfileCatalogue.UnavailableReason(profile.Selection) is { } reason) { throw new InvalidOperationException(reason); }
+            TrailingSilence = trailingSilence;
+            return OpenAsync(microphone, phrases, stream, canOpen, speechStartWindow);
+        }
         public Task<IActivatedCapture> OpenAsync(MicrophoneDevice microphone, IReadOnlyList<string> phrases,
             BlockingAudioStream stream, Func<bool> canOpen, TimeSpan speechStartWindow)
         {

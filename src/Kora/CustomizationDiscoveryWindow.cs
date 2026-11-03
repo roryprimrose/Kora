@@ -18,7 +18,7 @@ internal sealed class CustomizationDiscoveryWindow : Window
     internal TextBlock Status { get; } = new() { TextWrapping = Avalonia.Media.TextWrapping.Wrap };
     internal Button Confirm { get; } = new() { Content = "Share only this reviewed metadata for ONE local answer", IsEnabled = false };
     internal CheckBox ProposeAgent { get; } = new() { Content = "Ask for one agent recommendation (never invocation consent)" };
-    internal Button ReviewAgent { get; } = new() { Content = "Review proposed agent in its original conversation", IsEnabled = false };
+    internal Button ReviewAgent { get; } = new() { Content = "Review customization recommendation", IsEnabled = false };
 
     internal CustomizationDiscoveryWindow(Action<string> run)
     {

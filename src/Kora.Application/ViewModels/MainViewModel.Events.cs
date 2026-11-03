@@ -14,7 +14,7 @@ public sealed partial class MainViewModel
     {
         if (localEvents is not null) { throw new InvalidOperationException("Local events are already bound."); }
         localEvents = broker;
-        completionNotices = new(broker, communicationPolicy, textToSpeech, securityAuditLog, logger);
+        completionNotices = new(broker, communicationPolicy, textToSpeech, securityAuditLog, logger, quietHours);
         PropertyChanged += CompletionNoticeHostChanged;
     }
 

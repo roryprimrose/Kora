@@ -1,6 +1,3 @@
-using System.Speech.AudioFormat;
-using System.Speech.Recognition;
-
 using Kora.Core.Voice;
 
 using NAudio.CoreAudioApi;
@@ -10,6 +7,31 @@ namespace Kora.Windows.Audio;
 
 internal sealed class WindowsActivatedCaptureFactory : IActivatedCaptureFactory
 {
+    private readonly IWindowsActivatedNativeFactory native;
+    private readonly WindowsRecognizerResidency residency;
+    private IWindowsActivatedMicrophone? quarantinedMicrophone;
+
+    public WindowsActivatedCaptureFactory() : this(new WindowsActivatedNativeFactory()) { }
+
+    internal WindowsActivatedCaptureFactory(IWindowsActivatedNativeFactory native)
+    {
+        this.native = native;
+        residency = new(native);
+    }
+
+    public bool IsAvailable => residency.IsAvailable && Volatile.Read(ref quarantinedMicrophone) is null;
+    public bool IsQuiescent => residency.IsQuiescent;
+    public Task RetireAsync() => residency.RetireAsync();
+
+    public string? GetUnavailableReason(SpeechInputSelection selection)
+    {
+        selection.Validate();
+        return selection.ProfileId is SpeechInputProfileCatalogue.WindowsProfileId
+            && selection.Resource == SpeechInputResource.WindowsManaged
+            && selection.Residency == SpeechInputResidency.KeepLoaded && native.IsKeepLoadedQualified
+            ? null : SpeechInputProfileCatalogue.UnavailableReason(selection);
+    }
+
     public Task<IActivatedCapture> OpenAsync(
         MicrophoneDevice microphone,
         IReadOnlyList<string> phrases,
@@ -17,71 +39,72 @@ internal sealed class WindowsActivatedCaptureFactory : IActivatedCaptureFactory
         Func<bool> canOpen) =>
         OpenAsync(microphone, phrases, stream, canOpen, VoiceCaptureLimits.Default.EmptySpeechDeadline);
 
+    public Task<IActivatedCapture> OpenAsync(MicrophoneDevice microphone,
+        IReadOnlyList<string> phrases, BlockingAudioStream stream, Func<bool> canOpen, TimeSpan speechStartWindow) =>
+        OpenAsync(microphone, phrases, stream, canOpen, speechStartWindow, new(0, SpeechInputSelection.Default));
+
+    public Task<IActivatedCapture> OpenAsync(MicrophoneDevice microphone,
+        IReadOnlyList<string> phrases, BlockingAudioStream stream, Func<bool> canOpen, TimeSpan speechStartWindow,
+        SpeechInputGeneration profile) =>
+        OpenAsync(microphone, phrases, stream, canOpen, speechStartWindow, VoiceCaptureTiming.Default.TrailingSilence, profile);
+
     public async Task<IActivatedCapture> OpenAsync(MicrophoneDevice microphone,
-        IReadOnlyList<string> phrases, BlockingAudioStream stream, Func<bool> canOpen, TimeSpan speechStartWindow)
+        IReadOnlyList<string> phrases, BlockingAudioStream stream, Func<bool> canOpen,
+        TimeSpan speechStartWindow, TimeSpan trailingSilence, SpeechInputGeneration profile)
     {
-        MMDevice? endpoint = null;
-        SpeechRecognitionEngine? recognizer = null;
-        WasapiRecorder? recorder = null;
+        if (GetUnavailableReason(profile.Selection) is { } reason) { throw new InvalidOperationException(reason); }
+        native.RequireEligible(microphone);
+        if (!canOpen()) { throw new OperationCanceledException("Capture admission was retired before model acquisition."); }
+        var lease = await residency.AcquireAsync(profile, phrases, speechStartWindow, trailingSilence, canOpen).ConfigureAwait(false);
+        IWindowsActivatedMicrophone? recorder = null;
         try
         {
-            WindowsCapturePrivacyGate.RequireEligible(microphone);
-            recognizer = CreateRecognizer(phrases, stream, speechStartWindow);
-            (recorder, endpoint) = await OpenMicrophoneAsync(microphone, canOpen);
-            return new WindowsActivatedCapture(recognizer, recorder, endpoint, microphone, canOpen);
+            lease.Recognizer.BindInput(stream);
+            recorder = await native.OpenMicrophoneAsync(microphone, canOpen).ConfigureAwait(false);
+            if (!canOpen()) { throw new OperationCanceledException("Capture admission changed during microphone open."); }
+            return new WindowsActivatedCapture(lease, recorder, stream, () => native.RequireEligible(microphone), canOpen);
         }
-        catch
+        catch (Exception exception) when (exception is not OutOfMemoryException)
         {
+            lease.Quarantine(exception);
+            stream.ClearAndComplete();
             try
             {
-                if (recorder is not null) { await recorder.DisposeAsync(); }
+                if (recorder is not null)
+                {
+                    Volatile.Write(ref quarantinedMicrophone, recorder);
+                    await recorder.DisposeAsync().ConfigureAwait(false);
+                    Volatile.Write(ref quarantinedMicrophone, null);
+                }
             }
             finally
             {
-                recognizer?.Dispose();
-                endpoint?.Dispose();
+                await lease.Recognizer.ResetAsync().ConfigureAwait(false);
+                await stream.DisposeAsync().ConfigureAwait(false);
+                await lease.DiscardAsync().ConfigureAwait(false);
             }
             throw;
         }
     }
 
-    internal static IActivatedCapture OpenCommand(
-        MicrophoneDevice microphone, IReadOnlyList<string> phrases, BlockingAudioStream stream, Func<bool> canOpen)
+    internal static async Task<IActivatedCapture> OpenCommandAsync(
+        MicrophoneDevice microphone, IReadOnlyList<string> phrases, BlockingAudioStream stream, Func<bool> canOpen,
+        VoiceCaptureTiming timing)
     {
         if (!canOpen()) { throw new OperationCanceledException("Command audio admission was retired."); }
-        var recognizer = CreateRecognizer(phrases, stream, VoiceCaptureLimits.Default.EmptySpeechDeadline);
-        return new WindowsActivatedCapture(recognizer, null, null, microphone, canOpen);
-    }
-
-    private static SpeechRecognitionEngine CreateRecognizer(
-        IReadOnlyList<string> phrases, BlockingAudioStream stream, TimeSpan speechStartWindow)
-    {
-        var info = SpeechRecognitionEngine.InstalledRecognizers().FirstOrDefault(candidate =>
-            string.Equals(candidate.Culture.TwoLetterISOLanguageName, "en", StringComparison.Ordinal))
-            ?? throw new InvalidOperationException("No English Windows speech recognizer is installed.");
-        var recognizer = new SpeechRecognitionEngine(info.Id)
-        {
-            InitialSilenceTimeout = speechStartWindow,
-            EndSilenceTimeout = TimeSpan.FromSeconds(1),
-            EndSilenceTimeoutAmbiguous = TimeSpan.FromSeconds(1),
-        };
+        timing.Validate();
+        var commandNative = new WindowsActivatedNativeFactory();
+        commandNative.RequireEligible(microphone);
+        var recognizer = commandNative.CreateRecognizer(phrases, timing.CommandStart, timing.TrailingSilence);
         try
         {
-            if (phrases.Count != 0)
-            {
-                var grammar = new GrammarBuilder { Culture = info.Culture };
-                grammar.Append(new Choices(phrases.ToArray()));
-                recognizer.LoadGrammar(new Grammar(grammar));
-            }
-            // General transcription is admitted only after explicit or exact wake activation.
-            recognizer.LoadGrammar(new DictationGrammar());
-            recognizer.SetInputToAudioStream(stream,
-                new SpeechAudioFormatInfo(EncodingFormat.Pcm, 16000, 16, 1, 32000, 2, null));
-            return recognizer;
+            recognizer.BindInput(stream);
+            return new WindowsActivatedCapture(new(recognizer, null), null, stream,
+                () => commandNative.RequireEligible(microphone), canOpen);
         }
         catch
         {
-            recognizer.Dispose();
+            await recognizer.DisposeAsync().ConfigureAwait(false);
             throw;
         }
     }

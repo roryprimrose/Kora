@@ -25,16 +25,33 @@ public sealed partial class MainViewModel
     public IReadOnlyList<SpeechInputResource> SpeechInputResources =>
         SpeechInputProfiles.Any(profile => profile.Id is SpeechInputProfileCatalogue.NativeWakeProfileId)
             ? [SpeechInputResource.WindowsManaged, SpeechInputResource.Cpu] : [SpeechInputResource.WindowsManaged];
-    public IReadOnlyList<SpeechInputResidency> SpeechInputResidencies { get; } = [SpeechInputResidency.CaptureLifetime];
+    public IReadOnlyList<SpeechInputResidency> SpeechInputResidencies =>
+        speechInputConfiguration is { } service && SelectedSpeechInputProfile is { } profile
+            ? service.GetResidencies(profile.Id, SelectedSpeechInputResource)
+            : [SpeechInputResidency.CaptureLifetime];
     public SpeechInputProfile? SelectedSpeechInputProfile
     {
         get => selectedSpeechInputProfile;
-        set { if (SetProperty(ref selectedSpeechInputProfile, value)) { Volatile.Read(ref pendingSpeechInputReview)?.Completion.TrySetResult(false); } }
+        set
+        {
+            if (SetProperty(ref selectedSpeechInputProfile, value))
+            {
+                Volatile.Read(ref pendingSpeechInputReview)?.Completion.TrySetResult(false);
+                OnPropertyChanged(nameof(SpeechInputResidencies));
+            }
+        }
     }
     public SpeechInputResource SelectedSpeechInputResource
     {
         get => selectedSpeechInputResource;
-        set { if (SetProperty(ref selectedSpeechInputResource, value)) { Volatile.Read(ref pendingSpeechInputReview)?.Completion.TrySetResult(false); } }
+        set
+        {
+            if (SetProperty(ref selectedSpeechInputResource, value))
+            {
+                Volatile.Read(ref pendingSpeechInputReview)?.Completion.TrySetResult(false);
+                OnPropertyChanged(nameof(SpeechInputResidencies));
+            }
+        }
     }
     public SpeechInputResidency SelectedSpeechInputResidency
     {
@@ -59,6 +76,7 @@ public sealed partial class MainViewModel
         Volatile.Read(ref pendingSpeechInputReview)?.Completion.TrySetResult(false);
         speechInputNativeLifetime = lifetime;
         OnPropertyChanged(nameof(CanChangeSpeechInputNative));
+        NotifyVoiceTiming();
     }
 
     private void InitializeSpeechInputConfiguration(SpeechInputConfigurationService? service, Func<Func<Task>, AsyncCommand> createCommand)

@@ -17,6 +17,16 @@ const WINDOWS_12_JOBS = Object.freeze([...SPLIT_JOBS, 'Build exact-source Window
     'ui-conversation-core', 'ui-conversation-actions', 'native-ux', 'ui-platform', 'ui-editors',
     'ui-workflows', 'ui-presentation'].map(partition => `Windows test partition (${partition})`),
 ]);
+// Only reviewed immutable execution gates can establish that an unexpanded matrix did no work.
+const REJECTED_ADMISSION_BLOBS = Object.freeze(['97e22a8f88bcdc9bbaef32cf9e7200dd6e5c43cd']);
+const REJECTED_ADMISSION_JOBS = Object.freeze([
+  ...WINDOWS_12_JOBS.filter(name => !name.startsWith('Windows test partition (')),
+  'Windows test partition (${{ matrix.partition }})', 'Queue policy feedback',
+  'Compare native fixture evidence', 'Compare portable test scheduling',
+  'Publish GitHub release', 'Publish completed batch release', 'Qualify completed batch tip',
+]);
+const REJECTION_AGGREGATES = Object.freeze([CHECKS[0], CHECKS[1],
+  ...JOBS.filter(name => name.startsWith('Windows integration shard ('))]);
 // Unversioned workflows are recognized only by their exact trusted Contents API blob identity.
 const PREDECESSOR_WORKFLOWS = Object.freeze({
   '854e26b112e57ff003daedb0c6a2183e7355ff54': JOBS,
@@ -53,11 +63,14 @@ function mode(value) {
 function controllerOperation(inputs) {
   invariant(inputs && typeof inputs === 'object' && !Array.isArray(inputs), 'Invalid controller inputs.');
   const operation = inputs.operation ?? 'reconcile';
-  invariant(['reconcile', 'recover-unobservable-dispatch'].includes(operation), 'Unknown controller operation.');
+  invariant(['reconcile', 'recover-unobservable-dispatch', 'migrate-batch-v1', 'rollback-batch-v1',
+    'repair-batch', 'resume-batch'].includes(operation), 'Unknown controller operation.');
   invariant(inputs.acknowledge_uncertain_dispatch === undefined
     || typeof inputs.acknowledge_uncertain_dispatch === 'boolean', 'Invalid recovery acknowledgement.');
   if (operation === 'reconcile') {
-    invariant(!inputs.recovery_checkpoint && !inputs.recovery_ticket && inputs.acknowledge_uncertain_dispatch !== true,
+    invariant(!inputs.recovery_checkpoint && !inputs.recovery_ticket && !inputs.recovery_main
+      && inputs.acknowledge_uncertain_dispatch !== true
+      && inputs.acknowledge_batch_change !== true,
       'Recovery inputs require the explicit recovery operation.');
   }
   return operation;
@@ -65,7 +78,7 @@ function controllerOperation(inputs) {
 
 function execution({ modeValue, eventName, ref, sha, inputs }) {
   const enabled = mode(modeValue);
-  const candidate = ['queue_pr', 'queue_head', 'queue_base', 'queue_ticket'].some(key => inputs[key]);
+  const candidate = ['queue_pr', 'queue_head', 'queue_base', 'queue_ticket', 'queue_batch'].some(key => inputs[key]);
   if (candidate) invariant(enabled && eventName === 'workflow_dispatch' && ref === 'refs/heads/main',
     'Candidate dispatch requires the enabled queue on trusted main.');
   const comparison = eventName === 'workflow_dispatch'
@@ -76,7 +89,7 @@ function execution({ modeValue, eventName, ref, sha, inputs }) {
 }
 
 function validateState(state) {
-  invariant(state?.version === 1 && Array.isArray(state.blocked), 'Invalid merge queue state version.');
+  invariant([1, 2].includes(state?.version) && Array.isArray(state.blocked), 'Invalid merge queue state version.');
   invariant(state.blocked.length <= 1000, 'Merge queue blocked revision limit exceeded.');
   for (const item of state.blocked) {
     invariant(Number.isSafeInteger(item.number) && item.number > 0 && SHA.test(item.head)
@@ -84,6 +97,11 @@ function validateState(state) {
       && typeof item.reason === 'string', 'Invalid blocked revision.');
   }
   const active = state.active;
+  if (state.version === 2) {
+    require('./batch-policy.cjs').validateBatchState(state);
+    return state;
+  }
+  invariant(state.profile === undefined || state.profile === 'singleton-v1', 'Unknown legacy queue state profile.');
   if (active !== null) {
     invariant(active && Number.isSafeInteger(active.number) && active.number > 0
       && SHA.test(active.head) && SHA.test(active.base) && TICKET.test(active.ticket)
@@ -145,6 +163,7 @@ function priority(pr) {
 }
 
 function title(active) {
+  if (active.kind === 'batch') return `Merge queue batch [${active.ticket}]`;
   return `Merge queue PR #${active.number} [${active.ticket}]`;
 }
 
@@ -183,11 +202,28 @@ function terminalJobs(jobs, expected = JOBS) {
     && jobs.every(job => jobOutcome(job) !== 'pending');
 }
 
+function terminalRejectedAdmission(run, jobs, blob) {
+  if (!run || !Number.isSafeInteger(run.id) || run.id <= 0
+    || !REJECTED_ADMISSION_BLOBS.includes(blob) || run.status !== 'completed'
+    || run.conclusion !== 'failure' || run.event !== 'workflow_dispatch' || run.head_branch !== 'main'
+    || run.run_attempt !== 1 || typeof run.head_sha !== 'string' || !SHA.test(run.head_sha) || !Array.isArray(jobs)
+    || !jobs.every(job => job && typeof job === 'object')
+    || jobs.length !== REJECTED_ADMISSION_JOBS.length
+    || !REJECTED_ADMISSION_JOBS.every(name => jobs.filter(job => job.name === name).length === 1)
+    || new Set(jobs.map(job => job.id)).size !== jobs.length) return false;
+  return jobs.every(job => Number.isSafeInteger(job.id) && job.id > 0 && job.run_id === run.id
+    && job.run_attempt === 1 && job.head_sha === run.head_sha && jobOutcome(job) === 'failure'
+    && (job.name === 'Admit CI execution' ? job.conclusion === 'failure'
+      : REJECTION_AGGREGATES.includes(job.name)
+        ? ['failure', 'cancelled', 'skipped'].includes(job.conclusion) : job.conclusion === 'skipped'));
+}
+
 function successfulJobs(jobs, expected = JOBS) {
   return requiredJobsState(jobs, expected) === 'success';
 }
 
 module.exports = { CHECKS, GATE, JOBS, SPLIT_JOBS, WINDOWS_12_JOBS, PREDECESSOR_WORKFLOWS, workflowJobs,
+  REJECTED_ADMISSION_JOBS, terminalRejectedAdmission,
   STATE_BRANCH, SHA, TICKET, MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS,
   DISPATCH_OBSERVATION_MS, invariant, mode, controllerOperation, execution,
   validateState, ready, readinessIssue, priority, title, matchingRuns, requiredJobsState, terminalJobs, successfulJobs };

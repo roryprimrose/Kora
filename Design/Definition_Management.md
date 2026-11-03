@@ -83,6 +83,8 @@ actions, approval rules, executable implementations, or privileged system
 policy. Agent profiles cannot widen host limits, create grants, automatically
 delegate, or select an unapproved destination.
 
+The admitted metadata-only agent recommendation is an inert proposal, not source selection or task input. **Review customization recommendation** requires a deliberate current source-qualified native choice, a NEW original-user task, separate source-read consent and complete profile/input/scope review before the existing one-use confirmation. Same-name candidates are not collapsed; the discovery question/channel remain provenance only. This consumes only the existing bounded local v1 tools-none/references-none agent workflow, not a new model catalogue, source writer, activation or runtime profile ([complete operation](../docs/customizations.md#review-and-run-one-model-recommended-local-agent), [native owner](../src/Kora/AgentRunController.ModelProposal.cs)).
+
 Keep kind explicit in the common descriptor and apply kind-specific validation
 and context roles. A prompt expands into clearly separated user-request
 content with bounded explicit parameters; instructions are untrusted guidance,
@@ -126,6 +128,25 @@ Deterministic genuine fake-provider/native tests prove the full operation and fo
 not provider enablement or native/acoustic RC qualification
 ([full-operation regressions](../tests/Kora.Windows.IntegrationTests/AgentProfileConversationalAuthoringTests.cs),
 [user operation](../docs/agent-profile-authoring.md#describe-and-review-a-new-tool-free-agent)).
+
+### Manual owned observation-only agent authoring (v1)
+
+The existing native owned-agent editor accepts the canonical reference-free v1
+format with either no tools/zero calls or a distinct subset of the six original
+read-only observation IDs and a positive call budget. It reuses
+`BoundedAgentProfile` validation and host clamps; there is no second tool
+catalogue or artificial instruction dependency. Complete source/destination
+review and separate native Save confirmation create or update only an inert
+owned original, with durable readback and the existing conflict/uncertainty
+recovery. Typed/current-name activated-voice source entry retains original
+channel authority; filesystem confirmation remains native-only.
+
+Conversational generation/refinement remains tool-free v1 and rejects an
+observation-capable manual draft before disclosure or inference. Save does not
+register, enable, select or run an agent, grant tools, or relax protected-source
+inspection. Later compatible-source review and exact single-use invocation
+retain the canonical local permissioned tool loop, retained answer/unavailable
+terminal and joined cancellation. See the [complete manual operation](../docs/agent-profile-authoring.md#manual-source-and-separate-save).
 
 ### Bounded local agent owned-instruction references (v2)
 
@@ -887,6 +908,16 @@ Embedded definitions change only with a verified application replacement.
    set for the task/clarification; queued work retains exact revisions and
    requires review or re-admission if stale, never an automatic version switch.
 
+The native session-instruction choice retains its exact observed catalogue
+entry through source review, rather than resolving its readable name again.
+A replaced, removed or unavailable selection is refused before a replacement
+source read. Explicit Refresh/reselection and complete source review restore
+the operation; selection alone grants no read or applicability consent
+([native owner](../src/Kora/SessionInstructionScopeController.cs),
+[operation regressions](../tests/Kora.Windows.IntegrationTests/SessionInstructionScopeUiTests.cs)).
+Original typed/activated commands retain their existing unambiguous current-name
+lookup and separate confirmation; neither route silently confirms new bytes.
+
 Active tasks retain their admitted immutable definition set; reload cannot
 inject new guidance mid-task. Access/consent revocation, required resource
 loss, or grant invalidation still applies at each action/egress boundary and
@@ -948,7 +979,7 @@ behavior; unsupported scope/metadata cannot be implicitly repaired in place.
 Header editing is bounded to 16 fields/4096 UTF-8 bytes. The separately reviewed
 [owned Instruction rename](../docs/instruction-editor.md#rename-one-owned-instruction)
 adds only `instructions rename <new-id>` / `instructions recover-rename` and the
-same native controls. Restore, prompt/profile-original rename, other profile
+same native controls. General revision history, prompt/profile-original rename, other profile
 mutations, executable content and agent runtime remain absent.
 
 #### Bounded recoverable owned Instruction rename
@@ -1011,6 +1042,18 @@ still apply. Exact requested/terminal audit records contain only content-free
 operation hashes and truthful failed/cancelled/unknown/succeeded outcomes
 ([reconciliation](../src/Kora/ArtifactCatalogueReloadService.cs),
 [complete editor fixtures](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Rename.cs)).
+
+**Restore previous saved content** completes one bounded same-source owned native-v1 Instruction restoration.
+Only a changed normal Save with known terminal audit, native readback and coherent catalogue reconciliation retains one prior complete source in the same private editor/run.
+The host retains that prior snapshot as data, never current read/use authority; creation, unchanged Save, legacy upgrade, conflict Reload and unknown completion do not establish this restore point ([editor owner](../src/Kora/OwnedInstructionEditorController.Restore.cs)).
+The user reviews complete CURRENT saved source against exact PREVIOUS source, with UTF-8/BOM, metadata, attribution, line endings and digests disclosed, then separately confirms the existing normal Save writer.
+It creates and reads back a NEW disabled revision, even when its bytes match a formerly enabled revision. No prior review epoch, activation, grants or reference binding returns ([restore action](../src/Kora.Application/Definitions/OwnedInstructionEditorActions.Restore.cs)).
+Current native identity/digest/root and source observation, proposal compatibility/namespace and original input/channel/session/control/private/owner/call/expiry gates are revalidated before preview, confirmation and publication.
+Detected external change, rename, deletion, access loss or observed ABA retires the plan; this route never offers historical conflict overwrite or retries.
+Rename and its recovery do not carry the prior Save snapshot to the new identity. Only a subsequent confirmed changed normal Save on that new source can establish a new same-source restore point.
+It retains the existing accepted optimistic final comparison/native-publication window, not CAS or detection of unobserved intervening writes ([writer](../src/Kora.Windows/ArtifactDiscovery/WindowsOwnedDefinitionFileAccess.cs)).
+Dirty-draft Save/Discard/Cancel is independent. A dirty Save completes separately and requires choosing Restore again; no unsaved draft is silently discarded.
+Source/control retirement, private closure, window closure and disposal release the volatile prior snapshot. There is no disk archive, restore after restart, forensic RAM-erasure claim, profile-original writer or model/tool/network/audio effect ([user interaction](../docs/instruction-editor.md#restore-the-last-confirmed-save-in-this-editor), [native fixture regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Restore.cs)).
 
 **Open registered profile original** additionally selects only the exact existing personal native v1 instruction already registered/read-consented by the dedicated Customizations source owner. No source registration or new discovery is performed by this editor. The same source-preserving writer remains authoritative for identity, local owner/root/file binding, non-reparse admission, final optimistic comparison, atomic replacement and exact readback ([writer](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.InstructionOriginal.cs)).
 The complete source is opened in this instruction editor, with supported metadata/BOM/line endings retained. Validate/Compare are memory-only; Save requires a separate complete native old/new confirmation. Detected content conflicts offer Reload/Overwrite/Cancel, with a fresh complete confirmation for every overwrite and another decision after a further detected change. Registration replacement/withdrawal and original input/privacy/call/ownership retirement invalidate pending work. Changed revisions remain disabled and uncertain publication requires explicit registration review plus Reload/reconciliation ([workflow](../src/Kora.Application/Definitions/ProfileInstructionEditorWorkflow.cs), [native operation regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.ProfileOriginal.cs)).

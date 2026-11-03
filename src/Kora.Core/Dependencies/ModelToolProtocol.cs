@@ -27,7 +27,7 @@ public static partial class ModelToolProtocol
         if (context.Provenance != provenance)
         { throw new InvalidDataException("A context cannot be reused by another host turn."); }
         if (context.ToolMode is ModelToolMode.LocalWebPage or ModelToolMode.McpReadOnly or ModelToolMode.SessionDiscovery
-                or ModelToolMode.CustomizationDiscovery
+                or ModelToolMode.CustomizationDiscovery or ModelToolMode.SettingsDiscovery
             && provenance.Selection.Provider != ModelProviderIdentity.Ollama)
         { throw new InvalidDataException("The approved page and its results may only enter the original local model turn."); }
         if (profile is not null)

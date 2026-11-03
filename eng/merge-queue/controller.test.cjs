@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { reconcile } = require('./controller.cjs');
 const { CHECKS, GATE, JOBS, WINDOWS_12_JOBS, PREDECESSOR_WORKFLOWS, workflowJobs,
+  REJECTED_ADMISSION_JOBS, terminalRejectedAdmission,
   MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS,
   mode, validateState, ready, priority, title, requiredJobsState, terminalJobs, successfulJobs } = require('./policy.cjs');
 
@@ -60,6 +61,9 @@ class Fake {
     this.calls.push(['inventory', source]);
     return workflowJobs(this.workflowSource, this.workflowBlob);
   }
+  async rejectedAdmission(source, value, jobs) {
+    return value.head_sha === source && terminalRejectedAdmission(value, jobs, this.workflowBlob);
+  }
   async createCheck(value, name) { this.calls.push(['check', value.head, name]); return this.calls.length + 100; }
   async finishCheck(id, conclusion, message) { this.calls.push(['finish', id, conclusion, message]); }
   async dispatch(value) { this.calls.push(['dispatch', clone(value)]); }
@@ -77,10 +81,100 @@ const step = (api, options = {}) => reconcile(api, { now: NOW, ticket: TICKET, .
 const count = (api, action) => api.calls.filter(call => call[0] === action).length;
 const labels = (...names) => names.map(name => ({ name }));
 
+function rejectedAdmission() {
+  const api = new Fake();
+  api.workflowBlob = '97e22a8f88bcdc9bbaef32cf9e7200dd6e5c43cd';
+  api.state.active = active();
+  api.workflowRuns = [run({ conclusion: 'failure' })];
+  api.workflowJobs = REJECTED_ADMISSION_JOBS.map((name, index) => ({ id: index + 1, name,
+    status: 'completed', conclusion: name === 'Admit CI execution' ? 'failure' : 'skipped',
+    run_id: 9, run_attempt: 1, head_sha: BASE }));
+  return api;
+}
+
+test('a pinned first-attempt admission rejection retires without expanded matrix producers or merge proof', async () => {
+  for (const phase of ['dispatched', 'retiring']) {
+    const api = rejectedAdmission();
+    api.state.active.phase = phase;
+    if (phase === 'retiring') api.prs[0].mergeable = false;
+    assert.equal(terminalJobs(api.workflowJobs, WINDOWS_12_JOBS), false);
+    assert.equal(successfulJobs(api.workflowJobs, WINDOWS_12_JOBS), false);
+    assert.equal(await step(api), phase === 'retiring' ? 'retired' : 'blocked');
+    assert.equal(api.state.active, null);
+    assert.equal(count(api, 'cancel'), 0);
+    assert.equal(count(api, 'merge'), 0);
+    assert.equal(count(api, 'dispatch'), 0);
+    assert.equal(count(api, 'wake'), 1);
+    assert.ok(api.calls.filter(call => call[0] === 'finish').every(call => call[2] !== 'success'));
+    api.prs[0].auto_merge = null;
+    api.prs.push(pr(2));
+    assert.equal(await step(api), 'dispatched');
+    assert.equal(api.state.active.number, 2);
+    assert.equal(count(api, 'dispatch'), 1);
+  }
+});
+
+test('admission rejection is an exact terminal no-execution shape, never missing-job or cancellation inference', async () => {
+  const good = rejectedAdmission();
+  assert.equal(terminalRejectedAdmission(good.workflowRuns[0], good.workflowJobs, good.workflowBlob), true);
+  assert.equal(terminalRejectedAdmission(null, good.workflowJobs, good.workflowBlob), false);
+  assert.equal(terminalRejectedAdmission(good.workflowRuns[0], [null], good.workflowBlob), false);
+  for (const name of REJECTED_ADMISSION_JOBS) {
+    for (const change of ['missing', 'duplicate', 'running', 'unknown', 'success', 'source', 'attempt', 'run', 'id']) {
+      const api = rejectedAdmission();
+      const job = api.workflowJobs.find(value => value.name === name);
+      if (change === 'missing') api.workflowJobs = api.workflowJobs.filter(value => value !== job);
+      if (change === 'duplicate') api.workflowJobs.push({ ...job, id: 1000 });
+      if (change === 'running') job.status = 'in_progress';
+      if (change === 'unknown') job.conclusion = null;
+      if (change === 'success') job.conclusion = 'success';
+      if (change === 'source') job.head_sha = OTHER;
+      if (change === 'attempt') job.run_attempt = 2;
+      if (change === 'run') job.run_id = 10;
+      if (change === 'id') job.id = 0;
+      assert.equal(terminalRejectedAdmission(api.workflowRuns[0], api.workflowJobs, api.workflowBlob), false, `${name}/${change}`);
+    }
+  }
+  for (const change of ['blob', 'attempt', 'conclusion', 'status', 'event', 'branch', 'extra', 'expanded', 'duplicate-id', 'run-id', 'head-type']) {
+    const api = rejectedAdmission();
+    if (change === 'blob') api.workflowBlob = OTHER;
+    if (change === 'attempt') api.workflowRuns[0].run_attempt = 2;
+    if (change === 'conclusion') api.workflowRuns[0].conclusion = 'cancelled';
+    if (change === 'status') api.workflowRuns[0].status = 'in_progress';
+    if (change === 'event') api.workflowRuns[0].event = 'push';
+    if (change === 'branch') api.workflowRuns[0].head_branch = 'topic';
+    if (change === 'extra') api.workflowJobs.push({ ...api.workflowJobs[0], id: 1000, name: 'Unexpected job' });
+    if (change === 'expanded') api.workflowJobs.find(job => job.name.startsWith('Windows test partition (')).name =
+      'Windows test partition (native-ux)';
+    if (change === 'duplicate-id') api.workflowJobs[1].id = api.workflowJobs[0].id;
+    if (change === 'run-id') api.workflowRuns[0].id = '9';
+    if (change === 'head-type') api.workflowRuns[0].head_sha = [BASE];
+    assert.equal(terminalRejectedAdmission(api.workflowRuns[0], api.workflowJobs, api.workflowBlob), false, change);
+  }
+});
+
+test('rejected admission retirement is restart-safe and still joins every matching run', async () => {
+  const api = rejectedAdmission();
+  api.state.active.phase = 'retiring';
+  api.workflowJobs[0].status = 'in_progress';
+  assert.equal(await step(api), 'retiring');
+  assert.equal(api.state.active.ticket, TICKET);
+  assert.equal(count(api, 'wake'), 0);
+  api.workflowJobs[0].status = 'completed';
+  const second = run({ id: 10, conclusion: 'failure' });
+  api.workflowRuns.push(second);
+  await assert.rejects(step(api), /Candidate job source, run or attempt changed/);
+  assert.equal(api.state.active.ticket, TICKET);
+  api.workflowRuns.pop();
+  assert.equal(await step(api), 'retired');
+  assert.equal(api.state.active, null);
+  assert.equal(count(api, 'merge'), 0);
+});
+
 test('missing source-required producers cannot release failed, stale, merged or retiring lanes', async () => {
   const source = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8')
     .replaceAll('\r\n', '\n');
-  for (const workflow of [source, source.replace('# merge-queue-job-schema: windows-12-v1\n', '')]) {
+  for (const workflow of [source]) {
     const bytes = Buffer.from(workflow);
     const blob = createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
     assert.deepEqual(workflowJobs(workflow, blob), WINDOWS_12_JOBS);

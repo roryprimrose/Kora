@@ -63,6 +63,12 @@ directory restoration with fake commands; it never updates source or opens Kora.
 PR merge orchestration can run entirely on GitHub, without a local agent.
 See [GitHub-hosted merge admission](eng/merge-queue/README.md) for queue intent,
 failure/retry behaviour, the disabled-by-default rollout and administrator setup.
+The [dormant five-PR batch profile](eng/merge-queue/README.md#dormant-five-pr-batch-profile)
+is a separate versioned rollout. Default singleton admission, four required App
+checks and strict protection remain unchanged. Batch implementation tests use
+fake GitHub operations; they neither activate the profile nor replace complete
+candidate CI. Partial integration is release-blocked until verified recovery or
+actual-tip qualification/publication.
 
 Restore, build, and test with the pinned SDK and locked dependencies:
 
@@ -81,6 +87,30 @@ coverage across Core, Application, Tools and Definitions**, retaining reports
 even when the gate fails. Non-destructive Windows integration tests are not
 physical audio, provider or installed acceptance; CI must never lock or restart
 its runner.
+
+The [installed SAPI stream fixture](tests/Kora.Windows.IntegrationTests/Audio/BlockingAudioStreamTests.cs) owns recognizer construction through completion and disposal on a thread-pool task, independent of the caller's synchronization context. Its regression withholds caller-context callbacks while retaining the five-second completion budget, real stream-consumption assertion and error/cancellation checks.
+This fixture correction does not qualify installed recognizer latency or enable a runtime capability.
+
+The foreground push-to-talk headless contracts drive Avalonia's native activation
+callbacks explicitly instead of waiting for OS focus acknowledgement. They retain
+the foreground, consent, ownership and capture-quiescence assertions; this fixture
+evidence does not qualify physical keyboard or microphone behavior.
+
+The [voice-input composition fixture](tests/Kora.Windows.IntegrationTests/Audio/VoiceInputCompositionTests.cs) supplies in-memory preferences, audit and
+audio-control admission dependencies while resolving the production timing
+service and recognition aliases. Composition alone must not write preferences,
+emit configuration audit events, create control tasks or open audio. The [listening
+grammar regression](tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.cs) includes capture-timing phrases and their assistant-name
+variants without relaxing exact phrase-set equality.
+
+Sessions metadata regressions hold both Refresh and Next reads across viewer
+closure, including stores that complete despite cancellation. Late pages must
+not repopulate rows or publish content through change notifications, alter
+session lifecycle, or admit work.
+
+The [local-event retirement regressions](tests/Kora.Windows.IntegrationTests/LocalEventBrokerWindowTests.Filters.cs#L197) preserve the exact closed Sessions status across late notice cancellation and source failure, including sources that ignore cancellation.
+Open-viewer failures retain unavailable feedback; neither path restores event selection/detail or changes durable work, questions, retention, history or audit.
+The [native notice-response regression](tests/Kora.Windows.IntegrationTests/SessionsConversationTests.NoticeResponse.cs#L49) also preserves closed Sessions status when its owner closes during question focus admission, without answering, activating a presenter or restoring notice content.
 
 The [bundled computer-power regressions](tests/Kora.Windows.IntegrationTests/ApplicationLifecycle/SessionsConversationTests.BundledActions.cs)
 wait for enabled native question controls after the activation-triggered source
@@ -106,6 +136,14 @@ fixture repairs do not relax production authority or receipt checks.
 Await interleaving hooks outside the fixture lock, then run the original-source
 terminal guard and write together under the lock using that request-local pair.
 
+Conversation completion regressions must distinguish an explicitly admitted
+reader page from `ConversationUpdates`. With a nonempty admitted page, reviewed
+context completion preserves those messages and publishes the exact new retained
+request separately. Assert both surfaces and unchanged unrelated unsent input;
+only an explicit fresh read admits the completion into the reader page.
+For independently submitted work, await the completion's UI publication signal;
+joining the service receipt does not join its posted dispatcher notification.
+
 Run [Test-PortableTestScheduling.ps1](eng/Test-PortableTestScheduling.ps1) to check solution membership, main-build coverage, parallel scheduling, report isolation, and coverage-gate arguments without building or running test modules.
 
 For a controlled comparison, manually dispatch [CI](.github/workflows/ci.yml) with `compare_portable_tests=true`. Its opt-in job builds the main solution once, then runs [Compare-PortableTestScheduling.ps1](eng/Compare-PortableTestScheduling.ps1) in sequential/parallel/parallel/sequential order with identical coverage and reporting options. The artifact retains all four runs and their mean wall times.
@@ -119,6 +157,13 @@ cancellation notification and retain the observer through joined terminal
 completion. Later Cancelling publications are not additional injected failures;
 every accepted request still requires its physical join and terminal receipt,
 while the operation truthfully retains its partial/unconfirmed outcome.
+
+Submitted-conversation store fixtures keep immutable request-local receipts
+through acceptance, dispatch and completion callbacks. A shared observation
+cursor cannot select the record to commit: running and pending originals can
+complete concurrently during lifecycle confirmation. Controlled overlap cases
+require both exact terminal receipts and physical joins; uncertain readback
+still denies lifecycle confirmation and a fresh review.
 
 Speech-suggestion receipt-pin regressions explicitly join voice-consent
 withdrawal and capture closure in both notification orders. Assert the exact
@@ -258,6 +303,14 @@ The native MCP review/exchange fixture uses its existing frozen test timers:
 it verifies exact native approval, real fake-broker results and physical joins,
 not elapsed-time policy. Deadline regressions retain their explicit clock/timer
 boundaries; production model and transport deadlines are unchanged.
+The one-task output regressions separately verify `ProviderBusy` for another
+session while the unqualified shared runtime is held, and successful queued
+work followed by a fresh review after the exact terminal receipt and resource join.
+The native metadata-discovery success/source-edit fixture uses the shared frozen
+clock across admission, storage and model execution; production deadlines remain unchanged.
+The speech-suggestion receipt-pin consent race controls capture closure to cover
+both notification orders; its canonical receipt and consent-withdrawal checks
+are described above.
 Native stop-and-delete assertions await the exact cancellation-accepted event.
 Paging gestures await the existing Next readiness notification when passive
 work refresh is outstanding; draining dispatcher jobs does not join that I/O.
@@ -294,7 +347,17 @@ The stable phase allowlist is `native-ui`, `owned-storage`, `setup`, `context`,
 `join`, `evidence-flush` and `disposal`. `native-ui` measures the dispatched
 callback, not its queue wait; storage measures fixture construction, context
 measures task/interaction-store initialization, and setup measures the complete
-fixture initialization. Join and evidence flush measure the existing shutdown
+fixture initialization. The timed setup wrapper forwards the optional typed
+Details and conversation-execution configuration services to the core
+initializer unchanged; omitted services remain unavailable. The native settings
+regression covers all four composition combinations, independent review and
+confirmation, and terminal phase evidence without granting voice consent.
+Submitted-conversation completion joins terminal observers before signaling
+the worker result. Late-publication regressions defer native presentation with
+the existing dispatcher seam, not by blocking a terminal observer while
+awaiting that same worker. Keep both dismissal/reset cases and the exact
+new-publication, preference-write and forbidden-effect assertions.
+Join and evidence flush measure the existing shutdown
 owners inside disposal. These intervals can nest and must not be summed as
 exclusive CPU time. Repeated phases have distinct ordinal IDs.
 
@@ -348,6 +411,17 @@ runner to verify the exact shape, original identity and real headless output.
 - Preserve production deadlines; use existing fake clocks for non-deadline
   scenarios. Dispose asynchronous fixture owners and release held operations in
   `finally`. See the [microphone ownership regressions](tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.MicrophoneRefreshOwnership.cs).
+- Freeze the interaction-storage fixture's timers when holding fake provider
+  turns under its frozen clock. The [queued task-output regressions](tests/Kora.Windows.IntegrationTests/SessionsConversationTests.TaskResponseOutput.cs)
+  assert that no system timer is created, successful work joins, and original
+  expiry at and beyond 15 seconds still withholds pending output.
+  Legacy single-execution adapters cannot dispatch another session while the
+  original owns its resource. Hold that session's dispatch through exact worker
+  joins; keep explicit overlap coverage for the fail-closed `ProviderBusy` result.
+- The [pending-clear regressions](tests/Kora.Windows.IntegrationTests/SessionsConversationTests.PendingClear.cs)
+  also freeze timers for held fake work and await exact pending-control property
+  publication after refresh. An awaited storage read does not join a posted UI
+  snapshot; preserve manual-hold and per-original terminal assertions.
 - Queued task-output fixtures hold the provider reply, assert exact cross-session
   `ProviderBusy` refusal during overlap, and join the exact queued completion and
   provider quiescence before a fresh review. See the [native output cases](tests/Kora.Windows.IntegrationTests/SessionsConversationTests.TaskResponseOutput.cs).
@@ -359,7 +433,8 @@ runner to verify the exact shape, original identity and real headless output.
   authoritative task readback, and physical join. Terminal readback failure
   still prevents fresh lifecycle review.
 - Concurrent conversation expiry fixtures derive the message/task terminal pair
-  from the exact request-owned snapshot, not mutable last-observed fixture slots.
+  from the exact request-owned snapshot before any awaited callback, not mutable
+  last-observed fixture slots.
   A concurrent dictionary does not make shared selection/commit atomic; force
   interleaving deterministically and preserve each original's exact receipt.
   The [manual-release regressions](tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ManualDispatch.cs)
@@ -374,6 +449,12 @@ runner to verify the exact shape, original identity and real headless output.
   and [MCP missing-root fixture](tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsCustomizationStoreTests.Mcp.cs).
   Default directory ownership may differ on elevated runners; a changed-binding
   regression must establish the admitted owner before testing that boundary.
+- Missing-root customization fixtures create a unique private current-user-owned
+  ancestor, not the storage root itself. The [MCP preparation regression](tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsCustomizationStoreTests.Mcp.cs)
+  asserts that preparation leaves the ancestor empty and its security unchanged;
+  the [metadata fixtures](tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsCustomizationStoreTests.Metadata.cs)
+  explicitly protect their enumerated source directories. Reuse exclusive
+  restricted-directory creation; never repair an existing source's owner or ACL.
 - Reuse migration staging helpers; remove only empty later-version tables,
   never current authority records. Resolve a fresh admitted invocation for each
   grant use. Metadata-only reads must not create/edit files or publish journals.

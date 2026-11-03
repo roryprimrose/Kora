@@ -20,6 +20,10 @@ public sealed class ResponseReadUiContractTests
         read.Attribute("AutomationProperties.Name")!.Value.Should().Be("Read this current ordinary response aloud once");
         response.Descendants().Select(node => node.Attribute("Command")?.Value)
             .Should().Contain("{Binding StopSpeechCommand}", "owned playback must retain a native stop route");
+        var proposal = response.Descendants().Single(node =>
+            string.Equals(node.Attribute("IsVisible")?.Value, "{Binding HasResponseReadProposal}", StringComparison.Ordinal));
+        proposal.Descendants().Select(node => node.Attribute("Command")?.Value).Should().Contain(
+            ["{Binding PlanCurrentResponseReadCommand}", "{Binding ConfirmCurrentResponseReadCommand}", "{Binding CancelCurrentResponseReadCommand}"]);
         var code = File.ReadAllText(Path.Combine(root, "src", "Kora", "ResponseWindow.axaml.cs"));
         code.Should().Contain("viewModel.RetireCurrentResponseSpeech();");
         var questions = File.ReadAllText(Path.Combine(root, "src", "Kora", "QuestionWindowController.cs"));

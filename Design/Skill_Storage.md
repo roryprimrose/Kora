@@ -175,7 +175,10 @@ profile-relative root and pinned directory identity and binds the write to the
 complete observed registration revision. It removes only Kora's registration
 and owned catalogue/text/hex presentation snapshots; user-owned shared files are
 never written, deleted or repaired. Unrelated registrations retain their exact
-metadata and order. No enablement, execution, grant or model exposure changes.
+metadata and order. Withdrawal advances the host's shared-source consent revision
+before publication, retiring existing volatile shared-skill reviews, enablement
+and pending reference-read consent even if the write or terminal receipt is
+unconfirmed. It creates no execution, grant or model exposure authority.
 A missing original directory remains withdrawable using verified saved metadata
 without selecting or reading that directory again. Re-registering its path
 requires a fresh native folder selection and a **new host-issued source ID**;
@@ -285,6 +288,10 @@ recovery. The attempted source identity remains read-closed for the owning
 host lifetime even if an old registration is restored; refresh permits retrying
 withdrawal of saved metadata, not silently regranting that identity. A fresh
 native selection with a new source ID is required to read it again.
+New use also requires fresh declaration consent where applicable, complete
+review and separate enablement; neither restored metadata nor refresh revives
+an old review. An already-running reference capture remains owned until it
+joins and cannot publish a late review after withdrawal.
 Corrupt preferences cannot be reset, repaired or unregistered through
 this workflow. Privacy closure and window disposal cancel pending work and
 destroy native content views, including confirmation metadata.
@@ -339,7 +346,7 @@ and conservative reserved bytes confer no approval and are never sent.
 
 Invocation reuses the [canonical MCP route](../src/Kora.Application/Hosting/SessionConversationService.Mcp.cs): separate native connection/source/account review, independent selection from freshly discovered host-mapped read-only tools, exact schema review, then separate permission/egress approval of the outgoing arguments. The selected tool/schema must equal the declaration, and model-proposed arguments must equal the original reviewed JSON bytes. Skill text and server annotations cannot select substitutes or establish effect mappings ([exchange owner](../src/Kora.Application/Mcp/McpInvocation.cs)).
 
-The unchanged request and skill guidance enter structurally separate local-only evidence fields in the existing `McpReadOnly` turn. One bound tool exchange returns its actual bounded inert result to that original local continuation; the native review also binds exact skill lineage and the original argument digest. Source/privacy/channel/session/task/account/grant currentness remains mandatory across awaited work, dispatch, continuation and terminal readback. The six closed host observation tools and other MCP/skill consumers are unchanged ([context](../src/Kora.Core/Dependencies/ModelContextEnvelope.cs), [native binding](../src/Kora.Application/Mcp/McpReview.cs)).
+The unchanged request and skill guidance enter structurally separate local-only evidence fields in the existing `McpReadOnly` turn. After one bound exchange is joined, the host screens the complete result and separately reviews its exact Text/StructuredJson, provenance, original task/channel and retention before one local continuation. Invocation grants do not supply that result-use consent. Source/privacy/channel/session/task/account/grant currentness remains mandatory across awaited work, dispatch, continuation and terminal readback ([context](../src/Kora.Core/Dependencies/ModelContextEnvelope.cs), [native binding](../src/Kora.Application/Mcp/McpReview.cs)).
 
 The single-use [exchange owner](../src/Kora.Application/Mcp/McpInvocation.cs) joins its authenticated connection before releasing a successful result to any consumer, then revalidates the original source/session/grants. A pending or failed disposal cannot enter local continuation, publish the result or retain a successful answer; revocation and cancellation during that join remain fail-closed without another call.
 

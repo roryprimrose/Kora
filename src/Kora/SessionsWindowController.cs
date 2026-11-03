@@ -23,7 +23,9 @@ internal sealed partial class SessionsWindowController(
     SessionConversationService? conversation = null, ScopedInstructionUseBroker? instructionUse = null,
     SessionInstructionScopeCommandService? scopeCommands = null, SessionInstructionScopeBroker? scopeBroker = null,
     Kora.Application.Dependencies.VerifiedLocalHandoffOperation? localHandoff = null,
-    SessionRetentionApplyService? retentionApply = null) : IDisposable, ISessionDispositionReviewPresenter,
+    SessionRetentionApplyService? retentionApply = null,
+    ExactAnswerExportWindowController? answerExports = null,
+    Kora.Application.Configuration.DetailPresentationConfigurationService? detailPresentation = null) : IDisposable, ISessionDispositionReviewPresenter,
     ISessionQueueCancellationReviewPresenter
 {
     private SessionsWindow? window;
@@ -446,7 +448,17 @@ internal sealed partial class SessionsWindowController(
             reviewPlaybackVolumeSuggestion: main.ReviewPlaybackVolumeSuggestionAsync,
             confirmPlaybackVolumeSuggestion: (review, token) => main.ConfirmPlaybackVolumeSuggestionAsync(review, token),
             localHandoff: localHandoff, retentionApply: retentionApply);
+        if (detailPresentation is not null) { model.BindDetailPresentation(detailPresentation); }
         model.BindDictation(main.ComposerDictation);
+        model.ExportExactAnswer = async (source, admitted, resolve, token) =>
+        {
+            var control = access.ControlRevision;
+            bool Live() => !disposed && admitted() && access.CanInspect && access.CanControl
+                && access.ControlRevision == control && main.CanRevealPrivatePresentation;
+            if (!Live() || DetailOwner() is not { } owner || answerExports is null)
+            { throw new InvalidOperationException("The original private native exact-export surface is unavailable."); }
+            return await answerExports.ShowAsync(owner, source, Live, resolve, token);
+        };
         model.BindCompletionNotices(main);
         model.PropertyChanged += OnPermissionSourceChanged;
         model.InspectPermissionGrants = (target, admitted) =>

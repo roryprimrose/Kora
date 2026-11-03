@@ -1,14 +1,214 @@
 # GitHub-hosted merge admission
 
 Kora is a personal-account repository. GitHub's native Merge Queue is not
-available for this ownership model. This repository instead provides a bounded,
-single-candidate controller running entirely on GitHub-hosted Actions.
+available for this ownership model. This repository instead provides a bounded
+controller running entirely on GitHub-hosted Actions. Its default profile remains
+single-candidate; the separately administered batch profile below is dormant.
 It needs no local agent, workstation, external queue service or always-on runner.
 
 **The controller is disabled until explicitly configured.** An absent or
 `disabled` `KORA_MERGE_QUEUE_MODE` preserves ordinary PR/main/tag/manual CI.
 An unknown mode fails CI admission rather than silently enabling another policy.
 Do not enable the queue merely by merging its implementation PR.
+
+## Dormant five-PR batch profile
+
+`KORA_MERGE_QUEUE_PROFILE` absent, empty, or `singleton-v1` retains the version-1
+single-candidate protocol and four required App checks. Unknown explicit values
+fail closed. Merging this implementation does not change repository variables,
+protection, App permissions, releases, or production queue state.
+
+The separately authorized `batch-v1` profile consumes only explicitly migrated
+version-2 state. It has one lane and takes up to **five already-waiting** eligible
+PRs, priority then number, without a fill timer. Active work is never preempted.
+Unknown enrollment, reviews or mergeability cannot reserve a member.
+Controller, CI-workflow and release-control changes, and isolated group-failure
+retries, use the existing fully validated **exact-head singleton path**, even
+inside this profile.
+
+### Frozen source and truthful proof
+
+[Batch policy](batch-policy.cjs), [reconciliation](batch.cjs) and the
+[GitHub adapter](github.cjs) freeze:
+
+- Protected main, ticket, ordered original PR heads, exact enrollment timestamps
+  and review decisions.
+- Trusted workflow blob, explicit compatible job schema, and every required job
+  identity. Historical singleton inventories remain available for retirement.
+- Synthetic prefix commit/tree identities and the final combined commit, bound
+  by a SHA-256 `batch-manifest-v1` digest.
+
+The App creates ticket-owned `automation/merge-queue-batch/<ticket>/<prefix>`
+refs through GitHub's normal ref/merge APIs. Candidate code never executes with
+the App token. Conflicts integrate no original PR. Construction reconciles exact
+parents after interruption rather than forcing refs or blindly repeating a
+merge with an ambiguous outcome.
+
+CI is dispatched on trusted protected main and checks out the admitted combined
+SHA as unprivileged source. It retains complete portable module/100% line **and**
+branch coverage, all Windows producer/partition/catalog evidence, payload
+inspection, installer and aggregates. The `windows-12-v1` inventory is not a
+substitute for those maintained gates. Missing, duplicate, skipped, wrong-source
+or nonterminal required evidence cannot admit a batch. Observation deadlines
+never establish success or physical quiescence.
+
+After proof, each **original PR** is protected-squash-merged separately. Before
+each boundary the controller rechecks every remaining member's head, enrollment
+and reviews, and exact actual main. Expected-head branch updating is recorded
+before its API request. A changed head is accepted only with the expected two
+parents, prefix tree, verified commit and configured queue-App bot identity;
+unknown provenance holds recovery rather than treating an author change as an
+App update. This provenance condition requires enablement qualification with
+GitHub's actual update behavior; deterministic tests do not establish it.
+
+Each actual merged PR, merge SHA, single main parent, prefix tree and main
+reachability is observed before advancing. An affirmative merge response alone
+is insufficient. Final main must have the combined tree, **not** its SHA.
+
+Only the existing App-owned **Merge admission** check attests a batch member.
+Its output names the combined tested commit/run and admitted prefix policy.
+It does not copy green portable/Windows/installer checks or exact-source
+coverage comments onto untested member heads. Intermediate main prefixes are
+intentionally **not independently validated**. Synthetic artifacts remain
+validation-only; they are never relabeled as final-main release artifacts.
+
+### Publication fence and qualification
+
+In version-2 state, an active batch or singleton blocks publication. Only the
+verified `completedTip` may qualify/publish, at its **actual source SHA**.
+Main/tag/manual admission suppresses prefix full builds. A completed-tip full
+run is requested once after its durable receipt, without candidate inputs;
+ambiguous dispatch is observed, not repeated. Active batch-profile main runs
+are not repeatedly cancelled as prefixes arrive.
+
+The dedicated, statically locked batch publish job shares
+`merge-queue-controller` concurrency with trusted main mutations, rather than
+only per-version concurrency. Both batch lock participants use GitHub's
+[`queue: max`](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency)
+bounded FIFO waiting policy, so newer controller wakeups do not replace a
+waiting publisher. The legacy publish job retains its per-version lock and
+cannot publish against v2 state. Stable-tag requests in batch mode qualify and
+publish through a fresh trusted-main run at the exact completed/tagged SHA,
+not an old tag workflow definition. The shared
+[publication script](../Publish-GitHubRelease.ps1) enforces its live-state and
+trusted serialized-caller contract as well as existing source/version/asset
+safeguards. It rechecks at irreversible publication boundaries, including late
+jobs. Missing or unknown state/provenance fails closed.
+
+The [release snapshot reader](../GitHubRelease.Batch.ps1) pins queue commit,
+tree and blob bytes, then rechecks the queue ref. A valid ref move restarts that
+entire read, up to six attempts without sleeps; routine singleton checkpoints
+must not turn one transient move into a main-build failure. Only a stable,
+fully verified snapshot is evaluated. Exhausted retries, deletion, malformed
+identities and API failures still block publication, including at the late tag
+and publish boundaries ([regressions](../tests/GitHubRelease.Batch.Tests.ps1)).
+
+The controller does not reserve the next batch until complete actual-tip CI and
+the publication join (`Qualify completed batch tip`) succeed. It persists the
+exact run/job/source qualification receipt. This deliberately gives publication
+a turn under sustained arrivals; no throughput benchmark or fivefold speedup is
+claimed. Failed qualification or an unobservable dispatch holds the lane for
+repair rather than starving release behind further batches.
+
+### Retrying failed completed-tip qualification
+
+A failed actual-tip run keeps admission paused. The [qualification reader](github.cjs#L268) accepts only a successful first attempt at the exact completed tip, with complete expected jobs and the successful qualification join. Rerunning the failed workflow creates a later attempt and cannot supply that receipt.
+
+An authorized operator can request a **fresh ordinary main run**, using the same empty-input dispatch as the [controller](github.cjs#L287):
+
+1. Recheck live mode/profile, durable state and actual main. Require `batch-v1`, no active candidate, and `completedTip.sha` equal to actual main. Inspect the failed job and confirm all prior qualification and candidate CI is terminal.
+2. With authority to retry validation, dispatch once without candidate or comparison inputs:
+
+   ```powershell
+   gh workflow run ci.yml --repo github.com/roryprimrose/Kora --ref main
+   ```
+
+3. Read back the new run's source SHA, `workflow_dispatch` event and first-attempt identity. An accepted or ambiguous dispatch must be reconciled before another request; do not blindly repeat it.
+4. Require the complete ordinary main gates and `Qualify completed batch tip` to succeed. The controller then records the exact receipt and resumes normal selection. A failed retry remains a failure requiring investigation, not permission to skip tests or change admission.
+
+This retry does not dispatch candidate CI, edit queue state, change protection or bypass a check. A source change, active candidate, uncertain owned work or incomplete evidence requires the corresponding reviewed recovery instead ([batch admission](github.cjs#L383), [recovery](#interrupted-batches-repair-and-rollback)).
+
+### Operator cutover: separate administrator authorization required
+
+These are rollout instructions, **not actions performed by the implementation**:
+
+1. Keep profile absent/`singleton-v1`. Deliver the implementation through the
+   existing four-check, strict, administrator-enforced singleton profile.
+   Qualify the exact GitHub adapter/update provenance and publishing caller
+   contract before advertising batch readiness.
+2. Pause new queue intent operationally and drain the existing singleton lane.
+   Review the exact durable checkpoint and all queued/running CI, including
+   main/tag/manual publication and old workflow versions. All must be physically
+   terminal. Exclude historical publishing definitions without this fence from
+   activation; this code cannot retrofit immutable historical workflows.
+3. With separately recorded rollout authority, manually run the trusted
+   controller operation `migrate-batch-v1`, providing `recovery_checkpoint` and
+   `acknowledge_batch_change=true`. It requires live administrator authority,
+   idle v1 state, strict existing protection, unchanged main and quiescent CI.
+   Read back the v2 checkpoint. It does not activate settings or dispatch CI.
+   During the transition, profile/state mismatches fail closed.
+4. Separately change required-check protection to **only Merge admission from
+   the configured queue App**, retaining `strict=true`, administrator
+   enforcement, required reviews and normal protected squash merges. Do not
+   broaden App permissions, enable bypass or manufacture reviews/checks.
+5. Separately set `KORA_MERGE_QUEUE_PROFILE=batch-v1` with queue mode still
+   `enabled`. Reconcile. The migrated main tip must first complete actual-source
+   qualification/publication before any new batch reservation. Inspect exact
+   source/run/job receipts, then resume enrollment.
+
+No automatic state migration or profile/protection change occurs on merge.
+The existing App identity is configured, not a new hardcoded principal.
+
+### Interrupted batches, repair and rollback
+
+Every irreversible dispatch, branch update and original-PR merge has a durable
+intent. Restart observes outcomes before acting. Cancellation acknowledgement,
+workflow aggregate success, absent metadata, or a deadline cannot release
+unknown owned work. No operation resets main or discards unrelated advances.
+
+Entering batch retirement checkpoints the phase before requesting one trusted controller reconciliation, including a construction conflict with no candidate dispatch ([controller](batch.cjs#L77), [regressions](batch.test.cjs#L249)).
+The follow-up still joins owned work before releasing the lane. An uncertain retiring lane does not repeatedly self-dispatch; later workflow events or scheduled reconciliation retain recovery responsibility. A failed continuation is explicit and preserves the checkpoint for recovery.
+
+- Before the first original merge, failed combined evidence retires only after
+  exact owned work is terminal. Members receive full singleton retries; group
+  failure is not independent member failure. A failed singleton retains the
+  existing head/enrollment quarantine policy.
+- After partial integration, preserve actual PR Merged states and the recorded
+  prefix. A changed/withdrawn/review-blocked suffix, unexpected main, or
+  uncertain merge holds `recovery-required` and the publication block.
+  A late observed merge may record its verified actual prefix, but does not
+  silently clear reviewed recovery.
+- `resume-batch` requires separately authorized administrator review, exact
+  checkpoint/ticket, `acknowledge_batch_change=true`, terminal owned CI, exact
+  recorded main/prefix and an unchanged, still-authorized suffix. It cannot
+  repeat or erase an unresolved merge request.
+- `repair-batch` has the same checkpoint, authority, actual-main and physical
+  quiescence fences. It archives the old prefix/manifest and clears only the
+  controller's active record, never main. Remaining current eligible work must
+  receive a **new full proof against actual main**; withdrawn intent is not
+  replayed. To preserve unrelated main advances, explicitly supply the reviewed
+  actual SHA as `recovery_main`; recorded-prefix ancestry and the original
+  prefix tree must still verify. Resume cannot reuse combined proof on that
+  advanced main. An unresolved merge request or missing/duplicate terminal
+  metadata cannot be erased with repair. Reconcile those facts explicitly
+  before a fully validated repair/revert.
+- Recovery calls are checkpoint-specific; repeating one after its successful
+  write fails rather than replaying effects. Inspect checkpoint readback after
+  transport uncertainty. The legacy `recover-unobservable-dispatch` operation
+  cannot clear a batch.
+- Roll back only at an idle, qualified completed tip with quiescent CI. Run the
+  separately authorized `rollback-batch-v1` operation with the exact checkpoint
+  and acknowledgement. It preserves batch evidence inside v1 state. Restore
+  the four configured App checks and `singleton-v1`/absent profile separately.
+  Do not simply switch profiles while v2 or partial work remains active.
+
+Local protocol evidence: `node --test eng/merge-queue/*.test.cjs` and
+`./eng/Test-GitHubRelease.ps1`. Fake adapters exercise the protocol without
+remote ref/merge/dispatch mutations. They are implementation evidence, not live
+activation, protection qualification, hardware proof or hosted CI success.
+
+The remaining sections describe the default singleton profile unless explicitly
+noted otherwise.
 
 ## Contributor workflow
 
@@ -308,6 +508,31 @@ the timer. Events are hints to reread live state, not authority to select or mer
 the PR named in a payload.
 A five-minute scheduled reconciliation provides recovery from missed events and
 eventual review/mergeability updates; GitHub may delay schedules under load.
+
+### Admission rejection without candidate execution
+
+GitHub may leave a single skipped, unexpanded matrix job when **Admit CI
+execution** fails before version resolution. The controller can retire that
+first-attempt failed run only against an exact reviewed workflow blob and a
+complete, unique terminal job plan. Every candidate-executing producer,
+publication job and the literal matrix placeholder must be skipped; only the
+known guard-only aggregates may have failed or been cancelled. Missing, extra,
+duplicate, nonterminal, wrong-source or wrong-attempt observations retain the
+lane ([policy](policy.cjs), [adapter](github.cjs), [regressions](controller.test.cjs)).
+
+This is non-execution evidence, not successful validation. Required producer
+inventories, merge checks and coverage thresholds are unchanged. A successful
+admission, an expanded matrix, or a new workflow blob cannot use this exception.
+Workflow changes require a separate review of their execution gates and an
+explicit update of the pinned rejected-admission inventory. Both singleton and
+dormant batch retirement use the same classifier; a rejected batch still needs
+new full singleton proofs before any member can merge ([batch](batch.cjs)).
+
+The controller loads from protected main. Publishing a retirement repair does
+not itself update an already-running controller or authorize editing durable
+queue state. An existing held lane can therefore block adoption of its own
+repair; that requires a separately reviewed operator decision, not a bypass or
+an automatic state rewrite.
 
 One reconciliation quarantines up to ten newly selected conflicting revisions
 in priority/PR-number order and continues looking for a runnable candidate,

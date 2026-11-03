@@ -293,6 +293,29 @@ public sealed partial class ModelTurnHostTests
         f.ProfilePreferences.Writes.Should().Be(0);
     }
 
+    [Fact]
+    public async Task InitialLocalRequestReviewRejectsSessionDriftBeforeReturningAnySubmissionAuthority()
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        f.ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
+        var host = f.ConfiguredProfiles();
+        var target = new SessionWorkspaceEntry(f.Session, f.Metadata);
+        var reads = 0;
+        f.ProfileRead = () => new(f.Session, f.SessionProfileRevision, f.SessionOverrides, ++reads > 1);
+
+        await host.Invoking(value => value.ReviewLocalRequestProfileAsync(target, "original",
+            RequestOrigin.LocalUi, Profile(), static () => true, Token))
+            .Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("The exact session, source or catalogue changed; nothing may be submitted.");
+
+        reads.Should().Be(2);
+        f.RetainCalls.Should().Be(0);
+        f.Adapter.Calls.Should().Be(0);
+        f.ProfilePreferences.Writes.Should().Be(0);
+        host.IsQuiescent.Should().BeTrue();
+    }
+
     private static SessionRequestCommandService LocalProfileCommands(Fixture f, SessionConversationService conversation) =>
         new(new SessionWorkspaceService(f, new(f), f, NullLogger<SessionWorkspaceService>.Instance), conversation, f, f.Time);
 

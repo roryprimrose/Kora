@@ -558,8 +558,9 @@ test('workflow inventory reads and validates exact source bytes, never main, can
 });
 
 test('admission rejection retirement authenticates an exact historical workflow blob, not its schema marker alone', async () => {
-  const source = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8')
+  const source = fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-97e22a8f.yml'), 'utf8')
     .replaceAll('\r\n', '\n');
+  assert.equal(workflowContent(source).sha, '97e22a8f88bcdc9bbaef32cf9e7200dd6e5c43cd');
   const run = { id: 9, run_attempt: 1, head_sha: BASE, head_branch: 'main', event: 'workflow_dispatch',
     status: 'completed', conclusion: 'failure' };
   const jobs = REJECTED_ADMISSION_JOBS.map((name, index) => ({ id: index + 1, name, run_id: 9,

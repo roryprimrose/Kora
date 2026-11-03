@@ -892,3 +892,9 @@ check runs. Pagination callbacks and test doubles must use that array contract,
 not the named object envelopes returned by individual REST requests. Job-page
 callbacks also retain Octokit's normalized `total_count` metadata so partial
 or changing page sets cannot qualify as complete observations.
+
+The [historical admission-rejection fixture](fixtures/ci-97e22a8f.yml) retains
+the exact reviewed workflow bytes for blob `97e22a8f88bcdc9bbaef32cf9e7200dd6e5c43cd`.
+Its positive [adapter regression](github.test.cjs) does not follow edits to the
+live workflow. Modified source bytes and schema markers alone still cannot
+authorize retirement; the production blob allowlist is unchanged.

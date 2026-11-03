@@ -58,6 +58,21 @@ public sealed class EmbeddedUserDocumentationProviderTests
     }
 
     [Fact]
+    public void Caption_word_emphasis_guide_separates_saved_preference_from_qualification_and_independent_selection()
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "settings", StringComparison.Ordinal)).Markdown;
+        guide.Should().Contain("display.speech-text-word-emphasis")
+            .And.Contain("**Word emphasis is unavailable in this build:**")
+            .And.Contain("actual saved/effective preference")
+            .And.Contain("never estimates timings")
+            .And.Contain("never replaces your keyboard/pointer selection")
+            .And.Contain("**PREVIOUS SPEECH** has no active word");
+        SpeechTextCommand.Parse("set display.speech-text-word-emphasis to true", "Kora")!.CaptionValue
+            .Should().Be(new Kora.Core.Voice.SpeechCaptionValue.WordEmphasis(true));
+    }
+
+    [Fact]
     public void StorageGuideIsEmbeddedLinkedAndSeparatesRoamingContentFromLocalAuthorityAndHistory()
     {
         var pages = new EmbeddedUserDocumentationProvider().GetPages();

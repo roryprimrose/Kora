@@ -22,17 +22,7 @@ public sealed partial class SettingsWindow
         {
             if (!model.CanRevealPrivatePresentation || model.IsProtectedCall || !IsVisible)
             { throw new InvalidOperationException("Private native knowledge source management is unavailable."); }
-            if (knowledgeSources is null)
-            {
-                var store = new WindowsKnowledgeSourceStore(App.Services.GetRequiredService<IApplicationDataPaths>());
-                var manager = new KnowledgeSourceManager(App.Services.GetRequiredService<IKnowledgeSourceInspector>(),
-                    store, App.Services.GetRequiredService<ISecurityAuditLog>(), TimeProvider.System);
-                var window = new KnowledgeSourcesWindow(model, manager);
-                knowledgeSources = window;
-                window.Closed += (_, _) => knowledgeSources = null;
-                window.Show(this);
-            }
-            knowledgeSources.Activate();
+            OpenKnowledgeSources().Activate();
             return Task.CompletedTask;
         }, exception => model.ReportHostInteractionFailure(
             "Knowledge source management unavailable. Failure type: " + exception.GetType().Name));
@@ -42,4 +32,21 @@ public sealed partial class SettingsWindow
             if (knowledgeSources is { IsVisible: true }) { args.Cancel = true; }
         };
     }
+
+    private KnowledgeSourcesWindow OpenKnowledgeSources()
+    {
+        if (knowledgeSources is not null) { return knowledgeSources; }
+        var store = new WindowsKnowledgeSourceStore(App.Services.GetRequiredService<IApplicationDataPaths>());
+        var manager = new KnowledgeSourceManager(App.Services.GetRequiredService<IKnowledgeSourceInspector>(),
+            store, App.Services.GetRequiredService<ISecurityAuditLog>(), TimeProvider.System);
+        var workflow = ActivatorUtilities.CreateInstance<KnowledgeSourceAnswerWorkflow>(App.Services, manager);
+        var window = new KnowledgeSourcesWindow(model, manager, answers: workflow);
+        knowledgeSources = window;
+        window.Closed += (_, _) => knowledgeSources = null;
+        window.Show(this);
+        return window;
+    }
+
+    internal Task OpenKnowledgeSourceAnswerAsync(KnowledgeSourceAnswerCommand command, Func<bool> eligible) =>
+        OpenKnowledgeSources().OpenAnswerAsync(command, eligible);
 }

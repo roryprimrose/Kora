@@ -7063,7 +7063,7 @@ public sealed partial class MainViewModelTests : IDisposable
         await fixture.RaiseActivatedTranscriptAsync("Kora, show the task queue", 0.9f);
         fixture.Voice.StartedPhrases.Should().Contain("Kora show the task queue");
 
-        fixture.ViewModel.ResponseTitle.Should().Be("Waiting for your command.");
+        fixture.ViewModel.ResponseTitle.Should().Be("Assistant status.");
         fixture.Reasoner.Requests.Should().BeEmpty();
     }
 
@@ -7551,7 +7551,7 @@ public sealed partial class MainViewModelTests : IDisposable
     [InlineData("Kora, open settings", "Settings")]
     [InlineData("Kora, what can you do", "Built-in commands are ready.")]
     [InlineData("Kora, what version are you running", "Kora version")]
-    [InlineData("Kora, what are you currently working on", "Voice is not active.")]
+    [InlineData("Kora, what are you currently working on", "Assistant status.")]
     [InlineData("Kora, cancel task", "Cancelled.")]
     [InlineData("Kora, stop speaking", "Speech is stopped.")]
     [InlineData("Kora, what power action is pending", "No power action is pending.")]
@@ -7574,7 +7574,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         await fixture.RunAsync("Kora, what are you currently working on");
 
-        fixture.ViewModel.ResponseTitle.Should().Be("Waiting for your command.");
+        fixture.ViewModel.ResponseTitle.Should().Be("Assistant status.");
         fixture.ViewModel.ResponseBody.Should().Contain("System");
     }
 
@@ -7598,7 +7598,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.Probe.Status = fixture.Probe.Status with { Readiness = DependencyReadiness.Ready };
         await fixture.ViewModel.RefreshCommand.ExecuteAsync();
         await fixture.RunAsync("Kora, what do you have left to do");
-        fixture.ViewModel.ResponseTitle.Should().Be("Voice is not active.");
+        fixture.ViewModel.ResponseTitle.Should().Be("Assistant status.");
     }
 
     [Fact]
@@ -7650,7 +7650,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         await fixture.RunAsync("show task progress");
 
-        fixture.ViewModel.ResponseTitle.Should().Be("No task is running.");
+        fixture.ViewModel.ResponseTitle.Should().Be("No setup task is running.");
         fixture.ViewModel.ResponseBody.Should().Contain("Local model inference (Ollama): NeedsAction.");
         fixture.ViewModel.ResponseBody.Should().Contain("Approval is required.");
     }
@@ -7662,8 +7662,9 @@ public sealed partial class MainViewModelTests : IDisposable
 
         await fixture.RunAsync("what is the current task status");
 
-        fixture.ViewModel.ResponseTitle.Should().Be("No task is running.");
-        fixture.ViewModel.ResponseBody.Should().Be("There is no active or pending setup task.");
+        fixture.ViewModel.ResponseTitle.Should().Be("No setup task is running.");
+        fixture.ViewModel.ResponseBody.Should().Be("There is no active or pending setup task."
+            + Environment.NewLine + Environment.NewLine + fixture.ViewModel.SubmittedWorkActivityStatus);
     }
 
     [Fact]

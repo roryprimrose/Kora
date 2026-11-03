@@ -1,6 +1,6 @@
 const { spawn } = require('node:child_process');
 const { createHash } = require('node:crypto');
-const { SHA, STATE_BRANCH, mode, validateState, matchingRuns, workflowJobs, GATE } =
+const { SHA, TICKET, STATE_BRANCH, mode, validateState, matchingRuns, workflowJobs, GATE } =
   require('../merge-queue/policy.cjs');
 const { profile } = require('../merge-queue/batch-policy.cjs');
 const { ObservationError, boundary, id, login, timestamp, safeUrl, validatePull, summarizeRun } = require('./campaign.cjs');
@@ -203,7 +203,7 @@ class Reader {
           && ['queued', 'in_progress', 'completed'].includes(check.status)
           && (check.conclusion === null || ['success', 'failure', 'cancelled', 'timed_out', 'neutral',
             'skipped', 'action_required', 'stale'].includes(check.conclusion))
-          && (check.external_id === '' || /^[a-f0-9-]{36}$/.test(check.external_id)), 'candidate-head App check');
+          && (check.external_id === '' || TICKET.test(check.external_id)), 'candidate-head App check');
         return { id: check.id, app, name: GATE, head: check.head_sha, ticket: check.external_id || null,
           status: check.status, conclusion: check.conclusion, url: safeUrl(check.html_url, this.repository) };
       });

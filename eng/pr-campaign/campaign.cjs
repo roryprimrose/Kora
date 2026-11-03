@@ -254,7 +254,12 @@ function validateReceipt(receipt, campaign) {
       && (pull.merge === null || SHA.test(pull.merge))
       && ['OPEN', 'CLOSED', 'MERGED'].includes(pull.state)
       && (pull.mergedAt === null || timestamp(pull.mergedAt))
-      && typeof pull.outcome === 'string' && Array.isArray(pull.checks)), 'previous PR identities');
+      && typeof pull.outcome === 'string' && Array.isArray(pull.checks)
+      && pull.checks.every(check => id(check.id) && id(check.app) && check.name === GATE
+        && check.head === pull.head && (check.ticket === null || TICKET.test(check.ticket))
+        && ['queued', 'in_progress', 'completed'].includes(check.status)
+        && [null, 'success', 'failure', 'cancelled', 'timed_out', 'neutral', 'skipped', 'action_required', 'stale']
+          .includes(check.conclusion) && safeUrl(check.url, campaign.repository))), 'previous PR identities');
   if (receipt.references !== null) boundary(SHA.test(receipt.references?.main?.sha)
     && timestamp(receipt.references.main.fetchedAt) && SHA.test(receipt.references.queue?.commit)
     && SHA.test(receipt.references.queue.blob)

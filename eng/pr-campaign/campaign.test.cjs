@@ -454,6 +454,17 @@ test('PR-triggered controller handoff preserves trigger head without claiming it
   assert.equal(result.following.classification, 'trigger-context-not-validation-source');
   assert.equal(result.pulls[0].proofKind, 'none');
 });
+test('malformed current or retained App ticket identity is not silently treated as historical evidence', async () => {
+  const check = { id: 44, app: { id: 42 }, name: GATE, head_sha: HEAD, status: 'completed',
+    conclusion: 'failure', external_id: '-'.repeat(36), html_url: `${URL}/runs/44` };
+  const fixture = fakeCli({ transform: (endpoint, result) => endpoint.includes('/check-runs?')
+    ? { total_count: 1, check_runs: [check] } : result });
+  await assert.rejects(() => fixture.reader.snapshot(campaign(), 'publisher'), /candidate-head App check/);
+  const retained = evaluate(receipt(), snapshot());
+  retained.pulls[0].checks = [{ id: 44, app: 42, name: GATE, head: HEAD, ticket: '-'.repeat(36),
+    status: 'completed', conclusion: 'failure', url: `${URL}/runs/44` }];
+  assert.throws(() => validateReceipt(retained, campaign()), /previous PR identities/);
+});
 test('Git ancestry exit 1 differs from fatal Git/transport failure', async () => {
   const data = snapshot();
   data.pulls = data.pulls.map(merged);

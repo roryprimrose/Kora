@@ -218,6 +218,7 @@
         <Button x:Name="DiscardMessage" Content="Discard unsent..." IsEnabled="{Binding ComposerDirty}" />
       </WrapPanel>
       <StackPanel Grid.Row="5" Spacing="4">
+      <local:ComposerRequestReviewPanel />
       <local:TaskResponseOutputPanel />
       <controls:NamedTextBlock x:Name="ConversationStatusMessage" Text="{Binding ConversationStatus}" TextWrapping="Wrap"
           AutomationProperties.Name="Selected conversation submission, source hold and recovery outcome" />

@@ -7,6 +7,7 @@ using Kora.Application.Configuration;
 using Kora.Application.Interaction;
 using Kora.Core.Auditing;
 using Kora.Core.Authorization;
+using Kora.Core.Context;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -40,6 +41,7 @@ internal sealed class McpInvocation(
     private McpAccountChoice? accountChoice;
     private Dependencies.ModelTurn? turn;
     private HostTaskRecord? originalUserTask;
+    private McpContinuationReview? resultContinuation;
     private int used;
     private bool disposed;
     private bool connectionFaulted;
@@ -166,6 +168,29 @@ internal sealed class McpInvocation(
         { return new(CapabilityOutcome.Failed, "mcp-complete-result-exceeds-limit"); }
         await JoinTransportAsync().ConfigureAwait(false);
         await ValidateAsync(token).ConfigureAwait(false);
+        if (turn is { } modelTurn)
+        {
+            var source = descriptor!;
+            var observedResult = reply.Mcp!;
+            var risk = LocalSourceRiskPolicy.Evaluate([modelTurn.Context.UserRequest, observedResult.Text,
+                observedResult.StructuredJson ?? string.Empty, source.ServerName, source.Endpoint.Address.AbsoluteUri,
+                accountChoice!.DisplayName, selected.Schema.Json], token);
+            if (risk != LocalSourceRiskOutcome.AdmittedPrivateLocalOnly)
+            {
+                return risk == LocalSourceRiskOutcome.Unavailable
+                    ? new(CapabilityOutcome.Unavailable, "mcp-result-source-use-unavailable")
+                    : new(CapabilityOutcome.Denied, "mcp-result-source-use-denied");
+            }
+            var target = await workspace.ReadMetadataAsync(original.SessionId, token).ConfigureAwait(false);
+            await ValidateAsync(token).ConfigureAwait(false);
+            if (target != modelTurn.ConversationTarget)
+            { throw new InvalidOperationException("The original MCP conversation changed before complete result review."); }
+            resultContinuation = new McpContinuationReview(observedResult, modelTurn.Context.UserRequest,
+                target.Metadata?.Name.Value ?? "Unnamed conversation", original.Origin, LocalSourceRiskPolicy.Revision);
+            if (!await ApproveAsync(McpReviewStage.ResultContinuation, arguments, token, resultContinuation).ConfigureAwait(false))
+            { return new(CapabilityOutcome.Denied, "mcp-result-continuation-not-consented"); }
+            await ValidateAsync(token).ConfigureAwait(false);
+        }
         Completed = true;
         Result = reply.Mcp;
         return reply;
@@ -221,6 +246,9 @@ internal sealed class McpInvocation(
         { throw new InvalidOperationException("The original MCP task/session authority is no longer current."); }
         if (descriptor is not null) { await configuration.ValidateCurrentAsync(descriptor, token).ConfigureAwait(false); }
         if (validateSource is not null) { await validateSource(token).ConfigureAwait(false); }
+        if (resultContinuation is not null
+            && !(await broker.ReadAccountsAsync(token).ConfigureAwait(false)).Any(choice => choice.Reference == account))
+        { throw new InvalidOperationException("The separately reviewed result's delegated account is no longer available."); }
         // A faulted connection can only finish without content; session, source and grants still require current authority.
         if (connection is not null && !connectionFaulted)
         {
@@ -259,7 +287,8 @@ internal sealed class McpInvocation(
         catch { activity.Complete(HostOperationOutcome.Failed); throw; }
     }
 
-    private async Task ApproveAsync(McpReviewStage stage, string? arguments, CancellationToken token)
+    private async Task<bool> ApproveAsync(McpReviewStage stage, string? arguments, CancellationToken token,
+        McpContinuationReview? continuation = null)
     {
         var invocation = interactionRequest;
         var parent = HostActivity.RequireCurrent();
@@ -268,26 +297,33 @@ internal sealed class McpInvocation(
         try
         {
             var source = descriptor!;
-            var reviewSource = originalUserTask is null && skill is null ? null : new McpReviewSource(source.ServerName, source.SourcePath, source.SourceRevision);
+            var reviewSource = originalUserTask is null && skill is null && continuation is null
+                ? null : new McpReviewSource(source.ServerName, source.SourcePath, source.SourceRevision);
+            var review = new McpReview(stage, source.Endpoint.Address, account, accountChoice!.DisplayName,
+                selected?.Name, selected?.Schema.Json, arguments)
+                { Source = reviewSource, Skill = skill?.Review, Continuation = continuation };
             var binding = new ExactOperationBinding("mcp.read-only", "mcp",
                 "https-read-only." + stage.ToString().ToLowerInvariant() + "." + Hash(selected?.Name ?? "connection"),
                 Hash(selected?.Schema.Json ?? "connection"), reviewSource is null ? source.SourceRevision : Hash(JsonSerializer.Serialize(reviewSource)),
                 source.SourceRevision,
                 Hash(typeof(McpInvocation).Module.ModuleVersionId.ToString("D")),
-                Hash(skill is null ? JsonSerializer.Serialize(new { stage, arguments })
-                    : JsonSerializer.Serialize(new { stage, arguments, skill = skill.Review })),
+                review.InvocationDigest,
                 Hash(selected?.Name ?? "connection"), Hash(JsonSerializer.Serialize(account)),
                 account.Destination.Digest, Hash("inert-local-only-result-v1"), new(1),
                 new(PermissionGrantArtifactKind.McpServer, source.Scope));
             var proposal = new HostOperationProposal(invocation, new(Guid.NewGuid()), new(1), binding,
                 HostOperationEffect.BoundedRead, expiresAt);
-            var review = new McpReview(stage, source.Endpoint.Address, account, accountChoice!.DisplayName,
-                selected?.Name, selected?.Schema.Json, arguments) { Source = reviewSource, Skill = skill?.Review };
             var presented = await presenter(proposal, generation, review,
                 () => Admitted(token) && activity.Outcome == HostOperationOutcome.Unknown, token).ConfigureAwait(false);
             token.ThrowIfCancellationRequested();
             if (!Live(token))
             { throw new InvalidOperationException("Exact native MCP endpoint/account/tool/argument approval is required."); }
+            if (continuation is not null
+                && (presented.Presented is null || presented.Completed.Grant?.Scope != OperationGrantScope.Once))
+            {
+                activity.Complete(HostOperationOutcome.Failed);
+                return false;
+            }
             var authorization = new HostAuthorizationService(interactions, time);
             var consumed = await ExternalOperationGrantUse.ConsumeAsync(authorization, proposal, generation,
                 presented.Presented, presented.Completed, stage == McpReviewStage.Connection, token).ConfigureAwait(false);
@@ -321,6 +357,7 @@ internal sealed class McpInvocation(
                 catch { validation.Complete(HostOperationOutcome.Failed); throw; }
             });
             activity.Complete(HostOperationOutcome.Completed);
+            return true;
         }
         catch (OperationCanceledException) { activity.Complete(HostOperationOutcome.Cancelled); throw; }
         catch { activity.Complete(HostOperationOutcome.Failed); throw; }

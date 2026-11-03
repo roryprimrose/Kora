@@ -128,6 +128,8 @@ public sealed class SessionInstructionScopeWorkflowTests
         internal SessionWorkspaceService Workspace { get; private set; } = null!;
         internal SessionInstructionScopeBroker Scopes { get; private set; } = null!;
         internal SessionInstructionScopeCommandService Commands { get; private set; } = null!;
+        internal ArtifactCatalogue Catalogue { get; private set; } = null!;
+        internal InstructionRevisionCatalogue Revisions { get; private set; } = null!;
         internal SessionsViewModel Model { get; private set; } = null!;
         internal SessionConversationService Conversation { get; private set; } = null!;
         private ModelTurnHost host = null!;
@@ -143,6 +145,8 @@ public sealed class SessionInstructionScopeWorkflowTests
             var revisions = new InstructionRevisionCatalogue(f.Storage.Paths);
             var catalogue = new ArtifactCatalogue(revisions.Reconcile(
                 [snapshot.Document.Definition with { OwnedInstructionRevision = snapshot.Revision }]));
+            f.Catalogue = catalogue;
+            f.Revisions = revisions;
             revisions.CompleteActivation(snapshot, revisions.PrepareActivation(snapshot), catalogue);
             var sources = new ScopedInstructionUseBroker(catalogue, revisions, f.Source, f.Storage.Store, f.Access, f.Storage.Time);
             var audit = new Audit();
@@ -200,11 +204,13 @@ public sealed class SessionInstructionScopeWorkflowTests
     internal sealed class Adapter : IModelTurnAdapter
     {
         internal List<bool> Guidance { get; } = [];
+        internal List<string> Contexts { get; } = [];
         public Task<ModelProviderReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple? profile,
             ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
             CancellationToken token)
         {
             using var wire = JsonDocument.Parse(context);
+            Contexts.Add(wire.RootElement.GetRawText());
             var guided = wire.RootElement.GetProperty("Evidence").GetArrayLength() != 0;
             if (guided) { wire.RootElement.GetProperty("Tools").GetArrayLength().Should().Be(0); }
             Guidance.Add(guided);

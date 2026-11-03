@@ -17,7 +17,7 @@ internal sealed partial class SessionsViewModel
     internal Guid? LastDetailObservation => CurrentDetailSelection?.Observation;
     internal bool LastDetailContext => CurrentDetailSelection?.Part == DetailPart.Context;
     internal ConversationMessage? LastDetailMessage => CurrentDetailSelection is { Part: DetailPart.Original or DetailPart.Assistant or DetailPart.Observation or DetailPart.Context } choice
-        ? ConversationMessages.FirstOrDefault(message => message.Request.RequestId.Value == choice.Item) : null;
+        ? ObservedConversationMessages.FirstOrDefault(message => message.Request.RequestId.Value == choice.Item) : null;
     internal bool CanRestoreHistoryDetail => CanOpenHistoryDetail && CurrentDetailSelection is { Part: DetailPart.History } choice
         && selectedHistory?.Id == choice.Item;
     internal SessionEvidenceDetail? LastEvidenceDetail => CurrentDetailSelection is { Part: DetailPart.Evidence } choice

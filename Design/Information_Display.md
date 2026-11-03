@@ -90,6 +90,23 @@ Find adds no admission/open route, clipboard/export, persistence/schema, logging
 
 The inert match viewport scrolls within a 100-DIP height bound without shortening text. Headless checks exercise the complete maximum-length match at 75%, 100% and 200% reader scale in the minimum-size window while retaining a visible reader; they do not replace installed visual/accessibility qualification.
 
+### Volatile Details reader wrapping
+
+The native Details reader offers **Wrap reader text**, checked by default, for
+plain text, exact source, continuous semantic text and labelled source fallback.
+Uncheck it to inspect long aligned lines with horizontal scrolling; check it again
+to fit the reader width. The native checkbox supports pointer, keyboard and toggle
+automation. It is hidden while reading the structured document, whose code-block
+wrapping remains separate.
+
+The choice belongs only to that view's lifetime, not a saved setting. It does not
+change the immutable source, logical lines, selection, caret or literal Find
+cursor/count, and it neither reads another source nor acquires clipboard authority.
+Source/private retirement clears the reader and disables the old control; reopen
+the exact source through its normal admission route to recover. A newly opened
+reader starts wrapped. Deterministic native regressions are implementation
+evidence, not installed assistive-technology qualification.
+
 ## Delivered passive exact-conversation search - 2026-10-13
 
 The selected Sessions conversation pane now separately searches original retained USER bodies and typed HOST outcomes/reasons/task states. It shares the chronological native inert row template; full exact body and original request/task/sequence remain data, not model answers, generated summaries, ranked citations, rich links or execution controls.

@@ -15,6 +15,12 @@ guidance under host policy, never approval or authority. Separately choose
 **Confirm apply to this session** within two minutes. Neither review nor
 confirmation calls a model or retains a conversation message.
 
+The native choice stays bound to the exact selected catalogue entry. If that
+entry changes or becomes unavailable before review, no same-name replacement
+is read or selected. Refresh enabled instructions, deliberately select the
+current entry, and review its complete source again. Refresh and selection
+alone do not read the instruction or apply guidance.
+
 When a local model is available, you can check the one-session scope like this:
 Send two ordinary requests using **Submit exact message**. Each request
 revalidates the exact source and session, uses local-only guidance with no tools,

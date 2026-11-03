@@ -112,6 +112,7 @@ public sealed partial class MainWindow : Window
             InitializeNativePresence();
             motionPreference = new PresenceMotionBinding(presence, motionSource ?? new WindowsMotionPreferenceSource(),
                 action => Dispatcher.UIThread.Post(action), ReportMotionPreferenceFailure);
+            motionPreference.SetReducedMotion(viewModel.IsReducedMotionEnabled);
             motionPreference.SetEligible(viewModel.CanRevealPrivatePresentation);
         }
         catch (Exception failure) when (failure is not OutOfMemoryException)
@@ -486,6 +487,7 @@ public sealed partial class MainWindow : Window
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
     {
         presence.IsPresentationEligible = viewModel.CanRevealPrivatePresentation;
+        motionPreference?.SetReducedMotion(viewModel.IsReducedMotionEnabled);
         motionPreference?.SetEligible(viewModel.CanRevealPrivatePresentation);
         if (eventArgs.PropertyName is nameof(MainViewModel.IsSpeaking))
         {

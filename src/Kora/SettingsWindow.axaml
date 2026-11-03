@@ -582,6 +582,22 @@
 
             <Border Classes="settings-card">
               <StackPanel Spacing="8">
+                <TextBlock Text="Foreground push-to-talk shortcut" Classes="settings-title" />
+                <TextBlock Text="{Binding ForegroundPttStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                <TextBlock Text="Optional and unassigned by default. Only the foreground Response window uses this chord, outside text editors and pending questions or approvals. These choices avoid Kora's editing, navigation and reserved system combinations; arbitrary third-party hotkey conflicts are not detected. No global hook or background listening. The microphone button, Space and Enter remain available."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <ComboBox x:Name="ForegroundPttShortcutChoice" ItemsSource="{Binding ForegroundPttChoices}"
+                          SelectedItem="{Binding SelectedForegroundPttShortcut}" DisplayMemberBinding="{Binding Label}"
+                          IsEnabled="{Binding CanChangeForegroundPtt}" AutomationProperties.Name="Foreground push-to-talk shortcut" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="Save shortcut" Command="{Binding SaveForegroundPttCommand}" IsEnabled="{Binding CanChangeForegroundPtt}" />
+                  <Button Content="Cancel shortcut edit" Command="{Binding CancelForegroundPttCommand}" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="settings-card">
+              <StackPanel Spacing="8">
                 <TextBlock Text="Conversational voice replies (off by default)" Classes="settings-title" />
                 <TextBlock Text="{Binding ConversationalReplyStatus}" Classes="settings-description" TextWrapping="Wrap"
                            AutomationProperties.Name="{Binding ConversationalReplyStatus}" />

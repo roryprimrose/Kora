@@ -91,6 +91,11 @@ its runner.
 The [installed SAPI stream fixture](tests/Kora.Windows.IntegrationTests/Audio/BlockingAudioStreamTests.cs) owns recognizer construction through completion and disposal on a thread-pool task, independent of the caller's synchronization context. Its regression withholds caller-context callbacks while retaining the five-second completion budget, real stream-consumption assertion and error/cancellation checks.
 This fixture correction does not qualify installed recognizer latency or enable a runtime capability.
 
+The foreground push-to-talk headless contracts drive Avalonia's native activation
+callbacks explicitly instead of waiting for OS focus acknowledgement. They retain
+the foreground, consent, ownership and capture-quiescence assertions; this fixture
+evidence does not qualify physical keyboard or microphone behavior.
+
 The [voice-input composition fixture](tests/Kora.Windows.IntegrationTests/Audio/VoiceInputCompositionTests.cs) supplies in-memory preferences, audit and
 audio-control admission dependencies while resolving the production timing
 service and recognition aliases. Composition alone must not write preferences,

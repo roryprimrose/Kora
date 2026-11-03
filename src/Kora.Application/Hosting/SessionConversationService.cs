@@ -215,6 +215,8 @@ public sealed partial class SessionConversationService(
                     }
                     catch (Mcp.McpUnavailableException)
                     { admission = new(new(ModelTurnOutcome.Unavailable, ModelTurnReason.QualificationPending)); }
+                    catch (Mcp.McpSelectionCancelledException) when (prepareContext is not null)
+                    { admission = new(new(ModelTurnOutcome.Cancelled, ModelTurnReason.CallerCancelled)); }
                     catch (OperationCanceledException) when (prepareContext is not null && token.IsCancellationRequested)
                     { admission = new(new(ModelTurnOutcome.Cancelled, ModelTurnReason.CallerCancelled)); }
                     catch (InvalidDataException exception) when (prepareContext is not null)

@@ -2125,6 +2125,12 @@ separately from the retained assistant answer. **Stop MCP operation** closes
 new work and waits for owned resources before disconnect; it does not undo an
 external call.
 
+Cancel or dismiss the discovered-tool selector to end either the model-assisted
+or model-free MCP request as cancelled. The connection is closed without asking
+for arguments, invoking a tool or calling a model. No tool result or assistant
+answer is produced. Changed source, session or approval authority still fails
+closed rather than being hidden as a successful cancellation or rollback.
+
 With that exact conversation in the foreground and explicit choices already
 made, typed or activated-voice `use selected mcp tool <task>` follows the same
 operation. `stop mcp` requests cancellation. Account and permission reviews

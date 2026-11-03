@@ -229,6 +229,13 @@ foreground selected-session route; they never choose a server, account, session
 or tool implicitly. Authentication/approval still uses mandatory native review.
 The original voice/UI channel is preserved. Cancellation closes new dispatch
 and publication; the owner joins late provider/transport work before disconnect.
+Cancelling or dismissing the discovered-tool selection ends the original request
+as cancelled, not denied, after revalidating current session, source and approval
+authority. It requests no arguments, tool/schema approval, model turn or tool call,
+publishes no result, and joins the already-open connection before release.
+An unknown non-null tool choice still fails closed as an invalid selection.
+This applies equally to model-assisted and explicit model-free requests; durable
+task state retains its existing conservative dispatch/uncertainty semantics.
 
 After the authenticated exchange is physically joined, the [canonical owner](../src/Kora.Application/Mcp/McpInvocation.cs) screens the complete observed result for private LocalOnly use and pauses before returning it to the model. The [native review](../src/Kora.Application/Mcp/McpReview.cs) shows unchanged Text/StructuredJson, observation time, source/server/account/schema, original Active conversation/task/channel and retention.
 

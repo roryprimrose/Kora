@@ -4,14 +4,20 @@ using Kora.Core.Auditing;
 using Kora.Core.Hosting;
 using Kora.Core.Voice;
 using Microsoft.Extensions.Logging.Abstractions;
+using Neovolve.Logging.Xunit;
 
 namespace Kora.Application.UnitTests.Configuration;
 
 [Collection("Host tracing")]
-public sealed class VoiceCaptureTimingConfigurationServiceTests : IDisposable
+public sealed class VoiceCaptureTimingConfigurationServiceTests(ITestOutputHelper output)
+    : LoggingTestsBase<VoiceCaptureTimingConfigurationService>(output), IDisposable
 {
     private readonly ConversationalReplyConfigurationServiceTests tracing = new();
-    public void Dispose() => tracing.Dispose();
+    public new void Dispose()
+    {
+        try { tracing.Dispose(); }
+        finally { base.Dispose(); }
+    }
     internal static VoiceCaptureTimingConfigurationService Create(Preferences preferences, ConversationalReplyConfigurationServiceTests.Fixture host) =>
         new(preferences, host.Admission, host.Audit, NullLogger<VoiceCaptureTimingConfigurationService>.Instance);
 
@@ -31,6 +37,30 @@ public sealed class VoiceCaptureTimingConfigurationServiceTests : IDisposable
         preferences.Pending.Should().BeFalse();
         host.Audit.Events.Where(item => string.Equals(item.ActionId, "configuration.voice-capture-timing", StringComparison.Ordinal))
             .Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+    }
+
+    [Fact]
+    public async Task UnreadableTimingRemainsUnavailableUntilExplicitReloadWithEnabledDiagnostics()
+    {
+        await using var host = new ConversationalReplyConfigurationServiceTests.Fixture();
+        var preferences = new Preferences { LoadFailure = new InvalidDataException("Malformed capture timing.") };
+        var service = new VoiceCaptureTimingConfigurationService(preferences, host.Admission, host.Audit, Logger);
+        var unavailable = service.Get();
+        unavailable.Timing.Should().BeNull();
+        unavailable.IsSaved.Should().BeFalse();
+        service.Invoking(item => item.GetTiming()).Should().Throw<InvalidOperationException>();
+        await FluentActions.Awaiting(() => Set(service, host, new(7, 20, 2)))
+            .Should().ThrowAsync<InvalidOperationException>();
+        preferences.LoadFailure = null;
+        preferences.Value = new(7, 20, 2);
+        service.Get().Timing.Should().BeNull();
+        service.Reload();
+        service.GetTiming().Should().Be(preferences.Value);
+        service.Get().IsSaved.Should().BeTrue();
+        service.Get().Revision.Should().BeGreaterThan(unavailable.Revision);
+        preferences.Writes.Should().Be(0);
+        host.Audit.Events.Should().NotContain(item =>
+            string.Equals(item.ActionId, "configuration.voice-capture-timing", StringComparison.Ordinal));
     }
 
     [Theory]

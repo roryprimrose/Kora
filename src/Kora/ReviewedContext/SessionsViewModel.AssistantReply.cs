@@ -46,7 +46,7 @@ internal sealed partial class SessionsViewModel
             && presenterAdmission?.Invoke() != false
             && selectionEpoch == selection && selected == target && target.Authority.IsActive
             && ReferenceEquals(conversationPage, page) && ReferenceEquals(completedConversationMessage, completed)
-            && ConversationMessages.Any(row => ReferenceEquals(row, message));
+            && ObservedConversationMessages.Any(row => ReferenceEquals(row, message));
         replyWorkflow = conversation!.CreateReplyContextWorkflow();
         RememberUnsent();
         conversationStatus = "Reply selected. Keep your new follow-up in this session's memory-only composer. "
@@ -55,7 +55,7 @@ internal sealed partial class SessionsViewModel
     }, replyOperation: true);
 
     private bool CanReplySource(ConversationMessage message) => access.CanControl && selected?.Authority.IsActive == true
-        && message.AssistantResponse is not null && ConversationMessages.Any(row => ReferenceEquals(row, message));
+        && message.AssistantResponse is not null && ObservedConversationMessages.Any(row => ReferenceEquals(row, message));
 
     public Task ReviewAssistantReplyAsync() => RunConversationAsync(async (target, live) =>
     {
@@ -92,8 +92,7 @@ internal sealed partial class SessionsViewModel
                 .ConfirmReplyAsync(review, () => live() && ReplySourceCurrent, lifetime.Token);
             if (!live() || !ReplySourceCurrent)
             { throw new OperationCanceledException("The original reply presentation was revoked."); }
-            completedConversationMessage = receipt.Message;
-            conversationPage = null;
+            PublishConversationCompletion(receipt.Message);
             if (string.Equals(composerBody, body, StringComparison.Ordinal))
             { composerBody = string.Empty; Interlocked.Increment(ref composerBufferRevision); }
             ClearAssistantReply();

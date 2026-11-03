@@ -13,14 +13,16 @@ internal sealed partial class SessionsViewModel
         return RunConversationAsync(async (target, live) =>
         {
             var page = conversationPage;
+            var completed = completedConversationMessage;
             var search = conversationSearchPage;
             var searchEpoch = conversationSearchEpoch;
-            var fromPage = ConversationMessages.Any(row => ReferenceEquals(row, message));
+            var fromPage = ObservedConversationMessages.Any(row => ReferenceEquals(row, message));
             var fromSearch = ConversationSearchMessages.Any(row => ReferenceEquals(row, message));
             if (!fromPage && !fromSearch)
             { throw new InvalidOperationException("Review reuse requires an actual currently admitted original USER row, not a reconstructed record."); }
             bool Current() => live() && access.CanControl && !conversationSourceHeld
-                && (fromPage ? ReferenceEquals(page, conversationPage)
+                && (fromPage ? ReferenceEquals(page, conversationPage) && ReferenceEquals(completed, completedConversationMessage)
+                        && ObservedConversationMessages.Any(row => ReferenceEquals(row, message))
                     : ReferenceEquals(search, conversationSearchPage) && searchEpoch == conversationSearchEpoch);
             var result = await (reviewOriginalMessageReuse
                 ?? throw new InvalidOperationException("Original USER reuse unavailable: the native New request surface is not composed."))(

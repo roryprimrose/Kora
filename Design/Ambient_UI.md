@@ -423,8 +423,7 @@ UI thread, including while already visible. Privacy withdrawal and retirement
 unsubscribe; restoration takes a fresh read and ignores callbacks from the old
 subscription or queued generation. Read or notification-subscription failure
 hides the presence and reports Settings/restart recovery, never assumes motion
-is enabled. This does not change saved theme/renderer choices or add a new
-reduced-motion setting. Windows high-contrast versus explicit theme/renderer
+is enabled. The explicit [reduced-motion preference](User_Configuration.md#delivered-bounded-appearance-subset-r10) can additionally freeze particles, but false/reset still follows Windows. This does not change saved theme/renderer choices. Windows high-contrast versus explicit theme/renderer
 precedence remains outside this implementation.
 
 As in the default renderer, reduced motion freezes particle movement without disabling the independent speech-sizing setting; colour/visibility transitions still settle. The native buffer bounds each physical dimension to 4096 pixels; invalid geometry is explicitly unavailable

@@ -6,7 +6,7 @@ const path = require('node:path');
 const { GitHubQueue, admit } = require('./github.cjs');
 const { admitBatchTip } = require('./github.cjs');
 const { manifestFor, digest } = require('./batch-policy.cjs');
-const { CHECKS, GATE, STATE_BRANCH, WINDOWS_12_JOBS } = require('./policy.cjs');
+const { CHECKS, GATE, STATE_BRANCH, WINDOWS_12_JOBS, REJECTED_ADMISSION_JOBS } = require('./policy.cjs');
 const BASE = 'a'.repeat(40);
 const HEAD = 'b'.repeat(40);
 const OTHER = 'c'.repeat(40);
@@ -482,6 +482,34 @@ test('workflow inventory reads and validates exact source bytes, never main, can
     await assert.rejects(value.api.expectedJobs(source), /workflow source/);
   }
   assert.equal(value.calls.length, 1);
+});
+
+test('admission rejection retirement authenticates an exact historical workflow blob, not its schema marker alone', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  const run = { id: 9, run_attempt: 1, head_sha: BASE, head_branch: 'main', event: 'workflow_dispatch',
+    status: 'completed', conclusion: 'failure' };
+  const jobs = REJECTED_ADMISSION_JOBS.map((name, index) => ({ id: index + 1, name, run_id: 9,
+    run_attempt: 1, head_sha: BASE, status: 'completed',
+    conclusion: name === 'Admit CI execution' ? 'failure' : 'skipped' }));
+  const value = fixture({ getContent: () => workflowContent(source) });
+  assert.equal(await value.api.rejectedAdmission(BASE, run, jobs), true);
+  assert.equal(await value.api.rejectedAdmission(OTHER, run, jobs), false);
+  assert.equal(value.calls.length, 1);
+  assert.equal(value.calls[0][1].ref, BASE);
+  for (const text of [source + '\n# changed execution contract\n', '# merge-queue-job-schema: windows-12-v1\n',
+    'name: CI\n', '# merge-queue-job-schema: future-v2\n']) {
+    assert.equal(await fixture({ getContent: () => workflowContent(text) }).api.rejectedAdmission(BASE, run, jobs), false);
+  }
+  for (const response of [{ ...workflowContent(source), sha: OTHER }, { ...workflowContent(source), encoding: 'utf-8' }]) {
+    assert.equal(await fixture({ getContent: () => response }).api.rejectedAdmission(BASE, run, jobs), false);
+  }
+  assert.equal(await fixture({ getContent: () => { throw error(404); } }).api.rejectedAdmission(BASE, run, jobs), false);
+  for (const status of [401, 403, 429, 500]) {
+    await assert.rejects(fixture({ getContent: () => { throw error(status); } }).api.rejectedAdmission(BASE, run, jobs), /HTTP/);
+  }
+  assert.equal(await value.api.rejectedAdmission(BASE, { ...run, run_attempt: 2 }, jobs), false);
+  assert.equal(value.calls.some(call => ['update', 'merge', 'createWorkflowDispatch'].includes(call[0])), false);
 });
 
 test('real schema-declared workflow resolves complete inventory; new unversioned source fails closed', async () => {

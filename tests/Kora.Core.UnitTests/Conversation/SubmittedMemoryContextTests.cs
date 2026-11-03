@@ -55,6 +55,15 @@ public sealed class SubmittedMemoryContextTests
     }
 
     [Theory]
+    [InlineData(0)]
+    [InlineData(3)]
+    public void UnsupportedContextVersionsCannotBeRetained(int version)
+    {
+        var context = Answer().SubmittedContext! with { Version = version };
+        context.Invoking(value => value.Validate()).Should().Throw<InvalidDataException>();
+    }
+
+    [Theory]
     [InlineData("id")]
     [InlineData("session")]
     [InlineData("revision")]

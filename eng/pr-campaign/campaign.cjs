@@ -222,19 +222,21 @@ function evaluate(receipt, snapshot) {
     if (!qualified) receipt.blockers.push(problem('qualification-invalid', null, qualification.url));
   } else if (state.completedTip?.qualification)
     receipt.blockers.push(problem('qualification-invalid', null, receipt.references.queue.commit));
+  const pendingTip = pendingTipRun(active, qualification, duplicates);
+  const observedTipJoin = duplicates.some(tipSucceeded);
   for (const run of duplicates) {
     run.classification = qualified ? 'non-authoritative-duplicate-after-qualified-tip'
-      : 'unreceipted-tip-observation';
+      : run.outcome === 'incomplete-jobs' ? 'skipped-or-incomplete-not-qualification'
+        : 'unreceipted-tip-observation';
     // Job metadata cannot prove why a duplicate's publication/qualification guard failed.
     if (qualified && run.outcome !== 'required-jobs-success') run.diagnostic = 'publication-guard-cause-unconfirmed';
     receipt.runs.push(run);
-    if (!qualified && !active
-      && ['required-producer-failed', 'run-failed-without-producer-failure', 'incomplete-jobs'].includes(run.outcome))
+    if (!qualified && !active && (['required-producer-failed', 'run-failed-without-producer-failure'].includes(run.outcome)
+      || run.outcome === 'incomplete-jobs' && !pendingTip && !observedTipJoin))
       receipt.blockers.push(problem(run.outcome, null, run.url));
   }
   if (!active && state.completedTip && !qualified && state.completedTip.sha !== receipt.references.main.sha)
     receipt.blockers.push(problem('main-moved-before-qualification'));
-  const pendingTip = pendingTipRun(active, qualification, duplicates);
   receipt.following = candidateCurrent && candidate && candidate.status !== 'completed'
     ? { kind: 'candidate', run: candidate.id, url: candidate.url }
     : pendingTip ? { kind: 'tip-qualification', run: pendingTip.id, url: pendingTip.url }

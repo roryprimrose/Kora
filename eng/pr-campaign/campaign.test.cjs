@@ -185,6 +185,25 @@ test('before qualification follow oldest running first-attempt tip, then hand of
   assert.equal(joined.queue.completedTip.qualification, null);
   assert.ok(joined.runs.every(item => item.classification === 'unreceipted-tip-observation'));
 });
+test('skipped historical tip runs are not full proof or producer failures while actual tip work is pending', () => {
+  const data = snapshot();
+  data.state.completedTip = { sha: MERGE, tree: HEAD, ticket: TICKET };
+  const skipped = run({ head_sha: MERGE });
+  const pending = run({ id: 11, head_sha: MERGE, status: 'in_progress', conclusion: null });
+  data.duplicates = [evidence(skipped, 'qualification', MERGE, TICKET,
+    jobs(skipped, { conclusion: 'skipped' })), evidence(pending, 'qualification', MERGE)];
+  const progressing = evaluate(receipt(), data);
+  assert.equal(progressing.outcome, 'observing');
+  assert.equal(progressing.following.run, 11);
+  assert.equal(progressing.runs[0].classification, 'skipped-or-incomplete-not-qualification');
+  assert.equal(progressing.runs[0].outcome, 'incomplete-jobs');
+  assert.equal(progressing.queue.completedTip.qualification, null);
+  data.duplicates.pop();
+  assert.equal(evaluate(receipt(), data).blockers[0].code, 'incomplete-jobs', 'no actual pending/join evidence');
+  data.duplicates.push(evidence(run({ id: 12, head_sha: MERGE, conclusion: 'failure' }), 'qualification', MERGE,
+    TICKET, jobs(run({ id: 12, head_sha: MERGE }), { conclusion: 'failure' })));
+  assert.ok(evaluate(receipt(), data).blockers.some(item => item.code === 'required-producer-failed'));
+});
 test('stale qualification source or changed proof job never clears failure', () => {
   for (const field of ['source', 'job', 'run']) {
     const data = snapshot();

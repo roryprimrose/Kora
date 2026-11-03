@@ -291,7 +291,7 @@
         },
         "observedJobCount": { "type": "integer", "minimum": 0, "maximum": 1000 },
         "outcome": { "enum": ["required-producer-failed", "run-failed-without-producer-failure", "required-jobs-success", "incomplete-jobs", "waiting-or-skipped"] },
-        "classification": { "enum": ["superseded-source", "authoritative-tip-receipt", "invalid-tip-receipt", "non-authoritative-duplicate-after-qualified-tip", "unreceipted-tip-observation"] },
+        "classification": { "enum": ["superseded-source", "authoritative-tip-receipt", "invalid-tip-receipt", "non-authoritative-duplicate-after-qualified-tip", "unreceipted-tip-observation", "skipped-or-incomplete-not-qualification"] },
         "diagnostic": { "const": "publication-guard-cause-unconfirmed" }
       }
     }

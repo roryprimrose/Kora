@@ -365,7 +365,30 @@ Native **Review one fresh local-only no-tools answer**, **Confirm one fresh loca
 The [bounded delivered consumer](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs) covers explicit instruction-only single-file use and separately consented [v2 Markdown bundles](#explicit-local-markdown-references-v2) with empty capabilities, original UI/activated-voice provenance, exact unchanged request text and one existing Active target.
 Its [review](../src/Kora.Application/Skills/SharedSkillUseReview.cs) expires after two minutes, is single-use and never persists enablement.
 The [canonical conversation consumer](../src/Kora.Application/Hosting/SessionConversationService.SharedSkills.cs) retains actual host results under the unchanged source, cancellation and terminal-readback fences.
-Broader catalogue/model selection, tools outside the separately reviewed one-tool path, files outside the explicit v2 profile, executable requirements and hosted transmission below remain future work.
+Automatic/broader catalogue selection, tools outside the separately reviewed one-tool path, files outside the explicit v2 profile, executable requirements and hosted transmission below remain future work.
+
+### Model-selected registered single-file instruction-only use
+
+The [explicit native metadata review](../src/Kora.Application/Tools/CustomizationDiscoveryService.cs) binds one to six selected included skill files to existing registrations without loading their guidance.
+The host freezes the unchanged original task, existing Active target and original input channel. A separately opted-in local selector may return only one strict opaque `skillRef` actually served by the metadata snapshot; ordinary turns gain no catalogue
+([selection schema](../src/Kora.Core/Skills/ModelSkillUseProposal.cs), [served-ref fence](../src/Kora.Application/Tools/CustomizationDiscoverySnapshot.cs)).
+
+The [canonical reader](../src/Kora.Windows/Skills/WindowsProfileSkillReader.Selection.cs) binds the registered root's native identity, exact relative file, package/file identities and native revision.
+Separate native source-read consent reads only that file, not unrelated package bodies, and compares its exact bytes with the selected metadata digest.
+Only complete single-file, zero-tool, instruction-only guidance without required inputs or references is eligible; unsupported profiles fail explicitly rather than losing requirements
+([source validation](../src/Kora.Application/Skills/SharedSkillDiscoveryService.Selection.cs)).
+
+The selector must finish and physically join before the proposal can open source review.
+Separate exact-revision enablement, invocation preparation and original-user confirmation enter the existing [shared workflow](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs).
+The unchanged task and guidance enter separate fields of one LocalOnly tools-none context under existing complete-input/output/deadline limits.
+Actual skill-produced answers or truthful terminals are retained in the original conversation; recommendation text alone is not operation completion.
+No nested runtime, fabricated parent tool result, tool grants, path resolution from provider text or task substitution is permitted
+([retained selection and join](../src/Kora.Application/Hosting/SessionConversationService.CustomizationDiscovery.cs), [conversation consumer](../src/Kora.Application/Hosting/SessionConversationService.SharedSkills.cs)).
+
+The original two-minute selection lifetime is not renewed by later reviews.
+Input/subset/target edits, source replacement/restored bytes with changed native revision, withdrawn registration, inclusion/privacy/ownership/call/channel changes or target generation changes retire use.
+Exact source validation remains attached through preparation, dispatch and terminal retention; Stop/close suppresses late proposals/answers while retaining resources until joined
+([proposal lifetime](../src/Kora.Application/Skills/ProposedSharedSkillUse.cs), [native lifecycle](../src/Kora/CustomizationDiscoveryController.cs)).
 
 Offer user-approved source registrations, not a recursive scan of the entire profile.
 Recognisable candidate locations can be suggested if present, for example `%USERPROFILE%\.agents\skills` or `%USERPROFILE%\.copilot\skills`.

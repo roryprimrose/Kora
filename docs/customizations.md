@@ -30,8 +30,9 @@ If deletion committed but readback, audit, admission or presentation is unconfir
 Instructions guide an answer; prompts are reusable requests; skills provide
 reusable task guidance; agents add a role and limits. MCP servers describe
 external tool connections. Reading or saving any of these never runs it.
-Manual editing works without AI; **model-generated proposals and recommendations
-are unavailable in this build**.
+Manual editing works without AI; model-generated proposals and recommendations
+require an independently qualified local runtime, not merely an installed provider
+([host admission](../src/Kora.Application/Dependencies/ModelTurnHost.cs)).
 
 The dedicated [agent authoring operation](agent-profile-authoring.md#describe-and-review-a-new-tool-free-agent)
 also supports reviewed description-to-v1-source proposals when an admitted local model is available.
@@ -100,6 +101,25 @@ The snapshot expires after two minutes and is single-use. Input, selection, sess
 The limits are six selected entries, 128 UTF-8 bytes per readable name, 256 UTF-8 bytes per description, 1,024-byte complete callback input, 4,096-byte complete callback reply and 8,192 cumulative reply bytes. Paging stays inside the selected snapshot; `get` accepts only its opaque refs. Unknown fields, queries, paths, forged refs and invalid pages are rejected; oversized fields/results are not truncated ([wire contract](../src/Kora.Core/Tools/CustomizationDiscoveryTools.cs), [input policy](../src/Kora.Core/Tools/CapabilityInputPolicy.cs)).
 
 The operation is **LocalOnly** and requires the existing qualified local model profile; unavailable readiness remains unavailable, without a service fallback. Ordinary turns do not automatically share this metadata. Built-in definitions, additional registered roots outside the supported chooser, prompts, MCP configuration/accounts, source bodies, scripts/hooks, commands/environment, unsaved buffers, history/memory, automatic instruction loading and hosted disclosure are excluded ([model policy](../src/Kora.Application/Hosting/SessionConversationService.CustomizationDiscovery.cs)).
+
+### Complete a task with one model-selected registered skill
+
+Use the same `discover customizations <original task>` typed or current-name activated-voice route.
+Select only one to six explicitly registered, included single-file skill sources, choose one existing Active conversation,
+and select **Select one registered single-file zero-tool skill for this unchanged task (not use consent)**.
+Do not also select agent recommendation ([native owner](../src/Kora/CustomizationDiscoveryController.cs)).
+
+1. **Read selected primary metadata and preview exact shared fields** separately consents to native metadata and file-identity inspection. Review the unchanged original task, exact target and bounded metadata subset. No skill guidance enters the selector.
+2. **Share only this reviewed metadata for ONE local answer** authorizes the local selection phase only. The model may return one strict opaque `skillRef` actually served from that subset. Its retained proposal is not a skill-produced answer, enablement or use consent.
+3. After the selector has terminated and joined, choose **Authorize exact selected skill source read and revision review**. Review the complete inert guidance, unchanged task, original channel, exact original Active target, LocalOnly destination and budgets. Unsupported tool/input/reference/script profiles are refused, never downgraded.
+4. Separately choose **Enable only this reviewed skill revision once**, then **Review frozen original task invocation**.
+5. Separately choose **Confirm exact selected skill for the unchanged original task**. The existing shared-skill executor runs one local zero-tool turn and retains its actual answer or truthful terminal in that original conversation. Inspect the result in this window or Sessions ([selection](../src/Kora.Application/Tools/CustomizationDiscoverySnapshot.cs), [shared executor](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs)).
+
+Changing the task, selected subset or target retires the selection and every later review. The two-minute original selection expiry is not renewed by reading or enabling.
+Registration, native file/package identity, exact bytes, inclusion, original channel, privacy, ownership and target generation are revalidated across use and terminal retention.
+Cancel/close retires authority immediately and joins owned work; late selector or executor output cannot become success.
+No automatic catalogue, task rewrite, model path/command/grant, hosted disclosure or unrelated composer update is added
+([source binding](../src/Kora.Windows/Skills/WindowsProfileSkillReader.Selection.cs), [proposal fence](../src/Kora.Application/Skills/ProposedSharedSkillUse.cs)).
 
 ### Review and run one model-recommended local agent
 

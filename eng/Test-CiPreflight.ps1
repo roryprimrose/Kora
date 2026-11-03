@@ -50,6 +50,7 @@ function Assert-Workflow {
         './eng/Test-WindowsIntegrationScheduling.ps1'
         './eng/Test-PortableTestScheduling.ps1'
         './eng/Test-CiPreflight.ps1'
+        'node eng/run-policy-tests.cjs'
         './eng/Test-SourceToolsContracts.ps1'
         'dotnet restore Kora.slnx --locked-mode'
         'dotnet tool restore'
@@ -61,10 +62,12 @@ function Assert-Workflow {
         Assert ($position -gt $previous) "Preflight ordering is missing or incorrect: $command."
         $previous = $position
     }
-    foreach ($name in @('Test scheduling and early preflight contracts', 'Test static immutable source-tool distribution',
+    foreach ($name in @('Test scheduling and early preflight contracts', 'Test hosted policy modules before fanout', 'Test static immutable source-tool distribution',
         'Enforce dependency license and notice policy before fanout', 'Bind successful preflight to the admitted source')) {
         Assert (-not [regex]::IsMatch((Get-Step $version $name), '(?m)^        if:')) "Required preflight step must not be optionally skipped: $name."
     }
+    Assert ((Get-Job $Source 'queue-feedback').Contains('run: node eng/run-policy-tests.cjs', [StringComparison]::Ordinal)) 'Waiting PR feedback must run the same complete policy selector.'
+    Assert (-not $Source.Contains('run: node --test eng/merge-queue/*.test.cjs', [StringComparison]::Ordinal)) 'No workflow path may silently omit installed campaign tests.'
     foreach ($name in @('portable-tests', 'payload', 'windows-test-build', 'windows-test-partitions', 'installer',
         'portable-test-comparison', 'native-evidence-comparison')) {
         $job = Get-Job $Source $name
@@ -117,7 +120,7 @@ $verify = Get-StepScript (Get-Step (Get-Job $workflow 'payload') 'Require admitt
 $fixture = Join-Path $root ".scratch\ci-preflight\$([Guid]::NewGuid().ToString('N'))"
 $originalLocation = Get-Location
 $savedEnvironment = @{}
-foreach ($name in @('SOURCE_REVISION', 'SCHEDULING_RESULT', 'SOURCE_POLICY_RESULT', 'LICENSE_RESULT', 'GITHUB_OUTPUT')) {
+foreach ($name in @('SOURCE_REVISION', 'SCHEDULING_RESULT', 'SOURCE_POLICY_RESULT', 'LICENSE_RESULT', 'POLICY_TEST_RESULT', 'GITHUB_OUTPUT')) {
     $savedEnvironment[$name] = [Environment]::GetEnvironmentVariable($name)
 }
 try {
@@ -129,10 +132,10 @@ try {
     $gitExit = 0
     function git { $global:LASTEXITCODE = $gitExit; return $gitRevision }
     $outcomes = @('success', 'failure', 'cancelled', 'skipped', '', 'unknown', 'SUCCESS')
-    foreach ($producer in @('SCHEDULING_RESULT', 'SOURCE_POLICY_RESULT', 'LICENSE_RESULT')) {
+    foreach ($producer in @('SCHEDULING_RESULT', 'SOURCE_POLICY_RESULT', 'LICENSE_RESULT', 'POLICY_TEST_RESULT')) {
         foreach ($outcome in $outcomes) {
             $env:SOURCE_REVISION = $revision
-            $env:SCHEDULING_RESULT = $env:SOURCE_POLICY_RESULT = $env:LICENSE_RESULT = 'success'
+            $env:SCHEDULING_RESULT = $env:SOURCE_POLICY_RESULT = $env:LICENSE_RESULT = $env:POLICY_TEST_RESULT = 'success'
             [Environment]::SetEnvironmentVariable($producer, $outcome)
             Remove-Item -LiteralPath $marker, $env:GITHUB_OUTPUT -Force -ErrorAction Ignore
             $failed = $false
@@ -149,7 +152,7 @@ try {
             }
         }
     }
-    $env:SCHEDULING_RESULT = $env:SOURCE_POLICY_RESULT = $env:LICENSE_RESULT = 'success'
+    $env:SCHEDULING_RESULT = $env:SOURCE_POLICY_RESULT = $env:LICENSE_RESULT = $env:POLICY_TEST_RESULT = 'success'
     foreach ($case in @('wrong-checkout', 'git-failure', 'missing-source', 'malformed-source')) {
         $env:SOURCE_REVISION = $revision
         $gitRevision = $revision

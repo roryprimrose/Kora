@@ -106,6 +106,16 @@ qualification/publication remain downstream requirements; the
 [workflow inventory regressions](eng/merge-queue/workflows.test.cjs) preserve
 current and predecessor job identities.
 
+The [policy test selector](eng/run-policy-tests.cjs) runs every queue test
+module, its own [discovery/execution regressions](eng/tests/policy-test-selection.test.cjs),
+and all installed campaign `*.test.cjs` modules before candidate fanout and in
+waiting-PR feedback. Run `node .\eng\run-policy-tests.cjs` locally.
+An entirely absent campaign directory/marker reports `NOT_INSTALLED`, not a
+campaign pass, so the infrastructure and campaign PRs can integrate independently.
+Any campaign directory or marker requires `eng/pr-campaign/campaign.test.cjs`;
+partial installation, missing mandatory queue modules, unknown filesystem
+state, empty discovery or unsuccessful Node execution fails closed.
+
 The [installed SAPI stream fixture](tests/Kora.Windows.IntegrationTests/Audio/BlockingAudioStreamTests.cs) owns recognizer construction through completion and disposal on a thread-pool task, independent of the caller's synchronization context. Its regression withholds caller-context callbacks while retaining the five-second completion budget, real stream-consumption assertion and error/cancellation checks.
 This fixture correction does not qualify installed recognizer latency or enable a runtime capability.
 

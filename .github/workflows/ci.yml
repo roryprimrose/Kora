@@ -132,6 +132,10 @@ jobs:
           ./eng/Test-PortableTestScheduling.ps1
           ./eng/Test-CiPreflight.ps1
 
+      - name: Test hosted policy modules before fanout
+        id: policy-tests
+        run: node eng/run-policy-tests.cjs
+
       - name: Test static immutable source-tool distribution
         id: source-policy
         shell: pwsh
@@ -197,8 +201,9 @@ jobs:
           SCHEDULING_RESULT: ${{ steps.scheduling.outcome }}
           SOURCE_POLICY_RESULT: ${{ steps.source-policy.outcome }}
           LICENSE_RESULT: ${{ steps.licenses.outcome }}
+          POLICY_TEST_RESULT: ${{ steps.policy-tests.outcome }}
         run: |
-          if ($env:SCHEDULING_RESULT -cne 'success' -or $env:SOURCE_POLICY_RESULT -cne 'success' -or $env:LICENSE_RESULT -cne 'success') {
+          if ($env:SCHEDULING_RESULT -cne 'success' -or $env:SOURCE_POLICY_RESULT -cne 'success' -or $env:LICENSE_RESULT -cne 'success' -or $env:POLICY_TEST_RESULT -cne 'success') {
             throw 'Required preflight evidence is incomplete.'
           }
           $actual = git rev-parse HEAD
@@ -342,9 +347,6 @@ jobs:
       - name: Enforce dependency and portable API boundaries
         shell: pwsh
         run: ./eng/Test-Architecture.ps1
-
-      - name: Test hosted merge queue policy and workflow contracts
-        run: node --test eng/merge-queue/*.test.cjs
 
       - name: Test portable projects with coverage
         run: >
@@ -564,7 +566,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: node --test eng/merge-queue/*.test.cjs
+      - run: node eng/run-policy-tests.cjs
       - shell: pwsh
         run: ./eng/Test-WindowsIntegrationScheduling.ps1
       - shell: pwsh

@@ -156,11 +156,11 @@ public sealed class SettingsResetMenuTests
             .Where(attribute => attribute.Name.LocalName is "Command" or "ResetCommand"
                 && attribute.Value.StartsWith("{Binding Reset", StringComparison.Ordinal))
             .ToArray();
-        bindings.Should().HaveCount(35);
-        bindings.Select(attribute => attribute.Value).Distinct(StringComparer.Ordinal).Should().HaveCount(35);
+        bindings.Should().HaveCount(36);
+        bindings.Select(attribute => attribute.Value).Distinct(StringComparer.Ordinal).Should().HaveCount(36);
         elements.Count(element =>
             string.Equals(element.Name.LocalName, nameof(SettingActionsButton), StringComparison.Ordinal))
-            .Should().Be(38);
+            .Should().Be(39);
         foreach (var binding in bindings)
         {
             var element = binding.Parent!;

@@ -91,6 +91,7 @@ without candidate inputs. An already-running full main run becomes the single
 durable qualification owner, so it does not trigger a duplicate dispatch.
 Ambiguous dispatch is observed, not repeated. Active batch-profile main runs
 are not repeatedly cancelled as prefixes arrive.
+See the [ownership reconciliation](batch.cjs#L21).
 
 The dedicated, statically locked batch publish job shares
 `merge-queue-controller` concurrency with trusted main mutations, rather than
@@ -137,7 +138,8 @@ The version-2 additions are optional for existing checkpoints: existing
 qualification receipts and boolean dispatch intents remain valid, and
 previously sealed manifests without priority fields retain their digest.
 New manifests also freeze each admitted member's priority. No state migration,
-queue setting or protection change is performed by this implementation.
+queue setting or protection change is performed by this implementation
+([state validation](batch-policy.cjs)).
 
 ### Retrying failed completed-tip qualification
 

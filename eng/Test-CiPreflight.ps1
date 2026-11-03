@@ -144,6 +144,7 @@ try {
             Assert ((Test-Path -LiteralPath $env:GITHUB_OUTPUT) -eq $fanout) 'Incomplete preflight must not publish job outputs.'
             if ($fanout) {
                 Assert ((Get-Content -LiteralPath $marker -Raw) -ceq $revision) 'Successful license evidence must be bound to the exact source.'
+                Assert ((Get-Content -LiteralPath $env:GITHUB_OUTPUT -Raw).TrimEnd("`r", "`n") -ceq "source=$revision") 'Successful job output must expose only the admitted source.'
                 & $verify
             }
         }

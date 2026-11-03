@@ -167,7 +167,8 @@ Assert ($conversation[0].Name -ceq 'ui-conversations') 'New unclassified convers
 Assert ($editor[0].Name -ceq 'ui-editors') 'Isolate the complete editor class in its own serial UI process.'
 foreach ($method in @('NativeExample', 'OwnedExample', 'NamedExample')) {
     $execution = @(Get-MatchingShard "Kora.Windows.IntegrationTests.SessionsConversationTests.$method" -Definitions $partitions)
-    Assert ($execution.Count -eq 1 -and $execution[0].Name -ceq 'ui-conversation-actions') 'Keep each native/owned/named conversation method and all its theory rows in one action process.'
+    $owner = if ($method.StartsWith('Native', [StringComparison]::Ordinal)) { 'ui-conversation-actions' } else { 'ui-conversations' }
+    Assert ($execution.Count -eq 1 -and $execution[0].Name -ceq $owner) 'Keep each complete conversation method family and all its theory rows in its assigned serial process.'
 }
 foreach ($method in @(
     'CriteriaEditsFenceLateDetailCallbacksWithoutClearingIndependentComposer'
@@ -236,6 +237,63 @@ Assert (($all | Where-Object Name -EQ 'native-ux').Filter -ceq ($nativeFilter -j
 $collection = Get-Content -Raw -LiteralPath (Join-Path $root 'tests\Kora.Windows.IntegrationTests\HeadlessUiTestGroup.cs')
 Assert ($collection.Contains('[CollectionDefinition(nameof(HeadlessUiTestGroup), DisableParallelization = true)]',
     [StringComparison]::Ordinal)) 'Headless UI tests must remain serial within each process.'
+$tracingCollection = Get-Content -Raw -LiteralPath (Join-Path $root 'tests\Kora.Windows.IntegrationTests\HostTracingTestGroup.cs')
+Assert ($tracingCollection.Contains('[CollectionDefinition("Host tracing", DisableParallelization = true)]',
+    [StringComparison]::Ordinal)) 'Process-wide tracing listeners must remain isolated within each process.'
+$redistributedClasses = [ordered]@{
+    'ForegroundPttUiContractTests' = 'ui-workflows'
+    'PreparedLocalSearchWindowTests' = 'ui-presentation'
+    'LocalFileTextMeasurementWindowTests' = 'ui-presentation'
+    'AdaptiveSessionNameSearchTests' = 'ui-presentation'
+}
+foreach ($class in $redistributedClasses.Keys) {
+    foreach ($method in @('ExistingMethod', 'FutureMethod')) {
+        $execution = @(Get-MatchingShard "Kora.Windows.IntegrationTests.$class.$method" -Definitions $partitions)
+        Assert ($execution.Count -eq 1 -and $execution[0].Name -ceq $redistributedClasses[$class]) "Move the entire $class class, including future methods."
+    }
+    $nearMatch = @(Get-MatchingShard "Kora.Windows.IntegrationTests.${class}Extra.Test" -Definitions $partitions)
+    Assert ($nearMatch.Count -eq 1 -and $nearMatch[0].Name -ceq 'ui-platform') 'Exact class boundaries must not capture similarly named future platform classes.'
+    $source = Get-Content -Raw -LiteralPath (Join-Path $root "tests\Kora.Windows.IntegrationTests\$class.cs")
+    Assert ($source.Contains('[Collection(nameof(HeadlessUiTestGroup))]', [StringComparison]::Ordinal)) 'Whole-class redistribution must preserve the serial dispatcher collection.'
+}
+
+# Exact-source successful twelve-job runs; serial durations estimate redistribution, not new-head timing.
+foreach ($measurement in @(
+    @{ Run = 41687015183; Source = '0cd532a0fb6c74345d8820c1e5a27549bff385b0'; Total = 8012
+       BeforeCases = @(507, 951, 535, 170, 599, 190, 400, 116, 3580, 451, 266, 247)
+       AfterCases = @(507, 951, 535, 170, 678, 190, 321, 116, 3515, 451, 289, 289)
+       Actions = 972.469; Families = 251.503; Conversations = 373.678
+       Platform = 1059.792; Foreground = 262.460; PresentationMoves = 135.054
+       Workflows = 378.759; Presentation = 291.352; Editor = 659.814 }
+    @{ Run = 41695737766; Source = '844a3ec2fb65620a617b610f782f3e9c64bc893c'; Total = 8030
+       BeforeCases = @(507, 951, 535, 170, 610, 190, 407, 116, 3580, 451, 266, 247)
+       AfterCases = @(507, 951, 535, 170, 689, 190, 328, 116, 3515, 451, 289, 289)
+       Actions = 676.384; Families = 168.831; Conversations = 268.124
+       Platform = 940.896; Foreground = 196.208; PresentationMoves = 124.820
+       Workflows = 370.133; Presentation = 343.534; Editor = 359.183 }
+)) {
+    $before = [Math]::Max($measurement.Actions, $measurement.Platform)
+    $after = (@(
+        ($measurement.Actions - $measurement.Families)
+        ($measurement.Conversations + $measurement.Families)
+        ($measurement.Platform - $measurement.Foreground - $measurement.PresentationMoves)
+        ($measurement.Workflows + $measurement.Foreground)
+        ($measurement.Presentation + $measurement.PresentationMoves)
+        $measurement.Editor
+    ) | Measure-Object -Maximum).Maximum
+    Assert ($after -lt 0.75 * $before) "Run $($measurement.Run) must project a shorter serial critical path, not merely transfer its bottleneck."
+    # 79 Owned/Named rows and four complete classes (23 + 6 + 16 + 20 rows).
+    $afterCases = @($measurement.BeforeCases)
+    $afterCases[4] += 79
+    $afterCases[6] -= 79
+    $afterCases[8] -= 65
+    $afterCases[10] += 23
+    $afterCases[11] += 42
+    Assert (($measurement.BeforeCases | Measure-Object -Sum).Sum -eq $measurement.Total) 'Pin the complete source-specific inventory.'
+    Assert (($afterCases | Measure-Object -Sum).Sum -eq $measurement.Total) 'Redistribution must preserve all source-specific catalog counts.'
+    Assert (($afterCases -join ',') -ceq ($measurement.AfterCases -join ',')) 'Pin every redistributed source-specific partition count, not only the total.'
+    Write-Host ("Run {0} source {1}: projected maximum serial work {2:N3}s -> {3:N3}s; new-head hosted timing remains unverified." -f $measurement.Run, $measurement.Source, $before, $after)
+}
 
 # Run 40468340968: whole test-step wall times, not sums of concurrently executed test durations.
 # Conservatively charge every shard the largest observed setup (including storage-only checks)
@@ -400,7 +458,9 @@ Assert ((266 + 1535 + 7) -eq 1808) 'Reproduce the hosted whole-job timeout, incl
 Assert ($recordedCriticalPath -lt 0.8 * $deadlineSeconds) 'Recorded work must leave headroom without dropping the 15 unrecorded cases or extending the job deadline.'
 Write-Host ("Run 41255145262: recorded-work projection {0:N1}s; partial evidence does not establish completion or shared-runner timing." -f $recordedCriticalPath)
 
-if ($PSBoundParameters.ContainsKey('RetainedResultsDirectory')) {
+function Assert-RetainedResults {
+    param([string] $RetainedResultsDirectory, [string] $ExpectedCatalogPath, [string] $ExpectedSourceRevision)
+
     $reports = @(Get-ChildItem -LiteralPath $RetainedResultsDirectory -Filter '*.trx' -Recurse -File)
     Assert ($reports.Count -in @($expected.Count, $legacyPartitions.Count, $ninePartitions.Count, $expectedPartitions.Count)) 'Retained evidence must contain a complete five-, seven-, nine- or twelve-report set.'
     $reportNames = if ($reports.Count -eq $expected.Count) { $expected }
@@ -459,10 +519,6 @@ if ($PSBoundParameters.ContainsKey('RetainedResultsDirectory')) {
                     'ui-conversation-actions' { 'ui-conversations' }
                     default { $sourceName }
                 }
-                if ($ExpectedCatalogPath) {
-                    $catalog = Get-Content -Raw -LiteralPath $ExpectedCatalogPath | ConvertFrom-Json
-                    Assert-CatalogCoverage $catalog $ExpectedSourceRevision $reports.Count $recordedCases $recordedMethods $recordedTests
-                }
             }
             Assert ($sourceName -ceq $name) 'A retained case must belong to its recorded source partition.'
             $partitionCases[$execution[0].Name]++
@@ -474,6 +530,10 @@ if ($PSBoundParameters.ContainsKey('RetainedResultsDirectory')) {
             }
             $recordedCases++
         }
+    }
+    if ($ExpectedCatalogPath) {
+        $catalog = Get-Content -Raw -LiteralPath $ExpectedCatalogPath | ConvertFrom-Json
+        Assert-CatalogCoverage $catalog $ExpectedSourceRevision $reports.Count $recordedCases $recordedMethods $recordedTests
     }
     Write-Host "Retained partition: $recordedCases cases across $($recordedClasses.Count) classes covered exactly once."
     foreach ($name in $expectedPartitions) {
@@ -487,6 +547,10 @@ if ($PSBoundParameters.ContainsKey('RetainedResultsDirectory')) {
         Assert ($after -lt 0.75 * $before) 'Twelve independent jobs must reduce the complete retained maximum serial UI workload by at least 25 percent.'
         Write-Host ("Independent-host retained UI workload: {0:N1}s -> {1:N1}s; hosted completion remains unverified." -f $before, $after)
     }
+}
+
+if ($PSBoundParameters.ContainsKey('RetainedResultsDirectory')) {
+    Assert-RetainedResults $RetainedResultsDirectory $ExpectedCatalogPath $ExpectedSourceRevision
 }
 
 $fixtureRoot = Join-Path $root ".scratch\windows-scheduling-tests\$([guid]::NewGuid().ToString('N'))"
@@ -604,6 +668,50 @@ try {
         }
         catch { $failed = $true }
         Assert $failed "Source catalog must reject $fault evidence."
+    }
+    $catalogRoot = Join-Path $fixtureRoot 'catalog-reports'
+    $catalogPath = Join-Path $catalogRoot 'catalog.json'
+    $fixtureMethods = @(
+        'Storage.WindowsSqliteMemoryTests.Test'
+        'Storage.WindowsSqliteEvidenceQueryTests.Test'
+        'ArtifactDiscovery.FutureDefinitionTests.Test'
+        'ArtifactDiscovery.CustomizationWindowTests.Test'
+        'SessionsConversationTests.OwnedExample'
+        'SessionsConversationTests.ModelExample'
+        'SessionsConversationTests.NativeExample'
+        'NativeUx.FutureNativeUxTests.Test'
+        'FuturePlatformTests.Test'
+        'ArtifactDiscovery.OwnedDefinitionEditorWindowTests.Test'
+        'ForegroundPttUiContractTests.Test'
+        'PreparedLocalSearchWindowTests.Test'
+    )
+    $identities = @()
+    for ($index = 0; $index -lt $expectedPartitions.Count; $index++) {
+        $qualified = "Kora.Windows.IntegrationTests.$($fixtureMethods[$index])"
+        $class, $method = $qualified -split '\.(?=[^.]+$)'
+        $directory = Join-Path $catalogRoot $expectedPartitions[$index]
+        New-Item -ItemType Directory -Path $directory -Force | Out-Null
+        $id = [guid]::NewGuid().ToString()
+        $report = "<TestRun><TestDefinitions><UnitTest id=`"$id`"><TestMethod className=`"$class`" name=`"$method`"/></UnitTest></TestDefinitions><Results><UnitTestResult testId=`"$id`" executionId=`"$id`" testName=`"$qualified`" outcome=`"Passed`" duration=`"00:00:01`"/></Results><ResultSummary><Counters total=`"1`" passed=`"1`"/></ResultSummary></TestRun>"
+        Set-Content -LiteralPath (Join-Path $directory 'results.trx') -Value $report
+        $identities += [pscustomobject]@{ Name = $qualified; Cases = 1 }
+    }
+    $completeCatalog = [pscustomobject]@{ Version = 1; SourceRevision = $revision; Total = 12; Methods = $identities; Tests = $identities }
+    $completeCatalog | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $catalogPath
+    Assert-RetainedResults $catalogRoot $catalogPath $revision
+    foreach ($fault in @('source', 'total', 'method', 'theory-row')) {
+        $invalid = $completeCatalog | ConvertTo-Json -Depth 4 | ConvertFrom-Json
+        switch ($fault) {
+            'source' { $invalid.SourceRevision = 'b' * 40 }
+            'total' { $invalid.Total = 11 }
+            'method' { $invalid.Methods[0].Name = 'missing-method' }
+            'theory-row' { $invalid.Tests[0].Name = 'missing-theory-row' }
+        }
+        $invalid | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $catalogPath
+        $failure = $null
+        try { Assert-RetainedResults $catalogRoot $catalogPath $revision }
+        catch { $failure = $_ }
+        Assert ($null -ne $failure) "The actual twelve-report join must reject $fault catalog evidence."
     }
 }
 finally {

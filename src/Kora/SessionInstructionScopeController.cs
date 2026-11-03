@@ -40,8 +40,8 @@ internal sealed class SessionInstructionScopeController(Func<Func<bool>> capture
                     reportFailure(exception.Message);
                 }
             };
-            opened.Review.Click += async (_, _) => await RunNativeAsync(new(SessionCommandOperation.InstructionScopeReview)
-            { ScopeInstructionName = (opened.Sources.SelectedItem as ArtifactDefinition)?.Name });
+            opened.Review.Click += async (_, _) => await RunNativeAsync(new(SessionCommandOperation.InstructionScopeReview),
+                opened.Sources.SelectedItem as ArtifactDefinition);
             opened.Confirm.Click += async (_, _) => await RunNativeAsync(new(SessionCommandOperation.InstructionScopeConfirm));
             opened.Stop.Click += async (_, _) => await RunNativeAsync(new(SessionCommandOperation.InstructionScopeStop));
             opened.Status.Click += async (_, _) => await RunNativeAsync(new(SessionCommandOperation.InstructionScopeStatus));
@@ -72,10 +72,13 @@ internal sealed class SessionInstructionScopeController(Func<Func<bool>> capture
     }
 
     internal Task<string> ExecuteAsync(SessionCommand command, RequestOrigin origin,
-        Func<bool> admitted, CancellationToken token)
+        Func<bool> admitted, CancellationToken token) => ExecuteCoreAsync(command, origin, admitted, null, token);
+
+    private Task<string> ExecuteCoreAsync(SessionCommand command, RequestOrigin origin,
+        Func<bool> admitted, ArtifactDefinition? selectedInstruction, CancellationToken token)
     {
         if (!Dispatcher.UIThread.CheckAccess())
-        { return Dispatcher.UIThread.InvokeAsync(() => ExecuteAsync(command, origin, admitted, token)); }
+        { return Dispatcher.UIThread.InvokeAsync(() => ExecuteCoreAsync(command, origin, admitted, selectedInstruction, token)); }
         if (!Operation.IsCompleted) { throw new InvalidOperationException("Session instruction read is still owned; wait for completion."); }
         Open();
         var opened = window!;
@@ -86,17 +89,20 @@ internal sealed class SessionInstructionScopeController(Func<Func<bool>> capture
         bool HostLive() => !disposed && admitted() && host();
         bool ReviewLive() => HostLive() && window == opened && attempt == epoch && selection() && Target() == target;
         cancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
-        var running = RunAsync(command, target, origin, HostLive, ReviewLive, opened, cancellation);
+        var running = RunAsync(command, target, origin, HostLive, ReviewLive, opened, cancellation, selectedInstruction);
         Operation = running;
         return running;
     }
 
     private async Task<string> RunAsync(SessionCommand command, SessionWorkspaceEntry target, RequestOrigin origin,
-        Func<bool> host, Func<bool> live, SessionInstructionScopeWindow opened, CancellationTokenSource source)
+        Func<bool> host, Func<bool> live, SessionInstructionScopeWindow opened, CancellationTokenSource source,
+        ArtifactDefinition? selectedInstruction)
     {
         try
         {
-            var text = await commands.ExecuteAsync(command, target, origin, host, live, source.Token);
+            var text = command.Operation == SessionCommandOperation.InstructionScopeReview && selectedInstruction is not null
+                ? await commands.ReviewAsync(target, selectedInstruction, origin, host, live, source.Token)
+                : await commands.ExecuteAsync(command, target, origin, host, live, source.Token);
             if (!live()) { commands.Retire(); throw new OperationCanceledException("Original scope presentation changed."); }
             opened.Preview.Text = text;
             opened.Confirm.IsEnabled = commands.Pending?.CanConfirm == true;
@@ -105,9 +111,9 @@ internal sealed class SessionInstructionScopeController(Func<Func<bool>> capture
         finally { if (ReferenceEquals(cancellation, source)) { cancellation = null; } source.Dispose(); }
     }
 
-    private async Task RunNativeAsync(SessionCommand command)
+    private async Task RunNativeAsync(SessionCommand command, ArtifactDefinition? selectedInstruction = null)
     {
-        try { await ExecuteAsync(command, RequestOrigin.LocalUi, captureHost(), CancellationToken.None); }
+        try { await ExecuteCoreAsync(command, RequestOrigin.LocalUi, captureHost(), selectedInstruction, CancellationToken.None); }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             commands.Retire();

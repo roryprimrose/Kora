@@ -908,6 +908,16 @@ Embedded definitions change only with a verified application replacement.
    set for the task/clarification; queued work retains exact revisions and
    requires review or re-admission if stale, never an automatic version switch.
 
+The native session-instruction choice retains its exact observed catalogue
+entry through source review, rather than resolving its readable name again.
+A replaced, removed or unavailable selection is refused before a replacement
+source read. Explicit Refresh/reselection and complete source review restore
+the operation; selection alone grants no read or applicability consent
+([native owner](../src/Kora/SessionInstructionScopeController.cs),
+[operation regressions](../tests/Kora.Windows.IntegrationTests/SessionInstructionScopeUiTests.cs)).
+Original typed/activated commands retain their existing unambiguous current-name
+lookup and separate confirmation; neither route silently confirms new bytes.
+
 Active tasks retain their admitted immutable definition set; reload cannot
 inject new guidance mid-task. Access/consent revocation, required resource
 loss, or grant invalidation still applies at each action/egress boundary and

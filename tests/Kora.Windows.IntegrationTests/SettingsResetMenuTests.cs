@@ -35,6 +35,7 @@ public sealed class SettingsResetMenuTests
         { "RefreshConversationExecutionCommand", "Ordinary conversation execution maximum", "CanChangeConversationExecution", "Refresh ordinary conversation execution maximum" },
         { "RefreshSpeechTextCommand", "Speech captions", "CanChangeSpeechText", "Refresh captions" },
         { "RefreshSessionRetentionCommand", "Session inactivity retention", "CanChangeSessionRetentionNative", "Refresh archive and deletion settings" },
+        { "RefreshOrdinaryDeadlineCommand", "Ordinary task deadline", "CanChangeOrdinaryDeadlineNative", "Refresh future ordinary task deadline" },
         { "RefreshDiagnosticRetentionCommand", "Diagnostic record storage", "CanChangeDiagnosticRetentionNative", "Refresh diagnostic settings" },
         { "RefreshAuditRetentionCommand", "Security record storage", "CanChangeAuditRetentionNative", "Refresh security record settings" },
         { "GetManualCallStatusCommand", "Manual call mode", null, "Show last known call status" },
@@ -58,6 +59,7 @@ public sealed class SettingsResetMenuTests
         { "ResetSpeechTextCommand", "Turn captions off", "CanChangeSpeechText" },
         { "ResetSpeechCaptionOptionCommand", "Reset selected caption option", "CanChangeSpeechText" },
         { "ResetSessionRetentionCommand", "Reset archive to 1 day and deletion to 30 days", "CanChangeSessionRetentionNative" },
+        { "ResetOrdinaryDeadlineCommand", "Reset to 5 minutes", "CanChangeOrdinaryDeadlineNative" },
         { "ResetDiagnosticRetentionCommand", "Reset diagnostic storage to 30 days", "CanChangeDiagnosticRetentionNative" },
         { "ResetAuditRetentionCommand", "Reset security record storage to 90 days", "CanChangeAuditRetentionNative" },
         { "ResetManualCallCommand", "Reset call mode", null },
@@ -156,11 +158,16 @@ public sealed class SettingsResetMenuTests
             .Where(attribute => attribute.Name.LocalName is "Command" or "ResetCommand"
                 && attribute.Value.StartsWith("{Binding Reset", StringComparison.Ordinal))
             .ToArray();
-        bindings.Should().HaveCount(36);
-        bindings.Select(attribute => attribute.Value).Distinct(StringComparer.Ordinal).Should().HaveCount(36);
+        bindings.Should().HaveCount(37);
+        bindings.Select(attribute => attribute.Value).Distinct(StringComparer.Ordinal).Should().HaveCount(37);
+        bindings.Select(attribute => attribute.Value).Should().Contain(
+            ["{Binding ResetOrdinaryDeadlineCommand}", "{Binding ResetLogonStartupCommand}", "{Binding ResetQuietHoursCommand}"]);
         elements.Count(element =>
             string.Equals(element.Name.LocalName, nameof(SettingActionsButton), StringComparison.Ordinal))
-            .Should().Be(39);
+            .Should().Be(40);
+        elements.Where(element => element.Name.LocalName is nameof(SettingActionsButton))
+            .Select(element => element.Attribute("SettingName")?.Value).Should().Contain(
+                ["Ordinary task deadline", "Ordinary conversation execution maximum", "Scheduled proactive speech quiet hours"]);
         foreach (var binding in bindings)
         {
             var element = binding.Parent!;
@@ -212,7 +219,7 @@ public sealed class SettingsResetMenuTests
     [InlineData("Appearance", 17, 17, 0)]
     [InlineData("Speech & audio", 9, 8, 5)]
     [InlineData("Responses", 4, 4, 3)]
-    [InlineData("Sessions", 1, 1, 1)]
+    [InlineData("Sessions", 2, 2, 2)]
     [InlineData("Logging", 2, 2, 2)]
     [InlineData("Calls", 2, 2, 2)]
     [InlineData("Providers", 2, 3, 2)]

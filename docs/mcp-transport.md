@@ -15,6 +15,15 @@ and separately approve its exact schema and arguments. The result is inert
 lower-trust evidence for the local model, not instructions or permission.
 Discovery annotations never establish a read-only mapping.
 
+If a configuration refresh observes changed source bytes, exclusion, removal or
+unavailable configuration while discovery or review is pending, the old review
+cannot continue. Restoring the previous file or inclusion does not revive it.
+An unchanged successful refresh does not retire the review. Restore a valid
+included source, refresh the options, then explicitly start a new request and
+repeat discovery and native approvals. Kora does not reconnect or retry for you.
+This does not detect changes the host never observed or enable the unavailable
+connector.
+
 ## Separately review the result before model continuation
 
 For **Use reviewed MCP tool locally** and the reviewed declarative MCP skill, successful execution alone does not let the model receive the result. After the authenticated transport finishes, a separate native review shows the complete unchanged text and structured JSON, observation time, configured source/server, delegated account, exact schema, original conversation/task/channel and retention ([review](../src/Kora.Application/Mcp/McpReview.cs)).

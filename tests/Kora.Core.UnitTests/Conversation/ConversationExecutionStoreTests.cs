@@ -23,6 +23,27 @@ public sealed class ConversationExecutionStoreTests
         await finish.Should().ThrowAsync<InvalidOperationException>();
         var context = () => store.ReadSubmittedHistoryAvailabilityAsync(null!, token).AsTask();
         await context.Should().ThrowAsync<InvalidOperationException>();
+        var unsupported = new ConversationMessage(request, new(1), 1, 1, DateTimeOffset.UnixEpoch, "original", null, null);
+        var unresolved = () => store.ReadSubmittedContextAvailabilityAsync(unsupported, token).AsTask();
+        await unresolved.Should().ThrowAsync<InvalidOperationException>().WithMessage("*submitted memory metadata*");
+        unsupported = unsupported with
+        {
+            SubmittedContext = new(1, provenance, new(1),
+                new(Kora.Core.Providers.ProviderService.Local, new("device"), new(1), new("model"), new("default"), new("default")),
+                DateTimeOffset.UnixEpoch, 1, []),
+        };
+        var legacyContext = () => store.ReadSubmittedContextAvailabilityAsync(unsupported, token).AsTask();
+        await legacyContext.Should().ThrowAsync<InvalidOperationException>().WithMessage("*historical source metadata*");
+        unsupported = unsupported with
+        {
+            SubmittedContext = unsupported.SubmittedContext! with
+            {
+                Version = 2,
+                MemorySources = [new(new(Guid.NewGuid()), new(3), request.SessionId)],
+            },
+        };
+        var memoryContext = () => store.ReadSubmittedContextAvailabilityAsync(unsupported, token).AsTask();
+        await memoryContext.Should().ThrowAsync<InvalidOperationException>().WithMessage("*submitted memory metadata*");
         var predecessor = new HostRequest(new(Guid.NewGuid()), request.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi);
         var pending = () => store.RetainPendingConversationMessageAsync(request, new(1), 0, "original",
             [predecessor], () => true, token).AsTask();

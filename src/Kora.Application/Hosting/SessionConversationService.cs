@@ -114,8 +114,7 @@ public sealed partial class SessionConversationService(
         Func<HostRequest, Func<bool>, CancellationToken, Task<ModelContextEnvelope>>? prepareContext = null,
         bool claude = false, bool claudeStreamAnswer = false, PendingConversation? pending = null,
         LocalUnavailableContinuation? localHandoff = null, bool joinCancelledResources = false,
-        bool ordinaryActiveDeadline = false,
-        LocalRequestProfileReview? localRequestProfile = null)
+        bool ordinaryActiveDeadline = false, LocalRequestProfileReview? localRequestProfile = null)
     {
         RequireOriginalSource(origin);
         using var lifecycle = EnterLifecycleSubmission(target, body, admitted);

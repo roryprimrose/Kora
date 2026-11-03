@@ -402,7 +402,8 @@ runner to verify the exact shape, original identity and real headless output.
   authoritative task readback, and physical join. Terminal readback failure
   still prevents fresh lifecycle review.
 - Concurrent conversation expiry fixtures derive the message/task terminal pair
-  from the exact request-owned snapshot, not mutable last-observed fixture slots.
+  from the exact request-owned snapshot before any awaited callback, not mutable
+  last-observed fixture slots.
   A concurrent dictionary does not make shared selection/commit atomic; force
   interleaving deterministically and preserve each original's exact receipt.
   The [manual-release regressions](tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ManualDispatch.cs)

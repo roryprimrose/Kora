@@ -160,9 +160,14 @@ public sealed class SettingsResetMenuTests
             .ToArray();
         bindings.Should().HaveCount(36);
         bindings.Select(attribute => attribute.Value).Distinct(StringComparer.Ordinal).Should().HaveCount(36);
+        bindings.Select(attribute => attribute.Value).Should().Contain(
+            ["{Binding ResetOrdinaryDeadlineCommand}", "{Binding ResetLogonStartupCommand}"]);
         elements.Count(element =>
             string.Equals(element.Name.LocalName, nameof(SettingActionsButton), StringComparison.Ordinal))
             .Should().Be(39);
+        elements.Where(element => element.Name.LocalName is nameof(SettingActionsButton))
+            .Select(element => element.Attribute("SettingName")?.Value).Should().Contain(
+                ["Ordinary task deadline", "Ordinary conversation execution maximum"]);
         foreach (var binding in bindings)
         {
             var element = binding.Parent!;

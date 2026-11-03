@@ -9,6 +9,98 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData("native")]
+    [InlineData("typed")]
+    [InlineData("activated")]
+    public async Task DeadlineAndConcurrencyKeepIndependentPreferencesAndSeparateConfirmation(string route)
+    {
+        await using var settings = new OrdinaryDeadlineConfigurationFixture();
+        var f = new Fixture(ordinaryDeadlineConfiguration: settings.Service, enableConversationExecution: true);
+        using var model = f.ViewModel;
+        model.BindOrdinaryDeadlineNativeLifetime(static () => true);
+
+        if (route is "typed") { await f.RunAsync("review conversations.execution-maximum to 1"); }
+        else if (route is "activated")
+        { await f.RaiseActivatedTranscriptAsync("Kora, review conversations.execution-maximum to 1", 1); }
+        else
+        {
+            model.SelectedConversationExecutionLimit = model.ConversationExecutionLimits[0];
+            await model.ReviewConversationExecutionCommand.ExecuteAsync();
+        }
+        model.CanConfirmConversationExecution.Should().BeTrue();
+        f.ConversationExecutionPreferences.Writes.Should().Be(0);
+        settings.Preferences.Load().Should().BeNull();
+
+        if (route is "typed") { await f.RunAsync("set work.active-deadline-minutes to 1"); }
+        else if (route is "activated")
+        { await f.RaiseActivatedTranscriptAsync("Kora, set work.active-deadline-minutes to 1", 1); }
+        else
+        {
+            await model.RefreshOrdinaryDeadlineCommand.ExecuteAsync();
+            model.SelectedOrdinaryDeadlineMinutes = 1;
+            await model.SaveOrdinaryDeadlineCommand.ExecuteAsync();
+        }
+        settings.Service.Capture().Minutes.Should().Be(1);
+        f.ConversationExecutionPreferences.Writes.Should().Be(0);
+        model.CanConfirmConversationExecution.Should().BeTrue("saving a deadline does not confirm another setting");
+
+        if (route is "typed") { await f.RunAsync("confirm conversations.execution-maximum"); }
+        else if (route is "activated")
+        { await f.RaiseActivatedTranscriptAsync("Kora, confirm conversations.execution-maximum", 1); }
+        else { await model.ConfirmConversationExecutionCommand.ExecuteAsync(); }
+        f.ConversationExecutionPreferences.Value.Should().Be(new ConversationExecutionLimit(1));
+        f.ConversationExecutionPreferences.Writes.Should().Be(1);
+        settings.Service.Capture().Minutes.Should().Be(1);
+
+        await f.RunAsync("reset work.active-deadline-minutes");
+        settings.Preferences.Load().Should().BeNull();
+        f.ConversationExecutionPreferences.Value.Should().Be(new ConversationExecutionLimit(1));
+        f.ConversationExecutionPreferences.Writes.Should().Be(1);
+        model.CanConfirmConversationExecution.Should().BeFalse();
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.Voice.StartCalls.Should().Be(route is "activated" ? 3 : 0,
+            "only the three explicit activated transcripts may start fake recognition");
+        f.Audit.Events.Should().Contain(entry => entry.ActionId == "configuration.conversation-execution-maximum"
+            && entry.Outcome == SecurityAuditOutcome.Succeeded);
+        settings.Audit.Events.Should().Contain(entry => entry.Outcome == SecurityAuditOutcome.Succeeded);
+    }
+
+    [Fact]
+    public async Task DeadlineAndLogonStartupControlsKeepIndependentPreferencesAndSeparateStartupConfirmation()
+    {
+        await using var settings = new OrdinaryDeadlineConfigurationFixture();
+        await using var startup = new LogonStartupConfigurationServiceTests.Fixture();
+        var f = new Fixture(ordinaryDeadlineConfiguration: settings.Service, logonStartupConfiguration: startup.Service);
+        using var model = f.ViewModel;
+        f.VoiceConsent.Consent = false;
+        await model.InitializeAsync();
+        model.BindOrdinaryDeadlineNativeLifetime(static () => true);
+        model.BindLogonStartupNativeLifetime(static () => true);
+        await model.RefreshOrdinaryDeadlineCommand.ExecuteAsync();
+        model.SelectedOrdinaryDeadlineMinutes = 1;
+        await model.SaveOrdinaryDeadlineCommand.ExecuteAsync();
+        settings.Service.Capture().Minutes.Should().Be(1);
+        startup.Preferences.Writes.Should().Be(0);
+        startup.Registration.Writes.Should().Be(0);
+
+        await model.EnableLogonStartupCommand.ExecuteAsync();
+        model.LogonStartupReviewText.Should().Contain("No change yet");
+        startup.Registration.Writes.Should().Be(0);
+        await model.ConfirmLogonStartupCommand.ExecuteAsync();
+        startup.Preferences.Value.Should().BeTrue();
+        startup.Registration.Writes.Should().Be(1);
+        settings.Service.Capture().Minutes.Should().Be(1);
+
+        await f.RunAsync("reset work.active-deadline-minutes");
+        settings.Preferences.Load().Should().BeNull();
+        startup.Preferences.Value.Should().BeTrue();
+        startup.Registration.Writes.Should().Be(1);
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.Voice.StartedMicrophone.Should().BeNull();
+        model.HasVoiceConsent.Should().BeFalse();
+    }
+
     [Fact]
     public async Task NativeDeadlineRefreshSaveReadbackResetCompletesOperationWithoutModelOrQueueSetting()
     {

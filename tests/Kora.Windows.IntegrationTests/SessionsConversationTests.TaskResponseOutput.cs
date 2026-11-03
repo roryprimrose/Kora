@@ -356,6 +356,104 @@ public sealed partial class SessionsConversationTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TaskOutputSeparateSessionsAndQueuedTurnsRequirePhysicalJoinBeforeLegacyAdapterReuse(bool joinBeforeOtherSession)
+    {
+        using var f = new InteractionStorageFixture();
+        f.Time.UseFrozenTimers = true;
+        await f.InitializeAsync();
+        await WindowsSqliteConversationTests.FinishInitial(f);
+        var original = f.Request.SessionId;
+        f.Request = InteractionStorageFixture.NewRequest();
+        await f.AdmitAsync(newSession: true);
+        await WindowsSqliteConversationTests.FinishInitial(f);
+        var adapter = new PendingTurnAdapter();
+        await using var composed = new Composition(f, adapter: adapter);
+        var firstTarget = await f.Store.ReadMetadataAsync(original, f.Token);
+        var otherTarget = await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token);
+        var firstRetention = await f.Store.ReadRetentionAsync(original, f.Token);
+        var otherRetention = await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token);
+        var output = new List<(ConversationSubmissionReceipt Receipt, TaskResponseMode Mode)>();
+        TaskResponseOutputReview? otherOutput = null;
+        composed.Conversation.BindTaskResponseOutput((mode, _) =>
+        {
+            var review = new TaskResponseOutputReview(mode, ResponseOutputMode.Hybrid, () => true,
+                (receipt, captured, current, _) =>
+                {
+                    current().Should().BeTrue();
+                    output.Add((receipt, captured.Declared));
+                    return Task.CompletedTask;
+                });
+            if (mode == TaskResponseMode.Hybrid) { otherOutput = review; }
+            return review;
+        });
+        var commands = composed.Conversation.CreateRequestCommands();
+        var otherCommands = composed.Conversation.CreateRequestCommands();
+        try
+        {
+            var firstReview = await ReviewTaskOutput(commands, firstTarget, "held original", TaskResponseMode.VisualOnly, f.Token);
+            var firstOperation = ConfirmTaskOutput(commands, firstReview, f.Token);
+            var first = await adapter.NextAsync().WaitAsync(TimeSpan.FromSeconds(20), f.Token);
+            var otherReview = await ReviewTaskOutput(otherCommands, otherTarget, "other original", TaskResponseMode.Hybrid, f.Token);
+            if (joinBeforeOtherSession)
+            {
+                first.Release();
+                await firstOperation;
+                composed.Turns.IsQuiescent.Should().BeTrue();
+            }
+            var otherOperation = ConfirmTaskOutput(otherCommands, otherReview, f.Token);
+            if (joinBeforeOtherSession)
+            {
+                var next = await adapter.NextAsync().WaitAsync(TimeSpan.FromSeconds(20), f.Token);
+                next.Provenance.Request.SessionId.Should().Be(otherTarget.Authority.SessionId);
+                next.Release();
+            }
+            var receipt = (await otherOperation).RequestSubmission!;
+            if (joinBeforeOtherSession)
+            {
+                receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+                receipt.Message.Reason.Should().Be(ModelTurnReason.ProviderOutcome);
+                receipt.Task.State.Should().Be(HostTaskState.Succeeded);
+                output.Select(item => item.Mode).Should().Equal(TaskResponseMode.VisualOnly, TaskResponseMode.Hybrid);
+                output.Should().OnlyContain(item => item.Receipt.Message.Outcome == ModelTurnOutcome.Succeeded
+                    && item.Receipt.Message.AssistantResponse != null);
+                adapter.Calls.Should().Be(2);
+            }
+            else
+            {
+                receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Unavailable);
+                receipt.Message.Reason.Should().Be(ModelTurnReason.ProviderBusy);
+                receipt.Task.State.Should().Be(HostTaskState.Unavailable);
+                receipt.Message.Execution.Should().BeNull();
+                receipt.Message.AssistantResponse.Should().BeNull();
+                otherOutput!.Status.Should().Be("Task output pending; no presentation or speech is claimed.");
+                output.Should().ContainSingle().Which.Should().Be((receipt, TaskResponseMode.Hybrid));
+                output.Should().OnlyContain(item => item.Receipt.Message.Outcome == ModelTurnOutcome.Unavailable
+                    && item.Receipt.Message.Reason == ModelTurnReason.ProviderBusy
+                    && item.Receipt.Message.AssistantResponse == null);
+                adapter.Calls.Should().Be(1);
+                firstOperation.IsCompleted.Should().BeFalse();
+                first.Completion.Task.IsCompleted.Should().BeFalse();
+                composed.Turns.IsQuiescent.Should().BeFalse();
+                first.Release();
+                await firstOperation;
+                output.Select(item => item.Mode).Should().Equal(TaskResponseMode.Hybrid, TaskResponseMode.VisualOnly);
+                output.Last().Receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+            }
+            composed.Turns.IsQuiescent.Should().BeTrue();
+            (await f.Store.ReadRetentionAsync(original, f.Token)).Should().Be(firstRetention);
+            (await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token)).Should().Be(otherRetention);
+            f.Count("conversation_messages").Should().Be(2);
+            f.Count("conversation_drafts").Should().Be(0);
+            f.Count("host_questions").Should().Be(0);
+            f.Count("scoped_grants").Should().Be(0);
+            f.Time.SystemTimersCreated.Should().Be(0);
+        }
+        finally { adapter.ReleaseAll(); await composed.Conversation.DisposeAsync(); }
+    }
+
+    [Theory]
     [InlineData(false, 15)]
     [InlineData(false, 20)]
     [InlineData(true, 0)]

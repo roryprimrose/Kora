@@ -18,6 +18,16 @@ not a fabricated model reply.
 **Product realignment:** conversation input is moving from saved-draft document management to per-conversation in-memory unsent text. The saved-draft catalogue/comparison and engineering-heavy normal workspace controls below describe current implementations approved for retirement or simplification, not the target workflow.
 Existing saved content remains governed by retention and private recovery. See the [approved scope](../Design/MVP_Scope.md#approved-retirement-and-simplification).
 
+### Review an unsent message before sending
+
+In the primary conversation, Sessions or compact view, write your message and choose **Review unsent message once**.
+Inspect the complete unchanged message, conversation, local-only scope, original channel and expiry, then choose **Confirm and submit reviewed message once** or **Cancel review; keep unsent message**.
+Review and cancellation do not save or submit the input; ordinary direct Send remains available ([interaction contract](../Design/Interaction_And_Sessions.md#conversation-input-realignment)).
+
+Switching conversations preserves their independent unsent text but retires the review. Editing input, replacing a review, expiry or privacy/ownership loss requires a fresh review; returning to the same conversation does not restore approval.
+You can cancel while review preparation is waiting. After confirmation, inspect the reported original HOST outcome or actual retained answer; unavailability is not an answer, and uncertainty is not permission to retry automatically.
+No disk autosave or new retention is introduced ([source and review owner](../src/Kora/SessionsViewModel.ComposerRequest.cs)).
+
 ## Native app provider field review
 
 **Settings > Providers** retains the complete app tuple workflow and adds individual exact model/reasoning/context review. Inspect current catalogue, select the service, review one field, inspect the whole resulting tuple/account/revision/provenance, then confirm or cancel separately. Individual edits retain the app default, other service tuples and session overrides.

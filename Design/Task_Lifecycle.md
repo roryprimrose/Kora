@@ -114,6 +114,14 @@ nor dispatches a cancelled pending retry. No live-predecessor
 exemption, handoff transaction, automatic retry/backoff, fallback, mutating-tool
 replay, composer replacement, disk autosave or new permission is introduced.
 
+## Bounded agent observation result inspection
+
+Canonical local agent submissions explicitly opt into the existing six-ID retained observation path ([agent consumer](../src/Kora.Application/Hosting/SessionConversationService.Agents.cs)). A genuine successful final answer retains its exact host callback bytes with its original conversation request, independently of model prose. Other reviewed custom-context routes remain excluded ([submission](../src/Kora.Application/Hosting/SessionConversationService.cs)).
+
+The existing Sessions native/named observation links inspect that exact historical item without querying the tool again, including after restart or Done. Runtime availability and `ToolLoopQualified=false` are recorded observations, not enablement or execution authority. The reader retains its existing no-copy, no-speech, no-context/egress and private-source withdrawal rules ([reader](Information_Display.md#detailed-information-surface)).
+
+Denied, unavailable, unknown, cancelled or unconfirmed agent terminals do not acquire an assistant answer or retain earlier callback output as successful evidence. Retained input/task/status remains inspectable. Recovery uses a fresh original-source/task/session review and separate invocation confirmation, not consumed consent or replay of the failed task ([user operation](../docs/agent-results.md)).
+
 ## Request Interpretation and Tool Results
 
 [Commands, Tools, Skills, and Model Interaction](Commands_Tools_And_Skills.md)

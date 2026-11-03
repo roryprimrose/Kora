@@ -22,6 +22,6 @@ public sealed partial class SessionConversationService
             return context;
         }
         return SubmitCoreAsync(target, input, current, validate, null, origin, Create, ModelTurnChoice.Local,
-            token, onAdmitted);
+            token, onAdmitted, retainAgentObservations: true);
     }
 }

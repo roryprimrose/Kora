@@ -91,6 +91,15 @@ its runner.
 The [installed SAPI stream fixture](tests/Kora.Windows.IntegrationTests/Audio/BlockingAudioStreamTests.cs) owns recognizer construction through completion and disposal on a thread-pool task, independent of the caller's synchronization context. Its regression withholds caller-context callbacks while retaining the five-second completion budget, real stream-consumption assertion and error/cancellation checks.
 This fixture correction does not qualify installed recognizer latency or enable a runtime capability.
 
+Sessions metadata regressions hold both Refresh and Next reads across viewer
+closure, including stores that complete despite cancellation. Late pages must
+not repopulate rows or publish content through change notifications, alter
+session lifecycle, or admit work.
+
+The [local-event retirement regressions](tests/Kora.Windows.IntegrationTests/LocalEventBrokerWindowTests.Filters.cs#L197) preserve the exact closed Sessions status across late notice cancellation and source failure, including sources that ignore cancellation.
+Open-viewer failures retain unavailable feedback; neither path restores event selection/detail or changes durable work, questions, retention, history or audit.
+The [native notice-response regression](tests/Kora.Windows.IntegrationTests/SessionsConversationTests.NoticeResponse.cs#L49) also preserves closed Sessions status when its owner closes during question focus admission, without answering, activating a presenter or restoring notice content.
+
 The [bundled computer-power regressions](tests/Kora.Windows.IntegrationTests/ApplicationLifecycle/SessionsConversationTests.BundledActions.cs)
 wait for enabled native question controls after the activation-triggered source
 refresh before editing or confirming. Window-open notification alone does not
@@ -326,7 +335,17 @@ The stable phase allowlist is `native-ui`, `owned-storage`, `setup`, `context`,
 `join`, `evidence-flush` and `disposal`. `native-ui` measures the dispatched
 callback, not its queue wait; storage measures fixture construction, context
 measures task/interaction-store initialization, and setup measures the complete
-fixture initialization. Join and evidence flush measure the existing shutdown
+fixture initialization. The timed setup wrapper forwards the optional typed
+Details and conversation-execution configuration services to the core
+initializer unchanged; omitted services remain unavailable. The native settings
+regression covers all four composition combinations, independent review and
+confirmation, and terminal phase evidence without granting voice consent.
+Submitted-conversation completion joins terminal observers before signaling
+the worker result. Late-publication regressions defer native presentation with
+the existing dispatcher seam, not by blocking a terminal observer while
+awaiting that same worker. Keep both dismissal/reset cases and the exact
+new-publication, preference-write and forbidden-effect assertions.
+Join and evidence flush measure the existing shutdown
 owners inside disposal. These intervals can nest and must not be summed as
 exclusive CPU time. Repeated phases have distinct ordinal IDs.
 

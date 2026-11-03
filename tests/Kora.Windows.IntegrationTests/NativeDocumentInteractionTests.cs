@@ -167,7 +167,7 @@ public sealed class NativeDocumentInteractionTests
                 RowIdentities(grid).Should().Equal("empty", "first-a", "second-a", "first-b", "last-c");
                 Press(window, Key.Enter, PhysicalKey.Enter);
                 RowIdentities(grid).Should().Equal("last-c", "first-b", "first-a", "second-a", "empty");
-                var reset = table.Children.OfType<Button>().Single();
+                var reset = table.Children.OfType<Button>().Single(button => Equals(button.Content, "Reset table order"));
                 reset.Focus();
                 Press(window, Key.Enter, PhysicalKey.Enter);
                 RowIdentities(grid).Should().Equal("first-b", "first-a", "second-a", "empty", "last-c");

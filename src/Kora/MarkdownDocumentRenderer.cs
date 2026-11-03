@@ -27,7 +27,7 @@ internal static class MarkdownDocumentRenderer
     internal static bool RequiresFinalSourceFallback(NativeDocumentResult result) =>
         result.Sections.Sum(section => section.Table is { IsHeader: false } ? 0L
             : (section.Table is { IsHeader: true } table
-                ? 4L + table.Data.Headers.Length * 2L + table.Data.Rows.Length * (long)table.Data.Headers.Length : 1L)
+                ? 7L + table.Data.Headers.Length * 2L + table.Data.Rows.Length * (long)table.Data.Headers.Length : 1L)
                 + section.Links.Length + section.ExternalLinks.Count * 2L + (section.Code is null ? 0 : 12))
             > Core.Presentation.NativeDetailProfile.MaximumNodes;
 

@@ -136,6 +136,13 @@ ordinal text, then again for descending. Equal values keep original order.
 **Reset table order** restores original order and the last focused cell.
 Reopening starts in original order. Sorting never edits the answer.
 
+To read a whole sorted row together, click or focus a data cell and choose
+**Inspect focused row**, or press Enter/Space on the cell. The readback lists every
+complete value with its header, current row and original row, including empty
+cells. **Return to inspected cell** goes back to that exact cell even after
+sorting or reset. This is read-only native text, not speech or copying; reopening
+starts without an inspected row ([row inspection](../src/Kora/NativeTableControl.Inspection.cs)).
+
 **Continuous text** and **Exact source** retain their existing selection and
 literal Find behavior. No table action copies content or grants clipboard
 access. Closing or retiring the original result retires its navigation too.

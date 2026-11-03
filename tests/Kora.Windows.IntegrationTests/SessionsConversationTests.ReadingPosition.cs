@@ -182,8 +182,10 @@ public sealed partial class SessionsConversationTests
         });
     }
 
-    [Fact]
-    public async Task ConversationReaderRestoresOnlyExactSessionAnchorAcrossSwitchResizeAndHide()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ConversationReaderRestoresOnlyExactSessionAnchorAcrossSwitchResizeAndHide(bool collapsedViewport)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -214,6 +216,8 @@ public sealed partial class SessionsConversationTests
                 var scroll = interaction.FindControl<ScrollViewer>("ConversationScroll")!;
                 scroll.Offset = new(0, 650);
                 ReadingLayout(window);
+                (scroll.Extent.Height - scroll.Viewport.Height - scroll.Offset.Y).Should().BeGreaterThan(24,
+                    "this test restores a historical anchor rather than following the tail");
                 var anchor = ReadingAnchor(interaction);
                 model.ComposerBody = "first session unsent";
                 var audit = WindowsSqliteConversationTests.AuditText(f);
@@ -237,12 +241,23 @@ public sealed partial class SessionsConversationTests
                 var restored = ReadingAnchor(interaction);
                 restored.Message.Should().Be(anchor.Message);
                 restored.Offset.Should().BeApproximately(anchor.Offset, 0.1);
+                var readsBeforeResize = reader.Reads;
                 interaction.IsVisible = false;
                 window.Width = 1080;
-                window.Height = 1150;
+                window.Height = 1350;
+                if (collapsedViewport) { scroll.MaxHeight = 0; }
                 ReadingLayout(window);
                 interaction.IsVisible = true;
                 ReadingLayout(window);
+                if (collapsedViewport)
+                {
+                    scroll.Viewport.Height.Should().Be(0);
+                    reader.Reads.Should().Be(readsBeforeResize, "a collapsed reader must not fetch replacement content");
+                    scroll.MaxHeight = double.PositiveInfinity;
+                    ReadingLayout(window);
+                }
+                scroll.Viewport.Height.Should().BeGreaterThan(100,
+                    "exact anchor restoration requires a measurable reader after the narrower composer reflows");
                 restored = ReadingAnchor(interaction);
                 restored.Message.Should().Be(anchor.Message);
                 restored.Offset.Should().BeApproximately(anchor.Offset, 0.1);

@@ -574,6 +574,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             RegexOptions.Multiline, TimeSpan.FromSeconds(1))
             .Select(match => match.Groups["phrase"].Value).ToArray();
         naturalPhrases.Should().Equal("use dark mode", "use light mode", "use system theme",
+            "use reduced motion", "follow system motion",
             "get reader text scale", "status reader text scale", "reset reader text scale",
             "set reader text scale to &lt;integer&gt; percent",
             "increase reader text scale by &lt;positive integer&gt; percentage points",

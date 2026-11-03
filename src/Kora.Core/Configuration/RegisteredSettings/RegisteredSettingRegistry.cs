@@ -29,6 +29,7 @@ public static class RegisteredSettingRegistry
             "future Windows-provider-native speech rate only; Kokoro unchanged", "Windows native units",
             WindowsSpeechRate.Minimum, WindowsSpeechRate.Maximum, false),
         Appearance(RegisteredSetting.ResponseTimeout, AppearanceOption.ResponseTimeout),
+        Appearance(RegisteredSetting.ReducedMotion, AppearanceOption.ReducedMotion),
     ]);
 
     public static RegisteredSettingDescriptor Get(RegisteredSetting setting) =>

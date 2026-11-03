@@ -44,7 +44,8 @@ public sealed partial class SessionsConversationTests
             composed.Model.ComposerBody = "genuine retained follow-up request";
             await composed.Model.ReviewHistoryContextAsync();
             await composed.Model.ConfirmHistoryContextAsync();
-            var retained = composed.Model.ConversationMessages.Single();
+            composed.Model.ConversationMessages.Should().ContainSingle().Which.Should().Be(source);
+            var retained = composed.Model.ConversationUpdates.Single();
             retained.SubmittedContext.Should().NotBeNull();
             using var native = new NativeUxFixtureSession(Path.GetFullPath("."));
             await native.InitializeAsync();
@@ -128,7 +129,8 @@ public sealed partial class SessionsConversationTests
                 model.ComposerBody = "What follows from those exact earlier messages?";
                 await model.ReviewHistoryContextAsync();
                 await model.ConfirmHistoryContextAsync();
-                retained = model.ConversationMessages.Single();
+                model.ConversationMessages.Should().ContainSingle().Which.Should().Be(original);
+                retained = model.ConversationUpdates.Single();
                 retained.Outcome.Should().Be(ModelTurnOutcome.Succeeded, model.ConversationStatus);
                 retained.SubmittedContext.Should().NotBeNull();
                 retained.SubmittedContext!.Profile.Should().Be(HandoffCatalogue.Local);

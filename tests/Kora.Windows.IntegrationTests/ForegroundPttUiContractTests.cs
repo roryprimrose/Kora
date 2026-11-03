@@ -309,19 +309,9 @@ public sealed class ForegroundPttUiContractTests
 
     private static void Release(Window window, Key key) => window.KeyRelease(key, RawInputModifiers.None,
         key == Key.Space ? PhysicalKey.Space : key == Key.F9 ? PhysicalKey.F9 : PhysicalKey.None, null);
-    private static void Deactivate(Window window) => SetActivation(window, false);
+    private static void Deactivate(Window window) => HeadlessSession.SetActivation(window, false);
 
-    private static void Activate(Window window) => SetActivation(window, true);
-
-    private static void SetActivation(Window window, bool active)
-    {
-        // Drive the native callback deterministically; headless activation has no OS focus acknowledgement.
-        var callback = typeof(Avalonia.Platform.IWindowBaseImpl).GetProperty(active ? "Activated" : "Deactivated",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
-        callback.Should().NotBeNull();
-        callback!.GetValue(window.PlatformImpl).Should().BeOfType<Action>().Which.Invoke();
-        window.IsActive.Should().Be(active);
-    }
+    private static void Activate(Window window) => HeadlessSession.SetActivation(window, true);
     private static async Task SaveShortcut(NativeUxFixtureSession fixture, ForegroundPttShortcut shortcut)
     {
         fixture.Main.BindForegroundPttNativeLifetime(static () => true);

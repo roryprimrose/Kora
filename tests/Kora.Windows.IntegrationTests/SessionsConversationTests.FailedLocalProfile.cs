@@ -4,6 +4,7 @@ using Avalonia.Interactivity;
 using AwesomeAssertions;
 
 using Kora.Core.Dependencies;
+using Kora.Core.Providers;
 using Kora.Windows.IntegrationTests.Storage;
 
 namespace Kora.Windows.IntegrationTests;
@@ -16,6 +17,7 @@ public sealed partial class SessionsConversationTests
     [InlineData("selection")]
     [InlineData("tuple")]
     [InlineData("hidden")]
+    [InlineData("service")]
     public async Task NativeFailedLocalProfileCompletesExactNewAttemptOrDeclineWithoutChangingFailureOrUnsentText(string decision)
     {
         await HeadlessSession.RunAsync(async () =>
@@ -62,6 +64,7 @@ public sealed partial class SessionsConversationTests
                 if (decision is "selection") { model.SelectedAnswerRecord = null; }
                 if (decision is "tuple") { model.LocalRequestReasoning = model.LocalRequestReasonings[0]; }
                 if (decision is "hidden") { model.SetProviderSurfaceOpen(false); }
+                if (decision is "service") { model.RequestProfileService = ProviderService.Copilot; }
                 await confirm();
                 if (decision is "confirm")
                 {
@@ -94,6 +97,17 @@ public sealed partial class SessionsConversationTests
                 f.Count("host_questions").Should().Be(0);
                 WindowsSqliteConversationTests.AuditText(f).Should().NotContain(body).And.NotContain("genuine new answer");
                 composed.Turns.IsQuiescent.Should().BeTrue();
+                foreach (var service in new[] { ProviderService.Copilot, ProviderService.Claude })
+                {
+                    model.RequestProfileService = service;
+                    model.CanReviewFailedLocalProfile.Should().BeFalse();
+                    await model.ReviewFailedLocalProfileAsync();
+                    model.ConversationStatus.Should().Contain("requires an explicitly reviewed LOCAL profile");
+                    model.CanConfirmLocalRequestProfile.Should().BeFalse();
+                    model.ComposerBody.Should().Be(body);
+                    adapter.Calls.Should().Be(decision is "confirm" ? 2 : 1);
+                    f.Count("conversation_messages").Should().Be(decision is "confirm" ? 2 : 1);
+                }
             }
             finally { window.ClosePrivate(); }
         });

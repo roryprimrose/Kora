@@ -14,6 +14,27 @@ namespace Kora.Application.UnitTests.Dependencies;
 public sealed partial class ModelTurnHostTests
 {
     [Theory]
+    [InlineData(ProviderService.Copilot)]
+    [InlineData(ProviderService.Claude)]
+    public async Task FailedSourceAlternateProfileRejectsHostedSelectionWithoutNewIntentOrProviderEffect(ProviderService service)
+    {
+        using var f = new Fixture { TrackPendingRecords = true };
+        var source = SeedFailedRetry(f);
+        var host = f.ConfiguredProfiles();
+        await using var conversation = f.ConversationService(host, execution: host);
+        var commands = conversation.CreateRequestCommands();
+        await commands.Invoking(value => value.ExecuteAsync(
+            FailedReview(source) with { RequestLocalProfile = Profile(service) },
+            RequestOrigin.LocalUi, static () => true, Token)).Should().ThrowAsync<InvalidOperationException>();
+        f.PendingRecords[source.Request.RequestId].Message.Should().Be(source);
+        f.RetainCalls.Should().Be(0);
+        f.Adapter.Calls.Should().Be(0);
+        f.ExecutionStarts.Should().Be(0);
+        f.ProfilePreferences.Writes.Should().Be(0);
+        host.IsQuiescent.Should().BeTrue();
+    }
+
+    [Theory]
     [InlineData(RequestOrigin.LocalUi, ModelProviderIdentity.Ollama, false)]
     [InlineData(RequestOrigin.ActivatedVoice, ModelProviderIdentity.Claude, false)]
     [InlineData(RequestOrigin.LocalUi, ModelProviderIdentity.Copilot, true)]

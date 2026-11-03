@@ -178,11 +178,15 @@ a native button: a retry review needs current admission of the original channel.
 ### Review a confirmed failure with an alternate local profile
 
 After **Read conversation**, select one confirmed failed USER request.
-**Refresh providers**, explicitly choose all three advertised
-**This request only - LOCAL** values, then choose
+**Refresh providers**, choose **Local** in the **This request only** service picker,
+explicitly choose all three advertised local values, then choose
 **Review selected failure with this LOCAL profile**. Review the unchanged failed
 input, original provider/channel, exact conversation, complete new local tuple
 and expiry ([native review](../src/Kora/SessionsViewModel.LocalRequestProfile.cs)).
+
+Copilot and Claude selections remain available for ordinary request-only review,
+not selected-failure recovery. Changing the service retires the pending review
+([service fence](../src/Kora/SessionsViewModel.LocalRequestProfile.cs)).
 
 **Confirm this request only once** submits one fresh local attempt through ordinary
 queue and model admission; it does not replay or reset the old task.

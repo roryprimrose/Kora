@@ -640,10 +640,14 @@ copies, clearing the owned persistent journal before reporting success.
 
 Inspection checks original access/identity/membership without rereading content.
 Old revisions become unavailable when refresh starts, including failed refresh.
-Adding, refreshing and enabling are not model consent. Model/source-use
-qualification and hosted disclosure remain unavailable; the sibling volatile
-folder-answer route is independent. This native lifecycle does not claim voice
-commands, embeddings, OCR, watchers or original-file deletion.
+Adding, refreshing and enabling are not model consent. The
+[named answer owner](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerWorkflow.cs)
+now supports one fresh question over one explicitly selected enabled retained revision,
+with exact excerpt review and separate one-shot private LocalOnly/no-tools consent.
+An unqualified local runtime remains unavailable; hosted disclosure and fallback are not admitted.
+The sibling volatile folder-answer route is independent. Source management remains native;
+the named answer entry additionally supports deliberate typed/current-name voice review.
+No embeddings, OCR, watchers or original-file deletion are included.
 
 The [named manager](../src/Kora.Application/KnowledgeSources/KnowledgeSourceManager.cs)
 pins refresh to the registered physical root and exact traversal policy.
@@ -662,8 +666,12 @@ the retained enabled revision with fresh complete access/membership admission.
 One [shared lexical kernel](../src/Kora.Core/Context/LocalFileLexicalRetrieval.cs)
 enforces global ranking and 8-citation/16-KiB excerpt budgets across all branches.
 Citation navigation selects the exact retained root-relative item/digest/UTF-16
-span, never a newer disk read. This is source-lifecycle implementation, not
-named-source model-use or provider/installed/accessibility qualification.
+span, never a newer disk read. The
+[named use lease](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerUse.cs)
+retains original access/membership and exact durable revision authority through joined completion.
+Refresh, disable, removal and private closure revoke uses before ownership release.
+The same lexical, risk and cited-answer kernels supply named model-use implementation,
+not provider/installed/accessibility qualification.
 
 ### Adding a source
 

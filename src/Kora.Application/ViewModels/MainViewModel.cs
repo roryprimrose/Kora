@@ -627,6 +627,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || Kora.Application.Skills.SkillReviewCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Application.Skills.SharedSkillInvocationCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Application.Skills.NamedSkillCommand.Parse(CommandText, AssistantName) is not null
+                      || Kora.Application.KnowledgeSources.KnowledgeSourceAnswerCommand.Parse(CommandText, AssistantName) is not null
                       || NewRequestOpenCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Core.Interaction.LocalEventCommand.Parse(CommandText, AssistantName) is not null
                       || ManualCallCommand.Parse(CommandText, AssistantName) is not null));
@@ -4415,6 +4416,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (Kora.Application.Agents.AgentRunCommand.Parse(spokenText, AssistantName) is { } agentCommand)
         {
             await ExecuteAgentCommand(agentCommand, spokenText, manualInput
+                ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision), reviewEligibility);
+            return;
+        }
+        if (Kora.Application.KnowledgeSources.KnowledgeSourceAnswerCommand.Parse(spokenText, AssistantName) is { } namedAnswer)
+        {
+            await ExecuteKnowledgeSourceAnswer(namedAnswer, spokenText, manualInput
                 ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision), reviewEligibility);
             return;
         }

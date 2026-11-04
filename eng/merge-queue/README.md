@@ -898,3 +898,35 @@ the exact reviewed workflow bytes for blob `97e22a8f88bcdc9bbaef32cf9e7200dd6e5c
 Its positive [adapter regression](github.test.cjs) does not follow edits to the
 live workflow. Modified source bytes and schema markers alone still cannot
 authorize retirement; the production blob allowlist is unchanged.
+
+### Failed preflight and unexpanded matrix retirement
+
+The [preflight rejection classifier](policy.cjs) separately recognizes the
+reviewed workflow blob `c75173721c4131cf29d45482ea2edb92934070f1`, retained as
+an [immutable fixture](fixtures/ci-c7517372.yml). It does not add that blob to
+the historical admission-rejection allowlist or accept a schema marker as
+no-execution authority.
+
+For an exact owned first-attempt candidate whose workflow is physically
+completed, the classifier requires successful `Admit CI execution` and failed,
+cancelled or timed-out `Resolve build version`. All 20 exact-run job identities
+must be observed terminal once: skipped expensive producers and the single
+unexpanded Windows partition placeholder; the five Windows shard aggregates,
+portable aggregate and Windows aggregate must be failed/cancelled/skipped,
+never successful. The [adapter](github.cjs) authenticates the exact protected
+workflow bytes and source before applying this no-fanout plan.
+
+Only that complete evidence lets singleton/batch retirement or separately
+authorized reviewed recovery join the work without expanded partition jobs.
+The candidate still fails admission; no member merge, successful attestation,
+qualification receipt or reused partial proof is produced. Running work is
+cancelled promptly, but the lane is retained until both the run and every
+owned job are physically terminal. Missing/duplicate/extra/wrong-source jobs,
+later attempts, unknown conclusions, skipped/missing version evidence,
+changed workflow bytes or a successful expensive producer do not match this
+plan and cannot release the lane ([singleton regressions](controller.test.cjs),
+[batch/recovery regressions](batch.test.cjs), [adapter regressions](github.test.cjs)).
+
+Workflow changes require a separately reviewed exact-byte no-fanout contract;
+normal retirement does not modify queue state administratively, dispatch CI
+manually or infer quiescence from a deadline or cancellation acknowledgement.

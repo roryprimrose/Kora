@@ -586,6 +586,32 @@ test('admission rejection retirement authenticates an exact historical workflow 
   assert.equal(value.calls.some(call => ['update', 'merge', 'createWorkflowDispatch'].includes(call[0])), false);
 });
 
+test('preflight rejection retirement authenticates the exact reviewed workflow bytes and failed-version job plan', async () => {
+  const source = fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-c7517372.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  assert.equal(workflowContent(source).sha, 'c75173721c4131cf29d45482ea2edb92934070f1');
+  const run = { id: 9, run_attempt: 1, head_sha: BASE, head_branch: 'main', event: 'workflow_dispatch',
+    status: 'completed', conclusion: 'failure' };
+  const jobs = REJECTED_ADMISSION_JOBS.map((name, index) => ({ id: index + 1, name, run_id: 9,
+    run_attempt: 1, head_sha: BASE, status: 'completed',
+    conclusion: name === 'Admit CI execution' ? 'success' : name === 'Resolve build version' ? 'failure' : 'skipped' }));
+  const value = fixture({ getContent: () => workflowContent(source) });
+  assert.equal(await value.api.rejectedAdmission(BASE, run, jobs), true);
+  assert.equal(await value.api.rejectedAdmission(OTHER, run, jobs), false);
+  for (const text of [source + '\n# changed fanout authority\n', '# merge-queue-job-schema: windows-12-v1\n',
+    fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-97e22a8f.yml'), 'utf8').replaceAll('\r\n', '\n')]) {
+    assert.equal(await fixture({ getContent: () => workflowContent(text) }).api.rejectedAdmission(BASE, run, jobs), false);
+  }
+  for (const response of [{ ...workflowContent(source), sha: OTHER },
+    { ...workflowContent(source), encoding: 'utf-8' }]) {
+    assert.equal(await fixture({ getContent: () => response }).api.rejectedAdmission(BASE, run, jobs), false);
+  }
+  for (const status of [401, 403, 429, 500]) {
+    await assert.rejects(fixture({ getContent: () => { throw error(status); } }).api.rejectedAdmission(BASE, run, jobs), /HTTP/);
+  }
+  assert.equal(value.calls.some(call => ['merge', 'createWorkflowDispatch', 'updateRef'].includes(call[0])), false);
+});
+
 test('real schema-declared workflow resolves complete inventory; new unversioned source fails closed', async () => {
   const source = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8')
     .replaceAll('\r\n', '\n');

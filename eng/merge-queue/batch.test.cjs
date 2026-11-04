@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { reconcile } = require('./controller.cjs');
 const { validateState, WINDOWS_12_JOBS, GATE, title,
-  REJECTED_ADMISSION_JOBS, terminalRejectedAdmission } = require('./policy.cjs');
+  REJECTED_ADMISSION_JOBS, terminalRejectedAdmission, terminalRejectedPreflight } = require('./policy.cjs');
 const { profile, CONTROL_PATH, digest, manifestFor } = require('./batch-policy.cjs');
 const { changeBatchState } = require('./recovery.cjs');
 const sha = n => n.toString(16).padStart(40, '0');
@@ -46,7 +46,8 @@ class BatchFake {
   async trustedInventory() { return clone(this.inventory); }
   async expectedJobs() { return [...WINDOWS_12_JOBS]; }
   async rejectedAdmission(source, run, jobs) {
-    return run.head_sha === source && terminalRejectedAdmission(run, jobs, this.inventory.blob);
+    return run.head_sha === source && (terminalRejectedAdmission(run, jobs, this.inventory.blob)
+      || terminalRejectedPreflight(run, jobs, this.inventory.blob));
   }
   async syntheticPrefix(active, index) {
     this.calls.push(['synthetic', index]);
@@ -117,6 +118,44 @@ async function until(api, target, limit = 40) {
   for (let index = 0; index < limit; index++) if (await step(api) === target) return;
   assert.fail(`Did not reach ${target}`);
 }
+
+test('exact reviewed failed preflight retires batch only after complete terminal unexpanded matrix evidence', async () => {
+  for (const change of ['terminal', 'running', 'missing', 'unknown', 'blob', 'version-skipped']) {
+    const api = new BatchFake();
+    api.inventory.blob = 'c75173721c4131cf29d45482ea2edb92934070f1';
+    await step(api);
+    api.workflowRuns[0].conclusion = 'failure';
+    api.workflowJobs = REJECTED_ADMISSION_JOBS.map((name, index) => ({ id: index + 1, name,
+      run_id: 9, run_attempt: 1, head_sha: BASE, status: 'completed',
+      conclusion: name === 'Admit CI execution' ? 'success'
+        : name === 'Resolve build version' || name === WINDOWS_12_JOBS[2] || name === 'Windows integration tests'
+          || name.startsWith('Windows integration shard (') ? 'failure' : 'skipped' }));
+    if (change === 'running') {
+      api.workflowRuns[0].status = 'in_progress';
+      Object.assign(api.workflowJobs.at(-1), { status: 'in_progress', conclusion: null });
+    }
+    if (change === 'missing') api.workflowJobs.pop();
+    if (change === 'unknown') api.workflowJobs.at(-1).conclusion = null;
+    if (change === 'blob') api.inventory.blob = sha(999);
+    if (change === 'version-skipped') api.workflowJobs.find(job => job.name === 'Resolve build version').conclusion = 'skipped';
+    assert.equal(await step(api), 'retiring', change);
+    assert.equal(api.state.active.ticket, TICKET);
+    assert.equal(count(api, 'merge'), 0);
+    assert.equal(api.calls.some(call => call[0] === 'finish' && call[2] === 'success'), false);
+    assert.equal(await step(api), change === 'terminal' ? 'retired' : 'retiring', change);
+    if (change === 'running') {
+      api.workflowRuns[0].status = 'completed';
+      assert.equal(await step(api), 'retiring');
+      Object.assign(api.workflowJobs.at(-1), { status: 'completed', conclusion: 'skipped' });
+      assert.equal(await step(api), 'retired');
+    }
+    if (['terminal', 'running'].includes(change)) {
+      assert.equal(api.state.active, null);
+      assert.equal(api.state.singletonRetries.length, 5);
+    } else assert.equal(api.state.active.ticket, TICKET);
+    assert.equal(count(api, 'dispatch'), 1);
+  }
+});
 
 test('an admission-rejected batch can retire but never attest proof or merge a member', async () => {
   for (const incomplete of [false, true]) {
@@ -712,6 +751,38 @@ test('reviewed migration, rollback and partial repair are checkpointed, authoriz
   await step(api);
   assert.ok(!api.state.active.members.some(member => member.number === 2));
   assert.equal(api.state.active.base, api.base);
+});
+
+test('reviewed batch recovery accepts exact terminal preflight rejection but never missing or unknown work', async () => {
+  for (const change of ['terminal', 'missing', 'unknown', 'source', 'blob']) {
+    const api = new BatchFake();
+    api.inventory.blob = 'c75173721c4131cf29d45482ea2edb92934070f1';
+    await step(api);
+    api.state.active.phase = 'recovery-required';
+    api.state.active.reason = 'Reviewed preflight-failure recovery.';
+    api.workflowRuns[0].conclusion = 'failure';
+    api.workflowJobs = REJECTED_ADMISSION_JOBS.map((name, index) => ({ id: index + 1, name,
+      run_id: 9, run_attempt: 1, head_sha: BASE, status: 'completed',
+      conclusion: name === 'Admit CI execution' ? 'success' : name === 'Resolve build version' ? 'failure' : 'skipped' }));
+    if (change === 'missing') api.workflowJobs.pop();
+    if (change === 'unknown') api.workflowJobs.at(-1).conclusion = null;
+    if (change === 'source') api.workflowJobs[0].head_sha = sha(999);
+    if (change === 'blob') api.inventory.blob = sha(999);
+    const options = { context: { eventName: 'workflow_dispatch', ref: 'refs/heads/main',
+      runId: 123, actor: 'operator' }, inputs: { operation: 'repair-batch',
+      recovery_checkpoint: api.commit, acknowledge_batch_change: true, recovery_ticket: TICKET },
+      attempt: 1, now: NOW };
+    if (change === 'terminal') {
+      assert.equal(await changeBatchState(api, options), 'repair-batch');
+      assert.equal(api.state.active, null);
+    } else {
+      await assert.rejects(changeBatchState(api, options), /missing, duplicate or nonterminal/);
+      assert.equal(api.state.active.phase, 'recovery-required');
+    }
+    assert.equal(count(api, 'merge'), 0);
+    assert.equal(count(api, 'dispatch'), 1);
+    assert.equal(api.state.completedTip, null);
+  }
 });
 
 test('every durable checkpoint and side-effect boundary survives before/after interruption without duplicate authority', async () => {

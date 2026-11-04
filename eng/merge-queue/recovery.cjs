@@ -85,7 +85,8 @@ async function changeBatchState(api, { context, inputs, attempt, now = new Date(
         const jobs = await api.jobs(runs[0].id, 1);
         invariant(jobs.every(job => job.run_id === runs[0].id && job.run_attempt === 1
           && job.head_sha === active.base) && new Set(jobs.map(job => job.id)).size === jobs.length
-          && require('./policy.cjs').terminalJobs(jobs, active.inventory.jobs),
+          && (require('./policy.cjs').terminalJobs(jobs, active.inventory.jobs)
+            || await api.rejectedAdmission(active.base, runs[0], jobs)),
         'Repair cannot release missing, duplicate or nonterminal owned jobs.');
       }
       const prefix = active.members.filter(member => member.merged);

@@ -1,6 +1,6 @@
 const { createHash } = require('node:crypto');
 const { CHECKS, GATE, STATE_BRANCH, SHA, TICKET, invariant, validateState, title, workflowJobs,
-  requiredJobsState, terminalJobs, terminalRejectedAdmission } = require('./policy.cjs');
+  requiredJobsState, terminalJobs, terminalRejectedAdmission, terminalRejectedPreflight } = require('./policy.cjs');
 
 const FILE = 'queue.json';
 const WORKFLOW = 'ci.yml';
@@ -165,7 +165,8 @@ class GitHubQueue {
   async rejectedAdmission(source, run, jobs) {
     if (run.head_sha !== source) return false;
     const inventory = await this.workflowInventory(source);
-    return inventory !== null && terminalRejectedAdmission(run, jobs, inventory.blob);
+    return inventory !== null && (terminalRejectedAdmission(run, jobs, inventory.blob)
+      || terminalRejectedPreflight(run, jobs, inventory.blob));
   }
   async trustedInventory(source) {
     const inventory = await this.workflowInventory(source);

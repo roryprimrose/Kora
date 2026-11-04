@@ -129,7 +129,12 @@ primary window, not another top-level window:
   separated by a pointer- and keyboard-resizable divider. Enforce a minimum expanded
   window width and minimum pane widths so neither collapses into an unreadable strip.
   Do not replace conversation with a Details tab or stack the panes on narrow windows.
-  **Expand details**, if offered, adjusts the split only within those minimums;
+  Native **Expand details** allocates surplus width to Details while keeping the
+  conversation at its existing minimum. **Restore split** restores the prior
+  column lengths; the divider stays usable in either state. Hide, replacement
+  and session/private retirement discard this temporary expansion, preserving
+  the ordinary split. Neither action rereads content, recreates the reader,
+  changes selection/Find or resizes the window. Both remain within those minimums;
   **Back to conversation** focuses the originating message without hiding either pane.
   If the available work area cannot fit the minimum layout, report the limitation
   explicitly rather than placing controls off screen or silently using a different

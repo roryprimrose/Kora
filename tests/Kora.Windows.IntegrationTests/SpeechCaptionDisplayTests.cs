@@ -18,6 +18,179 @@ public sealed partial class SpeechCaptionDisplayTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task DisplayRemovalDuringTypographyRetiresTextBeforeStaleRefreshCanRevealIt(bool returnsBeforeLayout)
+    {
+        await HeadlessSession.RunAsync(() =>
+        {
+            var caption = new Caption { SpeechCaptionPinLabel = "Unpin", SpeechCaptionLabel = "PREVIOUS SPEECH" };
+            var primary = Display(0, 0, 1920, 1080, 1, primary: true);
+            var other = Display(-1920, 0, 1920, 1080, 1);
+            var source = new Displays(primary, other);
+            var window = new SpeechCaptionWindow(caption);
+            using var controller = new SpeechCaptionWindowController(caption, window, source);
+            controller.Refresh();
+            Choose(controller, window, other);
+            caption.OnTypographyAdmission = () =>
+            {
+                caption.OnTypographyAdmission = null;
+                source.Change(primary);
+                if (returnsBeforeLayout) { source.Change(primary, other); }
+            };
+
+            controller.Refresh();
+
+            window.IsVisible.Should().BeFalse("the refresh admitted against the departed display must not reveal text");
+            window.FindControl<TextBox>("CaptionText")!.Text.Should().BeNullOrEmpty();
+            caption.SpeechCaptionText.Should().BeNull();
+            caption.Retirements.Should().Be(1);
+            controller.DisplayStatus.Should().Contain("unavailable");
+            caption.Failures.Should().BeEmpty();
+            controller.Refresh();
+            window.IsVisible.Should().BeFalse();
+
+            var recovery = new Window();
+            try
+            {
+                recovery.Show();
+                controller.SelectFromNative(recovery, reset: true);
+                window.IsVisible.Should().BeFalse("display recovery cannot resurrect the retired utterance");
+                caption.ObserveFreshUtterance();
+                controller.Refresh();
+                window.IsVisible.Should().BeTrue();
+                AssertContained(window, primary);
+                window.FindControl<TextBox>("CaptionText")!.Text.Should().Be("Fresh observed utterance.");
+            }
+            finally { recovery.Close(); }
+        });
+    }
+
+    [Fact]
+    public async Task DisplayGeometryChangeDuringTypographyCannotPublishUsingTheOldSnapshot()
+    {
+        await HeadlessSession.RunAsync(() =>
+        {
+            var caption = new Caption();
+            var original = Display(0, 0, 1920, 1080, 1, primary: true);
+            var updated = original with { WorkingArea = new(-2400, -1200, 2200, 1100), Scaling = 2 };
+            var source = new Displays(original);
+            var window = new SpeechCaptionWindow(caption);
+            using var controller = new SpeechCaptionWindowController(caption, window, source);
+            controller.Refresh();
+            caption.OnTypographyAdmission = () =>
+            {
+                caption.OnTypographyAdmission = null;
+                source.Change(updated);
+            };
+
+            controller.Refresh();
+
+            window.IsVisible.Should().BeFalse("an invalidated layout stays hidden until a fresh refresh");
+            window.FindControl<TextBox>("CaptionText")!.Text.Should().BeNullOrEmpty();
+            caption.SpeechCaptionText.Should().Be("Observed private utterance.");
+            caption.Retirements.Should().Be(0);
+            controller.Refresh();
+            window.IsVisible.Should().BeTrue();
+            AssertContained(window, updated);
+            caption.Failures.Should().BeEmpty();
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SnapshotRevalidationDetectsDisplayChangesEvenWithoutANotification(bool removed)
+    {
+        await HeadlessSession.RunAsync(() =>
+        {
+            var caption = new Caption();
+            var original = Display(0, 0, 1920, 1080, 1, primary: true);
+            var updated = original with { WorkingArea = new(-2400, -1200, 2200, 1100), Scaling = 2 };
+            var source = new Displays(original);
+            var window = new SpeechCaptionWindow(caption);
+            using var controller = new SpeechCaptionWindowController(caption, window, source);
+            controller.Refresh();
+            caption.OnTypographyAdmission = () =>
+            {
+                caption.OnTypographyAdmission = null;
+                source.ChangeSilently(removed ? [] : [updated]);
+            };
+
+            controller.Refresh();
+
+            window.IsVisible.Should().BeFalse();
+            window.FindControl<TextBox>("CaptionText")!.Text.Should().BeNullOrEmpty();
+            caption.Retirements.Should().Be(removed ? 1 : 0);
+            controller.Refresh();
+            window.IsVisible.Should().Be(!removed);
+            if (!removed) { AssertContained(window, updated); }
+            caption.Failures.Should().BeEmpty();
+        });
+    }
+
+    [Fact]
+    public async Task DisplayRemovalDuringNativeOpeningCannotResurrectTextWhenTheScreenImmediatelyReturns()
+    {
+        await HeadlessSession.RunAsync(() =>
+        {
+            var caption = new Caption();
+            var primary = Display(0, 0, 1920, 1080, 1, primary: true);
+            var source = new Displays(primary);
+            var window = new SpeechCaptionWindow(caption);
+            using var controller = new SpeechCaptionWindowController(caption, window, source);
+            window.Opened += (_, _) =>
+            {
+                source.Change();
+                source.Change(primary);
+            };
+
+            controller.Refresh();
+
+            window.IsVisible.Should().BeFalse();
+            window.FindControl<TextBox>("CaptionText")!.Text.Should().BeNullOrEmpty();
+            caption.SpeechCaptionText.Should().BeNull();
+            caption.Retirements.Should().Be(1);
+            controller.Refresh();
+            window.IsVisible.Should().BeFalse();
+            caption.Failures.Should().BeEmpty();
+        });
+    }
+
+    [Fact]
+    public async Task FailedDisplayObservationDuringLayoutRetiresTheSurfaceAndReportsOnlyTheFailureType()
+    {
+        await HeadlessSession.RunAsync(() =>
+        {
+            var caption = new Caption();
+            var primary = Display(0, 0, 1920, 1080, 1, primary: true);
+            var source = new Displays(primary);
+            var window = new SpeechCaptionWindow(caption);
+            using var controller = new SpeechCaptionWindowController(caption, window, source);
+            controller.Refresh();
+            caption.OnTypographyAdmission = () =>
+            {
+                caption.OnTypographyAdmission = null;
+                source.Failure = new InvalidOperationException("Synthetic private observation detail.");
+                source.Change(primary);
+            };
+
+            controller.Refresh();
+
+            window.IsVisible.Should().BeFalse();
+            window.FindControl<TextBox>("CaptionText")!.Text.Should().BeNullOrEmpty();
+            caption.SpeechCaptionText.Should().BeNull();
+            caption.Failures.Should().Equal(nameof(InvalidOperationException));
+            controller.CanSelect.Should().BeFalse();
+            source.Failure = null;
+            source.Change(primary);
+            caption.ObserveFreshUtterance();
+            controller.Refresh();
+            window.IsVisible.Should().BeFalse("a failed native presenter stays unavailable until restart");
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task Caption_display_cog_preserves_native_reset_scope_and_late_admission(bool revokeWhileOpen)
     {
         await HeadlessSession.RunAsync(() =>
@@ -477,9 +650,11 @@ public sealed partial class SpeechCaptionDisplayTests
         }
         public void Change(params CaptionDisplayObservation[] updated)
         {
-            snapshot = new(snapshot.Revision + 1, updated);
+            ChangeSilently(updated);
             Changed?.Invoke(this, EventArgs.Empty);
         }
+        public void ChangeSilently(params CaptionDisplayObservation[] updated) =>
+            snapshot = new(snapshot.Revision + 1, updated);
         public void Dispose() { Disposed = true; Changed = null; }
     }
 

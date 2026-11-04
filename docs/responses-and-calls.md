@@ -398,6 +398,13 @@ If the native caption surface fails, captions stop until restart; the complete
 answer and required recovery remain visual. Diagnostics record only the failure
 type, never caption content.
 
+Caption display changes also invalidate an in-progress native layout. Kora keeps
+that layout hidden rather than showing text at the previous display coordinates.
+If the selected screen disappears, even pinned text is retired; reconnecting it
+does not restore that text. Use the native display controls to select a connected
+screen for future eligible speech. A working-area or scale change on the same
+connected screen uses a fresh layout without replaying speech.
+
 Drag the response title area to reposition the window. Its last position is
 stored on this device and restored when that position remains on a connected
 display.

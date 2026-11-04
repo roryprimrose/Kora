@@ -22,6 +22,10 @@ Changing this choice retires the previous review and requires a fresh inspection
 ([native review owner](../src/Kora/SettingInspection/SettingInspectionPresenter.cs)).
 
 Only this explicit local request advertises `settings.list` and `settings.get`.
+The complete reviewed metadata uses a JSON table with named `columns` and
+ordered `rows`. Every registered field and confirmed-reader classification is
+preserved; column names appear once so repeated local requests leave room for
+discovery and the genuine final answer within the unchanged cumulative byte limit.
 List accepts bounded `offset`/`count` fields and returns canonical registered
 metadata, scope, validation limits, suggested values, native-review classification
 and whether a confirmed value reader is composed. Get accepts only one exact

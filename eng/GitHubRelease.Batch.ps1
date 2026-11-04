@@ -147,6 +147,7 @@ function Assert-BatchReleaseWorkflow {
             $value = $Matches[2]
             $children = @{
                 'permissions.contents' = 'write'; 'permissions.actions' = 'read'
+                'permissions.pull-requests' = 'read'; 'permissions.issues' = 'write'
                 'concurrency.group' = 'merge-queue-controller'; 'concurrency.cancel-in-progress' = 'false'
                 'concurrency.queue' = 'max'
             }

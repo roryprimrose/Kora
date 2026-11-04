@@ -1,6 +1,7 @@
 using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Maintenance;
 using Kora.Core.Network.ExternalBrowser;
 using Kora.Core.Presentation;
 using Kora.Application.Presentation;
@@ -70,6 +71,32 @@ public sealed class ExternalBrowserWorkflow(
         {
             return ReferenceEquals(pending, review) && time.GetUtcNow() < review.ExpiresAt
                 && review.Current() && review.Network.Current();
+        }
+
+    }
+
+    public ExternalBrowserReview PrepareIssue(ExternalBrowserDestination destination, Func<bool> current)
+    {
+        ArgumentNullException.ThrowIfNull(destination);
+        ArgumentNullException.ThrowIfNull(current);
+        RequireNativeUser();
+        var address = destination.Address;
+        var issue = address.AbsolutePath.StartsWith("/" + CanonicalRelease.Repository + "/issues/", StringComparison.Ordinal)
+            ? address.AbsolutePath[("/" + CanonicalRelease.Repository + "/issues/").Length..] : string.Empty;
+        if (!string.Equals(address.GetLeftPart(UriPartial.Authority), "https://github.com", StringComparison.Ordinal)
+            || !string.Equals(issue, "new", StringComparison.Ordinal) && (!int.TryParse(issue, System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture, out var number) || number <= 0))
+        {
+            throw new InvalidOperationException("Problem reporting can open only the canonical repository's issue pages.");
+        }
+        lock (gate)
+        {
+            pending?.FinalSource?.Retire();
+            pending = null;
+            generation++;
+            if (active || !current()) { throw new InvalidOperationException("The original problem-report review is unavailable."); }
+            var (admitted, admission) = AdmitDestination(destination.ExactAddress);
+            return pending = new(admitted, current, admission, time.GetUtcNow().AddMinutes(2));
         }
     }
 

@@ -548,6 +548,20 @@ revision from [PR #661](https://github.com/roryprimrose/Kora/pull/661).
 Old runs therefore retire against their own inventory rather than requiring
 jobs that did not exist.
 
+The historical twelve-partition regression uses the frozen
+[native-fixture timing workflow](fixtures/ci-native-fixture-timing.yml), whose
+Git blob is `d3db4c610d08468c508f09e63b10f7c6568b82ea`. Keep those bytes unchanged:
+removing the schema marker from today's workflow does not recreate a trusted
+predecessor. Tests cover both the current schema-declared workflow and that exact
+historical inventory, and reject modified unversioned bytes without expanding
+the production allowlist.
+
+The [admission-rejection fixture](fixtures/ci-admission-rejection.yml) similarly
+preserves blob `97e22a8f88bcdc9bbaef32cf9e7200dd6e5c43cd` for the
+[exact historical admission-rejection regression](github.test.cjs). Changes to
+the current workflow must not change that fixture or expand the
+[production allowlist](policy.cjs) to satisfy the regression.
+
 Source bytes are read through the trusted repository Contents API at that exact
 base and checked against the returned Git blob identity. Missing source, malformed
 metadata, an unknown unversioned blob or an unknown/duplicate schema holds the lane

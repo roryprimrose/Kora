@@ -146,7 +146,7 @@ test('candidate packaging diff must prove exact admitted ancestry and never trea
 
 test('independent main early failure is negative terminal evidence, not successful qualification or a permanent lane dependency', async () => {
   const { REJECTED_DELIVERY_JOBS } = require('./policy.cjs');
-  const workflow = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8').replaceAll('\r\n', '\n');
+  const workflow = fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-3ed51a1b.yml'), 'utf8').replaceAll('\r\n', '\n');
   const run = { id: 42, run_attempt: 1, head_sha: BASE, head_branch: 'main', event: 'push',
     display_title: 'CI main', status: 'completed', conclusion: 'failure' };
   const jobs = REJECTED_DELIVERY_JOBS.map((name, index) => ({ id: index + 1, name,
@@ -741,16 +741,34 @@ test('preflight rejection retirement authenticates the exact reviewed workflow b
   assert.equal(value.calls.some(call => ['merge', 'createWorkflowDispatch', 'updateRef'].includes(call[0])), false);
 });
 
-test('real schema-declared workflow resolves complete inventory; new unversioned source fails closed', async () => {
+test('real schema-declared and historical protected workflows resolve their complete producer inventories', async () => {
   const source = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8')
     .replaceAll('\r\n', '\n');
-  const unversioned = source.replace('# merge-queue-job-schema: windows-12-v1\n', '');
-  assert.equal(await fixture({ getContent: () => workflowContent(unversioned) }).api.expectedJobs(BASE), null);
-  for (const workflow of [source]) {
+  const unversioned = fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-native-fixture-timing.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  assert.equal(workflowContent(unversioned).sha, 'd3db4c610d08468c508f09e63b10f7c6568b82ea');
+  for (const [workflow, inventory] of [[source, DELIVERY_JOBS], [unversioned, WINDOWS_12_JOBS]]) {
     const value = fixture({ getContent: () => workflowContent(workflow) });
-    assert.deepEqual(await value.api.expectedJobs(BASE), DELIVERY_JOBS);
+    assert.deepEqual(await value.api.expectedJobs(BASE), inventory);
     assert.deepEqual(value.calls, [['getContent', { owner: 'owner', repo: 'repo',
       ref: BASE, path: '.github/workflows/ci.yml' }]]);
+  }
+});
+
+test('removing the schema or modifying a predecessor does not authorize an unknown workflow blob', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  const predecessor = fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-native-fixture-timing.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  for (const workflow of [source.replace('# merge-queue-job-schema: windows-12-v1\n', ''),
+    `${predecessor}\n# Unrecognized revision\n`]) {
+    const value = fixture({ getContent: () => workflowContent(workflow) });
+    assert.equal(await value.api.expectedJobs(BASE), null);
+    assert.deepEqual(value.calls.filter(call => call[0] === 'getContent'),
+      [['getContent', { owner: 'owner', repo: 'repo', ref: BASE, path: '.github/workflows/ci.yml' }]]);
+    assert.equal(value.calls.filter(call => call[0] === 'warning').length, 1);
+    assert.match(value.calls.at(-1)[1], /physical quiescence is unknown/);
+    assert.equal(value.calls.some(call => ['update', 'merge', 'createWorkflowDispatch'].includes(call[0])), false);
   }
 });
 

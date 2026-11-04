@@ -6,21 +6,25 @@ namespace Kora;
 
 internal sealed partial class SessionsViewModel
 {
-    private enum SettingReviewFamily { Appearance, Summary, Volume, ResponseMode, WindowsRate }
+    private enum SettingReviewFamily { Appearance, Summary, Volume, ResponseMode, WindowsRate, InstalledVoice }
 
     public string RegisteredSettingsDescription => "Supported inert suggestions: " + string.Join("; ",
         RegisteredSettingRegistry.Settings.Select(item => $"{item.Id}: "
             + item.SuggestedValues
             + (item.RequiresNativeReview ? " (native review only)" : string.Empty)))
         + ". Set supplies one value; Reset supplies only the exact ID and uses the owner's default. "
+        + "Installed voice supports only Set with an exact installed provider and voice pair, not Reset. "
         + "All are shared device-local preferences. Review changes nothing.";
 
     public bool CanReviewRegisteredSettingSuggestion => CanReviewAppearanceSuggestion
-        || CanReviewSpeechSummarySuggestion || CanReviewPlaybackVolumeSuggestion || CanReviewResponseModeSuggestion || CanReviewWindowsSpeechRateSuggestion;
+        || CanReviewSpeechSummarySuggestion || CanReviewPlaybackVolumeSuggestion || CanReviewResponseModeSuggestion || CanReviewWindowsSpeechRateSuggestion
+        || CanReviewInstalledSpeechVoiceSuggestion;
     public bool CanConfirmRegisteredSettingSuggestion => CanConfirmAppearanceSuggestion
-        || CanConfirmSpeechSummarySuggestion || CanConfirmPlaybackVolumeSuggestion || CanConfirmResponseModeSuggestion || CanConfirmWindowsSpeechRateSuggestion;
+        || CanConfirmSpeechSummarySuggestion || CanConfirmPlaybackVolumeSuggestion || CanConfirmResponseModeSuggestion || CanConfirmWindowsSpeechRateSuggestion
+        || CanConfirmInstalledSpeechVoiceSuggestion;
     public string RegisteredSettingSuggestionDescription => AppearanceSuggestionDescription
-        + SpeechSummarySuggestionDescription + PlaybackVolumeSuggestionDescription + ResponseModeSuggestionDescription + WindowsSpeechRateSuggestionDescription;
+        + SpeechSummarySuggestionDescription + PlaybackVolumeSuggestionDescription + ResponseModeSuggestionDescription + WindowsSpeechRateSuggestionDescription
+        + InstalledSpeechVoiceSuggestionDescription;
 
     public Task ReviewRegisteredSettingSuggestionAsync(ConversationMessage message) =>
         ReviewRegisteredSettingSuggestionAsync(message, null);
@@ -47,6 +51,7 @@ internal sealed partial class SessionsViewModel
                 RegisteredSettingProposal.Reset { Setting: RegisteredSetting.PlaybackVolume } => SettingReviewFamily.Volume,
                 RegisteredSettingProposal.Reset { Setting: RegisteredSetting.ResponseMode } => SettingReviewFamily.ResponseMode,
                 RegisteredSettingProposal.Reset { Setting: RegisteredSetting.WindowsSpeechRate } => SettingReviewFamily.WindowsRate,
+                RegisteredSettingProposal.InstalledVoice => SettingReviewFamily.InstalledVoice,
                 _ => throw new InvalidDataException("The setting suggestion is not registered."),
             };
             if (expected is not null && family != expected)
@@ -81,6 +86,10 @@ internal sealed partial class SessionsViewModel
                     windowsSpeechRateReview = await (reviewWindowsSpeechRateSuggestion
                         ?? throw new InvalidOperationException("Windows rate review is unavailable."))(message, Current, Validate, lifetime.Token);
                     break;
+                case SettingReviewFamily.InstalledVoice:
+                    installedVoiceReview = await (reviewInstalledVoiceSuggestion
+                        ?? throw new InvalidOperationException("Installed voice review is unavailable."))(message, Current, Validate, lifetime.Token);
+                    break;
             }
             if (!Current())
             {
@@ -93,6 +102,7 @@ internal sealed partial class SessionsViewModel
     public Task ConfirmRegisteredSettingSuggestionAsync() => appearanceReview is not null
         ? ConfirmAppearanceSuggestionAsync()
         : windowsSpeechRateReview is not null ? ConfirmWindowsSpeechRateSuggestionAsync()
+        : installedVoiceReview is not null ? ConfirmInstalledSpeechVoiceSuggestionAsync()
         : speechSummaryReview is not null ? ConfirmSpeechSummarySuggestionAsync()
         : responseModeReview is not null ? ConfirmResponseModeSuggestionAsync() : ConfirmPlaybackVolumeSuggestionAsync();
 
@@ -103,6 +113,7 @@ internal sealed partial class SessionsViewModel
         CancelPlaybackVolumeSuggestion(reportCancellation: false);
         CancelResponseModeSuggestion();
         CancelWindowsSpeechRateSuggestion();
+        CancelInstalledSpeechVoiceSuggestion();
         if (reportCancellation)
         {
             conversationStatus = "Setting review cancelled. No new setting write was requested.";
@@ -115,6 +126,7 @@ internal sealed partial class SessionsViewModel
     {
         if (responseModeReview is { Available: false }) { CancelResponseModeSuggestion(); }
         if (windowsSpeechRateReview is { Available: false }) { CancelWindowsSpeechRateSuggestion(); }
+        if (installedVoiceReview is { Available: false }) { CancelInstalledSpeechVoiceSuggestion(); }
         OnPropertyChanged(nameof(CanReviewRegisteredSettingSuggestion));
         OnPropertyChanged(nameof(CanConfirmRegisteredSettingSuggestion));
         OnPropertyChanged(nameof(RegisteredSettingSuggestionDescription));

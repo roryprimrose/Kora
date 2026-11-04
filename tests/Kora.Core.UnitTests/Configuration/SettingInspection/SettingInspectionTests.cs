@@ -18,6 +18,10 @@ public sealed class SettingInspectionTests
         new(RegisteredSetting.SummaryWords, 80, saved, 7), new(RegisteredSetting.SummarySentences, 3, saved, 7),
         new(RegisteredSetting.PlaybackVolume, 100, saved, 11), new(RegisteredSetting.ResponseMode, 0, saved, 19),
         new(RegisteredSetting.PresenceDisplay, presence, saved, 3),
+        new(RegisteredSetting.PresenceTimeout, 10, saved, 3), new(RegisteredSetting.PresenceSize, 360, saved, 3),
+        new(RegisteredSetting.DotSize, 100, saved, 3), new(RegisteredSetting.DotDensity, 100, saved, 3),
+        new(RegisteredSetting.MovementSpeed, 100, saved, 3), new(RegisteredSetting.SpeechScaling, 1, saved, 3),
+        new(RegisteredSetting.SpeechScaleAmount, 100, saved, 3), new(RegisteredSetting.ReducedMotion, 0, saved, 3),
     ];
 
     [Theory]
@@ -32,15 +36,18 @@ public sealed class SettingInspectionTests
             HostRequest.Create(origin), Now);
         values[0] = new(RegisteredSetting.Theme, 2, !saved, 100);
         review.Observations[0].Value.Should().Be(0);
-        review.Observations.Should().HaveCount(7);
+        review.Observations.Should().HaveCount(15);
         review.Observations.Select(item => item.Setting).Should().Equal(
             RegisteredSetting.Theme, RegisteredSetting.ReaderTextScale,
             RegisteredSetting.SummaryWords, RegisteredSetting.SummarySentences,
-            RegisteredSetting.PlaybackVolume, RegisteredSetting.ResponseMode, RegisteredSetting.PresenceDisplay);
+            RegisteredSetting.PlaybackVolume, RegisteredSetting.ResponseMode, RegisteredSetting.PresenceDisplay,
+            RegisteredSetting.PresenceTimeout, RegisteredSetting.PresenceSize, RegisteredSetting.DotSize,
+            RegisteredSetting.DotDensity, RegisteredSetting.MovementSpeed, RegisteredSetting.SpeechScaling,
+            RegisteredSetting.SpeechScaleAmount, RegisteredSetting.ReducedMotion);
         review.Source.Should().Contain("System").And.Contain("100").And.Contain("Hybrid")
             .And.Contain(saved ? "confirmed saved" : "confirmed absent");
         review.Source.Should().Contain($"appearance.presence-display = {(presence == 1 ? "true" : "false")} boolean");
-        Encoding.UTF8.GetByteCount(review.Source).Should().BeLessThan(4096, "only seven closed scalar rows can enter the source");
+        Encoding.UTF8.GetByteCount(review.Source).Should().BeLessThan(4096, "only fifteen closed scalar rows can enter the source");
         review.Text.Should().Contain(review.Source).And.Contain(review.Question)
             .And.Contain(SettingInspectionReview.Policy).And.Contain("NEW Local context conversation");
         review.Original.SessionId.Should().NotBe(review.Destination.SessionId);
@@ -75,9 +82,64 @@ public sealed class SettingInspectionTests
     [InlineData(RegisteredSetting.PresenceDisplay, 2)]
     [InlineData(RegisteredSetting.PresenceDisplay, int.MinValue)]
     [InlineData(RegisteredSetting.PresenceDisplay, int.MaxValue)]
+    [InlineData(RegisteredSetting.PresenceTimeout, 0)]
+    [InlineData(RegisteredSetting.PresenceTimeout, 61)]
+    [InlineData(RegisteredSetting.PresenceSize, 239)]
+    [InlineData(RegisteredSetting.PresenceSize, 601)]
+    [InlineData(RegisteredSetting.DotSize, 49)]
+    [InlineData(RegisteredSetting.DotSize, 201)]
+    [InlineData(RegisteredSetting.DotDensity, 24)]
+    [InlineData(RegisteredSetting.DotDensity, 201)]
+    [InlineData(RegisteredSetting.MovementSpeed, 24)]
+    [InlineData(RegisteredSetting.MovementSpeed, 201)]
+    [InlineData(RegisteredSetting.SpeechScaling, -1)]
+    [InlineData(RegisteredSetting.SpeechScaling, 2)]
+    [InlineData(RegisteredSetting.SpeechScaleAmount, -1)]
+    [InlineData(RegisteredSetting.SpeechScaleAmount, 201)]
+    [InlineData(RegisteredSetting.ReducedMotion, -1)]
+    [InlineData(RegisteredSetting.ReducedMotion, 2)]
+    [InlineData(RegisteredSetting.ResponseTimeout, 10)]
+    [InlineData(RegisteredSetting.WindowsSpeechRate, 0)]
     [InlineData((RegisteredSetting)99, 0)]
     public void ClassificationRejectsAnythingOutsideClosedValidatedScalars(RegisteredSetting setting, int value) =>
         FluentActions.Invoking(() => new SettingObservation(setting, value, false, 1)).Should().Throw<ArgumentOutOfRangeException>();
+
+    [Theory]
+    [InlineData(RegisteredSetting.PresenceTimeout, 1, "seconds")]
+    [InlineData(RegisteredSetting.PresenceTimeout, 60, "seconds")]
+    [InlineData(RegisteredSetting.PresenceSize, 240, "pixels")]
+    [InlineData(RegisteredSetting.PresenceSize, 600, "pixels")]
+    [InlineData(RegisteredSetting.DotSize, 50, "percent")]
+    [InlineData(RegisteredSetting.DotSize, 200, "percent")]
+    [InlineData(RegisteredSetting.DotDensity, 25, "percent")]
+    [InlineData(RegisteredSetting.DotDensity, 200, "percent")]
+    [InlineData(RegisteredSetting.MovementSpeed, 25, "percent")]
+    [InlineData(RegisteredSetting.MovementSpeed, 200, "percent")]
+    [InlineData(RegisteredSetting.SpeechScaleAmount, 0, "percent")]
+    [InlineData(RegisteredSetting.SpeechScaleAmount, 200, "percent")]
+    public void PresenceBoundsRetainExactScalarAndUnits(RegisteredSetting setting, int value, string units)
+    {
+        var observation = new SettingObservation(setting, value, true, 42);
+        observation.Value.Should().Be(value);
+        observation.Revision.Should().Be(42);
+        observation.Text.Should().Be($"{RegisteredSettingRegistry.Get(setting).Id} = {value} {units} (confirmed saved; matches live service)");
+    }
+
+    [Theory]
+    [InlineData(RegisteredSetting.SpeechScaling, 0)]
+    [InlineData(RegisteredSetting.SpeechScaling, 1)]
+    [InlineData(RegisteredSetting.ReducedMotion, 0)]
+    [InlineData(RegisteredSetting.ReducedMotion, 1)]
+    public void PresenceBooleansAreExactAndReducedMotionNeverClaimsForcedMotion(RegisteredSetting setting, int value)
+    {
+        var observation = new SettingObservation(setting, value, false, 0);
+        observation.Text.Should().Contain($"= {(value == 1 ? "true" : "false")} boolean (confirmed absent; live default)");
+        if (setting == RegisteredSetting.ReducedMotion)
+        {
+            observation.Text.Should().EndWith(value == 0
+                ? "; follows Windows reduced-motion preference, not forced motion" : "; freezes presence particles");
+        }
+    }
 
     [Fact]
     public void NegativeRevisionAndIncompleteOrDuplicateSourcesAreRejected()

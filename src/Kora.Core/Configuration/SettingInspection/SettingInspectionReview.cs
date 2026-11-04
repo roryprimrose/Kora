@@ -1,5 +1,5 @@
 using System.Collections.Immutable;
-using System.Text.Json;
+using System.Globalization;
 using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Conversation;
 using Kora.Core.Context;
@@ -34,6 +34,14 @@ public sealed class SettingInspectionReview
         RegisteredSetting.PlaybackVolume,
         RegisteredSetting.ResponseMode,
         RegisteredSetting.PresenceDisplay,
+        RegisteredSetting.PresenceTimeout,
+        RegisteredSetting.PresenceSize,
+        RegisteredSetting.DotSize,
+        RegisteredSetting.DotDensity,
+        RegisteredSetting.MovementSpeed,
+        RegisteredSetting.SpeechScaling,
+        RegisteredSetting.SpeechScaleAmount,
+        RegisteredSetting.ReducedMotion,
     ];
     private int consumed;
 
@@ -52,8 +60,9 @@ public sealed class SettingInspectionReview
         if (toolMode == ModelToolMode.SettingsDiscovery)
         {
             Source += "\n\nREGISTERED METADATA (value-unavailable unless ConfirmedValueAvailable):\n"
-                + JsonSerializer.Serialize(RegisteredSettingRegistry.Settings.Select(item =>
-                    new RegisteredSettingMetadata(item, SettingsDiscoveryTools.HasConfirmedReader(item.Setting))));
+                + string.Join("\n", RegisteredSettingRegistry.Settings.Select(item =>
+                    string.Create(CultureInfo.InvariantCulture,
+                        $"{item.Id} ({item.Setting}): {item.Description}; units={item.Units}; minimum={item.Minimum}; maximum={item.Maximum}; scope={item.Scope}; suggested={item.SuggestedValues}; RequiresNativeReview={item.RequiresNativeReview}; ConfirmedValueAvailable={SettingsDiscoveryTools.HasConfirmedReader(item.Setting)}")));
         }
         Question = question;
         Original = original;

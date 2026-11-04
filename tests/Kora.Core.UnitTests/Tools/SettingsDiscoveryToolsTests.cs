@@ -20,6 +20,14 @@ public sealed class SettingsDiscoveryToolsTests
             new(RegisteredSetting.PlaybackVolume, 100, false, 4),
             new(RegisteredSetting.ResponseMode, 0, false, 5),
             new(RegisteredSetting.PresenceDisplay, 1, false, 6),
+            new(RegisteredSetting.PresenceTimeout, 10, false, 6),
+            new(RegisteredSetting.PresenceSize, 360, false, 6),
+            new(RegisteredSetting.DotSize, 100, false, 6),
+            new(RegisteredSetting.DotDensity, 100, false, 6),
+            new(RegisteredSetting.MovementSpeed, 100, false, 6),
+            new(RegisteredSetting.SpeechScaling, 1, false, 6),
+            new(RegisteredSetting.SpeechScaleAmount, 100, false, 6),
+            new(RegisteredSetting.ReducedMotion, 0, false, 6),
         ], "Which registered settings control spoken summaries?", HostRequest.Create(RequestOrigin.LocalUi),
         DateTimeOffset.UnixEpoch, mode);
 
@@ -29,6 +37,13 @@ public sealed class SettingsDiscoveryToolsTests
         var review = Review();
         review.Text.Should().Contain("ONLY settings.list/settings.get").And.Contain("value-unavailable")
             .And.Contain(review.Question).And.Contain("speech.summary-words");
+        foreach (var descriptor in RegisteredSettingRegistry.Settings)
+        {
+            review.Source.Should().Contain(descriptor.Id).And.Contain(descriptor.Description)
+                .And.Contain($"units={descriptor.Units}").And.Contain($"scope={descriptor.Scope}")
+                .And.Contain($"suggested={descriptor.SuggestedValues}")
+                .And.Contain($"RequiresNativeReview={descriptor.RequiresNativeReview}");
+        }
         var records = new List<RegisteredSettingMetadata>();
         int? offset = 0;
         while (offset is { } start)
@@ -56,7 +71,7 @@ public sealed class SettingsDiscoveryToolsTests
             ModelToolProtocol.CreateToolResult(new("get_1", SettingsDiscoveryTools.Get, input), reply);
         }
         SettingsDiscoveryTools.Read(review.Observations, SettingsDiscoveryTools.Get,
-            """{"id":"appearance.presence-timeout"}""").Should().Be(
+            """{"id":"appearance.response-timeout"}""").Should().Be(
                 new CapabilityReply(CapabilityOutcome.Unavailable, "setting-value-unavailable"));
         SettingsDiscoveryTools.Read(review.Observations, "settings.reset", "{}").Outcome.Should().Be(CapabilityOutcome.Denied);
         SettingsDiscoveryTools.Read(review.Observations, SettingsDiscoveryTools.List, """{"offset":999}""")

@@ -270,7 +270,7 @@ internal sealed class McpInvocation(
         && HostActivity.Current is { } current && current.Request.IsWithinIntent(original)
         && current.Outcome == HostOperationOutcome.Unknown && !current.Activity!.IsStopped;
 
-    private async Task<string?> SelectToolAsync(IReadOnlyList<McpDiscoveredTool> tools, CancellationToken token)
+    private async Task<string> SelectToolAsync(IReadOnlyList<McpDiscoveredTool> tools, CancellationToken token)
     {
         var request = interactionRequest;
         var parent = HostActivity.RequireCurrent();
@@ -280,6 +280,11 @@ internal sealed class McpInvocation(
         {
             var choice = await selectTool(request, generation, expiresAt, tools,
                 () => Admitted(token) && activity.Outcome == HostOperationOutcome.Unknown, token).ConfigureAwait(false);
+            if (choice is null)
+            {
+                await ValidateAsync(token).ConfigureAwait(false);
+                throw new McpSelectionCancelledException(token);
+            }
             activity.Complete(HostOperationOutcome.Completed);
             return choice;
         }

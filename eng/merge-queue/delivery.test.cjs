@@ -12,9 +12,12 @@ const tip = () => ({ delivery: 'independent-v1', sha: sha(1), tree: sha(2), base
   validation: { run: 42, attempt: 1, source: sha(4), workflow: sha(3), inventory: sha(5), schema: 'windows-12-delivery-v1' } });
 
 test('new failed-preflight physical retirement is bound to the exact reviewed workflow and all twenty no-fanout jobs', () => {
-  const bytes = Buffer.from(fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8').replaceAll('\r\n', '\n'));
+  const bytes = Buffer.from(fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-3ed51a1b.yml'), 'utf8').replaceAll('\r\n', '\n'));
   assert.equal(createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex'), REJECTED_DELIVERY_BLOB);
   assert.equal(REJECTED_DELIVERY_JOBS.length, 20);
+  const current = Buffer.from(fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8').replaceAll('\r\n', '\n'));
+  const currentBlob = createHash('sha1').update(`blob ${current.length}\0`).update(current).digest('hex');
+  assert.notEqual(currentBlob, REJECTED_DELIVERY_BLOB);
   for (const failed of ['Admit CI execution', 'Resolve build version']) {
     const run = { id: 42, run_attempt: 1, head_sha: sha(1), status: 'completed', conclusion: 'failure',
       event: 'workflow_dispatch', head_branch: 'main' };
@@ -25,6 +28,7 @@ test('new failed-preflight physical retirement is bound to the exact reviewed wo
     assert.equal(terminalRejectedAdmission(run, jobs, REJECTED_DELIVERY_BLOB), false);
     assert.equal(terminalRejectedPreflight(run, jobs, REJECTED_DELIVERY_BLOB), false);
     assert.equal(terminalRejectedDelivery(run, jobs, sha(9)), false);
+    assert.equal(terminalRejectedDelivery(run, jobs, currentBlob), false);
     assert.equal(terminalRejectedDelivery({ ...run, run_attempt: 2 }, jobs, REJECTED_DELIVERY_BLOB), false);
     assert.equal(terminalRejectedDelivery(run, jobs.slice(1), REJECTED_DELIVERY_BLOB), false);
     for (const change of [{ status: 'in_progress', conclusion: null }, { id: 1 }, { name: 'unknown' },

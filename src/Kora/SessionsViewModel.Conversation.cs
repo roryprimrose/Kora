@@ -387,6 +387,7 @@ internal sealed partial class SessionsViewModel
         CancelPlaybackVolumeSuggestion(reportCancellation: false);
         CancelWindowsSpeechRateSuggestion();
         CancelQuietHoursSuggestion();
+        CancelInstalledSpeechVoiceSuggestion();
         CancelModelMemoryProposal();
         if (preserveUnsent) { RememberUnsent(); }
         ClearAssistantReply();

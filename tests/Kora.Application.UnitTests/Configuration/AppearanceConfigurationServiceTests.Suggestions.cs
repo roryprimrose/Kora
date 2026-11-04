@@ -18,7 +18,8 @@ public sealed partial class AppearanceConfigurationServiceTests
     public async Task EveryRegisteredAppearanceResetMatchesAuthoritativeResetIncludingSavedDefaultProvenance()
     {
         using var listener = ListenToSuggestions();
-        foreach (var descriptor in RegisteredSettingRegistry.Settings.Where(item => item.RequiresNativeReview))
+        foreach (var descriptor in RegisteredSettingRegistry.Settings.Where(item =>
+            item.Id.StartsWith("appearance.", StringComparison.Ordinal)))
         {
             var f = new Fixture();
             var native = new Fixture();

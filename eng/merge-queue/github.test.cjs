@@ -146,7 +146,7 @@ test('candidate packaging diff must prove exact admitted ancestry and never trea
 
 test('independent main early failure is negative terminal evidence, not successful qualification or a permanent lane dependency', async () => {
   const { REJECTED_DELIVERY_JOBS } = require('./policy.cjs');
-  const workflow = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8').replaceAll('\r\n', '\n');
+  const workflow = fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-3ed51a1b.yml'), 'utf8').replaceAll('\r\n', '\n');
   const run = { id: 42, run_attempt: 1, head_sha: BASE, head_branch: 'main', event: 'push',
     display_title: 'CI main', status: 'completed', conclusion: 'failure' };
   const jobs = REJECTED_DELIVERY_JOBS.map((name, index) => ({ id: index + 1, name,
@@ -234,20 +234,67 @@ test('independent main early failure is negative terminal evidence, not successf
   });
 
   test('batch changed-file inventory is complete and bounded; truncation and duplicates cannot hide control changes', async () => {
-    const value = fixture({ get: () => ({ ...pr(), changed_files: 2 }),
+    const source = () => ({ ...pr(), number: 1, base: { ref: 'main', sha: BASE }, changed_files: 2 });
+    const value = fixture({ get: source,
       listFiles: () => [{ filename: 'src/feature.cs' }, { filename: '.github/workflows/ci.yml' }] });
     assert.deepEqual(await value.api.files(1), ['src/feature.cs', '.github/workflows/ci.yml']);
     value.responses.listFiles = () => [{ filename: 'src/feature.cs' },
       { filename: 'docs/old-policy.txt', previous_filename: 'eng/merge-queue/policy.cjs' }];
     assert.deepEqual(await value.api.files(1), ['src/feature.cs', 'docs/old-policy.txt', 'eng/merge-queue/policy.cjs']);
-    for (const count of [undefined, 0, 3000, 3001]) {
-      value.responses.get = () => ({ ...pr(), changed_files: count });
+    for (const count of [undefined, null, -1, 0.5, '0', 3000, 3001]) {
+      value.responses.get = () => ({ ...source(), changed_files: count });
       await assert.rejects(value.api.files(1), /inventory/);
     }
-    value.responses.get = () => ({ ...pr(), changed_files: 2 });
+    value.responses.get = source;
     for (const files of [[{ filename: 'one' }], [{ filename: 'one' }, { filename: 'one' }]]) {
       value.responses.listFiles = () => files;
       await assert.rejects(value.api.files(1), /Incomplete or duplicate/);
+    }
+  });
+
+  test('complete zero-file inventory is read and bound to the exact live source and base', async () => {
+    const source = () => ({ ...pr(), number: 1, base: { ref: 'main', sha: BASE }, changed_files: 0 });
+    const value = fixture({ get: source, listFiles: () => [] });
+    assert.deepEqual(await value.api.files(1, source()), []);
+    assert.equal(value.calls.filter(([name]) => name === 'listFiles').length, 1);
+    assert.equal(value.calls.filter(([name]) => name === 'get').length, 2);
+    value.responses.listFiles = () => [{ filename: 'unexpected' }];
+    await assert.rejects(value.api.files(1, source()), /Incomplete/);
+    value.responses.listFiles = () => { throw error(403); };
+    await assert.rejects(value.api.files(1, source()), /HTTP 403/);
+    value.responses.listFiles = () => ({ files: [] });
+    await assert.rejects(value.api.files(1, source()));
+    value.github.paginate = async () => undefined;
+    await assert.rejects(value.api.files(1, source()), /inventory is unavailable/);
+  });
+
+  test('file inventory rejects foreign, stale, malformed or changing source and base metadata', async () => {
+    const source = () => ({ ...pr(), number: 1, base: { ref: 'main', sha: BASE }, changed_files: 0 });
+    const changes = [
+      value => { value.number = 2; },
+      value => { value.head.sha = OTHER; },
+      value => { value.head.sha = undefined; },
+      value => { value.head.repo.full_name = 'foreign/repo'; },
+      value => { value.base.sha = OTHER; },
+      value => { value.base.sha = undefined; },
+      value => { value.base.ref = 'other'; },
+      value => { value.changed_files = 1; },
+    ];
+    for (const change of changes) {
+      for (const stage of ['initial', 'readback']) {
+        let reads = 0;
+        const value = fixture({ get: () => {
+          const current = source();
+          if (stage === 'initial' || reads++ > 0) change(current);
+          return current;
+        }, listFiles: () => [] });
+        await assert.rejects(value.api.files(1, source()), /inventory|source|metadata/i);
+      }
+    }
+    for (const files of [[null], [{}], [{ filename: '' }], [{ filename: 'ok', previous_filename: '' }]]) {
+      const current = { ...source(), changed_files: 1 };
+      const value = fixture({ get: () => current, listFiles: () => files });
+      await assert.rejects(value.api.files(1, current), /Malformed/);
     }
   });
 
@@ -694,16 +741,34 @@ test('preflight rejection retirement authenticates the exact reviewed workflow b
   assert.equal(value.calls.some(call => ['merge', 'createWorkflowDispatch', 'updateRef'].includes(call[0])), false);
 });
 
-test('real schema-declared workflow resolves complete inventory; new unversioned source fails closed', async () => {
+test('real schema-declared and historical protected workflows resolve their complete producer inventories', async () => {
   const source = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8')
     .replaceAll('\r\n', '\n');
-  const unversioned = source.replace('# merge-queue-job-schema: windows-12-v1\n', '');
-  assert.equal(await fixture({ getContent: () => workflowContent(unversioned) }).api.expectedJobs(BASE), null);
-  for (const workflow of [source]) {
+  const unversioned = fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-native-fixture-timing.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  assert.equal(workflowContent(unversioned).sha, 'd3db4c610d08468c508f09e63b10f7c6568b82ea');
+  for (const [workflow, inventory] of [[source, DELIVERY_JOBS], [unversioned, WINDOWS_12_JOBS]]) {
     const value = fixture({ getContent: () => workflowContent(workflow) });
-    assert.deepEqual(await value.api.expectedJobs(BASE), DELIVERY_JOBS);
+    assert.deepEqual(await value.api.expectedJobs(BASE), inventory);
     assert.deepEqual(value.calls, [['getContent', { owner: 'owner', repo: 'repo',
       ref: BASE, path: '.github/workflows/ci.yml' }]]);
+  }
+});
+
+test('removing the schema or modifying a predecessor does not authorize an unknown workflow blob', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  const predecessor = fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-native-fixture-timing.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  for (const workflow of [source.replace('# merge-queue-job-schema: windows-12-v1\n', ''),
+    `${predecessor}\n# Unrecognized revision\n`]) {
+    const value = fixture({ getContent: () => workflowContent(workflow) });
+    assert.equal(await value.api.expectedJobs(BASE), null);
+    assert.deepEqual(value.calls.filter(call => call[0] === 'getContent'),
+      [['getContent', { owner: 'owner', repo: 'repo', ref: BASE, path: '.github/workflows/ci.yml' }]]);
+    assert.equal(value.calls.filter(call => call[0] === 'warning').length, 1);
+    assert.match(value.calls.at(-1)[1], /physical quiescence is unknown/);
+    assert.equal(value.calls.some(call => ['update', 'merge', 'createWorkflowDispatch'].includes(call[0])), false);
   }
 });
 

@@ -11,5 +11,7 @@ internal sealed partial class SessionsWindowController
         createdModel.BindWindowsSpeechRateSuggestions(host.ReviewWindowsSpeechRateSuggestionAsync,
             (review, token) => host.ConfirmWindowsSpeechRateSuggestionAsync(review, token));
         createdModel.BindQuietHoursSuggestions(host.ReviewQuietHoursSuggestionAsync, host.ConfirmQuietHoursSuggestionAsync);
+        createdModel.BindInstalledSpeechVoiceSuggestions(host.ReviewInstalledSpeechVoiceSuggestionAsync,
+            (review, token) => host.ConfirmInstalledSpeechVoiceSuggestionAsync(review, token));
     }
 }

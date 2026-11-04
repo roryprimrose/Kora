@@ -8952,6 +8952,7 @@ public sealed partial class MainViewModelTests : IDisposable
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
             if (enableWindowsSpeechRate) { ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }
+            if (enablePlaybackVolume) { ViewModel.BindPlaybackVolumeNativeLifetime(static () => true); }
             if (enableSpeechInput) { ViewModel.BindSpeechInputNativeLifetime(static () => true); }
             if (enableInCallFeedback) { ViewModel.BindInCallFeedbackNativeLifetime(static () => true); }
             ViewModel.BindVoiceOwnershipGate(static () => true);

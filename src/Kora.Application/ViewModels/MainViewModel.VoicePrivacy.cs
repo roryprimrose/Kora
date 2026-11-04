@@ -548,6 +548,7 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(ListeningStatus));
         OnPropertyChanged(nameof(CanChangeAudioOutputDevice));
         OnPropertyChanged(nameof(CanChangePlaybackVolume));
+        OnPropertyChanged(nameof(CanChangePlaybackVolumeNative));
         ToggleListeningCommand.NotifyCanExecuteChanged();
         BeginPushToTalkCommand.NotifyCanExecuteChanged();
     }

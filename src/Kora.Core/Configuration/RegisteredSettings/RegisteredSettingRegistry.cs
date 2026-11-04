@@ -1,3 +1,5 @@
+using Kora.Core.Voice;
+
 namespace Kora.Core.Configuration.RegisteredSettings;
 
 /// <summary>The closed subset admitted for inert model suggestions, not a registry of write authority.</summary>
@@ -30,6 +32,12 @@ public static class RegisteredSettingRegistry
             WindowsSpeechRate.Minimum, WindowsSpeechRate.Maximum, false),
         Appearance(RegisteredSetting.ResponseTimeout, AppearanceOption.ResponseTimeout),
         Appearance(RegisteredSetting.ReducedMotion, AppearanceOption.ReducedMotion),
+        new(RegisteredSetting.CommandStartWait, VoiceCaptureTiming.CommandStartId,
+            "command speech-start wait for future eligible captures only", "seconds", null, null, true),
+        new(RegisteredSetting.ReplyStartWait, VoiceCaptureTiming.ReplyStartId,
+            "reply speech-start wait for future eligible captures only", "seconds", null, null, true),
+        new(RegisteredSetting.TrailingSilence, VoiceCaptureTiming.TrailingSilenceId,
+            "trailing silence for future eligible captures only", "seconds", null, null, true),
     ]);
 
     public static RegisteredSettingDescriptor Get(RegisteredSetting setting) =>

@@ -31,7 +31,9 @@ public sealed class SettingsDiscoveryWorkflowTests
             ModelToolMode.SettingsDiscovery);
         transport.Requests.Should().BeEmpty();
         var result = await f.Workflow.AnswerAsync(session, () => true, f.Token);
-        result.Outcome.Should().Be(SettingInspectionOutcome.Succeeded);
+        result.Outcome.Should().Be(SettingInspectionOutcome.Succeeded,
+            $"retained reason: {result.Receipt?.Message.Reason}; transport rounds: {transport.Requests.Count}; "
+            + $"serialized request bytes: {string.Join(", ", transport.Requests.Select(item => ModelToolProtocol.SerializeRequest(item).Length))}");
         transport.Requests.Should().HaveCount(3);
         transport.Requests.Should().OnlyContain(item => item.Provenance.Request.SessionId == session.Review.Destination.SessionId
             && item.Provenance.Request.Origin == origin && item.Context.ToolMode == ModelToolMode.SettingsDiscovery

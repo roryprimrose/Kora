@@ -17,4 +17,5 @@ public abstract record RegisteredSettingProposal(RegisteredSetting Setting)
     public sealed record Volume(PlaybackVolume Value) : RegisteredSettingProposal(RegisteredSetting.PlaybackVolume);
     public sealed record ResponseMode(ResponseOutputMode Value) : RegisteredSettingProposal(RegisteredSetting.ResponseMode);
     public sealed record WindowsRate(WindowsSpeechRate Value) : RegisteredSettingProposal(RegisteredSetting.WindowsSpeechRate);
+    public sealed record CaptureTiming(RegisteredSetting Key, decimal Seconds) : RegisteredSettingProposal(Key);
 }

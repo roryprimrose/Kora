@@ -27,6 +27,9 @@ do not require you to remember these names.
 | `speech.playback-volume` | Integer 0-100 | Native or existing exact typed/activated-voice review |
 | `responses.default-mode` | Exact `Hybrid`, `VoiceOnly`, `VisualOnly` | Native or exact typed/activated-voice review |
 | `speech.windows-rate` | Canonical integer -10 through 10, normal 0 | Native or exact typed/activated-voice review |
+| `voice.command-start-wait` | Exact decimal 2-10 seconds, default 5 | Separate current native review and confirmation |
+| `voice.reply-start-wait` | Exact decimal 5-60 seconds, default 15 | Separate current native review and confirmation |
+| `voice.trailing-silence` | Exact decimal 0.5-3 seconds, default 1 | Separate current native review and confirmation |
 
 For example, the complete answer may be `set appearance.theme to dark`,
 `set appearance.reduced-motion to true`, `set appearance.movement-speed to 50`,
@@ -44,6 +47,12 @@ Presence suggestions likewise require the exact lowercase syntax and IDs above,
 canonical decimal integers or lowercase `true`/`false`, with no surrounding text.
 Response-timeout suggestions use the same canonical lowercase syntax, for example `set appearance.response-timeout to 15`. This is the response-window inactivity hide delay, not a provider/request deadline ([existing preference](settings.md#independent-visibility-timeouts)).
 Native renderer selection is not an admitted model suggestion.
+For capture timing, the complete retained answer may be `set voice.trailing-silence to 2.5000001` or `reset voice.reply-start-wait`.
+Seconds use a canonical dot decimal with at most seven fractional digits; no exponent, suffix, padding, redundant zeros, rounding or batch is accepted.
+Review reads the authoritative current timing service and shows all three old/new values and saved/default provenance.
+Separate native confirmation saves only the selected field's change, preserving companions.
+The save affects future eligible captures only; it never replaces an in-flight snapshot, opens a microphone, selects a provider or grants consent.
+An unavailable timing service blocks review. Timing values remain unavailable through `settings.get`; suggestion metadata is not confirmed-value read authority.
 This suggestion registry does not expand setting inspection: inspection remains
 limited to theme, reader text scale, both summary caps, playback volume and response mode.
 
@@ -56,6 +65,7 @@ Use the same separate review and confirmation below. Review resolves the default
 - Appearance saves the option's default as a **saved** value when changed. If it already equals the default, Reset is unchanged and preserves its existing saved/default provenance; other appearance options are unchanged ([owner](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
 - Response-timeout Reset follows those same appearance-owner semantics with the authoritative 5-second default. It retains its existing native/typed/activated-voice review, 60-second expiry and original-channel call/privacy checks; other appearance settings remain native-only ([review](../src/Kora.Application/Configuration/AppearanceSuggestionReview.cs)).
 - A summary cap saves the complete pair with that cap reset and the known companion unchanged. An unreadable companion blocks review; it is never defaulted ([owner](../src/Kora.Application/Configuration/SpeechConfigurationService.cs)).
+- A capture timing Reset saves the complete timing tuple with only that field restored to its default and both known companions unchanged; it does not remove the saved tuple ([owner](../src/Kora.Application/Configuration/VoiceCaptureTimingConfigurationService.cs)).
 - Volume and Windows rate remove their saved preference and use the authoritative **unsaved default** ([volume](../src/Kora.Application/Configuration/PlaybackVolumeConfigurationService.cs), [rate](../src/Kora.Application/Configuration/WindowsSpeechRateConfigurationService.cs)).
 - Response mode saves **Hybrid**, matching native Reset; it does not remove the preference or change session/task/call overrides ([native route](../src/Kora.Application/ViewModels/MainViewModel.ResponseModeConfiguration.cs)).
 
@@ -77,6 +87,9 @@ Existing review-channel restrictions and uncertain-write recovery remain unchang
    Windows rate shows provider/support, saved/default provenance and desired/effective
    native units (-10 through 10, normal 0), not percentages or a universal speed scale.
    It uses the same guarded, validated writer as Settings > Speech & audio.
+   Capture timing likewise uses its existing timing writer, requires separate current native confirmation, and expires after 60 seconds.
+   Cancel remains available while its source check or confirmation is awaiting. Late completions cannot revive the cancelled review.
+   A write already started is joined, not rolled back; an unconfirmed save requires Settings and audit inspection, never automatic retry.
    Only the already available Windows provider/adapter can apply; Kokoro is unchanged.
    Presence changes affect the existing display and animation immediately after a
    confirmed save. Disabling presence hides it; speech scaling only changes its

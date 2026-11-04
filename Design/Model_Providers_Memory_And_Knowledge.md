@@ -35,6 +35,22 @@ attestations and hosted deployment approvals remain unavailable.
 
 ## Product Decision
 
+### Explicit failed-request recovery with one local profile
+
+For the approved explicit model interaction and recovery outcome, one exact
+confirmed terminal failure can be reviewed with a deliberately selected complete
+advertised LOCAL tuple, then separately confirmed as a new attempt in the original
+conversation/channel. The original provider need not resolve; its retained identity
+remains source evidence, not authority for a fallback
+([host review](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)).
+
+This host-owned operation joins the existing failed-source and request-only profile
+contracts. Source/task and profile/account/session authority are revalidated through
+dispatch; held queues, instruction review, expiry, physical cancellation joins and
+truthful Unavailable terminals remain authoritative. It changes no saved preference,
+original failure or unrelated composer text and enables no provider
+([complete native operation](../docs/windows-and-tray.md#review-a-confirmed-failure-with-an-alternate-local-profile)).
+
 ### Implemented model-advised review of same-conversation history
 
 For the approved explicit local answering outcome, an ordinary final answer may

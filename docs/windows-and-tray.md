@@ -18,6 +18,16 @@ not a fabricated model reply.
 **Product realignment:** conversation input is moving from saved-draft document management to per-conversation in-memory unsent text. The saved-draft catalogue/comparison and engineering-heavy normal workspace controls below describe current implementations approved for retirement or simplification, not the target workflow.
 Existing saved content remains governed by retention and private recovery. See the [approved scope](../Design/MVP_Scope.md#approved-retirement-and-simplification).
 
+### Review an unsent message before sending
+
+In the primary conversation, Sessions or compact view, write your message and choose **Review unsent message once**.
+Inspect the complete unchanged message, conversation, local-only scope, original channel and expiry, then choose **Confirm and submit reviewed message once** or **Cancel review; keep unsent message**.
+Review and cancellation do not save or submit the input; ordinary direct Send remains available ([interaction contract](../Design/Interaction_And_Sessions.md#conversation-input-realignment)).
+
+Switching conversations preserves their independent unsent text but retires the review. Editing input, replacing a review, expiry or privacy/ownership loss requires a fresh review; returning to the same conversation does not restore approval.
+You can cancel while review preparation is waiting. After confirmation, inspect the reported original HOST outcome or actual retained answer; unavailability is not an answer, and uncertainty is not permission to retry automatically.
+No disk autosave or new retention is introduced ([source and review owner](../src/Kora/SessionsViewModel.ComposerRequest.cs)).
+
 ## Native app provider field review
 
 **Settings > Providers** retains the complete app tuple workflow and adds individual exact model/reasoning/context review. Inspect current catalogue, select the service, review one field, inspect the whole resulting tuple/account/revision/provenance, then confirm or cancel separately. Individual edits retain the app default, other service tuples and session overrides.
@@ -164,6 +174,34 @@ history or current defaults. Review/decline never overwrites unsent input or
 saves it to disk, and no tools/effects are replayed automatically.
 Retained voice content also cannot acquire fresh activated-voice authority from
 a native button: a retry review needs current admission of the original channel.
+
+### Review a confirmed failure with an alternate local profile
+
+After **Read conversation**, select one confirmed failed USER request.
+**Refresh providers**, choose **Local** in the **This request only** service picker,
+explicitly choose all three advertised local values, then choose
+**Review selected failure with this LOCAL profile**. Review the unchanged failed
+input, original provider/channel, exact conversation, complete new local tuple
+and expiry ([native review](../src/Kora/SessionsViewModel.LocalRequestProfile.cs)).
+
+Copilot and Claude selections remain available for ordinary request-only review,
+not selected-failure recovery. Changing the service retires the pending review
+([service fence](../src/Kora/SessionsViewModel.LocalRequestProfile.cs)).
+
+**Confirm this request only once** submits one fresh local attempt through ordinary
+queue and model admission; it does not replay or reset the old task.
+**Cancel this request-only review** submits nothing. Original failure and unrelated
+unsent input remain unchanged, even when the original provider is no longer
+available. Held queues still require their existing separate **Resume**
+([host route](../src/Kora.Application/Hosting/SessionConversationService.FailedRetry.cs)).
+
+The selected local tuple must remain advertised and admitted. Missing qualification
+returns a truthful HOST/task Unavailable without an answer or provider call.
+Source/task, selection, profile/account, session, expiry and private authority remain
+live fences; cancellation retains ownership until physical work joins. Existing
+instruction-scope review remains required. No preference write, acquisition, new
+hosted channel, fallback or renewed voice authority is added
+([admission](../src/Kora.Application/Dependencies/ModelTurnHost.LocalRequestProfile.cs)).
 
 ### Review expired local text as a new ordinary request
 

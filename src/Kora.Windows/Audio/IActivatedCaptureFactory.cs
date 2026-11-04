@@ -23,6 +23,14 @@ internal interface IActivatedCaptureFactory
         OpenAsync(microphone, phrases, stream, canOpen);
 
     Task<IActivatedCapture> OpenAsync(MicrophoneDevice microphone, IReadOnlyList<string> phrases,
+        BlockingAudioStream stream, Func<bool> canOpen, TimeSpan speechStartWindow, TimeSpan trailingSilence, SpeechInputGeneration profile)
+    {
+        if (trailingSilence != VoiceCaptureTiming.Default.TrailingSilence)
+        { throw new InvalidOperationException("This capture factory does not support requested trailing-silence timing."); }
+        return OpenAsync(microphone, phrases, stream, canOpen, speechStartWindow, profile);
+    }
+
+    Task<IActivatedCapture> OpenAsync(MicrophoneDevice microphone, IReadOnlyList<string> phrases,
         BlockingAudioStream stream, Func<bool> canOpen, TimeSpan speechStartWindow, SpeechInputGeneration profile)
     {
         if (SpeechInputProfileCatalogue.UnavailableReason(profile.Selection) is { } reason)

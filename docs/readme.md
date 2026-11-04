@@ -77,6 +77,7 @@ to the model availability above.
 | Create an agent profile | [Agent profile authoring](agent-profile-authoring.md) |
 | Review a shared skill as agent guidance | [Shared skill guidance](agent-shared-skill-guidance.md) |
 | Understand separate local agent runs and their limits | [Independent agent runs](independent-agent-runs.md) |
+| Inspect exact agent observations and recover without replay | [Agent result readback](agent-results.md) |
 | Review a suggested preference change | [Setting suggestions](setting-proposals.md) |
 | Ask about confirmed settings | [Setting inspection](setting-inspection.md) |
 | Understand explicit Copilot requests | [Copilot requests](hosted-requests.md) |

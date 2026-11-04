@@ -21,9 +21,10 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class AgentProfileEditorUiTests
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ActualCommandsNativeConfirmationDurableInventoryAndReadOnlyReopenCompleteOperation(bool combined)
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(4)]
+    public async Task ActualCommandsNativeConfirmationDurableInventoryAndReadOnlyReopenCompleteOperation(int observationFormat)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -50,12 +51,15 @@ public sealed class AgentProfileEditorUiTests
             await Run("agent author create example");
             editor.Should().NotBeNull();
             var source = WindowsOwnedAgentProfileStoreTests.Source;
-            if (combined)
+            if (observationFormat != 0)
             {
-                source = source.Replace("kora-agent-format: 1", "kora-agent-format: 4", StringComparison.Ordinal)
-                    .Replace("references: none", "references: disk.kora-profile.instruction.example", StringComparison.Ordinal)
-                    .Replace("tools: none", "tools: application.get_version", StringComparison.Ordinal)
+                source = source.Replace("tools: none", "tools: application.get_version", StringComparison.Ordinal)
                     .Replace("maximum-calls: 0", "maximum-calls: 1", StringComparison.Ordinal);
+                if (observationFormat == 4)
+                {
+                    source = source.Replace("kora-agent-format: 1", "kora-agent-format: 4", StringComparison.Ordinal)
+                        .Replace("references: none", "references: disk.kora-profile.instruction.example", StringComparison.Ordinal);
+                }
             }
             await Run("agent author source " + source);
             await Run("agent author validate");
@@ -63,10 +67,11 @@ public sealed class AgentProfileEditorUiTests
             File.Exists(target).Should().BeFalse();
             await Run("agent author save as new");
             editor!.Review.Text.Should().Contain(source).And.Contain(target);
-            if (combined)
+            if (observationFormat != 0)
             {
-                editor.Review.Text.Should().Contain("Declared references: disk.kora-profile.instruction.example")
-                    .And.Contain("Declared tools: application.get_version").And.Contain("Host clamps: calls 1");
+                editor.Review.Text.Should().Contain("Declared tools: application.get_version").And.Contain("Host clamps: calls 1");
+                if (observationFormat == 4)
+                { editor.Review.Text.Should().Contain("Declared references: disk.kora-profile.instruction.example"); }
             }
             File.Exists(target).Should().BeFalse();
             editor.Confirm.IsEnabled.Should().BeTrue();
@@ -91,8 +96,10 @@ public sealed class AgentProfileEditorUiTests
         });
     }
 
-    [Fact]
-    public async Task EditingRetiresReviewAndDirtyCloseCancelDiscardAndSaveRetainNativeChoice()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task EditingRetiresReviewAndDirtyCloseCancelDiscardAndSaveRetainNativeChoice(bool observation)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -118,7 +125,9 @@ public sealed class AgentProfileEditorUiTests
             editor!.Source.Text = "Invalid source";
             await Run("agent author validate");
             editor.Status.Text.Should().Contain("unavailable");
-            editor!.Source.Text = WindowsOwnedAgentProfileStoreTests.Source;
+            editor!.Source.Text = observation ? WindowsOwnedAgentProfileStoreTests.Source
+                .Replace("tools: none", "tools: application.get_version", StringComparison.Ordinal)
+                .Replace("maximum-calls: 0", "maximum-calls: 1", StringComparison.Ordinal) : WindowsOwnedAgentProfileStoreTests.Source;
             await Run("agent author save as new");
             editor.Source.Text += "\nEdited.";
             editor.Confirm.IsEnabled.Should().BeFalse();

@@ -98,6 +98,7 @@ public sealed partial class SharedSkillDiscoveryService(
                 // An attempted publication can be durable even when read-back/audit fails.
                 // Retain only the identity fence, never source content or a cached grant.
                 lock (consentGate) { withdrawnIdentities.Add(source.Id); }
+                Interlocked.Increment(ref consentRevision);
                 try
                 {
                     preferences.WithUnchangedSources(expected, () =>

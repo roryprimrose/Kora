@@ -12,6 +12,7 @@ do not require you to remember these names.
 | --- | --- | --- |
 | `appearance.theme` | `system`, `light`, `dark` | Original local UI, native review and confirmation |
 | `appearance.reader-text-scale` | Integer 75-200 percent | Original local UI, native review and confirmation |
+| `appearance.reduced-motion` | `true`, `false` | Original local UI, native review and confirmation |
 | `appearance.presence-display` | `true`, `false` | Original local UI, native review and confirmation |
 | `appearance.presence-timeout` | Integer 1-60 seconds | Original local UI, native review and confirmation |
 | `appearance.response-timeout` | Canonical integer 1-60 seconds, default 5 | Native or exact typed/activated-voice review |
@@ -28,13 +29,14 @@ do not require you to remember these names.
 | `speech.windows-rate` | Canonical integer -10 through 10, normal 0 | Native or exact typed/activated-voice review |
 
 For example, the complete answer may be `set appearance.theme to dark`,
-`set appearance.movement-speed to 50`, `set speech.summary-words to 40`, `set speech.playback-volume to 30`, or
+`set appearance.reduced-motion to true`, `set appearance.movement-speed to 50`,
+`set speech.summary-words to 40`, `set speech.playback-volume to 30`, or
 `set responses.default-mode to VoiceOnly`.
 For slower Windows speech, the complete retained answer may be
 `set speech.windows-rate to -1`. Rate alone permits canonical negative integers;
 plus signs, negative zero, padding, leading zeroes, suffixes and commentary are rejected.
 Other numeric speech suggestions use canonical decimal digits, without signs,
-leading zeroes, fractions or commentary. Mixed settings, batches, resets,
+leading zeroes, fractions or commentary. Mixed settings, batches,
 relative changes and other setting families are not admitted as suggestions.
 Response-mode answers require the exact spelling and case shown above; numeric
 enum values, aliases, surrounding commentary and batches are rejected.
@@ -44,6 +46,21 @@ Response-timeout suggestions use the same canonical lowercase syntax, for exampl
 Native renderer selection is not an admitted model suggestion.
 This suggestion registry does not expand setting inspection: inspection remains
 limited to theme, reader text scale, both summary caps, playback volume and response mode.
+
+## Propose one Reset
+
+The complete retained answer may instead be exactly `reset <exact ID>` for one setting in the table, for example `reset speech.playback-volume`. No value, model-supplied default, aliases, commentary or batch is accepted ([parser](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestions.cs)).
+
+Use the same separate review and confirmation below. Review resolves the default through the host, shows current and proposed values/provenance and preserves the exact source and original channel. Reset does not mean every owner removes its saved preference:
+
+- Appearance saves the option's default as a **saved** value when changed. If it already equals the default, Reset is unchanged and preserves its existing saved/default provenance; other appearance options are unchanged ([owner](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
+- Response-timeout Reset follows those same appearance-owner semantics with the authoritative 5-second default. It retains its existing native/typed/activated-voice review, 60-second expiry and original-channel call/privacy checks; other appearance settings remain native-only ([review](../src/Kora.Application/Configuration/AppearanceSuggestionReview.cs)).
+- A summary cap saves the complete pair with that cap reset and the known companion unchanged. An unreadable companion blocks review; it is never defaulted ([owner](../src/Kora.Application/Configuration/SpeechConfigurationService.cs)).
+- Volume and Windows rate remove their saved preference and use the authoritative **unsaved default** ([volume](../src/Kora.Application/Configuration/PlaybackVolumeConfigurationService.cs), [rate](../src/Kora.Application/Configuration/WindowsSpeechRateConfigurationService.cs)).
+- Response mode saves **Hybrid**, matching native Reset; it does not remove the preference or change session/task/call overrides ([native route](../src/Kora.Application/ViewModels/MainViewModel.ResponseModeConfiguration.cs)).
+
+Cancel requests no write. Reset grants no model undo authority and adds no settings, provider/device, consent, grant, retention or speech operation.
+Existing review-channel restrictions and uncertain-write recovery remain unchanged ([review owners](../src/Kora.Application/Configuration/AppearanceSuggestionReview.cs), [volume review](../src/Kora.Application/Configuration/PlaybackVolumeSuggestionReview.cs)).
 
 ## Review, confirm or cancel
 
@@ -64,10 +81,23 @@ limited to theme, reader text scale, both summary caps, playback volume and resp
    Presence changes affect the existing display and animation immediately after a
    confirmed save. Disabling presence hides it; speech scaling only changes its
    animation, never speech permission, synthesis or playback.
+   Reduced motion freezes presence particle movement in both animation modes.
+   False/reset follows Windows and cannot enable motion against Windows reduced
+   motion. Speech sizing and brief colour and visibility transitions remain independent.
    Response timeout changes only the existing inactivity hide delay. Always show, presence timeout, questions, approvals and response action links retain their existing visibility behavior ([visibility rules](settings.md#independent-visibility-timeouts)).
 3. Separately choose **Confirm exact setting change** to consume this review
    once through the same validated, audited writer as the existing controls.
    Or choose **Cancel setting review**; no new write is requested.
+
+Keyboard activation of **Review setting suggestion...** moves focus to the
+complete readback in either conversation view. Focus and Enter on the readback
+do not confirm a change. **Escape** from the readback or its confirmation/cancel
+buttons cancels only this setting review and returns focus to the same answer's
+review action when that exact source is still available. Escape outside these
+review controls keeps its existing search/window behavior. After cancellation,
+review the same answer again and confirm separately; no new model request is
+needed. Confirmation likewise returns to the source unless focus has moved
+elsewhere while the operation was pending.
 
 Only one native setting review is active at a time. A new review retires the
 old one. The original request, answer, session, preference revision, private

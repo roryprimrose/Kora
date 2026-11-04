@@ -52,7 +52,7 @@ public sealed partial class ModelTurnHostTests
         var service = new SessionConversationService(f, f,
             new SessionWorkspaceService(f, new(f), f, NullLogger<SessionWorkspaceService>.Instance), f, host, f.Time,
             NullLogger<SessionConversationService>.Instance, host);
-        var reader = new AgentReader();
+        var reader = new AgentReader { Text = OwnedAgentProfileDocument.Parse("selected-agent", AgentProfile).Document.Text };
         var statuses = new List<ConversationExecutionStatus>();
         service.RunningConversationChanged += statuses.Add;
         await using var workflow = new BoundedAgentWorkflow(reader, f, f, service, host, f, f.Time);

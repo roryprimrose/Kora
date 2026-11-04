@@ -25,7 +25,8 @@ internal sealed class AgentProfileEditorWindow : Window
         var panel = new StackPanel { Margin = new(20), Spacing = 10 };
         panel.Children.Add(new TextBlock
         {
-            Text = "Author a new inert local text profile: tool-free v1, or v4 declaring exact owned instruction IDs and existing observation tools. "
+            Text = "Author an inert local text profile: reference-free v1 with optional existing observation tools, "
+                + "or v4 declaring exact owned instruction IDs and existing observation tools. Conversational generation remains tool-free v1. "
                 + "Saving never resolves, enables or invokes references or grants tool authority. "
                 + "Create new files or explicitly edit the same inspected original under the private owned-agent directory.",
             TextWrapping = TextWrapping.Wrap,

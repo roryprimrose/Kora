@@ -81,6 +81,44 @@ const step = (api, options = {}) => reconcile(api, { now: NOW, ticket: TICKET, .
 const count = (api, action) => api.calls.filter(call => call[0] === action).length;
 const labels = (...names) => names.map(name => ({ name }));
 
+test('a failed required job cancels a running singleton immediately without releasing nonterminal or missing work', async () => {
+  for (const missing of [false, true]) {
+    const api = new Fake();
+    api.state.active = active();
+    api.workflowRuns = [run({ status: 'in_progress', conclusion: null })];
+    api.workflowJobs[0].conclusion = 'failure';
+    Object.assign(api.workflowJobs.at(-1), { status: 'in_progress', conclusion: null });
+    assert.equal(await step(api), 'retiring');
+    assert.equal(count(api, 'cancel'), 1);
+    assert.equal(api.state.active.ticket, TICKET);
+    api.workflowRuns[0].status = 'completed';
+    api.workflowRuns[0].conclusion = 'cancelled';
+    if (missing) api.workflowJobs.pop();
+    else Object.assign(api.workflowJobs.at(-1), { status: 'completed', conclusion: 'cancelled' });
+    assert.equal(await step(api), missing ? 'retiring' : 'retired');
+    assert.equal(count(api, 'merge'), 0);
+    assert.equal(count(api, 'dispatch'), 0);
+  }
+});
+
+test('running singleton review withdrawal cancels owned work but unknown cancellation identities fail closed', async () => {
+  const api = new Fake();
+  api.state.active = active();
+  api.workflowRuns = [run({ status: 'in_progress', conclusion: null })];
+  api.approved = false;
+  assert.equal(await step(api), 'retiring');
+  assert.equal(count(api, 'cancel'), 1);
+  for (const changed of [{ id: 0 }, { head_sha: OTHER }, { run_attempt: 2 }]) {
+    const stale = new Fake();
+    stale.state.active = active();
+    stale.prs[0].auto_merge = null;
+    stale.workflowRuns = [run({ status: 'in_progress', conclusion: null, ...changed })];
+    await assert.rejects(step(stale), /cancellation source/);
+    assert.equal(count(stale, 'cancel'), 0);
+    assert.equal(stale.state.active.phase, 'retiring');
+  }
+});
+
 function rejectedAdmission() {
   const api = new Fake();
   api.workflowBlob = '97e22a8f88bcdc9bbaef32cf9e7200dd6e5c43cd';
@@ -282,8 +320,8 @@ test('retirement cannot resolve inventory from a mismatched run source or hide s
     if (scenario === 'source') {
       api.workflowRuns[0].head_sha = OTHER;
       api.workflowJobs.forEach(job => { job.head_sha = OTHER; });
-      assert.equal(await step(api), 'retiring');
-      assert.equal(count(api, 'cancel'), 1);
+      await assert.rejects(step(api), /cancellation source/);
+      assert.equal(count(api, 'cancel'), 0);
       assert.equal(count(api, 'inventory'), 0);
     } else {
       api.expectedJobs = async () => { throw new Error('Workflow source lookup failed'); };

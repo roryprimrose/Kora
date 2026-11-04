@@ -61,6 +61,37 @@ anything again.
 Omit `copilot` to use the existing ordinary request operation without explicitly
 selecting Copilot. Do not put credentials in request text.
 
+## Choose a profile for this request only
+
+In **Sessions > Selected-session provider overrides > This request only**, refresh
+providers, choose **Copilot** or **Claude**, then explicitly select the advertised
+model, reasoning and context values. Review the exact conversation, unchanged
+input, complete account-bound profile, original channel and expiry before
+confirming once. Changing the service clears its choices and review
+([shared picker](../src/Kora/SessionsViewModel.LocalRequestProfile.cs)).
+
+The equivalent exact typed/current-name activated command is:
+
+```text
+session request once <session-id> <generation> <metadata-revision> <copilot|claude> <account-id> <catalogue-revision> <model-id> <reasoning-id> <context-id> -- <original body>
+```
+
+Use the existing separate `session request confirm` or `session request cancel`.
+Omitting the service in `once` retains its existing **Local** meaning
+([command syntax](../src/Kora.Core/Commands/SessionCommand.Request.cs)).
+
+This affects only that exact request: app defaults and session overrides stay
+unchanged, and the next request uses normal inheritance. Every hosted physical
+send still requires the separate native disclosure above. Existing credentials,
+model approval, privacy, voice/call admission and provider mode remain mandatory;
+the picker cannot make an unavailable account or provider ready
+([request admission](../src/Kora.Application/Dependencies/ModelTurnHost.LocalRequestProfile.cs)).
+
+Unavailable catalogues offer no models. A stale, denied or deleted profile, failed
+send or cancellation yields no substitute answer or automatic retry. This
+tool-free hosted operation does not carry local instructions or earlier history
+to another provider ([hosted submission](../src/Kora.Application/Hosting/SessionConversationService.LocalRequestProfile.cs)).
+
 ## Review a verified local Unavailable result
 
 In an explicitly configured **Local first** session, the Sessions window offers

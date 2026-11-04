@@ -36,6 +36,12 @@ Only decoded assistant-content snapshots from the bounded native Ollama NDJSON d
 
 Snapshots remain volatile, inert plain text, without Markdown detail routing, automatic speech, persistence or content logging. Publication awaits the receiving view and revalidates exact host turn, source, session/task generation, private control and native view lifetime. Stop targets that conversation's displayed running task independently of the busy composer; cancellation retires provisional text but does not claim rollback or resource termination ([host fences](../src/Kora.Application/Dependencies/ModelTurnHost.Questions.cs), [native lifetime](../src/Kora/SessionsViewModel.ConversationCancellation.cs), [native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Streaming.cs)).
 
+An earlier request's deferred execution notifications cannot clear a subsequent
+request's current provisional pane or replace its displayed Stop target in the
+same session. Retirement remains bound to the exact host request and lease;
+the subsequent request still clears on its own completion, cancellation or
+authority loss ([cross-turn native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.StreamingRetirement.cs)).
+
 The original USER remains retained under existing rules. Only a fully validated successful final answer can enter the existing ASSISTANT/HOST/task/audit transaction; malformed, oversized, cancelled or truncated streams cannot retain partial answers. Owned work remains joined before a confirmed terminal outcome. This increment does not enable rejected/unqualified local profiles or qualify hardware, installed accessibility, hosted streaming or provider availability ([retention owner](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs), [host regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Streaming.cs), [I/E/Q policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
 
 ### Separately admitted native Claude text streams

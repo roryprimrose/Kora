@@ -75,6 +75,10 @@ internal sealed partial class SessionsViewModel
                 || selectionEpoch != epoch || selected != target
                 || observation.Target.Request.SessionId != selected?.Authority.SessionId
                 || observation.Target.Generation != selected.Authority.Generation) { return; }
+            // Provisional publication can overtake a previous turn's posted terminal notification.
+            if (provisionalAnswer is { } answer
+                && (answer.Target.LeaseId != observation.Target.LeaseId || answer.Target.Request != observation.Target.Request)
+                && answer.IsCurrent()) { return; }
             if (observation.Phase is ConversationExecutionPhase.Waiting or ConversationExecutionPhase.Running
                 && conversation?.IsExecutionProgressCurrent(observation) != true)
             {

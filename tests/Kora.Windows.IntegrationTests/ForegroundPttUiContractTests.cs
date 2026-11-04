@@ -18,7 +18,7 @@ using Kora.NativeUxFixture;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class ForegroundPttUiContractTests
+public sealed partial class ForegroundPttUiContractTests
 {
     private const RawInputModifiers Chord = RawInputModifiers.Control | RawInputModifiers.Shift;
 
@@ -239,8 +239,8 @@ public sealed class ForegroundPttUiContractTests
             try
             {
                 response.Show(); Activate(response); response.UpdateLayout();
-                Press(response, Key.Space);
-                await fixture.Voice.Started.Task.WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
+                await PressWithStartupEvidenceAsync(response, fixture,
+                    () => fixture.Voice.Started.Task.WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken));
                 switch (boundary)
                 {
                     case "deactivate":

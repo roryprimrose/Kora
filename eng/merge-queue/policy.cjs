@@ -256,7 +256,7 @@ function terminalRejectedDelivery(run, jobs, blob) {
   return blob === REJECTED_DELIVERY_BLOB
     && terminalRejectedJobPlan(run, jobs, ['failure', 'cancelled', 'timed_out'],
       REJECTED_DELIVERY_JOBS, ['push', 'workflow_dispatch'])
-    && (run.conclusion === 'failure' && rejectedAdmissionOutcomes(jobs) || rejectedPreflightOutcomes(jobs));
+    && rejectedPreflightOutcomes(jobs);
 }
 
 function successfulJobs(jobs, expected = JOBS) {

@@ -27,7 +27,7 @@ managed setup compilation/tests, payload inspection and protected App admission.
 The reviewed `windows-12-delivery-v1` inventory has 25 identities; its installer
 identity is **Validate installer packaging**, not a claim that MSI/Burn ran.
 Historical `windows-12-v1` and exact negative-retirement contracts remain intact.
-The new workflow has its own exact-blob, twenty-identity failed-admission/preflight
+The new workflow has its own exact-blob, twenty-identity failed-preflight
 no-fanout retirement proof; a marker, missing job or workflow failure alone is not
 physical quiescence. It authorizes retirement only, never successful admission.
 Single-candidate/control-path work continues to build physical installer packages.
@@ -58,6 +58,8 @@ physical-terminal evidence), its qualification/publication result no longer gate
 A failed main run withholds **that source's beta**; it does not revoke candidate
 proof or stop later admission. Main functional regressions can therefore leave
 main red until repaired; moving a failure to main does not repair it.
+Unknown main-admission authority remains fail-closed; a failed admission is not
+reclassified as a full run or covered by the new positive-admission preflight rule.
 
 Full main runs remain non-cancelling and keyed by source. Publishers use a
 non-cancelling per-source FIFO lock, not the controller lock. At each irreversible

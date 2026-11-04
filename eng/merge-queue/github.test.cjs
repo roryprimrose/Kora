@@ -151,7 +151,7 @@ test('independent main early failure is negative terminal evidence, not successf
     display_title: 'CI main', status: 'completed', conclusion: 'failure' };
   const jobs = REJECTED_DELIVERY_JOBS.map((name, index) => ({ id: index + 1, name,
     run_id: 42, run_attempt: 1, head_sha: BASE, status: 'completed',
-    conclusion: name === 'Admit CI execution' ? 'failure' : 'skipped' }));
+    conclusion: name === 'Admit CI execution' ? 'success' : name === 'Resolve build version' ? 'failure' : 'skipped' }));
   const value = fixture({ getContent: () => workflowContent(workflow),
     listWorkflowRuns: () => ({ total_count: 1, workflow_runs: [run] }),
     listJobsForWorkflowRunAttempt: () => ({ total_count: jobs.length, jobs }) });
@@ -161,7 +161,7 @@ test('independent main early failure is negative terminal evidence, not successf
   assert.equal(observation.terminal, true);
   assert.equal(observation.qualification, null);
   jobs.pop();
-  assert.equal((await value.api.tipQualification({ sha: BASE })).provisional, true);
+  assert.equal((await value.api.tipQualification({ sha: BASE })).terminal, false);
   assert.ok(!value.calls.some(call => ['updateRef', 'createWorkflowDispatch', 'merge'].includes(call[0])));
 });
 

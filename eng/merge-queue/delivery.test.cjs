@@ -11,7 +11,7 @@ const tip = () => ({ delivery: 'independent-v1', sha: sha(1), tree: sha(2), base
   combined: sha(4), ticket: '01234567-89ab-cdef-0123-456789abcdef',
   validation: { run: 42, attempt: 1, source: sha(4), workflow: sha(3), inventory: sha(5), schema: 'windows-12-delivery-v1' } });
 
-test('new failed-admission/preflight physical retirement is bound to the exact reviewed workflow and all twenty no-fanout jobs', () => {
+test('new failed-preflight physical retirement is bound to the exact reviewed workflow and all twenty no-fanout jobs', () => {
   const bytes = Buffer.from(fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8').replaceAll('\r\n', '\n'));
   assert.equal(createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex'), REJECTED_DELIVERY_BLOB);
   assert.equal(REJECTED_DELIVERY_JOBS.length, 20);
@@ -21,7 +21,7 @@ test('new failed-admission/preflight physical retirement is bound to the exact r
     const jobs = REJECTED_DELIVERY_JOBS.map((name, index) => ({ id: index + 1, name,
       run_id: 42, run_attempt: 1, head_sha: sha(1), status: 'completed',
       conclusion: name === failed ? 'failure' : name === 'Admit CI execution' ? 'success' : 'skipped' }));
-    assert.equal(terminalRejectedDelivery(run, jobs, REJECTED_DELIVERY_BLOB), true);
+    assert.equal(terminalRejectedDelivery(run, jobs, REJECTED_DELIVERY_BLOB), failed === 'Resolve build version');
     assert.equal(terminalRejectedAdmission(run, jobs, REJECTED_DELIVERY_BLOB), false);
     assert.equal(terminalRejectedPreflight(run, jobs, REJECTED_DELIVERY_BLOB), false);
     assert.equal(terminalRejectedDelivery(run, jobs, sha(9)), false);

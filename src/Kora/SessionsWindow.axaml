@@ -354,6 +354,8 @@
             <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
           </ComboBox>
           <Button x:Name="ReviewLocalRequestProfile" Content="Review this request only" IsEnabled="{Binding CanReviewLocalRequestProfile}" />
+          <Button x:Name="ReviewFailedLocalProfile" Content="Review selected failure with this LOCAL profile"
+              IsEnabled="{Binding CanReviewFailedLocalProfile}" AutomationProperties.Name="Review selected confirmed failed request for one new attempt with this exact local profile; no replay or preference write" />
         </WrapPanel>
         <TextBox Text="{Binding LocalRequestProfileText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="260"
             AutomationProperties.Name="This request only review: complete exact destination, profile, original input and expiry; not hosted transmission approval" />

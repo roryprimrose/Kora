@@ -165,6 +165,16 @@ skill create daily-review 1.0.0**), or the native editor controls:
 The controller retains ownership until the actual operation finishes, even if
 an I/O provider ignores cancellation.
 
+Save stays bound to the input that requested it, not just the input that opened
+the editor. A later activated-voice Save must remain current through both native
+reviews and publication; native confirmation cannot replace withdrawn voice
+authority. The same rule applies when you explicitly choose **Save** for a dirty
+draft before Create, Reopen or Delete. Withdrawal preserves the unsaved draft
+and stops that continuation. An accepted generated/refined proposal also keeps
+its original proposal authority; it does not authorize a later Save. Successful
+write audit identifies the actual Save input channel. Saved packages remain
+disabled and source identity, complete-byte review and readback are unchanged.
+
 Closing, exit, restart and handoff review a dirty draft with **Save**, **Discard**
 and **Cancel**. Cancel keeps the draft open and blocks the requested departure.
 Save still requires Validate and both native review stages. Privacy, call,

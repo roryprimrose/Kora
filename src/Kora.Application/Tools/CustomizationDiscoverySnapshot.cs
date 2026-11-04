@@ -1,6 +1,8 @@
 using System.Collections.Immutable;
 
 using Kora.Application.Agents;
+using Kora.Application.Skills;
+using Kora.Core.Skills;
 using Kora.Core.Agents;
 using Kora.Core.Artifacts;
 using Kora.Core.Customizations;
@@ -28,11 +30,14 @@ public sealed class CustomizationDiscoverySnapshot : IDisposable
     private int resultBytes;
     private int consumed;
     private volatile bool retired;
+    private readonly ImmutableArray<SharedSkillFileBinding> skillBindings;
+    private bool selectionJoined;
 
     internal CustomizationDiscoverySnapshot(ICustomizationMetadataStore sources, ArtifactCatalogue catalogue,
         IArtifactUsePolicy use, ImmutableArray<CustomizationMetadataObservation> observations,
         ImmutableArray<CustomizationMetadata> records, SessionWorkspaceEntry target, string originalRequest,
-        Kora.Core.Hosting.RequestOrigin origin, Func<bool> admitted, TimeProvider time, bool proposeAgent = false)
+        Kora.Core.Hosting.RequestOrigin origin, Func<bool> admitted, TimeProvider time, bool proposeAgent = false,
+        ImmutableArray<SharedSkillFileBinding> skillBindings = default)
     {
         this.sources = sources;
         this.catalogue = catalogue;
@@ -41,6 +46,7 @@ public sealed class CustomizationDiscoverySnapshot : IDisposable
         this.admitted = admitted;
         this.time = time;
         ProposeAgent = proposeAgent;
+        this.skillBindings = skillBindings.IsDefault ? [] : skillBindings;
         Records = records;
         Target = target;
         OriginalRequest = originalRequest;
@@ -60,6 +66,8 @@ public sealed class CustomizationDiscoverySnapshot : IDisposable
     public string OriginalRequest { get; }
     public bool ProposeAgent { get; }
     public ProposedBoundedAgentUse? AgentProposal { get; private set; }
+    public bool ProposeSkill => !skillBindings.IsEmpty;
+    public ProposedSharedSkillUse? SkillProposal { get; private set; }
     public Kora.Core.Hosting.RequestOrigin Origin { get; }
     public DateTimeOffset ExpiresAt { get; }
     private DateTimeOffset CreatedAt { get; }
@@ -120,7 +128,21 @@ public sealed class CustomizationDiscoverySnapshot : IDisposable
         }
     }
 
-    public void Retire() => retired = true;
+    public void Retire()
+    {
+        retired = true;
+        SkillProposal?.Dispose();
+    }
+
+    internal void CompleteSelection(bool retained)
+    {
+        if (retained)
+        {
+            selectionJoined = true;
+            SkillProposal?.SelectionJoined();
+        }
+        else { SkillProposal?.Dispose(); }
+    }
 
     private void RequireCurrent()
     {
@@ -157,6 +179,32 @@ public sealed class CustomizationDiscoverySnapshot : IDisposable
     {
         if (served.Count == 0)
         { return new(ModelTurnOutcome.Unknown, ModelTurnReason.ToolResultRejected, result.Provenance); }
+        if (ProposeSkill)
+        {
+            ModelSkillUseProposal proposal;
+            try { proposal = ModelSkillUseProposal.Parse(result.Response!.Answer!); }
+            catch (InvalidDataException)
+            { return new(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse, result.Provenance); }
+            var record = Records.SingleOrDefault(item => string.Equals(item.Ref, proposal.Reference, StringComparison.Ordinal));
+            if (!Current || record is not { Kind: CustomizationKind.Skill, Enabled: true } || !served.Contains(proposal.Reference))
+            { return new(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse, result.Provenance); }
+            var index = Records.IndexOf(record);
+            var candidates = catalogue.Candidates;
+            bool ProposalCurrent() => admitted() && time.GetUtcNow() >= CreatedAt && time.GetUtcNow() < ExpiresAt
+                && use.Revision == useRevision && catalogue.ReloadFailureRevision == reloadFailureRevision
+                && !catalogue.IsReloadUnavailable && ReferenceEquals(catalogue.Candidates, candidates)
+                && !use.IsDisabled(observations[index].Source.Id);
+            SkillProposal = new(observations[index], skillBindings[index], sources, Target, OriginalRequest, Origin, ProposalCurrent);
+            return result with
+            {
+                Response = result.Response! with
+                {
+                    Answer = $"Proposed skill: {record.Name}. No skill guidance was read, enabled or invoked. "
+                        + "Separately authorize the complete exact registered source/revision review, then enable and confirm "
+                        + "one local instruction-only invocation for the unchanged original task and conversation.",
+                },
+            };
+        }
         if (ProposeAgent)
         {
             ModelAgentUseProposal proposal;
@@ -206,6 +254,7 @@ public sealed class CustomizationDiscoverySnapshot : IDisposable
     public void Dispose()
     {
         retired = true;
+        if (!selectionJoined) { SkillProposal?.Dispose(); }
         catalogue.Changed -= Changed;
         catalogue.ReloadFailed -= ReloadFailed;
         use.Changed -= Changed;

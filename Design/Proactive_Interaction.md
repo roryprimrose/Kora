@@ -69,6 +69,14 @@ original source expiry, never a work or approval deadline extension. Cached
 maintenance's existing Check/Open/release-specific snooze remain separate.
 Reserved event commands preserve any pending foreground question/approval.
 
+Exact actions recheck UTC against the original expiry and durable high watermark
+after awaited source validation, under the source lease. Dismiss/Defer use that
+fresh action time, not the time before waiting. Expiry or rollback cannot
+acknowledge a current notice or commit suppression; time revocation during
+the suppression audit/write boundary holds the broker unconfirmed rather than
+claiming success or rollback. Recovery requires fresh selected-work observation;
+it never renews the source deadline or replays a prior presentation.
+
 Schema-1 `local-events.json` and `local-events-unconfirmed.txt` use
 `IApplicationDataPaths` and the shared atomic preference store. At most 64
 content-free suppression receipts and four fatigue budgets fit the complete

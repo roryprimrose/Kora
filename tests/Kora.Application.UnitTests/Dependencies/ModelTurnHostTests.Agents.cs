@@ -254,6 +254,171 @@ public sealed partial class ModelTurnHostTests
         versions.Should().Be(1);
     }
 
+    [Theory]
+    [InlineData("inactive")]
+    [InlineData("generation")]
+    [InlineData("metadata")]
+    public async Task AgentReviewRechecksExactTargetAfterHeldSourceReadAndRequiresFreshReview(string fault)
+    {
+        using var f = new Fixture();
+        f.Metadata = new(f.Session.SessionId, new(1), new("Original conversation"));
+        var host = QualifiedHistoryHost(f);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reader = new AgentReader
+        {
+            BeforeRead = async () =>
+            {
+                entered.TrySetResult();
+                await release.Task.WaitAsync(Token);
+            },
+        };
+        await using var workflow = new BoundedAgentWorkflow(reader, f, f, f.ConversationService(host, execution: host),
+            host, f, f.Time);
+        using var root = f.Root();
+        var target = new SessionWorkspaceEntry(f.Session, f.Metadata);
+        var reviewing = workflow.ReviewAsync("selected.agent.md", target, "original task",
+            RequestOrigin.LocalUi, () => true, Token);
+        try
+        {
+            await entered.Task.WaitAsync(Token);
+            reviewing.IsCompleted.Should().BeFalse();
+            reader.Released.Should().BeFalse();
+            if (fault is "inactive") { f.Session = f.Session with { IsActive = false }; }
+            if (fault is "generation") { f.Session = f.Session with { Generation = new(2) }; }
+            if (fault is "metadata") { f.Metadata = f.Metadata! with { Revision = new(2), Name = new("Changed conversation") }; }
+        }
+        finally { release.TrySetResult(); }
+        await reviewing.Invoking(value => value).Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("The exact Active target changed during agent review.");
+        reader.Released.Should().BeTrue();
+        f.RetainCalls.Should().Be(0);
+        f.Adapter.Calls.Should().Be(0);
+        f.Audits.Should().NotContain(item => string.Equals(item.ActionId, "agents.revision.invoke", StringComparison.Ordinal));
+
+        f.Session = f.Session with { IsActive = true };
+        reader.BeforeRead = null;
+        using var fresh = await workflow.ReviewAsync("selected.agent.md", new(f.Session, f.Metadata), "fresh original task",
+            RequestOrigin.LocalUi, () => true, Token);
+        var receipt = await workflow.InvokeAsync(fresh, Token);
+        receipt.Message.Body.Should().Be("fresh original task");
+        receipt.Message.Generation.Should().Be(f.Session.Generation);
+        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        receipt.Message.AssistantResponse!.Body.Should().Be("answer");
+        f.RetainCalls.Should().Be(1);
+        f.Adapter.Calls.Should().Be(1);
+        host.IsQuiescent.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AgentReviewRechecksPrivateAdmissionAfterMetadataBeforeOpeningSource(bool cancel)
+    {
+        using var f = new Fixture();
+        var host = QualifiedHistoryHost(f);
+        var reader = new AgentReader();
+        await using var workflow = new BoundedAgentWorkflow(reader, f, f, f.ConversationService(host, execution: host),
+            host, f, f.Time);
+        using var root = f.Root();
+        using var caller = new CancellationTokenSource();
+        f.OnRead = () =>
+        {
+            if (cancel) { caller.Cancel(); }
+            else { f.ControlRevision++; }
+        };
+        await workflow.Invoking(value => value.ReviewAsync("selected.agent.md", new(f.Session, null), "original task",
+            RequestOrigin.LocalUi, () => true, caller.Token)).Should().ThrowAsync<Exception>();
+        reader.Opens.Should().Be(0);
+        f.RetainCalls.Should().Be(0);
+        f.Adapter.Calls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AgentReviewSourceReadWithdrawalPreventsFurtherTargetInspection(bool cancel)
+    {
+        using var f = new Fixture();
+        var host = QualifiedHistoryHost(f);
+        using var caller = new CancellationTokenSource();
+        var reads = 0;
+        f.OnRead = () => reads++;
+        var reader = new AgentReader
+        {
+            BeforeRead = () =>
+            {
+                if (cancel) { caller.Cancel(); }
+                else { f.CanControl = false; }
+                return Task.CompletedTask;
+            },
+        };
+        await using var workflow = new BoundedAgentWorkflow(reader, f, f, f.ConversationService(host, execution: host),
+            host, f, f.Time);
+        using var root = f.Root();
+        await workflow.Invoking(value => value.ReviewAsync("selected.agent.md", new(f.Session, null), "original task",
+            RequestOrigin.LocalUi, () => true, caller.Token)).Should().ThrowAsync<Exception>();
+        reads.Should().Be(1);
+        reader.Released.Should().BeTrue();
+        f.RetainCalls.Should().Be(0);
+        f.Adapter.Calls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("privacy")]
+    [InlineData("caller")]
+    [InlineData("eligibility")]
+    [InlineData("expired")]
+    [InlineData("read-failure")]
+    public async Task AgentReviewFinalTargetReadRetainsSourceUntilJoinedAndRechecksAdmission(string fault)
+    {
+        using var f = new Fixture();
+        var host = QualifiedHistoryHost(f);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reader = new AgentReader
+        {
+            BeforeRead = () =>
+            {
+                f.BeforeRead = async () =>
+                {
+                    entered.TrySetResult();
+                    await release.Task.WaitAsync(Token);
+                    if (fault is "read-failure") { throw new IOException("Target inspection unavailable."); }
+                };
+                return Task.CompletedTask;
+            },
+        };
+        await using var workflow = new BoundedAgentWorkflow(reader, f, f, f.ConversationService(host, execution: host),
+            host, f, f.Time);
+        using var root = f.Root();
+        using var caller = new CancellationTokenSource();
+        var eligible = true;
+        var reviewing = workflow.ReviewAsync("selected.agent.md", new(f.Session, null), "original task",
+            RequestOrigin.LocalUi, () => eligible, caller.Token);
+        try
+        {
+            await entered.Task.WaitAsync(Token);
+            if (fault is "privacy") { f.CanControl = false; }
+            if (fault is "caller") { await caller.CancelAsync(); }
+            if (fault is "eligibility") { eligible = false; }
+            if (fault is "expired") { f.Time.Now += TimeSpan.FromMinutes(3); }
+            reviewing.IsCompleted.Should().BeFalse();
+            reader.Released.Should().BeFalse();
+        }
+        finally { release.TrySetResult(); }
+        if (fault is "read-failure")
+        { await reviewing.Invoking(value => value).Should().ThrowAsync<IOException>(); }
+        else if (fault is "caller")
+        { await reviewing.Invoking(value => value).Should().ThrowAsync<OperationCanceledException>(); }
+        else
+        { await reviewing.Invoking(value => value).Should().ThrowAsync<InvalidOperationException>(); }
+        reader.Released.Should().BeTrue();
+        f.RetainCalls.Should().Be(0);
+        f.Adapter.Calls.Should().Be(0);
+        f.Audits.Should().NotContain(item => string.Equals(item.ActionId, "agents.revision.invoke", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task AgentReviewCannotBeConsumedByAnotherWorkflowOrReplayedBeforeDispatch()
     {
@@ -277,9 +442,19 @@ public sealed partial class ModelTurnHostTests
     {
         public string Text { get; set; } = AgentProfile;
         public bool Released { get; private set; }
+        public int Opens { get; private set; }
+        public Func<Task>? BeforeRead { get; set; }
         public LocalFileMetadata Metadata { get; } = new(Path.GetFullPath("selected.agent.md"), "native-identity", 512, DateTimeOffset.UnixEpoch);
-        public Task<IAgentProfileSelection> OpenAsync(string path, CancellationToken token) => Task.FromResult<IAgentProfileSelection>(this);
-        public Task<byte[]> ReadAsync(CancellationToken token) => Task.FromResult(Encoding.UTF8.GetBytes(Text));
+        public Task<IAgentProfileSelection> OpenAsync(string path, CancellationToken token)
+        {
+            Opens++;
+            return Task.FromResult<IAgentProfileSelection>(this);
+        }
+        public async Task<byte[]> ReadAsync(CancellationToken token)
+        {
+            if (BeforeRead is { } before) { await before(); }
+            return Encoding.UTF8.GetBytes(Text);
+        }
         public void Dispose() => Released = true;
     }
 }

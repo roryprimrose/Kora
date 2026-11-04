@@ -15,8 +15,10 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
   if (state.active && state.active.kind !== 'batch')
     return reconcileSingleton(api, state, state.active.number, { now, ticket });
   if (!state.active) {
-    // Hold the lane for actual-tip qualification/publication, even under a sustained arrival rate.
-    if (state.completedTip && !state.completedTip.qualification) {
+    // Independent delivery waits only until an admitted full source run starts, never for its result.
+    if (state.completedTip && !state.completedTip.qualification
+      && !(api.independent && state.completedTip.delivery === 'independent-v1'
+        && state.completedTip.qualificationOwner)) {
       invariant(main === state.completedTip.sha, 'Main moved before completed-tip qualification; explicit recovery required.');
       const observation = await api.tipQualification(state.completedTip);
       if (observation?.provisional) return 'waiting-for-tip-qualification';
@@ -26,7 +28,8 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
         if (observation.qualification) state.completedTip.qualification = observation.qualification;
         await save();
       }
-      if (!state.completedTip.qualification) {
+      if (!state.completedTip.qualification && !(api.independent
+        && state.completedTip.delivery === 'independent-v1' && observation && !observation.provisional)) {
         if (!state.completedTip.qualificationRequested && !state.completedTip.qualificationOwner) {
           state.completedTip.qualificationRequested = true;
           await save();
@@ -55,14 +58,18 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
         && item.enrollment === enrollment)) continue;
       const member = { number: pr.number, head: pr.head.sha, enrollment, review, priority: priority(pr) };
       if (!liveMember(pr, member, api.repository, enrollment, review)) continue;
-      const files = await api.files(pr.number);
-      invariant(Array.isArray(files) && files.length > 0 && files.every(file => typeof file === 'string'),
+      const files = await api.files(pr.number, pr);
+      invariant(Array.isArray(files) && files.every(file => typeof file === 'string' && file.length > 0),
         'Candidate file inventory is unavailable.');
-      const singleton = files.some(file => CONTROL_PATH.test(file))
+      const singleton = files.length === 0 || files.some(file => CONTROL_PATH.test(file))
         || state.singletonRetries.some(item => item.number === member.number && item.head === member.head
           && item.enrollment === member.enrollment);
       if (singleton && members.length) break;
-      if (singleton) return reconcileSingleton(api, state, member.number, { now, ticket });
+      if (singleton) {
+        if (files.length === 0)
+          api.info(`PR #${pr.number}: complete zero-file inventory; requiring exact-head singleton validation and actual merge confirmation.`);
+        return reconcileSingleton(api, state, member.number, { now, ticket });
+      }
       members.push(member);
       if (singleton || members.length === MAX_MEMBERS) break;
     }
@@ -275,6 +282,15 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
           combined: active.head, manifest: active.digest,
           members: active.members.map(item => ({ number: item.number, source: item.head,
             admittedHead: item.mergeIntent.head, merged: item.merged })) };
+        if (api.independent) {
+          invariant(active.inventory.schema === 'windows-12-delivery-v1',
+            'Independent delivery requires the reviewed delivery workflow.');
+          Object.assign(state.completedTip, { delivery: 'independent-v1', base: active.base,
+            admission: manifestFor(active),
+            validation: { run: run.id, attempt: 1, source: active.head, workflow: active.base,
+              inventory: active.inventory.blob, schema: active.inventory.schema } });
+          state.deliveryProfile = 'independent-v1';
+        }
         state.active = null;
         state.singletonRetries = state.singletonRetries.filter(item => !active.members.some(done =>
           done.number === item.number && done.head === item.head && done.enrollment === item.enrollment));
@@ -364,6 +380,23 @@ async function reconcileSingleton(api, state, number, options) {
           && await api.containsBase(pr.merge_commit_sha, await api.main()),
         'Singleton actual merge differs from validated source/base; release remains blocked.');
         tip = { sha: pr.merge_commit_sha, tree: commit.tree, ticket: state.active.ticket };
+        if (api.independent) {
+          const inventory = await api.trustedInventory(state.active.base);
+          const runs = matchingRuns(await api.runs(state.active), state.active);
+          invariant(inventory?.schema === 'windows-12-delivery-v1' && runs.length === 1
+            && runs[0].status === 'completed' && runs[0].conclusion === 'success'
+            && runs[0].run_attempt === 1 && runs[0].head_sha === state.active.base,
+          'Independent singleton completion lacks trusted candidate proof.');
+          const jobs = await api.jobs(runs[0].id, 1);
+          invariant(requiredJobsState(jobs, inventory.jobs) === 'success' && terminalJobs(jobs, inventory.jobs),
+            'Independent singleton candidate jobs are incomplete.');
+          invariant(jobs.every(job => job.run_id === runs[0].id && job.run_attempt === 1
+            && job.head_sha === state.active.base), 'Independent singleton job identity changed.');
+          Object.assign(tip, { delivery: 'independent-v1', base: state.active.base,
+            combined: state.active.head, validation: { run: runs[0].id, attempt: 1,
+              source: state.active.head, workflow: state.active.base, inventory: inventory.blob, schema: inventory.schema } });
+          state.deliveryProfile = 'independent-v1';
+        }
       }
     }
     state.active = inner.active;
@@ -371,6 +404,7 @@ async function reconcileSingleton(api, state, number, options) {
     if (tip) state.completedTip = tip;
     await api.save(state);
   };
+  view.independent = false;
   const singleton = new Proxy(api, { get(target, key) {
     if (Object.hasOwn(view, key)) return view[key];
     const value = Reflect.get(target, key);

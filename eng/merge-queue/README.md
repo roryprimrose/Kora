@@ -11,6 +11,79 @@ It needs no local agent, workstation, external queue service or always-on runner
 An unknown mode fails CI admission rather than silently enabling another policy.
 Do not enable the queue merely by merging its implementation PR.
 
+## Opt-in independent beta delivery
+
+`KORA_MERGE_QUEUE_DELIVERY_PROFILE=independent-v1` is a separate administrator
+opt-in, requiring enabled `batch-v1` admission. Absent/empty retains the serial
+completed-tip qualification/publication fence below; unknown values fail closed.
+Merging the implementation does **not** activate it or change protection.
+Activation and rollback require a separately authorized, drained transition:
+no active candidate, no outstanding main/publication jobs, and a successfully
+qualified current tip. Do not toggle profiles underneath queued publishers.
+
+The independent profile preserves one candidate lane, complete portable
+100% line/branch coverage, all twelve Windows partitions/five aggregates,
+managed setup compilation/tests, payload inspection and protected App admission.
+The reviewed `windows-12-delivery-v1` inventory has 25 identities; its installer
+identity is **Validate installer packaging**, not a claim that MSI/Burn ran.
+Historical `windows-12-v1` and exact negative-retirement contracts remain intact.
+The new workflow has its own exact-blob, twenty-identity failed-preflight
+no-fanout retirement proof; a marker, missing job or workflow failure alone is not
+physical quiescence. It authorizes retirement only, never successful admission.
+Single-candidate/control-path work continues to build physical installer packages.
+
+For combined candidates only, trusted admission compares the complete admitted
+base/combined revisions. Installer/shared assets, project/lock/build/toolchain,
+workflow/release changes and unknown or capped impact select full MSI/Burn.
+Ordinary application/test/documentation changes may omit only the dedicated
+MSI/Burn build/inspection; metadata contracts still execute. Rename source paths
+and deletions count. A successful policy job reports **not selected**, not executed
+packaging success. Main always freshly builds and inspects its own payload and
+installer bytes. This intentionally moves detection of application-payload-only
+packaging incompatibilities to main; it does not classify failures as flaky.
+
+After observing the actual final squash merge, exact tree/parent/main reachability
+and complete first-attempt candidate proof, the App atomically records
+`releases/<actual-source>.json` with queue state. Records contain the tested
+combined source, workflow base/blob/inventory, run, ticket and batch digest where
+applicable. Only the final combined tree receives a record, never intermediate
+batch prefixes. Later saves preserve the entire state tree and cannot overwrite a
+different existing source record. This is App-owned Git authority, not a PR-uploaded
+proof file or reusable build artifact.
+
+The controller reconciles the source's full main run before advancing, covering
+the push-versus-record race without blindly redispatching. Once full execution
+has started (or the exact reviewed attempt failed before fanout with complete
+physical-terminal evidence), its qualification/publication result no longer gates admission.
+A failed main run withholds **that source's beta**; it does not revoke candidate
+proof or stop later admission. Main functional regressions can therefore leave
+main red until repaired; moving a failure to main does not repair it.
+Unknown main-admission authority remains fail-closed; a failed admission is not
+reclassified as a full run or covered by the new positive-admission preflight rule.
+
+Full main runs remain non-cancelling and keyed by source. Publishers use a
+non-cancelling per-source FIFO lock, not the controller lock. At each irreversible
+publication boundary they revalidate the cryptographically pinned queue record,
+the exact source/tree, protected-main reachability, first-attempt ordinary-main
+caller and static full-gate dependencies. Newer main/active candidates do not
+revoke an earlier recorded source. Missing, changed or unreachable proof fails
+closed. Every release uses fresh artifacts from its own actual-source main run;
+candidate artifacts are never relabeled. Independent publication is beta-only,
+with `make_latest=false`; semantic channel selection cannot regress merely because
+an older beta finishes later. Stable publication still requires the serial profile.
+
+The historical measured 45m41s cycle contained 24m17s of main qualification and
+19m46s of candidate validation. Removing the main-result barrier suggests 21m24s
+before new scheduling/record overhead, **not a measured post-change cadence**.
+Skipping the historical 4m41s installer job saves runner occupancy but zero direct
+critical-path time: it finished 10m41s before the Windows aggregate. Parallel main
+work may compete for runners; no capacity or speedup guarantee is implied.
+
+Implementation checks use deterministic fake GitHub/publication operations:
+`node .\eng\run-policy-tests.cjs`, `.\eng\Test-CiPreflight.ps1` and
+`.\eng\Test-GitHubRelease.ps1`. They neither activate this profile nor qualify
+hosted concurrency, App permissions or actual release publication.
+
 ## Dormant five-PR batch profile
 
 `KORA_MERGE_QUEUE_PROFILE` absent, empty, or `singleton-v1` retains the version-1
@@ -25,6 +98,14 @@ Unknown enrollment, reviews or mergeability cannot reserve a member.
 Controller, CI-workflow and release-control changes, and isolated group-failure
 retries, use the existing fully validated **exact-head singleton path**, even
 inside this profile.
+
+A complete zero-file PR also uses that exact-head singleton path: an empty diff
+does not attest validation or prove that GitHub merged the PR. File inventories
+must match a nonnegative count below GitHub's 3,000-file pagination limit, with
+the same PR, same-repository head and main base before and after pagination.
+Unavailable, partial, duplicate, malformed or changing observations fail
+explicitly; they are never reinterpreted as empty. Normal candidate checks,
+merge confirmation and cancellation/join remain required.
 
 ### Frozen source and truthful proof
 
@@ -466,6 +547,20 @@ initial unversioned twelve-job workflow and its merged native-fixture timing
 revision from [PR #661](https://github.com/roryprimrose/Kora/pull/661).
 Old runs therefore retire against their own inventory rather than requiring
 jobs that did not exist.
+
+The historical twelve-partition regression uses the frozen
+[native-fixture timing workflow](fixtures/ci-native-fixture-timing.yml), whose
+Git blob is `d3db4c610d08468c508f09e63b10f7c6568b82ea`. Keep those bytes unchanged:
+removing the schema marker from today's workflow does not recreate a trusted
+predecessor. Tests cover both the current schema-declared workflow and that exact
+historical inventory, and reject modified unversioned bytes without expanding
+the production allowlist.
+
+The [admission-rejection fixture](fixtures/ci-admission-rejection.yml) similarly
+preserves blob `97e22a8f88bcdc9bbaef32cf9e7200dd6e5c43cd` for the
+[exact historical admission-rejection regression](github.test.cjs). Changes to
+the current workflow must not change that fixture or expand the
+[production allowlist](policy.cjs) to satisfy the regression.
 
 Source bytes are read through the trusted repository Contents API at that exact
 base and checked against the returned Git blob identity. Missing source, malformed

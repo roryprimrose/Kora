@@ -14,7 +14,7 @@ using Kora.Windows.Storage;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
-public sealed class WindowsSqliteSessionRetentionTests
+public sealed partial class WindowsSqliteSessionRetentionTests
 {
     [WindowsFact]
     public async Task Deletion_clears_previously_freed_content_before_acceptance_and_preserves_independent_records()

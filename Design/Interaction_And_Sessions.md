@@ -118,6 +118,14 @@ Failed audit, terminal readback or uncertain resource release blocks clean succe
 with a visible recovery message. Stopped requests are never retried or resurrected;
 retained history and grants are not deleted.
 
+The [desktop lifetime owner](../src/Kora/DesktopLifetimeController.cs), bound by
+desktop composition, consumes the admitted Close independently of the replaceable
+presence window. If animation replacement retires the old window and the new
+renderer fails, native tray Exit still reaches the same desktop Shutdown after
+the existing reviews and physical joins; no fallback renderer or forced exit is
+created. [Deterministic regressions](../tests/Kora.Windows.IntegrationTests/ApplicationLifecycle/DesktopLifetimeControllerTests.cs)
+cover that recovery route and blocked or unfinished shutdown preparation.
+
 Mandatory lock/privacy/ownership retirement and OS-required shutdown remain
 prompt-free. This does not add computer power actions, input autosave or provider
 qualification. [Host regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ApplicationLifecycle.cs)

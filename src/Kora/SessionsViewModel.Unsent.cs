@@ -126,6 +126,8 @@ internal sealed partial class SessionsViewModel
             if (!Current()) { throw new OperationCanceledException("Unsent input changed before discard review."); }
             var decision = DecideComposerDraft is null ? ComposerDraftDecision.Cancel : await DecideComposerDraft();
             if (!Current() || decision != ComposerDraftDecision.Discard) { return false; }
+            Interlocked.Increment(ref composerBufferRevision);
+            RetireComposerRequest();
             if (all) { ClearUnsent(); composerBody = string.Empty; }
             return true;
         }

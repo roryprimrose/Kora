@@ -5,6 +5,7 @@ using Kora.Application.Presentation;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
+using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 
@@ -57,9 +58,10 @@ public sealed partial class MainViewModel
             else if (operation == RegisteredSettingSuggestionOperation.Review)
             {
                 RetireResponseTimeoutSuggestions();
-                if (RegisteredSettingSuggestions.Parse(pinned.Message.AssistantResponse!.Body)
-                    is not RegisteredSettingProposal.Appearance { Option: AppearanceOption.ResponseTimeout })
-                { throw new InvalidDataException("Request one exact appearance.response-timeout Set suggestion only."); }
+                if (RegisteredSettingSuggestions.Parse(pinned.Message.AssistantResponse!.Body) is not
+                    (RegisteredSettingProposal.Appearance { Option: AppearanceOption.ResponseTimeout }
+                    or RegisteredSettingProposal.Reset { Setting: RegisteredSetting.ResponseTimeout }))
+                { throw new InvalidDataException("Request one exact appearance.response-timeout Set or Reset suggestion only."); }
                 async Task Validate(CancellationToken token)
                 {
                     _ = await pinned.Binding.Conversation

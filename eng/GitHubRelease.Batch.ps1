@@ -48,6 +48,7 @@ function Get-ReleaseRepositoryText {
 }
 
 function Get-ReleaseQueueSnapshot {
+    param([switch] $WithIdentity)
     $refPath = "repos/$script:KoraRepository/git/ref/heads/automation/merge-queue-state"
     $reference = Get-GitHubRecord $refPath
     if ($null -eq $reference) { return $null }
@@ -81,7 +82,10 @@ function Get-ReleaseQueueSnapshot {
             $current.object.sha -isnot [string] -or $current.object.sha -cnotmatch '^[a-f0-9]{40}$') {
             throw 'Invalid release queue reference during snapshot verification.'
         }
-        if ($current.object.sha -ceq $revision) { return $text }
+        if ($current.object.sha -ceq $revision) {
+            if ($WithIdentity) { return @{ Text = $text; Revision = $revision } }
+            return $text
+        }
         $reference = $current
     }
     throw 'Release queue reference changed during snapshot verification after six attempts.'
@@ -143,8 +147,12 @@ function Assert-BatchReleaseWorkflow {
             $value = $Matches[2]
             $children = @{
                 'permissions.contents' = 'write'; 'permissions.actions' = 'read'
+                'permissions.pull-requests' = 'read'; 'permissions.issues' = 'write'
                 'concurrency.group' = 'merge-queue-controller'; 'concurrency.cancel-in-progress' = 'false'
                 'concurrency.queue' = 'max'
+            }
+            if ($key -ceq 'concurrency.group' -and $value -ceq '${{ vars.KORA_MERGE_QUEUE_DELIVERY_PROFILE == ''independent-v1'' && format(''release-source-{0}'', github.sha) || ''merge-queue-controller'' }}') {
+                $children[$key] = $value
             }
             if ($seen.ContainsKey($key) -or -not $children.ContainsKey($key) -or $value -cne $children[$key]) {
                 throw 'Batch release workflow does not establish the static controller lock.'
@@ -161,7 +169,7 @@ function Assert-BatchReleaseWorkflow {
 function Assert-SerializedBatchReleaseCaller {
     param([string] $Revision)
     if ($env:GITHUB_REF -cne 'refs/heads/main' -or $env:GITHUB_JOB -cne 'release-batch' -or
-        $env:GITHUB_RUN_ID -cnotmatch '^[1-9]\d*$' -or $env:GITHUB_RUN_ATTEMPT -cnotmatch '^[1-9]\d*$' -or
+        $env:GITHUB_RUN_ID -cnotmatch '^[1-9]\d*$' -or $env:GITHUB_RUN_ATTEMPT -cne '1' -or
         $env:GITHUB_WORKFLOW_REF -cne "$script:KoraRepository/.github/workflows/ci.yml@refs/heads/main" -or
         $env:GITHUB_WORKFLOW_SHA -cne $Revision) {
         throw 'Batch publication requires the trusted serialized release-batch main workflow caller.'
@@ -201,7 +209,10 @@ function Assert-SerializedBatchReleaseCaller {
 function Assert-ReleaseQueueSafety {
     param([string] $Revision, [string] $ExpectedProfile, [switch] $Publishing)
     $snapshot = Resolve-ReleaseQueueProfile $env:KORA_MERGE_QUEUE_PROFILE
-    $text = Get-ReleaseQueueSnapshot
+    $delivery = $env:KORA_MERGE_QUEUE_DELIVERY_PROFILE
+    if ($delivery -cnotin @($null, '', 'independent-v1')) { throw 'Unknown release delivery profile.' }
+    $queueSnapshot = if ($delivery -ceq 'independent-v1') { Get-ReleaseQueueSnapshot -WithIdentity } else { $null }
+    $text = if ($delivery -ceq 'independent-v1') { $queueSnapshot.Text } else { Get-ReleaseQueueSnapshot }
     $profile = 'singleton-v1'
     $state = $null
     if ($null -ne $text) {
@@ -224,6 +235,15 @@ function Assert-ReleaseQueueSafety {
         throw 'Batch release requires durable v2 batch-v1 queue state.'
     }
     if ($profile -ceq 'singleton-v1') { return $profile }
+    if ($state.ContainsKey('deliveryProfile') -and $state.deliveryProfile -cne 'independent-v1') {
+        throw 'Unknown durable release delivery profile.'
+    }
+    if ($delivery -ceq 'independent-v1') {
+        if ($state.deliveryProfile -cne 'independent-v1') { throw 'Independent release authority is not initialized.' }
+        Assert-IndependentReleaseSource $Revision $queueSnapshot.Revision
+        if ($Publishing) { Assert-SerializedBatchReleaseCaller $Revision }
+        return $profile
+    }
     if (-not $state.Contains('active') -or $null -ne $state.active) {
         throw 'Batch release requires valid v2 batch-v1 queue state with active explicitly null.'
     }
@@ -242,4 +262,53 @@ function Assert-ReleaseQueueSafety {
     }
     if ($Publishing) { Assert-SerializedBatchReleaseCaller $Revision }
     return $profile
+}
+
+function Assert-IndependentReleaseSource {
+    param([string] $Revision, [string] $QueueRevision)
+    if ($env:GITHUB_RUN_ATTEMPT -cne '1' -or $env:GITHUB_REF -cne 'refs/heads/main') {
+        throw 'Independent beta publication requires a first-attempt ordinary main run.'
+    }
+    $recordText = Get-ReleaseRepositoryText "releases/$Revision.json" $QueueRevision
+    $record = $recordText | ConvertFrom-Json -AsHashtable
+    if ($record.schema -cne 'completed-source-v1' -or $record.source -cne $Revision -or
+        $record.tree -isnot [string] -or $record.tree -cnotmatch '^[a-f0-9]{40}$' -or
+        $record.base -isnot [string] -or $record.base -cnotmatch '^[a-f0-9]{40}$' -or
+        $record.combined -isnot [string] -or $record.combined -cnotmatch '^[a-f0-9]{40}$' -or
+        $record.ticket -isnot [string] -or $record.ticket -cnotmatch '^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$' -or
+        $record.validation.run -isnot [long] -and $record.validation.run -isnot [int] -or
+        $record.validation.run -le 0 -or $record.validation.attempt -ne 1 -or
+        $record.validation.source -cne $record.combined -or $record.validation.workflow -cne $record.base -or
+        $record.validation.schema -cne 'windows-12-delivery-v1' -or
+        $record.validation.inventory -isnot [string] -or $record.validation.inventory -cnotmatch '^[a-f0-9]{40}$') {
+        throw 'Invalid independent completed-source authority.'
+    }
+    if ($record.ContainsKey('manifest')) {
+        if ($record.manifest -isnot [string] -or $record.manifest -cnotmatch '^[a-f0-9]{64}$' -or
+            $record.admission.schema -cne 'batch-manifest-v1' -or
+            $record.admission.ticket -cne $record.ticket -or $record.admission.base -cne $record.base -or
+            $record.admission.combined -cne $record.combined -or
+            $record.admission.inventory.blob -cne $record.validation.inventory -or
+            $record.admission.inventory.schema -cne $record.validation.schema -or
+            $record.admission.prefixes[-1].sha -cne $record.combined -or
+            $record.admission.prefixes[-1].tree -cne $record.tree) { throw 'Invalid completed-source batch manifest.' }
+        $document = [System.Text.Json.JsonDocument]::Parse($recordText)
+        try {
+            $bytes = [Text.Encoding]::UTF8.GetBytes($document.RootElement.GetProperty('admission').GetRawText())
+            $digest = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
+            if ($digest -cne $record.manifest) { throw 'Completed-source batch manifest digest differs.' }
+        } finally { $document.Dispose() }
+    }
+    $commit = Get-GitHubRecord "repos/$script:KoraRepository/git/commits/$Revision"
+    $combined = Get-GitHubRecord "repos/$script:KoraRepository/git/commits/$($record.combined)"
+    $main = Get-GitHubRecord "repos/$script:KoraRepository/branches/main"
+    if ($null -eq $commit -or $commit.sha -cne $Revision -or $commit.tree.sha -cne $record.tree -or
+        $null -eq $combined -or $combined.sha -cne $record.combined -or $combined.tree.sha -cne $record.tree -or
+        $null -eq $main -or $main.name -cne 'main' -or $main.protected -isnot [bool] -or -not $main.protected) {
+        throw 'Independent release source/tree is not the admitted completed merge.'
+    }
+    $comparison = Get-GitHubRecord "repos/$script:KoraRepository/compare/$Revision...$($main.commit.sha)"
+    if ($null -eq $comparison -or $comparison.status -cnotin @('ahead', 'identical')) {
+        throw 'Independent release source is not reachable from protected main.'
+    }
 }

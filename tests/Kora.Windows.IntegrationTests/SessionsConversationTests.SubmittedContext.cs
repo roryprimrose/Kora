@@ -22,8 +22,10 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SessionsConversationTests
 {
-    [Fact]
-    public async Task PrimaryContextInspectorBackControlFocusesExactAnswerWithoutReplacingComposerOrSubmitting()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PrimaryContextInspectorBackControlFocusesExactAnswerWithoutReplacingComposerOrSubmitting(bool memory)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -32,19 +34,40 @@ public sealed partial class SessionsConversationTests
             await WindowsSqliteConversationTests.FinishInitial(f);
             new LocalProviderProfilePreferences(f.Paths).Save(new(ProviderService.Local, [HandoffCatalogue.Local]));
             var adapter = new HistoryAdapter();
-            await using var composed = new Composition(f, adapter: adapter, localRequestCatalogue: new HandoffCatalogue(f));
-            await composed.Model.RefreshAsync();
-            await composed.Model.SelectAsync(composed.Model.Sessions.Single());
-            composed.Model.ComposerBody = "genuine original request";
-            await composed.Model.SubmitConversationAsync();
-            var source = composed.Model.ConversationMessages.Single();
-            await composed.Model.ReadConversationAsync();
-            composed.Model.OpenHistoryContext();
-            composed.Model.SelectHistoryContext(composed.Model.HistoryContextCandidates.ToArray());
-            composed.Model.ComposerBody = "genuine retained follow-up request";
-            await composed.Model.ReviewHistoryContextAsync();
-            await composed.Model.ConfirmHistoryContextAsync();
-            var retained = composed.Model.ConversationMessages.Single();
+            await using var composed = new Composition(f, adapter: adapter, memoryContext: memory,
+                localRequestCatalogue: new HandoffCatalogue(f));
+            string sourceBody;
+            string sourceAnswer;
+            ConversationMessage retained;
+            if (memory)
+            {
+                await PrepareMemoryContext(composed.Model);
+                sourceBody = "private reviewed session decision";
+                sourceAnswer = sourceBody;
+                composed.Model.SelectMemoryContext([composed.Model.MemoryRecords.Single()]);
+                composed.Model.MemoryContextRequest = "genuine retained follow-up request";
+                await composed.Model.ReviewMemoryContextAsync();
+                await composed.Model.ConfirmMemoryContextAsync();
+                retained = composed.Model.ConversationMessages.Single();
+            }
+            else
+            {
+                await composed.Model.RefreshAsync();
+                await composed.Model.SelectAsync(composed.Model.Sessions.Single());
+                composed.Model.ComposerBody = "genuine original request";
+                await composed.Model.SubmitConversationAsync();
+                var source = composed.Model.ConversationMessages.Single();
+                sourceBody = source.Body;
+                sourceAnswer = source.AssistantResponse!.Body;
+                await composed.Model.ReadConversationAsync();
+                composed.Model.OpenHistoryContext();
+                composed.Model.SelectHistoryContext(composed.Model.HistoryContextCandidates.ToArray());
+                composed.Model.ComposerBody = "genuine retained follow-up request";
+                await composed.Model.ReviewHistoryContextAsync();
+                await composed.Model.ConfirmHistoryContextAsync();
+                composed.Model.ConversationMessages.Should().ContainSingle().Which.Should().Be(source);
+                retained = composed.Model.ConversationUpdates.Single();
+            }
             retained.SubmittedContext.Should().NotBeNull();
             using var native = new NativeUxFixtureSession(Path.GetFullPath("."));
             await native.InitializeAsync();
@@ -78,8 +101,9 @@ public sealed partial class SessionsConversationTests
             window.SessionView.DetailsVisible.Should().BeTrue(state.ConversationStatus);
             var reader = window.SessionView.GetVisualDescendants().OfType<DetailContentView>().Single();
             reader.FindControl<TextBlock>("ProvenanceLabel")!.Text.Should().Contain("Historical").And.Contain("not current execution");
-            reader.FindControl<TextBox>("ContentReader")!.Text.Should().Contain("exact source-row revision is retained")
-                .And.NotContain(source.Body).And.NotContain(source.AssistantResponse!.Body)
+            reader.FindControl<TextBox>("ContentReader")!.Text.Should().Contain(memory
+                    ? "exact enabled memory revision is retained" : "exact source-row revision is retained")
+                .And.NotContain(sourceBody).And.NotContain(sourceAnswer)
                 .And.NotContain(retained.Body).And.NotContain(retained.AssistantResponse!.Body);
             window.SessionView.FindControl<TabControl>("ConversationTabs")!.SelectedIndex = 1;
             var back = window.SessionView.FindControl<Button>("BackToConversation")!;
@@ -90,8 +114,8 @@ public sealed partial class SessionsConversationTests
             window.SessionView.GetVisualDescendants().OfType<DetailContentView>().Single().Should().BeSameAs(reader);
             state.ComposerBody.Should().Be("independent unsent input");
             state.ConversationMessages.Single(message => message.Request == retained.Request).Should().Be(original);
-            state.ConversationMessages.Should().HaveCount(2);
-            adapter.Calls.Should().Be(2);
+            state.ConversationMessages.Should().HaveCount(memory ? 1 : 2);
+            adapter.Calls.Should().Be(memory ? 1 : 2);
             (await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token)).Should().Be(clock);
             WindowsSqliteConversationTests.AuditText(f).Should().Be(audit);
             f.Count("host_tasks").Should().Be(tasks);
@@ -128,7 +152,8 @@ public sealed partial class SessionsConversationTests
                 model.ComposerBody = "What follows from those exact earlier messages?";
                 await model.ReviewHistoryContextAsync();
                 await model.ConfirmHistoryContextAsync();
-                retained = model.ConversationMessages.Single();
+                model.ConversationMessages.Should().ContainSingle().Which.Should().Be(original);
+                retained = model.ConversationUpdates.Single();
                 retained.Outcome.Should().Be(ModelTurnOutcome.Succeeded, model.ConversationStatus);
                 retained.SubmittedContext.Should().NotBeNull();
                 retained.SubmittedContext!.Profile.Should().Be(HandoffCatalogue.Local);

@@ -3,12 +3,12 @@ namespace Kora;
 internal sealed partial class SessionsViewModel
 {
     public IReadOnlyList<ObservationDetailChoice> ObservationChoices => !CanOpenConversationDetails ? []
-        : ConversationMessages.SelectMany(message => message.Observations?.Items.Select((item, index) =>
+        : ObservedConversationMessages.SelectMany(message => message.Observations?.Items.Select((item, index) =>
             new ObservationDetailChoice(message, item, index + 1)) ?? []).ToArray();
 
     public Task OpenObservationAsync(ObservationDetailChoice choice)
     {
-        if (!ConversationMessages.Concat(ConversationSearchMessages).Any(message => ReferenceEquals(message, choice.Message))
+        if (!ObservedConversationMessages.Concat(ConversationSearchMessages).Any(message => ReferenceEquals(message, choice.Message))
             || choice.Message.Observations?.Items.Contains(choice.Observation) != true)
         { throw new InvalidOperationException("The exact observation choice is no longer on the presented conversation page."); }
         return OpenConversationDetailAsync(choice.Message, observationId: choice.Observation.Id);

@@ -728,7 +728,7 @@ These implementation checks do not qualify local answering quality, physical/nat
 
 The [2026-10-29 explicit product decision](Decision_Register.md#automatic-reviewed-local-source-use-admission---2026-10-29)
 authorizes one shared [host policy](../src/Kora.Application/Context/LocalSourceUsePolicy.cs)
-for the existing file/folder/retained-attachment, web-result, diagnostic-page
+for the existing file/folder/retained-attachment, explicitly selected retained named-source, web-result, diagnostic-page
 and MCP-observation grounded-answer routes. It replaces only their unspecified
 affirmative-classifier prerequisite. It is not derived from the clipboard
 permission exception, does not change clipboard behavior and grants no capture,
@@ -1731,6 +1731,37 @@ Ordinary hostless diagnostics carry capture-owned `MissingHostContext` and
 report the gap independently. They are not silently promoted to bootstrap,
 audit, span or receipt authority. Invalid host-bearing data is never downgraded.
 Log producers still own content minimisation; bounded strings are not a universal secret detector.
+
+### Reviewed GitHub exception reports
+
+Exception diagnostics may add a bounded structured `ExceptionReport` containing
+exception type, normalised managed method frames and the SHA-256 fingerprint of
+type plus newline plus stack. This projection excludes messages, source paths,
+line numbers, runtime argument values, `Exception.Data` and raw stack text.
+Absent legacy projections remain absent; missing/excessive managed stacks do
+not become empty or truncated signatures. New optional envelope data follows
+ordinary diagnostic/file retention, not session or audit retention.
+
+Original native input can separately review a selected complete retained
+diagnostic and approve a canonical GitHub fingerprint lookup. The transport is
+unauthenticated, bounded and redirect-free; failed/incomplete/ambiguous search
+never establishes a new issue. Only the fingerprint is sent during lookup.
+Current ownership/privacy, selected source and provider-mode/network admission
+are revalidated across awaits. Source change or closure retires review; retained
+diagnostics and issue text supply neither egress consent nor execution authority.
+
+An immutable report preview separately approves browser handoff, rechecking
+duplicates first. Only the canonical repository's new/existing issue pages can
+use this route, through the shared audited external-browser workflow. The new
+issue URL carries the reviewed type/stack, environment and fingerprint; the
+external browser may retain/sync it. Users authenticate and finally post on
+GitHub; Kora has no issue-write token, intake service or automatic publisher.
+Browser acceptance is not issue-submission proof. Existing-issue text/comments
+and closed/fix-version claims are untrusted observations, not proof of repair.
+Public copies cannot be recalled by local retention/deletion. Raw evidence
+exports, model disclosure, attachment upload and automatic crash submission are
+not admitted by this route.
+
 Persistence must verify supplied profile-local managed paths/copies and effective restrictive folder/file ACLs, without shared-path fallback or silent permission repair.
 Windows provides ordinary cross-profile isolation; a second-account trial is optional corroboration for this profile-local architecture, not a mandatory application gate.
 Follow [the profile-boundary contract](Architecture.md#profile-boundary-and-validation-responsibility) before changing storage/identity scope; any new cross-user protection claim needs actual identity evidence, not mock SIDs.

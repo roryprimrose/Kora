@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { execution, controllerOperation, CHECKS, GATE, JOBS, WINDOWS_12_JOBS, PREDECESSOR_WORKFLOWS,
+const { execution, controllerOperation, CHECKS, GATE, JOBS, WINDOWS_12_JOBS, DELIVERY_JOBS, PREDECESSOR_WORKFLOWS,
   workflowJobs, requiredJobsState, terminalJobs } = require('./policy.cjs');
 const root = path.resolve(__dirname, '..', '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8').replaceAll('\r\n', '\n');
@@ -19,6 +19,45 @@ function job(name) {
   assert.ok(match, `Missing job ${name}`);
   return match[1];
 }
+
+test('independent packaging selection is trusted combined-candidate-only; every main run builds fresh packages', async () => {
+  const script = job('admission').match(/          script: \|\n([\s\S]*)/)[1]
+    .split('\n').map(line => line.replace(/^            /, '')).join('\n');
+  const execute = new AsyncFunction('process', 'context', 'core', 'github', 'require', script);
+  for (const kind of ['batch', 'singleton', 'main']) {
+    for (const selected of [false, true]) {
+      const inputs = kind === 'main' ? {} : { queue_ticket: 'ticket', queue_base: 'base',
+        ...(kind === 'batch' ? { queue_batch: 'digest' } : {}) };
+      const outputs = {};
+      let comparisons = 0;
+      class Api {
+        async candidatePackaging(base, source) {
+          assert.equal(base, 'base');
+          assert.equal(source, 'source');
+          comparisons++;
+          return { build: selected, reason: 'tested' };
+        }
+      }
+      await execute({ env: { QUEUE_MODE: 'enabled', QUEUE_PROFILE: 'batch-v1',
+        DELIVERY_PROFILE: 'independent-v1', QUEUE_INPUTS: JSON.stringify(inputs), QUEUE_APP_ID: '42' } },
+      { eventName: kind === 'main' ? 'push' : 'workflow_dispatch', ref: 'refs/heads/main', sha: 'source' },
+      { setOutput: (key, value) => { outputs[key] = value; }, notice() {} }, {},
+      name => name.endsWith('policy.cjs') ? { execution }
+        : { admit: async () => 'source', admitBatchTip: async () => true, GitHubQueue: Api });
+      assert.equal(outputs.packaging, String(kind === 'batch' ? selected : true));
+      assert.equal(comparisons, kind === 'batch' ? 1 : 0);
+    }
+  }
+  for (const value of ['future', 'independent-v1']) {
+    await assert.rejects(execute({ env: { QUEUE_MODE: '', DELIVERY_PROFILE: value } }, {}, {}, {}, () => ({})));
+  }
+  const installer = job('installer');
+  for (const step of ['Install .NET SDK', 'Download exact Linux-published x64 application',
+    'Verify payload digests and build identity', 'Restore locked installer dependencies', 'Build MSI and Burn bundle without installing'])
+    assert.ok(installer.includes(`- name: ${step}\n        if: needs.version.outputs.packaging == 'true'`), step);
+  assert.match(installer, /Test installer metadata contracts without installing\n        shell: pwsh/);
+  assert.match(installer, /MSI\/Burn execution is not claimed/);
+});
 
 test('CI admission inline policy matches the deterministic ordinary and comparison routing contract', async () => {
   const script = job('admission').match(/          script: \|\n([\s\S]*)/)[1]
@@ -95,7 +134,7 @@ test('batch workflow routing fails closed on unknown profiles and coalesces inte
       }
       assert.match(ci, /group: ci-.*github\.sha/);
       assert.match(job('release'), /group: release-\$\{\{ needs\.version\.outputs\.version \}\}/);
-      assert.match(job('release-batch'), /group: merge-queue-controller\n      cancel-in-progress: false\n      queue: max/);
+      assert.match(job('release-batch'), /group: \$\{\{ vars.KORA_MERGE_QUEUE_DELIVERY_PROFILE == 'independent-v1' && format\('release-source-\{0\}', github.sha\) \|\| 'merge-queue-controller' \}\}\n      cancel-in-progress: false\n      queue: max/);
       assert.match(controller, /queue: \$\{\{ vars\.KORA_MERGE_QUEUE_PROFILE == 'batch-v1' && 'max' \|\| 'single' \}\}/);
       const qualification = job('batch-tip-qualified');
       assert.match(qualification, /needs: \[admission, version, portable, windows-integration, installer, release, release-batch\]/);
@@ -109,7 +148,8 @@ test('batch workflow routing fails closed on unknown profiles and coalesces inte
 
 test('candidate jobs check out the admitted SHA, preserve all required identities and cannot publish', () => {
   assert.match(ci, /^run-name: "\$\{\{[^\n]*\}\}"$/m);
-  for (const name of CHECKS) assert.ok(ci.includes(`name: ${name}`));
+  for (const name of CHECKS.slice(0, 2)) assert.ok(ci.includes(`name: ${name}`));
+  assert.ok(ci.includes('name: Validate installer packaging'));
   assert.match(job('version'), /needs: admission\n    if: needs\.admission\.outputs\.full == 'true'/);
   assert.match(job('version'), /ref: \$\{\{ needs\.admission\.outputs\.source \}\}/);
   assert.match(job('version'), /publish: \$\{\{ needs\.admission\.outputs\.candidate != 'true'/);
@@ -147,7 +187,7 @@ test('independent producers are joined without preventing retirement of predeces
 
 test('trusted workflow schema inventories every candidate producer and matrix identity exactly', () => {
   const expected = workflowJobs(ci, 'current');
-  assert.deepEqual(expected, WINDOWS_12_JOBS);
+  assert.deepEqual(expected, DELIVERY_JOBS);
   const excluded = ['Compare portable test scheduling', 'Compare native fixture evidence',
     'Queue policy feedback', 'Publish GitHub release', 'Publish completed batch release', 'Qualify completed batch tip'];
   const actual = [...ci.matchAll(/^  ([a-z][\w-]*):\n    name: (.+)$/gm)].flatMap(([, id, name]) => {
@@ -163,14 +203,16 @@ test('trusted workflow schema inventories every candidate producer and matrix id
     assert.equal(workflowJobs('name: CI\n', blob), inventory);
   for (const source of ['name: CI\n', '# merge-queue-job-schema: unknown\n',
     '# merge-queue-job-schema: windows-12-v1\n# merge-queue-job-schema: windows-12-v1\n',
-    '# merge-queue-job-schema: \n']) {
+    '# merge-queue-job-schema: \n',
+    '# merge-queue-job-schema: windows-12-v1\n# merge-queue-delivery-schema: future\n',
+    '# merge-queue-job-schema: windows-12-v1\n# merge-queue-delivery-schema: independent-v1\n# merge-queue-delivery-schema: independent-v1\n']) {
     const inventory = workflowJobs(source, 'unknown');
     assert.equal(inventory, null);
     assert.equal(terminalJobs(actual.map(name => ({ name, status: 'completed', conclusion: 'success' })), inventory), false);
     assert.equal(requiredJobsState([], inventory), 'pending');
   }
   assert.equal(workflowJobs('name: CI\n', '__proto__'), null);
-  assert.deepEqual(workflowJobs('# merge-queue-job-schema: windows-12-v1\r\n', 'unknown'), expected);
+  assert.deepEqual(workflowJobs('# merge-queue-job-schema: windows-12-v1\r\n', 'unknown'), WINDOWS_12_JOBS);
 });
 
 test('Windows tests scale out to twelve artifact-only jobs behind predecessor-compatible gates', () => {

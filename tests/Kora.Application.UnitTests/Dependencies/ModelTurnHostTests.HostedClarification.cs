@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 using Kora.Application.Dependencies;
+using Kora.Application.UnitTests.Configuration;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
@@ -17,9 +18,13 @@ public sealed partial class ModelTurnHostTests
     public async Task HostedQuestionReusesCanonicalLocalQuestionOwnerAndRevalidatesBeforeAnswerCommit(bool revokeAtCommit)
     {
         using var f = new Fixture();
+        await using var settings = new OrdinaryDeadlineConfigurationFixture();
+        settings.Preferences.BeginWrite();
+        var preferenceReads = 0;
+        settings.Store.Before = (_, _) => preferenceReads++;
         var reviews = new HostedTransmissionReviewService(f, f.Time);
         var host = f.ClaudeProfiles(new ClaudeRuntime(observations: true), reviews);
-        await using var service = QuestionService(f, host);
+        await using var service = DeadlineConversation(f, host, settings);
         reviews.ClaudeOffered += review =>
         { using var presentation = review.Presentation(); reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue(); };
         service.RunningConversationChanged += status =>
@@ -47,6 +52,7 @@ public sealed partial class ModelTurnHostTests
         f.ExecutionCompletions.Should().Be(1);
         f.Questions.Commits.Last().Audit.ActionId.Should().Be("question.continue");
         f.Questions.Snapshot.Grants.Should().BeEmpty();
+        preferenceReads.Should().Be(0, "hosted clarification keeps its fixed user-wait budget, independent of ordinary preferences");
     }
 
     [Fact]

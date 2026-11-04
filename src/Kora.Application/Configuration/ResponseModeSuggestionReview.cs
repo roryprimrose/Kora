@@ -3,6 +3,7 @@ using System.Diagnostics;
 using Kora.Application.Communication;
 using Kora.Application.Configuration.RegisteredSettings;
 using Kora.Core.Auditing;
+using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
@@ -19,6 +20,7 @@ public sealed class ResponseModeSuggestionReview : IDisposable
     private readonly TimeProvider time;
     private readonly ResponseModeCommandResult current;
     private readonly ResponseOutputMode proposed;
+    private readonly bool reset;
     private readonly HostRequest reviewRequest;
     private readonly RequestOrigin sourceOrigin;
     private readonly long callRevision;
@@ -34,7 +36,7 @@ public sealed class ResponseModeSuggestionReview : IDisposable
     private ResponseModeSuggestionReview(ResponseModeConfigurationService configuration,
         CallCommunicationPolicy policy, TimeProvider time, ResponseModeCommandResult current,
         ResponseOutputMode proposed, HostRequest reviewRequest, RequestOrigin sourceOrigin,
-        long callRevision, Func<bool> eligible, Func<CancellationToken, Task> validateSource, ModelTurnProvenance source)
+        long callRevision, Func<bool> eligible, Func<CancellationToken, Task> validateSource, ModelTurnProvenance source, bool reset)
     {
         this.configuration = configuration;
         this.policy = policy;
@@ -47,6 +49,7 @@ public sealed class ResponseModeSuggestionReview : IDisposable
         this.eligible = eligible;
         this.validateSource = validateSource;
         this.source = source;
+        this.reset = reset;
         expires = time.GetUtcNow().AddSeconds(60);
         reviewCause = new(HostActivity.RequireCurrent().Activity!.Context);
     }
@@ -56,6 +59,7 @@ public sealed class ResponseModeSuggestionReview : IDisposable
     public string Description => Available
         ? $"Current saved: {current.Saved?.ToString() ?? "unsaved"} ({current.Source}); desired: {current.Desired}; "
             + $"configured effective: {current.Effective}. Proposed: {proposed}. Scope: shared device-local default. "
+            + (reset ? "Reset saves Hybrid as a saved preference, matching the native Reset; it does not remove the preference. " : string.Empty)
             + "Nothing has changed. Applies to NEXT eligible response only; no synthesis, capture, regeneration or replay of this answer. "
             + "Session/task/queue and in-call overrides remain unchanged. Mandatory full visual warnings, security, questions, approvals "
             + "and speech-unavailable fallback remain, even in VoiceOnly. Privacy and call restrictions always win. "
@@ -72,8 +76,12 @@ public sealed class ResponseModeSuggestionReview : IDisposable
         var call = policy.Current.Revision;
         if (request.RequestId == message.Request.RequestId || message.Outcome != ModelTurnOutcome.Succeeded)
         { throw new InvalidOperationException("Review requires an exact successful retained original-user answer, not model authority."); }
-        if (RegisteredSettingSuggestions.Parse(message.AssistantResponse!.Body) is not RegisteredSettingProposal.ResponseMode proposal)
-        { throw new InvalidDataException("Request one exact responses.default-mode Set suggestion only."); }
+        var (value, reset) = RegisteredSettingSuggestions.Parse(message.AssistantResponse!.Body) switch
+        {
+            RegisteredSettingProposal.ResponseMode proposal => (proposal.Value, false),
+            RegisteredSettingProposal.Reset { Setting: RegisteredSetting.ResponseMode } => (ResponseModeConfigurationService.ResetMode, true),
+            _ => throw new InvalidDataException("Request one exact responses.default-mode Set or Reset suggestion only."),
+        };
         var state = configuration.Get();
         if (!state.Available)
         { throw new InvalidOperationException("Response mode is unavailable. Inspect Settings recovery and explicitly refresh before a fresh review."); }
@@ -86,7 +94,7 @@ public sealed class ResponseModeSuggestionReview : IDisposable
         var origin = message.Request.Origin == RequestOrigin.ActivatedVoice ? message.Request.Origin : request.Origin;
         if (policy.CheckMutation(origin, call, eligible) is not null)
         { throw new InvalidOperationException("The original channel or call policy denies this response-mode review."); }
-        return new(configuration, policy, time, state, proposal.Value, request, origin, call, eligible, validateSource, message.Execution!);
+        return new(configuration, policy, time, state, value, request, origin, call, eligible, validateSource, message.Execution!, reset);
     }
 
     public async Task<bool> ConfirmAsync(CancellationToken token, SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
@@ -135,10 +143,11 @@ public sealed class ResponseModeSuggestionReview : IDisposable
             token.ThrowIfCancellationRequested();
             if (!Eligible() || RequireInput(reviewRequest.SessionId) != channel.Request || configuration.Get() != refreshed)
             { throw new InvalidOperationException("The exact source, confirmation or refreshed response settings changed before apply."); }
-            var choice = configuration.Choices.Single(item => item.Mode == proposed);
-            var saved = await configuration.SelectAsync(choice, callRevision, origin,
-                origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : initiator,
-                policy, Eligible, token).ConfigureAwait(false);
+            var auditInitiator = origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : initiator;
+            var saved = reset
+                ? await configuration.ResetAsync(callRevision, origin, auditInitiator, policy, Eligible, token).ConfigureAwait(false)
+                : await configuration.SelectAsync(configuration.Choices.Single(item => item.Mode == proposed),
+                    callRevision, origin, auditInitiator, policy, Eligible, token).ConfigureAwait(false);
             activity.Complete(saved ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
             channel.Complete(saved ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
             return saved;

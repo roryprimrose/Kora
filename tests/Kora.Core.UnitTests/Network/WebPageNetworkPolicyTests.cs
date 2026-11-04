@@ -109,6 +109,35 @@ public sealed class WebPageNetworkPolicyTests
     private static WebPageResponse Response(Stream content, IDisposable? owner = null) =>
         new(200, new("https://example.com/"), "text/plain", "utf-8", 0, null, [], content, owner);
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ResponseReleasesOwnerEvenWhenContentReleaseFails(bool asynchronous)
+    {
+        var owner = new TrackingDisposable();
+        var response = Response(new FailingReleaseStream(), owner);
+        if (asynchronous)
+        {
+            await FluentActions.Awaiting(async () => await response.DisposeAsync())
+                .Should().ThrowAsync<IOException>().WithMessage("content release failed");
+        }
+        else
+        {
+            FluentActions.Invoking(response.Dispose).Should()
+                .Throw<IOException>().WithMessage("content release failed");
+        }
+        owner.Disposed.Should().BeTrue();
+    }
+
+    private sealed class FailingReleaseStream : MemoryStream
+    {
+        protected override void Dispose(bool disposing)
+        {
+            base.Dispose(disposing);
+            throw new IOException("content release failed");
+        }
+    }
+
     private sealed class TrackingStream : MemoryStream
     {
         public bool Disposed { get; private set; }

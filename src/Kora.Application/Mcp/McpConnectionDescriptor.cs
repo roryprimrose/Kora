@@ -6,7 +6,8 @@ namespace Kora.Application.Mcp;
 /// <summary>Host-private source snapshot. Metadata inclusion is not account, connection or invocation authority.</summary>
 internal sealed class McpConnectionDescriptor(
     string serverId, string serverName, string sourcePath, string sourceRevision,
-    McpEndpoint endpoint, McpAccountReference account, long useControlRevision, CustomizationScope? scope = null)
+    McpEndpoint endpoint, McpAccountReference account, long useControlRevision, CustomizationScope? scope = null,
+    long sourceControlRevision = 0)
 {
     internal string ServerId { get; } = serverId;
     internal string ServerName { get; } = serverName;
@@ -16,6 +17,7 @@ internal sealed class McpConnectionDescriptor(
     internal McpAccountReference Account { get; } = account;
     internal long UseControlRevision { get; } = useControlRevision;
     internal CustomizationScope? Scope { get; } = scope;
+    internal long SourceControlRevision { get; } = sourceControlRevision;
 
     public override string ToString() => nameof(McpConnectionDescriptor);
 }

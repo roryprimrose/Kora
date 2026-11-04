@@ -6,7 +6,7 @@ const path = require('node:path');
 const { GitHubQueue, admit } = require('./github.cjs');
 const { admitBatchTip } = require('./github.cjs');
 const { manifestFor, digest } = require('./batch-policy.cjs');
-const { CHECKS, GATE, STATE_BRANCH, WINDOWS_12_JOBS } = require('./policy.cjs');
+const { CHECKS, GATE, STATE_BRANCH, WINDOWS_12_JOBS, DELIVERY_JOBS, REJECTED_ADMISSION_JOBS } = require('./policy.cjs');
 const BASE = 'a'.repeat(40);
 const HEAD = 'b'.repeat(40);
 const OTHER = 'c'.repeat(40);
@@ -43,6 +43,7 @@ function fixture(overrides = {}) {
     getBranchProtection: () => ({ enforce_admins: { enabled: true },
       required_status_checks: { strict: true, checks: [...CHECKS, GATE].map(name => ({ context: name, app_id: 42 })) } }),
     compareCommits: () => ({ status: 'ahead' }),
+    getCommit: ({ ref }) => ({ sha: ref, commit: { tree: { sha: OTHER } } }),
     get: () => pr(),
     create: () => ({ id: 77, app: { id: 42 } }),
     createBlob: () => ({ sha: 'blob' }), createTree: () => ({ sha: 'tree' }),
@@ -82,6 +83,87 @@ function fixture(overrides = {}) {
     info: message => calls.push(['info', message]) };
   return { github, core, calls, responses, api: new GitHubQueue(github, context, core, '42') };
 }
+
+test('completed-source records are saved atomically with state and preserved by subsequent ordinary saves', async () => {
+  const tip = { delivery: 'independent-v1', sha: BASE, tree: HEAD, base: OTHER, combined: HEAD,
+    ticket: TICKET, validation: { run: 42, attempt: 1, source: HEAD, workflow: OTHER,
+      inventory: BASE, schema: 'windows-12-delivery-v1' } };
+  const queue = { version: 2, profile: 'batch-v1', active: null, blocked: [],
+    completedTip: tip, deliveryProfile: 'independent-v1', singletonRetries: [] };
+  const record = require('./delivery.cjs').releaseRecord(tip);
+  let stored;
+  const value = fixture({ createCommit: () => ({ sha: 'd'.repeat(40) }), getContent: ({ path }) => {
+    if (path === 'queue.json') return workflowContent(JSON.stringify(queue));
+    if (!stored) throw error(404);
+    return workflowContent(JSON.stringify(stored));
+  } });
+  const loaded = await value.api.load();
+  loaded.completedTip.qualificationRequested = true;
+  await value.api.save(loaded);
+  const first = value.calls.find(call => call[0] === 'createTree')[1];
+  assert.equal(first.base_tree, OTHER);
+  assert.deepEqual(first.tree.map(entry => entry.path), ['queue.json', `releases/${BASE}.json`]);
+  assert.ok(value.calls.find(call => call[0] === 'createBlob' && call[1].content === `${JSON.stringify(record)}\n`));
+  stored = record;
+  value.responses.getRef = ({ ref }) => ({ object: { sha: ref === 'heads/main' ? BASE : 'd'.repeat(40) } });
+  loaded.completedTip.qualificationOwner = { run: 99, source: BASE, attempt: 1 };
+  await value.api.save(loaded);
+  assert.deepEqual(value.calls.filter(call => call[0] === 'createTree').at(-1)[1].tree.map(entry => entry.path), ['queue.json']);
+  stored = { ...record, ticket: '11111111-1111-1111-1111-111111111111' };
+  loaded.completedTip.qualification = { run: 99, job: 100, source: BASE };
+  const writes = value.calls.filter(call => call[0] === 'updateRef').length;
+  await assert.rejects(value.api.save(loaded), /Immutable/);
+  assert.equal(value.calls.filter(call => call[0] === 'updateRef').length, writes);
+});
+
+test('independent main admission accepts a recorded reachable final source despite a new active candidate, not an intermediate prefix', async () => {
+  const record = { schema: 'completed-source-v1', source: BASE, tree: HEAD, base: OTHER, combined: HEAD,
+    ticket: TICKET, validation: { run: 42, attempt: 1, source: HEAD, workflow: OTHER,
+      inventory: BASE, schema: 'windows-12-delivery-v1' } };
+  const queue = batchState();
+  const value = fixture({ getContent: ({ path }) => path === 'queue.json'
+    ? workflowContent(JSON.stringify(queue)) : workflowContent(JSON.stringify(record)) });
+  assert.equal(await admitBatchTip({ github: value.github, context, appId: 42, deliveryProfile: 'independent-v1' }), true);
+  value.responses.getContent = ({ path }) => {
+    if (path !== 'queue.json') throw error(404);
+    return workflowContent(JSON.stringify(queue));
+  };
+  assert.equal(await admitBatchTip({ github: value.github, context, appId: 42, deliveryProfile: 'independent-v1' }), false);
+  assert.ok(!value.calls.some(call => ['updateRef', 'createWorkflowDispatch', 'merge'].includes(call[0])));
+});
+
+test('candidate packaging diff must prove exact admitted ancestry and never treats truncated impact as ordinary', async () => {
+  const value = fixture();
+  for (const data of [{}, { status: 'ahead', files: [{ filename: 'src/X.cs', status: 'modified' }] },
+    { status: 'diverged', base_commit: { sha: BASE }, merge_base_commit: { sha: BASE }, files: [] }]) {
+    value.responses.compareCommits = () => data;
+    assert.equal((await value.api.candidatePackaging(BASE, HEAD)).build, true);
+  }
+  value.responses.compareCommits = () => ({ status: 'ahead', base_commit: { sha: BASE },
+    merge_base_commit: { sha: BASE }, files: [{ filename: 'src/X.cs', status: 'modified' }] });
+  assert.equal((await value.api.candidatePackaging(BASE, HEAD)).build, false);
+});
+
+test('independent main early failure is negative terminal evidence, not successful qualification or a permanent lane dependency', async () => {
+  const { REJECTED_DELIVERY_JOBS } = require('./policy.cjs');
+  const workflow = fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-3ed51a1b.yml'), 'utf8').replaceAll('\r\n', '\n');
+  const run = { id: 42, run_attempt: 1, head_sha: BASE, head_branch: 'main', event: 'push',
+    display_title: 'CI main', status: 'completed', conclusion: 'failure' };
+  const jobs = REJECTED_DELIVERY_JOBS.map((name, index) => ({ id: index + 1, name,
+    run_id: 42, run_attempt: 1, head_sha: BASE, status: 'completed',
+    conclusion: name === 'Admit CI execution' ? 'success' : name === 'Resolve build version' ? 'failure' : 'skipped' }));
+  const value = fixture({ getContent: () => workflowContent(workflow),
+    listWorkflowRuns: () => ({ total_count: 1, workflow_runs: [run] }),
+    listJobsForWorkflowRunAttempt: () => ({ total_count: jobs.length, jobs }) });
+  value.api.independent = true;
+  const observation = await value.api.tipQualification({ sha: BASE });
+  assert.equal(observation.provisional, false);
+  assert.equal(observation.terminal, true);
+  assert.equal(observation.qualification, null);
+  jobs.pop();
+  assert.equal((await value.api.tipQualification({ sha: BASE })).terminal, false);
+  assert.ok(!value.calls.some(call => ['updateRef', 'createWorkflowDispatch', 'merge'].includes(call[0])));
+});
 
   test('batch protection is a separate explicit App-owned admission-only profile; current four-check default is unchanged', async () => {
     const value = fixture();
@@ -152,20 +234,67 @@ function fixture(overrides = {}) {
   });
 
   test('batch changed-file inventory is complete and bounded; truncation and duplicates cannot hide control changes', async () => {
-    const value = fixture({ get: () => ({ ...pr(), changed_files: 2 }),
+    const source = () => ({ ...pr(), number: 1, base: { ref: 'main', sha: BASE }, changed_files: 2 });
+    const value = fixture({ get: source,
       listFiles: () => [{ filename: 'src/feature.cs' }, { filename: '.github/workflows/ci.yml' }] });
     assert.deepEqual(await value.api.files(1), ['src/feature.cs', '.github/workflows/ci.yml']);
     value.responses.listFiles = () => [{ filename: 'src/feature.cs' },
       { filename: 'docs/old-policy.txt', previous_filename: 'eng/merge-queue/policy.cjs' }];
     assert.deepEqual(await value.api.files(1), ['src/feature.cs', 'docs/old-policy.txt', 'eng/merge-queue/policy.cjs']);
-    for (const count of [undefined, 0, 3000, 3001]) {
-      value.responses.get = () => ({ ...pr(), changed_files: count });
+    for (const count of [undefined, null, -1, 0.5, '0', 3000, 3001]) {
+      value.responses.get = () => ({ ...source(), changed_files: count });
       await assert.rejects(value.api.files(1), /inventory/);
     }
-    value.responses.get = () => ({ ...pr(), changed_files: 2 });
+    value.responses.get = source;
     for (const files of [[{ filename: 'one' }], [{ filename: 'one' }, { filename: 'one' }]]) {
       value.responses.listFiles = () => files;
       await assert.rejects(value.api.files(1), /Incomplete or duplicate/);
+    }
+  });
+
+  test('complete zero-file inventory is read and bound to the exact live source and base', async () => {
+    const source = () => ({ ...pr(), number: 1, base: { ref: 'main', sha: BASE }, changed_files: 0 });
+    const value = fixture({ get: source, listFiles: () => [] });
+    assert.deepEqual(await value.api.files(1, source()), []);
+    assert.equal(value.calls.filter(([name]) => name === 'listFiles').length, 1);
+    assert.equal(value.calls.filter(([name]) => name === 'get').length, 2);
+    value.responses.listFiles = () => [{ filename: 'unexpected' }];
+    await assert.rejects(value.api.files(1, source()), /Incomplete/);
+    value.responses.listFiles = () => { throw error(403); };
+    await assert.rejects(value.api.files(1, source()), /HTTP 403/);
+    value.responses.listFiles = () => ({ files: [] });
+    await assert.rejects(value.api.files(1, source()));
+    value.github.paginate = async () => undefined;
+    await assert.rejects(value.api.files(1, source()), /inventory is unavailable/);
+  });
+
+  test('file inventory rejects foreign, stale, malformed or changing source and base metadata', async () => {
+    const source = () => ({ ...pr(), number: 1, base: { ref: 'main', sha: BASE }, changed_files: 0 });
+    const changes = [
+      value => { value.number = 2; },
+      value => { value.head.sha = OTHER; },
+      value => { value.head.sha = undefined; },
+      value => { value.head.repo.full_name = 'foreign/repo'; },
+      value => { value.base.sha = OTHER; },
+      value => { value.base.sha = undefined; },
+      value => { value.base.ref = 'other'; },
+      value => { value.changed_files = 1; },
+    ];
+    for (const change of changes) {
+      for (const stage of ['initial', 'readback']) {
+        let reads = 0;
+        const value = fixture({ get: () => {
+          const current = source();
+          if (stage === 'initial' || reads++ > 0) change(current);
+          return current;
+        }, listFiles: () => [] });
+        await assert.rejects(value.api.files(1, source()), /inventory|source|metadata/i);
+      }
+    }
+    for (const files of [[null], [{}], [{ filename: '' }], [{ filename: 'ok', previous_filename: '' }]]) {
+      const current = { ...source(), changed_files: 1 };
+      const value = fixture({ get: () => current, listFiles: () => files });
+      await assert.rejects(value.api.files(1, current), /Malformed/);
     }
   });
 
@@ -215,22 +344,95 @@ function fixture(overrides = {}) {
 
   test('tip qualification requires complete actual-source jobs and the unique successful publication join', async () => {
     const run = { id: 9, run_attempt: 1, head_sha: BASE, status: 'completed', conclusion: 'success',
-      event: 'push', display_title: 'CI main' };
+      event: 'push', head_branch: 'main', display_title: 'CI main' };
     const jobs = [...WINDOWS_12_JOBS, 'Qualify completed batch tip'].map((name, index) => ({
       id: index + 1, name, status: 'completed', conclusion: 'success', run_id: 9, run_attempt: 1, head_sha: BASE }));
     const value = fixture({ getContent: () => workflowContent(),
       listWorkflowRuns: () => ({ total_count: 1, workflow_runs: [run] }),
       listJobsForWorkflowRunAttempt: () => ({ total_count: jobs.length, jobs }) });
-    assert.deepEqual(await value.api.tipQualification({ sha: BASE }),
+    assert.deepEqual((await value.api.tipQualification({ sha: BASE }))?.qualification,
       { run: 9, source: BASE, job: jobs.length });
     for (const name of [...WINDOWS_12_JOBS, 'Qualify completed batch tip']) {
       const target = jobs.find(job => job.name === name);
       target.conclusion = 'skipped';
-      assert.equal(await value.api.tipQualification({ sha: BASE }), null, name);
+      assert.equal((await value.api.tipQualification({ sha: BASE }))?.qualification ?? null, null, name);
       target.conclusion = 'success';
     }
     jobs.push({ ...jobs.at(-1), id: 999 });
+    assert.equal((await value.api.tipQualification({ sha: BASE }))?.qualification ?? null, null);
+  });
+
+  test('qualification observes queued first attempts and reconciles missing owner listings without dispatch', async () => {
+    const run = { id: 9, run_attempt: 1, head_sha: BASE, status: 'queued', conclusion: null,
+      event: 'workflow_dispatch', head_branch: 'main', display_title: 'CI main' };
+    const value = fixture({ getContent: () => workflowContent(),
+      listWorkflowRuns: () => ({ total_count: 1, workflow_runs: [run] }),
+      listJobsForWorkflowRunAttempt: () => ({ total_count: 0, jobs: [] }),
+      getWorkflowRun: () => run });
+    const observation = await value.api.tipQualification({ sha: BASE });
+    assert.deepEqual(observation.owner, { run: 9, source: BASE, attempt: 1 });
+    assert.equal(observation.qualification, null);
+    assert.equal(observation.terminal, false);
+    assert.equal(value.calls.find(call => call[0] === 'listWorkflowRuns')[1].status, undefined);
+    value.responses.listWorkflowRuns = () => ({ total_count: 0, workflow_runs: [] });
+    const tip = { sha: BASE, qualificationOwner: observation.owner };
+    assert.deepEqual(await value.api.tipQualification(tip), observation);
+    for (const change of ['source', 'attempt', 'branch', 'event', 'title', 'id']) {
+      value.responses.getWorkflowRun = () => ({ ...run, ...{
+        source: { head_sha: OTHER }, attempt: { run_attempt: 2 }, branch: { head_branch: 'tag' },
+        event: { event: 'pull_request' }, title: { display_title: 'Merge queue batch [ticket]' }, id: { id: 10 },
+      }[change] });
+      await assert.rejects(value.api.tipQualification(tip), /owner/);
+    }
+    assert.equal(value.calls.some(call => ['createWorkflowDispatch', 'cancelWorkflowRun'].includes(call[0])), false);
+  });
+
+  test('qualification holds a failed owner until exact terminal jobs and adopts only observed fresh first-attempt work', async () => {
+    const run = { id: 9, run_attempt: 1, head_sha: BASE, status: 'completed', conclusion: 'failure',
+      event: 'push', head_branch: 'main', display_title: 'CI main' };
+    const jobs = WINDOWS_12_JOBS.map((name, index) => ({ id: index + 1, name,
+      status: 'completed', conclusion: 'failure', run_id: 9, run_attempt: 1, head_sha: BASE }));
+    jobs.at(-1).status = 'in_progress';
+    const replacement = { ...run, id: 10, event: 'workflow_dispatch', status: 'queued', conclusion: null };
+    const value = fixture({ getContent: () => workflowContent(),
+      listWorkflowRuns: () => ({ total_count: 2, workflow_runs: [replacement, run] }),
+      listJobsForWorkflowRunAttempt: ({ run_id }) => {
+        const observed = run_id === 9 ? jobs : [{ id: 100, name: 'Resolve build version',
+          status: 'in_progress', conclusion: null, run_id: 10, run_attempt: 1, head_sha: BASE }];
+        return { total_count: observed.length, jobs: observed };
+      } });
+    const tip = { sha: BASE, qualificationOwner: { run: 9, source: BASE, attempt: 1 } };
+    assert.equal((await value.api.tipQualification(tip)).owner.run, 9);
+    jobs.at(-1).status = 'completed';
+    assert.equal((await value.api.tipQualification(tip)).owner.run, 10);
+    replacement.run_attempt = 2;
+    assert.equal((await value.api.tipQualification(tip)).owner.run, 9);
+    replacement.run_attempt = 1;
+    value.responses.listWorkflowRuns = () => { throw error(503); };
+    await assert.rejects(value.api.tipQualification(tip), /503/);
+    assert.equal(value.calls.some(call => ['createWorkflowDispatch', 'cancelWorkflowRun'].includes(call[0])), false);
+  });
+
+  test('ordinary push suppression never owns qualification; missing source jobs wait without pretending to be suppression', async () => {
+    const run = { id: 9, run_attempt: 1, head_sha: BASE, status: 'in_progress', conclusion: null,
+      event: 'push', head_branch: 'main', display_title: 'CI main' };
+    const jobs = ['Admit CI execution', 'Resolve build version', 'Qualify completed batch tip']
+      .map((name, index) => ({ id: index + 1, name, status: 'completed',
+        conclusion: index ? 'skipped' : 'success', run_id: 9, run_attempt: 1, head_sha: BASE }));
+    const value = fixture({ getContent: () => workflowContent(),
+      listWorkflowRuns: () => ({ total_count: 1, workflow_runs: [run] }),
+      listJobsForWorkflowRunAttempt: () => ({ total_count: jobs.length, jobs }) });
+    assert.equal((await value.api.tipQualification({ sha: BASE })).provisional, true);
+    Object.assign(run, { status: 'completed', conclusion: 'success' });
     assert.equal(await value.api.tipQualification({ sha: BASE }), null);
+    jobs.pop();
+    assert.equal((await value.api.tipQualification({ sha: BASE })).provisional, true);
+    jobs[1].conclusion = 'success';
+    const full = await value.api.tipQualification({ sha: BASE });
+    assert.equal(full.provisional, false);
+    assert.equal(full.qualification, null);
+    assert.equal(full.terminal, false);
+    assert.equal(value.calls.some(call => ['createWorkflowDispatch', 'cancelWorkflowRun'].includes(call[0])), false);
   });
 test('App check protection must include every required identity, strict freshness and administrators', async () => {
   await fixture().api.verifyProtection();
@@ -484,16 +686,89 @@ test('workflow inventory reads and validates exact source bytes, never main, can
   assert.equal(value.calls.length, 1);
 });
 
-test('real schema-declared workflow resolves complete inventory; new unversioned source fails closed', async () => {
+test('admission rejection retirement authenticates an exact historical workflow blob, not its schema marker alone', async () => {
+  const source = fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-97e22a8f.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  assert.equal(workflowContent(source).sha, '97e22a8f88bcdc9bbaef32cf9e7200dd6e5c43cd');
+  const run = { id: 9, run_attempt: 1, head_sha: BASE, head_branch: 'main', event: 'workflow_dispatch',
+    status: 'completed', conclusion: 'failure' };
+  const jobs = REJECTED_ADMISSION_JOBS.map((name, index) => ({ id: index + 1, name, run_id: 9,
+    run_attempt: 1, head_sha: BASE, status: 'completed',
+    conclusion: name === 'Admit CI execution' ? 'failure' : 'skipped' }));
+  const value = fixture({ getContent: () => workflowContent(source) });
+  assert.equal(await value.api.rejectedAdmission(BASE, run, jobs), true);
+  assert.equal(await value.api.rejectedAdmission(OTHER, run, jobs), false);
+  assert.equal(value.calls.length, 1);
+  assert.equal(value.calls[0][1].ref, BASE);
+  for (const text of [source + '\n# changed execution contract\n', '# merge-queue-job-schema: windows-12-v1\n',
+    'name: CI\n', '# merge-queue-job-schema: future-v2\n']) {
+    assert.equal(await fixture({ getContent: () => workflowContent(text) }).api.rejectedAdmission(BASE, run, jobs), false);
+  }
+  for (const response of [{ ...workflowContent(source), sha: OTHER }, { ...workflowContent(source), encoding: 'utf-8' }]) {
+    assert.equal(await fixture({ getContent: () => response }).api.rejectedAdmission(BASE, run, jobs), false);
+  }
+  assert.equal(await fixture({ getContent: () => { throw error(404); } }).api.rejectedAdmission(BASE, run, jobs), false);
+  for (const status of [401, 403, 429, 500]) {
+    await assert.rejects(fixture({ getContent: () => { throw error(status); } }).api.rejectedAdmission(BASE, run, jobs), /HTTP/);
+  }
+  assert.equal(await value.api.rejectedAdmission(BASE, { ...run, run_attempt: 2 }, jobs), false);
+  assert.equal(value.calls.some(call => ['update', 'merge', 'createWorkflowDispatch'].includes(call[0])), false);
+});
+
+test('preflight rejection retirement authenticates the exact reviewed workflow bytes and failed-version job plan', async () => {
+  const source = fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-c7517372.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  assert.equal(workflowContent(source).sha, 'c75173721c4131cf29d45482ea2edb92934070f1');
+  const run = { id: 9, run_attempt: 1, head_sha: BASE, head_branch: 'main', event: 'workflow_dispatch',
+    status: 'completed', conclusion: 'failure' };
+  const jobs = REJECTED_ADMISSION_JOBS.map((name, index) => ({ id: index + 1, name, run_id: 9,
+    run_attempt: 1, head_sha: BASE, status: 'completed',
+    conclusion: name === 'Admit CI execution' ? 'success' : name === 'Resolve build version' ? 'failure' : 'skipped' }));
+  const value = fixture({ getContent: () => workflowContent(source) });
+  assert.equal(await value.api.rejectedAdmission(BASE, run, jobs), true);
+  assert.equal(await value.api.rejectedAdmission(OTHER, run, jobs), false);
+  for (const text of [source + '\n# changed fanout authority\n', '# merge-queue-job-schema: windows-12-v1\n',
+    fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-97e22a8f.yml'), 'utf8').replaceAll('\r\n', '\n')]) {
+    assert.equal(await fixture({ getContent: () => workflowContent(text) }).api.rejectedAdmission(BASE, run, jobs), false);
+  }
+  for (const response of [{ ...workflowContent(source), sha: OTHER },
+    { ...workflowContent(source), encoding: 'utf-8' }]) {
+    assert.equal(await fixture({ getContent: () => response }).api.rejectedAdmission(BASE, run, jobs), false);
+  }
+  for (const status of [401, 403, 429, 500]) {
+    await assert.rejects(fixture({ getContent: () => { throw error(status); } }).api.rejectedAdmission(BASE, run, jobs), /HTTP/);
+  }
+  assert.equal(value.calls.some(call => ['merge', 'createWorkflowDispatch', 'updateRef'].includes(call[0])), false);
+});
+
+test('real schema-declared and historical protected workflows resolve their complete producer inventories', async () => {
   const source = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8')
     .replaceAll('\r\n', '\n');
-  const unversioned = source.replace('# merge-queue-job-schema: windows-12-v1\n', '');
-  assert.equal(await fixture({ getContent: () => workflowContent(unversioned) }).api.expectedJobs(BASE), null);
-  for (const workflow of [source]) {
+  const unversioned = fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-native-fixture-timing.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  assert.equal(workflowContent(unversioned).sha, 'd3db4c610d08468c508f09e63b10f7c6568b82ea');
+  for (const [workflow, inventory] of [[source, DELIVERY_JOBS], [unversioned, WINDOWS_12_JOBS]]) {
     const value = fixture({ getContent: () => workflowContent(workflow) });
-    assert.deepEqual(await value.api.expectedJobs(BASE), WINDOWS_12_JOBS);
+    assert.deepEqual(await value.api.expectedJobs(BASE), inventory);
     assert.deepEqual(value.calls, [['getContent', { owner: 'owner', repo: 'repo',
       ref: BASE, path: '.github/workflows/ci.yml' }]]);
+  }
+});
+
+test('removing the schema or modifying a predecessor does not authorize an unknown workflow blob', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  const predecessor = fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-native-fixture-timing.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  for (const workflow of [source.replace('# merge-queue-job-schema: windows-12-v1\n', ''),
+    `${predecessor}\n# Unrecognized revision\n`]) {
+    const value = fixture({ getContent: () => workflowContent(workflow) });
+    assert.equal(await value.api.expectedJobs(BASE), null);
+    assert.deepEqual(value.calls.filter(call => call[0] === 'getContent'),
+      [['getContent', { owner: 'owner', repo: 'repo', ref: BASE, path: '.github/workflows/ci.yml' }]]);
+    assert.equal(value.calls.filter(call => call[0] === 'warning').length, 1);
+    assert.match(value.calls.at(-1)[1], /physical quiescence is unknown/);
+    assert.equal(value.calls.some(call => ['update', 'merge', 'createWorkflowDispatch'].includes(call[0])), false);
   }
 });
 

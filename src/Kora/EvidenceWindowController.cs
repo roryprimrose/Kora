@@ -14,7 +14,8 @@ namespace Kora;
 internal sealed class EvidenceWindowController(
     MainViewModel main, DurableEvidenceQuery query, IEvidenceQueryAccess access,
     ILogger<EvidenceViewModel> logger, ISessionWorkspaceAccess workspaceAccess,
-    EvidenceAnswerWorkflow? answers = null, TimeProvider? time = null) : IDisposable
+    EvidenceAnswerWorkflow? answers = null, TimeProvider? time = null,
+    GitHubIssueReportWorkflow? problemReports = null, Kora.Core.Hosting.IApplicationInfo? applicationInfo = null) : IDisposable
 {
     private EvidenceWindow? window;
     private bool disposed;
@@ -41,6 +42,11 @@ internal sealed class EvidenceWindowController(
         {
             EvidenceWindow opened;
             var model = new EvidenceViewModel(query, () => !disposed && access.CanInspect, logger);
+            if (problemReports is not null && applicationInfo is not null)
+            {
+                model.BindProblemReporting(problemReports, signature => new(signature, applicationInfo.Version,
+                    Environment.OSVersion.Version.ToString(), System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString()));
+            }
             if (answers is not null)
             {
                 model.BindEvidenceAnswers(answers, main.CaptureEvidenceAnswerAdmission,

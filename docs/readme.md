@@ -41,6 +41,7 @@ releases the microphone; device selection alone does not undo that choice.
 | Where data lives and using multiple computers | [Data storage and roaming profiles](data-storage.md) |
 | Consent, grants, retained data and diagnostics | [Privacy, safety, and logs](privacy-safety-and-logs.md) |
 | Problems and recovery | [Troubleshooting](troubleshooting.md) |
+| Review and post an exception using your GitHub account | [Problem reports](problem-reports.md) |
 
 ## Conversations and saved information
 
@@ -77,6 +78,7 @@ to the model availability above.
 | Create an agent profile | [Agent profile authoring](agent-profile-authoring.md) |
 | Review a shared skill as agent guidance | [Shared skill guidance](agent-shared-skill-guidance.md) |
 | Understand separate local agent runs and their limits | [Independent agent runs](independent-agent-runs.md) |
+| Inspect exact agent observations and recover without replay | [Agent result readback](agent-results.md) |
 | Review a suggested preference change | [Setting suggestions](setting-proposals.md) |
 | Ask about confirmed settings | [Setting inspection](setting-inspection.md) |
 | Understand explicit Copilot requests | [Copilot requests](hosted-requests.md) |

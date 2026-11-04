@@ -56,6 +56,7 @@ internal sealed partial class QuestionWindowController : IDisposable, IPendingQu
         window?.Close();
         main.RetireCurrentResponseSpeech();
         running = true;
+        main.NotifyResponseReadDecisionAvailability();
         try
         {
             var version = string.Empty;
@@ -102,6 +103,7 @@ internal sealed partial class QuestionWindowController : IDisposable, IPendingQu
         {
             running = false;
             if (window is null) { state = null; }
+            main.NotifyResponseReadDecisionAvailability();
         }
     }
 
@@ -109,6 +111,7 @@ internal sealed partial class QuestionWindowController : IDisposable, IPendingQu
     {
         if (disposed) { return; }
         ownerUsers++;
+        main.NotifyResponseReadDecisionAvailability();
         try
         {
             var model = await host.ReturnToCurrentQuestionAsync(CancellationToken.None);
@@ -131,6 +134,7 @@ internal sealed partial class QuestionWindowController : IDisposable, IPendingQu
         finally
         {
             ownerUsers--;
+            main.NotifyResponseReadDecisionAvailability();
         }
     }
 
@@ -146,6 +150,7 @@ internal sealed partial class QuestionWindowController : IDisposable, IPendingQu
 
         state = model;
         window = new(model, renderer);
+        main.NotifyResponseReadDecisionAvailability();
         var opened = window;
         opened.Closed += (_, _) =>
         {
@@ -153,6 +158,7 @@ internal sealed partial class QuestionWindowController : IDisposable, IPendingQu
             {
                 window = null;
                 if (!running) { state = null; }
+                main.NotifyResponseReadDecisionAvailability();
             }
         };
         if (owner is null) { window.Show(); }
@@ -204,6 +210,7 @@ internal sealed partial class QuestionWindowController : IDisposable, IPendingQu
         window?.Close();
         window = null;
         state = null;
+        main.NotifyResponseReadDecisionAvailability();
     }
 
     public void Dispose()

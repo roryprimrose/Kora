@@ -1,9 +1,11 @@
 using AwesomeAssertions;
 
+using Kora.Application.UnitTests.Configuration;
 using Kora.Core.Auditing;
 using Kora.Core.Hosting;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
+using Kora.Core.Presentation;
 using Kora.Core.Storage;
 using Kora.Application.Hosting.SessionRouting;
 
@@ -95,11 +97,17 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task QualifiedRoutedAnswerUsesTheSharedBriefAndDetailsPresentation(bool details)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task QualifiedRoutedAnswerUsesTheSharedBriefAndDetailsPresentation(bool details, bool linkOnly)
     {
-        var f = await Fixture.CreateInitializedAsync();
+        await using var settings = new DetailPresentationConfigurationServiceTests.Fixture();
+        if (linkOnly) { settings.Preferences.Value = DetailPresentationMode.LinkOnly; }
+        var f = new Fixture(detailPresentationConfiguration: settings.Service);
+        using var main = f.ViewModel;
+        await main.InitializeAsync();
         var request = HostRequest.Create(RequestOrigin.LocalUi);
         var target = new SessionWorkspaceEntry(new(request.SessionId, new(1), true), new(request.SessionId, new(1), new("Reviewed destination")));
         var body = details ? "Brief response:\nExact brief.\n\nDetailed response:\nMore exact retained answer details." : "Exact short answer.";
@@ -111,7 +119,15 @@ public sealed partial class MainViewModelTests
             new(target, new(message, new(request, new(3), message.ExpectedTaskState)))));
         await f.RunAsync("original");
         f.ViewModel.ResponseBody.Should().Contain(details ? "Exact brief." : body);
-        f.ViewModel.IsDetailsOfferPending.Should().Be(details);
+        var offers = details && !linkOnly;
+        f.ViewModel.IsDetailsOfferPending.Should().Be(offers);
+        f.ViewModel.ResponseBody.Split(AnswerPresentation.Offer, StringSplitOptions.None)
+            .Should().HaveCount(offers ? 2 : 1);
+        var presenter = new ResponsePresenter(main);
+        main.BindCurrentResponsePresentation(presenter);
+        await main.OpenCurrentResponseDetailsAsync();
+        presenter.Content!.Source.Should().Be(body);
+        settings.Preferences.Writes.Should().Be(0);
         f.Reasoner.Requests.Should().BeEmpty();
     }
 

@@ -22,6 +22,8 @@ public sealed partial class MainViewModel
 
     public void RevokeSessionPresentation(HostId<SessionIdentity> session)
     {
+        Interlocked.Increment(ref knowledgeAnswerRevision);
+        OnPropertyChanged(nameof(KnowledgeSourceAnswerRevision));
         if (!sessionPresentationSources.Contains(session.Value)) { return; }
         RetireSessionCommandReviews();
         sessionPresentationSources.Clear();

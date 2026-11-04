@@ -36,7 +36,7 @@ public static class RegisteredSettingSuggestions
         + "Response-mode review shows saved/default, desired and configured effective modes. Use exact canonical "
         + "Hybrid, VoiceOnly or VisualOnly; mandatory full visual warnings, questions, approvals, security, speech-unavailable "
         + "fallback, privacy and call restrictions always win, including VoiceOnly. Response mode affects future eligible output only. "
-        + "speech.voice requires the exact installed 'provider / voice ID' supplied by the user; no invented IDs, catalogue discovery, acquisition or provider-only Set. "
+        + "speech.voice requires the exact installed 'provider / voice ID' supplied by the user; no invented IDs, catalogue discovery, acquisition, provider-only Set or Reset. "
         + "Speech changes apply to NEXT eligible ordinary speech only. Nothing is applied or spoken by the suggestion; "
         + "never truncate, regenerate, synthesize or replay this answer. Existing privacy, call and native/authentication exceptions remain mandatory.";
 
@@ -64,7 +64,8 @@ public static class RegisteredSettingSuggestions
 
         foreach (var descriptor in RegisteredSettingRegistry.Settings)
         {
-            if (string.Equals(answer, $"reset {descriptor.Id}", StringComparison.Ordinal))
+            if (descriptor.Setting != RegisteredSetting.SpeechVoice
+                && string.Equals(answer, $"reset {descriptor.Id}", StringComparison.Ordinal))
             { return new RegisteredSettingProposal.Reset(descriptor.Setting); }
         }
         if (AppearanceCommand.Parse(answer, AssistantNameRules.DefaultName) is

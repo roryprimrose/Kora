@@ -53,7 +53,8 @@ Kora validates that exact installed pair privately; the model cannot enumerate c
 
 ## Propose one Reset
 
-The complete retained answer may instead be exactly `reset <exact ID>` for one setting in the table, for example `reset speech.playback-volume`. No value, model-supplied default, aliases, commentary or batch is accepted ([parser](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestions.cs)).
+The complete retained answer may instead be exactly `reset <exact ID>` for one setting in the table except `speech.voice`, for example `reset speech.playback-volume`.
+Installed voice remains Set-only and requires an exact installed pair. No value, model-supplied default, aliases, commentary or batch is accepted ([parser](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestions.cs)).
 
 Use the same separate review and confirmation below. Review resolves the default through the host, shows current and proposed values/provenance and preserves the exact source and original channel. Reset does not mean every owner removes its saved preference:
 

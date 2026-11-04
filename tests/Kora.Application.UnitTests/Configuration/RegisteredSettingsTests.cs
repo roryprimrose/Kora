@@ -185,6 +185,11 @@ public sealed class RegisteredSettingsTests
         foreach (var descriptor in RegisteredSettingRegistry.Settings)
         {
             var text = $"reset {descriptor.Id}";
+            if (descriptor.Setting == RegisteredSetting.SpeechVoice)
+            {
+                FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse(text)).Should().Throw<InvalidDataException>();
+                continue;
+            }
             var proposal = RegisteredSettingSuggestions.Parse(text).Should().BeOfType<RegisteredSettingProposal.Reset>().Subject;
             proposal.Descriptor.Should().BeSameAs(descriptor);
             foreach (var invalid in new[] { text + " to default", text + " to 0", text + " ", " " + text,

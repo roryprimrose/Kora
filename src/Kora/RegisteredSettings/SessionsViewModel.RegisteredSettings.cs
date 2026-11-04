@@ -13,6 +13,7 @@ internal sealed partial class SessionsViewModel
             + item.SuggestedValues
             + (item.RequiresNativeReview ? " (native review only)" : string.Empty)))
         + ". Set supplies one value; Reset supplies only the exact ID and uses the owner's default. "
+        + "Installed voice supports only Set with an exact installed provider and voice pair, not Reset. "
         + "All are shared device-local preferences. Review changes nothing.";
 
     public bool CanReviewRegisteredSettingSuggestion => CanReviewAppearanceSuggestion

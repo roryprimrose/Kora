@@ -871,6 +871,13 @@ The preference uses the shared atomic store and strict domain parsing. Save/read
 
 Reduced motion and response timeout remain independent registered preferences. Reduced-motion suggestions and undo require native review/confirmation; the [response-timeout interaction](#delivered-registered-response-timeout-proposal) retains its original-channel review and confirmation.
 
+An already protected Active/Unknown call does not block a fresh native review and
+separate local confirmation of an existing appearance suggestion. Original local
+source/native-only restrictions remain; response timeout retains its separate
+original-channel call-policy check. The captured call revision, private host,
+source and preference must still remain current through confirmation. This
+changes no call protection, consent, speech permission or playback.
+
 The reader option is the separately bounded native [source/detail, complete serialized Evidence-page and observed speech-caption content typography contract](Information_Display.md#bounded-native-reader-text-scale): absolute integer percent, default 100, inclusive 75–200. Its original input/host eligibility is rechecked at commit; atomic pending evidence stays held until exact readback and successful audit. A failed terminal receipt does not claim disk rollback and new readers reject unconfirmed evidence. Open Evidence readers and captions retire explicitly when preference evidence becomes unavailable; no chrome or global UI scale is added. Caption labels, pin/display controls, accessible names, geometry, enablement, speech and privacy/call/source lifetimes are unchanged. Existing option formats and migrations are preserved ([workflow](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs), [store](../src/Kora.Application/Configuration/LocalReaderTextScalePreferences.cs)).
 
 Natural exact theme and native reader-scale [aliases](../docs/commands.md#natural-exact-app-theme-and-native-reader-text-scale) reuse this admitted service.

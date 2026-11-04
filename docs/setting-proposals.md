@@ -44,6 +44,11 @@ Presence suggestions likewise require the exact lowercase syntax and IDs above,
 canonical decimal integers or lowercase `true`/`false`, with no surrounding text.
 Response-timeout suggestions use the same canonical lowercase syntax, for example `set appearance.response-timeout to 15`. This is the response-window inactivity hide delay, not a provider/request deadline ([existing preference](settings.md#independent-visibility-timeouts)).
 Native renderer selection is not an admitted model suggestion.
+During a protected call, a fresh native appearance review and separate local
+confirmation remain available under the table's existing channel restrictions.
+They never clear call protection or enable speech. A changed call observation,
+private host or source requires a fresh review; a later click cannot relabel a
+voice-originated suggestion as an original local source.
 This suggestion registry does not expand setting inspection: inspection remains
 limited to theme, reader text scale, both summary caps, playback volume and response mode.
 

@@ -5,6 +5,7 @@ using Kora.Application.Communication;
 using Kora.Application.Configuration.RegisteredSettings;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
+using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
@@ -19,7 +20,7 @@ public sealed class WindowsSpeechRateSuggestionReview : IDisposable
     private readonly CallCommunicationPolicy policy;
     private readonly TimeProvider time;
     private readonly WindowsSpeechRateState current;
-    private readonly WindowsSpeechRate proposed;
+    private readonly WindowsSpeechRate? proposed;
     private readonly HostRequest reviewRequest;
     private readonly RequestOrigin sourceOrigin;
     private readonly long callRevision;
@@ -33,7 +34,7 @@ public sealed class WindowsSpeechRateSuggestionReview : IDisposable
     private volatile bool retired;
 
     private WindowsSpeechRateSuggestionReview(WindowsSpeechRateConfigurationService configuration,
-        CallCommunicationPolicy policy, TimeProvider time, WindowsSpeechRateState current, WindowsSpeechRate proposed,
+        CallCommunicationPolicy policy, TimeProvider time, WindowsSpeechRateState current, WindowsSpeechRate? proposed,
         HostRequest reviewRequest, RequestOrigin sourceOrigin, long callRevision, Func<bool> eligible,
         Func<CancellationToken, Task> validateSource, ModelTurnProvenance source)
     {
@@ -56,7 +57,8 @@ public sealed class WindowsSpeechRateSuggestionReview : IDisposable
     internal bool BelongsTo(WindowsSpeechRateConfigurationService owner) => ReferenceEquals(configuration, owner);
     public string Description => Available
         ? $"Current desired: {current.Desired!.Value.Value}; effective: {current.Effective!.Value.Value} ({current.Source}). "
-            + $"Proposed: {proposed.Value}. Provider: {current.ProviderId}; support: {current.Support}. "
+            + $"Proposed: {(proposed ?? WindowsSpeechRate.Default).Value}. Provider: {current.ProviderId}; support: {current.Support}. "
+            + (proposed is null ? "Reset removes the saved preference; the authoritative default is unsaved (default). " : string.Empty)
             + "Units: Windows native -10 through 10, normal 0, not percent or a common speed scale. "
             + "Scope: shared device-local, Kora's Windows synthesizer only; Kokoro unchanged. "
             + "Nothing has changed. Applies to NEXT eligible Windows speech only; this answer is never synthesized or replayed. "
@@ -73,8 +75,12 @@ public sealed class WindowsSpeechRateSuggestionReview : IDisposable
         var call = policy.Current.Revision;
         if (request.RequestId == message.Request.RequestId || message.Outcome != ModelTurnOutcome.Succeeded)
         { throw new InvalidOperationException("Review requires an exact successful retained original-user answer, not model authority."); }
-        if (RegisteredSettingSuggestions.Parse(message.AssistantResponse!.Body) is not RegisteredSettingProposal.WindowsRate proposal)
-        { throw new InvalidDataException("Request one exact speech.windows-rate Set suggestion only."); }
+        var value = RegisteredSettingSuggestions.Parse(message.AssistantResponse!.Body) switch
+        {
+            RegisteredSettingProposal.WindowsRate proposal => (WindowsSpeechRate?)proposal.Value,
+            RegisteredSettingProposal.Reset { Setting: RegisteredSetting.WindowsSpeechRate } => null,
+            _ => throw new InvalidDataException("Request one exact speech.windows-rate Set or Reset suggestion only."),
+        };
         var state = configuration.Get();
         if (!state.Available)
         { throw new InvalidOperationException("Windows rate is unavailable. Inspect Settings recovery and explicitly refresh before a fresh review."); }
@@ -87,7 +93,7 @@ public sealed class WindowsSpeechRateSuggestionReview : IDisposable
         var origin = message.Request.Origin == RequestOrigin.ActivatedVoice ? message.Request.Origin : request.Origin;
         if (policy.CheckMutation(origin, call, eligible) is not null)
         { throw new InvalidOperationException("The original channel or call policy denies this rate review."); }
-        return new(configuration, policy, time, state, proposal.Value, request, origin, call, eligible, validateSource, message.Execution!);
+        return new(configuration, policy, time, state, value, request, origin, call, eligible, validateSource, message.Execution!);
     }
 
     public async Task<bool> ConfirmAsync(CancellationToken token, SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
@@ -128,7 +134,7 @@ public sealed class WindowsSpeechRateSuggestionReview : IDisposable
             token.ThrowIfCancellationRequested();
             if (!Eligible() || RequireInput(reviewRequest.SessionId) != request || configuration.Get() != refreshed)
             { throw new InvalidOperationException("The exact rate source, confirmation or refreshed settings changed before apply."); }
-            var candidate = configuration.Propose(proposed.Value.ToString(CultureInfo.InvariantCulture), refreshed.Revision, callRevision);
+            var candidate = configuration.Propose(proposed?.Value.ToString(CultureInfo.InvariantCulture), refreshed.Revision, callRevision);
             var saved = await configuration.ApplyAsync(candidate, origin,
                 origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : initiator,
                 policy, Eligible, token).ConfigureAwait(false);

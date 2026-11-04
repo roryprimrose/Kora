@@ -1890,6 +1890,27 @@ Reset/undo use normal validation, confirmation, and policy checks; restoring a w
 If an external registration/action changed, report that a separate compensating action requires approval.
 Never treat undo as reinstating expired grants or microphone consent.
 
+### Delivered single registered-preference Reset proposals
+
+A successful retained model answer may propose exactly `reset <registered ID>` for one member of the existing [registered subset](../src/Kora.Core/Configuration/RegisteredSettings/RegisteredSettingRegistry.cs). It carries no value or write authority.
+The [shared parser](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestions.cs) preserves Set grammar and rejects defaults supplied by the model, batches and unrelated settings.
+
+The original user reviews current/default values, saved/default provenance, scope and companion effects, then separately confirms through the existing authoritative owner.
+Appearance remains original-local-UI/native-only except response timeout; response timeout, speech, volume, Windows rate and response mode retain their current typed/activated-voice review routes and channel restrictions ([user flow](../docs/setting-proposals.md#propose-one-reset)).
+
+Reset preserves the owner's semantics, not a global remove-file convention:
+
+- Appearance saves its default value ([owner](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
+- Summary limits save the complete pair with only the selected cap reset and the known companion preserved ([owner](../src/Kora.Application/Configuration/SpeechConfigurationService.cs)).
+- Volume/rate remove the saved preference ([volume](../src/Kora.Application/Configuration/PlaybackVolumeConfigurationService.cs), [rate](../src/Kora.Application/Configuration/WindowsSpeechRateConfigurationService.cs)).
+- Response mode saves Hybrid through the same shared Reset dispatch as native/exact input ([owner](../src/Kora.Application/Configuration/ResponseModeConfigurationService.cs)).
+
+Appearance already equal to its default remains unchanged, including its existing saved/default provenance; this is not represented as a new save or undo receipt ([unchanged outcome](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
+
+Confirmation revalidates the exact retained source, fresh request, revision, original channel and host/private/call authority.
+Cancellation writes nothing; a failed/unknown persistence, readback or audit result is not success and does not imply rollback or automatic retry ([source-bound reviews](../src/Kora.Application/Configuration/AppearanceSuggestionReview.cs)).
+No model undo authority, consent, provider/device, grant, retention or speech dispatch is added ([audio admission](../src/Kora.Application/Configuration/PlaybackVolumeSuggestionReview.cs)).
+
 ### Delivered single registered-preference undo
 
 The host retains **one run-only last confirmed change** from the [closed registered subset](../src/Kora.Core/Configuration/RegisteredSettings/RegisteredSettingRegistry.cs): registered appearance/presence, spoken-summary caps, Kora playback volume and ordinary response mode. It is not a general settings history, durable journal, undo queue or rollback product ([receipt owner](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).

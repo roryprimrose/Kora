@@ -13,6 +13,38 @@ namespace Kora.Application.UnitTests.Configuration;
 
 public sealed partial class SpeechConfigurationServiceTests
 {
+    [Theory]
+    [InlineData(SpeechOption.SummaryWords, "speech.summary-words", 1, 80)]
+    [InlineData(SpeechOption.SummarySentences, "speech.summary-sentences", 3, 25)]
+    public async Task SummaryResetPreservesCompanionAndMatchesNativeSavedPair(SpeechOption option, string id, int sentences, int words)
+    {
+        using var f = new Fixture();
+        using var native = new Fixture();
+        f.Preferences.Limits = native.Preferences.Limits = new(1, 25);
+        var message = SpeechSuggestion($"reset {id}");
+        SpeechSummarySuggestionReview review;
+        using (BeginSpeechInput(SpeechInput(message)))
+        {
+            review = await SpeechSummarySuggestionReview.ReviewAsync(f.Service, f.Policy, new SuggestionClock(),
+                message, () => true, _ => Task.CompletedTask, TestContext.Current.CancellationToken);
+            review.Description.Should().Contain("Current: 1 sentences, 25 words (saved)")
+                .And.Contain($"Proposed: {sentences} sentences, {words} words")
+                .And.Contain("Reset saves this complete pair").And.Contain("companion cap is unchanged");
+            f.Preferences.Writes.Should().Be(0);
+            f.Audit.Events.Should().BeEmpty();
+        }
+        using (review)
+        using (BeginSpeechInput(SpeechInput(message)))
+        { (await review.ConfirmAsync(TestContext.Current.CancellationToken)).Succeeded.Should().BeTrue(); }
+        native.Apply(native.Reset(option)).Succeeded.Should().BeTrue();
+        f.Service.Get().Should().BeEquivalentTo(native.Service.Get(), options => options.WithStrictOrdering());
+        f.Preferences.Limits.Should().Be(new SpokenSummaryLimits(sentences, words));
+        f.CreateService().Get().SummaryLimits.Should().Be(f.Preferences.Limits);
+        f.CreateService().Get().AreSummaryLimitsSaved.Should().BeTrue();
+        f.Audit.Events.Select(item => (item.ActionId, item.Outcome, item.Initiator)).Should()
+            .Equal(native.Audit.Events.Select(item => (item.ActionId, item.Outcome, item.Initiator)));
+    }
+
     [Fact]
     public async Task RegisteredSpeechSuggestionRejectsStoppedParentAfterChildRestoresAmbientActivity()
     {
@@ -143,7 +175,7 @@ public sealed partial class SpeechConfigurationServiceTests
     [InlineData("set speech.summary-words to 40 and confirm")]
     [InlineData("set speech.provider to windows-sapi")]
     [InlineData("set speech.voice to default")]
-    [InlineData("reset speech.summary-words")]
+    [InlineData("reset speech.summary-words to 80")]
     [InlineData("get speech.summary-words")]
     [InlineData("set spoken summary word limit to 40")]
     [InlineData("Kora, set speech.summary-words to 40")]
@@ -210,10 +242,17 @@ public sealed partial class SpeechConfigurationServiceTests
     [InlineData("settings-after")]
     [InlineData("voice-protected")]
     [InlineData("cancel-before")]
+    [InlineData("reset-invocation")]
+    [InlineData("reset-unreadable-settings")]
+    [InlineData("reset-voice-protected")]
+    [InlineData("reset-forged-provenance")]
     public async Task SpeechSuggestionFailsClosedBeforeIssuingReview(string failure)
     {
         using var f = new Fixture();
-        var message = SpeechSuggestion(origin: failure is "voice-protected" ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
+        var reset = failure.StartsWith("reset-", StringComparison.Ordinal);
+        if (reset) { failure = failure[6..]; }
+        var message = SpeechSuggestion(reset ? "reset speech.summary-words" : "set speech.summary-words to 40",
+            origin: failure is "voice-protected" ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
         var request = SpeechInput(message);
         if (failure is "foreign-session") { request = HostRequest.Create(RequestOrigin.LocalUi); }
         if (failure is "invocation") { request = new(request.RequestId, request.SessionId, request.TaskId, request.Origin, new(Guid.NewGuid())); }
@@ -254,10 +293,18 @@ public sealed partial class SpeechConfigurationServiceTests
     [InlineData("late-cancel")]
     [InlineData("source-read")]
     [InlineData("invalid-initiator")]
+    [InlineData("reset-expired")]
+    [InlineData("reset-disposed")]
+    [InlineData("reset-settings")]
+    [InlineData("reset-source")]
+    [InlineData("reset-late-source")]
+    [InlineData("reset-late-cancel")]
     public async Task SpeechSuggestionConfirmationConsumesOrRejectsStaleReviewWithoutWriting(string failure)
     {
         using var f = new Fixture();
-        var message = SpeechSuggestion();
+        var reset = failure.StartsWith("reset-", StringComparison.Ordinal);
+        if (reset) { failure = failure[6..]; }
+        var message = SpeechSuggestion(reset ? "reset speech.summary-words" : "set speech.summary-words to 40");
         var clock = new SuggestionClock();
         var live = true;
         var confirming = false;
@@ -297,10 +344,16 @@ public sealed partial class SpeechConfigurationServiceTests
     [InlineData("terminal-audit")]
     [InlineData("persisted-drift")]
     [InlineData("late-call")]
+    [InlineData("reset-store")]
+    [InlineData("reset-requested-audit")]
+    [InlineData("reset-terminal-audit")]
+    [InlineData("reset-persisted-drift")]
     public async Task SpeechSuggestionWriteFailuresHaveNoRetryAndNeverClaimRollback(string failure)
     {
         using var f = new Fixture();
-        var message = SpeechSuggestion();
+        var reset = failure.StartsWith("reset-", StringComparison.Ordinal);
+        if (reset) { failure = failure[6..]; }
+        var message = SpeechSuggestion(reset ? "reset speech.summary-words" : "set speech.summary-words to 40");
         SpeechSummarySuggestionReview review;
         using (BeginSpeechInput(SpeechInput(message)))
         {

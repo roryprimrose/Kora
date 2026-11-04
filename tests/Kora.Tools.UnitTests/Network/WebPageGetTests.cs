@@ -73,6 +73,57 @@ public sealed partial class WebPageGetTests
         transport.ResolvedHosts.Should().Equal("example.com", "other.example");
     }
 
+    [Theory]
+    [InlineData("<script>if (left < right) { secret(); }</script>", true)]
+    [InlineData("<script>const text = '<script>private';</script>", true)]
+    [InlineData("<style>.hidden::before { content: '<style>private'; }</style>", true)]
+    [InlineData("<script>const text = '</style><p>private</p>';</script>", true)]
+    [InlineData("<style>.hidden::before { content: '</script><p>private</p>'; }</style>", true)]
+    [InlineData("<SCRIPT type='text/javascript'>if (left < right) { secret(); }</ScRiPt >", true)]
+    [InlineData("<script>private</script/>", true)]
+    [InlineData("<script>private</script\t>", true)]
+    [InlineData("<script>private</script\r>", true)]
+    [InlineData("<script>private</script\n>", true)]
+    [InlineData("<script>private</script\f>", true)]
+    [InlineData("<script>private</scripture><p>still private</p></script>", true)]
+    [InlineData("<script>private</script", false)]
+    [InlineData("<script>private</scripture>", false)]
+    [InlineData("<style>private", false)]
+    public async Task RawTextNeverLeaksAndMatchingClosePreservesVisibleArticle(string rawElement, bool hasMatchingClose)
+    {
+        var transport = new Transport(PublicAddress);
+        transport.Responses.Enqueue(Response("https://example.com/",
+            "<p>Before</p>" + rawElement + "<p>Approved article &amp; source</p>"));
+        var audit = new Audit();
+        var result = await new WebPageGet(transport, audit).ExecuteAsync(
+            new(new("https://example.com/")), SecurityAuditInitiator.LocalUser,
+            static (_, _) => ValueTask.FromResult(true), TestContext.Current.CancellationToken);
+
+        result.Outcome.Should().Be(WebPageGetOutcome.Succeeded);
+        result.Text.Should().Be(hasMatchingClose ? "Before\nApproved article & source" : "Before");
+        result.Truncated.Should().BeFalse();
+        transport.Endpoints.Should().Equal(PublicAddress);
+        audit.Events.Select(item => item.Outcome).Should().Equal(
+            SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+        audit.Events.Select(item => item.ReasonCode).Should().Equal(null, "retrieved");
+    }
+
+    [Theory]
+    [InlineData("<script>")]
+    [InlineData("<script>private</script")]
+    [InlineData("<script>private</script ")]
+    public async Task IncompleteRawTextEndRemainsOmittedAtResponseBoundary(string rawElement)
+    {
+        var transport = new Transport(PublicAddress);
+        transport.Responses.Enqueue(Response("https://example.com/", "<p>Before</p>" + rawElement));
+        var result = await new WebPageGet(transport, new Audit()).ExecuteAsync(
+            new(new("https://example.com/")), SecurityAuditInitiator.LocalUser,
+            static (_, _) => ValueTask.FromResult(true), TestContext.Current.CancellationToken);
+        result.Outcome.Should().Be(WebPageGetOutcome.Succeeded);
+        result.Text.Should().Be("Before");
+        result.Truncated.Should().BeFalse();
+    }
+
     [Fact]
     public async Task RevocationDuringResolutionPreventsThePhysicalConnection()
     {

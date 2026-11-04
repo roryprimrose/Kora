@@ -27,6 +27,59 @@ public sealed partial class ModelTurnHostTests
             $"description: Review prose\nallowed-tools: {WebPageCapability.Id}", StringComparison.Ordinal);
 
     [Theory]
+    [InlineData(RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.ActivatedVoice)]
+    public async Task ReviewedPageSkillReceivesVisibleArticleAfterRawScriptBeforeRetainingGenuineAnswer(RequestOrigin origin)
+    {
+        using var f = new Fixture(origin);
+        await using var skill = new SharedSkillHarness(f);
+        await skill.Register();
+        DeclareWebTool(skill);
+        const string article = "Approved article & source";
+        var transport = new ToolTransport(PageCall, PageAnswer)
+        {
+            AfterRequest = request =>
+            {
+                if (request.Round != 2) { return; }
+                var result = request.Messages.OfType<ModelToolResultMessage>().Single();
+                using var wire = JsonDocument.Parse(result.Result.ToArray());
+                var page = wire.RootElement.GetProperty("webPage");
+                page.GetProperty("text").GetString().Should().Be(article);
+                page.GetProperty("localOnly").GetBoolean().Should().BeTrue();
+                page.GetProperty("requestedAddress").GetString().Should().Be(ToolDestination.AbsoluteUri);
+                page.GetProperty("finalAddress").GetString().Should().Be(ToolDestination.AbsoluteUri);
+            },
+        };
+        await using var loop = CreateLoop(f, transport);
+        var approval = new PageApprovalStore(f);
+        var network = new PageNetwork
+        {
+            MediaType = "text/html",
+            Body = "<script>if (left < right) { privateCode(); }</script><p>Approved article &amp; source</p>",
+        };
+        var workflow = skill.ToolWorkflow(adapter: loop, network: network, approval: approval);
+        using var review = await workflow.ReviewAsync(skill.Reader.Source, skill.Reader.Snapshot(), new(f.Session, null),
+            skill.Eligible, origin, Token);
+        await workflow.EnableAsync(review, skill.Eligible, origin, Token);
+        const string body = "Explain this exact approved page.";
+        using var invocation = await workflow.PrepareAsync(review, body, ToolDestination, skill.Eligible, origin, Token);
+        network.Sends.Should().Be(0);
+        transport.Requests.Should().BeEmpty();
+        var receipt = await workflow.InvokeAsync(invocation, skill.Eligible, approval.Present, Token);
+        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        receipt.Message.Body.Should().Be(body);
+        receipt.Message.Request.SessionId.Should().Be(f.Session.SessionId);
+        receipt.Message.Request.Origin.Should().Be(origin);
+        receipt.Message.AssistantResponse!.Body.Should().Be("This is the summary of the approved page; source https://example.com/.");
+        network.Sends.Should().Be(1);
+        approval.Presentations.Should().Be(1);
+        approval.Snapshot!.Grants.Single().Status.Should().Be(OperationGrantStatus.Consumed);
+        transport.Requests.Should().HaveCount(2);
+        f.Messages.Should().NotContain(message => message.Contains(article, StringComparison.Ordinal)
+            || message.Contains("privateCode", StringComparison.Ordinal));
+    }
+
+    [Theory]
     [InlineData(RequestOrigin.LocalUi, false)]
     [InlineData(RequestOrigin.ActivatedVoice, false)]
     [InlineData(RequestOrigin.LocalUi, true)]

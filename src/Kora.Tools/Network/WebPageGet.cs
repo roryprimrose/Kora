@@ -266,7 +266,6 @@ public sealed class WebPageGet(
         var output = new StringBuilder(html.Length);
         var tag = new StringBuilder();
         var inTag = false;
-        var suppressed = 0;
         for (var index = 0; index < html.Length; index++)
         {
             var character = html[index];
@@ -290,24 +289,37 @@ public sealed class WebPageGet(
                 var name = tag.ToString().TrimStart();
                 var closing = name.StartsWith('/');
                 name = name.TrimStart('/').Split([' ', '\t', '\r', '\n'], 2)[0].ToLowerInvariant();
-                if (string.Equals(name, "script", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(name, "style", StringComparison.OrdinalIgnoreCase))
+                if (!closing && name is "script" or "style")
                 {
-                    suppressed += closing ? -1 : 1;
-                    suppressed = Math.Max(0, suppressed);
+                    // Raw text can contain '<' and other element names; only its own end tag closes it.
+                    index = FindRawTextEnd(html, index + 1, name);
                 }
-                if (suppressed == 0 && name is "p" or "br" or "div" or "li" or "h1" or "h2" or "h3")
+                if (name is "p" or "br" or "div" or "li" or "h1" or "h2" or "h3")
                 {
                     output.Append('\n');
                 }
                 continue;
             }
-            if (suppressed == 0)
-            {
-                output.Append(character);
-            }
+            output.Append(character);
         }
         return NormalizeText(WebUtility.HtmlDecode(output.ToString()));
+    }
+
+    private static int FindRawTextEnd(string html, int start, string name)
+    {
+        var closing = "</" + name;
+        var candidate = html.IndexOf(closing, start, StringComparison.OrdinalIgnoreCase);
+        while (candidate >= 0)
+        {
+            var boundary = candidate + closing.Length;
+            if (boundary < html.Length && html[boundary] is '>' or '/' or ' ' or '\t' or '\r' or '\n' or '\f')
+            {
+                var end = html.IndexOf('>', boundary);
+                return end < 0 ? html.Length : end;
+            }
+            candidate = html.IndexOf(closing, boundary, StringComparison.OrdinalIgnoreCase);
+        }
+        return html.Length;
     }
 
     private static string NormalizeText(string text)

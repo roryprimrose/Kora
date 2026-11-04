@@ -22,6 +22,10 @@ Changing this choice retires the previous review and requires a fresh inspection
 ([native review owner](../src/Kora/SettingInspection/SettingInspectionPresenter.cs)).
 
 Only this explicit local request advertises `settings.list` and `settings.get`.
+The complete reviewed metadata uses a JSON table with named `columns` and
+ordered `rows`. Every registered field and confirmed-reader classification is
+preserved; column names appear once so repeated local requests leave room for
+discovery and the genuine final answer within the unchanged cumulative byte limit.
 List accepts bounded `offset`/`count` fields and returns canonical registered
 metadata, scope, validation limits, suggested values, native-review classification
 and whether a confirmed value reader is composed. Get accepts only one exact
@@ -62,7 +66,9 @@ current visibility, rendered size, animation, Windows motion state or performanc
 The appearance values must all match the live service and saved/default provenance
 at its observed revision. A change during review, tool work or publication retires
 the original source and requires fresh inspection.
-Response timeout and Windows speech rate remain value-unavailable.
+Response timeout, Windows speech rate and the registered installed provider/voice
+pair remain value-unavailable. Registering the voice-pair proposal does not add
+its selected value to this confirmed scalar source.
 No provider, account, device, permission, privacy, credential, session, path or
 file content is read into this source. No setting is saved, applied or reset.
 Service observations are independent, not an atomic cross-service snapshot.

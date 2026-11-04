@@ -18,6 +18,22 @@ namespace Kora.Application.UnitTests.Diagnostics;
 public sealed partial class DurableEvidenceQueryTests
 {
     [Fact]
+    public void Optional_exception_signature_preserves_legacy_page_bytes_and_round_trips_when_present()
+    {
+        var record = Record();
+        var page = new EvidencePage(EvidencePageStatus.Available, [record], null, [], EvidencePage.StorageDisclosure);
+        using var legacy = JsonDocument.Parse(DurableEvidenceQuery.Serialize(page));
+        legacy.RootElement.GetProperty("Records")[0].TryGetProperty("ExceptionReport", out _).Should().BeFalse();
+
+        var signature = GitHubExceptionReportTests.Signature();
+        var signed = page with { Records = [record with { ExceptionReport = signature }] };
+        using var serialized = JsonDocument.Parse(DurableEvidenceQuery.Serialize(signed));
+        var restored = serialized.RootElement.GetProperty("Records")[0].GetProperty("ExceptionReport")
+            .Deserialize<ExceptionReportSignature>();
+        restored.Should().Be(signature);
+    }
+
+    [Fact]
     public async Task Authority_source_preserves_typed_commit_metadata_and_explicit_separate_disclosure()
     {
         using var listener = Listen();

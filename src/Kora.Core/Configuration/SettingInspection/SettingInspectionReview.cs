@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
-using System.Globalization;
+using System.Text;
+using System.Text.Json;
 using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Conversation;
 using Kora.Core.Context;
@@ -60,9 +61,7 @@ public sealed class SettingInspectionReview
         if (toolMode == ModelToolMode.SettingsDiscovery)
         {
             Source += "\n\nREGISTERED METADATA (value-unavailable unless ConfirmedValueAvailable):\n"
-                + string.Join("\n", RegisteredSettingRegistry.Settings.Select(item =>
-                    string.Create(CultureInfo.InvariantCulture,
-                        $"{item.Id} ({item.Setting}): {item.Description}; units={item.Units}; minimum={item.Minimum}; maximum={item.Maximum}; scope={item.Scope}; suggested={item.SuggestedValues}; RequiresNativeReview={item.RequiresNativeReview}; ConfirmedValueAvailable={SettingsDiscoveryTools.HasConfirmedReader(item.Setting)}")));
+                + RegisteredMetadata();
         }
         Question = question;
         Original = original;
@@ -79,6 +78,44 @@ public sealed class SettingInspectionReview
     public ModelToolMode ToolMode { get; }
     public string ModelPolicy => ToolMode == ModelToolMode.SettingsDiscovery ? DiscoveryPolicy : Policy;
     public bool TryConsume() => Interlocked.Exchange(ref consumed, 1) == 0;
+
+    private static string RegisteredMetadata()
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            writer.WriteStartObject();
+            writer.WritePropertyName("columns");
+            JsonSerializer.Serialize(writer, new[]
+            {
+                nameof(RegisteredSettingDescriptor.Setting), nameof(RegisteredSettingDescriptor.Id),
+                nameof(RegisteredSettingDescriptor.Description), nameof(RegisteredSettingDescriptor.Units),
+                nameof(RegisteredSettingDescriptor.Minimum), nameof(RegisteredSettingDescriptor.Maximum),
+                nameof(RegisteredSettingDescriptor.RequiresNativeReview), nameof(RegisteredSettingDescriptor.Scope),
+                nameof(RegisteredSettingDescriptor.SuggestedValues), nameof(RegisteredSettingMetadata.ConfirmedValueAvailable),
+            });
+            writer.WriteStartArray("rows");
+            foreach (var item in RegisteredSettingRegistry.Settings)
+            {
+                writer.WriteStartArray();
+                writer.WriteNumberValue((int)item.Setting);
+                writer.WriteStringValue(item.Id);
+                writer.WriteStringValue(item.Description);
+                writer.WriteStringValue(item.Units);
+                JsonSerializer.Serialize(writer, item.Minimum);
+                JsonSerializer.Serialize(writer, item.Maximum);
+                writer.WriteBooleanValue(item.RequiresNativeReview);
+                writer.WriteStringValue(item.Scope);
+                writer.WriteStringValue(item.SuggestedValues);
+                writer.WriteBooleanValue(SettingsDiscoveryTools.HasConfirmedReader(item.Setting));
+                writer.WriteEndArray();
+            }
+            writer.WriteEndArray();
+            writer.WriteEndObject();
+        }
+        return Encoding.UTF8.GetString(stream.ToArray());
+    }
+
     public static void ValidateQuestion(string question, HostRequest original)
     {
         ConversationText.Validate(question, submission: true);

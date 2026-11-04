@@ -4845,6 +4845,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 HasCurrentNameActivation(spokenText));
             return;
         }
+        if (InstalledSpeechVoiceSuggestionCommand.Parse(spokenText, AssistantName) is { } installedVoiceSuggestionCommand)
+        {
+            await ExecuteInstalledSpeechVoiceSuggestionAsync(installedVoiceSuggestionCommand, initiator,
+                HasCurrentNameActivation(spokenText));
+            return;
+        }
         if (SpeechCommand.Parse(spokenText, AssistantName) is { IsNaturalSummary: true } speechCommand)
         {
             if (initiator == SecurityAuditInitiator.VoiceCommand
@@ -6892,6 +6898,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(SpeechSummarySuggestionCommand.FixedPhrases)
             .Concat(PlaybackVolumeSuggestionCommand.FixedPhrases)
             .Concat(WindowsSpeechRateSuggestionCommand.FixedPhrases)
+            .Concat(InstalledSpeechVoiceSuggestionCommand.FixedPhrases)
             .Concat(RegisteredSettingSuggestionCommand.FixedPhrases)
             .Concat(RegisteredSettingSuggestionCommand.ResponseTimeoutPhrases)
             .Concat(RegisteredSettingUndoCommand.FixedPhrases)

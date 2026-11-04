@@ -202,8 +202,10 @@ surrounding whitespace or controls; sequences are canonical positive 64-bit
 decimal integers with ordered bounds. Missing metadata never matches a set
 predicate. All filters compose with AND; edits clear results/selection and cancel
 old reads without starting a new one. Clear advanced resets these fields.
-Event/exception names do not expose exception messages, stack traces, sensitive
-properties, user content or omitted bodies. Sequence is committed ordering
+Event/exception name filters do not expose exception messages, sensitive
+properties, user content or omitted bodies. Newly captured diagnostics can
+include bounded normalised method stacks for [reviewed problem reports](problem-reports.md),
+without source paths, line numbers or argument values. Sequence is committed ordering
 metadata only, never authority, completeness, freshness, replay position or
 permission. Existing source distinctions, validation and page budgets remain.
 
@@ -803,7 +805,12 @@ Ownership/privacy denial, malformed filters/cursors, corrupt data and private
 access failures are visible; no store or permission repair is attempted.
 Closing or privacy closure clears/cancels the view without changing retained
 sources. There is no copy, export, model reasoning, browser, deletion, grant
-use or remote transmission from this inspector.
+use or remote transmission of raw records from this inspector. A selected
+exception with a retained normalised stack has a separate
+[public problem-report review](problem-reports.md): fingerprint lookup and
+browser handoff each require explicit native input and current host/network
+admission. Kora never posts an issue; GitHub authentication and final Create
+remain in the user's browser.
 
 DailyLog reads only exact Kora daily names from the supplied application-data
 Logs directory; it accepts no path, creates no file and repairs no permissions.

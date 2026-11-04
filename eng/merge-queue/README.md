@@ -99,6 +99,14 @@ Controller, CI-workflow and release-control changes, and isolated group-failure
 retries, use the existing fully validated **exact-head singleton path**, even
 inside this profile.
 
+A complete zero-file PR also uses that exact-head singleton path: an empty diff
+does not attest validation or prove that GitHub merged the PR. File inventories
+must match a nonnegative count below GitHub's 3,000-file pagination limit, with
+the same PR, same-repository head and main base before and after pagination.
+Unavailable, partial, duplicate, malformed or changing observations fail
+explicitly; they are never reinterpreted as empty. Normal candidate checks,
+merge confirmation and cancellation/join remain required.
+
 ### Frozen source and truthful proof
 
 [Batch policy](batch-policy.cjs), [reconciliation](batch.cjs) and the
@@ -539,6 +547,20 @@ initial unversioned twelve-job workflow and its merged native-fixture timing
 revision from [PR #661](https://github.com/roryprimrose/Kora/pull/661).
 Old runs therefore retire against their own inventory rather than requiring
 jobs that did not exist.
+
+The historical twelve-partition regression uses the frozen
+[native-fixture timing workflow](fixtures/ci-native-fixture-timing.yml), whose
+Git blob is `d3db4c610d08468c508f09e63b10f7c6568b82ea`. Keep those bytes unchanged:
+removing the schema marker from today's workflow does not recreate a trusted
+predecessor. Tests cover both the current schema-declared workflow and that exact
+historical inventory, and reject modified unversioned bytes without expanding
+the production allowlist.
+
+The [admission-rejection fixture](fixtures/ci-admission-rejection.yml) similarly
+preserves blob `97e22a8f88bcdc9bbaef32cf9e7200dd6e5c43cd` for the
+[exact historical admission-rejection regression](github.test.cjs). Changes to
+the current workflow must not change that fixture or expand the
+[production allowlist](policy.cjs) to satisfy the regression.
 
 Source bytes are read through the trusted repository Contents API at that exact
 base and checked against the returned Git blob identity. Missing source, malformed

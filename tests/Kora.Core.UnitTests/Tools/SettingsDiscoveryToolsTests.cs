@@ -32,18 +32,45 @@ public sealed class SettingsDiscoveryToolsTests
         DateTimeOffset.UnixEpoch, mode);
 
     [Fact]
+    public void ReviewedMetadataRetainsEveryRegistryFieldWithoutRepeatedColumnNames()
+    {
+        var review = Review();
+        var metadataStart = review.Source.IndexOf('{', StringComparison.Ordinal);
+        using var metadata = JsonDocument.Parse(review.Source.AsMemory(metadataStart));
+        var columns = metadata.RootElement.GetProperty("columns").EnumerateArray()
+            .Select(item => item.GetString()!).ToArray();
+        columns.Should().Equal("Setting", "Id", "Description", "Units", "Minimum", "Maximum",
+            "RequiresNativeReview", "Scope", "SuggestedValues", "ConfirmedValueAvailable");
+        var rows = metadata.RootElement.GetProperty("rows").EnumerateArray().ToArray();
+        rows.Should().HaveCount(RegisteredSettingRegistry.Settings.Count);
+        for (var index = 0; index < rows.Length; index++)
+        {
+            var cells = rows[index].EnumerateArray().ToArray();
+            cells.Should().HaveCount(columns.Length);
+            var fields = columns.Zip(cells).ToDictionary(item => item.First, item => item.Second, StringComparer.Ordinal);
+            var descriptor = RegisteredSettingRegistry.Settings[index];
+            var expected = JsonSerializer.SerializeToElement(descriptor);
+            foreach (var field in expected.EnumerateObject())
+            {
+                fields[field.Name].GetRawText().Should().Be(field.Value.GetRawText());
+            }
+            fields["ConfirmedValueAvailable"].GetBoolean()
+                .Should().Be(SettingsDiscoveryTools.HasConfirmedReader(descriptor.Setting));
+        }
+        review.Observations.Should().OnlyContain(item => review.Source.Contains(item.Text, StringComparison.Ordinal));
+        review.Observations.Should().HaveCount(15).And.NotContain(item => item.Setting == RegisteredSetting.SpeechVoice);
+        SettingsDiscoveryTools.HasConfirmedReader(RegisteredSetting.SpeechVoice).Should().BeFalse();
+        review.Text.Should().Contain(review.Source);
+        review.Bind(review.Destination, new(1), DateTimeOffset.UnixEpoch).Evidence.Single().Content
+            .Should().Be(review.Source);
+    }
+
+    [Fact]
     public void ListPagesAreExactRegistryProjectionsAndGetUsesOnlyReviewedCanonicalScalars()
     {
         var review = Review();
         review.Text.Should().Contain("ONLY settings.list/settings.get").And.Contain("value-unavailable")
             .And.Contain(review.Question).And.Contain("speech.summary-words");
-        foreach (var descriptor in RegisteredSettingRegistry.Settings)
-        {
-            review.Source.Should().Contain(descriptor.Id).And.Contain(descriptor.Description)
-                .And.Contain($"units={descriptor.Units}").And.Contain($"scope={descriptor.Scope}")
-                .And.Contain($"suggested={descriptor.SuggestedValues}")
-                .And.Contain($"RequiresNativeReview={descriptor.RequiresNativeReview}");
-        }
         var records = new List<RegisteredSettingMetadata>();
         int? offset = 0;
         while (offset is { } start)
@@ -72,6 +99,9 @@ public sealed class SettingsDiscoveryToolsTests
         }
         SettingsDiscoveryTools.Read(review.Observations, SettingsDiscoveryTools.Get,
             """{"id":"appearance.response-timeout"}""").Should().Be(
+                new CapabilityReply(CapabilityOutcome.Unavailable, "setting-value-unavailable"));
+        SettingsDiscoveryTools.Read(review.Observations, SettingsDiscoveryTools.Get,
+            """{"id":"speech.voice"}""").Should().Be(
                 new CapabilityReply(CapabilityOutcome.Unavailable, "setting-value-unavailable"));
         SettingsDiscoveryTools.Read(review.Observations, "settings.reset", "{}").Outcome.Should().Be(CapabilityOutcome.Denied);
         SettingsDiscoveryTools.Read(review.Observations, SettingsDiscoveryTools.List, """{"offset":999}""")

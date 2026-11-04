@@ -100,6 +100,7 @@ public sealed class SettingInspectionTests
     [InlineData(RegisteredSetting.ReducedMotion, 2)]
     [InlineData(RegisteredSetting.ResponseTimeout, 10)]
     [InlineData(RegisteredSetting.WindowsSpeechRate, 0)]
+    [InlineData(RegisteredSetting.SpeechVoice, 0)]
     [InlineData((RegisteredSetting)99, 0)]
     public void ClassificationRejectsAnythingOutsideClosedValidatedScalars(RegisteredSetting setting, int value) =>
         FluentActions.Invoking(() => new SettingObservation(setting, value, false, 1)).Should().Throw<ArgumentOutOfRangeException>();

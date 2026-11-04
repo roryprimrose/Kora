@@ -271,7 +271,8 @@ public sealed partial class WindowsDailyEvidenceReader : IEvidenceReader
                 diagnostic.MessageTemplate, values, null, null, segments,
                 DailyProvenance: new(file.Name, file.Identity, offset, digest, diagnostic.EvidenceId),
                 ObservedUtc: diagnostic.ObservedUtc, EventName: diagnostic.EventName,
-                ExceptionType: diagnostic.ExceptionType, Scopes: diagnostic.Scopes.Select(Redact).ToArray());
+                ExceptionType: diagnostic.ExceptionType, Scopes: diagnostic.Scopes.Select(Redact).ToArray(),
+                ExceptionReport: diagnostic.ExceptionReport);
         }
         catch (Exception exception) when (exception is JsonException or InvalidDataException or ArgumentException
             or InvalidOperationException or KeyNotFoundException or DecoderFallbackException or FormatException)

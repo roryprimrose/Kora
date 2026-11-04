@@ -238,6 +238,118 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
     }
 
     [Theory]
+    [InlineData(-1)]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(20000)]
+    public async Task DeadlineSampleAfterAwaitedValidationNeverRenewsExpiredConsent(long offsetTicks)
+    {
+        using var root = Root();
+        using var f = new Fixture();
+        var review = (await f.Prepare()).Review!;
+        var timerCount = f.Clock.TimerDelays.Count;
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.ReadWait = release.Task;
+        f.At = stage =>
+        {
+            if (stage is not "read") { return; }
+            f.Clock.AfterNextRead = review.ExpiresAt.AddTicks(offsetTicks);
+            entered.TrySetResult();
+        };
+        var answer = f.Workflow.AnswerAsync(review, () => true, Token);
+        await entered.Task.WaitAsync(Token);
+        answer.IsCompleted.Should().BeFalse();
+        f.Context.Should().BeNull();
+        f.Admissions.Should().Be(0);
+        f.At = null;
+        f.ReadWait = null;
+        release.SetResult();
+
+        var result = await answer;
+        result.Outcome.Should().Be(offsetTicks < 0 ? LocalFileAnswerOutcome.Succeeded : LocalFileAnswerOutcome.Stale);
+        f.ModelCalls.Should().Be(offsetTicks < 0 ? 1 : 0);
+        f.Clock.TimerDelays.Should().HaveCount(timerCount + (offsetTicks < 0 ? 1 : 0));
+        if (offsetTicks < 0) { f.Clock.TimerDelays.Last().Should().Be(TimeSpan.FromTicks(-offsetTicks)); }
+        if (offsetTicks >= 0)
+        {
+            result.Claims.Should().BeEmpty();
+            f.Context.Should().BeNull();
+            f.PolicySources.Should().BeEmpty();
+            f.Admissions.Should().Be(0);
+        }
+        f.Events.Where(item => item.ActionId is "knowledge.answer.local").Select(item => item.Outcome)
+            .Should().Equal(SecurityAuditOutcome.Requested,
+                offsetTicks < 0 ? SecurityAuditOutcome.Succeeded : SecurityAuditOutcome.Failed);
+        f.Events.Last().ReasonCode.Should().Be(offsetTicks < 0 ? "succeeded" : "stale");
+        f.Events.Last().CorrelationId.Should().Be(f.Events[^2].CorrelationId);
+        (await f.Workflow.AnswerAsync(review, () => true, Token)).Outcome.Should().Be(LocalFileAnswerOutcome.Denied);
+        review.TryConsume().Should().BeFalse();
+        await f.Manager.RevokeAnswerUsesAsync();
+        f.DisposedSelections.Should().Be(1);
+        var fresh = (await f.Prepare()).Review!;
+        fresh.Should().NotBeSameAs(review);
+        (await f.Workflow.AnswerAsync(fresh, () => true, Token)).Outcome.Should().Be(LocalFileAnswerOutcome.Succeeded);
+    }
+
+    [Theory]
+    [InlineData("validate")]
+    [InlineData("read")]
+    public async Task ExpiryDuringAwaitedSourceValidationHasNoPolicyContextOrModelEffect(string stage)
+    {
+        using var root = Root();
+        using var f = new Fixture();
+        var review = (await f.Prepare()).Review!;
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (stage is "read") { f.ReadWait = release.Task; }
+        else { f.ValidateWait = release.Task; }
+        f.At = actual => { if (string.Equals(actual, stage, StringComparison.Ordinal)) { entered.TrySetResult(); } };
+        var answer = f.Workflow.AnswerAsync(review, () => true, Token);
+        await entered.Task.WaitAsync(Token);
+        answer.IsCompleted.Should().BeFalse();
+        f.Clock.Now = review.ExpiresAt;
+        release.SetResult();
+        var result = await answer;
+        result.Outcome.Should().Be(LocalFileAnswerOutcome.Stale);
+        result.Claims.Should().BeEmpty();
+        review.IsRevoked.Should().BeTrue();
+        f.PolicySources.Should().BeEmpty();
+        f.Context.Should().BeNull();
+        f.Admissions.Should().Be(0);
+        f.ModelCalls.Should().Be(0);
+        f.Events.Where(item => item.ActionId is "knowledge.answer.local").Select(item => item.Outcome)
+            .Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Failed);
+        await f.Manager.RevokeAnswerUsesAsync();
+        f.DisposedSelections.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ExpiryTimerCancelsButRetainsOwnershipUntilIgnoringModelAndTurnDisposalJoin()
+    {
+        using var root = Root();
+        using var f = new Fixture { DelayModel = true, DelayDisposal = true };
+        var review = (await f.Prepare()).Review!;
+        var answer = f.Workflow.AnswerAsync(review, () => true, Token);
+        await f.ModelEntered.Task.WaitAsync(Token);
+        f.Clock.Now = review.ExpiresAt;
+        f.Clock.ExpireTimers();
+        await f.ModelCancelled.Task.WaitAsync(Token);
+        answer.IsCompleted.Should().BeFalse();
+        f.DisposedSelections.Should().Be(0);
+        f.ModelRelease.SetResult();
+        await f.DisposeEntered.Task.WaitAsync(Token);
+        answer.IsCompleted.Should().BeFalse();
+        f.DisposedSelections.Should().Be(0);
+        f.DisposeRelease.SetResult();
+        await FluentActions.Awaiting(() => answer).Should().ThrowAsync<OperationCanceledException>();
+        f.Events.Where(item => item.ActionId is "knowledge.answer.local").Select(item => item.Outcome)
+            .Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Cancelled);
+        await f.Manager.RevokeAnswerUsesAsync();
+        f.DisposedSelections.Should().Be(1);
+    }
+
+    [Theory]
     [InlineData("request")]
     [InlineData("state")]
     [InlineData("reason")]
@@ -495,8 +607,37 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
 
     private sealed class Clock : TimeProvider
     {
-        internal DateTimeOffset Now = DateTimeOffset.UtcNow;
-        public override DateTimeOffset GetUtcNow() => Now;
+        internal DateTimeOffset Now = new(2026, 11, 4, 0, 0, 0, TimeSpan.Zero);
+        internal DateTimeOffset? AfterNextRead;
+        internal readonly List<TimeSpan> TimerDelays = [];
+        private readonly List<ManualTimer> timers = [];
+        public override DateTimeOffset GetUtcNow()
+        {
+            var result = Now;
+            if (AfterNextRead is { } next) { Now = next; AfterNextRead = null; }
+            return result;
+        }
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            dueTime.Should().BeGreaterThan(TimeSpan.Zero);
+            TimerDelays.Add(dueTime);
+            var timer = new ManualTimer(callback, state);
+            timers.Add(timer);
+            return timer;
+        }
+        internal void ExpireTimers()
+        {
+            foreach (var timer in timers) { timer.Fire(); }
+        }
+
+        private sealed class ManualTimer(TimerCallback callback, object? state) : ITimer
+        {
+            private bool disposed;
+            internal void Fire() { if (!disposed) { callback(state); } }
+            public bool Change(TimeSpan dueTime, TimeSpan period) => !disposed;
+            public void Dispose() => disposed = true;
+            public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
+        }
     }
 
     private sealed class Fixture : IKnowledgeSourceInspector, IKnowledgeSourceStore, ILocalFileModelUsePolicy,
@@ -530,6 +671,8 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
         internal ModelTurnOutcome? Rejection;
         internal Action<string>? At;
         internal Task? InspectWait;
+        internal Task? ValidateWait;
+        internal Task? ReadWait;
         internal int OriginalReads;
         internal int DisposedSelections;
         internal int Admissions;
@@ -576,11 +719,11 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
             public KnowledgeSourceMetadata Metadata => owner.WrongMembership ? new(owner.Source.Folder.CanonicalPath,
                 "changed", owner.Source.Folder.Scope, [new(owner.Source.Folder.CanonicalPath, "changed")], owner.Source.Folder.Files)
                 : owner.Source.Folder;
-            public Task ValidateAsync(CancellationToken cancellationToken)
+            public async Task ValidateAsync(CancellationToken cancellationToken)
             {
                 owner.At?.Invoke("validate");
+                if (owner.ValidateWait is not null) { await owner.ValidateWait; }
                 if (owner.InvalidAccess) { throw new InvalidDataException("synthetic changed access"); }
-                return Task.CompletedTask;
             }
             public Task<byte[]> ReadAsync(LocalFileMetadata exactItem, CancellationToken cancellationToken)
             { owner.OriginalReads++; throw new InvalidOperationException("Named answering must never capture original bytes."); }
@@ -588,12 +731,14 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
         }
         public Task<IReadOnlyList<KnowledgeSource>> ListAsync(CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<KnowledgeSource>>([Source, Other]);
-        public Task<KnowledgeSourceRevision> ReadAsync(KnowledgeSource exact, CancellationToken cancellationToken)
+        public async Task<KnowledgeSourceRevision> ReadAsync(KnowledgeSource exact, CancellationToken cancellationToken)
         {
             Requests.Add(exact);
+            At?.Invoke("read");
+            if (ReadWait is not null) { await ReadWait; }
             if (!Enabled || exact != Source || FailureStage is "read") { throw new InvalidOperationException("Unavailable exact source"); }
-            return Task.FromResult(ChangedRevision
-                ? new KnowledgeSourceRevision(Revision.Review, Revision.Files, new(Source.Id, Guid.NewGuid())) : Revision);
+            return ChangedRevision
+                ? new KnowledgeSourceRevision(Revision.Review, Revision.Files, new(Source.Id, Guid.NewGuid())) : Revision;
         }
         public Task<KnowledgeSource> BeginRefreshAsync(KnowledgeSource exact, CancellationToken cancellationToken)
         { Mutations++; Enabled = false; return Task.FromResult(exact with { Version = exact.Version + 1, State = KnowledgeSourceState.Unavailable }); }

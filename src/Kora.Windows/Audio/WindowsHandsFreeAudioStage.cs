@@ -10,9 +10,12 @@ public sealed class WindowsHandsFreeAudioStage : IHandsFreeAudioStage
     private readonly ReadOnlyCollection<HandsFreeNativeProfile> profiles;
     private readonly HandsFreeSetupRuntime? setup;
     private readonly IHandsFreeNativeFactory factory;
+    private readonly IVoiceCaptureTimingSource? timingSource;
 
     public WindowsHandsFreeAudioStage() : this([]) { }
     public WindowsHandsFreeAudioStage(HandsFreeSetupRuntime setup) : this(setup, new HandsFreeNativeFactory()) { }
+    public WindowsHandsFreeAudioStage(HandsFreeSetupRuntime setup, IVoiceCaptureTimingSource timingSource)
+        : this(setup, new HandsFreeNativeFactory()) => this.timingSource = timingSource;
     internal WindowsHandsFreeAudioStage(HandsFreeSetupRuntime setup, IHandsFreeNativeFactory factory)
         : this(setup.Profiles, factory) => this.setup = setup;
     internal WindowsHandsFreeAudioStage(IReadOnlyList<HandsFreeNativeProfile> profiles, IHandsFreeNativeFactory? factory = null)
@@ -82,6 +85,9 @@ public sealed class WindowsHandsFreeAudioStage : IHandsFreeAudioStage
         bool Admitted() => !cancellationToken.IsCancellationRequested
             && ownership?.Token.IsCancellationRequested != true && binding.CanCapture();
         if (!Admitted()) { throw new OperationCanceledException("Fresh hands-free admission is unavailable."); }
+        var timing = timingSource is null ? binding.Timing : timingSource.GetTiming();
+        timing.Validate();
+        binding = binding with { Timing = timing };
         HandsFreeAssetLease? assets = null;
         IHandsFreeKeywordDetector? detector = null;
         IHandsFreeCommandEndpoint? endpoint = null;
@@ -99,7 +105,7 @@ public sealed class WindowsHandsFreeAudioStage : IHandsFreeAudioStage
             if (!Admitted()) { throw new OperationCanceledException("Hands-free admission changed during exact keyword preparation."); }
             detector = await Task.Run(() => factory.CreateKeyword(profile, keyword),
                 CancellationToken.None).ConfigureAwait(false);
-            endpoint = await Task.Run(() => factory.CreateEndpoint(profile),
+            endpoint = await Task.Run(() => factory.CreateEndpoint(profile, timing),
                 CancellationToken.None).ConfigureAwait(false);
             if (!Admitted()) { throw new OperationCanceledException("Hands-free admission changed while loading native resources."); }
             var admittedBinding = binding with { CanCapture = Admitted };

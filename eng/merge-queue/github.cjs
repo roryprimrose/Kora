@@ -1,6 +1,6 @@
 const { createHash } = require('node:crypto');
 const { CHECKS, GATE, STATE_BRANCH, SHA, TICKET, invariant, validateState, title, workflowJobs,
-  terminalRejectedAdmission } = require('./policy.cjs');
+  requiredJobsState, terminalJobs, terminalRejectedAdmission, terminalRejectedPreflight } = require('./policy.cjs');
 
 const FILE = 'queue.json';
 const WORKFLOW = 'ci.yml';
@@ -165,7 +165,8 @@ class GitHubQueue {
   async rejectedAdmission(source, run, jobs) {
     if (run.head_sha !== source) return false;
     const inventory = await this.workflowInventory(source);
-    return inventory !== null && terminalRejectedAdmission(run, jobs, inventory.blob);
+    return inventory !== null && (terminalRejectedAdmission(run, jobs, inventory.blob)
+      || terminalRejectedPreflight(run, jobs, inventory.blob));
   }
   async trustedInventory(source) {
     const inventory = await this.workflowInventory(source);
@@ -267,22 +268,59 @@ class GitHubQueue {
   }
   async tipQualification(tip) {
     const runs = await this.completePages(this.github.rest.actions.listWorkflowRuns,
-      { workflow_id: WORKFLOW, branch: 'main', head_sha: tip.sha, status: 'completed' }, 'tip qualification run');
-    for (const run of runs) {
-      if (run.head_sha !== tip.sha || run.run_attempt !== 1 || run.status !== 'completed'
-        || run.conclusion !== 'success' || !['push', 'workflow_dispatch'].includes(run.event)
-        || run.display_title.startsWith('Merge queue ')) continue;
-      const jobs = await this.jobs(run.id, 1);
-      const expected = await this.expectedJobs(tip.sha);
+      { workflow_id: WORKFLOW, branch: 'main', head_sha: tip.sha }, 'tip qualification run');
+    invariant(runs.every(run => Number.isSafeInteger(run.id) && run.id > 0)
+      && new Set(runs.map(run => run.id)).size === runs.length, 'Invalid or duplicate qualification run identities.');
+    const eligible = run => run.head_sha === tip.sha && run.head_branch === 'main'
+      && run.run_attempt === 1 && ['push', 'workflow_dispatch'].includes(run.event)
+      && run.display_title === 'CI main';
+    const inventory = await this.workflowInventory(tip.sha);
+    invariant(inventory, 'Completed-tip workflow inventory is unavailable.');
+    async function observe(api, run) {
+      invariant(eligible(run), 'Completed-tip owner source, event or first attempt changed.');
+      const jobs = await api.jobs(run.id, 1);
+      invariant(jobs.every(job => Number.isSafeInteger(job.id) && job.id > 0
+        && job.run_id === run.id && job.run_attempt === 1 && job.head_sha === tip.sha)
+        && new Set(jobs.map(job => job.id)).size === jobs.length, 'Invalid completed-tip job identity.');
       const qualification = jobs.filter(job => job.name === 'Qualify completed batch tip');
-      if (jobs.every(job => job.run_id === run.id && job.run_attempt === 1 && job.head_sha === tip.sha)
-        && new Set(jobs.map(job => job.id)).size === jobs.length
-        && require('./policy.cjs').successfulJobs(jobs, expected)
+      const version = jobs.filter(job => job.name === 'Resolve build version');
+      const suppressed = run.status === 'completed' && run.conclusion === 'success'
+        && version.length === 1 && version[0].status === 'completed' && version[0].conclusion === 'skipped'
         && qualification.length === 1 && qualification[0].status === 'completed'
-        && qualification[0].conclusion === 'success')
-        return { run: run.id, source: tip.sha, job: qualification[0].id };
+        && qualification[0].conclusion === 'skipped' && jobs.every(job => job.status === 'completed');
+      const started = jobs.some(job => inventory.jobs.includes(job.name) && job.name !== 'Admit CI execution'
+        && (job.status === 'in_progress' || job.status === 'completed' && job.conclusion !== 'skipped'));
+      const proof = run.status === 'completed' && run.conclusion === 'success'
+        && requiredJobsState(jobs, inventory.jobs) === 'success'
+        && terminalJobs(jobs, inventory.jobs) && qualification.length === 1
+        && qualification[0].status === 'completed' && qualification[0].conclusion === 'success'
+        ? { run: run.id, source: tip.sha, job: qualification[0].id } : null;
+      return { owner: { run: run.id, source: tip.sha, attempt: 1 }, qualification: proof,
+        provisional: !started, suppressed,
+        terminal: run.status === 'completed' && (terminalJobs(jobs, inventory.jobs)
+          || terminalRejectedAdmission(run, jobs, inventory.blob)) };
     }
-    return null;
+    let previous;
+    if (tip.qualificationOwner) {
+      const run = runs.find(run => run.id === tip.qualificationOwner.run)
+        ?? (await this.github.rest.actions.getWorkflowRun({ ...this.repo, run_id: tip.qualificationOwner.run })).data;
+      invariant(run.id === tip.qualificationOwner.run, 'Completed-tip owner run identity changed.');
+      previous = await observe(this, run);
+      if (previous.qualification || !previous.terminal) return previous;
+    }
+    // Reconcile existing first attempts before dispatch. Failed owners can only be
+    // replaced by observed fresh work after their exact jobs are physically terminal.
+    let provisional;
+    for (const run of runs.filter(eligible).sort((a, b) =>
+      Number(b.status === 'completed') - Number(a.status === 'completed') || a.id - b.id)) {
+      if (run.id === tip.qualificationOwner?.run) continue;
+      if (run.status === 'completed' && run.conclusion !== 'success') continue;
+      const observation = await observe(this, run);
+      if (observation.suppressed) continue;
+      if (observation.provisional) provisional ??= observation;
+      else return observation;
+    }
+    return previous ?? provisional ?? null;
   }
   async dispatchQualification(tip) {
     invariant(await this.main() === tip.sha, 'Completed-tip source changed before qualification dispatch.');

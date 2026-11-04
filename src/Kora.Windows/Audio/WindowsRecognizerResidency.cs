@@ -16,9 +16,9 @@ internal sealed class WindowsRecognizerResidency(IWindowsActivatedNativeFactory 
     public bool IsQuiescent { get { lock (gate) { return returned is null && failure is null && !retiring; } } }
 
     public async Task<Lease> AcquireAsync(SpeechInputGeneration profile, IReadOnlyList<string> phrases, TimeSpan speechStartWindow,
-        Func<bool> canOpen)
+        TimeSpan trailingSilence, Func<bool> canOpen)
     {
-        var requested = new Key(profile, phrases.ToArray(), speechStartWindow);
+        var requested = new Key(profile, phrases.ToArray(), speechStartWindow, trailingSilence);
         lock (gate)
         {
             if (failure is not null || retiring || returned is not null)
@@ -41,7 +41,7 @@ internal sealed class WindowsRecognizerResidency(IWindowsActivatedNativeFactory 
                 await ReturnAsync(SpeechInputResidency.CaptureLifetime).ConfigureAwait(false);
                 throw new OperationCanceledException("Model acquisition was retired before replacement.");
             }
-            engine ??= native.CreateRecognizer(requested.Phrases, speechStartWindow);
+            engine ??= native.CreateRecognizer(requested.Phrases, speechStartWindow, trailingSilence);
             key = requested;
             return new(engine, this, profile.Selection.Residency);
         }
@@ -125,11 +125,11 @@ internal sealed class WindowsRecognizerResidency(IWindowsActivatedNativeFactory 
         }
     }
 
-    // These are the current consumed native timing values, not the unmerged timing preference contract.
-    private sealed record Key(SpeechInputGeneration Profile, string[] Phrases, TimeSpan SpeechStartWindow)
+    private sealed record Key(SpeechInputGeneration Profile, string[] Phrases, TimeSpan SpeechStartWindow, TimeSpan TrailingSilence)
     {
         public bool Matches(Key? other) => other is not null && Profile == other.Profile
-            && SpeechStartWindow == other.SpeechStartWindow && Phrases.SequenceEqual(other.Phrases, StringComparer.Ordinal);
+            && SpeechStartWindow == other.SpeechStartWindow && TrailingSilence == other.TrailingSilence
+            && Phrases.SequenceEqual(other.Phrases, StringComparer.Ordinal);
     }
 
     internal sealed class Lease(IWindowsActivatedRecognizer recognizer, WindowsRecognizerResidency? owner,

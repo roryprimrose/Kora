@@ -49,6 +49,16 @@ No format/limit override, folder attachment, managed source, extra version, mode
 
 ## Configuration Contract
 
+### Implemented existing detail-offer suppression
+
+The bounded `responses.detail-presentation` implementation has only Offer (unsaved legacy/default) and LinkOnly. Native Responses settings and exact original typed/current-name activated commands share inspect/review/confirm/cancel/reset. Set/reset require separate confirmation; reset explicitly saves Offer, not file deletion. This is not a new model setting observation/proposal catalogue ([workflow](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs), [parser](../src/Kora.Application/Configuration/DetailPresentationCommand.cs), [native controls](../src/Kora/SettingsWindow.axaml)).
+
+The strict domain format and shared atomic preference store use application data paths with a pre-write unconfirmed marker, exact readback and trusted requested/terminal audit. Missing legacy state retains existing Offer behavior; malformed/current unknown state throws rather than silently defaulting. Failed audit/receipt/readback stays held for explicit saved-state/evidence recovery ([domain](../src/Kora.Core/Presentation/DetailPresentationPreference.cs), [store adapter](../src/Kora.Application/Configuration/LocalDetailPresentationPreferences.cs), [configuration owner](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs)).
+
+Only future existing proactive cues are affected; manual Details and original source/privacy/currentness gates remain. Protected/Unknown call evidence rejects voice-originated writes, including later native confirmation of that voice review. Closed microphone, missing recognizer, lost ownership/private host or native lifetime still prevent the corresponding route. No new question/reply/capture, automatic opening, historical replay, window visibility/position policy or persistent session timing is added ([shared interaction](../src/Kora.Application/ViewModels/MainViewModel.DetailPresentation.cs), [display boundary](Information_Display.md#implemented-existing-offer-versus-link-only-suppression)).
+
+Deterministic behavioral regressions exercise the complete bounded workflow and forbidden effects. Build/analyzers, required module/shard evidence and 100% portable line/branch coverage remain mandatory; implementation does not establish full three-way preference completion or enablement/qualification ([tests](../tests/Kora.Application.UnitTests/Configuration/DetailPresentationConfigurationServiceTests.cs), [delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
+
 ### Conversational voice replies
 
 **Settings > Speech & audio > Conversational voice replies** provides explicit **Enable conversational replies** and **Turn off** actions ([native controls](../src/Kora/SettingsWindow.axaml)).
@@ -95,8 +105,9 @@ state holds without defaults or replay. Restoring ownership or clearing a call
 does not automatically show/speak notices; only fresh already-open native
 observation may admit an unexpired deferral. Session retirement clears owned
 receipts, not unrelated preferences or global fatigue budgets. General
-reminders, quiet hours, proactive speech configuration and apply-now remain
-undelivered.
+reminders, broader proactive speech configuration and apply-now remain
+undelivered. The independent [scheduled speech-only quiet-hours operation](Proactive_Interaction.md#scheduled-proactive-speech-quiet-hours)
+does not change visual broker suppression.
 
 ### R12 Bounded Session Retention Delivered - 2026-10-09
 
@@ -268,25 +279,29 @@ The same schema-1 native/exact typed/current-name ACTIVATED workflow now exposes
 |---|---|---|---|
 | `display.speech-text-placement` | Working-area corner: `BottomRight`, `BottomLeft`, `TopRight`, `TopLeft`; primary by default, or the explicit run-only display below | `BottomRight` | Next eligible playback; retires old caption immediately; reset changes only this option |
 | `display.speech-text-dismissal-delay` | Canonical integer seconds, 0-30 inclusive | 5 seconds | Delay after normal completion only; reset preserves placement and mode |
+| `display.speech-text-word-emphasis` | Boolean `true` / `false`; requires independently qualified source alignment | `false` | Next eligible playback; retires old caption immediately; reset preserves placement, delay and mode |
 | `display.speech-text-pin` | Boolean `true` / `false`, run-only current-caption state | `false` | Retains already-observed text until unpinned or source retirement; reset unpins, never persists |
 
-`list speech text settings` includes placement/delay IDs, typed choices, bounds,
+`list speech text settings` includes placement/delay/word-emphasis IDs, typed choices, bounds,
 defaults, saved/effective values, source, revision, scope, timing, reset and
 recovery. `get/status <id>`, `set <id> to <exact value>` and `reset <id>` work
-for each option. Placement/delay use the existing host-held choice identity,
+for each option. Placement/delay/word emphasis use the existing host-held choice identity,
 original channel, admitted session/generation, revision, call/ownership/privacy
 gates, requested/terminal typed audit, atomic save/readback, completed intent
 receipt and durable unconfirmed marker. Native **Inspect speech text**, option/
 value selectors, **Save caption option only** and **Reset selected caption option**
-use the same service. Neither option enables speech text or changes its mode.
+use the same service. These options do not enable speech text or change its mode ([shared configuration](../src/Kora.Application/Configuration/SpeechTextConfigurationService.cs)).
 
-The independent version-1 **`speech-caption-options.txt`** stores only the exact
-placement/delay tuple through `IApplicationDataPaths` and the shared atomic store.
+The independent version-2 **`speech-caption-options.txt`** stores only the exact placement/delay/word-emphasis tuple through `IApplicationDataPaths` and the shared atomic store. Version-1 placement/delay values remain readable with emphasis off; writes use version 2 with canonical `true`/`false` ([store](../src/Kora.Application/Configuration/LocalSpeechTextPreferences.cs)).
 Existing **`speech-text-mode.txt`** bytes and Off default are unchanged; the
 existing **`speech-text-mode-unconfirmed.txt`** marker covers all caption writes.
 Unknown schema/corner, noncanonical or out-of-range delay, malformed UTF-8,
 unreadable storage or pending evidence throws/refuses, holds captions unavailable
 and requires explicit repair. No corrupt companion is guessed by reset.
+
+Word emphasis is a saved/effective preference, not alignment readiness. No exact production Windows voice/rate/output profile is qualified; it remains unavailable while ordinary caption text stays readable. `get/status display.speech-text-word-emphasis` reports both values and this boundary; native option selection, Save and reset use the same path ([state](../src/Kora.Application/Configuration/SpeechTextState.cs)).
+
+The implemented [source-bound projection](Information_Display.md#source-bound-word-emphasis) never estimates timing, splits normalized numbers or changes the user's selection. It clears on completion, including retained **PREVIOUS SPEECH**, and every existing source/privacy retirement ([consumer regressions](../tests/Kora.Application.UnitTests/Voice/SpeechCaptionWordTests.cs)).
 
 The caption's native **Pin / Unpin** control and exact pin commands affect only
 one already-observed response/playback identity. Pin state is passive ephemeral
@@ -1322,7 +1337,7 @@ registered by this design.
 | Input device | System by default and follows live Windows multimedia-default changes; a specific endpoint-ID override remains pinned until changed back to System; changing selection after manual disablement does not restart capture | "Use my headset microphone" |
 | Listening enabled | Closed until explicit first-launch ongoing consent; saved consent permits automatic ordinary safe startup; manual disablement/recovery holds release capture for the current run | "Stop listening" |
 | Assistant display and command name | "Kora" initially; one validated custom-only name of 1-3 words and at most 32 characters | "Change your name to Nova" |
-| Optional PTT shortcut | Unassigned until selected; validate conflicts | "Set push-to-talk to Control Shift Space" |
+| [Optional foreground PTT shortcut](../docs/voice-and-audio.md#optional-foreground-push-to-talk-shortcut) | Unassigned until selected; Control Shift Space or Control Shift F9 in the foreground Response window only; other editing/navigation/system chords reserved | "Set push-to-talk to Control Shift Space" |
 | Activation feedback | Visual always; non-speech cue when output policy permits | "Turn off the activation sound" |
 | Command speech-start wait | 5 seconds; 2-10 seconds | "Wait seven seconds after I say Kora" |
 | Conversational replies | On after ongoing listening consent; allows prefix-free answers only to the unique question Kora just presented | "Require me to say Kora for every answer" |
@@ -1335,6 +1350,10 @@ registered by this design.
 | Speech resource profile (planned) | Measured Low resource, Balanced, Accuracy focused or Custom choices; supported CPU/GPU and explicit keep-loaded/idle-unload policy; no silent protection changes | "Show the speech accuracy and resource trade-offs" |
 | Learn my voice (`voice.learnFrequentSpeaker`) | Off until separate explained consent; local Windows-profile/device-scoped adaptation from new activated commands only; non-authorizing; status/test/correct/reset/delete workflows | "Learn my voice to improve recognition" |
 | Owner-aware private speech | Optional; On for an explicitly enrolled supported verifier, not baseline voice or learning; while enabled, private content is visual-only for `Uncertain`, `NotOwner`, or `Unavailable`, without silently switching protection Off | "Only read private information when you recognise my voice" |
+
+The [delivered capture-timing controls](../docs/voice-and-audio.md#speech-capture-timing) support the three bounded speech-start/trailing-silence preferences through native and exact typed/already-activated review. Confirmed values snapshot into the next eligible capture; in-flight captures retain their timing. Natural-language examples above remain design intent, not additional exact aliases. No profile, consent or listening authority is enabled ([shared action](../src/Kora.Application/ViewModels/MainViewModel.VoiceCaptureTiming.cs)).
+
+The [Windows recognizer residency key](../src/Kora.Windows/Audio/WindowsRecognizerResidency.cs) includes both speech-start and trailing-silence timing. A changed value joins release of the previous model before creating its replacement; reuse never retains microphone or stream ownership ([regression](../tests/Kora.Windows.IntegrationTests/Audio/WindowsActivatedCaptureResidencyTests.cs)).
 
 The [delivered speech-input review](../docs/voice-and-audio.md#speech-input-profile-preference) is narrower than the planned local-provider/resource rows: native controls and exact typed/activated commands review, confirm or cancel the existing compatible Windows activated tuple. The [host workflow](../src/Kora.Application/Configuration/SpeechInputConfigurationService.cs) joins runtime retirement before persistence/publication and preserves prior desired intent on cancellation.
 
@@ -1455,15 +1474,16 @@ The exact caption, rich rendering, viewer, and text-scale options are defined in
 | Busy/DND/meeting quieting | Call/Suspected meeting handling as in call policy; additional Busy/DND preference off | "Stay quiet when Teams says do not disturb" |
 | Temporary call override | Up to 1 hour or observed call end; never persistent implicitly | "Allow spoken answers for this call for fifteen minutes" |
 | Proactive speech consent | Explained and chosen in setup | "You can make suggestions again" |
-| Quiet hours | None until chosen; local time/time zone shown | "Don't interrupt me between nine and five on weekdays" |
+| Quiet hours (`notices.quiet-hours`) | Delivered bounded proactive completion speech only; Off until chosen; explicit days, local start/end and zone; separate review/confirmation | `set notices.quiet-hours to weekly Mon,Tue,Wed,Thu,Fri 09:00 17:00 UTC`, then `confirm notices.quiet-hours` |
 | Quiet mode | Off normally; conversation or persistent scope explicit | "Use quiet mode for this conversation" |
 | Notification categories | Eligible task/setup/update events; categories individually configurable | "Tell me about task failures but not completed tasks" |
 | Reminder deferral | 24 hours; 1 hour-7 days | "Remind me about updates tomorrow" |
 
 Detectors need explicit setup/account/network consent; setting a preference does not create Graph credentials.
-Only the bounded feedback/manual controls and existing protection settings are
-delivered here. Other table entries, including general proactive/quiet-hours/
-notification/temporary-exception configuration, remain proposed.
+Only the bounded feedback/manual controls, existing protection settings and
+[speech-only scheduled quiet hours](Proactive_Interaction.md#scheduled-proactive-speech-quiet-hours)
+are delivered here. General proactive, notification and temporary-exception
+configuration remain proposed.
 The in-call feedback override and voice-activation setting are device-local and independent: UI-only output does not close the microphone, while disabling call-time voice activation closes active capture and blocks re-enabling it until the call clears.
 Inherit restores normal task/queue/session/device feedback precedence; changing the feedback mode does not silently relax separate call speech suppression/privacy rules.
 The spoken-approval setting is independent of feedback/listening/speech suppression and does not alter stored grants or their retention, or the selected session permission level.
@@ -1476,14 +1496,14 @@ Notification settings cannot hide necessary action approval from the visual inte
 
 ## 4. Work and Context
 
-The table is the broader proposed contract, not the enabled fixed local-version queue catalogue. Its shipped subset is only [pending 1-10/default-reset 10 and read-only slots 1-2/default-reset 1](#delivered-bounded-fixed-local-version-queue-settings-r10r13); deadline editing and automatic dispatch remain unavailable.
+The table includes proposed controls as well as the [delivered future ordinary conversation deadline](#delivered-future-ordinary-conversation-deadline). The [fixed local-version compatibility queue](#delivered-bounded-fixed-local-version-queue-settings-r10r13) remains a separate internal contract; its retired public scheduling/configuration routes are not restored.
 
 | Option | Default / limits | Example verbal setter |
 |---|---|---|
 | Pending queue capacity | 10; 1-50 entries | "Set the queue limit to twenty" |
 | Successful-completion dispatch | Automatic next ready item; manual mode optional | "Ask before starting each queued task" |
 | Pending request lifetime | Delivered fixed local-version subset: canonical integer 1-120 minutes, default/reset 30, future newly enqueued entries only; broader routing remains proposed | `set queue.pending-lifetime-minutes to 60` |
-| Active-task deadline | 5 minutes excluding user waits; 1-60 minutes within tool/provider limits | "Give tasks ten minutes by default" |
+| Active-task deadline | Delivered future ordinary conversation subset: default/reset 5, canonical integer 1-60 minutes within earlier context and fixed tool/provider limits; no user-wait turns | `set work.active-deadline-minutes to 10` |
 | Session automatic archive inactivity | 24 hours; configurable finite positive duration | "Mark sessions done after two idle days" |
 | Session automatic deletion inactivity | 30 days from last meaningful activity; configurable and later than archive | "Delete sessions after sixty idle days" |
 | Concurrent session task limit | Proposed default 2; positive limit within verified provider/hardware envelope; one task per session | "Run up to three sessions at once" |
@@ -1510,6 +1530,31 @@ Extending a default deadline affects future tasks; changing the current task req
 Manual dispatch is an additional admission decision, never a substitute for tool approval.
 Concurrency is bounded by verified provider/hardware capability and host resource coordination, never a permission to share context/grants or race writes.
 Fixed approval lifetimes, process cancellation grace, power confirmations, secret blocking, and bounded raw-audio retention are safety controls, not arbitrary user knobs.
+
+### Delivered future ordinary conversation deadline
+
+In Settings > Sessions, refresh **Future ordinary task deadline**, choose 1-60 whole minutes, then Save.
+Readback distinguishes saved/default/unavailable state; Reset restores five minutes.
+Typed or activated voice uses `get work.active-deadline-minutes`, `status work.active-deadline-minutes`, `set work.active-deadline-minutes to 10`, or `reset work.active-deadline-minutes` ([shared control](../src/Kora.Application/ViewModels/MainViewModel.OrdinaryTurnDeadline.cs)).
+
+The device-local preference is confirmed through original-user host admission, atomic storage, exact readback, required audit and terminal receipt before future dispatch can consume it.
+Stale observations, malformed values and unconfirmed writes fail explicitly; an unconfirmed preference cannot silently become the default
+([configuration owner](../src/Kora.Application/Configuration/OrdinaryTurnDeadlineConfigurationService.cs), [preference store](../src/Kora.Application/Configuration/LocalOrdinaryTurnDeadlinePreferences.cs)).
+
+Only newly dispatched queued ordinary conversations, including their ordinary instruction/retry routes, and explicit Copilot/Claude ordinary requests capture this preference.
+Their admitted subset has no approval/clarification waits: tool-free answers and already-admitted read-only observation tools.
+Specialized source workflows and clarification turns keep their existing fixed limits; no output-text inference or speculative pause/resume clock is added ([dispatch owner](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
+
+Pending work has no active budget. At durable dispatch the host captures one immutable preference and starts monotonic elapsed accounting; pending expiry and the original context timestamps are not renewed.
+A later saved default never changes a running turn. The shorter fixed provider/tool maximum and original context expiry always win.
+The ordinary conversation execution maximum is a separate reviewed preference: saving or resetting a deadline cannot confirm or overwrite it, and changing concurrency does not renew an active deadline.
+The current local/read-only cap is 15 seconds, and ordinary hosted adapters are capped at two minutes, so choosing five or sixty minutes does not extend those caps ([budget ownership](../src/Kora.Application/Dependencies/ModelTurnHost.OrdinaryDeadline.cs)).
+
+Expiry requests runtime cancellation and suppresses late success; the existing conversation owner retains the session/resource lease and waits for physical quiescence before terminal retention.
+Already-published provisional answers also become noncurrent at the captured monotonic deadline, even before a delayed timer callback or physical provider join.
+A cancellation-ignoring or unconfirmed provider cannot free the lease or publish success.
+No socket-close or physical provider-stop claim is added, and provider qualification remains independently gated
+([host execution](../src/Kora.Application/Dependencies/ModelTurnHost.cs), [deterministic regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.OrdinaryDeadline.cs)).
 
 ## 5. Providers, Local Models, and Connections
 
@@ -1550,6 +1595,9 @@ That confirms the setting only; each new outgoing payload still follows exact eg
 Remote endpoints require a validated destination and setup/network decision, not guessing or silent fallback.
 Provider changes do not transplant active task context or continue a task under another account automatically.
 Credentials/tokens/passwords are not dictatable option values; voice starts supported sign-in/sign-out/configuration flows.
+
+The [delivered request-only profile operation](Model_Providers_Memory_And_Knowledge.md#delivered-hosted-request-only-profile) completes one exact Local/Copilot/Claude request through the existing shared request review and provider admission.
+It never writes app/session defaults or supplies credentials, provider qualification or hosted transmission approval. Broader natural-language multi-action interpretation remains proposed.
 
 ### Delivered app-default provider profiles
 
@@ -1841,6 +1889,27 @@ Undo restores the previous compatible preference value, not a side effect such a
 Reset/undo use normal validation, confirmation, and policy checks; restoring a weaker privacy preference is not exempt from confirmation.
 If an external registration/action changed, report that a separate compensating action requires approval.
 Never treat undo as reinstating expired grants or microphone consent.
+
+### Delivered single registered-preference Reset proposals
+
+A successful retained model answer may propose exactly `reset <registered ID>` for one member of the existing [registered subset](../src/Kora.Core/Configuration/RegisteredSettings/RegisteredSettingRegistry.cs). It carries no value or write authority.
+The [shared parser](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestions.cs) preserves Set grammar and rejects defaults supplied by the model, batches and unrelated settings.
+
+The original user reviews current/default values, saved/default provenance, scope and companion effects, then separately confirms through the existing authoritative owner.
+Appearance remains original-local-UI/native-only except response timeout; response timeout, speech, volume, Windows rate and response mode retain their current typed/activated-voice review routes and channel restrictions ([user flow](../docs/setting-proposals.md#propose-one-reset)).
+
+Reset preserves the owner's semantics, not a global remove-file convention:
+
+- Appearance saves its default value ([owner](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
+- Summary limits save the complete pair with only the selected cap reset and the known companion preserved ([owner](../src/Kora.Application/Configuration/SpeechConfigurationService.cs)).
+- Volume/rate remove the saved preference ([volume](../src/Kora.Application/Configuration/PlaybackVolumeConfigurationService.cs), [rate](../src/Kora.Application/Configuration/WindowsSpeechRateConfigurationService.cs)).
+- Response mode saves Hybrid through the same shared Reset dispatch as native/exact input ([owner](../src/Kora.Application/Configuration/ResponseModeConfigurationService.cs)).
+
+Appearance already equal to its default remains unchanged, including its existing saved/default provenance; this is not represented as a new save or undo receipt ([unchanged outcome](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
+
+Confirmation revalidates the exact retained source, fresh request, revision, original channel and host/private/call authority.
+Cancellation writes nothing; a failed/unknown persistence, readback or audit result is not success and does not imply rollback or automatic retry ([source-bound reviews](../src/Kora.Application/Configuration/AppearanceSuggestionReview.cs)).
+No model undo authority, consent, provider/device, grant, retention or speech dispatch is added ([audio admission](../src/Kora.Application/Configuration/PlaybackVolumeSuggestionReview.cs)).
 
 ### Delivered single registered-preference undo
 

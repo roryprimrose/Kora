@@ -15,6 +15,34 @@ namespace Kora.Windows.IntegrationTests.Storage;
 
 public sealed partial class WindowsSqliteConversationTests
 {
+    [Fact]
+    public async Task MissingExactMemoryAtTerminalCommitCannotRetainAnswerOrSuccessReceipt()
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        await FinishInitial(f);
+        var request = Fresh(f.Request.SessionId);
+        var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), request, ModelProviderSelection.OllamaCandidate);
+        var source = new SubmittedMemorySource(new(Guid.NewGuid()), new(3), request.SessionId);
+        var envelope = new ModelContextEnvelope(request, Kora.Core.Memory.SessionMemoryContextPolicy.Policy, "question",
+            [new(new(source.Id.Value), request, source.Revision, "private value", ModelEvidenceDisclosure.LocalOnly)
+                { MemorySource = source }], f.Time.Now, f.Time.Now.AddSeconds(15), ModelToolMode.None);
+        var submitted = SubmittedAnswerContext.Capture(provenance, new(1),
+            new(ProviderService.Local, new("device"), new(1), new("model"), new("default"), new("default")),
+            envelope, envelope.Serialize(), f.Time.Now);
+        using var root = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
+        await f.Store.RetainConversationMessageAsync(request, new(1), 0, "question", static () => true, f.Token);
+        var dispatch = await f.Store.BeginConversationExecutionAsync(request, provenance, 0, static () => true, f.Token);
+        var audit = AuditText(f);
+        await f.Store.Invoking(store => store.CompleteConversationExecutionAsync(request,
+            new(ModelTurnOutcome.Succeeded, ModelTurnReason.ProviderOutcome, provenance, new("must not retain", null))
+            { SubmittedContext = submitted }, static () => true, f.Token).AsTask()).Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*session memory changed*");
+        (await f.Store.ReadConversationMessageAsync(request.SessionId, request.RequestId, f.Token)).Should().Be(dispatch.Message);
+        (await f.Tasks.ReadTaskAsync(request.TaskId, f.Token)).Should().Be(dispatch.Task);
+        AuditText(f).Should().Be(audit);
+    }
+
     [Theory]
     [InlineData(32768)]
     [InlineData(32769)]

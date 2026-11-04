@@ -112,6 +112,33 @@ public sealed class NativeFixturePhaseTimingTests
             .Should().OnlyContain(state => state.GetProperty("Outcome").GetString() == "completed");
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AdditionalAttachmentFailureIsReportedAfterCleanupWithoutReplacingOperationFailure(bool operationFails)
+    {
+        var original = new TimeoutException("Synthetic original startup failure");
+        var publication = new IOException("Synthetic additional attachment failure");
+        var cleaned = false;
+        var timing = new NativeFixturePhaseTimings("additional-evidence", new PhaseClock(), _ => { });
+        var thrown = await Record.ExceptionAsync(() => timing.RunAsync<bool>(() =>
+        {
+            try
+            {
+                timing.PublishAttachment(() => throw publication);
+                if (operationFails) { throw original; }
+                return Task.FromResult(true);
+            }
+            finally { cleaned = true; }
+        }));
+        cleaned.Should().BeTrue();
+        if (operationFails)
+        {
+            thrown.Should().BeOfType<AggregateException>().Which.InnerExceptions.Should().Equal(original, publication);
+        }
+        else { thrown.Should().BeSameAs(publication); }
+    }
+
     [Fact]
     public async Task ReportFailureDuringDisposalPreservesOriginalCallbackFailureAndPhysicalCleanup()
     {

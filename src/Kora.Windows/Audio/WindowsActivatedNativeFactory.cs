@@ -15,8 +15,8 @@ internal sealed class WindowsActivatedNativeFactory : IWindowsActivatedNativeFac
 
     public void RequireEligible(MicrophoneDevice microphone) => WindowsCapturePrivacyGate.RequireEligible(microphone);
 
-    public IWindowsActivatedRecognizer CreateRecognizer(IReadOnlyList<string> phrases, TimeSpan speechStartWindow) =>
-        new Recognizer(phrases, speechStartWindow);
+    public IWindowsActivatedRecognizer CreateRecognizer(IReadOnlyList<string> phrases, TimeSpan speechStartWindow, TimeSpan trailingSilence) =>
+        new Recognizer(phrases, speechStartWindow, trailingSilence);
 
     public async Task<IWindowsActivatedMicrophone> OpenMicrophoneAsync(MicrophoneDevice microphone, Func<bool> canOpen)
     {
@@ -30,7 +30,7 @@ internal sealed class WindowsActivatedNativeFactory : IWindowsActivatedNativeFac
         private readonly SpeechRecognitionEngine engine;
         private Binding? binding;
 
-        public Recognizer(IReadOnlyList<string> phrases, TimeSpan speechStartWindow)
+        public Recognizer(IReadOnlyList<string> phrases, TimeSpan speechStartWindow, TimeSpan trailingSilence)
         {
             var info = SpeechRecognitionEngine.InstalledRecognizers().FirstOrDefault(candidate =>
                 string.Equals(candidate.Culture.TwoLetterISOLanguageName, "en", StringComparison.Ordinal))
@@ -38,8 +38,8 @@ internal sealed class WindowsActivatedNativeFactory : IWindowsActivatedNativeFac
             engine = new SpeechRecognitionEngine(info.Id)
             {
                 InitialSilenceTimeout = speechStartWindow,
-                EndSilenceTimeout = TimeSpan.FromSeconds(1),
-                EndSilenceTimeoutAmbiguous = TimeSpan.FromSeconds(1),
+                EndSilenceTimeout = trailingSilence,
+                EndSilenceTimeoutAmbiguous = trailingSilence,
             };
             try
             {

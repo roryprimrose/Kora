@@ -36,7 +36,7 @@ For slower Windows speech, the complete retained answer may be
 `set speech.windows-rate to -1`. Rate alone permits canonical negative integers;
 plus signs, negative zero, padding, leading zeroes, suffixes and commentary are rejected.
 Other numeric speech suggestions use canonical decimal digits, without signs,
-leading zeroes, fractions or commentary. Mixed settings, batches, resets,
+leading zeroes, fractions or commentary. Mixed settings, batches,
 relative changes and other setting families are not admitted as suggestions.
 Response-mode answers require the exact spelling and case shown above; numeric
 enum values, aliases, surrounding commentary and batches are rejected.
@@ -46,6 +46,21 @@ Response-timeout suggestions use the same canonical lowercase syntax, for exampl
 Native renderer selection is not an admitted model suggestion.
 This suggestion registry does not expand setting inspection: inspection remains
 limited to theme, reader text scale, both summary caps, playback volume and response mode.
+
+## Propose one Reset
+
+The complete retained answer may instead be exactly `reset <exact ID>` for one setting in the table, for example `reset speech.playback-volume`. No value, model-supplied default, aliases, commentary or batch is accepted ([parser](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestions.cs)).
+
+Use the same separate review and confirmation below. Review resolves the default through the host, shows current and proposed values/provenance and preserves the exact source and original channel. Reset does not mean every owner removes its saved preference:
+
+- Appearance saves the option's default as a **saved** value when changed. If it already equals the default, Reset is unchanged and preserves its existing saved/default provenance; other appearance options are unchanged ([owner](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
+- Response-timeout Reset follows those same appearance-owner semantics with the authoritative 5-second default. It retains its existing native/typed/activated-voice review, 60-second expiry and original-channel call/privacy checks; other appearance settings remain native-only ([review](../src/Kora.Application/Configuration/AppearanceSuggestionReview.cs)).
+- A summary cap saves the complete pair with that cap reset and the known companion unchanged. An unreadable companion blocks review; it is never defaulted ([owner](../src/Kora.Application/Configuration/SpeechConfigurationService.cs)).
+- Volume and Windows rate remove their saved preference and use the authoritative **unsaved default** ([volume](../src/Kora.Application/Configuration/PlaybackVolumeConfigurationService.cs), [rate](../src/Kora.Application/Configuration/WindowsSpeechRateConfigurationService.cs)).
+- Response mode saves **Hybrid**, matching native Reset; it does not remove the preference or change session/task/call overrides ([native route](../src/Kora.Application/ViewModels/MainViewModel.ResponseModeConfiguration.cs)).
+
+Cancel requests no write. Reset grants no model undo authority and adds no settings, provider/device, consent, grant, retention or speech operation.
+Existing review-channel restrictions and uncertain-write recovery remain unchanged ([review owners](../src/Kora.Application/Configuration/AppearanceSuggestionReview.cs), [volume review](../src/Kora.Application/Configuration/PlaybackVolumeSuggestionReview.cs)).
 
 ## Review, confirm or cancel
 

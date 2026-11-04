@@ -104,7 +104,7 @@ public sealed class PushToTalkUiContractTests
             try
             {
                 response.Show();
-                response.Activate();
+                HeadlessSession.SetActivation(response, true);
                 response.UpdateLayout();
                 var button = response.FindControl<Button>("PushToTalkButton")!;
                 button.IsVisible.Should().BeFalse();
@@ -115,8 +115,15 @@ public sealed class PushToTalkUiContractTests
                 button.IsVisible.Should().BeTrue();
                 button.IsEnabled.Should().BeTrue(fixture.Main.ListeningStatus);
                 ControlAutomationPeer.CreatePeerForElement(button)!.GetName().Should().Be("Push to talk; hold while speaking");
+                response.IsVisible.Should().BeTrue();
+                response.IsActive.Should().BeTrue("the headless key event requires an active native input owner");
                 button.Focus().Should().BeTrue();
+                response.FocusManager!.GetFocusedElement().Should().BeSameAs(button);
+                var handled = false;
+                response.AddHandler(InputElement.KeyDownEvent, (_, args) => handled = args.Handled,
+                    RoutingStrategies.Bubble, handledEventsToo: true);
                 response.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
+                handled.Should().BeTrue("the exact held button must admit the Space key before capture can start");
                 await fixture.Voice.Started.Task.WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
                 fixture.Voice.StartCalls.Should().Be(1);
                 fixture.Main.IsListening.Should().BeTrue();

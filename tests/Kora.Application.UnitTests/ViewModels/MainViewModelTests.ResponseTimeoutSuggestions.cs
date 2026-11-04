@@ -11,19 +11,23 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Theory]
-    [InlineData(false, false, false, 1)]
-    [InlineData(false, true, false, 60)]
-    [InlineData(false, false, true, 15)]
-    [InlineData(true, false, false, 15)]
-    [InlineData(true, true, true, 60)]
+    [InlineData(false, false, false, 1, false)]
+    [InlineData(false, true, false, 60, false)]
+    [InlineData(false, false, true, 15, false)]
+    [InlineData(true, false, false, 15, false)]
+    [InlineData(true, true, true, 60, false)]
+    [InlineData(false, false, false, 5, true)]
+    [InlineData(true, false, false, 5, true)]
+    [InlineData(false, true, true, 5, true)]
     public async Task ResponseTimeoutSuggestionChannelsCompleteOnlyTheExactAuditedPreference(
-        bool sourceVoice, bool reviewVoice, bool confirmVoice, int seconds)
+        bool sourceVoice, bool reviewVoice, bool confirmVoice, int seconds, bool reset)
     {
         var f = await Fixture.CreateInitializedAsync();
         try
         {
             var (store, model) = BindSpeechSuggestions(f);
-            model.Answer = $"set appearance.response-timeout to {seconds}";
+            if (reset) { await f.RunAsync("set appearance.response-timeout to 15"); }
+            model.Answer = reset ? "reset appearance.response-timeout" : $"set appearance.response-timeout to {seconds}";
             await SubmitSpeechSuggestion(f, store, sourceVoice);
             var retained = store.RequestMessage;
             f.TextToSpeech.ClearSpokenResponse();
@@ -31,10 +35,10 @@ public sealed partial class MainViewModelTests
             if (reviewVoice) { await f.RaiseActivatedTranscriptAsync("Kora, review response timeout suggestion", 1); }
             else { await f.RunAsync("review response timeout suggestion"); }
             f.ViewModel.ResponseTitle.Should().Be("Review exact response-timeout suggestion.", f.ViewModel.ResponseBody);
-            f.ViewModel.ResponseBody.Should().Contain("current 5 (default)")
+            f.ViewModel.ResponseBody.Should().Contain(reset ? "current 15 (saved)" : "current 5 (default)")
                 .And.Contain($"proposed {seconds} seconds").And.Contain("shared device-local")
                 .And.Contain("not a provider deadline").And.Contain("Always show");
-            f.AppearancePreferences.LoadResponseTimeoutSeconds().Should().BeNull();
+            f.AppearancePreferences.LoadResponseTimeoutSeconds().Should().Be(reset ? 15 : null);
             f.Audit.Events.Should().HaveCount(before);
             if (confirmVoice) { await f.RaiseActivatedTranscriptAsync("Kora, confirm response timeout change", 1); }
             else { await f.RunAsync("confirm response timeout change"); }
@@ -55,10 +59,12 @@ public sealed partial class MainViewModelTests
             f.TextToSpeech.SpokenText.Should().BeNull();
             await f.RunAsync("undo the last settings change");
             f.ViewModel.CanConfirmSettingsUndo.Should().BeTrue();
-            f.ViewModel.SettingsUndoDescription.Should().Contain($"current {seconds} (saved); restore 5 (default)");
+            f.ViewModel.SettingsUndoDescription.Should().Contain(reset
+                ? $"current {seconds} (saved); restore 15 (saved)"
+                : $"current {seconds} (saved); restore 5 (default)");
             await f.RunAsync("confirm settings undo");
-            f.AppearancePreferences.LoadResponseTimeoutSeconds().Should().BeNull();
-            f.ViewModel.ResponseTimeoutSeconds.Should().Be(5);
+            f.AppearancePreferences.LoadResponseTimeoutSeconds().Should().Be(reset ? 15 : null);
+            f.ViewModel.ResponseTimeoutSeconds.Should().Be(reset ? 15 : 5);
             f.ViewModel.CanReviewSettingsUndo.Should().BeFalse();
             model.Calls.Should().Be(1);
         }

@@ -410,6 +410,12 @@ Each of the twelve `windows-execution-results-<partition>` artifacts retains
 these test attachments alongside TRX, console output and MTP diagnostics under
 its fresh execution directory. Phase attachments and started-test diagnostics
 do not substitute for the complete admitted-source catalog and passing reports.
+
+The [foreground PTT lifecycle theory](tests/Kora.Windows.IntegrationTests/ForegroundPttUiContractTests.cs) also retains a separate `foreground-ptt-start.json` string attachment around its unchanged startup wait.
+Its [test-only snapshots](tests/Kora.Windows.IntegrationTests/ForegroundPttUiContractTests.StartupEvidence.cs) record allowlisted UI eligibility, focus categories, bubble-observed key handling and synthetic capture state before/after the press and at startup exit.
+Bubble `Handled` is an observed routed-event state, not proof of which handler admitted input. Opening cancellation is explicitly `NotExposed`; the fixture does not inspect private production state or infer a timeout from missing capture. No content, control text, device/session identities or exception messages enter this attachment.
+The [shared evidence owner](tests/Kora.Windows.IntegrationTests/NativeFixturePhaseTimings.cs) defers attachment failures until cleanup and preserves an original operation failure. These snapshots neither change focus/admission nor extend waits, weaken lifecycle assertions or establish hosted qualification.
+
 A killed host may never publish a terminal test report
 or its attachments; absent evidence is not a completed/cancelled phase or a
 recoverable historical trace. This instrumentation does not establish the

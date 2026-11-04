@@ -9,6 +9,12 @@ Long results can have [a brief and full Details](#brief-answers-and-full-details
 workflows below describe their reviews and limits; their controls do not enable
 a model. Built-in command responses and local speech still work.
 
+## Navigate headings in a final Markdown answer
+
+In an already opened final Markdown **Details** view, expand **Document headings (Alt+H)**. Each entry shows its position, heading level and complete heading text, including duplicate titles. Click an entry, or focus it and press Enter or Space, to move to and focus that exact heading. Alt+H focuses the first index entry again ([native interaction](../src/Kora/NativeDocumentInteraction.cs)).
+
+The index does not need links in the answer. It is unavailable in Exact source, Continuous text, source fallback, provisional answers and documents without headings. Switching back to the same admitted rendered view restores navigation; closing or losing source/private access retires it. Navigation does not copy, speak, open websites or grant permissions ([view lifetime](../src/Kora/DetailContentView.axaml.cs)).
+
 ## Inspect context submitted for a retained answer
 
 Select one exact retained ASSISTANT answer in Sessions or the conversation pane, then choose **Context submitted for this answer**. The private native Details view shows historical host metadata, not a new answer or source-body recall ([native route](../src/Kora/ConversationPresentation.axaml), [inspection owner](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs)).

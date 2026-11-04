@@ -70,6 +70,16 @@ fake GitHub operations; they neither activate the profile nor replace complete
 candidate CI. Partial integration is release-blocked until verified recovery or
 actual-tip qualification/publication.
 
+The separately administered [independent beta delivery profile](eng/merge-queue/README.md#opt-in-independent-beta-delivery)
+keeps full candidate behavioral/coverage proof but permits later admission before
+the preceding source's full main beta finishes. Its trusted conditional installer
+policy reports unexecuted MSI/Burn work as not selected; managed setup compilation
+and tests remain mandatory, and actual-source main packaging remains full.
+Merging its implementation does not activate the profile. Deterministic
+`node .\eng\run-policy-tests.cjs`, `.\eng\Test-CiPreflight.ps1` and
+`.\eng\Test-GitHubRelease.ps1` cover the source records, legacy fence, publication
+boundaries and conservative impact policy; hosted activation is separate evidence.
+
 Restore, build, and test with the pinned SDK and locked dependencies:
 
 ```powershell

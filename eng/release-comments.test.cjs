@@ -275,7 +275,8 @@ test('batch publication retains locked routing and reconciles comments only afte
   const job = workflowJob(workflow, 'release-batch');
   assert.match(job, /needs: \[version, portable, windows-integration, installer\]/);
   assert.match(job, /if: needs\.version\.outputs\.publish == 'true' && needs\.version\.outputs\.already-published != 'true' && inputs\.queue_ticket == '' && vars\.KORA_MERGE_QUEUE_PROFILE == 'batch-v1'/);
-  assert.match(job, /group: merge-queue-controller\r?\n      cancel-in-progress: false\r?\n      queue: max/);
+  assert.ok(job.includes("group: ${{ vars.KORA_MERGE_QUEUE_DELIVERY_PROFILE == 'independent-v1' && format('release-source-{0}', github.sha) || 'merge-queue-controller' }}"));
+  assert.match(job, /cancel-in-progress: false\r?\n      queue: max/);
   for (const permission of ['contents: write', 'actions: read', 'pull-requests: read', 'issues: write']) {
     assert.ok(job.includes(permission));
   }

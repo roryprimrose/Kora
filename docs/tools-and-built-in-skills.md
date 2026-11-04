@@ -69,6 +69,11 @@ Type **review agent**, or say your current assistant name followed by **review a
 
 Equivalent typed/current-name activated voice controls are **agent source &lt;full path&gt;**, **agent request &lt;original text&gt;**, **agent targets**, **agent next targets**, **agent target &lt;displayed session ID&gt;**, **agent review invocation** (also **agent review references**), **agent consent resolution**, **agent confirm invocation**, and **agent stop**. Resolution consent is not invocation confirmation. Changing input, target or source requires a fresh review. Reviews expire after two minutes and cannot be replayed. Disabling, holding, replacing or losing access to a referenced instruction retires this bundle without changing unrelated captured-answer rules.
 
+If the selected conversation changes while its profile is being read, Kora
+refuses the stale review without running the agent. Refresh the Active
+conversations, select the current target and start a fresh review; Kora does not
+automatically retarget or invoke it.
+
 v1 can request only the six original recorded read-only observation IDs, and only the exact reviewed subset is advertised or dispatched. v2 requires `tools: none` and `maximum-calls: 0`; its comma-separated `references` are exact IDs such as `disk.kora-profile.instruction.example`, not paths or display labels. There are no arbitrary instruction/file imports, skills, personal-profile instruction originals, recursive agents, hooks, scripts, child agents, concurrent workers, scheduling, MCP, web/power tools, hosted transfer/fallback, automatic enablement or future applicability. All profile/instruction text remains inert guidance, not authority. Caption and skill-reference operations are separate and unchanged.
 
 **v4 combines instructions and tools in one actual run.** Declare `kora-agent-format: 4`, one to four exact owned instruction IDs, one to six distinct existing observation tool IDs and a positive call budget.

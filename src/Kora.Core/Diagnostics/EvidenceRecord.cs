@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 using Kora.Core.Auditing;
 using Kora.Core.Hosting;
 
@@ -14,4 +16,5 @@ public sealed record EvidenceRecord(
     string? EventName = null, string? ExceptionType = null,
     IReadOnlyList<IReadOnlyDictionary<string, EvidenceValue>>? Scopes = null,
     AuthorityAuditProvenance? AuthorityProvenance = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     ExceptionReportSignature? ExceptionReport = null);

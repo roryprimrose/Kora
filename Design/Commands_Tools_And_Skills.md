@@ -204,6 +204,15 @@ inspection still supports its existing stdio/HTTP shapes, but duplicate JSON
 fields now fail closed rather than selecting an ambiguous definition. A source
 revision or inclusion change requires fresh review and discovery.
 
+Metadata reads also retire the in-flight source lifetime when they observe changed
+complete file bytes, exclusion or source withdrawal. A failed configuration read
+withholds all previously observed source lifetimes. Restoring old bytes or
+inclusion cannot revive an old discovery or native review; an unchanged successful
+refresh preserves it. This bounded in-memory retirement is independent of grants
+and does not claim detection of filesystem changes never observed by the host.
+Recovery requires a fresh explicit request with current source resolution,
+discovery and native approvals; no automatic reconnect or retry is added.
+
 The [bounded source editor](Definition_Management.md#bounded-kora-owned-https-mcp-entry-editing) completes creation/editing
 of one Kora-owned canonical `Mcp\mcp.json` HTTPS entry through native URL/type fields, complete exact-entry review
 and a separate atomic Save confirmation/readback. It accepts a sole `servers` or `mcpServers` root collection and preserves all unrelated bytes.
@@ -526,6 +535,12 @@ The [parser](../src/Kora.Core/Agents/BoundedAgentProfile.cs) retains the immutab
 The [native reader](../src/Kora.Windows/ArtifactDiscovery/WindowsAgentProfileReader.cs) pins an existing current-user-owned canonical `.agent.md` on a local fixed drive using the existing protected-root, reparse, hard-link and writable-sharing file boundary. Each source read revalidates ownership and native identity. Hidden/system and protected roots are unavailable; this does not grant access to arbitrary account/profile storage.
 
 Profile prose is inert untrusted guidance: paths, URLs and instructions in it are never resolved as dependencies or authority. The [review](../src/Kora.Application/Agents/BoundedAgentReview.cs) fixes exact native source revision, original input/origin, Active session metadata, locality, tool subset and clamped budgets. It expires after two minutes and requires a separate single-use invocation confirmation. Input, session, privacy, ownership or source changes retire applicability.
+
+Review creation rechecks private admission after awaited target inspection and
+before opening the profile. After source I/O, it rereads the exact Active target
+and rechecks admission before returning a review. A changed target refuses the
+review and releases its pinned source; recovery requires a fresh review of the
+current target, not automatic retargeting or invocation.
 
 The [agent conversation consumer](../src/Kora.Application/Hosting/SessionConversationService.Agents.cs) uses local model admission and canonical retained request/task/answer terminal receipts. Exact source-qualified revision fingerprints correlate through typed request/terminal audit; raw profile/input/answer text never enters diagnostics or audit. Stop/revoke closes dispatch and publication; native source and provider ownership remain held until actual quiescence, including cancellation-ignoring transport. See the [user interaction](../docs/tools-and-built-in-skills.md#run-one-reviewed-local-agent-profile).
 

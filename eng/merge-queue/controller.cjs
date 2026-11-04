@@ -6,6 +6,8 @@ const MAX_CANDIDATES = 10;
 
 async function reconcile(api, options = {}) {
   const { profile } = require('./batch-policy.cjs');
+  invariant(!api.independent || profile(options.profile) === 'batch-v1',
+    'Independent delivery requires the batch profile.');
   if (profile(options.profile) === 'batch-v1') return require('./batch.cjs').reconcileBatch(api, options);
   api.info(`Starting reconciliation for ${api.repository}; verifying required queue App checks and branch protection.`);
   const result = await reconcileOnce(api, options);

@@ -1,18 +1,20 @@
 const { createHash } = require('node:crypto');
 const { CHECKS, GATE, STATE_BRANCH, SHA, TICKET, invariant, validateState, title, workflowJobs,
-  requiredJobsState, terminalJobs, terminalRejectedAdmission, terminalRejectedPreflight } = require('./policy.cjs');
+  requiredJobsState, terminalJobs, terminalRejectedAdmission, terminalRejectedPreflight,
+  terminalRejectedDelivery } = require('./policy.cjs');
 
 const FILE = 'queue.json';
 const WORKFLOW = 'ci.yml';
 
 class GitHubQueue {
-  constructor(github, context, core, appId) {
+  constructor(github, context, core, appId, deliveryProfile = '') {
     this.github = github;
     this.context = context;
     this.core = core;
     this.repo = context.repo;
     this.repository = `${this.repo.owner}/${this.repo.repo}`;
     this.appId = Number(appId);
+    this.independent = require('./delivery.cjs').independent(deliveryProfile);
     invariant(Number.isSafeInteger(this.appId) && this.appId > 0, 'Missing queue App ID.');
     this.commit = null;
     this.serialized = null;
@@ -55,8 +57,35 @@ class GitHubQueue {
     if (this.commit && this.serialized === serialized) return;
     const { data: blob } = await this.github.rest.git.createBlob({ ...this.repo,
       content: `${serialized}\n`, encoding: 'utf-8' });
+    const entries = [{ path: FILE, mode: '100644', type: 'blob', sha: blob.sha }];
+    let baseTree;
+    if (this.commit) {
+      const { data: previous } = await this.github.rest.repos.getCommit({ ...this.repo, ref: this.commit });
+      baseTree = previous.commit?.tree?.sha;
+      invariant(previous.sha === this.commit && SHA.test(baseTree), 'Cannot preserve the independent release tree.');
+    }
+    if (state.deliveryProfile === 'independent-v1') {
+      invariant(this.commit, 'Independent releases require existing durable queue state.');
+      if (state.completedTip?.delivery === 'independent-v1') {
+        const record = require('./delivery.cjs').releaseRecord(state.completedTip);
+        const path = `releases/${record.source}.json`;
+        let existing;
+        try {
+          existing = await this.releaseSource(record.source, this.commit);
+        } catch (error) {
+          if (error.status !== 404) throw error;
+        }
+        invariant(!existing || JSON.stringify(existing) === JSON.stringify(record),
+          'Immutable completed-source record changed.');
+        if (!existing) {
+          const { data: release } = await this.github.rest.git.createBlob({ ...this.repo,
+            content: `${JSON.stringify(record)}\n`, encoding: 'utf-8' });
+          entries.push({ path, mode: '100644', type: 'blob', sha: release.sha });
+        }
+      }
+    }
     const { data: tree } = await this.github.rest.git.createTree({ ...this.repo,
-      tree: [{ path: FILE, mode: '100644', type: 'blob', sha: blob.sha }] });
+      ...(baseTree ? { base_tree: baseTree } : {}), tree: entries });
     const { data: commit } = await this.github.rest.git.createCommit({ ...this.repo,
       message, tree: tree.sha, parents: this.commit ? [this.commit] : [] });
     if (this.commit) {
@@ -166,11 +195,11 @@ class GitHubQueue {
     if (run.head_sha !== source) return false;
     const inventory = await this.workflowInventory(source);
     return inventory !== null && (terminalRejectedAdmission(run, jobs, inventory.blob)
-      || terminalRejectedPreflight(run, jobs, inventory.blob));
+      || terminalRejectedPreflight(run, jobs, inventory.blob) || terminalRejectedDelivery(run, jobs, inventory.blob));
   }
   async trustedInventory(source) {
     const inventory = await this.workflowInventory(source);
-    return inventory?.schema === 'windows-12-v1' ? inventory : null;
+    return ['windows-12-v1', 'windows-12-delivery-v1'].includes(inventory?.schema) ? inventory : null;
   }
   async workflowInventory(source) {
     invariant(SHA.test(source), 'Unknown candidate workflow source.');
@@ -199,7 +228,26 @@ class GitHubQueue {
       this.notice('Candidate workflow job schema is unknown; physical quiescence is unknown.');
     return expected === null ? null : { blob: data.sha, jobs: expected,
       schema: bytes.toString('utf8').replaceAll('\r\n', '\n').split('\n')
-        .includes('# merge-queue-job-schema: windows-12-v1') ? 'windows-12-v1' : 'historical' };
+        .includes('# merge-queue-delivery-schema: independent-v1') ? 'windows-12-delivery-v1'
+        : bytes.toString('utf8').replaceAll('\r\n', '\n').split('\n')
+          .includes('# merge-queue-job-schema: windows-12-v1') ? 'windows-12-v1' : 'historical' };
+  }
+  async releaseSource(source, ref = this.commit) {
+    invariant(SHA.test(source) && SHA.test(ref), 'Independent release requires pinned source and queue revisions.');
+    const { data } = await this.github.rest.repos.getContent({ ...this.repo,
+      ref, path: `releases/${source}.json` });
+    invariant(data?.type === 'file' && data.encoding === 'base64' && typeof data.content === 'string',
+      'Independent source record is not a file.');
+    const bytes = Buffer.from(data.content, 'base64');
+    invariant(createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex') === data.sha,
+      'Independent source record blob differs from its bytes.');
+    return require('./delivery.cjs').validateRelease(JSON.parse(bytes.toString('utf8')), source);
+  }
+  async candidatePackaging(base, head) {
+    invariant(SHA.test(base) && SHA.test(head), 'Packaging selection requires exact admitted revisions.');
+    const { data } = await this.github.rest.repos.compareCommits({ ...this.repo, base, head, per_page: 1 });
+    return require('./delivery.cjs').packagingSelection(['ahead', 'identical'].includes(data.status)
+      && data.base_commit?.sha === base && data.merge_base_commit?.sha === base ? data.files : undefined);
   }
   async files(number) {
     const pr = await this.pull(number);
@@ -295,10 +343,11 @@ class GitHubQueue {
         && terminalJobs(jobs, inventory.jobs) && qualification.length === 1
         && qualification[0].status === 'completed' && qualification[0].conclusion === 'success'
         ? { run: run.id, source: tip.sha, job: qualification[0].id } : null;
+      const deliveryRejected = terminalRejectedDelivery(run, jobs, inventory.blob);
       return { owner: { run: run.id, source: tip.sha, attempt: 1 }, qualification: proof,
-        provisional: !started, suppressed,
+        provisional: !started && !(api.independent && deliveryRejected), suppressed,
         terminal: run.status === 'completed' && (terminalJobs(jobs, inventory.jobs)
-          || terminalRejectedAdmission(run, jobs, inventory.blob)) };
+          || terminalRejectedAdmission(run, jobs, inventory.blob) || deliveryRejected) };
     }
     let previous;
     if (tip.qualificationOwner) {
@@ -314,7 +363,7 @@ class GitHubQueue {
     for (const run of runs.filter(eligible).sort((a, b) =>
       Number(b.status === 'completed') - Number(a.status === 'completed') || a.id - b.id)) {
       if (run.id === tip.qualificationOwner?.run) continue;
-      if (run.status === 'completed' && run.conclusion !== 'success') continue;
+      if (run.status === 'completed' && run.conclusion !== 'success' && !this.independent) continue;
       const observation = await observe(this, run);
       if (observation.suppressed) continue;
       if (observation.provisional) provisional ??= observation;
@@ -418,10 +467,20 @@ async function admit({ github, context, inputs }) {
   return active.head;
 }
 
-async function admitBatchTip({ github, context, appId }) {
-  const api = new GitHubQueue(github, context, null, appId);
+async function admitBatchTip({ github, context, appId, deliveryProfile = '' }) {
+  const api = new GitHubQueue(github, context, null, appId, deliveryProfile);
   const state = await api.load();
   invariant(state.version === 2, 'Batch main qualification requires migrated state.');
+  if (api.independent) {
+    try {
+      const record = await api.releaseSource(context.sha);
+      return await api.containsBase(record.source, await api.main());
+    } catch (error) {
+      if (error.status !== 404) throw error;
+      // Push admission can arrive before the controller has recorded the verified merge.
+      if (state.completedTip?.sha !== context.sha || state.completedTip.delivery === 'independent-v1') return false;
+    }
+  }
   if (state.active !== null || !state.completedTip || state.completedTip.sha !== context.sha) return false;
   return await api.main() === context.sha;
 }

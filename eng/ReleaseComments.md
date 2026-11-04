@@ -10,8 +10,11 @@ only the admitted main/tag source, without
 persisted credentials, and never executes issue/PR text or downloaded artifacts.
 
 The [batch-release path](../.github/workflows/ci.yml) runs the same reconciliation
-after successful completed-tip publication under the existing controller mutation
-lock. It retains batch-only routing and qualification; the ordinary release job
+after successful completed-tip publication under main's profile-specific mutation
+lock: the controller lock for ordinary batch delivery, or the exact-source release
+lock for `independent-v1`. The release-header validator recognizes only the exact
+PR-read and issues-write permissions used by reconciliation and rejects changed,
+duplicate or unrelated permissions. It retains batch-only routing and qualification; the ordinary release job
 cannot publish or reconcile comments in `batch-v1`. Batch retries retain main's
 full-validation path rather than using the ordinary already-published shortcut
 ([workflow regressions](release-comments.test.cjs)).

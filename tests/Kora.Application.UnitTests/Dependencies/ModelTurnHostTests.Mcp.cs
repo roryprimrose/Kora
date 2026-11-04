@@ -24,6 +24,117 @@ public sealed partial class ModelTurnHostTests
     private const string McpSchema = """{"type":"object","additionalProperties":false,"properties":{"query":{"type":"string","maxLength":32}},"required":["query"]}""";
 
     [Theory]
+    [InlineData("changed", false)]
+    [InlineData("deleted", false)]
+    [InlineData("invalid", false)]
+    [InlineData("excluded", false)]
+    [InlineData("withdrawn", false)]
+    [InlineData("unchanged", false)]
+    [InlineData("changed", true)]
+    [InlineData("deleted", true)]
+    [InlineData("invalid", true)]
+    [InlineData("excluded", true)]
+    [InlineData("withdrawn", true)]
+    [InlineData("unchanged", true)]
+    public async Task Mcp_observed_source_retirement_cannot_be_undone_during_discovery_or_selection(
+        string change, bool selection)
+    {
+        using var f = new Fixture();
+        using var source = new McpSource();
+        f.ProfileCatalogue.Status = Kora.Core.Providers.ProviderCatalogueStatus.Current;
+        f.ProfilePreferences.Value = new(Kora.Core.Providers.ProviderService.Local, [Profile()]);
+        var model = new McpModelTransport();
+        await using var loop = new BoundedModelTurnAdapter(model, f.Time, f);
+        var host = f.ConfiguredProfiles(adapter: loop);
+        var approval = new McpApprovals(f);
+        var broker = new McpBroker(source.Account);
+        var policy = await source.Policy();
+        var service = McpService(f, host, source, broker, approval, policy);
+        var original = File.ReadAllText(source.File);
+        var settings = source.Settings;
+        void ObserveAndRestore()
+        {
+            switch (change)
+            {
+                case "changed": File.AppendAllText(source.File, " "); break;
+                case "deleted": File.Delete(source.File); break;
+                case "invalid": File.WriteAllText(source.File, "{}"); break;
+                case "excluded": source.Settings = new([], [], [], [], [source.File], []); break;
+                case "withdrawn": source.Settings = new([], [], [], [], [], [source.ServerId]); break;
+            }
+            if (change is "deleted")
+            { FluentActions.Invoking(() => source.Configuration.Load()).Should().Throw<FileNotFoundException>(); }
+            else if (change is "invalid")
+            { FluentActions.Invoking(() => source.Configuration.Load()).Should().Throw<InvalidDataException>(); }
+            else { source.Configuration.Load(); }
+            File.WriteAllText(source.File, original);
+            source.Settings = settings;
+            source.Configuration.Load();
+        }
+        var selectionEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseSelection = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Func<bool>? selectionCurrent = null;
+        async Task<string?> Select(HostRequest request, HostRevision generation, DateTimeOffset expiresAt,
+            IReadOnlyList<McpDiscoveredTool> tools, Func<bool> current, CancellationToken token)
+        {
+            selectionCurrent = current;
+            selectionEntered.SetResult();
+            await releaseSelection.Task.WaitAsync(token);
+            return tools.Single().Name;
+        }
+        if (!selection)
+        {
+            broker.AfterExchange = method =>
+            {
+                if (method is "tools/list") { ObserveAndRestore(); }
+            };
+        }
+        var observed = 0;
+        var submission = service.SubmitMcpAsync(new(f.Session, null), "Find the reviewed reference.",
+            source.ServerId, source.Account, approval.Present, selection ? Select : McpSelect, static () => true,
+            Token, onResult: (_, _) => observed++);
+        if (selection)
+        {
+            try
+            {
+                await selectionEntered.Task.WaitAsync(Token);
+                submission.IsCompleted.Should().BeFalse();
+                broker.Disposed.Should().BeFalse();
+                ObserveAndRestore();
+                selectionCurrent!().Should().Be(change is "unchanged");
+            }
+            finally { releaseSelection.TrySetResult(); }
+        }
+        var receipt = await submission;
+        receipt.Message.Outcome.Should().Be(change is "unchanged" ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.Denied);
+        receipt.Task.IsTerminal.Should().BeTrue();
+        broker.Disposed.Should().BeTrue();
+        if (change is "unchanged")
+        {
+            observed.Should().Be(1);
+            return;
+        }
+        receipt.Message.Reason.Should().Be(ModelTurnReason.HostAdmissionClosed);
+        receipt.Message.AssistantResponse.Should().BeNull();
+        broker.Methods.Should().Equal("initialize", "tools/list");
+        approval.Stages.Should().Equal(McpReviewStage.Connection);
+        model.Requests.Should().BeEmpty();
+        observed.Should().Be(0);
+        f.CancelAudit.Events.Where(item => string.Equals(item.ActionId, "mcp.exchange", StringComparison.Ordinal))
+            .Select(item => item.Outcome)
+            .Should().Equal(Kora.Core.Auditing.SecurityAuditOutcome.Requested,
+                Kora.Core.Auditing.SecurityAuditOutcome.Succeeded, Kora.Core.Auditing.SecurityAuditOutcome.Requested,
+                selection ? Kora.Core.Auditing.SecurityAuditOutcome.Succeeded : Kora.Core.Auditing.SecurityAuditOutcome.Unknown);
+
+        broker.AfterExchange = null;
+        var recovered = await service.SubmitMcpAsync(new(f.Session, null), "Find the reviewed reference.",
+            source.ServerId, source.Account, approval.Present, McpSelect, static () => true, Token);
+        recovered.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        recovered.Message.Request.Should().NotBe(receipt.Message.Request);
+        broker.Methods.Should().Equal("initialize", "tools/list", "initialize", "tools/list", "tools/call");
+    }
+
+    [Theory]
     [InlineData(McpReviewStage.Connection)]
     [InlineData(McpReviewStage.ToolSelection)]
     [InlineData(McpReviewStage.Invocation)]
@@ -395,6 +506,7 @@ public sealed partial class ModelTurnHostTests
         internal string File { get; }
         internal McpServerConfigurationService Configuration { get; }
         private readonly McpPreferences preferences;
+        internal ArtifactDirectorySettings Settings { get => preferences.Value; set => preferences.Value = value; }
         internal Action? BeforeLoad { set => preferences.BeforeLoad = value; }
         internal string ServerId { get; }
         internal McpAccountReference Account { get; } = new(Guid.NewGuid(), new(1), Guid.NewGuid(), new(new("https://example.com/mcp")));

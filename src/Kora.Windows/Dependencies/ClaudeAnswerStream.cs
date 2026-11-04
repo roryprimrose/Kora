@@ -91,10 +91,10 @@ internal sealed class ClaudeAnswerStream(ProviderProfileTuple profile, int input
         catch { quarantine?.Invoke(); throw; }
     }
 
-    private static async ValueTask DisposeOwnedAsync(Stream stream, Action quarantine)
+    internal static async ValueTask DisposeOwnedAsync(Stream stream, Action? quarantine)
     {
         try { await stream.DisposeAsync().ConfigureAwait(false); }
-        catch { quarantine(); throw; }
+        catch { quarantine?.Invoke(); throw; }
     }
 
     private async ValueTask LineAsync(ReadOnlyMemory<byte> line, CancellationToken token)

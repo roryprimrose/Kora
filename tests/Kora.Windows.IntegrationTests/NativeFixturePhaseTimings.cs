@@ -119,7 +119,15 @@ namespace Kora.Windows.IntegrationTests
                         .Select(entry => new StepTimingInfo(entry.Id, entry.Name, entry.Timing!.Value)).ToArray());
                 var json = JsonSerializer.Serialize(new PhaseReport(1, testUniqueId, timing,
                     entries.Select(entry => new PhaseState(entry.Id, entry.Name, Outcome(entry.Outcome))).ToArray()));
-                try { publish(json); }
+                PublishAttachment(() => publish(json));
+            }
+        }
+
+        internal void PublishAttachment(Action publishAttachment)
+        {
+            lock (gate)
+            {
+                try { publishAttachment(); }
                 catch (Exception exception)
                 {
                     // Report failure must not interrupt the fixture's physical cleanup.

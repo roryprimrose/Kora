@@ -500,6 +500,16 @@ If the Windows provider has no voice, install a Windows text-to-speech voice
 through Windows Settings. If Kokoro is selected but absent, download it from
 Kora Settings. Typed commands and visual output continue to work.
 
+### Review an installed voice suggestion
+
+Supply an exact already installed `provider / voice ID` when asking an eligible model for a future speech choice. Its entire answer must be `set speech.voice to <provider / voice ID>`. In either Sessions conversation size, choose **Review setting suggestion...** on that exact successful answer ([shared review](../src/Kora/RegisteredSettings/SessionsViewModel.RegisteredSettings.cs)).
+
+Review both current/proposed provider and voice, saved/default provenance, shared device-local scope and next-operation timing. Separately choose **Confirm exact setting change** or **Cancel setting review**.
+Exact typed or current-name activated voice uses `review installed voice suggestion`, then `confirm installed voice change` or `cancel installed voice review` ([commands](../src/Kora.Application/Configuration/InstalledSpeechVoiceSuggestionCommand.cs)).
+
+Review expires after 60 seconds. Changed answers, settings, installed choices, private control or call admission require fresh review. Original voice-channel restrictions survive later native confirmation.
+Saving checks the exact persisted/current pair; only a separately requested next eligible ordinary speech operation uses it. Review/save never synthesize or replay the suggestion, install assets or qualify an unavailable adapter ([review and readback](../src/Kora.Application/Configuration/InstalledSpeechVoiceSuggestionReview.cs)).
+
 Select an installed voice and available output, then select **Preview** to test
 that explicit choice. Preview is disabled when no voice is selected and
 revalidates both selections before playback. There is no retained substitute

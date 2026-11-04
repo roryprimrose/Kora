@@ -41,6 +41,7 @@ releases the microphone; device selection alone does not undo that choice.
 | Where data lives and using multiple computers | [Data storage and roaming profiles](data-storage.md) |
 | Consent, grants, retained data and diagnostics | [Privacy, safety, and logs](privacy-safety-and-logs.md) |
 | Problems and recovery | [Troubleshooting](troubleshooting.md) |
+| Review and post an exception using your GitHub account | [Problem reports](problem-reports.md) |
 
 ## Conversations and saved information
 

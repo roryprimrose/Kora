@@ -32,9 +32,11 @@ public sealed class SettingsDiscoveryWorkflowTests
         transport.Requests.Should().BeEmpty();
         var result = await f.Workflow.AnswerAsync(session, () => true, f.Token);
         result.Outcome.Should().Be(SettingInspectionOutcome.Succeeded,
-            $"retained reason: {result.Receipt?.Message.Reason}; transport rounds: {transport.Requests.Count}; "
-            + $"serialized request bytes: {string.Join(", ", transport.Requests.Select(item => ModelToolProtocol.SerializeRequest(item).Length))}");
+            "the reviewed discovery must finish after {0} transport requests (host reason: {1})",
+            transport.Requests.Count, result.Receipt?.Message.Reason);
         transport.Requests.Should().HaveCount(3);
+        transport.Requests.Sum(item => ModelToolProtocol.SerializeRequest(item).Length)
+            .Should().BeLessThanOrEqualTo(ModelToolProtocol.MaximumInputUtf8Bytes);
         transport.Requests.Should().OnlyContain(item => item.Provenance.Request.SessionId == session.Review.Destination.SessionId
             && item.Provenance.Request.Origin == origin && item.Context.ToolMode == ModelToolMode.SettingsDiscovery
             && item.Context.UserRequest == session.Review.Question && item.Context.Evidence.Single().Content == session.Review.Source);

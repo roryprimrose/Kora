@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 using AwesomeAssertions;
 
 using Kora.Application.Configuration;
@@ -80,6 +82,7 @@ public sealed class VoiceCaptureTimingSuggestionReviewTests : IDisposable
     [InlineData("same-request")]
     [InlineData("source-request")]
     [InlineData("stopped")]
+    [InlineData("stopped-current")]
     [InlineData("completed")]
     [InlineData("invocation")]
     public async Task StaleOrNonNativeConfirmationCannotWrite(string boundary)
@@ -117,6 +120,12 @@ public sealed class VoiceCaptureTimingSuggestionReviewTests : IDisposable
             if (boundary is "invocation") { request = new(request.RequestId, request.SessionId, request.TaskId, request.Origin, new(Guid.NewGuid())); }
             using var input = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
             if (boundary is "stopped") { input.Activity!.Stop(); }
+            if (boundary is "stopped-current")
+            {
+                await Task.Run(() => input.Activity!.Stop(), TestContext.Current.CancellationToken);
+                Activity.Current.Should().BeSameAs(input.Activity);
+                input.Activity!.IsStopped.Should().BeTrue();
+            }
             if (boundary is "completed") { input.Complete(HostOperationOutcome.Completed); }
             await FluentActions.Awaiting(() => review.ConfirmAsync(cancellation.Token)).Should().ThrowAsync<Exception>();
         }

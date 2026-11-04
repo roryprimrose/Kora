@@ -139,6 +139,20 @@ function Test-BatchReleaseSafety {
         Invoke-Release Publish | Out-Null
         Assert (-not $global:KoraReleaseTestState.Releases[0].draft) 'Current CI workflow header did not admit completed batch publication.'
         Assert ($global:KoraReleaseTestState.Tag.object.sha -ceq $source) 'Current CI workflow changed exact batch release source.'
+        $currentWorkflow = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(
+            $global:KoraReleaseTestState.SafetyRecords[$sourcePath].Record.content))
+        foreach ($text in @(
+            $currentWorkflow.Replace('pull-requests: read', 'pull-requests: write'),
+            $currentWorkflow.Replace('issues: write', 'issues: read'),
+            $currentWorkflow.Replace('issues: write', "issues: write`n      issues: write"),
+            $currentWorkflow.Replace('issues: write', "issues: write`n      id-token: write")
+        )) {
+            $global:KoraReleaseTestState = New-ReleaseFixtureState
+            Set-ReleaseBatchFixture $source -CurrentWorkflow
+            $global:KoraReleaseTestState.SafetyRecords[$sourcePath] = New-ReleaseSafetyFile '.github/workflows/ci.yml' $text
+            Reject { Invoke-Release Publish } 'Batch release workflow'
+            Assert ($global:KoraReleaseTestState.Writes.Count -eq 0) 'Invalid issue-comment permissions allowed publication.'
+        }
 
         foreach ($unknown in @('batch-v2', 'BATCH-v1', 'disabled', ' batch-v1')) {
             $global:KoraReleaseTestState = Copy-State $good

@@ -21,6 +21,7 @@ public sealed partial class MainViewModel
             appearanceSuggestionPersistence, speechSummaryPersistence, volumeSuggestionPersistence, volumeSuggestionReviewWork,
             rateSuggestionPersistence, rateSuggestionReviewWork,
             timingSuggestionWork,
+            installedVoicePersistence, installedVoiceReviewWork,
             responseModeSuggestionWork, settingsUndoWork,
             responseReadPlanQuiescence, responseReadQuiescence,
             AuditPersistence, outputDiscoveryPersistence,

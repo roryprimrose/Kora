@@ -153,6 +153,15 @@ reviewed stop-and-delete boundary without changing FIFO or original authority
 ([combined FIFO/readback regression](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Pending.cs),
 [tool-join/deletion regression](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.StopAndDelete.cs)).
 
+Native Stop-and-delete confirmation keeps its original selected-conversation and
+private-control presentation lifetime while joining owned work. Switching away
+and back or retiring private control cannot reattach its delayed outcome or
+failure to the new presentation. Actual confirmed deletion still retires only
+the deleted conversation's unsent input; suppressing stale presentation neither
+abandons the physical join nor changes the durable outcome. Fresh inspection is
+required after retirement
+([native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.StopAndDeletePresentation.cs)).
+
 The [approved product decision](MVP_Scope.md#approved-retirement-and-simplification) replaces first-class saved-conversation-draft management with unsent composer text. A session is an ongoing conversation/work stream, not a draft document; Active/Done lifecycle is independent of whether text is waiting in its input box.
 
 Keep unsent input per exact conversation in memory across view/session switching, share it consistently between Sessions and compact views, and never submit or merge it implicitly. Do not add disk autosave. Protect deliberate discard/exit and apply privacy/ownership retirement without cross-session leakage.

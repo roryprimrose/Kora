@@ -54,6 +54,11 @@ In the conversation, choose **Export exact answer...** on the particular retaine
 This action is separate from **Context submitted for this answer** in the primary conversation pane, compact view and Sessions: inspecting historical metadata does not select export content or confirm a write.
 Review the complete original answer, conversation/result identity, exact destination, UTF-8/no-BOM format and retention warning. Separately choose **Confirm this one new-file export** ([native review](../src/Kora/ExactAnswerExportWindow.cs)).
 
+In a small window or with enlarged text, scroll the destination/retention area
+and original answer separately. Long paths remain complete. The confirmation
+and **Cancel / Close** controls remain below the reading areas; scrolling or
+resizing never confirms an export. Long outcome messages also scroll.
+
 Opening Details, choosing a destination or cancelling does not authorize a write. Existing files are refused, not overwritten. Confirmed success means the complete original text was saved unchanged and its exact bytes read back after durable flush. The file is not opened automatically.
 On an uncertain result, inspect the chosen destination before any fresh review; Kora does not retry automatically
 ([export owner](../src/Kora.Application/Presentation/ExactAnswerExportReview.cs), [native writer](../src/Kora.Windows/Presentation/WindowsExactAnswerExportWriter.cs)).

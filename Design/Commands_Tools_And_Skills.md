@@ -265,6 +265,14 @@ unchanged. Task/audit outcomes remain durable; the tool result is a volatile
 original-session presentation. Cancellation or an uncertain dispatched outcome
 does not claim remote rollback and never retries automatically.
 
+The shared invocation owner revalidates the exact delegated account reference
+after physical transport join, before any result-bearing native review or local
+continuation, and at terminal readback before publishing either route's result.
+Account removal or changes to its identity, revision, credential reference or
+destination suppress disclosure without rewriting an already committed terminal
+receipt. Disposing a credential lease does not end result-disclosure authority
+checks or grant a replacement account the original approval.
+
 An exchange disconnect, disposed transport, or transport-owned cancellation
 retires that invocation's connection without reconnecting, retrying or falling
 back. A failed tool exchange completes the original conversation as

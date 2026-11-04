@@ -211,11 +211,15 @@ and run MTP through `--root-directory` / `--test-modules`, without restore or
 compilation. No larger host or increased per-process thread limit is requested.
 `ui-definition-dialogs`
 owns the complete customization and prompt-parameter window classes;
-`ui-conversation-actions` owns conversation methods beginning Native, Owned or
-Named; `ui-conversation-core` owns conversation methods beginning B, E or M;
+`ui-conversation-actions` owns conversation methods beginning Native;
+`ui-conversation-core` owns conversation methods beginning B, E or M;
 `ui-conversations` owns all other conversation methods, including future
-methods outside those families. `ui-definitions` owns remaining definition classes.
+methods outside those families and the complete Owned/Named families.
+`ui-definitions` owns remaining definition classes.
 `ui-workflows` and `ui-presentation` isolate measured expensive platform classes;
+the former includes the complete foreground push-to-talk UI contract class;
+the latter includes the complete prepared local search, local file text
+measurement and adaptive session-name search classes.
 `ui-platform` catches the remainder, including future classes.
 All theory rows for each method stay together. `ui-editors` owns the complete
 owned-definition editor class.
@@ -271,6 +275,23 @@ trusted-main workflow. Local contracts and archive round-trip checks do not
 establish hosted timing. Aim for 12-15 minutes end-to-end, but measure actual
 runner scheduling, artifact transfer, build and slowest-test time before claiming
 that target. More jobs cannot fix a test that stalls.
+
+The unchanged twelve-job layout is rebalanced using complete successful
+[run 41687015183](https://github.com/roryprimrose/Kora/actions/runs/41687015183)
+(source `0cd532a0fb6c74345d8820c1e5a27549bff385b0`, 8,012 cases) and
+[run 41695737766](https://github.com/roryprimrose/Kora/actions/runs/41695737766)
+(source `844a3ec2fb65620a617b610f782f3e9c64bc893c`, 8,030 cases).
+Their retained TRX durations project maximum serial work of 1,059.792s to
+720.966s and 940.896s to 619.868s respectively; these are estimates, not
+revised-source runtime evidence. Only whole platform classes and the existing
+Owned/Named conversation families move; theory rows, per-test fixture lifecycle,
+headless/tracing isolation, native profiles and all twelve/five job identities
+remain unchanged ([runner](eng/Run-WindowsIntegrationTests.ps1),
+[regressions](eng/Test-WindowsIntegrationScheduling.ps1)).
+Historical reports keep their historical partition ownership; do not pass
+pre-rebalance twelve-report evidence as current-layout execution proof.
+The current-layout twelve-report join validates the complete source catalog
+after collecting every report, including exact method and theory-row counts.
 
 To reproduce downloaded-artifact execution after packaging:
 

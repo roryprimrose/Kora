@@ -128,6 +128,14 @@ Unknown/unconfirmed/inaccessible state holds policy and new clock writes.
 Inspect saved state and receipts, explicitly repair, then refresh; ordinary
 refresh cannot clear an unconfirmed marker or claim rollback.
 
+Save/Reset owns one operation from initial admission through requested/terminal
+audit, persistence, durable control receipt, exact readback and activation.
+Overlapping Save/Reset or Refresh is explicitly refused without retiring the
+active writer. Audit callbacks cannot refresh a changed saved source into
+authority for the original write; a source conflict requires explicit Refresh
+and a new native decision ([owner](../src/Kora.Application/Configuration/SessionRetentionConfigurationService.cs),
+[regressions](../tests/Kora.Application.UnitTests/Configuration/SessionRetentionConfigurationServiceTests.cs)).
+
 Changes affect only new sessions or subsequent meaningful activity. Existing
 sessions retain their snapshotted archive/deletion intervals and due dates;
 shortening or resetting never silently applies an immediate purge on a later

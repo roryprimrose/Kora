@@ -91,6 +91,15 @@ internal sealed partial class OwnedSkillEditorController(
             if (invocation is not null) { await invocation.CloseAndWait(); }
             return;
         }
+        if (command.Operation is "close-use")
+        {
+            if (invocation is null) { throw new InvalidOperationException("Owned skill invocation is unavailable in this host."); }
+            await invocation.CloseAndWait();
+#pragma warning disable VSTHRD003 // Join the editor command as well as its underlying use without retiring the draft.
+            await work;
+#pragma warning restore VSTHRD003
+            return;
+        }
         if (busy) { main.ReportHostInteractionFailure("Skill authoring is busy; cancel or wait for its owned I/O to finish."); return; }
         if (window is null)
         {
@@ -298,7 +307,6 @@ internal sealed partial class OwnedSkillEditorController(
                 case "review-tool":
                 case "review-use":
                 case "invoke":
-                case "close-use":
                     if (invocation is null) { throw new InvalidOperationException("Owned skill invocation is unavailable in this host."); }
                     await invocation.Handle(command, authority, Eligible);
                     break;

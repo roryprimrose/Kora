@@ -377,6 +377,12 @@ and complete bytes are revalidated at review, admission, asynchronous model
 boundaries and final disclosure.
 
 `owned skill close-use` closes and retires use without changing the draft.
+It remains available while an invocation is busy, including after typed
+`owned skill invoke`. The same command with the current assistant-name prefix
+is available through eligible activated voice. Like **Cancel and close use**,
+it immediately clears the private use window, then waits for actual admitted
+work to join; an ignoring provider does not turn a stop request into completion.
+The unsaved editor draft and immutable saved package remain unchanged.
 `owned skill cancel`, editor edits, closing, expiry, source changes, privacy,
 ownership, channel or target loss retire authority and suppress late output.
 Changing target/request after preparing an invocation requires a fresh source

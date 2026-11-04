@@ -441,12 +441,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (clipboardExplanation is not null) { clipboardExplanation.Changed += OnClipboardPreviewChanged; }
         clipboardPreview.Changed += OnClipboardPreviewChanged;
 
-        AsyncCommand CreateCommand(Func<Task> execute, Func<bool>? canExecute = null) =>
+        AsyncCommand CreateCommand(Func<Task> execute, Func<bool>? canExecute = null, Func<bool>? canExecuteWhileExecuting = null) =>
             new(() => Kora.Application.Hosting.HostRequestRunner.RunAsync(
                     HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi, execute),
                 exception => Kora.Application.Hosting.HostRequestRunner.Run(
                     HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi,
-                    () => HandleCommandException(exception)), canExecute);
+                    () => HandleCommandException(exception)), canExecute, canExecuteWhileExecuting);
 
         InitializeSpeechInputConfiguration(speechInputConfiguration, execute => CreateCommand(execute));
         InitializeVoiceCaptureTiming(voiceCaptureTimingConfiguration, execute => CreateCommand(execute));
@@ -645,7 +645,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || Kora.Application.KnowledgeSources.KnowledgeSourceAnswerCommand.Parse(CommandText, AssistantName) is not null
                       || NewRequestOpenCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Core.Interaction.LocalEventCommand.Parse(CommandText, AssistantName) is not null
-                      || ManualCallCommand.Parse(CommandText, AssistantName) is not null));
+                      || ManualCallCommand.Parse(CommandText, AssistantName) is not null),
+            () => Kora.Application.Skills.OwnedSkillAuthoringCommand.Parse(CommandText, AssistantName)?.Operation is "close-use");
         PreviewVoiceCommand = CreateCommand(
             PreviewVoiceAsync,
             () => SelectedVoice is not null && SelectedOutputDevice is not null

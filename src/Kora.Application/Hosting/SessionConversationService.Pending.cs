@@ -398,13 +398,24 @@ public sealed partial class SessionConversationService
             pendingClosed = true;
             workers = pendingWorkers.ToArray();
         }
-        await pendingLifetime.CancelAsync().ConfigureAwait(false);
-        await Task.WhenAll(workers).ConfigureAwait(false);
-        foreach (var lane in conversationLanes.Values)
+        try { await pendingLifetime.CancelAsync().ConfigureAwait(false); }
+        catch (Exception exception)
         {
-            await lane.Admission.WaitAsync().ConfigureAwait(false);
-            lane.Dispose();
+            Failure(logger, exception.GetType().Name);
+            throw;
         }
-        pendingLifetime.Dispose();
+        finally
+        {
+            try { await Task.WhenAll(workers).ConfigureAwait(false); }
+            finally
+            {
+                foreach (var lane in conversationLanes.Values)
+                {
+                    await lane.Admission.WaitAsync().ConfigureAwait(false);
+                    lane.Dispose();
+                }
+                pendingLifetime.Dispose();
+            }
+        }
     }
 }

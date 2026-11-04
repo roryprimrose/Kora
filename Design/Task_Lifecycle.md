@@ -358,6 +358,16 @@ Stopping all microphone listening is a separate explicit mute operation.
 Cancelling active work preserves the queue but pauses automatic dispatch; cancellation does not immediately start the next request.
 Replacement waits for execution quiescence and resolution or explicit acknowledgement of uncertain remote effects.
 
+Closing the ordinary submitted-conversation owner closes new admission before
+requesting cancellation. A failing cancellation callback does not release that
+owner: shutdown still joins every captured submitted worker and its physical
+provider/resource completion before disposing lane admission and the lifetime
+source. The callback failure is diagnosed without its content and propagated
+after cleanup; repeat disposal observes the same failed terminal operation,
+not a retry or successful shutdown. Pending requests cannot dispatch and late
+answers cannot become retained success during that join
+([regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.PendingShutdown.cs)).
+
 Cancellation cannot undo a completed write or prove a remote operation never ran.
 If a remote service acknowledges only request cancellation, Kora reports that remote completion may still occur.
 Late receipts can refine the action record without turning a cancelled task into a successful one.

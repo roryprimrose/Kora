@@ -292,6 +292,94 @@ test('unknown mergeability, reviews, enrollment and conflicting priority labels 
   assert.deepEqual(api.state.active.members.map(member => member.number), [6, 7]);
 });
 
+test('complete zero-file candidates retain exact-head singleton validation rather than synthetic admission', async () => {
+  const api = new BatchFake();
+  api.prs = api.prs.slice(0, 1);
+  api.commits.set(sha(1), { tree: sha(200), parents: [BASE] });
+  api.files = async (number, source) => {
+    assert.equal(number, 1);
+    assert.equal(source.head.sha, sha(1));
+    return [];
+  };
+  assert.equal(await step(api), 'dispatched');
+  assert.equal(api.state.active.kind, undefined);
+  assert.equal(api.state.active.head, sha(1));
+  assert.equal(api.state.active.base, BASE);
+  assert.equal(api.state.active.enrollment, ENROLLED);
+  assert.equal(count(api, 'synthetic'), 0);
+  assert.equal(count(api, 'dispatch'), 1);
+  assert.equal(count(api, 'merge'), 0);
+  assert.equal(count(api, 'finish'), 0);
+  assert.equal(api.state.completedTip, null);
+  const missing = api.workflowJobs.pop();
+  assert.equal(await step(api), 'waiting-for-jobs');
+  assert.equal(count(api, 'merge'), 0);
+  assert.equal(count(api, 'finish'), 0);
+  api.workflowJobs.push(missing);
+  api.merge = async active => {
+    api.calls.push(['merge', clone(active)]);
+    return { merged: false };
+  };
+  assert.equal(await step(api), 'merge-pending');
+  assert.equal(api.state.active.phase, 'merge-refused');
+  assert.equal(await step(api), 'merge-pending');
+  assert.equal(count(api, 'merge'), 1);
+  assert.equal(api.state.completedTip, null);
+  assert.equal(api.prs[0].merged, false);
+});
+
+test('zero-file singleton authority changes cancel and join its exact work before lane release', async () => {
+  for (const change of ['head', 'base', 'enrollment', 'review']) {
+    const api = new BatchFake();
+    api.prs = api.prs.slice(0, 1);
+    api.commits.set(sha(1), { tree: sha(200), parents: [BASE] });
+    api.files = async () => [];
+    assert.equal(await step(api), 'dispatched');
+    api.workflowRuns[0].status = 'in_progress';
+    api.workflowRuns[0].conclusion = null;
+    if (change === 'head') api.prs[0].head.sha = sha(8);
+    if (change === 'base') api.base = sha(9);
+    if (change === 'enrollment') api.prs[0].enrollment = '2026-01-01T11:01:00.000Z';
+    if (change === 'review') api.prs[0].review = 'CHANGES_REQUESTED';
+    assert.equal(await step(api), 'retiring', change);
+    assert.equal(count(api, 'cancel'), 1);
+    assert.ok(api.state.active);
+    assert.equal(count(api, 'merge'), 0);
+    api.workflowRuns[0].status = 'completed';
+    api.workflowRuns[0].conclusion = 'cancelled';
+    const pending = api.workflowJobs.at(-1);
+    pending.status = 'in_progress';
+    pending.conclusion = null;
+    assert.equal(await step(api), 'retiring', change);
+    assert.ok(api.state.active);
+    pending.status = 'completed';
+    pending.conclusion = 'cancelled';
+    assert.equal(await step(api), 'retired', change);
+    assert.equal(api.state.active, null);
+    assert.equal(api.state.completedTip, null);
+    assert.equal(count(api, 'dispatch'), 1);
+  }
+});
+
+test('zero-file singleton waits behind a selected batch without losing later candidates', async () => {
+  const api = new BatchFake();
+  api.files = async number => number === 2 ? [] : ['src/feature.cs'];
+  assert.equal(await step(api), 'dispatched');
+  assert.deepEqual(api.state.active.members.map(member => member.number), [1]);
+});
+
+test('unavailable or malformed file inventories never reserve or attest a candidate', async () => {
+  for (const files of [undefined, null, {}, [null], ['']]) {
+    const api = new BatchFake();
+    api.files = async () => files;
+    await assert.rejects(step(api), /inventory/);
+    assert.equal(api.state.active, null);
+    assert.equal(count(api, 'check'), 0);
+    assert.equal(count(api, 'dispatch'), 0);
+    assert.equal(count(api, 'merge'), 0);
+  }
+});
+
 test('control surfaces and group-failure retries use the existing fully validated singleton path', async () => {
   for (const path of ['.github/workflows/ci.yml', 'eng/merge-queue/controller.cjs',
     'eng/Publish-GitHubRelease.ps1', 'eng/GitHubRelease.Common.ps1', 'eng/Get-BuildVersion.ps1', 'GitVersion.yml'])

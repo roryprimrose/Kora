@@ -4,7 +4,7 @@ const { createHash } = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { reconcile } = require('./controller.cjs');
-const { CHECKS, GATE, JOBS, WINDOWS_12_JOBS, PREDECESSOR_WORKFLOWS, workflowJobs,
+const { CHECKS, GATE, JOBS, WINDOWS_12_JOBS, DELIVERY_JOBS, PREDECESSOR_WORKFLOWS, workflowJobs,
   REJECTED_ADMISSION_JOBS, terminalRejectedAdmission, terminalRejectedPreflight,
   MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS,
   mode, validateState, ready, priority, title, requiredJobsState, terminalJobs, successfulJobs } = require('./policy.cjs');
@@ -316,16 +316,19 @@ test('rejected admission retirement is restart-safe and still joins every matchi
 test('missing source-required producers cannot release failed, stale, merged or retiring lanes', async () => {
   const source = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8')
     .replaceAll('\r\n', '\n');
-  for (const workflow of [source]) {
+  for (const [workflow, inventory] of [[source, DELIVERY_JOBS],
+    [source.replace('# merge-queue-delivery-schema: independent-v1\n', ''), WINDOWS_12_JOBS]]) {
     const bytes = Buffer.from(workflow);
     const blob = createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
-    assert.deepEqual(workflowJobs(workflow, blob), WINDOWS_12_JOBS);
-    for (const producer of WINDOWS_12_JOBS.filter(name => !JOBS.includes(name))) {
+    assert.deepEqual(workflowJobs(workflow, blob), inventory);
+    for (const producer of inventory.filter(name => !JOBS.includes(name))) {
       for (const scenario of ['success', 'cancelled', 'failure', null, 'unknown',
         'stale-head', 'stale-base', 'stale-enrollment', 'merged', 'retiring']) {
         const api = new Fake();
         api.workflowSource = workflow;
         api.workflowBlob = blob;
+        api.workflowJobs = inventory.map((name, index) => ({ id: index + 1, name, status: 'completed',
+          conclusion: 'success', run_id: 9, run_attempt: 1, head_sha: BASE }));
         api.state.active = active();
         api.prs.push(pr(2));
         api.workflowRuns = [run({ conclusion: ['success', 'cancelled', 'failure', null, 'unknown'].includes(scenario)

@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { reconcile } = require('./controller.cjs');
-const { validateState, WINDOWS_12_JOBS, GATE, title,
+const { validateState, WINDOWS_12_JOBS, DELIVERY_JOBS, GATE, title,
   REJECTED_ADMISSION_JOBS, terminalRejectedAdmission, terminalRejectedPreflight } = require('./policy.cjs');
 const { profile, CONTROL_PATH, digest, manifestFor } = require('./batch-policy.cjs');
 const { changeBatchState } = require('./recovery.cjs');
@@ -62,7 +62,7 @@ class BatchFake {
     this.calls.push(['dispatch', clone(active)]);
     this.workflowRuns = [{ id: 9, run_attempt: 1, head_sha: active.base, status: 'completed',
       conclusion: 'success', event: 'workflow_dispatch', head_branch: 'main', display_title: title(active) }];
-    this.workflowJobs = WINDOWS_12_JOBS.map((name, index) => ({ id: index + 1, name,
+    this.workflowJobs = this.inventory.jobs.map((name, index) => ({ id: index + 1, name,
       run_id: 9, run_attempt: 1, head_sha: active.base, status: 'completed', conclusion: 'success' }));
   }
   async runs() { return clone(this.workflowRuns); }
@@ -118,6 +118,43 @@ async function until(api, target, limit = 40) {
   for (let index = 0; index < limit; index++) if (await step(api) === target) return;
   assert.fail(`Did not reach ${target}`);
 }
+
+test('independent source completion admits another candidate while its main run is running or has failed', async () => {
+  for (const mainStatus of ['running', 'failed']) {
+    const api = new BatchFake();
+    api.independent = true;
+    api.inventory = { schema: 'windows-12-delivery-v1', blob: sha(999), jobs: [...DELIVERY_JOBS] };
+    await until(api, 'batch-completed');
+    const tip = clone(api.state.completedTip);
+    assert.equal(tip.delivery, 'independent-v1');
+    assert.equal(tip.validation.run, 9);
+    assert.equal(api.state.deliveryProfile, 'independent-v1');
+    api.qualificationObservation = { owner: { run: 42, source: tip.sha, attempt: 1 },
+      qualification: null, provisional: false, terminal: mainStatus === 'failed' };
+    await step(api);
+    assert.ok(api.state.active);
+    assert.equal(api.state.completedTip.qualification, undefined);
+    assert.equal(api.state.completedTip.qualificationOwner.run, 42);
+    assert.equal(count(api, 'qualification'), 0);
+    assert.equal(count(api, 'cancel'), 0);
+  }
+});
+
+test('independent delivery still waits for definite source-run admission before moving main', async () => {
+  const api = new BatchFake();
+  api.independent = true;
+  api.inventory = { schema: 'windows-12-delivery-v1', blob: sha(999), jobs: [...DELIVERY_JOBS] };
+  await until(api, 'batch-completed');
+  api.qualificationObservation = { owner: { run: 42, source: api.base, attempt: 1 }, provisional: true };
+  assert.equal(await step(api), 'waiting-for-tip-qualification');
+  assert.equal(api.state.active, null);
+  assert.equal(count(api, 'qualification'), 0);
+  api.qualificationObservation = null;
+  assert.equal(await step(api), 'waiting-for-tip-qualification');
+  assert.equal(count(api, 'qualification'), 1);
+  assert.equal(await step(api), 'waiting-for-tip-qualification');
+  assert.equal(count(api, 'qualification'), 1);
+});
 
 test('exact reviewed failed preflight retires batch only after complete terminal unexpanded matrix evidence', async () => {
   for (const change of ['terminal', 'running', 'missing', 'unknown', 'blob', 'version-skipped']) {
@@ -274,20 +311,31 @@ test('control surfaces and group-failure retries use the existing fully validate
 });
 
 test('batch-profile control singleton retains complete exact-head proof and records actual merged-tip qualification', async () => {
-  const api = new BatchFake();
-  api.prs = [api.prs[0]];
-  api.files = async () => ['.github/workflows/ci.yml'];
-  api.commits.set(sha(1), { tree: sha(400), parents: [BASE] });
-  assert.equal(await step(api), 'dispatched');
-  assert.equal(api.state.active.kind, undefined);
-  assert.equal(await step(api), 'merged');
-  assert.equal(api.state.active, null);
-  assert.equal(api.state.completedTip.sha, api.base);
-  assert.equal(api.state.completedTip.tree, sha(400));
-  assert.equal(count(api, 'check'), 4);
-  assert.equal(count(api, 'dispatch'), 1);
-  assert.equal(count(api, 'merge'), 1);
-  assert.equal(await step(api), 'waiting-for-tip-qualification');
+  for (const independent of [false, true]) {
+    const api = new BatchFake();
+    api.independent = independent;
+    if (independent) {
+      api.inventory = { schema: 'windows-12-delivery-v1', blob: sha(999), jobs: [...DELIVERY_JOBS] };
+      api.expectedJobs = async () => [...DELIVERY_JOBS];
+    }
+    api.prs = [api.prs[0]];
+    api.files = async () => ['.github/workflows/ci.yml'];
+    api.commits.set(sha(1), { tree: sha(400), parents: [BASE] });
+    assert.equal(await step(api), 'dispatched');
+    assert.equal(api.state.active.kind, undefined);
+    assert.equal(await step(api), 'merged');
+    assert.equal(api.state.active, null);
+    assert.equal(api.state.completedTip.sha, api.base);
+    assert.equal(api.state.completedTip.tree, sha(400));
+    assert.equal(count(api, 'check'), 4);
+    assert.equal(count(api, 'dispatch'), 1);
+    assert.equal(count(api, 'merge'), 1);
+    assert.equal(await step(api), 'waiting-for-tip-qualification');
+    if (independent) {
+      assert.equal(api.state.completedTip.delivery, 'independent-v1');
+      assert.equal(api.state.completedTip.validation.source, sha(1));
+    }
+  }
 });
 
 test('a first-member construction conflict isolates only the oldest member without quarantining its peers', async () => {

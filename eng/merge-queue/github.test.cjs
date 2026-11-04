@@ -6,7 +6,7 @@ const path = require('node:path');
 const { GitHubQueue, admit } = require('./github.cjs');
 const { admitBatchTip } = require('./github.cjs');
 const { manifestFor, digest } = require('./batch-policy.cjs');
-const { CHECKS, GATE, STATE_BRANCH, WINDOWS_12_JOBS, REJECTED_ADMISSION_JOBS } = require('./policy.cjs');
+const { CHECKS, GATE, STATE_BRANCH, WINDOWS_12_JOBS, DELIVERY_JOBS, REJECTED_ADMISSION_JOBS } = require('./policy.cjs');
 const BASE = 'a'.repeat(40);
 const HEAD = 'b'.repeat(40);
 const OTHER = 'c'.repeat(40);
@@ -43,6 +43,7 @@ function fixture(overrides = {}) {
     getBranchProtection: () => ({ enforce_admins: { enabled: true },
       required_status_checks: { strict: true, checks: [...CHECKS, GATE].map(name => ({ context: name, app_id: 42 })) } }),
     compareCommits: () => ({ status: 'ahead' }),
+    getCommit: ({ ref }) => ({ sha: ref, commit: { tree: { sha: OTHER } } }),
     get: () => pr(),
     create: () => ({ id: 77, app: { id: 42 } }),
     createBlob: () => ({ sha: 'blob' }), createTree: () => ({ sha: 'tree' }),
@@ -82,6 +83,87 @@ function fixture(overrides = {}) {
     info: message => calls.push(['info', message]) };
   return { github, core, calls, responses, api: new GitHubQueue(github, context, core, '42') };
 }
+
+test('completed-source records are saved atomically with state and preserved by subsequent ordinary saves', async () => {
+  const tip = { delivery: 'independent-v1', sha: BASE, tree: HEAD, base: OTHER, combined: HEAD,
+    ticket: TICKET, validation: { run: 42, attempt: 1, source: HEAD, workflow: OTHER,
+      inventory: BASE, schema: 'windows-12-delivery-v1' } };
+  const queue = { version: 2, profile: 'batch-v1', active: null, blocked: [],
+    completedTip: tip, deliveryProfile: 'independent-v1', singletonRetries: [] };
+  const record = require('./delivery.cjs').releaseRecord(tip);
+  let stored;
+  const value = fixture({ createCommit: () => ({ sha: 'd'.repeat(40) }), getContent: ({ path }) => {
+    if (path === 'queue.json') return workflowContent(JSON.stringify(queue));
+    if (!stored) throw error(404);
+    return workflowContent(JSON.stringify(stored));
+  } });
+  const loaded = await value.api.load();
+  loaded.completedTip.qualificationRequested = true;
+  await value.api.save(loaded);
+  const first = value.calls.find(call => call[0] === 'createTree')[1];
+  assert.equal(first.base_tree, OTHER);
+  assert.deepEqual(first.tree.map(entry => entry.path), ['queue.json', `releases/${BASE}.json`]);
+  assert.ok(value.calls.find(call => call[0] === 'createBlob' && call[1].content === `${JSON.stringify(record)}\n`));
+  stored = record;
+  value.responses.getRef = ({ ref }) => ({ object: { sha: ref === 'heads/main' ? BASE : 'd'.repeat(40) } });
+  loaded.completedTip.qualificationOwner = { run: 99, source: BASE, attempt: 1 };
+  await value.api.save(loaded);
+  assert.deepEqual(value.calls.filter(call => call[0] === 'createTree').at(-1)[1].tree.map(entry => entry.path), ['queue.json']);
+  stored = { ...record, ticket: '11111111-1111-1111-1111-111111111111' };
+  loaded.completedTip.qualification = { run: 99, job: 100, source: BASE };
+  const writes = value.calls.filter(call => call[0] === 'updateRef').length;
+  await assert.rejects(value.api.save(loaded), /Immutable/);
+  assert.equal(value.calls.filter(call => call[0] === 'updateRef').length, writes);
+});
+
+test('independent main admission accepts a recorded reachable final source despite a new active candidate, not an intermediate prefix', async () => {
+  const record = { schema: 'completed-source-v1', source: BASE, tree: HEAD, base: OTHER, combined: HEAD,
+    ticket: TICKET, validation: { run: 42, attempt: 1, source: HEAD, workflow: OTHER,
+      inventory: BASE, schema: 'windows-12-delivery-v1' } };
+  const queue = batchState();
+  const value = fixture({ getContent: ({ path }) => path === 'queue.json'
+    ? workflowContent(JSON.stringify(queue)) : workflowContent(JSON.stringify(record)) });
+  assert.equal(await admitBatchTip({ github: value.github, context, appId: 42, deliveryProfile: 'independent-v1' }), true);
+  value.responses.getContent = ({ path }) => {
+    if (path !== 'queue.json') throw error(404);
+    return workflowContent(JSON.stringify(queue));
+  };
+  assert.equal(await admitBatchTip({ github: value.github, context, appId: 42, deliveryProfile: 'independent-v1' }), false);
+  assert.ok(!value.calls.some(call => ['updateRef', 'createWorkflowDispatch', 'merge'].includes(call[0])));
+});
+
+test('candidate packaging diff must prove exact admitted ancestry and never treats truncated impact as ordinary', async () => {
+  const value = fixture();
+  for (const data of [{}, { status: 'ahead', files: [{ filename: 'src/X.cs', status: 'modified' }] },
+    { status: 'diverged', base_commit: { sha: BASE }, merge_base_commit: { sha: BASE }, files: [] }]) {
+    value.responses.compareCommits = () => data;
+    assert.equal((await value.api.candidatePackaging(BASE, HEAD)).build, true);
+  }
+  value.responses.compareCommits = () => ({ status: 'ahead', base_commit: { sha: BASE },
+    merge_base_commit: { sha: BASE }, files: [{ filename: 'src/X.cs', status: 'modified' }] });
+  assert.equal((await value.api.candidatePackaging(BASE, HEAD)).build, false);
+});
+
+test('independent main early failure is negative terminal evidence, not successful qualification or a permanent lane dependency', async () => {
+  const { REJECTED_DELIVERY_JOBS } = require('./policy.cjs');
+  const workflow = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8').replaceAll('\r\n', '\n');
+  const run = { id: 42, run_attempt: 1, head_sha: BASE, head_branch: 'main', event: 'push',
+    display_title: 'CI main', status: 'completed', conclusion: 'failure' };
+  const jobs = REJECTED_DELIVERY_JOBS.map((name, index) => ({ id: index + 1, name,
+    run_id: 42, run_attempt: 1, head_sha: BASE, status: 'completed',
+    conclusion: name === 'Admit CI execution' ? 'success' : name === 'Resolve build version' ? 'failure' : 'skipped' }));
+  const value = fixture({ getContent: () => workflowContent(workflow),
+    listWorkflowRuns: () => ({ total_count: 1, workflow_runs: [run] }),
+    listJobsForWorkflowRunAttempt: () => ({ total_count: jobs.length, jobs }) });
+  value.api.independent = true;
+  const observation = await value.api.tipQualification({ sha: BASE });
+  assert.equal(observation.provisional, false);
+  assert.equal(observation.terminal, true);
+  assert.equal(observation.qualification, null);
+  jobs.pop();
+  assert.equal((await value.api.tipQualification({ sha: BASE })).terminal, false);
+  assert.ok(!value.calls.some(call => ['updateRef', 'createWorkflowDispatch', 'merge'].includes(call[0])));
+});
 
   test('batch protection is a separate explicit App-owned admission-only profile; current four-check default is unchanged', async () => {
     const value = fixture();
@@ -619,7 +701,7 @@ test('real schema-declared workflow resolves complete inventory; new unversioned
   assert.equal(await fixture({ getContent: () => workflowContent(unversioned) }).api.expectedJobs(BASE), null);
   for (const workflow of [source]) {
     const value = fixture({ getContent: () => workflowContent(workflow) });
-    assert.deepEqual(await value.api.expectedJobs(BASE), WINDOWS_12_JOBS);
+    assert.deepEqual(await value.api.expectedJobs(BASE), DELIVERY_JOBS);
     assert.deepEqual(value.calls, [['getContent', { owner: 'owner', repo: 'repo',
       ref: BASE, path: '.github/workflows/ci.yml' }]]);
   }

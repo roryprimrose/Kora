@@ -31,6 +31,10 @@ function manifestFor(active) {
 }
 
 function validateBatchState(state) {
+  invariant(state.deliveryProfile === undefined || state.deliveryProfile === 'independent-v1',
+    'Unknown durable delivery profile.');
+  if (state.completedTip?.delivery !== undefined)
+    require('./delivery.cjs').releaseRecord(state.completedTip);
   invariant(state.profile === PROFILE && Array.isArray(state.singletonRetries)
     && state.singletonRetries.every(memberValid), 'Invalid batch profile or singleton fallback revisions.');
   invariant(state.completedTip === null || state.completedTip && SHA.test(state.completedTip.sha)
@@ -64,9 +68,10 @@ function validateBatchState(state) {
     && new Set(active.members.map(member => member.number)).size === active.members.length
     && Array.isArray(active.prefixes) && active.prefixes.length <= active.members.length
     && active.prefixes.every(item => SHA.test(item.sha) && SHA.test(item.tree))
-    && active.inventory?.schema === 'windows-12-v1' && SHA.test(active.inventory.blob)
+    && ['windows-12-v1', 'windows-12-delivery-v1'].includes(active.inventory?.schema) && SHA.test(active.inventory.blob)
     && Array.isArray(active.inventory.jobs) && active.inventory.jobs.length > 0
-    && JSON.stringify(active.inventory.jobs) === JSON.stringify(require('./policy.cjs').WINDOWS_12_JOBS),
+    && JSON.stringify(active.inventory.jobs) === JSON.stringify(active.inventory.schema === 'windows-12-v1'
+      ? require('./policy.cjs').WINDOWS_12_JOBS : require('./policy.cjs').DELIVERY_JOBS),
   'Invalid active batch.');
   if (active.failureKind !== undefined)
     invariant(['construction-conflict', 'validation-failure', 'stale', 'unavailable'].includes(active.failureKind),

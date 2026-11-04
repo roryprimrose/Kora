@@ -385,20 +385,25 @@ public sealed class BoundedAgentWorkflow(IAgentProfileReader reader, ISessionWor
 
     private async Task DisposeCoreAsync()
     {
+        List<Exception> failures = [];
         disposed = true;
         owned?.Dispose();
-        await lifetime.CancelAsync().ConfigureAwait(false);
+        try { await lifetime.CancelAsync().ConfigureAwait(false); }
+        catch (Exception exception) { failures.Add(exception); }
         await serial.WaitAsync().ConfigureAwait(false);
         try
         {
             await execution.WaitForQuiescenceAsync(CancellationToken.None).ConfigureAwait(false);
             await ReleaseReviewAsync().ConfigureAwait(false);
         }
+        catch (Exception exception) { failures.Add(exception); }
         finally
         {
             serial.Release();
             serial.Dispose();
             lifetime.Dispose();
         }
+        if (failures.Count == 1) { System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failures[0]).Throw(); }
+        if (failures.Count > 1) { throw new AggregateException("Agent shutdown was not successful.", failures); }
     }
 }

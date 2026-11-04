@@ -27,4 +27,8 @@ Every declared instruction/skill consent remains independent. An expired, change
 The new governed run creates a new request/task in the same admitted conversation; it does not rewrite the original failed task or reuse its consent. A consumed confirmation cannot retry automatically. Other unsent conversation text stays intact.
 Stop/privacy closure joins owned execution before release; no late provider answer becomes successful recovery ([recovery regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AgentResults.cs)).
 
+Closing during a source read still waits for that read and the model-work join if a cancellation subscriber fails.
+Shutdown reports the failure only after those joins; independent shutdown failures are reported together.
+This does not authorize a retry or let a late source read produce an invocation or answer.
+
 Unqualified/unavailable runtime remains unavailable. These deterministic implementation paths do not enable a model or waive permissions, source consent, retention or privacy ([delivery policy](../Design/Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).

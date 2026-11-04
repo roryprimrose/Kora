@@ -60,6 +60,7 @@ public sealed partial class SessionsConversationTests
                 await model.ConfirmMemoryContextAsync();
                 var retained = (await f.Store.ReadConversationPageAsync(later.Authority.SessionId, null, 25, f.Token)).Messages.Single();
                 retained.Body.Should().Be("Explain the approved preference.");
+                retained.SubmittedContext.Should().BeNull("device-profile memory is outside the same-session provenance subset");
                 retained.AssistantResponse?.Body.Should().Be(qualified ? "Answer from reviewed session fact." : null);
                 model.MemoryContextOutcome.Should().Contain(qualified ? "ASSISTANT" : "HOST Unavailable");
                 await model.ConfirmMemoryContextAsync();

@@ -410,7 +410,11 @@ public sealed partial class ModelTurnHostTests
         var reads = 0;
         f.BeforeTaskRead = () =>
         {
-            if (++reads == 1) { f.Time.Now = confirmedAt.AddSeconds(elapsedSeconds); }
+            if (++reads == 1)
+            {
+                f.Time.Now = confirmedAt.AddSeconds(elapsedSeconds);
+                f.Time.ExpectedDeadline = TimeSpan.FromSeconds(15 - elapsedSeconds);
+            }
             return Task.CompletedTask;
         };
         DateTimeOffset? expiry = null;

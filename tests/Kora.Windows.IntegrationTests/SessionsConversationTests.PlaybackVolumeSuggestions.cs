@@ -24,7 +24,9 @@ public sealed partial class SessionsConversationTests
     [InlineData(true, 0)]
     [InlineData(false, 30)]
     [InlineData(true, 100)]
-    public async Task VolumeSuggestionExpandedAndCompactReviewExactAnswerAndCommitOneAuditedPreference(bool compact, int percent)
+    [InlineData(false, null)]
+    [InlineData(true, null)]
+    public async Task VolumeSuggestionExpandedAndCompactReviewExactAnswerAndCommitOneAuditedPreference(bool compact, int? percent)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -38,7 +40,9 @@ public sealed partial class SessionsConversationTests
             var volume = new PlaybackVolumeConfigurationService(preferences, playback, admission, audit);
             volume.Observe();
             using var policy = new CallCommunicationPolicy(new SummaryCallState());
-            var adapter = new SummaryAnswerAdapter("set speech.playback-volume to " + percent.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            var expected = new PlaybackVolume(percent ?? PlaybackVolume.Default.Percent);
+            var adapter = new SummaryAnswerAdapter(percent is null ? "reset speech.playback-volume"
+                : "set speech.playback-volume to " + percent.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
             await using var composed = new Composition(f, adapter: adapter, speechPolicy: policy, volume: volume);
             var model = composed.Model;
             await model.RefreshAsync();
@@ -59,14 +63,15 @@ public sealed partial class SessionsConversationTests
                 await owner.RegisteredSettingOperation;
                 model.RegisteredSettingSuggestionDescription.Should().Be(model.PlaybackVolumeSuggestionDescription);
                 model.PlaybackVolumeSuggestionDescription.Should().Contain("Current desired: 100%; effective: 100% (default)")
-                    .And.Contain($"Proposed: {percent}%").And.Contain("shared device-local").And.Contain("never synthesized or replayed");
+                    .And.Contain($"Proposed: {expected.Percent}%").And.Contain("shared device-local").And.Contain("never synthesized or replayed");
+                if (percent is null) { model.PlaybackVolumeSuggestionDescription.Should().Contain("unsaved (default)"); }
                 preferences.Load().Should().BeNull();
                 audit.Events.Should().BeEmpty();
                 window.FindControl<Button>("ConfirmRegisteredSettingSuggestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await owner.RegisteredSettingOperation;
                 model.ConversationStatus.Should().Contain("saved with committed preference and audit readback");
-                new LocalPlaybackVolumePreferences(f.Paths).Load().Should().Be(new PlaybackVolume(percent));
-                playback.Volume.Should().Be(new PlaybackVolume(percent));
+                new LocalPlaybackVolumePreferences(f.Paths).Load().Should().Be(percent is null ? null : expected);
+                playback.Volume.Should().Be(expected);
                 audit.Events.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
                 model.PlaybackVolumeSuggestionDescription.Should().BeEmpty();
                 model.CanConfirmPlaybackVolumeSuggestion.Should().BeFalse();
@@ -86,6 +91,12 @@ public sealed partial class SessionsConversationTests
     [InlineData("private")]
     [InlineData("close")]
     [InlineData("settings")]
+    [InlineData("reset-cancel")]
+    [InlineData("reset-refresh")]
+    [InlineData("reset-source")]
+    [InlineData("reset-private")]
+    [InlineData("reset-close")]
+    [InlineData("reset-settings")]
     public async Task VolumeSuggestionNativeLifetimeRejectsCopiesAndLateWrites(string transition)
     {
         using var f = new InteractionStorageFixture();
@@ -96,7 +107,10 @@ public sealed partial class SessionsConversationTests
         var volume = new PlaybackVolumeConfigurationService(preferences, new VolumeSuggestionPlayback(), admission, new AuditLog());
         volume.Observe();
         using var policy = new CallCommunicationPolicy(new SummaryCallState());
-        await using var composed = new Composition(f, adapter: new SummaryAnswerAdapter("set speech.playback-volume to 30"),
+        var reset = transition.StartsWith("reset-", StringComparison.Ordinal);
+        if (reset) { transition = transition[6..]; }
+        await using var composed = new Composition(f, adapter: new SummaryAnswerAdapter(
+            reset ? "reset speech.playback-volume" : "set speech.playback-volume to 30"),
             speechPolicy: policy, volume: volume);
         var model = composed.Model;
         await model.RefreshAsync();

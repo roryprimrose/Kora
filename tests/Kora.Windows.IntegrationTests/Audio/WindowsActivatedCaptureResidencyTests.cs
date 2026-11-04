@@ -57,6 +57,7 @@ public sealed class WindowsActivatedCaptureResidencyTests(ITestOutputHelper outp
     [InlineData("grammar")]
     [InlineData("generation")]
     [InlineData("timing")]
+    [InlineData("trailing-silence")]
     [InlineData("residency")]
     public async Task ChangedImmutableKeyJoinsOldModelBeforeCreatingAReplacement(string change)
     {
@@ -74,6 +75,7 @@ public sealed class WindowsActivatedCaptureResidencyTests(ITestOutputHelper outp
         using var nextStream = new BlockingAudioStream();
         var next = factory.OpenAsync(Microphone, change is "grammar" ? ["stop"] : phrases, nextStream, () => true,
             TimeSpan.FromSeconds(change is "timing" ? 15 : 5),
+            TimeSpan.FromSeconds(change is "trailing-silence" ? 2 : 1),
             change is "generation" ? profile with { Number = 2 }
                 : change is "residency" ? profile with { Selection = SpeechInputSelection.Default } : profile);
         await old.DisposeEntered.Task.WaitAsync(TestContext.Current.CancellationToken);
@@ -86,6 +88,8 @@ public sealed class WindowsActivatedCaptureResidencyTests(ITestOutputHelper outp
         capture.FinishRecognition(false);
         await capture.DisposeAsync();
         native.Engines.Should().HaveCount(2);
+        native.Engines[^1].SpeechStartWindow.Should().Be(TimeSpan.FromSeconds(change is "timing" ? 15 : 5));
+        native.Engines[^1].TrailingSilence.Should().Be(TimeSpan.FromSeconds(change is "trailing-silence" ? 2 : 1));
         await factory.RetireAsync();
     }
 
@@ -432,9 +436,13 @@ public sealed class WindowsActivatedCaptureResidencyTests(ITestOutputHelper outp
         public List<Engine> Engines { get; } = [];
         public List<Input> Microphones { get; } = [];
         public void RequireEligible(MicrophoneDevice microphone) { }
-        public IWindowsActivatedRecognizer CreateRecognizer(IReadOnlyList<string> phrases, TimeSpan speechStartWindow)
+        public IWindowsActivatedRecognizer CreateRecognizer(IReadOnlyList<string> phrases, TimeSpan speechStartWindow, TimeSpan trailingSilence)
         {
-            var engine = new Engine(phrases, CompleteOnFinish);
+            var engine = new Engine(phrases, CompleteOnFinish)
+            {
+                SpeechStartWindow = speechStartWindow,
+                TrailingSilence = trailingSilence,
+            };
             Engines.Add(engine);
             return engine;
         }
@@ -449,6 +457,8 @@ public sealed class WindowsActivatedCaptureResidencyTests(ITestOutputHelper outp
 
     internal sealed class Engine(IReadOnlyList<string> phrases, bool completeOnFinish) : IWindowsActivatedRecognizer
     {
+        public TimeSpan SpeechStartWindow { get; init; }
+        public TimeSpan TrailingSilence { get; init; }
         public IReadOnlyList<string> Phrases { get; } = phrases.ToArray();
         public BlockingAudioStream? Stream { get; private set; }
         public TaskCompletionSource ResetEntered { get; } = Signal();

@@ -114,6 +114,14 @@ nor dispatches a cancelled pending retry. No live-predecessor
 exemption, handoff transaction, automatic retry/backoff, fallback, mutating-tool
 replay, composer replacement, disk autosave or new permission is introduced.
 
+## Bounded agent observation result inspection
+
+Canonical local agent submissions explicitly opt into the existing six-ID retained observation path ([agent consumer](../src/Kora.Application/Hosting/SessionConversationService.Agents.cs)). A genuine successful final answer retains its exact host callback bytes with its original conversation request, independently of model prose. Other reviewed custom-context routes remain excluded ([submission](../src/Kora.Application/Hosting/SessionConversationService.cs)).
+
+The existing Sessions native/named observation links inspect that exact historical item without querying the tool again, including after restart or Done. Runtime availability and `ToolLoopQualified=false` are recorded observations, not enablement or execution authority. The reader retains its existing no-copy, no-speech, no-context/egress and private-source withdrawal rules ([reader](Information_Display.md#detailed-information-surface)).
+
+Denied, unavailable, unknown, cancelled or unconfirmed agent terminals do not acquire an assistant answer or retain earlier callback output as successful evidence. Retained input/task/status remains inspectable. Recovery uses a fresh original-source/task/session review and separate invocation confirmation, not consumed consent or replay of the failed task ([user operation](../docs/agent-results.md)).
+
 ## Request Interpretation and Tool Results
 
 [Commands, Tools, Skills, and Model Interaction](Commands_Tools_And_Skills.md)
@@ -325,6 +333,14 @@ Supported user-adjustable ranges and verbal operations are defined in [User Conf
 Context packing respects the selected runtime's actual limits.
 Required input that will not fit causes an explicit error or a user-approved reduction; it is not silently dropped.
 When a referenced result is unavailable to a runtime, Kora offers a permitted bounded selection rather than an inaccessible reference.
+
+The [delivered future ordinary conversation deadline](User_Configuration.md#delivered-future-ordinary-conversation-deadline) is a host-owned device preference, not the retired compatibility queue product.
+Its consumed subset excludes user-wait turns; clarification/approval budgets remain fixed.
+Newly dispatched ordinary turns capture the default once, never while pending and never by renewing the immutable original context ([dispatch](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
+
+The effective active budget is the minimum of that captured preference, the fixed runtime/tool limit and remaining original context authorization.
+At or after expiry, late success is suppressed and cancellation/drain uses existing resource ownership and terminal/audit paths; logical timeout is not physical provider termination
+([host budget](../src/Kora.Application/Dependencies/ModelTurnHost.OrdinaryDeadline.cs), [boundary and drain tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.OrdinaryDeadline.cs)).
 
 ## Cancellation Semantics
 

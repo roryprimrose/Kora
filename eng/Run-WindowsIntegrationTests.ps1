@@ -111,8 +111,6 @@ function Add-FilterExclusions {
 # Method-family filters keep every theory row together without changing hosted job identities.
 $conversationActions = @(
     "${conversationPrefix}Native"
-    "${conversationPrefix}Owned"
-    "${conversationPrefix}Named"
 )
 $conversationCore = @('B', 'E', 'M') | ForEach-Object { "$conversationPrefix$_" }
 $executionSplits = @{
@@ -132,6 +130,7 @@ $executionSplits = @{
             'Kora.Windows.IntegrationTests.HostedClaudeSessionRequestTests.'
             'Kora.Windows.IntegrationTests.ClaudeUiContractTests.'
             'Kora.Windows.IntegrationTests.NewRequestControllerTests.'
+            'Kora.Windows.IntegrationTests.ForegroundPttUiContractTests.'
         ); Exclusions = @() }
         @{ Name = 'ui-presentation'; Prefixes = @(
             'Kora.Windows.IntegrationTests.LocalFileWrappingWindowTests.'
@@ -139,6 +138,9 @@ $executionSplits = @{
             'Kora.Windows.IntegrationTests.SessionsMemoryFilterTests.'
             'Kora.Windows.IntegrationTests.AdaptiveInteractionTests.'
             'Kora.Windows.IntegrationTests.EvidenceLiteralFindTests.'
+            'Kora.Windows.IntegrationTests.PreparedLocalSearchWindowTests.'
+            'Kora.Windows.IntegrationTests.LocalFileTextMeasurementWindowTests.'
+            'Kora.Windows.IntegrationTests.AdaptiveSessionNameSearchTests.'
         ); Exclusions = @() }
     )
 }

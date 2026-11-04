@@ -283,7 +283,8 @@ public sealed partial class App : Avalonia.Application
                         Services.GetRequiredService<ILogger<Kora.Windows.Presentation.WindowsExactAnswerExportWriter>>()),
                     Services.GetRequiredService<Kora.Core.Auditing.ISecurityAuditLog>(),
                     Services.GetRequiredService<ILogger<Kora.Application.Presentation.ExactAnswerExportReview>>(),
-                    ExactAnswerExportWindowController.SelectDestinationAsync));
+                    ExactAnswerExportWindowController.SelectDestinationAsync),
+                Services.GetRequiredService<Kora.Application.Configuration.DetailPresentationConfigurationService>());
             sessionsWindow.Bind();
             sessionsWindow.CreateInteraction = (state, owner) =>
                 responseWindow.PrepareSessions(state, owner, sessionsWindow.Open,

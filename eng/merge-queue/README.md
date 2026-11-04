@@ -99,6 +99,14 @@ Controller, CI-workflow and release-control changes, and isolated group-failure
 retries, use the existing fully validated **exact-head singleton path**, even
 inside this profile.
 
+A complete zero-file PR also uses that exact-head singleton path: an empty diff
+does not attest validation or prove that GitHub merged the PR. File inventories
+must match a nonnegative count below GitHub's 3,000-file pagination limit, with
+the same PR, same-repository head and main base before and after pagination.
+Unavailable, partial, duplicate, malformed or changing observations fail
+explicitly; they are never reinterpreted as empty. Normal candidate checks,
+merge confirmation and cancellation/join remain required.
+
 ### Frozen source and truthful proof
 
 [Batch policy](batch-policy.cjs), [reconciliation](batch.cjs) and the

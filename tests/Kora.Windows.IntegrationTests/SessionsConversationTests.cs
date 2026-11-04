@@ -257,7 +257,7 @@ public sealed partial class SessionsConversationTests
             Kora.Application.Communication.CallCommunicationPolicy? speechPolicy = null,
             Kora.Core.Network.IWebPageTransport? pageTransport = null,
             ISessionAnswerPlayback? answerPlayback = null,
-            CopilotConversationRuntime? copilot = null,
+            ICopilotTurnRuntime? copilot = null,
             McpServerConfigurationService? mcpConfiguration = null,
             Kora.Core.Mcp.IMcpConnectionBroker? mcpBroker = null,
             Kora.Application.Mcp.McpReadOnlyPolicy? mcpEffects = null,

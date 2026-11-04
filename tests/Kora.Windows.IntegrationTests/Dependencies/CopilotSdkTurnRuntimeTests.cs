@@ -15,7 +15,7 @@ using Microsoft.Extensions.AI;
 namespace Kora.Windows.IntegrationTests.Dependencies;
 
 [Collection("Host tracing")]
-public sealed class CopilotSdkTurnRuntimeTests : IDisposable
+public sealed partial class CopilotSdkTurnRuntimeTests : IDisposable
 {
     private readonly ActivityListener listener = new()
     {
@@ -295,29 +295,33 @@ public sealed class CopilotSdkTurnRuntimeTests : IDisposable
         fixture.Runtime.IsQuiescent.Should().BeTrue();
     }
 
-    private sealed class Fixture : ICopilotExecutionAccountSource
+    internal sealed class Fixture : ICopilotExecutionAccountSource
     {
-        internal HostRequest Request { get; } = HostRequest.Create(RequestOrigin.LocalUi);
+        internal HostRequest Request { get; }
         internal ModelTurnProvenance Provenance { get; }
-        internal ProviderProfileTuple Profile { get; } = new(ProviderService.Copilot, new("selected-account"), new(7),
-            new("model-1"), new("default"), new("default"));
+        internal ProviderProfileTuple Profile { get; }
         internal CopilotSdkTurnRuntime Runtime { get; }
         internal FakeClient Client { get; } = new();
         internal CopilotClientOptions? Options { get; private set; }
         internal bool AccountAvailable { get; set; } = true;
         internal bool ApproveTransmission { get; set; } = true;
         internal bool BypassTransmission { get; set; }
+        internal Func<CancellationToken, ValueTask<bool>>? Review { get; set; }
         internal FakeNetwork Network { get; } = new();
         internal Func<string, string, CancellationToken, ValueTask<CapabilityReply>> Tool { get; set; } =
             (_, _, _) => ValueTask.FromResult(new CapabilityReply(CapabilityOutcome.Denied, "test-denied"));
         private readonly CopilotExecutionAccount account;
 
-        internal Fixture()
+        internal Fixture(RequestOrigin origin = RequestOrigin.LocalUi, ProviderProfileTuple? profile = null, TimeProvider? time = null)
         {
+            Request = HostRequest.Create(origin);
+            Profile = profile ?? new(ProviderService.Copilot, new("selected-account"), new(7),
+                new("model-1"), new("default"), new("default"));
+            time ??= new FixedTime();
             Provenance = new(new(Guid.NewGuid()), Request, ModelProviderSelection.CopilotCandidate);
             account = new(Profile, "selected-user", "synthetic-not-a-secret", @"Q:\owned\copilot-runtime.exe",
-                @"Q:\owned\working", @"Q:\owned\state", new Dictionary<string, string>(StringComparer.Ordinal), DateTimeOffset.UnixEpoch.AddMinutes(10));
-            Runtime = new(this, new FixedTime(), NullLogger<CopilotSdkTurnRuntime>.Instance, options =>
+                @"Q:\owned\working", @"Q:\owned\state", new Dictionary<string, string>(StringComparer.Ordinal), time.GetUtcNow().AddMinutes(10));
+            Runtime = new(this, time, NullLogger<CopilotSdkTurnRuntime>.Instance, options =>
             { Options = options; return Client; }, () => Network);
             Client.BeforeSend = async token =>
             {
@@ -328,7 +332,7 @@ public sealed class CopilotSdkTurnRuntimeTests : IDisposable
                 using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.githubcopilot.com/chat/completions")
                 {
                     Headers = { Authorization = new("Bearer", "synthetic-credential") },
-                    Content = new StringContent("{\"model\":\"model-1\",\"messages\":[\"original-session-request\"]}"),
+                    Content = new StringContent(JsonSerializer.Serialize(new { model = Profile.Model.Value, messages = new[] { Client.Prompt } })),
                 };
                 using var response = await gate.SendFinalAsync(request, Client.SessionId, null, request.RequestUri!.AbsoluteUri, token);
             };
@@ -340,10 +344,10 @@ public sealed class CopilotSdkTurnRuntimeTests : IDisposable
         internal Task<CopilotTurnReply> Run(CancellationToken token) => Runtime.RunAsync(Provenance, Profile,
             Encoding.UTF8.GetBytes("{\"UserRequest\":\"original-session-request\"}"),
             Tool,
-            (_, _) => ValueTask.FromResult(ApproveTransmission), token);
+            (_, reviewToken) => Review?.Invoke(reviewToken) ?? ValueTask.FromResult(ApproveTransmission), token);
     }
 
-    private sealed class FakeClient : ICopilotSdkClient, ICopilotSdkSession
+    internal sealed class FakeClient : ICopilotSdkClient, ICopilotSdkSession
     {
         internal GetAuthStatusResponse Auth { get; set; } = new()
         { IsAuthenticated = true, Login = "selected-user", AuthType = "token", Host = "github.com" };
@@ -361,13 +365,21 @@ public sealed class CopilotSdkTurnRuntimeTests : IDisposable
             _ => Task.FromResult<string?>("genuine-sdk-boundary-answer");
         internal Func<Task> Stop { get; set; } = () => Task.CompletedTask;
         internal Func<CancellationToken, Task> BeforeSend { get; set; } = _ => Task.CompletedTask;
+        internal TimeProvider? WaitClock { get; set; }
+        internal TimeSpan? WaitTimeout { get; private set; }
         public string SessionId => ForeignSession ? "foreign-session" : Configuration!.SessionId!;
         public Task<GetAuthStatusResponse> AuthenticateAsync(CancellationToken token) => Task.FromResult(Auth);
         public Task<IList<ModelInfo>> ModelsAsync(CancellationToken token)
         { ModelReads++; return Task.FromResult(Models); }
         public Task<ICopilotSdkSession> CreateAsync(SessionConfig configuration, CancellationToken token)
         { Configuration = configuration; return Task.FromResult<ICopilotSdkSession>(this); }
-        public async Task<string?> SendAsync(string prompt, CancellationToken token)
+        public async Task<string?> SendAsync(string prompt, TimeSpan timeout, CancellationToken token)
+        {
+            WaitTimeout = timeout;
+            var pending = SendCoreAsync(prompt, token);
+            return WaitClock is { } clock ? await pending.WaitAsync(timeout, clock, token) : await pending;
+        }
+        private async Task<string?> SendCoreAsync(string prompt, CancellationToken token)
         { Prompt = prompt; Sent = true; await BeforeSend(token); return await Send(token); }
         public Task StopAsync()
         { Stops++; Stopping.TrySetResult(); return Stop(); }
@@ -375,7 +387,7 @@ public sealed class CopilotSdkTurnRuntimeTests : IDisposable
         { Disposals++; return ValueTask.CompletedTask; }
     }
 
-    private sealed class FakeNetwork : HttpMessageHandler
+    internal sealed class FakeNetwork : HttpMessageHandler
     {
         internal int Sends { get; private set; }
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)

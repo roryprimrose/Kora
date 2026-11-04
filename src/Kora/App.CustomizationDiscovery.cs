@@ -18,7 +18,8 @@ public sealed partial class App
             Services.GetRequiredService<SessionWorkspaceService>(), Services.GetRequiredService<SessionConversationService>(),
             () => ownership.IsReady && !ownership.IsHandoffRecoveryRequired, () => ownership.AdmissionRevision,
             Services.GetRequiredService<ILogger<CustomizationDiscoveryController>>(),
-            proposal => (agentRuns ?? throw new InvalidOperationException("Native agent review is unavailable.")).ReviewProposalAsync(proposal));
+            proposal => (agentRuns ?? throw new InvalidOperationException("Native agent review is unavailable.")).ReviewProposalAsync(proposal),
+            Services.GetRequiredService<Kora.Application.Skills.SharedSkillInvocationWorkflow>());
         customizationDiscovery.Bind();
     }
 }

@@ -57,6 +57,23 @@ read-only Preview and cog reset actions retain their admission checks. Queue
 changes still require a fresh Refresh from the cog menu before each Save or
 Reset. Settings that already save a selection immediately retain that behavior.
 
+## Future ordinary task deadline
+
+In **Settings > Sessions**, use **Refresh** in the **Future ordinary task deadline** cog menu, choose **1-60 whole minutes**, then **Save**. **Reset to 5 minutes** restores the default.
+The status shows the confirmed saved/default value; editing the field alone changes nothing ([shared controls](../src/Kora.Application/ViewModels/MainViewModel.OrdinaryTurnDeadline.cs)).
+
+Typed or activated voice can use `get work.active-deadline-minutes`, `status work.active-deadline-minutes`, `set work.active-deadline-minutes to 10`, or `reset work.active-deadline-minutes`.
+These routes use the same host admission, preference readback and required audit ([configuration owner](../src/Kora.Application/Configuration/OrdinaryTurnDeadlineConfigurationService.cs)).
+
+This preference applies only when an ordinary conversation turn dispatches, including its admitted read-only tools.
+Pending work has no active budget; running turns do not change when you save a new default.
+Clarification/approval turns and specialized source workflows keep their existing fixed limits ([scope](../Design/User_Configuration.md#delivered-future-ordinary-conversation-deadline)).
+
+**Shorter safety limits always win:** current local/read-only turns are capped at 15 seconds and ordinary hosted adapters at two minutes, with original context authorization able to expire earlier.
+A longer preference cannot renew that authorization or enable an unavailable provider.
+Provisional answers become noncurrent when the captured active deadline expires, even while the provider is still running.
+Timeout waits for owned runtime resources to finish before final retention; cancelling a request does not prove a remote provider physically stopped ([lifecycle](../Design/Task_Lifecycle.md#defaults-and-bounds)).
+
 ## Start Kora at Windows logon
 
 In **Settings > Appearance > Start Kora at Windows user logon**, choose **Inspect** to see last confirmed saved intent and the observed registration. Choose **Review enable**, **Review disable**, or **Reset setting** in the startup cog menu, read the complete review, then separately choose **Confirm startup change** ([native controls](../src/Kora/SettingsWindow.axaml)).
@@ -188,6 +205,9 @@ produce a reviewable successful answer. No provider is enabled by this feature.
 The same [registered-setting review](setting-proposals.md) handles the existing
 spoken-summary and Kora-volume suggestion families without expanding settings
 or granting model write authority. Only one native review is active at a time.
+
+For one supported preference, a retained answer may also propose exactly `reset <exact ID>`, with no default value supplied by the model.
+The same review shows the owner's actual reset outcome and provenance before a distinct fresh confirmation; see [single Reset proposals](setting-proposals.md#propose-one-reset). It does not reset a category, consent, providers/devices, grants or retention.
 
 ### Review a response-timeout suggestion
 
@@ -363,11 +383,19 @@ resets only that option. These device-local options do not enable captions:
 |---|---|---|
 | `display.speech-text-placement` | `BottomRight`, `BottomLeft`, `TopRight`, `TopLeft` on the chosen working area, 24-DIP margin | `BottomRight`; primary display unless explicitly selected this run |
 | `display.speech-text-dismissal-delay` | Canonical integer seconds, 0-30 | 5 |
+| `display.speech-text-word-emphasis` | `true` / `false`; requires qualified source alignment | `false` |
 | `display.speech-text-pin` | `true` / `false`, current observed caption only; run-only | `false` |
 
 Each has exact `get/status <id>`, `set <id> to <value>` and `reset <id>`.
 `list speech text settings` discovers the persisted options; exact pin status
 shows its run-only scope. Invalid saved options are rejected, not defaulted.
+
+For optional emphasis choose **Word emphasis (requires qualified alignment)**, inspect the offered value, choose `true` or `false`, then **Save**. The status shows the actual saved/effective preference. Typed or current-name activated input can use `set display.speech-text-word-emphasis to true`; reset saves `false` without changing caption mode, position or delay ([shared controls](../src/Kora.Application/ViewModels/MainViewModel.SpeechText.cs)).
+
+**Word emphasis is unavailable in this build:** no exact Windows voice/rate/output profile is qualified. A saved `true` is a request, not a claim that highlighting is active. Unavailable word alignment leaves ordinary sentence/utterance text unchanged; it never estimates timings or starts new speech ([alignment gate](../src/Kora.Windows/Audio/WindowsTextToSpeechService.SentenceAlignment.cs)).
+
+When qualified evidence is available, only the exact engine source range already reached by the output device is underlined. Emphasis never replaces your keyboard/pointer selection or the text you copy; retained **PREVIOUS SPEECH** has no active word ([native surface](../src/Kora/SpeechCaptionWindow.axaml.cs), [source consumer](../src/Kora.Application/Voice/SpeechCaption.cs)).
+
 Sentence alignment has a [native callback implementation](../src/Kora.Windows/Audio/WindowsTextToSpeechService.SentenceAlignment.cs), but no qualified production Windows profile. Kokoro and legacy providers do not attest alignment; there is no timing, utterance or rewritten-text fallback.
 Recover ordinary utterance captions by explicitly selecting **Show spoken words** for future playback; changing modes never replays retired text ([shared consumer](../src/Kora.Application/ViewModels/MainViewModel.SpeechText.cs)).
 Broad natural caption commands and rich browser/HTML/
@@ -1258,6 +1286,20 @@ history or user originals, or uninstall Kora/native code, Windows, .NET, VC++ or
 runtimes ([bounded storage](../src/Kora.Windows/Dependencies/WindowsSpeechComponentStore.cs)).
 
 ## Responses
+
+### Detailed result offers
+
+**Responses > Detailed result offers** reviews one device-local choice: **Offer** keeps existing proactive cues; **Link only** suppresses those cues for new results while retaining manual Details. It adds no hands-free question or automatic opening ([controls](../src/Kora/SettingsWindow.axaml), [shared owner](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs)).
+
+Choose **Review Offer** or **Review Link only**, read the exact review, then separately **Confirm detail presentation change** or **Cancel detail presentation change**. The cog menu offers **Inspect** and **Review reset to Offer**; reset also needs confirmation and explicitly saves Offer. Closing/reopening Settings retires its review ([interaction](../src/Kora.Application/ViewModels/MainViewModel.DetailPresentation.cs)).
+
+The controls are unavailable while readiness work or an input decision owns
+the host. When that work completes under unchanged admission, an already-open
+Settings window refreshes their availability; reopening is not required.
+
+Exact typed commands are listed in [the command reference](commands.md#detail-presentation-preference); voice requires the current assistant name and existing microphone/privacy/call eligibility. Protected calls reject voice-originated setting changes. One-off **Not now** or opening Details changes no preference. Restoring Offer never replays old offers or speech; already published response text is not rewritten ([workflow](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs), [consumer](../src/Kora.Application/ViewModels/MainViewModel.CurrentResponse.cs)).
+
+Malformed or unconfirmed saved state holds proactive offers with explicit recovery status; it does not hide manual access or reinterpret corrupt data as Offer. Automatic opening and the full three-choice design remain unavailable; this preference does not qualify a model, microphone or provider ([persistence](../src/Kora.Application/Configuration/LocalDetailPresentationPreferences.cs), [scope](../Design/Information_Display.md#implemented-existing-offer-versus-link-only-suppression)).
 
 ### Device default
 

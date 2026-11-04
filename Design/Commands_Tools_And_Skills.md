@@ -238,6 +238,13 @@ foreground selected-session route; they never choose a server, account, session
 or tool implicitly. Authentication/approval still uses mandatory native review.
 The original voice/UI channel is preserved. Cancellation closes new dispatch
 and publication; the owner joins late provider/transport work before disconnect.
+Cancelling or dismissing the discovered-tool selection ends the original request
+as cancelled, not denied, after revalidating current session, source and approval
+authority. It requests no arguments, tool/schema approval, model turn or tool call,
+publishes no result, and joins the already-open connection before release.
+An unknown non-null tool choice still fails closed as an invalid selection.
+This applies equally to model-assisted and explicit model-free requests; durable
+task state retains its existing conservative dispatch/uncertainty semantics.
 
 After the authenticated exchange is physically joined, the [canonical owner](../src/Kora.Application/Mcp/McpInvocation.cs) screens the complete observed result for private LocalOnly use and pauses before returning it to the model. The [native review](../src/Kora.Application/Mcp/McpReview.cs) shows unchanged Text/StructuredJson, observation time, source/server/account/schema, original Active conversation/task/channel and retention.
 
@@ -597,6 +604,10 @@ Each skill summary includes origin/revision, purpose, when to use it or not use 
 The model must know these capabilities exist; it must not infer executable access from product names or invent tool IDs.
 
 Load a selected skill's bounded, pinned instructions/workflow only after host resolution.
+The [bounded model-selected shared-skill route](Skill_Storage.md#model-selected-registered-single-file-instruction-only-use) implements this for one explicitly reviewed registered single-file zero-tool skill:
+an actually served opaque selection remains inert until separate native source-read/revision review, exact enablement and invocation confirmation.
+The original task/Active target/channel remain fixed, the selector joins before the canonical shared executor starts, and only the executor's actual retained answer or terminal completes use
+([workflow](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs)).
 Keep skill content separate from host policy and approval controls under the existing instruction-trust rules.
 The task runtime receives the approved instruction data and required admitted
 tool definitions to reason about the next step; deterministic declarative

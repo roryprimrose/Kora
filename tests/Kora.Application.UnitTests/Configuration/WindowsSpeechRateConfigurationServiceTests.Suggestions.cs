@@ -17,6 +17,42 @@ namespace Kora.Application.UnitTests.Configuration;
 
 public sealed partial class WindowsSpeechRateConfigurationServiceTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RateResetMatchesNativeResetAndReadbackDefaultWithoutProviderChange(bool saved)
+    {
+        await using var f = new Fixture();
+        await using var native = new Fixture();
+        if (saved) { f.Preferences.Value = native.Preferences.Value = new(2); }
+        f.Speech.Reload();
+        f.Service.Observe();
+        var selection = f.Speech.Get();
+        var message = RateAnswer("reset speech.windows-rate");
+        WindowsSpeechRateSuggestionReview review;
+        using (RateInput(message))
+        {
+            review = await WindowsSpeechRateSuggestionReview.ReviewAsync(f.Service, f.Policy, new RateClock(),
+                message, () => true, _ => Task.CompletedTask, f.Token);
+            review.Description.Should().Contain("Proposed: 0").And.Contain("unsaved (default)").And.Contain("Kokoro unchanged");
+            f.Preferences.Writes.Should().Be(0);
+            f.Store.Tasks.Should().BeEmpty();
+            f.Audit.Events.Should().BeEmpty();
+        }
+        using (review)
+        using (RateInput(message))
+        { (await review.ConfirmAsync(f.Token, SecurityAuditInitiator.TypedCommand)).Should().BeTrue(); }
+        await native.Refresh();
+        (await native.Set(null)).Should().BeTrue();
+        f.Service.Get().Should().Be(native.Service.Get());
+        f.Preferences.Value.Should().BeNull();
+        f.Preferences.Pending.Should().BeFalse();
+        f.Service.Get().Source.Should().Be("default");
+        f.Speech.Get().Should().Be(selection);
+        f.Audit.Events.Select(item => (item.ActionId, item.Outcome, item.Initiator)).Should()
+            .Equal(native.Audit.Events.Select(item => (item.ActionId, item.Outcome, item.Initiator)));
+    }
+
     private sealed class RateClock : TimeProvider
     {
         internal DateTimeOffset Now { get; set; } = DateTimeOffset.UnixEpoch;
@@ -270,12 +306,24 @@ public sealed partial class WindowsSpeechRateConfigurationServiceTests
     [InlineData("confirmation-completed")]
     [InlineData("audit-denied")]
     [InlineData("cancel-before")]
+    [InlineData("reset-source-request")]
+    [InlineData("reset-disposed")]
+    [InlineData("reset-source")]
+    [InlineData("reset-settings")]
+    [InlineData("reset-call")]
+    [InlineData("reset-second-source")]
+    [InlineData("reset-second-settings")]
+    [InlineData("reset-refresh-provider")]
+    [InlineData("reset-audit-denied")]
+    [InlineData("reset-cancel-before")]
     public async Task RateConfirmationRevalidatesEverySourceAndFreshAdmissionFenceWithoutRetargetOrWrite(string failure)
     {
         await using var f = new Fixture();
         f.Speech.Reload();
         f.Service.Observe();
-        var message = RateAnswer();
+        var reset = failure.StartsWith("reset-", StringComparison.Ordinal);
+        if (reset) { failure = failure[6..]; }
+        var message = RateAnswer(reset ? "reset speech.windows-rate" : "set speech.windows-rate to -1");
         var clock = new RateClock();
         var live = true;
         var reads = 0;
@@ -391,12 +439,18 @@ public sealed partial class WindowsSpeechRateConfigurationServiceTests
     [InlineData("audit")]
     [InlineData("terminal")]
     [InlineData("readback")]
+    [InlineData("reset-write")]
+    [InlineData("reset-audit")]
+    [InlineData("reset-terminal")]
+    [InlineData("reset-readback")]
     public async Task RetainedRateWriterFailureIsUnconfirmedNotSuccessRollbackOrRetry(string failure)
     {
         await using var f = new Fixture();
         f.Speech.Reload();
         f.Service.Observe();
-        var message = RateAnswer();
+        var reset = failure.StartsWith("reset-", StringComparison.Ordinal);
+        if (reset) { failure = failure[6..]; }
+        var message = RateAnswer(reset ? "reset speech.windows-rate" : "set speech.windows-rate to -1");
         WindowsSpeechRateSuggestionReview review;
         using (RateInput(message))
         { review = await WindowsSpeechRateSuggestionReview.ReviewAsync(f.Service, f.Policy, new RateClock(), message, () => true, _ => Task.CompletedTask, f.Token); }

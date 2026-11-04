@@ -1,0 +1,319 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Kora read-only PR campaign observation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "campaign", "observedAt", "observer", "principal", "references", "pulls", "queue", "runs", "following", "reconciliations", "superseded", "blockers", "outcome"],
+  "properties": {
+    "schema": { "const": "kora-pr-campaign-v1" },
+    "campaign": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "owner", "targets", "expectedPrincipal"],
+      "properties": {
+        "repository": { "type": "string", "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]{0,38}/[a-zA-Z0-9._-]+$" },
+        "owner": { "type": "string", "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$" },
+        "targets": { "type": "array", "minItems": 1, "maxItems": 100, "uniqueItems": true, "items": { "$ref": "#/$defs/id" } },
+        "expectedPrincipal": { "type": ["string", "null"] }
+      }
+    },
+    "observedAt": { "$ref": "#/$defs/timestamp" },
+    "observer": {
+      "type": "object",
+      "required": ["source", "digest"],
+      "properties": { "source": { "$ref": "#/$defs/sha" }, "digest": { "$ref": "#/$defs/digest" } }
+    },
+    "principal": { "type": ["string", "null"] },
+    "references": {
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["main", "queue"],
+          "properties": {
+            "main": {
+              "type": "object",
+              "required": ["sha", "fetchedAt"],
+              "properties": { "sha": { "$ref": "#/$defs/sha" }, "fetchedAt": { "$ref": "#/$defs/timestamp" } }
+            },
+            "queue": {
+              "type": "object",
+              "required": ["branch", "commit", "blob"],
+              "properties": {
+                "branch": { "const": "automation/merge-queue-state" },
+                "commit": { "$ref": "#/$defs/sha" },
+                "blob": { "$ref": "#/$defs/sha" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "pulls": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/pull" } },
+    "queue": {
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["version", "profile", "active", "completedTip"],
+          "properties": {
+            "version": { "enum": [1, 2] },
+            "profile": { "enum": ["singleton-v1", "batch-v1"] },
+            "active": {
+              "anyOf": [
+                { "type": "null" },
+                {
+                  "type": "object",
+                  "required": ["ticket", "phase", "kind", "source", "base", "manifest", "members"],
+                  "properties": {
+                    "ticket": { "$ref": "#/$defs/ticket" },
+                    "phase": { "type": "string" },
+                    "kind": { "enum": ["singleton", "batch"] },
+                    "source": { "$ref": "#/$defs/nullableSha" },
+                    "base": { "$ref": "#/$defs/sha" },
+                    "manifest": { "anyOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+                    "members": {
+                      "type": "array",
+                      "minItems": 1,
+                      "maxItems": 5,
+                      "items": {
+                        "type": "object",
+                        "required": ["number", "source", "admittedHead", "enrollment"],
+                        "properties": {
+                          "number": { "$ref": "#/$defs/id" },
+                          "source": { "$ref": "#/$defs/sha" },
+                          "admittedHead": { "$ref": "#/$defs/sha" },
+                          "enrollment": { "$ref": "#/$defs/timestamp" }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "completedTip": {
+              "anyOf": [
+                { "type": "null" },
+                {
+                  "type": "object",
+                  "required": ["sha", "ticket", "combined", "manifest", "qualification"],
+                  "properties": {
+                    "sha": { "$ref": "#/$defs/sha" },
+                    "ticket": { "$ref": "#/$defs/ticket" },
+                    "combined": { "$ref": "#/$defs/nullableSha" },
+                    "manifest": { "anyOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+                    "members": {
+                      "anyOf": [
+                        { "type": "null" },
+                        {
+                          "type": "array",
+                          "minItems": 1,
+                          "maxItems": 5,
+                          "items": {
+                            "type": "object",
+                            "required": ["number", "source", "admittedHead", "merged"],
+                            "properties": {
+                              "number": { "$ref": "#/$defs/id" },
+                              "source": { "$ref": "#/$defs/sha" },
+                              "admittedHead": { "$ref": "#/$defs/sha" },
+                              "merged": { "$ref": "#/$defs/sha" }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "qualification": {
+                      "anyOf": [
+                        { "type": "null" },
+                        {
+                          "type": "object",
+                          "required": ["run", "job", "source"],
+                          "properties": {
+                            "run": { "$ref": "#/$defs/id" },
+                            "job": { "$ref": "#/$defs/id" },
+                            "source": { "$ref": "#/$defs/sha" }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "runs": { "type": "array", "items": { "$ref": "#/$defs/run" } },
+    "following": {
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["kind", "run", "url"],
+          "properties": {
+            "kind": { "enum": ["candidate", "controller-handoff", "tip-qualification"] },
+            "run": { "$ref": "#/$defs/id" },
+            "url": { "$ref": "#/$defs/url" },
+            "triggerHead": { "$ref": "#/$defs/sha" },
+            "event": { "enum": ["pull_request_target", "push", "workflow_run", "schedule", "workflow_dispatch"] },
+            "status": { "$ref": "#/$defs/status" },
+            "classification": { "const": "trigger-context-not-validation-source" }
+          }
+        }
+      ]
+    },
+    "reconciliations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["classification", "boundary"],
+        "properties": {
+          "classification": { "const": "transport-error-reconciled-by-exact-read" },
+          "boundary": { "type": "string" }
+        }
+      }
+    },
+    "superseded": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["previousReceipt", "target", "classification", "changes"],
+        "properties": {
+          "previousReceipt": { "$ref": "#/$defs/digest" },
+          "target": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
+          "classification": {
+            "enum": ["superseded-observation-not-history-deletion", "superseded-tip-context-not-history-deletion", "superseded-observer-validation-not-history-deletion"]
+          },
+          "changes": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+          "previous": { "$ref": "#/$defs/revision" },
+          "current": { "$ref": "#/$defs/revision" }
+        }
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "target", "reference", "action"],
+        "properties": {
+          "code": {
+            "enum": ["transport-error", "authentication-error", "command-timeout", "cancelled", "budget-exhausted", "invalid-evidence", "source-changed", "closed-unmerged", "merge-unreachable", "conflict", "review-blocked", "not-enrolled", "priority-invalid", "revision-blocked", "recovery-required", "required-producer-failed", "run-failed-without-producer-failure", "incomplete-jobs", "unknown-metadata", "qualification-invalid", "main-moved-before-qualification"]
+          },
+          "target": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
+          "reference": { "type": ["string", "null"] },
+          "action": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "outcome": { "enum": ["blocked", "observing", "MERGED_VERIFIED"] },
+    "failure": {
+      "type": "object",
+      "required": ["boundary", "type"],
+      "properties": { "boundary": { "type": "string" }, "type": { "enum": ["ObservationError", "UnexpectedError"] } }
+    }
+  },
+  "$defs": {
+    "id": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+    "sha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "nullableSha": { "anyOf": [{ "$ref": "#/$defs/sha" }, { "type": "null" }] },
+    "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "ticket": { "type": "string", "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$" },
+    "nullableTicket": { "anyOf": [{ "$ref": "#/$defs/ticket" }, { "type": "null" }] },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "url": { "type": "string", "pattern": "^https://github\\.com/[^\\s<>\"\\\\]+$" },
+    "status": { "enum": ["completed", "queued", "in_progress", "waiting", "pending", "requested"] },
+    "conclusion": { "enum": [null, "success", "failure", "cancelled", "timed_out", "neutral", "skipped", "action_required", "stale", "startup_failure"] },
+    "revision": {
+      "type": "object",
+      "required": ["head", "ticket", "source", "enrollment"],
+      "properties": {
+        "head": { "$ref": "#/$defs/sha" },
+        "ticket": { "$ref": "#/$defs/nullableTicket" },
+        "source": { "$ref": "#/$defs/sha" },
+        "enrollment": { "anyOf": [{ "$ref": "#/$defs/timestamp" }, { "type": "null" }] }
+      }
+    },
+    "pull": {
+      "type": "object",
+      "required": ["number", "url", "author", "state", "head", "enrollment", "merge", "mergedAt", "reachableFrom", "ticket", "source", "proofKind", "checks", "outcome"],
+      "properties": {
+        "number": { "$ref": "#/$defs/id" },
+        "url": { "$ref": "#/$defs/url" },
+        "author": { "type": "string" },
+        "state": { "enum": ["OPEN", "CLOSED", "MERGED"] },
+        "head": { "$ref": "#/$defs/sha" },
+        "enrollment": { "anyOf": [{ "$ref": "#/$defs/timestamp" }, { "type": "null" }] },
+        "merge": { "$ref": "#/$defs/nullableSha" },
+        "mergedAt": { "anyOf": [{ "$ref": "#/$defs/timestamp" }, { "type": "null" }] },
+        "reachableFrom": { "$ref": "#/$defs/nullableSha" },
+        "ticket": { "$ref": "#/$defs/nullableTicket" },
+        "source": { "$ref": "#/$defs/sha" },
+        "proofKind": { "enum": ["none", "singleton", "combined-batch-not-solo-head"] },
+        "outcome": { "type": "string" },
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "app", "name", "head", "ticket", "status", "conclusion", "url", "classification"],
+            "properties": {
+              "id": { "$ref": "#/$defs/id" },
+              "app": { "$ref": "#/$defs/id" },
+              "name": { "const": "Merge admission" },
+              "head": { "$ref": "#/$defs/sha" },
+              "ticket": { "$ref": "#/$defs/nullableTicket" },
+              "status": { "$ref": "#/$defs/status" },
+              "conclusion": { "$ref": "#/$defs/conclusion" },
+              "url": { "$ref": "#/$defs/url" },
+              "classification": { "enum": ["current-ticket", "historical-not-current-authority"] }
+            }
+          }
+        }
+      }
+    },
+    "run": {
+      "type": "object",
+      "required": ["id", "attempt", "workflowSource", "source", "ticket", "kind", "event", "branch", "status", "conclusion", "url", "inventory", "jobs", "observedJobCount", "outcome"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "attempt": { "$ref": "#/$defs/id" },
+        "workflowSource": { "$ref": "#/$defs/sha" },
+        "source": { "$ref": "#/$defs/sha" },
+        "ticket": { "$ref": "#/$defs/nullableTicket" },
+        "kind": { "enum": ["candidate", "qualification"] },
+        "event": { "type": "string" },
+        "branch": { "const": "main" },
+        "status": { "$ref": "#/$defs/status" },
+        "conclusion": { "$ref": "#/$defs/conclusion" },
+        "url": { "$ref": "#/$defs/url" },
+        "inventory": {
+          "type": "object",
+          "required": ["blob", "schema", "jobs"],
+          "properties": {
+            "blob": { "$ref": "#/$defs/sha" },
+            "schema": { "enum": ["windows-12-v1", "historical"] },
+            "jobs": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string" } }
+          }
+        },
+        "jobs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "status", "conclusion", "url"],
+            "properties": {
+              "id": { "$ref": "#/$defs/id" },
+              "name": { "type": "string" },
+              "status": { "$ref": "#/$defs/status" },
+              "conclusion": { "$ref": "#/$defs/conclusion" },
+              "url": { "$ref": "#/$defs/url" }
+            }
+          }
+        },
+        "observedJobCount": { "type": "integer", "minimum": 0, "maximum": 1000 },
+        "outcome": { "enum": ["required-producer-failed", "run-failed-without-producer-failure", "required-jobs-success", "incomplete-jobs", "waiting-or-skipped"] },
+        "classification": { "enum": ["superseded-source", "authoritative-tip-receipt", "invalid-tip-receipt", "non-authoritative-duplicate-after-qualified-tip", "unreceipted-tip-observation", "skipped-or-incomplete-not-qualification"] },
+        "diagnostic": { "const": "publication-guard-cause-unconfirmed" }
+      }
+    }
+  }
+}

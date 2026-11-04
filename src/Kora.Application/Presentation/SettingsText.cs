@@ -96,6 +96,10 @@ internal static class SettingsText
             SpeechTextMode.CurrentSentence => "Current sentence requested. Captions are unavailable without exact-profile qualified alignment; the complete answer remains visual. ",
             _ => "Show the words Kora speaks. ",
         }) + Source(state.Source)
+            + " Word emphasis saved: " + (state.SavedCaptionOptions is { } savedCaption
+                ? savedCaption.WordEmphasis ? "on" : "off" : "not saved")
+            + "; effective preference: " + (state.EffectiveCaptionOptions?.WordEmphasis == true ? "on" : "off")
+            + ". Actual emphasis requires qualified source alignment; unavailable profiles keep ordinary text."
         : Unavailable(state.Recovery);
 
     public static string Describe(ProviderProfileConfigurationState state)

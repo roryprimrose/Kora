@@ -29,7 +29,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests.ArtifactDiscovery;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class CustomizationDiscoveryWindowTests
+public sealed partial class CustomizationDiscoveryWindowTests
 {
     [Theory]
     [InlineData(false)]

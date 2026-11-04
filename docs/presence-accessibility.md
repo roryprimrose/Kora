@@ -23,6 +23,20 @@ Screen-reader behavior can depend on your Windows and assistive-software setup;
 the presence's accessible name does not promise that every combination has
 been verified.
 
+## Response position recovery
+
+When a compact response opens, Kora keeps its saved position if the window fits
+inside the connected display's working area. If the origin is still on-screen
+but the response extends beyond an edge, Kora moves it back into that area so
+the response and command input remain reachable. A disconnected saved display
+continues to use the normal placement near presence.
+
+This reuses the same working-area layout as expanding or collapsing Sessions.
+Recovery does not activate the window, submit unsent input, replace its response,
+start listening or speech, or save a new position by itself. Existing minimum
+window sizes still apply; this does not add a small-display layout or qualify
+physical multi-display or installed accessibility behavior.
+
 ## Reduced motion
 
 Choose **Settings > Appearance > Reduced motion**, or say **"Kora, use reduced motion"** using your current assistant name. This freezes particle movement in both animation modes without hiding state, changing focus or disabling independent speech sizing. Off/reset follows Windows animation settings and never overrides Windows reduced motion; colour and visibility transitions still settle ([settings](settings.md#appearance), [precedence](../src/Kora.Core/Configuration/ReducedMotionSettings.cs), [binding](../src/Kora/Controls/PresenceMotionBinding.cs)).

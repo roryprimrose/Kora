@@ -27,9 +27,9 @@ public sealed partial record SessionCommand
         + "Review the unchanged input, exact Active conversation and this one task's configured output, then confirm separately. "
         + "No preference write, replay, listening or provider-context change; mandatory output policy still applies.";
     public const string LocalRequestProfileSyntax =
-        "session request once <session-id> <generation> <metadata-revision> <local-account-id> <catalogue-revision> <model-id> <reasoning-id> <context-id> -- <original body>. "
-        + "This request only: explicitly choose the complete advertised local tuple, review destination/profile/input, then confirm separately. "
-        + "No preference write, hosted fallback, model download or qualification. Cancel submits nothing; subsequent requests inherit normally.";
+        "session request once <session-id> <generation> <metadata-revision> [local|copilot|claude] <account-id> <catalogue-revision> <model-id> <reasoning-id> <context-id> -- <original body>. "
+        + "This request only: explicitly choose the complete advertised tuple, review destination/profile/input, then confirm separately. Omitted service means Local. "
+        + "No preference write, fallback, authentication, model download or qualification. Hosted requests require separate native approval of every physical send. Cancel submits nothing; subsequent requests inherit normally.";
     public const string ReadableRequestSyntax =
         "session request review active [copilot|claude|claude-tools=<exact,ids>] -- <original body> | "
         + "session request review \"<exact readable name>\" [copilot|claude|claude-tools=<exact,ids>] -- <original body> | "
@@ -111,11 +111,17 @@ public sealed partial record SessionCommand
         }
         if (parts.Length >= 3 && parts[2].Equals("once", StringComparison.OrdinalIgnoreCase))
         {
-            if (parts.Length != 11 || separator < 0 || !Revision(parts[7], true, out var catalogue)) { return Invalid(); }
+            var service = ProviderService.Local;
+            var offset = parts.Length == 12 ? 1 : 0;
+            if (offset == 1 && (!Enum.TryParse(parts[6], true, out service)
+                || service is not (ProviderService.Local or ProviderService.Copilot or ProviderService.Claude)
+                || !Enum.GetNames<ProviderService>().Any(name => name.Equals(parts[6], StringComparison.OrdinalIgnoreCase))))
+            { return Invalid(); }
+            if (parts.Length is not (11 or 12) || separator < 0 || !Revision(parts[7 + offset], true, out var catalogue)) { return Invalid(); }
             try
             {
-                var profile = new ProviderProfileTuple(ProviderService.Local, new(parts[6]), new(catalogue),
-                    new(parts[8]), new(parts[9]), new(parts[10]));
+                var profile = new ProviderProfileTuple(service, new(parts[6 + offset]), new(catalogue),
+                    new(parts[8 + offset]), new(parts[9 + offset]), new(parts[10 + offset]));
                 var ordinary = ParseRequest(string.Join(' ', parts.Take(2).Append("review").Concat(parts.Skip(3).Take(3)))
                     + text[separator..]);
                 return ordinary is { Operation: SessionCommandOperation.RequestReview }

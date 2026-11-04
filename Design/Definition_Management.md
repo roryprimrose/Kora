@@ -59,6 +59,16 @@ See the [editor guide](../docs/instruction-editor.md#find-within-selected-displa
 
 ## Product Roles
 
+Session instruction scope controls pin the exact opening Active conversation
+and its selection lifetime. A later selection change, including away and back,
+retires the window's review/control admission rather than silently retargeting
+Review, Confirm, Stop or refresh. Native and original typed/activated-voice
+commands require closing and explicitly reopening for the intended selection.
+Rejection reads no source, changes no confirmed applicability and retains no
+message; closing alone still does not stop a confirmed scope. This is host-owned
+session isolation, not a new applicability mode, instruction precedence rule or
+runtime qualification ([current operation](../docs/session-instructions.md)).
+
 The [bounded owned skill editor](../src/Kora/OwnedSkillEditorWindow.cs) supports native v1 instruction-only packages and additive native v2 selection of exactly the existing host WebPageGet capability. This is immutable disabled publication followed by separate source/target review, enablement, exact request/URL confirmation, independent action approval and genuine retained model answer, not field preparation or automatic Customizations registration ([complete operation](../docs/owned-skill-authoring.md#author-and-use-one-host-webpageget-skill)). General package executors, arbitrary tools/effects and executable resources remain excluded.
 
 The same editor's [native v5 component operation](../docs/owned-skill-authoring.md#author-a-markdown-component-package)

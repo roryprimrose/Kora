@@ -9,6 +9,7 @@ public abstract record RegisteredSettingProposal(RegisteredSetting Setting)
 {
     public RegisteredSettingDescriptor Descriptor => RegisteredSettingRegistry.Get(Setting);
 
+    public sealed record Reset(RegisteredSetting Key) : RegisteredSettingProposal(Key);
     public sealed record Appearance(RegisteredSetting Key, AppearanceOption Option, AppearanceValue Value)
         : RegisteredSettingProposal(Key);
     public sealed record Summary(RegisteredSetting Key, SpeechOption Option, string Value)

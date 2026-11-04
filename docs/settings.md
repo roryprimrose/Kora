@@ -206,6 +206,9 @@ The same [registered-setting review](setting-proposals.md) handles the existing
 spoken-summary and Kora-volume suggestion families without expanding settings
 or granting model write authority. Only one native review is active at a time.
 
+For one supported preference, a retained answer may also propose exactly `reset <exact ID>`, with no default value supplied by the model.
+The same review shows the owner's actual reset outcome and provenance before a distinct fresh confirmation; see [single Reset proposals](setting-proposals.md#propose-one-reset). It does not reset a category, consent, providers/devices, grants or retention.
+
 ### Review a response-timeout suggestion
 
 Ask for the existing response-window hide delay in an Active conversation. One admitted answer is `set appearance.response-timeout to 15`: an exact canonical integer from 1 through 60 seconds, default 5. This is not a provider/request deadline ([preference](#independent-visibility-timeouts), [registered values](setting-proposals.md)).

@@ -22,9 +22,11 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class SessionsConversationTests
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task WindowsRateExpandedAndCompactSelectExactRetainedAnswerThenConfirmThroughExistingWriter(bool compact)
+    [InlineData(false, -1)]
+    [InlineData(true, -1)]
+    [InlineData(false, null)]
+    [InlineData(true, null)]
+    public async Task WindowsRateExpandedAndCompactSelectExactRetainedAnswerThenConfirmThroughExistingWriter(bool compact, int? value)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -41,7 +43,8 @@ public sealed partial class SessionsConversationTests
                 NullLogger<WindowsSpeechRateConfigurationService>.Instance);
             rate.Observe();
             using var policy = new CallCommunicationPolicy(new SummaryCallState());
-            var adapter = new SummaryAnswerAdapter("set speech.windows-rate to -1");
+            var expected = new WindowsSpeechRate(value ?? WindowsSpeechRate.Default.Value);
+            var adapter = new SummaryAnswerAdapter(value is null ? "reset speech.windows-rate" : "set speech.windows-rate to -1");
             await using var composed = new Composition(f, adapter: adapter);
             var model = composed.Model;
             model.BindWindowsSpeechRateSuggestions((message, eligible, validate, token) =>
@@ -64,15 +67,16 @@ public sealed partial class SessionsConversationTests
                 button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await owner.RegisteredSettingOperation;
                 model.RegisteredSettingSuggestionDescription.Should().Contain("Current desired: 0; effective: 0 (default)")
-                    .And.Contain("Proposed: -1").And.Contain("WindowsNative").And.Contain("Kokoro unchanged");
+                    .And.Contain($"Proposed: {expected.Value}").And.Contain("WindowsNative").And.Contain("Kokoro unchanged");
+                if (value is null) { model.RegisteredSettingSuggestionDescription.Should().Contain("unsaved (default)"); }
                 model.CanConfirmRegisteredSettingSuggestion.Should().BeTrue();
                 preferences.Load().Should().BeNull();
                 audit.Events.Should().BeEmpty();
                 window.FindControl<Button>("ConfirmRegisteredSettingSuggestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await owner.RegisteredSettingOperation;
                 model.ConversationStatus.Should().Contain("saved with committed preference and audit readback");
-                new LocalWindowsSpeechRatePreferences(f.Paths).Load().Should().Be(new WindowsSpeechRate(-1));
-                playback.Rate.Should().Be(new WindowsSpeechRate(-1));
+                new LocalWindowsSpeechRatePreferences(f.Paths).Load().Should().Be(value is null ? null : expected);
+                playback.Rate.Should().Be(expected);
                 audit.Events.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
                 model.RegisteredSettingSuggestionDescription.Should().BeEmpty();
                 model.CanConfirmRegisteredSettingSuggestion.Should().BeFalse();

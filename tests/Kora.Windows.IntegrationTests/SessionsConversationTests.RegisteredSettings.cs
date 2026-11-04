@@ -130,9 +130,11 @@ public sealed partial class SessionsConversationTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task RegisteredSettingAndModelMemoryNativeRoutesKeepSeparateConfirmationAndAdmission(bool compact)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task RegisteredSettingAndModelMemoryNativeRoutesKeepSeparateConfirmationAndAdmission(bool compact, bool reset)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -141,10 +143,13 @@ public sealed partial class SessionsConversationTests
             await WindowsSqliteConversationTests.FinishInitial(f);
             var preferences = new LocalAppearancePreferences(new LocalPreferenceStore(f.Paths),
                 NullLogger<LocalAppearancePreferences>.Instance);
+            if (reset) { preferences.SaveThemeMode(ApplicationThemeMode.Light); }
             var audit = new AuditLog();
             var appearance = new AppearanceConfigurationService(preferences, audit,
                 NullLogger<AppearanceConfigurationService>.Instance);
-            var adapter = new SettingAndMemoryAnswers();
+            var suggestion = reset ? "reset appearance.theme" : "set appearance.theme to dark";
+            var expected = reset ? ApplicationThemeMode.System : ApplicationThemeMode.Dark;
+            var adapter = new SettingAndMemoryAnswers(suggestion);
             await using var composed = new Composition(f, adapter: adapter, appearance: appearance, memoryContext: true);
             var model = composed.Model;
             await model.RefreshAsync();
@@ -156,7 +161,7 @@ public sealed partial class SessionsConversationTests
             await model.SubmitConversationAsync();
             await model.ReadConversationAsync();
             var setting = model.ConversationMessages.Single(item => string.Equals(item.AssistantResponse?.Body,
-                "set appearance.theme to dark", StringComparison.Ordinal));
+                suggestion, StringComparison.Ordinal));
             var memory = model.ConversationMessages.Single(item => string.Equals(item.AssistantResponse?.Body,
                 MemoryProposal, StringComparison.Ordinal));
             var owner = new SessionsPresentationOwner(model);
@@ -179,14 +184,15 @@ public sealed partial class SessionsConversationTests
                     await Task.WhenAll(owner.RegisteredSettingOperation, owner.ModelMemoryOperation);
                 }
                 await Click("ReviewRegisteredSettingSuggestion", setting);
-                model.RegisteredSettingSuggestionDescription.Should().Contain("proposed dark mode");
+                model.RegisteredSettingSuggestionDescription.Should().Contain(reset ? "proposed system mode" : "proposed dark mode");
+                if (reset) { model.RegisteredSettingSuggestionDescription.Should().Contain("Reset saves").And.Contain("saved preference"); }
                 model.CanConfirmRegisteredSettingSuggestion.Should().BeTrue();
                 model.CanAcceptModelMemoryProposal.Should().BeFalse();
-                preferences.LoadThemeMode().Should().BeNull();
+                preferences.LoadThemeMode().Should().Be(reset ? ApplicationThemeMode.Light : null);
                 audit.Events.Should().BeEmpty();
                 f.Count("reviewed_memory").Should().Be(0);
                 await Click("ConfirmRegisteredSettingSuggestion");
-                preferences.LoadThemeMode().Should().Be(ApplicationThemeMode.Dark);
+                preferences.LoadThemeMode().Should().Be(expected);
                 audit.Events.Select(item => item.Outcome).Should()
                     .Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
                 f.Count("reviewed_memory").Should().Be(0, "setting confirmation cannot admit memory");
@@ -201,7 +207,7 @@ public sealed partial class SessionsConversationTests
                 model.ConversationStatus.Should().Contain("SESSION memory admitted");
                 model.ModelMemoryProposalDescription.Should().BeEmpty();
                 f.Count("reviewed_memory").Should().Be(1);
-                preferences.LoadThemeMode().Should().Be(ApplicationThemeMode.Dark);
+                preferences.LoadThemeMode().Should().Be(expected);
                 audit.Events.Should().HaveCount(2, "memory admission cannot repeat a setting write");
                 adapter.Calls.Should().Be(2, "neither review route regenerates an answer");
                 f.Count("scoped_grants").Should().Be(0);
@@ -301,7 +307,7 @@ public sealed partial class SessionsConversationTests
         adapter.Calls.Should().Be(2, "review never regenerates an answer");
     }
 
-    private sealed class SettingAndMemoryAnswers : IModelTurnAdapter
+    private sealed class SettingAndMemoryAnswers(string setting = "set appearance.theme to dark") : IModelTurnAdapter
     {
         internal int Calls { get; private set; }
 
@@ -315,7 +321,7 @@ public sealed partial class SessionsConversationTests
                 .And.Contain("including VoiceOnly")
                 .And.Contain("explicitly requests a session-memory proposal");
             return Task.FromResult(new ModelProviderReply(ModelTurnOutcome.Succeeded, provenance.Selection,
-                new(Calls == 1 ? "set appearance.theme to dark" : MemoryProposal, null)));
+                new(Calls == 1 ? setting : MemoryProposal, null)));
         }
     }
 

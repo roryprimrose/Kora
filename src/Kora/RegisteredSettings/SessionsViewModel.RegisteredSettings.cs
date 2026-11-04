@@ -12,7 +12,8 @@ internal sealed partial class SessionsViewModel
         RegisteredSettingRegistry.Settings.Select(item => $"{item.Id}: "
             + item.SuggestedValues
             + (item.RequiresNativeReview ? " (native review only)" : string.Empty)))
-        + ". All are shared device-local preferences. Review changes nothing.";
+        + ". Set supplies one value; Reset supplies only the exact ID and uses the owner's default. "
+        + "All are shared device-local preferences. Review changes nothing.";
 
     public bool CanReviewRegisteredSettingSuggestion => CanReviewAppearanceSuggestion
         || CanReviewSpeechSummarySuggestion || CanReviewPlaybackVolumeSuggestion || CanReviewResponseModeSuggestion || CanReviewWindowsSpeechRateSuggestion;
@@ -40,6 +41,12 @@ internal sealed partial class SessionsViewModel
                 RegisteredSettingProposal.Volume => SettingReviewFamily.Volume,
                 RegisteredSettingProposal.ResponseMode => SettingReviewFamily.ResponseMode,
                 RegisteredSettingProposal.WindowsRate => SettingReviewFamily.WindowsRate,
+                RegisteredSettingProposal.Reset reset when reset.Descriptor.RequiresNativeReview => SettingReviewFamily.Appearance,
+                RegisteredSettingProposal.Reset { Setting: RegisteredSetting.ResponseTimeout } => SettingReviewFamily.Appearance,
+                RegisteredSettingProposal.Reset { Setting: RegisteredSetting.SummaryWords or RegisteredSetting.SummarySentences } => SettingReviewFamily.Summary,
+                RegisteredSettingProposal.Reset { Setting: RegisteredSetting.PlaybackVolume } => SettingReviewFamily.Volume,
+                RegisteredSettingProposal.Reset { Setting: RegisteredSetting.ResponseMode } => SettingReviewFamily.ResponseMode,
+                RegisteredSettingProposal.Reset { Setting: RegisteredSetting.WindowsSpeechRate } => SettingReviewFamily.WindowsRate,
                 _ => throw new InvalidDataException("The setting suggestion is not registered."),
             };
             if (expected is not null && family != expected)

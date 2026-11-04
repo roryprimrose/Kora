@@ -1670,6 +1670,14 @@ the shared audited settings service; it never speaks/replays the current answer,
 reruns a model, installs a provider or grants model write authority.
 See [the full review and recovery rules](settings.md#review-an-assistant-speech-limit-suggestion).
 
+**One retained Reset suggestion**
+
+The complete model answer may be exactly `reset <exact registered ID>`, for example `reset speech.playback-volume`.
+It remains inert: choose **Review setting suggestion...**, inspect the host-resolved current/default outcome and scope, then separately **Confirm exact setting change** or **Cancel setting review** ([Reset contract](setting-proposals.md#propose-one-reset)).
+
+Existing speech-limit, volume, Windows-rate and response-mode review/confirm/cancel commands also handle Reset from their exact retained source. Appearance remains original-local-UI/native-only.
+No model-supplied default, generic setting write, batch, channel override or model undo authority is admitted ([channel and recovery rules](setting-proposals.md#activated-voice-and-mandatory-exceptions)).
+
 ### Open settings
 - **open settings**
 - **show Kora settings**

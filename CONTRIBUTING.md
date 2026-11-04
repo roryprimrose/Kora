@@ -88,8 +88,59 @@ even when the gate fails. Non-destructive Windows integration tests are not
 physical audio, provider or installed acceptance; CI must never lock or restart
 its runner.
 
+The existing [version job](.github/workflows/ci.yml) is also the exact-source
+early preflight barrier: scheduling contracts, static source-tool policy,
+locked dependency/tool restore and the complete dependency license/notice
+check must succeed before portable, payload, Windows or installer work fans
+out. No build, broad test suite or coverage collection is serialized there.
+The [preflight regressions](eng/Test-CiPreflight.ps1) exercise failure,
+cancellation, skipped/missing evidence and wrong-source rejection; run
+`.\eng\Test-CiPreflight.ps1` after changing this ordering.
+
+Payload production downloads the immutable license audit from the same
+workflow run, named for the admitted revision, and verifies its source receipt
+before publishing bytes. It does not import another run's evidence or rescan
+the same dependency graph. Complete portable coverage, Windows discovery and
+partition evidence, payload inspection, installer validation and actual-tip
+qualification/publication remain downstream requirements; the
+[workflow inventory regressions](eng/merge-queue/workflows.test.cjs) preserve
+current and predecessor job identities.
+
+The [policy test selector](eng/run-policy-tests.cjs) runs every queue test
+module, its own [discovery/execution regressions](eng/tests/policy-test-selection.test.cjs),
+and all installed campaign `*.test.cjs` modules before candidate fanout and in
+waiting-PR feedback. Run `node .\eng\run-policy-tests.cjs` locally.
+An entirely absent campaign directory/marker reports `NOT_INSTALLED`, not a
+campaign pass, so the infrastructure and campaign PRs can integrate independently.
+Any campaign directory or marker requires `eng/pr-campaign/campaign.test.cjs`;
+partial installation, missing mandatory queue modules, unknown filesystem
+state, empty discovery or unsuccessful Node execution fails closed.
+
 The [installed SAPI stream fixture](tests/Kora.Windows.IntegrationTests/Audio/BlockingAudioStreamTests.cs) owns recognizer construction through completion and disposal on a thread-pool task, independent of the caller's synchronization context. Its regression withholds caller-context callbacks while retaining the five-second completion budget, real stream-consumption assertion and error/cancellation checks.
 This fixture correction does not qualify installed recognizer latency or enable a runtime capability.
+
+The push-to-talk button and foreground-shortcut headless contracts share the
+[native activation helper](tests/Kora.Windows.IntegrationTests/HeadlessSession.cs)
+instead of waiting for OS focus acknowledgement. They retain active-owner,
+focus and key-admission preconditions alongside the
+foreground, consent, ownership and capture-quiescence assertions; this fixture
+evidence does not qualify physical keyboard or microphone behavior.
+
+The [voice-input composition fixture](tests/Kora.Windows.IntegrationTests/Audio/VoiceInputCompositionTests.cs) supplies in-memory preferences, audit and
+audio-control admission dependencies while resolving the production timing
+service and recognition aliases. Composition alone must not write preferences,
+emit configuration audit events, create control tasks or open audio. The [listening
+grammar regression](tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.cs) includes capture-timing phrases and their assistant-name
+variants without relaxing exact phrase-set equality.
+
+Sessions metadata regressions hold both Refresh and Next reads across viewer
+closure, including stores that complete despite cancellation. Late pages must
+not repopulate rows or publish content through change notifications, alter
+session lifecycle, or admit work.
+
+The [local-event retirement regressions](tests/Kora.Windows.IntegrationTests/LocalEventBrokerWindowTests.Filters.cs#L197) preserve the exact closed Sessions status across late notice cancellation and source failure, including sources that ignore cancellation.
+Open-viewer failures retain unavailable feedback; neither path restores event selection/detail or changes durable work, questions, retention, history or audit.
+The [native notice-response regression](tests/Kora.Windows.IntegrationTests/SessionsConversationTests.NoticeResponse.cs#L49) also preserves closed Sessions status when its owner closes during question focus admission, without answering, activating a presenter or restoring notice content.
 
 The [bundled computer-power regressions](tests/Kora.Windows.IntegrationTests/ApplicationLifecycle/SessionsConversationTests.BundledActions.cs)
 wait for enabled native question controls after the activation-triggered source
@@ -137,6 +188,13 @@ completion. Later Cancelling publications are not additional injected failures;
 every accepted request still requires its physical join and terminal receipt,
 while the operation truthfully retains its partial/unconfirmed outcome.
 
+Submitted-conversation store fixtures keep immutable request-local receipts
+through acceptance, dispatch and completion callbacks. A shared observation
+cursor cannot select the record to commit: running and pending originals can
+complete concurrently during lifecycle confirmation. Controlled overlap cases
+require both exact terminal receipts and physical joins; uncertain readback
+still denies lifecycle confirmation and a fresh review.
+
 Speech-suggestion receipt-pin regressions explicitly join voice-consent
 withdrawal and capture closure in both notification orders. Assert the exact
 command presentation and canonical request/task receipt independently of the
@@ -153,11 +211,15 @@ and run MTP through `--root-directory` / `--test-modules`, without restore or
 compilation. No larger host or increased per-process thread limit is requested.
 `ui-definition-dialogs`
 owns the complete customization and prompt-parameter window classes;
-`ui-conversation-actions` owns conversation methods beginning Native, Owned or
-Named; `ui-conversation-core` owns conversation methods beginning B, E or M;
+`ui-conversation-actions` owns conversation methods beginning Native;
+`ui-conversation-core` owns conversation methods beginning B, E or M;
 `ui-conversations` owns all other conversation methods, including future
-methods outside those families. `ui-definitions` owns remaining definition classes.
+methods outside those families and the complete Owned/Named families.
+`ui-definitions` owns remaining definition classes.
 `ui-workflows` and `ui-presentation` isolate measured expensive platform classes;
+the former includes the complete foreground push-to-talk UI contract class;
+the latter includes the complete prepared local search, local file text
+measurement and adaptive session-name search classes.
 `ui-platform` catches the remainder, including future classes.
 All theory rows for each method stay together. `ui-editors` owns the complete
 owned-definition editor class.
@@ -213,6 +275,23 @@ trusted-main workflow. Local contracts and archive round-trip checks do not
 establish hosted timing. Aim for 12-15 minutes end-to-end, but measure actual
 runner scheduling, artifact transfer, build and slowest-test time before claiming
 that target. More jobs cannot fix a test that stalls.
+
+The unchanged twelve-job layout is rebalanced using complete successful
+[run 41687015183](https://github.com/roryprimrose/Kora/actions/runs/41687015183)
+(source `0cd532a0fb6c74345d8820c1e5a27549bff385b0`, 8,012 cases) and
+[run 41695737766](https://github.com/roryprimrose/Kora/actions/runs/41695737766)
+(source `844a3ec2fb65620a617b610f782f3e9c64bc893c`, 8,030 cases).
+Their retained TRX durations project maximum serial work of 1,059.792s to
+720.966s and 940.896s to 619.868s respectively; these are estimates, not
+revised-source runtime evidence. Only whole platform classes and the existing
+Owned/Named conversation families move; theory rows, per-test fixture lifecycle,
+headless/tracing isolation, native profiles and all twelve/five job identities
+remain unchanged ([runner](eng/Run-WindowsIntegrationTests.ps1),
+[regressions](eng/Test-WindowsIntegrationScheduling.ps1)).
+Historical reports keep their historical partition ownership; do not pass
+pre-rebalance twelve-report evidence as current-layout execution proof.
+The current-layout twelve-report join validates the complete source catalog
+after collecting every report, including exact method and theory-row counts.
 
 To reproduce downloaded-artifact execution after packaging:
 
@@ -319,7 +398,17 @@ The stable phase allowlist is `native-ui`, `owned-storage`, `setup`, `context`,
 `join`, `evidence-flush` and `disposal`. `native-ui` measures the dispatched
 callback, not its queue wait; storage measures fixture construction, context
 measures task/interaction-store initialization, and setup measures the complete
-fixture initialization. Join and evidence flush measure the existing shutdown
+fixture initialization. The timed setup wrapper forwards the optional typed
+Details and conversation-execution configuration services to the core
+initializer unchanged; omitted services remain unavailable. The native settings
+regression covers all four composition combinations, independent review and
+confirmation, and terminal phase evidence without granting voice consent.
+Submitted-conversation completion joins terminal observers before signaling
+the worker result. Late-publication regressions defer native presentation with
+the existing dispatcher seam, not by blocking a terminal observer while
+awaiting that same worker. Keep both dismissal/reset cases and the exact
+new-publication, preference-write and forbidden-effect assertions.
+Join and evidence flush measure the existing shutdown
 owners inside disposal. These intervals can nest and must not be summed as
 exclusive CPU time. Repeated phases have distinct ordinal IDs.
 
@@ -342,6 +431,12 @@ Each of the twelve `windows-execution-results-<partition>` artifacts retains
 these test attachments alongside TRX, console output and MTP diagnostics under
 its fresh execution directory. Phase attachments and started-test diagnostics
 do not substitute for the complete admitted-source catalog and passing reports.
+
+The [foreground PTT lifecycle theory](tests/Kora.Windows.IntegrationTests/ForegroundPttUiContractTests.cs) also retains a separate `foreground-ptt-start.json` string attachment around its unchanged startup wait.
+Its [test-only snapshots](tests/Kora.Windows.IntegrationTests/ForegroundPttUiContractTests.StartupEvidence.cs) record allowlisted UI eligibility, focus categories, bubble-observed key handling and synthetic capture state before/after the press and at startup exit.
+Bubble `Handled` is an observed routed-event state, not proof of which handler admitted input. Opening cancellation is explicitly `NotExposed`; the fixture does not inspect private production state or infer a timeout from missing capture. No content, control text, device/session identities or exception messages enter this attachment.
+The [shared evidence owner](tests/Kora.Windows.IntegrationTests/NativeFixturePhaseTimings.cs) defers attachment failures until cleanup and preserves an original operation failure. These snapshots neither change focus/admission nor extend waits, weaken lifecycle assertions or establish hosted qualification.
+
 A killed host may never publish a terminal test report
 or its attachments; absent evidence is not a completed/cancelled phase or a
 recoverable historical trace. This instrumentation does not establish the
@@ -373,6 +468,17 @@ runner to verify the exact shape, original identity and real headless output.
 - Preserve production deadlines; use existing fake clocks for non-deadline
   scenarios. Dispose asynchronous fixture owners and release held operations in
   `finally`. See the [microphone ownership regressions](tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.MicrophoneRefreshOwnership.cs).
+- Freeze the interaction-storage fixture's timers when holding fake provider
+  turns under its frozen clock. The [queued task-output regressions](tests/Kora.Windows.IntegrationTests/SessionsConversationTests.TaskResponseOutput.cs)
+  assert that no system timer is created, successful work joins, and original
+  expiry at and beyond 15 seconds still withholds pending output.
+  Legacy single-execution adapters cannot dispatch another session while the
+  original owns its resource. Hold that session's dispatch through exact worker
+  joins; keep explicit overlap coverage for the fail-closed `ProviderBusy` result.
+- The [pending-clear regressions](tests/Kora.Windows.IntegrationTests/SessionsConversationTests.PendingClear.cs)
+  also freeze timers for held fake work and await exact pending-control property
+  publication after refresh. An awaited storage read does not join a posted UI
+  snapshot; preserve manual-hold and per-original terminal assertions.
 - Queued task-output fixtures hold the provider reply, assert exact cross-session
   `ProviderBusy` refusal during overlap, and join the exact queued completion and
   provider quiescence before a fresh review. See the [native output cases](tests/Kora.Windows.IntegrationTests/SessionsConversationTests.TaskResponseOutput.cs).
@@ -384,7 +490,8 @@ runner to verify the exact shape, original identity and real headless output.
   authoritative task readback, and physical join. Terminal readback failure
   still prevents fresh lifecycle review.
 - Concurrent conversation expiry fixtures derive the message/task terminal pair
-  from the exact request-owned snapshot, not mutable last-observed fixture slots.
+  from the exact request-owned snapshot before any awaited callback, not mutable
+  last-observed fixture slots.
   A concurrent dictionary does not make shared selection/commit atomic; force
   interleaving deterministically and preserve each original's exact receipt.
   The [manual-release regressions](tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ManualDispatch.cs)

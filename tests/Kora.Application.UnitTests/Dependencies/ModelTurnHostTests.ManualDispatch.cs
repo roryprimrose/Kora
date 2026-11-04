@@ -111,9 +111,12 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
-    [InlineData(RequestOrigin.LocalUi)]
-    [InlineData(RequestOrigin.ActivatedVoice)]
-    public async Task InterleavedExpiredFixtureCompletionsKeepEachOriginalMessageAndTaskPair(RequestOrigin origin)
+    [InlineData(RequestOrigin.LocalUi, false)]
+    [InlineData(RequestOrigin.ActivatedVoice, false)]
+    [InlineData(RequestOrigin.LocalUi, true)]
+    [InlineData(RequestOrigin.ActivatedVoice, true)]
+    public async Task InterleavedExpiredFixtureCompletionsKeepEachOriginalMessageAndTaskPair(
+        RequestOrigin origin, bool asynchronousCompletion)
     {
         using var f = new Fixture(origin) { TrackPendingRecords = true };
         var head = await f.RetainConversationMessageAsync(f.Request, f.Session.Generation, 0,
@@ -122,16 +125,31 @@ public sealed partial class ModelTurnHostTests
         var next = await f.RetainConversationMessageAsync(nextRequest, f.Session.Generation, 0,
             "second immutable", () => true, Token);
         Task<ConversationSubmissionReceipt>? interleaved = null;
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         f.BeforeSubmissionComplete = request =>
         {
             request.Should().BeSameAs(head.Message.Request);
             f.BeforeSubmissionComplete = null;
             interleaved = f.CompleteConversationSubmissionAsync(nextRequest, ModelTurnOutcome.Denied,
                 ModelTurnReason.ContextExpired, () => true, Token).AsTask();
-            return interleaved;
+            return asynchronousCompletion ? release.Task : interleaved;
         };
-        var completed = await f.CompleteConversationSubmissionAsync(head.Message.Request, ModelTurnOutcome.Denied,
-            ModelTurnReason.ContextExpired, () => true, Token);
+        var completion = f.CompleteConversationSubmissionAsync(head.Message.Request, ModelTurnOutcome.Denied,
+            ModelTurnReason.ContextExpired, () => true, Token).AsTask();
+        try
+        {
+            if (asynchronousCompletion)
+            {
+                completion.IsCompleted.Should().BeFalse();
+                interleaved.Should().NotBeNull();
+                (await interleaved!).Task.Request.Should().BeSameAs(nextRequest);
+            }
+        }
+        finally
+        {
+            release.TrySetResult();
+        }
+        var completed = await completion;
         interleaved.Should().NotBeNull();
         var nextCompleted = await interleaved!;
         f.PendingRecords.Should().HaveCount(2);

@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { reconcile } = require('./controller.cjs');
 const { validateState, WINDOWS_12_JOBS, GATE, title,
-  REJECTED_ADMISSION_JOBS, terminalRejectedAdmission } = require('./policy.cjs');
+  REJECTED_ADMISSION_JOBS, terminalRejectedAdmission, terminalRejectedPreflight } = require('./policy.cjs');
 const { profile, CONTROL_PATH, digest, manifestFor } = require('./batch-policy.cjs');
 const { changeBatchState } = require('./recovery.cjs');
 const sha = n => n.toString(16).padStart(40, '0');
@@ -26,6 +26,8 @@ class BatchFake {
   inventory = { schema: 'windows-12-v1', blob: sha(999), jobs: [...WINDOWS_12_JOBS] };
   qualified = false;
   conflict = false;
+  conflicts = new Set();
+  qualificationObservation = null;
   commit = sha(800);
   administratorAllowed = true;
   quiet = true;
@@ -44,11 +46,12 @@ class BatchFake {
   async trustedInventory() { return clone(this.inventory); }
   async expectedJobs() { return [...WINDOWS_12_JOBS]; }
   async rejectedAdmission(source, run, jobs) {
-    return run.head_sha === source && terminalRejectedAdmission(run, jobs, this.inventory.blob);
+    return run.head_sha === source && (terminalRejectedAdmission(run, jobs, this.inventory.blob)
+      || terminalRejectedPreflight(run, jobs, this.inventory.blob));
   }
   async syntheticPrefix(active, index) {
     this.calls.push(['synthetic', index]);
-    if (this.conflict) return null;
+    if (this.conflict || this.conflicts.has(active.members[index].number)) return null;
     const prefix = { sha: sha(300 + index), tree: sha(400 + index) };
     this.commits.set(prefix.sha, { tree: prefix.tree,
       parents: [index ? active.prefixes[index - 1].sha : active.base, active.members[index].head] });
@@ -101,7 +104,10 @@ class BatchFake {
   }
   async wake() { this.calls.push(['wake']); }
   async cancel(id) { this.calls.push(['cancel', id]); }
-  async tipQualification() { return this.qualified ? { run: 10, job: 11, source: this.base } : null; }
+  async tipQualification() {
+    return this.qualified ? { owner: { run: 10, source: this.base, attempt: 1 },
+      qualification: { run: 10, job: 11, source: this.base } } : clone(this.qualificationObservation);
+  }
   async dispatchQualification(tip) { this.calls.push(['qualification', tip.sha]); }
   async administrator() { return this.administratorAllowed; }
   async ciQuiescent() { return this.quiet; }
@@ -112,6 +118,44 @@ async function until(api, target, limit = 40) {
   for (let index = 0; index < limit; index++) if (await step(api) === target) return;
   assert.fail(`Did not reach ${target}`);
 }
+
+test('exact reviewed failed preflight retires batch only after complete terminal unexpanded matrix evidence', async () => {
+  for (const change of ['terminal', 'running', 'missing', 'unknown', 'blob', 'version-skipped']) {
+    const api = new BatchFake();
+    api.inventory.blob = 'c75173721c4131cf29d45482ea2edb92934070f1';
+    await step(api);
+    api.workflowRuns[0].conclusion = 'failure';
+    api.workflowJobs = REJECTED_ADMISSION_JOBS.map((name, index) => ({ id: index + 1, name,
+      run_id: 9, run_attempt: 1, head_sha: BASE, status: 'completed',
+      conclusion: name === 'Admit CI execution' ? 'success'
+        : name === 'Resolve build version' || name === WINDOWS_12_JOBS[2] || name === 'Windows integration tests'
+          || name.startsWith('Windows integration shard (') ? 'failure' : 'skipped' }));
+    if (change === 'running') {
+      api.workflowRuns[0].status = 'in_progress';
+      Object.assign(api.workflowJobs.at(-1), { status: 'in_progress', conclusion: null });
+    }
+    if (change === 'missing') api.workflowJobs.pop();
+    if (change === 'unknown') api.workflowJobs.at(-1).conclusion = null;
+    if (change === 'blob') api.inventory.blob = sha(999);
+    if (change === 'version-skipped') api.workflowJobs.find(job => job.name === 'Resolve build version').conclusion = 'skipped';
+    assert.equal(await step(api), 'retiring', change);
+    assert.equal(api.state.active.ticket, TICKET);
+    assert.equal(count(api, 'merge'), 0);
+    assert.equal(api.calls.some(call => call[0] === 'finish' && call[2] === 'success'), false);
+    assert.equal(await step(api), change === 'terminal' ? 'retired' : 'retiring', change);
+    if (change === 'running') {
+      api.workflowRuns[0].status = 'completed';
+      assert.equal(await step(api), 'retiring');
+      Object.assign(api.workflowJobs.at(-1), { status: 'completed', conclusion: 'skipped' });
+      assert.equal(await step(api), 'retired');
+    }
+    if (['terminal', 'running'].includes(change)) {
+      assert.equal(api.state.active, null);
+      assert.equal(api.state.singletonRetries.length, 5);
+    } else assert.equal(api.state.active.ticket, TICKET);
+    assert.equal(count(api, 'dispatch'), 1);
+  }
+});
 
 test('an admission-rejected batch can retire but never attest proof or merge a member', async () => {
   for (const incomplete of [false, true]) {
@@ -246,15 +290,261 @@ test('batch-profile control singleton retains complete exact-head proof and reco
   assert.equal(await step(api), 'waiting-for-tip-qualification');
 });
 
-test('synthetic conflicts integrate nothing and retire without falsely quarantining individual members', async () => {
+test('a first-member construction conflict isolates only the oldest member without quarantining its peers', async () => {
   const api = new BatchFake();
   api.conflict = true;
   assert.equal(await step(api), 'retiring');
+  assert.equal(count(api, 'wake'), 1);
+  assert.equal(api.state.active.phase, 'retiring');
+  assert.equal(api.state.active.dispatchRecorded, false);
   assert.equal(await step(api), 'retired');
+  assert.equal(count(api, 'wake'), 2);
   assert.equal(count(api, 'merge'), 0);
   assert.equal(count(api, 'dispatch'), 0);
   assert.equal(api.state.blocked.length, 0);
+  assert.deepEqual(api.state.singletonRetries.map(member => member.number), [1]);
+});
+
+test('construction seals a new complete manifest for the compatible prefix, never skipping an older conflict', async () => {
+  const api = new BatchFake();
+  api.conflicts.add(3);
+  assert.equal(await step(api), 'dispatched');
+  const active = api.state.active;
+  assert.deepEqual(active.members.map(member => member.number), [1, 2]);
+  assert.equal(active.prefixes.length, 2);
+  assert.equal(active.head, active.prefixes[1].sha);
+  assert.equal(active.digest, digest(manifestFor(active)));
+  assert.deepEqual(api.state.singletonRetries.map(member => member.number), [3]);
+  assert.deepEqual(api.calls.filter(call => call[0] === 'synthetic').map(call => call[1]), [0, 1, 2]);
+  const frozen = clone(manifestFor(active));
+  await until(api, 'batch-completed');
+  assert.equal(count(api, 'merge'), 2);
+  assert.deepEqual(api.state.completedTip.members.map(member => member.number), [1, 2]);
+  assert.equal(api.state.completedTip.manifest, digest(frozen));
+  api.qualified = true;
+  api.commits.set(sha(3), { tree: sha(700), parents: [api.base] });
+  assert.equal(await step(api), 'dispatched');
+  assert.equal(api.state.active.kind, undefined);
+  assert.equal(api.state.active.number, 3, 'oldest conflicting member must not be repeatedly skipped');
+});
+
+test('every conflict boundary preserves priority order and freezes only the admitted prefix', async () => {
+  for (let boundary = 1; boundary < 5; boundary++) {
+    const api = new BatchFake();
+    api.prs[5].labels = ['queue:priority-high'];
+    const order = [6, 1, 2, 3, 4];
+    api.conflicts.add(order[boundary]);
+    await step(api);
+    assert.deepEqual(api.state.active.members.map(member => member.number), order.slice(0, boundary));
+    assert.equal(api.state.active.digest, digest(manifestFor(api.state.active)));
+    assert.deepEqual(api.state.singletonRetries.map(member => member.number), [order[boundary]]);
+    assert.equal(count(api, 'dispatch'), 1);
+    assert.equal(count(api, 'merge'), 0);
+    assert.equal(count(api, 'synthetic'), boundary + 1);
+  }
+});
+
+test('a compatible prefix survives restart before its final subset checkpoint without replaying dispatch', async () => {
+  const api = new BatchFake();
+  api.conflicts.add(3);
+  const save = api.save.bind(api);
+  let interrupted = false;
+  api.save = async state => {
+    if (!interrupted && state.active?.phase === 'reserved') {
+      interrupted = true;
+      throw new Error('subset checkpoint unavailable');
+    }
+    return save(state);
+  };
+  await assert.rejects(step(api), /subset checkpoint unavailable/);
+  assert.equal(api.state.active.phase, 'constructing');
+  assert.equal(count(api, 'dispatch'), 0);
+  api.save = save;
+  assert.equal(await step(api), 'dispatched');
+  assert.deepEqual(api.state.active.members.map(member => member.number), [1, 2]);
+  assert.equal(api.state.singletonRetries.filter(member => member.number === 3).length, 1);
+  assert.equal(count(api, 'dispatch'), 1);
+});
+
+test('running failed or stale batch work is cancelled promptly but keeps its exact lane until all jobs are terminal', async () => {
+  for (const change of ['failure', 'duplicate', 'head', 'base', 'enrollment', 'review', 'priority']) {
+    const api = new BatchFake();
+    await step(api);
+    api.workflowRuns[0].status = 'in_progress';
+    api.workflowRuns[0].conclusion = null;
+    Object.assign(api.workflowJobs.at(-1), { status: 'in_progress', conclusion: null });
+    if (change === 'failure') api.workflowJobs[0].conclusion = 'failure';
+    if (change === 'duplicate') api.workflowJobs.push({ ...api.workflowJobs[0], id: 999 });
+    if (change === 'head') api.prs[0].head.sha = sha(999);
+    if (change === 'base') api.base = sha(999);
+    if (change === 'enrollment') api.prs[0].enrollment = null;
+    if (change === 'review') api.prs[0].review = 'CHANGES_REQUESTED';
+    if (change === 'priority') api.prs[0].labels = ['queue:priority-low'];
+    assert.equal(await step(api), 'retiring', change);
+    assert.equal(count(api, 'cancel'), 1, change);
+    assert.equal(api.state.active.ticket, TICKET);
+    assert.equal(count(api, 'wake'), 1, 'halt wakeup must survive the prompt cancellation change');
+    api.workflowRuns[0].status = 'completed';
+    api.workflowRuns[0].conclusion = 'cancelled';
+    assert.equal(await step(api), 'retiring');
+    assert.equal(count(api, 'merge'), 0);
+    assert.equal(count(api, 'dispatch'), 1);
+    Object.assign(api.workflowJobs.at(-1), { status: 'completed', conclusion: 'cancelled' });
+    assert.equal(await step(api), change === 'duplicate' ? 'retiring' : 'retired');
+    if (change === 'duplicate') assert.ok(api.state.active, 'duplicate evidence never proves physical quiescence');
+  }
+});
+
+test('missing evidence or failed authority reads do not invent a failure or cancel unrelated work', async () => {
+  const api = new BatchFake();
+  await step(api);
+  api.workflowRuns[0].status = 'in_progress';
+  api.workflowRuns[0].conclusion = null;
+  api.workflowJobs = [];
+  assert.equal(await step(api), 'validating');
+  assert.equal(count(api, 'cancel'), 0);
+  api.reviewState = async () => { throw new Error('authority unavailable'); };
+  await assert.rejects(step(api), /authority unavailable/);
+  assert.equal(count(api, 'cancel'), 0);
+  assert.equal(api.state.active.phase, 'dispatched');
+});
+
+test('incomplete live authority metadata is not conclusive staleness and cannot cancel candidate work', async () => {
+  for (const change of ['state', 'draft', 'base', 'head', 'repository', 'intent', 'mergeability', 'enrollment', 'review']) {
+    const api = new BatchFake();
+    await step(api);
+    api.workflowRuns[0].status = 'in_progress';
+    api.workflowRuns[0].conclusion = null;
+    const pr = api.prs[0];
+    if (change === 'state') pr.state = undefined;
+    if (change === 'draft') pr.draft = undefined;
+    if (change === 'base') pr.base.ref = undefined;
+    if (change === 'head') pr.head.sha = undefined;
+    if (change === 'repository') pr.head.repo = undefined;
+    if (change === 'intent') pr.auto_merge = undefined;
+    if (change === 'mergeability') pr.mergeable = null;
+    if (change === 'enrollment') pr.enrollment = undefined;
+    if (change === 'review') pr.review = undefined;
+    await assert.rejects(step(api), /unavailable/, change);
+    assert.equal(api.state.active.phase, 'dispatched', change);
+    assert.equal(count(api, 'cancel'), 0, change);
+    assert.equal(count(api, 'merge'), 0, change);
+    assert.equal(count(api, 'dispatch'), 1, change);
+  }
+});
+
+test('cancellation and continuation errors preserve the doomed checkpoint and never release or redispatch its lane', async () => {
+  for (const boundary of ['cancel', 'wake']) {
+    const api = new BatchFake();
+    await step(api);
+    api.workflowRuns[0].status = 'in_progress';
+    api.workflowRuns[0].conclusion = null;
+    api.workflowJobs[0].conclusion = 'failure';
+    const original = api[boundary].bind(api);
+    api[boundary] = async () => { throw new Error(`${boundary} unavailable`); };
+    await assert.rejects(step(api), /unavailable/);
+    assert.equal(api.state.active.phase, 'retiring');
+    assert.equal(api.state.active.ticket, TICKET);
+    api[boundary] = original;
+    assert.equal(await step(api), 'retiring');
+    assert.equal(count(api, 'dispatch'), 1);
+    assert.equal(count(api, 'merge'), 0);
+    assert.equal(api.state.singletonRetries.length, 0);
+  }
+});
+
+test('completed-tip ownership reconciles running work before dispatch and persists the exact first attempt', async () => {
+  const api = new BatchFake();
+  await until(api, 'batch-completed');
+  const owner = { run: 42, source: api.base, attempt: 1 };
+  api.qualificationObservation = { owner, qualification: null };
+  assert.equal(await step(api), 'waiting-for-tip-qualification');
+  assert.deepEqual(api.state.completedTip.qualificationOwner, owner);
+  assert.equal(count(api, 'qualification'), 0);
+  assert.equal(await step(api), 'waiting-for-tip-qualification');
+  assert.equal(count(api, 'qualification'), 0);
+  api.qualificationObservation.qualification = { run: 42, source: api.base, job: 43 };
+  await step(api);
+  assert.equal(api.state.completedTip.qualification.run, 42);
+  assert.equal(count(api, 'dispatch'), 2);
+});
+
+test('a provisional ordinary push delays dispatch without claiming a qualification owner or consuming dispatch intent', async () => {
+  const api = new BatchFake();
+  await until(api, 'batch-completed');
+  api.qualificationObservation = { owner: { run: 42, source: api.base, attempt: 1 },
+    qualification: null, provisional: true };
+  assert.equal(await step(api), 'waiting-for-tip-qualification');
+  assert.equal(api.state.completedTip.qualificationOwner, undefined);
+  assert.equal(api.state.completedTip.qualificationRequested, undefined);
+  assert.equal(count(api, 'qualification'), 0);
+  api.qualificationObservation = null;
+  assert.equal(await step(api), 'waiting-for-tip-qualification');
+  assert.equal(count(api, 'qualification'), 1);
+});
+
+test('qualification owner state is bounded and compatible with existing unowned receipts and dispatch intents', async () => {
+  const api = new BatchFake();
+  api.state.completedTip = { sha: BASE, tree: sha(200), ticket: TICKET, qualificationRequested: true };
+  assert.doesNotThrow(() => validateState(api.state));
+  api.state.completedTip.qualification = { run: 42, source: BASE, job: 43 };
+  assert.doesNotThrow(() => validateState(api.state));
+  api.state.completedTip.qualificationOwner = { run: 42, source: BASE, attempt: 1 };
+  assert.doesNotThrow(() => validateState(api.state));
+  for (const owner of [{ run: 0, source: BASE, attempt: 1 }, { run: 42, source: sha(999), attempt: 1 },
+    { run: 42, source: BASE, attempt: 2 }, { run: 44, source: BASE, attempt: 1 }]) {
+    const state = clone(api.state);
+    state.completedTip.qualificationOwner = owner;
+    assert.throws(() => validateState(state));
+  }
+});
+
+test('ambiguous completed-tip dispatch is reconciled to its owner without redispatch across restart', async () => {
+  const api = new BatchFake();
+  await until(api, 'batch-completed');
+  api.dispatchQualification = async tip => {
+    api.calls.push(['qualification', tip.sha]);
+    api.qualificationObservation = { owner: { run: 42, source: tip.sha, attempt: 1 }, qualification: null };
+    throw new Error('ambiguous qualification dispatch');
+  };
+  await assert.rejects(step(api), /ambiguous qualification dispatch/);
+  assert.equal(api.state.completedTip.qualificationRequested, true);
+  assert.equal(await step(api), 'waiting-for-tip-qualification');
+  assert.equal(api.state.completedTip.qualificationOwner.run, 42);
+  assert.equal(count(api, 'qualification'), 1);
+});
+
+test('failed terminal validation requests a retirement pass before normal isolation resumes', async () => {
+  const api = new BatchFake();
+  await step(api);
+  api.workflowRuns[0].conclusion = 'failure';
+  api.workflowJobs[0].conclusion = 'failure';
+  assert.equal(await step(api), 'retiring');
+  assert.equal(count(api, 'wake'), 1);
+  assert.equal(api.state.active.phase, 'retiring');
+  assert.equal(count(api, 'dispatch'), 1);
+  assert.equal(count(api, 'merge'), 0);
+  assert.equal(await step(api), 'retired');
+  assert.equal(count(api, 'wake'), 2);
   assert.equal(api.state.singletonRetries.length, 5);
+});
+
+test('a failed retirement continuation retains its checkpoint and later reconciliation recovers without replay', async () => {
+  const api = new BatchFake();
+  api.conflict = true;
+  const wake = api.wake.bind(api);
+  api.wake = async () => { throw new Error('continuation unavailable'); };
+  await assert.rejects(step(api), /continuation unavailable/);
+  assert.equal(api.state.active.phase, 'retiring');
+  assert.equal(api.state.active.dispatchRecorded, false);
+  assert.equal(count(api, 'synthetic'), 1);
+  api.wake = wake;
+  assert.equal(await step(api), 'retired');
+  assert.equal(api.state.active, null);
+  assert.equal(count(api, 'synthetic'), 1);
+  assert.equal(count(api, 'dispatch'), 0);
+  assert.equal(count(api, 'merge'), 0);
+  assert.equal(count(api, 'wake'), 1);
 });
 
 test('each missing, duplicate, skipped or nonterminal producer denies proof and retains uncertain work', async () => {
@@ -291,7 +581,7 @@ test('head/enrollment/review withdrawal is re-read before every merge boundary, 
       if (change === 'main') api.base = sha(999);
       await step(api);
       assert.equal(count(api, 'merge'), prefix);
-      assert.equal(api.state.active.phase, prefix || change === 'main' ? 'recovery-required' : 'retiring');
+      assert.equal(api.state.active.phase, prefix ? 'recovery-required' : 'retiring');
     }
   }
 });
@@ -396,7 +686,9 @@ test('no observable dispatch, duplicate runs, wrong attempts and stale job metad
     if (kind === 'job-identity') api.workflowJobs[0].id = api.workflowJobs[1].id;
     if (kind === 'absent') {
       assert.equal(await step(api, { now: new Date(NOW.valueOf() + 600_000) }), 'retiring');
+      assert.equal(count(api, 'wake'), 1);
       assert.equal(await step(api), 'retiring');
+      assert.equal(count(api, 'wake'), 1, 'uncertain owned work must not create a self-dispatch loop');
     } else await assert.rejects(step(api));
     assert.equal(count(api, 'merge'), 0);
     assert.ok(api.state.active);
@@ -459,6 +751,38 @@ test('reviewed migration, rollback and partial repair are checkpointed, authoriz
   await step(api);
   assert.ok(!api.state.active.members.some(member => member.number === 2));
   assert.equal(api.state.active.base, api.base);
+});
+
+test('reviewed batch recovery accepts exact terminal preflight rejection but never missing or unknown work', async () => {
+  for (const change of ['terminal', 'missing', 'unknown', 'source', 'blob']) {
+    const api = new BatchFake();
+    api.inventory.blob = 'c75173721c4131cf29d45482ea2edb92934070f1';
+    await step(api);
+    api.state.active.phase = 'recovery-required';
+    api.state.active.reason = 'Reviewed preflight-failure recovery.';
+    api.workflowRuns[0].conclusion = 'failure';
+    api.workflowJobs = REJECTED_ADMISSION_JOBS.map((name, index) => ({ id: index + 1, name,
+      run_id: 9, run_attempt: 1, head_sha: BASE, status: 'completed',
+      conclusion: name === 'Admit CI execution' ? 'success' : name === 'Resolve build version' ? 'failure' : 'skipped' }));
+    if (change === 'missing') api.workflowJobs.pop();
+    if (change === 'unknown') api.workflowJobs.at(-1).conclusion = null;
+    if (change === 'source') api.workflowJobs[0].head_sha = sha(999);
+    if (change === 'blob') api.inventory.blob = sha(999);
+    const options = { context: { eventName: 'workflow_dispatch', ref: 'refs/heads/main',
+      runId: 123, actor: 'operator' }, inputs: { operation: 'repair-batch',
+      recovery_checkpoint: api.commit, acknowledge_batch_change: true, recovery_ticket: TICKET },
+      attempt: 1, now: NOW };
+    if (change === 'terminal') {
+      assert.equal(await changeBatchState(api, options), 'repair-batch');
+      assert.equal(api.state.active, null);
+    } else {
+      await assert.rejects(changeBatchState(api, options), /missing, duplicate or nonterminal/);
+      assert.equal(api.state.active.phase, 'recovery-required');
+    }
+    assert.equal(count(api, 'merge'), 0);
+    assert.equal(count(api, 'dispatch'), 1);
+    assert.equal(api.state.completedTip, null);
+  }
 });
 
 test('every durable checkpoint and side-effect boundary survives before/after interruption without duplicate authority', async () => {

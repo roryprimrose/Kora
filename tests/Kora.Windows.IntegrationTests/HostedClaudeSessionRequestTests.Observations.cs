@@ -267,12 +267,15 @@ public sealed partial class HostedClaudeSessionRequestTests
         { using var presentation = review.Presentation(); c.Reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue(); };
         var run = c.Conversation.SubmitClaudeObservationsAsync(await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token),
             "original", [ReadOnlyCapabilityCatalog.Version], () => true, f.Token);
-        await entered.Task.WaitAsync(f.Token);
-        c.TurnTime.FireDeadline();
-        c.Runtime.IsQuiescent.Should().BeFalse();
-        c.Turns.IsQuiescent.Should().BeFalse();
-        run.IsCompleted.Should().BeFalse();
-        release.SetResult(ClaudeAccountBrokerTests.Fixture.Json(ClaudeMessagesRuntimeTests.Answer));
+        try
+        {
+            (await Task.WhenAny(entered.Task, run).WaitAsync(f.Token)).Should().BeSameAs(entered.Task);
+            c.TurnTime.FireDeadline();
+            c.Runtime.IsQuiescent.Should().BeFalse();
+            c.Turns.IsQuiescent.Should().BeFalse();
+            run.IsCompleted.Should().BeFalse();
+        }
+        finally { release.TrySetResult(ClaudeAccountBrokerTests.Fixture.Json(ClaudeMessagesRuntimeTests.Answer)); }
         var receipt = await run;
         receipt.Message.Outcome.Should().Be(ModelTurnOutcome.TimedOut);
         receipt.Message.AssistantResponse.Should().BeNull();

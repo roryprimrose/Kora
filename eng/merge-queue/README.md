@@ -40,9 +40,18 @@ inside this profile.
 
 The App creates ticket-owned `automation/merge-queue-batch/<ticket>/<prefix>`
 refs through GitHub's normal ref/merge APIs. Candidate code never executes with
-the App token. Conflicts integrate no original PR. Construction reconciles exact
-parents after interruption rather than forcing refs or blindly repeating a
-merge with an ambiguous outcome.
+the App token. Construction reconciles exact parents after interruption rather
+than forcing refs or blindly repeating a merge with an ambiguous outcome.
+
+Construction stops at the first conflict instead of discarding a compatible
+prefix. Before any digest or dispatch exists, the controller seals a **new
+manifest containing only that contiguous prefix**, then requires its complete
+combined proof. It never rewrites a sealed/dispatched manifest or reuses proof
+from the larger reservation. The conflicting member retains its priority/number
+position and receives an exact-head singleton retry; later members stay queued.
+If the first member conflicts, only that member is isolated. No original PR is
+merged during construction and no member is skipped to fill a batch
+([implementation](batch.cjs), [regressions](batch.test.cjs)).
 
 CI is dispatched on trusted protected main and checks out the admitted combined
 SHA as unprivileged source. It retains complete portable module/100% line **and**
@@ -77,9 +86,12 @@ validation-only; they are never relabeled as final-main release artifacts.
 In version-2 state, an active batch or singleton blocks publication. Only the
 verified `completedTip` may qualify/publish, at its **actual source SHA**.
 Main/tag/manual admission suppresses prefix full builds. A completed-tip full
-run is requested once after its durable receipt, without candidate inputs;
-ambiguous dispatch is observed, not repeated. Active batch-profile main runs
+run is requested only after reconciling existing exact-source first attempts,
+without candidate inputs. An already-running full main run becomes the single
+durable qualification owner, so it does not trigger a duplicate dispatch.
+Ambiguous dispatch is observed, not repeated. Active batch-profile main runs
 are not repeatedly cancelled as prefixes arrive.
+See the [ownership reconciliation](batch.cjs#L21).
 
 The dedicated, statically locked batch publish job shares
 `merge-queue-controller` concurrency with trusted main mutations, rather than
@@ -109,6 +121,25 @@ exact run/job/source qualification receipt. This deliberately gives publication
 a turn under sustained arrivals; no throughput benchmark or fivefold speedup is
 claimed. Failed qualification or an unobservable dispatch holds the lane for
 repair rather than starving release behind further batches.
+
+The [qualification reader](github.cjs) observes queued/running runs as well as
+completed runs. An ordinary push with incomplete admission metadata delays
+dispatch without claiming full qualification ownership. A completed push whose
+version and qualification jobs were explicitly skipped is not a full owner;
+missing records are not treated as that suppression shape. Once full work is
+observed, the controller records one exact run/source/first-attempt owner.
+Missing run listings are reconciled through that exact run ID, not treated as
+permission to dispatch. Owner replacement by an observed fresh run requires the
+previous owner's physical terminal job evidence. Only complete successful
+actual-source jobs and the unique publication join produce the qualification
+receipt ([regressions](github.test.cjs), [state validation](batch-policy.cjs)).
+
+The version-2 additions are optional for existing checkpoints: existing
+qualification receipts and boolean dispatch intents remain valid, and
+previously sealed manifests without priority fields retain their digest.
+New manifests also freeze each admitted member's priority. No state migration,
+queue setting or protection change is performed by this implementation
+([state validation](batch-policy.cjs)).
 
 ### Retrying failed completed-tip qualification
 
@@ -166,9 +197,19 @@ intent. Restart observes outcomes before acting. Cancellation acknowledgement,
 workflow aggregate success, absent metadata, or a deadline cannot release
 unknown owned work. No operation resets main or discards unrelated advances.
 
-Entering batch retirement checkpoints the phase before requesting one trusted controller reconciliation, including a construction conflict with no candidate dispatch ([controller](batch.cjs#L77), [regressions](batch.test.cjs#L249)).
+Entering batch retirement checkpoints the phase before requesting one trusted controller reconciliation, including a first-member construction conflict with no candidate dispatch ([controller](batch.cjs), [regressions](batch.test.cjs)).
 The follow-up still joins owned work before releasing the lane. An uncertain retiring lane does not repeatedly self-dispatch; later workflow events or scheduled reconciliation retain recovery responsibility. A failed continuation is explicit and preserves the checkpoint for recovery.
 
+- A definitive required-job failure/duplicate or live source/base/enrollment/
+  priority/review withdrawal requests cancellation of exact ticket-owned work
+  during the same reconciliation, without waiting for the workflow aggregate.
+  Singleton required-job failures and running review withdrawal use the same
+  prompt cancellation policy. Unknown authority/API failures remain explicit;
+  missing evidence alone is not a conclusive early failure. Unrelated main/tag
+  runs are not cancelled. A cancellation acknowledgement, completed aggregate,
+  missing/duplicate jobs or expired deadline never releases the lane; every
+  owned run and its exact inventory must be observed physically terminal
+  ([batch](batch.cjs), [singleton](controller.cjs), [regressions](controller.test.cjs)).
 - Before the first original merge, failed combined evidence retires only after
   exact owned work is terminal. Members receive full singleton retries; group
   failure is not independent member failure. A failed singleton retains the
@@ -851,3 +892,9 @@ check runs. Pagination callbacks and test doubles must use that array contract,
 not the named object envelopes returned by individual REST requests. Job-page
 callbacks also retain Octokit's normalized `total_count` metadata so partial
 or changing page sets cannot qualify as complete observations.
+
+The [historical admission-rejection fixture](fixtures/ci-97e22a8f.yml) retains
+the exact reviewed workflow bytes for blob `97e22a8f88bcdc9bbaef32cf9e7200dd6e5c43cd`.
+Its positive [adapter regression](github.test.cjs) does not follow edits to the
+live workflow. Modified source bytes and schema markers alone still cannot
+authorize retirement; the production blob allowlist is unchanged.

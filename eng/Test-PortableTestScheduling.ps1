@@ -63,8 +63,8 @@ $payload = [regex]::Match($workflow, '(?ms)^  payload:\r?\n(?<job>.*?)(?=^  [a-z
 Assert $payload.Success 'The independent payload producer was not found.'
 Assert ($payload.Groups['job'].Value.Contains('needs: version', [StringComparison]::Ordinal)) 'Payload production must not wait for portable tests.'
 Assert ($payload.Groups['job'].Value.Contains('dotnet restore Kora.slnx --locked-mode', [StringComparison]::Ordinal)) 'The payload producer must restore its complete graph independently.'
-Assert ($payload.Groups['job'].Value.Contains('run: dotnet tool restore', [StringComparison]::Ordinal)) 'The payload producer must restore the license checker on its own runner.'
-Assert ($payload.Groups['job'].Value.Contains('run: ./eng/Test-DependencyLicenses.ps1', [StringComparison]::Ordinal)) 'The payload producer must enforce license policy before distributing bytes.'
+Assert ($payload.Groups['job'].Value.Contains('name: dependency-license-audit-${{ needs.version.outputs.source-revision }}', [StringComparison]::Ordinal)) 'The payload producer must consume this run''s exact-source preflight license evidence.'
+Assert ($payload.Groups['job'].Value.Contains("throw 'Dependency license audit does not match the admitted source.'", [StringComparison]::Ordinal)) 'The payload producer must reject wrong-source license evidence before distributing bytes.'
 Assert ($workflow.Contains('needs: [admission, version, portable-tests, payload]', [StringComparison]::Ordinal)) 'The required portable check must join tests and payload production.'
 $installer = [regex]::Match($workflow, '(?ms)^  installer:\r?\n(?<job>.*?)(?=^  [a-z][a-z-]*:|\z)')
 Assert ($installer.Success -and $installer.Groups['job'].Value.Contains('needs: [version, payload]', [StringComparison]::Ordinal)) 'The installer must consume the verified payload without waiting for unrelated portable tests.'

@@ -4883,6 +4883,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         {
             if (initiator == SecurityAuditInitiator.VoiceCommand
                 && (sessionCommand.IsRetentionCommand || sessionCommand.IsConversationSearch || sessionCommand.IsPendingClear
+                    || sessionCommand.IsPermissionCommand
                     || sessionCommand.IsConversationDispatch
                     || sessionCommand.Operation is SessionCommandOperation.RequestReview or SessionCommandOperation.RequestConfirm
                         or SessionCommandOperation.RequestCancel or SessionCommandOperation.AttachmentInspect)
@@ -4897,7 +4898,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 reviewEligibility ?? CaptureSkillReviewEligibility(manualInput
                     ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision)),
                 HasCurrentNameActivation(spokenText),
-                manualInput?.AssistantNameRevision ?? assistantNameConfiguration.Get().Revision, foregroundTarget);
+                manualInput?.AssistantNameRevision ?? assistantNameConfiguration.Get().Revision, foregroundTarget,
+                sessionCommand.IsPermissionCommand
+                    ? CapturePermissionReviewSource(manualInput
+                        ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision))
+                    : null);
             return;
         }
         if (MemoryCommand.Parse(spokenText, AssistantName) is { } memoryCommand)

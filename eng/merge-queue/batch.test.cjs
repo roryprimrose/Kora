@@ -619,6 +619,35 @@ test('a provisional ordinary push delays dispatch without claiming a qualificati
   assert.equal(count(api, 'qualification'), 1);
 });
 
+test('blocked publication is explicit in the existing summary route without releasing admission or redispatching', async () => {
+  const api = new BatchFake();
+  await until(api, 'batch-completed');
+  const source = api.base;
+  const owner = { run: 41876386020, source, attempt: 1 };
+  api.qualificationObservation = { owner, qualification: null, terminal: true,
+    health: { status: 'BLOCKED_PUBLICATION', ...owner, job: 126747376970,
+      conclusion: 'failure', recovery: 'authorized-recovery-required' } };
+  const dispatched = count(api, 'dispatch');
+  assert.equal(await step(api), 'blocked-publication');
+  const checkpoint = api.commit;
+  const held = clone(api.state);
+  const notice = api.calls.find(call => call[0] === 'notice' && call[1].includes('BLOCKED_PUBLICATION'))?.[1];
+  assert.equal(await step(api), 'blocked-publication');
+  assert.deepEqual(api.state, held);
+  assert.ok(notice?.includes(source));
+  assert.ok(notice?.includes('41876386020'));
+  assert.ok(notice?.includes('126747376970'));
+  assert.ok(notice?.includes(checkpoint));
+  assert.ok(notice?.includes('authorized recovery required'));
+  assert.equal(count(api, 'dispatch'), dispatched);
+  assert.equal(count(api, 'qualification'), 0);
+  assert.equal(api.state.active, null);
+  api.qualificationObservation = { owner: { ...owner, run: owner.run + 1 },
+    qualification: { run: owner.run + 1, source, job: 126749535287 } };
+  await step(api);
+  assert.equal(count(api, 'dispatch'), dispatched + 1);
+});
+
 test('qualification owner state is bounded and compatible with existing unowned receipts and dispatch intents', async () => {
   const api = new BatchFake();
   api.state.completedTip = { sha: BASE, tree: sha(200), ticket: TICKET, qualificationRequested: true };

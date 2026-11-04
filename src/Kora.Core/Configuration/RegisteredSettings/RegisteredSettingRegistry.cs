@@ -30,6 +30,9 @@ public static class RegisteredSettingRegistry
             WindowsSpeechRate.Minimum, WindowsSpeechRate.Maximum, false),
         Appearance(RegisteredSetting.ResponseTimeout, AppearanceOption.ResponseTimeout),
         Appearance(RegisteredSetting.ReducedMotion, AppearanceOption.ReducedMotion),
+        new(RegisteredSetting.QuietHours, "notices.quiet-hours",
+            "future already-consented proactive completion speech only; ordinary requested answers and listening unchanged",
+            "weekly schedule", null, null, true),
     ]);
 
     public static RegisteredSettingDescriptor Get(RegisteredSetting setting) =>

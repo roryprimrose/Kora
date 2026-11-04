@@ -1252,6 +1252,8 @@ observe the same live state: mouse and validated verbal mutations publish the
 same change notifications, so neither surface requires reopening or polling to
 show the new effective value.
 
+The existing compound `notices.quiet-hours` also accepts one exact inert retained-answer proposal: Off, a full weekly ordered days/start/end/explicit installed zone schedule, or Reset to unsaved Off. The host resolves the strong schedule type and reads actual current saved/effective intent for full old/new/default review. Separate current native confirmation calls the existing quiet-hours configuration service and requires committed audit and exact atomic preference readback. Model advice is not original UI input and never confirms itself; source/session/expiry, native lifetime, ownership/privacy/call/control and consent drift retire the review. No confirmed compound `settings.get` reader is added; discovery truthfully reports value unavailable. The change constrains future already-consented completion speech only, never listening, ordinary answers, consent or in-flight output ([owning contract](Proactive_Interaction.md#scheduled-proactive-speech-quiet-hours), [interaction](../docs/setting-proposals.md)).
+
 Bounded R15 now supplies run-scoped manual call controls and truthful automatic
 availability in **Settings > Calls**, outside the future generic settings/tool
 registry. Original voice provenance, observed call revision and live ownership/

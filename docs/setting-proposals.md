@@ -27,6 +27,7 @@ do not require you to remember these names.
 | `speech.playback-volume` | Integer 0-100 | Native or existing exact typed/activated-voice review |
 | `responses.default-mode` | Exact `Hybrid`, `VoiceOnly`, `VisualOnly` | Native or exact typed/activated-voice review |
 | `speech.windows-rate` | Canonical integer -10 through 10, normal 0 | Native or exact typed/activated-voice review |
+| `notices.quiet-hours` | `Off` or one complete explicit weekly days/start/end/zone schedule | Separate current native review and confirmation |
 
 For example, the complete answer may be `set appearance.theme to dark`,
 `set appearance.reduced-motion to true`, `set appearance.movement-speed to 50`,
@@ -44,6 +45,22 @@ Presence suggestions likewise require the exact lowercase syntax and IDs above,
 canonical decimal integers or lowercase `true`/`false`, with no surrounding text.
 Response-timeout suggestions use the same canonical lowercase syntax, for example `set appearance.response-timeout to 15`. This is the response-window inactivity hide delay, not a provider/request deadline ([existing preference](settings.md#independent-visibility-timeouts)).
 Native renderer selection is not an admitted model suggestion.
+For quiet hours, the complete retained answer may be
+`set notices.quiet-hours to weekly Mon,Tue,Wed,Thu,Fri 09:00 17:00 UTC`,
+`set notices.quiet-hours to Off`, or `reset notices.quiet-hours`.
+Use distinct days in Mon-Sun order, exact 24-hour times and an explicitly requested
+installed zone ID (including spaces where the ID requires them). Missing zones,
+duplicate/reordered days, equal start/end, extra fields, commentary and batches
+are rejected. Kora never infers your local zone.
+Native review reads the actual current saved/effective schedule, shows the full
+proposal and default Off, and expires after 60 seconds. Confirming separately
+uses the same audited atomic save/readback as Settings. Reset removes the saved
+schedule and restores unsaved Off; explicit Set Off saves Off.
+Only future already-consented proactive completion speech is constrained.
+Visual notices, ordinary requested answers, listening, consent, in-flight answers
+and call/privacy protections do not change; suppressed completions never replay.
+Hide/reopen, source replacement, cancellation, expiry or changed host authority
+requires a fresh review. Unconfirmed saves remain unavailable, not successful.
 This suggestion registry does not expand setting inspection: inspection remains
 limited to theme, reader text scale, both summary caps, playback volume and response mode.
 

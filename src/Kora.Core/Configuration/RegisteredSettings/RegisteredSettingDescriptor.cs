@@ -8,6 +8,7 @@ public sealed record RegisteredSettingDescriptor(
     public string SuggestedValues => Setting switch
     {
         RegisteredSetting.ResponseMode => "Hybrid/VoiceOnly/VisualOnly",
+        RegisteredSetting.QuietHours => "Off or weekly <ordered days> <HH:mm start> <HH:mm end> <explicit installed zone ID>",
         RegisteredSetting.PresenceDisplay or RegisteredSetting.SpeechScaling or RegisteredSetting.ReducedMotion => "true/false",
         _ => Minimum is { } minimum ? $"{minimum}-{Maximum} {Units}" : "system/light/dark",
     };

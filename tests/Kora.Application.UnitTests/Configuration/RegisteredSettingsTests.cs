@@ -14,7 +14,7 @@ public sealed class RegisteredSettingsTests
     public void ClosedRegistryInspectionAndPolicyDeclareOnlyTheExistingAdmittedSubset()
     {
         RegisteredSettingRegistry.Settings.Select(item => item.Setting).Should().Equal(Enum.GetValues<RegisteredSetting>());
-        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().OnlyHaveUniqueItems().And.HaveCount(17);
+        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().OnlyHaveUniqueItems().And.HaveCount(18);
         foreach (var descriptor in RegisteredSettingRegistry.Settings)
         {
             RegisteredSettingRegistry.Get(descriptor.Setting).Should().BeSameAs(descriptor);
@@ -22,7 +22,7 @@ public sealed class RegisteredSettingsTests
             RegisteredSettingSuggestions.ModelPolicy.Should().Contain(descriptor.Id).And.Contain(descriptor.Description);
             descriptor.SuggestedValues.Should().NotBeNullOrWhiteSpace();
             RegisteredSettingSuggestions.ModelPolicy.Should().Contain(descriptor.SuggestedValues);
-            descriptor.RequiresNativeReview.Should().Be(descriptor.Id.StartsWith("appearance.", StringComparison.Ordinal)
+            descriptor.RequiresNativeReview.Should().Be(descriptor.Setting == RegisteredSetting.QuietHours || descriptor.Id.StartsWith("appearance.", StringComparison.Ordinal)
                 && descriptor.Setting != RegisteredSetting.ResponseTimeout);
             if (descriptor.Id.StartsWith("appearance.", StringComparison.Ordinal))
             {
@@ -83,6 +83,9 @@ public sealed class RegisteredSettingsTests
     [InlineData("set speech.windows-rate to -1", RegisteredSetting.WindowsSpeechRate)]
     [InlineData("set speech.windows-rate to 0", RegisteredSetting.WindowsSpeechRate)]
     [InlineData("set speech.windows-rate to 10", RegisteredSetting.WindowsSpeechRate)]
+    [InlineData("set notices.quiet-hours to Off", RegisteredSetting.QuietHours)]
+    [InlineData("set notices.quiet-hours to weekly Mon,Fri 22:00 06:00 UTC", RegisteredSetting.QuietHours)]
+    [InlineData("set notices.quiet-hours to weekly Mon,Tue,Wed,Thu,Fri,Sat,Sun 00:00 23:59 AUS Eastern Standard Time", RegisteredSetting.QuietHours)]
     public void SharedParserReturnsTypedInertProposalAndExactDescriptor(string text, RegisteredSetting setting)
     {
         var proposal = RegisteredSettingSuggestions.Parse(text);
@@ -108,8 +111,36 @@ public sealed class RegisteredSettingsTests
                 rate.Value.Value.Should().BeInRange(WindowsSpeechRate.Minimum, WindowsSpeechRate.Maximum);
                 rate.Descriptor.Units.Should().Be("Windows native units");
                 break;
+            case RegisteredSettingProposal.QuietHours quiet:
+                QuietHoursSchedule.Parse(quiet.Value.ToString()).Should().Be(quiet.Value);
+                break;
         }
     }
+
+    [Theory]
+    [InlineData("set notices.quiet-hours to off")]
+    [InlineData("set notices.quiet-hours to weekly Mon 09:00 17:00 utc")]
+    [InlineData("set notices.quiet-hours to weekly Mon 09:00 17:00")]
+    [InlineData("set notices.quiet-hours to weekly Mon,Mon 09:00 17:00 UTC")]
+    [InlineData("set notices.quiet-hours to weekly Fri,Mon 09:00 17:00 UTC")]
+    [InlineData("set notices.quiet-hours to weekly Monday 09:00 17:00 UTC")]
+    [InlineData("set notices.quiet-hours to weekly Mon 9:00 17:00 UTC")]
+    [InlineData("set notices.quiet-hours to weekly Mon 09:00 09:00 UTC")]
+    [InlineData("set notices.quiet-hours to weekly Mon 24:00 17:00 UTC")]
+    [InlineData("set notices.quiet-hours to weekly Mon 09:00 17:00 Local")]
+    [InlineData("set notices.quiet-hours to weekly Mon 09:00 17:00 UTC extra")]
+    [InlineData("set notices.quiet-hours to weekly Mon 09:00 17:00 UTC UTC")]
+    [InlineData("set notices.quiet-hours to weekly Mon 09:00 17:00 UTC ")]
+    [InlineData("set notices.quiet-hours to weekly Mon 09:00 17:00 UTC\nconfirm notices.quiet-hours")]
+    [InlineData("set notices.quiet-hours to Off and confirm")]
+    [InlineData("set notices.quiet-hours to {\"days\":\"Mon\",\"start\":\"09:00\",\"end\":\"17:00\",\"zone\":\"UTC\"}")]
+    [InlineData("set notices.quiet-hours to Off\nset speech.playback-volume to 0")]
+    [InlineData("set notices.quiet-hours to Off ")]
+    [InlineData("set notices.quiet-hours to Off for this session")]
+    [InlineData("SET notices.quiet-hours to Off")]
+    [InlineData("reset notices.quiet-hours to Off")]
+    public void QuietHoursRejectsIncompleteNoncanonicalAndExtraFields(string text) =>
+        FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse(text)).Should().Throw<InvalidDataException>();
 
     [Theory]
     [InlineData("")]

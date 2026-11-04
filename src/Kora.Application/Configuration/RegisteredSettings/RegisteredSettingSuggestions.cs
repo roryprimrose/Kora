@@ -21,6 +21,10 @@ public static class RegisteredSettingSuggestions
         + "including companion fields; never supply a default value. Reset requires the same separate review and confirmation as Set. "
         + "Presence and response-timeout suggestions require that exact syntax, ID and canonical value, without aliases or surrounding text. "
         + "No adjustment, batch, commentary, other setting, approval or claimed save. "
+        + "Quiet hours requires exact 'set notices.quiet-hours to Off' or 'set notices.quiet-hours to weekly Mon,Tue,Wed,Thu,Fri 09:00 17:00 UTC', "
+        + "with explicit requested ordered distinct days, 24-hour times and installed zone ID; never infer a zone. "
+        + "Native review shows current/proposed/default schedule and zone; separate native confirmation constrains only future already-consented "
+        + "completion speech, never ordinary answers, listening, consent or this retained answer. Reset uses default Off. "
         + "Undo is a separate host-owned original-user operation: 'undo the last settings change' opens review, "
         + "'confirm settings undo' or 'cancel settings undo' is separate. Only one known successful compatible registered "
         + "preference in this run can qualify; never infer previous values or undo effects, consent or grants. "
@@ -49,6 +53,17 @@ public static class RegisteredSettingSuggestions
         {
             if (string.Equals(answer, $"reset {descriptor.Id}", StringComparison.Ordinal))
             { return new RegisteredSettingProposal.Reset(descriptor.Setting); }
+        }
+        const string quietPrefix = "set notices.quiet-hours to ";
+        if (answer.StartsWith(quietPrefix, StringComparison.Ordinal))
+        {
+            QuietHoursSchedule value;
+            try { value = QuietHoursSchedule.Parse(answer[quietPrefix.Length..]); }
+            catch (ArgumentException exception)
+            { throw new InvalidDataException("Quiet hours requires Off or a full explicit weekly days/start/end/zone schedule.", exception); }
+            if (!string.Equals(answer, quietPrefix + value.ToString(), StringComparison.Ordinal))
+            { throw new InvalidDataException("Quiet hours requires one exact canonical schedule without aliases or commentary."); }
+            return new RegisteredSettingProposal.QuietHours(value);
         }
         if (AppearanceCommand.Parse(answer, AssistantNameRules.DefaultName) is
             { Operation: AppearanceCommandOperation.Set, Descriptor: { } appearance, Value: { } appearanceValue }

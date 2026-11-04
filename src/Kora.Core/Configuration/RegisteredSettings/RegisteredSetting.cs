@@ -19,4 +19,5 @@ public enum RegisteredSetting
     WindowsSpeechRate,
     ResponseTimeout,
     ReducedMotion,
+    QuietHours,
 }

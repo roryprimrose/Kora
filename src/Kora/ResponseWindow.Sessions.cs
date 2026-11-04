@@ -16,8 +16,8 @@ public sealed partial class ResponseWindow
     internal bool PrepareDetailsLayout()
     {
         const double minimumWidth = 1040;
-        var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
-        if (screen is not null && screen.WorkingArea.Width / RenderScaling < minimumWidth)
+        var area = getWorkingArea();
+        if (area is not null && area.Value.Width / RenderScaling < minimumWidth)
         {
             viewModel.ReportHostInteractionFailure("Details unavailable: the current display work area cannot fit the minimum 1040-wide side-by-side conversation and Details layout.");
             return false;
@@ -68,6 +68,20 @@ public sealed partial class ResponseWindow
 
     private void SetExpanded(bool expanded)
     {
+        var area = getWorkingArea();
+        if (expanded && area is { } available
+            && (available.Width / RenderScaling < 820 || available.Height / RenderScaling < 560))
+        {
+            CompactLayoutStatus.Text = "Sessions unavailable: the current display work area cannot fit the minimum 820 by 560 conversation layout. The current response and controls remain available here.";
+            return;
+        }
+        CompactLayoutStatus.Text = string.Empty;
+        ResponseViewport.HorizontalScrollBarVisibility = expanded
+            ? Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled : Avalonia.Controls.Primitives.ScrollBarVisibility.Auto;
+        ResponseViewport.VerticalScrollBarVisibility = expanded
+            ? Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled : Avalonia.Controls.Primitives.ScrollBarVisibility.Auto;
+        ResponseLayout.MinWidth = expanded ? 0 : 480;
+        ResponseLayout.MinHeight = expanded ? 0 : 570;
         if (IsExpanded != expanded)
         {
             if (IsExpanded) { expandedSize = new(Width, Height); }
@@ -95,16 +109,28 @@ public sealed partial class ResponseWindow
 
     private void KeepOnScreen()
     {
-        var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
-        if (screen is null) { return; }
-        var area = screen.WorkingArea;
+        if (getWorkingArea() is not { } area) { return; }
         var scale = RenderScaling;
+        if (!IsExpanded)
+        {
+            MinWidth = Math.Min(480, area.Width / scale);
+            MinHeight = Math.Min(570, area.Height / scale);
+        }
         Width = Math.Min(Width, Math.Max(MinWidth, area.Width / scale));
         Height = Math.Min(Height, Math.Max(MinHeight, area.Height / scale));
         var width = (int)Math.Ceiling(Width * scale);
         var height = (int)Math.Ceiling(Height * scale);
         Position = new(Math.Max(area.X, Math.Min(Position.X, area.Right - width)),
             Math.Max(area.Y, Math.Min(Position.Y, area.Bottom - height)));
+    }
+
+    private void FitCompactWorkingArea()
+    {
+        if (IsExpanded || getWorkingArea() is not { } area
+            || (Width * RenderScaling <= area.Width && Height * RenderScaling <= area.Height)) { return; }
+        positionInitialized = false;
+        KeepOnScreen();
+        positionInitialized = true;
     }
 
     private void OnExpandSessionsClicked(object? sender, RoutedEventArgs args) => viewModel.ShowSessions();

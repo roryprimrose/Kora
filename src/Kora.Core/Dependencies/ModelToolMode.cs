@@ -24,6 +24,6 @@ public enum ModelToolMode
     /// <summary>One explicitly selected hosted question and canonical answer, without observation tools or sources.</summary>
     HostedClarification,
 
-    /// <summary>Only registered metadata and the seven explicitly reviewed confirmed scalars in one local request.</summary>
+    /// <summary>Only registered metadata and explicitly reviewed confirmed values in one local request.</summary>
     SettingsDiscovery,
 }

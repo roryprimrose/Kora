@@ -35,7 +35,7 @@ public sealed class PresenceSettingInspectionTests
         using var root = HostActivity.BeginRoot(HostRequest.Create(origin), HostActivityLayer.Desktop, HostOperation.Request);
         var session = await f.Workflow.ReviewAsync("What is my current appearance.presence-display setting?", () => true, f.Token);
         var observation = session.Review.Observations.Single(item => item.Setting == RegisteredSetting.PresenceDisplay);
-        session.Review.Observations.Should().HaveCount(7);
+        session.Review.Observations.Should().HaveCount(8);
         observation.IsSaved.Should().Be(saved.HasValue);
         observation.Value.Should().Be(saved is false ? 0 : 1);
         session.Review.Source.Should().Contain($"appearance.presence-display = {(saved is false ? "false" : "true")} boolean");

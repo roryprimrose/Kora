@@ -87,8 +87,10 @@ public sealed class SettingInspectionWorkflowTests
         private readonly DependencyBootstrapper dependencies = new([], NullLogger<DependencyBootstrapper>.Instance);
         private readonly AudioControlAdmission audio;
         private readonly BoundedModelTurnAdapter? loop;
-        internal Fixture(string mode = "success", IModelToolTransport? transport = null)
+        internal Fixture(string mode = "success", IModelToolTransport? transport = null, SpeechSelection? speechSelection = null)
         {
+            if (speechSelection is not null)
+            { Preferences.Lines["speech-selection.txt"] = ["1", speechSelection.ProviderId, speechSelection.VoiceId ?? string.Empty]; }
             Controls = new();
             Adapter = new() { Mode = mode };
             if (transport is not null)
@@ -112,7 +114,7 @@ public sealed class SettingInspectionWorkflowTests
                 Controls, NullLogger<AppearanceConfigurationService>.Instance);
             var speech = new SpeechConfigurationService(
                 new LocalTextToSpeechPreferences(Preferences, NullLogger<LocalTextToSpeechPreferences>.Instance),
-                new CatalogData(), Controls, NullLogger<SpeechConfigurationService>.Instance);
+                new CatalogData(speechSelection), Controls, NullLogger<SpeechConfigurationService>.Instance);
             var volume = new PlaybackVolumeConfigurationService(new LocalPlaybackVolumePreferences(Preferences), Playback, audio, Controls);
             var response = new ResponseModeConfigurationService(
                 new LocalResponseOutputPreferences(Preferences, NullLogger<LocalResponseOutputPreferences>.Instance), audio, Controls, Playback);
@@ -180,6 +182,7 @@ public sealed class SettingInspectionWorkflowTests
     internal sealed class AdapterData : IModelTurnAdapter
     {
         internal const string Answer = "The confirmed reading text scale is 125 percent.";
+        internal string Response { get; set; } = Answer;
         internal string Mode { get; init; } = "success";
         internal int Calls { get; private set; }
         internal byte[]? Wire { get; private set; }
@@ -196,26 +199,29 @@ public sealed class SettingInspectionWorkflowTests
             if (Hold is not null) { await Hold(); }
             BeforeReturn?.Invoke();
             return new(ModelTurnOutcome.Succeeded, provenance.Selection,
-                new(Mode is "unsupported" ? SettingInspectionReview.Unsupported : Answer, null));
+                new(Mode is "unsupported" ? SettingInspectionReview.Unsupported : Response, null));
         }
     }
 
     internal sealed class PreferencesData : IPreferenceStore
     {
         internal Dictionary<string, string> Text { get; } = new(StringComparer.Ordinal);
+        internal Dictionary<string, string[]> Lines { get; } = new(StringComparer.Ordinal);
         internal int Reads { get; set; }
         internal int Writes { get; private set; }
         public string? ReadText(string fileName) { Reads++; return Text.GetValueOrDefault(fileName); }
-        public string[]? ReadLines(string fileName) { Reads++; return null; }
+        public string[]? ReadLines(string fileName) { Reads++; return Lines.GetValueOrDefault(fileName); }
         public void WriteText(string fileName, string contents) { Writes++; throw new NotSupportedException(); }
         public void WriteLines(string fileName, IEnumerable<string> contents) { Writes++; throw new NotSupportedException(); }
         public void Delete(string fileName) { Writes++; throw new NotSupportedException(); }
     }
 
-    private sealed class CatalogData : ISpeechCatalog
+    private sealed class CatalogData(SpeechSelection? selection) : ISpeechCatalog
     {
-        public IReadOnlyList<SpeechProvider> GetProviders() => [];
-        public IReadOnlyList<SpeechVoice> GetVoices() => [];
+        public IReadOnlyList<SpeechProvider> GetProviders() => selection is null ? [] :
+            [new(selection.ProviderId, "Private catalogue provider", "Private catalogue description", true, false, null, selection.VoiceId)];
+        public IReadOnlyList<SpeechVoice> GetVoices() => selection?.VoiceId is not { } voice ? [] :
+            [new(voice, "Private catalogue voice", "en-US", SpeechVoiceGender.Female) { ProviderId = selection.ProviderId }];
         public SpeechVoice? GetDefaultVoice() => throw new NotSupportedException();
     }
 

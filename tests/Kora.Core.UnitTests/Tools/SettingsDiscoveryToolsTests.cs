@@ -1,6 +1,8 @@
+using System.Collections.Immutable;
 using System.Text;
 using System.Text.Json;
 using AwesomeAssertions;
+using Kora.Core.Configuration;
 using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Configuration.SettingInspection;
 using Kora.Core.Dependencies;
@@ -20,6 +22,7 @@ public sealed class SettingsDiscoveryToolsTests
             new(RegisteredSetting.PlaybackVolume, 100, false, 4),
             new(RegisteredSetting.ResponseMode, 0, false, 5),
             new(RegisteredSetting.PresenceDisplay, 1, false, 6),
+            new(SpeechSelection.Default, false, 3),
         ], "Which registered settings control spoken summaries?", HostRequest.Create(RequestOrigin.LocalUi),
         DateTimeOffset.UnixEpoch, mode);
 
@@ -93,6 +96,28 @@ public sealed class SettingsDiscoveryToolsTests
         SettingsDiscoveryTools.Read(review.Observations, "settings.reset", "{}").Outcome.Should().Be(CapabilityOutcome.Denied);
         SettingsDiscoveryTools.Read(review.Observations, SettingsDiscoveryTools.List, """{"offset":999}""")
             .Reason.Should().Be("page-out-of-range");
+    }
+
+    [Theory]
+    [InlineData('x')]
+    [InlineData('"')]
+    [InlineData('\\')]
+    [InlineData('\u4e00')]
+    public void FullDomainSpeechVoiceIdsRemainTypedAndFitTheExactGetWireLimit(char character)
+    {
+        var selection = new SpeechSelection("windows-sapi", new string(character, SpeechSelection.MaximumVoiceIdLength));
+        var observations = Review().Observations.Select(item => item.Setting == RegisteredSetting.SpeechVoice
+            ? new SettingObservation(selection, true, long.MaxValue) : item).ToImmutableArray();
+        const string input = """{"id":"speech.voice"}""";
+        var reply = SettingsDiscoveryTools.Read(observations, SettingsDiscoveryTools.Get, input);
+        reply.Outcome.Should().Be(CapabilityOutcome.Succeeded);
+        CapabilityReplyWire.GetSerializedSize(reply).Should().BeLessThanOrEqualTo(
+            SettingsDiscoveryTools.FindExact(SettingsDiscoveryTools.Get)!.Limits.MaximumOutputUtf8Bytes);
+        using var wire = JsonDocument.Parse(ModelToolProtocol.CreateToolResult(new("voice_1", SettingsDiscoveryTools.Get, input), reply).Result.AsMemory());
+        var observation = wire.RootElement.GetProperty("settings").GetProperty("observation");
+        observation.GetProperty("selection").GetProperty("voiceId").GetString().Should().Be(selection.VoiceId);
+        observation.TryGetProperty("value", out _).Should().BeFalse("the compound pair has no fabricated scalar");
+        observation.GetProperty("text").GetString().Should().Be(observations.Single(item => item.Setting == RegisteredSetting.SpeechVoice).Text);
     }
 
     [Theory]

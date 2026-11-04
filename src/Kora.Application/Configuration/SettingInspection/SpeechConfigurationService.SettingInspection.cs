@@ -15,16 +15,22 @@ public sealed partial class SpeechConfigurationService
             token.ThrowIfCancellationRequested();
             return inspectionRead.Read(() =>
             {
-                if (publishing || state?.SummaryLimits is null || state.SummaryLimitsRecovery is not null)
+                if (publishing || state?.SummaryLimits is null || state.SummaryLimitsRecovery is not null
+                    || state.Selection is null || heldRecovery is not null)
                 { return (SettingReadAvailability.NotObserved, []); }
+                var persisted = preferences.LoadSelection();
+                var selection = persisted ?? SpeechSelection.Default;
+                selection.Validate();
                 var saved = preferences.LoadSummaryLimits();
                 var limits = saved ?? SpokenSummaryLimits.Default;
                 limits.Validate();
-                if (limits != state.SummaryLimits || (saved is not null) != state.AreSummaryLimitsSaved)
+                if (limits != state.SummaryLimits || (saved is not null) != state.AreSummaryLimitsSaved
+                    || selection != state.Selection || (persisted is not null) != state.IsSaved)
                 { return (SettingReadAvailability.Changed, []); }
                 return (SettingReadAvailability.Confirmed,
                     [new(RegisteredSetting.SummaryWords, limits.Words, saved is not null, state.Revision),
-                     new(RegisteredSetting.SummarySentences, limits.Sentences, saved is not null, state.Revision)]);
+                     new(RegisteredSetting.SummarySentences, limits.Sentences, saved is not null, state.Revision),
+                     new(selection, persisted is not null, state.Revision)]);
             });
         }
     }, token);

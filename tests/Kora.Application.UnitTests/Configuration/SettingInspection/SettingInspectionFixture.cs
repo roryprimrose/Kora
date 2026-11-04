@@ -163,8 +163,10 @@ internal sealed class SettingInspectionFixture : IAsyncDisposable, ISessionWorks
     internal sealed class CatalogData : ISpeechCatalog
     {
         internal int Reads { get; set; }
-        public IReadOnlyList<SpeechProvider> GetProviders() { Reads++; return []; }
-        public IReadOnlyList<SpeechVoice> GetVoices() { Reads++; return []; }
+        internal IReadOnlyList<SpeechProvider> Providers { get; set; } = [];
+        internal IReadOnlyList<SpeechVoice> Voices { get; set; } = [];
+        public IReadOnlyList<SpeechProvider> GetProviders() { Reads++; return Providers; }
+        public IReadOnlyList<SpeechVoice> GetVoices() { Reads++; return Voices; }
         public SpeechVoice? GetDefaultVoice() => throw new NotSupportedException();
     }
 

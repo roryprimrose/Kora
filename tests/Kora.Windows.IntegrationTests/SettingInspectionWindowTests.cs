@@ -4,6 +4,7 @@ using Avalonia.VisualTree;
 using System.Reflection;
 using AwesomeAssertions;
 using Kora.Application.Infrastructure;
+using Kora.Core.Configuration;
 using Kora.Core.Configuration.SettingInspection;
 using Kora.SettingInspection;
 using Kora.NativeUxFixture;
@@ -14,6 +15,51 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class SettingInspectionWindowTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NativeSpeechPairReviewAndSeparateConfirmationProduceExactLocalAnswer(bool discovery)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            const string question = "Which installed speech provider and voice are configured?";
+            const string answer = "The confirmed saved speech preference is kokoro / af_heart; runtime availability is not established.";
+            var transport = new SettingsDiscoveryWorkflowTests.Transport(
+                """{"kind":"toolCalls","calls":[{"callId":"voice_1","capabilityId":"settings.get","input":{"id":"speech.voice"}}]}""",
+                $$"""{"kind":"answer","answer":"{{answer}}"}""");
+            await using var f = new SettingInspectionWorkflowTests.Fixture(transport: discovery ? transport : null,
+                speechSelection: new SpeechSelection("kokoro", "af_heart"));
+            f.Adapter.Response = answer;
+            await f.InitializeAsync();
+            var presenter = new SettingInspectionPresenter(f.Workflow, () => () => true, () => () => true, f.Storage.Time)
+            { Question = question, DiscoverSettings = discovery };
+            var failures = new List<Exception>();
+            var window = new SettingInspectionWindow(presenter, failures.Add);
+            window.Show();
+            try
+            {
+                f.Preferences.Reads.Should().Be(0);
+                await ((AsyncCommand)Button(window, "Inspect confirmed settings and review").Command!).ExecuteAsync();
+                presenter.ReviewText.Should().Contain(question).And.Contain("speech.voice")
+                    .And.Contain("\"kokoro\" / \"af_heart\"").And.Contain("confirmed saved")
+                    .And.Contain("future-only").And.Contain("no runtime claim").And.NotContain("Private catalogue");
+                f.Adapter.Calls.Should().Be(0);
+                transport.Requests.Should().BeEmpty();
+                f.Storage.Count("work_sessions").Should().Be(0);
+                await ((AsyncCommand)Button(window, discovery
+                    ? "Confirm ONE settings-discovery LocalOnly request" : "Confirm ONE tool-free LocalOnly request").Command!).ExecuteAsync();
+                presenter.Answer.Should().Be(answer);
+                presenter.CanConfirm.Should().BeFalse();
+                f.Storage.Count("conversation_messages").Should().Be(1);
+                f.Storage.Count("scoped_grants").Should().Be(0);
+                f.Preferences.Writes.Should().Be(0);
+                f.Playback.Effects.Should().Be(0);
+                failures.Should().BeEmpty();
+            }
+            finally { window.Close(); await presenter.CloseAsync(); }
+        });
+    }
+
     [Fact]
     public async Task ExplicitNativeDiscoveryChoiceRequiresFreshReviewAndSeparateExactConfirmation()
     {

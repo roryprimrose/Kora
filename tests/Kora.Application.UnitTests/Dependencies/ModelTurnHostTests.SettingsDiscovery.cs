@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 using Kora.Application.Dependencies;
+using Kora.Core.Configuration;
 using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Configuration.SettingInspection;
 using Kora.Core.Dependencies;
@@ -23,6 +24,7 @@ public sealed partial class ModelTurnHostTests
                 new(RegisteredSetting.PlaybackVolume, 100, false, 1),
                 new(RegisteredSetting.ResponseMode, 0, false, 1),
                 new(RegisteredSetting.PresenceDisplay, 1, false, 1),
+                new(SpeechSelection.Default, false, 1),
             ], "What controls summaries?", f.Request, f.Time.Now, mode);
         f.Request = review.Destination;
         f.Session = new(f.Request.SessionId, new(1), true);

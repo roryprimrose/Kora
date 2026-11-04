@@ -176,6 +176,18 @@ authority. The original request and genuine answer or truthful terminal are
 retained through the existing conversation path with content-free correlated
 audit. No persistent applicability, history or durable consent is created.
 
+The shared bounded-agent invocation owner preserves original UI/typed versus
+activated-voice audit initiation even after cross-channel confirmation.
+Requested and terminal receipts bind the exact retained request; success,
+denial, cancellation and uncertainty remain distinct. Unavailable/authentication/
+quota/timeout terminals report failed invocation, while unconfirmed submission
+or terminal audit acknowledgement reports Unknown and cannot return success.
+Policy and invocation activities preserve cancellation/uncertainty too.
+Source/model resources still join before release; no profile, instruction,
+task or answer text enters these receipts
+([operation](../docs/agent-results.md#invocation-audit-outcomes),
+[regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.AgentAudit.cs)).
+
 Changed input, source, session, ownership, privacy, expiry, disable/hold or
 reload retires this bundle. This stricter bundle lifetime does not change
 independent instruction one-shot captured-answer semantics elsewhere.

@@ -14,6 +14,16 @@ public sealed class AgentProfileAuthoringGuideTests
             string.Equals(page.Id, "agent-profile-authoring", StringComparison.Ordinal)).Markdown.ReplaceLineEndings("\n");
         var example = guide.Split("```markdown\n", StringSplitOptions.None)[1].Split("```", StringSplitOptions.None)[0];
         OwnedAgentProfileDocument.Parse("example", example).Profile.Tools.Should().BeEmpty();
+        var observation = example.Replace("tools: none", "tools: application.get_version", StringComparison.Ordinal)
+            .Replace("maximum-calls: 0", "maximum-calls: 1", StringComparison.Ordinal)
+            .Replace("maximum-rounds: 1", "maximum-rounds: 2", StringComparison.Ordinal);
+        var observationProfile = OwnedAgentProfileDocument.Parse("example", observation).Profile;
+        observationProfile.Tools.Should().Equal("application.get_version");
+        observationProfile.References.Should().BeEmpty();
+        observationProfile.MaximumCalls.Should().Be(1);
+        observationProfile.MaximumRounds.Should().Be(2);
+        guide.Should().Contain("Manual v1 authoring").And.Contain("positive call budget")
+            .And.Contain("refuses observation-capable drafts before any model call");
         guide.Should().Contain("complete proposed").And.Contain("separate native")
             .And.Contain("Save / Discard / Cancel").And.Contain("not success or rollback")
             .And.Contain("read-only").And.Contain("does not\nselect, enable or invoke")

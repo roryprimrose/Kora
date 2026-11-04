@@ -7,12 +7,47 @@ using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
 using Kora.Core.Tools;
+using Kora.Application.Skills;
+using Kora.Core.Skills;
 
 namespace Kora.Application.Tools;
 
 public sealed class CustomizationDiscoveryService(ICustomizationMetadataStore sources, ArtifactCatalogue catalogue,
-    IArtifactUsePolicy use, ISessionWorkspaceAccess access, TimeProvider time)
+    IArtifactUsePolicy use, ISessionWorkspaceAccess access, TimeProvider time, SharedSkillDiscoveryService? sharedSkills = null)
 {
+    public async Task<CustomizationDiscoverySnapshot> ReviewSkillSelection(IReadOnlyList<CustomizationSource> selected,
+        SessionWorkspaceEntry target, string originalRequest, OwnedSkillAuthoringAuthority original,
+        Func<bool> admitted, CancellationToken token)
+    {
+        if (HostActivity.RequireCurrent().Request.Origin != RequestOrigin.LocalUi || !original.IsCurrent()
+            || sharedSkills is null || selected.Count is < 1 or > CustomizationDiscoveryTools.MaximumRecords
+            || selected.Any(source => source.Kind != CustomizationKind.Skill))
+        { throw new InvalidOperationException("Separately authorize native metadata/source-identity review for one to six registered skills."); }
+        bool Current() => admitted() && original.IsCurrent();
+        _ = await sharedSkills.LoadSourcesAsync(Current, token).ConfigureAwait(false);
+        var consent = sharedSkills.ConsentRevision;
+        var sharedUse = sharedSkills.UseRevision;
+        bool Registered() => Current() && sharedSkills.ConsentRevision == consent && sharedSkills.UseRevision == sharedUse;
+        var bindings = ImmutableArray.CreateBuilder<SharedSkillFileBinding>();
+        foreach (var source in selected)
+        {
+            if (!string.Equals(source.PrimaryFile, "SKILL.md", StringComparison.Ordinal))
+            { throw new InvalidDataException("Choose a canonical registered SKILL.md, not a path supplied by a model."); }
+            bindings.Add(await sharedSkills.BindSelectedFileAsync(source.Location, Registered, token).ConfigureAwait(false));
+        }
+        using var activity = HostActivity.BeginRoot(HostRequest.Create(original.Origin),
+            HostActivityLayer.Application, HostOperation.Policy, [new(HostActivity.RequireCurrent().Activity!.Context)]);
+        try
+        {
+            var snapshot = await ReviewCore(selected, target, originalRequest, original.Origin, Registered,
+                false, bindings.ToImmutable(), token).ConfigureAwait(false);
+            activity.Complete(HostOperationOutcome.Completed);
+            return snapshot;
+        }
+        catch (OperationCanceledException) { activity.Complete(HostOperationOutcome.Cancelled); throw; }
+        catch { activity.Complete(HostOperationOutcome.Failed); throw; }
+    }
+
     public async Task<IReadOnlyList<CustomizationSource>> List(Func<bool> admitted, CancellationToken token)
     {
         var control = access.ControlRevision;
@@ -29,7 +64,12 @@ public sealed class CustomizationDiscoveryService(ICustomizationMetadataStore so
 
     public async Task<CustomizationDiscoverySnapshot> Review(IReadOnlyList<CustomizationSource> selected,
         SessionWorkspaceEntry target, string originalRequest, RequestOrigin origin, Func<bool> admitted, CancellationToken token,
-        bool proposeAgent = false)
+        bool proposeAgent = false) =>
+        await ReviewCore(selected, target, originalRequest, origin, admitted, proposeAgent, [], token).ConfigureAwait(false);
+
+    private async Task<CustomizationDiscoverySnapshot> ReviewCore(IReadOnlyList<CustomizationSource> selected,
+        SessionWorkspaceEntry target, string originalRequest, RequestOrigin origin, Func<bool> admitted,
+        bool proposeAgent, ImmutableArray<SharedSkillFileBinding> skills, CancellationToken token)
     {
         var control = access.ControlRevision;
         Require(control, admitted, token);
@@ -66,6 +106,8 @@ public sealed class CustomizationDiscoveryService(ICustomizationMetadataStore so
             observations.Add(observed);
             records.Add(record);
         }
+        if (!skills.IsEmpty && records.Any(record => !record.Enabled))
+        { throw new InvalidOperationException("Only the explicitly selected, included current registered skills may enter selection. No disabled skill is silently enabled."); }
         if (use.Revision != useRevision || catalogue.ReloadFailureRevision != reload)
         { throw new InvalidOperationException("Use control or source availability changed during review. Choose a fresh snapshot."); }
         if (!CapabilityReplyWire.IsWithinLimit(new(CapabilityOutcome.Succeeded, CustomizationDiscoveryTools.ResultReason,
@@ -73,7 +115,7 @@ public sealed class CustomizationDiscoveryService(ICustomizationMetadataStore so
         { throw new InvalidDataException("The complete reviewed metadata exceeds the result bound. Choose fewer entries."); }
         var snapshot = new CustomizationDiscoverySnapshot(sources, catalogue, use, observations.ToImmutable(), records.ToImmutable(),
             target, originalRequest, origin, () => access.ControlRevision == control && access.CanControl && admitted(), time,
-            proposeAgent);
+            proposeAgent, skills);
         try { await snapshot.Validate(token).ConfigureAwait(false); return snapshot; }
         catch { snapshot.Dispose(); throw; }
     }

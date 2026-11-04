@@ -128,9 +128,10 @@ public sealed partial class SessionRequestCommandService(
                 LocalRequestProfileReview? localProfile = null;
                 if (command.RequestLocalProfile is { } profile)
                 {
-                    if (command.RequestProvider != SessionRequestReview.ProviderChoice.Default || command.RequestFailedMessage is not null
-                        || command.RequestForegroundTarget || !command.RequestClaudeTools.IsEmpty)
-                    { throw new InvalidOperationException("Request-only local selection cannot combine with another provider or retry route."); }
+                    if (command.RequestProvider != SessionRequestReview.ProviderChoice.Default
+                        || command.RequestForegroundTarget || !command.RequestClaudeTools.IsEmpty
+                        || command.RequestFailedMessage is not null && profile.Service != Kora.Core.Providers.ProviderService.Local)
+                    { throw new InvalidOperationException("Request-only selection cannot combine with another provider or source scope; selected failures require a LOCAL profile."); }
                     localProfile = await conversation.ReviewLocalRequestProfileAsync(target, body, origin, profile, Live, token).ConfigureAwait(false);
                 }
                 ModelTurnHost.RetryProviderReview? retryProvider = null;
@@ -154,8 +155,11 @@ public sealed partial class SessionRequestCommandService(
                     { throw new InvalidOperationException("Failed-request review cannot replace its exact original body, provider or scope."); }
                     var failedSource = await workspace.ReadFailedRetrySourceAsync(target, failed, Live, token).ConfigureAwait(false);
                     review = review with { FailedSource = failedSource, Origin = failed.Request.Origin };
-                    retryProvider = await conversation.ReviewRetryProviderAsync(review, Live, token).ConfigureAwait(false);
-                    review = review with { RetryProviderProfile = retryProvider.Profile };
+                    if (localProfile is null)
+                    {
+                        retryProvider = await conversation.ReviewRetryProviderAsync(review, Live, token).ConfigureAwait(false);
+                        review = review with { RetryProviderProfile = retryProvider.Profile };
+                    }
                 }
                 lock (gate)
                 {
@@ -167,7 +171,7 @@ public sealed partial class SessionRequestCommandService(
                 return new("review", output is not null
                     ? "This task only. Review unchanged input, exact conversation, original channel and declared/configured output. Confirm separately once; mandatory call/privacy/output policy wins. No saved preference, speech or submission yet."
                     : localProfile is not null
-                    ? "This request only - LOCAL. Review the exact destination, complete profile and unchanged original input below. Confirm separately once with session request confirm, or cancel with session request cancel. No preference write, submission or dispatch yet. Subsequent requests inherit normally; no fallback."
+                    ? "This request only - " + localProfile.Profile.Service + ". Review the exact destination, complete profile, original channel, expiry and unchanged input below. Confirm separately once, or cancel. No preference write or submission yet. Subsequent requests inherit normally; no fallback. Hosted processing additionally requires separate native approval of every physical send; this review grants no egress or authentication."
                     : "Review the exact original body, target, provider, origin and expiry. Confirm separately; no content is retained or dispatched yet. Copilot and Claude additionally require separate native approval of each final physical send.")
                 { RequestReview = review };
             }
@@ -199,7 +203,9 @@ public sealed partial class SessionRequestCommandService(
                 var actual = await workspace.ReadExactMetadataAsync(session, cancellation).ConfigureAwait(false);
                 if (actual != previous.Review.Target || !OriginalLive())
                 { throw new InvalidOperationException("The reviewed session generation, metadata or original admission changed."); }
-                if (previous.LocalProfile is { } local) { await local.ValidateAsync(cancellation).ConfigureAwait(false); }
+                if (previous.LocalProfile is { } local
+                    && (local.Profile.Service == Kora.Core.Providers.ProviderService.Local || !local.IsConsumed))
+                { await local.ValidateAsync(cancellation).ConfigureAwait(false); }
                 if (previous.Review.ExpiredSource is { } expired)
                 {
                     if (await workspace.ReadExpiredOrdinarySourceAsync(actual, expired.Message, OriginalLive, cancellation).ConfigureAwait(false) != expired)
@@ -216,7 +222,7 @@ public sealed partial class SessionRequestCommandService(
                 {
                     if (await workspace.ReadFailedRetrySourceAsync(actual, failed.Message, OriginalLive, cancellation).ConfigureAwait(false) != failed)
                     { throw new InvalidOperationException("The original failed task or message revision changed. Review again."); }
-                    await previous.RetryProvider!.ValidateAsync(cancellation).ConfigureAwait(false);
+                    if (previous.RetryProvider is { } retry) { await retry.ValidateAsync(cancellation).ConfigureAwait(false); }
                 }
             }
             await Revalidate(token).ConfigureAwait(false);
@@ -234,6 +240,9 @@ public sealed partial class SessionRequestCommandService(
                     ? await conversation.SubmitAsync(previous.Review.Target, previous.Review.Body, OriginalLive, token,
                         Revalidate, [previous.Cause], previous.Review.Origin,
                         accepted: () => { lock (gate) { accepted = true; } }, taskOutput: output).ConfigureAwait(false)
+                    : previous.LocalProfile is { } alternate && previous.Review.FailedSource is not null
+                    ? await conversation.SubmitFailedLocalProfileAsync(previous.Review, alternate, OriginalLive, Revalidate,
+                        [previous.Cause], () => { lock (gate) { accepted = true; } }, token).ConfigureAwait(false)
                     : previous.LocalProfile is { } local
                     ? await conversation.SubmitLocalRequestProfileAsync(local, OriginalLive, Revalidate,
                         [previous.Cause], token).ConfigureAwait(false)

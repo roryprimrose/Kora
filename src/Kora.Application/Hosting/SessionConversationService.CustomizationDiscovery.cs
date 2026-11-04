@@ -21,7 +21,8 @@ public sealed partial class SessionConversationService
         Task Validate(CancellationToken check) => bound?.TerminalResult is { Outcome: not ModelTurnOutcome.Succeeded }
             ? Task.CompletedTask : snapshot.Validate(check);
         ModelContextEnvelope Create(Kora.Core.Hosting.HostRequest request, DateTimeOffset now) =>
-            new(request, DiscoveryPolicy + (snapshot.ProposeAgent ? " " + Kora.Core.Agents.ModelAgentUseProposal.ModelPolicy : string.Empty), snapshot.OriginalRequest,
+            new(request, DiscoveryPolicy + (snapshot.ProposeAgent ? " " + Kora.Core.Agents.ModelAgentUseProposal.ModelPolicy
+                : snapshot.ProposeSkill ? " " + Kora.Core.Skills.ModelSkillUseProposal.ModelPolicy : string.Empty), snapshot.OriginalRequest,
                 [new(new(Guid.NewGuid()), request, new(1),
                     JsonSerializer.Serialize(new { reviewedEntries = snapshot.Records.Length,
                         coverage = "Only the exact selected metadata snapshot; not the complete inventory. Call list, then get only returned opaque refs." }),
@@ -34,15 +35,18 @@ public sealed partial class SessionConversationService
         }
         System.Diagnostics.ActivityLink[] links = HostActivity.Current is { } issuer
             ? [snapshot.ReviewLink, new(issuer.Activity!.Context)] : [snapshot.ReviewLink];
+        Kora.Core.Conversation.ConversationSubmissionReceipt? receipt = null;
         try
         {
-            return await SubmitCoreAsync(snapshot.Target, snapshot.OriginalRequest, admitted, Validate,
+            receipt = await SubmitCoreAsync(snapshot.Target, snapshot.OriginalRequest, admitted, Validate,
                 links, snapshot.Origin, Create, ModelTurnChoice.Local, token,
                 resolveResponse: snapshot.Resolve, bindWebPage: Bind).ConfigureAwait(false);
+            return receipt;
         }
         finally
         {
             await execution.WaitForQuiescenceAsync(CancellationToken.None).ConfigureAwait(false);
+            snapshot.CompleteSelection(receipt?.Message.Outcome == ModelTurnOutcome.Succeeded && !token.IsCancellationRequested);
             snapshot.Dispose();
         }
     }

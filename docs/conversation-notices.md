@@ -58,3 +58,28 @@ Choose **Turn completion voice notices Off** at any time. Quiet, capture, prompt
 An independently reviewed [speak-once call exception](responses-and-calls.md) applies only to its exact requested response. Completion notices never use or consume that exception and remain suppressed during protected calls.
 
 This remains a bounded selected-session surface, not a general reminder scheduler or a watcher over every conversation. No live audio/provider qualification or new detector enablement is implied ([scope](../Design/Proactive_Interaction.md#run-consented-conversation-completion-speech)).
+
+## Scheduled proactive speech quiet hours
+
+In **Settings > Speech & audio**, enter ordered days, 24-hour start/end times and an explicit installed time-zone ID. Choose **Review weekly quiet hours**, read the interval, then **Confirm quiet hours**. The cog menu's **Reset** prepares Off for separate confirmation; it does not save immediately ([native controls](../src/Kora/SettingsWindow.axaml), [review owner](../src/Kora.Application/ViewModels/MainViewModel.QuietHours.cs)).
+
+Exact typed commands use the same review and save operation. Activated voice requires the current assistant-name prefix on both requests, existing consent/readiness and clear call/channel admission ([command grammar](../src/Kora.Application/Configuration/QuietHoursCommand.cs), [host admission](../src/Kora.Application/ViewModels/MainViewModel.cs)):
+
+```text
+get notices.quiet-hours
+set notices.quiet-hours to weekly Mon,Tue,Wed,Thu,Fri 09:00 17:00 UTC
+confirm notices.quiet-hours
+set notices.quiet-hours to Off
+confirm notices.quiet-hours
+reset notices.quiet-hours
+confirm notices.quiet-hours
+cancel notices.quiet-hours
+```
+
+Use distinct days in `Mon,Tue,Wed,Thu,Fri,Sat,Sun` order. A zone such as `Australia/Sydney` replaces `UTC` explicitly; changing the Windows local zone does not change this choice. The starting day owns an overnight interval, start is inclusive and end is exclusive. Equal times are rejected. Repeated DST hours stay quiet when their local clock is inside the interval; skipped times create no replay ([schedule semantics](../src/Kora.Core/Configuration/QuietHoursSchedule.cs)).
+
+Off is the default. One confirmed device-local schedule survives restart, but it never enables completion-speech consent or listening. Quiet hours affect only otherwise-admitted proactive completion speech, checked again at synthesis and playback start. Visual completion notices and their fatigue receipts remain; suppressed speech is consumed and cannot replay when quiet ends ([completion admission](../src/Kora.Application/Interaction/ConversationCompletionVoiceNotices.cs), [platform boundaries](../src/Kora.Windows/Audio/WindowsTextToSpeechService.cs)).
+
+The separate run-only **Quiet routine notices** choice still hides routine rows; scheduled quiet hours never toggle it. Ordinary requested answers, mandatory questions/approvals and existing call/privacy restrictions are unchanged ([independent policies](../Design/Proactive_Interaction.md#scheduled-proactive-speech-quiet-hours)).
+
+Reviews expire after sixty seconds and cannot survive changed original channel, settings visibility, private ownership, assistant name, consent or call policy. Malformed/unreadable saved intent or unconfirmed writes hold proactive speech unavailable rather than selecting Off. Inspect the displayed saved/effective status and audit evidence, explicitly repair the preference, then inspect again; there is no automatic retry ([configuration and recovery](../src/Kora.Application/Configuration/QuietHoursConfigurationService.cs), [atomic persistence](../src/Kora.Application/Configuration/LocalQuietHoursPreferences.cs)).

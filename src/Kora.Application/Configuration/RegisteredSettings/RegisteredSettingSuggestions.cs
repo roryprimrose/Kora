@@ -16,9 +16,11 @@ public static class RegisteredSettingSuggestions
             $"'{item.Id}' ({item.Description}; {item.Scope}; "
             + item.SuggestedValues
             + (item.RequiresNativeReview ? "; original local UI and separate native confirmation only)" : ")")))
-        + ". Use 'set <exact ID> to <value>', canonical decimal integers for numeric values and true/false for booleans. "
+        + ". Use 'set <exact ID> to <value>', canonical decimal integers for numeric values and true/false for booleans, "
+        + "or exactly 'reset <exact ID>' with no value. Only the host resolves the owner's default and saved/default result, "
+        + "including companion fields; never supply a default value. Reset requires the same separate review and confirmation as Set. "
         + "Presence and response-timeout suggestions require that exact syntax, ID and canonical value, without aliases or surrounding text. "
-        + "No reset, adjustment, batch, commentary, other setting, approval or claimed save. "
+        + "No adjustment, batch, commentary, other setting, approval or claimed save. "
         + "Undo is a separate host-owned original-user operation: 'undo the last settings change' opens review, "
         + "'confirm settings undo' or 'cancel settings undo' is separate. Only one known successful compatible registered "
         + "preference in this run can qualify; never infer previous values or undo effects, consent or grants. "
@@ -41,8 +43,13 @@ public static class RegisteredSettingSuggestions
     {
         ArgumentNullException.ThrowIfNull(answer);
         if (answer.Length > 256)
-        { throw new InvalidDataException("A setting suggestion must be one bounded Set, not a batch or commentary."); }
+        { throw new InvalidDataException("A setting suggestion must be one bounded Set or Reset, not a batch or commentary."); }
 
+        foreach (var descriptor in RegisteredSettingRegistry.Settings)
+        {
+            if (string.Equals(answer, $"reset {descriptor.Id}", StringComparison.Ordinal))
+            { return new RegisteredSettingProposal.Reset(descriptor.Setting); }
+        }
         if (AppearanceCommand.Parse(answer, AssistantNameRules.DefaultName) is
             { Operation: AppearanceCommandOperation.Set, Descriptor: { } appearance, Value: { } appearanceValue }
             && RegisteredSettingRegistry.Settings.FirstOrDefault(item =>
@@ -81,6 +88,6 @@ public static class RegisteredSettingSuggestions
         const string ratePrefix = "set speech.windows-rate to ";
         if (answer.StartsWith(ratePrefix, StringComparison.Ordinal))
         { return new RegisteredSettingProposal.WindowsRate(WindowsSpeechRate.Parse(answer[ratePrefix.Length..])); }
-        throw new InvalidDataException("No admitted setting suggestion. Request one exact registered Set value; nothing was applied.");
+        throw new InvalidDataException("No admitted setting suggestion. Request one exact registered Set value or Reset ID; nothing was applied.");
     }
 }

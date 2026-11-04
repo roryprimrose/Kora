@@ -22,8 +22,10 @@ public sealed partial class MainViewModel : ISpeechCaptionPresentation
     private SpeechTextChoice? selectedSpeechCaptionChoice;
     private bool notifiedCaptionPinned;
     private bool notifiedPreviousCaption;
+    private SpeechCaptionEmphasis? notifiedCaptionEmphasis;
 
     public string? SpeechCaptionText => speechCaptionText;
+    public SpeechCaptionEmphasis? SpeechCaptionEmphasis => speechCaption.Emphasis;
     public bool IsSpeechCaptionPinned => speechCaption.IsPinned;
     public bool IsPreviousSpeechCaption => speechCaption.IsPreviousSpeech;
     public string SpeechCaptionLabel => IsPreviousSpeechCaption ? "PREVIOUS SPEECH"
@@ -66,6 +68,7 @@ public sealed partial class MainViewModel : ISpeechCaptionPresentation
     [
         new(SpeechCaptionOption.Placement, "Position on screen"),
         new(SpeechCaptionOption.DismissalDelay, "Seconds to keep captions after speech"),
+        new(SpeechCaptionOption.WordEmphasis, "Word emphasis (requires qualified alignment)"),
     ];
     public SpeechCaptionOptionChoice SelectedSpeechCaptionOptionChoice
     {
@@ -158,6 +161,7 @@ public sealed partial class MainViewModel : ISpeechCaptionPresentation
 
     private void NotifyCaptionState()
     {
+        SetProperty(ref notifiedCaptionEmphasis, SpeechCaptionEmphasis, nameof(SpeechCaptionEmphasis));
         if (SetProperty(ref notifiedCaptionPinned, IsSpeechCaptionPinned, nameof(IsSpeechCaptionPinned)))
         {
             OnPropertyChanged(nameof(SpeechCaptionPinLabel));
@@ -277,6 +281,7 @@ public sealed partial class MainViewModel : ISpeechCaptionPresentation
                     {
                         SpeechCaptionOption.Placement => (SpeechCaptionValue)new SpeechCaptionValue.Placement(SpeechCaptionOptions.Default.Placement),
                         SpeechCaptionOption.DismissalDelay => new SpeechCaptionValue.Delay(SpeechCaptionOptions.DefaultDelaySeconds),
+                        SpeechCaptionOption.WordEmphasis => new SpeechCaptionValue.WordEmphasis(false),
                         _ => null,
                     } : command.CaptionValue;
                 var choice = nativeChoice ?? (command.CaptionOption is null

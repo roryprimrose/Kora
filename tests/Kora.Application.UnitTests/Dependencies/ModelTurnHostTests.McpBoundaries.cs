@@ -248,6 +248,39 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
+    [InlineData("control")]
+    [InlineData("source")]
+    [InlineData("revoked")]
+    [InlineData("expired")]
+    public async Task Mcp_dismissed_selection_does_not_hide_authority_withdrawal(string fault)
+    {
+        using var f = new Fixture();
+        using var source = new McpSource();
+        using var root = f.Root();
+        var approvals = new McpApprovals(f);
+        var broker = new McpBroker(source.Account);
+        Task<string?> Dismiss(HostRequest request, HostRevision generation, DateTimeOffset expiresAt,
+            IReadOnlyList<McpDiscoveredTool> tools, Func<bool> admitted, CancellationToken token)
+        {
+            switch (fault)
+            {
+                case "control": f.CanControl = false; break;
+                case "source": File.AppendAllText(source.File, " "); break;
+                case "revoked": approvals.Revoke(); break;
+                case "expired": f.Time.Now = expiresAt; break;
+            }
+            return Task.FromResult<string?>(null);
+        }
+        await using var use = new McpInvocation(source.Configuration, broker, await source.Policy(), approvals, f, f, f.CancelAudit,
+            f.Time, f.Request, f.Session.Generation, source.ServerId, source.Account, approvals.Present, Dismiss, static () => true);
+        await use.Invoking(value => value.PrepareAsync(Token)).Should().ThrowAsync<InvalidOperationException>();
+        use.Completed.Should().BeFalse();
+        use.Result.Should().BeNull();
+        approvals.Stages.Should().Equal(McpReviewStage.Connection);
+        broker.Methods.Should().Equal("initialize", "tools/list");
+    }
+
+    [Theory]
     [InlineData("selection-cancel")]
     [InlineData("selection-fault")]
     [InlineData("review-cancel")]

@@ -16,6 +16,10 @@ internal sealed class SpeechCaption(TimeProvider? timeProvider = null)
     private bool sentenceMode;
     private string? observedText;
     private SpeechSentencePosition? lastSentence;
+    private SpeechWordPosition? lastWord;
+    private SpeechCaptionEmphasis? emphasis;
+    private bool emphasizeWords;
+    private bool wordsRejected;
     private Func<bool>? eligible;
     private long? generation;
     private bool observedPlaying;
@@ -27,6 +31,7 @@ internal sealed class SpeechCaption(TimeProvider? timeProvider = null)
     internal HostRequest? Source => request;
     public bool IsPinned { get { lock (gate) { return pinned; } } }
     public bool IsPreviousSpeech { get { lock (gate) { return completed && text is not null; } } }
+    public SpeechCaptionEmphasis? Emphasis { get { lock (gate) { return emphasis; } } }
 
     public Guid Bind(Guid response, HostRequest hostRequest, string exactText, Func<bool> remainsEligible,
         SpeechCaptionOptions? options = null, SpeechTextMode mode = SpeechTextMode.CurrentUtterance)
@@ -39,7 +44,8 @@ internal sealed class SpeechCaption(TimeProvider? timeProvider = null)
             request = hostRequest;
             text = exactText;
             sentenceMode = mode == SpeechTextMode.CurrentSentence;
-            sentenceMap = sentenceMode ? SpeechSentenceMap.Create(exactText) : null;
+            emphasizeWords = options?.WordEmphasis == true;
+            sentenceMap = sentenceMode || emphasizeWords ? SpeechSentenceMap.Create(exactText) : null;
             eligible = remainsEligible;
             delaySeconds = (options ?? SpeechCaptionOptions.Default).DismissalDelaySeconds;
             playbackId = Guid.NewGuid();
@@ -61,6 +67,7 @@ internal sealed class SpeechCaption(TimeProvider? timeProvider = null)
         lock (gate)
         {
             if (source != playbackId) { return null; }
+            emphasis = null;
             if (text is null || response != responseId || !remainsEligible)
             {
                 Retire();
@@ -81,13 +88,14 @@ internal sealed class SpeechCaption(TimeProvider? timeProvider = null)
                 if (observedPlaying) { playbackEnded = true; }
                 return null;
             }
-            if (playbackEnded || frame.PlaybackId != playbackId || frame.Segment != 0
+            if (playbackEnded || frame.PlaybackId != playbackId || frame.Segment != 0 || frame.Generation < 0
                 || generation is { } bound && bound != frame.Generation)
             {
                 Retire();
                 return null;
             }
             generation = frame.Generation;
+            var captionStart = 0;
             if (sentenceMode)
             {
                 if (!frame.SentenceAlignmentAvailable || sentenceMap is null)
@@ -120,11 +128,45 @@ internal sealed class SpeechCaption(TimeProvider? timeProvider = null)
                 }
                 lastSentence = sentence;
                 observedText = sentenceMap.GetText(range);
+                captionStart = range.Start;
             }
             else { observedText = text; }
+            ObserveWord(frame, captionStart);
             observedPlaying = true;
             return observedText;
         }
+    }
+
+    private void ObserveWord(SpeechPlaybackFrame frame, int captionStart)
+    {
+        if (!emphasizeWords || wordsRejected) { return; }
+        if (!frame.WordAlignmentAvailable || sentenceMap is null) { wordsRejected = true; return; }
+        if (frame.Word is not { } word)
+        {
+            if (lastWord is not null) { wordsRejected = true; }
+            return;
+        }
+        if (word.Source is not { } progress
+            || progress.Playback != new SpeechPlaybackToken(playbackId, frame.Generation)
+            || sentenceMap.Resolve(progress) is null
+            || progress.AudioPosition < TimeSpan.Zero || progress.AudioPosition > word.PlaybackPosition
+            || word.PlaybackPosition >= word.EndPosition || word.EndPosition > word.AudioDuration
+            || progress.CharacterPosition < captionStart
+            || progress.CharacterPosition - captionStart > observedText!.Length - progress.CharacterCount
+            || lastWord is { } previous && (word.PlaybackPosition < previous.PlaybackPosition
+                || word.AudioDuration != previous.AudioDuration
+                || progress.CharacterPosition < previous.Source.CharacterPosition
+                || progress.CharacterPosition == previous.Source.CharacterPosition
+                    && (progress != previous.Source || word.EndPosition != previous.EndPosition)
+                || progress.CharacterPosition > previous.Source.CharacterPosition
+                    && (progress.CharacterPosition < previous.Source.CharacterPosition + previous.Source.CharacterCount
+                        || progress.AudioPosition < previous.EndPosition)))
+        {
+            wordsRejected = true;
+            return;
+        }
+        lastWord = word;
+        emphasis = new(progress.CharacterPosition - captionStart, progress.CharacterCount);
     }
 
     public void Complete()
@@ -133,6 +175,7 @@ internal sealed class SpeechCaption(TimeProvider? timeProvider = null)
         {
             if (text is null || !observedPlaying) { Retire(); return; }
             completed = true;
+            emphasis = null;
             completedAt = clock.GetTimestamp();
         }
     }
@@ -158,6 +201,10 @@ internal sealed class SpeechCaption(TimeProvider? timeProvider = null)
             sentenceMap = null;
             observedText = null;
             lastSentence = null;
+            lastWord = null;
+            emphasis = null;
+            emphasizeWords = false;
+            wordsRejected = false;
             sentenceMode = false;
             request = null;
             eligible = null;

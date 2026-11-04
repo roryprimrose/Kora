@@ -24,6 +24,9 @@ if ($env:GITHUB_REF -ne 'refs/heads/main' -and $env:GITHUB_REF -ne "refs/tags/v$
 if ($env:GITHUB_SHA -ne $SourceRevision) { throw 'Release source revision does not match the workflow.' }
 $tag = "v$Version"
 $prerelease = $Version -like '*-beta*'
+if ($env:KORA_MERGE_QUEUE_DELIVERY_PROFILE -ceq 'independent-v1' -and -not $prerelease) {
+    throw 'Independent delivery publishes beta releases only; stable publication requires the serial profile.'
+}
 $names = @("Kora-$Version-win-x64.zip", "Kora-$Version-win-x86.zip",
     "Kora-$Version-win-x64.msi", "Kora-Setup-$Version-win-x64.exe",
     'installer-build.json', 'payload-manifest.json', 'SHA256SUMS.txt', 'release-manifest.json',

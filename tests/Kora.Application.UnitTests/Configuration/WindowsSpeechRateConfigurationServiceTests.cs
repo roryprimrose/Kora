@@ -517,7 +517,7 @@ public sealed partial class WindowsSpeechRateConfigurationServiceTests : IDispos
         public void BeginWrite() { if (BeginFailure is { } failure) { throw failure; } Pending = true; }
         public void ConfirmWrite() { if (ConfirmFailure is { } failure) { throw failure; } Pending = false; AfterConfirm?.Invoke(); }
         public void Save(WindowsSpeechRate rate) { if (WriteFailure is { } failure) { throw failure; } Value = rate; Writes++; AfterWrite?.Invoke(); }
-        public void Reset() { Value = null; Writes++; }
+        public void Reset() { if (WriteFailure is { } failure) { throw failure; } Value = null; Writes++; AfterWrite?.Invoke(); }
     }
     private sealed class SelectionPreferences : ITextToSpeechPreferences
     {

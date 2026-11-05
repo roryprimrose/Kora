@@ -7,6 +7,7 @@ namespace Kora;
 internal sealed partial class SessionsViewModel
 {
     private ModelMemoryProposalReview? modelMemoryReview;
+    private long modelMemoryReviewEpoch;
     public bool CanReviewModelMemoryProposal => CanReadConversation && access.CanControl
         && selected?.Authority.IsActive == true && !conversationSourceHeld && memories is not null;
     public bool CanAcceptModelMemoryProposal => CanReviewModelMemoryProposal && modelMemoryReview?.CanAccept == true;
@@ -14,22 +15,28 @@ internal sealed partial class SessionsViewModel
     public bool CanAdmitModelMemoryProposal => CanReviewModelMemoryProposal && modelMemoryReview?.CanAdmit == true;
     public string ModelMemoryProposalDescription => modelMemoryReview?.Description ?? string.Empty;
 
-    public Task ReviewModelMemoryProposalAsync(ConversationMessage message) => RunConversationAsync(async (target, live) =>
+    public Task ReviewModelMemoryProposalAsync(ConversationMessage message)
     {
-        CancelModelMemoryProposal();
-        if (memories is null || !access.CanControl || !target.Authority.IsActive || conversationSourceHeld
-            || !ObservedConversationMessages.Any(row => ReferenceEquals(row, message)))
-        { throw new InvalidOperationException("Select the exact retained ASSISTANT answer in this Active session."); }
-        var page = conversationPage;
-        var completed = completedConversationMessage;
-        bool Current() => live() && access.CanControl && !conversationSourceHeld
-            && ReferenceEquals(page, conversationPage) && ReferenceEquals(completed, completedConversationMessage);
-        var review = await memories.ReviewModelProposalAsync(target, message, Current, lifetime.Token);
-        if (!Current()) { review.Dispose(); throw new OperationCanceledException("Model-memory source revoked."); }
-        modelMemoryReview = review;
-        conversationStatus = "Inspect the complete USER/ASSISTANT lineage, value and classification below. "
-            + "Accept and then Admit are separate; nothing has been saved or used.";
-    });
+        if (!CanReadConversation) { return Task.CompletedTask; }
+        var epoch = RetireModelMemoryProposal();
+        NotifyModelMemoryProposal();
+        return RunConversationAsync(async (target, live) =>
+        {
+            if (memories is null || !access.CanControl || !target.Authority.IsActive || conversationSourceHeld
+                || !ObservedConversationMessages.Any(row => ReferenceEquals(row, message)))
+            { throw new InvalidOperationException("Select the exact retained ASSISTANT answer in this Active session."); }
+            var page = conversationPage;
+            var completed = completedConversationMessage;
+            bool Current() => Volatile.Read(ref modelMemoryReviewEpoch) == epoch
+                && live() && access.CanControl && !conversationSourceHeld
+                && ReferenceEquals(page, conversationPage) && ReferenceEquals(completed, completedConversationMessage);
+            var review = await memories.ReviewModelProposalAsync(target, message, Current, lifetime.Token);
+            if (!Current()) { review.Dispose(); throw new OperationCanceledException("Model-memory source revoked."); }
+            modelMemoryReview = review;
+            conversationStatus = "Inspect the complete USER/ASSISTANT lineage, value and classification below. "
+                + "Accept and then Admit are separate; nothing has been saved or used.";
+        });
+    }
 
     public Task AcceptModelMemoryProposalAsync() => ActOnModelMemoryProposalAsync(admit: false, accept: true);
     public Task RejectModelMemoryProposalAsync() => ActOnModelMemoryProposalAsync(admit: false, accept: false);
@@ -50,9 +57,16 @@ internal sealed partial class SessionsViewModel
 
     public void CancelModelMemoryProposal()
     {
+        RetireModelMemoryProposal();
+        NotifyModelMemoryProposal();
+    }
+
+    private long RetireModelMemoryProposal()
+    {
+        var epoch = Interlocked.Increment(ref modelMemoryReviewEpoch);
         modelMemoryReview?.Dispose();
         modelMemoryReview = null;
-        NotifyModelMemoryProposal();
+        return epoch;
     }
 
     private void NotifyModelMemoryProposal()

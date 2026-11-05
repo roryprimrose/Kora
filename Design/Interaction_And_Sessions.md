@@ -1239,6 +1239,8 @@ All surfaces share theme, accessibility, safe rendering, and provenance rules in
 
 Closing/dismissing a window changes presentation only, not session lifecycle, work, microphone consent, or approval.
 Passive updates do not steal focus. Pending questions, grants, errors, and unknown outcomes remain reachable even when a compact surface auto-hides.
+Successful **Read** and **Read latest** preserve a genuine completion arriving during the awaited read as an exact update unless the returned page includes it. They do not silently expand the admitted snapshot; the update remains inspectable until a deliberate fresh read consumes it.
+Failed or retired source reads retain their existing fail-closed behavior ([reader owner](../src/Kora/SessionsViewModel.ConversationReading.cs), [regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ReaderCompletion.cs)).
 Only ordinary non-interactive feedback uses the response timeout; an actively edited question or presented approval does not disappear under that timer.
 Prompt expiry still applies independently and is shown honestly.
 Switching sessions does not cancel background work. Content and delayed callbacks remain attached to their originating session.

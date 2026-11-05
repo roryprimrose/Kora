@@ -86,7 +86,10 @@ function controllerOperation(inputs) {
   const operation = inputs.operation ?? 'reconcile';
   invariant(['reconcile', 'recover-unobservable-dispatch', 'migrate-batch-v1', 'rollback-batch-v1',
     'repair-batch', 'resume-batch', 'hold-independent-delivery', 'prepare-independent-delivery',
-    'resume-independent-delivery', 'abort-independent-delivery'].includes(operation), 'Unknown controller operation.');
+    'resume-independent-delivery', 'abort-independent-delivery', 'hold-main-builds', 'prepare-main-builds',
+    'resume-main-builds', 'abort-main-builds'].includes(operation), 'Unknown controller operation.');
+  invariant(operation.endsWith('-main-builds') || !inputs.main_build_profile,
+    'Main build profile inputs require the explicit main scheduling operation.');
   invariant(inputs.acknowledge_uncertain_dispatch === undefined
     || typeof inputs.acknowledge_uncertain_dispatch === 'boolean', 'Invalid recovery acknowledgement.');
   if (operation === 'reconcile') {
@@ -98,16 +101,22 @@ function controllerOperation(inputs) {
   return operation;
 }
 
-function execution({ modeValue, eventName, ref, sha, inputs }) {
+function execution({ modeValue, eventName, ref, sha, inputs, mainBuildProfile = '' }) {
   const enabled = mode(modeValue);
+  invariant(['', 'hourly-v1'].includes(mainBuildProfile), 'Unknown main build profile.');
+  invariant(!mainBuildProfile || enabled, 'Hourly main validation requires the enabled queue.');
   const candidate = ['queue_pr', 'queue_head', 'queue_base', 'queue_ticket', 'queue_batch'].some(key => inputs[key]);
   if (candidate) invariant(enabled && eventName === 'workflow_dispatch' && ref === 'refs/heads/main',
     'Candidate dispatch requires the enabled queue on trusted main.');
   const comparison = eventName === 'workflow_dispatch'
     && (inputs.compare_portable_tests === true || inputs.compare_native_evidence === true);
   invariant(!(candidate && comparison), 'Candidate validation cannot also be a timing comparison.');
-  return { candidate, source: sha, full: !enabled || candidate
-    || eventName !== 'pull_request' && (ref === 'refs/heads/main' || ref.startsWith('refs/tags/') || comparison) };
+  const scheduled = eventName === 'schedule';
+  invariant(!scheduled || !mainBuildProfile || ref === 'refs/heads/main', 'Scheduled main validation requires trusted main.');
+  const coalesced = mainBuildProfile === 'hourly-v1' && eventName === 'push' && ref === 'refs/heads/main';
+  return { candidate, source: sha, full: !coalesced && (!scheduled || mainBuildProfile === 'hourly-v1')
+    && (!enabled || candidate
+      || eventName !== 'pull_request' && (ref === 'refs/heads/main' || ref.startsWith('refs/tags/') || comparison)) };
 }
 
 function validateState(state) {
@@ -204,11 +213,12 @@ function candidateJobs(schema) {
 }
 
 function workflowJobs(source, blob, candidate = false) {
-  const delivery = source.replaceAll('\r\n', '\n').split('\n')
-    .filter(line => line.includes('merge-queue-delivery-schema:'));
+  const lines = source.replaceAll('\r\n', '\n').split('\n');
+  const main = lines.filter(line => line.includes('main-validation-schema:'));
+  if (main.length && (main.length !== 1 || main[0] !== '# main-validation-schema: hourly-v1')) return null;
+  const delivery = lines.filter(line => line.includes('merge-queue-delivery-schema:'));
   if (delivery.length && (delivery.length !== 1 || delivery[0] !== '# merge-queue-delivery-schema: independent-v1')) return null;
-  const markers = source.replaceAll('\r\n', '\n').split('\n')
-    .filter(line => line.includes('merge-queue-job-schema:'));
+  const markers = lines.filter(line => line.includes('merge-queue-job-schema:'));
   if (markers.length !== 0) {
     if (markers.length !== 1) return null;
     if (markers[0] === '# merge-queue-job-schema: parallel-pr-v1')

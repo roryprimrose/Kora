@@ -20,6 +20,9 @@ function Invoke-Git {
 $revision = Invoke-Git -Arguments @('rev-parse', 'HEAD')
 $branch = Invoke-Git -Arguments @('branch', '--show-current')
 $actions = $env:GITHUB_ACTIONS -eq 'true'
+if ($actions -and $env:KORA_MAIN_BUILD_PROFILE -cnotin @($null, '', 'hourly-v1')) {
+    throw 'Unknown main build profile.'
+}
 if ($ExpectedRevision -and (-not $ValidationOnly -or $ExpectedRevision -cnotmatch '^[0-9a-f]{40}$')) {
     throw 'An explicit source revision requires validation-only mode and an exact SHA.'
 }
@@ -80,7 +83,8 @@ $result = [pscustomobject] @{
     ProductVersion = $productVersion
     SourceRevision = $revision
     Prerelease = $version -like '*-beta*'
-    Publish = $main -and $actions -and $env:GITHUB_EVENT_NAME -in @('push', 'workflow_dispatch') -and
+    Publish = $main -and $actions -and ($env:GITHUB_EVENT_NAME -in @('push', 'workflow_dispatch') -or
+        ($env:GITHUB_EVENT_NAME -ceq 'schedule' -and $env:KORA_MAIN_BUILD_PROFILE -ceq 'hourly-v1')) -and
         $env:GITHUB_REPOSITORY -eq 'roryprimrose/Kora'
 }
 if ($OutputFile) {

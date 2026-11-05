@@ -46,7 +46,8 @@ internal sealed partial class SessionsViewModel(
         confirmPlaybackVolumeSuggestion = null,
     Kora.Application.IUiDispatcher? conversationPresentationDispatcher = null,
     Kora.Application.Dependencies.VerifiedLocalHandoffOperation? localHandoff = null,
-    SessionRetentionApplyService? retentionApply = null) : ObservableObject
+    SessionRetentionApplyService? retentionApply = null,
+    RemainingWorkManagement? workManagement = null) : ObservableObject
 {
     private readonly HostRequest viewer = HostRequest.Create(RequestOrigin.LocalUi);
     private readonly CancellationTokenSource lifetime = new();
@@ -742,6 +743,7 @@ internal sealed partial class SessionsViewModel(
                 changingQueueControl = false;
                 NotifyQueue();
                 NotifyWork();
+                NotifyManagementAnswer();
                 NotifyLocalEvents();
                 OnPropertyChanged(nameof(Status));
                 OnPropertyChanged(nameof(Detail));
@@ -836,6 +838,7 @@ internal sealed partial class SessionsViewModel(
             NotifyStopAndDelete();
             NotifyWork();
             NotifyConversation();
+            NotifyManagementAnswer();
             NotifyProviderReview();
             NotifySessionPermission();
             NotifyRetention();

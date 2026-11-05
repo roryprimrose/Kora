@@ -510,6 +510,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
         internal bool Current { get; set; } = true;
         internal Action? OnRead { get; set; }
         internal Func<Task>? BeforeRead { get; set; }
+        internal Action<CancellationToken>? MetadataToken { get; set; }
         internal Func<Task>? BeforeTaskRead { get; set; }
         internal Action? OnVersion { get; set; }
         internal bool AuditFailure { get; set; }
@@ -612,6 +613,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
         }
         public async ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken token)
         {
+            MetadataToken?.Invoke(token);
             OnRead?.Invoke();
             if (BeforeRead is { } before) { await before().ConfigureAwait(false); }
             if (DiscoveryEntries is { } entries && session != Request.SessionId)
@@ -730,6 +732,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
     private sealed class ManualTime : TimeProvider
     {
         internal TimeSpan ExpectedDeadline { get; set; } = TimeSpan.FromSeconds(15);
+        internal TimeSpan? AdditionalExpectedDeadline { get; set; }
         internal DateTimeOffset Now { get; set; } = DateTimeOffset.UnixEpoch;
         internal long? Timestamp { get; set; }
         private TimerCallback? callback;
@@ -741,7 +744,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
         {
             this.callback = callback;
             this.state = state;
-            dueTime.Should().Be(ExpectedDeadline);
+            new[] { ExpectedDeadline, AdditionalExpectedDeadline ?? ExpectedDeadline }.Should().Contain(dueTime);
             return new FakeTimer();
         }
         internal void FireDeadline() => callback!(state);

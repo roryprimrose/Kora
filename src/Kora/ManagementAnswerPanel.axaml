@@ -1,0 +1,35 @@
+<UserControl x:Class="Kora.ManagementAnswerPanel"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Kora.Controls">
+  <Expander Header="Optional local model answer about this conversation's remaining work">
+    <StackPanel Spacing="6">
+      <CheckBox Content="Enable optional local management answers in this private view"
+          IsChecked="{Binding ManagementEnabled, Mode=TwoWay}"
+          AutomationProperties.HelpText="Off by default for each new view. Turning off revokes the review or attempt; it never enables a model or releases unfinished resources." />
+      <TextBlock Text="The selected conversation is the SOURCE. Choose a DIFFERENT existing idle Active conversation for retaining the question and answer. No model is enabled by these controls. Exact manual status and stop remain independent." TextWrapping="Wrap" />
+      <TextBox Text="{Binding ManagementQuestion, Mode=TwoWay}" MaxLength="32768"
+          AutomationProperties.Name="Unchanged explicit model-assisted current or remaining-work question" />
+      <ComboBox ItemsSource="{Binding ManagementDestinations}" SelectedItem="{Binding ManagementDestination, Mode=TwoWay}"
+          AutomationProperties.Name="Explicit existing Active answer destination, different from the selected source; must be idle at commit">
+        <ComboBox.ItemTemplate>
+          <DataTemplate>
+            <StackPanel>
+              <TextBlock Text="{Binding Metadata.Name.Value}" />
+              <TextBlock Text="{Binding Authority.SessionId.Value}" />
+            </StackPanel>
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <WrapPanel ItemSpacing="6">
+        <Button x:Name="ReviewManagement" Content="Review exact local ledger disclosure" IsEnabled="{Binding CanReviewManagementAnswer}" />
+        <Button x:Name="ConfirmManagement" Content="Confirm one local answer and retention" IsEnabled="{Binding CanConfirmManagementAnswer}" />
+        <Button x:Name="CancelManagement" Content="Cancel / clear management review" />
+      </WrapPanel>
+      <ScrollViewer MaxHeight="420" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <controls:NamedTextBlock Text="{Binding ManagementText}" TextWrapping="Wrap"
+            AutomationProperties.Name="Complete question, policy, ledger metadata and retention disclosure, or actual retained answer and host outcome" />
+      </ScrollViewer>
+    </StackPanel>
+  </Expander>
+</UserControl>

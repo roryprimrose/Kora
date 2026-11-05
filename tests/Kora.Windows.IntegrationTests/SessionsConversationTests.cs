@@ -230,6 +230,8 @@ public sealed partial class SessionsConversationTests
     {
         private readonly AudioControlAdmission admission;
         private readonly ModelTurnHost turns;
+        private readonly ModelTurnHost? managementTurns;
+        internal RemainingWorkManagement? Management { get; }
         private readonly Kora.Application.Memory.MemoryManagementService? memories;
         internal WindowsSqliteSessionWorkspaceTests.Access Access { get; } = new();
         internal AuditLog Audit { get; } = new();
@@ -263,7 +265,8 @@ public sealed partial class SessionsConversationTests
             Kora.Application.Mcp.McpReadOnlyPolicy? mcpEffects = null,
             PlaybackVolumeConfigurationService? volume = null, bool localFirst = false,
             HandoffCatalogue? localFirstCatalogue = null, IProviderCapabilityCatalogue? localRequestCatalogue = null,
-            Kora.Core.Memory.IMemoryStore? memoryStore = null, ISessionWorkspaceStore? workspaceReader = null)
+            Kora.Core.Memory.IMemoryStore? memoryStore = null, ISessionWorkspaceStore? workspaceReader = null,
+            bool management = false, IModelTurnAdapter? managementAdapter = null)
         {
             var workspace = workspaceReader is null ? WindowsSqliteSessionWorkspaceTests.Service(f, Access)
                 : new SessionWorkspaceService(workspaceReader, new(f.Tasks), Access, NullLogger<SessionWorkspaceService>.Instance);
@@ -323,6 +326,16 @@ public sealed partial class SessionsConversationTests
                 mcpConfiguration: mcpConfiguration, mcpBroker: mcpBroker, mcpEffects: mcpEffects,
                 explicitTaskCoordinator: new(f.Tasks));
             Conversation = conversation;
+            if (management)
+            {
+                managementTurns = new(f.Store, Access, boundary, registry, Audit, NullLogger<ModelTurnHost>.Instance, f.Time,
+                    [new(ModelProviderSelection.OllamaCandidate, managementAdapter is null ? ModelQualificationGate.None
+                        : ModelQualificationGate.LocalCandidateSelection | ModelQualificationGate.IntegratedHost,
+                        f.Time.Now.AddMinutes(5), managementAdapter)], mode);
+                var answers = new SessionConversationService(f.Store, f.Store, workspace, Access, managementTurns, f.Time,
+                    NullLogger<SessionConversationService>.Instance, execution: managementTurns);
+                Management = new(conversation, answers, workspace, Access, f.Time, NullLogger<RemainingWorkManagement>.Instance);
+            }
             if (localFirst)
             {
                 f.Store.BindAuthorizationPolicyGate(new HandoffPolicyGate(Access));
@@ -357,12 +370,14 @@ public sealed partial class SessionsConversationTests
                 confirmPlaybackVolumeSuggestion: volume is null ? null : (review, token) => review.ConfirmAsync(token),
                 localHandoff: LocalHandoff, providers: localRequestCatalogue is null ? null
                     : new(workspace, f.Store, profilePreferences, catalogue, f.Time,
-                        NullLogger<SessionProviderProfileConfigurationService>.Instance, profiles));
+                        NullLogger<SessionProviderProfileConfigurationService>.Instance, profiles), workManagement: Management);
         }
         internal HostedTransmissionReviewService Reviews { get; }
         public async ValueTask DisposeAsync()
         {
             Model.Close();
+            if (Management is not null) { await Management.DisposeAsync(); }
+            if (managementTurns is not null) { await managementTurns.DisposeAsync(); }
             await Conversation.DisposeAsync();
             if (memories is not null) { await memories.DisposeAsync(); }
             await turns.DisposeAsync();

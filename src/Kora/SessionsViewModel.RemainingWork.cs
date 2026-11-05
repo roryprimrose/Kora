@@ -45,6 +45,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearRemainingWork()
     {
+        CancelManagementAnswer();
         remainingWorkAnswer = string.Empty;
         remainingWorkTarget = null;
         OnPropertyChanged(nameof(RemainingWorkStatus));

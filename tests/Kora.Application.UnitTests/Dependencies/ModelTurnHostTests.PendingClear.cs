@@ -617,7 +617,8 @@ public sealed partial class ModelTurnHostTests
         internal ConversationQueuedSubmission A { get; private set; } = null!;
         internal ConversationQueuedSubmission B { get; private set; } = null!;
         internal ConversationQueuedSubmission C { get; private set; } = null!;
-        internal static async Task<PendingClearFixture> Create(RequestOrigin origin = RequestOrigin.LocalUi, bool named = false)
+        internal static async Task<PendingClearFixture> Create(RequestOrigin origin = RequestOrigin.LocalUi, bool named = false,
+            Action? providerEntered = null)
         {
             var p = new PendingClearFixture();
             var host = ConfigureCancellation(p.F);
@@ -625,6 +626,7 @@ public sealed partial class ModelTurnHostTests
             if (named) { p.F.Metadata = new(p.F.Session.SessionId, new(1), new("Ordinary topic")); }
             p.Target = new(p.F.Session, p.F.Metadata);
             p.F.Adapter.Pending = p.Provider.Task;
+            p.F.Adapter.OnRun = providerEntered;
             p.A = await p.Service.SubmitQueuedAsync(p.Target, "active original", () => true, Token, origin: origin);
             p.B = await p.Service.SubmitQueuedAsync(p.Target, "private pending B", () => true, Token, origin: origin);
             p.C = await p.Service.SubmitQueuedAsync(p.Target, "private pending C", () => true, Token, origin: origin);

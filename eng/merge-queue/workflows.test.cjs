@@ -140,7 +140,7 @@ test('hourly CI coalesces automatic main pushes and runs only admitted changed h
     await assert.rejects(execute({ env: { QUEUE_MODE: 'enabled', QUEUE_PROFILE: 'batch-v1',
       DELIVERY_PROFILE: 'independent-v1', QUEUE_INPUTS: '{}', ...values } }, {}, {}, {}, () => ({})));
   }
-  assert.match(ci, /\n  schedule:\n    - cron: '0 \* \* \* \*'/);
+  assert.match(ci, /\n  schedule:\n    - cron: '17 \* \* \* \*'/);
   assert.match(job('admission'), /permissions:\n      contents: read\n      actions: read/);
   assert.doesNotMatch(ci, /^      main_build_profile:/m);
   assert.match(controller, /MAIN_BUILD_PROFILE: \$\{\{ vars.KORA_MAIN_BUILD_PROFILE \}\}/);

@@ -20,12 +20,14 @@ implementation does not activate the profile.
 
 Automatic main pushes then run admission feedback only, explicitly reporting
 coalescing rather than claiming skipped validation passed. The hourly UTC cron
-(`0 * * * *`) builds the main snapshot captured by that run only when its source
+(`17 * * * *`) builds the main snapshot captured by that run only when its source
 differs from the qualified activation baseline or the last actual full attempt.
 An unchanged source is not automatically retried after failure. Explicit
 manual/tag validation remains available under its existing source and release
 rules. GitHub may delay a cron; this is one automatic attempt per UTC hourly
-slot, not a promise of exact wall-clock launch time.
+slot, not a promise of exact wall-clock launch time. Minute 17 avoids the
+start-of-hour peak that [GitHub documents as a delay/drop risk](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule);
+the schedule still requires live observation rather than a manual-run proxy.
 
 The eight candidate gates and all 27 main identities remain unchanged. Candidate
 admission advances from the App's exact persisted completed-source record; it

@@ -1,5 +1,7 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
+
 using Kora.Application.Mcp;
+using Kora.Core.Mcp;
 
 namespace Kora.Application.UnitTests.Configuration;
 
@@ -15,7 +17,9 @@ public sealed class McpCommandTests
         command.Body.Should().Be("find reference");
         command.Error.Should().BeNull();
         command.Stop.Should().BeFalse();
-        McpCommand.FixedPhrases.Should().Equal("use selected mcp tool", "invoke selected mcp tool", "stop mcp");
+        McpCommand.FixedPhrases.Should().Equal("use selected mcp tool", "invoke selected mcp tool", "stop mcp",
+            "manage selected mcp capabilities", "read selected mcp resource", "read selected mcp resource template",
+            "preview selected mcp prompt", "use selected mcp resource", "use selected mcp resource template", "use selected mcp prompt");
     }
 
     [Theory]
@@ -46,5 +50,39 @@ public sealed class McpCommandTests
         McpCommand.Parse("Korax stop mcp", "Kora").Should().BeNull();
         McpCommand.Parse("Kora stop mcp", "Kora")!.Stop.Should().BeTrue();
         FluentActions.Invoking(() => McpCommand.Parse(null!, "Kora")).Should().Throw<ArgumentNullException>();
+    }
+
+    [Theory]
+    [InlineData("read selected mcp resource", McpCapabilityKind.Resource)]
+    [InlineData("read selected mcp resource template", McpCapabilityKind.ResourceTemplate)]
+    [InlineData("preview selected mcp prompt", McpCapabilityKind.Prompt)]
+    public void ContentReadCommandsDoNotInventModelTasks(string phrase, McpCapabilityKind kind)
+    {
+        var command = McpCommand.Parse("Kora, " + phrase, "Kora")!;
+        command.ContentKind.Should().Be(kind);
+        command.Explicit.Should().BeTrue();
+        command.Body.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("use selected mcp resource", McpCapabilityKind.Resource)]
+    [InlineData("use selected mcp resource template", McpCapabilityKind.ResourceTemplate)]
+    [InlineData("use selected mcp prompt", McpCapabilityKind.Prompt)]
+    public void ContentModelCommandsPreserveTheExactOriginalTask(string phrase, McpCapabilityKind kind)
+    {
+        var command = McpCommand.Parse(phrase + " Explain this reference.", "Kora")!;
+        command.ContentKind.Should().Be(kind);
+        command.Body.Should().Be("Explain this reference.");
+        command.Explicit.Should().BeFalse();
+        McpCommand.Parse(phrase, "Kora")!.Error.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void CapabilityManagementIsExplicitAndDoesNotInventADiscoveryTarget()
+    {
+        var command = McpCommand.Parse("manage selected mcp capabilities", "Kora")!;
+        command.Manage.Should().BeTrue();
+        command.Body.Should().BeNull();
+        McpCommand.Parse("manage selected mcp capabilities extra", "Kora").Should().BeNull();
     }
 }

@@ -94,6 +94,13 @@ internal sealed partial class SessionsWindow : Window
         ReadMcpOptions.Click += async (_, _) => await (ConversationOperation = model.ReadMcpOptionsAsync());
         SubmitMcp.Click += async (_, _) => await (ConversationOperation = model.SubmitMcpConversationAsync());
         InvokeMcp.Click += async (_, _) => await (ConversationOperation = model.InvokeSelectedMcpAsync());
+        ManageMcpCapabilities.Click += async (_, _) => await (ConversationOperation = model.ManageMcpCapabilitiesAsync());
+        ReadMcpResource.Click += async (_, _) => await (ConversationOperation = model.UseMcpContentAsync(Kora.Core.Mcp.McpCapabilityKind.Resource, false));
+        ReadMcpTemplate.Click += async (_, _) => await (ConversationOperation = model.UseMcpContentAsync(Kora.Core.Mcp.McpCapabilityKind.ResourceTemplate, false));
+        PreviewMcpPrompt.Click += async (_, _) => await (ConversationOperation = model.UseMcpContentAsync(Kora.Core.Mcp.McpCapabilityKind.Prompt, false));
+        AnswerMcpResource.Click += async (_, _) => await (ConversationOperation = model.UseMcpContentAsync(Kora.Core.Mcp.McpCapabilityKind.Resource, true));
+        AnswerMcpTemplate.Click += async (_, _) => await (ConversationOperation = model.UseMcpContentAsync(Kora.Core.Mcp.McpCapabilityKind.ResourceTemplate, true));
+        UseMcpPrompt.Click += async (_, _) => await (ConversationOperation = model.UseMcpContentAsync(Kora.Core.Mcp.McpCapabilityKind.Prompt, true));
         CancelMcp.Click += async (_, _) => await (ConversationCancellationOperation = model.CancelMcpConversationAsync());
         RefreshRunningConversation.Click += async (_, _) => await model.RefreshRunningConversationAsync();
         CancelRunningConversation.Click += async (_, _) =>

@@ -1,4 +1,4 @@
-using Kora.Application.Configuration;
+﻿using Kora.Application.Configuration;
 using Kora.Application.Mcp;
 using Kora.Core.Mcp;
 
@@ -20,6 +20,7 @@ internal sealed partial class SessionsViewModel
         set
         {
             RetireMcpResultFollowUp();
+            RetireMcpContent();
             if (value is null)
             {
                 mcpResultCapture.Retire();
@@ -43,6 +44,9 @@ internal sealed partial class SessionsViewModel
     }
     internal McpToolSelector? McpSelector { get; set; }
     internal McpArgumentsPresenter? McpInput { get; set; }
+    internal McpCapabilitySelector? McpCapabilitySelector { get; set; }
+    internal McpContentInputPresenter? McpContentInput { get; set; }
+    internal Func<McpCapabilityInventory, Func<bool>, CancellationToken, Task<McpCapabilityChange?>>? McpCapabilityManager { get; set; }
     private Task explicitMcpOperation = Task.CompletedTask;
     private bool HasCurrentMcpOptions => !closed && access.CanInspect && mcpOptionsEpoch == selectionEpoch;
     public IReadOnlyList<McpServerConfigurationSummary> McpServers => HasCurrentMcpOptions ? mcpServers : [];

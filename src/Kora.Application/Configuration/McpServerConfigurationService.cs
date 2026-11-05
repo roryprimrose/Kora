@@ -1,10 +1,11 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
 using Kora.Core.Configuration;
 using Kora.Core.Dependencies;
 using Kora.Core.Artifacts;
+using Kora.Core.Mcp;
 
 namespace Kora.Application.Configuration;
 
@@ -19,6 +20,7 @@ public sealed partial class McpServerConfigurationService
     private readonly IArtifactUsePolicy? usePolicy;
     private readonly Lock sourceGate = new();
     private readonly Dictionary<string, SourceObservation> observedSources = new(StringComparer.Ordinal);
+    private McpCapabilitySelection? observedCapabilities;
     private long nextSourceRevision;
 
     public event EventHandler? Changed;
@@ -51,6 +53,7 @@ public sealed partial class McpServerConfigurationService
                 or ArgumentException or NotSupportedException)
             {
                 observedSources.Clear();
+                observedCapabilities = null;
                 throw;
             }
         }
@@ -90,7 +93,8 @@ public sealed partial class McpServerConfigurationService
             var digest = LoadFile(source.Path, settings.IncludedMcpServerIds, servers);
             foreach (var server in servers.Skip(start))
             {
-                candidates.Add(server.Id, digest + (server.IsIncluded ? ":included" : ":excluded"));
+                candidates.Add(server.Id, digest + (server.IsIncluded ? ":included" : ":excluded")
+                    + settings.McpCapabilities.Fingerprint(server.Id));
             }
             if (servers.Count > MaximumServers)
             {
@@ -115,6 +119,7 @@ public sealed partial class McpServerConfigurationService
                 observedSources[id] = new(fingerprint, ++nextSourceRevision);
             }
         }
+        observedCapabilities = settings.McpCapabilities;
         return result;
     }
 
@@ -131,6 +136,31 @@ public sealed partial class McpServerConfigurationService
     }
 
     internal void NotifyChanged() => Changed?.Invoke(this, EventArgs.Empty);
+
+    internal bool IsCapabilityEnabled(string serverId, McpCapabilityKind kind, string identity)
+    {
+        lock (sourceGate) { return RequireObservedCapabilities(serverId).IsEnabled(serverId, kind, identity); }
+    }
+
+    internal bool IsCapabilityExplicitlyDisabled(string serverId, McpCapabilityKind kind, string identity)
+    {
+        lock (sourceGate) { return RequireObservedCapabilities(serverId).IsExplicitlyDisabled(serverId, kind, identity); }
+    }
+
+    internal bool MayConsiderCategory(string serverId, McpCapabilityCategory category)
+    {
+        lock (sourceGate) { return RequireObservedCapabilities(serverId).MayConsider(serverId, category); }
+    }
+
+    private McpCapabilitySelection RequireObservedCapabilities(string serverId)
+    {
+        if (!observedSources.ContainsKey(serverId))
+        { throw new InvalidOperationException("MCP capability preferences require a successful current source observation."); }
+        // sourceGate publishes both observations together and clears both on a failed load.
+        return observedCapabilities!;
+    }
+
+    public McpCapabilitySelection ReadCapabilitySelection() => preferences.Load().McpCapabilities;
 
     private IEnumerable<string> DefaultFiles()
     {

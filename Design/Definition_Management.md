@@ -608,6 +608,9 @@ not approve changed bytes, resolve missing dependencies, grant tools, authentica
 an MCP account, start a process or qualify a runtime. Missing/corrupt/unconfirmed
 control state fails closed and is reported.
 
+MCP server exclusion is additionally a master gate over default-enabled Tools, Resources (including templates), and Prompts consideration choices. Category-wide Enable all/Disable all replaces individual exceptions and sets the inheritance default; server exclusion preserves those choices.
+The separate [capability management workflow](Commands_Tools_And_Skills.md#mcp-configuration-sources-and-future-request-use) never turns a preference into source, account, content or execution authority.
+
 ### Reviewed transactions for User package originals
 
 The product owner explicitly selected recoverable multi-file writes to User

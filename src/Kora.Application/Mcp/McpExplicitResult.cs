@@ -1,11 +1,11 @@
-using Kora.Core.Hosting;
+﻿using Kora.Core.Hosting;
 using Kora.Core.Mcp;
 using Kora.Core.Tools;
 
 namespace Kora.Application.Mcp;
 
 public sealed record McpExplicitResult(HostRequest Request, McpExplicitOutcome Outcome,
-    HostTaskState DurableState, McpModelResult? Result)
+    HostTaskState DurableState, McpModelResult? Result, McpContentResult? Content = null)
 {
     internal static McpExplicitOutcome From(CapabilityOutcome outcome) => outcome switch
     {

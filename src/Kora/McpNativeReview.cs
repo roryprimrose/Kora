@@ -1,4 +1,5 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
+
 using Kora.Application.Mcp;
 using Kora.Core.Authorization;
 using Kora.Core.Hosting;
@@ -22,18 +23,51 @@ internal sealed class McpNativeReview(QuestionWindowController questions, Func<W
     internal async Task<string?> SelectAsync(HostRequest request, HostRevision generation, DateTimeOffset expiresAt,
         IReadOnlyList<McpDiscoveredTool> tools, Func<bool> admitted, CancellationToken token)
     {
-        var options = tools.Select((tool, index) => new QuestionOption(
-            "tool-" + index.ToString(System.Globalization.CultureInfo.InvariantCulture), tool.Name)).ToArray();
-        var spec = new QuestionSpec("Select one discovered host-mapped read-only MCP tool. "
-            + "Its complete schema and outgoing arguments still require separate exact review.",
-            QuestionKind.SingleChoice, options, sourceId: "mcp-tool-selection");
-        var receipt = await questions.AskConversationAsync(owner(), request, generation, spec, expiresAt,
-            admitted, token, mcpSelection: true);
-        if (receipt.Completed.Outcome != HostInteractionOutcome.Answered
-            || receipt.Completed.Question?.Draft is not { Choices.Length: 1 } answer)
-        { return null; }
-        var selected = Array.FindIndex(options, option => string.Equals(option.Id, answer.Choices[0], StringComparison.Ordinal));
-        return selected < 0 ? null : tools[selected].Name;
+        var choices = tools.Select(tool => new McpCapability(McpCapabilityKind.Tool, tool.Name, tool.Name, tool.Schema.Json)).ToArray();
+        return (await SelectCapabilityAsync(request, generation, expiresAt, choices, admitted, token))?.Id;
+    }
+
+    internal async Task<McpCapability?> SelectCapabilityAsync(HostRequest request, HostRevision generation, DateTimeOffset expiresAt,
+        IReadOnlyList<McpCapability> capabilities, Func<bool> admitted, CancellationToken token)
+    {
+        var offset = 0;
+        const int pageSize = 30;
+        while (true)
+        {
+            token.ThrowIfCancellationRequested();
+            var options = capabilities.Skip(offset).Take(pageSize).Select((item, index) => new QuestionOption(
+                "tool-" + index.ToString(System.Globalization.CultureInfo.InvariantCulture), item.Name)).ToList();
+            if (offset > 0) { options.Add(new("previous", "Previous page")); }
+            if (offset + pageSize < capabilities.Count) { options.Add(new("next", "Next page")); }
+            var spec = new QuestionSpec("Select one enabled, supported MCP item. Complete identity, definition and outgoing arguments"
+                + " still require separate review. Page " + (offset / pageSize + 1).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                QuestionKind.SingleChoice, options, sourceId: "mcp-tool-selection");
+            var receipt = await questions.AskConversationAsync(owner(), request, generation, spec, expiresAt, admitted, token, mcpSelection: true);
+            if (receipt.Completed.Outcome != HostInteractionOutcome.Answered
+                || receipt.Completed.Question?.Draft is not { Choices.Length: 1 } answer)
+            { return null; }
+            if (string.Equals(answer.Choices[0], "next", StringComparison.Ordinal)) { offset += pageSize; continue; }
+            if (string.Equals(answer.Choices[0], "previous", StringComparison.Ordinal)) { offset -= pageSize; continue; }
+            var index = options.FindIndex(option => string.Equals(option.Id, answer.Choices[0], StringComparison.Ordinal));
+            return index < 0 || index >= Math.Min(pageSize, capabilities.Count - offset) ? null : capabilities[offset + index];
+        }
+    }
+
+    internal async Task<string?> ContentInputAsync(HostRequest request, HostRevision generation, DateTimeOffset expiresAt,
+        McpCapability capability, Func<bool> admitted, CancellationToken token)
+    {
+        using var definition = System.Text.Json.JsonDocument.Parse(capability.DefinitionJson);
+        var parameters = capability.Kind == McpCapabilityKind.ResourceTemplate
+            ? string.Join(", ", new McpResourceTemplate(capability.Id).Parameters)
+            : definition.RootElement.TryGetProperty("arguments", out var declared)
+                ? string.Join(", ", declared.EnumerateArray().Select(argument => argument.GetProperty("name").GetString()
+                    + (argument.TryGetProperty("required", out var required) && required.GetBoolean() ? " (required)" : " (optional)")))
+                : "(none)";
+        var spec = new QuestionSpec("Enter a JSON object of original string arguments for " + capability.Name
+            + ". Use {} when none are needed. Submission is not approval.\nParameters / complete definition:\n" + parameters,
+            QuestionKind.Text, [], maximumTextLength: McpToolSchema.MaximumArgumentsUtf8Bytes, sourceId: "mcp-tool-arguments");
+        var receipt = await questions.AskConversationAsync(owner(), request, generation, spec, expiresAt, admitted, token, mcpInput: true);
+        return receipt.Completed.Outcome == HostInteractionOutcome.Answered ? receipt.Completed.Question?.Draft?.Text : null;
     }
 
     internal async Task<string?> InputAsync(HostRequest request, HostRevision generation, DateTimeOffset expiresAt,

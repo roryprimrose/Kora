@@ -1,6 +1,7 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+
 using Kora.Core.Authorization;
 using Kora.Core.Mcp;
 
@@ -13,15 +14,20 @@ public sealed record McpReview(McpReviewStage Stage, Uri Endpoint, McpAccountRef
     public McpReviewSource? Source { get; init; }
     public McpSkillReview? Skill { get; init; }
     public McpContinuationReview? Continuation { get; init; }
+    public McpCapability? Capability { get; init; }
+    public McpContentContinuationReview? ContentContinuation { get; init; }
 
-    internal string InvocationDigest => Continuation is { } continuation
+    internal string InvocationDigest => ContentContinuation is { } content
+        ? Hash(JsonSerializer.Serialize(new { stage = Stage, arguments = Arguments, content }))
+        : Continuation is { } continuation
         ? Hash(JsonSerializer.Serialize(new { stage = Stage, arguments = Arguments, skill = Skill, continuation }))
         : Skill is { } skill
             ? Hash(JsonSerializer.Serialize(new { stage = Stage, arguments = Arguments, skill }))
             : Hash(JsonSerializer.Serialize(new { stage = Stage, arguments = Arguments }));
 
     public bool IsBoundTo(HostOperationProposal proposal) =>
-        Enum.IsDefined(Stage) && (Stage == McpReviewStage.ResultContinuation) == (Continuation is not null)
+        Enum.IsDefined(Stage) && (Stage == McpReviewStage.ResultContinuation) == (Continuation is not null || ContentContinuation is not null)
+        && !(Continuation is not null && ContentContinuation is not null)
         && string.Equals(proposal.Binding.ActionId, "mcp.read-only", StringComparison.Ordinal)
         && string.Equals(proposal.Binding.SourcePartition, "mcp", StringComparison.Ordinal)
         && proposal.Effect == HostOperationEffect.BoundedRead && Account.Destination == new McpEndpoint(Endpoint)
@@ -34,17 +40,20 @@ public sealed record McpReview(McpReviewStage Stage, Uri Endpoint, McpAccountRef
                 && string.Equals(proposal.Binding.TrackedContentDigest, source.Revision, StringComparison.Ordinal)
             : string.Equals(proposal.Binding.DeclaredResourceDigest, proposal.Binding.TrackedContentDigest, StringComparison.Ordinal))
         && (string.Equals(proposal.Binding.InvocationDigest, InvocationDigest, StringComparison.Ordinal)
-            || Continuation is null && Skill is null
+            || Continuation is null && ContentContinuation is null && Skill is null
                 && string.Equals(proposal.Binding.InvocationDigest, Hash(JsonSerializer.Serialize(new
-                    { invocation = proposal.Request, stage = Stage, arguments = Arguments })), StringComparison.Ordinal));
+                { invocation = proposal.Request, stage = Stage, arguments = Arguments })), StringComparison.Ordinal));
 
     public string NativeText => "HTTPS MCP " + Stage + "\nDestination: " + Endpoint.AbsoluteUri
         + (Source is { } source ? "\nConfigured server: " + source.ServerName + "\nConfiguration source: " + source.Path
             + "\nDependency source ID: " + Kora.Core.Artifacts.ArtifactUseIdentity.McpServerId(source.Path, source.ServerName)
             + "\nExact configuration revision: " + source.Revision : string.Empty)
         + "\nDelegated account: " + AccountDisplayName
-        + "\n" + (ToolName is null ? "Connection and bounded discovery only; no tool is selected yet."
-            : "Read-only mapped tool: " + ToolName + "\nExact input schema:\n" + InputSchema)
+        + "\n" + (ToolName is null ? "Connection and bounded discovery only; no capability is selected yet."
+            : Capability is { } capability
+                ? "Selected " + capability.Kind + ": " + capability.Name + "\nExact identity: " + capability.Id
+                    + "\nComplete discovered definition:\n" + InputSchema
+                : "Read-only mapped tool: " + ToolName + "\nExact input schema:\n" + InputSchema)
         + (InputSchema is null ? string.Empty : "\nSchema SHA-256: " + Hash(InputSchema))
         + (Arguments is null ? string.Empty : "\nExact outgoing arguments:\n" + Arguments)
         + (Skill is { } skill ? "\nReviewed declarative skill: " + skill.Identity + "\nExact skill revision: " + skill.Revision
@@ -64,6 +73,7 @@ public sealed record McpReview(McpReviewStage Stage, Uri Endpoint, McpAccountRef
                 + " Retain only the original task and genuine answer or truthful HOST terminal in this conversation;"
                 + " no extra durable raw-result copy. Decline or cancellation does not roll back the completed external read."
             : string.Empty)
+        + (ContentContinuation?.NativeText ?? string.Empty)
         + "\nExternal processing destination. No redirect, remote mutation, other tool, ambient credentials or hosted-model disclosure is approved.";
 
     public override string ToString() => nameof(McpReview);

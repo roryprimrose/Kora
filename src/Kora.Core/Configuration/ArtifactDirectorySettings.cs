@@ -1,6 +1,7 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 
 using Kora.Core.Artifacts;
+using Kora.Core.Mcp;
 
 namespace Kora.Core.Configuration;
 
@@ -18,7 +19,8 @@ public sealed class ArtifactDirectorySettings
         IReadOnlyList<string> agentDirectories,
         IReadOnlyList<string> mcpConfigurationFiles,
         IReadOnlyList<string> includedMcpServerIds,
-        bool useDefaultDirectories = true)
+        bool useDefaultDirectories = true,
+        McpCapabilitySelection? mcpCapabilities = null)
     {
         UseDefaultDirectories = useDefaultDirectories;
         var directoryLimit = useDefaultDirectories ? MaximumPathsPerKind : MaximumConfiguredDirectoriesPerKind;
@@ -28,6 +30,7 @@ public sealed class ArtifactDirectorySettings
         AgentDirectories = ValidatePaths(agentDirectories, nameof(agentDirectories), directoryLimit);
         McpConfigurationFiles = ValidatePaths(mcpConfigurationFiles, nameof(mcpConfigurationFiles));
         IncludedMcpServerIds = ValidateIdentifiers(includedMcpServerIds, nameof(includedMcpServerIds));
+        McpCapabilities = mcpCapabilities ?? McpCapabilitySelection.Default;
     }
 
     public ReadOnlyCollection<string> SkillDirectories { get; }
@@ -37,6 +40,7 @@ public sealed class ArtifactDirectorySettings
     public ReadOnlyCollection<string> McpConfigurationFiles { get; }
     public ReadOnlyCollection<string> IncludedMcpServerIds { get; }
     public bool UseDefaultDirectories { get; }
+    public McpCapabilitySelection McpCapabilities { get; }
 
     public static ArtifactDirectorySettings DefaultDirectories(string koraRoot, string roamingRoot, string userProfile)
     {
@@ -65,7 +69,7 @@ public sealed class ArtifactDirectorySettings
             Merge(defaults.InstructionDirectories, InstructionDirectories),
             Merge(defaults.PromptDirectories, PromptDirectories),
             Merge(defaults.AgentDirectories, AgentDirectories),
-            McpConfigurationFiles, IncludedMcpServerIds, useDefaultDirectories: false);
+            McpConfigurationFiles, IncludedMcpServerIds, useDefaultDirectories: false, mcpCapabilities: McpCapabilities);
     }
 
     public IReadOnlyList<string> GetDirectories(ArtifactKind kind) => kind switch

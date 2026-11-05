@@ -1,9 +1,10 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 
 using Kora.Core.Artifacts;
 using Kora.Core.Configuration;
 using Kora.Core.Dependencies;
+using Kora.Core.Mcp;
 
 namespace Kora.Application.Configuration;
 
@@ -35,18 +36,20 @@ public sealed class LocalArtifactDirectoryPreferences : IArtifactDirectoryPrefer
 
         try
         {
-            using var document = JsonDocument.Parse(text, new JsonDocumentOptions { MaxDepth = 4 });
+            using var document = JsonDocument.Parse(text, new JsonDocumentOptions { MaxDepth = 8 });
             var root = document.RootElement;
             if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("Version", out var versionElement))
             { throw new InvalidDataException("The artifact directory preference version is missing."); }
             var version = versionElement.GetInt32();
-            if (version is not (2 or 3))
+            if (version is not (2 or 3 or 4))
             {
                 throw new InvalidDataException("The artifact directory preference version is unavailable.");
             }
             string[] properties = ["Version", "Skills", "Instructions", "Prompts", "Agents",
                 "McpConfigurationFiles", "IncludedMcpServerIds"];
-            RequireProperties(root, version == 2 ? properties : [.. properties, "UseDefaultDirectories"]);
+            RequireProperties(root, version == 2 ? properties : version == 3
+                ? [.. properties, "UseDefaultDirectories"]
+                : [.. properties, "UseDefaultDirectories", "McpCapabilities"]);
             var useDefaults = version == 2 || root.GetProperty("UseDefaultDirectories").GetBoolean();
             var limit = useDefaults ? ArtifactDirectorySettings.MaximumPathsPerKind
                 : ArtifactDirectorySettings.MaximumConfiguredDirectoriesPerKind;
@@ -56,7 +59,8 @@ public sealed class LocalArtifactDirectoryPreferences : IArtifactDirectoryPrefer
                 ReadDirectories(root, "Prompts", limit),
                 ReadDirectories(root, "Agents", limit),
                 ReadFiles(root, "McpConfigurationFiles"),
-                ReadIdentifiers(root, "IncludedMcpServerIds"), useDefaults);
+                ReadIdentifiers(root, "IncludedMcpServerIds"), useDefaults,
+                version == 4 ? ReadCapabilities(root.GetProperty("McpCapabilities")) : McpCapabilitySelection.Default);
             return defaults is null ? settings : settings.WithDefaults(defaults);
         }
         catch (Exception exception) when (exception is JsonException
@@ -79,10 +83,10 @@ public sealed class LocalArtifactDirectoryPreferences : IArtifactDirectoryPrefer
             Normalize(settings.PromptDirectories),
             Normalize(settings.AgentDirectories),
             NormalizeFiles(settings.McpConfigurationFiles),
-            settings.IncludedMcpServerIds, settings.UseDefaultDirectories);
+            settings.IncludedMcpServerIds, settings.UseDefaultDirectories, settings.McpCapabilities);
         var text = JsonSerializer.Serialize(new
         {
-            Version = 3,
+            Version = 4,
             normalized.UseDefaultDirectories,
             Skills = normalized.SkillDirectories,
             Instructions = normalized.InstructionDirectories,
@@ -90,12 +94,45 @@ public sealed class LocalArtifactDirectoryPreferences : IArtifactDirectoryPrefer
             Agents = normalized.AgentDirectories,
             McpConfigurationFiles = normalized.McpConfigurationFiles,
             IncludedMcpServerIds = normalized.IncludedMcpServerIds,
+            McpCapabilities = normalized.McpCapabilities.Categories,
         });
         if (Encoding.UTF8.GetByteCount(text) > MaximumPreferenceBytes)
         {
             throw new InvalidDataException("The artifact directory preferences exceed the persisted byte limit.");
         }
         store.WriteText(FileName, text);
+    }
+
+    private static McpCapabilitySelection ReadCapabilities(JsonElement value)
+    {
+        if (value.ValueKind != JsonValueKind.Array || value.GetArrayLength() > McpCapabilitySelection.MaximumCategories)
+        { throw new InvalidDataException("MCP capability categories must be a bounded array."); }
+        return new(value.EnumerateArray().Select(category =>
+        {
+            if (category.ValueKind != JsonValueKind.Object)
+            { throw new InvalidDataException("An MCP capability category must be an object."); }
+            RequireProperties(category, "ServerId", "Category", "Enabled", "Items", "Revision");
+            if (category.GetProperty("ServerId").ValueKind != JsonValueKind.String
+                || category.GetProperty("Category").ValueKind != JsonValueKind.Number
+                || !category.GetProperty("Category").TryGetInt32(out var kind)
+                || category.GetProperty("Enabled").ValueKind is not (JsonValueKind.True or JsonValueKind.False)
+                || category.GetProperty("Revision").ValueKind != JsonValueKind.Number
+                || !category.GetProperty("Revision").TryGetInt64(out var revision) || revision < 0
+                || category.GetProperty("Items") is not { ValueKind: JsonValueKind.Array } items
+                || items.GetArrayLength() > McpCapabilitySelection.MaximumOverrides)
+            { throw new InvalidDataException("The saved MCP capability category is invalid."); }
+            return new McpCategorySelection(category.GetProperty("ServerId").GetString()!, (McpCapabilityCategory)kind,
+                category.GetProperty("Enabled").GetBoolean(), items.EnumerateArray().Select(item =>
+                {
+                    if (item.ValueKind != JsonValueKind.Object)
+                    { throw new InvalidDataException("An MCP capability override must be an object."); }
+                    RequireProperties(item, "Key", "Enabled");
+                    if (item.GetProperty("Key").ValueKind != JsonValueKind.String
+                        || item.GetProperty("Enabled").ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                    { throw new InvalidDataException("The saved MCP capability override is invalid."); }
+                    return new McpItemSelection(item.GetProperty("Key").GetString()!, item.GetProperty("Enabled").GetBoolean());
+                }), revision);
+        }));
     }
 
     internal static string NormalizeDirectory(string directory)

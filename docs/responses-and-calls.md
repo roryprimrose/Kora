@@ -179,9 +179,12 @@ Space, or use its native toggle automation. Structured Markdown and its separate
 code-block wrapping are unchanged.
 
 This is a view-only choice, not a saved setting. Text, selection and literal Find
-stay unchanged. Closing or losing source/private access clears the reader; reopen
-the exact source normally to recover, with wrapping on by default. Wrapping grants
-no copy permission and reads no additional source.
+stay unchanged when toggling it. In integrated session Details, **Hide details**
+clears text and Find but remembers wrapping with that exact item's reading
+position. Explicit **Show details** rechecks access before restoring the projection,
+wrapping and scroll position. Other new readers start wrapped. Losing source/private
+access clears the reader; a remembered position cannot bypass normal admission.
+Wrapping grants no copy permission and reads no additional source.
 
 ### Review a final-answer external link
 

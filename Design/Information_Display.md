@@ -101,12 +101,21 @@ to fit the reader width. The native checkbox supports pointer, keyboard and togg
 automation. It is hidden while reading the structured document, whose code-block
 wrapping remains separate.
 
-The choice belongs only to that view's lifetime, not a saved setting. It does not
-change the immutable source, logical lines, selection, caret or literal Find
-cursor/count, and it neither reads another source nor acquires clipboard authority.
+The choice is volatile presentation state, not a saved setting. Integrated session
+Details includes it in the existing bounded exact-reference reading-position
+snapshot. Hide releases text and Find; explicit Show repeats current admission,
+then restores the projection and wrapping before layout and scroll offsets so a
+wide result does not lose its horizontal reading position. A different reference
+without a remembered position starts wrapped. Source/private retirement does not
+grant restoration authority. The offsets settle after the initial native caret
+reveal; intervening input or retirement cancels that deferred restoration.
+This includes Alt+H heading-index navigation: its explicit focus and scroll take precedence over a pending restored offset ([native regression](../tests/Kora.Windows.IntegrationTests/FinalDocumentInteractionTests.Headings.cs)).
+Toggling wrapping does not change the immutable source, logical lines, selection,
+caret or literal Find cursor/count, and it neither reads another source nor acquires
+clipboard authority.
 Source/private retirement clears the reader and disables the old control; reopen
-the exact source through its normal admission route to recover. A newly opened
-reader starts wrapped. Deterministic native regressions are implementation
+the exact source through its normal admission route to recover. An independent
+new reader starts wrapped. Deterministic native regressions are implementation
 evidence, not installed assistive-technology qualification.
 
 ## Delivered passive exact-conversation search - 2026-10-13
@@ -988,6 +997,15 @@ or mutate that chrome. Opening the same immutable reference activates its
 existing session-bound view. Explicit comparison, where supported, preserves
 distinct immutable references without requiring separate windows; comparison
 and detachable windows are not part of the first integrated increment.
+Native **Expand details** gives the existing pane the surplus reading width,
+leaving the conversation/composer at its existing minimum. **Restore split**
+recovers the prior user-chosen column lengths, including star proportions.
+The divider remains keyboard/pointer resizable. These controls reuse the same
+reader, selection, Find and admitted source; they do not resolve content again,
+resize the window or submit work. Hide, replacement and session/private retirement
+discard the temporary expansion before remembering the ordinary split.
+This is native implementation evidence, not installed accessibility qualification
+([regressions](../tests/Kora.Windows.IntegrationTests/AdaptiveInteractionTests.DetailExpansion.cs)).
 New revisions never silently replace a viewer's
 current item. A user-requested refresh resolves and displays a new immutable
 revision with the change made visible.

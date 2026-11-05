@@ -718,6 +718,7 @@ The clipboard envelope performs identity, Unicode, lifetime and complete seriali
 Content-free task authority is separate from conversation retention, preserving original input origin; the exact capture object retains its original request/source identity while model evidence belongs to the newly admitted task ([clipboard admission](../src/Kora.Application/Context/ClipboardExplanationAdmission.cs), [workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs)).
 The production permission policy consumes an actual user grant and one invocation dispatch receipt before reaching `ModelTurnChoice.Local` and the existing model host. Permission is revalidated after asynchronous session/task reads at the adapter and response boundaries; revocation blocks subsequent dispatch/publication. No qualified runtime means explicit unavailability, never a hosted/bootstrap fallback. Deterministic fake-provider evidence is implementation proof, not production runtime qualification or enablement ([consumer tests](../tests/Kora.Application.UnitTests/Context/ClipboardExplanationWorkflowTests.Permissions.cs)).
 Only a successful admitted host response can become a volatile answer in that exact native preview, after terminal task evidence and current-source/eligibility checks; source/answer are not generic responses, transcripts, speech, saved clipboard history or conversation bodies ([workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs), [presentation](../src/Kora.Application/ViewModels/MainViewModel.Clipboard.cs)).
+The [native answer](../src/Kora/ClipboardPreviewWindow.cs) wraps at the current reading viewport width independently of the source-only wrapping preference. Resizing or wrapping the snapshot does not alter answer bytes, repeat inference or renew review/grant authority. [Complete-operation native tests](../tests/Kora.Windows.IntegrationTests/ClipboardExplanationPermissionTests.cs) measure rendered answer bounds after actual permission consumption and local fake-provider completion, including a wider unwrapped immutable source.
 Source revocation and cancellation suppress late output while actual adapter quiescence remains mandatory for exit/handoff; deterministic fake-provider tests cover these boundaries without clipboard/model/network calls ([workflow tests](../tests/Kora.Application.UnitTests/Context/ClipboardExplanationWorkflowTests.cs)).
 Invalid presentation reads retire volatile answer/source references, so restored eligibility cannot resurrect a retired answer; model-envelope expiry is checked again after terminal task evidence before publication ([workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs)).
 The [clipboard admission bridge](../src/Kora.Application/Context/ClipboardExplanationAdmission.cs) reuses the existing content-free local-context dispatch store and host task coordinator. Actual current-run source authority, not a generic control intent or fake-store assumption, is required. Terminal task evidence precedes answer publication; cancellation after durable dispatch is conservatively Unknown, not a claim that already-running work was rolled back.
@@ -1731,6 +1732,37 @@ Ordinary hostless diagnostics carry capture-owned `MissingHostContext` and
 report the gap independently. They are not silently promoted to bootstrap,
 audit, span or receipt authority. Invalid host-bearing data is never downgraded.
 Log producers still own content minimisation; bounded strings are not a universal secret detector.
+
+### Reviewed GitHub exception reports
+
+Exception diagnostics may add a bounded structured `ExceptionReport` containing
+exception type, normalised managed method frames and the SHA-256 fingerprint of
+type plus newline plus stack. This projection excludes messages, source paths,
+line numbers, runtime argument values, `Exception.Data` and raw stack text.
+Absent legacy projections remain absent; missing/excessive managed stacks do
+not become empty or truncated signatures. New optional envelope data follows
+ordinary diagnostic/file retention, not session or audit retention.
+
+Original native input can separately review a selected complete retained
+diagnostic and approve a canonical GitHub fingerprint lookup. The transport is
+unauthenticated, bounded and redirect-free; failed/incomplete/ambiguous search
+never establishes a new issue. Only the fingerprint is sent during lookup.
+Current ownership/privacy, selected source and provider-mode/network admission
+are revalidated across awaits. Source change or closure retires review; retained
+diagnostics and issue text supply neither egress consent nor execution authority.
+
+An immutable report preview separately approves browser handoff, rechecking
+duplicates first. Only the canonical repository's new/existing issue pages can
+use this route, through the shared audited external-browser workflow. The new
+issue URL carries the reviewed type/stack, environment and fingerprint; the
+external browser may retain/sync it. Users authenticate and finally post on
+GitHub; Kora has no issue-write token, intake service or automatic publisher.
+Browser acceptance is not issue-submission proof. Existing-issue text/comments
+and closed/fix-version claims are untrusted observations, not proof of repair.
+Public copies cannot be recalled by local retention/deletion. Raw evidence
+exports, model disclosure, attachment upload and automatic crash submission are
+not admitted by this route.
+
 Persistence must verify supplied profile-local managed paths/copies and effective restrictive folder/file ACLs, without shared-path fallback or silent permission repair.
 Windows provides ordinary cross-profile isolation; a second-account trial is optional corroboration for this profile-local architecture, not a mandatory application gate.
 Follow [the profile-boundary contract](Architecture.md#profile-boundary-and-validation-responsibility) before changing storage/identity scope; any new cross-user protection claim needs actual identity evidence, not mock SIDs.

@@ -515,6 +515,21 @@ retry or authorize an evidenced operation.
 | `artifacts.export` | Exact retained artifact/digest and user-selected destination; preview/write receipt | E | Proposed A4; show source/classification; no automatic opening/execution |
 | `context.capture_screen` | Explicit selected window/region and user intent; bounded snapshot/provenance | E | Deferred; no ambient screenshots or microphone/audio content |
 
+The existing native named-source removal is host-only, not an enabled
+`context.remove_source` descriptor. Its exact inventory review lasts strictly
+less than two minutes. Confirmation revokes and physically joins owned source
+work, including cancellation-ignoring model work, without renewing that review.
+The [source manager](../src/Kora.Application/KnowledgeSources/KnowledgeSourceManager.cs)
+rechecks the original private host authority, cancellation and review deadline
+after the join and requested audit, immediately before calling exact Kora-copy
+removal. Expired or withdrawn authority produces a failed/cancelled outcome
+without deleting copies; explicitly reload the inventory and start a fresh review.
+An admitted cleanup failure can still leave revoked or uncertain storage, never
+implied rollback. Original files remain untouched. Deterministic
+[removal regressions](../tests/Kora.Application.UnitTests/KnowledgeSources/KnowledgeSourceManagerTests.cs)
+cover retained ownership, late authority loss and valid pre-deadline completion;
+they do not enable a provider or model-facing source operation.
+
 ### Skills and Registered Execution
 
 The proposed common lifecycle is

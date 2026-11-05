@@ -9,6 +9,8 @@ using AwesomeAssertions;
 using Kora.Application.Interaction;
 using Kora.Core.Authorization;
 using Kora.Core.Interaction;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
 using Kora.NativeUxFixture;
 using Kora.Controls;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -135,11 +137,19 @@ public sealed partial class NativeUxFixtureContractTests
             state.Reviewed = true;
             fixture.Access.SetOpen(false);
             state.CanRevoke.Should().BeFalse();
+            fixture.Main.CanRevealPrivatePresentation.Should().BeFalse();
             var denied = () => state.RevokeAsync();
             await denied.Should().ThrowAsync<InvalidOperationException>();
+            await fixture.Main.PrivacyClosureTask.WaitAsync(TestContext.Current.CancellationToken);
             fixture.Access.SetOpen(true);
-            await fixture.Main.RefreshCommand.ExecuteAsync();
-            fixture.Main.ShowApplication();
+            using (var gesture = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+                HostActivityLayer.Desktop, HostOperation.Presentation))
+            {
+                await fixture.Main.RefreshCommand.ExecuteAsync();
+                fixture.Main.ShowApplication();
+                fixture.Main.CanRevealPrivatePresentation.Should().BeTrue();
+                gesture.Complete(HostOperationOutcome.Completed);
+            }
             state.CanRevoke.Should().BeFalse();
             await SelectAsync(fixture.ExactTarget);
             state.Reviewed = true;

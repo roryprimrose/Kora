@@ -250,9 +250,6 @@ internal sealed partial class McpInvocation(
         { throw new InvalidOperationException("The original MCP task/session authority is no longer current."); }
         if (descriptor is not null) { await configuration.ValidateCurrentAsync(descriptor, token).ConfigureAwait(false); }
         if (validateSource is not null) { await validateSource(token).ConfigureAwait(false); }
-        if (resultContinuation is not null
-            && !(await broker.ReadAccountsAsync(token).ConfigureAwait(false)).Any(choice => choice.Reference == account))
-        { throw new InvalidOperationException("The separately reviewed result's delegated account is no longer available."); }
         // A faulted connection can only finish without content; session, source and grants still require current authority.
         if (connection is not null && !connectionFaulted)
         {
@@ -262,6 +259,7 @@ internal sealed partial class McpInvocation(
             { throw new InvalidOperationException("The exact delegated account, HTTPS destination or public DNS binding is unavailable."); }
         }
         foreach (var validate in grants) { await validate(token).ConfigureAwait(false); }
+        if (transportJoin is not null) { await ValidateAccountAsync(token).ConfigureAwait(false); }
         if (!Live(token)) { throw new InvalidOperationException("MCP admission changed during validation."); }
     }
 
@@ -398,7 +396,16 @@ internal sealed partial class McpInvocation(
         token.ThrowIfCancellationRequested();
         if (!Live(token)) { throw new InvalidOperationException("The original MCP result presentation was retired."); }
         await configuration.ValidateCurrentAsync(descriptor!, token).ConfigureAwait(false);
+        await ValidateAccountAsync(token).ConfigureAwait(false);
         if (!Live(token)) { throw new InvalidOperationException("The original MCP result source was retired."); }
+    }
+
+    private async Task ValidateAccountAsync(CancellationToken token)
+    {
+        var accounts = await broker.ReadAccountsAsync(token).ConfigureAwait(false);
+        token.ThrowIfCancellationRequested();
+        if (!accounts.Any(choice => choice.Reference == account))
+        { throw new InvalidOperationException("The exact MCP result's delegated account is no longer available."); }
     }
 
     private static string Hash(string value) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(value)));

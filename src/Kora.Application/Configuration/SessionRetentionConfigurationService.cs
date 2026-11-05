@@ -63,10 +63,15 @@ public sealed class SessionRetentionConfigurationService(
         long callRevision, Func<bool> eligible, CancellationToken token)
     {
         value?.Validate();
-        lock (gate) { revision = checked(revision + 1); }
-        Changed?.Invoke(this, EventArgs.Empty);
+        lock (gate)
+        {
+            if (applying) { throw new InvalidOperationException("Session-retention preference is committing."); }
+            revision = checked(revision + 1);
+            applying = true;
+        }
         try
         {
+            Changed?.Invoke(this, EventArgs.Empty);
             var accepted = await admission.RunAsync(RequestOrigin.LocalUi, eligible, (request, _) =>
             {
                 lock (gate)
@@ -79,7 +84,6 @@ public sealed class SessionRetentionConfigurationService(
                         "configuration.session-retention", SecurityAuditOutcome.Requested,
                         SecurityAuditInitiator.LocalUser, "preferences.device-local");
                     auditLog.Write(audit);
-                    applying = true;
                     var denied = callPolicy.CommitVoiceSetting(request.Origin, callRevision,
                         () => eligible() && !token.IsCancellationRequested && preferences.Load() == observed, () =>
                         {

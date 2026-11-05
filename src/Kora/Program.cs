@@ -593,6 +593,7 @@ internal static class Program
         services.AddSingleton<SessionInstructionScopeCommandService>();
         services.AddSingleton<SessionRequestCommandService>();
         services.AddSingleton<SessionRetentionCommandService>();
+        services.AddSingleton<SessionPermissionCommandService>();
         services.AddSingleton<SessionRetentionApplyService>();
         services.AddSingleton<ConversationSearchCommandService>();
         services.AddSingleton<SessionRemainingWorkCommandService>();

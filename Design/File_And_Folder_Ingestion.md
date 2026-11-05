@@ -655,6 +655,16 @@ preferences. Publication binds complete metadata and encrypted original-byte
 snapshots atomically; removal revokes first and deletes only inventoried Kora
 copies, clearing the owned persistent journal before reporting success.
 
+Every retained inspection, refresh, replacement publication, disable and removal
+compares the complete observed source inventory at the authoritative store
+boundary, not just its ID/version. Name, lifecycle state, changed time, retained
+copy byte count and structural root/traversal/directory/file metadata must still
+match. Same-version inventory drift is rejected before content disclosure or
+mutation; reload and review the current inventory instead of silently targeting
+its replacement. Structurally identical observations remain valid after reopen.
+The [exact-inventory regressions](../tests/Kora.Windows.IntegrationTests/KnowledgeSources/WindowsKnowledgeSourceTests.ExactInventory.cs)
+cover all existing store operations and unchanged durable state on rejection.
+
 Inspection checks original access/identity/membership without rereading content.
 Old revisions become unavailable when refresh starts, including failed refresh.
 Adding, refreshing and enabling are not model consent. The

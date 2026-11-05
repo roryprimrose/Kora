@@ -434,6 +434,67 @@ test('independent main early failure is negative terminal evidence, not successf
     assert.equal(full.terminal, false);
     assert.equal(value.calls.some(call => ['createWorkflowDispatch', 'cancelWorkflowRun'].includes(call[0])), false);
   });
+
+test('terminal failed publication exposes blocked health only with complete physical evidence and yields to observed recovery', async () => {
+  const source = '042232e948053c44bbc5f3b92bd6a7eda486a3a3';
+  const run = { id: 41876386020, run_attempt: 1, head_sha: source, status: 'completed',
+    conclusion: 'failure', event: 'workflow_dispatch', head_branch: 'main', display_title: 'CI main',
+    path: '.github/workflows/ci.yml', repository: { full_name: 'owner/repo' },
+    head_repository: { full_name: 'owner/repo' } };
+  const jobs = [...DELIVERY_JOBS, 'Publish completed batch release', 'Qualify completed batch tip']
+    .map((name, index) => ({ id: index + 1, name, status: 'completed', conclusion: 'success',
+      run_id: run.id, run_attempt: 1, head_sha: source }));
+  const publisher = jobs.find(job => job.name === 'Publish completed batch release');
+  Object.assign(publisher, { id: 126747376970, conclusion: 'failure' });
+  Object.assign(jobs.at(-1), { id: 126749535286, conclusion: 'failure' });
+  const tip = { sha: source, qualificationOwner: { run: run.id, source, attempt: 1 } };
+  const runs = [run];
+  const value = fixture({ getContent: () => workflowContent(
+    '# merge-queue-job-schema: windows-12-v1\n# merge-queue-delivery-schema: independent-v1\n'),
+    listWorkflowRuns: () => ({ total_count: runs.length, workflow_runs: runs }),
+    listJobsForWorkflowRunAttempt: ({ run_id }) => {
+      const observed = run_id === run.id ? jobs : jobs.map(job => ({ ...job, run_id, conclusion: 'success' }));
+      return { total_count: observed.length, jobs: observed };
+    } });
+  const blocked = { status: 'BLOCKED_PUBLICATION', source, run: run.id, attempt: 1,
+    job: publisher.id, conclusion: 'failure', recovery: 'authorized-recovery-required' };
+  assert.deepEqual((await value.api.tipQualification(tip)).health, blocked);
+  for (const change of ['pending', 'missing', 'duplicate', 'cancelled-not-quiescent', 'wrong-source', 'wrong-attempt',
+    'wrong-repository', 'wrong-workflow']) {
+    const saved = structuredClone(jobs);
+    const target = jobs.find(job => job.name === 'Publish completed batch release');
+    if (change === 'pending') run.status = 'in_progress';
+    if (change === 'missing') jobs.shift();
+    if (change === 'duplicate') jobs.push({ ...target, id: 999 });
+    if (change === 'cancelled-not-quiescent') {
+      target.conclusion = 'cancelled';
+      jobs[0].status = 'in_progress';
+    }
+    if (change === 'wrong-source') target.head_sha = OTHER;
+    if (change === 'wrong-attempt') target.run_attempt = 2;
+    if (change === 'wrong-repository') run.repository.full_name = 'untrusted/fork';
+    if (change === 'wrong-workflow') run.path = '.github/workflows/forged.yml';
+    if (['wrong-source', 'wrong-attempt'].includes(change)) await assert.rejects(value.api.tipQualification(tip), /identity/);
+    else assert.equal((await value.api.tipQualification(tip)).health, undefined, change);
+    jobs.splice(0, jobs.length, ...saved);
+    run.status = 'completed';
+    run.repository.full_name = 'owner/repo';
+    run.path = '.github/workflows/ci.yml';
+  }
+  value.responses.listWorkflowRuns = () => { throw error(503); };
+  await assert.rejects(value.api.tipQualification(tip), /503/);
+  value.responses.listWorkflowRuns = () => ({ total_count: runs.length, workflow_runs: runs });
+  runs.push({ ...run, id: run.id + 1, status: 'in_progress', conclusion: null });
+  const pendingRecovery = await value.api.tipQualification(tip);
+  assert.equal(pendingRecovery.owner.run, run.id + 1);
+  assert.equal(pendingRecovery.health, undefined);
+  assert.equal(pendingRecovery.qualification, null);
+  Object.assign(runs.at(-1), { status: 'completed', conclusion: 'success' });
+  const recovery = await value.api.tipQualification(tip);
+  assert.equal(recovery.health, undefined);
+  assert.equal(recovery.qualification.run, run.id + 1);
+  assert.equal(value.calls.some(call => ['createWorkflowDispatch', 'cancelWorkflowRun'].includes(call[0])), false);
+});
 test('App check protection must include every required identity, strict freshness and administrators', async () => {
   await fixture().api.verifyProtection();
   for (const missing of ['strict', 'admins', ...CHECKS, GATE, 'source']) {
@@ -830,7 +891,7 @@ test('a late recovered ticket cannot admit expensive candidate work after its re
 });
 
 test('decision logs and warnings appear in both the console and awaited Actions summary', async () => {
-  for (const result of ['idle', 'dispatched', 'failed']) {
+  for (const result of ['idle', 'dispatched', 'blocked-publication', 'failed']) {
     const value = fixture();
     const summaryCalls = [];
     let written = false;

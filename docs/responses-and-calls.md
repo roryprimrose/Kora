@@ -144,11 +144,31 @@ ordinal text, then again for descending. Equal values keep original order.
 **Reset table order** restores original order and the last focused cell.
 Reopening starts in original order. Sorting never edits the answer.
 
+To read a whole sorted row together, click or focus a data cell and choose
+**Inspect focused row**, or press Enter/Space on the cell. The readback lists every
+complete value with its header, current row and original row, including empty
+cells. **Return to inspected cell** goes back to that exact cell even after
+sorting or reset. This is read-only native text, not speech or copying; reopening
+starts without an inspected row ([row inspection](../src/Kora/NativeTableControl.Inspection.cs)).
+
 **Continuous text** and **Exact source** retain their existing selection and
 literal Find behavior. No table action copies content or grants clipboard
 access. Closing or retiring the original result retires its navigation too.
 An unavailable table profile still shows the complete source, not an incomplete
 table; these controls do not enable an unqualified profile.
+
+### See a literal match in context
+
+Use **Find first**, **Next** or **Previous** in Details, then choose **Show match
+in reader** to select and reveal that exact occurrence with its surrounding text.
+A rendered result switches to **Continuous text**; **Exact source** stays in its
+original projection. Find does not wrap at either end.
+
+The button is unavailable after query edits, Cancel/Clear, projection changes or
+direction exhaustion until another match is found. Separate typed HOST matches
+stay in their own observation, never in the answer or original USER body.
+Showing a match reads no additional source and grants no copy permission.
+Closing or losing access clears the reader and its selection.
 
 ### Wrap or horizontally scroll Details text
 

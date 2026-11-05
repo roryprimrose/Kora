@@ -293,6 +293,15 @@ full clipboard answering and real native acceptance remain unavailable/open.
 
 #### Exact request outcomes and causal diagnostics
 
+An explicitly read conversation also offers **Read this request's audit** for one actual retained message.
+The [native operation](../src/Kora/SessionsViewModel.RequestEvidence.cs) freshly resolves that exact retained source, reads only its session/request/task's committed AuthorityAudit evidence and revalidates the original before publication in the existing integrated Details pane.
+Separate signed **Next request-audit snapshot page** controls preserve the exact query and snapshot; missing or incomplete terminal evidence is not current work state, success or effect proof.
+
+This is the original-message-to-audit interaction, not another renderer, a diagnostic-to-authority promotion or command preparation.
+[Source/page validation](../src/Kora/SessionsViewModel.Details.cs) preserves the retained message, private control, native presenter, selected session and audit-record identity across awaited reads and passive revalidation; retired controls cannot read a replacement.
+No replay, model/provider, clipboard/export, grant, activity renewal or retention write is added. Existing native-only evidence admission remains unchanged.
+[Deterministic native regressions](../tests/Kora.Windows.IntegrationTests/AdaptiveInteractionTests.RequestEvidence.cs) are Implementation evidence, not provider, installed accessibility or E/Q qualification.
+
 In the explicit Evidence window, select a typed **Audit** or **AuthorityAudit**
 record and choose **Read request outcomes**. The existing bounded reader freshly
 resolves its original session, host request and typed audit correlation within

@@ -49,6 +49,10 @@
           <Button Name="OpenConversationDetail" Content="Message details"
               IsEnabled="{Binding $parent[UserControl].DataContext.CanOpenConversationDetails}"
               HorizontalAlignment="Left" />
+          <Button Name="ReadRequestAudit" Content="Read this request's audit"
+              IsEnabled="{Binding $parent[UserControl].DataContext.CanReadConversation}"
+              AutomationProperties.Name="Read committed audit evidence for this exact original message request and task; no replay or model call"
+              HorizontalAlignment="Left" />
         </StackPanel>
       </Border>
     </DataTemplate>

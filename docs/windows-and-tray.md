@@ -304,6 +304,18 @@ labelled as separate from the selected conversation and do not retarget its inpu
 Supported Markdown renders natively. Mermaid remains labelled source fallback;
 this change does not enable HTML or browser capabilities.
 
+### Read the audit for one original message
+
+After explicitly reading a conversation, choose **Read this request's audit** beside one original message.
+Kora reads only committed **AuthorityAudit** records for that exact original session, request and task, then opens the existing Details pane. It does not read other requests, replay the operation or call a model ([native action](../src/Kora/SessionsViewModel.RequestEvidence.cs)).
+
+**Next request-audit snapshot page** continues the same bounded signed snapshot; it does not refresh or widen the query.
+Missing records or terminal evidence do not prove that work is running, succeeded or had an effect. The page labels its availability and whether more bounded evidence remains.
+This native-only inspection retains the existing local-UI evidence admission, not a new voice or model route ([shared reader](../src/Kora.Application/Diagnostics/DurableEvidenceQuery.cs)).
+
+The original retained message is revalidated before and after the read and during passive page revalidation. Message/source, selection, private-control or native-presenter retirement blocks late publication and old Next controls ([source fences](../src/Kora/SessionsViewModel.RequestEvidence.cs)).
+Reading leaves unsent input, session lifecycle, meaningful activity, grants and independent audit retention unchanged; no clipboard, export, speech or context-use authority is added ([page validation](../src/Kora/SessionsViewModel.Details.cs)).
+
 ### Workspace surface navigation
 
 Type `open all work` or `open compact conversation`, or use the current assistant-name activated prefix. These exact routes activate the existing tray/UI singleton controllers. `open sessions` now expands the primary interaction window, as do `show sessions`, `show me the current sessions` and `expand conversation`. No model window-focus route is available.

@@ -20,12 +20,12 @@ public sealed class SettingInspectionWindowTests
         await HeadlessSession.RunAsync(async () =>
         {
             var transport = new SettingsDiscoveryWorkflowTests.Transport(
-                """{"kind":"toolCalls","calls":[{"callId":"get_1","capabilityId":"settings.get","input":{"id":"speech.summary-words"}}]}""",
-                """{"kind":"answer","answer":"The confirmed default summary cap is 80 words."}""");
+                """{"kind":"toolCalls","calls":[{"callId":"get_1","capabilityId":"settings.get","input":{"id":"appearance.presence-timeout"}}]}""",
+                """{"kind":"answer","answer":"The confirmed default presence timeout is 10 seconds, size is 360 pixels and movement speed is 100 percent."}""");
             await using var f = new SettingInspectionWorkflowTests.Fixture(transport: transport);
             await f.InitializeAsync();
             var presenter = new SettingInspectionPresenter(f.Workflow, () => () => true, () => () => true, f.Storage.Time)
-            { Question = "What controls spoken summaries?" };
+            { Question = "Why does Kora disappear so quickly, and what presence size and movement settings am I using?" };
             var failures = new List<Exception>();
             var window = new SettingInspectionWindow(presenter, failures.Add);
             window.Show();
@@ -41,9 +41,18 @@ public sealed class SettingInspectionWindowTests
                 transport.Requests.Should().BeEmpty();
                 await ((AsyncCommand)Button(window, "Inspect confirmed settings and review").Command!).ExecuteAsync();
                 presenter.ReviewText.Should().Contain("ONLY settings.list/settings.get")
-                    .And.Contain("speech.summary-words").And.Contain("value-unavailable");
+                    .And.Contain("appearance.presence-timeout = 10 seconds")
+                    .And.Contain("appearance.presence-size = 360 pixels")
+                    .And.Contain("appearance.dot-size = 100 percent")
+                    .And.Contain("appearance.dot-density = 100 percent")
+                    .And.Contain("appearance.movement-speed = 100 percent")
+                    .And.Contain("appearance.speech-scaling = true boolean")
+                    .And.Contain("appearance.speech-scale-amount = 100 percent")
+                    .And.Contain("appearance.reduced-motion = false boolean")
+                    .And.Contain("value-unavailable").And.Contain(presenter.Question);
                 await ((AsyncCommand)Button(window, "Confirm ONE settings-discovery LocalOnly request").Command!).ExecuteAsync();
-                presenter.Answer.Should().Be("The confirmed default summary cap is 80 words.");
+                presenter.Answer.Should().Be(
+                    "The confirmed default presence timeout is 10 seconds, size is 360 pixels and movement speed is 100 percent.");
                 transport.Requests.Should().HaveCount(2);
                 f.Preferences.Writes.Should().Be(0);
                 f.Playback.Effects.Should().Be(0);

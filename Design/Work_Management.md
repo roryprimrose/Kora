@@ -459,6 +459,15 @@ and [behavioral regressions](../tests/Kora.Application.UnitTests/Dependencies/Mo
 Cancellation wins atomically against dispatch, preserves submitted history and
 unrelated requests, and has zero provider/egress/resource effects for that
 pending turn. Active cancellation stays with the existing running-turn owner.
+The [exact pending cancellation owner](../src/Kora.Application/Hosting/SessionConversationService.Pending.cs)
+retains its initiating original-user admission through terminal commit and readback,
+using the existing canonical pending-only session/metadata guard rather than
+borrowing the original submission's independent source. Source retirement or a
+changed target before commit leaves the original intent unconfirmed, without a
+cancelled receipt. Source retirement after commit leaves the durable Cancelled
+record intact but refuses confirmed readback; it is not rollback or retry.
+Both cases retain the recovery hold and leave running/unrelated work untouched
+([UI/voice boundary regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Pending.cs)).
 Logical cancellation and caller observation retirement do not release physical
 resources; the service retains and joins its workers, quarantining uncertain
 late output through the runtime. Restart uses existing Interrupted/Unknown

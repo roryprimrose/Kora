@@ -365,6 +365,14 @@ public sealed partial class AgentRunSetTests
             Messages[request.RequestId] = Messages[request.RequestId] with { Revision = 2, Outcome = outcome, Reason = reason };
             return ValueTask.FromResult(Publish(request, Messages[request.RequestId].ExpectedTaskState));
         }
+        public ValueTask<ConversationSubmissionReceipt> CancelPendingConversationSubmissionAsync(HostRequest request,
+            SessionWorkspaceEntry expected, Func<bool> admitted, CancellationToken token)
+        {
+            if (expected != Sessions.Single(item => item.Authority.SessionId == request.SessionId)
+                || Tasks[request.TaskId].Task.State != HostTaskState.IntentRecorded)
+            { throw new InvalidOperationException("The exact pending cancellation source changed."); }
+            return CompleteConversationSubmissionAsync(request, ModelTurnOutcome.Cancelled, ModelTurnReason.CallerCancelled, admitted, token);
+        }
         private ConversationSubmissionReceipt Publish(HostRequest request, HostTaskState state)
         {
             var message = Messages[request.RequestId];

@@ -339,6 +339,8 @@ public sealed partial class SessionConversationService
                 expected.Submission.Task.Request.TaskId, origin), HostActivityLayer.Application, HostOperation.Request,
                 [pending.Cause]);
             AuditPendingControl("conversation.pending-cancel", Live, origin);
+            pending.PendingCancellationCurrent = Live;
+            pending.PendingCancellationTarget = target;
             pending.CancelRequested = true;
             lane.Paused = true;
             lane.Pulse();

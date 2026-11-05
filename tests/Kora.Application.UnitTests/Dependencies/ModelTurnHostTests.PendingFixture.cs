@@ -44,9 +44,10 @@ public sealed partial class ModelTurnHostTests
         public ValueTask<ConversationSubmissionReceipt> CancelPendingConversationSubmissionAsync(HostRequest request,
             SessionWorkspaceEntry expected, Func<bool> admitted, CancellationToken token)
         {
-            if (expected != new SessionWorkspaceEntry(Session, Metadata) || !admitted())
+            bool Current() => expected == new SessionWorkspaceEntry(Session, Metadata) && admitted();
+            if (!Current())
             { throw new InvalidOperationException("The canonical pending cancellation source changed."); }
-            return CompleteConversationSubmissionAsync(request, ModelTurnOutcome.Cancelled, ModelTurnReason.CallerCancelled, admitted, token);
+            return CompleteConversationSubmissionAsync(request, ModelTurnOutcome.Cancelled, ModelTurnReason.CallerCancelled, Current, token);
         }
     }
 }

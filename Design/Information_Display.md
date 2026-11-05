@@ -101,12 +101,21 @@ to fit the reader width. The native checkbox supports pointer, keyboard and togg
 automation. It is hidden while reading the structured document, whose code-block
 wrapping remains separate.
 
-The choice belongs only to that view's lifetime, not a saved setting. It does not
-change the immutable source, logical lines, selection, caret or literal Find
-cursor/count, and it neither reads another source nor acquires clipboard authority.
+The choice is volatile presentation state, not a saved setting. Integrated session
+Details includes it in the existing bounded exact-reference reading-position
+snapshot. Hide releases text and Find; explicit Show repeats current admission,
+then restores the projection and wrapping before layout and scroll offsets so a
+wide result does not lose its horizontal reading position. A different reference
+without a remembered position starts wrapped. Source/private retirement does not
+grant restoration authority. The offsets settle after the initial native caret
+reveal; intervening input or retirement cancels that deferred restoration.
+This includes Alt+H heading-index navigation: its explicit focus and scroll take precedence over a pending restored offset ([native regression](../tests/Kora.Windows.IntegrationTests/FinalDocumentInteractionTests.Headings.cs)).
+Toggling wrapping does not change the immutable source, logical lines, selection,
+caret or literal Find cursor/count, and it neither reads another source nor acquires
+clipboard authority.
 Source/private retirement clears the reader and disables the old control; reopen
-the exact source through its normal admission route to recover. A newly opened
-reader starts wrapped. Deterministic native regressions are implementation
+the exact source through its normal admission route to recover. An independent
+new reader starts wrapped. Deterministic native regressions are implementation
 evidence, not installed assistive-technology qualification.
 
 ## Delivered passive exact-conversation search - 2026-10-13

@@ -3,6 +3,7 @@ using AwesomeAssertions;
 using Kora.Application.Communication;
 using Kora.Application.Configuration;
 using Kora.Core.Auditing;
+using Kora.Core.Authorization;
 using Kora.Core.Configuration;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -46,6 +47,116 @@ public sealed class LogonStartupConfigurationServiceTests : IDisposable
         f.Audit.Events.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
         f.Audit.Events.Should().OnlyContain(item => string.Equals(item.ActionId, "configuration.start-at-logon", StringComparison.Ordinal));
         await f.Invoking(item => item.Confirm(review)).Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Theory]
+    [InlineData("creation", RequestOrigin.LocalUi)]
+    [InlineData("operation", RequestOrigin.LocalUi)]
+    [InlineData("receipt", RequestOrigin.LocalUi)]
+    [InlineData("creation", RequestOrigin.ActivatedVoice)]
+    [InlineData("operation", RequestOrigin.ActivatedVoice)]
+    [InlineData("receipt", RequestOrigin.ActivatedVoice)]
+    public async Task CancelDuringReviewCannotPublishLateConsentAndFreshReviewCanComplete(string boundary, RequestOrigin origin)
+    {
+        await using var f = new Fixture();
+        var creation = new TaskCompletionSource<WorkSessionAuthorization>(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (boundary is "receipt") { await f.Inspect(); }
+        if (boundary is "creation") { f.Store.PendingCreation = creation.Task; }
+        if (boundary is "operation") { f.Store.AfterOperation = f.Service.Cancel; }
+        if (boundary is "receipt")
+        {
+            f.Store.BeforeCommit = task =>
+            {
+                if (task.State == HostTaskState.Succeeded) { f.Service.Cancel(); }
+            };
+        }
+        var pending = f.Review(true, origin);
+        if (boundary is "creation")
+        {
+            pending.IsCompleted.Should().BeFalse();
+            f.Store.Authority.Should().NotBeNull();
+            f.Service.Cancel();
+            creation.SetResult(f.Store.Authority!);
+        }
+        var complete = () => pending;
+        await complete.Should().ThrowAsync<InvalidOperationException>();
+        f.Service.Get().Available.Should().BeFalse();
+        f.Registration.Writes.Should().Be(0);
+        f.Preferences.Writes.Should().Be(0);
+        f.Preferences.Pending.Should().BeFalse();
+        f.Audit.Events.Should().BeEmpty();
+
+        f.Store.PendingCreation = null;
+        f.Store.AfterOperation = null;
+        f.Store.BeforeCommit = null;
+        var recovered = await f.Review(true, origin);
+        f.Preferences.Writes.Should().Be(0);
+        (await f.Service.ConfirmAsync(recovered, origin,
+            origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.LocalUser,
+            f.Policy, () => f.Eligible, TestContext.Current.CancellationToken)).Should().BeTrue();
+        f.Service.Get().Should().Be(new LogonStartupState(true, true, true, null));
+        f.Preferences.Value.Should().BeTrue();
+        f.Preferences.Pending.Should().BeFalse();
+        f.Registration.Writes.Should().Be(1);
+        f.Preferences.Writes.Should().Be(1);
+        f.Audit.Events.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+    }
+
+    [Fact]
+    public async Task CancelDuringRequestedAuditDeniesTheConsumedReviewWithoutWriting()
+    {
+        await using var f = new Fixture();
+        var review = await f.Review(true);
+        f.Audit.BeforeWrite = item =>
+        {
+            if (item.Outcome == SecurityAuditOutcome.Requested) { f.Service.Cancel(); }
+        };
+        (await f.Confirm(review)).Should().BeFalse();
+        f.Registration.Writes.Should().Be(0);
+        f.Preferences.Writes.Should().Be(0);
+        f.Preferences.Pending.Should().BeFalse();
+        f.Audit.Events.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Denied);
+        await f.Invoking(item => item.Confirm(review)).Should().ThrowAsync<InvalidOperationException>();
+
+        f.Audit.BeforeWrite = null;
+        (await f.Confirm(await f.Review(true))).Should().BeTrue();
+        f.Service.Get().Should().Be(new LogonStartupState(true, true, true, null));
+        f.Preferences.Pending.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("inspection")]
+    [InlineData("write")]
+    [InlineData("receipt")]
+    [InlineData("confirmation")]
+    public async Task CancellationSuppressesLateReadbackWithoutRollingBackCommittedEffects(string boundary)
+    {
+        await using var f = new Fixture();
+        if (boundary is "inspection")
+        {
+            f.Store.AfterOperation = f.Service.Cancel;
+            await f.Invoking(item => item.Inspect()).Should().ThrowAsync<InvalidOperationException>();
+            f.Registration.Writes.Should().Be(0);
+            f.Preferences.Writes.Should().Be(0);
+            f.Audit.Events.Should().BeEmpty();
+        }
+        else
+        {
+            var review = await f.Review(true);
+            if (boundary is "write") { f.Preferences.AfterSave = f.Service.Cancel; }
+            if (boundary is "receipt") { f.Store.AfterOperation = f.Service.Cancel; }
+            if (boundary is "confirmation") { f.Preferences.AfterConfirm = f.Service.Cancel; }
+            await f.Invoking(item => item.Confirm(review)).Should().ThrowAsync<InvalidOperationException>();
+            f.Registration.Writes.Should().Be(1);
+            f.Registration.State.Enabled.Should().BeTrue();
+            f.Preferences.Writes.Should().Be(1);
+            f.Preferences.Value.Should().BeTrue();
+            f.Preferences.Pending.Should().BeTrue();
+            f.Audit.Events.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+        }
+        f.Service.Get().Available.Should().BeFalse();
+        f.Service.Get().Effective.Should().BeNull();
+        f.Service.Get().Description.Should().Contain("No automatic retry or rollback");
     }
 
     [Theory]

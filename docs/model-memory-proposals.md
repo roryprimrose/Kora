@@ -25,6 +25,9 @@ In an Active conversation, explicitly select **Review session-memory proposal...
 
 Review expires after 60 seconds. Refresh, reselection, source withdrawal, privacy/control changes, session lifecycle changes and closure retire the old review. Each consequential action requires fresh original-user input and rechecks the exact retained source; stale or replayed approval is not reusable. Failures may leave an uncertain committed result: inspect Session memories and audit receipts, never automatically retry or infer rollback ([workflow](../src/Kora.Application/Memory/ModelProposals/MemoryManagementService.ModelProposals.cs), [native lifecycle](../src/Kora/ModelMemoryProposals/SessionsViewModel.ModelMemoryProposals.cs)).
 
+Starting a model-memory proposal action also retires open Session and Device-profile memory-use reviews. Replacement use reviews remain closed until the source and transaction work finishes, including cancellation or failure.
+Afterwards, explicitly review the selected memories and question again before separate confirmation; old consent never resumes ([shared mutation boundary](../src/Kora.Application/Memory/ModelProposals/MemoryManagementService.ModelProposals.cs)).
+
 ## Boundaries and availability
 
 The candidate remains lower-trust MODEL data. Its durable lineage points to the actual source request, task, original channel and session generation; inspection includes full retained model-turn provenance. Existing session memory policy, retention/deletion and manual memory management remain authoritative. No device-profile, project, source-scope promotion, background learning, automatic recall or hosted egress is added ([memory contract](../Design/Model_Providers_Memory_And_Knowledge.md#user-governed-durable-memory), [memory admission](../src/Kora.Application/Memory/MemoryAdmissionService.cs)).

@@ -99,7 +99,8 @@ internal sealed partial class MemoryManagementService
     }
 
     private async Task RunMemorySourceReviewAsync(SessionWorkspaceEntry target, Func<bool> admitted,
-        Func<HostRequest, Func<bool>, ValueTask<MemoryCommandResult>> operation, CancellationToken token)
+        Func<HostRequest, Func<bool>, ValueTask<MemoryCommandResult>> operation, CancellationToken token,
+        bool mutating = true)
     {
         var issuer = HostActivity.RequireCurrent();
         var input = issuer.Request;
@@ -107,9 +108,16 @@ internal sealed partial class MemoryManagementService
         { throw new InvalidOperationException("Model-memory input belongs to another session."); }
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, lifetime.Token);
         token = linked.Token;
+        if (mutating)
+        { contextSource.Invalidate(); profileContextSource.Invalidate(); }
         await gate.WaitAsync(token).ConfigureAwait(false);
         try
         {
+            if (mutating)
+            {
+                contextSource.SetMutationInProgress(true);
+                profileContextSource.SetMutationInProgress(true);
+            }
             ObjectDisposedException.ThrowIf(disposed, this);
             var control = access.ControlRevision;
             bool Live() => !disposed && !token.IsCancellationRequested && access.ControlRevision == control
@@ -121,6 +129,18 @@ internal sealed partial class MemoryManagementService
             token.ThrowIfCancellationRequested();
             if (!Live()) { throw new InvalidOperationException("Model-memory result unconfirmed after source closure. Inspect memory receipts; no rollback or retry is claimed."); }
         }
-        finally { access.Admitted = static () => false; gate.Release(); }
+        finally
+        {
+            access.Admitted = static () => false;
+            try
+            {
+                if (mutating)
+                {
+                    contextSource.SetMutationInProgress(false);
+                    profileContextSource.SetMutationInProgress(false);
+                }
+            }
+            finally { gate.Release(); }
+        }
     }
 }

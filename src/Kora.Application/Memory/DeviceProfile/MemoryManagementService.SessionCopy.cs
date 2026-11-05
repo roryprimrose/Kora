@@ -22,7 +22,7 @@ internal sealed partial class MemoryManagementService
             }
             await ValidateSessionCopySourceAsync(target, source, token).ConfigureAwait(false);
             return new("observed", "Complete source and independent scope/lifetime review; no candidate created.");
-        }, token).ConfigureAwait(false);
+        }, token, mutating: false).ConfigureAwait(false);
         return new(this, target, source, input, access.ControlRevision, contextTime.GetUtcNow().AddSeconds(60), admitted);
     }
 

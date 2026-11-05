@@ -55,7 +55,17 @@ Each type has three source groups:
 - **User**: supported Copilot skill folders and VS Code/VS Code Insiders user
   profile sources. The source path distinguishes identical names and profiles.
 
-Search matches names and source paths, not artifact bodies. Built-in groups can
+Use **Filter artifacts** to narrow the selected category as you type. Matching is
+case-insensitive across names, source paths, source groups and the displayed
+**Disabled** label; surrounding whitespace is ignored. The count shows matching
+and total artifacts for that category. **Clear** restores its full list, and the
+filter stays in place when you switch categories without discarding editor text
+([native filter](../src/Kora/CustomizationWindow.cs)).
+
+Filtering uses already-listed metadata, not artifact bodies or MCP tool schemas;
+it never reads a definition, connects to a server or invokes a tool
+([filter regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.Filter.cs)).
+Built-in groups can
 be empty for a type. Selecting an artifact reads its complete bounded file set as
 plain source; it does not execute scripts, invoke agents or connect MCP servers.
 Binary, oversized, unsafe-path or unsupported packages report an error rather

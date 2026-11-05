@@ -12,9 +12,12 @@ const tip = () => ({ delivery: 'independent-v1', sha: sha(1), tree: sha(2), base
   validation: { run: 42, attempt: 1, source: sha(4), workflow: sha(3), inventory: sha(5), schema: 'windows-12-delivery-v1' } });
 
 test('new failed-preflight physical retirement is bound to the exact reviewed workflow and all twenty no-fanout jobs', () => {
-  const bytes = Buffer.from(fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8').replaceAll('\r\n', '\n'));
+  const bytes = Buffer.from(fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-3ed51a1b.yml'), 'utf8').replaceAll('\r\n', '\n'));
   assert.equal(createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex'), REJECTED_DELIVERY_BLOB);
   assert.equal(REJECTED_DELIVERY_JOBS.length, 20);
+  const current = Buffer.from(fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8').replaceAll('\r\n', '\n'));
+  const currentBlob = createHash('sha1').update(`blob ${current.length}\0`).update(current).digest('hex');
+  assert.notEqual(currentBlob, REJECTED_DELIVERY_BLOB);
   for (const failed of ['Admit CI execution', 'Resolve build version']) {
     const run = { id: 42, run_attempt: 1, head_sha: sha(1), status: 'completed', conclusion: 'failure',
       event: 'workflow_dispatch', head_branch: 'main' };
@@ -25,6 +28,7 @@ test('new failed-preflight physical retirement is bound to the exact reviewed wo
     assert.equal(terminalRejectedAdmission(run, jobs, REJECTED_DELIVERY_BLOB), false);
     assert.equal(terminalRejectedPreflight(run, jobs, REJECTED_DELIVERY_BLOB), false);
     assert.equal(terminalRejectedDelivery(run, jobs, sha(9)), false);
+    assert.equal(terminalRejectedDelivery(run, jobs, currentBlob), false);
     assert.equal(terminalRejectedDelivery({ ...run, run_attempt: 2 }, jobs, REJECTED_DELIVERY_BLOB), false);
     assert.equal(terminalRejectedDelivery(run, jobs.slice(1), REJECTED_DELIVERY_BLOB), false);
     for (const change of [{ status: 'in_progress', conclusion: null }, { id: 1 }, { name: 'unknown' },
@@ -62,6 +66,50 @@ test('completed-source authority is immutable and excludes transient main qualif
   source.admission.base = sha(9);
   source.manifest = require('./batch-policy.cjs').digest(source.admission);
   assert.throws(() => releaseRecord(source));
+});
+
+test('independent completed-source records preserve historical, unit-only and parallel proof schemas without cross-schema authority', () => {
+  const { DELIVERY_JOBS, UNIT_PR_JOBS, PARALLEL_PR_JOBS } = require('./policy.cjs');
+  const { digest } = require('./batch-policy.cjs');
+  const inventories = [['windows-12-delivery-v1', DELIVERY_JOBS], ['unit-pr-v1', UNIT_PR_JOBS],
+    ['parallel-pr-v1', PARALLEL_PR_JOBS]];
+  for (const [schema, jobs] of inventories) {
+    for (const batch of [false, true]) {
+      const source = tip();
+      source.validation.schema = schema;
+      if (batch) {
+        source.admission = { schema: 'batch-manifest-v1', ticket: source.ticket, base: source.base,
+          combined: source.combined, inventory: { blob: source.validation.inventory, schema, jobs: [...jobs] },
+          prefixes: [{ sha: source.combined, tree: source.tree }] };
+        source.manifest = digest(source.admission);
+      }
+      const record = releaseRecord(source);
+      assert.equal(record.validation.schema, schema);
+      assert.deepEqual(validateRelease(record, source.sha), record);
+      for (const invalid of ['windows-12-v1', 'future-v1', undefined]) {
+        const changed = structuredClone(source);
+        changed.validation.schema = invalid;
+        if (batch) {
+          changed.admission.inventory.schema = invalid;
+          changed.manifest = digest(changed.admission);
+        }
+        assert.throws(() => releaseRecord(changed), /completed-source proof/);
+        assert.throws(() => validateRelease({ ...record, validation: changed.validation,
+          ...(batch ? { admission: changed.admission, manifest: changed.manifest } : {}) }, source.sha),
+        /completed-source record/);
+      }
+      if (batch) {
+        for (const [other] of inventories.filter(([name]) => name !== schema)) {
+          const changed = structuredClone(source);
+          changed.admission.inventory.schema = other;
+          changed.manifest = digest(changed.admission);
+          assert.throws(() => releaseRecord(changed), /completed-source proof/);
+          assert.throws(() => validateRelease({ ...record, admission: changed.admission,
+            manifest: changed.manifest }, source.sha), /completed-source record/);
+        }
+      }
+    }
+  }
 });
 
 test('only complete ordinary source changes defer physical candidate packaging', () => {

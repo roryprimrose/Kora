@@ -51,8 +51,13 @@ public sealed partial class SessionsConversationTests
     [InlineData(false, false, false, true, false)]
     [InlineData(false, false, false, false, true)]
     [InlineData(false, true, false, false, true)]
+    [InlineData(false, false, false, false, false, "application/json; charset=utf-8")]
+    [InlineData(false, true, false, false, false, "APPLICATION/JSON; CHARSET=UtF-8")]
+    [InlineData(false, false, false, false, false, "Application/Json; Charset=\"UtF-8\"")]
+    [InlineData(false, true, false, false, false, "Application/Json; Charset=\"UtF-8\"")]
     public async Task Native_mcp_reviews_connects_selects_invokes_and_retains_actual_result_without_live_account_or_network(
-        bool deny, bool explicitUser, bool cancelIgnored, bool denyResult, bool cancelSelection)
+        bool deny, bool explicitUser, bool cancelIgnored, bool denyResult, bool cancelSelection,
+        string contentType = "application/json; charset=\"utf-8\"")
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -68,7 +73,7 @@ public sealed partial class SessionsConversationTests
                 Path.Combine(f.Paths.RoamingRoot, "test-profile"));
             var server = configuration.Load().Single();
             preferences.Value = new([], [], [], [], [], [server.Id]);
-            using var broker = new McpTransportFixture();
+            using var broker = new McpTransportFixture { ResponseContentType = contentType };
             var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             var pending = new TaskCompletionSource<System.Net.Http.HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
             if (cancelIgnored)

@@ -661,6 +661,16 @@ Adding, refreshing and enabling are not model consent. The
 [named answer owner](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerWorkflow.cs)
 now supports one fresh question over one explicitly selected enabled retained revision,
 with exact excerpt review and separate one-shot private LocalOnly/no-tools consent.
+The [optional chosen-evidence review](../src/Kora.Core/KnowledgeSources/KnowledgeSourceAnswerReview.cs)
+narrows that same operation to a deliberate nonempty set of original whole retrieved
+citations. Native candidates start unselected; the existing complete-retrieval review
+remains supported. A changed choice invalidates prior confirmation and derived output.
+Only chosen excerpts enter the shared cited-answer envelope, while every chosen file
+still undergoes complete-file risk admission. Chosen-set review preserves the original
+question, source/revision, target, deadline and one-shot lifetime; omitted retrieved
+excerpts and bounded-search omissions are disclosed separately. Foreign, cloned,
+modified, duplicate, empty and excessive choices are rejected, never substituted or
+trimmed. This introduces no new source purpose, persistence, retrieval engine or recall.
 An unqualified local runtime remains unavailable; hosted disclosure and fallback are not admitted.
 The sibling volatile folder-answer route is independent. Source management remains native;
 the named answer entry additionally supports deliberate typed/current-name voice review.

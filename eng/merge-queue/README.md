@@ -23,16 +23,18 @@ qualified current tip. Do not toggle profiles underneath queued publishers.
 
 The independent profile preserves one candidate lane, complete portable
 100% line/branch coverage, payload inspection and protected App admission.
-The reviewed `unit-pr-v1` inventory requires six candidate identities: admission,
-version, portable tests/coverage, portable aggregate, payload and installer
+The reviewed `parallel-pr-v1` inventory requires eight candidate identities:
+admission, version, portable tests/coverage, portable policy contracts, portable
+aggregate, payload, managed setup/metadata validation and installer packaging
 validation. Integration/UI tests run in post-merge main/release validation only.
-Main qualification still requires all 25 identities, including the shared Windows
+Main qualification requires all 27 identities, including the shared Windows
 build, twelve partitions and five aggregates. **Validate installer packaging**
 is not a claim that unselected MSI/Burn ran. Managed setup compilation and
 installer metadata fixtures remain mandatory; setup integration tests move with
 the other integration tests. Metadata dependencies are restored
 even when MSI/Burn is not selected.
-Historical `windows-12-v1`, `windows-12-delivery-v1` and their exact
+Historical `unit-pr-v1` six-candidate/25-main inventories, `windows-12-v1`,
+`windows-12-delivery-v1` and their exact
 negative-retirement contracts remain intact. Historical exact-blob failed-preflight
 proof authorizes retirement only, never successful admission; the new marker does
 not confer a new negative-retirement exception. A marker, missing job or workflow
@@ -176,7 +178,7 @@ merged during construction and no member is skipped to fill a batch
 CI is dispatched on trusted protected main and checks out the admitted combined
 SHA as unprivileged source. It retains complete portable module/100% line **and**
 branch coverage, payload inspection and installer validation. The reviewed
-`unit-pr-v1` inventory deliberately excludes Windows integration work, which
+`parallel-pr-v1` inventory deliberately excludes Windows integration work, which
 remains mandatory for post-merge main/release qualification. Historical
 inventories retain their original full requirements. Missing, duplicate, skipped, wrong-source
 or nonterminal required evidence cannot admit a batch. Observation deadlines
@@ -400,8 +402,9 @@ noted otherwise.
    API with an expected head. It does not rebase/force-push every waiting branch.
    The update can add a merge commit on the topic branch; squash merging keeps
    main linear.
-5. The selected PR receives full portable/coverage/package, all five Windows
-   shards and installer validation. Other PRs get lightweight queue-policy and
+5. The selected PR receives portable units/coverage, parallel policy/architecture
+   and setup/metadata contracts, payload and installer validation. Windows
+   integration remains post-merge main/release work. Other PRs get lightweight queue-policy and
    scheduling feedback, not a duplicate full build.
 6. The controller attests the exact source and protected base, then requests a
    protected squash merge. GitHub's native auto-merge may perform the same
@@ -591,9 +594,9 @@ second candidate or automatic success.
 The expected inventory comes from `.github/workflows/ci.yml` at the reservation's
 immutable base, which must match the run's workflow `head_sha`, not current main,
 the candidate PR head, dispatch inputs or returned job names. The trusted workflow
-declares `# merge-queue-job-schema: unit-pr-v1` with the independent delivery
-marker. Candidate admission uses its six-job inventory; main qualification uses
-the complete 25-job inventory, including every Windows producer, partition and
+declares `# merge-queue-job-schema: parallel-pr-v1` with the independent delivery
+marker. Candidate admission uses its eight-job inventory; main qualification uses
+the complete 27-job inventory, including every Windows producer, partition and
 aggregate. Singleton Windows App checks are neutral and explicitly not selected,
 never asserted as integration passes. The maintained workflow contract compares
 the complete workflow and expanded matrix identities with the main inventory and
@@ -759,15 +762,29 @@ remains authoritative and later events or the schedule can recover it.
 ### Diagnosing throughput
 
 PR events intentionally run only cheap queue policy feedback until selected.
-With `unit-pr-v1`, the selected candidate no longer consumes the Windows shared
+With `unit-pr-v1` and later inventories, the selected candidate no longer consumes the Windows shared
 test build, twelve integration/UI execution jobs, five shard aggregates or their
 report aggregate. Main/release builds retain those jobs and their existing
 timeouts. This removes integration stalls from admission; it does not repair
 integration failures or guarantee that main will pass. The first PR installing
-this policy is still validated using the old full workflow from trusted main.
+the initial unit-only policy was still validated using the old full workflow from trusted main.
 Portable CI also builds only the unit solution and separate architecture guards,
 not the desktop/integration graph. Coverage exclusions and thresholds are unchanged.
 Measure new ticketed runs before claiming a hosted speedup.
+
+The first successful unit-only candidate
+[42012190867](https://github.com/roryprimrose/Kora/actions/runs/42012190867)
+took 8m47s, versus 19m34s for the preceding full-policy
+[candidate](https://github.com/roryprimrose/Kora/actions/runs/42009290060).
+It passed 24,837 unit cases with 100% line/branch coverage; main retained all
+twelve integration partitions and passed. This is an initial observation across
+different revisions/candidate shapes, not a controlled benchmark or guarantee.
+Its near-tied paths were 6m56s of portable validation and 3m45s payload production
+followed by 2m48s installer validation. Optimizing only one would save little.
+`parallel-pr-v1` moves policy/architecture fixtures alongside units and starts
+managed setup/metadata validation alongside payloads. Both remain required, and
+packaging still waits for payload plus setup validation. Measure the new exact
+ticket before attributing a further speedup.
 
 Compare ticketed **Merge queue PR #...** CI runs, not the short policy-only
 **CI .../merge** runs. Measure a candidate's creation-to-completion time,
@@ -803,13 +820,12 @@ The original five Windows job names are lightweight fail-closed aggregates,
 not additional test runners. They join the producer and all twelve consumers.
 The protected Windows aggregate validates twelve reports against complete
 unfiltered source discovery, including exact method and theory-case identities.
-The portable required check joins
-independent test/coverage and exact-source payload producers. The installer can
-start after payload verification while portable tests continue; release still
-requires every existing protected check. The portable aggregate requires both
-producers to succeed; admission job identities stay compatible with predecessor
-workflows so completed runs can still retire during rollout. No test category
-is deferred.
+The portable required check joins independent test/coverage, policy/architecture
+and exact-source payload producers. Setup/metadata validation starts alongside
+payload production; installer packaging joins both while portable work continues.
+Release still requires every applicable gate. Historical inventory identities
+remain supported so completed runs can still retire during rollout. The
+parallelization does not defer another test category or change coverage.
 See the [development checks](../../CONTRIBUTING.md#development-checks) for
 partition discovery, execution-evidence checks and measured timing projections;
 shared-runner timing is not guaranteed by those projections.

@@ -22,10 +22,17 @@ const DELIVERY_JOBS = Object.freeze(WINDOWS_12_JOBS.map(name =>
 const UNIT_PR_JOBS = Object.freeze(DELIVERY_JOBS.filter(name =>
   name !== CHECKS[1] && !name.startsWith('Windows integration shard (')
   && name !== 'Build exact-source Windows test modules' && !name.startsWith('Windows test partition (')));
+const PARALLEL_PR_JOBS = Object.freeze([...UNIT_PR_JOBS,
+  'Portable policy contracts', 'Validate managed setup and installer metadata',
+]);
+const PARALLEL_MAIN_JOBS = Object.freeze([...DELIVERY_JOBS,
+  'Portable policy contracts', 'Validate managed setup and installer metadata',
+]);
 const CANDIDATE_JOBS = Object.freeze({
   'windows-12-v1': WINDOWS_12_JOBS,
   'windows-12-delivery-v1': DELIVERY_JOBS,
   'unit-pr-v1': UNIT_PR_JOBS,
+  'parallel-pr-v1': PARALLEL_PR_JOBS,
 });
 // Only reviewed immutable execution gates can establish that an unexpanded matrix did no work.
 const REJECTED_ADMISSION_BLOBS = Object.freeze(['97e22a8f88bcdc9bbaef32cf9e7200dd6e5c43cd']);
@@ -204,6 +211,8 @@ function workflowJobs(source, blob, candidate = false) {
     .filter(line => line.includes('merge-queue-job-schema:'));
   if (markers.length !== 0) {
     if (markers.length !== 1) return null;
+    if (markers[0] === '# merge-queue-job-schema: parallel-pr-v1')
+      return delivery.length === 1 ? candidate ? PARALLEL_PR_JOBS : PARALLEL_MAIN_JOBS : null;
     if (markers[0] === '# merge-queue-job-schema: unit-pr-v1')
       return delivery.length === 1 ? candidate ? UNIT_PR_JOBS : DELIVERY_JOBS : null;
     return markers[0] === '# merge-queue-job-schema: windows-12-v1'
@@ -280,7 +289,7 @@ function successfulJobs(jobs, expected = JOBS) {
 }
 
 module.exports = { CHECKS, GATE, JOBS, SPLIT_JOBS, WINDOWS_12_JOBS, DELIVERY_JOBS, UNIT_PR_JOBS,
-  PREDECESSOR_WORKFLOWS, candidateJobs, workflowJobs,
+  PARALLEL_PR_JOBS, PARALLEL_MAIN_JOBS, PREDECESSOR_WORKFLOWS, candidateJobs, workflowJobs,
   REJECTED_ADMISSION_JOBS, terminalRejectedAdmission, terminalRejectedPreflight,
   REJECTED_DELIVERY_BLOB, REJECTED_DELIVERY_JOBS, terminalRejectedDelivery,
   STATE_BRANCH, SHA, TICKET, MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS,

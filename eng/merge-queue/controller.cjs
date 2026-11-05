@@ -1,5 +1,5 @@
 const { randomUUID } = require('node:crypto');
-const { CHECKS, GATE, UNIT_PR_JOBS, MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS, DISPATCH_OBSERVATION_MS, invariant, validateState,
+const { CHECKS, GATE, UNIT_PR_JOBS, PARALLEL_PR_JOBS, MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS, DISPATCH_OBSERVATION_MS, invariant, validateState,
   ready, readinessIssue, priority, matchingRuns, requiredJobsState, terminalJobs } = require('./policy.cjs');
 
 const MAX_CANDIDATES = 10;
@@ -51,8 +51,9 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
     api.info(`PR #${active.number}: completing candidate checks (${conclusion}); ${message}`);
     for (const name of [...CHECKS, GATE]) {
       if (!active.checks[name]) active.checks[name] = await api.createCheck(active, name);
-      if (name === CHECKS[1] && Array.isArray(expected) && expected.length === UNIT_PR_JOBS.length
-        && UNIT_PR_JOBS.every(job => expected.includes(job))) {
+      if (name === CHECKS[1] && Array.isArray(expected)
+        && [UNIT_PR_JOBS, PARALLEL_PR_JOBS].some(inventory => expected.length === inventory.length
+          && inventory.every(job => expected.includes(job)))) {
         await api.finishCheck(active.checks[name], 'neutral',
           'Windows integration tests were not selected for this candidate; full Windows validation runs on main.');
         continue;

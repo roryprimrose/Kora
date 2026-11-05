@@ -297,7 +297,7 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
           members: active.members.map(item => ({ number: item.number, source: item.head,
             admittedHead: item.mergeIntent.head, merged: item.merged })) };
         if (api.independent) {
-          invariant(['windows-12-delivery-v1', 'unit-pr-v1'].includes(active.inventory.schema),
+          invariant(['windows-12-delivery-v1', 'unit-pr-v1', 'parallel-pr-v1'].includes(active.inventory.schema),
             'Independent delivery requires the reviewed delivery workflow.');
           Object.assign(state.completedTip, { delivery: 'independent-v1', base: active.base,
             admission: manifestFor(active),
@@ -397,7 +397,7 @@ async function reconcileSingleton(api, state, number, options) {
         if (api.independent) {
           const inventory = await api.trustedInventory(state.active.base);
           const runs = matchingRuns(await api.runs(state.active), state.active);
-          invariant(['windows-12-delivery-v1', 'unit-pr-v1'].includes(inventory?.schema) && runs.length === 1
+          invariant(['windows-12-delivery-v1', 'unit-pr-v1', 'parallel-pr-v1'].includes(inventory?.schema) && runs.length === 1
             && runs[0].status === 'completed' && runs[0].conclusion === 'success'
             && runs[0].run_attempt === 1 && runs[0].head_sha === state.active.base,
           'Independent singleton completion lacks trusted candidate proof.');

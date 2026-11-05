@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Text;
 using System.Text.Json;
+using System.Text.Encodings.Web;
 using Kora.Core.Hosting;
 using Kora.Core.Tools;
 using Kora.Core.Mcp;
@@ -14,6 +15,8 @@ public sealed class ModelContextEnvelope
     public const int MaximumEvidenceItems = 16;
     public static int MaximumOutputUtf8Bytes => ReadOnlyCapabilityCatalog.Limits.MaximumOutputUtf8Bytes;
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
+    // This is a JSON-only local protocol, never HTML. Avoid amplifying nested reviewed metadata quotes.
+    private static readonly JsonSerializerOptions SettingsJson = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
     public ModelContextEnvelope(HostRequest request, string systemPolicy, string userRequest,
         IEnumerable<ModelContextEvidence> evidence, DateTimeOffset createdAt, DateTimeOffset expiresAt,
@@ -81,6 +84,14 @@ public sealed class ModelContextEnvelope
                     || item.Disclosure != ModelEvidenceDisclosure.LocalOnly)
                 { throw new InvalidDataException("Host memory lineage must bind the exact same-session local-only evidence identity and revision."); }
             }
+            if (item.ProfileMemorySource is { } profileMemory)
+            {
+                profileMemory.Validate();
+                if (item.HistorySource is not null || item.MemorySource is not null
+                    || profileMemory.Id.Value != item.Id.Value || profileMemory.Revision != item.Revision
+                    || item.Disclosure != ModelEvidenceDisclosure.LocalOnly)
+                { throw new InvalidDataException("Host profile memory lineage must bind the exact local-only evidence identity and revision."); }
+            }
         }
         return items;
     }
@@ -99,23 +110,24 @@ public sealed class ModelContextEnvelope
 
     public byte[] Serialize()
     {
+        var options = ToolMode == ModelToolMode.SettingsDiscovery ? SettingsJson : null;
         if (WebPages is not null)
         {
             return JsonSerializer.SerializeToUtf8Bytes(new
-            { SystemPolicy, UserRequest, Evidence, ToolMode, Tools, MaximumOutputUtf8Bytes, WebPages });
+            { SystemPolicy, UserRequest, Evidence, ToolMode, Tools, MaximumOutputUtf8Bytes, WebPages }, options);
         }
         if (McpTool is not null)
         {
             return JsonSerializer.SerializeToUtf8Bytes(new
-            { SystemPolicy, UserRequest, Evidence, ToolMode, Tools, MaximumOutputUtf8Bytes, McpTool });
+            { SystemPolicy, UserRequest, Evidence, ToolMode, Tools, MaximumOutputUtf8Bytes, McpTool }, options);
         }
         if (Constraints is null)
         {
             return JsonSerializer.SerializeToUtf8Bytes(new
-            { SystemPolicy, UserRequest, Evidence, ToolMode, Tools, MaximumOutputUtf8Bytes });
+            { SystemPolicy, UserRequest, Evidence, ToolMode, Tools, MaximumOutputUtf8Bytes }, options);
         }
         return JsonSerializer.SerializeToUtf8Bytes(new
-        { SystemPolicy, UserRequest, Evidence, ToolMode, Tools, MaximumOutputUtf8Bytes, Constraints });
+        { SystemPolicy, UserRequest, Evidence, ToolMode, Tools, MaximumOutputUtf8Bytes, Constraints }, options);
     }
 
     public void RequireCompleteInputLimit() => RequireCompleteInputLimit(0);

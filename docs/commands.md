@@ -29,6 +29,11 @@ In the response window, choose **Review one spoken command**, speak one general 
 
 This one-shot action does not change ordinary push-to-talk or any listening preference. It requires existing voice consent, local command readiness and unchanged private ownership. Capture and review expire after 60 seconds; changing the original target, input, device, call or private context discards the candidate instead of sending it elsewhere. Hiding, deactivating or closing the window cancels it ([host admission](../src/Kora.Application/ViewModels/MainViewModel.ReviewedVoiceCommand.cs), [window lifetime](../src/Kora/ResponseWindow.ReviewedVoiceCommand.cs)).
 
+Finishing capture, editing or confirming does not restart that deadline.
+Late confirmation or delayed dispatch is refused even if the expiry notice has
+not appeared yet. Start a fresh **Review one spoken command** after cleanup;
+the expired transcript is not replayed.
+
 Ordinary response auto-hide is suspended during capture, transcript review and the original confirmed dispatch. Completed ordinary feedback resumes the configured response timeout. This does not extend the command's independent expiry or prevent explicit dismissal or privacy closure.
 
 The corrected command still originates from **voice**, even though you edited it and clicked dispatch. Normal call restrictions, authentication, operation approval and hosted-transmission consent still apply. Transcript acceptance is not approval of the command's action, microphone consent or egress. Oversized, malformed or credential-like text is rejected, never truncated ([normal command admission](../src/Kora.Application/ViewModels/MainViewModel.cs), [text bounds](../src/Kora.Core/Conversation/ConversationText.cs)).

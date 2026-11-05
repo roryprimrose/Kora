@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 
 using AwesomeAssertions;
 
@@ -28,6 +29,53 @@ public sealed class SessionCommandTests
     public void Exact_commands_parse_without_inference(string input, SessionCommandOperation operation)
     {
         SessionCommand.Parse(input, "Nova")!.Operation.Should().Be(operation);
+    }
+
+    [Fact]
+    public void Help_preserves_both_permission_and_metrics_syntax()
+    {
+        SessionCommand.Syntax.Should().Contain(SessionCommand.PermissionSyntax);
+        SessionCommand.Syntax.Should().Contain(SessionCommand.MetricsSyntax);
+        SessionCommand.Parse("session help", "Nova")!.Operation.Should().Be(SessionCommandOperation.Help);
+    }
+
+    [Fact]
+    public void Every_operation_has_a_unique_numeric_value()
+    {
+        Enum.GetValues<SessionCommandOperation>().Should().OnlyHaveUniqueItems();
+    }
+
+    [Theory]
+    [InlineData(SessionCommandOperation.HistorySearch, 21)]
+    [InlineData(SessionCommandOperation.RemainingWorkCancel, 58)]
+    [InlineData(SessionCommandOperation.PermissionStatus, 59)]
+    [InlineData(SessionCommandOperation.PermissionReview, 60)]
+    [InlineData(SessionCommandOperation.PermissionConfirm, 61)]
+    [InlineData(SessionCommandOperation.PermissionCancel, 62)]
+    [InlineData(SessionCommandOperation.Metrics, 63)]
+    public void Numeric_contract_preserves_production_operations_and_appends_metrics(
+        SessionCommandOperation operation, int value)
+    {
+        ((int)operation).Should().Be(value);
+        var command = JsonSerializer.Deserialize<SessionCommand>("{\"Operation\":" + value + "}")!;
+        command.Operation.Should().Be(operation);
+        JsonSerializer.Deserialize<SessionCommand>(JsonSerializer.Serialize(command)).Should().Be(command);
+    }
+
+    [Theory]
+    [InlineData("session metrics " + Id, SessionCommandOperation.Metrics, false)]
+    [InlineData("Nova, session metrics " + Id, SessionCommandOperation.Metrics, false)]
+    [InlineData("session permission status " + Id, SessionCommandOperation.PermissionStatus, true)]
+    [InlineData("Nova, session permission review " + Id + " review-all", SessionCommandOperation.PermissionReview, true)]
+    [InlineData("session permission confirm " + Id, SessionCommandOperation.PermissionConfirm, true)]
+    [InlineData("Nova, session permission cancel " + Id, SessionCommandOperation.PermissionCancel, true)]
+    public void Permission_and_metrics_routes_remain_distinct(
+        string input, SessionCommandOperation operation, bool permission)
+    {
+        var command = SessionCommand.Parse(input, "Nova")!;
+        command.Operation.Should().Be(operation);
+        command.SessionId.Should().Be(Guid.Parse(Id));
+        command.IsPermissionCommand.Should().Be(permission);
     }
 
     [Theory]

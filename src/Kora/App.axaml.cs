@@ -339,7 +339,8 @@ public sealed partial class App : Avalonia.Application
             sessionRetention.Start();
             viewModel.BindSessionCommands(Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>(),
                 Services.GetRequiredService<SessionRequestCommandService>(),
-                Services.GetRequiredService<ConversationSearchCommandService>());
+                Services.GetRequiredService<ConversationSearchCommandService>(),
+                Services.GetRequiredService<SessionPermissionCommandService>());
             viewModel.BindRemainingWork(Services.GetRequiredService<SessionRemainingWorkCommandService>(),
                 Services.GetRequiredService<SessionConversationService>());
             viewModel.BindSpeechSummarySuggestions(Services.GetRequiredService<SessionConversationService>(),

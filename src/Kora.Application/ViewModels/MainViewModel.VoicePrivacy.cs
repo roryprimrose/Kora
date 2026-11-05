@@ -75,7 +75,7 @@ public sealed partial class MainViewModel
         && sessionController.IsCurrentSessionUnlocked()
         && privacyObservation.Current.SessionState == WindowsSessionState.Unlocked;
 
-    public bool CanRevealPrivatePresentation => IsHostInputEligible;
+    public bool CanRevealPrivatePresentation => !disposed && IsHostInputEligible && callOwnershipEligible();
 
     private void OnWindowsPrivacyChanged(object? sender, WindowsPrivacyChangedEventArgs eventArgs)
     {
@@ -454,6 +454,7 @@ public sealed partial class MainViewModel
     internal void CloseForObservedPrivacyEvent(string reason, bool hidePresentation,
         WindowsSessionState? sessionState = null, bool restoreOnUnlock = false)
     {
+        var presentationRevision = hidePresentation ? BeginPrivatePresentationRetirement() : -1;
         RetireCurrentResponseSpeech();
         speechPreparation?.Request(null);
         RetireWebResultDetails();
@@ -461,17 +462,16 @@ public sealed partial class MainViewModel
         uiDispatcher.Post(RetireSpeechCaption);
         if (hidePresentation)
         {
-            Interlocked.Exchange(ref privacyPresentationHeld, 1);
             ClearClipboardPreview();
             ClearFilePreview();
         }
         HoldVoiceInput("Microphone closed · " + reason + "; use Enable listening", sessionState, restoreOnUnlock);
         textToSpeech.InvalidateOutput();
         settingsUndo.Clear();
-        privacyClosureTask = CompletePrivacyClosureAsync(reason, hidePresentation);
+        privacyClosureTask = CompletePrivacyClosureAsync(reason, hidePresentation, presentationRevision);
     }
 
-    private async Task CompletePrivacyClosureAsync(string reason, bool hidePresentation)
+    private async Task CompletePrivacyClosureAsync(string reason, bool hidePresentation, long presentationRevision)
     {
         try
         {
@@ -518,6 +518,7 @@ public sealed partial class MainViewModel
             await JoinCustomizationClarification();
             await ClosePromptPreparation();
             if (bundledActionShutdown is not null) { await bundledActionShutdown(); }
+            if (hidePresentation) { CompletePrivatePresentationRetirement(presentationRevision); }
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
@@ -620,7 +621,6 @@ public sealed partial class MainViewModel
             if (listeningStop.IsHeld && !listeningStop.TryRecover()) { return false; }
             Interlocked.Exchange(ref automaticUnlockRecoveryRevision, -1);
             Interlocked.Exchange(ref voiceEnabled, 1);
-            Interlocked.Exchange(ref privacyPresentationHeld, 0);
             return true;
         }
     }
@@ -673,7 +673,8 @@ public sealed partial class MainViewModel
     public async Task SetVoiceConsentAsync(bool consent)
     {
         if (disposed) { return; }
-        if (!AdmitVoiceOptionMutation("configuration.voice-consent")) { return; }
+        if (!AdmitVoiceOptionMutation("configuration.voice-consent",
+            eligible: consent ? null : () => IsPrivatePresentationRecoveryEligible)) { return; }
         var origin = OriginalOrigin();
         var callRevision = CallPolicyRevision;
         var revision = Interlocked.Increment(ref consentRevision);

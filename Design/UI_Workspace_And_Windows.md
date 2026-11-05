@@ -169,6 +169,12 @@ primary window, not another top-level window:
   invisible browsing. Privacy, ownership/source loss, deletion and lock revoke content
   and fence delayed publication under the existing viewer contract.
 
+### Explicit private workspace recovery
+
+Lock, unknown desktop state and owner loss retire the composed session, compact, response and Details presentations. Successful joined retirement is required before a new explicit **Show Kora**, **Settings** or **Sessions** gesture can release the private presentation hold under current host ownership and authoritative unlocked-session checks ([recovery](../src/Kora.Application/ViewModels/MainViewModel.PrivatePresentation.cs), [native regression](../tests/Kora.Windows.IntegrationTests/DesktopLockRecoveryTests.cs)).
+
+Unlock may restore only independently eligible voice-mode readiness; it does not reopen private windows or replay a denied earlier gesture. Reopened Sessions starts without a selected conversation, private page or unsent input. Select the exact conversation and explicitly Read/Open again to resolve retained content; recovery does not submit input, dispatch a provider or change grants or independent retention ([voice transition](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs), [recovery regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.PrivatePresentation.cs)).
+
 ### Session-command log and audit details
 
 Reuse the same pane for bounded read-only log/audit records or query-result pages

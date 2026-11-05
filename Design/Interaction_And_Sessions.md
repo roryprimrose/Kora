@@ -383,6 +383,9 @@ Interaction schema 8 preserves existing memory/grant, queue/admitted-deadline, h
 
 Native full-source inspection and the same lexical-lines citations remain available after restart and for retained Done sessions, without resuming them. Browsing does not renew meaningful activity or invoke cleanup. Existing passive-inspection/source-copy/retention fences, original/current privacy/control generations and actual quiescence remain mandatory.
 
+If native inspection invalidation notification fails during attachment-owner shutdown, disposal still clears pending capture review, joins retained reads and controls, and disposes the shared capture action before propagating that failure ([owner](../src/Kora.Application/Hosting/SessionFileAttachmentService.cs)).
+Late reads remain cancelled, fresh reads are rejected, and retained storage is unchanged ([regression](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.Attachments.cs)).
+
 Exact reviewed attachment removal revokes native view/search before atomic body/path-metadata removal and owned-journal verification. Session disposition and ordinary deletion inventory the same copies; live/Unknown work and uninventoried copies hold completion. Content-free provenance remains, original user files and unrelated/kept sessions/Perpetual grants do not change. No body is added to history, memory, preferences, models, logs or audit text.
 
 The separate [retained metadata catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11) retains Browse/ExactId, lifecycle, media type, copy status, byte bounds, ordering and Find within selected displayed metadata. Technical correlation/generation/digest query widgets are removed.

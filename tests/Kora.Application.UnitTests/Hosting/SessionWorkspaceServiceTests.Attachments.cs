@@ -291,6 +291,68 @@ public sealed partial class SessionWorkspaceServiceTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AttachmentDisposalJoinsRetainedReadAndReleasesCaptureBeforeReportingNotificationFailure(bool notificationFails)
+    {
+        using var fixture = new Fixture();
+        var audit = new FileAudit();
+        var capture = new FileCapture();
+        var action = FileAction(capture, audit);
+        var service = FileService(fixture, action, audit);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var notification = new InvalidOperationException("native inspection retirement failed");
+        Task? read = null;
+        Task? disposal = null;
+        try
+        {
+            await service.Select(new(fixture.Session, null), new FilePicker(), () => true, fixture.Token);
+            fixture.RetainedFile = FileRecord(fixture.Request);
+            var retained = fixture.RetainedFile;
+            fixture.FileReader = async () => { entered.SetResult(); await release.Task; return retained; };
+            read = service.Read(fixture.Request.SessionId, fixture.Token);
+            await entered.Task;
+            service.InspectionRevoked += () =>
+            {
+                if (notificationFails) { throw notification; }
+            };
+            disposal = service.DisposeAsync().AsTask();
+            disposal.IsCompleted.Should().BeFalse("revocation notification cannot release an in-flight retained read");
+            service.IsQuiescent.Should().BeFalse();
+            capture.Disposals.Should().Be(1);
+            service.Review.Should().BeNull();
+            release.SetResult();
+            await ((Func<Task>)(async () => await read)).Should().ThrowAsync<OperationCanceledException>();
+            if (notificationFails)
+            {
+                var failure = await ((Func<Task>)(async () => await disposal)).Should().ThrowAsync<InvalidOperationException>();
+                failure.Which.Should().BeSameAs(notification);
+            }
+            else { await disposal; }
+            service.IsQuiescent.Should().BeTrue();
+            fixture.RetainedFile.Should().BeSameAs(retained);
+            fixture.TaskWrites.Should().BeEmpty();
+            audit.Events.Should().Contain(item => item.ActionId == "session.file.read" && item.Outcome == SecurityAuditOutcome.Cancelled)
+                .And.NotContain(item => item.ActionId == "session.file.read" && item.Outcome == SecurityAuditOutcome.Succeeded);
+            var freshRead = () => service.Read(fixture.Request.SessionId, fixture.Token);
+            await freshRead.Should().ThrowAsync<ObjectDisposedException>();
+            fixture.FileReads.Should().Be(2);
+        }
+        finally
+        {
+            release.TrySetResult();
+            if (read is not null) { await ((Func<Task>)(async () => await read)).Should().ThrowAsync<OperationCanceledException>(); }
+            if (disposal is not null && notificationFails)
+            {
+                await ((Func<Task>)(async () => await disposal)).Should().ThrowAsync<InvalidOperationException>();
+            }
+            else if (disposal is not null) { await disposal; }
+            await action.DisposeAsync();
+        }
+    }
+
+    [Theory]
     [InlineData("storage")]
     [InlineData("audit")]
     [InlineData("cancel")]

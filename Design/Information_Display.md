@@ -997,6 +997,15 @@ or mutate that chrome. Opening the same immutable reference activates its
 existing session-bound view. Explicit comparison, where supported, preserves
 distinct immutable references without requiring separate windows; comparison
 and detachable windows are not part of the first integrated increment.
+Native **Expand details** gives the existing pane the surplus reading width,
+leaving the conversation/composer at its existing minimum. **Restore split**
+recovers the prior user-chosen column lengths, including star proportions.
+The divider remains keyboard/pointer resizable. These controls reuse the same
+reader, selection, Find and admitted source; they do not resolve content again,
+resize the window or submit work. Hide, replacement and session/private retirement
+discard the temporary expansion before remembering the ordinary split.
+This is native implementation evidence, not installed accessibility qualification
+([regressions](../tests/Kora.Windows.IntegrationTests/AdaptiveInteractionTests.DetailExpansion.cs)).
 New revisions never silently replace a viewer's
 current item. A user-requested refresh resolves and displays a new immutable
 revision with the change made visible.

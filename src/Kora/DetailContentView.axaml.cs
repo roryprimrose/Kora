@@ -317,6 +317,17 @@ public sealed partial class DetailContentView : UserControl
 
     internal void OnKeyDown(object? sender, KeyEventArgs eventArgs)
     {
+        if (eventArgs.KeyModifiers == KeyModifiers.None && eventArgs.Key is Key.Up or Key.Down
+            && eventArgs.Source is ScrollViewer viewport
+            && (ReferenceEquals(viewport, Required<ScrollViewer>("ProvenanceViewport"))
+                || ReferenceEquals(viewport, Required<ScrollViewer>("ActionsViewport"))))
+        {
+            eventArgs.Handled = true;
+            if (cleared || state.Content is null) { RequestClose(); return; }
+            if (eventArgs.Key == Key.Up) { viewport.LineUp(); }
+            else { viewport.LineDown(); }
+            return;
+        }
         if (eventArgs.Key == Key.Enter && ReferenceEquals(eventArgs.Source, search))
         {
             eventArgs.Handled = true;

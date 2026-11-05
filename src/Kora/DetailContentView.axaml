@@ -5,9 +5,10 @@
     xmlns:controls="using:Kora.Controls"
     Background="{DynamicResource KoraWindowBackgroundBrush}"
     Foreground="{DynamicResource KoraForegroundBrush}">
-  <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="12" RowSpacing="8">
+  <Grid RowDefinitions="*,2*,Auto,4*,Auto" Margin="12" RowSpacing="8">
     <!-- Trusted native chrome never enters the content viewport. -->
-    <ScrollViewer Grid.Row="0" MaxHeight="180" VerticalScrollBarVisibility="Auto">
+    <ScrollViewer x:Name="ProvenanceViewport" Grid.Row="0" MaxHeight="180" VerticalScrollBarVisibility="Auto" Focusable="True"
+                  AutomationProperties.Name="Scrollable detail provenance">
     <StackPanel Spacing="4">
       <TextBlock x:Name="DetailTitle" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" />
       <TextBlock x:Name="ProvenanceLabel" TextWrapping="Wrap" />
@@ -22,7 +23,8 @@
                  FontSize="11" TextWrapping="Wrap" />
     </StackPanel>
     </ScrollViewer>
-    <ScrollViewer Grid.Row="1" MaxHeight="220" VerticalScrollBarVisibility="Auto">
+    <ScrollViewer x:Name="ActionsViewport" Grid.Row="1" MaxHeight="220" VerticalScrollBarVisibility="Auto" Focusable="True"
+                  AutomationProperties.Name="Scrollable detail actions and literal Find">
     <StackPanel Spacing="8">
       <WrapPanel>
         <CheckBox x:Name="SourceToggle" Content="Exact source (Ctrl+U)" TabIndex="0"

@@ -738,6 +738,19 @@ Reopening the same reference activates its viewer. A different revision opens
 separately, and conflicting source or chrome under the same reference is
 rejected instead of replacing what the user was reading.
 
+The [shared native reader](../src/Kora/DetailContentView.axaml) allocates height
+proportionally between provenance, actions and the result body. Complete native
+chrome remains in its named, keyboard-focusable bounded scroll regions instead of consuming the reading
+area at the supported minimum window size. Rendered, Continuous text and Exact
+source retain the same admitted text and existing disclosure/closure rules.
+Up/Down scroll only the focused native chrome region, rechecking the original
+source admission; keys in its child controls keep their existing behavior.
+[Headless layout regressions](../tests/Kora.Windows.IntegrationTests/DetailReaderLayoutTests.cs)
+require at least 160 device-independent units of body height at 640 by 500
+with long provenance and active maximum-length Find at 75%, 100% and 200% reader
+scale, and verify complete provenance/action reachability. This is native
+implementation evidence, not installed accessibility or renderer enablement.
+
 The owner approved these initial bounds after finding that #44 specified
 measured native bounds but numeric limits only for the still-gated Mermaid
 renderer. `native-text-v1` has one authoritative

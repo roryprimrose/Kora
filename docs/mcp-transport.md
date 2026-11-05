@@ -195,6 +195,12 @@ configuration and successful tests are not a real signed-in account.
 
 ## Supported profile
 
+Responses must use `application/json`, with either no charset parameter or one
+UTF-8 charset parameter. Media type and charset matching are case-insensitive;
+both `charset=utf-8` and `charset="utf-8"` are accepted without changing the
+response bytes. Malformed, duplicate, empty or other charset values are refused,
+not decoded using a fallback.
+
 The supported protocol version is `2025-06-18`, with one HTTPS request at a
 time and complete JSON responses. Server-managed sessions, streaming,
 additional result pages, redirects, compressed responses, sign-in retries and

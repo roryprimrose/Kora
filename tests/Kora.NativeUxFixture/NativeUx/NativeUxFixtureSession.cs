@@ -54,6 +54,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     private readonly EvidenceLoggerProvider? evidenceProvider;
     private readonly Serilog.Core.Logger? dailyEvidenceLogger;
     private AudioControlAdmission? captionAdmission;
+    private AuditedPreferenceWriter? preferenceWriter;
     private readonly Func<IApplicationDataPaths, IPreferenceStore>? appearanceStoreFactory;
 
     internal NativeUxFixtureSession(string scratchParent, bool silentCaption = false, bool listOverflow = false,
@@ -262,6 +263,8 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         }
         assistantNameConfiguration = new(new LocalAssistantNamePreferences(this, NullLogger<LocalAssistantNamePreferences>.Instance),
             commands, Audit, NullLogger<AssistantNameConfigurationService>.Instance);
+        var preferenceWrites = new AuditedPreferenceWriter(Audit);
+        preferenceWriter = preferenceWrites;
         main = new(commands, new(commands), catalogue, new(catalogue), bootstrapper,
             new(bootstrapper, execution, execution), modelReasoner ?? execution, new LocalModelApprovalPreferences(this), models, Access,
             voiceRecognition ?? Voice, speech, assistantNameConfiguration, appearances,
@@ -277,7 +280,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             new SpeechConfigurationService(new LocalTextToSpeechPreferences(this, NullLogger<LocalTextToSpeechPreferences>.Instance),
                 speech, Audit, NullLogger<SpeechConfigurationService>.Instance),
             clipboard, new(new DeniedClipboardRead()), new(clipboard), new(clipboard), new(new DeniedClipboardExplanation()),
-            new AuditedPreferenceWriter(Audit),
+            preferenceWrites,
             new Kora.Application.Voice.BoundedAudioOutputCatalog(speech,
                 NullLogger<Kora.Application.Voice.BoundedAudioOutputCatalog>.Instance),
             new Kora.Application.Presentation.AudioPlaybackSettings(dispatcher ?? new AvaloniaUiDispatcher(),
@@ -470,13 +473,13 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         {
             await join.RunAsync(async () =>
             {
-                var modelDisposal = main?.DisposeAsync().AsTask() ?? Task.CompletedTask;
+                var preferenceJoin = preferenceWriter?.WaitForQuiescenceAsync() ?? Task.CompletedTask;
                 if (queue is not null) { await queue.DisposeAsync().ConfigureAwait(false); }
                 if (OverflowEvents is not null) { await OverflowEvents.DisposeAsync().ConfigureAwait(false); }
                 if (captionAdmission is not null) { await captionAdmission.DisposeAsync().ConfigureAwait(false); }
                 if (ExactGrantControl is not null) { await ExactGrantControl.DisposeAsync().ConfigureAwait(false); }
                 if (SilentSpeech is not null) { await SilentSpeech.DisposeAsync().ConfigureAwait(false); }
-                await modelDisposal.ConfigureAwait(false);
+                await preferenceJoin.ConfigureAwait(false);
             }).ConfigureAwait(false);
         }
         Access.Dispose();

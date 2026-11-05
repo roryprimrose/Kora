@@ -30,6 +30,10 @@
       <Button x:Name="HideInteraction" Content="Hide" Click="OnHideInteractionClicked" IsVisible="False" />
       <TextBlock Text="Question or approval waiting" IsVisible="{Binding IsResponseInteractionPending}"
           Margin="10,6" FontWeight="SemiBold" />
+      <Button x:Name="RefreshSubmittedActivity" Content="Refresh submitted activity" Click="OnRefreshSubmittedActivity" />
+      <Button x:Name="StopSubmittedActivity" Content="Review stop all work" Click="OnStopSubmittedActivity" />
+      <TextBlock x:Name="SubmittedActivityStatus" Text="{Binding SubmittedWorkActivityStatus}" TextWrapping="Wrap" MaxWidth="720"
+          AutomationProperties.Name="Submitted work activity and recovery" AutomationProperties.LiveSetting="Polite" />
     </WrapPanel>
     <local:SessionInteractionView x:Name="SessionWorkspace" Grid.Row="1" IsVisible="False" DataContext="{x:Null}" />
   <Border x:Name="CurrentInteractionContent" Grid.Row="1"

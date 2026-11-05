@@ -1594,6 +1594,10 @@ and the [staged roadmap](Implementation_Roadmap.md#r02-windows-containment-follo
 
 ## Retention Defaults
 
+The [shared device-local preference availability boundary](User_Configuration.md#shared-device-local-preference-availability) distinguishes missing files/directories from unavailable saved files or unconfirmed-write markers.
+An obstructing directory or denied read/delete must surface failure, not confer default or confirmed state ([store](../src/Kora.Application/Configuration/LocalPreferenceStore.cs)).
+Explicit repair never renews authority or clears another retention domain; fresh admitted save/reset, readback and required audit remain mandatory ([regressions](../tests/Kora.Application.UnitTests/Configuration/LocalPreferenceStoreTests.cs)).
+
 Exact-answer review acknowledgements are metadata owned by the retained conversation, not an independent retention domain or a read-receipt claim. Source deletion removes them; acknowledgement does not renew activity, deadlines, grants, model/source consent or execution authority. Details still needs fresh canonical native admission; unknown or malformed acknowledgement state fails unavailable ([contract and storage](Interaction_And_Sessions.md#explicit-retained-answer-review-acknowledgement)).
 
 | Data | Default |

@@ -60,7 +60,7 @@ internal sealed partial class MemoryManagementService
         var trigger = RequireModelProposalInput();
         if (!ReferenceEquals(review.Owner, this))
         { throw new InvalidOperationException("The model-memory review belongs to another owner."); }
-        var record = review.Take(admit, trigger);
+        var record = review.Take(admit, accept, trigger);
         MemoryResult? result = null;
         try
         {

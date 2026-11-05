@@ -689,6 +689,14 @@ public sealed partial class WindowsSqliteEvidenceSink : IBatchedEvidenceSink
         Bounded(envelope.MessageTemplate, 4096, allowEmpty: true);
         OptionalBounded(envelope.EventName, 128);
         OptionalBounded(envelope.ExceptionType, 256);
+        if (envelope.ExceptionReport is { } signature)
+        {
+            signature.Validate();
+            if (!string.Equals(signature.ExceptionType, envelope.ExceptionType, StringComparison.Ordinal))
+            {
+                throw new InvalidDataException("The diagnostic exception type disagrees with its report signature.");
+            }
+        }
         ValidateProperties(envelope.Properties, allowContextMetadata: true);
         foreach (var scope in envelope.Scopes)
         {

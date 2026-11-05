@@ -56,7 +56,7 @@ public sealed class SubmittedMemoryContextTests
 
     [Theory]
     [InlineData(0)]
-    [InlineData(3)]
+    [InlineData(4)]
     public void UnsupportedContextVersionsCannotBeRetained(int version)
     {
         var context = Answer().SubmittedContext! with { Version = version };

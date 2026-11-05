@@ -66,6 +66,7 @@ internal sealed partial class SessionsViewModel
 
     private void CancelQuietHoursSuggestion()
     {
+        registeredSettingReviewIdentity = null;
         quietHoursSuggestionIdentity = null;
         quietHoursSuggestionReview?.Dispose();
         quietHoursSuggestionReview = null;

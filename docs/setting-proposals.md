@@ -62,6 +62,7 @@ Visual notices, ordinary requested answers, listening, consent, in-flight answer
 and call/privacy protections do not change; suppressed completions never replay.
 Hide/reopen, source replacement, cancellation, expiry or changed host authority
 requires a fresh review. Unconfirmed saves remain unavailable, not successful.
+Native Cancel remains available while quiet-hours source validation is awaiting completion; it retires that review or confirmation without requesting a new write. It does not undo an already persisted write ([review owner](../src/Kora/RegisteredSettings/SessionsViewModel.QuietHoursSuggestions.cs)).
 This suggestion registry does not expand setting inspection: inspection remains
 limited to theme, reader text scale, both summary caps, playback volume and response mode.
 
@@ -128,6 +129,10 @@ control/ownership and call admission remain bound throughout source checks and
 confirmation. A copied message, stale page, changed settings or a changed source
 cannot silently select a newer answer. Speech, volume and response-mode reviews expire after
 60 seconds, including Windows rate, response timeout and installed voice. Closing or losing private control retires the review.
+
+**Cancel setting review** remains available while review or confirmation is checking its source. Cancellation retires that exact review, including work that has not returned yet; a late result cannot restore confirmation or authorize a new write. Wait for the operation to finish, then explicitly review the retained answer again and confirm its fresh current/proposed values.
+This also applies to the installed provider/voice pair; a fresh confirmation still requires the exact installed catalogue and persisted/current pair readback.
+Cancellation is not rollback: if persistence has already started, inspect Settings and the exact audit receipts before a fresh review. Unconfirmed saves are never automatically retried ([shared review owner](../src/Kora/RegisteredSettings/SessionsViewModel.RegisteredSettings.cs)).
 
 ## Activated voice and mandatory exceptions
 

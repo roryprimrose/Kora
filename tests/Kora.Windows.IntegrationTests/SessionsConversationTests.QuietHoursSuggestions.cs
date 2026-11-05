@@ -103,6 +103,7 @@ public sealed partial class SessionsConversationTests
     [InlineData("hide-reopen")]
     [InlineData("write-unconfirmed")]
     [InlineData("cancel-await")]
+    [InlineData("cancel-confirm-await")]
     [InlineData("voice-laundering")]
     public async Task QuietHoursNativeReviewRejectsForeignCopiesAndRevokedOrAwaitedSources(string transition)
     {
@@ -121,11 +122,14 @@ public sealed partial class SessionsConversationTests
             var model = composed.Model;
             var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var sourceReads = 0;
             model.BindQuietHoursSuggestions(async (message, eligible, validate, token) =>
             {
                 async Task Validate(CancellationToken cancellation)
                 {
-                    if (transition is "cancel-await") { entered.TrySetResult(); await release.Task.WaitAsync(cancellation); }
+                    sourceReads++;
+                    if (transition is "cancel-await" || transition is "cancel-confirm-await" && sourceReads == 3)
+                    { entered.TrySetResult(); await release.Task.WaitAsync(cancellation); }
                     await validate(cancellation);
                 }
                 return await QuietHoursSuggestionReview.ReviewAsync(quiet, policy, message, eligible, Validate, token);
@@ -153,17 +157,25 @@ public sealed partial class SessionsConversationTests
                 else
                 {
                     var work = model.ReviewRegisteredSettingSuggestionAsync(answer);
-                    if (transition is "cancel-await")
+                    if (transition is "cancel-confirm-await")
+                    {
+                        await work;
+                        work = model.ConfirmRegisteredSettingSuggestionAsync();
+                    }
+                    if (transition is "cancel-await" or "cancel-confirm-await")
                     {
                         await Task.WhenAny(entered.Task, work);
                         entered.Task.IsCompleted.Should().BeTrue(model.ConversationStatus);
                         model.CanCancelRegisteredSettingSuggestion.Should().BeTrue();
-                        model.CancelRegisteredSettingSuggestion();
+                        var cancel = window.FindControl<Button>("CancelRegisteredSettingSuggestion")!;
+                        cancel.IsEffectivelyEnabled.Should().BeTrue();
+                        cancel.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                        model.CanCancelRegisteredSettingSuggestion.Should().BeFalse();
                         release.TrySetResult();
                     }
                     await work;
                 }
-                if (transition is not ("cancel-await" or "voice-laundering"))
+                if (transition is not ("cancel-await" or "cancel-confirm-await" or "voice-laundering"))
                 { model.CanConfirmRegisteredSettingSuggestion.Should().BeTrue(model.ConversationStatus); }
                 if (transition is "cancel") { model.CancelRegisteredSettingSuggestion(); }
                 if (transition is "refresh") { await model.ReadConversationAsync(); }
@@ -185,6 +197,12 @@ public sealed partial class SessionsConversationTests
                 preferences.ReadBack().Should().Be(transition is "settings" ? QuietHoursSchedule.Off : null);
                 audit.Events.Should().NotContain(item => item.Outcome == SecurityAuditOutcome.Succeeded);
                 model.CanConfirmRegisteredSettingSuggestion.Should().BeFalse();
+                if (transition is "cancel-await" or "cancel-confirm-await")
+                {
+                    audit.Events.Should().BeEmpty();
+                    model.RegisteredSettingSuggestionDescription.Should().BeEmpty();
+                    model.CanCancelRegisteredSettingSuggestion.Should().BeFalse();
+                }
             }
             finally { owner.Revoke(); }
         });

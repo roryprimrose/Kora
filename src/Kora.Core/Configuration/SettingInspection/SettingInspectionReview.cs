@@ -35,6 +35,14 @@ public sealed class SettingInspectionReview
         RegisteredSetting.PlaybackVolume,
         RegisteredSetting.ResponseMode,
         RegisteredSetting.PresenceDisplay,
+        RegisteredSetting.PresenceTimeout,
+        RegisteredSetting.PresenceSize,
+        RegisteredSetting.DotSize,
+        RegisteredSetting.DotDensity,
+        RegisteredSetting.MovementSpeed,
+        RegisteredSetting.SpeechScaling,
+        RegisteredSetting.SpeechScaleAmount,
+        RegisteredSetting.ReducedMotion,
     ];
     private int consumed;
 

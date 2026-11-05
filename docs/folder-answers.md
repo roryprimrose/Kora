@@ -8,6 +8,10 @@ For saved, named folder copies instead, see [Knowledge sources](knowledge-source
 
 Use **Preview folder** and the native folder picker. Review the complete immediate-file inventory, then confirm **read every exact reviewed immediate file locally**. Nothing is read before this confirmation. The existing limits are 32 immediate files, 1 MiB combined original bytes and 256 KiB per file, strict UTF-8 text or Markdown.
 
+For keyboard review, Tab to the **Complete local file or folder metadata and consent disclosure** viewport. Page Up / Page Down and Home / End reach the complete inventory and privacy bounds; Tab then reaches the separate confirmation. Scrolling is not read consent.
+
+Closing or replacing the review clears its metadata and retires its confirmation ([native review](../src/Kora/LocalFilePreviewWindow.cs)).
+
 Subdirectories, unsupported, protected, generated, source-control, hidden/system, reparse/link or unstable items reject the complete selection; they are not silently skipped.
 
 The preview is an immutable, volatile snapshot. It is not a named knowledge source, a persistent index or a current filesystem observation. Closing, clearing, privacy or ownership changes retire it. This operation does not register sources or retain folder content.

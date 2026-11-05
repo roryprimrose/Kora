@@ -129,7 +129,12 @@ primary window, not another top-level window:
   separated by a pointer- and keyboard-resizable divider. Enforce a minimum expanded
   window width and minimum pane widths so neither collapses into an unreadable strip.
   Do not replace conversation with a Details tab or stack the panes on narrow windows.
-  **Expand details**, if offered, adjusts the split only within those minimums;
+  Native **Expand details** allocates surplus width to Details while keeping the
+  conversation at its existing minimum. **Restore split** restores the prior
+  column lengths; the divider stays usable in either state. Hide, replacement
+  and session/private retirement discard this temporary expansion, preserving
+  the ordinary split. Neither action rereads content, recreates the reader,
+  changes selection/Find or resizes the window. Both remain within those minimums;
   **Back to conversation** focuses the originating message without hiding either pane.
   If the available work area cannot fit the minimum layout, report the limitation
   explicitly rather than placing controls off screen or silently using a different
@@ -171,6 +176,12 @@ primary window, not another top-level window:
   hidden browser views must stop renderer-owned activity or be disposed, not continue
   invisible browsing. Privacy, ownership/source loss, deletion and lock revoke content
   and fence delayed publication under the existing viewer contract.
+
+### Explicit private workspace recovery
+
+Lock, unknown desktop state and owner loss retire the composed session, compact, response and Details presentations. Successful joined retirement is required before a new explicit **Show Kora**, **Settings** or **Sessions** gesture can release the private presentation hold under current host ownership and authoritative unlocked-session checks ([recovery](../src/Kora.Application/ViewModels/MainViewModel.PrivatePresentation.cs), [native regression](../tests/Kora.Windows.IntegrationTests/DesktopLockRecoveryTests.cs)).
+
+Unlock may restore only independently eligible voice-mode readiness; it does not reopen private windows or replay a denied earlier gesture. Reopened Sessions starts without a selected conversation, private page or unsent input. Select the exact conversation and explicitly Read/Open again to resolve retained content; recovery does not submit input, dispatch a provider or change grants or independent retention ([voice transition](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs), [recovery regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.PrivatePresentation.cs)).
 
 ### Session-command log and audit details
 

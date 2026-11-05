@@ -1188,6 +1188,15 @@ Native Settings draft/save/reset and exact typed/ACTIVATED
 `list volume settings`, `get/status speech.playback-volume`,
 `set speech.playback-volume to <0-100>` and `reset speech.playback-volume`
 share the [volume workflow](../src/Kora.Application/Configuration/PlaybackVolumeConfigurationService.cs).
+Native Save, Reset and Refresh require the current visible Settings lifetime.
+Hiding, closing, replacing or disposing that surface retires pending native
+admission; reopening does not revive the old input. A fresh visible action is
+required. The final audited write rechecks this same lifetime. If it changes
+after persistence but before the apply receipt is confirmed, the
+unconfirmed-write hold remains: no rollback, replay,
+automatic retry or successful native receipt is inferred. Exact typed/activated
+voice and separately confirmed retained-model suggestions keep their independent
+original-source admission.
 Exact typed/current-name ACTIVATED `speak louder` / `speak quieter` take a [domain-owned step of up to 10 percentage points](../src/Kora.Core/Configuration/PlaybackVolume.cs#L21).
 They refresh original-channel admission before deriving an exact target from desired state/revision, then use the [existing held proposal and audited apply action](../src/Kora.Application/Configuration/PlaybackVolumeConfigurationService.cs#L86); they never mutate the draft or infer a target through a model.
 The [result orchestration](../src/Kora.Application/ViewModels/MainViewModel.PlaybackVolume.cs#L76) explicitly reports a final shorter step reaching 0/100, or unchanged if already there.
@@ -1310,6 +1319,8 @@ every setting currently implemented by the host. All open settings surfaces
 observe the same live state: mouse and validated verbal mutations publish the
 same change notifications, so neither surface requires reopening or polling to
 show the new effective value.
+
+The existing compound `notices.quiet-hours` also accepts one exact inert retained-answer proposal: Off, a full weekly ordered days/start/end/explicit installed zone schedule, or Reset to unsaved Off. The host resolves the strong schedule type and reads actual current saved/effective intent for full old/new/default review. Separate current native confirmation calls the existing quiet-hours configuration service and requires committed audit and exact atomic preference readback. Model advice is not original UI input and never confirms itself; source/session/expiry, native lifetime, ownership/privacy/call/control and consent drift retire the review. No confirmed compound `settings.get` reader is added; discovery truthfully reports value unavailable. The change constrains future already-consented completion speech only, never listening, ordinary answers, consent or in-flight output ([owning contract](Proactive_Interaction.md#scheduled-proactive-speech-quiet-hours), [interaction](../docs/setting-proposals.md)).
 
 Bounded R15 now supplies run-scoped manual call controls and truthful automatic
 availability in **Settings > Calls**, outside the future generic settings/tool

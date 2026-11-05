@@ -1,4 +1,11 @@
+using Avalonia;
+using Avalonia.Automation;
+using Avalonia.Automation.Peers;
+using Avalonia.Automation.Provider;
 using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Input;
+using Avalonia.Input.Raw;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using AwesomeAssertions;
@@ -14,6 +21,112 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class ExactAnswerExportControllerTests
 {
+    [Theory]
+    [InlineData(480, 400, 14, false)]
+    [InlineData(480, 400, 24, false)]
+    [InlineData(480, 400, 24, true)]
+    [InlineData(820, 720, 24, false)]
+    public async Task CompleteLongDestinationReviewAndOneShotActionsRemainReachable(
+        int width, int height, int fontSize, bool cancel)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var storage = new InteractionStorageFixture();
+            var source = ExactAnswerExportWriterTests.Source();
+            using var host = HostActivity.BeginRoot(source.ConversationMessage!.Request, HostActivityLayer.Desktop, HostOperation.Request);
+            var writer = new Writer();
+            writer.Destination.Path = System.IO.Path.Combine(OwnedStorageFixture.ScratchParent(),
+                string.Join(System.IO.Path.DirectorySeparatorChar, Enumerable.Repeat(new string('d', 80), 12)), "exact-answer.md");
+            var audit = new Audit();
+            var controller = new ExactAnswerExportWindowController(writer, audit, NullLogger<ExactAnswerExportReview>.Instance,
+                (_, _) => Task.FromResult<string?>(writer.Destination.Path));
+            var owner = new Window();
+            owner.Show();
+            try
+            {
+                var operation = controller.ShowAsync(owner, source, () => true, _ => Task.FromResult(source), storage.Token);
+                var review = owner.OwnedWindows.OfType<ExactAnswerExportWindow>().Single();
+                review.Width = width;
+                review.Height = height;
+                review.FontSize = fontSize;
+                review.UpdateLayout();
+                var text = review.GetVisualDescendants().OfType<TextBox>().Single();
+                text.Text.Should().Be(source.Source);
+                text.Bounds.Height.Should().BeGreaterThan(60, "the complete original answer needs a usable independent viewport");
+                var confirm = review.GetVisualDescendants().OfType<Button>().Single(button =>
+                    string.Equals(button.Name, "ConfirmExactAnswerExport", StringComparison.Ordinal));
+                var close = review.GetVisualDescendants().OfType<Button>().Single(button =>
+                    string.Equals(button.Name, "CancelExactAnswerExport", StringComparison.Ordinal));
+                foreach (var control in new Control[] { text, confirm, close })
+                {
+                    var point = control.TranslatePoint(default, review)!.Value;
+                    point.X.Should().BeGreaterThanOrEqualTo(0);
+                    point.Y.Should().BeGreaterThanOrEqualTo(0);
+                    (point.X + control.Bounds.Width).Should().BeLessThanOrEqualTo(review.ClientSize.Width);
+                    (point.Y + control.Bounds.Height).Should().BeLessThanOrEqualTo(review.ClientSize.Height);
+                }
+                var metadata = review.GetVisualDescendants().OfType<TextBlock>()
+                    .Single(label => label.Text?.Contains("New destination:", StringComparison.Ordinal) == true);
+                metadata.Text.Should().Contain(writer.Destination.Path).And.Contain("Format:");
+                var chrome = metadata.GetVisualAncestors().OfType<ScrollViewer>().First();
+                chrome.Extent.Height.Should().BeGreaterThan(chrome.Viewport.Height);
+                chrome.Focus().Should().BeTrue();
+                review.KeyPress(Key.PageDown, RawInputModifiers.None, PhysicalKey.PageDown, null);
+                review.KeyRelease(Key.PageDown, RawInputModifiers.None, PhysicalKey.PageDown, null);
+                review.UpdateLayout();
+                chrome.Offset.Y.Should().BeGreaterThan(0, "the exact destination and retention warning remain reachable, not truncated");
+                chrome.Offset = new Vector(0, chrome.Extent.Height);
+                review.UpdateLayout();
+                chrome.Offset.Y.Should().BeApproximately(chrome.Extent.Height - chrome.Viewport.Height, 1);
+                writer.Destination.Calls.Should().Be(0);
+                audit.Events.Should().BeEmpty("layout and scrolling do not confirm disclosure");
+                if (cancel)
+                {
+                    close.Focus().Should().BeTrue();
+                    review.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
+                    review.KeyRelease(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
+                }
+                else
+                {
+                    confirm.Focus().Should().BeTrue();
+                    var invoke = ControlAutomationPeer.CreatePeerForElement(confirm)!.GetProvider<IInvokeProvider>()!;
+                    if (fontSize == 14) { invoke.Invoke(); }
+                    else
+                    {
+                        review.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
+                        review.KeyRelease(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
+                    }
+                    await review.Operation;
+                    review.Outcome.Should().Be(ExactAnswerExportOutcome.Saved);
+                    confirm.IsEnabled.Should().BeFalse();
+                    Action replay = invoke.Invoke;
+                    replay.Should().Throw<ElementNotEnabledException>();
+                    await review.Operation;
+                    writer.Destination.Calls.Should().Be(1, "the accessible confirmation is still single-use");
+                    text.Text.Should().BeEmpty();
+                    review.UpdateLayout();
+                    var status = review.GetVisualDescendants().OfType<TextBlock>()
+                        .Single(label => string.Equals(label.Name, "ExportStatus", StringComparison.Ordinal));
+                    status.Text.Should().Be(ExactAnswerExportWindow.Describe(ExactAnswerExportOutcome.Saved, writer.Destination.Path));
+                    var outcome = status.GetVisualAncestors().OfType<ScrollViewer>().First();
+                    outcome.Bounds.Height.Should().BeLessThanOrEqualTo(100);
+                    outcome.Extent.Height.Should().BeGreaterThan(outcome.Viewport.Height);
+                    close.Focus().Should().BeTrue();
+                    var closePoint = close.TranslatePoint(default, review)!.Value;
+                    (closePoint.Y + close.Bounds.Height).Should().BeLessThanOrEqualTo(review.ClientSize.Height,
+                        "even a complete long outcome must not push cancellation off screen");
+                    review.Close();
+                }
+                (await operation).Should().Contain(cancel ? "cancelled" : "verified");
+                writer.Destination.Calls.Should().Be(cancel ? 0 : 1);
+                writer.Destination.Disposals.Should().Be(1);
+                string.Join("\n", review.GetVisualDescendants().OfType<TextBlock>().Select(label => label.Text))
+                    .Should().NotContain(writer.Destination.Path).And.NotContain(source.Reference.ItemId.Value.ToString("D"));
+            }
+            finally { owner.Close(); }
+        });
+    }
+
     [Theory]
     [InlineData("picker-cancel")]
     [InlineData("picker-private")]
@@ -126,7 +239,7 @@ public sealed class ExactAnswerExportControllerTests
 
     private sealed class Destination : IExactAnswerExportDestination
     {
-        public string Path => System.IO.Path.Combine(OwnedStorageFixture.ScratchParent(), ".scratch", "orchestration",
+        public string Path { get; set; } = System.IO.Path.Combine(OwnedStorageFixture.ScratchParent(), ".scratch", "orchestration",
             "exact-answer-export", "synthetic-not-written.md");
         internal bool Hold { get; set; }
         internal int Calls { get; private set; }

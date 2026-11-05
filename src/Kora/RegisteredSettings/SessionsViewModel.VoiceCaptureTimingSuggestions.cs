@@ -6,7 +6,6 @@ namespace Kora;
 internal sealed partial class SessionsViewModel
 {
     private VoiceCaptureTimingSuggestionReview? captureTimingSuggestionReview;
-    private volatile object? captureTimingSuggestionIdentity;
     private Func<ConversationMessage, Func<bool>, Func<CancellationToken, Task>, CancellationToken,
         Task<VoiceCaptureTimingSuggestionReview>>? reviewCaptureTimingSuggestion;
     private Func<VoiceCaptureTimingSuggestionReview, CancellationToken, Task<bool>>? confirmCaptureTimingSuggestion;
@@ -50,7 +49,7 @@ internal sealed partial class SessionsViewModel
 
     private void CancelCaptureTimingSuggestion()
     {
-        captureTimingSuggestionIdentity = null;
+        registeredSettingReviewIdentity = null;
         captureTimingSuggestionReview?.Dispose();
         captureTimingSuggestionReview = null;
     }

@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 
 using AwesomeAssertions;
@@ -152,52 +153,86 @@ public sealed partial class SessionsConversationTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task CaptureTimingCancellationDuringAwaitRetiresPendingReviewOrConfirmation(bool confirming)
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task CaptureTimingCancellationDuringAwaitRetiresPendingReviewOrConfirmation(bool compact, bool confirming)
     {
-        using var storage = new InteractionStorageFixture();
-        await storage.InitializeAsync();
-        await WindowsSqliteConversationTests.FinishInitial(storage);
-        await using var admission = new AudioControlAdmission(storage.Store, storage.Store, new HostTaskCoordinator(storage.Tasks));
-        var preferences = new LocalVoiceCaptureTimingPreferences(storage.Paths);
-        var audit = new AuditLog();
-        var timing = new VoiceCaptureTimingConfigurationService(preferences, admission, audit,
-            NullLogger<VoiceCaptureTimingConfigurationService>.Instance);
-        using var policy = new CallCommunicationPolicy(new SummaryCallState());
-        await using var composed = new Composition(storage, adapter: new SummaryAnswerAdapter("set voice.trailing-silence to 2"));
-        var model = composed.Model;
-        var waiting = false;
-        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        model.BindVoiceCaptureTimingSuggestions((message, eligible, validate, token) =>
-            VoiceCaptureTimingSuggestionReview.ReviewAsync(timing, policy, storage.Time, message, eligible, async ct =>
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var storage = new InteractionStorageFixture();
+            await storage.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(storage);
+            await using var admission = new AudioControlAdmission(storage.Store, storage.Store, new HostTaskCoordinator(storage.Tasks));
+            var preferences = new LocalVoiceCaptureTimingPreferences(storage.Paths);
+            var audit = new AuditLog();
+            var timing = new VoiceCaptureTimingConfigurationService(preferences, admission, audit,
+                NullLogger<VoiceCaptureTimingConfigurationService>.Instance);
+            using var policy = new CallCommunicationPolicy(new SummaryCallState());
+            var adapter = new SummaryAnswerAdapter("set voice.trailing-silence to 2");
+            await using var composed = new Composition(storage, adapter: adapter);
+            var model = composed.Model;
+            var waiting = false;
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            model.BindVoiceCaptureTimingSuggestions((message, eligible, validate, token) =>
+                VoiceCaptureTimingSuggestionReview.ReviewAsync(timing, policy, storage.Time, message, eligible, async ct =>
+                {
+                    await validate(ct);
+                    if (waiting) { entered.TrySetResult(); await release.Task; }
+                }, token), (review, token) => review.ConfirmAsync(token));
+            await model.RefreshAsync();
+            await model.SelectAsync(model.Sessions.Single());
+            await model.ReadConversationAsync();
+            model.ComposerBody = "Allow a longer pause.";
+            await model.SubmitConversationAsync();
+            var answer = model.ConversationMessages.Single();
+            model.ComposerBody = "Keep this unsent message.";
+            var owner = new SessionsPresentationOwner(model);
+            Window window = compact ? new CompactSessionWindow(model, owner) : new SessionsWindow(model, owner);
+            window.Show();
+            try
             {
-                await validate(ct);
-                if (waiting) { entered.TrySetResult(); await release.Task; }
-            }, token), (review, token) => review.ConfirmAsync(token));
-        await model.RefreshAsync();
-        await model.SelectAsync(model.Sessions.Single());
-        await model.ReadConversationAsync();
-        model.ComposerBody = "Allow a longer pause.";
-        await model.SubmitConversationAsync();
-        var answer = model.ConversationMessages.Single();
-        if (confirming) { await model.ReviewRegisteredSettingSuggestionAsync(answer); }
-        waiting = true;
-        var work = confirming ? model.ConfirmRegisteredSettingSuggestionAsync() : model.ReviewRegisteredSettingSuggestionAsync(answer);
-        await entered.Task;
-        model.CanCancelRegisteredSettingSuggestion.Should().BeTrue();
-        model.CancelRegisteredSettingSuggestion();
-        work.IsCompleted.Should().BeFalse();
-        release.SetResult();
-        await work;
-        model.CanConfirmRegisteredSettingSuggestion.Should().BeFalse();
-        preferences.ReadBack().Should().BeNull();
-        audit.Events.Should().BeEmpty();
-        waiting = false;
-        await model.ReviewRegisteredSettingSuggestionAsync(answer);
-        model.CanConfirmRegisteredSettingSuggestion.Should().BeTrue();
-        await model.ConfirmRegisteredSettingSuggestionAsync();
-        preferences.Load().Should().Be(new VoiceCaptureTiming(5, 15, 2));
+                if (confirming) { await model.ReviewRegisteredSettingSuggestionAsync(answer); }
+                waiting = true;
+                var work = confirming ? model.ConfirmRegisteredSettingSuggestionAsync() : model.ReviewRegisteredSettingSuggestionAsync(answer);
+                await entered.Task;
+                Dispatcher.UIThread.RunJobs();
+                model.CanCancelRegisteredSettingSuggestion.Should().BeTrue();
+                var cancel = window.FindControl<Button>("CancelRegisteredSettingSuggestion")!;
+                cancel.IsEffectivelyEnabled.Should().BeTrue();
+                cancel.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                work.IsCompleted.Should().BeFalse();
+                release.SetResult();
+                await work;
+                model.CanCancelRegisteredSettingSuggestion.Should().BeFalse();
+                model.CanConfirmRegisteredSettingSuggestion.Should().BeFalse();
+                model.RegisteredSettingSuggestionDescription.Should().BeEmpty();
+                preferences.ReadBack().Should().BeNull();
+                audit.Events.Should().BeEmpty();
+                model.ComposerBody.Should().Be("Keep this unsent message.");
+                await model.ConfirmRegisteredSettingSuggestionAsync();
+                audit.Events.Should().BeEmpty("cancelled timing confirmation cannot be replayed");
+                waiting = false;
+                await model.ReviewRegisteredSettingSuggestionAsync(answer);
+                model.CanConfirmRegisteredSettingSuggestion.Should().BeTrue();
+                await model.ConfirmRegisteredSettingSuggestionAsync();
+                preferences.Load().Should().Be(new VoiceCaptureTiming(5, 15, 2));
+                new LocalVoiceCaptureTimingPreferences(storage.Paths).Load().Should().Be(new VoiceCaptureTiming(5, 15, 2));
+                audit.Events.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+                adapter.Calls.Should().Be(1);
+                model.CanCancelRegisteredSettingSuggestion.Should().BeFalse();
+                model.ComposerBody.Should().Be("Keep this unsent message.");
+                (await storage.Store.ReadConversationMessageAsync(answer.Request.SessionId, answer.Request.RequestId, storage.Token)).Should().Be(answer);
+                storage.Count("host_questions").Should().Be(0);
+                storage.Count("scoped_grants").Should().Be(0);
+            }
+            finally
+            {
+                release.TrySetResult();
+                owner.Revoke();
+            }
+        });
     }
 }

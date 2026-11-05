@@ -382,12 +382,7 @@ internal sealed partial class SessionsViewModel
         ClearInstructionContext();
         ClearHistoryContext();
         ClearConversationCancellation();
-        CancelAppearanceSuggestion(reportCancellation: false);
-        CancelSpeechSummarySuggestion(reportCancellation: false);
-        CancelPlaybackVolumeSuggestion(reportCancellation: false);
-        CancelWindowsSpeechRateSuggestion();
-        CancelCaptureTimingSuggestion();
-        CancelInstalledSpeechVoiceSuggestion();
+        CancelRegisteredSettingSuggestion(reportCancellation: false);
         CancelModelMemoryProposal();
         if (preserveUnsent) { RememberUnsent(); }
         ClearAssistantReply();

@@ -9,6 +9,7 @@ namespace Kora;
 internal sealed partial class SessionsViewModel
 {
     private enum SettingReviewFamily { Appearance, Summary, Volume, ResponseMode, WindowsRate, InstalledVoice, CaptureTiming }
+    private volatile object? registeredSettingReviewIdentity;
 
     public string RegisteredSettingsDescription => "Supported inert suggestions: " + string.Join("; ",
         RegisteredSettingRegistry.Settings.Select(item => $"{item.Id}: "
@@ -24,8 +25,8 @@ internal sealed partial class SessionsViewModel
     public bool CanConfirmRegisteredSettingSuggestion => CanConfirmAppearanceSuggestion
         || CanConfirmSpeechSummarySuggestion || CanConfirmPlaybackVolumeSuggestion || CanConfirmResponseModeSuggestion || CanConfirmWindowsSpeechRateSuggestion
         || CanConfirmInstalledSpeechVoiceSuggestion || CanConfirmCaptureTimingSuggestion;
-    public bool CanCancelRegisteredSettingSuggestion => CanConfirmRegisteredSettingSuggestion
-        || !closed && access.CanControl && captureTimingSuggestionIdentity is not null;
+    public bool CanCancelRegisteredSettingSuggestion => !closed && access.CanInspect && access.CanControl
+        && selected?.Authority.IsActive == true && registeredSettingReviewIdentity is not null;
     public string RegisteredSettingSuggestionDescription => AppearanceSuggestionDescription
         + SpeechSummarySuggestionDescription + PlaybackVolumeSuggestionDescription + ResponseModeSuggestionDescription + WindowsSpeechRateSuggestionDescription
         + InstalledSpeechVoiceSuggestionDescription + CaptureTimingSuggestionDescription;
@@ -39,6 +40,8 @@ internal sealed partial class SessionsViewModel
         return RunConversationAsync(async (target, live) =>
         {
             CancelRegisteredSettingSuggestion(reportCancellation: false);
+            var identity = new object();
+            registeredSettingReviewIdentity = identity;
             if (!access.CanControl || !target.Authority.IsActive || message.Generation != target.Authority.Generation
                 || !ObservedConversationMessages.Any(row => ReferenceEquals(row, message)))
             { throw new InvalidOperationException("Select an exact admitted answer from this Active conversation's current page for setting review."); }
@@ -67,10 +70,8 @@ internal sealed partial class SessionsViewModel
             { throw new InvalidDataException("The exact suggestion belongs to a different setting family; nothing was applied."); }
             var page = conversationPage;
             var completed = completedConversationMessage;
-            var timingIdentity = family == SettingReviewFamily.CaptureTiming ? new object() : null;
-            captureTimingSuggestionIdentity = timingIdentity;
-            bool Current() => live() && access.CanControl && !conversationSourceHeld
-                && (timingIdentity is null || ReferenceEquals(timingIdentity, captureTimingSuggestionIdentity))
+            bool Current() => ReferenceEquals(identity, registeredSettingReviewIdentity)
+                && live() && access.CanControl && !conversationSourceHeld
                 && ReferenceEquals(page, conversationPage) && ReferenceEquals(completed, completedConversationMessage);
             async Task Validate(CancellationToken token)
             {
@@ -137,6 +138,7 @@ internal sealed partial class SessionsViewModel
 
     public void CancelRegisteredSettingSuggestion(bool reportCancellation = true)
     {
+        registeredSettingReviewIdentity = null;
         CancelCaptureTimingSuggestion();
         CancelAppearanceSuggestion(reportCancellation: false);
         CancelSpeechSummarySuggestion(reportCancellation: false);
@@ -157,6 +159,8 @@ internal sealed partial class SessionsViewModel
         if (responseModeReview is { Available: false }) { CancelResponseModeSuggestion(); }
         if (windowsSpeechRateReview is { Available: false }) { CancelWindowsSpeechRateSuggestion(); }
         if (installedVoiceReview is { Available: false }) { CancelInstalledSpeechVoiceSuggestion(); }
+        if (!busy && !conversationBusy && !CanConfirmRegisteredSettingSuggestion)
+        { registeredSettingReviewIdentity = null; }
         OnPropertyChanged(nameof(CanReviewRegisteredSettingSuggestion));
         OnPropertyChanged(nameof(CanConfirmRegisteredSettingSuggestion));
         OnPropertyChanged(nameof(CanCancelRegisteredSettingSuggestion));

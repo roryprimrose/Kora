@@ -317,6 +317,13 @@ public sealed partial class DetailContentView : UserControl
 
     internal void OnKeyDown(object? sender, KeyEventArgs eventArgs)
     {
+        if (eventArgs.Key == Key.H && eventArgs.KeyModifiers == KeyModifiers.Alt
+            && documentInteraction?.HasHeadingIndex == true)
+        {
+            eventArgs.Handled = true;
+            documentInteraction.FocusHeadingIndex();
+            return;
+        }
         if (eventArgs.Key == Key.Enter && ReferenceEquals(eventArgs.Source, search))
         {
             eventArgs.Handled = true;

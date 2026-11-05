@@ -84,6 +84,14 @@ public sealed class ModelContextEnvelope
                     || item.Disclosure != ModelEvidenceDisclosure.LocalOnly)
                 { throw new InvalidDataException("Host memory lineage must bind the exact same-session local-only evidence identity and revision."); }
             }
+            if (item.ProfileMemorySource is { } profileMemory)
+            {
+                profileMemory.Validate();
+                if (item.HistorySource is not null || item.MemorySource is not null
+                    || profileMemory.Id.Value != item.Id.Value || profileMemory.Revision != item.Revision
+                    || item.Disclosure != ModelEvidenceDisclosure.LocalOnly)
+                { throw new InvalidDataException("Host profile memory lineage must bind the exact local-only evidence identity and revision."); }
+            }
         }
         return items;
     }

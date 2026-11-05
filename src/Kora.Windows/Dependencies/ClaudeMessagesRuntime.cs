@@ -55,6 +55,8 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, ICla
             { return new(ModelTurnOutcome.Unavailable); }
             var countBody = Serialize(context, profile, null);
             var messageBody = Serialize(context, profile, outputLimit);
+            if (checked(countBody.Length + messageBody.Length) > ModelContextEnvelope.MaximumInputUtf8Bytes)
+            { return new(ModelTurnOutcome.DeniedEgress); }
             using var http = create();
             var sender = new ClaudeFinalRequestHandler(http, accounts);
             async ValueTask<bool> Live(CancellationToken ct) => !disposed && !ct.IsCancellationRequested
@@ -62,15 +64,18 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, ICla
                 && await current(ct).ConfigureAwait(false)
                 && !disposed && !ct.IsCancellationRequested && context.ExpiresAt > time.GetUtcNow();
             var counted = await sender.SendAsync(ClaudeFinalRequestHandler.Prepare(provenance, profile, account,
-                "/v1/messages/count_tokens", countBody), account, admit, Live, token).ConfigureAwait(false);
+                "/v1/messages/count_tokens", countBody), account, admit, Live, token,
+                ModelContextEnvelope.MaximumOutputUtf8Bytes).ConfigureAwait(false);
             if (counted is null) { return new(ModelTurnOutcome.DeniedEgress); }
             using var count = Parse(counted);
             if (count.RootElement.EnumerateObject().Count() != 1
                 || !count.RootElement.GetProperty("input_tokens").TryGetInt32(out var inputTokens)
-                || inputTokens <= 0 || inputTokens > inputLimit)
+                || inputTokens <= 0 || inputTokens > inputLimit
+                || counted.Length >= ModelContextEnvelope.MaximumOutputUtf8Bytes)
             { return new(ModelTurnOutcome.DeniedEgress); }
             var response = await sender.SendAsync(ClaudeFinalRequestHandler.Prepare(provenance, profile, account,
-                "/v1/messages", messageBody), account, admit, Live, token).ConfigureAwait(false);
+                "/v1/messages", messageBody), account, admit, Live, token,
+                ModelContextEnvelope.MaximumOutputUtf8Bytes - counted.Length).ConfigureAwait(false);
             if (response is null) { return new(ModelTurnOutcome.DeniedEgress); }
             var answer = ParseAnswer(response, profile, outputLimit, inputLimit.Value);
             token.ThrowIfCancellationRequested();
@@ -79,7 +84,7 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, ICla
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         { return new(ModelTurnOutcome.Cancelled); }
-        catch (Exception exception) when (exception is HttpRequestException or IOException or JsonException
+        catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidDataException or JsonException
             or InvalidOperationException or KeyNotFoundException or FormatException)
         {
             RequestFailed(logger, exception.GetType().Name);

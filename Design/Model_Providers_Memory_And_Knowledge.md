@@ -609,6 +609,13 @@ The [exact grammar](../src/Kora.Core/Commands/MemoryCommand.cs) provides `memory
   Edit clears review and returns to Proposed/Pending, immediately redacting the earlier durable body. Disable closes use; re-enabling requires edit, inspect, review and admit. Forget retains a content-free non-reusable tombstone, not a claim of forensic erasure.
 - [Session observation](../src/Kora.Application/Memory/MemoryAdmissionService.Observation.cs) and each mutation revalidate exact active session/generation, ownership, privacy/control revision, cancellation and lifecycle.
   Lifecycle, disposition, retention and privacy closure revoke cached inspection/presentation. Invalid persisted state propagates `InvalidDataException`, never an empty successful inventory or cached-body fallback.
+  Each authoritative action transaction also evicts missing durable cached records before
+  evaluating use or mutation, including a withdrawal after inspection. A missing record
+  returns `NotFound/Missing` without content, use or replacement; exact-record batch
+  actions retain their revision-conflict fence. Never-persisted proposals alone remain
+  volatile and can still complete separate review/admission. Session and Device-profile
+  routes share this rule; no lifetime, recall or disclosure authority is added
+  ([transaction regressions](../tests/Kora.Application.UnitTests/Memory/MemoryAdmissionServiceTests.MissingDurable.cs)).
 - [Typed/activated routing](../src/Kora.Application/ViewModels/MainViewModel.Memory.cs) is visual-only and precedes inference; inspected values are not spoken, attached to history or sent to a provider.
   Model/HostSystem and completed host callbacks cannot relabel themselves as fresh original input. Failed receipts explicitly require inspecting durable state; no rollback or automatic retry is claimed.
 
@@ -616,6 +623,7 @@ The [command-level transition matrix and mutation-boundary tests](../tests/Kora.
 [SQLite surface tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteMemoryTests.Management.cs) exercise the authoritative round-trip, redaction/tombstones and corrupt saved state without cached fallback.
 
 Provider ranking/prompt attachment, cross-session/global/device-profile/project/source recall, hosted disclosure, and model-facing admission remain separate, undelivered workstreams. The [explicit reviewed model-memory proposal](../docs/model-memory-proposals.md) adds only a strict inert candidate from an actual retained ASSISTANT answer: the original user inspects complete source/channel/turn lineage and exact value/classification, then separately accepts and admits it through the existing session-only admission/audit/store. No answer is automatically converted, used, promoted or learned; stale/private/source/lifecycle closure retires review.
+Before admission, a separate original-user **Reject candidate** action can also withdraw an accepted proposal. The existing authoritative review transition clears its receipt and records rejection, without saving a candidate body, using memory or changing the retained answer. The same source, revision, expiry, private-owner and input fences apply; acceptance does not force admission. Cancellation remains a distinct non-rejection withdrawal.
 The original 2026-10-09 surface had no create/propose route. The bounded original-user extension below supersedes that gap only; arbitrary conversation and model responses still cannot trigger creation.
 
 ### Bounded Selected-Subset Session Memory Disable - 2026-10-18

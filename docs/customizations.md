@@ -234,6 +234,8 @@ The [host validator](../src/Kora.Application/Definitions/PromptTemplateAuthoring
 
 **Cancel prompt authoring**, edits to the description/declaration/draft, changed input/source/catalogue/provider, privacy/channel/call/ownership loss, close or the two-minute proposal lifetime retire pending work. Late output cannot replace the draft; cancellation retains model ownership until actual termination. Unknown capabilities and unavailable local models report refusal without hosted fallback. Production model qualification remains unavailable; deterministic implementation tests do not enable a provider ([lifecycle](../src/Kora/CustomizationWindowController.cs), [complete-operation regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.PromptAuthoring.cs)).
 
+This also applies while the final source check is pending after the model has finished. The host checks cancellation, the proposal lifetime, private input and the exact authoring session again before returning the proposal. A source check completing late cannot restore a retired review; start a fresh reviewed request.
+
 ### Refine other definitions
 
 Enter a request in **Describe or discuss a change with Kora**, then choose

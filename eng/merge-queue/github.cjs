@@ -228,9 +228,10 @@ class GitHubQueue {
     if (expected === null)
       this.notice('Candidate workflow job schema is unknown; physical quiescence is unknown.');
     return expected === null ? null : { blob: data.sha, jobs: expected,
-      schema: lines.includes('# merge-queue-job-schema: unit-pr-v1') ? 'unit-pr-v1'
-        : lines.includes('# merge-queue-delivery-schema: independent-v1') ? 'windows-12-delivery-v1'
-          : lines.includes('# merge-queue-job-schema: windows-12-v1') ? 'windows-12-v1' : 'historical' };
+      schema: lines.includes('# merge-queue-job-schema: parallel-pr-v1') ? 'parallel-pr-v1'
+        : lines.includes('# merge-queue-job-schema: unit-pr-v1') ? 'unit-pr-v1'
+          : lines.includes('# merge-queue-delivery-schema: independent-v1') ? 'windows-12-delivery-v1'
+            : lines.includes('# merge-queue-job-schema: windows-12-v1') ? 'windows-12-v1' : 'historical' };
   }
   async releaseSource(source, ref = this.commit) {
     invariant(SHA.test(source) && SHA.test(ref), 'Independent release requires pinned source and queue revisions.');

@@ -68,10 +68,12 @@ test('completed-source authority is immutable and excludes transient main qualif
   assert.throws(() => releaseRecord(source));
 });
 
-test('independent completed-source records preserve historical or unit-only proof schemas without cross-schema authority', () => {
-  const { DELIVERY_JOBS, UNIT_PR_JOBS } = require('./policy.cjs');
+test('independent completed-source records preserve historical, unit-only and parallel proof schemas without cross-schema authority', () => {
+  const { DELIVERY_JOBS, UNIT_PR_JOBS, PARALLEL_PR_JOBS } = require('./policy.cjs');
   const { digest } = require('./batch-policy.cjs');
-  for (const [schema, jobs] of [['windows-12-delivery-v1', DELIVERY_JOBS], ['unit-pr-v1', UNIT_PR_JOBS]]) {
+  const inventories = [['windows-12-delivery-v1', DELIVERY_JOBS], ['unit-pr-v1', UNIT_PR_JOBS],
+    ['parallel-pr-v1', PARALLEL_PR_JOBS]];
+  for (const [schema, jobs] of inventories) {
     for (const batch of [false, true]) {
       const source = tip();
       source.validation.schema = schema;
@@ -97,12 +99,14 @@ test('independent completed-source records preserve historical or unit-only proo
         /completed-source record/);
       }
       if (batch) {
-        const changed = structuredClone(source);
-        changed.admission.inventory.schema = schema === 'unit-pr-v1' ? 'windows-12-delivery-v1' : 'unit-pr-v1';
-        changed.manifest = digest(changed.admission);
-        assert.throws(() => releaseRecord(changed), /completed-source proof/);
-        assert.throws(() => validateRelease({ ...record, admission: changed.admission,
-          manifest: changed.manifest }, source.sha), /completed-source record/);
+        for (const [other] of inventories.filter(([name]) => name !== schema)) {
+          const changed = structuredClone(source);
+          changed.admission.inventory.schema = other;
+          changed.manifest = digest(changed.admission);
+          assert.throws(() => releaseRecord(changed), /completed-source proof/);
+          assert.throws(() => validateRelease({ ...record, admission: changed.admission,
+            manifest: changed.manifest }, source.sha), /completed-source record/);
+        }
       }
     }
   }

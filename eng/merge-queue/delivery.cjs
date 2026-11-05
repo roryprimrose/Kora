@@ -26,7 +26,7 @@ function releaseRecord(tip) {
     && Number.isSafeInteger(tip.validation?.run) && tip.validation.run > 0
     && tip.validation.attempt === 1 && tip.validation.source === tip.combined
     && tip.validation.workflow === tip.base && SHA.test(tip.validation.inventory)
-    && ['windows-12-delivery-v1', 'unit-pr-v1'].includes(tip.validation.schema)
+    && ['windows-12-delivery-v1', 'unit-pr-v1', 'parallel-pr-v1'].includes(tip.validation.schema)
     && manifestValid(tip),
   'Invalid independent completed-source proof.');
   return { schema: RELEASE_SCHEMA, source: tip.sha, tree: tip.tree, ticket: tip.ticket,
@@ -40,7 +40,7 @@ function validateRelease(record, source) {
     && TICKET.test(record.ticket) && Number.isSafeInteger(record.validation?.run)
     && record.validation.run > 0 && record.validation.attempt === 1
     && record.validation.source === record.combined && record.validation.workflow === record.base
-    && SHA.test(record.validation.inventory) && ['windows-12-delivery-v1', 'unit-pr-v1'].includes(record.validation.schema)
+    && SHA.test(record.validation.inventory) && ['windows-12-delivery-v1', 'unit-pr-v1', 'parallel-pr-v1'].includes(record.validation.schema)
     && manifestValid(record),
   'Invalid independent completed-source record.');
   return record;

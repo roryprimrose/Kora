@@ -138,6 +138,8 @@ Claude authority. The default stateless text-only profile includes no tools,
 files, history, attachments, memory or other source instructions.
 Every content-bearing physical POST, including Count Tokens, requires a new
 private native complete-final-byte disclosure and affirmative one-send consent.
+The [Claude](../src/Kora/ClaudeTransmissionWindowController.cs) and [Copilot](../src/Kora/CopilotTransmissionWindowController.cs) disclosure readers are read-only keyboard tab stops: Ctrl+End reaches the complete body and Tab leaves reading for the separate one-send or Deny action.
+Reading or typing into the reader cannot edit the immutable transmission or grant consent. Deny remains the default; close, cancellation and privacy retirement clear the reader ([native regressions](../tests/Kora.Windows.IntegrationTests/HostedTransmissionDisclosureTests.cs)).
 A genuine bounded final answer is retained as ASSISTANT data; denial/failure
 retains a truthful terminal, never a substitute answer. Cancellation joins
 actual outstanding work and cannot retract transmitted bytes.

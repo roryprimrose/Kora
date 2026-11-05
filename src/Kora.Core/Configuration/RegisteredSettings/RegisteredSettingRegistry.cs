@@ -30,6 +30,9 @@ public static class RegisteredSettingRegistry
             WindowsSpeechRate.Minimum, WindowsSpeechRate.Maximum, false),
         Appearance(RegisteredSetting.ResponseTimeout, AppearanceOption.ResponseTimeout),
         Appearance(RegisteredSetting.ReducedMotion, AppearanceOption.ReducedMotion),
+        new(RegisteredSetting.SpeechVoice, SpeechOptionRegistry.Get(SpeechOption.Voice).Id,
+            "future speech using one exact already installed provider and voice pair", "qualified installed ID",
+            null, null, false),
     ]);
 
     public static RegisteredSettingDescriptor Get(RegisteredSetting setting) =>

@@ -120,6 +120,7 @@ public sealed partial class MainViewModel
         NotifyDiagnosticImpactPreview();
         sessionRetentionPlanner?.Retire("Owner binding changed; preview retired.");
         NotifyAuditImpactPreview();
+        NotifyDetailPresentationAvailability();
     }
 
 #pragma warning disable VSTHRD003 // Exposes the owned call transition for asynchronous observation without starting duplicate closure work.

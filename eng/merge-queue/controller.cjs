@@ -6,6 +6,8 @@ const MAX_CANDIDATES = 10;
 
 async function reconcile(api, options = {}) {
   const { profile } = require('./batch-policy.cjs');
+  invariant(!api.independent || profile(options.profile) === 'batch-v1',
+    'Independent delivery requires the batch profile.');
   if (profile(options.profile) === 'batch-v1') return require('./batch.cjs').reconcileBatch(api, options);
   api.info(`Starting reconciliation for ${api.repository}; verifying required queue App checks and branch protection.`);
   const result = await reconcileOnce(api, options);
@@ -119,6 +121,10 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
     return inventories.get(active.base);
   }
   async function quiescent(active, runs, observed) {
+    invariant(runs.every(run => Number.isSafeInteger(run.id) && run.id > 0
+      && run.head_sha === active.base && run.run_attempt === 1)
+      && new Set(runs.map(run => run.id)).size === runs.length,
+    'Candidate cancellation source, attempt or run identity changed; lane held.');
     for (const run of runs.filter(run => run.status !== 'completed')) {
       api.info(`PR #${active.number}: requesting cancellation of matching run ${run.id} (${run.status}).`);
       await api.cancel(run.id);
@@ -140,7 +146,7 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
       const expected = observed?.runId === run.id ? observed.expected : await expectedInventory(active, run);
       const rejected = Array.isArray(expected) && !terminalJobs(jobs, expected)
         && await api.rejectedAdmission(active.base, run, jobs);
-      if (rejected) api.info(`PR #${active.number}: run ${run.id} rejected admission before candidate execution; exact terminal skipped-job plan verified.`);
+      if (rejected) api.info(`PR #${active.number}: run ${run.id} rejected admission or preflight before producer fanout; exact terminal skipped-job plan verified.`);
       if (!terminalJobs(jobs, expected) && !rejected) {
         api.info(`PR #${active.number}: run ${run.id} is completed but workflow inventory or job metadata is incomplete; requesting cancellation and retaining the lane.`);
         await api.cancel(run.id);
@@ -225,6 +231,17 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
     api.info(`PR #${active.number}: matching run ${run.id}; status ${run.status}; conclusion ${run.conclusion ?? 'pending'}; attempt ${run.run_attempt}.`);
     invariant(run.head_sha === active.base && run.run_attempt === 1,
       'Candidate workflow source or attempt changed; refusing merge authority.');
+    const jobs = await observeJobs(run);
+    const expected = await expectedInventory(active, run);
+    const observed = { runId: run.id, jobs, expected };
+    const jobState = requiredJobsState(jobs, expected);
+    if (run.status !== 'completed' && !MERGE_PHASES.includes(active.phase)
+      && (jobState === 'failure' || !await api.reviewReady(active.number))) {
+      const terminal = await quiescent(active, runs, observed);
+      await block(active, 'Candidate required-job evidence or review authority failed; cancelling remaining owned work.',
+        !terminal);
+      return terminal ? 'blocked' : 'retiring';
+    }
     if (run.status !== 'completed') {
       if (MERGE_PHASES.includes(active.phase)) {
         return unconfirmedMerge(active,
@@ -232,14 +249,10 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
       }
       return 'validating';
     }
-    const jobs = await observeJobs(run);
-    const expected = await expectedInventory(active, run);
-    const observed = { runId: run.id, jobs, expected };
     for (const name of expected ?? []) {
       const matches = jobs.filter(job => job.name === name);
       api.info(`Run ${run.id}: required job "${name}"; ${matches.length} match(es); conclusion(s): ${matches.map(job => job.conclusion ?? 'pending').join(', ') || 'missing'}.`);
     }
-    const jobState = requiredJobsState(jobs, expected);
     if (expected === null || run.conclusion !== 'success' || jobState === 'failure') {
       const terminal = await quiescent(active, runs, observed);
       await block(active, expected === null

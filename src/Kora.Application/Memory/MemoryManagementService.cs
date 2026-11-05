@@ -111,13 +111,19 @@ internal sealed partial class MemoryManagementService : IAsyncDisposable, IMemor
             throw new InvalidOperationException("Memory management requires fresh original local user input.");
         }
         if (command.Operation == MemoryCommandOperation.Invalid) { throw new InvalidOperationException(command.Error); }
-        if (command.Operation is not (MemoryCommandOperation.Help or MemoryCommandOperation.List or MemoryCommandOperation.Inspect))
+        var mutating = command.Operation is not (MemoryCommandOperation.Help or MemoryCommandOperation.List or MemoryCommandOperation.Inspect);
+        if (mutating)
         { contextSource.Invalidate(); profileContextSource.Invalidate(); }
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, lifetime.Token);
         token = linked.Token;
         await gate.WaitAsync(token).ConfigureAwait(false);
         try
         {
+            if (mutating)
+            {
+                contextSource.SetMutationInProgress(true);
+                profileContextSource.SetMutationInProgress(true);
+            }
             ObjectDisposedException.ThrowIf(disposed, this);
             var control = access.ControlRevision;
             if (observedControl is { } previous && previous != control) { ClearVolatile(); }
@@ -226,7 +232,19 @@ internal sealed partial class MemoryManagementService : IAsyncDisposable, IMemor
                 return result;
             }, token).ConfigureAwait(false);
         }
-        finally { access.Admitted = static () => false; gate.Release(); }
+        finally
+        {
+            access.Admitted = static () => false;
+            try
+            {
+                if (mutating)
+                {
+                    contextSource.SetMutationInProgress(false);
+                    profileContextSource.SetMutationInProgress(false);
+                }
+            }
+            finally { gate.Release(); }
+        }
     }
 
     private static MemorySummary Summary(MemoryRecord record) =>

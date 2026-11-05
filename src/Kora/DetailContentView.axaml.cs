@@ -24,6 +24,7 @@ public sealed partial class DetailContentView : UserControl
     private readonly TextBox search;
     private readonly CheckBox source;
     private readonly CheckBox readingText;
+    private readonly CheckBox wrapText;
     private readonly CheckBox disclosure;
     private readonly StackPanel renderedDocument;
     private readonly ScrollViewer renderedViewport;
@@ -48,6 +49,7 @@ public sealed partial class DetailContentView : UserControl
         findSpan = Required<NamedTextBlock>("FindSpan");
         source = Required<CheckBox>("SourceToggle");
         readingText = Required<CheckBox>("ReadingTextToggle");
+        wrapText = Required<CheckBox>("WrapTextToggle");
         disclosure = Required<CheckBox>("DisclosureConfirmation");
         renderedDocument = Required<StackPanel>("RenderedDocument");
         renderedViewport = Required<ScrollViewer>("RenderedViewport");
@@ -151,6 +153,16 @@ public sealed partial class DetailContentView : UserControl
         disclosure.IsVisible = content.ConversationMessage is null && content.Sensitivity == DetailSensitivity.DisclosureConfirmationRequired;
         source.IsCheckedChanged += (_, _) => state.SetSource(source.IsChecked == true);
         readingText.IsCheckedChanged += (_, _) => Refresh();
+        wrapText.IsCheckedChanged += (_, _) =>
+        {
+            if (cleared || state.Content is null) { RequestClose(); return; }
+            reader.TextWrapping = wrapText.IsChecked == true
+                ? Avalonia.Media.TextWrapping.Wrap : Avalonia.Media.TextWrapping.NoWrap;
+            if (cleared || state.Content is null) { RequestClose(); return; }
+            ScrollViewer.SetHorizontalScrollBarVisibility(reader, wrapText.IsChecked == true
+                ? Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled
+                : Avalonia.Controls.Primitives.ScrollBarVisibility.Auto);
+        };
         Required<Button>("PreviousMatch").Click += (_, _) => Find(SnapshotFindDirection.Previous);
         Required<Button>("NextMatch").Click += (_, _) => Find(SnapshotFindDirection.Next);
         Required<Button>("FirstMatch").Click += (_, _) => Find(SnapshotFindDirection.First);
@@ -233,6 +245,7 @@ public sealed partial class DetailContentView : UserControl
             && state.RenderState == DetailRenderState.Rendered;
         renderedViewport.IsVisible = structured;
         reader.IsVisible = !structured;
+        wrapText.IsVisible = !structured;
         Required<TextBlock>("RenderStatus").Text = state.Status;
     }
 
@@ -304,6 +317,13 @@ public sealed partial class DetailContentView : UserControl
 
     internal void OnKeyDown(object? sender, KeyEventArgs eventArgs)
     {
+        if (eventArgs.Key == Key.H && eventArgs.KeyModifiers == KeyModifiers.Alt
+            && documentInteraction?.HasHeadingIndex == true)
+        {
+            eventArgs.Handled = true;
+            documentInteraction.FocusHeadingIndex();
+            return;
+        }
         if (eventArgs.Key == Key.Enter && ReferenceEquals(eventArgs.Source, search))
         {
             eventArgs.Handled = true;
@@ -372,6 +392,7 @@ public sealed partial class DetailContentView : UserControl
         reader.SelectionStart = 0;
         reader.SelectionEnd = 0;
         reader.Text = string.Empty;
+        wrapText.IsEnabled = false;
         NativeStrikethroughText.Retire(renderedDocument.Children);
         foreach (var code in renderedDocument.GetVisualDescendants().OfType<NativeCodeBlock>().ToArray()) { code.Retire(); }
         renderedDocument.Children.Clear();

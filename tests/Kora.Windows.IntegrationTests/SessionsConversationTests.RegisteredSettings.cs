@@ -1,6 +1,7 @@
 using System.Text;
 
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -25,9 +26,11 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class SessionsConversationTests
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task RegisteredSettingAndModelMemoryNativeRoutesKeepSeparateConfirmationAndAdmission(bool compact)
+    [InlineData(false, "RegisteredSettingReviewReadback")]
+    [InlineData(true, "RegisteredSettingReviewReadback")]
+    [InlineData(false, "ConfirmRegisteredSettingSuggestion")]
+    [InlineData(true, "CancelRegisteredSettingSuggestion")]
+    public async Task RegisteredSettingKeyboardReviewReadsCancelsAndReturnsToExactSource(bool compact, string escapeControl)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -39,7 +42,114 @@ public sealed partial class SessionsConversationTests
             var audit = new AuditLog();
             var appearance = new AppearanceConfigurationService(preferences, audit,
                 NullLogger<AppearanceConfigurationService>.Instance);
-            var adapter = new SettingAndMemoryAnswers();
+            var adapter = new AppearanceAnswerAdapter("set appearance.theme to dark");
+            await using var composed = new Composition(f, adapter: adapter, appearance: appearance);
+            var model = composed.Model;
+            await model.RefreshAsync();
+            await model.SelectAsync(model.Sessions.Single());
+            await model.ReadConversationAsync();
+            model.ComposerBody = "Suggest a dark theme.";
+            await model.SubmitConversationAsync();
+            var answer = model.ConversationMessages.Single();
+            model.ComposerBody = "Unsent text must remain unchanged.";
+            var owner = new SessionsPresentationOwner(model);
+            Window window = compact ? new CompactSessionWindow(model, owner) : new SessionsWindow(model, owner);
+            window.Show();
+            try
+            {
+                await ActivateOriginalRequestWindow(window);
+                window.UpdateLayout();
+                Dispatcher.UIThread.RunJobs();
+                Button Source() => window.GetVisualDescendants().OfType<Button>().Single(button =>
+                    string.Equals(button.Name, "ReviewRegisteredSettingSuggestion", StringComparison.Ordinal)
+                    && ReferenceEquals(button.DataContext, answer));
+                var source = Source();
+                source.Focus().Should().BeTrue();
+                source.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await owner.RegisteredSettingOperation;
+                Dispatcher.UIThread.RunJobs();
+                var readback = window.FindControl<TextBlock>("RegisteredSettingReviewReadback")!;
+                readback.IsFocused.Should().BeTrue();
+                readback.Text.Should().Contain("current system (default); proposed dark mode").And.Contain("shared device-local");
+                readback.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+                model.CanConfirmRegisteredSettingSuggestion.Should().BeTrue("readback focus or Enter is not confirmation");
+                preferences.LoadThemeMode().Should().BeNull();
+                audit.Events.Should().BeEmpty();
+
+                var composer = window.FindControl<TextBox>("ConversationComposer")!;
+                composer.Focus().Should().BeTrue();
+                var unrelatedKey = new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.F6 };
+                composer.RaiseEvent(unrelatedKey);
+                unrelatedKey.Handled.Should().BeFalse("settings review does not intercept unrelated composer keys");
+                model.CanConfirmRegisteredSettingSuggestion.Should().BeTrue();
+                model.ComposerBody.Should().Be("Unsent text must remain unchanged.");
+                var control = window.FindControl<Control>(escapeControl)!;
+                control.Focus().Should().BeTrue();
+                var escape = new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape };
+                control.RaiseEvent(escape);
+                escape.Handled.Should().BeTrue();
+                Dispatcher.UIThread.RunJobs();
+                model.CanConfirmRegisteredSettingSuggestion.Should().BeFalse();
+                model.RegisteredSettingSuggestionDescription.Should().BeEmpty();
+                model.ConversationStatus.Should().Contain("cancelled").And.Contain("No new setting write");
+                source = Source();
+                source.IsFocused.Should().BeTrue();
+                model.ComposerBody.Should().Be("Unsent text must remain unchanged.");
+                preferences.LoadThemeMode().Should().BeNull();
+                audit.Events.Should().BeEmpty();
+
+                source.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await owner.RegisteredSettingOperation;
+                window.FindControl<Button>("ConfirmRegisteredSettingSuggestion")!
+                    .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await owner.RegisteredSettingOperation;
+                preferences.LoadThemeMode().Should().Be(ApplicationThemeMode.Dark);
+                audit.Events.Select(item => item.Outcome).Should()
+                    .Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+                source = Source();
+                source.IsFocused.Should().BeTrue();
+                adapter.Calls.Should().Be(1, "review recovery reuses the exact source without another model request");
+                model.ComposerBody.Should().Be("Unsent text must remain unchanged.");
+                f.Count("scoped_grants").Should().Be(0);
+                f.Count("host_questions").Should().Be(0);
+
+                composer.Focus().Should().BeTrue();
+                source.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await owner.RegisteredSettingOperation;
+                composer.IsFocused.Should().BeTrue("a review opened without source focus must not steal composer focus");
+                window.FindControl<Button>("ConfirmRegisteredSettingSuggestion")!
+                    .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await owner.RegisteredSettingOperation;
+                composer.IsFocused.Should().BeTrue("completion must not steal focus moved outside the review");
+                preferences.LoadThemeMode().Should().Be(ApplicationThemeMode.Dark);
+                model.ComposerBody.Should().Be("Unsent text must remain unchanged.");
+                adapter.Calls.Should().Be(1);
+            }
+            finally { owner.Revoke(); }
+        });
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task RegisteredSettingAndModelMemoryNativeRoutesKeepSeparateConfirmationAndAdmission(bool compact, bool reset)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            var preferences = new LocalAppearancePreferences(new LocalPreferenceStore(f.Paths),
+                NullLogger<LocalAppearancePreferences>.Instance);
+            if (reset) { preferences.SaveThemeMode(ApplicationThemeMode.Light); }
+            var audit = new AuditLog();
+            var appearance = new AppearanceConfigurationService(preferences, audit,
+                NullLogger<AppearanceConfigurationService>.Instance);
+            var suggestion = reset ? "reset appearance.theme" : "set appearance.theme to dark";
+            var expected = reset ? ApplicationThemeMode.System : ApplicationThemeMode.Dark;
+            var adapter = new SettingAndMemoryAnswers(suggestion);
             await using var composed = new Composition(f, adapter: adapter, appearance: appearance, memoryContext: true);
             var model = composed.Model;
             await model.RefreshAsync();
@@ -51,7 +161,7 @@ public sealed partial class SessionsConversationTests
             await model.SubmitConversationAsync();
             await model.ReadConversationAsync();
             var setting = model.ConversationMessages.Single(item => string.Equals(item.AssistantResponse?.Body,
-                "set appearance.theme to dark", StringComparison.Ordinal));
+                suggestion, StringComparison.Ordinal));
             var memory = model.ConversationMessages.Single(item => string.Equals(item.AssistantResponse?.Body,
                 MemoryProposal, StringComparison.Ordinal));
             var owner = new SessionsPresentationOwner(model);
@@ -74,14 +184,15 @@ public sealed partial class SessionsConversationTests
                     await Task.WhenAll(owner.RegisteredSettingOperation, owner.ModelMemoryOperation);
                 }
                 await Click("ReviewRegisteredSettingSuggestion", setting);
-                model.RegisteredSettingSuggestionDescription.Should().Contain("proposed dark mode");
+                model.RegisteredSettingSuggestionDescription.Should().Contain(reset ? "proposed system mode" : "proposed dark mode");
+                if (reset) { model.RegisteredSettingSuggestionDescription.Should().Contain("Reset saves").And.Contain("saved preference"); }
                 model.CanConfirmRegisteredSettingSuggestion.Should().BeTrue();
                 model.CanAcceptModelMemoryProposal.Should().BeFalse();
-                preferences.LoadThemeMode().Should().BeNull();
+                preferences.LoadThemeMode().Should().Be(reset ? ApplicationThemeMode.Light : null);
                 audit.Events.Should().BeEmpty();
                 f.Count("reviewed_memory").Should().Be(0);
                 await Click("ConfirmRegisteredSettingSuggestion");
-                preferences.LoadThemeMode().Should().Be(ApplicationThemeMode.Dark);
+                preferences.LoadThemeMode().Should().Be(expected);
                 audit.Events.Select(item => item.Outcome).Should()
                     .Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
                 f.Count("reviewed_memory").Should().Be(0, "setting confirmation cannot admit memory");
@@ -96,7 +207,7 @@ public sealed partial class SessionsConversationTests
                 model.ConversationStatus.Should().Contain("SESSION memory admitted");
                 model.ModelMemoryProposalDescription.Should().BeEmpty();
                 f.Count("reviewed_memory").Should().Be(1);
-                preferences.LoadThemeMode().Should().Be(ApplicationThemeMode.Dark);
+                preferences.LoadThemeMode().Should().Be(expected);
                 audit.Events.Should().HaveCount(2, "memory admission cannot repeat a setting write");
                 adapter.Calls.Should().Be(2, "neither review route regenerates an answer");
                 f.Count("scoped_grants").Should().Be(0);
@@ -196,7 +307,7 @@ public sealed partial class SessionsConversationTests
         adapter.Calls.Should().Be(2, "review never regenerates an answer");
     }
 
-    private sealed class SettingAndMemoryAnswers : IModelTurnAdapter
+    private sealed class SettingAndMemoryAnswers(string setting = "set appearance.theme to dark") : IModelTurnAdapter
     {
         internal int Calls { get; private set; }
 
@@ -210,7 +321,7 @@ public sealed partial class SessionsConversationTests
                 .And.Contain("including VoiceOnly")
                 .And.Contain("explicitly requests a session-memory proposal");
             return Task.FromResult(new ModelProviderReply(ModelTurnOutcome.Succeeded, provenance.Selection,
-                new(Calls == 1 ? "set appearance.theme to dark" : MemoryProposal, null)));
+                new(Calls == 1 ? setting : MemoryProposal, null)));
         }
     }
 

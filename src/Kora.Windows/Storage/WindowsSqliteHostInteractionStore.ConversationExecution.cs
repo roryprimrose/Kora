@@ -83,6 +83,23 @@ public sealed partial class WindowsSqliteHostInteractionStore
                         || source.Role == ConversationHistoryRole.Assistant && original.AssistantResponse is null)
                     { throw new InvalidOperationException("The exact submitted history source changed before answer retention."); }
                 }
+                if (!context.MemorySources.IsDefault)
+                {
+                    foreach (var source in context.MemorySources)
+                    {
+                        if (!IsSubmittedMemoryRetained(connection, transaction, source))
+                        { throw new InvalidOperationException("The exact submitted session memory changed before answer retention."); }
+                    }
+                }
+                if (!context.ProfileMemorySources.IsDefault)
+                {
+                    var profile = ReadMemoryProfile(connection);
+                    foreach (var source in context.ProfileMemorySources)
+                    {
+                        if (source.Profile != profile || !IsSubmittedProfileMemoryRetained(connection, transaction, source))
+                        { throw new InvalidOperationException("The exact submitted device-profile memory changed before answer retention."); }
+                    }
+                }
             }
             var message = previous with
             {

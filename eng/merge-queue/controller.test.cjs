@@ -4,8 +4,8 @@ const { createHash } = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { reconcile } = require('./controller.cjs');
-const { CHECKS, GATE, JOBS, WINDOWS_12_JOBS, PREDECESSOR_WORKFLOWS, workflowJobs,
-  REJECTED_ADMISSION_JOBS, terminalRejectedAdmission,
+const { CHECKS, GATE, JOBS, WINDOWS_12_JOBS, DELIVERY_JOBS, PREDECESSOR_WORKFLOWS, workflowJobs,
+  REJECTED_ADMISSION_JOBS, terminalRejectedAdmission, terminalRejectedPreflight,
   MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS,
   mode, validateState, ready, priority, title, requiredJobsState, terminalJobs, successfulJobs } = require('./policy.cjs');
 
@@ -62,7 +62,8 @@ class Fake {
     return workflowJobs(this.workflowSource, this.workflowBlob);
   }
   async rejectedAdmission(source, value, jobs) {
-    return value.head_sha === source && terminalRejectedAdmission(value, jobs, this.workflowBlob);
+    return value.head_sha === source && (terminalRejectedAdmission(value, jobs, this.workflowBlob)
+      || terminalRejectedPreflight(value, jobs, this.workflowBlob));
   }
   async createCheck(value, name) { this.calls.push(['check', value.head, name]); return this.calls.length + 100; }
   async finishCheck(id, conclusion, message) { this.calls.push(['finish', id, conclusion, message]); }
@@ -81,6 +82,44 @@ const step = (api, options = {}) => reconcile(api, { now: NOW, ticket: TICKET, .
 const count = (api, action) => api.calls.filter(call => call[0] === action).length;
 const labels = (...names) => names.map(name => ({ name }));
 
+test('a failed required job cancels a running singleton immediately without releasing nonterminal or missing work', async () => {
+  for (const missing of [false, true]) {
+    const api = new Fake();
+    api.state.active = active();
+    api.workflowRuns = [run({ status: 'in_progress', conclusion: null })];
+    api.workflowJobs[0].conclusion = 'failure';
+    Object.assign(api.workflowJobs.at(-1), { status: 'in_progress', conclusion: null });
+    assert.equal(await step(api), 'retiring');
+    assert.equal(count(api, 'cancel'), 1);
+    assert.equal(api.state.active.ticket, TICKET);
+    api.workflowRuns[0].status = 'completed';
+    api.workflowRuns[0].conclusion = 'cancelled';
+    if (missing) api.workflowJobs.pop();
+    else Object.assign(api.workflowJobs.at(-1), { status: 'completed', conclusion: 'cancelled' });
+    assert.equal(await step(api), missing ? 'retiring' : 'retired');
+    assert.equal(count(api, 'merge'), 0);
+    assert.equal(count(api, 'dispatch'), 0);
+  }
+});
+
+test('running singleton review withdrawal cancels owned work but unknown cancellation identities fail closed', async () => {
+  const api = new Fake();
+  api.state.active = active();
+  api.workflowRuns = [run({ status: 'in_progress', conclusion: null })];
+  api.approved = false;
+  assert.equal(await step(api), 'retiring');
+  assert.equal(count(api, 'cancel'), 1);
+  for (const changed of [{ id: 0 }, { head_sha: OTHER }, { run_attempt: 2 }]) {
+    const stale = new Fake();
+    stale.state.active = active();
+    stale.prs[0].auto_merge = null;
+    stale.workflowRuns = [run({ status: 'in_progress', conclusion: null, ...changed })];
+    await assert.rejects(step(stale), /cancellation source/);
+    assert.equal(count(stale, 'cancel'), 0);
+    assert.equal(stale.state.active.phase, 'retiring');
+  }
+});
+
 function rejectedAdmission() {
   const api = new Fake();
   api.workflowBlob = '97e22a8f88bcdc9bbaef32cf9e7200dd6e5c43cd';
@@ -91,6 +130,109 @@ function rejectedAdmission() {
     run_id: 9, run_attempt: 1, head_sha: BASE }));
   return api;
 }
+
+function rejectedPreflight(conclusion = 'failure') {
+  const api = rejectedAdmission();
+  api.workflowBlob = 'c75173721c4131cf29d45482ea2edb92934070f1';
+  api.workflowRuns[0].conclusion = conclusion;
+  for (const job of api.workflowJobs) {
+    job.conclusion = job.name === 'Admit CI execution' ? 'success'
+      : job.name === 'Resolve build version' ? conclusion
+        : job.name === CHECKS[0] || job.name === CHECKS[1] || job.name.startsWith('Windows integration shard (')
+          ? 'failure' : 'skipped';
+  }
+  return api;
+}
+
+test('exact reviewed failed preflight retires a singleton with terminal unexpanded matrix but never admits it', async () => {
+  for (const conclusion of ['failure', 'cancelled', 'timed_out']) {
+    const api = rejectedPreflight(conclusion);
+    assert.equal(terminalJobs(api.workflowJobs, WINDOWS_12_JOBS), false);
+    assert.equal(successfulJobs(api.workflowJobs, WINDOWS_12_JOBS), false);
+    assert.equal(await step(api), 'blocked');
+    assert.equal(api.state.active, null);
+    assert.equal(count(api, 'cancel'), 0);
+    assert.equal(count(api, 'merge'), 0);
+    assert.equal(count(api, 'dispatch'), 0);
+    assert.ok(api.calls.filter(call => call[0] === 'finish').every(call => call[2] === 'failure'));
+  }
+});
+
+test('failed preflight cancellation retains singleton lane until run and every exact skipped job are terminal', async () => {
+  const api = rejectedPreflight();
+  api.workflowRuns[0].status = 'in_progress';
+  Object.assign(api.workflowJobs.at(-1), { status: 'in_progress', conclusion: null });
+  assert.equal(await step(api), 'retiring');
+  assert.equal(count(api, 'cancel'), 1);
+  assert.equal(api.state.active.ticket, TICKET);
+  api.workflowRuns[0].status = 'completed';
+  assert.equal(await step(api), 'retiring');
+  Object.assign(api.workflowJobs.at(-1), { status: 'completed', conclusion: 'skipped' });
+  assert.equal(await step(api), 'retired');
+  assert.equal(api.state.active, null);
+  assert.equal(count(api, 'merge'), 0);
+  assert.equal(count(api, 'dispatch'), 0);
+});
+
+test('preflight no-fanout authority rejects missing duplicate unknown and nonterminal evidence at every job', async () => {
+  const good = rejectedPreflight();
+  assert.equal(terminalRejectedPreflight(good.workflowRuns[0], good.workflowJobs, good.workflowBlob), true);
+  for (const name of REJECTED_ADMISSION_JOBS) {
+    for (const change of ['missing', 'duplicate', 'running', 'unknown', 'source', 'attempt', 'run', 'id']) {
+      const api = rejectedPreflight();
+      const job = api.workflowJobs.find(value => value.name === name);
+      if (change === 'missing') api.workflowJobs = api.workflowJobs.filter(value => value !== job);
+      if (change === 'duplicate') api.workflowJobs.push({ ...job, id: 1000 });
+      if (change === 'running') job.status = 'in_progress';
+      if (change === 'unknown') job.conclusion = null;
+      if (change === 'source') job.head_sha = OTHER;
+      if (change === 'attempt') job.run_attempt = 2;
+      if (change === 'run') job.run_id = 10;
+      if (change === 'id') job.id = 0;
+      assert.equal(terminalRejectedPreflight(api.workflowRuns[0], api.workflowJobs, api.workflowBlob),
+        false, `${name}/${change}`);
+    }
+  }
+  for (const change of ['blob', 'attempt', 'status', 'event', 'branch', 'extra', 'expanded', 'duplicate-id',
+    'version-skipped', 'version-unknown', 'admission-failed', 'producer-success', 'producer-failed', 'aggregate-success']) {
+    const api = rejectedPreflight();
+    if (change === 'blob') api.workflowBlob = '97e22a8f88bcdc9bbaef32cf9e7200dd6e5c43cd';
+    if (change === 'attempt') api.workflowRuns[0].run_attempt = 2;
+    if (change === 'status') api.workflowRuns[0].status = 'in_progress';
+    if (change === 'event') api.workflowRuns[0].event = 'push';
+    if (change === 'branch') api.workflowRuns[0].head_branch = 'tag';
+    if (change === 'extra') api.workflowJobs.push({ ...api.workflowJobs[0], id: 1000, name: 'Unknown work' });
+    if (change === 'expanded') api.workflowJobs.find(job => job.name.startsWith('Windows test partition (')).name =
+      'Windows test partition (native-ux)';
+    if (change === 'duplicate-id') api.workflowJobs[1].id = api.workflowJobs[0].id;
+    if (change === 'version-skipped') api.workflowJobs.find(job => job.name === 'Resolve build version').conclusion = 'skipped';
+    if (change === 'version-unknown') api.workflowJobs.find(job => job.name === 'Resolve build version').conclusion = null;
+    if (change === 'admission-failed') api.workflowJobs.find(job => job.name === 'Admit CI execution').conclusion = 'failure';
+    if (change === 'producer-success') api.workflowJobs.find(job => job.name === 'Build exact-source Windows test modules').conclusion = 'success';
+    if (change === 'producer-failed') api.workflowJobs.find(job => job.name === 'Build exact-source Windows test modules').conclusion = 'failure';
+    if (change === 'aggregate-success') api.workflowJobs.find(job => job.name === CHECKS[1]).conclusion = 'success';
+    assert.equal(terminalRejectedPreflight(api.workflowRuns[0], api.workflowJobs, api.workflowBlob), false, change);
+  }
+  const historical = rejectedAdmission();
+  assert.equal(terminalRejectedAdmission(historical.workflowRuns[0], historical.workflowJobs, historical.workflowBlob), true);
+  assert.equal(terminalRejectedPreflight(historical.workflowRuns[0], historical.workflowJobs, historical.workflowBlob), false);
+});
+
+test('uncertain preflight rejection metadata never releases a singleton after cancellation acknowledgement', async () => {
+  for (const change of ['missing', 'unknown', 'version-skipped', 'blob', 'producer-success']) {
+    const api = rejectedPreflight();
+    if (change === 'missing') api.workflowJobs.pop();
+    if (change === 'unknown') api.workflowJobs.at(-1).conclusion = null;
+    if (change === 'version-skipped') api.workflowJobs.find(job => job.name === 'Resolve build version').conclusion = 'skipped';
+    if (change === 'blob') api.workflowBlob = '86656bbb4151eac2f50bb4cd532f83d5667e3bba';
+    if (change === 'producer-success') api.workflowJobs.find(job => job.name === 'Build exact-source Windows test modules').conclusion = 'success';
+    assert.equal(await step(api), 'retiring', change);
+    assert.equal(await step(api), 'retiring', change);
+    assert.equal(api.state.active.ticket, TICKET);
+    assert.equal(count(api, 'merge'), 0);
+    assert.equal(count(api, 'dispatch'), 0);
+  }
+});
 
 test('a pinned first-attempt admission rejection retires without expanded matrix producers or merge proof', async () => {
   for (const phase of ['dispatched', 'retiring']) {
@@ -174,16 +316,20 @@ test('rejected admission retirement is restart-safe and still joins every matchi
 test('missing source-required producers cannot release failed, stale, merged or retiring lanes', async () => {
   const source = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8')
     .replaceAll('\r\n', '\n');
-  for (const workflow of [source]) {
+  const predecessor = fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-native-fixture-timing.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  for (const [workflow, inventory] of [[source, DELIVERY_JOBS], [predecessor, WINDOWS_12_JOBS]]) {
     const bytes = Buffer.from(workflow);
     const blob = createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
-    assert.deepEqual(workflowJobs(workflow, blob), WINDOWS_12_JOBS);
-    for (const producer of WINDOWS_12_JOBS.filter(name => !JOBS.includes(name))) {
+    assert.deepEqual(workflowJobs(workflow, blob), inventory);
+    for (const producer of inventory.filter(name => !JOBS.includes(name))) {
       for (const scenario of ['success', 'cancelled', 'failure', null, 'unknown',
         'stale-head', 'stale-base', 'stale-enrollment', 'merged', 'retiring']) {
         const api = new Fake();
         api.workflowSource = workflow;
         api.workflowBlob = blob;
+        api.workflowJobs = inventory.map((name, index) => ({ id: index + 1, name, status: 'completed',
+          conclusion: 'success', run_id: 9, run_attempt: 1, head_sha: BASE }));
         api.state.active = active();
         api.prs.push(pr(2));
         api.workflowRuns = [run({ conclusion: ['success', 'cancelled', 'failure', null, 'unknown'].includes(scenario)
@@ -282,8 +428,8 @@ test('retirement cannot resolve inventory from a mismatched run source or hide s
     if (scenario === 'source') {
       api.workflowRuns[0].head_sha = OTHER;
       api.workflowJobs.forEach(job => { job.head_sha = OTHER; });
-      assert.equal(await step(api), 'retiring');
-      assert.equal(count(api, 'cancel'), 1);
+      await assert.rejects(step(api), /cancellation source/);
+      assert.equal(count(api, 'cancel'), 0);
       assert.equal(count(api, 'inventory'), 0);
     } else {
       api.expectedJobs = async () => { throw new Error('Workflow source lookup failed'); };

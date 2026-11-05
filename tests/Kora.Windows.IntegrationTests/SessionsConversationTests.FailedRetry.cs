@@ -189,6 +189,7 @@ public sealed partial class SessionsConversationTests
     private sealed class FailedRetryAdapter : IModelTurnAdapter
     {
         internal int Calls { get; private set; }
+        internal List<ProviderProfileTuple?> Profiles { get; } = [];
         internal bool HoldSecond { get; init; }
         internal TaskCompletionSource<ModelTurnProvenance> Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource<ModelProviderReply> Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -197,6 +198,7 @@ public sealed partial class SessionsConversationTests
             CancellationToken token)
         {
             Calls++;
+            Profiles.Add(profile);
             using var wire = JsonDocument.Parse(context);
             wire.RootElement.GetProperty("Evidence").GetArrayLength().Should().Be(0);
             if (Calls == 2 && HoldSecond)

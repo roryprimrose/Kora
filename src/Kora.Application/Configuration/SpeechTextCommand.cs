@@ -11,11 +11,13 @@ public sealed record SpeechTextCommand(AppearanceCommandOperation Operation, Spe
     public const string OptionId = "display.speech-text";
     public const string PlacementId = "display.speech-text-placement";
     public const string DelayId = "display.speech-text-dismissal-delay";
+    public const string WordEmphasisId = "display.speech-text-word-emphasis";
     public const string PinId = "display.speech-text-pin";
     public const string Syntax = "list speech text settings | get display.speech-text | status display.speech-text | "
         + "set display.speech-text to Off|CurrentUtterance|CurrentSentence | reset display.speech-text | "
         + "get/status/set/reset display.speech-text-placement (BottomRight|BottomLeft|TopRight|TopLeft) | "
         + "get/status/set/reset display.speech-text-dismissal-delay (canonical integer seconds 0-30; default 5) | "
+        + "get/status/set/reset display.speech-text-word-emphasis (true|false; default false; requires qualified alignment) | "
         + "get/status/set/reset display.speech-text-pin (true|false; current caption only) | "
         + "turn on/off speech captions | show/hide speech captions | show/hide speech text | show the words you're saying "
         + "(show/on saves CurrentUtterance; hide/off saves Off, not a one-shot hide) | "
@@ -38,7 +40,7 @@ public sealed record SpeechTextCommand(AppearanceCommandOperation Operation, Spe
     ];
     public static IReadOnlyList<string> FixedPhrases { get; } =
         Array.AsReadOnly(new[] { "list speech text settings" }
-            .Concat(new[] { OptionId, PlacementId, DelayId, PinId }
+            .Concat(new[] { OptionId, PlacementId, DelayId, WordEmphasisId, PinId }
                 .SelectMany(id => new[] { "get " + id, "status " + id, "reset " + id }))
             .Concat(Enum.GetValues<SpeechTextMode>().Select(mode => "set " + OptionId + " to " + mode))
             .Concat(Enum.GetValues<SpeechCaptionPlacement>().Select(placement => "set " + PlacementId + " to " + placement))
@@ -46,6 +48,7 @@ public sealed record SpeechTextCommand(AppearanceCommandOperation Operation, Spe
                 SpeechCaptionOptions.MaximumDelaySeconds - SpeechCaptionOptions.MinimumDelaySeconds + 1)
                 .Select(seconds => "set " + DelayId + " to " + new SpeechCaptionValue.Delay(seconds).Label))
             .Concat(["set " + PinId + " to true", "set " + PinId + " to false"])
+            .Concat(["set " + WordEmphasisId + " to true", "set " + WordEmphasisId + " to false"])
             .Concat(NaturalAliases.Keys).ToArray());
 
     private static Dictionary<string, string> CreateNaturalAliases()
@@ -107,7 +110,7 @@ public sealed record SpeechTextCommand(AppearanceCommandOperation Operation, Spe
         if (text.Equals("list speech text settings", StringComparison.OrdinalIgnoreCase)) { return new(AppearanceCommandOperation.List); }
         foreach (var option in Enum.GetValues<SpeechCaptionOption>())
         {
-            var id = option == SpeechCaptionOption.Placement ? PlacementId : DelayId;
+            var id = IdFor(option);
             if (text.Equals("get " + id, StringComparison.OrdinalIgnoreCase)
                 || text.Equals("status " + id, StringComparison.OrdinalIgnoreCase))
             {
@@ -124,9 +127,12 @@ public sealed record SpeechTextCommand(AppearanceCommandOperation Operation, Spe
                 if (text.Equals(phrase, StringComparison.OrdinalIgnoreCase))
                 {
                     var value = phrase[("set " + id + " to ").Length..];
-                    SpeechCaptionValue selected = option == SpeechCaptionOption.Placement
-                        ? new SpeechCaptionValue.Placement(Enum.Parse<SpeechCaptionPlacement>(value))
-                        : new SpeechCaptionValue.Delay(int.Parse(value, System.Globalization.CultureInfo.InvariantCulture));
+                    SpeechCaptionValue selected = option switch
+                    {
+                        SpeechCaptionOption.Placement => new SpeechCaptionValue.Placement(Enum.Parse<SpeechCaptionPlacement>(value)),
+                        SpeechCaptionOption.WordEmphasis => new SpeechCaptionValue.WordEmphasis(bool.Parse(value)),
+                        _ => new SpeechCaptionValue.Delay(int.Parse(value, System.Globalization.CultureInfo.InvariantCulture)),
+                    };
                     return new(AppearanceCommandOperation.Set, CaptionOption: option, CaptionValue: selected);
                 }
             }
@@ -157,4 +163,11 @@ public sealed record SpeechTextCommand(AppearanceCommandOperation Operation, Spe
         }
         return new(AppearanceCommandOperation.Clarify, Error: Syntax);
     }
+
+    internal static string IdFor(SpeechCaptionOption option) => option switch
+    {
+        SpeechCaptionOption.Placement => PlacementId,
+        SpeechCaptionOption.WordEmphasis => WordEmphasisId,
+        _ => DelayId,
+    };
 }

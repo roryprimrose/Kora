@@ -325,6 +325,13 @@ public sealed partial class MainViewModel
         }
         questionVoiceReplies?.CloseAdmission();
         CancelLogonStartupReview();
+        CancelQuietHoursReview();
+        CancelDetailPresentationReview();
+        NotifyDetailPresentationAvailability();
+        PropertyChanged -= OnDetailPresentationHostChanged;
+        if (composerDictation is not null) { composerDictation.Changed -= OnDetailPresentationDecisionChanged; }
+        if (questionVoiceReplies is not null) { questionVoiceReplies.Changed -= OnDetailPresentationDecisionChanged; }
+        if (detailPresentation is not null) { detailPresentation.Changed -= OnDetailPresentationChanged; }
         CancelStartupPresentationReview();
         if (conversationalReplies is not null) { conversationalReplies.Changed -= OnConversationalReplyPreferenceChanged; }
         RetireQuestionVoiceReply();
@@ -376,6 +383,7 @@ public sealed partial class MainViewModel
         if (providerProfileConfiguration is not null) { providerProfileConfiguration.Changed -= OnProviderProfileConfigurationChanged; }
         if (inCallFeedbackConfiguration is not null) { inCallFeedbackConfiguration.Changed -= OnInCallFeedbackChanged; }
         if (speechTextConfiguration is not null) { speechTextConfiguration.Changed -= OnSpeechTextConfigurationChanged; }
+        if (foregroundPtt is not null) { foregroundPtt.Changed -= OnForegroundPttChanged; }
         assistantNameConfiguration.Changed -= OnAssistantNameConfigurationChanged;
         artifactCatalogue.Changed -= OnArtifactCatalogueChanged;
         artifactCatalogue.ReloadFailed -= OnArtifactCatalogueReloadFailed;

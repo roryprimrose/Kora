@@ -126,6 +126,75 @@ public sealed class NamedAgentResolverTests
             .Should().ThrowAsync<OperationCanceledException>();
     }
 
+    [Theory]
+    [InlineData("success")]
+    [InlineData("foreign")]
+    [InlineData("stale")]
+    [InlineData("disabled")]
+    [InlineData("wrong-kind")]
+    [InlineData("different-name")]
+    [InlineData("reload")]
+    [InlineData("ineligible")]
+    [InlineData("cancelled")]
+    public async Task NativeSourceChoiceResolvesOnlyTheExactCurrentCandidateWithoutNameFallback(string scenario)
+    {
+        var first = Definition();
+        var other = new ArtifactDefinition("disk.additional.agent.other", ArtifactKind.Agent, first.Name,
+            "Other source", "other", ["other"], "additional", first.Version, first.Digest, first.Content)
+        { UseControlId = ArtifactUseIdentity.File(SourcePath + ".other") };
+        if (scenario is "disabled") { other = other with { IsUseDisabled = true }; }
+        if (scenario is "wrong-kind")
+        {
+            other = new("disk.additional.instruction.other", ArtifactKind.Instruction, first.Name,
+                "Other source", "other", ["other"], "additional", first.Version, first.Digest, first.Content);
+        }
+        if (scenario is "different-name") { other = Document("Other role").Definition; }
+        using var catalogue = new ArtifactCatalogue([first, other]);
+        var reads = 0;
+        var resolver = new NamedAgentResolver(catalogue, (definition, _) =>
+        {
+            reads++;
+            definition.Should().BeSameAs(other);
+            return Task.FromResult(SourcePath + ".other");
+        });
+        var choices = resolver.ReadCandidates("Readable role", () => true, Token);
+        choices.Should().Contain(first);
+        choices.Should().HaveCount(scenario is "wrong-kind" or "different-name" ? 1 : 2);
+        reads.Should().Be(0, "metadata choice is not source resolution or read consent");
+        if (scenario is "foreign") { other = other with { UseControlId = "foreign" }; }
+        if (scenario is "stale") { catalogue.Publish([first]); }
+        if (scenario is "reload") { catalogue.ReportReloadFailure(new IOException("Unavailable catalogue.")); }
+        var token = scenario is "cancelled" ? new CancellationToken(true) : Token;
+        if (scenario is "success")
+        {
+            var selected = await resolver.ResolveAsync(other, () => true, token);
+            selected.Definition.Should().BeSameAs(other);
+            selected.Path.Should().Be(SourcePath + ".other");
+            selected.ValidateSource(Document(command: "other"));
+            reads.Should().Be(1);
+        }
+        else
+        {
+            await resolver.Invoking(value => value.ResolveAsync(other, () => scenario is not "ineligible", token))
+                .Should().ThrowAsync<Exception>();
+            reads.Should().Be(0);
+        }
+    }
+
+    [Theory]
+    [InlineData("reload")]
+    [InlineData("ineligible")]
+    [InlineData("cancelled")]
+    public void CandidateChoicesCannotHideUnavailableAuthority(string scenario)
+    {
+        using var catalogue = new ArtifactCatalogue([Definition()]);
+        if (scenario is "reload") { catalogue.ReportReloadFailure(new IOException("Unavailable catalogue.")); }
+        var resolver = new NamedAgentResolver(catalogue, (_, _) => throw new InvalidOperationException("Forbidden source lookup."));
+        var operation = () => resolver.ReadCandidates("Readable role", () => scenario is not "ineligible",
+            scenario is "cancelled" ? new CancellationToken(true) : Token);
+        operation.Should().Throw<Exception>();
+    }
+
     private sealed class UsePolicy : IArtifactUsePolicy
     {
         public event EventHandler? Changed;

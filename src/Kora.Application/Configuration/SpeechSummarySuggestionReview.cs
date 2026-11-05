@@ -3,6 +3,7 @@ using System.Diagnostics;
 using Kora.Application.Communication;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
+using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
@@ -20,7 +21,7 @@ public sealed class SpeechSummarySuggestionReview : IDisposable
     private readonly DateTimeOffset expires;
     private readonly SpeechConfigurationState current;
     private readonly SpeechOptionDescriptor descriptor;
-    private readonly string value;
+    private readonly string? value;
     private readonly SpokenSummaryLimits proposed;
     private readonly HostRequest reviewRequest;
     private readonly RequestOrigin sourceOrigin;
@@ -34,7 +35,7 @@ public sealed class SpeechSummarySuggestionReview : IDisposable
     private volatile bool retired;
 
     private SpeechSummarySuggestionReview(SpeechConfigurationService configuration, CallCommunicationPolicy policy,
-        TimeProvider time, SpeechConfigurationState current, SpeechOptionDescriptor descriptor, string value,
+        TimeProvider time, SpeechConfigurationState current, SpeechOptionDescriptor descriptor, string? value,
         SpokenSummaryLimits proposed, HostRequest reviewRequest, RequestOrigin sourceOrigin, long callRevision, Func<bool> eligible,
         Func<CancellationToken, Task> validateSource, ModelTurnProvenance source)
     {
@@ -60,6 +61,7 @@ public sealed class SpeechSummarySuggestionReview : IDisposable
         ? $"Current: {current.SummaryLimits!.Sentences} sentences, {current.SummaryLimits.Words} words "
             + $"({(current.AreSummaryLimitsSaved ? "saved" : "default")}). "
             + $"Proposed: {proposed.Sentences} sentences, {proposed.Words} words. "
+            + (value is null ? "Reset saves this complete pair with the selected cap's authoritative default (saved). " : string.Empty)
             + $"Only {descriptor.Id} is proposed; the companion cap is unchanged. Scope: shared device-local, not session-only. "
             + "Applies to NEXT ordinary speech only; this answer is not truncated, regenerated, spoken or replayed. "
             + "Nothing has changed. Confirm exact speech limit change separately, or Cancel. Review expires in 60 seconds. "
@@ -77,13 +79,20 @@ public sealed class SpeechSummarySuggestionReview : IDisposable
         if (request.RequestId == message.Request.RequestId || message.Outcome != ModelTurnOutcome.Succeeded
             || message.AssistantResponse is not { } answer)
         { throw new InvalidOperationException("Review requires an exact successful retained original-user answer, not model authority."); }
-        if (RegisteredSettingSuggestions.Parse(answer.Body) is not RegisteredSettingProposal.Summary proposal)
-        { throw new InvalidDataException("Request one exact speech.summary-words or speech.summary-sentences Set suggestion only."); }
-        var optionDescriptor = SpeechOptionRegistry.Get(proposal.Option);
+        var (option, value) = RegisteredSettingSuggestions.Parse(answer.Body) switch
+        {
+            RegisteredSettingProposal.Summary proposal => (proposal.Option, proposal.Value),
+            RegisteredSettingProposal.Reset { Setting: RegisteredSetting.SummaryWords } =>
+                (SpeechOption.SummaryWords, (string?)null),
+            RegisteredSettingProposal.Reset { Setting: RegisteredSetting.SummarySentences } =>
+                (SpeechOption.SummarySentences, (string?)null),
+            _ => throw new InvalidDataException("Request one exact speech.summary-words or speech.summary-sentences Set or Reset suggestion only."),
+        };
+        var optionDescriptor = SpeechOptionRegistry.Get(option);
         var state = configuration.Get();
         var limits = state.SummaryLimits
             ?? throw new InvalidOperationException("Repair unreadable saved summary limits and refresh; the companion cap cannot be defaulted.");
-        var next = limits.With(proposal.Option, proposal.Value);
+        var next = limits.With(option, value);
         token.ThrowIfCancellationRequested();
         if (!eligible()) { throw new InvalidOperationException("The original speech limit source is no longer eligible."); }
         await validateSource(token).ConfigureAwait(false);
@@ -93,7 +102,7 @@ public sealed class SpeechSummarySuggestionReview : IDisposable
         var origin = message.Request.Origin == RequestOrigin.ActivatedVoice ? message.Request.Origin : request.Origin;
         if (policy.CheckMutation(origin, observedCall, eligible) is not null)
         { throw new InvalidOperationException("The original channel or call policy denies this speech limit review. Start a genuinely new eligible input."); }
-        return new(configuration, policy, time, state, optionDescriptor, proposal.Value, next,
+        return new(configuration, policy, time, state, optionDescriptor, value, next,
             request, origin, observedCall, eligible, validateSource, message.Execution!);
     }
 
@@ -125,9 +134,11 @@ public sealed class SpeechSummarySuggestionReview : IDisposable
             if (!Current() || RequireInput(reviewRequest.SessionId) != request)
             { throw new InvalidOperationException("Speech limit source or original confirmation admission changed."); }
             var voice = sourceOrigin == RequestOrigin.ActivatedVoice || request.Origin == RequestOrigin.ActivatedVoice;
-            var proposal = configuration.Propose(descriptor.Option, value, current.Revision, callRevision,
-                voice ? RequestOrigin.ActivatedVoice : request.Origin,
-                voice ? SecurityAuditInitiator.VoiceCommand : initiator);
+            var origin = voice ? RequestOrigin.ActivatedVoice : request.Origin;
+            var auditInitiator = voice ? SecurityAuditInitiator.VoiceCommand : initiator;
+            var proposal = value is null
+                ? configuration.ProposeReset(descriptor.Option, current.Revision, callRevision, origin, auditInitiator)
+                : configuration.Propose(descriptor.Option, value, current.Revision, callRevision, origin, auditInitiator);
             bool ConfirmationCurrent() => Current() && HostActivity.Current is { } live
                 && !live.Activity!.IsStopped && live.Outcome == HostOperationOutcome.Unknown && live.Request == request;
             var result = configuration.Apply(proposal, policy, ConfirmationCurrent, token);

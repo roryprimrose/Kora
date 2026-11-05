@@ -9,6 +9,13 @@ internal interface IHandsFreeNativeFactory
     IHandsFreeKeywordDetector CreateKeyword(HandsFreeNativeProfile profile, PocketSphinxKeywordConfiguration configuration);
     /// <summary>Creates command-only endpointing.</summary>
     IHandsFreeCommandEndpoint CreateEndpoint(HandsFreeNativeProfile profile);
+    /// <summary>Creates endpointing with the capture's frozen timing.</summary>
+    IHandsFreeCommandEndpoint CreateEndpoint(HandsFreeNativeProfile profile, VoiceCaptureTiming timing)
+    {
+        if (timing != VoiceCaptureTiming.Default)
+        { throw new InvalidOperationException("This endpoint factory does not support requested capture timing."); }
+        return CreateEndpoint(profile);
+    }
     /// <summary>Opens the one admitted microphone.</summary>
     Task<IHandsFreeMicrophone> OpenMicrophoneAsync(HandsFreeAudioBinding binding, Func<bool> admitted);
     /// <summary>Opens existing local ASR over the admitted command-only PCM stream.</summary>

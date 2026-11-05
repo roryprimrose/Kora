@@ -177,7 +177,8 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
                         : ". Required choice. " + string.Join(" ", field.Options.Select((option, index) => $"Option {index + 1}: {option.Label}.")))
                         + " Voice entry edits this field only. Review and explicitly Submit the whole form using native controls."
                     : canonical.Spec.Options.IsEmpty
-                    || !string.Equals(canonical.Spec.SourceId, LocalModelQuestionPolicy.SourceId, StringComparison.Ordinal)
+                    || !(IsConversationalQuestion(canonical)
+                        || string.Equals(canonical.Spec.SourceId, LocalModelQuestionPolicy.SourceId, StringComparison.Ordinal))
                     ? canonical.Spec.Text
                     : canonical.Spec.Text + " " + string.Join(" ", canonical.Spec.Options.Select((option, index) =>
                         "Option " + (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture) + ": " + option.Label + "."))

@@ -62,7 +62,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
             var question = observed.Question;
             if (!observed.CurrentSource || !session.IsActive || intent.State != HostTaskState.IntentRecorded
                 || question is null || question.Key != key || question.Status != QuestionStatus.Answered
-                || question.AnswerChannel != RequestOrigin.LocalUi || question.ExpiresAt <= time.GetUtcNow()
+                || question.AnswerChannel is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
+                || question.ExpiresAt <= time.GetUtcNow()
                 || !LocalVersionWait.Matches(question)
                 || HasOtherPendingQuestion(connection, key))
             {

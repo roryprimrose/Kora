@@ -1105,6 +1105,21 @@ unlocked interactive Windows session, ownership/private-control revision,
 exact device/readiness, local recognizer and call-policy gates remain required;
 unknown state denies capture.
 
+For the already-admitted host clarification/local-version and model clarification
+questions, playback includes the canonical ordered choice labels and single- or
+multiple-selection bounds, not only the prompt. For example, the native
+local-version question reads **Option 1: Show local version. Choose one option.**
+before opening its reply; saying **Show local version** then completes that
+original question. Explicit playback and opt-in conversational playback use the
+same reviewed record, never caller-supplied replacement labels. Other question
+purposes retain their existing readback; form-field entry and exact approvals
+are unchanged. Text questions do not acquire a choice list.
+The original native local-version wait accepts its existing native or activated-
+voice answer channel through dispatch, without relabelling the original LocalUi
+request. Both the continuation and the SQLite transaction revalidate that same
+ordinary answer; stale/private/session/source failures still prevent dispatch.
+This adds no spoken approval, authentication, consent or protected-call exception.
+
 One application-wide turn binds the original question key/revision,
 session/generation and unique visible presenter. Its accessible countdown allows
 15 seconds to start speech without extending on silence. The existing local

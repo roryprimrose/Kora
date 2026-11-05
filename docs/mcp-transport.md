@@ -53,6 +53,14 @@ If remote processing is uncertain, the task remains **Unknown**; stopping is
 not rollback and does not automatically retry. The availability restriction
 below also applies to this route.
 
+After transport disposal and again at terminal readback, Kora checks that the
+exact delegated account, revision, protected credential reference and destination
+remain available. Withdrawal or replacement suppresses the result, including
+the native result review and local-model continuation. A terminal receipt already
+committed before withdrawal is not rewritten or treated as fresh disclosure
+authority. Review the original operation before explicitly starting another;
+Kora does not reconnect or retry automatically.
+
 A disconnected or failed exchange also joins the original transport without
 reconnecting or retrying. Neither route publishes a tool result or assistant
 answer from that failure. The direct operation reports failure with an
@@ -85,6 +93,13 @@ Arguments must be one JSON object of at most 2,048 UTF-8 bytes, starting with `{
 and ending with `}`. Whitespace inside those braces is preserved; leading or
 trailing whitespace is rejected before confirmation because the model protocol
 cannot reproduce it. No approved argument bytes are silently reformatted.
+Reviewed string `maxLength` limits count Unicode scalar values, not UTF-16 code
+units or displayed grapheme clusters. Supplementary characters count once;
+combining marks and joiners count separately. Literal and JSON-escaped inputs
+use the same decoded length without normalization or rewriting. The complete
+2,048-byte limit still applies to the actual JSON, including escape sequences;
+malformed surrogates and over-limit inputs are refused before invocation approval
+or a tool call. Direct and local-model invocation share this validation.
 
 Invocation preparation checks the complete local input against the inclusive
 32,768-byte serialized limit: original request, full guidance, argument/revision
@@ -187,6 +202,12 @@ destination details require new admission. Unknown readiness stays unavailable;
 configuration and successful tests are not a real signed-in account.
 
 ## Supported profile
+
+Responses must use `application/json`, with either no charset parameter or one
+UTF-8 charset parameter. Media type and charset matching are case-insensitive;
+both `charset=utf-8` and `charset="utf-8"` are accepted without changing the
+response bytes. Malformed, duplicate, empty or other charset values are refused,
+not decoded using a fallback.
 
 The supported protocol version is `2025-06-18`, with one HTTPS request at a
 time and complete JSON responses. Server-managed sessions, streaming,

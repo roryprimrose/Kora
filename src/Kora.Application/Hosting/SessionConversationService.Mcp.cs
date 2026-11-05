@@ -48,6 +48,7 @@ public sealed partial class SessionConversationService
         {
             if (validateSource is not null) { await validateSource(checkToken).ConfigureAwait(false); }
             if (!terminalCommitted && invocation is not null) { await invocation.ValidateAsync(checkToken).ConfigureAwait(false); }
+            else if (invocation?.Completed == true) { await invocation.ValidateResultSourceAsync(checkToken).ConfigureAwait(false); }
         }
         async Task<ModelContextEnvelope> Prepare(HostRequest request, Func<bool> live, CancellationToken checkToken)
         {

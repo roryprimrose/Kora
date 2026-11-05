@@ -206,6 +206,11 @@ confirmation authority. An already-open exact review loses eligibility rather
 than authorizing playback. Passive status during preparation does not cancel,
 renew or confirm it. A fresh explicit review is available only after the retired
 preparation finishes; playback cancellation retains its existing physical join.
+Exact typed cancellation remains available through the busy typed-command wrapper
+while its original review preparation or confirmation/playback is pending. Other
+call-speech commands cannot reenter that wrapper. Cancellation does not release
+the original command before its continuation finishes, or report playback release
+before the owned playback actually joins.
 
 The host pins response/request identity and revision, pending-decision/input epochs, native presentation lifetime, owner/privacy/recovery, call revision, speech selection/limits, ordinary output and feedback modes, selected/effective endpoint, volume and rate. A review expires after two minutes from creation, including any subsequent playback. Confirmation consumes it before awaited audit/admission; the [typed lease](../src/Kora.Application/Communication/CallSpeechLease.cs) permits one start under the [shared call-policy lock](../src/Kora.Application/Communication/CallCommunicationPolicy.cs), for only the reviewed text and pinned concrete endpoint. Changes, cancellation, failure and late completion never authorize replay or a second start.
 

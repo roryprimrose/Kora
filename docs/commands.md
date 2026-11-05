@@ -961,6 +961,10 @@ Late preparation cannot open a new review or enable confirmation after cancellat
 If the exact review is already open, it becomes ineligible and cannot play.
 Wait for preparation to finish before starting a fresh review; status is passive
 and does not cancel or extend preparation.
+Type `cancel call speech` even while the original typed review or confirmation
+is still running. Other call-speech commands cannot interrupt that typed operation.
+Cancellation waits for owned playback to finish, including playback that ignores
+the stop request; it does not make the original command idle early or queue replay.
 
 ## Read-only host discovery
 

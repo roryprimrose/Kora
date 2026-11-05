@@ -231,7 +231,7 @@ public sealed partial class OwnedSkillDeletionTests
     }
 
     [Fact]
-    public async Task HardLinkedSelectedFilesAndUnsupportedObservationPackagesRemainUntouched()
+    public async Task HardLinkedSelectedFilesRemainUntouched()
     {
         using var paths = new OwnedStorageFixture();
         var store = new WindowsOwnedDeclarativeSkillStore(paths);
@@ -245,11 +245,52 @@ public sealed partial class OwnedSkillDeletionTests
         File.Exists(instructions).Should().BeTrue();
         (await File.ReadAllTextAsync(alias, Token)).Should().Be(document.Guidance);
         File.Delete(alias);
-        var workflow = OwnedDeclarativeSkillDocument.CreateObservationWorkflow("inspection", "1.0.0", "Inspection", "Description",
-            """{"steps":[{"tool":"application.get_version","input":{}}]}""");
-        await Save(store, workflow);
-        await store.Invoking(value => value.PrepareDeletion("inspection", "1.0.0", Token)).Should().ThrowAsync<InvalidDataException>();
-        (await store.Read("inspection", "1.0.0", Token))!.Document.RevisionDigest.Should().Be(workflow.RevisionDigest);
+    }
+
+    [Theory]
+    [InlineData("delete")]
+    [InlineData("changed-workflow")]
+    [InlineData("revoked")]
+    [InlineData("partial")]
+    public async Task ExactObservationWorkflowDeletionUsesTheSameFiniteIdentityAndEffectBoundary(string scenario)
+    {
+        using var paths = new OwnedStorageFixture();
+        var store = new WindowsOwnedDeclarativeSkillStore(paths);
+        var document = OwnedDeclarativeSkillDocument.CreateObservationWorkflow("inspection", "1.0.0", "Inspection", "Description",
+            """{"steps":[{"tool":"application.get_version","input":{}},{"tool":"readiness.get","input":{"offset":0,"count":6}}]}""");
+        var saved = await Save(store, document);
+        var other = await Save(store, Document());
+        var source = await store.PrepareDeletion("inspection", "1.0.0", Token);
+        source.Source.IsSameRevision(saved).Should().BeTrue();
+        source.Source.Document.ObservationWorkflow!.ToolDeclaration.Should().Be("application.get_version,readiness.get");
+        await store.ValidateDeletion(source, Token);
+        if (scenario is "changed-workflow")
+        {
+            await File.WriteAllTextAsync(Path.Combine(source.Destination, "instructions.md"),
+                """{"steps":[{"tool":"application.get_version","input":{}}]}""", Token);
+        }
+        var eligible = true;
+        store.Checkpoint = point =>
+        {
+            if (point is "before-delete" && scenario is "revoked") { eligible = false; }
+            if (point is "after-delete-file" && scenario is "partial") { throw new IOException("injected observation deletion fault"); }
+        };
+        var operation = () => Delete(store, source, () => eligible);
+        if (scenario is "changed-workflow") { await operation.Should().ThrowAsync<InvalidDataException>(); }
+        else if (scenario is "revoked") { await operation.Should().ThrowAsync<InvalidOperationException>(); }
+        else if (scenario is "partial") { await operation.Should().ThrowAsync<OwnedSkillDeletionUnconfirmedException>(); }
+        else { await operation(); }
+        store.Checkpoint = null;
+        File.Exists(Path.Combine(source.Destination, "manifest.yaml")).Should().Be(scenario is "changed-workflow" or "revoked");
+        File.Exists(Path.Combine(source.Destination, "instructions.md")).Should().Be(scenario is not "delete");
+        if (scenario is "partial")
+        { await store.Invoking(value => Delete(value, source)).Should().ThrowAsync<InvalidDataException>(); }
+        if (scenario is "delete")
+        {
+            Directory.Exists(source.Destination).Should().BeFalse();
+            (await store.List(Token)).Should().ContainSingle().Which.IsSameRevision(other).Should().BeTrue();
+        }
+        (await store.Read("example", "1.0.0", Token))!.IsSameRevision(other).Should().BeTrue();
     }
 
     [Fact]

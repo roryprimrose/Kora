@@ -18,7 +18,7 @@ uses bounded intent/native clarification, not speech/model-profile qualification
 ## Catalogue freshness
 
 The bounded [owned-skill source deletion](../docs/owned-skill-authoring.md#delete-one-saved-owned-source)
-completes separate full-source review and exact confirmation for native v1/v2/v3
+completes separate full-source review and exact confirmation for native v1/v2/v3/v4
 two-file packages through the authoritative owned store. It is not instruction
 Delete, skill Disable or source unregistration. Unknown inventory and other
 formats/sources are refused; partial effects/audit/readback uncertainty hold
@@ -27,6 +27,10 @@ mutation without rollback/retry or cancellation of immutable admitted work
 Retained owned-skill editor text preserves its deleted-source provenance.
 Text/version edits cannot downgrade it to source-free model input; explicit
 Create or a fresh exact Reopen establishes a new draft/source binding.
+Native v4 deletion displays the complete ordered observation definition and
+its actual tool declaration through those same reviews. It runs no steps,
+does not cancel immutable admitted work or erase independent records, and
+existing reviewed/enabled uses fail closed at their next source revalidation.
 
 The existing supported-source watcher observes the nearest existing ancestor
 when a recognized root has not yet been created, including when several parent

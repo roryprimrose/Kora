@@ -13,6 +13,7 @@ internal sealed partial class CustomizationWindowController
     private readonly Dictionary<string, McpCapabilityInventory> externalInventories = new(StringComparer.Ordinal);
     private readonly Dictionary<string, McpDisplayedServer> displayedServers = new(StringComparer.Ordinal);
     private long capabilityPresentationRevision;
+    private bool publishingCapabilities;
 
     internal void ObserveMcpCapabilities(McpCapabilityInventory inventory)
     {
@@ -60,23 +61,29 @@ internal sealed partial class CustomizationWindowController
         var revision = capabilityPresentationRevision;
         var sourceRevision = mcpConfiguration.CaptureCapabilityRevision(selected.ServerId);
         bool Current() => current() && revision == capabilityPresentationRevision;
-        var change = await McpCapabilityManagerWindow.ShowAsync(window, main, displayed.View, Current, token);
+        var change = await McpCapabilityManagerWindow.ShowAsync(window, main, displayed.View, Current, token,
+            window.Search.Text, window.SelectedCapabilityCategory);
         RequireCurrent(Current, token);
         if (change is null) { return; }
         if (!string.Equals(sourceRevision, mcpConfiguration.CaptureCapabilityRevision(selected.ServerId), StringComparison.Ordinal))
         { throw new InvalidOperationException("MCP preferences changed during review. Refresh before another proposal."); }
-        if (!string.Equals(selected.ServerId, KoraMcpCatalog.ServerId, StringComparison.Ordinal))
+        publishingCapabilities = true;
+        try
         {
-            if (!externalInventories.TryGetValue(selected.ServerId, out var inventory) || mcpConversation is null)
-            { throw new InvalidOperationException("External MCP metadata needs a fresh explicit Session discovery."); }
-            await mcpConversation.SaveMcpCapabilitiesAsync(inventory, change.Selection, change.ServerIncluded, Current, token);
+            if (!string.Equals(selected.ServerId, KoraMcpCatalog.ServerId, StringComparison.Ordinal))
+            {
+                if (!externalInventories.TryGetValue(selected.ServerId, out var inventory) || mcpConversation is null)
+                { throw new InvalidOperationException("External MCP metadata needs a fresh explicit Session discovery."); }
+                await mcpConversation.SaveMcpCapabilitiesAsync(inventory, change.Selection, change.ServerIncluded, Current, token);
+            }
+            else
+            {
+                RequireCurrent(Current, token);
+                mcpSettings.SetMcpCapabilities(selected.ServerId, change.ServerIncluded, change.Selection,
+                    displayed.View.Selection.Fingerprint(selected.ServerId));
+            }
         }
-        else
-        {
-            RequireCurrent(Current, token);
-            mcpSettings.SetMcpCapabilities(selected.ServerId, change.ServerIncluded, change.Selection,
-                displayed.View.Selection.Fingerprint(selected.ServerId));
-        }
+        finally { publishingCapabilities = false; }
         RequireCurrent(current, token);
         RefreshCapabilityMetadata();
         RenderSources();
@@ -86,6 +93,7 @@ internal sealed partial class CustomizationWindowController
     private void RetireCapabilityMetadata(object? sender, EventArgs args)
     {
         Interlocked.Increment(ref capabilityPresentationRevision);
+        if (publishingCapabilities) { return; }
         Dispatcher.UIThread.Post(() =>
         {
             externalInventories.Clear();

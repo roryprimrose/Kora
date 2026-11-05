@@ -69,6 +69,7 @@ internal sealed partial class CustomizationWindowController(
         management.UseChanged += OnUseChanged;
         catalogue.Changed += OnUseChanged;
         if (mcpConfiguration is not null) { mcpConfiguration.Changed += RetireCapabilityMetadata; }
+        if (mcpSettings is not null) { mcpSettings.Changed += RetireCapabilityMetadata; }
         main.BindCustomizationShutdown(PrepareClose);
         main.BindCustomizationVoice(RouteVoice);
     }
@@ -848,6 +849,7 @@ internal sealed partial class CustomizationWindowController(
         main.BindCustomizationVoice(null);
         catalogue.Changed -= OnUseChanged;
         if (mcpConfiguration is not null) { mcpConfiguration.Changed -= RetireCapabilityMetadata; }
+        if (mcpSettings is not null) { mcpSettings.Changed -= RetireCapabilityMetadata; }
         OnPrivacyClosed(this, EventArgs.Empty);
     }
 

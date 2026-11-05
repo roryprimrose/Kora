@@ -203,13 +203,15 @@ internal sealed class McpCapabilityManagerWindow : Window
         => ShowAsync(owner, model, McpCapabilityManagerView.FromInventory(inventory), admitted, token);
 
     internal static async Task<McpCapabilityChange?> ShowAsync(Window owner, INotifyPropertyChanged model,
-        McpCapabilityManagerView inventory, Func<bool> admitted, CancellationToken token)
+        McpCapabilityManagerView inventory, Func<bool> admitted, CancellationToken token,
+        string? filter = null, McpCapabilityCategory? category = null)
     {
         if (!Dispatcher.UIThread.CheckAccess())
-        { return await Dispatcher.UIThread.InvokeAsync(() => ShowAsync(owner, model, inventory, admitted, token)); }
+        { return await Dispatcher.UIThread.InvokeAsync(() => ShowAsync(owner, model, inventory, admitted, token, filter, category)); }
         token.ThrowIfCancellationRequested();
         if (!owner.IsVisible || !admitted()) { throw new OperationCanceledException("MCP capability presentation is unavailable.", token); }
         var window = new McpCapabilityManagerWindow(inventory);
+        window.FilterCapabilities(filter, category);
         void Check()
         {
             if (!Dispatcher.UIThread.CheckAccess()) { Dispatcher.UIThread.Post(Check); return; }

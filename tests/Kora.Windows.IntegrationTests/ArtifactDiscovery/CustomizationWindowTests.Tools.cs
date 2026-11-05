@@ -75,8 +75,8 @@ public sealed partial class CustomizationWindowTests
                 var totalTools = KoraMcpCatalog.ToolIds.Count + 2;
                 window.CapabilityCount.Text.Should().Be(totalTools + " of " + totalTools + " capabilities");
                 window.Search.Text = " UNIQUE EXTERNAL ";
-                window.ShowSources([source], _ => false, _ => actions.Add("Select"));
                 window.CapabilityCount.Text.Should().Be("1 of " + totalTools + " capabilities");
+                window.FilterSummary.Text.Should().Be("0 of 1 artifacts; 1 of " + totalTools + " capabilities");
                 var selectedButton = window.GetLogicalDescendants().OfType<Button>().Single(button =>
                     Equals(button.Content, "Tool: Unique external tool"));
                 selectedButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -84,11 +84,12 @@ public sealed partial class CustomizationWindowTests
                 foreach (var filter in NonmatchingToolFilters)
                 {
                     window.Search.Text = filter;
-                    window.ShowSources([source], _ => false, _ => actions.Add("Select"));
                     window.CapabilityCount.Text.Should().Be("0 of " + totalTools + " capabilities");
                 }
-                window.Search.Text = string.Empty;
-                window.ShowSources([source], _ => false, _ => actions.Add("Select"));
+                window.ClearFilter.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                window.Search.Text.Should().BeEmpty();
+                window.ClearFilter.IsEnabled.Should().BeFalse();
+                window.FilterSummary.Text.Should().Be("1 of 1 artifacts; " + totalTools + " of " + totalTools + " capabilities");
                 window.SelectedCapability.Should().BeSameAs(selectedTool);
                 window.SelectedSource.Should().BeSameAs(selectedSource);
                 window.Editor.Text.Should().Be("unsaved definition");
@@ -103,6 +104,10 @@ public sealed partial class CustomizationWindowTests
                 window.CapabilityCount.Text.Should().BeEmpty();
                 window.SelectedCapability.Should().BeNull();
                 window.SelectedSource.Should().BeNull();
+                window.Search.Text = "late callback";
+                window.CapabilityCount.Text.Should().BeEmpty();
+                window.FilterSummary.Text.Should().BeEmpty();
+                window.SelectedCapability.Should().BeNull();
             }
             finally { window.Close(); }
         });

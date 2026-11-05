@@ -4,6 +4,7 @@ using Kora.Application.Configuration;
 using Kora.Core.Artifacts;
 using Kora.Core.Auditing;
 using Kora.Core.Mcp;
+using Kora.Core.Dependencies;
 
 namespace Kora.Application.UnitTests.Configuration;
 
@@ -50,6 +51,33 @@ public sealed class McpParentSelectionTests
         FluentActions.Invoking(() => controls.IsServerSelected("untrusted.server")).Should().Throw<ArgumentException>();
         store.Values["artifact-directories.json"] = "{}";
         FluentActions.Invoking(() => controls.IsServerSelected(KoraMcpCatalog.ServerId)).Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
+    public void MetadataProducerProjectsCanonicalSavedParentWithAndWithoutTheHostAdapter()
+    {
+        var store = new Store();
+        var directories = new LocalArtifactDirectoryPreferences(store);
+        var settings = new ArtifactDirectoryConfigurationService(directories, new Audit());
+        var use = new ArtifactUsePreferences(store);
+        var controls = new McpCapabilityPreferences(use, directories, settings);
+        var configured = new McpServerConfigurationService(new Paths(), directories, capabilities: controls);
+        var fallback = new McpServerConfigurationService(new Paths(), directories);
+        configured.IsServerSelected(KoraMcpCatalog.ServerId).Should().BeTrue();
+        fallback.IsServerSelected(KoraMcpCatalog.ServerId).Should().BeTrue();
+        var external = new string('a', 64);
+        fallback.IsServerSelected(external).Should().BeFalse();
+        settings.SetMcpServerIncluded(external, true);
+        use.SetDisabled(ArtifactUseIdentity.Mcp(external), true);
+        configured.IsServerSelected(external).Should().BeTrue();
+        fallback.IsServerSelected(external).Should().BeTrue();
+        FluentActions.Invoking(() => fallback.IsServerSelected("untrusted.server")).Should().Throw<ArgumentException>();
+    }
+
+    private sealed class Paths : IApplicationDataPaths
+    {
+        public string LocalRoot => Path.GetFullPath("mcp-parent-tests");
+        public string RoamingRoot => LocalRoot;
     }
 
     private sealed class Store : IPreferenceStore

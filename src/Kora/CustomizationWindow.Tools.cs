@@ -18,6 +18,13 @@ internal sealed partial class CustomizationWindow
     };
     internal readonly TextBlock CapabilityCount = new();
     internal McpCapabilityRow? SelectedCapability => capabilityRows.Selected;
+    internal McpCapabilityCategory? SelectedCapabilityCategory => CapabilityCategory.SelectedIndex switch
+    {
+        1 => McpCapabilityCategory.Tools,
+        2 => McpCapabilityCategory.Resources,
+        3 => McpCapabilityCategory.Prompts,
+        _ => null,
+    };
     private Action? manageCapability;
     private bool capabilityPrivacyClosed;
     private bool capabilitySnapshotActive;
@@ -59,14 +66,7 @@ internal sealed partial class CustomizationWindow
             CapabilityCount.Text = string.Empty;
             return;
         }
-        var category = CapabilityCategory.SelectedIndex switch
-        {
-            1 => McpCapabilityCategory.Tools,
-            2 => McpCapabilityCategory.Resources,
-            3 => McpCapabilityCategory.Prompts,
-            _ => (McpCapabilityCategory?)null,
-        };
-        capabilityRows.ApplyFilter(Search.Text, category);
+        capabilityRows.ApplyFilter(Search.Text, SelectedCapabilityCategory);
         capabilityCatalogue.Children.Clear();
         foreach (var group in capabilityRows.Visible.GroupBy(row => row.ServerId, StringComparer.Ordinal))
         {

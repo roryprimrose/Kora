@@ -159,6 +159,9 @@ primary window, not another top-level window:
   hides required native interaction controls without a reachable route, or acts as
   an answer/approval. Keyboard and accessible UI support the same operations.
 - Keep a bounded, memory-only item binding and reading position per session.
+  The exact-reference position includes projection and wrapping; restore them before
+  layout and scroll offsets on an explicitly re-admitted reader. No remembered
+  presentation state grants source access or retains the hidden body/Find state.
   Switching sessions hides the previous session's content and shows only the newly
   selected session's own still-admitted in-memory view, or an empty/reopen state.
   Selection alone performs no source read; restoration needing fresh resolution

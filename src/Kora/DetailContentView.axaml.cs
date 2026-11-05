@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 
 using Kora.Application.Presentation;
@@ -29,6 +30,7 @@ public sealed partial class DetailContentView : UserControl
     private readonly StackPanel renderedDocument;
     private readonly ScrollViewer renderedViewport;
     private bool cleared;
+    private DetailReadingPosition? pendingReadingPosition;
     private readonly NamedTextBlock findSpan;
     private readonly NativeDocumentInteraction? documentInteraction;
     private readonly NativeFinalDocumentInteraction? finalInteraction;
@@ -152,10 +154,15 @@ public sealed partial class DetailContentView : UserControl
         }
         Required<TextBlock>("RendererStatus").Text = state.Status;
         disclosure.IsVisible = content.ConversationMessage is null && content.Sensitivity == DetailSensitivity.DisclosureConfirmationRequired;
-        source.IsCheckedChanged += (_, _) => state.SetSource(source.IsChecked == true);
-        readingText.IsCheckedChanged += (_, _) => Refresh();
+        source.IsCheckedChanged += (_, _) =>
+        {
+            pendingReadingPosition = null;
+            state.SetSource(source.IsChecked == true);
+        };
+        readingText.IsCheckedChanged += (_, _) => { pendingReadingPosition = null; Refresh(); };
         wrapText.IsCheckedChanged += (_, _) =>
         {
+            pendingReadingPosition = null;
             if (cleared || state.Content is null) { RequestClose(); return; }
             reader.TextWrapping = wrapText.IsChecked == true
                 ? Avalonia.Media.TextWrapping.Wrap : Avalonia.Media.TextWrapping.NoWrap;
@@ -180,6 +187,8 @@ public sealed partial class DetailContentView : UserControl
         Required<Button>("CopySource").Click += OnCopyRequested;
         Required<Button>("CopySelection").Click += OnCopySelectionRequested;
         AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerPressedEvent, (_, _) => pendingReadingPosition = null, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerWheelChangedEvent, (_, _) => pendingReadingPosition = null, RoutingStrategies.Tunnel, handledEventsToo: true);
         // Also intercept programmatic/accessibility TextBox.Copy and platform context commands.
         reader.CopyingToClipboard += BlockAutomaticCopy;
         search.CopyingToClipboard += BlockAutomaticCopy;
@@ -202,16 +211,34 @@ public sealed partial class DetailContentView : UserControl
 
     internal void FocusReader() => source.Focus();
     internal Task PendingNavigation => finalInteraction?.Pending ?? Task.CompletedTask;
-    internal DetailReadingPosition CaptureReadingPosition() => new(source.IsChecked == true, readingText.IsChecked == true,
-        renderedViewport.Offset, reader.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault()?.Offset ?? default, reader.CaretIndex);
+    internal DetailReadingPosition CaptureReadingPosition() => pendingReadingPosition ?? new(source.IsChecked == true, readingText.IsChecked == true,
+        wrapText.IsChecked == true, renderedViewport.Offset,
+        reader.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault()?.Offset ?? default, reader.CaretIndex);
 
     internal void RestoreReadingPosition(DetailReadingPosition position)
     {
-        if (cleared || state.Content is null) { return; }
+        var content = state.Content;
+        if (cleared || content is null) { return; }
         source.IsChecked = position.Source;
         readingText.IsChecked = position.Continuous;
-        UpdateLayout();
+        wrapText.IsChecked = position.WrapText;
         reader.CaretIndex = Math.Min(position.Caret, reader.Text?.Length ?? 0);
+        UpdateLayout();
+        if (cleared || !ReferenceEquals(state.Content, content)) { return; }
+        RestoreOffsets(position);
+        pendingReadingPosition = position;
+        // TextPresenter can defer its initial caret reveal until AfterRender.
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (cleared || !ReferenceEquals(pendingReadingPosition, position)
+                || !ReferenceEquals(state.Content, content)) { return; }
+            pendingReadingPosition = null;
+            RestoreOffsets(position);
+        }, DispatcherPriority.Loaded);
+    }
+
+    private void RestoreOffsets(DetailReadingPosition position)
+    {
         renderedViewport.Offset = position.RenderedOffset;
         if (reader.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault() is { } viewport)
         { viewport.Offset = position.TextOffset; }
@@ -375,6 +402,7 @@ public sealed partial class DetailContentView : UserControl
 
     internal void OnKeyDown(object? sender, KeyEventArgs eventArgs)
     {
+        pendingReadingPosition = null;
         if (eventArgs.Key == Key.H && eventArgs.KeyModifiers == KeyModifiers.Alt
             && documentInteraction?.HasHeadingIndex == true)
         {
@@ -441,6 +469,7 @@ public sealed partial class DetailContentView : UserControl
     {
         if (cleared) { return; }
         cleared = true;
+        pendingReadingPosition = null;
         documentInteraction?.Retire();
         finalBrowserReview?.Close();
         finalInteraction?.Retire();

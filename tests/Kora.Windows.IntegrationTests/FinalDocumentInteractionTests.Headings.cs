@@ -17,6 +17,64 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class FinalDocumentInteractionTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task HeadingIndexInputSupersedesRestoredPositionWithoutRetainingWithdrawnContent(bool retained) =>
+        HeadlessSession.RunAsync(() =>
+        {
+            var admitted = true;
+            var text = "# First\n\n" + string.Concat(Enumerable.Repeat("Long document paragraph.\n\n", 40))
+                + "## Last\n\nFinal paragraph";
+            var state = State(text, () => admitted, retained);
+            var view = new DetailContentView(state, Render(text),
+                (_, _, _) => throw new InvalidOperationException("No clipboard authority."));
+            var window = new Window { Content = view, Width = 900, Height = 600 };
+            window.Show();
+            try
+            {
+                view.FocusReader();
+                window.UpdateLayout();
+                Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                var viewport = view.FindControl<ScrollViewer>("RenderedViewport")!;
+                viewport.Offset = new(0, 180);
+                var position = view.CaptureReadingPosition();
+                position.RenderedOffset.Y.Should().Be(180);
+                view.RestoreReadingPosition(position);
+
+                window.KeyPress(Key.H, RawInputModifiers.Alt, PhysicalKey.H, null);
+                window.KeyRelease(Key.H, RawInputModifiers.Alt, PhysicalKey.H, null);
+                var index = view.GetVisualDescendants().OfType<Expander>().Single();
+                var entries = HeadingEntries(index);
+                index.IsExpanded.Should().BeTrue();
+                entries[0].IsFocused.Should().BeTrue();
+                var navigatedOffset = viewport.Offset;
+                navigatedOffset.Y.Should().BeLessThan(position.RenderedOffset.Y);
+                view.CaptureReadingPosition().RenderedOffset.Should().Be(navigatedOffset,
+                    "heading navigation supersedes the pending restored position before another Hide");
+                Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                viewport.Offset.Y.Should().BeApproximately(navigatedOffset.Y, 1,
+                    "deferred restoration cannot undo explicit heading navigation");
+                entries[0].IsFocused.Should().BeTrue();
+                Click(entries[^1]);
+                view.FindControl<StackPanel>("RenderedDocument")!.Children.OfType<TextBlock>()
+                    .Single(block => Equals(block.Text, "Last")).IsFocused.Should().BeTrue();
+                state.Content!.Source.Should().Be(text);
+                window.OwnedWindows.Should().BeEmpty();
+
+                var peer = ControlAutomationPeer.CreatePeerForElement(entries[0])!;
+                admitted = false;
+                peer.GetName().Should().BeNullOrEmpty();
+                peer.IsEnabled().Should().BeFalse();
+                Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                state.Content.Should().BeNull();
+                view.FindControl<TextBox>("ContentReader")!.Text.Should().BeEmpty();
+                view.FindControl<StackPanel>("RenderedDocument")!.Children.Should().BeEmpty();
+                index.Content.Should().BeNull();
+            }
+            finally { view.ClearPresentation(); window.Close(); }
+        });
+
+    [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]
     [InlineData(true, true)]

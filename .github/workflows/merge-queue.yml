@@ -75,6 +75,7 @@ jobs:
         env:
           QUEUE_APP_ID: ${{ vars.KORA_MERGE_QUEUE_APP_ID }}
           QUEUE_PROFILE: ${{ vars.KORA_MERGE_QUEUE_PROFILE }}
+          DELIVERY_PROFILE: ${{ vars.KORA_MERGE_QUEUE_DELIVERY_PROFILE }}
           QUEUE_INPUTS: ${{ toJSON(inputs) }}
           QUEUE_RUN_ATTEMPT: ${{ github.run_attempt }}
         with:
@@ -83,7 +84,7 @@ jobs:
             const { GitHubQueue } = require('./eng/merge-queue/github.cjs');
             const { reconcile } = require('./eng/merge-queue/controller.cjs');
             const { controllerOperation } = require('./eng/merge-queue/policy.cjs');
-            const api = new GitHubQueue(github, context, core, process.env.QUEUE_APP_ID);
+            const api = new GitHubQueue(github, context, core, process.env.QUEUE_APP_ID, process.env.DELIVERY_PROFILE);
             let result = 'failed';
             try {
               const inputs = JSON.parse(process.env.QUEUE_INPUTS ?? '{}');

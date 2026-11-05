@@ -99,7 +99,14 @@ public sealed partial class SessionsConversationTests
                 {
                     adapter.Calls.Should().Be(calls + 1);
                     model.MixedOutcome.Should().Be("ASSISTANT\nAnswer from reviewed session fact.");
-                    model.ConversationMessages.Single().Body.Should().Be(question);
+                    model.ConversationMessages.Should().Equal(previous);
+                    model.HasConversationUpdates.Should().BeTrue();
+                    var completed = model.ConversationUpdates.Should().ContainSingle().Subject;
+                    completed.Sequence.Should().Be(9);
+                    completed.Body.Should().Be(question);
+                    completed.AssistantResponse!.Body.Should().Be("Answer from reviewed session fact.");
+                    var stored = await f.Store.ReadConversationMessageAsync(f.Request.SessionId, completed.Request.RequestId, f.Token);
+                    stored.Should().Be(completed);
                     f.Count("conversation_messages").Should().Be(9);
                     using var wire = JsonDocument.Parse(adapter.Wire!);
                     wire.RootElement.GetProperty("UserRequest").GetString().Should().Be(question);
@@ -108,11 +115,15 @@ public sealed partial class SessionsConversationTests
                     native.Close();
                     await model.ReadConversationAsync();
                     model.ConversationMessages.Take(8).Should().Equal(previous);
+                    model.ConversationMessages[^1].Should().Be(completed);
+                    model.ConversationUpdates.Should().BeEmpty();
                 }
                 else
                 {
                     adapter.Calls.Should().Be(calls);
                     f.Count("conversation_messages").Should().Be(8);
+                    model.ConversationMessages.Should().Equal(previous);
+                    model.ConversationUpdates.Should().BeEmpty();
                     model.MixedReviewText.Should().BeEmpty();
                     model.MixedContributions.Should().BeEmpty();
                     model.ComposerBody.Should().Be(question);

@@ -20,8 +20,50 @@ public sealed class SettingsDiscoveryToolsTests
             new(RegisteredSetting.PlaybackVolume, 100, false, 4),
             new(RegisteredSetting.ResponseMode, 0, false, 5),
             new(RegisteredSetting.PresenceDisplay, 1, false, 6),
+            new(RegisteredSetting.PresenceTimeout, 10, false, 6),
+            new(RegisteredSetting.PresenceSize, 360, false, 6),
+            new(RegisteredSetting.DotSize, 100, false, 6),
+            new(RegisteredSetting.DotDensity, 100, false, 6),
+            new(RegisteredSetting.MovementSpeed, 100, false, 6),
+            new(RegisteredSetting.SpeechScaling, 1, false, 6),
+            new(RegisteredSetting.SpeechScaleAmount, 100, false, 6),
+            new(RegisteredSetting.ReducedMotion, 0, false, 6),
         ], "Which registered settings control spoken summaries?", HostRequest.Create(RequestOrigin.LocalUi),
         DateTimeOffset.UnixEpoch, mode);
+
+    [Fact]
+    public void ReviewedMetadataRetainsEveryRegistryFieldWithoutRepeatedColumnNames()
+    {
+        var review = Review();
+        var metadataStart = review.Source.IndexOf('{', StringComparison.Ordinal);
+        using var metadata = JsonDocument.Parse(review.Source.AsMemory(metadataStart));
+        var columns = metadata.RootElement.GetProperty("columns").EnumerateArray()
+            .Select(item => item.GetString()!).ToArray();
+        columns.Should().Equal("Setting", "Id", "Description", "Units", "Minimum", "Maximum",
+            "RequiresNativeReview", "Scope", "SuggestedValues", "ConfirmedValueAvailable");
+        var rows = metadata.RootElement.GetProperty("rows").EnumerateArray().ToArray();
+        rows.Should().HaveCount(RegisteredSettingRegistry.Settings.Count);
+        for (var index = 0; index < rows.Length; index++)
+        {
+            var cells = rows[index].EnumerateArray().ToArray();
+            cells.Should().HaveCount(columns.Length);
+            var fields = columns.Zip(cells).ToDictionary(item => item.First, item => item.Second, StringComparer.Ordinal);
+            var descriptor = RegisteredSettingRegistry.Settings[index];
+            var expected = JsonSerializer.SerializeToElement(descriptor);
+            foreach (var field in expected.EnumerateObject())
+            {
+                fields[field.Name].GetRawText().Should().Be(field.Value.GetRawText());
+            }
+            fields["ConfirmedValueAvailable"].GetBoolean()
+                .Should().Be(SettingsDiscoveryTools.HasConfirmedReader(descriptor.Setting));
+        }
+        review.Observations.Should().OnlyContain(item => review.Source.Contains(item.Text, StringComparison.Ordinal));
+        review.Observations.Should().HaveCount(15).And.NotContain(item => item.Setting == RegisteredSetting.SpeechVoice);
+        SettingsDiscoveryTools.HasConfirmedReader(RegisteredSetting.SpeechVoice).Should().BeFalse();
+        review.Text.Should().Contain(review.Source);
+        review.Bind(review.Destination, new(1), DateTimeOffset.UnixEpoch).Evidence.Single().Content
+            .Should().Be(review.Source);
+    }
 
     [Fact]
     public void ListPagesAreExactRegistryProjectionsAndGetUsesOnlyReviewedCanonicalScalars()
@@ -56,7 +98,10 @@ public sealed class SettingsDiscoveryToolsTests
             ModelToolProtocol.CreateToolResult(new("get_1", SettingsDiscoveryTools.Get, input), reply);
         }
         SettingsDiscoveryTools.Read(review.Observations, SettingsDiscoveryTools.Get,
-            """{"id":"appearance.presence-timeout"}""").Should().Be(
+            """{"id":"appearance.response-timeout"}""").Should().Be(
+                new CapabilityReply(CapabilityOutcome.Unavailable, "setting-value-unavailable"));
+        SettingsDiscoveryTools.Read(review.Observations, SettingsDiscoveryTools.Get,
+            """{"id":"speech.voice"}""").Should().Be(
                 new CapabilityReply(CapabilityOutcome.Unavailable, "setting-value-unavailable"));
         SettingsDiscoveryTools.Read(review.Observations, "settings.reset", "{}").Outcome.Should().Be(CapabilityOutcome.Denied);
         SettingsDiscoveryTools.Read(review.Observations, SettingsDiscoveryTools.List, """{"offset":999}""")

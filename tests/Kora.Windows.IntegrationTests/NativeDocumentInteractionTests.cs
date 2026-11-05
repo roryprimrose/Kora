@@ -42,6 +42,8 @@ public sealed class NativeDocumentInteractionTests
         result.IsFallback.Should().BeFalse();
         result.Sections.Where(section => section.HeadingId is not null).Select(section => section.HeadingId)
             .Should().Equal(parsed.Descendants<HeadingBlock>().Select(heading => heading.GetAttributes().Id));
+        result.Sections.Where(section => section.HeadingId is not null).Select(section => section.HeadingLevel)
+            .Should().Equal(parsed.Descendants<HeadingBlock>().Select(heading => heading.Level));
         result.Sections.SelectMany(section => section.Links).Should()
             .ContainSingle().Which.Should().Be(new NativeDocumentLink("go", "#repeat-1"));
         result.SemanticText.Should().Contain("go (destination: #repeat-1)")

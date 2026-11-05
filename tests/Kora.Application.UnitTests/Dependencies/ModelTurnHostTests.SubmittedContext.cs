@@ -73,6 +73,18 @@ public sealed partial class ModelTurnHostTests
     {
         internal Func<CancellationToken, Task>? BeforeSubmittedAvailabilityRead { get; set; }
         internal int SubmittedAvailabilityReads { get; private set; }
+        internal ImmutableArray<SubmittedHistoryAvailability> MemoryAvailability { get; set; }
+
+        public async ValueTask<ImmutableArray<SubmittedHistoryAvailability>> ReadSubmittedContextAvailabilityAsync(
+            ConversationMessage answer, CancellationToken token)
+        {
+            if (answer.SubmittedContext!.MemorySources.IsDefaultOrEmpty && answer.SubmittedContext.ProfileMemorySources.IsDefaultOrEmpty)
+            { return await ReadSubmittedHistoryAvailabilityAsync(answer, token); }
+            SubmittedAvailabilityReads++;
+            if (BeforeSubmittedAvailabilityRead is { } before) { await before(token); }
+            token.ThrowIfCancellationRequested();
+            return MemoryAvailability;
+        }
 
         public async ValueTask<ImmutableArray<SubmittedHistoryAvailability>> ReadSubmittedHistoryAvailabilityAsync(
             ConversationMessage answer, CancellationToken token)

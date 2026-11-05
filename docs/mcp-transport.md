@@ -15,6 +15,25 @@ and separately approve its exact schema and arguments. The result is inert
 lower-trust evidence for the local model, not instructions or permission.
 Discovery annotations never establish a read-only mapping.
 
+If a configuration refresh observes changed source bytes, exclusion, removal or
+unavailable configuration while discovery or review is pending, the old review
+cannot continue. Restoring the previous file or inclusion does not revive it.
+An unchanged successful refresh does not retire the review. Restore a valid
+included source, refresh the options, then explicitly start a new request and
+repeat discovery and native approvals. Kora does not reconnect or retry for you.
+This does not detect changes the host never observed or enable the unavailable
+connector.
+
+## Separately review the result before model continuation
+
+For **Use reviewed MCP tool locally** and the reviewed declarative MCP skill, successful execution alone does not let the model receive the result. After the authenticated transport finishes, a separate native review shows the complete unchanged text and structured JSON, observation time, configured source/server, delegated account, exact schema, original conversation/task/channel and retention ([review](../src/Kora.Application/Mcp/McpReview.cs)).
+
+Review the complete record, then choose **Consent to one local continuation**. This approves only the same bounded original local model task using that exact inert result. Earlier Once/This session/Always invocation grants do not supply this consent; no hosted transfer, new MCP call, source refresh, memory write or export is approved ([owner](../src/Kora.Application/Mcp/McpInvocation.cs)).
+
+Credential risk denies result use without override; incomplete screening remains closed. Decline/Cancel retains a truthful HOST terminal without a result-bearing model request or assistant answer. The external read has already occurred and is not rolled back. Changed source/account/session/privacy authority suppresses continuation; uncertain completion remains unconfirmed without automatic retry. Inspect the original conversation/task before explicitly starting a newly reviewed request.
+
+**Invoke without a model** below is unchanged: it displays the actual result without model consent because no model runs. Asking a later new question still requires its own [complete observation review and separate consent](mcp-result-follow-up.md).
+
 ## Invoke without a model
 
 In Sessions, choose **Review HTTPS MCP options**, then explicitly select the
@@ -52,7 +71,8 @@ In the registered shared-skill inspector, select exactly one eligible skill and 
 4. Choose **Review exact target and tool revision**, separately **Enable exact reviewed revision**, then **Review exact invocation**.
 5. Review and confirm the complete skill, original request, target, server/account and arguments. These preparation steps connect to nothing.
 6. Separately approve the normal native MCP connection review. Independently select one freshly discovered host-mapped read-only tool and review its exact schema. It must match the declared source/revision/tool/schema, not a similarly named or newer tool.
-7. Separately approve the exact outgoing invocation. Its review includes the original request, exact skill revision and arguments. Inspect the actual inert MCP result and its provenance separately from the genuine retained local answer ([window](../src/Kora/SharedSkillInvocationWindow.cs), [controller](../src/Kora/SharedSkillInvocationController.ToolSkills.cs)).
+7. Separately approve the exact outgoing invocation. Its review includes the original request, exact skill revision and arguments.
+8. After the transport joins, review the complete actual inert result, source and original task. Separately choose **Consent to one local continuation**, then inspect the genuine retained local answer or truthful HOST terminal ([window](../src/Kora/SharedSkillInvocationWindow.cs), [controller](../src/Kora/SharedSkillInvocationController.ToolSkills.cs)).
 
 **Stop and close reviewed use** cancels and joins the original operation, including cancellation-ignoring provider/transport work. Changed inputs/selections require new review and enablement. Source/account/schema changes, revocation, expired permission or failed readback suppress success/publication; no automatic retry or rollback is claimed ([canonical owner](../src/Kora.Application/Hosting/SessionConversationService.Mcp.cs)).
 

@@ -78,7 +78,14 @@ deadline-ms: 1000
 Explain only the supplied text. Do not request external resources.
 ```
 
-**agent author validate** checks the complete v1 or v4 format, UTF-8 size and budgets without writing, resolving references, enabling, selecting or running anything. V1 authoring still requires references none, tools none and zero calls.
+**agent author validate** checks the complete v1 or v4 format, UTF-8 size and budgets without writing, resolving references, enabling, selecting or running anything.
+Manual v1 authoring requires `references: none` and accepts either `tools: none` with zero calls,
+or a distinct subset of the six existing read-only observation IDs with a positive call budget.
+For example, replace `tools: none` with `tools: application.get_version`,
+`maximum-calls: 0` with `maximum-calls: 1`, and `maximum-rounds: 1` with `maximum-rounds: 2`
+in the example above to describe a version-observation role without an artificial instruction dependency.
+Host clamps still bound calls, rounds, bytes and deadline; declaring a tool grants no permission.
+Conversational generation/refinement remains tool-free v1 and refuses observation-capable drafts before any model call.
 V4 authoring adds the combined owned-instruction/observation-tool declaration below; v2/v3 authoring, scripts and hooks remain unsupported ([owned document validation](../src/Kora.Core/Agents/OwnedAgentProfileDocument.cs)).
 
 For a role that follows owned guidance and observes the application version in the same run:

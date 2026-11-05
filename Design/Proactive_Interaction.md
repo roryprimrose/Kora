@@ -69,6 +69,14 @@ original source expiry, never a work or approval deadline extension. Cached
 maintenance's existing Check/Open/release-specific snooze remain separate.
 Reserved event commands preserve any pending foreground question/approval.
 
+Exact actions recheck UTC against the original expiry and durable high watermark
+after awaited source validation, under the source lease. Dismiss/Defer use that
+fresh action time, not the time before waiting. Expiry or rollback cannot
+acknowledge a current notice or commit suppression; time revocation during
+the suppression audit/write boundary holds the broker unconfirmed rather than
+claiming success or rollback. Recovery requires fresh selected-work observation;
+it never renews the source deadline or replays a prior presentation.
+
 Schema-1 `local-events.json` and `local-events-unconfirmed.txt` use
 `IApplicationDataPaths` and the shared atomic preference store. At most 64
 content-free suppression receipts and four fatigue budgets fit the complete
@@ -91,7 +99,7 @@ observation, under the same original expiry and category limits.
 There is no ambient observer, wake/listening change, unsolicited inference,
 network check/consent, browser/download/install or automatic execution route.
 Broader multi-session proactive conversation, detector-driven speech,
-configurable reminders/quiet hours and installed accessibility/release
+configurable reminders, broader quieting and installed accessibility/release
 acceptance remain gated. All R02 experiment evidence is retained unchanged.
 
 ## Actual conversation task notices
@@ -158,6 +166,20 @@ Requested/terminal configuration and execution audits carry only host correlatio
 
 This adds no scheduler, detector enablement, microphone acquisition, foreground switch, automatic question/listening or protected-call one-shot token. Other proactive speech remains unavailable; deterministic regressions do not qualify live providers, devices, acoustics or an enabled production profile ([I/E/Q policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
 
+## Scheduled proactive speech quiet hours
+
+One device-local Off-or-weekly schedule completes the documented quiet-hours operation for otherwise-consented completion speech. The host owns explicit zone interpretation, reviewed persistence and final output admission; no model timer, skill scheduler or external presence service is involved ([configuration owner](../src/Kora.Application/Configuration/QuietHoursConfigurationService.cs)).
+
+Native Settings and exact typed/current-name activated-voice requests share get, set, reset, review and separate same-channel confirmation. Days, start, end and installed zone are shown before confirmation. Reviews bind original host/session/control, call policy, assistant name, consent and native visibility where applicable; stale or expired reviews cannot commit ([interaction](../src/Kora.Application/ViewModels/MainViewModel.QuietHours.cs), [operation tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.QuietHours.cs)).
+
+UTC from the injected clock is converted into the selected zone at every actual synthesis and playback boundary. Intervals include start and exclude end; overnight intervals belong to their starting day. Repeated local DST hours remain quiet inside the interval and skipped times create no deferred speech. Clock rollback holds speech until the observed high watermark is reached ([domain](../src/Kora.Core/Configuration/QuietHoursSchedule.cs), [platform admission](../src/Kora.Windows/Audio/WindowsTextToSpeechService.cs)).
+
+Scheduled quieting preserves visual Presented/fatigue truth and burns observed completion IDs before delivery admission. Schedule/control changes invalidate queued output; an already-started output retains its owner until the physical task joins. Leaving quiet, resetting Off or a late callback cannot replay a consumed source ([completion owner](../src/Kora.Application/Interaction/ConversationCompletionVoiceNotices.cs), [boundary regressions](../tests/Kora.Application.UnitTests/Interaction/ConversationCompletionVoiceNoticesTests.cs)).
+
+Schema-1 `notices-quiet-hours.txt` and an independent unconfirmed-write marker use the shared atomic preference store. Missing intent means Off; malformed data, unknown zones and uncertain writes mean unavailable, not Off. Exact readback and authoritative requested/terminal audit/control receipts precede publication; unsuccessful writes cannot advertise effective success ([preference owner](../src/Kora.Application/Configuration/LocalQuietHoursPreferences.cs), [failure regressions](../tests/Kora.Application.UnitTests/Configuration/QuietHoursConfigurationServiceTests.cs)).
+
+This never toggles run-only routine quiet, suppresses ordinary requested answers, hides questions/approvals, enables proactive consent/listening, relaxes calls/privacy, fetches data or schedules work. Existing speech qualification remains authoritative; deterministic tests are implementation evidence, not provider/hardware enablement ([user operation](../docs/conversation-notices.md#scheduled-proactive-speech-quiet-hours)).
+
 ## Native content-free loaded-event filters
 
 Normal Sessions event browsing retains category and reason choices only ([native event presentation](../src/Kora/SessionsViewModel.Events.cs)). Technical identity, profile, generation/revision, lifetime and correlation query widgets are removed.
@@ -191,7 +213,7 @@ Snapshots carry quiet and control generations; old render callbacks cannot publi
 An admitted quiet request revokes in-flight observations and exact actions before waiting for the broker/source lease, preventing late routine presentation or fatigue consumption by those callbacks.
 Status separately counts all omitted rows, routine rows hidden by quiet and current sources suppressed without presentation. Other sessions are not ambiently observed; this remains the bounded already-open native surface, not a reminder scheduler.
 
-Scheduled quiet hours, multi-session reminders, proactive speech beyond [run-consented conversation completion](#run-consented-conversation-completion-speech), broad model/typed quiet settings and installed accessibility/full R18/RC acceptance remain unavailable.
+Multi-session reminders, proactive speech beyond [run-consented conversation completion](#run-consented-conversation-completion-speech), broad model quiet settings and installed accessibility/full R18/RC acceptance remain unavailable. The independent [scheduled speech-only quiet-hours operation](#scheduled-proactive-speech-quiet-hours) does not change this run-only visual quiet mode.
 Existing exact event commands remain unchanged for Failure/Attention; exact routine defer cannot revive a quiet-suppressed source. All R02 runtime/native/containment/speech/evidence procedures remain unique historical evidence and are retained, not rerun or promoted by deterministic quiet tests.
 
 ## Product Behaviour

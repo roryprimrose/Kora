@@ -70,6 +70,8 @@ The existing [viewer controller](../src/Kora/DetailWindowController.cs) renders 
 
 Exact storage/session/source/private/control/owner checks run at resolution and final publication. Only explicitly opened records receive bounded passive source revalidation. Selection/source loss, session disposition/retention, privacy and disposal revoke content/search and fence delayed publication. Retained Done stays Done without Resume or meaningful activity renewal.
 
+An explicit conversation refresh that fails with an unavailable or changed exact source retires that session's open conversation Details, selected text and Find state before returning, rather than waiting for periodic reader revalidation. It preserves independent unsent input and retained records; recovery requires a fresh explicit read/open. A pending or successful unchanged refresh alone does not retire the reader or its Find/selection.
+
 This route grants no clipboard/export authority: exact-source, selection and automatic copy remain blocked by [viewer state policy](../src/Kora.Application/Presentation/DetailViewerState.cs), including keyboard/programmatic paths. Existing document/history/web copy policy is unchanged. No model, tool, provider, egress, generated content, auto-offer or broader runtime/hardware/accessibility qualification is delivered.
 
 ### Native admitted-text literal Find
@@ -87,6 +89,23 @@ Ctrl+A in the focused Find query selects only that query for replacement, withou
 Find adds no admission/open route, clipboard/export, persistence/schema, logging/query telemetry, provider/egress, meaningful activity or execution authority. Existing independently admitted copy controls are unchanged; retained conversation copy stays blocked. Portable and headless tests are implementation evidence, not installed/accessibility/hardware or full qualification.
 
 The inert match viewport scrolls within a 100-DIP height bound without shortening text. Headless checks exercise the complete maximum-length match at 75%, 100% and 200% reader scale in the minimum-size window while retaining a visible reader; they do not replace installed visual/accessibility qualification.
+
+### Volatile Details reader wrapping
+
+The native Details reader offers **Wrap reader text**, checked by default, for
+plain text, exact source, continuous semantic text and labelled source fallback.
+Uncheck it to inspect long aligned lines with horizontal scrolling; check it again
+to fit the reader width. The native checkbox supports pointer, keyboard and toggle
+automation. It is hidden while reading the structured document, whose code-block
+wrapping remains separate.
+
+The choice belongs only to that view's lifetime, not a saved setting. It does not
+change the immutable source, logical lines, selection, caret or literal Find
+cursor/count, and it neither reads another source nor acquires clipboard authority.
+Source/private retirement clears the reader and disables the old control; reopen
+the exact source through its normal admission route to recover. A newly opened
+reader starts wrapped. Deterministic native regressions are implementation
+evidence, not installed assistive-technology qualification.
 
 ## Delivered passive exact-conversation search - 2026-10-13
 
@@ -1109,6 +1128,57 @@ settings; answering one offer changes no preference. Explicit Open/Close,
 Rendered/Source, search, copy, and navigation commands target the current
 viewer/item and remain available in every preference mode.
 
+#### Implemented existing Offer versus Link only suppression
+
+The bounded implementation consumes only the existing Offer/Link only portion, not the full three-way contract or new post-finalization question authority. Offer preserves the existing passive cue exactly; LinkOnly suppresses that host cue on future current-response and session publications. The shared native conversation template hides its offer card when no admitted offer exists ([policy/workflow](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs), [current response](../src/Kora.Application/ViewModels/MainViewModel.CurrentResponse.cs), [session consumer](../src/Kora/SessionsViewModel.Conversation.cs)).
+
+Native Settings and exact original typed/current-name activated commands inspect, review, separately confirm, cancel or review reset of one device-local preference. Reset saves Offer. Original session/channel, call, privacy, ownership, input and revision checks remain required. Unconfirmed storage/audit/readback holds offers rather than inferring a default ([interaction](../src/Kora.Application/ViewModels/MainViewModel.DetailPresentation.cs), [format](../src/Kora.Core/Presentation/DetailPresentationPreference.cs), [persistence](../src/Kora.Application/Configuration/LocalDetailPresentationPreferences.cs)).
+
+This changes no retained content, manual Details/navigation/copy admission, existing window preferences or per-task output modes. One-off acceptance/decline writes no preference; restoring Offer allows only future new publications, with no historical offer/content/speech replay. Existing published text is not rewritten. Automatic opening, new questions, reply turns and presentation intents remain unavailable/out of scope ([current route](../src/Kora.Application/ViewModels/MainViewModel.cs), [session retirement](../src/Kora/SessionsViewModel.DetailOffers.cs)).
+
+All completed session-publication routes share one offer-epoch capture,
+including ordinary queued completions and original-request foreground
+publication. A volatile terminal-publication record is identified by host request,
+generation, sequence and terminal revision, preserving its first offer epoch
+and one-off dismissal independently of the displayed slot. It is bounded by
+the existing 100-message session limit and cleared with private conversation
+selection/lifetime state, not saved as history or authority. A duplicate
+terminal event, foreground callback or late submission join cannot replace a
+newer displayed answer or an explicitly read page, or capture another epoch.
+Delayed pending acceptance also preserves an already published terminal status;
+it cannot make a completed request appear queued or running again.
+Deferred terminal publication retains the original composer selection,
+generation and private-control fences. Passive work refresh or returning to
+the same session cannot admit a retired callback or capture a new offer epoch;
+explicit retained reading preserves the full original USER and ASSISTANT
+sources in both modes ([deferred-publication regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.SubmittedPresentation.cs)).
+Pending acceptance is not terminal publication: its first terminal answer
+still captures current policy. Generic Details accepts only a pending current-response offer;
+otherwise it keeps the selected-session route. The explicit current-response
+command remains manual access in LinkOnly and after decline/reset. Native
+preference availability refreshes on busy completion and host/decision
+dependency changes without reopening Settings ([publication owner](../src/Kora/SessionsViewModel.DetailOffers.cs),
+[eligibility](../src/Kora.Application/ViewModels/MainViewModel.DetailPresentation.cs)).
+
+Completion publication preserves the reader's admitted page and reports new
+messages separately. A first terminal publication captures its Details policy
+independently of sequence ordering in the latest-message slot; duplicate
+delivery cannot renew that policy or replace the page. Explicit fresh reading
+retires the proactive offer without losing manual Details access
+([publication](../src/Kora/SessionsViewModel.ConversationReading.cs),
+[regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.DetailOffers.cs)).
+
+Detail presentation and the future ordinary-conversation execution maximum
+retain independent reviews and separately confirmed writes when composed
+together. Changing concurrency neither changes the detail preference nor
+renews a retired offer epoch; changing or resetting detail presentation does
+not change execution demand or dispatch work. Open native detail controls
+still recover after a busy readiness refresh without reopening Settings
+([coexistence regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.DetailPresentation.cs),
+[native regression](../tests/Kora.Windows.IntegrationTests/DetailPresentationSettingsTests.cs)).
+
+Deterministic regressions cover reviewed persistence/readback, original channel and late admission, current-response routing, compact/expanded conversation controls and duplicate event/join/foreground delivery. Release analyzers and complete four-module 100% portable line/branch coverage remain required delivery gates. This does not qualify a provider/native profile, complete the three-way design or admit automatic detail questions ([workflow regressions](../tests/Kora.Application.UnitTests/Configuration/DetailPresentationConfigurationServiceTests.cs), [native/session regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.DetailOffers.cs)).
+
 ### Clipboard Copy
 
 #### Delivered authorized Markdown copy increment
@@ -1353,7 +1423,7 @@ never used as original source. The matching **actual device** position selects
 the last reached sentence start; reader position, output level, elapsed wall time
 and duration estimates cannot advance captions. Completion retains only the last
 sentence actually observed, never an unplayed final sentence. This implementation
-does not chunk/resynthesize speech, change prosody or add word highlighting.
+does not chunk/resynthesize speech or change prosody. The optional word projection below consumes the same sealed native events.
 
 Response replacement/retirement, playback stop/cancel/failure, configuration
 revision, original request/session/channel, input recovery/activation generation,
@@ -1391,12 +1461,25 @@ exclusion, not caption enablement, speech, identity, privacy/call gates or pin
 and display lifetimes.
 
 **Current sentence implementation** consumes native source-range evidence through the shared caption path; [deterministic native callback fixtures](../tests/Kora.Windows.IntegrationTests/WindowsSpeechSentenceAlignmentTests.cs) cover the consumed seam, not installed-profile qualification.
-Production sentence captions remain unavailable because [no exact voice/rate/output profile is qualified](../src/Kora.Windows/Audio/WindowsTextToSpeechService.SentenceAlignment.cs). Word alignment/highlighting remains open; estimated boundaries are not advertised as
-host-admitted playback alignment. Arbitrary coordinates and
+Production sentence captions and word emphasis remain unavailable because [no exact voice/rate/output profile is qualified](../src/Kora.Windows/Audio/WindowsTextToSpeechService.SentenceAlignment.cs). Word projection is implemented but independently gated; estimated boundaries are not advertised as host-admitted playback alignment. Arbitrary coordinates and
 caption/navigation commands outside the [bounded natural grammar](#bounded-natural-speech-caption-commands) remain proposed. Native
 accessibility properties/selection/pin/settings are source-tested, not installed
 accessibility, installed multimonitor or acoustic qualification. Rich HTML/browser/diagram rendering is
 not delivered. The acoustic experiment remains maintained and is not retired.
+
+### Source-bound word emphasis
+
+The optional off-default [word-emphasis preference](User_Configuration.md#delivered-bounded-caption-ux-options-r25---2026-10-09) uses the existing caption configuration route. Saving it does not qualify alignment, enable captions or synthesize/replay speech; native status distinguishes saved/effective preference from actual playback availability ([shared owner](../src/Kora.Application/ViewModels/MainViewModel.SpeechText.cs)).
+
+The [Windows timeline](../src/Kora.Windows/Audio/WindowsTextToSpeechService.SentenceAlignment.cs) retains at most 8,192 distinct exact native UTF-16 ranges, within the existing 32,768-character, 256-sentence and 65,536-callback limits. Only identical repeated ranges coalesce, preserving their first native audio time; normalized-number ranges remain grouped, without tokenization or rendered-text matching.
+
+Word availability requires the shared complete lexical coverage and valid source/surrogate boundaries, plus strictly increasing distinct-range audio starts and independent exact-profile qualification. Word-buffer overflow or simultaneous distinct starts can retain valid sentence fallback without claiming word accuracy ([native seam regressions](../tests/Kora.Windows.IntegrationTests/WindowsSpeechSentenceAlignmentTests.cs)).
+
+The [immutable frame evidence](../src/Kora.Core/Voice/SpeechWordPosition.cs) binds source range, playback token/generation, actual device position, next native-event position (or audio end) and audio duration. Synthesis/queue progress cannot advance it. The [consumer](../src/Kora.Application/Voice/SpeechCaption.cs) rejects foreign, stale, regressing or malformed word evidence and projects offsets only into its admitted sentence/utterance slice; unavailable words leave ordinary text unchanged.
+
+The [native underline layer](../src/Kora/SpeechCaptionEmphasisLayer.cs) uses that slice's layout geometry, never selection or a second accessible text source. Keyboard/pointer selection, copying the user's selection, independent Find focus and reader scaling remain separate ([native interaction regressions](../tests/Kora.Windows.IntegrationTests/SpeechCaptionDisplayTests.WordEmphasis.cs)).
+
+Normal completion clears active emphasis even while retaining **PREVIOUS SPEECH**. Stop/cancel, replacement, privacy/call/ownership, preference/display retirement and disposal retain the existing immediate clearing rules; late frames cannot restore authority. No content persistence, new synthesis/network route or telemetry is added ([host lifecycle regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.SpeechText.cs)).
 
 ### Broader proposed contract
 
@@ -1449,6 +1532,25 @@ does not reconstruct them from displayed text. The complete interaction-control
 budget includes local links, external review buttons, table cells/headers and
 code controls. Exceeding it retains the complete labelled source fallback,
 without partially active navigation or enabling an unavailable profile.
+
+Final Markdown Details also provides a collapsed **Document headings (Alt+H)**
+index, including when the author supplied no fragment links. Each native entry
+names its document ordinal, original parser heading level and complete semantic
+heading text. Activate an entry by pointer, Enter or Space to bring its exact
+parser-identified heading into view and focus it; duplicate and Unicode headings
+are not resolved by reconstructing text. Alt+H returns focus to the first index
+entry without selecting another source or changing the reading projection
+([native owner](../src/Kora/NativeDocumentInteraction.cs), [parser metadata](../src/Kora/NativeDetailRenderer.cs)).
+
+The index exists only for an admitted final rendered document with headings,
+not provisional text, source fallback or the guide/grants facade. Source and
+continuous-text projections deny index actions and accessible entry readback;
+returning to the rendered projection reuses only the same admitted view.
+Source/private/generation withdrawal, closure and detachment retire entries.
+The final control budget includes the index and its entries; exceeding it uses
+complete exact-source fallback. No copy, speech, browser, source read, model
+call or permission is added, and installed accessibility qualification is not
+claimed ([native regressions](../tests/Kora.Windows.IntegrationTests/FinalDocumentInteractionTests.Headings.cs)).
 
 [CODE-only native controls](../src/Kora/CodeHighlighting/NativeCodeBlock.cs)
 provide read-only keyboard focus/local selection and wrapping or horizontal

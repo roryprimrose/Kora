@@ -16,6 +16,8 @@ public interface ISpeechCaptionPresentation : INotifyPropertyChanged
     void EnsureReaderTypographyAvailable();
     /// <summary>Gets the currently observed private text, or <c>null</c>.</summary>
     string? SpeechCaptionText { get; }
+    /// <summary>Gets the verified active source range relative to the caption, independent of selection.</summary>
+    SpeechCaptionEmphasis? SpeechCaptionEmphasis => null;
     /// <summary>Gets the current or successfully retained utterance label.</summary>
     string SpeechCaptionLabel { get; }
     /// <summary>Gets the pin control label.</summary>

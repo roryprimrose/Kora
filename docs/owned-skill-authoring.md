@@ -160,6 +160,13 @@ skill create daily-review 1.0.0**), or the native editor controls:
    `owned skill reopen daily-review 1.0.0`. Reopen reads the actual saved package;
    it does not select it for model use.
 
+If you edit the draft while Reopen is reading the saved source or awaiting
+declared-component read consent, that Reopen is retired. Your new text,
+component edits and original source binding remain intact and unsaved; a late
+read cannot replace them. Save or explicitly discard those edits before
+reopening again. Cancelling or closing still waits for actual source reads
+to finish, even if they ignore cancellation.
+
 `owned skill editor` opens the controls without generating content.
 `owned skill cancel` retires authoring authority and cancels pending review/I/O.
 The controller retains ownership until the actual operation finishes, even if

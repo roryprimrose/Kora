@@ -49,7 +49,7 @@ public sealed class DetailWindowContractTests
         var expectedOrder = new[]
         {
             "SourceToggle", "ReadingTextToggle", "WrapTextToggle", "SearchInput", "FindHostToggle", "FirstMatch", "PreviousMatch", "NextMatch",
-            "CancelFind", "ClearFind", "DisclosureConfirmation", "CopySelection", "CopySource", "CloseDetail", "ContentReader", "FindSpan",
+            "CancelFind", "ClearFind", "RevealMatch", "DisclosureConfirmation", "CopySelection", "CopySource", "CloseDetail", "ContentReader", "FindSpan",
         };
         for (var index = 0; index < expectedOrder.Length; index++)
         {

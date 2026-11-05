@@ -33,6 +33,7 @@ public sealed partial class DetailContentView : UserControl
     private readonly NativeDocumentInteraction? documentInteraction;
     private readonly NativeFinalDocumentInteraction? finalInteraction;
     private ExternalBrowserReviewWindow? finalBrowserReview;
+    private SnapshotLiteralSpan? revealedMatch;
 
     // XAML tooling requires a public default constructor. It cannot admit or open content.
     public DetailContentView() => throw new InvalidOperationException("Use the explicit host-owned native detail route.");
@@ -168,6 +169,7 @@ public sealed partial class DetailContentView : UserControl
         Required<Button>("FirstMatch").Click += (_, _) => Find(SnapshotFindDirection.First);
         Required<Button>("CancelFind").Click += (_, _) => CancelLiteralFind(false);
         Required<Button>("ClearFind").Click += (_, _) => CancelLiteralFind(true);
+        Required<Button>("RevealMatch").Click += (_, _) => RevealLiteralMatch();
         Required<CheckBox>("FindHostToggle").IsCheckedChanged += (_, _) =>
             state.SetFindHost(Required<CheckBox>("FindHostToggle").IsChecked == true);
         search.PropertyChanged += (_, args) =>
@@ -229,6 +231,15 @@ public sealed partial class DetailContentView : UserControl
     private void Refresh()
     {
         if (state.Content is null || finalInteraction is not null && !finalInteraction.CanReadCode) { RequestClose(); return; }
+        if (revealedMatch is { } revealed
+            && (state.FindHost || state.MatchStart != revealed.Start || state.MatchLength != revealed.Length))
+        {
+            if (reader.SelectionStart == revealed.Start && reader.SelectionEnd == revealed.Start + revealed.Length)
+            {
+                reader.SelectionStart = reader.SelectionEnd;
+            }
+            revealedMatch = null;
+        }
         if (!string.Equals(reader.Text, state.ActiveText, StringComparison.Ordinal))
         {
             reader.SelectionStart = 0;
@@ -241,6 +252,7 @@ public sealed partial class DetailContentView : UserControl
         Required<NamedTextBlock>("FindSummary").Text = state.FindSummary;
         Required<Button>("NextMatch").IsEnabled = state.CanNavigateFind;
         Required<Button>("PreviousMatch").IsEnabled = state.CanNavigateFind;
+        Required<Button>("RevealMatch").IsEnabled = state.FindAvailable && !state.FindHost && state.MatchStart >= 0;
         var structured = !state.IsSource && readingText.IsChecked != true
             && state.RenderState == DetailRenderState.Rendered;
         renderedViewport.IsVisible = structured;
@@ -273,6 +285,52 @@ public sealed partial class DetailContentView : UserControl
             }
             if (!state.FindAvailable || generation != state.Generation) { RequestClose(); }
         }
+    }
+
+    private void RevealLiteralMatch()
+    {
+        if (cleared || !state.FindAvailable) { RequestClose(); return; }
+        if (state.FindHost || state.MatchStart < 0)
+        {
+            state.ReportStatus("Reader reveal unavailable: choose a current body match with Find first, Next or Previous. Separate HOST matches stay in their own observation.");
+            return;
+        }
+        var generation = state.Generation;
+        var start = state.MatchStart;
+        var length = state.MatchLength;
+        var text = state.ActiveText;
+        var query = state.SearchQuery;
+        bool IsCurrent() => !cleared && state.FindAvailable && generation == state.Generation
+            && !state.FindHost && state.MatchStart == start && state.MatchLength == length
+            && string.Equals(state.ActiveText, text, StringComparison.Ordinal)
+            && string.Equals(state.SearchQuery, query, StringComparison.Ordinal)
+            && TopLevel.GetTopLevel(this) is not null && IsEffectivelyVisible;
+
+        if (!reader.IsVisible) { readingText.IsChecked = true; }
+        UpdateLayout();
+        if (IsCurrent())
+        {
+            reader.CaretIndex = start + length;
+            if (IsCurrent())
+            {
+                reader.SelectionStart = start;
+                if (IsCurrent())
+                {
+                    reader.SelectionEnd = start + length;
+                    if (IsCurrent() && reader.Focus() && IsCurrent())
+                    {
+                        revealedMatch = new(start, length);
+                        state.ReportStatus("Selected the exact literal occurrence in its admitted reader text; no source was read or copied.");
+                        return;
+                    }
+                }
+            }
+        }
+        revealedMatch = null;
+        reader.SelectionStart = 0;
+        reader.SelectionEnd = 0;
+        if (cleared || state.Content is null) { RequestClose(); return; }
+        state.ReportStatus("Literal match reveal unavailable: the match, reader or focus changed; no selection claimed. Choose Find again.");
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
@@ -391,6 +449,7 @@ public sealed partial class DetailContentView : UserControl
         state.Close();
         reader.SelectionStart = 0;
         reader.SelectionEnd = 0;
+        revealedMatch = null;
         reader.Text = string.Empty;
         wrapText.IsEnabled = false;
         NativeStrikethroughText.Retire(renderedDocument.Children);
@@ -399,6 +458,7 @@ public sealed partial class DetailContentView : UserControl
         search.Text = string.Empty;
         findSpan.Text = null;
         findSpan.IsVisible = false;
+        Required<Button>("RevealMatch").IsEnabled = false;
         disclosure.IsChecked = false;
         foreach (var name in new[] { "DetailTitle", "ProvenanceLabel", "ReferenceLabel", "DigestLabel", "ConversationHostLabel", "ConversationAssistantLabel", "RendererStatus", "RenderStatus", "FindSummary" })
         {

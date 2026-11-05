@@ -33,8 +33,12 @@ public sealed partial class HostedClaudeSessionRequestTests
             c.Http.Respond = message =>
             {
                 var count = message.RequestUri!.AbsolutePath.EndsWith("count_tokens", StringComparison.Ordinal);
+                const string countBody = "{\"input_tokens\":25}";
+                var answer = ClaudeMessagesRuntimeTests.Answer.PadRight(ModelContextEnvelope.MaximumOutputUtf8Bytes
+                    - Encoding.UTF8.GetByteCount(countBody));
+                (Encoding.UTF8.GetByteCount(countBody) + Encoding.UTF8.GetByteCount(answer)).Should().Be(ModelContextEnvelope.MaximumOutputUtf8Bytes);
                 var response = new ClaudeMessagesRuntimeTests.BufferedDisposalResponse(
-                    count ? "{\"input_tokens\":25}" : ClaudeMessagesRuntimeTests.Answer, count == failCount);
+                    count ? countBody : answer, count == failCount);
                 responses.Add(response);
                 return response;
             };

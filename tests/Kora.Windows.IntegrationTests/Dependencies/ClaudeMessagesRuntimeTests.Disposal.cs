@@ -12,13 +12,17 @@ namespace Kora.Windows.IntegrationTests.Dependencies;
 public sealed partial class ClaudeMessagesRuntimeTests
 {
     [Theory]
-    [InlineData("count-response")]
-    [InlineData("message-response")]
-    [InlineData("count-reader")]
-    [InlineData("message-reader")]
-    [InlineData("client")]
-    [InlineData("none")]
-    public async Task Buffered_physical_disposal_must_confirm_release_before_answer_or_reuse(string fault)
+    [InlineData("count-response", false)]
+    [InlineData("message-response", false)]
+    [InlineData("count-reader", false)]
+    [InlineData("message-reader", false)]
+    [InlineData("client", false)]
+    [InlineData("none", false)]
+    [InlineData("message-response", true)]
+    [InlineData("message-reader", true)]
+    [InlineData("client", true)]
+    [InlineData("none", true)]
+    public async Task Buffered_physical_disposal_must_confirm_release_before_answer_or_reuse(string fault, bool atResponseBudget)
     {
         var f = new ClaudeAccountBrokerTests.Fixture();
         await using var broker = f.Create();
@@ -31,7 +35,7 @@ public sealed partial class ClaudeMessagesRuntimeTests
         var context = new ModelContextEnvelope(root.Request, "policy", "  original\r\nbody  ", [],
             now, now.AddMinutes(1), ModelToolMode.None);
         var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), root.Request, catalogue.Models[0].Selection);
-        var handler = new BufferedDisposalHandler(fault);
+        var handler = new BufferedDisposalHandler(fault, atResponseBudget: atResponseBudget);
         var clients = 0;
         var runtime = new ClaudeMessagesRuntime(broker, f.Time, NullLogger<ClaudeMessagesRuntime>.Instance,
             () => { clients++; return new(handler); });
@@ -113,7 +117,7 @@ public sealed partial class ClaudeMessagesRuntimeTests
         handler.Responses.Single().DisposeAttempts.Should().Be(1);
     }
 
-    private sealed class BufferedDisposalHandler(string fault, bool pauseDisposal = false) : HttpMessageHandler
+    private sealed class BufferedDisposalHandler(string fault, bool pauseDisposal = false, bool atResponseBudget = false) : HttpMessageHandler
     {
         internal int Sends { get; private set; }
         internal int DisposeAttempts { get; private set; }
@@ -125,7 +129,13 @@ public sealed partial class ClaudeMessagesRuntimeTests
             var count = request.RequestUri!.AbsolutePath.EndsWith("count_tokens", StringComparison.Ordinal);
             Sends++;
             var prefix = count ? "count-" : "message-";
-            var response = new BufferedDisposalResponse(count ? "{\"input_tokens\":25}" : Answer,
+            const string countBody = "{\"input_tokens\":25}";
+            var answer = atResponseBudget
+                ? Answer.PadRight(ModelContextEnvelope.MaximumOutputUtf8Bytes - Encoding.UTF8.GetByteCount(countBody))
+                : Answer;
+            if (atResponseBudget)
+            { (Encoding.UTF8.GetByteCount(countBody) + Encoding.UTF8.GetByteCount(answer)).Should().Be(ModelContextEnvelope.MaximumOutputUtf8Bytes); }
+            var response = new BufferedDisposalResponse(count ? countBody : answer,
                 string.Equals(fault, prefix + "response", StringComparison.Ordinal),
                 string.Equals(fault, prefix + "reader", StringComparison.Ordinal),
                 pauseDisposal ? DisposalEntered : null, pauseDisposal ? ReleaseDisposal : null);

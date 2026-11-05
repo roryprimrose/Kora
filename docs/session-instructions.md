@@ -34,6 +34,14 @@ finish under the existing mandatory privacy and ownership guards. Closing the
 unconfirmed review discards it. Closing a confirmed review window does not stop
 applicability: use **Stop applying**, or inspect **Refresh scope status**.
 
+The scope window belongs to the exact conversation selection that opened it.
+Changing the Sessions selection, even away and back, retires that window's
+controls. Review, confirmation, Stop and refresh cannot silently target the new
+selection. Close the scope window, select the intended Active conversation and
+reopen its instruction controls. Rejected controls do not read a source, apply
+guidance or stop either conversation's existing scope. Confirmed applicability
+stays with its original conversation until separately stopped or revoked.
+
 ## Typed and activated voice commands
 
 First select the exact Active session in Sessions. These commands use the same

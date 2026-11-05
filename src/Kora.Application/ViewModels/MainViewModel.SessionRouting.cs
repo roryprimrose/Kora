@@ -58,6 +58,7 @@ public sealed partial class MainViewModel
         }
         try
         {
+            var automaticDetails = CaptureAutomaticResponse();
             using var routingPresentationLease = retainRoutingPresentation?.Invoke();
             var result = await route(body, origin, Live);
             if (!Live()) { return true; }
@@ -75,7 +76,9 @@ public sealed partial class MainViewModel
                     var answerPresentation = AnswerPresentation.From(answer.Body);
                     PresentResponse(AssistantState.Information, "Request destination: " + name + ".",
                         status + "\n\nAssistant answer (generated locally; verify important details):\n" + answerPresentation.Brief,
-                        modelAnswer: new(answer.Body));
+                        requestWindow: automaticDetails is null,
+                        modelAnswer: new(answer.Body, result.Submission.Message.Request));
+                    PresentAutomaticResponse(automaticDetails);
                 }
                 else { ShowInformation("Request destination: " + name + ".", status); }
             }

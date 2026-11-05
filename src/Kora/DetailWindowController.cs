@@ -256,6 +256,20 @@ public sealed partial class DetailWindowController : IDisposable
         return acknowledged;
     }
 
+    internal bool PublishAutomaticDetails(AutomaticDetailIntent intent, ResponseWindow owner)
+    {
+        var content = intent.Content;
+        if (disposed || !intent.IsCurrent() || !owner.IsVisible || !owner.IsActive
+            || !owner.IsSessionListPresented || windows.ContainsKey(content.Reference))
+        { return false; }
+        currentResponses[content.Reference] = (content, intent.IsSourceCurrent);
+        var acknowledged = false;
+        _ = OpenContent(content, owner, acknowledge: () => acknowledged = true, automatic: intent);
+        if (!acknowledged) { AutomaticPublicationUnavailable(logger); }
+        if (!acknowledged) { RevokeReference(content.Reference); }
+        return acknowledged;
+    }
+
     internal void RetireUnavailableCurrentResponses()
     {
         foreach (var source in currentResponses.Values.Where(source => !CanAccess(source.Content)).ToArray())
@@ -287,7 +301,7 @@ public sealed partial class DetailWindowController : IDisposable
     }
 
     private string OpenContent(AdmittedDetailContent content, Window? owner, bool deferPublication = false,
-        Action? acknowledge = null)
+        Action? acknowledge = null, AutomaticDetailIntent? automatic = null)
     {
         if (disposed || !CanAccess(content)) { return "Details unavailable: the privacy/input gate is closed."; }
         DetailViewerState state;
@@ -316,7 +330,13 @@ public sealed partial class DetailWindowController : IDisposable
         // Each additive profile remains unavailable until its own qualification.
         var result = content.Kind == DetailContentKind.StaticHtml
             ? staticHtmlRenderer.Render(content)
-            : renderer.Render(ReaderSource(content), content.Kind, content.Reference, SelectNativeFormat(content));
+            : renderer.Render(ReaderSource(content), content.Kind, content.Reference,
+                automatic is null ? SelectNativeFormat(content) : NativeDetailFormat.TextV1);
+        if (automatic is not null && result.IsFallback)
+        {
+            registry.Close(content.Reference);
+            return "Automatic details unavailable: the native profile did not admit this source. Manual details remain available.";
+        }
         if (!state.CompleteRender(generation, result.SemanticText, result.Status, result.IsFallback) || !CanAccess(content))
         {
             registry.Close(content.Reference);
@@ -353,7 +373,8 @@ public sealed partial class DetailWindowController : IDisposable
             registry.Close(reference);
         };
         windows.Add(reference, (state, view, result.ClipboardHtml));
-        return deferPublication ? result.Status : PublishContent(content, owner, (state, view, result.ClipboardHtml), result.Status, activateOnly: false, acknowledge);
+        return deferPublication ? result.Status : PublishContent(content, owner, (state, view, result.ClipboardHtml), result.Status,
+            activateOnly: false, acknowledge, automatic);
     }
 
     private static string ReaderSource(AdmittedDetailContent content)
@@ -369,7 +390,8 @@ public sealed partial class DetailWindowController : IDisposable
             : NativeDetailFormat.PipeTablesV2;
 
     private string PublishContent(AdmittedDetailContent content, Window? owner,
-        (DetailViewerState State, IDetailView View, string? ClipboardHtml) entry, string status, bool activateOnly, Action? acknowledge = null)
+        (DetailViewerState State, IDetailView View, string? ClipboardHtml) entry, string status, bool activateOnly,
+        Action? acknowledge = null, AutomaticDetailIntent? automatic = null)
     {
         var reference = content.Reference;
         var (state, view, _) = entry;
@@ -381,7 +403,16 @@ public sealed partial class DetailWindowController : IDisposable
         }
         try
         {
-            if (!activateOnly) { view.ShowOwned(owner); }
+            if (automatic is not null)
+            {
+                if (owner is not ResponseWindow primary || view is not SessionDetailView pane
+                    || !pane.ShowWithoutActivation(primary, automatic))
+                {
+                    RevokeReference(reference);
+                    return "Automatic details unavailable: the exact native foreground presentation changed. Manual details remain available.";
+                }
+            }
+            else if (!activateOnly) { view.ShowOwned(owner); }
             if (!CanAccess(content) || state.Generation != generation || state.Content is null)
             {
                 windows.Remove(reference);
@@ -389,7 +420,7 @@ public sealed partial class DetailWindowController : IDisposable
                 view.ClearAndClose();
                 return "Details unavailable: the exact source admission changed while opening.";
             }
-            view.Activate();
+            if (automatic is null) { view.Activate(); }
             if (!CanAccess(content) || state.Generation != generation || state.Content is null)
             {
                 RevokeReference(reference);

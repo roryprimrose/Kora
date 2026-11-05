@@ -10,7 +10,7 @@ namespace Kora.Application.ViewModels;
 
 public sealed partial class MainViewModel
 {
-    private sealed record FinalizedModelAnswer(string Body)
+    private sealed record FinalizedModelAnswer(string Body, HostRequest Request)
     {
         internal long? OfferEpoch { get; init; }
     }

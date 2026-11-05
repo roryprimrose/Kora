@@ -23,5 +23,7 @@ public sealed class DetailPresentationReview
     public string Description => $"Review detail presentation: {Saved?.ToString() ?? "Offer (unsaved default)"} -> {Value}. "
         + "One shared device-local preference for future publications. LinkOnly suppresses existing proactive offers only; "
         + "Open details and exact manual commands remain available. Offer preserves existing behavior, without new hands-free questions. "
-        + "Confirm separately within 60 seconds or cancel. No content, speech or offers are replayed; automatic opening is unavailable.";
+        + "OpenAutomatically expands only a new finalized eligible result in the already active primary workspace, without activation or keyboard focus changes. "
+        + "It never replaces retained reading or unsent input. Unknown or changed admission leaves manual access. "
+        + "Confirm separately within 60 seconds or cancel. No content, speech or offers are replayed. No new question is created.";
 }

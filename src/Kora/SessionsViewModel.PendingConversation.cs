@@ -72,6 +72,7 @@ internal sealed partial class SessionsViewModel
             && (sourceAccepted || selected == target && selectionEpoch == epoch);
         bool PresentLive() => SourceLive() && selected == target && selectionEpoch == epoch;
         var released = false;
+        var automatic = CaptureAutomaticDetails();
         conversationBusy = true;
         busy = true;
         Notify();
@@ -85,6 +86,7 @@ internal sealed partial class SessionsViewModel
             if (composerBufferRevision == buffer && string.Equals(composerBody, body, StringComparison.Ordinal))
             { composerBody = string.Empty; }
             RememberUnsent();
+            if (submitted.Position == 0) { BindAutomaticDetails(submitted.Receipt.Message, automatic); }
             if (PublishConversationCompletion(submitted.Receipt.Message))
             {
                 conversationStatus = submitted.Receipt.Message.Outcome is not null
@@ -93,6 +95,7 @@ internal sealed partial class SessionsViewModel
                         ? "Submitted and queued at position " + submitted.Position + ". Original request retained; no provider execution yet."
                         : "Original request accepted. Running or waiting for admitted resources; another ordinary request may now be submitted.";
             }
+            PresentAutomaticDetails(submitted.Receipt.Message);
             conversationBusy = false;
             busy = false;
             released = true;
@@ -104,6 +107,7 @@ internal sealed partial class SessionsViewModel
                 {
                     conversationStatus = TerminalConversationStatus(completed);
                 }
+                if (PresentLive()) { PresentAutomaticDetails(completed.Message); }
             }
             activity.Complete(HostOperationOutcome.Completed);
         }

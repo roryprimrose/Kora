@@ -9,13 +9,14 @@ public sealed record DetailPresentationCommand(DetailPresentationOperation Opera
 {
     public const string OptionId = "responses.detail-presentation";
     public const string Syntax = "get responses.detail-presentation | status responses.detail-presentation | "
-        + "set responses.detail-presentation to Offer|LinkOnly | reset responses.detail-presentation | "
+        + "set responses.detail-presentation to Offer|LinkOnly|OpenAutomatically | reset responses.detail-presentation | "
         + "confirm detail presentation change | cancel detail presentation change | stop asking about details | offer detailed results. "
-        + "Set/reset prepare a review, not a write. Automatic opening is unavailable.";
+        + "always open detailed results. Set/reset prepare a review, not a write. Automatic opening is future-only and nonactivating.";
     public static IReadOnlyList<string> FixedPhrases { get; } =
     [
         "get " + OptionId, "status " + OptionId, "set " + OptionId + " to Offer",
         "set " + OptionId + " to LinkOnly", "reset " + OptionId,
+        "set " + OptionId + " to OpenAutomatically", "always open detailed results",
         "confirm detail presentation change", "cancel detail presentation change",
         "stop asking about details", "offer detailed results",
     ];
@@ -45,6 +46,8 @@ public sealed record DetailPresentationCommand(DetailPresentationOperation Opera
         if (phrase.StartsWith("cancel ", StringComparison.Ordinal)) { return new(DetailPresentationOperation.Cancel); }
         return new(DetailPresentationOperation.Review,
             phrase.EndsWith("LinkOnly", StringComparison.Ordinal) || string.Equals(phrase, "stop asking about details", StringComparison.Ordinal)
-                ? DetailPresentationMode.LinkOnly : DetailPresentationMode.Offer);
+                ? DetailPresentationMode.LinkOnly
+                : phrase.EndsWith("OpenAutomatically", StringComparison.Ordinal) || string.Equals(phrase, "always open detailed results", StringComparison.Ordinal)
+                    ? DetailPresentationMode.OpenAutomatically : DetailPresentationMode.Offer);
     }
 }

@@ -9,6 +9,7 @@ public static class DetailPresentationPreference
         null => null,
         "Offer" => DetailPresentationMode.Offer,
         "LinkOnly" => DetailPresentationMode.LinkOnly,
+        "OpenAutomatically" => DetailPresentationMode.OpenAutomatically,
         _ => throw new InvalidDataException("The saved detail-presentation preference is invalid; inspect saved state before repair."),
     };
 
@@ -16,6 +17,7 @@ public static class DetailPresentationPreference
     {
         DetailPresentationMode.Offer => "Offer",
         DetailPresentationMode.LinkOnly => "LinkOnly",
+        DetailPresentationMode.OpenAutomatically => "OpenAutomatically",
         _ => throw new ArgumentOutOfRangeException(nameof(value)),
     };
 }

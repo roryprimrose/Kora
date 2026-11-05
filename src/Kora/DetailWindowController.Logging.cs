@@ -10,4 +10,7 @@ public sealed partial class DetailWindowController
 
     [LoggerMessage(312, LogLevel.Warning, "Retained conversation detail source revoked after FailureType {FailureType}.")]
     private static partial void ConversationSourceFailure(ILogger logger, string failureType);
+
+    [LoggerMessage(313, LogLevel.Warning, "Automatic Details publication was not acknowledged; manual access remains available.")]
+    private static partial void AutomaticPublicationUnavailable(ILogger logger);
 }

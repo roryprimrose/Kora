@@ -99,8 +99,8 @@ public sealed partial class MainViewModelTests
         main.BindDetailPresentationNativeLifetime(static () => true);
         await main.InspectDetailPresentationCommand.ExecuteAsync();
         main.Transcript.Should().Contain("Offer (unsaved default)");
-        await f.RunAsync("always open detailed results");
-        main.Transcript.Should().Contain("input not accepted").And.Contain("Automatic opening is unavailable");
+        await f.RunAsync("always open detailed results please");
+        main.Transcript.Should().Contain("input not accepted").And.Contain("OpenAutomatically");
         await main.LinkOnlyDetailPresentationCommand.ExecuteAsync();
         await main.CancelDetailPresentationCommand.ExecuteAsync();
         main.DetailPresentationReviewText.Should().Be("No detail preference change is awaiting confirmation.");

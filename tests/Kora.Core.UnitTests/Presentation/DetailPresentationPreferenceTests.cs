@@ -8,6 +8,7 @@ public sealed class DetailPresentationPreferenceTests
     [Theory]
     [InlineData(DetailPresentationMode.Offer, "Offer")]
     [InlineData(DetailPresentationMode.LinkOnly, "LinkOnly")]
+    [InlineData((DetailPresentationMode)2, "OpenAutomatically")]
     public void ExactCanonicalValuesRoundTrip(DetailPresentationMode mode, string text)
     {
         DetailPresentationPreference.Format(mode).Should().Be(text);
@@ -27,7 +28,6 @@ public sealed class DetailPresentationPreferenceTests
     [InlineData("Link only")]
     [InlineData("LinkOnly\n")]
     [InlineData("Automatic")]
-    [InlineData("OpenAutomatically")]
     [InlineData("0")]
     public void MalformedOrUnavailableModesAreNotDefaults(string value)
     {
@@ -38,7 +38,7 @@ public sealed class DetailPresentationPreferenceTests
     [Fact]
     public void UndefinedModesCannotBeSerialized()
     {
-        var format = () => DetailPresentationPreference.Format((DetailPresentationMode)2);
+        var format = () => DetailPresentationPreference.Format((DetailPresentationMode)99);
         format.Should().Throw<ArgumentOutOfRangeException>();
     }
 }

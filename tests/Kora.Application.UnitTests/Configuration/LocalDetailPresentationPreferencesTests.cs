@@ -10,6 +10,7 @@ public sealed class LocalDetailPresentationPreferencesTests
     [Theory]
     [InlineData(DetailPresentationMode.Offer)]
     [InlineData(DetailPresentationMode.LinkOnly)]
+    [InlineData(DetailPresentationMode.OpenAutomatically)]
     public void AtomicProtocolKeepsUnconfirmedValuesHeldAcrossReconstruction(DetailPresentationMode mode)
     {
         var store = new Store();
@@ -30,7 +31,7 @@ public sealed class LocalDetailPresentationPreferencesTests
     [InlineData("")]
     [InlineData("Offer\n")]
     [InlineData("Linkonly")]
-    [InlineData("OpenAutomatically")]
+    [InlineData("Open automatically")]
     public void CorruptSavedValuesRemainExplicitlyUnavailable(string text)
     {
         var store = new Store();

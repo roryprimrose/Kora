@@ -77,6 +77,7 @@ internal sealed partial class SessionsWindow : Window
         RecoverConversationDraft.Click += async (_, _) => await (ConversationOperation = model.RecoverLegacyUnsentAsync());
         DiscardComposer.Click += async (_, _) => await (ConversationOperation = model.DiscardComposerBufferAsync());
         SubmitConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitConversationAsync());
+        NativeComposerSubmitBinding.Bind(ConversationComposer, SubmitConversation);
         SubmitLocalAnswer.Click += async (_, _) => await (ConversationOperation = model.SubmitLocalAnswerAsync());
         ReviewLocalRequestProfile.Click += async (_, _) => await (ConversationOperation = model.ReviewLocalRequestProfileAsync());
         ReviewFailedLocalProfile.Click += async (_, _) => await (ConversationOperation = model.ReviewFailedLocalProfileAsync());

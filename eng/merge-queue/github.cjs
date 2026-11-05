@@ -357,7 +357,17 @@ class GitHubQueue {
         && qualification[0].status === 'completed' && qualification[0].conclusion === 'success'
         ? { run: run.id, source: tip.sha, job: qualification[0].id } : null;
       const deliveryRejected = terminalRejectedDelivery(run, jobs, inventory.blob);
+      const publication = jobs.filter(job => job.name === 'Publish completed batch release');
+      const health = run.status === 'completed' && ['failure', 'cancelled', 'timed_out'].includes(run.conclusion)
+        && run.path === '.github/workflows/ci.yml'
+        && run.repository?.full_name === api.repository && run.head_repository?.full_name === api.repository
+        && terminalJobs(jobs, [...inventory.jobs, 'Publish completed batch release', 'Qualify completed batch tip'])
+        && publication.length === 1 && ['failure', 'cancelled', 'timed_out'].includes(publication[0].conclusion)
+        ? { status: 'BLOCKED_PUBLICATION', source: tip.sha, run: run.id, attempt: 1,
+          job: publication[0].id, conclusion: publication[0].conclusion, recovery: 'authorized-recovery-required' }
+        : null;
       return { owner: { run: run.id, source: tip.sha, attempt: 1 }, qualification: proof,
+        ...(health ? { health } : {}),
         provisional: !started && !(api.independent && deliveryRejected), suppressed,
         terminal: run.status === 'completed' && (terminalJobs(jobs, inventory.jobs)
           || terminalRejectedAdmission(run, jobs, inventory.blob) || deliveryRejected) };

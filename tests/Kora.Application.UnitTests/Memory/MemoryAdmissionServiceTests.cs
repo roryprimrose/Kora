@@ -678,6 +678,7 @@ public sealed partial class MemoryAdmissionServiceTests : IDisposable
         internal bool FailStoreCommit { get; set; }
         internal MemoryResult? StoreResult { get; set; }
         internal Action? OnStoreTransition { get; set; }
+        internal Func<CancellationToken, Task>? BeforeStoreTransaction { get; set; }
         internal Action? OnStoreCommit { get; set; }
         internal Action? OnAfterStoreCommit { get; set; }
         internal Action? OnBoundaryRead { get; set; }
@@ -701,9 +702,13 @@ public sealed partial class MemoryAdmissionServiceTests : IDisposable
             OnBoundaryRead?.Invoke();
             return ValueTask.FromResult(Boundary!);
         }
-        public ValueTask<MemoryResult> TransactMemoryAsync(HostRequest request, MemoryBoundary boundary,
+        public async ValueTask<MemoryResult> TransactMemoryAsync(HostRequest request, MemoryBoundary boundary,
             Func<ImmutableArray<MemoryRecord>, MemoryStorageCommit> transition, Func<bool> admitted, CancellationToken token)
-            => TransactMemoryCoreAsync(request, boundary, transition, admitted, MemoryScopeKind.Session, token);
+        {
+            if (BeforeStoreTransaction is { } before) { await before(token).ConfigureAwait(false); }
+            return await TransactMemoryCoreAsync(request, boundary, transition, admitted, MemoryScopeKind.Session, token)
+                .ConfigureAwait(false);
+        }
 
         private ValueTask<MemoryResult> TransactMemoryCoreAsync(HostRequest request, MemoryBoundary boundary,
             Func<ImmutableArray<MemoryRecord>, MemoryStorageCommit> transition, Func<bool> admitted,

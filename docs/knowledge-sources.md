@@ -50,6 +50,11 @@ another chosen-set review. It does not renew the original deadline or one-shot c
 Highlighting preview text is not context selection. The original complete-retrieval
 review remains available when this optional selection is unchanged.
 
+The review expires at its 30-second deadline, including time spent revalidating the source.
+If it expires during confirmation, no answer is claimed and consent is not extended.
+Wait for any pending work to finish, then explicitly review the question and excerpts again
+before confirming a fresh one-shot answer ([answer workflow](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerWorkflow.cs)).
+
 The limits remain 8 citations, 16 KiB combined excerpts and 32 KiB complete serialized model input, including overhead. Excess input is rejected without dropping evidence. No match invokes no model. Missing [qualified local runtime](../Design/Local_Inference.md#future-candidate-gate) returns unavailable; there is no hosted fallback, tool use or other-source search ([answer workflow](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerWorkflow.cs)).
 
 Operational failure diagnostics record only the failure type, not the question, source content or exception message. A failed review or source-use check does not dispatch a model or return answer claims.

@@ -20,6 +20,60 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class DetailReaderLayoutTests
 {
     [Theory]
+    [InlineData("ProvenanceViewport", Key.Up)]
+    [InlineData("ProvenanceViewport", Key.Down)]
+    [InlineData("ActionsViewport", Key.Up)]
+    [InlineData("ActionsViewport", Key.Down)]
+    public Task ChromeNavigationSupersedesDeferredReadingPosition(string chromeName, Key key) =>
+        HeadlessSession.RunAsync(() =>
+    {
+        var source = string.Join("\n", Enumerable.Repeat(new string('a', 1000), 80));
+        var content = new AdmittedDetailContent(new(new(Guid.NewGuid()), 1), DetailContentKind.PlainText,
+            DetailContentOrigin.EmbeddedDocument, DetailSensitivity.Public,
+            string.Join(" ", Enumerable.Repeat("Long result title", 14)), "Exact source", source);
+        var state = new DetailViewerState(content);
+        var result = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance).Render(source, content.Kind);
+        state.CompleteRender(state.Generation, result.SemanticText, result.Status, result.IsFallback);
+        var writes = 0;
+        var window = new DetailWindow(state, result, (_, _, _) => { writes++; return Task.CompletedTask; })
+        { Width = 640, Height = 500 };
+        window.Show();
+        try
+        {
+            Required<CheckBox>(window, "ReadingTextToggle").IsChecked = true;
+            Required<CheckBox>(window, "WrapTextToggle").IsChecked = false;
+            var reader = Required<TextBox>(window, "ContentReader");
+            reader.CaretIndex = 100;
+            window.UpdateLayout();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            var viewport = reader.GetVisualDescendants().OfType<ScrollViewer>().Single();
+            viewport.Offset = new(450, 0);
+            var position = window.Reader.CaptureReadingPosition();
+            position.TextOffset.X.Should().Be(450);
+            var chrome = Required<ScrollViewer>(window, chromeName);
+            chrome.Focus().Should().BeTrue();
+            window.Reader.RestoreReadingPosition(position);
+            chrome.Offset = new(0, 32);
+            var before = chrome.Offset.Y;
+
+            var physical = key == Key.Up ? PhysicalKey.ArrowUp : PhysicalKey.ArrowDown;
+            window.KeyPress(key, RawInputModifiers.None, physical, null);
+            window.KeyRelease(key, RawInputModifiers.None, physical, null);
+            if (key == Key.Up) { chrome.Offset.Y.Should().BeLessThan(before); }
+            else { chrome.Offset.Y.Should().BeGreaterThan(before); }
+            viewport.Offset = new(100, 0);
+            window.Reader.CaptureReadingPosition().TextOffset.X.Should().Be(100,
+                "chrome keys supersede a pending restored snapshot before another Hide");
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            viewport.Offset.X.Should().Be(100, "deferred restoration cannot undo subsequent reader input");
+            reader.Text.Should().Be(source);
+            state.Content.Should().BeSameAs(content);
+            writes.Should().Be(0);
+        }
+        finally { window.ClearAndClose(); }
+    });
+
+    [Theory]
     [InlineData(640, 500, 75, false)]
     [InlineData(640, 500, 100, false)]
     [InlineData(640, 500, 200, false)]

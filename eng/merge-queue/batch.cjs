@@ -9,6 +9,11 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
   await api.verifyProtection(PROFILE);
   const state = validateState(await api.load());
   invariant(state.version === 2, 'Batch rollout requires an explicitly migrated idle, quiescent v2 state.');
+  invariant(state.deliveryProfile !== 'independent-v1' || api.independent,
+    'Durable independent delivery configuration differs from this controller; reservations remain closed.');
+  const holding = ['draining', 'ready'].includes(state.deliveryTransition?.phase);
+  invariant(!holding || !api.independent || state.deliveryTransition.phase === 'ready',
+    'Independent configuration changed before the delivery boundary was prepared.');
   api.info(`Batch profile: ${state.active ? `ticket ${state.active.ticket}, phase ${state.active.phase}` : 'idle'}; reconciling live protected state.`);
   const save = async () => { validateState(state); await api.save(state); };
   const main = await api.main();
@@ -42,6 +47,10 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
         }
         return 'waiting-for-tip-qualification';
       }
+    }
+    if (holding) {
+      api.info(`Independent delivery transition ${state.deliveryTransition.ticket}: ${state.deliveryTransition.phase}; new reservations held, existing work and qualification preserved.`);
+      return state.deliveryTransition.phase === 'ready' ? 'delivery-ready' : 'delivery-draining';
     }
     const members = [];
     const prs = await api.pulls();
@@ -288,7 +297,7 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
           members: active.members.map(item => ({ number: item.number, source: item.head,
             admittedHead: item.mergeIntent.head, merged: item.merged })) };
         if (api.independent) {
-          invariant(active.inventory.schema === 'windows-12-delivery-v1',
+          invariant(['windows-12-delivery-v1', 'unit-pr-v1', 'parallel-pr-v1'].includes(active.inventory.schema),
             'Independent delivery requires the reviewed delivery workflow.');
           Object.assign(state.completedTip, { delivery: 'independent-v1', base: active.base,
             admission: manifestFor(active),
@@ -388,7 +397,7 @@ async function reconcileSingleton(api, state, number, options) {
         if (api.independent) {
           const inventory = await api.trustedInventory(state.active.base);
           const runs = matchingRuns(await api.runs(state.active), state.active);
-          invariant(inventory?.schema === 'windows-12-delivery-v1' && runs.length === 1
+          invariant(['windows-12-delivery-v1', 'unit-pr-v1', 'parallel-pr-v1'].includes(inventory?.schema) && runs.length === 1
             && runs[0].status === 'completed' && runs[0].conclusion === 'success'
             && runs[0].run_attempt === 1 && runs[0].head_sha === state.active.base,
           'Independent singleton completion lacks trusted candidate proof.');

@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 
 using Kora.Application.Presentation;
@@ -29,10 +30,12 @@ public sealed partial class DetailContentView : UserControl
     private readonly StackPanel renderedDocument;
     private readonly ScrollViewer renderedViewport;
     private bool cleared;
+    private DetailReadingPosition? pendingReadingPosition;
     private readonly NamedTextBlock findSpan;
     private readonly NativeDocumentInteraction? documentInteraction;
     private readonly NativeFinalDocumentInteraction? finalInteraction;
     private ExternalBrowserReviewWindow? finalBrowserReview;
+    private SnapshotLiteralSpan? revealedMatch;
 
     // XAML tooling requires a public default constructor. It cannot admit or open content.
     public DetailContentView() => throw new InvalidOperationException("Use the explicit host-owned native detail route.");
@@ -151,10 +154,15 @@ public sealed partial class DetailContentView : UserControl
         }
         Required<TextBlock>("RendererStatus").Text = state.Status;
         disclosure.IsVisible = content.ConversationMessage is null && content.Sensitivity == DetailSensitivity.DisclosureConfirmationRequired;
-        source.IsCheckedChanged += (_, _) => state.SetSource(source.IsChecked == true);
-        readingText.IsCheckedChanged += (_, _) => Refresh();
+        source.IsCheckedChanged += (_, _) =>
+        {
+            pendingReadingPosition = null;
+            state.SetSource(source.IsChecked == true);
+        };
+        readingText.IsCheckedChanged += (_, _) => { pendingReadingPosition = null; Refresh(); };
         wrapText.IsCheckedChanged += (_, _) =>
         {
+            pendingReadingPosition = null;
             if (cleared || state.Content is null) { RequestClose(); return; }
             reader.TextWrapping = wrapText.IsChecked == true
                 ? Avalonia.Media.TextWrapping.Wrap : Avalonia.Media.TextWrapping.NoWrap;
@@ -168,6 +176,7 @@ public sealed partial class DetailContentView : UserControl
         Required<Button>("FirstMatch").Click += (_, _) => Find(SnapshotFindDirection.First);
         Required<Button>("CancelFind").Click += (_, _) => CancelLiteralFind(false);
         Required<Button>("ClearFind").Click += (_, _) => CancelLiteralFind(true);
+        Required<Button>("RevealMatch").Click += (_, _) => RevealLiteralMatch();
         Required<CheckBox>("FindHostToggle").IsCheckedChanged += (_, _) =>
             state.SetFindHost(Required<CheckBox>("FindHostToggle").IsChecked == true);
         search.PropertyChanged += (_, args) =>
@@ -178,6 +187,8 @@ public sealed partial class DetailContentView : UserControl
         Required<Button>("CopySource").Click += OnCopyRequested;
         Required<Button>("CopySelection").Click += OnCopySelectionRequested;
         AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerPressedEvent, (_, _) => pendingReadingPosition = null, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerWheelChangedEvent, (_, _) => pendingReadingPosition = null, RoutingStrategies.Tunnel, handledEventsToo: true);
         // Also intercept programmatic/accessibility TextBox.Copy and platform context commands.
         reader.CopyingToClipboard += BlockAutomaticCopy;
         search.CopyingToClipboard += BlockAutomaticCopy;
@@ -200,16 +211,34 @@ public sealed partial class DetailContentView : UserControl
 
     internal void FocusReader() => source.Focus();
     internal Task PendingNavigation => finalInteraction?.Pending ?? Task.CompletedTask;
-    internal DetailReadingPosition CaptureReadingPosition() => new(source.IsChecked == true, readingText.IsChecked == true,
-        renderedViewport.Offset, reader.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault()?.Offset ?? default, reader.CaretIndex);
+    internal DetailReadingPosition CaptureReadingPosition() => pendingReadingPosition ?? new(source.IsChecked == true, readingText.IsChecked == true,
+        wrapText.IsChecked == true, renderedViewport.Offset,
+        reader.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault()?.Offset ?? default, reader.CaretIndex);
 
     internal void RestoreReadingPosition(DetailReadingPosition position)
     {
-        if (cleared || state.Content is null) { return; }
+        var content = state.Content;
+        if (cleared || content is null) { return; }
         source.IsChecked = position.Source;
         readingText.IsChecked = position.Continuous;
-        UpdateLayout();
+        wrapText.IsChecked = position.WrapText;
         reader.CaretIndex = Math.Min(position.Caret, reader.Text?.Length ?? 0);
+        UpdateLayout();
+        if (cleared || !ReferenceEquals(state.Content, content)) { return; }
+        RestoreOffsets(position);
+        pendingReadingPosition = position;
+        // TextPresenter can defer its initial caret reveal until AfterRender.
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (cleared || !ReferenceEquals(pendingReadingPosition, position)
+                || !ReferenceEquals(state.Content, content)) { return; }
+            pendingReadingPosition = null;
+            RestoreOffsets(position);
+        }, DispatcherPriority.Loaded);
+    }
+
+    private void RestoreOffsets(DetailReadingPosition position)
+    {
         renderedViewport.Offset = position.RenderedOffset;
         if (reader.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault() is { } viewport)
         { viewport.Offset = position.TextOffset; }
@@ -229,6 +258,15 @@ public sealed partial class DetailContentView : UserControl
     private void Refresh()
     {
         if (state.Content is null || finalInteraction is not null && !finalInteraction.CanReadCode) { RequestClose(); return; }
+        if (revealedMatch is { } revealed
+            && (state.FindHost || state.MatchStart != revealed.Start || state.MatchLength != revealed.Length))
+        {
+            if (reader.SelectionStart == revealed.Start && reader.SelectionEnd == revealed.Start + revealed.Length)
+            {
+                reader.SelectionStart = reader.SelectionEnd;
+            }
+            revealedMatch = null;
+        }
         if (!string.Equals(reader.Text, state.ActiveText, StringComparison.Ordinal))
         {
             reader.SelectionStart = 0;
@@ -241,6 +279,7 @@ public sealed partial class DetailContentView : UserControl
         Required<NamedTextBlock>("FindSummary").Text = state.FindSummary;
         Required<Button>("NextMatch").IsEnabled = state.CanNavigateFind;
         Required<Button>("PreviousMatch").IsEnabled = state.CanNavigateFind;
+        Required<Button>("RevealMatch").IsEnabled = state.FindAvailable && !state.FindHost && state.MatchStart >= 0;
         var structured = !state.IsSource && readingText.IsChecked != true
             && state.RenderState == DetailRenderState.Rendered;
         renderedViewport.IsVisible = structured;
@@ -273,6 +312,52 @@ public sealed partial class DetailContentView : UserControl
             }
             if (!state.FindAvailable || generation != state.Generation) { RequestClose(); }
         }
+    }
+
+    private void RevealLiteralMatch()
+    {
+        if (cleared || !state.FindAvailable) { RequestClose(); return; }
+        if (state.FindHost || state.MatchStart < 0)
+        {
+            state.ReportStatus("Reader reveal unavailable: choose a current body match with Find first, Next or Previous. Separate HOST matches stay in their own observation.");
+            return;
+        }
+        var generation = state.Generation;
+        var start = state.MatchStart;
+        var length = state.MatchLength;
+        var text = state.ActiveText;
+        var query = state.SearchQuery;
+        bool IsCurrent() => !cleared && state.FindAvailable && generation == state.Generation
+            && !state.FindHost && state.MatchStart == start && state.MatchLength == length
+            && string.Equals(state.ActiveText, text, StringComparison.Ordinal)
+            && string.Equals(state.SearchQuery, query, StringComparison.Ordinal)
+            && TopLevel.GetTopLevel(this) is not null && IsEffectivelyVisible;
+
+        if (!reader.IsVisible) { readingText.IsChecked = true; }
+        UpdateLayout();
+        if (IsCurrent())
+        {
+            reader.CaretIndex = start + length;
+            if (IsCurrent())
+            {
+                reader.SelectionStart = start;
+                if (IsCurrent())
+                {
+                    reader.SelectionEnd = start + length;
+                    if (IsCurrent() && reader.Focus() && IsCurrent())
+                    {
+                        revealedMatch = new(start, length);
+                        state.ReportStatus("Selected the exact literal occurrence in its admitted reader text; no source was read or copied.");
+                        return;
+                    }
+                }
+            }
+        }
+        revealedMatch = null;
+        reader.SelectionStart = 0;
+        reader.SelectionEnd = 0;
+        if (cleared || state.Content is null) { RequestClose(); return; }
+        state.ReportStatus("Literal match reveal unavailable: the match, reader or focus changed; no selection claimed. Choose Find again.");
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
@@ -317,6 +402,7 @@ public sealed partial class DetailContentView : UserControl
 
     internal void OnKeyDown(object? sender, KeyEventArgs eventArgs)
     {
+        pendingReadingPosition = null;
         if (eventArgs.KeyModifiers == KeyModifiers.None && eventArgs.Key is Key.Up or Key.Down
             && eventArgs.Source is ScrollViewer viewport
             && (ReferenceEquals(viewport, Required<ScrollViewer>("ProvenanceViewport"))
@@ -394,6 +480,7 @@ public sealed partial class DetailContentView : UserControl
     {
         if (cleared) { return; }
         cleared = true;
+        pendingReadingPosition = null;
         documentInteraction?.Retire();
         finalBrowserReview?.Close();
         finalInteraction?.Retire();
@@ -402,6 +489,7 @@ public sealed partial class DetailContentView : UserControl
         state.Close();
         reader.SelectionStart = 0;
         reader.SelectionEnd = 0;
+        revealedMatch = null;
         reader.Text = string.Empty;
         wrapText.IsEnabled = false;
         NativeStrikethroughText.Retire(renderedDocument.Children);
@@ -410,6 +498,7 @@ public sealed partial class DetailContentView : UserControl
         search.Text = string.Empty;
         findSpan.Text = null;
         findSpan.IsVisible = false;
+        Required<Button>("RevealMatch").IsEnabled = false;
         disclosure.IsChecked = false;
         foreach (var name in new[] { "DetailTitle", "ProvenanceLabel", "ReferenceLabel", "DigestLabel", "ConversationHostLabel", "ConversationAssistantLabel", "RendererStatus", "RenderStatus", "FindSummary" })
         {

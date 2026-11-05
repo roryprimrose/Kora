@@ -1290,6 +1290,21 @@ Any setting that cannot safely support one of these routes documents the
 specific interaction, ambiguity, availability, privacy, or origin constraint
 in the capability catalogue.
 
+The existing three activated-capture timing settings also accept one inert exact
+Set or Reset from an authoritative retained final model answer. A timing-specific
+host review reads the complete current tuple, saved/default provenance and
+revision, shows all old/new decimal seconds and future-capture-only scope, and
+requires separate current native confirmation through
+`VoiceCaptureTimingConfigurationService`. Reset preserves both companion fields.
+The model is never original user input or write authority. Exact retained-source,
+session, privacy, consent, call, revision, native-lifetime and 60-second expiry
+checks remain mandatory across awaits; cancellation retires pending review and
+joins any actual persistence without claiming rollback. Audit/persistence/readback
+failure remains explicit and unconfirmed. This adds neither microphone admission
+nor a timing reader to generic `settings.get`
+([review operation](../src/Kora.Application/Configuration/VoiceCaptureTimingSuggestionReview.cs),
+[interaction](../docs/setting-proposals.md)).
+
 The desktop system-tray menu exposes a single-instance Settings window with
 every setting currently implemented by the host. All open settings surfaces
 observe the same live state: mouse and validated verbal mutations publish the
@@ -1962,6 +1977,8 @@ The host retains **one run-only last confirmed change** from the [closed registe
 **Undo the last settings change** in Settings opens an inert exact current/prior saved-or-default review, including both summary caps and shared device-local scope. **Confirm settings undo** is separate; **Cancel settings undo** writes nothing. Reviews expire after 60 seconds. Appearance except response timeout retains native-only review ([native controls](../src/Kora/SettingsWindow.axaml)).
 
 Response timeout and ordinary response settings support exact typed/current-name activated-voice undo review/confirm/cancel under the same original-channel and call-policy checks ([shared routes](../src/Kora.Application/ViewModels/MainViewModel.RegisteredSettingUndo.cs)).
+
+The shared route reserves its persistence lifetime before invoking confirmation, including synchronous audit/preference callbacks. Reentrant undo is refused and asynchronous disposal joins the actual writer without requiring UI presentation to finish. Late failure keeps a content-free unconfirmed status but cannot replace retired private/native presentation or privacy recovery; exception detail requires unchanged original admission ([lifetime regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.SettingsUndoLifetime.cs)). This preserves the existing operation and channels, not a new undo family or runtime qualification.
 
 Only exact successful setter readback and required audit completion create a receipt. Confirmation revalidates the committed configuration revision, saved/default provenance, current preference and companion fields, compatible prior value, original channel, private host/lifetime and call policy. External drift, unknown writes and stale reviews cannot infer an inverse or overwrite newer state. A successful undo is a **new audited write through the same authoritative setter**, consumes the receipt and creates no redo. Privacy closure, lifecycle disposal and restart discard the receipt; no audit/history is deleted ([owner](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs), [writer integration](../src/Kora.Application/Configuration/RegisteredSettings/AppearanceConfigurationService.Undo.cs), [summary pair](../src/Kora.Application/Configuration/RegisteredSettings/SpeechConfigurationService.Undo.cs)).
 

@@ -290,6 +290,10 @@ loss or disposal cancel/suppress late work. Outstanding worker work remains
 nonquiescent even after clear; no current-path read, refresh, fallback copy,
 ambient watching or folder/source expansion occurs.
 
+The [preview broker](../src/Kora.Tools/Files/LocalFilePreview.cs) completes source retirement and notifies consumers even when a worker's cancellation callback throws.
+That failure records only its type through existing diagnostics and a failed recovery activity; it does not retain displayed content or confer new consent.
+The worker remains owned until physical completion, late excerpts receive no successful terminal audit, and reuse requires fresh selection/read confirmation ([regressions](../tests/Kora.Tools.UnitTests/Files/LocalFileSearchTests.cs)).
+
 `ILocalFileRetrieval` and Core's `LocalFileLexicalRetrieval` implement
 `lexical-lines-v1`: streaming chunks from the admitted exact Unicode projection,
 without content persistence or a cache. Chunks honor blank-paragraph and ATX

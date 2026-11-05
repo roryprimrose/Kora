@@ -571,11 +571,17 @@ public sealed partial class LocalFilePreview(
                 ? HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Recovery, [new(cause.Value)])
                 : null;
             ++generation;
-            pending?.Cancel();
+            var cancellationFailed = false;
+            try { pending?.Cancel(); }
+            catch (AggregateException exception)
+            {
+                cancellationFailed = true;
+                Failure(logger, exception.GetType().Name);
+            }
             ReleaseSelection();
             DiscardContent();
             eligible = null;
-            activity?.Complete(releaseFailed ? HostOperationOutcome.Failed : HostOperationOutcome.Completed);
+            activity?.Complete(releaseFailed || cancellationFailed ? HostOperationOutcome.Failed : HostOperationOutcome.Completed);
         }
         Changed?.Invoke(this, EventArgs.Empty);
     }

@@ -121,6 +121,7 @@ public sealed class LocalFileSearchTests : IDisposable
             (await action.ExecuteAsync(exact, "private", () => true, TestContext.Current.CancellationToken))
                 .Outcome.Should().Be(LocalFileSearchOutcome.Denied);
         }
+
         foreach (var request in new[]
         {
             new HostRequest(new(Guid.NewGuid()), host.Request.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi),
@@ -141,6 +142,64 @@ public sealed class LocalFileSearchTests : IDisposable
         preview.Clear();
         (await action.ExecuteAsync(exact, "private", () => true, TestContext.Current.CancellationToken))
             .Outcome.Should().Be(LocalFileSearchOutcome.Stale);
+        inspector.Reads.Should().Be(2);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ClearRetiresSourceAndJoinsLateRetrievalDespiteCancellationCallbackFailure(bool throwOnCancellation)
+    {
+        using var host = Host();
+        var audit = new Audit();
+        var inspector = new Inspector();
+        var logger = new CaptureLogger();
+        using var preview = new LocalFilePreview(inspector, audit, TimeProvider.System, logger);
+        await Admit(preview);
+        var exact = preview.Current!.Reference;
+        var engine = new DelayedRetrieval { ThrowOnCancellation = throwOnCancellation };
+        var action = new LocalFileSearch(preview, engine, audit, TimeProvider.System, NullLogger<LocalFileSearch>.Instance);
+        var run = action.ExecuteAsync(exact, "private", () => true, TestContext.Current.CancellationToken);
+        await engine.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var wait = preview.WaitForQuiescenceAsync();
+        var retired = false;
+        preview.Changed += (_, _) => retired = preview.Current is null && preview.Review is null;
+        try
+        {
+            FluentActions.Invoking(preview.Clear).Should().NotThrow();
+            retired.Should().BeTrue();
+            preview.Current.Should().BeNull();
+            preview.IsBusy.Should().BeTrue();
+            preview.IsQuiescent.Should().BeFalse();
+            wait.IsCompleted.Should().BeFalse();
+            logger.Errors.Count.Should().Be(throwOnCancellation ? 1 : 0);
+            logger.Errors.Should().OnlyContain(item => item.Event.Name == "Failure"
+                && item.Context != null && item.Context.Outcome == HostOperationOutcome.Failed
+                && item.Context.Request == host.Request);
+            string.Join(' ', logger.Messages).Should().NotContain("private marker")
+                .And.NotContain(@"C:\Team").And.NotContain("Synthetic source cancellation failure.");
+            (await preview.SelectAsync(new Picker(), () => true, TestContext.Current.CancellationToken))
+                .Should().Be(LocalFileOutcome.Busy);
+        }
+        finally
+        {
+            engine.Release.SetResult();
+            await run;
+            await wait;
+        }
+        var result = await run;
+        result.Outcome.Should().Be(LocalFileSearchOutcome.Stale);
+        result.Citations.Should().BeEmpty();
+        preview.Current.Should().BeNull();
+        preview.Review.Should().BeNull();
+        preview.IsBusy.Should().BeFalse();
+        preview.IsQuiescent.Should().BeTrue();
+        audit.Events.Last().Outcome.Should().Be(SecurityAuditOutcome.Failed);
+        inspector.Reads.Should().Be(1);
+        (await action.ExecuteAsync(exact, "private", () => true, TestContext.Current.CancellationToken))
+            .Outcome.Should().Be(LocalFileSearchOutcome.Stale);
+        await Admit(preview);
+        preview.Current!.Reference.Should().NotBe(exact);
         inspector.Reads.Should().Be(2);
     }
 
@@ -204,6 +263,7 @@ public sealed class LocalFileSearchTests : IDisposable
     }
     private sealed class DelayedRetrieval : ILocalFileRetrieval
     {
+        public bool ThrowOnCancellation { get; init; }
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public LocalFileSearchResult Search(LocalFileRevision revision, LocalFileReference exactSource, string query,
@@ -212,6 +272,10 @@ public sealed class LocalFileSearchTests : IDisposable
         public LocalFileSearchResult Search(LocalFileRevision revision, LocalFileReference exactSource, string query,
             LocalFileRetrievalMode mode, DateTimeOffset observedAt, CancellationToken cancellationToken)
         {
+            using var registration = cancellationToken.Register(() =>
+            {
+                if (ThrowOnCancellation) { throw new InvalidOperationException("Synthetic source cancellation failure."); }
+            });
             Started.SetResult();
 #pragma warning disable VSTHRD002 // Controlled deterministic synchronous CPU seam; the action runs it on the worker pool.
             Release.Task.GetAwaiter().GetResult();
@@ -322,16 +386,18 @@ public sealed class LocalFileSearchTests : IDisposable
             Events.Add(auditEvent);
         }
     }
-    private sealed class CaptureLogger : ILogger<LocalFileSearch>
+    private sealed class CaptureLogger : ILogger<LocalFileSearch>, ILogger<LocalFilePreview>
     {
         public List<string> Messages { get; } = [];
         public List<HostActivity?> Contexts { get; } = [];
+        public List<(EventId Event, HostActivity? Context)> Errors { get; } = [];
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
         public bool IsEnabled(LogLevel logLevel) => true;
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
             Messages.Add(formatter(state, exception));
             Contexts.Add(HostActivity.Current);
+            if (logLevel == LogLevel.Error) { Errors.Add((eventId, HostActivity.Current)); }
         }
     }
 }

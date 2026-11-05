@@ -135,6 +135,55 @@ async function until(api, target, limit = 40) {
   assert.fail(`Did not reach ${target}`);
 }
 
+function hourlyApi() {
+  const api = new BatchFake();
+  api.independent = true;
+  api.mainBuildProfile = 'hourly-v1';
+  api.state.deliveryProfile = 'independent-v1';
+  api.state.mainBuildProfile = 'hourly-v1';
+  api.state.completedTip = { sha: BASE, tree: sha(200), ticket: TICKET,
+    delivery: 'independent-v1', base: sha(99), combined: sha(98),
+    validation: { run: 42, attempt: 1, source: sha(98), workflow: sha(99),
+      inventory: sha(999), schema: 'parallel-pr-v1' } };
+  api.state.hourlyMain = { baseline: { source: BASE, tree: sha(200),
+    qualification: { run: 10, job: 11, source: BASE } }, activated: NOW.toISOString() };
+  api.observeHourlyMain = async () => false;
+  api.releaseSource = async source => ({ source, tree: sha(200) });
+  api.tipQualification = async () => assert.fail('Hourly PR admission must not wait for main to start or pass.');
+  api.dispatchQualification = async () => assert.fail('Hourly admission must not dispatch per-merge main CI.');
+  api.prs = [];
+  return api;
+}
+
+test('hourly admission advances from exact persisted source proof without a per-merge main run', async () => {
+  const api = hourlyApi();
+  assert.equal(await step(api), 'idle');
+  assert.equal(count(api, 'qualification'), 0);
+  for (const change of [
+    value => { value.releaseSource = async () => { throw Object.assign(new Error('Missing source'), { status: 404 }); }; },
+    value => { value.releaseSource = async () => ({ source: sha(101), tree: sha(200) }); },
+    value => { value.releaseSource = async source => ({ source, tree: sha(201) }); },
+    value => { value.base = sha(101); },
+    value => { value.mainBuildProfile = 'per-merge'; },
+  ]) {
+    const changed = hourlyApi();
+    change(changed);
+    await assert.rejects(step(changed));
+    assert.equal(count(changed, 'dispatch'), 0);
+  }
+});
+
+test('main scheduling ready checkpoints cannot change from observation or reserve a candidate', async () => {
+  const api = hourlyApi();
+  api.state.mainSchedulingTransition = { ticket: TICKET, actor: 'operator', run: 4, checkpoint: sha(800),
+    created: NOW.toISOString(), phase: 'ready', target: 'per-merge', source: BASE, tree: sha(200),
+    qualification: { run: 10, job: 11, source: BASE }, prepared: NOW.toISOString(), prepareRun: 5 };
+  api.mainBuildProfile = 'per-merge';
+  api.observeHourlyMain = async () => assert.fail('Ready profile changes must retain their exact checkpoint.');
+  api.pulls = async () => assert.fail('Ready profile changes must not inspect new enrollment.');
+  assert.equal(await step(api), 'main-builds-ready');
+});
+
 test('delivery hold precedes pulls and prevents both batch and singleton reservation without withdrawing intent', async () => {
   for (const singleton of [false, true]) {
     const api = new BatchFake();

@@ -53,6 +53,14 @@ If remote processing is uncertain, the task remains **Unknown**; stopping is
 not rollback and does not automatically retry. The availability restriction
 below also applies to this route.
 
+After transport disposal and again at terminal readback, Kora checks that the
+exact delegated account, revision, protected credential reference and destination
+remain available. Withdrawal or replacement suppresses the result, including
+the native result review and local-model continuation. A terminal receipt already
+committed before withdrawal is not rewritten or treated as fresh disclosure
+authority. Review the original operation before explicitly starting another;
+Kora does not reconnect or retry automatically.
+
 A disconnected or failed exchange also joins the original transport without
 reconnecting or retrying. Neither route publishes a tool result or assistant
 answer from that failure. The direct operation reports failure with an

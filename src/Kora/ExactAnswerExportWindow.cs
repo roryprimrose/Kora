@@ -1,5 +1,7 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Threading;
 using Kora.Application.Presentation;
@@ -33,14 +35,17 @@ internal sealed class ExactAnswerExportWindow : Window
             Name = "ExportAnswerSource", Text = review.Source.Source, IsReadOnly = true,
             AcceptsReturn = true, IsUndoEnabled = false, TextWrapping = Avalonia.Media.TextWrapping.Wrap,
         };
+        AutomationProperties.SetName(source, "Complete original retained ASSISTANT answer for this exact export");
+        ScrollViewer.SetVerticalScrollBarVisibility(source, ScrollBarVisibility.Auto);
+        ScrollViewer.SetHorizontalScrollBarVisibility(source, ScrollBarVisibility.Disabled);
         source.CopyingToClipboard += (_, args) => args.Handled = true;
         source.CuttingToClipboard += (_, args) => args.Handled = true;
         source.PastingFromClipboard += (_, args) => args.Handled = true;
         source.AddHandler(ContextRequestedEvent, (_, args) => args.Handled = true,
             Avalonia.Interactivity.RoutingStrategies.Tunnel);
         status = new TextBlock { Name = "ExportStatus", TextWrapping = Avalonia.Media.TextWrapping.Wrap };
-        confirm = new Button { Name = "ConfirmExactAnswerExport", Content = "Confirm this one new-file export" };
-        var cancel = new Button { Name = "CancelExactAnswerExport", Content = "Cancel / Close" };
+        confirm = CreateAction("ConfirmExactAnswerExport", "Confirm this one new-file export");
+        var cancel = CreateAction("CancelExactAnswerExport", "Cancel / Close");
         var chrome = new StackPanel { Spacing = 8 };
         chrome.Children.Add(new TextBlock
         {
@@ -51,11 +56,27 @@ internal sealed class ExactAnswerExportWindow : Window
         });
         chrome.Children.Add(new TextBlock { Text = ExactAnswerExportReview.RetentionDisclosure,
             TextWrapping = Avalonia.Media.TextWrapping.Wrap });
-        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { confirm, cancel } };
-        var layout = new Grid { Margin = new Thickness(16), RowDefinitions = new RowDefinitions("Auto,*,Auto,Auto"), RowSpacing = 10 };
-        layout.Children.Add(chrome);
+        var actions = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*"), ColumnSpacing = 8 };
+        actions.Children.Add(confirm);
+        Grid.SetColumn(cancel, 1); actions.Children.Add(cancel);
+        var metadataViewport = new ScrollViewer
+        {
+            Content = chrome, Focusable = true,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+        };
+        AutomationProperties.SetName(metadataViewport, "Exact export destination, format and retention review");
+        var statusViewport = new ScrollViewer
+        {
+            Content = status, MaxHeight = 100, Focusable = true,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+        };
+        AutomationProperties.SetName(statusViewport, "Exact answer export outcome");
+        var layout = new Grid { Margin = new Thickness(16), RowDefinitions = new RowDefinitions("2*,3*,Auto,Auto"), RowSpacing = 10 };
+        layout.Children.Add(metadataViewport);
         Grid.SetRow(source, 1); layout.Children.Add(source);
-        Grid.SetRow(status, 2); layout.Children.Add(status);
+        Grid.SetRow(statusViewport, 2); layout.Children.Add(statusViewport);
         Grid.SetRow(actions, 3); layout.Children.Add(actions);
         Content = layout;
         var continuation = HostActivity.CaptureContinuation(HostActivityLayer.Desktop, HostOperation.Storage);
@@ -109,6 +130,17 @@ internal sealed class ExactAnswerExportWindow : Window
     }
 
     internal void Release() => lifetime.Dispose();
+
+    private static Button CreateAction(string name, string caption)
+    {
+        var button = new Button
+        {
+            Name = name, HorizontalAlignment = HorizontalAlignment.Stretch,
+            Content = new TextBlock { Text = caption, TextWrapping = Avalonia.Media.TextWrapping.Wrap },
+        };
+        AutomationProperties.SetName(button, caption);
+        return button;
+    }
 
     internal static string Describe(ExactAnswerExportOutcome outcome, string path) => outcome switch
     {

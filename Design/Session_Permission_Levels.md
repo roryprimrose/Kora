@@ -20,6 +20,20 @@ The current external-page/MCP consumers use the same decision and pre-effect pol
 
 The live call-policy gate serializes exact answer/admission commit with call/setting changes. Native Calls settings provide explicit reviewed spoken-approval enable/disable; default is Off and known older settings migrate Off. Applicable grants and session levels are not withdrawn on call entry. This is deterministic implementation evidence, not automatic detector, physical voice, provider, containment or installed-runtime qualification.
 
+Exact original-user `session permission status/review/confirm/cancel` commands
+complete the same policy operation through typed input or activated voice.
+Review binds one current Active conversation, policy revision, original channel,
+private source and a 60-second lifetime. Separate same-channel confirmation is
+single-use and revalidates original admission through the existing policy/audit
+commit. Voice requires current assistant-name activation and remains unavailable
+during protected calls. Native confirmation cannot relabel voice or model input;
+the command route retains its original voice audit channel instead.
+Cancel, expired/stale/revoked sources, read completion after retirement and
+uncertain commit never grant permission or replay work.
+No new schema, permission semantics, grants, production reviewer or provider
+qualification is introduced. See the [complete operation](../docs/session-permission-levels.md#typed-and-activated-voice-changes)
+and [real-store regressions](../tests/Kora.Windows.IntegrationTests/SessionPermissionTests.Commands.cs).
+
 Direct and model-proposed [Lock](Built_In_Skills.md#initial-skill-lock-the-machine)
 share the exact package-grant path rather than named model-action preferences.
 The existing mandatory native script review remains independent of ordinary

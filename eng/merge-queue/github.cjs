@@ -249,17 +249,30 @@ class GitHubQueue {
     return require('./delivery.cjs').packagingSelection(['ahead', 'identical'].includes(data.status)
       && data.base_commit?.sha === base && data.merge_base_commit?.sha === base ? data.files : undefined);
   }
-  async files(number) {
+  async files(number, expected) {
     const pr = await this.pull(number);
-    invariant(Number.isSafeInteger(pr.changed_files) && pr.changed_files > 0 && pr.changed_files < 3000,
+    const identity = value => {
+      invariant(value?.number === number && SHA.test(value.head?.sha)
+        && value.head?.repo?.full_name === this.repository && value.base?.ref === 'main'
+        && SHA.test(value.base?.sha), `PR #${number}: incomplete or foreign file inventory source metadata.`);
+      return [value.number, value.head.sha, value.head.repo.full_name, value.base.ref, value.base.sha,
+        value.changed_files];
+    };
+    const source = identity(pr);
+    invariant(expected === undefined || JSON.stringify(identity(expected)) === JSON.stringify(source),
+      `PR #${number}: file inventory source changed before observation.`);
+    invariant(Number.isSafeInteger(pr.changed_files) && pr.changed_files >= 0 && pr.changed_files < 3000,
       'Batch changed-file inventory is unavailable or exceeds GitHub complete pagination limits.');
     const files = await this.github.paginate(this.github.rest.pulls.listFiles,
       { ...this.repo, pull_number: number, per_page: 100 });
-    invariant(files.length === pr.changed_files && new Set(files.map(file => file.filename)).size === files.length,
-      'Incomplete or duplicate batch file inventory.');
-    invariant(files.every(file => typeof file.filename === 'string' && file.filename.length > 0
+    invariant(Array.isArray(files), 'Batch file inventory is unavailable.');
+    invariant(files.every(file => file && typeof file.filename === 'string' && file.filename.length > 0
       && (file.previous_filename === undefined || typeof file.previous_filename === 'string'
         && file.previous_filename.length > 0)), 'Malformed batch file path metadata.');
+    invariant(files.length === pr.changed_files && new Set(files.map(file => file.filename)).size === files.length,
+      'Incomplete or duplicate batch file inventory.');
+    invariant(JSON.stringify(identity(await this.pull(number))) === JSON.stringify(source),
+      `PR #${number}: file inventory source or base changed during pagination.`);
     return files.flatMap(file => file.previous_filename === undefined
       ? [file.filename] : [file.filename, file.previous_filename]);
   }
@@ -344,7 +357,17 @@ class GitHubQueue {
         && qualification[0].status === 'completed' && qualification[0].conclusion === 'success'
         ? { run: run.id, source: tip.sha, job: qualification[0].id } : null;
       const deliveryRejected = terminalRejectedDelivery(run, jobs, inventory.blob);
+      const publication = jobs.filter(job => job.name === 'Publish completed batch release');
+      const health = run.status === 'completed' && ['failure', 'cancelled', 'timed_out'].includes(run.conclusion)
+        && run.path === '.github/workflows/ci.yml'
+        && run.repository?.full_name === api.repository && run.head_repository?.full_name === api.repository
+        && terminalJobs(jobs, [...inventory.jobs, 'Publish completed batch release', 'Qualify completed batch tip'])
+        && publication.length === 1 && ['failure', 'cancelled', 'timed_out'].includes(publication[0].conclusion)
+        ? { status: 'BLOCKED_PUBLICATION', source: tip.sha, run: run.id, attempt: 1,
+          job: publication[0].id, conclusion: publication[0].conclusion, recovery: 'authorized-recovery-required' }
+        : null;
       return { owner: { run: run.id, source: tip.sha, attempt: 1 }, qualification: proof,
+        ...(health ? { health } : {}),
         provisional: !started && !(api.independent && deliveryRejected), suppressed,
         terminal: run.status === 'completed' && (terminalJobs(jobs, inventory.jobs)
           || terminalRejectedAdmission(run, jobs, inventory.blob) || deliveryRejected) };

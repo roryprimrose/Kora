@@ -99,6 +99,14 @@ Controller, CI-workflow and release-control changes, and isolated group-failure
 retries, use the existing fully validated **exact-head singleton path**, even
 inside this profile.
 
+A complete zero-file PR also uses that exact-head singleton path: an empty diff
+does not attest validation or prove that GitHub merged the PR. File inventories
+must match a nonnegative count below GitHub's 3,000-file pagination limit, with
+the same PR, same-repository head and main base before and after pagination.
+Unavailable, partial, duplicate, malformed or changing observations fail
+explicitly; they are never reinterpreted as empty. Normal candidate checks,
+merge confirmation and cancellation/join remain required.
+
 ### Frozen source and truthful proof
 
 [Batch policy](batch-policy.cjs), [reconciliation](batch.cjs) and the
@@ -179,6 +187,10 @@ not an old tag workflow definition. The shared
 trusted serialized-caller contract as well as existing source/version/asset
 safeguards. It rechecks at irreversible publication boundaries, including late
 jobs. Missing or unknown state/provenance fails closed.
+Run authentication rejection names the failed predicates and a bounded lifecycle
+value, never raw API metadata. It retains every caller, workflow, source and
+active-job check. A historical composite rejection without the original API
+response does not establish which predicate failed or justify relaxing it.
 
 The [release snapshot reader](../GitHubRelease.Batch.ps1) pins queue commit,
 tree and blob bytes, then rechecks the queue ref. A valid ref move restarts that
@@ -194,6 +206,18 @@ exact run/job/source qualification receipt. This deliberately gives publication
 a turn under sustained arrivals; no throughput benchmark or fivefold speedup is
 claimed. Failed qualification or an unobservable dispatch holds the lane for
 repair rather than starving release behind further batches.
+An authenticated exact-source first attempt with a failed publication job is
+reported as `blocked-publication` / `BLOCKED_PUBLICATION` only after the complete
+expected inventory, publication and qualification jobs are physically terminal.
+The existing controller warning and Actions summary identify source, run,
+attempt, publication job, conclusion and last durable progress (completed tip,
+qualification owner and queue checkpoint), and state that authorized recovery is
+required. The checkpoint is a revision, not an invented progress timestamp.
+Successful reconciliation of this observation is not successful delivery.
+Missing, duplicate, nonterminal or unknown evidence remains held without a
+terminal-publication claim. Every reconciliation still observes fresh evidence;
+a separately authorized successful first attempt can qualify immediately.
+This reporting neither retries publication nor bypasses the qualification fence.
 
 The [qualification reader](github.cjs) observes queued/running runs as well as
 completed runs. An ordinary push with incomplete admission metadata delays
@@ -539,6 +563,20 @@ initial unversioned twelve-job workflow and its merged native-fixture timing
 revision from [PR #661](https://github.com/roryprimrose/Kora/pull/661).
 Old runs therefore retire against their own inventory rather than requiring
 jobs that did not exist.
+
+The historical twelve-partition regression uses the frozen
+[native-fixture timing workflow](fixtures/ci-native-fixture-timing.yml), whose
+Git blob is `d3db4c610d08468c508f09e63b10f7c6568b82ea`. Keep those bytes unchanged:
+removing the schema marker from today's workflow does not recreate a trusted
+predecessor. Tests cover both the current schema-declared workflow and that exact
+historical inventory, and reject modified unversioned bytes without expanding
+the production allowlist.
+
+The [admission-rejection fixture](fixtures/ci-admission-rejection.yml) similarly
+preserves blob `97e22a8f88bcdc9bbaef32cf9e7200dd6e5c43cd` for the
+[exact historical admission-rejection regression](github.test.cjs). Changes to
+the current workflow must not change that fixture or expand the
+[production allowlist](policy.cjs) to satisfy the regression.
 
 Source bytes are read through the trusted repository Contents API at that exact
 base and checked against the returned Git blob identity. Missing source, malformed

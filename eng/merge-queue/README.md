@@ -11,6 +11,93 @@ It needs no local agent, workstation, external queue service or always-on runner
 An unknown mode fails CI admission rather than silently enabling another policy.
 Do not enable the queue merely by merging its implementation PR.
 
+## Optional hourly main validation
+
+`KORA_MAIN_BUILD_PROFILE=hourly-v1` is a separate administrator opt-in. It
+requires enabled `batch-v1` admission and `independent-v1` delivery. Absent/empty
+retains per-merge main validation; unknown values fail closed. Merging this
+implementation does not activate the profile.
+
+Automatic main pushes then run admission feedback only, explicitly reporting
+coalescing rather than claiming skipped validation passed. The hourly UTC cron
+(`0 * * * *`) builds the main snapshot captured by that run only when its source
+differs from the qualified activation baseline or the last actual full attempt.
+An unchanged source is not automatically retried after failure. Explicit
+manual/tag validation remains available under its existing source and release
+rules. GitHub may delay a cron; this is one automatic attempt per UTC hourly
+slot, not a promise of exact wall-clock launch time.
+
+The eight candidate gates and all 27 main identities remain unchanged. Candidate
+admission advances from the App's exact persisted completed-source record; it
+does not wait for each main build to start. Full main qualification, fresh
+payload/installer bytes and protected source-bound beta publication are still
+required for the selected hourly source. Intermediate sources are not published
+by relabeling another run's artifacts.
+
+Only the serialized controller records observed attempt/cursor metadata.
+First-attempt same-repository CI runs and their exact-source version job identify
+an actual full attempt, including a failed one; skipped jobs and missing evidence
+do not. The scheduled admission path also reconciles earlier runs before granting
+work. The attempt ledger is scheduling evidence, never successful qualification
+or new authority. The hourly workflow uses a non-cancelling FIFO group separate
+from the candidate lane.
+
+### Guarded main scheduling switch
+
+All four operations use the existing protected controller, administrator check,
+exact state checkpoint and `acknowledge_batch_change=true`. They never change
+configuration, withdraw Auto-merge, cancel candidates/publishers or bypass proof.
+The same administrator and generated hold token own the complete transition.
+
+1. Follow the [account-safe client protocol](#copilot-and-other-pr-clients).
+   Obtain separate authority for the repository variable write and guarded
+   transition. Read current main, queue state, profiles, protection and physical
+   CI ownership. Do not start a second delivery/main-scheduling transition.
+2. Dispatch `hold-main-builds` on trusted main with `main_build_profile=hourly-v1`
+   and the exact `recovery_checkpoint`. Read back
+   `mainSchedulingTransition.phase=draining` and its token. Existing owned work
+   continues; only new reservations are held.
+3. After the active candidate drains, dispatch `prepare-main-builds` with a fresh
+   checkpoint and the same `recovery_ticket`/target. It requires the current
+   completed-source record, reviewed main scheduling schema, successful complete
+   first-attempt qualification, exact tree and physically quiescent CI/publication.
+   Failed/skipped main is not readiness. Use `abort-main-builds` and repair the
+   source instead of changing the profile to escape a failure.
+4. Read the ready checkpoint, source, full qualification, live profiles and
+   physical ownership again. Only under separately verified administrator
+   authority set the repository variable `KORA_MAIN_BUILD_PROFILE` to `hourly-v1`.
+   Dispatch `resume-main-builds` using that exact ready checkpoint/token/target.
+   It revalidates the full boundary and atomically records the qualified baseline
+   and durable adoption. Ambiguous writes require readback, not blind repetition.
+
+For example, the separately authorized hold is:
+
+```powershell
+gh workflow run merge-queue.yml --repo github.com/roryprimrose/Kora --ref main `
+  -f operation=hold-main-builds -f main_build_profile=hourly-v1 `
+  -f recovery_checkpoint=<reviewed-state-commit> -F acknowledge_batch_change=true
+```
+
+The profile write is a separate administrator action, not part of PR delivery:
+
+```powershell
+gh variable set KORA_MAIN_BUILD_PROFILE --repo github.com/roryprimrose/Kora --body hourly-v1
+```
+
+Rollback uses the same drained/qualified protocol with target `per-merge` and a
+separately authorized restoration/removal of that one variable. Configuration
+must remain at the old value until ready and match the target only for resume.
+Unexpected source/configuration/authority changes retain the hold and fail
+explicitly. A ready hold does not observe new attempts or reserve work, preserving
+its exact checkpoint while the operator switches configuration.
+
+Run `node .\eng\run-policy-tests.cjs`, `.\eng\Test-CiPreflight.ps1`,
+`.\eng\Test-BuildVersion.ps1` and `.\eng\Test-GitHubRelease.ps1`. Deterministic
+fixtures cover no-change/changed/same-slot decisions, earlier unobserved attempts,
+failed attempts, API/identity failures, guarded activation/rollback and complete
+scheduled-source publication. These tests do not claim a live profile switch or
+observed hourly cadence.
+
 ## Opt-in independent beta delivery
 
 `KORA_MERGE_QUEUE_DELIVERY_PROFILE=independent-v1` is a separate administrator

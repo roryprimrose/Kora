@@ -1,4 +1,4 @@
-namespace Kora.Core.Dependencies;
+﻿namespace Kora.Core.Dependencies;
 
 /// <summary>The host-owned tool policy captured for one complete turn, never selected by provider output.</summary>
 public enum ModelToolMode

@@ -98,6 +98,54 @@ test('CI admission inline policy matches the deterministic ordinary and comparis
   }
 });
 
+test('hourly CI coalesces automatic main pushes and runs only admitted changed hourly snapshots', async () => {
+  const script = job('admission').match(/          script: \|\n([\s\S]*)/)[1]
+    .split('\n').map(line => line.replace(/^            /, '')).join('\n');
+  const execute = new AsyncFunction('process', 'context', 'core', 'github', 'require', script);
+  for (const mainBuildProfile of ['', 'hourly-v1']) {
+    for (const eventName of ['push', 'schedule', 'workflow_dispatch', 'pull_request']) {
+      for (const selected of [false, true]) {
+        const outputs = {};
+        let scheduled = 0;
+        class Api {
+          async load() { return { expected: true }; }
+          async admitScheduledMain(state, attempt) {
+            assert.equal(state.expected, true);
+            assert.equal(attempt, 1);
+            scheduled++;
+            return selected;
+          }
+        }
+        await execute({ env: { QUEUE_MODE: 'enabled', QUEUE_PROFILE: 'batch-v1',
+          DELIVERY_PROFILE: 'independent-v1', MAIN_BUILD_PROFILE: mainBuildProfile,
+          MAIN_RUN_ATTEMPT: '1',
+          QUEUE_INPUTS: '{}', QUEUE_APP_ID: '42' } },
+        { eventName, ref: 'refs/heads/main', sha: 'a'.repeat(40) },
+        { setOutput: (key, value) => { outputs[key] = value; }, notice() {} }, {},
+        name => name.endsWith('policy.cjs') ? { execution }
+          : { admitBatchTip: async () => true, GitHubQueue: Api });
+        const full = eventName !== 'pull_request' && (eventName === 'workflow_dispatch'
+          || eventName === 'push' && !mainBuildProfile
+          || eventName === 'schedule' && mainBuildProfile === 'hourly-v1' && selected);
+        assert.equal(outputs.full, String(full), JSON.stringify({ mainBuildProfile, eventName, selected }));
+        assert.equal(scheduled, eventName === 'schedule' && mainBuildProfile === 'hourly-v1' ? 1 : 0);
+      }
+    }
+  }
+  for (const values of [
+    { MAIN_BUILD_PROFILE: 'future' },
+    { MAIN_BUILD_PROFILE: 'hourly-v1', QUEUE_PROFILE: '' },
+    { MAIN_BUILD_PROFILE: 'hourly-v1', DELIVERY_PROFILE: '' },
+  ]) {
+    await assert.rejects(execute({ env: { QUEUE_MODE: 'enabled', QUEUE_PROFILE: 'batch-v1',
+      DELIVERY_PROFILE: 'independent-v1', QUEUE_INPUTS: '{}', ...values } }, {}, {}, {}, () => ({})));
+  }
+  assert.match(ci, /\n  schedule:\n    - cron: '0 \* \* \* \*'/);
+  assert.match(job('admission'), /permissions:\n      contents: read\n      actions: read/);
+  assert.doesNotMatch(ci, /^      main_build_profile:/m);
+  assert.match(controller, /MAIN_BUILD_PROFILE: \$\{\{ vars.KORA_MAIN_BUILD_PROFILE \}\}/);
+});
+
 test('candidate routing rejects disabled mode and delegates source identity to trusted admission', async () => {
   const script = job('admission').match(/          script: \|\n([\s\S]*)/)[1]
     .split('\n').map(line => line.replace(/^            /, '')).join('\n');
@@ -420,7 +468,7 @@ test('controller workflow awaits its summary on success and preserves reconcilia
 });
 
 test('manual recovery uses the same trusted main checkout, App environment and serialized lane with explicit inputs', async () => {
-  assert.match(controller, /options: \[reconcile, recover-unobservable-dispatch, migrate-batch-v1, rollback-batch-v1, repair-batch, resume-batch, hold-independent-delivery, prepare-independent-delivery, resume-independent-delivery, abort-independent-delivery\]/);
+  assert.match(controller, /options: \[reconcile, recover-unobservable-dispatch, migrate-batch-v1, rollback-batch-v1, repair-batch, resume-batch, hold-independent-delivery, prepare-independent-delivery, resume-independent-delivery, abort-independent-delivery, hold-main-builds, prepare-main-builds, resume-main-builds, abort-main-builds\]/);
   assert.match(controller, /acknowledge_uncertain_dispatch:[\s\S]*?type: boolean\n        default: false/);
   assert.match(controller, /ref: refs\/heads\/main\n          persist-credentials: false/);
   assert.match(controller, /environment: merge-queue/);
@@ -460,6 +508,41 @@ test('manual recovery uses the same trusted main checkout, App environment and s
       assert.deepEqual(calls.at(-1), ['summary', 'failed']);
     }
   }
+});
+
+test('main scheduling administrator operations use the existing protected serialized controller without variable permissions', async () => {
+  const script = controller.match(/          script: \|\n([\s\S]*)/)[1]
+    .split('\n').map(line => line.replace(/^            /, '')).join('\n');
+  const execute = new AsyncFunction('process', 'context', 'core', 'github', 'require', script);
+  for (const operation of ['hold-main-builds', 'prepare-main-builds', 'resume-main-builds', 'abort-main-builds']) {
+    let invoked = false;
+    const api = { summarize: async () => {} };
+    const inputs = { operation, main_build_profile: 'hourly-v1', acknowledge_batch_change: true,
+      recovery_checkpoint: 'a'.repeat(40) };
+    const context = { eventName: 'workflow_dispatch', ref: 'refs/heads/main', actor: 'operator', runId: 123 };
+    await execute({ env: { QUEUE_APP_ID: '42', QUEUE_PROFILE: 'batch-v1',
+      DELIVERY_PROFILE: 'independent-v1', MAIN_BUILD_PROFILE: 'hourly-v1',
+      QUEUE_INPUTS: JSON.stringify(inputs), QUEUE_RUN_ATTEMPT: '1' } }, context, { notice() {} }, {},
+    name => {
+      if (name.endsWith('github.cjs')) return { GitHubQueue: class { constructor(...args) {
+        assert.equal(args[5], 'hourly-v1'); return api;
+      } } };
+      if (name.endsWith('policy.cjs')) return { controllerOperation };
+      if (name.endsWith('controller.cjs')) return { reconcile: () => assert.fail('Administrator operations cannot reserve candidates.') };
+      assert.equal(name, './eng/merge-queue/recovery.cjs');
+      return { changeMainBuildState: async (actual, value) => {
+        invoked = true;
+        assert.equal(actual, api);
+        assert.equal(value.context, context);
+        assert.deepEqual(value.inputs, inputs);
+        assert.equal(value.attempt, 1);
+        assert.equal(value.profile, 'batch-v1');
+        return 'main-builds-ready';
+      } };
+    });
+    assert.equal(invoked, true);
+  }
+  assert.doesNotMatch(controller, /permission-administration: write|variables: write|updateRepoVariable|deleteRepoVariable/);
 });
 
 test('guarded delivery operations use the existing protected serialized administrator route without configuration permissions', async () => {

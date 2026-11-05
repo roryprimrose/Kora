@@ -9,13 +9,56 @@ Internal means implemented/mediated by Kora, not every method or UI command in t
 External MCP tools, provider-native tools, and skill-defined workflows are separately admitted capabilities, not automatically internal tools.
 Being listed here does not enable a capability before its delivery, adapter, containment, and authorization gates pass.
 
+### Private built-in MCP server and shared capability controls
+
+Kora is a reserved built-in MCP server, `builtin.kora`, alongside source-qualified external server identities in the [capability inventory](../src/Kora.Application/Configuration/McpServerConfigurationService.cs). The raw external configuration loader remains separate from the composed inventory; the built-in server is not a synthetic file, delegated account or HTTPS endpoint.
+
+The [private server](../src/Kora.Application/Mcp/KoraMcpServer.cs) projects the original six observations through bounded in-process MCP initialization, discovery and invocation. Reviewed settings, customization, session and webpage operations use its host-bound dispatch only inside their separately admitted modes. Conversational `ask_user` retains its dedicated question route. No
+external listener, automatic connection, wider source reader or new tool effect is introduced.
+
+The [shared controls](../src/Kora.Application/Configuration/McpCapabilityPreferences.cs) consume the common
+[category/item selection](../src/Kora.Core/Mcp/McpCapabilitySelection.cs) and version-four artifact-directory preferences.
+There is no second built-in item store. Audited shared configuration writes persist server inclusion and category/item changes.
+The historical artifact-use veto remains an additional source-use boundary, never another item-selection authority.
+
+The [metadata backend](../src/Kora.Application/Configuration/McpServerConfigurationService.cs) composes the built-in Kora server
+and projects its tools as the common `McpCapability` records without preference, source or transport acquisition. The capability-manager
+owner integrates those records into its single list/filter UI; this implementation adds no competing list/filter controls.
+Common configuration actions never connect, discover, invoke or create effect authority.
+
+The reserved `builtin.kora` identity is accepted only as a known host-owned server identity. External identities remain derived hashes;
+item-selection keys remain strictly SHA-256 values, not symbolic server IDs. Built-in initially enabled behaviour is preserved until
+explicit shared preferences exist; the first item/category write preserves the parent, and an explicit parent change persists its
+inclusion and category revisions atomically ([validation](../src/Kora.Core/Mcp/McpCapabilitySelection.cs),
+[writer](../src/Kora.Application/Configuration/ArtifactDirectoryConfigurationService.cs)).
+
+Actual external parent inclusion changes use the same revisioned atomic path, so an off/on cycle cannot restore a pending
+approval's old fingerprint. Existing same-state external updates remain no-ops and parent changes preserve child selections
+([regression](../tests/Kora.Application.UnitTests/Configuration/ArtifactDirectoryConfigurationServiceTests.cs)).
+
+The reserved server has its own fixed slot without reducing the existing 128-external-server capacity. Only that known identity
+receives the additional inclusion/category allowance; external limits, item overrides and whole preference-byte bounds remain
+unchanged ([inclusion bound](../src/Kora.Core/Configuration/ArtifactDirectorySettings.cs),
+[category bound](../src/Kora.Core/Mcp/McpCapabilitySelection.cs)).
+
+Supported ordinary/reviewed context builders remove disabled tools before provider disclosure. Version-two [turn constraints](../src/Kora.Core/Dependencies/ModelTurnConstraints.cs) permit an explicitly empty or reduced catalogue within the same mode, preserving question capacity and existing byte/call/deadline limits. Version-one constraints retain their original validation. Scoped
+webpage and hosted clarification requests fail before disclosure when their required tool is disabled; external MCP retains exact reviewed selection.
+
+Provider adapters and the private server share [Core input schemas](../src/Kora.Core/Tools/CapabilityInputSchema.cs).
+The [Copilot wrapper](../src/Kora.Windows/Dependencies/CopilotSdkTurnRuntime.cs) constructs functions from the admitted context rather
+than reintroducing all six observations. Host dispatch rechecks enablement; a captured shared-policy fingerprint/revision fences
+built-in-catalogue continuation and final publication across disable/re-enable. Unrelated tool-free and external-only turns keep
+their existing checks. Native source/UI controls remain recovery paths, not model authority.
+
+These are deterministic implementation contracts, not production model or external-account qualification. The [user guide](../docs/mcp-transport.md#built-in-kora-capabilities) owns the interaction.
+
 ### Delivered bounded read-only host foundation
 
 The [authoritative production catalogue](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs)
 and [direct registry handlers](../src/Kora.Application/Tools/ReadOnlyCapabilityRegistry.cs)
 compose exactly `capabilities.list`, `capabilities.get`, `application.get_version`,
 `readiness.get`, `runtime.list`, and `runtime.get_status`. These canonical IDs
-are now host contracts, not a live model SDK/MCP catalogue. Exact local native
+are host contracts with the private MCP projection above, not a public SDK or external MCP endpoint. Exact local native
 commands are documented in [Commands](../docs/commands.md#read-only-host-discovery).
 The descriptor schema is version 1: None/Page/Id typed inputs, corresponding
 typed result shapes, ReadOnlyObservation effects, handler availability,
@@ -439,7 +482,7 @@ and absent segments never imply a complete history or pruning.
 | `approvals.show` | Grant/proposal/filter ID; trusted inventory/editor reference | M/E | Proposed A3; opening editor creates no permission |
 | `approvals.request` | Typed exact invocation/resources/identity/digests/destination, grant scope/bound session ID and lineage; host-classified approval proposal | M/E | Proposed A3; M proposes management approval only, not task execution |
 | `approvals.propose_edit`, `approvals.revoke` | Exact grant IDs/revisions and scoped edit/remove preview; trusted decision-required/result | M/E | Proposed A3; user action required, no arbitrary expiry or bulk retention deletion |
-| `settings.list`, `settings.get` | Delivered explicit local settings-inspection mode: bounded metadata page or exact registered ID; seven reviewed confirmed saved/default scalars plus typed `speech.voice` provider/optional voice selection | Explicit reviewed local request | [Bounded discovery](../docs/setting-inspection.md) reuses the authoritative registry/source; other registered values are unavailable. Speech selection is future-only preference, not installed catalogue, resolved default voice or runtime qualification. Ordinary modes and the default six-ID catalogue remain unchanged. General category/scope/effective/session/provider reads remain proposed A3 |
+| `settings.list`, `settings.get` | Delivered explicit local settings-inspection mode: bounded metadata page or exact registered ID; fifteen reviewed confirmed saved/default scalars plus typed `speech.voice` provider/optional voice selection | Explicit reviewed local request | [Bounded discovery](../docs/setting-inspection.md) reuses the authoritative registry/source and requires separate source review and local-answer confirmation; other registered values are unavailable. Speech selection is future-only preference, not installed catalogue, resolved default voice or runtime qualification. Existing [shared capability filtering](#private-built-in-mcp-server-and-shared-capability-controls) remains authoritative without widening ordinary-mode tools or effects. General category/scope/effective/session/provider reads remain proposed A3 |
 | `settings.propose_change`, `settings.reset`, `settings.undo` | Typed option/value/scope/revision or identified prior change, trusted initiating-channel lineage; reviewed atomic proposal/result or rejected voice-origin request | M/E | Proposed A3; enforce protected-call option classification at request/apply; no file/JSON patch, consent bypass, restored grants or replayed side effects |
 | `evidence.list` | Required source kind (`log`, `audit`, `session`, `span`, or `all`), bounded time/trace/session/task/invocation/approval/correlation filters and cursor; ordered permitted summaries plus retention/source/gap status | E; M minimal status | Proposed A3; deterministic app capability, at most 50 records/64 KiB, no model required |
 | `evidence.get`, `evidence.get_receipt` | Stable evidence ID or exact trace/session/invocation/action identity; one permitted content-minimising log, audit, span, session or receipt record with typed structured fields/properties and related evidence references | E; M minimal status | Proposed A3; read-only, preserves source kind/authority/value kinds and never exposes secret parameters |

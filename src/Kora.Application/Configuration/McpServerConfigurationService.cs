@@ -1,10 +1,12 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
 using Kora.Core.Configuration;
 using Kora.Core.Dependencies;
 using Kora.Core.Artifacts;
+using Kora.Core.Mcp;
+using Kora.Core.Tools;
 
 namespace Kora.Application.Configuration;
 
@@ -17,30 +19,83 @@ public sealed partial class McpServerConfigurationService
     private readonly IArtifactDirectoryPreferences preferences;
     private readonly string profileRoamingRoot;
     private readonly IArtifactUsePolicy? usePolicy;
+    private readonly McpCapabilityPreferences? capabilities;
     private readonly Lock sourceGate = new();
     private readonly Dictionary<string, SourceObservation> observedSources = new(StringComparer.Ordinal);
     private long nextSourceRevision;
 
     public event EventHandler? Changed;
-    internal long UseControlRevision => usePolicy?.Revision ?? 0;
+    internal long UseControlRevision => capabilities?.ServerUseRevision ?? usePolicy?.Revision ?? 0;
 
     public McpServerConfigurationService(
         IApplicationDataPaths paths,
-        IArtifactDirectoryPreferences preferences, IArtifactUsePolicy? usePolicy = null)
-        : this(paths, preferences, Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), usePolicy)
+        IArtifactDirectoryPreferences preferences, IArtifactUsePolicy? usePolicy = null,
+        McpCapabilityPreferences? capabilities = null)
+        : this(paths, preferences, Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            usePolicy, capabilities)
     {
     }
 
     internal McpServerConfigurationService(
         IApplicationDataPaths paths,
         IArtifactDirectoryPreferences preferences,
-        string profileRoamingRoot, IArtifactUsePolicy? usePolicy = null)
+        string profileRoamingRoot, IArtifactUsePolicy? usePolicy = null,
+        McpCapabilityPreferences? capabilities = null)
     {
         this.paths = paths;
         this.preferences = preferences;
         this.profileRoamingRoot = profileRoamingRoot;
         this.usePolicy = usePolicy;
+        this.capabilities = capabilities;
     }
+
+    public IReadOnlyList<McpServerConfigurationSummary> LoadCapabilities() =>
+        [new(Core.Mcp.KoraMcpCatalog.ServerId, "Kora", "in-process", "Built-in",
+            capabilities?.IsServerEnabled(Core.Mcp.KoraMcpCatalog.ServerId) == true, IsBuiltIn: true), .. Load()];
+
+    public IReadOnlyList<McpCapability> ReadBuiltInTools() =>
+        KoraMcpCatalog.ToolIds.Select(DescribeBuiltInTool).ToArray();
+
+    public McpCapabilitySelection ReadCapabilitySelection() => preferences.Load().McpCapabilities;
+
+    private static McpCapability DescribeBuiltInTool(string id)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            writer.WriteStartObject();
+            writer.WriteString("name", id);
+            writer.WriteString("description", "Host-owned Kora capability; enabling never supplies authority.");
+            writer.WritePropertyName("inputSchema");
+            if (KoraMcpCatalog.Descriptors.SingleOrDefault(tool => string.Equals(tool.Id, id, StringComparison.Ordinal)) is { } descriptor)
+            { CapabilityInputSchema.Write(writer, descriptor, includeEmptyRequired: true, boundedOffset: true); }
+            else { writer.WriteRawValue(ModelToolProtocol.AskUserInputSchema); }
+            writer.WriteEndObject();
+        }
+        return new(McpCapabilityKind.Tool, id, id, Encoding.UTF8.GetString(stream.ToArray()),
+            ReadOnlyCapabilityCatalog.FindExact(id) is not null ? null
+                : "Requires a separately admitted Kora source or clarification context; not a standalone invocation.");
+    }
+
+    public void SetCapabilityEnabled(string serverId, string? toolId, bool enabled)
+    {
+        var controls = capabilities ?? throw new InvalidOperationException("MCP capability controls are unavailable.");
+        if (!LoadCapabilities().Any(server => string.Equals(server.Id, serverId, StringComparison.Ordinal))
+            || toolId is not null && string.Equals(serverId, Core.Mcp.KoraMcpCatalog.ServerId, StringComparison.Ordinal)
+                && !Core.Mcp.KoraMcpCatalog.ToolIds.Contains(toolId, StringComparer.Ordinal))
+        { throw new InvalidOperationException("The selected MCP capability is not registered."); }
+        if (toolId is null) { controls.SetServerEnabled(serverId, enabled); }
+        else { controls.SetToolEnabled(serverId, toolId, enabled); }
+        NotifyChanged();
+    }
+
+    internal bool IsToolEnabled(string serverId, string toolId) =>
+        capabilities?.IsToolEnabled(serverId, toolId) != false;
+
+    internal string? CaptureCapabilityRevision(string serverId) => capabilities?.RevisionFor(serverId);
+
+    internal ModelContextEnvelope RestrictTools(ModelContextEnvelope context) =>
+        capabilities?.RestrictContext(context) ?? context;
 
     public IReadOnlyList<McpServerConfigurationSummary> Load()
     {
@@ -90,7 +145,8 @@ public sealed partial class McpServerConfigurationService
             var digest = LoadFile(source.Path, settings.IncludedMcpServerIds, servers);
             foreach (var server in servers.Skip(start))
             {
-                candidates.Add(server.Id, digest + (server.IsIncluded ? ":included" : ":excluded"));
+                candidates.Add(server.Id, digest + (server.IsIncluded ? ":included" : ":excluded")
+                    + settings.McpCapabilities.Fingerprint(server.Id));
             }
             if (servers.Count > MaximumServers)
             {
@@ -99,6 +155,7 @@ public sealed partial class McpServerConfigurationService
         }
         var result = servers
             .Select(server => usePolicy?.IsDisabled(ArtifactUseIdentity.Mcp(server.Id)) == true
+                || capabilities?.IsServerEnabled(server.Id) == false
                 ? server with { IsIncluded = false } : server)
             .OrderBy(server => server.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(server => server.Source, StringComparer.OrdinalIgnoreCase)

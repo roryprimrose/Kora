@@ -1,6 +1,7 @@
 name: CI
 # merge-queue-job-schema: parallel-pr-v1
 # merge-queue-delivery-schema: independent-v1
+# main-validation-schema: hourly-v1
 run-name: "${{ inputs.queue_batch && format('Merge queue batch [{0}]', inputs.queue_ticket) || inputs.queue_ticket && format('Merge queue PR #{0} [{1}]', inputs.queue_pr, inputs.queue_ticket) || format('CI {0}', github.ref_name) }}"
 
 on:
@@ -10,6 +11,8 @@ on:
     tags:
       - 'v*'
   pull_request:
+  schedule:
+    - cron: '0 * * * *'
   # Allows maintainers to run the same CI checks manually from the Actions page.
   workflow_dispatch:
     inputs:
@@ -41,20 +44,25 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ inputs.queue_ticket && 'merge-queue-candidate' || vars.KORA_MERGE_QUEUE_PROFILE == 'batch-v1' && github.ref == 'refs/heads/main' && github.sha || github.event.pull_request.head.ref || github.ref_name }}${{ (inputs.compare_portable_tests || inputs.compare_native_evidence) && '-test-comparison' || '' }}
+  group: ci-${{ vars.KORA_MAIN_BUILD_PROFILE == 'hourly-v1' && github.event_name == 'schedule' && 'main-hourly' || inputs.queue_ticket && 'merge-queue-candidate' || vars.KORA_MERGE_QUEUE_PROFILE == 'batch-v1' && github.ref == 'refs/heads/main' && github.sha || github.event.pull_request.head.ref || github.ref_name }}${{ (inputs.compare_portable_tests || inputs.compare_native_evidence) && '-test-comparison' || '' }}
   cancel-in-progress: ${{ !inputs.queue_ticket && vars.KORA_MERGE_QUEUE_PROFILE != 'batch-v1' }}
+  queue: ${{ vars.KORA_MAIN_BUILD_PROFILE == 'hourly-v1' && github.event_name == 'schedule' && 'max' || 'single' }}
 
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_NOLOGO: true
   KORA_MERGE_QUEUE_PROFILE: ${{ vars.KORA_MERGE_QUEUE_PROFILE }}
   KORA_MERGE_QUEUE_DELIVERY_PROFILE: ${{ vars.KORA_MERGE_QUEUE_DELIVERY_PROFILE }}
+  KORA_MAIN_BUILD_PROFILE: ${{ vars.KORA_MAIN_BUILD_PROFILE }}
 
 jobs:
   admission:
     name: Admit CI execution
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
     outputs:
       full: ${{ steps.admit.outputs.full }}
       source: ${{ steps.admit.outputs.source }}
@@ -77,12 +85,18 @@ jobs:
           QUEUE_APP_ID: ${{ vars.KORA_MERGE_QUEUE_APP_ID }}
           QUEUE_PROFILE: ${{ vars.KORA_MERGE_QUEUE_PROFILE }}
           DELIVERY_PROFILE: ${{ vars.KORA_MERGE_QUEUE_DELIVERY_PROFILE }}
+          MAIN_BUILD_PROFILE: ${{ vars.KORA_MAIN_BUILD_PROFILE }}
+          MAIN_RUN_ATTEMPT: ${{ github.run_attempt }}
         with:
           script: |
             const mode = process.env.QUEUE_MODE;
             if (!['', 'disabled', 'enabled'].includes(mode)) throw new Error('Unknown merge queue mode.');
             const queueProfile = process.env.QUEUE_PROFILE ?? '';
             const deliveryProfile = process.env.DELIVERY_PROFILE ?? '';
+            const mainBuildProfile = process.env.MAIN_BUILD_PROFILE ?? '';
+            if (!['', 'hourly-v1'].includes(mainBuildProfile)) throw new Error('Unknown main build profile.');
+            if (mainBuildProfile && (queueProfile !== 'batch-v1' || deliveryProfile !== 'independent-v1' || mode !== 'enabled'))
+              throw new Error('Hourly main builds require enabled independent batch delivery.');
             if (!['', 'independent-v1'].includes(deliveryProfile)) throw new Error('Unknown delivery profile.');
             if (deliveryProfile && (queueProfile !== 'batch-v1' || mode !== 'enabled'))
               throw new Error('Independent delivery requires the enabled batch profile.');
@@ -91,12 +105,12 @@ jobs:
             const inputs = JSON.parse(process.env.QUEUE_INPUTS);
             const candidate = ['queue_pr', 'queue_head', 'queue_base', 'queue_ticket', 'queue_batch'].some(key => inputs[key]);
             let source = context.sha;
-            let full = true;
+            let full = context.eventName !== 'schedule';
             let packaging = true;
             if (mode === 'enabled') {
               const { execution } = require('./eng/merge-queue/policy.cjs');
               full = execution({ modeValue: mode, eventName: context.eventName,
-                ref: context.ref, sha: context.sha, inputs }).full;
+                ref: context.ref, sha: context.sha, inputs, mainBuildProfile }).full;
               if (candidate) {
                 const { admit } = require('./eng/merge-queue/github.cjs');
                 source = await admit({ github, context, inputs: { ...inputs, app_id: process.env.QUEUE_APP_ID, profile: queueProfile } });
@@ -108,8 +122,12 @@ jobs:
                   core.notice(`Candidate packaging selection: ${selection.reason}; build=${packaging}.`);
                 }
               } else if (queueProfile === 'batch-v1' && context.eventName !== 'pull_request') {
-                const { admitBatchTip } = require('./eng/merge-queue/github.cjs');
-                full = full && await admitBatchTip({ github, context, appId: process.env.QUEUE_APP_ID, deliveryProfile });
+                const { admitBatchTip, GitHubQueue } = require('./eng/merge-queue/github.cjs');
+                full = full && await admitBatchTip({ github, context, appId: process.env.QUEUE_APP_ID, deliveryProfile, mainBuildProfile });
+                if (full && mainBuildProfile === 'hourly-v1' && context.eventName === 'schedule') {
+                  const api = new GitHubQueue(github, context, core, process.env.QUEUE_APP_ID, deliveryProfile, mainBuildProfile);
+                  full = await api.admitScheduledMain(await api.load(), Number(process.env.MAIN_RUN_ATTEMPT));
+                }
               }
             } else if (candidate) {
               throw new Error('Candidate dispatch requires the enabled queue.');
@@ -118,7 +136,9 @@ jobs:
             core.setOutput('source', source);
             core.setOutput('candidate', String(candidate));
             core.setOutput('packaging', String(packaging));
-            if (!full) core.notice('Full validation waits for GitHub merge queue admission.');
+            if (!full) core.notice(mainBuildProfile === 'hourly-v1' && context.eventName !== 'pull_request'
+              ? 'Main validation is coalesced; only changed scheduled snapshots or explicit manual validation run full gates.'
+              : 'Full validation waits for GitHub merge queue admission.');
 
   version:
     name: Resolve build version

@@ -138,10 +138,11 @@ public sealed partial class MainViewModel
             _ => RequestOrigin.HostSystem,
         });
 
-    private bool AdmitVoiceOptionMutation(string action, SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
+    private bool AdmitVoiceOptionMutation(string action, SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser,
+        Func<bool>? eligible = null)
     {
         var outcome = communicationPolicy.CheckMutation(OriginalOrigin(initiator), CallPolicyRevision,
-            () => IsCallMutationHostEligible);
+            eligible ?? (() => IsCallMutationHostEligible));
         if (outcome is null) { return true; }
         var origin = OriginalOrigin(initiator);
         ReportCallMutation(outcome.Value, action, origin);

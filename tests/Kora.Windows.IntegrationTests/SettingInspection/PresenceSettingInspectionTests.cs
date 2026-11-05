@@ -33,12 +33,19 @@ public sealed class PresenceSettingInspectionTests
         await using var f = new Fixture(saved);
         await f.InitializeAsync();
         using var root = HostActivity.BeginRoot(HostRequest.Create(origin), HostActivityLayer.Desktop, HostOperation.Request);
-        var session = await f.Workflow.ReviewAsync("What is my current appearance.presence-display setting?", () => true, f.Token);
+        var session = await f.Workflow.ReviewAsync(
+            "Why does Kora disappear so quickly, and what presence size and movement settings am I using?", () => true, f.Token);
         var observation = session.Review.Observations.Single(item => item.Setting == RegisteredSetting.PresenceDisplay);
-        session.Review.Observations.Should().HaveCount(8);
+        session.Review.Observations.Should().HaveCount(16);
         observation.IsSaved.Should().Be(saved.HasValue);
         observation.Value.Should().Be(saved is false ? 0 : 1);
         session.Review.Source.Should().Contain($"appearance.presence-display = {(saved is false ? "false" : "true")} boolean");
+        session.Review.Source.Should().Contain("appearance.presence-timeout = 10 seconds")
+            .And.Contain("appearance.presence-size = 360 pixels").And.Contain("appearance.dot-size = 100 percent")
+            .And.Contain("appearance.dot-density = 100 percent").And.Contain("appearance.movement-speed = 100 percent")
+            .And.Contain("appearance.speech-scaling = true boolean").And.Contain("appearance.speech-scale-amount = 100 percent")
+            .And.Contain("appearance.reduced-motion = false boolean")
+            .And.Contain("follows Windows reduced-motion preference, not forced motion");
         session.Review.Text.Should().Contain(session.Review.Source).And.Contain(session.Review.Question)
             .And.Contain("Confirm", "the inert recommendation policy retains the separate setting-write route");
         f.Adapter.Calls.Should().Be(0);
@@ -71,9 +78,11 @@ public sealed class PresenceSettingInspectionTests
     }
 
     [Theory]
-    [InlineData(false, SettingInspectionOutcome.Unavailable)]
-    [InlineData(true, SettingInspectionOutcome.Unconfirmed)]
-    public async Task ChangedPresenceBeforeOrAcrossActualModelWorkCannotPublishAnAnswer(bool duringModel,
+    [InlineData(false, "presence-display-enabled.txt", "True", SettingInspectionOutcome.Unavailable)]
+    [InlineData(true, "presence-display-enabled.txt", "True", SettingInspectionOutcome.Unconfirmed)]
+    [InlineData(false, "presence-inactivity-timeout-seconds.txt", "5", SettingInspectionOutcome.Unavailable)]
+    [InlineData(true, "presence-movement-speed-percent.txt", "50", SettingInspectionOutcome.Unconfirmed)]
+    public async Task ChangedPresenceBeforeOrAcrossActualModelWorkCannotPublishAnAnswer(bool duringModel, string file, string value,
         SettingInspectionOutcome expected)
     {
         await using var f = new Fixture(false);
@@ -81,7 +90,7 @@ public sealed class PresenceSettingInspectionTests
         using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
             HostActivityLayer.Desktop, HostOperation.Request);
         var session = await f.Workflow.ReviewAsync("Is presence display enabled?", () => true, f.Token);
-        void Change() => f.Preferences.Text["presence-display-enabled.txt"] = "True";
+        void Change() => f.Preferences.Text[file] = value;
         if (duringModel) { f.Adapter.BeforeReturn = Change; }
         else { Change(); }
         var result = await f.Workflow.AnswerAsync(session, () => true, f.Token);
@@ -175,7 +184,10 @@ public sealed class PresenceSettingInspectionTests
 
     private sealed class ProviderData(bool enabled) : IModelTurnAdapter
     {
-        internal string Answer { get; } = $"Your confirmed presence display preference is {(enabled ? "true" : "false")}.";
+        internal string Answer { get; } = $"Your confirmed presence display preference is {(enabled ? "true" : "false")}. "
+            + "The default inactivity timeout is 10 seconds and size is 360 pixels. Dot size, density, movement speed and speech "
+            + "scale amount are 100 percent; speech scaling is true. Reduced motion is false, following Windows, not forcing motion. "
+            + "These preferences do not prove current visibility or animation.";
         internal int Calls { get; private set; }
         internal byte[]? Wire { get; private set; }
         internal Action? BeforeReturn { get; set; }

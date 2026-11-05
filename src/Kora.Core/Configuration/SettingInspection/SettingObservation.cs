@@ -19,8 +19,33 @@ public sealed record SettingObservation
                 AppearanceOptionRegistry.Validate(AppearanceOption.ReaderTextScale, new AppearanceValue.Number(value));
                 break;
             case RegisteredSetting.PresenceDisplay:
+            case RegisteredSetting.SpeechScaling:
+            case RegisteredSetting.ReducedMotion:
                 if (value is not (0 or 1)) { throw new ArgumentOutOfRangeException(nameof(value)); }
-                AppearanceOptionRegistry.Validate(AppearanceOption.PresenceDisplay, new AppearanceValue.Toggle(value == 1));
+                AppearanceOptionRegistry.Validate(setting switch
+                {
+                    RegisteredSetting.SpeechScaling => AppearanceOption.SpeechScaling,
+                    RegisteredSetting.ReducedMotion => AppearanceOption.ReducedMotion,
+                    _ => AppearanceOption.PresenceDisplay,
+                }, new AppearanceValue.Toggle(value == 1));
+                break;
+            case RegisteredSetting.PresenceTimeout:
+                AppearanceOptionRegistry.Validate(AppearanceOption.PresenceTimeout, new AppearanceValue.Number(value));
+                break;
+            case RegisteredSetting.PresenceSize:
+                AppearanceOptionRegistry.Validate(AppearanceOption.PresenceSize, new AppearanceValue.Number(value));
+                break;
+            case RegisteredSetting.DotSize:
+                AppearanceOptionRegistry.Validate(AppearanceOption.DotSize, new AppearanceValue.Number(value));
+                break;
+            case RegisteredSetting.DotDensity:
+                AppearanceOptionRegistry.Validate(AppearanceOption.DotDensity, new AppearanceValue.Number(value));
+                break;
+            case RegisteredSetting.MovementSpeed:
+                AppearanceOptionRegistry.Validate(AppearanceOption.MovementSpeed, new AppearanceValue.Number(value));
+                break;
+            case RegisteredSetting.SpeechScaleAmount:
+                AppearanceOptionRegistry.Validate(AppearanceOption.SpeechScaleAmount, new AppearanceValue.Number(value));
                 break;
             case RegisteredSetting.SummaryWords:
                 new SpokenSummaryLimits(1, value).Validate();
@@ -66,13 +91,17 @@ public sealed record SettingObservation
             + " (future-only; no runtime claim)"
         : ScalarText)
         + " " + RegisteredSettingRegistry.Get(Setting).Units
-        + (IsSaved ? " (confirmed saved; matches live service)" : " (confirmed absent; live default)");
+        + (IsSaved ? " (confirmed saved; matches live service)" : " (confirmed absent; live default)")
+        + (Setting == RegisteredSetting.ReducedMotion
+            ? Value == 0 ? "; follows Windows reduced-motion preference, not forced motion" : "; freezes presence particles"
+            : "");
 
     private string ScalarText => Setting switch
     {
         RegisteredSetting.Theme => ((ApplicationThemeMode)Value!.Value).ToString(),
         RegisteredSetting.ResponseMode => ((ResponseOutputMode)Value!.Value).ToString(),
-        RegisteredSetting.PresenceDisplay => Value == 1 ? "true" : "false",
+        RegisteredSetting.PresenceDisplay or RegisteredSetting.SpeechScaling or RegisteredSetting.ReducedMotion =>
+            Value == 1 ? "true" : "false",
         _ => Value!.Value.ToString(CultureInfo.InvariantCulture),
     };
 }

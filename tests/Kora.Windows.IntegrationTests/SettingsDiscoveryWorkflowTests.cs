@@ -4,6 +4,7 @@ using AwesomeAssertions;
 using Kora.Application.Configuration.SettingInspection;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
+using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Configuration.SettingInspection;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
@@ -62,6 +63,70 @@ public sealed class SettingsDiscoveryWorkflowTests
     }
 
     [Theory]
+    [InlineData("appearance.presence-timeout", 10, "seconds", RequestOrigin.LocalUi)]
+    [InlineData("appearance.presence-size", 360, "pixels", RequestOrigin.ActivatedVoice)]
+    [InlineData("appearance.dot-size", 100, "percent", RequestOrigin.LocalUi)]
+    [InlineData("appearance.dot-density", 100, "percent", RequestOrigin.ActivatedVoice)]
+    [InlineData("appearance.movement-speed", 100, "percent", RequestOrigin.LocalUi)]
+    [InlineData("appearance.speech-scaling", 1, "boolean", RequestOrigin.ActivatedVoice)]
+    [InlineData("appearance.speech-scale-amount", 100, "percent", RequestOrigin.LocalUi)]
+    [InlineData("appearance.reduced-motion", 0, "boolean", RequestOrigin.ActivatedVoice)]
+    public async Task PresenceQuestionReviewsAllValuesThenSeparatelyConfirmsExactDiscoveryAndRetainedAnswer(
+        string id, int expected, string units, RequestOrigin origin)
+    {
+        const string answer = "The confirmed default inactivity timeout is 10 seconds, size is 360 pixels and movement speed is "
+            + "100 percent. Reduced motion is false: follow Windows, not force motion. Preferences do not prove rendered behavior.";
+        var get = $$$"""{"kind":"toolCalls","calls":[{"callId":"get_2","capabilityId":"settings.get","input":{"id":"{{{id}}}"}}]}""";
+        var transport = new Transport(List, get, JsonSerializer.Serialize(new { kind = "answer", answer }));
+        await using var f = new SettingInspectionWorkflowTests.Fixture(transport: transport);
+        await f.InitializeAsync();
+        using var root = HostActivity.BeginRoot(HostRequest.Create(origin), HostActivityLayer.Desktop, HostOperation.Request);
+        var session = await f.Workflow.ReviewAsync(
+            "Why does Kora disappear so quickly, and what presence size and movement settings am I using?",
+            () => true, f.Token, ModelToolMode.SettingsDiscovery);
+        session.Review.Observations.Should().HaveCount(16).And.OnlyHaveUniqueItems(item => item.Setting);
+        var observed = session.Review.Observations.Single(item =>
+            string.Equals(RegisteredSettingRegistry.Get(item.Setting).Id, id, StringComparison.Ordinal));
+        observed.Value.Should().Be(expected);
+        observed.IsSaved.Should().BeFalse();
+        session.Review.Text.Should().Contain(observed.Text).And.Contain(session.Review.Question)
+            .And.Contain("NEW Local context conversation").And.Contain("No setting write").And.Contain("two minutes");
+        transport.Requests.Should().BeEmpty();
+        f.Storage.Count("work_sessions").Should().Be(0);
+        var result = await f.Workflow.AnswerAsync(session, () => true, f.Token);
+        result.Outcome.Should().Be(SettingInspectionOutcome.Succeeded, "reason {0}, request sizes {1}",
+            result.Receipt?.Message.Reason, string.Join(", ", transport.Requests.Select(item => ModelToolProtocol.SerializeRequest(item).Length)));
+        transport.Requests.Should().HaveCount(3);
+        transport.Requests.Sum(item => ModelToolProtocol.SerializeRequest(item).Length)
+            .Should().BeLessThanOrEqualTo(ModelToolProtocol.MaximumInputUtf8Bytes);
+        transport.Requests.Should().OnlyContain(item => item.Context.UserRequest == session.Review.Question
+            && item.Context.Evidence.Single().Content == session.Review.Source
+            && item.Provenance.Request.SessionId == session.Review.Destination.SessionId
+            && item.Provenance.Request.Origin == origin);
+        using var value = JsonDocument.Parse(((ModelToolResultMessage)transport.Requests[2].Messages[3]).Result.AsMemory());
+        var settings = value.RootElement.GetProperty("settings");
+        settings.GetProperty("totalRecords").GetInt32().Should().Be(1);
+        settings.TryGetProperty("nextOffset", out _).Should().BeFalse();
+        var observation = settings.GetProperty("observation");
+        observation.GetProperty("value").GetInt32().Should().Be(expected);
+        observation.GetProperty("isSaved").GetBoolean().Should().BeFalse();
+        observation.GetProperty("revision").GetInt64().Should().Be(observed.Revision);
+        observation.GetProperty("text").GetString().Should().Be(observed.Text);
+        settings.GetProperty("records")[0].GetProperty("descriptor").GetProperty("units").GetString().Should().Be(units);
+        var receipt = result.Receipt!;
+        f.Storage.Reopen();
+        await f.Storage.Store.InitializeAsync(f.Token);
+        var retained = await f.Storage.Store.ReadConversationMessageAsync(receipt.Message.Request.SessionId,
+            receipt.Message.Request.RequestId, f.Token);
+        retained.Should().Be(receipt.Message);
+        retained.Body.Should().Be(session.Review.Question);
+        retained.AssistantResponse!.Body.Should().Be(answer);
+        retained.Observations.Should().BeNull();
+        AssertNoEffects(f);
+        f.Host.IsQuiescent.Should().BeTrue();
+    }
+
+    [Theory]
     [InlineData(RequestOrigin.LocalUi)]
     [InlineData(RequestOrigin.ActivatedVoice)]
     public async Task ReviewedLocalDiscoveryRetainsGenuineAnswerWithExactOriginalSourceAndNoEffects(RequestOrigin origin)
@@ -115,7 +180,7 @@ public sealed class SettingsDiscoveryWorkflowTests
     [InlineData("path", "settings.get", """{"id":"C:\\private\\config"}""")]
     [InlineData("scope", "settings.get", """{"id":"speech.summary-words","scope":"session"}""")]
     [InlineData("duplicate", "settings.get", """{"id":"speech.summary-words","id":"speech.summary-words"}""")]
-    [InlineData("unavailable", "settings.get", """{"id":"appearance.presence-timeout"}""")]
+    [InlineData("unavailable", "settings.get", """{"id":"appearance.response-timeout"}""")]
     [InlineData("writes", "settings.reset", "{}")]
     [InlineData("other-family", "application.get_version", "{}")]
     public async Task InvalidOrUnsupportedCallsDoNotReadNewSourcesWriteOrRetainSuccessfulAnswers(string defect, string id, string input)
@@ -140,6 +205,8 @@ public sealed class SettingsDiscoveryWorkflowTests
     [InlineData("late-source")]
     [InlineData("speech-source")]
     [InlineData("speech-late-source")]
+    [InlineData("presence-source")]
+    [InlineData("presence-late-source")]
     [InlineData("permission")]
     [InlineData("session")]
     [InlineData("expiry")]
@@ -152,11 +219,13 @@ public sealed class SettingsDiscoveryWorkflowTests
         var session = await f.Workflow.ReviewAsync("What is confirmed?", () => true, f.Token, ModelToolMode.SettingsDiscovery);
         transport.AfterRequest = async request =>
         {
-            if (request.Round != (change is "late-source" or "speech-late-source" ? 3 : 1)) { return; }
+            if (request.Round != (change is "late-source" or "speech-late-source" or "presence-late-source" ? 3 : 1)) { return; }
             switch (change)
             {
                 case "source":
                 case "late-source": f.Preferences.Text["reader-text-scale-percent.txt"] = "150"; break;
+                case "presence-source":
+                case "presence-late-source": f.Preferences.Text["presence-movement-speed-percent.txt"] = "150"; break;
                 case "speech-source":
                 case "speech-late-source": f.Preferences.Lines["speech-selection.txt"] = ["1", "kokoro", "af_heart"]; break;
                 case "permission": f.Controls.CanControl = false; break;

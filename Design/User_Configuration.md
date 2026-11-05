@@ -16,6 +16,8 @@ or restore retired public diagnostic-queue settings. The
 [roadmap](Implementation_Roadmap.md#current-delivery) owns delivery status;
 the contracts below distinguish implemented controls from proposed scopes.
 
+Native single-setting review cancellation also retires pending source checks and confirmation eligibility, not just the visible readback. A late review cannot revive cancelled consent; recovery explicitly reviews the retained answer against current authoritative values before separate confirmation. In-flight persistence is not rolled back ([interaction and recovery](../docs/setting-proposals.md#review-confirm-or-cancel)).
+
 ## Fixed Reviewed Session Memory Management Boundary
 
 The [reviewed selected-subset memory workflow](Model_Providers_Memory_And_Knowledge.md#reviewed-selected-subset-session-memory-forget---2026-10-19)
@@ -974,6 +976,40 @@ Both conversation windows and exact typed/current-name activated-voice review/co
 The call-policy lock encloses final admission, atomic preference write and exact readback. Requested/terminal audit failures remain unconfirmed, with no automatic retry or rollback. The shared [one-change undo](../src/Kora.Application/Configuration/RegisteredSettings/AppearanceConfigurationService.Undo.cs) restores a compatible saved value or unsaved default through a new audited write. Other appearance review/undo remains native-only; no provider, visibility override, consent, grant or capability is enabled.
 
 See the [complete interaction](../docs/settings.md#review-a-response-timeout-suggestion) and [deterministic regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseTimeoutSuggestions.cs). This is bounded implementation evidence, not provider, acoustic or installed enablement/qualification.
+
+### Delivered confirmed presence settings answer
+
+The existing [confirmed settings inspection](../docs/setting-inspection.md)
+completes the read-only question "Why does Kora disappear so quickly, and what
+presence size and movement settings am I using?" through the host-owned
+[confirmed appearance reader](../src/Kora.Application/Configuration/SettingInspection/AppearanceConfigurationService.SettingInspection.cs)
+and [closed review](../src/Kora.Core/Configuration/SettingInspection/SettingInspectionReview.cs).
+The [complete sixteen-observation source](../src/Kora.Core/Configuration/SettingInspection/SettingInspectionReview.cs)
+includes the typed speech selection alongside eight additional existing registered
+presence preferences: inactivity timeout, size, dot size/density, movement speed,
+speech scaling/amount and reduced motion. Existing domain defaults, units and
+bounds are unchanged; no setting or persistence format is added.
+
+The original native or admitted activated-voice question is preserved in the
+exact full source review with scalar values, saved/default provenance, a new
+local-only conversation destination, the original two-minute lifetime and no
+write authority. Separate confirmation permits one tool-free local answer or
+the existing opt-in `settings.list`/`settings.get` flow; only the question and
+genuine final answer enter existing conversation retention. Native Settings
+navigation remains navigation, not source consent or completed inspection.
+
+All eleven appearance observations must agree with disk and live saved/default
+state at the service revision. Malformed, unobserved, publishing, unconfirmed or
+changed state is unavailable; changes across review, tool or publication waits
+retire the original source and require fresh review. Reduced-motion false means
+follow Windows, not force motion. Preferences do not certify rendered frames,
+visibility, performance or Windows motion state.
+
+Mutation remains the separate existing setting-suggestion/native review.
+Inspection performs no preference write, grant, consent change, capture, speech,
+network/export, renderer replacement or run-only presence mutation. Response
+timeout and Windows speech rate remain outside this confirmed-value subset.
+Deterministic implementation tests do not enable or qualify a provider/profile.
 
 ### Delivered bounded spoken summary limits (R10)
 

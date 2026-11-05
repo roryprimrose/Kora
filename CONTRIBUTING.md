@@ -178,6 +178,11 @@ Portable fixtures that require host-resolved absolute source paths must construc
 host-native paths with `Path.GetFullPath`, not hard-coded Windows drive paths.
 Keep relative-path rejection intact; fixture portability must not relax source authority.
 
+Headless pointer fixtures must synchronize the rendered frame after layout and
+scroll changes before asserting `InputHitTest` reachability. Dispatcher/layout
+completion alone does not establish that the compositor's hit-test scene is current.
+Keep the real pointer route and target-hit assertions intact.
+
 Queued-conversation fakes must derive each terminal message/task pair from the
 exact request-owned retained record before updating shared observation fields.
 Concurrent expiry must preserve both originals' identity, body, generation,

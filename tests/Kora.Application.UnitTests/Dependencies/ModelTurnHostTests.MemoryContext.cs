@@ -18,8 +18,10 @@ public sealed partial class ModelTurnHostTests
     [InlineData(RequestOrigin.LocalUi, true)]
     [InlineData(RequestOrigin.ActivatedVoice, true)]
     [InlineData(RequestOrigin.LocalUi, false)]
+    [InlineData(RequestOrigin.LocalUi, true, true)]
+    [InlineData(RequestOrigin.LocalUi, false, true)]
     public async Task ReviewedMemoryTurnRetainsGenuineAnswerOrTruthfulUnavailableOnlyAfterSeparateConfirmation(
-        RequestOrigin origin, bool qualified)
+        RequestOrigin origin, bool qualified, bool deviceProfile = false)
     {
         using var f = new Fixture(origin);
         if (qualified)
@@ -27,8 +29,9 @@ public sealed partial class ModelTurnHostTests
             f.ProfileCatalogue.Status = Kora.Core.Providers.ProviderCatalogueStatus.Current;
             f.ProfilePreferences.Value = new(Kora.Core.Providers.ProviderService.Local, [Profile()]);
         }
-        var source = new ContextMemories(f);
-        using var workflow = new SessionMemoryContext(source, f, new MemoryReviewTime());
+        var source = new ContextMemories(f, deviceProfile: deviceProfile);
+        using var workflow = new SessionMemoryContext(source, f, new MemoryReviewTime(),
+            deviceProfile ? MemoryScopeKind.DeviceProfile : MemoryScopeKind.Session);
         var host = f.ConfiguredProfiles(production: !qualified);
         var service = f.ConversationService(host, execution: host);
         var review = await workflow.ReviewAsync(new(f.Session, null), source.Selection,
@@ -52,8 +55,26 @@ public sealed partial class ModelTurnHostTests
             var evidence = wire.RootElement.GetProperty("Evidence").EnumerateArray().Single();
             evidence.GetProperty("Content").GetString().Should().Contain("reviewed memory value");
             evidence.GetProperty("Disclosure").GetInt32().Should().Be((int)ModelEvidenceDisclosure.LocalOnly);
+            evidence.TryGetProperty("MemorySource", out _).Should().BeFalse();
+            evidence.TryGetProperty("ProfileMemorySource", out _).Should().BeFalse();
+            var submitted = receipt.Message.SubmittedContext!;
+            submitted.Should().NotBeNull();
+            submitted.Provenance.Should().Be(receipt.Message.Execution);
+            submitted.CanonicalUtf8Bytes.Should().Be(f.Adapter.Wire!.Length);
+            if (deviceProfile)
+            {
+                submitted.ProfileMemorySources.Should().Equal(source.Snapshot.Records.Select(record =>
+                    new SubmittedProfileMemorySource(record.Id, record.Revision, source.Snapshot.Boundary.Profile)));
+            }
+            else
+            {
+                submitted.MemorySources.Should().Equal(source.Snapshot.Records.Select(record =>
+                    new SubmittedMemorySource(record.Id, record.Revision, f.Session.SessionId)));
+            }
+            JsonSerializer.Serialize(submitted).Should().NotContain("reviewed memory value");
             source.Reads.Should().BeGreaterThan(4);
         }
+        else { receipt.Message.SubmittedContext.Should().BeNull(); }
         await service.Invoking(value => value.SubmitMemoryContextAsync(workflow, review, static () => true, Token))
             .Should().ThrowAsync<InvalidOperationException>();
         f.RetainCalls.Should().Be(1);
@@ -104,12 +125,20 @@ public sealed partial class ModelTurnHostTests
     [InlineData("cancelled")]
     [InlineData("expired")]
     [InlineData("retired")]
-    public async Task QueuedMemoryUseRevocationClearsReviewAndNeverRetainsOrExecutes(string fault)
+    [InlineData("changed", true)]
+    [InlineData("revoked", true)]
+    [InlineData("privacy", true)]
+    [InlineData("control", true)]
+    [InlineData("cancelled", true)]
+    [InlineData("expired", true)]
+    [InlineData("retired", true)]
+    public async Task QueuedMemoryUseRevocationClearsReviewAndNeverRetainsOrExecutes(string fault, bool deviceProfile = false)
     {
         using var f = new Fixture();
-        var source = new ContextMemories(f);
+        var source = new ContextMemories(f, deviceProfile: deviceProfile);
         var time = new MemoryReviewTime();
-        using var workflow = new SessionMemoryContext(source, f, time);
+        using var workflow = new SessionMemoryContext(source, f, time,
+            deviceProfile ? MemoryScopeKind.DeviceProfile : MemoryScopeKind.Session);
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
         var review = await workflow.ReviewAsync(new(f.Session, null), source.Selection, "question",
             static () => true, cancellation.Token);
@@ -137,14 +166,18 @@ public sealed partial class ModelTurnHostTests
     [InlineData("source")]
     [InlineData("expiry")]
     [InlineData("cancel")]
-    public async Task RevocationDuringNonCooperativeProviderSuppressesLateAnswerAndResourcesQuiesce(string fault)
+    [InlineData("source", true)]
+    [InlineData("expiry", true)]
+    [InlineData("cancel", true)]
+    public async Task RevocationDuringNonCooperativeProviderSuppressesLateAnswerAndResourcesQuiesce(string fault, bool deviceProfile = false)
     {
         using var f = new Fixture();
         f.ProfileCatalogue.Status = Kora.Core.Providers.ProviderCatalogueStatus.Current;
         f.ProfilePreferences.Value = new(Kora.Core.Providers.ProviderService.Local, [Profile()]);
-        var source = new ContextMemories(f);
+        var source = new ContextMemories(f, deviceProfile: deviceProfile);
         var time = new MemoryReviewTime();
-        using var workflow = new SessionMemoryContext(source, f, time);
+        using var workflow = new SessionMemoryContext(source, f, time,
+            deviceProfile ? MemoryScopeKind.DeviceProfile : MemoryScopeKind.Session);
         var review = await workflow.ReviewAsync(new(f.Session, null), source.Selection, "question", static () => true, Token);
         var pending = new TaskCompletionSource<ModelProviderReply>(TaskCreationOptions.RunContinuationsAsynchronously);
         f.Adapter.Pending = pending.Task;
@@ -160,6 +193,7 @@ public sealed partial class ModelTurnHostTests
         review.Records.Should().BeEmpty();
         host.IsQuiescent.Should().BeFalse();
         f.Retained!.AssistantResponse.Should().BeNull();
+        f.Retained.SubmittedContext.Should().BeNull();
         pending.SetResult(new(ModelTurnOutcome.Succeeded, ModelProviderSelection.OllamaCandidate, new("late answer", null)));
         await host.DisposeAsync();
         host.IsQuiescent.Should().BeTrue();
@@ -181,13 +215,17 @@ public sealed partial class ModelTurnHostTests
     [InlineData("dispatch")]
     [InlineData("terminal")]
     [InlineData("answer")]
-    public async Task UnconfirmedMemoryConversationCommitNeverBecomesAReportedSuccessOrAutomaticRetry(string fault)
+    [InlineData("dispatch", true)]
+    [InlineData("terminal", true)]
+    [InlineData("answer", true)]
+    public async Task UnconfirmedMemoryConversationCommitNeverBecomesAReportedSuccessOrAutomaticRetry(string fault, bool deviceProfile = false)
     {
         using var f = new Fixture();
         f.ProfileCatalogue.Status = Kora.Core.Providers.ProviderCatalogueStatus.Current;
         f.ProfilePreferences.Value = new(Kora.Core.Providers.ProviderService.Local, [Profile()]);
-        var source = new ContextMemories(f);
-        using var workflow = new SessionMemoryContext(source, f, new MemoryReviewTime());
+        var source = new ContextMemories(f, deviceProfile: deviceProfile);
+        using var workflow = new SessionMemoryContext(source, f, new MemoryReviewTime(),
+            deviceProfile ? MemoryScopeKind.DeviceProfile : MemoryScopeKind.Session);
         var review = await workflow.ReviewAsync(new(f.Session, null), source.Selection, "question", static () => true, Token);
         if (fault is "dispatch") { f.StartReceiptFault = "body"; }
         if (fault is "terminal") { f.TerminalReceiptFault = "revision"; }
@@ -200,6 +238,7 @@ public sealed partial class ModelTurnHostTests
             var receipt = await service.SubmitMemoryContextAsync(workflow, review, static () => true, Token);
             receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Unknown);
             receipt.Message.AssistantResponse.Should().BeNull();
+            receipt.Message.SubmittedContext.Should().BeNull();
         }
         else
         {
@@ -279,12 +318,12 @@ public sealed partial class ModelTurnHostTests
 
     private sealed class ContextMemories : ISessionMemoryContextSource
     {
-        internal ContextMemories(Fixture f, int count = 1)
+        internal ContextMemories(Fixture f, int count = 1, bool deviceProfile = false)
         {
             var boundary = new MemoryBoundary(new(Guid.NewGuid()), f.Session.SessionId, f.Session.Generation,
                 null, null, null, 1, true, true, true);
             Snapshot = new(boundary, [.. Enumerable.Range(0, count).Select(_ => new MemoryRecord(
-                new(Guid.NewGuid()), new(3), MemoryScope.Session(f.Session.SessionId),
+                new(Guid.NewGuid()), new(3), deviceProfile ? MemoryScope.DeviceProfile(boundary.Profile) : MemoryScope.Session(f.Session.SessionId),
                 new(f.Request, f.Session.Generation, boundary.Profile, MemoryProposalOrigin.User, null, null),
                 new(MemoryContentClass.Decision, "reviewed memory value"), DateTimeOffset.UnixEpoch,
                 MemoryReviewState.Admitted, MemoryRetentionState.Enabled,

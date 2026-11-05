@@ -82,6 +82,7 @@ internal sealed partial class SessionsViewModel
     private void NotifyFailedRetry()
     {
         OnPropertyChanged(nameof(CanReviewFailedRetry));
+        OnPropertyChanged(nameof(CanReviewFailedLocalProfile));
         OnPropertyChanged(nameof(CanConfirmFailedRetry));
         OnPropertyChanged(nameof(FailedRetryReviewText));
     }

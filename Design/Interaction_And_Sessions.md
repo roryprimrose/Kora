@@ -157,6 +157,13 @@ The [approved product decision](MVP_Scope.md#approved-retirement-and-simplificat
 
 Keep unsent input per exact conversation in memory across view/session switching, share it consistently between Sessions and compact views, and never submit or merge it implicitly. Do not add disk autosave. Protect deliberate discard/exit and apply privacy/ownership retirement without cross-session leakage.
 
+The explicit native **Review unsent message once** action freezes the complete current composer input and exact Active conversation for a separate one-use Confirm or Cancel through the [existing request service](../src/Kora.Application/Hosting/SessionRequestCommandService.cs).
+It is available in Sessions, compact and the primary conversation; direct Send is unchanged. Review alone retains nothing, and Cancel keeps the unsent input.
+Confirm clears only the unchanged original buffer after a real submission receipt and presents the original retained answer or truthful HOST failure.
+
+Input edits, selection changes, private/control retirement and replacement reviews cannot retarget or renew a captured decision. Cancellation during awaited review preparation fences late results without claiming a submission or resource cancellation.
+Existing typed and permitted voice request reviews keep their own original channel and exact-session approval path; the composer action does not consume their command text or review ([native behavioral regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ComposerRequest.cs)).
+
 Done/Resume and exact-session retirement discard the target's unsent input intentionally; they do not discard another conversation's buffer. Exact source invalidation retires selected content and stale controls without disposing the shared composer owner. Confirmed native lifecycle readback may present the changed target, but never restores its retired input or old authority. Privacy, device/instance ownership revision and mandatory host shutdown still retire all volatile buffers.
 
 Deferred submitted-work acceptance and terminal notifications retain the private

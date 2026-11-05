@@ -19,16 +19,22 @@ function profile(value = '') {
 function memberValid(member) {
   return member && Number.isSafeInteger(member.number) && member.number > 0 && SHA.test(member.head)
     && typeof member.enrollment === 'string' && Number.isFinite(Date.parse(member.enrollment))
-    && [null, 'APPROVED'].includes(member.review);
+    && [null, 'APPROVED'].includes(member.review)
+    && (member.priority === undefined || [0, 1, 2].includes(member.priority));
 }
 
 function manifestFor(active) {
   return { schema: SCHEMA, ticket: active.ticket, base: active.base, inventory: active.inventory,
-    members: active.members.map(({ number, head, enrollment, review }) => ({ number, head, enrollment, review })),
+    members: active.members.map(({ number, head, enrollment, review, priority }) =>
+      ({ number, head, enrollment, review, ...(priority === undefined ? {} : { priority }) })),
     prefixes: active.prefixes, combined: active.head };
 }
 
 function validateBatchState(state) {
+  invariant(state.deliveryProfile === undefined || state.deliveryProfile === 'independent-v1',
+    'Unknown durable delivery profile.');
+  if (state.completedTip?.delivery !== undefined)
+    require('./delivery.cjs').releaseRecord(state.completedTip);
   invariant(state.profile === PROFILE && Array.isArray(state.singletonRetries)
     && state.singletonRetries.every(memberValid), 'Invalid batch profile or singleton fallback revisions.');
   invariant(state.completedTip === null || state.completedTip && SHA.test(state.completedTip.sha)
@@ -37,8 +43,14 @@ function validateBatchState(state) {
   if (state.completedTip?.qualification !== undefined) {
     const proof = state.completedTip.qualification;
     invariant(proof && Number.isSafeInteger(proof.run) && proof.run > 0
-      && Number.isSafeInteger(proof.job) && proof.job > 0 && proof.source === state.completedTip.sha,
+      && Number.isSafeInteger(proof.job) && proof.job > 0 && proof.source === state.completedTip.sha
+      && (!state.completedTip.qualificationOwner || proof.run === state.completedTip.qualificationOwner.run),
     'Invalid completed-tip qualification evidence.');
+  }
+  if (state.completedTip?.qualificationOwner !== undefined) {
+    const owner = state.completedTip.qualificationOwner;
+    invariant(owner && Number.isSafeInteger(owner.run) && owner.run > 0 && owner.attempt === 1
+      && owner.source === state.completedTip.sha, 'Invalid completed-tip qualification owner.');
   }
   if (state.completedTip?.qualificationRequested !== undefined)
     invariant(typeof state.completedTip.qualificationRequested === 'boolean', 'Invalid tip dispatch intent.');
@@ -56,10 +68,14 @@ function validateBatchState(state) {
     && new Set(active.members.map(member => member.number)).size === active.members.length
     && Array.isArray(active.prefixes) && active.prefixes.length <= active.members.length
     && active.prefixes.every(item => SHA.test(item.sha) && SHA.test(item.tree))
-    && active.inventory?.schema === 'windows-12-v1' && SHA.test(active.inventory.blob)
+    && ['windows-12-v1', 'windows-12-delivery-v1'].includes(active.inventory?.schema) && SHA.test(active.inventory.blob)
     && Array.isArray(active.inventory.jobs) && active.inventory.jobs.length > 0
-    && JSON.stringify(active.inventory.jobs) === JSON.stringify(require('./policy.cjs').WINDOWS_12_JOBS),
+    && JSON.stringify(active.inventory.jobs) === JSON.stringify(active.inventory.schema === 'windows-12-v1'
+      ? require('./policy.cjs').WINDOWS_12_JOBS : require('./policy.cjs').DELIVERY_JOBS),
   'Invalid active batch.');
+  if (active.failureKind !== undefined)
+    invariant(['construction-conflict', 'validation-failure', 'stale', 'unavailable'].includes(active.failureKind),
+      'Invalid batch retirement classification.');
   let unmerged = false;
   for (const [index, member] of active.members.entries()) {
     const expectedBase = index ? active.members[index - 1].merged : active.base;
@@ -92,6 +108,7 @@ function validateBatchState(state) {
 function liveMember(pr, member, repository, enrollment, review) {
   return readinessIssue(pr, repository) === null && pr.mergeable === true
     && enrollment === member.enrollment && review === member.review
+    && (member.priority === undefined || priority(pr) === member.priority)
     && pr.head.sha === (member.updatedHead || member.head);
 }
 

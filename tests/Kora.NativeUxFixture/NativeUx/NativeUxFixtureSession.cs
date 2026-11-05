@@ -172,15 +172,22 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         Kora.Core.Communication.ICallStateService? callState = null,
         IUiDispatcher? dispatcher = null, ILocalModelReasoner? modelReasoner = null, ISetupDependencyProbe? modelProbe = null,
         Kora.Application.Dependencies.SpeechComponentSetupService? speechComponentSetup = null,
+        OrdinaryTurnDeadlineConfigurationService? ordinaryDeadlineConfiguration = null,
+        ConversationExecutionConfigurationService? conversationExecution = null,
         SpeechSetupComparison? speechSetupComparison = null,
         LogonStartupConfigurationService? logonStartupConfiguration = null,
+        DetailPresentationConfigurationService? detailPresentationConfiguration = null,
         StartupPresentationConfigurationService? startupPresentationConfiguration = null,
-        IQuestionVoiceRecognitionService? voiceRecognition = null, SpeechInputConfigurationService? speechInputConfiguration = null)
+        IQuestionVoiceRecognitionService? voiceRecognition = null, SpeechInputConfigurationService? speechInputConfiguration = null,
+        ForegroundPttConfigurationService? foregroundPtt = null,
+        VoiceCaptureTimingConfigurationService? voiceCaptureTimingConfiguration = null,
+        QuietHoursConfigurationService? quietHoursConfiguration = null)
     {
         using var setup = BeginPhase(NativeFixturePhase.Setup);
         await setup.RunAsync(() => InitializeCoreAsync(webPageGet, webSummary, callState, dispatcher, modelReasoner,
-            modelProbe, speechComponentSetup, speechSetupComparison, logonStartupConfiguration, startupPresentationConfiguration,
-            voiceRecognition, speechInputConfiguration));
+            modelProbe, speechComponentSetup, ordinaryDeadlineConfiguration, conversationExecution,
+            speechSetupComparison, logonStartupConfiguration, detailPresentationConfiguration, startupPresentationConfiguration,
+            voiceRecognition, speechInputConfiguration, foregroundPtt, voiceCaptureTimingConfiguration, quietHoursConfiguration));
     }
 
     private async Task InitializeCoreAsync(Kora.Tools.Network.WebPageGet? webPageGet,
@@ -188,10 +195,16 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         Kora.Core.Communication.ICallStateService? callState,
         IUiDispatcher? dispatcher, ILocalModelReasoner? modelReasoner, ISetupDependencyProbe? modelProbe,
         Kora.Application.Dependencies.SpeechComponentSetupService? speechComponentSetup,
+        OrdinaryTurnDeadlineConfigurationService? ordinaryDeadlineConfiguration,
+        ConversationExecutionConfigurationService? conversationExecution,
         SpeechSetupComparison? speechSetupComparison,
         LogonStartupConfigurationService? logonStartupConfiguration,
+        DetailPresentationConfigurationService? detailPresentationConfiguration,
         StartupPresentationConfigurationService? startupPresentationConfiguration,
-        IQuestionVoiceRecognitionService? voiceRecognition, SpeechInputConfigurationService? speechInputConfiguration)
+        IQuestionVoiceRecognitionService? voiceRecognition, SpeechInputConfigurationService? speechInputConfiguration,
+        ForegroundPttConfigurationService? foregroundPtt,
+        VoiceCaptureTimingConfigurationService? voiceCaptureTimingConfiguration,
+        QuietHoursConfigurationService? quietHoursConfiguration)
     {
         if (initialized) { throw new InvalidOperationException("A fixture session may be initialized only once."); }
         using (var context = BeginPhase(NativeFixturePhase.Context))
@@ -265,9 +278,15 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
                 NullLogger<Kora.Application.Presentation.AudioPlaybackSettings>.Instance),
             speechTextConfiguration: captionConfiguration,
             webPageGet: webPageGet, speechComponentSetup: speechComponentSetup,
+            ordinaryDeadlineConfiguration: ordinaryDeadlineConfiguration,
+            conversationExecution: conversationExecution,
             speechSetupComparison: speechSetupComparison, logonStartupConfiguration: logonStartupConfiguration,
+            detailPresentationConfiguration: detailPresentationConfiguration,
             startupPresentationConfiguration: startupPresentationConfiguration,
-            speechInputConfiguration: speechInputConfiguration);
+            speechInputConfiguration: speechInputConfiguration,
+            foregroundPtt: foregroundPtt,
+            voiceCaptureTimingConfiguration: voiceCaptureTimingConfiguration,
+            quietHoursConfiguration: quietHoursConfiguration);
         if (webSummary is not null) { Main.BindWebSummaryWorkflow(webSummary); }
         Main.BindCallOwnershipGate(() => Access.Open);
         Main.BindClipboardOwnershipGate(static () => false);

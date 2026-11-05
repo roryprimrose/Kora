@@ -247,7 +247,9 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Core.Diagnostics.IEvidenceQueryAccess>(),
                 Services.GetRequiredService<ILogger<EvidenceViewModel>>(),
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
-                CreateEvidenceAnswers(), Services.GetRequiredService<TimeProvider>());
+                CreateEvidenceAnswers(), Services.GetRequiredService<TimeProvider>(),
+                Services.GetRequiredService<Kora.Application.Diagnostics.GitHubIssueReportWorkflow>(),
+                Services.GetRequiredService<Kora.Core.Hosting.IApplicationInfo>());
             evidenceWindow.Bind();
             BindSettingInspection(settingsWindow);
             fileWindow = new LocalFilePreviewWindowController(viewModel, GetPresenceOwner);
@@ -283,7 +285,8 @@ public sealed partial class App : Avalonia.Application
                         Services.GetRequiredService<ILogger<Kora.Windows.Presentation.WindowsExactAnswerExportWriter>>()),
                     Services.GetRequiredService<Kora.Core.Auditing.ISecurityAuditLog>(),
                     Services.GetRequiredService<ILogger<Kora.Application.Presentation.ExactAnswerExportReview>>(),
-                    ExactAnswerExportWindowController.SelectDestinationAsync));
+                    ExactAnswerExportWindowController.SelectDestinationAsync),
+                Services.GetRequiredService<Kora.Application.Configuration.DetailPresentationConfigurationService>());
             sessionsWindow.Bind();
             sessionsWindow.CreateInteraction = (state, owner) =>
                 responseWindow.PrepareSessions(state, owner, sessionsWindow.Open,

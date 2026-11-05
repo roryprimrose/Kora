@@ -119,6 +119,7 @@
       <controls:NamedTextBlock Text="{Binding RunningConversationStatus}" TextWrapping="Wrap"
         AutomationProperties.Name="Exact running conversation task and cancellation state" />
       <local:PendingConversationPanel />
+      <local:ComposerRequestReviewPanel />
       <Button x:Name="SubmitLocalAnswer" Content="Answer locally (no tools)" IsEnabled="{Binding CanSubmitConversation}" />
       <StackPanel IsVisible="{Binding HasProvisionalAnswer}" Spacing="4">
         <TextBlock Text="Provisional answer — not retained" TextWrapping="Wrap" />
@@ -135,7 +136,7 @@
           AutomationProperties.Name="Exact current and proposed registered setting values, provenance, shared scope, timing and recovery; review is not approval" />
       <WrapPanel>
         <Button Name="ConfirmRegisteredSettingSuggestion" Content="Confirm exact setting change" IsEnabled="{Binding CanConfirmRegisteredSettingSuggestion}" />
-        <Button Name="CancelRegisteredSettingSuggestion" Content="Cancel setting review" IsEnabled="{Binding CanConfirmRegisteredSettingSuggestion}" />
+        <Button Name="CancelRegisteredSettingSuggestion" Content="Cancel setting review" IsEnabled="{Binding CanCancelRegisteredSettingSuggestion}" />
       </WrapPanel>
       <Button x:Name="CloseView" Content="_Close compact view (work unchanged)" HorizontalAlignment="Right" />
     </StackPanel>

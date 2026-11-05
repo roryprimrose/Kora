@@ -7,7 +7,7 @@ public sealed record SpeechCaptionOptions
     public const int DefaultDelaySeconds = 5;
     public static SpeechCaptionOptions Default { get; } = new(SpeechCaptionPlacement.BottomRight, DefaultDelaySeconds);
 
-    public SpeechCaptionOptions(SpeechCaptionPlacement placement, int dismissalDelaySeconds)
+    public SpeechCaptionOptions(SpeechCaptionPlacement placement, int dismissalDelaySeconds, bool wordEmphasis = false)
     {
         if (!Enum.IsDefined(placement)) { throw new ArgumentOutOfRangeException(nameof(placement)); }
         if (dismissalDelaySeconds is < MinimumDelaySeconds or > MaximumDelaySeconds)
@@ -16,14 +16,17 @@ public sealed record SpeechCaptionOptions
         }
         Placement = placement;
         DismissalDelaySeconds = dismissalDelaySeconds;
+        WordEmphasis = wordEmphasis;
     }
 
     public SpeechCaptionPlacement Placement { get; }
     public int DismissalDelaySeconds { get; }
+    public bool WordEmphasis { get; }
     public SpeechCaptionOptions With(SpeechCaptionValue value) => value switch
     {
-        SpeechCaptionValue.Placement placement => new(placement.Value, DismissalDelaySeconds),
-        SpeechCaptionValue.Delay delay => new(Placement, delay.Seconds),
+        SpeechCaptionValue.Placement placement => new(placement.Value, DismissalDelaySeconds, WordEmphasis),
+        SpeechCaptionValue.Delay delay => new(Placement, delay.Seconds, WordEmphasis),
+        SpeechCaptionValue.WordEmphasis emphasis => new(Placement, DismissalDelaySeconds, emphasis.Enabled),
         _ => throw new ArgumentOutOfRangeException(nameof(value)),
     };
 }

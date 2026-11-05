@@ -139,9 +139,12 @@ internal sealed partial class SessionsViewModel
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            ClearLocalEvents();
-            status = "Conversation notice unavailable: " + exception.Message
-                + ". Refresh and review the exact current notice. No question was replaced, answered or resumed.";
+            if (!closed)
+            {
+                ClearLocalEvents();
+                status = "Conversation notice unavailable: " + exception.Message
+                    + ". Refresh and review the exact current notice. No question was replaced, answered or resumed.";
+            }
             Failure(logger, exception.GetType().Name);
             activity.Complete(exception is OperationCanceledException ? HostOperationOutcome.Cancelled : HostOperationOutcome.Failed);
         }

@@ -204,6 +204,15 @@ inspection still supports its existing stdio/HTTP shapes, but duplicate JSON
 fields now fail closed rather than selecting an ambiguous definition. A source
 revision or inclusion change requires fresh review and discovery.
 
+Metadata reads also retire the in-flight source lifetime when they observe changed
+complete file bytes, exclusion or source withdrawal. A failed configuration read
+withholds all previously observed source lifetimes. Restoring old bytes or
+inclusion cannot revive an old discovery or native review; an unchanged successful
+refresh preserves it. This bounded in-memory retirement is independent of grants
+and does not claim detection of filesystem changes never observed by the host.
+Recovery requires a fresh explicit request with current source resolution,
+discovery and native approvals; no automatic reconnect or retry is added.
+
 The [bounded source editor](Definition_Management.md#bounded-kora-owned-https-mcp-entry-editing) completes creation/editing
 of one Kora-owned canonical `Mcp\mcp.json` HTTPS entry through native URL/type fields, complete exact-entry review
 and a separate atomic Save confirmation/readback. It accepts a sole `servers` or `mcpServers` root collection and preserves all unrelated bytes.
@@ -229,6 +238,13 @@ foreground selected-session route; they never choose a server, account, session
 or tool implicitly. Authentication/approval still uses mandatory native review.
 The original voice/UI channel is preserved. Cancellation closes new dispatch
 and publication; the owner joins late provider/transport work before disconnect.
+Cancelling or dismissing the discovered-tool selection ends the original request
+as cancelled, not denied, after revalidating current session, source and approval
+authority. It requests no arguments, tool/schema approval, model turn or tool call,
+publishes no result, and joins the already-open connection before release.
+An unknown non-null tool choice still fails closed as an invalid selection.
+This applies equally to model-assisted and explicit model-free requests; durable
+task state retains its existing conservative dispatch/uncertainty semantics.
 
 After the authenticated exchange is physically joined, the [canonical owner](../src/Kora.Application/Mcp/McpInvocation.cs) screens the complete observed result for private LocalOnly use and pauses before returning it to the model. The [native review](../src/Kora.Application/Mcp/McpReview.cs) shows unchanged Text/StructuredJson, observation time, source/server/account/schema, original Active conversation/task/channel and retention.
 
@@ -520,6 +536,12 @@ The [native reader](../src/Kora.Windows/ArtifactDiscovery/WindowsAgentProfileRea
 
 Profile prose is inert untrusted guidance: paths, URLs and instructions in it are never resolved as dependencies or authority. The [review](../src/Kora.Application/Agents/BoundedAgentReview.cs) fixes exact native source revision, original input/origin, Active session metadata, locality, tool subset and clamped budgets. It expires after two minutes and requires a separate single-use invocation confirmation. Input, session, privacy, ownership or source changes retire applicability.
 
+Review creation rechecks private admission after awaited target inspection and
+before opening the profile. After source I/O, it rereads the exact Active target
+and rechecks admission before returning a review. A changed target refuses the
+review and releases its pinned source; recovery requires a fresh review of the
+current target, not automatic retargeting or invocation.
+
 The [agent conversation consumer](../src/Kora.Application/Hosting/SessionConversationService.Agents.cs) uses local model admission and canonical retained request/task/answer terminal receipts. Exact source-qualified revision fingerprints correlate through typed request/terminal audit; raw profile/input/answer text never enters diagnostics or audit. Stop/revoke closes dispatch and publication; native source and provider ownership remain held until actual quiescence, including cancellation-ignoring transport. See the [user interaction](../docs/tools-and-built-in-skills.md#run-one-reviewed-local-agent-profile).
 
 The same exact running-conversation lease projects content-free host model and
@@ -588,6 +610,10 @@ Each skill summary includes origin/revision, purpose, when to use it or not use 
 The model must know these capabilities exist; it must not infer executable access from product names or invent tool IDs.
 
 Load a selected skill's bounded, pinned instructions/workflow only after host resolution.
+The [bounded model-selected shared-skill route](Skill_Storage.md#model-selected-registered-single-file-instruction-only-use) implements this for one explicitly reviewed registered single-file zero-tool skill:
+an actually served opaque selection remains inert until separate native source-read/revision review, exact enablement and invocation confirmation.
+The original task/Active target/channel remain fixed, the selector joins before the canonical shared executor starts, and only the executor's actual retained answer or terminal completes use
+([workflow](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs)).
 Keep skill content separate from host policy and approval controls under the existing instruction-trust rules.
 The task runtime receives the approved instruction data and required admitted
 tool definitions to reason about the next step; deterministic declarative

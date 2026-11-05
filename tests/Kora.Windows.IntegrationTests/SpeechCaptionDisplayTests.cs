@@ -499,6 +499,7 @@ public sealed partial class SpeechCaptionDisplayTests
             if (TypographyFailure is { } failure) { throw failure; }
         }
         public string? SpeechCaptionText { get; set; } = "Observed private utterance.";
+        public SpeechCaptionEmphasis? SpeechCaptionEmphasis { get; set; }
         public string SpeechCaptionLabel { get; set; } = "CURRENT PLAYBACK - UTTERANCE";
         public string SpeechCaptionPinLabel { get; set; } = "Pin";
         public AsyncCommand ToggleSpeechCaptionPinCommand { get; } = new(() => Task.CompletedTask, _ => { });
@@ -513,6 +514,7 @@ public sealed partial class SpeechCaptionDisplayTests
         {
             if (reportRecovery) { Retirements++; }
             SpeechCaptionText = null;
+            SpeechCaptionEmphasis = null;
             IsSpeechCaptionVisible = false;
         }
         public void ReportSpeechCaptionPresentationFailure(string exceptionType) { Failures.Add(exceptionType); ReportSpeechCaptionDisplayUnavailable(); }

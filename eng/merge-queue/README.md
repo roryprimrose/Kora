@@ -11,6 +11,79 @@ It needs no local agent, workstation, external queue service or always-on runner
 An unknown mode fails CI admission rather than silently enabling another policy.
 Do not enable the queue merely by merging its implementation PR.
 
+## Opt-in independent beta delivery
+
+`KORA_MERGE_QUEUE_DELIVERY_PROFILE=independent-v1` is a separate administrator
+opt-in, requiring enabled `batch-v1` admission. Absent/empty retains the serial
+completed-tip qualification/publication fence below; unknown values fail closed.
+Merging the implementation does **not** activate it or change protection.
+Activation and rollback require a separately authorized, drained transition:
+no active candidate, no outstanding main/publication jobs, and a successfully
+qualified current tip. Do not toggle profiles underneath queued publishers.
+
+The independent profile preserves one candidate lane, complete portable
+100% line/branch coverage, all twelve Windows partitions/five aggregates,
+managed setup compilation/tests, payload inspection and protected App admission.
+The reviewed `windows-12-delivery-v1` inventory has 25 identities; its installer
+identity is **Validate installer packaging**, not a claim that MSI/Burn ran.
+Historical `windows-12-v1` and exact negative-retirement contracts remain intact.
+The new workflow has its own exact-blob, twenty-identity failed-preflight
+no-fanout retirement proof; a marker, missing job or workflow failure alone is not
+physical quiescence. It authorizes retirement only, never successful admission.
+Single-candidate/control-path work continues to build physical installer packages.
+
+For combined candidates only, trusted admission compares the complete admitted
+base/combined revisions. Installer/shared assets, project/lock/build/toolchain,
+workflow/release changes and unknown or capped impact select full MSI/Burn.
+Ordinary application/test/documentation changes may omit only the dedicated
+MSI/Burn build/inspection; metadata contracts still execute. Rename source paths
+and deletions count. A successful policy job reports **not selected**, not executed
+packaging success. Main always freshly builds and inspects its own payload and
+installer bytes. This intentionally moves detection of application-payload-only
+packaging incompatibilities to main; it does not classify failures as flaky.
+
+After observing the actual final squash merge, exact tree/parent/main reachability
+and complete first-attempt candidate proof, the App atomically records
+`releases/<actual-source>.json` with queue state. Records contain the tested
+combined source, workflow base/blob/inventory, run, ticket and batch digest where
+applicable. Only the final combined tree receives a record, never intermediate
+batch prefixes. Later saves preserve the entire state tree and cannot overwrite a
+different existing source record. This is App-owned Git authority, not a PR-uploaded
+proof file or reusable build artifact.
+
+The controller reconciles the source's full main run before advancing, covering
+the push-versus-record race without blindly redispatching. Once full execution
+has started (or the exact reviewed attempt failed before fanout with complete
+physical-terminal evidence), its qualification/publication result no longer gates admission.
+A failed main run withholds **that source's beta**; it does not revoke candidate
+proof or stop later admission. Main functional regressions can therefore leave
+main red until repaired; moving a failure to main does not repair it.
+Unknown main-admission authority remains fail-closed; a failed admission is not
+reclassified as a full run or covered by the new positive-admission preflight rule.
+
+Full main runs remain non-cancelling and keyed by source. Publishers use a
+non-cancelling per-source FIFO lock, not the controller lock. At each irreversible
+publication boundary they revalidate the cryptographically pinned queue record,
+the exact source/tree, protected-main reachability, first-attempt ordinary-main
+caller and static full-gate dependencies. Newer main/active candidates do not
+revoke an earlier recorded source. Missing, changed or unreachable proof fails
+closed. Every release uses fresh artifacts from its own actual-source main run;
+candidate artifacts are never relabeled. Independent publication is beta-only,
+with `make_latest=false`; semantic channel selection cannot regress merely because
+an older beta finishes later. Stable publication still requires the serial profile.
+
+The historical measured 45m41s cycle contained 24m17s of main qualification and
+19m46s of candidate validation. Removing the main-result barrier suggests 21m24s
+before new scheduling/record overhead, **not a measured post-change cadence**.
+Skipping the historical 4m41s installer job saves runner occupancy but zero direct
+critical-path time: it finished 10m41s before the Windows aggregate. Parallel main
+work may compete for runners; no capacity or speedup guarantee is implied.
+
+Implementation checks use deterministic fake GitHub/publication operations:
+`node .\eng\run-policy-tests.cjs`, `.\eng\Test-CiPreflight.ps1` and
+`.\eng\Test-GitHubRelease.ps1`. They neither activate this profile nor qualify
+hosted concurrency, App permissions or actual release publication.
+
 ## Dormant five-PR batch profile
 
 `KORA_MERGE_QUEUE_PROFILE` absent, empty, or `singleton-v1` retains the version-1
@@ -26,6 +99,14 @@ Controller, CI-workflow and release-control changes, and isolated group-failure
 retries, use the existing fully validated **exact-head singleton path**, even
 inside this profile.
 
+A complete zero-file PR also uses that exact-head singleton path: an empty diff
+does not attest validation or prove that GitHub merged the PR. File inventories
+must match a nonnegative count below GitHub's 3,000-file pagination limit, with
+the same PR, same-repository head and main base before and after pagination.
+Unavailable, partial, duplicate, malformed or changing observations fail
+explicitly; they are never reinterpreted as empty. Normal candidate checks,
+merge confirmation and cancellation/join remain required.
+
 ### Frozen source and truthful proof
 
 [Batch policy](batch-policy.cjs), [reconciliation](batch.cjs) and the
@@ -40,9 +121,18 @@ inside this profile.
 
 The App creates ticket-owned `automation/merge-queue-batch/<ticket>/<prefix>`
 refs through GitHub's normal ref/merge APIs. Candidate code never executes with
-the App token. Conflicts integrate no original PR. Construction reconciles exact
-parents after interruption rather than forcing refs or blindly repeating a
-merge with an ambiguous outcome.
+the App token. Construction reconciles exact parents after interruption rather
+than forcing refs or blindly repeating a merge with an ambiguous outcome.
+
+Construction stops at the first conflict instead of discarding a compatible
+prefix. Before any digest or dispatch exists, the controller seals a **new
+manifest containing only that contiguous prefix**, then requires its complete
+combined proof. It never rewrites a sealed/dispatched manifest or reuses proof
+from the larger reservation. The conflicting member retains its priority/number
+position and receives an exact-head singleton retry; later members stay queued.
+If the first member conflicts, only that member is isolated. No original PR is
+merged during construction and no member is skipped to fill a batch
+([implementation](batch.cjs), [regressions](batch.test.cjs)).
 
 CI is dispatched on trusted protected main and checks out the admitted combined
 SHA as unprivileged source. It retains complete portable module/100% line **and**
@@ -77,9 +167,12 @@ validation-only; they are never relabeled as final-main release artifacts.
 In version-2 state, an active batch or singleton blocks publication. Only the
 verified `completedTip` may qualify/publish, at its **actual source SHA**.
 Main/tag/manual admission suppresses prefix full builds. A completed-tip full
-run is requested once after its durable receipt, without candidate inputs;
-ambiguous dispatch is observed, not repeated. Active batch-profile main runs
+run is requested only after reconciling existing exact-source first attempts,
+without candidate inputs. An already-running full main run becomes the single
+durable qualification owner, so it does not trigger a duplicate dispatch.
+Ambiguous dispatch is observed, not repeated. Active batch-profile main runs
 are not repeatedly cancelled as prefixes arrive.
+See the [ownership reconciliation](batch.cjs#L21).
 
 The dedicated, statically locked batch publish job shares
 `merge-queue-controller` concurrency with trusted main mutations, rather than
@@ -94,6 +187,10 @@ not an old tag workflow definition. The shared
 trusted serialized-caller contract as well as existing source/version/asset
 safeguards. It rechecks at irreversible publication boundaries, including late
 jobs. Missing or unknown state/provenance fails closed.
+Run authentication rejection names the failed predicates and a bounded lifecycle
+value, never raw API metadata. It retains every caller, workflow, source and
+active-job check. A historical composite rejection without the original API
+response does not establish which predicate failed or justify relaxing it.
 
 The [release snapshot reader](../GitHubRelease.Batch.ps1) pins queue commit,
 tree and blob bytes, then rechecks the queue ref. A valid ref move restarts that
@@ -109,6 +206,55 @@ exact run/job/source qualification receipt. This deliberately gives publication
 a turn under sustained arrivals; no throughput benchmark or fivefold speedup is
 claimed. Failed qualification or an unobservable dispatch holds the lane for
 repair rather than starving release behind further batches.
+An authenticated exact-source first attempt with a failed publication job is
+reported as `blocked-publication` / `BLOCKED_PUBLICATION` only after the complete
+expected inventory, publication and qualification jobs are physically terminal.
+The existing controller warning and Actions summary identify source, run,
+attempt, publication job, conclusion and last durable progress (completed tip,
+qualification owner and queue checkpoint), and state that authorized recovery is
+required. The checkpoint is a revision, not an invented progress timestamp.
+Successful reconciliation of this observation is not successful delivery.
+Missing, duplicate, nonterminal or unknown evidence remains held without a
+terminal-publication claim. Every reconciliation still observes fresh evidence;
+a separately authorized successful first attempt can qualify immediately.
+This reporting neither retries publication nor bypasses the qualification fence.
+
+The [qualification reader](github.cjs) observes queued/running runs as well as
+completed runs. An ordinary push with incomplete admission metadata delays
+dispatch without claiming full qualification ownership. A completed push whose
+version and qualification jobs were explicitly skipped is not a full owner;
+missing records are not treated as that suppression shape. Once full work is
+observed, the controller records one exact run/source/first-attempt owner.
+Missing run listings are reconciled through that exact run ID, not treated as
+permission to dispatch. Owner replacement by an observed fresh run requires the
+previous owner's physical terminal job evidence. Only complete successful
+actual-source jobs and the unique publication join produce the qualification
+receipt ([regressions](github.test.cjs), [state validation](batch-policy.cjs)).
+
+The version-2 additions are optional for existing checkpoints: existing
+qualification receipts and boolean dispatch intents remain valid, and
+previously sealed manifests without priority fields retain their digest.
+New manifests also freeze each admitted member's priority. No state migration,
+queue setting or protection change is performed by this implementation
+([state validation](batch-policy.cjs)).
+
+### Retrying failed completed-tip qualification
+
+A failed actual-tip run keeps admission paused. The [qualification reader](github.cjs#L268) accepts only a successful first attempt at the exact completed tip, with complete expected jobs and the successful qualification join. Rerunning the failed workflow creates a later attempt and cannot supply that receipt.
+
+An authorized operator can request a **fresh ordinary main run**, using the same empty-input dispatch as the [controller](github.cjs#L287):
+
+1. Recheck live mode/profile, durable state and actual main. Require `batch-v1`, no active candidate, and `completedTip.sha` equal to actual main. Inspect the failed job and confirm all prior qualification and candidate CI is terminal.
+2. With authority to retry validation, dispatch once without candidate or comparison inputs:
+
+   ```powershell
+   gh workflow run ci.yml --repo github.com/roryprimrose/Kora --ref main
+   ```
+
+3. Read back the new run's source SHA, `workflow_dispatch` event and first-attempt identity. An accepted or ambiguous dispatch must be reconciled before another request; do not blindly repeat it.
+4. Require the complete ordinary main gates and `Qualify completed batch tip` to succeed. The controller then records the exact receipt and resumes normal selection. A failed retry remains a failure requiring investigation, not permission to skip tests or change admission.
+
+This retry does not dispatch candidate CI, edit queue state, change protection or bypass a check. A source change, active candidate, uncertain owned work or incomplete evidence requires the corresponding reviewed recovery instead ([batch admission](github.cjs#L383), [recovery](#interrupted-batches-repair-and-rollback)).
 
 ### Operator cutover: separate administrator authorization required
 
@@ -148,6 +294,19 @@ intent. Restart observes outcomes before acting. Cancellation acknowledgement,
 workflow aggregate success, absent metadata, or a deadline cannot release
 unknown owned work. No operation resets main or discards unrelated advances.
 
+Entering batch retirement checkpoints the phase before requesting one trusted controller reconciliation, including a first-member construction conflict with no candidate dispatch ([controller](batch.cjs), [regressions](batch.test.cjs)).
+The follow-up still joins owned work before releasing the lane. An uncertain retiring lane does not repeatedly self-dispatch; later workflow events or scheduled reconciliation retain recovery responsibility. A failed continuation is explicit and preserves the checkpoint for recovery.
+
+- A definitive required-job failure/duplicate or live source/base/enrollment/
+  priority/review withdrawal requests cancellation of exact ticket-owned work
+  during the same reconciliation, without waiting for the workflow aggregate.
+  Singleton required-job failures and running review withdrawal use the same
+  prompt cancellation policy. Unknown authority/API failures remain explicit;
+  missing evidence alone is not a conclusive early failure. Unrelated main/tag
+  runs are not cancelled. A cancellation acknowledgement, completed aggregate,
+  missing/duplicate jobs or expired deadline never releases the lane; every
+  owned run and its exact inventory must be observed physically terminal
+  ([batch](batch.cjs), [singleton](controller.cjs), [regressions](controller.test.cjs)).
 - Before the first original merge, failed combined evidence retires only after
   exact owned work is terminal. Members receive full singleton retries; group
   failure is not independent member failure. A failed singleton retains the
@@ -404,6 +563,20 @@ initial unversioned twelve-job workflow and its merged native-fixture timing
 revision from [PR #661](https://github.com/roryprimrose/Kora/pull/661).
 Old runs therefore retire against their own inventory rather than requiring
 jobs that did not exist.
+
+The historical twelve-partition regression uses the frozen
+[native-fixture timing workflow](fixtures/ci-native-fixture-timing.yml), whose
+Git blob is `d3db4c610d08468c508f09e63b10f7c6568b82ea`. Keep those bytes unchanged:
+removing the schema marker from today's workflow does not recreate a trusted
+predecessor. Tests cover both the current schema-declared workflow and that exact
+historical inventory, and reject modified unversioned bytes without expanding
+the production allowlist.
+
+The [admission-rejection fixture](fixtures/ci-admission-rejection.yml) similarly
+preserves blob `97e22a8f88bcdc9bbaef32cf9e7200dd6e5c43cd` for the
+[exact historical admission-rejection regression](github.test.cjs). Changes to
+the current workflow must not change that fixture or expand the
+[production allowlist](policy.cjs) to satisfy the regression.
 
 Source bytes are read through the trusted repository Contents API at that exact
 base and checked against the returned Git blob identity. Missing source, malformed
@@ -830,3 +1003,41 @@ check runs. Pagination callbacks and test doubles must use that array contract,
 not the named object envelopes returned by individual REST requests. Job-page
 callbacks also retain Octokit's normalized `total_count` metadata so partial
 or changing page sets cannot qualify as complete observations.
+
+The [historical admission-rejection fixture](fixtures/ci-97e22a8f.yml) retains
+the exact reviewed workflow bytes for blob `97e22a8f88bcdc9bbaef32cf9e7200dd6e5c43cd`.
+Its positive [adapter regression](github.test.cjs) does not follow edits to the
+live workflow. Modified source bytes and schema markers alone still cannot
+authorize retirement; the production blob allowlist is unchanged.
+
+### Failed preflight and unexpanded matrix retirement
+
+The [preflight rejection classifier](policy.cjs) separately recognizes the
+reviewed workflow blob `c75173721c4131cf29d45482ea2edb92934070f1`, retained as
+an [immutable fixture](fixtures/ci-c7517372.yml). It does not add that blob to
+the historical admission-rejection allowlist or accept a schema marker as
+no-execution authority.
+
+For an exact owned first-attempt candidate whose workflow is physically
+completed, the classifier requires successful `Admit CI execution` and failed,
+cancelled or timed-out `Resolve build version`. All 20 exact-run job identities
+must be observed terminal once: skipped expensive producers and the single
+unexpanded Windows partition placeholder; the five Windows shard aggregates,
+portable aggregate and Windows aggregate must be failed/cancelled/skipped,
+never successful. The [adapter](github.cjs) authenticates the exact protected
+workflow bytes and source before applying this no-fanout plan.
+
+Only that complete evidence lets singleton/batch retirement or separately
+authorized reviewed recovery join the work without expanded partition jobs.
+The candidate still fails admission; no member merge, successful attestation,
+qualification receipt or reused partial proof is produced. Running work is
+cancelled promptly, but the lane is retained until both the run and every
+owned job are physically terminal. Missing/duplicate/extra/wrong-source jobs,
+later attempts, unknown conclusions, skipped/missing version evidence,
+changed workflow bytes or a successful expensive producer do not match this
+plan and cannot release the lane ([singleton regressions](controller.test.cjs),
+[batch/recovery regressions](batch.test.cjs), [adapter regressions](github.test.cjs)).
+
+Workflow changes require a separately reviewed exact-byte no-fanout contract;
+normal retirement does not modify queue state administratively, dispatch CI
+manually or infer quiescence from a deadline or cancellation acknowledgement.

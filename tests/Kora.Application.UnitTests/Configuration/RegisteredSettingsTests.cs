@@ -14,7 +14,7 @@ public sealed class RegisteredSettingsTests
     public void ClosedRegistryInspectionAndPolicyDeclareOnlyTheExistingAdmittedSubset()
     {
         RegisteredSettingRegistry.Settings.Select(item => item.Setting).Should().Equal(Enum.GetValues<RegisteredSetting>());
-        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().OnlyHaveUniqueItems().And.HaveCount(17);
+        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().OnlyHaveUniqueItems().And.HaveCount(18);
         foreach (var descriptor in RegisteredSettingRegistry.Settings)
         {
             RegisteredSettingRegistry.Get(descriptor.Setting).Should().BeSameAs(descriptor);
@@ -123,7 +123,7 @@ public sealed class RegisteredSettingsTests
     [InlineData("set appearance.native-presence-renderer to true")]
     [InlineData("set appearance.theme to ultraviolet")]
     [InlineData("set appearance.reader-text-scale to 999")]
-    [InlineData("reset appearance.theme")]
+    [InlineData("reset appearance.theme to system")]
     [InlineData("set speech.provider to windows-sapi")]
     [InlineData("get speech.summary-words")]
     [InlineData("set speech.summary-words to 0")]
@@ -150,7 +150,7 @@ public sealed class RegisteredSettingsTests
     [InlineData("set responses.default-mode to VoiceOnly\nconfirm")]
     [InlineData("set responses.session-mode to VoiceOnly")]
     [InlineData("set responses.default-mode to VoiceOnly\nset speech.playback-volume to 30")]
-    [InlineData("reset responses.default-mode")]
+    [InlineData("reset responses.default-mode to Hybrid")]
     [InlineData("set speech.windows-rate to -11")]
     [InlineData("set speech.windows-rate to 11")]
     [InlineData("set speech.windows-rate to +1")]
@@ -164,7 +164,7 @@ public sealed class RegisteredSettingsTests
     [InlineData("set speech.windows-rate to -1 ")]
     [InlineData("set speech.windows-rate to -1\nconfirm rate change")]
     [InlineData("set speech.windows-rate to -1\nset speech.playback-volume to 30")]
-    [InlineData("reset speech.windows-rate")]
+    [InlineData("reset speech.windows-rate to 0")]
     [InlineData("speak slower")]
     public void SharedParserRejectsUnregisteredMixedOrNoncanonicalSuggestionData(string text)
     {
@@ -177,6 +177,31 @@ public sealed class RegisteredSettingsTests
         FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse(null!)).Should().Throw<ArgumentNullException>();
         FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse(new string('x', 257))).Should().Throw<InvalidDataException>();
         FluentActions.Invoking(() => RegisteredSettingRegistry.Get((RegisteredSetting)999)).Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void ResetAcceptsExactlyOneCanonicalRegisteredIdWithoutModelSuppliedDefault()
+    {
+        foreach (var descriptor in RegisteredSettingRegistry.Settings)
+        {
+            var text = $"reset {descriptor.Id}";
+            if (descriptor.Setting == RegisteredSetting.SpeechVoice)
+            {
+                FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse(text)).Should().Throw<InvalidDataException>();
+                continue;
+            }
+            var proposal = RegisteredSettingSuggestions.Parse(text).Should().BeOfType<RegisteredSettingProposal.Reset>().Subject;
+            proposal.Descriptor.Should().BeSameAs(descriptor);
+            foreach (var invalid in new[] { text + " to default", text + " to 0", text + " ", " " + text,
+                text.ToUpperInvariant(), text + "\nconfirm", text + "\n" + text, "Kora, " + text, "I suggest " + text })
+            {
+                FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse(invalid)).Should().Throw<InvalidDataException>();
+            }
+        }
+        foreach (var invalid in new[] { "reset speech.provider", "reset all",
+            "reset appearance", "reset security.retention", "reset unknown", "undo appearance.theme" })
+        { FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse(invalid)).Should().Throw<InvalidDataException>(); }
+        RegisteredSettingSuggestions.ModelPolicy.Should().Contain("reset <exact ID>").And.Contain("never supply a default value");
     }
 
     [Theory]
@@ -196,7 +221,7 @@ public sealed class RegisteredSettingsTests
     [InlineData("set appearance.response-timeout to false")]
     [InlineData("set appearance.response-timeout to 5 ")]
     [InlineData(" SET appearance.response-timeout to 5")]
-    [InlineData("reset appearance.response-timeout")]
+    [InlineData("reset appearance.response-timeout to 5")]
     [InlineData("set appearance.response-timeout to 5\nconfirm response timeout change")]
     [InlineData("set appearance.presence-size to 239")]
     [InlineData("set appearance.presence-size to 601")]
@@ -268,4 +293,69 @@ public sealed class RegisteredSettingsTests
     [InlineData("Nova", null)]
     public void ResponseTimeoutReviewCommandsAreExactAndCurrentNameAware(string input, RegisteredSettingSuggestionOperation? expected) =>
         RegisteredSettingSuggestionCommand.ParseResponseTimeout(input, "Nova").Should().Be(expected);
+
+    [Theory]
+    [InlineData(SpeechProviderIds.Windows)]
+    [InlineData(SpeechProviderIds.Kokoro)]
+    public void InstalledVoiceParserAcceptsFullDomainIdWithoutRelaxingOtherFamilyBounds(string provider)
+    {
+        var id = new string('v', SpeechSelection.MaximumVoiceIdLength);
+        var proposal = RegisteredSettingSuggestions.Parse($"set speech.voice to {provider} / {id}")
+            .Should().BeOfType<RegisteredSettingProposal.InstalledVoice>().Subject;
+        proposal.Value.Should().Be(new SpeechSelection(provider, id));
+        proposal.Descriptor.Setting.Should().Be(RegisteredSetting.SpeechVoice);
+        RegisteredSettingSuggestions.ModelPolicy.Should().Contain("supplied by the user").And.Contain("no invented IDs, catalogue discovery");
+        FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse($"set speech.voice to {provider} / {id}x"))
+            .Should().Throw<Exception>();
+        FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse("set appearance.theme to dark" + new string(' ', 256)))
+            .Should().Throw<InvalidDataException>();
+    }
+
+    [Theory]
+    [InlineData("set speech.voice to default")]
+    [InlineData("set speech.voice to kokoro / ")]
+    [InlineData("set speech.voice to kokoro /  second")]
+    [InlineData("set speech.voice to kokoro / second ")]
+    [InlineData("set speech.voice to Kokoro / second")]
+    [InlineData("set speech.voice to unknown / second")]
+    [InlineData("set speech.voice to kokoro/second")]
+    [InlineData("set speech.voice to kokoro / second\nset speech.voice to windows-sapi / default")]
+    [InlineData("set speech.voice to kokoro / sec\tond")]
+    [InlineData("set speech.voice to kokoro / sec\0ond")]
+    [InlineData(" SET speech.voice to kokoro / second")]
+    [InlineData("I suggest set speech.voice to kokoro / second")]
+    [InlineData("reset speech.voice")]
+    public void InstalledVoiceParserRejectsUnqualifiedNoncanonicalAndMixedAnswers(string text) =>
+        FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse(text)).Should().Throw<Exception>();
+
+    [Theory]
+    [InlineData("review installed voice suggestion", RegisteredSettingSuggestionOperation.Review)]
+    [InlineData("Nova, confirm installed voice change", RegisteredSettingSuggestionOperation.Confirm)]
+    [InlineData("Nova cancel installed voice review", RegisteredSettingSuggestionOperation.Cancel)]
+    [InlineData("Nova\t REVIEW INSTALLED VOICE SUGGESTION", RegisteredSettingSuggestionOperation.Review)]
+    [InlineData("Novax review installed voice suggestion", null)]
+    [InlineData("review installed voice suggestion now", null)]
+    [InlineData("yes", null)]
+    [InlineData("Nova", null)]
+    public void InstalledVoiceCommandsRequireExactDistinctCurrentNameAwareInput(string input, RegisteredSettingSuggestionOperation? expected) =>
+        InstalledSpeechVoiceSuggestionCommand.Parse(input, "Nova").Should().Be(expected);
+
+    [Fact]
+    public void InstalledVoiceAndResponseTimeoutSuggestionsKeepDistinctReviewFamilies()
+    {
+        var voice = RegisteredSettingSuggestions.Parse("set speech.voice to windows-sapi / installed")
+            .Should().BeOfType<RegisteredSettingProposal.InstalledVoice>().Subject;
+        voice.Value.Should().Be(new SpeechSelection(SpeechProviderIds.Windows, "installed"));
+        voice.Descriptor.Setting.Should().Be(RegisteredSetting.SpeechVoice);
+        voice.Descriptor.RequiresNativeReview.Should().BeFalse();
+
+        var timeout = RegisteredSettingSuggestions.Parse("set appearance.response-timeout to 15")
+            .Should().BeOfType<RegisteredSettingProposal.Appearance>().Subject;
+        timeout.Option.Should().Be(AppearanceOption.ResponseTimeout);
+        timeout.Descriptor.Setting.Should().Be(RegisteredSetting.ResponseTimeout);
+        timeout.Descriptor.RequiresNativeReview.Should().BeFalse();
+
+        InstalledSpeechVoiceSuggestionCommand.Parse("review response timeout suggestion", "Nova").Should().BeNull();
+        RegisteredSettingSuggestionCommand.ParseResponseTimeout("review installed voice suggestion", "Nova").Should().BeNull();
+    }
 }

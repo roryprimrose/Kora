@@ -64,7 +64,9 @@ public sealed partial class KnowledgeSourceAnswerWorkflow(KnowledgeSourceManager
         var result = await Audited("local", () => exact.RunAsync(async cancellation =>
         {
             await exact.ValidateAsync(cancellation).ConfigureAwait(false);
-            using var expiry = new CancellationTokenSource(review.ExpiresAt - time.GetUtcNow(), time);
+            var remaining = review.ExpiresAt - time.GetUtcNow();
+            if (remaining <= TimeSpan.Zero) { return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Stale); }
+            using var expiry = new CancellationTokenSource(remaining, time);
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellation, expiry.Token);
             cancellation = linked.Token;
             bool Current() => eligible() && exact.IsCurrent;

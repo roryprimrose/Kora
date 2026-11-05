@@ -83,6 +83,29 @@ enable a provider. The original question and actual answer or terminal outcome
 follow conversation retention; selected memory bodies are not copied into
 conversation history.
 
+## Inspect context submitted for a retained answer
+
+Select the exact successful retained **ASSISTANT** answer and choose
+**Context submitted for this answer**. For this explicit profile-only operation,
+the native inspector shows the ordered content-free memory references actually
+included in the canonical envelope handed to the admitted local adapter.
+It does not prove provider delivery, processing or reasoning. Merely reviewing
+or selecting a memory does not create a submission record.
+
+Only immutable memory identity, revision and device-profile identity are retained;
+their bindings stay internal. No value, classification, source lineage or review
+body is copied. The inspector checks current exact enabled metadata, not memory
+values. Edited, disabled, forgotten, removed or foreign-profile references are
+unavailable; a newer revision is never substituted. Unresolved integrity or private
+authority checks close inspection instead of reconstructing a source.
+
+This passive no-copy view grants no recall, use, source opening or retention
+extension. Profile memory keeps its independent lifetime; deleting the answer's
+conversation deletes its submission metadata, not the profile memory.
+Older unsupported answers remain **Unknown / not recorded**. Mixed-context
+answers remain outside this recorder. Failed, denied, expired, stale or cancelled
+attempts cannot retain successful-answer submission metadata.
+
 ## Inspect, edit, disable and forget
 
 All management works without inference. Explicitly list, select and inspect

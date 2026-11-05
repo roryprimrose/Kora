@@ -16,6 +16,8 @@ or restore retired public diagnostic-queue settings. The
 [roadmap](Implementation_Roadmap.md#current-delivery) owns delivery status;
 the contracts below distinguish implemented controls from proposed scopes.
 
+Native single-setting review cancellation also retires pending source checks and confirmation eligibility, not just the visible readback. A late review cannot revive cancelled consent; recovery explicitly reviews the retained answer against current authoritative values before separate confirmation. In-flight persistence is not rolled back ([interaction and recovery](../docs/setting-proposals.md#review-confirm-or-cancel)).
+
 ## Fixed Reviewed Session Memory Management Boundary
 
 The [reviewed selected-subset memory workflow](Model_Providers_Memory_And_Knowledge.md#reviewed-selected-subset-session-memory-forget---2026-10-19)
@@ -878,6 +880,15 @@ Relative percentage-point changes read confirmed current state at execution, use
 Typed input and current-name-activated voice carry their original provenance ([parser](../src/Kora.Application/Configuration/NaturalAppearanceCommand.cs), [service](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
 
 ### Delivered bounded installed speech choices (R10)
+
+The [retained model-answer bridge](../src/Kora.Application/Configuration/InstalledSpeechVoiceSuggestionReview.cs) also accepts one exact `speech.voice` Set with a user-supplied installed `provider / voice ID`.
+Both conversation sizes and exact typed/activated-voice Review/Confirm/Cancel routes bind the successful source, current catalogue and configuration; fresh original-user confirmation uses the existing atomic pair writer and exact persisted/current readback.
+
+Review exposes current/proposed provider AND voice, effective selection, saved/default provenance, shared device-local scope and future-only timing. The 60-second review never synthesizes/replays the answer or acquires assets.
+Original channel, protected calls, privacy/ownership, source/request/configuration revisions and unnotified catalogue changes remain authoritative; unknown or stale choices make no write ([host composition](../src/Kora.Application/ViewModels/MainViewModel.InstalledSpeechVoiceSuggestions.cs)).
+
+This adds no provider-only model Set/Reset, catalogue-enumeration tool, new provider, Reset/Undo behavior or adapter enablement. The parser derives the qualified answer bound from the full 256-character domain voice-ID bound without increasing other setting-family limits ([parser](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestions.cs)).
+See [user interaction and recovery](../docs/voice-and-audio.md#review-an-installed-voice-suggestion).
 
 Schema version 1 admits `speech.provider` (spoken name: speech provider) and
 `speech.voice` (speech voice), using the delivered Windows SAPI (`windows-sapi`)

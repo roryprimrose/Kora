@@ -12,9 +12,11 @@ namespace Kora.Windows.IntegrationTests.Dependencies;
 public sealed partial class ClaudeMessagesRuntimeTests
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task RejectedAnswersAndPostResponseCancellationKeepActualUsageWithoutUsingThePreflightCount(bool cancel)
+    [InlineData(false, 25, 5)]
+    [InlineData(true, 25, 5)]
+    [InlineData(true, 41, 7)]
+    public async Task RejectedAnswersAndPostResponseCancellationKeepActualUsageWithoutUsingThePreflightCount(
+        bool cancel, int inputTokens, int outputTokens)
     {
         var fixture = new ClaudeAccountBrokerTests.Fixture();
         await using var broker = fixture.Create();
@@ -32,20 +34,28 @@ public sealed partial class ClaudeMessagesRuntimeTests
             if (message.RequestUri!.AbsolutePath.EndsWith("count_tokens", StringComparison.Ordinal))
             { return ClaudeAccountBrokerTests.Fixture.Json("""{"input_tokens":100}"""); }
             received = true;
-            return ClaudeAccountBrokerTests.Fixture.Json(cancel ? Answer
-                : Answer.Replace("\"type\":\"text\"", "\"type\":\"thinking\"", StringComparison.Ordinal));
+            var answer = Answer.Replace("\"input_tokens\":25", $"\"input_tokens\":{inputTokens}", StringComparison.Ordinal)
+                .Replace("\"output_tokens\":5", $"\"output_tokens\":{outputTokens}", StringComparison.Ordinal);
+            return ClaudeAccountBrokerTests.Fixture.Json(cancel ? answer
+                : answer.Replace("\"type\":\"text\"", "\"type\":\"thinking\"", StringComparison.Ordinal));
         };
         await using var runtime = new ClaudeMessagesRuntime(broker, fixture.Time,
             NullLogger<ClaudeMessagesRuntime>.Instance, fixture.CreateHttp);
         var result = await runtime.RunAsync(provenance, profile, context, (_, _) => ValueTask.FromResult(true), _ =>
         {
-            if (received && cancel) { cancellation.Cancel(); cancellation.Token.ThrowIfCancellationRequested(); }
+            if (received && cancel)
+            {
+                runtime.IsQuiescent.Should().BeFalse();
+                cancellation.Cancel();
+                cancellation.Token.ThrowIfCancellationRequested();
+            }
             return ValueTask.FromResult(true);
         }, cancellation.Token);
         result.Outcome.Should().Be(cancel ? ModelTurnOutcome.Cancelled : ModelTurnOutcome.Unknown);
         result.Answer.Should().BeNull();
-        result.TokenUsage.Should().Be(new ModelTokenUsage(25, 5, 25));
+        result.TokenUsage.Should().Be(new ModelTokenUsage(inputTokens, outputTokens, inputTokens));
         runtime.IsQuiescent.Should().BeTrue();
+        fixture.Requests.Count(request => request.Method is "POST").Should().Be(2);
     }
 
     [Fact]

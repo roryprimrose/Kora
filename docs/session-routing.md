@@ -1,5 +1,11 @@
 # Review a request destination
 
+## Reopen after desktop privacy loss
+
+After lock or desktop-owner loss, return to the unlocked session and explicitly choose **Sessions**, **Show Kora** or **Settings**. Private windows stay retired until their owned shutdown has completed successfully and current desktop ownership is available. A gesture made while retirement is pending is not queued; choose again after recovery ([private recovery](../src/Kora.Application/ViewModels/MainViewModel.PrivatePresentation.cs)).
+
+In reopened Sessions, select the conversation and explicitly read its conversation or open its result again. Unlock does not restore a private page, confirmation, or unsent input, and never submits it. Retained conversation history and legacy read-only input recovery keep their separate existing policies ([native transition evidence](../tests/Kora.Windows.IntegrationTests/DesktopLockRecoveryTests.cs)).
+
 ## Deliberately ask the foreground conversation
 
 Use `ask this conversation <original body>` while one visible, eligible Active conversation presenter is foreground. For voice, prefix it with your current assistant name, such as `Nova, ask this conversation ...`. This is an explicit original request, not automatic relatedness or a selection routing lock ([grammar](../src/Kora.Core/Commands/SessionCommand.Request.cs)).

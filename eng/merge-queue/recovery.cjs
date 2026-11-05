@@ -56,6 +56,9 @@ async function changeBatchState(api, { context, inputs, attempt, now = new Date(
   invariant(await api.administrator(context.actor), 'Batch state changes require a live repository administrator.');
   const state = await api.load();
   invariant(api.commit === inputs.recovery_checkpoint, 'Batch recovery checkpoint changed.');
+  invariant(!['migrate-batch-v1', 'rollback-batch-v1'].includes(operation)
+    || !state.deliveryTransition || state.deliveryTransition.phase === 'aborted',
+  'Profile migration cannot erase an independent delivery transition.');
   invariant(await api.ciQuiescent(), 'Batch state change requires physically quiescent CI.');
   const main = await api.main();
   const commit = await api.commitInfo(main);
@@ -129,4 +132,73 @@ async function changeBatchState(api, { context, inputs, attempt, now = new Date(
   return operation;
 }
 
-module.exports = { recover, changeBatchState };
+async function changeDeliveryState(api, { context, inputs, attempt, profile, now = new Date() }) {
+  const operation = controllerOperation(inputs);
+  invariant(['hold-independent-delivery', 'prepare-independent-delivery',
+    'resume-independent-delivery', 'abort-independent-delivery'].includes(operation)
+    && profile === 'batch-v1' && context.eventName === 'workflow_dispatch' && context.ref === 'refs/heads/main' && attempt === 1
+    && Number.isSafeInteger(context.runId) && context.runId > 0 && Number.isFinite(now.valueOf())
+    && inputs.acknowledge_batch_change === true && SHA.test(inputs.recovery_checkpoint)
+    && !inputs.recovery_main && inputs.acknowledge_uncertain_dispatch !== true,
+  'Delivery changes require explicit first-attempt administrator acknowledgement and unmixed exact-checkpoint inputs.');
+  await api.verifyProtection('batch-v1');
+  invariant(await api.administrator(context.actor), 'Delivery changes require a live repository administrator.');
+  const state = await api.load();
+  invariant(api.commit === inputs.recovery_checkpoint, 'Delivery checkpoint changed; hold not modified.');
+  invariant(state.version === 2 && state.profile === 'batch-v1', 'Delivery transition requires migrated batch state.');
+  const resume = operation === 'resume-independent-delivery';
+  invariant(Boolean(api.independent) === resume && state.deliveryProfile === undefined,
+    'Delivery configuration must remain serial until prepared, then independent only for resume.');
+  const starting = operation === 'hold-independent-delivery';
+  let change = state.deliveryTransition;
+  if (starting) {
+    invariant(!inputs.recovery_ticket && (!change || change.phase === 'aborted'),
+      'A delivery transition already owns the reservation hold.');
+    change = { ticket: require('node:crypto').randomUUID(), actor: context.actor,
+      run: context.runId, checkpoint: api.commit, created: now.toISOString(), phase: 'draining' };
+    state.deliveryTransition = change;
+  } else {
+    invariant(change && ['draining', 'ready'].includes(change.phase)
+      && inputs.recovery_ticket === change.ticket
+      && change.actor.toLowerCase() === context.actor.toLowerCase(),
+    'The exact delivery hold and its administrator owner are required.');
+  }
+  let main;
+  if (operation === 'prepare-independent-delivery' || resume) {
+    main = await api.main();
+    invariant(state.active === null && state.completedTip?.sha === main && state.completedTip.qualification,
+      'Delivery requires no active candidate and the qualified current completed tip.');
+    if (resume) invariant(change.phase === 'ready' && change.source === main
+      && change.tree === state.completedTip.tree
+      && JSON.stringify(change.qualification) === JSON.stringify(state.completedTip.qualification),
+    'Prepared delivery source or qualification changed; reservations remain held.');
+    const observation = await api.tipQualification(state.completedTip);
+    invariant(observation?.terminal === true && observation.provisional === false
+      && JSON.stringify(observation.qualification) === JSON.stringify(state.completedTip.qualification),
+    'Delivery qualification is missing, failed, pending or differs from its durable first-attempt receipt.');
+    invariant((await api.commitInfo(main)).tree === state.completedTip.tree && await api.ciQuiescent(),
+      'Delivery requires the exact source tree and physically quiescent CI/publication.');
+    if (resume) {
+      state.deliveryProfile = 'independent-v1';
+      Object.assign(change, { phase: 'completed', completed: now.toISOString(), resumeRun: context.runId });
+    } else {
+      Object.assign(change, { phase: 'ready', source: main, tree: state.completedTip.tree,
+        qualification: { ...state.completedTip.qualification }, prepared: now.toISOString(), prepareRun: context.runId });
+    }
+  } else if (operation === 'abort-independent-delivery') {
+    Object.assign(change, { phase: 'aborted', aborted: now.toISOString(), abortRun: context.runId });
+  }
+  invariant(await api.administrator(context.actor)
+    && (main === undefined || await api.main() === main && await api.ciQuiescent()),
+  'Delivery administrator, source or physical quiescence changed; reservations remain held.');
+  await api.save(state, `ci: ${operation}\n\nAdministrator: ${context.actor}\nWorkflow run: ${context.runId}\nDelivery hold: ${change.ticket}\nPrevious checkpoint: ${inputs.recovery_checkpoint}`);
+  const expected = api.commit;
+  invariant(JSON.stringify(await api.load()) === JSON.stringify(state) && api.commit === expected
+    && api.commit !== inputs.recovery_checkpoint, 'Delivery checkpoint readback differs; inspect before further action.');
+  const result = resume ? 'delivery-resumed' : change.phase === 'aborted' ? 'delivery-aborted'
+    : change.phase === 'ready' ? 'delivery-ready' : 'delivery-draining';
+  api.info(`Independent delivery hold ${change.ticket}: ${result}; checkpoint ${api.commit}; no publisher cancellation or configuration write performed.`);
+  return result;
+}
+
+module.exports = { recover, changeBatchState, changeDeliveryState };

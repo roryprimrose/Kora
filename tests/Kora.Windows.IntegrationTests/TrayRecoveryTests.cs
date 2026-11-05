@@ -12,10 +12,10 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class TrayRecoveryTests
 {
     private static readonly string[] NavigationLabels =
-        ["New request", "Sessions", "Choose microphone", "Kora Customizations", "Evidence & diagnostics"];
+        ["Submitted activity", "New request", "Sessions", "Choose microphone", "Kora Customizations", "Evidence & diagnostics"];
 
     [Fact]
-    public Task TrayShowsTenRootRowsAndOnlyVoiceAndHelpSubmenus() => HeadlessSession.RunAsync(async () =>
+    public Task TrayShowsElevenRootRowsAndOnlyVoiceAndHelpSubmenus() => HeadlessSession.RunAsync(async () =>
     {
         using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
         await fixture.InitializeAsync();
@@ -24,6 +24,10 @@ public sealed class TrayRecoveryTests
             .ToDictionary(label => label, _ => new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously),
                 StringComparer.Ordinal);
         void Open(string label) { opened.Add(label); navigations[label].SetResult(); }
+        fixture.Main.WindowActionRequested += (_, action) =>
+        {
+            if (action == WindowAction.Show) { Open("Submitted activity"); }
+        };
         var selection = fixture.Main.SelectedMicrophone;
         using var tray = new SystemTrayController(fixture.Main, NullLogger<SystemTrayController>.Instance,
             inspectEvidence: () => Open("Evidence & diagnostics"), inspectSessions: () => Open("Sessions"),
@@ -33,7 +37,7 @@ public sealed class TrayRecoveryTests
         var menu = icon.Menu!;
         var roots = menu.Items.OfType<NativeMenuItem>().Where(item => item is not NativeMenuItemSeparator).ToArray();
         roots.Select(item => item.Header).Should().Equal(
-            fixture.Main.TrayInputStatus, "Show Kora", "New request", "Sessions", "Kora Customizations",
+            fixture.Main.TrayInputStatus, "Show Kora", "Submitted activity", "New request", "Sessions", "Kora Customizations",
             "Disable listening", "Voice & audio", "Settings", "Help", "Exit Kora");
         menu.Items.OfType<NativeMenuItemSeparator>().Should().HaveCount(3);
         roots[0].IsEnabled.Should().BeFalse();
@@ -119,7 +123,7 @@ public sealed class TrayRecoveryTests
         using var tray = new SystemTrayController(fixture.Main, NullLogger<SystemTrayController>.Instance);
         var menu = TrayIcon.GetIcons(Avalonia.Application.Current!)!.Single().Menu!;
         var roots = menu.Items.OfType<NativeMenuItem>().Where(item => item is not NativeMenuItemSeparator).ToArray();
-        roots.Select(item => item.Header).Should().Equal(fixture.Main.TrayInputStatus, "Show Kora",
+        roots.Select(item => item.Header).Should().Equal(fixture.Main.TrayInputStatus, "Show Kora", "Submitted activity",
             "Disable listening", "Voice & audio", "Settings", "Help", "Exit Kora");
         roots.Single(item => string.Equals(item.Header, "Voice & audio", StringComparison.Ordinal))
             .Menu!.Items.Cast<NativeMenuItem>().Select(item => item.Header).Should().Equal(

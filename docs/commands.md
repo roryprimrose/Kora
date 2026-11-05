@@ -963,6 +963,12 @@ Use these exact whole commands, optionally prefixed by the current assistant nam
 
 Review/confirmation require fresh original local UI input, even during Active/Suspected/Unknown protection; voice cannot be relabelled through a later click. Voice status/cancel remain available. The review expires after two minutes; changed source, call, input, owner/privacy or output retires it. Ordinary VisualOnly, both summary caps, mute, capture and speech availability still win. No saved preference or general protection changes ([complete interaction](responses-and-calls.md#speak-one-current-response-during-call-protection), [host operation](../src/Kora.Application/ViewModels/MainViewModel.CallSpeech.cs)).
 
+**Cancel call speech** also withdraws a review that is still being prepared.
+Late preparation cannot open a new review or enable confirmation after cancellation.
+If the exact review is already open, it becomes ineligible and cannot play.
+Wait for preparation to finish before starting a fresh review; status is passive
+and does not cancel or extend preparation.
+
 ## Read-only host discovery
 
 These exact local commands require the active, unlocked Kora host and do not

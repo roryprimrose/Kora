@@ -426,6 +426,17 @@ holds the whole session, independently of Perpetual permission grants. There
 was no marking UI in this original slice; the native increment below supplies it. Archive revokes source/generation/scoped authority but
 preserves content and does not reset the activity clock.
 
+Native SQLite failures cross the Windows retention boundary as explicit storage
+failures, not native exceptions that permanently fault the maintenance timer.
+The failed attempt reports held cleanup without a successful batch receipt;
+a later timer tick repeats existing ownership/privacy/policy admission before
+retrying. Transaction failure before commit preserves durable state, while
+post-revocation incomplete acceptance retains its separate recovery semantics.
+No retry executes retained work, renews activity or changes independent retention
+domains. Deterministic [storage failure](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionRetentionTests.cs)
+and [owned timer](../tests/Kora.Application.UnitTests/Hosting/SessionRetentionServiceTests.cs)
+regressions cover recovery and clean shutdown without false success.
+
 Deletion awaits source/presentation revocation, removes owned history,
 question/draft/answer, task/event/wait/run, terminal queue, observation, scoped-grant and metadata
 content, legacy task copies and authenticated owned artifacts/staging, and

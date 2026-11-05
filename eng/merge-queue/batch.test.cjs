@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { reconcile } = require('./controller.cjs');
-const { validateState, CHECKS, WINDOWS_12_JOBS, DELIVERY_JOBS, UNIT_PR_JOBS, GATE, title,
+const { validateState, CHECKS, WINDOWS_12_JOBS, DELIVERY_JOBS, UNIT_PR_JOBS, PARALLEL_PR_JOBS, GATE, title,
   REJECTED_ADMISSION_JOBS, terminalRejectedAdmission, terminalRejectedPreflight } = require('./policy.cjs');
 const { profile, CONTROL_PATH, digest, manifestFor } = require('./batch-policy.cjs');
 const { changeBatchState, changeDeliveryState } = require('./recovery.cjs');
@@ -363,12 +363,14 @@ test('ambiguous delivery checkpoint saves are reconciled and never silently repl
   }
 });
 
-test('independent historical and unit-only source completion preserve schemas and admit another candidate after main starts', async () => {
+test('independent historical, unit-only and parallel source completion preserve schemas and admit another candidate after main starts', async () => {
   for (const [schema, jobs, mainStatus] of [
     ['windows-12-delivery-v1', DELIVERY_JOBS, 'running'],
     ['windows-12-delivery-v1', DELIVERY_JOBS, 'failed'],
     ['unit-pr-v1', UNIT_PR_JOBS, 'running'],
     ['unit-pr-v1', UNIT_PR_JOBS, 'failed'],
+    ['parallel-pr-v1', PARALLEL_PR_JOBS, 'running'],
+    ['parallel-pr-v1', PARALLEL_PR_JOBS, 'failed'],
   ]) {
     const api = new BatchFake();
     api.independent = true;
@@ -401,6 +403,7 @@ test('frozen batch inventories require the exact jobs for each reviewed schema, 
     ['windows-12-v1', WINDOWS_12_JOBS],
     ['windows-12-delivery-v1', DELIVERY_JOBS],
     ['unit-pr-v1', UNIT_PR_JOBS],
+    ['parallel-pr-v1', PARALLEL_PR_JOBS],
   ];
   for (const [schema, jobs] of inventories) {
     const api = new BatchFake();
@@ -425,44 +428,46 @@ test('frozen batch inventories require the exact jobs for each reviewed schema, 
   }
 });
 
-test('all unit-only batch producers must pass uniquely before any member receives admission', async () => {
-  for (const name of UNIT_PR_JOBS) {
-    for (const change of ['missing', 'duplicate', 'failure', 'skipped']) {
-      const api = new BatchFake();
-      api.inventory = { schema: 'unit-pr-v1', blob: sha(999), jobs: [...UNIT_PR_JOBS] };
-      assert.equal(await step(api), 'dispatched');
-      const job = api.workflowJobs.find(job => job.name === name);
-      if (change === 'missing') api.workflowJobs = api.workflowJobs.filter(item => item !== job);
-      else if (change === 'duplicate') api.workflowJobs.push({ ...job, id: 999 });
-      else job.conclusion = change;
-      assert.equal(await step(api), change === 'missing' ? 'waiting-for-jobs' : 'retiring', `${name}/${change}`);
-      assert.equal(count(api, 'merge'), 0);
-      assert.equal(api.calls.some(call => call[0] === 'finish' && call[2] === 'success'), false);
-      assert.ok(api.state.active);
+for (const [schema, expected] of [['unit-pr-v1', UNIT_PR_JOBS], ['parallel-pr-v1', PARALLEL_PR_JOBS]]) {
+  test(`all ${schema} batch producers must pass uniquely before any member receives admission`, async () => {
+    for (const name of expected) {
+      for (const change of ['missing', 'duplicate', 'failure', 'skipped']) {
+        const api = new BatchFake();
+        api.inventory = { schema, blob: sha(999), jobs: [...expected] };
+        assert.equal(await step(api), 'dispatched');
+        const job = api.workflowJobs.find(job => job.name === name);
+        if (change === 'missing') api.workflowJobs = api.workflowJobs.filter(item => item !== job);
+        else if (change === 'duplicate') api.workflowJobs.push({ ...job, id: 999 });
+        else job.conclusion = change;
+        assert.equal(await step(api), change === 'missing' ? 'waiting-for-jobs' : 'retiring', `${name}/${change}`);
+        assert.equal(count(api, 'merge'), 0);
+        assert.equal(api.calls.some(call => call[0] === 'finish' && call[2] === 'success'), false);
+        assert.ok(api.state.active);
+      }
     }
-  }
-});
+  });
 
-test('unit-only batch admission and retirement wait for physically terminal main-only Windows jobs', async () => {
-  for (const name of DELIVERY_JOBS.filter(job => !UNIT_PR_JOBS.includes(job))) {
-    const api = new BatchFake();
-    api.inventory = { schema: 'unit-pr-v1', blob: sha(999), jobs: [...UNIT_PR_JOBS] };
-    assert.equal(await step(api), 'dispatched');
-    const job = { id: 999, name, status: 'in_progress', conclusion: null,
-      run_id: 9, run_attempt: 1, head_sha: BASE };
-    api.workflowJobs.push(job);
-    assert.equal(await step(api), 'waiting-for-jobs', name);
-    assert.equal(count(api, 'merge'), 0);
-    api.prs[0].enrollment = NOW.toISOString();
-    assert.equal(await step(api), 'retiring', name);
-    assert.equal(await step(api), 'retiring', name);
-    assert.ok(api.state.active);
-    Object.assign(job, { status: 'completed', conclusion: 'skipped' });
-    assert.equal(await step(api), 'retired', name);
-    assert.equal(api.state.active, null);
-    assert.equal(count(api, 'merge'), 0);
-  }
-});
+  test(`${schema} batch admission and retirement wait for physically terminal main-only Windows jobs`, async () => {
+    for (const name of DELIVERY_JOBS.filter(job => !UNIT_PR_JOBS.includes(job))) {
+      const api = new BatchFake();
+      api.inventory = { schema, blob: sha(999), jobs: [...expected] };
+      assert.equal(await step(api), 'dispatched');
+      const job = { id: 999, name, status: 'in_progress', conclusion: null,
+        run_id: 9, run_attempt: 1, head_sha: BASE };
+      api.workflowJobs.push(job);
+      assert.equal(await step(api), 'waiting-for-jobs', name);
+      assert.equal(count(api, 'merge'), 0);
+      api.prs[0].enrollment = NOW.toISOString();
+      assert.equal(await step(api), 'retiring', name);
+      assert.equal(await step(api), 'retiring', name);
+      assert.ok(api.state.active);
+      Object.assign(job, { status: 'completed', conclusion: 'skipped' });
+      assert.equal(await step(api), 'retired', name);
+      assert.equal(api.state.active, null);
+      assert.equal(count(api, 'merge'), 0);
+    }
+  });
+}
 
 test('independent delivery still waits for definite source-run admission before moving main', async () => {
   const api = new BatchFake();
@@ -727,6 +732,7 @@ test('batch-profile control singleton retains complete exact-head proof and reco
     ['windows-12-v1', WINDOWS_12_JOBS, false],
     ['windows-12-delivery-v1', DELIVERY_JOBS, true],
     ['unit-pr-v1', UNIT_PR_JOBS, true],
+    ['parallel-pr-v1', PARALLEL_PR_JOBS, true],
   ]) {
     const api = new BatchFake();
     api.independent = independent;
@@ -745,7 +751,7 @@ test('batch-profile control singleton retains complete exact-head proof and reco
     assert.equal(count(api, 'dispatch'), 1);
     assert.equal(count(api, 'merge'), 1);
     assert.equal(api.calls.find(call => call[0] === 'finish' && call[1] === windows)[2],
-      schema === 'unit-pr-v1' ? 'neutral' : 'success');
+      ['unit-pr-v1', 'parallel-pr-v1'].includes(schema) ? 'neutral' : 'success');
     assert.equal(await step(api), 'waiting-for-tip-qualification');
     if (independent) {
       assert.equal(api.state.completedTip.delivery, 'independent-v1');

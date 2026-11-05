@@ -3,7 +3,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { execution, controllerOperation, CHECKS, GATE, JOBS, WINDOWS_12_JOBS, DELIVERY_JOBS, UNIT_PR_JOBS, PREDECESSOR_WORKFLOWS,
+const { execution, controllerOperation, CHECKS, GATE, JOBS, WINDOWS_12_JOBS, DELIVERY_JOBS, UNIT_PR_JOBS,
+  PARALLEL_PR_JOBS, PARALLEL_MAIN_JOBS, PREDECESSOR_WORKFLOWS,
   workflowJobs, requiredJobsState, terminalJobs } = require('./policy.cjs');
 const root = path.resolve(__dirname, '..', '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8').replaceAll('\r\n', '\n');
@@ -52,19 +53,21 @@ test('independent packaging selection is trusted combined-candidate-only; every 
     await assert.rejects(execute({ env: { QUEUE_MODE: '', DELIVERY_PROFILE: value } }, {}, {}, {}, () => ({})));
   }
   const installer = job('installer');
-  for (const step of ['Download exact Linux-published x64 application',
-    'Verify payload digests and build identity', 'Build MSI and Burn bundle without installing'])
-    assert.ok(installer.includes(`- name: ${step}\n        if: needs.version.outputs.packaging == 'true'`), step);
   for (const step of ['Install .NET SDK', 'Restore locked installer dependencies',
+    'Download exact Linux-published x64 application', 'Verify payload digests and build identity',
+    'Build MSI and Burn bundle without installing'])
+    assert.ok(installer.includes(`- name: ${step}\n        if: needs.version.outputs.packaging == 'true'`), step);
+  const setup = job('installer-validation');
+  for (const step of ['Install .NET SDK', 'Restore locked metadata and managed setup dependencies',
     'Compile managed setup without running integration tests', 'Test installer metadata contracts without installing']) {
-    const body = installer.match(new RegExp(`      - name: ${step}\\n([\\s\\S]*?)(?=      - name:|$)`))[1];
+    const body = setup.match(new RegExp(`      - name: ${step}\\n([\\s\\S]*?)(?=      - name:|$)`))[1];
     assert.doesNotMatch(body, /^        if:/m, `${step} is required even when MSI/Burn is not selected`);
   }
-  assert.ok(installer.indexOf('- name: Restore locked installer dependencies')
-    < installer.indexOf('- name: Test installer metadata contracts without installing'));
-  assert.match(installer, /dotnet restore \.\\installer\\Kora\.Setup\\Kora\.Setup\.csproj --locked-mode/);
-  assert.match(installer, /dotnet build installer\/Kora\.Setup\/Kora\.Setup\.csproj --configuration Release --no-restore/);
-  assert.match(installer, /Test installer metadata contracts without installing\n        shell: pwsh/);
+  assert.ok(setup.indexOf('- name: Restore locked metadata and managed setup dependencies')
+    < setup.indexOf('- name: Test installer metadata contracts without installing'));
+  assert.match(setup, /dotnet restore \.\\installer\\Kora\.Setup\\Kora\.Setup\.csproj --locked-mode/);
+  assert.match(setup, /dotnet build installer\/Kora\.Setup\/Kora\.Setup\.csproj --configuration Release --no-restore/);
+  assert.match(setup, /Test installer metadata contracts without installing\n        shell: pwsh/);
   assert.match(installer, /MSI\/Burn execution is not claimed/);
 });
 
@@ -163,7 +166,8 @@ test('candidate jobs check out the admitted SHA, preserve all required identitie
   assert.match(job('version'), /ref: \$\{\{ needs\.admission\.outputs\.source \}\}/);
   assert.match(job('version'), /publish: \$\{\{ needs\.admission\.outputs\.candidate != 'true'/);
   assert.match(job('version'), /if: steps\.version\.outputs\.publish == 'true' && needs\.admission\.outputs\.candidate != 'true'/);
-  for (const name of ['portable-tests', 'payload', 'windows-test-build', 'windows-test-partitions', 'installer']) {
+  for (const name of ['portable-tests', 'portable-policy', 'payload', 'windows-test-build', 'windows-test-partitions',
+    'installer-validation', 'installer']) {
     assert.match(job(name), /ref: \$\{\{ needs\.version\.outputs\.source-revision \}\}/);
     assert.match(job(name), /persist-credentials: false/);
     assert.doesNotMatch(job(name), /permission[s]?:[\s\S]*write/);
@@ -174,8 +178,8 @@ test('candidate jobs check out the admitted SHA, preserve all required identitie
   }
   assert.match(job('release'), /inputs\.queue_ticket == ''/);
   assert.match(job('windows-integration'), /needs: \[admission, version, windows-integration-shards\]/);
-  assert.match(job('portable'), /needs: \[admission, version, portable-tests, payload\]/);
-  assert.match(job('installer'), /needs: \[version, payload\]/);
+  assert.match(job('portable'), /needs: \[admission, version, portable-tests, portable-policy, payload\]/);
+  assert.match(job('installer'), /needs: \[version, payload, installer-validation\]/);
   assert.match(job('payload'), /needs: version/);
   assert.doesNotMatch(job('payload'), /needs:.*portable/);
   assert.match(ci, /cancel-in-progress: \$\{\{ !inputs\.queue_ticket && vars\.KORA_MERGE_QUEUE_PROFILE != 'batch-v1' \}\}/);
@@ -191,16 +195,19 @@ test('independent producers are joined without preventing retirement of predeces
   assert.match(job('portable-tests'), /name: Portable build, tests, and coverage/);
   assert.match(job('payload'), /name: Publish and inspect exact-source payloads/);
   assert.match(job('release'), /needs: \[version, portable, windows-integration, installer\]/);
-  assert.match(job('portable'), /needs: \[admission, version, portable-tests, payload\]/);
+  assert.match(job('portable'), /needs: \[admission, version, portable-tests, portable-policy, payload\]/);
 });
 
 test('trusted workflow schema keeps full main inventory and a separate unit-only candidate inventory', () => {
   const expected = workflowJobs(ci, 'current');
-  assert.deepEqual(expected, DELIVERY_JOBS);
-  assert.deepEqual(workflowJobs(ci, 'current', true), UNIT_PR_JOBS);
-  assert.ok(UNIT_PR_JOBS.length > 0);
-  assert.ok(UNIT_PR_JOBS.every(name => DELIVERY_JOBS.includes(name)));
-  assert.ok(!UNIT_PR_JOBS.some(name => name.includes('Windows')));
+  assert.deepEqual(expected, PARALLEL_MAIN_JOBS);
+  assert.deepEqual(workflowJobs(ci, 'current', true), PARALLEL_PR_JOBS);
+  assert.equal(PARALLEL_PR_JOBS.length, 8);
+  assert.equal(PARALLEL_MAIN_JOBS.length, 27);
+  assert.ok(PARALLEL_PR_JOBS.every(name => PARALLEL_MAIN_JOBS.includes(name)));
+  assert.ok(!PARALLEL_PR_JOBS.some(name => name.includes('Windows')));
+  assert.deepEqual(workflowJobs('# merge-queue-job-schema: unit-pr-v1\n# merge-queue-delivery-schema: independent-v1\n',
+    'historical', true), UNIT_PR_JOBS);
   const excluded = ['Compare portable test scheduling', 'Compare native fixture evidence',
     'Queue policy feedback', 'Publish GitHub release', 'Publish completed batch release', 'Qualify completed batch tip'];
   const actual = [...ci.matchAll(/^  ([a-z][\w-]*):\n    name: (.+)$/gm)].flatMap(([, id, name]) => {
@@ -303,21 +310,63 @@ test('all Windows integration producers and aggregates are post-merge only, incl
   }
 });
 
-test('portable aggregate requires both actual producers and fails closed for incomplete outcomes', () => {
+test('portable aggregate requires tests, policy and payload producers and fails closed for incomplete outcomes', () => {
   const source = job('portable');
   assert.match(source, /TEST_RESULT: \$\{\{ needs\.portable-tests\.result \}\}/);
+  assert.match(source, /POLICY_RESULT: \$\{\{ needs\.portable-policy\.result \}\}/);
   assert.match(source, /PAYLOAD_RESULT: \$\{\{ needs\.payload\.result \}\}/);
   const script = source.match(/        run: \|\n([\s\S]*)/)[1]
     .split('\n').map(line => line.replace(/^          /, '')).join('\n');
   const { spawnSync } = require('node:child_process');
   const outcomes = ['success', 'failure', 'cancelled', 'skipped', '', 'unknown', 'SUCCESS'];
-  const checks = outcomes.flatMap(tests => outcomes.map(payload =>
-    `$env:TEST_RESULT = '${tests}'; $env:PAYLOAD_RESULT = '${payload}'; `
-    + `$failed = $false; try { & { ${script} } } catch { $failed = $true }; `
-    + `if ($failed -ne $${tests !== 'success' || payload !== 'success'}) { throw 'Incorrect aggregate outcome.' }`));
-  const result = spawnSync('pwsh', ['-NoProfile', '-NonInteractive', '-Command', checks.join('\n')], { encoding: 'utf8' });
+  const values = outcomes.map(value => `'${value}'`).join(',');
+  const checks = `foreach ($tests in @(${values})) { foreach ($policy in @(${values})) { foreach ($payload in @(${values})) {
+    $env:TEST_RESULT = $tests; $env:POLICY_RESULT = $policy; $env:PAYLOAD_RESULT = $payload;
+    $failed = $false; try { & { ${script} } } catch { $failed = $true };
+    if ($failed -ne ($tests -cne 'success' -or $policy -cne 'success' -or $payload -cne 'success')) {
+      throw 'Incorrect aggregate outcome.'
+    }
+  } } }`;
+  const result = spawnSync('pwsh', ['-NoProfile', '-NonInteractive', '-Command', checks], { encoding: 'utf8' });
   assert.equal(result.error, undefined);
   assert.equal(result.status, 0, result.stderr || result.stdout);
+});
+
+test('independent policy and setup proof start after preflight, without unit or payload dependencies', () => {
+  for (const name of ['portable-policy', 'installer-validation']) {
+    const source = job(name);
+    assert.match(source, /^    needs: version$/m);
+    assert.doesNotMatch(source, /^    needs:.*(?:payload|portable-tests)/m);
+    assert.doesNotMatch(source, /continue-on-error|permissions:|GH_TOKEN|contents: write/);
+    assert.match(source, /needs\.version\.outputs\.preflight-source != '' && needs\.version\.outputs\.preflight-source == needs\.version\.outputs\.source-revision/);
+  }
+  for (const command of ['Test-BuildVersion.ps1', 'Test-GitHubRelease.ps1', 'Test-Run.ps1',
+    'Test-CodeCoverage.ps1', 'Test-Architecture.ps1', 'release-comments.test.cjs']) {
+    assert.ok(job('portable-policy').includes(command), command);
+    assert.ok(!job('portable-tests').includes(command), command);
+  }
+  const installer = job('installer');
+  assert.match(installer, /needs: \[version, payload, installer-validation\]/);
+  assert.doesNotMatch(installer, /^    if:.*(?:always|failure|cancelled)\(/m);
+  const dependencies = installer.match(/^    needs: \[([^\]]+)\]$/m)[1].split(',').map(value => value.trim());
+  const condition = installer.match(/^    if: (.+)$/m)[1]
+    .replaceAll('needs.version.outputs.preflight-source', "needs.version.outputs['preflight-source']")
+    .replaceAll('needs.version.outputs.source-revision', "needs.version.outputs['source-revision']");
+  const evaluate = new Function('needs', `return ${condition};`);
+  const packaging = installer.match(/- name: Build MSI and Burn bundle without installing\n        if: (.+)\n/)[1];
+  const buildSelected = new Function('needs', `return ${packaging};`);
+  for (const selected of [false, true]) {
+    for (const payload of ['success', 'failure', 'cancelled', 'skipped', '', 'unknown']) {
+      for (const setup of ['success', 'failure', 'cancelled', 'skipped', '', 'unknown']) {
+        const needs = { version: { result: 'success', outputs: {
+          'preflight-source': 'source', 'source-revision': 'source', packaging: String(selected) } },
+        payload: { result: payload }, 'installer-validation': { result: setup } };
+        const starts = dependencies.every(name => needs[name].result === 'success') && evaluate(needs);
+        assert.equal(starts, payload === 'success' && setup === 'success');
+        assert.equal(starts && buildSelected(needs), selected && payload === 'success' && setup === 'success');
+      }
+    }
+  }
 });
 
 test('controller wakes on both priority label additions and removals without trusting event labels', () => {

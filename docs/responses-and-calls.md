@@ -157,6 +157,19 @@ access. Closing or retiring the original result retires its navigation too.
 An unavailable table profile still shows the complete source, not an incomplete
 table; these controls do not enable an unqualified profile.
 
+### See a literal match in context
+
+Use **Find first**, **Next** or **Previous** in Details, then choose **Show match
+in reader** to select and reveal that exact occurrence with its surrounding text.
+A rendered result switches to **Continuous text**; **Exact source** stays in its
+original projection. Find does not wrap at either end.
+
+The button is unavailable after query edits, Cancel/Clear, projection changes or
+direction exhaustion until another match is found. Separate typed HOST matches
+stay in their own observation, never in the answer or original USER body.
+Showing a match reads no additional source and grants no copy permission.
+Closing or losing access clears the reader and its selection.
+
 ### Wrap or horizontally scroll Details text
 
 In plain-text Details, **Continuous text**, **Exact source** or a labelled source
@@ -166,9 +179,12 @@ Space, or use its native toggle automation. Structured Markdown and its separate
 code-block wrapping are unchanged.
 
 This is a view-only choice, not a saved setting. Text, selection and literal Find
-stay unchanged. Closing or losing source/private access clears the reader; reopen
-the exact source normally to recover, with wrapping on by default. Wrapping grants
-no copy permission and reads no additional source.
+stay unchanged when toggling it. In integrated session Details, **Hide details**
+clears text and Find but remembers wrapping with that exact item's reading
+position. Explicit **Show details** rechecks access before restoring the projection,
+wrapping and scroll position. Other new readers start wrapped. Losing source/private
+access clears the reader; a remembered position cannot bypass normal admission.
+Wrapping grants no copy permission and reads no additional source.
 
 ### Review a final-answer external link
 

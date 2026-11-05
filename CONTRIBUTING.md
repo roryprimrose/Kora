@@ -74,7 +74,7 @@ The separately administered [independent beta delivery profile](eng/merge-queue/
 keeps exact-source candidate unit/coverage proof but permits later admission before
 the preceding source's full main beta finishes. Its trusted conditional installer
 policy reports unexecuted MSI/Burn work as not selected; managed setup compilation
-and tests remain mandatory, and actual-source main packaging remains full.
+and metadata contracts remain mandatory, and actual-source main packaging remains full.
 Merging its implementation does not activate the profile. Deterministic
 `node .\eng\run-policy-tests.cjs`, `.\eng\Test-CiPreflight.ps1` and
 `.\eng\Test-GitHubRelease.ps1` cover the source records, legacy fence, publication
@@ -105,8 +105,18 @@ or queue candidate dispatches. Main/tag/manual release gates still require their
 full integration evidence; the opt-in native comparison is main-only.
 Waiting PRs retain cheap policy feedback; only the selected candidate receives
 the expensive exact-source admission build. A skipped integration job is not
-integration success. The reviewed `unit-pr-v1` candidate inventory excludes it,
-while main qualification retains the complete inventory.
+integration success. The reviewed `parallel-pr-v1` inventory requires eight
+candidate jobs while main qualification retains all 27 identities. Historical
+`unit-pr-v1` six-job candidates keep their original proof requirements.
+
+Portable policy/architecture fixtures run alongside unit compilation and coverage,
+not inside the unit producer's critical path. Their independent job restores its
+own production/analyzer fixture graph and keeps both Debug/Release boundary checks.
+The portable aggregate requires unit, policy and payload producers to succeed.
+Managed setup compilation and installer metadata fixtures also start after
+preflight, alongside payload publication. Installer validation still joins both
+producers before selected packaging or an explicit not-selected outcome. No
+cached binaries or proof from another run replace exact-source validation.
 
 The existing [version job](.github/workflows/ci.yml) is also the exact-source
 early preflight barrier: scheduling contracts, static source-tool policy,
@@ -182,6 +192,15 @@ Headless pointer fixtures must synchronize the rendered frame after layout and
 scroll changes before asserting `InputHitTest` reachability. Dispatcher/layout
 completion alone does not establish that the compositor's hit-test scene is current.
 Keep the real pointer route and target-hit assertions intact.
+
+Native UX fixture shutdown must join its audited preference writer's physical
+work, including terminal audit, before evidence sinks close or its owned directory
+is deleted. Write outcomes remain on the individual write tasks; quiescence is
+not a success receipt. Synchronous fixture disposal uses that join without UI
+continuations. Window-owning fixtures use asynchronous disposal to drain queued
+preference results on the UI context before retiring their view model. Do not
+mask an active writer with deletion retries or swallowed
+I/O errors; pending-work regressions use an explicit write barrier.
 
 Queued-conversation fakes must derive each terminal message/task pair from the
 exact request-owned retained record before updating shared observation fields.

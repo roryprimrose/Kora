@@ -6,7 +6,7 @@ const path = require('node:path');
 const { GitHubQueue, admit } = require('./github.cjs');
 const { admitBatchTip } = require('./github.cjs');
 const { manifestFor, digest } = require('./batch-policy.cjs');
-const { CHECKS, GATE, STATE_BRANCH, WINDOWS_12_JOBS, DELIVERY_JOBS, UNIT_PR_JOBS,
+const { CHECKS, GATE, STATE_BRANCH, WINDOWS_12_JOBS, DELIVERY_JOBS, UNIT_PR_JOBS, PARALLEL_PR_JOBS, PARALLEL_MAIN_JOBS,
   REJECTED_ADMISSION_JOBS } = require('./policy.cjs');
 const BASE = 'a'.repeat(40);
 const HEAD = 'b'.repeat(40);
@@ -14,6 +14,7 @@ const OTHER = 'c'.repeat(40);
 const TICKET = '01234567-89ab-cdef-0123-456789abcdef';
 const ENROLLED = '2026-01-01T00:00:00Z';
 const UNIT_PR_SOURCE = '# merge-queue-job-schema: unit-pr-v1\n# merge-queue-delivery-schema: independent-v1\n';
+const PARALLEL_PR_SOURCE = UNIT_PR_SOURCE.replace('unit-pr-v1', 'parallel-pr-v1');
 const context = { repo: { owner: 'owner', repo: 'repo' }, eventName: 'workflow_dispatch',
   ref: 'refs/heads/main', sha: BASE };
 const candidate = () => ({ number: 1, head: HEAD, base: BASE, ticket: TICKET,
@@ -86,8 +87,10 @@ function fixture(overrides = {}) {
   return { github, core, calls, responses, api: new GitHubQueue(github, context, core, '42') };
 }
 
-test('workflow inventories separate unit candidates from full main qualification without losing schema identity', async () => {
+test('workflow inventories separate unit and parallel candidates from full main qualification without losing schema identity', async () => {
   for (const [source, schema, main, candidate] of [
+    [PARALLEL_PR_SOURCE, 'parallel-pr-v1', PARALLEL_MAIN_JOBS, PARALLEL_PR_JOBS],
+    [PARALLEL_PR_SOURCE.replaceAll('\n', '\r\n'), 'parallel-pr-v1', PARALLEL_MAIN_JOBS, PARALLEL_PR_JOBS],
     [UNIT_PR_SOURCE, 'unit-pr-v1', DELIVERY_JOBS, UNIT_PR_JOBS],
     [UNIT_PR_SOURCE.replace('unit-pr-v1', 'windows-12-v1'), 'windows-12-delivery-v1', DELIVERY_JOBS, DELIVERY_JOBS],
     ['# merge-queue-job-schema: windows-12-v1\n', 'windows-12-v1', WINDOWS_12_JOBS, WINDOWS_12_JOBS],
@@ -103,46 +106,54 @@ test('workflow inventories separate unit candidates from full main qualification
   }
 });
 
-test('unit candidate schema cannot qualify main without every Windows producer and aggregate succeeding', async () => {
-  const run = { id: 9, run_attempt: 1, head_sha: BASE, status: 'completed', conclusion: 'success',
-    event: 'push', head_branch: 'main', display_title: 'CI main' };
-  const jobs = [...DELIVERY_JOBS, 'Qualify completed batch tip'].map((name, index) => ({
-    id: index + 1, name, status: 'completed', conclusion: 'success', run_id: 9, run_attempt: 1, head_sha: BASE }));
-  const value = fixture({ getContent: () => workflowContent(UNIT_PR_SOURCE),
-    listWorkflowRuns: () => ({ total_count: 1, workflow_runs: [run] }),
-    listJobsForWorkflowRunAttempt: () => ({ total_count: jobs.length, jobs }) });
-  assert.deepEqual((await value.api.tipQualification({ sha: BASE })).qualification,
-    { run: 9, source: BASE, job: jobs.length });
-  for (const name of DELIVERY_JOBS.filter(job => !UNIT_PR_JOBS.includes(job))) {
-    for (const change of ['missing', 'duplicate', 'skipped', 'failure']) {
-      const saved = structuredClone(jobs);
-      const index = jobs.findIndex(job => job.name === name);
-      if (change === 'missing') jobs.splice(index, 1);
-      else if (change === 'duplicate') jobs.push({ ...jobs[index], id: 999 });
-      else jobs[index].conclusion = change;
-      assert.equal((await value.api.tipQualification({ sha: BASE })).qualification, null, `${name}/${change}`);
-      jobs.splice(0, jobs.length, ...saved);
+for (const [source, main, candidate] of [
+  [UNIT_PR_SOURCE, DELIVERY_JOBS, UNIT_PR_JOBS],
+  [PARALLEL_PR_SOURCE, PARALLEL_MAIN_JOBS, PARALLEL_PR_JOBS],
+]) {
+  test(`${source === UNIT_PR_SOURCE ? 'unit' : 'parallel'} candidate schema cannot qualify main without every producer and aggregate succeeding`, async () => {
+    const run = { id: 9, run_attempt: 1, head_sha: BASE, status: 'completed', conclusion: 'success',
+      event: 'push', head_branch: 'main', display_title: 'CI main' };
+    const jobs = [...main, 'Qualify completed batch tip'].map((name, index) => ({
+      id: index + 1, name, status: 'completed', conclusion: 'success', run_id: 9, run_attempt: 1, head_sha: BASE }));
+    const value = fixture({ getContent: () => workflowContent(source),
+      listWorkflowRuns: () => ({ total_count: 1, workflow_runs: [run] }),
+      listJobsForWorkflowRunAttempt: () => ({ total_count: jobs.length, jobs }) });
+    assert.deepEqual((await value.api.tipQualification({ sha: BASE })).qualification,
+      { run: 9, source: BASE, job: jobs.length });
+    for (const name of main) {
+      for (const change of ['missing', 'duplicate', 'skipped', 'failure']) {
+        const saved = structuredClone(jobs);
+        const index = jobs.findIndex(job => job.name === name);
+        if (change === 'missing') jobs.splice(index, 1);
+        else if (change === 'duplicate') jobs.push({ ...jobs[index], id: 999 });
+        else jobs[index].conclusion = change;
+        assert.equal((await value.api.tipQualification({ sha: BASE })).qualification, null, `${name}/${change}`);
+        jobs.splice(0, jobs.length, ...saved);
+      }
     }
-  }
-  for (const job of jobs.filter(job => !UNIT_PR_JOBS.includes(job.name)
-    && job.name !== 'Qualify completed batch tip')) job.conclusion = 'skipped';
-  assert.equal((await value.api.tipQualification({ sha: BASE })).qualification, null);
-});
+    for (const job of jobs.filter(job => !candidate.includes(job.name)
+      && job.name !== 'Qualify completed batch tip')) job.conclusion = 'skipped';
+    assert.equal((await value.api.tipQualification({ sha: BASE })).qualification, null);
+  });
+}
 
-test('batch admission rejects schema confusion between full historical and unit-only frozen inventories', async () => {
-  for (const schema of ['windows-12-delivery-v1', 'unit-pr-v1']) {
-    const queue = batchState();
-    queue.active.inventory = { schema, blob: workflowContent(UNIT_PR_SOURCE).sha,
-      jobs: [...(schema === 'unit-pr-v1' ? UNIT_PR_JOBS : DELIVERY_JOBS)] };
-    queue.active.digest = digest(manifestFor(queue.active));
-    const value = fixture({ getContent: ({ path: file }) => file === '.github/workflows/ci.yml'
-      ? workflowContent(UNIT_PR_SOURCE) : workflowContent(JSON.stringify(queue)),
-      get: () => ({ ...pr(), mergeable: true }),
-      getCommit: ({ ref }) => ({ sha: ref, parents: [], commit: { tree: { sha: HEAD } } }) });
-    const dispatch = { ...inputs(), queue_head: OTHER, queue_batch: queue.active.digest, profile: 'batch-v1' };
-    const operation = () => admit({ github: value.github, context, inputs: dispatch });
-    if (schema === 'unit-pr-v1') assert.equal(await operation(), OTHER);
-    else await assert.rejects(operation(), /inventory changed/);
+test('batch admission rejects schema confusion among full historical, unit-only and parallel frozen inventories', async () => {
+  const inventories = [['windows-12-delivery-v1', UNIT_PR_SOURCE.replace('unit-pr-v1', 'windows-12-v1'), DELIVERY_JOBS],
+    ['unit-pr-v1', UNIT_PR_SOURCE, UNIT_PR_JOBS], ['parallel-pr-v1', PARALLEL_PR_SOURCE, PARALLEL_PR_JOBS]];
+  for (const [sourceSchema, source] of inventories) {
+    for (const [schema, , jobs] of inventories) {
+      const queue = batchState();
+      queue.active.inventory = { schema, blob: workflowContent(source).sha, jobs: [...jobs] };
+      queue.active.digest = digest(manifestFor(queue.active));
+      const value = fixture({ getContent: ({ path: file }) => file === '.github/workflows/ci.yml'
+        ? workflowContent(source) : workflowContent(JSON.stringify(queue)),
+        get: () => ({ ...pr(), mergeable: true }),
+        getCommit: ({ ref }) => ({ sha: ref, parents: [], commit: { tree: { sha: HEAD } } }) });
+      const dispatch = { ...inputs(), queue_head: OTHER, queue_batch: queue.active.digest, profile: 'batch-v1' };
+      const operation = () => admit({ github: value.github, context, inputs: dispatch });
+      if (schema === sourceSchema) assert.equal(await operation(), OTHER);
+      else await assert.rejects(operation(), /inventory changed/);
+    }
   }
 });
 
@@ -870,8 +881,9 @@ test('real schema-declared and historical protected workflows resolve their comp
   const unversioned = fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-native-fixture-timing.yml'), 'utf8')
     .replaceAll('\r\n', '\n');
   assert.equal(workflowContent(unversioned).sha, 'd3db4c610d08468c508f09e63b10f7c6568b82ea');
-  for (const [workflow, inventory] of [[source, source.includes('# merge-queue-job-schema: unit-pr-v1')
-    ? UNIT_PR_JOBS : DELIVERY_JOBS], [unversioned, WINDOWS_12_JOBS]]) {
+  for (const [workflow, inventory] of [[source, source.includes('# merge-queue-job-schema: parallel-pr-v1')
+    ? PARALLEL_PR_JOBS : source.includes('# merge-queue-job-schema: unit-pr-v1')
+      ? UNIT_PR_JOBS : DELIVERY_JOBS], [unversioned, WINDOWS_12_JOBS]]) {
     const value = fixture({ getContent: () => workflowContent(workflow) });
     assert.deepEqual(await value.api.expectedJobs(BASE), inventory);
     assert.deepEqual(value.calls, [['getContent', { owner: 'owner', repo: 'repo',
@@ -884,7 +896,7 @@ test('removing the schema or modifying a predecessor does not authorize an unkno
     .replaceAll('\r\n', '\n');
   const predecessor = fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-native-fixture-timing.yml'), 'utf8')
     .replaceAll('\r\n', '\n');
-  for (const workflow of [source.replace(/^# merge-queue-job-schema: (?:windows-12-v1|unit-pr-v1)\n/m, ''),
+  for (const workflow of [source.replace(/^# merge-queue-job-schema: (?:windows-12-v1|unit-pr-v1|parallel-pr-v1)\n/m, ''),
     `${predecessor}\n# Unrecognized revision\n`]) {
     const value = fixture({ getContent: () => workflowContent(workflow) });
     assert.equal(await value.api.expectedJobs(BASE), null);
@@ -907,7 +919,14 @@ test('missing, unknown or malformed workflow source explicitly denies a quiescen
     workflowContent(`${UNIT_PR_SOURCE}# merge-queue-job-schema: windows-12-v1\n`),
     workflowContent(`${UNIT_PR_SOURCE}# merge-queue-job-schema: unit-pr-v1\n`),
     workflowContent(`${UNIT_PR_SOURCE}# merge-queue-delivery-schema: independent-v1\n`),
-    workflowContent(UNIT_PR_SOURCE.replace('independent-v1', 'future-v1'))]) {
+    workflowContent(UNIT_PR_SOURCE.replace('independent-v1', 'future-v1')),
+    workflowContent('# merge-queue-job-schema: parallel-pr-v1\n'),
+    workflowContent(`${PARALLEL_PR_SOURCE}# merge-queue-job-schema: parallel-pr-v1\n`),
+    workflowContent(`${PARALLEL_PR_SOURCE}# merge-queue-job-schema: unit-pr-v1\n`),
+    workflowContent(`${PARALLEL_PR_SOURCE}# merge-queue-job-schema: windows-12-v1\n`),
+    workflowContent(`${PARALLEL_PR_SOURCE}# merge-queue-delivery-schema: independent-v1\n`),
+    workflowContent(PARALLEL_PR_SOURCE.replace('independent-v1', 'future-v1')),
+    workflowContent(` ${PARALLEL_PR_SOURCE}`)]) {
     const value = fixture({ getContent: () => response });
     // A null API response is normalized to an empty object by this existing fake.
     assert.equal(await value.api.expectedJobs(BASE), null);

@@ -48,9 +48,6 @@ $job = $portable.Groups['job'].Value
 foreach ($command in @(
     'dotnet restore Kora.UnitTests.slnx --locked-mode'
     'dotnet build Kora.UnitTests.slnx --configuration Release --no-restore'
-    'dotnet restore tests/Kora.Architecture.Tests/Kora.Architecture.Tests.csproj --locked-mode'
-    'dotnet build tests/Kora.Architecture.Tests/Kora.Architecture.Tests.csproj --configuration Release --no-restore'
-    './eng/Test-Architecture.ps1'
 )) {
     Assert ($job.Contains($command, [StringComparison]::Ordinal)) "Missing portable build or architecture prerequisite: $command."
 }
@@ -84,9 +81,25 @@ Assert ($payload.Groups['job'].Value.Contains('needs: version', [StringCompariso
 Assert ($payload.Groups['job'].Value.Contains('dotnet restore Kora.slnx --locked-mode', [StringComparison]::Ordinal)) 'The payload producer must restore its complete graph independently.'
 Assert ($payload.Groups['job'].Value.Contains('name: dependency-license-audit-${{ needs.version.outputs.source-revision }}', [StringComparison]::Ordinal)) 'The payload producer must consume this run''s exact-source preflight license evidence.'
 Assert ($payload.Groups['job'].Value.Contains("throw 'Dependency license audit does not match the admitted source.'", [StringComparison]::Ordinal)) 'The payload producer must reject wrong-source license evidence before distributing bytes.'
-Assert ($workflow.Contains('needs: [admission, version, portable-tests, payload]', [StringComparison]::Ordinal)) 'The required portable check must join tests and payload production.'
+Assert ($workflow.Contains('needs: [admission, version, portable-tests, portable-policy, payload]', [StringComparison]::Ordinal)) 'The required portable check must join tests, policy contracts and payload production.'
+$policy = [regex]::Match($workflow, '(?ms)^  portable-policy:\r?\n(?<job>.*?)(?=^  [a-z][a-z-]*:|\z)')
+Assert $policy.Success 'The independent portable policy job was not found.'
+Assert ($policy.Groups['job'].Value.Contains('needs: version', [StringComparison]::Ordinal)) 'Portable policy fixtures must run alongside, not after, unit tests.'
+foreach ($command in @('./eng/Test-BuildVersion.ps1', './eng/Test-GitHubRelease.ps1', './eng/Test-Run.ps1',
+    'node --test eng/release-comments.test.cjs', './eng/Test-CodeCoverage.ps1', './eng/Test-Architecture.ps1',
+    'dotnet restore src/Kora.Application/Kora.Application.csproj --locked-mode',
+    'dotnet restore src/Kora.Definitions/Kora.Definitions.csproj --locked-mode',
+    'dotnet restore tests/Kora.Architecture.Tests/Kora.Architecture.Tests.csproj --locked-mode',
+    'dotnet build tests/Kora.Architecture.Tests/Kora.Architecture.Tests.csproj --configuration Release --no-restore')) {
+    Assert ($policy.Groups['job'].Value.Contains($command, [StringComparison]::Ordinal)) "Missing independent policy contract: $command."
+    Assert (-not $job.Contains($command, [StringComparison]::Ordinal)) "Unit execution must not serialize independent policy contracts: $command."
+}
+$setup = [regex]::Match($workflow, '(?ms)^  installer-validation:\r?\n(?<job>.*?)(?=^  [a-z][a-z-]*:|\z)')
+Assert $setup.Success 'The independent managed setup and metadata job was not found.'
+Assert ($setup.Groups['job'].Value.Contains('needs: version', [StringComparison]::Ordinal)) 'Managed setup must validate alongside payload production.'
+Assert (-not $setup.Groups['job'].Value.Contains('packaging ==', [StringComparison]::Ordinal)) 'Setup and metadata validation must not depend on packaging selection.'
 $installer = [regex]::Match($workflow, '(?ms)^  installer:\r?\n(?<job>.*?)(?=^  [a-z][a-z-]*:|\z)')
-Assert ($installer.Success -and $installer.Groups['job'].Value.Contains('needs: [version, payload]', [StringComparison]::Ordinal)) 'The installer must consume the verified payload without waiting for unrelated portable tests.'
+Assert ($installer.Success -and $installer.Groups['job'].Value.Contains('needs: [version, payload, installer-validation]', [StringComparison]::Ordinal)) 'The installer must require both verified payloads and successful independent setup validation.'
 Assert ($workflow.Contains("if: github.event_name == 'workflow_dispatch' && inputs.compare_portable_tests",
     [StringComparison]::Ordinal)) 'Scheduling comparisons must remain opt-in and manual-only.'
 Assert ($workflow.Contains("(inputs.compare_portable_tests || inputs.compare_native_evidence) && '-test-comparison' || ''",

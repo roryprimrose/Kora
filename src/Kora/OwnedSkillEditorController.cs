@@ -308,19 +308,30 @@ internal sealed partial class OwnedSkillEditorController(
                     var version = command.Version ?? selected?.Document.Version;
                     if (id is null || version is null) { throw new InvalidOperationException("Select an exact saved version before reopening."); }
                     if (!await DiscardOrSave()) { return; }
+                    var reopenGeneration = Interlocked.Read(ref generation);
+                    void RequireUnchangedReopenDraft()
+                    {
+                        if (reopenGeneration != Interlocked.Read(ref generation))
+                        { throw new InvalidOperationException("The draft changed while reopening. Your edits were kept; save or explicitly discard them before reopening again."); }
+                    }
                     var saved = await workflow.Read(id, version, original!, lifetime.Token, OwnedSkillReadScope.PrimaryDeclaration)
                         ?? throw new InvalidDataException("The exact saved skill version is absent.");
+                    RequireUnchangedReopenDraft();
+                    if (!Eligible() || !authority.IsCurrent()) { return; }
                     if (saved.Document.ObservationWorkflow is not null)
                     { throw new InvalidOperationException("Use the separate owned skill workflow editor for this declarative observation source; its steps cannot become literal guidance."); }
                     if (!saved.Document.IsComplete)
                     {
-                        if (!await opened.ConfirmComponentRead(saved, lifetime.Token) || !Eligible()) { return; }
+                        var readComponents = await opened.ConfirmComponentRead(saved, lifetime.Token);
+                        RequireUnchangedReopenDraft();
+                        if (!readComponents || !Eligible() || !authority.IsCurrent()) { return; }
                         var complete = await workflow.Read(id, version, original!, lifetime.Token, expectedPrimary: saved)
                             ?? throw new InvalidDataException("The exact declared package is missing.");
                         if (!saved.IsSamePrimary(complete)) { throw new InvalidDataException("The reviewed component declaration changed; reopen again."); }
                         saved = complete;
                     }
-                    if (!Eligible()) { return; }
+                    RequireUnchangedReopenDraft();
+                    if (!Eligible() || !authority.IsCurrent()) { return; }
                     ShowSaved(opened, saved);
                     break;
                 default: throw new InvalidOperationException(OwnedSkillAuthoringCommand.Syntax);

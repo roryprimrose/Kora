@@ -103,6 +103,18 @@ public sealed partial class ResponseWindow : Window
     private async void OnCancelTaskClicked(object? sender, RoutedEventArgs eventArgs) =>
         await RunResponseActionAsync(viewModel.CancelCurrentTaskAsync);
 
+    private void OnRefreshSubmittedActivity(object? sender, RoutedEventArgs eventArgs) =>
+        viewModel.RefreshSubmittedWorkActivity();
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia Click requires void; RunResponseActionAsync explicitly reports failures.")]
+    private async void OnStopSubmittedActivity(object? sender, RoutedEventArgs eventArgs) =>
+        await RunResponseActionAsync(async () =>
+        {
+            await viewModel.StopAllWorkAsync();
+            viewModel.RefreshSubmittedWorkActivity();
+        });
+
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
         Justification = "Avalonia Click requires void; RunResponseActionAsync explicitly reports failures.")]
     private async void OnQuestionChoiceClicked(object? sender, RoutedEventArgs eventArgs)

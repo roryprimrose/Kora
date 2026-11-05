@@ -95,6 +95,7 @@ public sealed partial class ResponseWindow
             Height = size.Height;
             KeepOnScreen();
         }
+        ResponseLayout.Width = expanded ? double.NaN : Math.Max(480, Width);
         if (SessionWorkspace.IsVisible != expanded) { sessionPresentationEpoch++; }
         if (!expanded) { SessionWorkspace.HideDetails(); }
         SessionWorkspace.IsVisible = expanded;
@@ -126,11 +127,15 @@ public sealed partial class ResponseWindow
 
     private void FitCompactWorkingArea()
     {
-        if (IsExpanded || getWorkingArea() is not { } area
-            || (Width * RenderScaling <= area.Width && Height * RenderScaling <= area.Height)) { return; }
-        positionInitialized = false;
-        KeepOnScreen();
-        positionInitialized = true;
+        if (IsExpanded) { return; }
+        if (getWorkingArea() is { } area
+            && (Width * RenderScaling > area.Width || Height * RenderScaling > area.Height))
+        {
+            positionInitialized = false;
+            KeepOnScreen();
+            positionInitialized = true;
+        }
+        ResponseLayout.Width = Math.Max(480, Width);
     }
 
     private void OnExpandSessionsClicked(object? sender, RoutedEventArgs args) => viewModel.ShowSessions();

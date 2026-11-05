@@ -47,6 +47,112 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
+    [InlineData(RequestOrigin.LocalUi, "current")]
+    [InlineData(RequestOrigin.ActivatedVoice, "current")]
+    [InlineData(RequestOrigin.LocalUi, "private")]
+    [InlineData(RequestOrigin.ActivatedVoice, "private")]
+    [InlineData(RequestOrigin.LocalUi, "cancel")]
+    [InlineData(RequestOrigin.ActivatedVoice, "cancel")]
+    [InlineData(RequestOrigin.LocalUi, "expired")]
+    [InlineData(RequestOrigin.ActivatedVoice, "expired")]
+    [InlineData(RequestOrigin.LocalUi, "generation")]
+    [InlineData(RequestOrigin.ActivatedVoice, "generation")]
+    [InlineData(RequestOrigin.LocalUi, "source")]
+    [InlineData(RequestOrigin.ActivatedVoice, "source")]
+    public async Task PromptAuthoringRevalidatesHostPublicationAfterTheFinalOwnedSourceRead(RequestOrigin origin, string change)
+    {
+        await using var local = new RefinementFixture(origin);
+        var f = local.Model;
+        using var root = f.Root();
+        await using var admission = new InstructionControlAdmission(f, f, new(f));
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        var source = new CustomizationSource("file.example", CustomizationKind.Prompt, CustomizationScope.Kora,
+            "example", "owned", "example.prompt.md");
+        var file = new CustomizationFile(source.PrimaryFile,
+            ArtifactFileDocument.Encode(CustomizationLayout.Template(source.Kind, source.Name), true));
+        var originalBytes = file.CopyBytes();
+        f.Adapter.Reply = new(ModelTurnOutcome.Succeeded, ModelProviderSelection.OllamaCandidate,
+            new("{\"body\":\"Request ${input:topic}\"}", null));
+        var observed = new PromptAuthoringRunner(local.Runner);
+        var service = new CustomizationAuthoringService(admission, observed, f.Time);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var eligible = true;
+        var finalChecks = 0;
+        async Task ValidateSource(CancellationToken token)
+        {
+            if (!observed.Joined) { return; }
+            finalChecks++;
+            entered.SetResult();
+            await release.Task.WaitAsync(Token);
+            if (change is "source") { throw new InvalidOperationException("Exact prompt source changed."); }
+        }
+        var operation = service.Refine(source, [file], new(source.PrimaryFile, RequiredPromptInputs: "topic"),
+            "Describe a repeatable request", () => eligible, cancellation.Token, ValidateSource);
+        try
+        {
+            (await Task.WhenAny(operation, entered.Task)).Should().BeSameAs(entered.Task);
+            await entered.Task;
+            operation.IsCompleted.Should().BeFalse("the final source read is still owned");
+            f.PolicyHost.IsQuiescent.Should().BeTrue("the actual model turn has already joined");
+            switch (change)
+            {
+                case "private": eligible = false; break;
+                case "cancel": cancellation.Cancel(); break;
+                case "expired": f.Time.Now += TimeSpan.FromMinutes(3); break;
+                case "generation": f.Session = f.Session with { Generation = new(2) }; break;
+            }
+        }
+        finally { release.TrySetResult(); }
+        if (change is "current")
+        {
+            var result = await operation;
+            result.Files.Single().Text.Should().Contain("Request ${input:topic}");
+            result.Files.Single().HasBom.Should().BeTrue();
+        }
+        else
+        {
+            var publish = () => operation;
+            if (change is "cancel") { await publish.Should().ThrowAsync<OperationCanceledException>(); }
+            else { await publish.Should().ThrowAsync<InvalidOperationException>(); }
+        }
+        finalChecks.Should().Be(1);
+        file.CopyBytes().Should().Equal(originalBytes);
+        f.Adapter.Calls.Should().Be(1);
+        f.RetainCalls.Should().Be(0);
+        local.Store.Writes.Should().Be(0);
+        f.PolicyHost.IsQuiescent.Should().BeTrue();
+        Kora.Core.Diagnostics.HostActivity.RequireCurrent().Request.Origin.Should().Be(origin);
+    }
+
+    private sealed class PromptAuthoringRunner(IModelContextRunner inner) : IModelContextRunner
+    {
+        internal bool Joined { get; private set; }
+
+        public async Task<ModelContextAdmission> AdmitAsync(LocalContextSessionTarget target, Func<bool> sourceCurrent,
+            CancellationToken token, Func<CancellationToken, Task>? validateSource = null)
+        {
+            var admitted = await inner.AdmitAsync(target, sourceCurrent, token, validateSource);
+            return admitted.Turn is { } turn ? new(new ObservedTurn(this, turn)) : admitted;
+        }
+
+        private sealed class ObservedTurn(PromptAuthoringRunner owner, IAdmittedModelContextTurn inner) : IAdmittedModelContextTurn
+        {
+            public HostRequest Request => inner.Request;
+            public HostRevision SessionGeneration => inner.SessionGeneration;
+            public Task<LocalContextTurnReceipt> Completion => inner.Completion;
+            public Task<LocalContextTurnReceipt> RunAsync(ModelContextEnvelope context, CancellationToken token) =>
+                inner.RunAsync(context, token);
+
+            public async ValueTask DisposeAsync()
+            {
+                await inner.DisposeAsync();
+                owner.Joined = true;
+            }
+        }
+    }
+
+    [Theory]
     [InlineData("missing-declaration")]
     [InlineData("profile")]
     [InlineData("legacy-fields")]

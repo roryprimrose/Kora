@@ -18,6 +18,8 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class CompactResponseWorkingAreaTests
 {
+    private static readonly string[] SubmittedActivityControls = ["RefreshSubmittedActivity", "StopSubmittedActivity"];
+
     [Theory]
     [InlineData(320, 400, 1)]
     [InlineData(640, 800, 2)]
@@ -82,6 +84,15 @@ public sealed class CompactResponseWorkingAreaTests
                 window.UpdateLayout();
                 AssertInside(window, dismiss);
                 dismiss.Focus().Should().BeTrue();
+                foreach (var name in SubmittedActivityControls)
+                {
+                    var control = window.FindControl<Button>(name)!;
+                    control.IsEffectivelyVisible.Should().BeTrue();
+                    control.BringIntoView();
+                    window.UpdateLayout();
+                    AssertInside(window, control);
+                    control.Focus().Should().BeTrue();
+                }
                 fixture.Main.ResponseBody.Should().Be(body);
                 fixture.Main.ResponseActions.Should().Equal(actions);
                 fixture.Main.ResponseWindowPosition.Should().Be(position);

@@ -9,6 +9,12 @@ Long results can have [a brief and full Details](#brief-answers-and-full-details
 workflows below describe their reviews and limits; their controls do not enable
 a model. Built-in command responses and local speech still work.
 
+## Navigate headings in a final Markdown answer
+
+In an already opened final Markdown **Details** view, expand **Document headings (Alt+H)**. Each entry shows its position, heading level and complete heading text, including duplicate titles. Click an entry, or focus it and press Enter or Space, to move to and focus that exact heading. Alt+H focuses the first index entry again ([native interaction](../src/Kora/NativeDocumentInteraction.cs)).
+
+The index does not need links in the answer. It is unavailable in Exact source, Continuous text, source fallback, provisional answers and documents without headings. Switching back to the same admitted rendered view restores navigation; closing or losing source/private access retires it. Navigation does not copy, speak, open websites or grant permissions ([view lifetime](../src/Kora/DetailContentView.axaml.cs)).
+
 ## Inspect context submitted for a retained answer
 
 Select one exact retained ASSISTANT answer in Sessions or the conversation pane, then choose **Context submitted for this answer**. The private native Details view shows historical host metadata, not a new answer or source-body recall ([native route](../src/Kora/ConversationPresentation.axaml), [inspection owner](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs)).
@@ -138,11 +144,31 @@ ordinal text, then again for descending. Equal values keep original order.
 **Reset table order** restores original order and the last focused cell.
 Reopening starts in original order. Sorting never edits the answer.
 
+To read a whole sorted row together, click or focus a data cell and choose
+**Inspect focused row**, or press Enter/Space on the cell. The readback lists every
+complete value with its header, current row and original row, including empty
+cells. **Return to inspected cell** goes back to that exact cell even after
+sorting or reset. This is read-only native text, not speech or copying; reopening
+starts without an inspected row ([row inspection](../src/Kora/NativeTableControl.Inspection.cs)).
+
 **Continuous text** and **Exact source** retain their existing selection and
 literal Find behavior. No table action copies content or grants clipboard
 access. Closing or retiring the original result retires its navigation too.
 An unavailable table profile still shows the complete source, not an incomplete
 table; these controls do not enable an unqualified profile.
+
+### See a literal match in context
+
+Use **Find first**, **Next** or **Previous** in Details, then choose **Show match
+in reader** to select and reveal that exact occurrence with its surrounding text.
+A rendered result switches to **Continuous text**; **Exact source** stays in its
+original projection. Find does not wrap at either end.
+
+The button is unavailable after query edits, Cancel/Clear, projection changes or
+direction exhaustion until another match is found. Separate typed HOST matches
+stay in their own observation, never in the answer or original USER body.
+Showing a match reads no additional source and grants no copy permission.
+Closing or losing access clears the reader and its selection.
 
 ### Wrap or horizontally scroll Details text
 
@@ -153,9 +179,12 @@ Space, or use its native toggle automation. Structured Markdown and its separate
 code-block wrapping are unchanged.
 
 This is a view-only choice, not a saved setting. Text, selection and literal Find
-stay unchanged. Closing or losing source/private access clears the reader; reopen
-the exact source normally to recover, with wrapping on by default. Wrapping grants
-no copy permission and reads no additional source.
+stay unchanged when toggling it. In integrated session Details, **Hide details**
+clears text and Find but remembers wrapping with that exact item's reading
+position. Explicit **Show details** rechecks access before restoring the projection,
+wrapping and scroll position. Other new readers start wrapped. Losing source/private
+access clears the reader; a remembered position cannot bypass normal admission.
+Wrapping grants no copy permission and reads no additional source.
 
 ### Review a final-answer external link
 
@@ -176,6 +205,8 @@ profiles retain their labelled source fallback without active links.
 ### Copy already-authorized Markdown
 
 Where copying is already authorized, **Copy all** copies the complete active view. Rendered Markdown supplies semantic plain text and inert HTML together, including all list items, code, table cells and visible link destinations, not just the visible or searched portion ([copy route](../src/Kora/DetailWindowController.cs)).
+
+**Show match in reader** only reveals the current literal Find occurrence. It does not copy; a subsequent **Copy all** still copies the complete active view, not that selected occurrence.
 
 Choose **Copy source** for the complete original Markdown with unchanged tabs and line breaks, without changing your view. Copy all in **Exact source**, plain-text content or source fallback also copies unchanged source only. **Copy selection** still copies only the exact selected text, with escaped preformatted HTML for rendered Markdown ([native interaction](../tests/Kora.Windows.IntegrationTests/DetailCopyNativeTests.cs)).
 

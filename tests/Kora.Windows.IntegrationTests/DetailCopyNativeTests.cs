@@ -50,7 +50,12 @@ public sealed class DetailCopyNativeTests
                 ControlAutomationPeer.CreatePeerForElement(source)!.GetName().Should().Contain("exact original source");
                 window.FindControl<CheckBox>("ReadingTextToggle")!.IsChecked = true;
                 window.FindControl<CheckBox>("WrapTextToggle")!.IsChecked = false;
-                state.Search("microphone").Should().BeTrue();
+                window.FindControl<TextBox>("SearchInput")!.Text = "microphone";
+                window.FindControl<Button>("FirstMatch")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                window.FindControl<Button>("RevealMatch")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                var reader = window.FindControl<TextBox>("ContentReader")!;
+                reader.SelectedText.Should().Be("microphone");
+                clipboard.Writes.Should().Be(0, "revealing a literal match grants no clipboard authority");
                 var match = state.MatchStart;
                 all.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 clipboard.Writes.Should().Be(1);
@@ -61,6 +66,7 @@ public sealed class DetailCopyNativeTests
                     .And.Contain("or launch Kora.").And.NotContain("href=").And.NotContain("SHA-256:");
                 state.Status.Should().StartWith("Complete rendered Markdown copied");
                 state.MatchStart.Should().Be(match);
+                reader.SelectedText.Should().Be("microphone", "Copy all must not replace the revealed selection");
                 source.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 clipboard.Writes.Should().Be(2);
                 clipboard.Current!.TryGetText().Should().Be(page.Markdown);

@@ -51,6 +51,9 @@
                 AutomationProperties.Name="Cancel literal Find and release match; retain query" />
         <Button x:Name="ClearFind" Content="Clear literal Find" TabIndex="9"
                 AutomationProperties.Name="Clear literal Find query and match" />
+        <Button x:Name="RevealMatch" Content="Show match in reader" Margin="8,0" TabIndex="10"
+                AutomationProperties.Name="Show the exact selected literal match in its admitted reader text"
+                AutomationProperties.HelpText="Selects and reveals this occurrence with its surrounding text. Rendered results switch to Continuous text. Separate HOST matches remain in their own observation." />
       </WrapPanel>
       <TextBlock Text="Literal Find: exact case and spaces; one line, 256 UTF-16 characters / 512 UTF-8 bytes maximum; nonoverlapping, no wrap. Searches only current admitted text, never reads a source." TextWrapping="Wrap" />
       <controls:NamedTextBlock x:Name="FindSummary" TextWrapping="Wrap"
@@ -58,22 +61,22 @@
                               AutomationProperties.LiveSetting="Off" />
       <ScrollViewer MaxHeight="100" VerticalScrollBarVisibility="Auto"
                     AutomationProperties.Name="Bounded inert literal match viewport">
-        <controls:NamedTextBlock x:Name="FindSpan" Focusable="True" IsVisible="False" TextWrapping="Wrap" TabIndex="16"
+        <controls:NamedTextBlock x:Name="FindSpan" Focusable="True" IsVisible="False" TextWrapping="Wrap" TabIndex="17"
                                 AutomationProperties.Name="Exact inert admitted detail literal match" />
       </ScrollViewer>
       <TextBlock x:Name="CopyPolicyLabel" Text="Copy all copies the complete active view: rendered Markdown as semantic plain text with inert HTML, or unchanged source/plain text. Copy source always preserves the original text. Clipboard content leaves Kora's boundary and may be read by other apps or clipboard history/sync."
                  TextWrapping="Wrap" />
-      <CheckBox x:Name="DisclosureConfirmation" TabIndex="10"
+      <CheckBox x:Name="DisclosureConfirmation" TabIndex="11"
                 Content="I confirm disclosure of this private source outside Kora."
                 AutomationProperties.Name="Confirm private source disclosure outside Kora" />
       <WrapPanel>
-        <Button x:Name="CopySelection" Content="Copy selection (Ctrl+C)" TabIndex="11"
+        <Button x:Name="CopySelection" Content="Copy selection (Ctrl+C)" TabIndex="12"
                 AutomationProperties.Name="Copy selected text from the continuous reader" />
-        <Button x:Name="CopyAll" Content="Copy all" TabIndex="12" Margin="8,0,0,0"
+        <Button x:Name="CopyAll" Content="Copy all" TabIndex="13" Margin="8,0,0,0"
                 AutomationProperties.Name="Copy complete active view; rendered Markdown as semantic plain text and inert HTML when authorized" />
-        <Button x:Name="CopySource" Content="Copy source" TabIndex="13" Margin="8,0,0,0"
+        <Button x:Name="CopySource" Content="Copy source" TabIndex="14" Margin="8,0,0,0"
                 AutomationProperties.Name="Copy complete exact original source as Unicode plain text without rich formats" />
-        <Button x:Name="CloseDetail" Content="Close (Escape)" TabIndex="14" Margin="8,0,0,0"
+        <Button x:Name="CloseDetail" Content="Close (Escape)" TabIndex="15" Margin="8,0,0,0"
                 AutomationProperties.Name="Close passive details" />
       </WrapPanel>
     </StackPanel>
@@ -86,7 +89,7 @@
       <StackPanel x:Name="RenderedDocument" Spacing="4" Margin="12" />
     </ScrollViewer>
     <TextBox x:Name="ContentReader" Grid.Row="3" IsReadOnly="True" AcceptsReturn="True" IsUndoEnabled="False"
-             TextWrapping="Wrap" TabIndex="15" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+             TextWrapping="Wrap" TabIndex="16" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
              AutomationProperties.Name="Passive immutable detail text"
              Background="{DynamicResource KoraSurfaceAltBrush}"
              Foreground="{DynamicResource KoraForegroundBrush}"

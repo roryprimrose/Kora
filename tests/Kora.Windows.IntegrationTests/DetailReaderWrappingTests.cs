@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Automation.Peers;
 using Avalonia.Automation.Provider;
@@ -24,6 +25,89 @@ public sealed class DetailReaderWrappingTests
 {
     private static readonly double[] Widths = [640, 960];
     private static readonly double[] FontSizes = [12, 24, 36];
+
+    [Theory]
+    [InlineData("keyboard")]
+    [InlineData("pointer")]
+    [InlineData("wheel")]
+    public Task NewReaderInputSupersedesDeferredReadingPosition(string input) =>
+        HeadlessSession.RunAsync(() =>
+        {
+            var state = State(Content("plain"));
+            var window = Window(state, (_, _, _, _) => throw new InvalidOperationException("No clipboard effect."));
+            window.Show();
+            try
+            {
+                Required<CheckBox>(window, "ReadingTextToggle").IsChecked = true;
+                Required<CheckBox>(window, "WrapTextToggle").IsChecked = false;
+                var reader = Required<TextBox>(window, "ContentReader");
+                reader.Focus().Should().BeTrue();
+                reader.CaretIndex = 100;
+                window.UpdateLayout();
+                Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                var viewport = reader.GetVisualDescendants().OfType<ScrollViewer>().Single();
+                viewport.Offset = new(450, 0);
+                var position = window.Reader.CaptureReadingPosition();
+                position.TextOffset.X.Should().Be(450);
+                window.Reader.RestoreReadingPosition(position);
+                var point = reader.TranslatePoint(new(20, 20), window)!.Value;
+                if (string.Equals(input, "keyboard", StringComparison.Ordinal))
+                {
+                    window.KeyPress(Key.F12, RawInputModifiers.None, PhysicalKey.F12, null);
+                    window.KeyRelease(Key.F12, RawInputModifiers.None, PhysicalKey.F12, null);
+                }
+                else if (string.Equals(input, "pointer", StringComparison.Ordinal))
+                {
+                    window.MouseDown(point, MouseButton.Left);
+                    window.MouseUp(point, MouseButton.Left);
+                }
+                else { window.MouseWheel(point, new(1, 0), RawInputModifiers.None); }
+                viewport.Offset = new(100, 0);
+                window.Reader.CaptureReadingPosition().TextOffset.X.Should().Be(100,
+                    "new input retires the pending snapshot before another Hide can capture it");
+                Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                viewport.Offset.X.Should().NotBe(450, "the old callback cannot overwrite a later reading action");
+                reader.Text.Should().Be(state.Content!.Source);
+            }
+            finally { window.ClearAndClose(); }
+        });
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task DeferredPositionRestoreCannotOutliveSourceAdmissionOrClosure(bool close) =>
+        HeadlessSession.RunAsync(() =>
+        {
+            var content = Content("plain");
+            var allowed = true;
+            var state = State(content, () => allowed);
+            var writes = 0;
+            var window = Window(state, (_, _, _, _) => { writes++; return Task.CompletedTask; });
+            window.Show();
+            try
+            {
+                var reader = Required<TextBox>(window, "ContentReader");
+                Required<CheckBox>(window, "ReadingTextToggle").IsChecked = true;
+                Required<CheckBox>(window, "WrapTextToggle").IsChecked = false;
+                reader.CaretIndex = 5;
+                window.UpdateLayout();
+                var position = window.Reader.CaptureReadingPosition();
+                Required<CheckBox>(window, "WrapTextToggle").IsChecked = true;
+                window.Reader.RestoreReadingPosition(position);
+                window.Reader.CaptureReadingPosition().Should().Be(position);
+                if (close) { window.ClearAndClose(); }
+                else { allowed = false; }
+                Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+                window.IsVisible.Should().BeFalse();
+                state.Content.Should().BeNull();
+                reader.Text.Should().BeEmpty();
+                reader.SelectedText.Should().BeEmpty();
+                Required<CheckBox>(window, "WrapTextToggle").IsEnabled.Should().BeFalse();
+                writes.Should().Be(0);
+            }
+            finally { window.ClearAndClose(); }
+        });
 
     [Theory]
     [InlineData("plain")]

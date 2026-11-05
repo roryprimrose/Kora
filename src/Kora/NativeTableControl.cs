@@ -33,6 +33,15 @@ internal sealed partial class NativeTableControl : StackPanel
         this.data = data;
         this.interaction = interaction;
         summary = new TableReader(this) { TextWrapping = TextWrapping.Wrap };
+        inspection = new TableReader(this)
+        {
+            Focusable = true,
+            IsVisible = false,
+            TextWrapping = TextWrapping.Wrap,
+            FontSize = 14,
+            LineHeight = 14 * 1.55,
+            ContextMenu = null,
+        };
         order = Enumerable.Range(0, data.Rows.Length).ToArray();
         Spacing = 8;
         Margin = new Thickness(0, 4, 0, 10);
@@ -64,11 +73,21 @@ internal sealed partial class NativeTableControl : StackPanel
                     Text = data.Rows[row][column].Length == 0 ? "(empty cell)" : data.Rows[row][column],
                     Focusable = true,
                     TextWrapping = TextWrapping.Wrap,
+                    Background = Brushes.Transparent,
                     FontSize = 14,
                     LineHeight = 14 * 1.55,
                     ContextMenu = null,
                 };
-                cell.GotFocus += (_, _) => selectedCell = position;
+                cell.GotFocus += (_, _) =>
+                {
+                    if (!Admit()) { return; }
+                    selectedCell = position;
+                    inspect.IsEnabled = true;
+                };
+                cell.PointerPressed += (_, args) =>
+                {
+                    if (args.GetCurrentPoint(cell).Properties.IsLeftButtonPressed) { FocusCell(position); }
+                };
                 AutomationProperties.SetLabeledBy(cell, headers[column]);
                 cells[column] = cell;
                 positions.Add(cell, position);
@@ -80,6 +99,7 @@ internal sealed partial class NativeTableControl : StackPanel
         Children.Add(summary);
         Children.Add(reset);
         Children.Add(grid);
+        InitializeInspection();
         AddHandler(KeyDownEvent, OnNavigationKey, RoutingStrategies.Bubble);
         DetachedFromVisualTree += (_, _) => Retire();
         UpdateOrder();
@@ -89,7 +109,7 @@ internal sealed partial class NativeTableControl : StackPanel
 
     private bool CanRead => data is not null && interaction.CanInteract && data is not null;
 
-    internal IEnumerable<TextBlock> Readers => headerLabels.Concat(rows.SelectMany(row => row)).Prepend(summary);
+    internal IEnumerable<TextBlock> Readers => headerLabels.Concat(rows.SelectMany(row => row)).Prepend(summary).Append(inspection);
 
     private bool Admit()
     {
@@ -138,6 +158,7 @@ internal sealed partial class NativeTableControl : StackPanel
         summary.Text = $"Table {table.Number}: {table.Headers.Length} columns, {table.Rows.Length} data rows. "
             + ordering + " Arrow keys move between headers and cells; Home/End move across a row; "
             + "Ctrl+Home/End move to first/last row. Activate a header to sort; activate again to reverse. "
+            + "Enter/Space on a data cell or Inspect focused row reads its complete header-labelled row. "
             + "Reset restores original order and the last focused cell. Read-only; no copy or editing.";
         AutomationProperties.SetName(this, $"Read-only table {table.Number}, {table.Headers.Length} columns, {table.Rows.Length} data rows");
         grid.Children.Clear();
@@ -164,11 +185,19 @@ internal sealed partial class NativeTableControl : StackPanel
                 grid.Children.Add(cell);
             }
         }
+        UpdateInspection();
         if (focused is not null) { FocusCell(positions[focused]); }
     }
 
     private void OnNavigationKey(object? sender, KeyEventArgs args)
     {
+        if (args.KeyModifiers == KeyModifiers.None && args.Key is Key.Enter or Key.Space
+            && args.Source is Control cell && positions.TryGetValue(cell, out var selected) && selected.SourceRow is not null)
+        {
+            args.Handled = true;
+            InspectRow(selected);
+            return;
+        }
         if (args.KeyModifiers is not (KeyModifiers.None or KeyModifiers.Control)
             || args.Key is not (Key.Left or Key.Right or Key.Up or Key.Down or Key.Home or Key.End))
         { return; }
@@ -202,6 +231,12 @@ internal sealed partial class NativeTableControl : StackPanel
     {
         if (!Admit()) { return; }
         Control target = position.SourceRow is { } row ? rows[row][position.Column] : headers[position.Column];
+        FocusReader(target);
+    }
+
+    private void FocusReader(Control target)
+    {
+        if (!Admit()) { return; }
         if (TopLevel.GetTopLevel(target) is null || !target.IsEffectivelyVisible)
         {
             interaction.Report("Table cell focus unavailable in the current rendered view.");
@@ -218,6 +253,8 @@ internal sealed partial class NativeTableControl : StackPanel
     {
         data = null;
         selectedCell = null;
+        ClearInspection();
+        inspect.IsEnabled = false;
         order = [];
         foreach (var header in headers)
         {

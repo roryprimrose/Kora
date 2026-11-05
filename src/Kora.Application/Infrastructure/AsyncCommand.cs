@@ -5,13 +5,15 @@ namespace Kora.Application.Infrastructure;
 public sealed class AsyncCommand(
     Func<Task> execute,
     Action<Exception> handleException,
-    Func<bool>? canExecute = null) : ICommand
+    Func<bool>? canExecute = null,
+    Func<bool>? canExecuteWhileExecuting = null) : ICommand
 {
-    private bool isExecuting;
+    private int executionCount;
 
     public event EventHandler? CanExecuteChanged;
 
-    public bool CanExecute(object? parameter) => !isExecuting && (canExecute?.Invoke() ?? true);
+    public bool CanExecute(object? parameter) => (executionCount == 0 || canExecuteWhileExecuting?.Invoke() == true)
+        && (canExecute?.Invoke() ?? true);
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
         Justification = "ICommand.Execute requires void; failures are routed to the supplied exception handler.")]
@@ -34,7 +36,7 @@ public sealed class AsyncCommand(
             return;
         }
 
-        isExecuting = true;
+        executionCount++;
         CanExecuteChanged?.Invoke(this, EventArgs.Empty);
 
         try
@@ -43,7 +45,7 @@ public sealed class AsyncCommand(
         }
         finally
         {
-            isExecuting = false;
+            executionCount--;
             CanExecuteChanged?.Invoke(this, EventArgs.Empty);
         }
     }

@@ -65,6 +65,9 @@ public sealed class SystemTrayController : IDisposable
         inputStatusItem = new NativeMenuItem { IsEnabled = false };
         menu.Add(inputStatusItem);
         menu.Add(showItem);
+        var activityItem = new NativeMenuItem("Submitted activity");
+        activityItem.Click += (_, _) => RunAfterNativeMenuCloses(viewModel.ShowSubmittedWorkActivity);
+        menu.Add(activityItem);
         if (newRequest is not null)
         {
             var newRequestItem = new NativeMenuItem("New request");

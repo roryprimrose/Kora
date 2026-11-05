@@ -10,6 +10,7 @@ internal sealed partial class SessionsViewModel
     public bool CanReviewModelMemoryProposal => CanReadConversation && access.CanControl
         && selected?.Authority.IsActive == true && !conversationSourceHeld && memories is not null;
     public bool CanAcceptModelMemoryProposal => CanReviewModelMemoryProposal && modelMemoryReview?.CanAccept == true;
+    public bool CanRejectModelMemoryProposal => CanReviewModelMemoryProposal && modelMemoryReview?.CanReject == true;
     public bool CanAdmitModelMemoryProposal => CanReviewModelMemoryProposal && modelMemoryReview?.CanAdmit == true;
     public string ModelMemoryProposalDescription => modelMemoryReview?.Description ?? string.Empty;
 
@@ -42,7 +43,7 @@ internal sealed partial class SessionsViewModel
             ? "Model-memory operation not confirmed: " + result.Outcome + " / " + result.Reason
                 + ". Inspect session memories and audit receipts before a fresh review; no retry or rollback."
             : admit ? "Exact SESSION memory admitted by original-user confirmation. No memory use, model turn, grant or disclosure."
-            : accept ? "Exact candidate accepted for this SESSION; still pending. Separately Admit, or Cancel without saving."
+            : accept ? "Exact candidate accepted for this SESSION; still pending. Separately Admit, Reject, or Cancel without saving."
             : "Model-memory proposal rejected. No memory body saved or used.";
         if (admit || !accept || result.Outcome != MemoryOutcome.Succeeded) { CancelModelMemoryProposal(); }
     });
@@ -63,6 +64,7 @@ internal sealed partial class SessionsViewModel
         }
         OnPropertyChanged(nameof(CanReviewModelMemoryProposal));
         OnPropertyChanged(nameof(CanAcceptModelMemoryProposal));
+        OnPropertyChanged(nameof(CanRejectModelMemoryProposal));
         OnPropertyChanged(nameof(CanAdmitModelMemoryProposal));
         OnPropertyChanged(nameof(ModelMemoryProposalDescription));
     }

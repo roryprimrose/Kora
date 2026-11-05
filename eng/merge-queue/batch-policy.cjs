@@ -33,6 +33,32 @@ function manifestFor(active) {
 function validateBatchState(state) {
   invariant(state.deliveryProfile === undefined || state.deliveryProfile === 'independent-v1',
     'Unknown durable delivery profile.');
+  if (state.deliveryTransition !== undefined) {
+    const change = state.deliveryTransition;
+    invariant(change && TICKET.test(change.ticket) && SHA.test(change.checkpoint)
+      && typeof change.actor === 'string' && /^[a-z0-9][a-z0-9-]{0,38}$/i.test(change.actor)
+      && Number.isSafeInteger(change.run) && change.run > 0 && timestamp(change.created)
+      && ['draining', 'ready', 'completed', 'aborted'].includes(change.phase),
+    'Invalid independent delivery transition.');
+    if (['ready', 'completed'].includes(change.phase)) {
+      invariant(SHA.test(change.source) && SHA.test(change.tree) && timestamp(change.prepared)
+        && Number.isSafeInteger(change.prepareRun) && change.prepareRun > 0
+        && change.qualification?.source === change.source
+        && Number.isSafeInteger(change.qualification.run) && change.qualification.run > 0
+        && Number.isSafeInteger(change.qualification.job) && change.qualification.job > 0,
+      'Invalid prepared independent delivery boundary.');
+    }
+    if (change.phase === 'ready')
+      invariant(state.active === null, 'A prepared delivery boundary cannot own an active candidate.');
+    if (change.phase === 'completed')
+      invariant(state.deliveryProfile === 'independent-v1' && timestamp(change.completed)
+        && Number.isSafeInteger(change.resumeRun) && change.resumeRun > 0,
+      'Completed delivery transition requires durable independent adoption.');
+    if (change.phase === 'aborted')
+      invariant(state.deliveryProfile === undefined && timestamp(change.aborted)
+        && Number.isSafeInteger(change.abortRun) && change.abortRun > 0,
+      'An aborted transition cannot revoke durable independent delivery.');
+  }
   if (state.completedTip?.delivery !== undefined)
     require('./delivery.cjs').releaseRecord(state.completedTip);
   invariant(state.profile === PROFILE && Array.isArray(state.singletonRetries)

@@ -210,6 +210,11 @@ preference results on the UI context before retiring their view model. Do not
 mask an active writer with deletion retries or swallowed
 I/O errors; pending-work regressions use an explicit write barrier.
 
+Private-fixture recovery requires both joined privacy retirement and a new
+host-resolved local-user gesture before private inspection hooks are used again.
+Do not treat restored access, a readiness refresh or an ambient host-system
+operation as renewed presentation authority.
+
 Queued-conversation fakes must derive each terminal message/task pair from the
 exact request-owned retained record before updating shared observation fields.
 Concurrent expiry must preserve both originals' identity, body, generation,

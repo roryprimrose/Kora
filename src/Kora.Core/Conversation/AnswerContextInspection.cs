@@ -42,7 +42,8 @@ public static class AnswerContextInspection
             .Append("Complete canonical envelope: ").Append(context.CanonicalUtf8Bytes.ToString(CultureInfo.InvariantCulture))
             .Append(" UTF-8 bytes. Includes host policy and the new USER request; neither body is copied here.\n\n")
             .Append(context.Version == 1 ? "Ordered serialized evidence sources (whole same-session messages):\n"
-                : "Ordered serialized evidence sources (same-session memory references):\n");
+                : context.Version == 2 ? "Ordered serialized evidence sources (same-session memory references):\n"
+                : "Ordered serialized evidence sources (device-profile memory references):\n");
         for (var index = 0; index < context.Sources.Length; index++)
         {
             var source = context.Sources[index];
@@ -70,9 +71,23 @@ public static class AnswerContextInspection
                     }).Append('\n');
             }
         }
+        if (!context.ProfileMemorySources.IsDefault)
+        {
+            for (var index = 0; index < context.ProfileMemorySources.Length; index++)
+            {
+                text.Append((index + 1).ToString(CultureInfo.InvariantCulture))
+                    .Append(". Selected DEVICE-PROFILE memory - historical reference only. Current availability: ")
+                    .Append((availability.IsDefault ? SubmittedHistoryAvailability.Unknown : availability[index]) switch
+                    {
+                        SubmittedHistoryAvailability.RetainedRevision => "exact enabled memory revision is retained in the current device profile; memory body not read, validated or admitted here.",
+                        SubmittedHistoryAvailability.Unavailable => "unavailable; exact enabled memory metadata or current device profile is missing, removed or changed. No newer memory substituted.",
+                        _ => "unknown / unavailable; current profile memory metadata was not recorded or observed.",
+                    }).Append('\n');
+            }
+        }
         return text.Append("\nOmissions: source bodies, values, excerpts, private labels/paths, credentials and transport tokens; "
             + "provider delivery/processing evidence; current source-body admission; any merely reviewed but unsubmitted inputs. "
-            + "This subset records explicit same-session history or session memory, not device-profile memory, mixed sources, instructions, attachments, tools or hosted context. "
+            + "This subset records explicit same-session history, Session memory or Device-profile memory, not mixed sources, instructions, attachments, tools or hosted context. "
             + "Those other source types are unsupported, not inferred absent from model prose.\n\n"
             + "Historical references confer no live use grant, retention extension, context transfer, source opening or provider fallback. "
             + "Use a separate existing fresh source-admission operation to inspect a source body.").ToString();

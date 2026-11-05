@@ -35,7 +35,7 @@ External references stay bound to the old identity and are not rewritten; old re
 Publication and old-source retirement are **recoverable steps, not an atomic transaction**. After an uncertain result, do not repeat Rename or overwrite either name.
 **List** exposes retained pending renames; select one and choose **Recover selected rename**, or type `owned skill recover-rename example 1.0.0` using the original ID/version. Review both complete packages and separately confirm **Resume only retained rename**.
 Both identities remain unavailable while intent is retained, including after restart; unrelated packages remain available ([recovery tests](../tests/Kora.Windows.IntegrationTests/Skills/OwnedSkillRenameTests.cs)).
-**Delete** also refuses both affected identities until separately reviewed rename recovery completes. A completed renamed native v1/v2/v3 source requires fresh full-source deletion review and independent confirmation; rename or simulation never approves deletion.
+**Delete** also refuses both affected identities until separately reviewed rename recovery completes. A completed renamed native v1/v2/v3/v4 source requires fresh full-source deletion review and independent confirmation; rename or simulation never approves deletion.
 Pending renames still count toward the saved-version and total-byte limits. Resolve retained renames before adding packages when that reserved capacity is full; recovery refuses an already over-limit inventory rather than releasing a broken catalogue.
 
 Changed source components, destination identity/bytes, parents or corrupt retained intent stop recovery without overwrite or deletion of substitutions. Keep both names and the private local intent for explicit inspection; no automatic rollback/retry is claimed.
@@ -88,10 +88,10 @@ Exit/restart/handoff likewise cannot silently discard it. Save first to retain t
 
 ## Delete one saved owned source
 
-Use **List**, select one native v1/v2/v3 saved version, then **Delete**; or type `owned skill delete daily-review 1.0.0`.
+Use **List** in the owned skill editor, select one native v1/v2/v3/v4 saved version, then **Delete**; or type `owned skill delete daily-review 1.0.0`.
 Activated voice uses the current assistant-name prefix and the same native reviews. Unsaved edits first require the existing **Save / Discard / Cancel** choice ([controller](../src/Kora/OwnedSkillEditorController.cs)).
 
-Review the exact owned destination, complete manifest and guidance, declared tool dependency, references-none boundary and use impact.
+Review the exact owned destination, complete manifest and guidance (the complete JSON definition for a native v4 observation workflow), declared tool dependencies, references-none boundary and use impact.
 Then separately confirm **Delete only this exact owned source**, or Cancel. The two-minute, single-operation review cannot be reused after source, draft, selection, catalogue, authority, ownership, privacy or channel changes ([review owner](../src/Kora.Application/Skills/OwnedSkillDeletionWorkflow.cs)).
 **Escape** rejects either deletion review without confirming or deleting anything; the editor, draft and saved source remain intact.
 Both reviews block editor input and return focus to that exact dialog. A choice
@@ -100,7 +100,8 @@ and eligible. Closing or hiding the owner, retiring its authority or cancelling
 the operation rejects an accepted choice; none approves deletion or recovery.
 
 Deletion removes only `manifest.yaml`, `instructions.md` and the now-empty exact version directory. The ID/root directories and unrelated versions remain.
-Bundled/shared/profile originals, reference packages, native v4 observation workflows, arbitrary paths and recursive tree deletion are unavailable ([owned store](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.Deletion.cs)).
+Saved native v4 observation workflows use this same deletion operation, not a separate writer or the workflow editor's Close action. Deletion never runs their observation steps. Existing reviewed or enabled uses fail closed at their next exact-source revalidation; they cannot use deletion as approval or automatically follow another revision.
+Bundled/shared/profile originals, reference packages, arbitrary paths and recursive tree deletion remain unavailable ([owned store](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.Deletion.cs)).
 Native v5 Markdown packages are rejected from this deletion operation after
 primary declaration and inventory inspection, before reading reference bodies
 or deleting any file. This does not grant component-read consent or package deletion.

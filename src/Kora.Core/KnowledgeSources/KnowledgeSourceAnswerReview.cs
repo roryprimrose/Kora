@@ -8,8 +8,12 @@ namespace Kora.Core.KnowledgeSources;
 /// <summary>One unchanged fresh question and exact retained evidence; registration is never consent.</summary>
 public sealed class KnowledgeSourceAnswerReview
 {
-    private int consumed;
-    private int retired;
+    private readonly Lock sync = new();
+    private readonly KnowledgeSourceAnswerReview owner;
+    private readonly long selectionVersion;
+    private long currentSelection;
+    private bool consumed;
+    private bool retired;
 
     public KnowledgeSourceAnswerReview(KnowledgeSource source, KnowledgeSourceRevision revision, string question,
         LocalFileSearchResult search, LocalContextSessionTarget target)
@@ -48,18 +52,66 @@ public sealed class KnowledgeSourceAnswerReview
         Search = search with { Citations = Array.AsReadOnly(search.Citations.ToArray()) };
         Target = target;
         ExcerptUtf8Bytes = bytes;
+        RetrievedSearch = Search;
+        owner = this;
+    }
+
+    private KnowledgeSourceAnswerReview(KnowledgeSourceAnswerReview original, LocalFileSearchResult selected, long version)
+        : this(original.Source, original.Revision, original.Question, selected, original.Target)
+    {
+        owner = original.owner;
+        selectionVersion = version;
+        RetrievedSearch = original.RetrievedSearch;
     }
 
     public KnowledgeSource Source { get; }
     public KnowledgeSourceRevision Revision { get; }
     public string Question { get; }
     public LocalFileSearchResult Search { get; }
+    public LocalFileSearchResult RetrievedSearch { get; }
     public LocalContextSessionTarget Target { get; }
     public int ExcerptUtf8Bytes { get; }
-    public DateTimeOffset ExpiresAt => Search.ObservedAt.AddSeconds(30);
-    public bool IsRevoked => Volatile.Read(ref retired) != 0;
-    public bool IsCurrent(DateTimeOffset now) => Volatile.Read(ref retired) == 0
-        && now >= Search.ObservedAt && now < ExpiresAt;
-    public bool TryConsume() => Volatile.Read(ref retired) == 0 && Interlocked.Exchange(ref consumed, 1) == 0;
-    public void Revoke() => Interlocked.Exchange(ref retired, 1);
+    public DateTimeOffset ExpiresAt => RetrievedSearch.ObservedAt.AddSeconds(30);
+    public bool IsRevoked { get { lock (owner.sync) { return owner.retired; } } }
+
+    public KnowledgeSourceAnswerReview SelectEvidence(IReadOnlyList<LocalFileCitation> selected)
+    {
+        ArgumentNullException.ThrowIfNull(selected);
+        var citations = selected.Take(LocalFileRetrievalPolicy.MaximumCitations + 1).ToArray();
+        lock (owner.sync)
+        {
+            owner.currentSelection++;
+            if (owner.retired || owner.consumed || citations.Length is < 1 or > LocalFileRetrievalPolicy.MaximumCitations
+                || citations.Any(citation => !RetrievedSearch.Citations.Any(existing => ReferenceEquals(existing, citation))))
+            { throw new InvalidDataException("Choose a nonempty set of exact whole citations from this named-source retrieval."); }
+            return new(this, RetrievedSearch with
+            {
+                Citations = Array.AsReadOnly(citations),
+                Truncated = RetrievedSearch.MatchingChunks > citations.Length,
+            }, owner.currentSelection);
+        }
+    }
+
+    public bool IsFromSameRetrieval(KnowledgeSourceAnswerReview original) => ReferenceEquals(owner, original.owner);
+    public void InvalidateSelection() { lock (owner.sync) { owner.currentSelection++; } }
+    public void Revoke() { lock (owner.sync) { owner.retired = true; } }
+
+    public bool IsCurrent(DateTimeOffset now)
+    {
+        lock (owner.sync)
+        {
+            return !owner.retired && selectionVersion == owner.currentSelection
+                && now >= RetrievedSearch.ObservedAt && now < ExpiresAt;
+        }
+    }
+
+    public bool TryConsume()
+    {
+        lock (owner.sync)
+        {
+            if (owner.retired || selectionVersion != owner.currentSelection || owner.consumed) { return false; }
+            owner.consumed = true;
+            return true;
+        }
+    }
 }

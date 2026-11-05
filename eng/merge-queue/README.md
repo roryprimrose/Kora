@@ -84,6 +84,38 @@ Implementation checks use deterministic fake GitHub/publication operations:
 `.\eng\Test-GitHubRelease.ps1`. They neither activate this profile nor qualify
 hosted concurrency, App permissions or actual release publication.
 
+### Guarded drain, switch and resume
+
+The [administrator transition](recovery.cjs) provides a durable reservation-only hold when normal queue continuation prevents a drained cutover. It does not change mode, withdraw enrollment, cancel candidates/publishers, grant variable permissions to the App, or replace candidate proof.
+The [batch controller](batch.cjs) continues already-owned batch/singleton work and actual-tip qualification, but checks the hold before listing or reserving new candidates.
+
+Use the [account-safe CLI preflight](../../.github/skills/kora-github-pr/SKILL.md#preflight-verify-before-mutating) and separately recorded authority for this entire operation. All four operations use the existing protected controller environment and concurrency group.
+They require a first-attempt manual invocation on main, live administrator authority, exact state checkpoint and `acknowledge_batch_change=true`; after hold creation they also require the same administrator and exact `recovery_ticket` hold token ([validation](recovery.cjs), [workflow](../../.github/workflows/merge-queue.yml)).
+
+1. Read current main, variables, protection, the state checkpoint and physical CI ownership. If delivery is already independent, do not create another transition. Dispatch `hold-independent-delivery` with the reviewed checkpoint. Read back `deliveryTransition.phase=draining` and its token; an ambiguous dispatch/save is reconciled, not blindly repeated.
+2. Let existing candidate merges, reconciliation and publishers complete normally. The hold is retained if qualification fails or owned work is unknown. Follow only identified existing work with a finite read-only join; do not cancel work, dispatch replacement CI or clear the hold to obtain readiness.
+3. Read the fresh checkpoint and dispatch `prepare-independent-delivery` with that checkpoint and token. It requires no active candidate, the actual current completed tip, its freshly reobserved successful first-attempt qualification, exact tree and physically quiescent CI/publication.
+   It rechecks administrator, main and physical quiescence before checkpointing `phase=ready`, the source/tree and qualification receipt.
+4. With the verified CLI principal, reread the ready checkpoint/token/source, live main, variables and physical inventory immediately before the single configuration write. Require unchanged owner and prepared source, no active candidate, no outstanding main/publication work and the exact durable qualification. Then set only the delivery variable and read it back:
+
+   ```powershell
+   gh variable set KORA_MERGE_QUEUE_DELIVERY_PROFILE --repo github.com/roryprimrose/Kora --body independent-v1
+   gh variable get KORA_MERGE_QUEUE_DELIVERY_PROFILE --repo github.com/roryprimrose/Kora
+   ```
+
+5. Dispatch `resume-independent-delivery` with the exact ready checkpoint/token. The newly started controller must observe independent configuration. It rechecks current source, exact qualification and physical quiescence, then atomically checkpoints `deliveryProfile=independent-v1` and transition `phase=completed`.
+   Normal events reopen reservations; do not dispatch a candidate to wake the queue. A stale serial controller fails closed against durable independent adoption ([controller](batch.cjs)).
+6. Verify actual normal-wake adoption, complete candidate proof, next-candidate/main-publication overlap, actual merged PRs and per-source publication. Configuration readback or a completed transition alone is not measured throughput.
+
+For each operator dispatch, substitute the operation and freshly reviewed values; the initial hold omits `recovery_ticket`:
+
+```powershell
+gh workflow run merge-queue.yml --repo github.com/roryprimrose/Kora --ref main -f operation=prepare-independent-delivery -f recovery_checkpoint=<checkpoint> -f recovery_ticket=<hold-token> -F acknowledge_batch_change=true
+```
+
+Before switching configuration, `abort-independent-delivery` with the same owner/checkpoint/token safely restores serial reservations without cancelling existing work or erasing qualification. After configuration switches, abort is rejected: preserve the hold and reconcile readback, rather than blindly clearing the variable or revoking source records.
+A changed source/checkpoint, failed qualification, pending work or failed API read retains the hold. Rollback after independent publication still requires the separately authorized drained transition above ([transition guards](recovery.cjs), [regressions](batch.test.cjs)).
+
 ## Dormant five-PR batch profile
 
 `KORA_MERGE_QUEUE_PROFILE` absent, empty, or `singleton-v1` retains the version-1

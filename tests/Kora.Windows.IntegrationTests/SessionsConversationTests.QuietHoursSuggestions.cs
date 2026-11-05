@@ -12,6 +12,7 @@ using Kora.Core.Auditing;
 using Kora.Core.Configuration;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Voice;
 using Kora.Windows.IntegrationTests.Storage;
 
 using Microsoft.Extensions.Logging.Abstractions;
@@ -41,12 +42,20 @@ public sealed partial class SessionsConversationTests
             var audit = new AuditLog();
             var quiet = new QuietHoursConfigurationService(preferences, admission, audit, f.Time,
                 NullLogger<QuietHoursConfigurationService>.Instance);
+            var timingPreferences = new LocalVoiceCaptureTimingPreferences(f.Paths);
+            var originalTiming = new VoiceCaptureTiming(7, 20, 2);
+            timingPreferences.Save(originalTiming);
+            var timing = new VoiceCaptureTimingConfigurationService(timingPreferences, admission, audit,
+                NullLogger<VoiceCaptureTimingConfigurationService>.Instance);
             using var policy = new CallCommunicationPolicy(new SummaryCallState());
             var adapter = new SummaryAnswerAdapter(value is null ? "reset notices.quiet-hours" : "set notices.quiet-hours to " + value);
             await using var composed = new Composition(f, adapter: adapter);
             var model = composed.Model;
             model.BindQuietHoursSuggestions((message, eligible, validate, token) =>
                 QuietHoursSuggestionReview.ReviewAsync(quiet, policy, message, eligible, validate, token),
+                (review, token) => review.ConfirmAsync(token));
+            model.BindVoiceCaptureTimingSuggestions((message, eligible, validate, token) =>
+                VoiceCaptureTimingSuggestionReview.ReviewAsync(timing, policy, f.Time, message, eligible, validate, token),
                 (review, token) => review.ConfirmAsync(token));
             await model.RefreshAsync();
             await model.SelectAsync(model.Sessions.Single());
@@ -78,6 +87,8 @@ public sealed partial class SessionsConversationTests
                 var expected = value is null ? null : QuietHoursSchedule.Parse(value);
                 new LocalQuietHoursPreferences(f.Paths).Load().Should().Be(expected);
                 quiet.Get().Effective.Should().Be(expected ?? QuietHoursSchedule.Off);
+                timingPreferences.Load().Should().Be(originalTiming);
+                timing.GetTiming().Should().Be(originalTiming);
                 audit.Events.Select(item => (item.ActionId, item.Initiator, item.Outcome)).Should().Equal(
                     ("configuration.notices-quiet-hours", SecurityAuditInitiator.LocalUser, SecurityAuditOutcome.Requested),
                     ("configuration.notices-quiet-hours", SecurityAuditInitiator.LocalUser, SecurityAuditOutcome.Succeeded));

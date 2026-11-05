@@ -11,10 +11,25 @@ namespace Kora.Application.UnitTests.Configuration;
 public sealed class RegisteredSettingsTests
 {
     [Fact]
+    public void CaptureTimingAppendsToShippedRegisteredSettingIdentities()
+    {
+        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().Equal(
+            "appearance.theme", "appearance.reader-text-scale", "speech.summary-words",
+            "speech.summary-sentences", "speech.playback-volume", "responses.default-mode",
+            "appearance.presence-display", "appearance.presence-timeout", "appearance.presence-size",
+            "appearance.dot-size", "appearance.dot-density", "appearance.movement-speed",
+            "appearance.speech-scaling", "appearance.speech-scale-amount", "speech.windows-rate",
+            "appearance.response-timeout", "appearance.reduced-motion", "speech.voice",
+            "voice.command-start-wait", "voice.reply-start-wait", "voice.trailing-silence",
+            "notices.quiet-hours");
+        RegisteredSettingRegistry.Settings.Select(item => (int)item.Setting).Should().Equal(Enumerable.Range(0, 22));
+    }
+
+    [Fact]
     public void ClosedRegistryInspectionAndPolicyDeclareOnlyTheExistingAdmittedSubset()
     {
         RegisteredSettingRegistry.Settings.Select(item => item.Setting).Should().Equal(Enum.GetValues<RegisteredSetting>());
-        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().OnlyHaveUniqueItems().And.HaveCount(19);
+        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().OnlyHaveUniqueItems().And.HaveCount(22);
         foreach (var descriptor in RegisteredSettingRegistry.Settings)
         {
             RegisteredSettingRegistry.Get(descriptor.Setting).Should().BeSameAs(descriptor);
@@ -22,8 +37,9 @@ public sealed class RegisteredSettingsTests
             RegisteredSettingSuggestions.ModelPolicy.Should().Contain(descriptor.Id).And.Contain(descriptor.Description);
             descriptor.SuggestedValues.Should().NotBeNullOrWhiteSpace();
             RegisteredSettingSuggestions.ModelPolicy.Should().Contain(descriptor.SuggestedValues);
-            descriptor.RequiresNativeReview.Should().Be(descriptor.Setting == RegisteredSetting.QuietHours || descriptor.Id.StartsWith("appearance.", StringComparison.Ordinal)
-                && descriptor.Setting != RegisteredSetting.ResponseTimeout);
+            descriptor.RequiresNativeReview.Should().Be(descriptor.Setting == RegisteredSetting.QuietHours
+                || descriptor.Id.StartsWith("voice.", StringComparison.Ordinal)
+                || descriptor.Id.StartsWith("appearance.", StringComparison.Ordinal) && descriptor.Setting != RegisteredSetting.ResponseTimeout);
             if (descriptor.Id.StartsWith("appearance.", StringComparison.Ordinal))
             {
                 var appearance = AppearanceOptionRegistry.Options.Single(item => string.Equals(item.Id, descriptor.Id, StringComparison.Ordinal));
@@ -46,7 +62,10 @@ public sealed class RegisteredSettingsTests
     public void QuietHoursExtendsShippedRegistryWithoutReassigningInstalledVoiceIdentity()
     {
         ((int)RegisteredSetting.SpeechVoice).Should().Be(17);
-        ((int)RegisteredSetting.QuietHours).Should().Be(18);
+        ((int)RegisteredSetting.CommandStartWait).Should().Be(18);
+        ((int)RegisteredSetting.ReplyStartWait).Should().Be(19);
+        ((int)RegisteredSetting.TrailingSilence).Should().Be(20);
+        ((int)RegisteredSetting.QuietHours).Should().Be(21);
         RegisteredSettingRegistry.Get(RegisteredSetting.SpeechVoice).Id.Should().Be("speech.voice");
         RegisteredSettingRegistry.Get(RegisteredSetting.QuietHours).Id.Should().Be("notices.quiet-hours");
         RegisteredSettingSuggestions.Parse("set speech.voice to windows-sapi / installed")
@@ -100,6 +119,13 @@ public sealed class RegisteredSettingsTests
     [InlineData("set notices.quiet-hours to Off", RegisteredSetting.QuietHours)]
     [InlineData("set notices.quiet-hours to weekly Mon,Fri 22:00 06:00 UTC", RegisteredSetting.QuietHours)]
     [InlineData("set notices.quiet-hours to weekly Mon,Tue,Wed,Thu,Fri,Sat,Sun 00:00 23:59 AUS Eastern Standard Time", RegisteredSetting.QuietHours)]
+    [InlineData("set voice.command-start-wait to 2", RegisteredSetting.CommandStartWait)]
+    [InlineData("set voice.command-start-wait to 10", RegisteredSetting.CommandStartWait)]
+    [InlineData("set voice.reply-start-wait to 5", RegisteredSetting.ReplyStartWait)]
+    [InlineData("set voice.reply-start-wait to 60", RegisteredSetting.ReplyStartWait)]
+    [InlineData("set voice.trailing-silence to 0.5", RegisteredSetting.TrailingSilence)]
+    [InlineData("set voice.trailing-silence to 3", RegisteredSetting.TrailingSilence)]
+    [InlineData("set voice.trailing-silence to 0.5000001", RegisteredSetting.TrailingSilence)]
     public void SharedParserReturnsTypedInertProposalAndExactDescriptor(string text, RegisteredSetting setting)
     {
         var proposal = RegisteredSettingSuggestions.Parse(text);
@@ -107,6 +133,11 @@ public sealed class RegisteredSettingsTests
         proposal.Descriptor.Should().BeSameAs(RegisteredSettingRegistry.Get(setting));
         switch (proposal)
         {
+            case RegisteredSettingProposal.CaptureTiming timing:
+                VoiceCaptureTiming.Default.With(timing.Descriptor.Id, VoiceCaptureTiming.Format(timing.Seconds)).Validate();
+                timing.Descriptor.RequiresNativeReview.Should().BeTrue();
+                timing.Descriptor.Units.Should().Be("seconds");
+                break;
             case RegisteredSettingProposal.Appearance appearance:
                 AppearanceOptionRegistry.Validate(appearance.Option, appearance.Value);
                 break;
@@ -158,6 +189,26 @@ public sealed class RegisteredSettingsTests
 
     [Theory]
     [InlineData("")]
+    [InlineData("set voice.command-start-wait to 1.9999999")]
+    [InlineData("set voice.command-start-wait to 10.0000001")]
+    [InlineData("set voice.reply-start-wait to 4.9999999")]
+    [InlineData("set voice.reply-start-wait to 60.0000001")]
+    [InlineData("set voice.trailing-silence to 0.4999999")]
+    [InlineData("set voice.trailing-silence to 3.0000001")]
+    [InlineData("set voice.trailing-silence to 0.50000001")]
+    [InlineData("set voice.trailing-silence to 0.50000000000000000000000000001")]
+    [InlineData("set voice.trailing-silence to NaN")]
+    [InlineData("set voice.trailing-silence to Infinity")]
+    [InlineData("set voice.trailing-silence to 1.0")]
+    [InlineData("set voice.trailing-silence to .5")]
+    [InlineData("set voice.trailing-silence to 01")]
+    [InlineData("set voice.trailing-silence to 1e0")]
+    [InlineData("set voice.trailing-silence to +1")]
+    [InlineData("set voice.trailing-silence to 1 s")]
+    [InlineData(" set voice.trailing-silence to 1")]
+    [InlineData("set voice.trailing-silence to 1\nreset voice.reply-start-wait")]
+    [InlineData("reset voice.trailing-silence to 1")]
+    [InlineData("reset voice.timing")]
     [InlineData("set appearance.reduced-motion to system")]
     [InlineData("set appearance.reduced-motion to 1")]
     [InlineData("set appearance reduced motion to true")]

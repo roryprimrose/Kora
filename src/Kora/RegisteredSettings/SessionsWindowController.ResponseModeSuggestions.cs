@@ -6,6 +6,8 @@ internal sealed partial class SessionsWindowController
 {
     partial void BindAdditionalRegisteredSettingSuggestions(SessionsViewModel createdModel, MainViewModel host)
     {
+    createdModel.BindVoiceCaptureTimingSuggestions(host.ReviewVoiceCaptureTimingSuggestionAsync,
+        host.ConfirmVoiceCaptureTimingSuggestionAsync);
         createdModel.BindResponseModeSuggestions(host.ReviewResponseModeSuggestionAsync,
             (review, token) => host.ConfirmResponseModeSuggestionAsync(review, token));
         createdModel.BindWindowsSpeechRateSuggestions(host.ReviewWindowsSpeechRateSuggestionAsync,

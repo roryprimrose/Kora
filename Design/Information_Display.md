@@ -82,6 +82,8 @@ The existing Detail window now exposes **Find first / Next / Previous / Cancel F
 
 Counts are volatile presentation state over only the exact currently admitted bounded reader text, or only the separate typed HOST observation when explicitly selected. They do not claim complete source, corpus or historical coverage and never combine USER, ASSISTANT, HOST, hidden metadata, source and rendered projections. A completed zero-match search exposes **0 matches**; edited, cancelled, invalid, unavailable or retired searches expose no count/ordinal. All native Details origins share this state contract and their existing Find admission; no unavailable profile is enabled. The count is computed on an explicit Find action, never a property read or idle refresh, and requires no new source read.
 
+**Show match in reader** deliberately selects and reveals the current body occurrence with its surrounding admitted text. Structured results switch to **Continuous text**; **Exact source** stays exact source, with no offset translation between projections. Separate HOST matches remain in their own inert observation and cannot reveal the USER/ASSISTANT body. Editing, cancelling, changing projection/target or moving/exhausting the Find cursor retires the Find-owned selection; unrelated manual selection is not cleared. Admission and the exact query/projection/span are rechecked across layout, selection and focus. Failed or retired reveal claims no selection. No source read, clipboard disclosure, model use, retention change or profile enablement is added.
+
 Query edits, projection/target changes, render/load completion, Cancel and Clear retire the cursor, count and ordinal; Cancel retains the query, Clear releases it. Close, disposal, source/revision replacement or failed private/source admission release all viewer text and fence publication/focus, including reentrant retirement. Focus failure also retires the result rather than claiming success. Find is synchronous bounded in-memory work with no additional reader, task, timer or cancellation resource. Native Ctrl+F/Enter/F3/Shift+F3 and Escape preserve query/match/close focus behavior; the inert match follows existing reader text scale. A separate native accessible count status exposes the displayed count/ordinal without duplicating it in the match or outcome names, and is not a live region announcing each keystroke.
 
 Ctrl+A in the focused Find query selects only that query for replacement, without switching the admitted reader projection or moving focus to the result. Outside the query and native code readers, Ctrl+A retains its continuous-content selection behavior. Source/private retirement still clears the viewer before either selection route; query selection grants no clipboard authority.
@@ -99,12 +101,21 @@ to fit the reader width. The native checkbox supports pointer, keyboard and togg
 automation. It is hidden while reading the structured document, whose code-block
 wrapping remains separate.
 
-The choice belongs only to that view's lifetime, not a saved setting. It does not
-change the immutable source, logical lines, selection, caret or literal Find
-cursor/count, and it neither reads another source nor acquires clipboard authority.
+The choice is volatile presentation state, not a saved setting. Integrated session
+Details includes it in the existing bounded exact-reference reading-position
+snapshot. Hide releases text and Find; explicit Show repeats current admission,
+then restores the projection and wrapping before layout and scroll offsets so a
+wide result does not lose its horizontal reading position. A different reference
+without a remembered position starts wrapped. Source/private retirement does not
+grant restoration authority. The offsets settle after the initial native caret
+reveal; intervening input or retirement cancels that deferred restoration.
+This includes Alt+H heading-index navigation: its explicit focus and scroll take precedence over a pending restored offset ([native regression](../tests/Kora.Windows.IntegrationTests/FinalDocumentInteractionTests.Headings.cs)).
+Toggling wrapping does not change the immutable source, logical lines, selection,
+caret or literal Find cursor/count, and it neither reads another source nor acquires
+clipboard authority.
 Source/private retirement clears the reader and disables the old control; reopen
-the exact source through its normal admission route to recover. A newly opened
-reader starts wrapped. Deterministic native regressions are implementation
+the exact source through its normal admission route to recover. An independent
+new reader starts wrapped. Deterministic native regressions are implementation
 evidence, not installed assistive-technology qualification.
 
 ## Delivered passive exact-conversation search - 2026-10-13
@@ -794,6 +805,21 @@ stable tie-break in both directions. No number/date/type inference is performed.
 **Reset table order** restores original order and the last focused cell; reopening
 starts with original order. Sorting changes only the volatile view, not source,
 continuous-text selection, literal Find, retention or clipboard authority.
+
+For complete-row inspection in the current sorted order, focus a data cell with
+the pointer or arrows, then activate **Inspect focused row** or press Enter/Space.
+The [native row inspector](../src/Kora/NativeTableControl.Inspection.cs) focuses
+inert, header-labelled readback of every complete cell, including empty cells and
+duplicate headers, with both current and original row positions. Sorting/reset
+keeps that original row selected and updates its displayed position.
+**Return to inspected cell** restores the exact original cell in the current
+order. This is volatile, non-live-region native text, not speech, clipboard,
+editing, a generated summary or persistence; reopening starts without inspection.
+It shares the [table admission and retirement owner](../src/Kora/NativeTableControl.cs)
+and does not enable the independently gated table profile.
+The [row-inspection regressions](../tests/Kora.Windows.IntegrationTests/NativeTableRowInspectionTests.cs)
+exercise native pointer/keyboard entry, stable sorted identity, complete byte-bound
+readback, return, clipboard refusal and reentrant private retirement.
 
 The existing table bounds remain 32 total rows, 8 columns, 128 document cells
 and 2,048 UTF-8 bytes per semantic cell. Profile availability remains separately

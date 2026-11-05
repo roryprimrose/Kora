@@ -15,7 +15,7 @@ public sealed class ModelContextEnvelope
     public const int MaximumEvidenceItems = 16;
     public static int MaximumOutputUtf8Bytes => ReadOnlyCapabilityCatalog.Limits.MaximumOutputUtf8Bytes;
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
-    // This local JSON protocol is not HTML; avoid amplifying nested reviewed metadata quotes.
+    // This is a JSON-only local protocol, never HTML. Avoid amplifying nested reviewed metadata quotes.
     private static readonly JsonSerializerOptions SettingsJson = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
     public ModelContextEnvelope(HostRequest request, string systemPolicy, string userRequest,

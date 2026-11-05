@@ -9,6 +9,7 @@ using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Application.Dependencies;
 using Kora.Core.Auditing;
+using Kora.Core.Communication;
 using Kora.Core.Configuration;
 using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Dependencies;
@@ -24,11 +25,17 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class SessionsConversationTests
 {
     [Theory]
-    [InlineData(AppearanceOption.MovementSpeed, "50")]
-    [InlineData(AppearanceOption.PresenceDisplay, "false")]
-    [InlineData(AppearanceOption.ResponseTimeout, "15")]
+    [InlineData(AppearanceOption.MovementSpeed, "50", false, CallState.Clear)]
+    [InlineData(AppearanceOption.PresenceDisplay, "false", false, CallState.Clear)]
+    [InlineData(AppearanceOption.ResponseTimeout, "15", false, CallState.Clear)]
+    [InlineData(AppearanceOption.Theme, "dark", false, CallState.Active)]
+    [InlineData(AppearanceOption.Theme, "dark", true, CallState.Unknown)]
+    [InlineData(AppearanceOption.ReaderTextScale, "125", true, CallState.Active)]
+    [InlineData(AppearanceOption.ReaderTextScale, "125", false, CallState.Unknown)]
+    [InlineData(AppearanceOption.ResponseTimeout, "15", false, CallState.Active)]
+    [InlineData(AppearanceOption.ResponseTimeout, "15", true, CallState.Unknown)]
     public async Task RetainedPresenceAnswerNativeConfirmationReachesActualMainConsumerAndReopenedPreferences(
-        AppearanceOption option, string value)
+        AppearanceOption option, string value, bool compact, CallState call)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -36,7 +43,8 @@ public sealed partial class SessionsConversationTests
             await f.InitializeAsync();
             await WindowsSqliteConversationTests.FinishInitial(f);
             using var native = new Kora.NativeUxFixture.NativeUxFixtureSession(f.Paths.LocalRoot);
-            await native.InitializeAsync(null, callState: new SummaryCallState());
+            await native.InitializeAsync(null, callState: new AppearanceCallState(call));
+            native.Main.IsProtectedCall.Should().Be(call != CallState.Clear);
             var descriptor = AppearanceOptionRegistry.Get(option);
             var adapter = new AppearanceAnswerAdapter($"set {descriptor.Id} to {value}");
             await using var composed = new Composition(f, adapter: adapter);
@@ -51,7 +59,7 @@ public sealed partial class SessionsConversationTests
             await model.SubmitConversationAsync();
             var answer = model.ConversationMessages.Single();
             var owner = new SessionsPresentationOwner(model);
-            var window = new SessionsWindow(model, owner);
+            Window window = compact ? new CompactSessionWindow(model, owner) : new SessionsWindow(model, owner);
             window.Show();
             try
             {
@@ -70,6 +78,16 @@ public sealed partial class SessionsConversationTests
                     .And.Contain("shared device-local");
                 restored.Reload();
                 restored.Get(option).IsSaved.Should().BeFalse("native Review cannot write");
+                window.FindControl<Button>("CancelRegisteredSettingSuggestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                model.RegisteredSettingSuggestionDescription.Should().BeEmpty();
+                model.CanConfirmRegisteredSettingSuggestion.Should().BeFalse();
+                restored.Reload();
+                restored.Get(option).IsSaved.Should().BeFalse("cancellation cannot save the reviewed value");
+                await model.ConfirmRegisteredSettingSuggestionAsync();
+                restored.Reload();
+                restored.Get(option).IsSaved.Should().BeFalse("cancelled review cannot be replayed");
+                await model.ReviewRegisteredSettingSuggestionAsync(answer);
+                model.CanConfirmRegisteredSettingSuggestion.Should().BeTrue(model.ConversationStatus);
                 window.FindControl<Button>("ConfirmRegisteredSettingSuggestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await owner.RegisteredSettingOperation;
                 Dispatcher.UIThread.RunJobs();
@@ -78,6 +96,10 @@ public sealed partial class SessionsConversationTests
                 { native.Main.PresenceMovementSpeedPercent.Should().Be(50); }
                 else if (option == AppearanceOption.ResponseTimeout)
                 { native.Main.ResponseTimeoutSeconds.Should().Be(15); }
+                else if (option == AppearanceOption.Theme)
+                { native.Main.ThemeMode.Should().Be(ApplicationThemeMode.Dark); }
+                else if (option == AppearanceOption.ReaderTextScale)
+                { native.Main.ReaderTextScalePercent.Should().Be(125); }
                 else
                 {
                     native.Main.IsPresenceDisplayEnabled.Should().BeFalse();
@@ -96,6 +118,7 @@ public sealed partial class SessionsConversationTests
                 await model.ReviewRegisteredSettingSuggestionAsync(answer);
                 model.RegisteredSettingSuggestionDescription.Should().Contain($"current {value} (saved)");
                 model.CancelRegisteredSettingSuggestion();
+                native.Main.IsProtectedCall.Should().Be(call != CallState.Clear);
                 adapter.Calls.Should().Be(1);
                 f.Count("scoped_grants").Should().Be(0);
                 f.Count("host_questions").Should().Be(0);
@@ -349,5 +372,12 @@ public sealed partial class SessionsConversationTests
             return Task.FromResult(new ModelProviderReply(ModelTurnOutcome.Succeeded, provenance.Selection,
                 new(answer, null)));
         }
+
+    }
+
+    private sealed class AppearanceCallState(CallState state) : ICallStateService
+    {
+        public CallState CurrentState => state;
+        public event EventHandler<CallStateChangedEventArgs>? StateChanged { add { } remove { } }
     }
 }

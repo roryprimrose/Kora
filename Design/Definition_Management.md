@@ -1023,6 +1023,13 @@ reparse/hardlink, parent/root replacement, changed source, occupied destination
 case-sensitive/unknown native directory semantics or unconfirmed readback refuses or holds the operation
 ([native protocol](../src/Kora.Windows/ArtifactDiscovery/WindowsOwnedDefinitionFileAccess.Rename.cs)).
 
+Before intent publication, failed staging writes or flushes retire only the
+unpublished file through its still-open native handle. The exact original and
+unrelated definitions remain unchanged; cleanup failure is explicitly unconfirmed,
+not publication or a recovery receipt. After confirmed cleanup, a fresh explicit
+review can rename the retained original
+([staging failure regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsOwnedInstructionStoreTests.Rename.cs)).
+
 Cancellation after possible intent publication and interrupted/unconfirmed
 publication remain explicit recovery-required. Startup/list/reload never
 replay that intent; owned source reads/use/writes are withheld until separately

@@ -12,7 +12,7 @@ on:
       - 'v*'
   pull_request:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '17 * * * *'
   # Allows maintainers to run the same CI checks manually from the Actions page.
   workflow_dispatch:
     inputs:

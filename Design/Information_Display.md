@@ -700,6 +700,14 @@ and privacy/control/window/source changes suppress late disclosure and retain
 resource ownership until joined. Deterministic fake qualification does not
 enable production source use or replace installed/provider/accessibility trials.
 
+Evidence-answer retirement clears review authority, citations and private answer
+presentation before invoking cancellation subscribers. A failing subscriber is
+reported through the existing content-free diagnostic and an explicit native
+status; it does not interrupt filter/page/privacy/close cleanup or release the
+in-flight answer before its physical join. Reentrant cancellation cannot reuse
+the retired review ([retirement](../src/Kora/EvidenceViewModel.EvidenceAnswers.cs),
+[deterministic regressions](../tests/Kora.Windows.IntegrationTests/EvidenceAnswerWindowTests.cs)).
+
 The [bounded question window](UI_Workspace_And_Windows.md#delivered-bounded-question-window)
 has an explicit **Review exact record** route through the audited
 [review service](../src/Kora.Application/Interaction/HostQuestionReviewService.cs).

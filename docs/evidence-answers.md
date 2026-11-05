@@ -34,6 +34,11 @@ does not claim resource release until actual work joins. Start a fresh explicit
 review for another question. Diagnostic expiry is not renewed; conversation,
 diagnostic and audit retention remain independent.
 
+If cancellation reports a notification failure, the review and displayed citations
+are still cleared. The original request remains owned until its work has actually
+joined; do not retry it while cancellation is pending
+([retirement behavior](../src/Kora/EvidenceViewModel.EvidenceAnswers.cs)).
+
 Only complete, unexpired ordinary SQLite Log pages qualify. Empty pages report
 NoEvidence. Partial, omitted, expired, file, audit and mixed-source pages are
 unavailable. The entire page must fit the model's 32 KiB serialized input limit;

@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 
 using Kora.Core.Tools;
 
@@ -10,11 +10,13 @@ public sealed class ModelTurnConstraints
     public ModelTurnConstraints(int version, ImmutableArray<string> toolIds, int maximumCalls, int maximumRounds,
         int inputUtf8Bytes, int outputUtf8Bytes, int deadlineMilliseconds)
     {
-        if (version != 1 || toolIds.IsDefault || toolIds.Length > ReadOnlyCapabilityCatalog.Descriptors.Count
+        if (version is not (1 or 2) || toolIds.IsDefault || toolIds.Length > ReadOnlyCapabilityCatalog.Descriptors.Count
             || toolIds.Distinct(StringComparer.Ordinal).Count() != toolIds.Length
-            || toolIds.Any(id => ReadOnlyCapabilityCatalog.FindExact(id) is null)
+            || toolIds.Any(id => version == 1 ? ReadOnlyCapabilityCatalog.FindExact(id) is null
+                : !Mcp.KoraMcpCatalog.ToolIds.Contains(id, StringComparer.Ordinal)
+                    || string.Equals(id, ModelToolProtocol.AskUserToolName, StringComparison.Ordinal))
             || maximumCalls < 0 || maximumCalls > ModelToolProtocol.MaximumCalls
-            || toolIds.IsEmpty != (maximumCalls == 0)
+            || (version == 1 ? toolIds.IsEmpty != (maximumCalls == 0) : !toolIds.IsEmpty && maximumCalls == 0)
             || maximumRounds < 1 || maximumRounds > maximumCalls + 1
             || inputUtf8Bytes < 1 || inputUtf8Bytes > ModelToolProtocol.MaximumInputUtf8Bytes
             || outputUtf8Bytes < 1 || outputUtf8Bytes > ModelToolProtocol.MaximumOutputUtf8Bytes
@@ -39,8 +41,13 @@ public sealed class ModelTurnConstraints
 
     public IReadOnlyList<CapabilityDescriptor> GetTools(ModelToolMode mode)
     {
-        if (mode != (ToolIds.IsEmpty ? ModelToolMode.None : ModelToolMode.ReadOnly))
+        if (Version == 1 && mode != (ToolIds.IsEmpty ? ModelToolMode.None : ModelToolMode.ReadOnly)
+            || Version == 2 && mode is ModelToolMode.LocalWebPage or ModelToolMode.McpReadOnly or ModelToolMode.HostedClarification)
+        { throw new InvalidDataException("Bounded constraints do not admit this tool mode."); }
+        var available = ModelToolProtocol.GetTools(mode);
+        if (ToolIds.Any(id => !available.Any(tool => string.Equals(tool.Id, id, StringComparison.Ordinal)))
+            || mode == ModelToolMode.None && MaximumCalls != 0)
         { throw new InvalidDataException("Bounded local constraints do not admit this tool mode."); }
-        return ToolIds.Select(id => ReadOnlyCapabilityCatalog.FindExact(id)!).ToImmutableArray();
+        return ToolIds.Select(id => available.Single(tool => string.Equals(tool.Id, id, StringComparison.Ordinal))).ToImmutableArray();
     }
 }

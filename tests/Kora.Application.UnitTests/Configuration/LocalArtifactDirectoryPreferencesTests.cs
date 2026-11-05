@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Configuration;
 using Kora.Core.Configuration;
@@ -13,6 +13,15 @@ public sealed class LocalArtifactDirectoryPreferencesTests
     {
         new LocalArtifactDirectoryPreferences(new Store()).Load()
             .Should().BeSameAs(ArtifactDirectorySettings.Empty);
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("null")]
+    public void Capability_inventory_requires_a_bounded_array(string inventory)
+    {
+        Invalid("""{"Version":4,"UseDefaultDirectories":false,"Skills":[],"Instructions":[],"Prompts":[],"Agents":[],"McpConfigurationFiles":[],"IncludedMcpServerIds":[],"McpCapabilities":"""
+            + inventory + "}");
     }
 
     [Fact]
@@ -40,7 +49,7 @@ public sealed class LocalArtifactDirectoryPreferencesTests
         restarted.SkillDirectories.Should().BeEmpty();
         restarted.UseDefaultDirectories.Should().BeFalse();
         restarted.InstructionDirectories.Should().Equal(defaults.InstructionDirectories);
-        store.Text.Should().Contain("\"Version\":3");
+        store.Text.Should().Contain("\"Version\":4");
     }
 
     [Fact]

@@ -37,6 +37,7 @@ internal sealed partial class SessionsViewModel
 
     public void CancelSpeechSummarySuggestion(bool reportCancellation = true)
     {
+        registeredSettingReviewIdentity = null;
         speechSummaryReview?.Dispose();
         speechSummaryReview = null;
         if (reportCancellation)

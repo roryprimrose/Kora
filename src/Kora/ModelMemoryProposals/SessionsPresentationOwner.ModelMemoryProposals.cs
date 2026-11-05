@@ -23,7 +23,7 @@ internal sealed partial class SessionsPresentationOwner
             args.Handled = true;
             ModelMemoryOperation = model.AcceptModelMemoryProposalAsync();
         }
-        else if (string.Equals(button.Name, "RejectModelMemoryProposal", StringComparison.Ordinal) && model.CanAcceptModelMemoryProposal)
+        else if (string.Equals(button.Name, "RejectModelMemoryProposal", StringComparison.Ordinal) && model.CanRejectModelMemoryProposal)
         {
             args.Handled = true;
             ModelMemoryOperation = model.RejectModelMemoryProposalAsync();

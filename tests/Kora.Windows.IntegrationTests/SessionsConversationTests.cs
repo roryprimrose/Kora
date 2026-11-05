@@ -266,7 +266,8 @@ public sealed partial class SessionsConversationTests
             PlaybackVolumeConfigurationService? volume = null, bool localFirst = false,
             HandoffCatalogue? localFirstCatalogue = null, IProviderCapabilityCatalogue? localRequestCatalogue = null,
             Kora.Core.Memory.IMemoryStore? memoryStore = null, ISessionWorkspaceStore? workspaceReader = null,
-            bool management = false, IModelTurnAdapter? managementAdapter = null)
+            bool management = false, IModelTurnAdapter? managementAdapter = null,
+            ISessionWorkspaceStore? conversationControlStore = null)
         {
             var workspace = workspaceReader is null ? WindowsSqliteSessionWorkspaceTests.Service(f, Access)
                 : new SessionWorkspaceService(workspaceReader, new(f.Tasks), Access, NullLogger<SessionWorkspaceService>.Instance);
@@ -320,7 +321,7 @@ public sealed partial class SessionsConversationTests
                         localRequestCatalogue is null ? null : f.Store);
             var conversationWorkspace = conversationReader is null ? workspace
                 : new SessionWorkspaceService(conversationReader, new(f.Tasks), Access, NullLogger<SessionWorkspaceService>.Instance);
-            var conversation = new SessionConversationService(f.Store, f.Store, conversationWorkspace, Access, turns, f.Time,
+            var conversation = new SessionConversationService(f.Store, conversationControlStore ?? f.Store, conversationWorkspace, Access, turns, f.Time,
                 NullLogger<SessionConversationService>.Instance, execution: turns, cancellationAudit: Audit, interactions: f.Store,
                 webPageAction: pageTransport is null ? null : new(pageTransport, Audit),
                 mcpConfiguration: mcpConfiguration, mcpBroker: mcpBroker, mcpEffects: mcpEffects,

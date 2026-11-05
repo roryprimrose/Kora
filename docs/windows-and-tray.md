@@ -288,7 +288,16 @@ The expanded window opens a Details pane beside the conversation and composer;
 it does not open another session-result window or repeat the task.
 Each message link opens that exact original or answer, including earlier results.
 
-Drag the divider to resize both panes. **Hide details** or the reader's Escape
+Drag the divider to resize both panes, or focus it and use the arrow keys.
+**Expand details** gives the result more reading width while keeping the
+conversation and composer visible. **Restore split** returns to the previous
+split, even after adjusting the divider while expanded. These native buttons
+also work with Enter/Space. They keep the same source, selection and Find
+without rereading or rerunning anything, and do not resize the window.
+Hiding, replacing the result or switching sessions discards the temporary
+expansion and keeps the ordinary split.
+
+**Hide details** or the reader's Escape
 closes the content, not the conversation or unsent text. **Show details** restores
 the last explicitly chosen available item after fresh admission, or offers a
 chooser. It is disabled until the selected session has observed available details;
@@ -341,6 +350,13 @@ Use **Read exact conversation**, bounded Next, and **Refresh observed work** exp
 
 Unsent text is memory-only and separately retained per session while switching topics. Both windows display edits to the same buffer; only explicit Submit retains a new message ([buffer ownership](../src/Kora/SessionsViewModel.Unsent.cs)).
 New request remains a separate fresh-target workflow; opening it never transfers the shared text ([shared controller](../src/Kora/SessionsWindowController.cs)).
+
+In the Sessions management and legacy compact conversation composers, **Ctrl+Enter**
+invokes the same currently enabled **Submit exact message** action as the button.
+Plain **Enter** remains a newline; adding Shift, Alt or Windows to Ctrl+Enter does
+not submit. The shortcut is local to the focused composer, not a global hotkey
+or a shortcut for other fields. Existing reply review, admission and in-progress
+checks remain unchanged; refused or cancelled admission preserves unsent input.
 
 Closing one view leaves the other view and unsent text intact. Closing the last view protects nonempty input across all topics with Discard/Cancel, even if the selected input is empty. Application exit uses the same protection. No Save-as-document is offered.
 Privacy, ownership or session retirement revokes both views without saving or stopping unrelated work ([presentation owner](../src/Kora/SessionsPresentationOwner.cs)).

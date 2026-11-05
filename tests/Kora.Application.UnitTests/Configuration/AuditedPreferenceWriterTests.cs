@@ -64,14 +64,90 @@ public sealed class AuditedPreferenceWriterTests
         persisted.Should().BeTrue("a failed receipt cannot claim rollback of an atomic preference write");
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task QuiescenceWaitsForTerminalAuditWithoutReinterpretingTheWriteOutcome(bool failTerminal)
+    {
+        using var audit = new GatedAudit { GateTerminal = true, FailTerminal = failTerminal };
+        var writer = new AuditedPreferenceWriter(audit);
+        writer.WaitForQuiescenceAsync().IsCompletedSuccessfully.Should().BeTrue();
+        var persisted = false;
+        var write = writer.WriteAsync(() => persisted = true, "fixture.preference",
+            SecurityAuditInitiator.LocalUser, RequestOrigin.LocalUi, () => true);
+        try
+        {
+            await audit.Entered.Task.WaitAsync(TestContext.Current.CancellationToken);
+            persisted.Should().BeTrue();
+            writer.WaitForQuiescenceAsync().IsCompleted.Should().BeFalse();
+        }
+        finally { audit.Release.Set(); }
+        if (failTerminal) { await FluentActions.Awaiting(() => write).Should().ThrowAsync<IOException>(); }
+        else { await write; }
+        await writer.WaitForQuiescenceAsync();
+        audit.Events.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+    }
+
+    [Fact]
+    public async Task QuiescenceJoinsEveryConcurrentWriteAndStartsANewCohortAfterRelease()
+    {
+        using var audit = new GatedAudit();
+        var writer = new AuditedPreferenceWriter(audit);
+        var first = writer.WriteAsync(static () => { }, "fixture.first",
+            SecurityAuditInitiator.LocalUser, RequestOrigin.LocalUi, () => true);
+        var second = writer.WriteAsync(static () => { }, "fixture.second",
+            SecurityAuditInitiator.LocalUser, RequestOrigin.LocalUi, () => true);
+        Task joined;
+        try
+        {
+            await audit.BothEntered.Task.WaitAsync(TestContext.Current.CancellationToken);
+            joined = writer.WaitForQuiescenceAsync();
+            joined.IsCompleted.Should().BeFalse();
+        }
+        finally { audit.Release.Set(); }
+        await Task.WhenAll(first, second, joined);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var release = new ManualResetEventSlim();
+        var next = writer.WriteAsync(() =>
+        {
+            entered.SetResult();
+            release.Wait(TestContext.Current.CancellationToken);
+        }, "fixture.next", SecurityAuditInitiator.LocalUser, RequestOrigin.LocalUi, () => true);
+        try
+        {
+            await entered.Task.WaitAsync(TestContext.Current.CancellationToken);
+            writer.WaitForQuiescenceAsync().Should().NotBeSameAs(joined);
+            writer.WaitForQuiescenceAsync().IsCompleted.Should().BeFalse();
+        }
+        finally { release.Set(); }
+        await Task.WhenAll(next, writer.WaitForQuiescenceAsync());
+    }
+
+    [Fact]
+    public async Task RequestedAuditFailureReleasesTheWorkerButDoesNotRunPersistence()
+    {
+        using var audit = new GatedAudit { FailRequested = true };
+        var writer = new AuditedPreferenceWriter(audit);
+        var persisted = false;
+        var write = writer.WriteAsync(() => persisted = true, "fixture.preference",
+            SecurityAuditInitiator.LocalUser, RequestOrigin.LocalUi, () => true);
+        await FluentActions.Awaiting(() => write).Should().ThrowAsync<IOException>();
+        await writer.WaitForQuiescenceAsync();
+        persisted.Should().BeFalse();
+    }
+
     private sealed class GatedAudit : ISecurityAuditLog, IDisposable
     {
         private readonly CancellationToken token = TestContext.Current.CancellationToken;
+        private int requested;
         public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource BothEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public ManualResetEventSlim Release { get; } = new();
         public ConcurrentQueue<SecurityAuditEvent> Events { get; } = new();
         public HostRequest? Request { get; private set; }
         public bool FailTerminal { get; init; }
+        public bool FailRequested { get; init; }
+        public bool GateTerminal { get; init; }
 
         public void Write(SecurityAuditEvent auditEvent)
         {
@@ -79,10 +155,19 @@ public sealed class AuditedPreferenceWriterTests
             Events.Enqueue(auditEvent);
             if (auditEvent.Outcome == SecurityAuditOutcome.Requested)
             {
-                Entered.SetResult();
-                Release.Wait(token);
+                if (FailRequested) { throw new IOException("Fixture required requested audit failure."); }
+                if (Interlocked.Increment(ref requested) == 2) { BothEntered.TrySetResult(); }
+                if (!GateTerminal)
+                {
+                    Entered.TrySetResult();
+                    Release.Wait(token);
+                }
             }
-            else if (FailTerminal) { throw new IOException("Fixture required terminal audit failure."); }
+            else
+            {
+                if (GateTerminal) { Entered.TrySetResult(); Release.Wait(token); }
+                if (FailTerminal) { throw new IOException("Fixture required terminal audit failure."); }
+            }
         }
 
         public void Dispose() => Release.Dispose();

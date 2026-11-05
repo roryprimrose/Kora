@@ -18,7 +18,8 @@ public sealed partial class AppearanceConfigurationServiceTests
     public async Task EveryRegisteredAppearanceResetMatchesAuthoritativeResetIncludingSavedDefaultProvenance()
     {
         using var listener = ListenToSuggestions();
-        foreach (var descriptor in RegisteredSettingRegistry.Settings.Where(item => item.RequiresNativeReview))
+        foreach (var descriptor in RegisteredSettingRegistry.Settings.Where(item => item.RequiresNativeReview
+            && item.Id.StartsWith("appearance.", StringComparison.Ordinal)))
         {
             var f = new Fixture();
             var native = new Fixture();
@@ -53,6 +54,25 @@ public sealed partial class AppearanceConfigurationServiceTests
             f.Audit.Events.Select(item => (item.ActionId, item.Outcome, item.Initiator)).Should()
                 .Equal(native.Audit.Events.Select(item => (item.ActionId, item.Outcome, item.Initiator)));
         }
+    }
+
+    [Theory]
+    [InlineData("reset voice.command-start-wait")]
+    [InlineData("reset voice.reply-start-wait")]
+    [InlineData("reset voice.trailing-silence")]
+    public async Task AppearanceResetRejectsCaptureTimingWithoutSourceReadsOrEffects(string text)
+    {
+        using var listener = ListenToSuggestions();
+        var fixture = new Fixture();
+        var message = Suggestion(text);
+        var sourceReads = 0;
+        using var input = BeginSuggestionInput(SuggestionInput(message.Request));
+        await FluentActions.Awaiting(() => AppearanceSuggestionReview.ReviewAsync(fixture.Service, message,
+            () => true, _ => { sourceReads++; return Task.CompletedTask; }, TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<InvalidDataException>();
+        sourceReads.Should().Be(0);
+        fixture.Store.Writes.Should().Be(0);
+        fixture.Audit.Events.Should().BeEmpty();
     }
 
     [Fact]

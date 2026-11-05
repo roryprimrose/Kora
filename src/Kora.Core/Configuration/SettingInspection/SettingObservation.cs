@@ -7,6 +7,22 @@ namespace Kora.Core.Configuration.SettingInspection;
 /// <summary>Closed, non-sensitive scalar metadata, never arbitrary preference text.</summary>
 public sealed record SettingObservation
 {
+    public SettingObservation(RegisteredSetting setting, VoiceCaptureTiming timing, bool saved, long revision)
+    {
+        timing.Validate();
+        Value = setting switch
+        {
+            RegisteredSetting.CommandStartWait => timing.CommandStartSeconds,
+            RegisteredSetting.ReplyStartWait => timing.ReplyStartSeconds,
+            RegisteredSetting.TrailingSilence => timing.TrailingSilenceSeconds,
+            _ => throw new ArgumentOutOfRangeException(nameof(setting)),
+        };
+        ArgumentOutOfRangeException.ThrowIfNegative(revision);
+        Setting = setting;
+        IsSaved = saved;
+        Revision = revision;
+    }
+
     public SettingObservation(RegisteredSetting setting, int value, bool saved, long revision)
     {
         switch (setting)
@@ -69,7 +85,7 @@ public sealed record SettingObservation
     }
 
     public RegisteredSetting Setting { get; }
-    public int Value { get; }
+    public decimal Value { get; }
     public bool IsSaved { get; }
     public long Revision { get; }
     public string Text => RegisteredSettingRegistry.Get(Setting).Id + " = " + (Setting switch
@@ -78,6 +94,8 @@ public sealed record SettingObservation
         RegisteredSetting.ResponseMode => ((ResponseOutputMode)Value).ToString(),
         RegisteredSetting.PresenceDisplay or RegisteredSetting.SpeechScaling or RegisteredSetting.ReducedMotion =>
             Value == 1 ? "true" : "false",
+        RegisteredSetting.CommandStartWait or RegisteredSetting.ReplyStartWait or RegisteredSetting.TrailingSilence =>
+            VoiceCaptureTiming.Format(Value),
         _ => Value.ToString(CultureInfo.InvariantCulture),
     }) + " " + RegisteredSettingRegistry.Get(Setting).Units
         + (IsSaved ? " (confirmed saved; matches live service)" : " (confirmed absent; live default)")

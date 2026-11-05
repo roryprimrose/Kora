@@ -87,7 +87,7 @@ public sealed class SettingInspectionWorkflowTests
         private readonly DependencyBootstrapper dependencies = new([], NullLogger<DependencyBootstrapper>.Instance);
         private readonly AudioControlAdmission audio;
         private readonly BoundedModelTurnAdapter? loop;
-        internal Fixture(string mode = "success", IModelToolTransport? transport = null)
+        internal Fixture(string mode = "success", IModelToolTransport? transport = null, VoiceCaptureTiming? savedTiming = null)
         {
             Controls = new();
             Adapter = new() { Mode = mode };
@@ -116,13 +116,16 @@ public sealed class SettingInspectionWorkflowTests
             var volume = new PlaybackVolumeConfigurationService(new LocalPlaybackVolumePreferences(Preferences), Playback, audio, Controls);
             var response = new ResponseModeConfigurationService(
                 new LocalResponseOutputPreferences(Preferences, NullLogger<LocalResponseOutputPreferences>.Instance), audio, Controls, Playback);
+            if (savedTiming is not null) { Preferences.Text["voice-capture-timing.txt"] = savedTiming.Serialize(); }
+            Timing = new(new LocalVoiceCaptureTimingPreferences(Preferences), audio, Controls,
+                NullLogger<VoiceCaptureTimingConfigurationService>.Instance);
             appearance.Reload();
             speech.Reload();
             volume.Observe();
             response.Observe();
             Playback.Effects = 0;
             Preferences.Reads = 0;
-            Workflow = new(new(appearance, speech, volume, response), new SettingInspectionConversation(sessions, Conversation, Host),
+            Workflow = new(new(appearance, speech, volume, response, Timing), new SettingInspectionConversation(sessions, Conversation, Host),
                 Controls, Controls, Storage.Time, NullLogger<SettingInspectionWorkflow>.Instance);
         }
 
@@ -135,6 +138,7 @@ public sealed class SettingInspectionWorkflowTests
         internal ModelTurnHost Host { get; }
         internal SessionConversationService Conversation { get; }
         internal SettingInspectionWorkflow Workflow { get; }
+        internal VoiceCaptureTimingConfigurationService Timing { get; }
         internal async Task InitializeAsync()
         {
             await Storage.Tasks.InitializeAsync(Token);

@@ -986,6 +986,33 @@ Mutation remains the separate existing setting-suggestion/native review.
 Inspection performs no preference write, grant, consent change, capture, speech,
 network/export, renderer replacement or run-only presence mutation. Response
 timeout and Windows speech rate remain outside this confirmed-value subset.
+
+### Delivered confirmed capture-timing answer
+
+The same [complete inspection operation](../docs/setting-inspection.md) also
+answers "Why does capture stop or wait, and which command-start, reply-start
+and trailing-silence timings are configured?" The
+[authoritative timing reader](../src/Kora.Application/Configuration/SettingInspection/VoiceCaptureTimingConfigurationService.SettingInspection.cs)
+adds the three existing registered timing preferences to the closed review.
+Absent confirmed storage means defaults of 5, 15 and 1 seconds respectively;
+saved values retain exact decimal seconds and validated domain precision,
+including seven fractional digits. No registration, bounds, defaults or
+persisted format changes.
+
+The host compares saved/default provenance and values with its usable timing
+service at the exact revision. Committing, held, malformed, unconfirmed or
+externally changed state blocks the complete source. An observed change and
+return or service reload cannot renew an earlier source. Existing revalidation
+before dispatch, `settings.get` and final publication applies unchanged.
+
+Native review shows the full source, unchanged original question, local
+destination and expiry before separate one-use confirmation, in tool-free or
+explicit settings-discovery mode. Only the original question and genuine final
+answer enter existing retention. Timing preferences are not evidence of active
+capture, acoustic behavior or runtime qualification. This operation never
+writes settings, starts capture/playback, changes listening consent or enables
+a provider. Original channel, privacy, session, expiry, cancellation and
+physical-join boundaries remain authoritative.
 Deterministic implementation tests do not enable or qualify a provider/profile.
 
 ### Delivered bounded spoken summary limits (R10)

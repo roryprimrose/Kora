@@ -36,7 +36,7 @@ public sealed class PresenceSettingInspectionTests
         var session = await f.Workflow.ReviewAsync(
             "Why does Kora disappear so quickly, and what presence size and movement settings am I using?", () => true, f.Token);
         var observation = session.Review.Observations.Single(item => item.Setting == RegisteredSetting.PresenceDisplay);
-        session.Review.Observations.Should().HaveCount(15);
+        session.Review.Observations.Should().HaveCount(18);
         observation.IsSaved.Should().Be(saved.HasValue);
         observation.Value.Should().Be(saved is false ? 0 : 1);
         session.Review.Source.Should().Contain($"appearance.presence-display = {(saved is false ? "false" : "true")} boolean");
@@ -139,7 +139,9 @@ public sealed class PresenceSettingInspectionTests
             volume.Observe();
             response.Observe();
             Playback.Effects = 0;
-            Workflow = new(new(appearance, speech, volume, response), new SettingInspectionConversation(sessions, conversations, Host),
+            var timing = new VoiceCaptureTimingConfigurationService(new LocalVoiceCaptureTimingPreferences(Preferences), audio, Controls,
+                NullLogger<VoiceCaptureTimingConfigurationService>.Instance);
+            Workflow = new(new(appearance, speech, volume, response, timing), new SettingInspectionConversation(sessions, conversations, Host),
                 Controls, Controls, Storage.Time, NullLogger<SettingInspectionWorkflow>.Instance);
         }
 

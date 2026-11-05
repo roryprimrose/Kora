@@ -16,7 +16,7 @@ public sealed partial class App
     {
         var source = new ConfirmedSettingsSource(Services.GetRequiredService<AppearanceConfigurationService>(),
             Services.GetRequiredService<SpeechConfigurationService>(), Services.GetRequiredService<PlaybackVolumeConfigurationService>(),
-            Services.GetRequiredService<ResponseModeConfigurationService>());
+            Services.GetRequiredService<ResponseModeConfigurationService>(), Services.GetRequiredService<VoiceCaptureTimingConfigurationService>());
         var workflow = new SettingInspectionWorkflow(source,
             new SettingInspectionConversation(Services.GetRequiredService<SessionWorkspaceService>(),
                 Services.GetRequiredService<SessionConversationService>(), Services.GetRequiredService<IModelTurnExecution>()),

@@ -29,7 +29,7 @@ discovery and the genuine final answer within the unchanged cumulative byte limi
 List accepts bounded `offset`/`count` fields and returns canonical registered
 metadata, scope, validation limits, suggested values, native-review classification
 and whether a confirmed value reader is composed. Get accepts only one exact
-registered `id`; only the fifteen reviewed scalars below can return values.
+registered `id`; only the eighteen reviewed scalars below can return values.
 Other registered values are explicitly unavailable, not guessed or loaded from
 another source ([closed discovery contract](../src/Kora.Core/Tools/SettingsDiscoveryTools.cs)).
 
@@ -41,10 +41,10 @@ results are volatile lower-trust data, not approval or future read authority
 ([bounded loop](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs),
 [exact reviewed binding](../src/Kora.Application/Dependencies/ModelTurnHost.SettingsDiscovery.cs)).
 
-Exactly fifteen registered observations are included: theme, reading text scale,
+Exactly eighteen registered observations are included: theme, reading text scale,
 ordinary spoken-summary word/sentence caps, Kora-only playback volume,
 device-default response mode, `appearance.presence-display`, and these existing
-presence preferences:
+presence and capture-timing preferences:
 
 | ID | Confirmed unsaved default | Units |
 | --- | --- | --- |
@@ -56,6 +56,19 @@ presence preferences:
 | `appearance.speech-scaling` | true | Boolean |
 | `appearance.speech-scale-amount` | 100 | percent |
 | `appearance.reduced-motion` | false | Boolean |
+| `voice.command-start-wait` | 5 | seconds |
+| `voice.reply-start-wait` | 15 | seconds |
+| `voice.trailing-silence` | 1 | seconds |
+
+For capture, ask "Why does capture stop or wait, and which command-start,
+reply-start and trailing-silence timings are configured?" The complete review
+includes all three exact timing values, units and saved/default provenance.
+Fractional seconds retain domain precision (up to seven fractional digits),
+without rounding or converting to whole seconds. The authoritative timing
+service must already agree with the saved/default observation at its revision.
+These preferences describe future eligible captures, not current microphone
+state, measured acoustic behavior or permission to listen. Inspection never
+starts capture, changes timing or repairs an unconfirmed preference.
 
 For example: "Why does Kora disappear so quickly, and what presence size and
 movement settings am I using?" Both modes review the full source before a

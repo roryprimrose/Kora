@@ -4,6 +4,7 @@ using Kora.Application.Configuration;
 using Kora.Core.Artifacts;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
+using Kora.Core.Mcp;
 
 namespace Kora.Application.UnitTests.Configuration;
 
@@ -97,6 +98,25 @@ public sealed class ArtifactDirectoryConfigurationServiceTests
         included.IncludedMcpServerIds.Should().Equal(serverId);
         excluded.McpConfigurationFiles.Should().Equal(file);
         excluded.IncludedMcpServerIds.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void External_parent_off_on_advances_persistent_revision_without_resetting_children_or_noop_writes()
+    {
+        var preferences = new Preferences();
+        var service = new ArtifactDirectoryConfigurationService(preferences, new Audit());
+        var serverId = new string('b', 64);
+        service.SetMcpServerIncluded(serverId, true);
+        service.SetMcpItemEnabled(serverId, McpCapabilityKind.Tool, "search", false);
+        var before = preferences.Settings.McpCapabilities.Fingerprint(serverId);
+        service.SetMcpServerIncluded(serverId, false);
+        service.SetMcpServerIncluded(serverId, true);
+        preferences.Settings.McpCapabilities.Fingerprint(serverId).Should().NotBe(before);
+        preferences.Settings.McpCapabilities.IsEnabled(serverId, McpCapabilityKind.Tool, "search").Should().BeFalse();
+        preferences.Settings.IncludedMcpServerIds.Should().Equal(serverId);
+        var writes = preferences.Writes;
+        service.SetMcpServerIncluded(serverId, true);
+        preferences.Writes.Should().Be(writes);
     }
 
     [Fact]

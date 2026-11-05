@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Configuration;
 using Kora.Core.Configuration;
@@ -40,7 +40,7 @@ public sealed class LocalArtifactDirectoryPreferencesTests
         restarted.SkillDirectories.Should().BeEmpty();
         restarted.UseDefaultDirectories.Should().BeFalse();
         restarted.InstructionDirectories.Should().Equal(defaults.InstructionDirectories);
-        store.Text.Should().Contain("\"Version\":3");
+        store.Text.Should().Contain("\"Version\":4");
     }
 
     [Fact]

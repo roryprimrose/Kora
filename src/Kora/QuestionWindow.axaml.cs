@@ -20,6 +20,7 @@ public sealed partial class QuestionWindow : Window
     private readonly TextBox input;
     private readonly TextBox review;
     private readonly TextBox explanation;
+    private readonly bool mcpArgumentInput;
     private readonly Dictionary<string, ToggleButton> choices = new(StringComparer.Ordinal);
     private readonly Dictionary<string, TextBox> fieldTexts = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Dictionary<string, RadioButton>> fieldChoices = new(StringComparer.Ordinal);
@@ -46,7 +47,16 @@ public sealed partial class QuestionWindow : Window
         review = Required<TextBox>("ExactReview");
         explanation = Required<TextBox>("PolicyExplanation");
         var record = state.Question;
-        Required<TextBlock>("PromptLabel").Text = record.Spec.Text;
+        mcpArgumentInput = record.Spec.Kind == QuestionKind.Text
+            && string.Equals(record.Spec.SourceId, "mcp-tool-arguments", StringComparison.Ordinal);
+        Required<TextBlock>("PromptLabel").Text = mcpArgumentInput
+            ? "Enter JSON arguments matching the complete schema below. Submitting input is NOT approval to send it."
+            : record.Spec.Text;
+        if (mcpArgumentInput)
+        {
+            input.MaxHeight = 96;
+            AutomationProperties.SetName(review, "Complete immutable MCP argument schema or exact record - input is not approval");
+        }
         Required<TextBlock>("TargetLabel").Text =
             $"Session: {record.Key.Request.SessionId.Value:D}\nTask: {record.Key.Request.TaskId.Value:D}"
             + $"\nOriginal origin: {record.Key.Request.Origin} - generation: {record.SessionGeneration.Value}"
@@ -367,12 +377,14 @@ public sealed partial class QuestionWindow : Window
         if (!replacement.IsVisible) { replacement.IsChecked = false; }
         Required<TextBlock>("VoiceReplyStatus").Text = state.VoiceReplyStatus;
         Required<TextBlock>("QuestionStatus").Text = $"Revision {state.Key.Revision.Value}: {state.Status}";
-        if (!string.Equals(review.Text, state.ReviewText, StringComparison.Ordinal))
+        var visibleReview = mcpArgumentInput && state.HasPresentation && state.ReviewText.Length == 0
+            ? state.Question.Spec.Text : state.ReviewText;
+        if (!string.Equals(review.Text, visibleReview, StringComparison.Ordinal))
         {
             review.SelectionStart = 0;
             review.SelectionEnd = 0;
-            review.Text = state.ReviewText.Length == 0 ? string.Empty
-                : renderer.Render(state.ReviewText, DetailContentKind.PlainText).SemanticText;
+            review.Text = visibleReview.Length == 0 ? string.Empty
+                : renderer.Render(visibleReview, DetailContentKind.PlainText).SemanticText;
             if (state.ReviewText.Length != 0) { state.CompleteReviewPresentation(review.Text ?? string.Empty); }
         }
         refreshing = false;

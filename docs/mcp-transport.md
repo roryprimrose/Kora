@@ -45,6 +45,10 @@ its schema. Enter JSON containing its required bounded inputs. This input step
 does not send the tool call: separately approve the final exact destination,
 account, tool, schema and arguments.
 
+The [native argument window](../src/Kora/QuestionWindow.axaml.cs) puts the complete unchanged schema in its read-only keyboard reader, not an oversized static heading. Tab to the reader and use Ctrl+Home/Ctrl+End or the arrow keys to inspect it. Multiline JSON entry scrolls within a bounded editor so **Review exact record**, **Submit** and **Cancel** remain reachable.
+
+Reading the schema does not review the record, save arguments, grant permission or send a call. **Review exact record** and final outgoing approval are separate. The reader blocks clipboard/context-menu export and clears when closed or private presentation ends ([regressions](../tests/Kora.Windows.IntegrationTests/NativeQuestionWindowContractTests.McpArguments.cs)).
+
 The original session shows the actual inert tool result or a truthful failure.
 No model runs, no assistant answer is invented, and your unsent conversation
 text is unchanged. The result remains in memory, not conversation history.

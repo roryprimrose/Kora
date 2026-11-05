@@ -3,6 +3,8 @@ using System.Diagnostics;
 using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Core.Auditing;
+using Kora.Core.Configuration;
+using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
@@ -12,6 +14,47 @@ namespace Kora.Application.UnitTests.Configuration;
 
 public sealed partial class AppearanceConfigurationServiceTests
 {
+    [Fact]
+    public async Task EveryRegisteredAppearanceResetMatchesAuthoritativeResetIncludingSavedDefaultProvenance()
+    {
+        using var listener = ListenToSuggestions();
+        foreach (var descriptor in RegisteredSettingRegistry.Settings.Where(item => item.RequiresNativeReview))
+        {
+            var f = new Fixture();
+            var native = new Fixture();
+            f.Store.Text["appearance-theme.txt"] = "Light";
+            native.Store.Text["appearance-theme.txt"] = "Light";
+            var option = AppearanceOptionRegistry.Options.Single(item => string.Equals(item.Id, descriptor.Id, StringComparison.Ordinal)).Option;
+            var before = f.Service.Get(option);
+            var message = Suggestion($"reset {descriptor.Id}");
+            AppearanceSuggestionReview review;
+            using (BeginSuggestionInput(SuggestionInput(message.Request)))
+            {
+                review = await AppearanceSuggestionReview.ReviewAsync(f.Service, message, () => true,
+                    _ => Task.CompletedTask, TestContext.Current.CancellationToken);
+                review.Description.Should().Contain(before.Value == before.Descriptor.Default ? "Reset is unchanged" : "Reset saves")
+                    .And.Contain("authoritative default").And.Contain("options are unchanged");
+                f.Store.Writes.Should().Be(0);
+                f.Audit.Events.Should().BeEmpty();
+                await review.Invoking(item => item.ConfirmAsync(TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+            }
+            using (review)
+            using (BeginSuggestionInput(SuggestionInput(message.Request)))
+            {
+                (await review.ConfirmAsync(TestContext.Current.CancellationToken)).Succeeded.Should().BeTrue();
+                await review.Invoking(item => item.ConfirmAsync(TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+            }
+            var reset = native.Service.ProposeReset(option, native.Service.Get(option).Revision,
+                SecurityAuditInitiator.LocalUser, RequestOrigin.LocalUi, () => true);
+            (await native.Service.ApplyAsync(reset, TestContext.Current.CancellationToken)).Succeeded.Should().BeTrue();
+            f.Service.Get(option).Should().Be(native.Service.Get(option));
+            f.Service.Get(option).IsSaved.Should().Be(before.Value == before.Descriptor.Default ? before.IsSaved : true);
+            f.Store.Text.Should().BeEquivalentTo(native.Store.Text);
+            f.Audit.Events.Select(item => (item.ActionId, item.Outcome, item.Initiator)).Should()
+                .Equal(native.Audit.Events.Select(item => (item.ActionId, item.Outcome, item.Initiator)));
+        }
+    }
+
     [Fact]
     public async Task RegisteredAppearanceSuggestionCannotRelabelAnOriginalSystemSource()
     {
@@ -150,6 +193,7 @@ public sealed partial class AppearanceConfigurationServiceTests
 
     [Theory]
     [InlineData("set appearance.theme to dark", "current system (default); proposed dark mode", "appearance-theme.txt", "Dark")]
+    [InlineData("set appearance.reduced-motion to true", "current false (default); proposed true boolean", "appearance-reduced-motion-enabled.txt", "True")]
     [InlineData("set appearance.reader-text-scale to 125", "current 100 (default); proposed 125 percent", "reader-text-scale-percent.txt", "125")]
     [InlineData("set appearance.response-timeout to 15", "current 5 (default); proposed 15 seconds", "response-timeout-seconds.txt", "15")]
     public async Task SuggestionReviewIsInertUntilSeparateOriginalUserConfirmation(string text, string description,
@@ -196,7 +240,7 @@ public sealed partial class AppearanceConfigurationServiceTests
     [InlineData("set appearance.reader-text-scale to 1.25")]
     [InlineData("set appearance.response-timeout to 0")]
     [InlineData("set speech.summary-words to 40")]
-    [InlineData("reset appearance.theme")]
+    [InlineData("reset appearance.theme to system")]
     [InlineData("set appearance.theme to dark\nand do something else")]
     [InlineData("I changed your theme to dark.")]
     public async Task SuggestionReviewRejectsInvalidOrOutOfScopeAnswerWithoutAnyWrite(string text)
@@ -222,11 +266,17 @@ public sealed partial class AppearanceConfigurationServiceTests
     [InlineData("unavailable")]
     [InlineData("source")]
     [InlineData("original-request")]
+    [InlineData("reset-voice")]
+    [InlineData("reset-original-request")]
+    [InlineData("reset-source")]
     public async Task SuggestionReviewFailsClosedWithoutExactAdmittedOriginalSource(string fault)
     {
         using var listener = ListenToSuggestions();
         var fixture = new Fixture();
-        var message = Suggestion(origin: fault is "voice" ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
+        var reset = fault.StartsWith("reset-", StringComparison.Ordinal);
+        if (reset) { fault = fault[6..]; }
+        var message = Suggestion(reset ? "reset appearance.theme" : "set appearance.theme to dark",
+            origin: fault is "voice" ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
         if (fault is "unavailable")
         {
             message = message with { Outcome = ModelTurnOutcome.Unavailable, AssistantResponse = null };
@@ -250,18 +300,32 @@ public sealed partial class AppearanceConfigurationServiceTests
     }
 
     [Theory]
-    [InlineData("cancel")]
-    [InlineData("privacy")]
-    [InlineData("foreign")]
-    [InlineData("voice")]
-    [InlineData("source")]
-    [InlineData("cancelled")]
-    [InlineData("during-validation")]
-    public async Task SuggestionConfirmationRevokesOnLifecycleOrAdmissionChange(string fault)
+    [InlineData("cancel", "set appearance.theme to dark")]
+    [InlineData("privacy", "set appearance.theme to dark")]
+    [InlineData("foreign", "set appearance.theme to dark")]
+    [InlineData("voice", "set appearance.theme to dark")]
+    [InlineData("source", "set appearance.theme to dark")]
+    [InlineData("cancelled", "set appearance.theme to dark")]
+    [InlineData("during-validation", "set appearance.theme to dark")]
+    [InlineData("cancel", "set appearance.reduced-motion to true")]
+    [InlineData("privacy", "set appearance.reduced-motion to true")]
+    [InlineData("foreign", "set appearance.reduced-motion to true")]
+    [InlineData("voice", "set appearance.reduced-motion to true")]
+    [InlineData("source", "set appearance.reduced-motion to true")]
+    [InlineData("cancelled", "set appearance.reduced-motion to true")]
+    [InlineData("during-validation", "set appearance.reduced-motion to true")]
+    [InlineData("cancel", "reset appearance.theme")]
+    [InlineData("privacy", "reset appearance.theme")]
+    [InlineData("foreign", "reset appearance.theme")]
+    [InlineData("voice", "reset appearance.theme")]
+    [InlineData("source", "reset appearance.theme")]
+    [InlineData("cancelled", "reset appearance.theme")]
+    [InlineData("during-validation", "reset appearance.theme")]
+    public async Task SuggestionConfirmationRevokesOnLifecycleOrAdmissionChange(string fault, string text)
     {
         using var listener = ListenToSuggestions();
         var fixture = new Fixture();
-        var message = Suggestion();
+        var message = Suggestion(text);
         var eligible = true;
         var failRead = false;
         AppearanceSuggestionReview? review = null;

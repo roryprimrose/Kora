@@ -30,8 +30,9 @@ If deletion committed but readback, audit, admission or presentation is unconfir
 Instructions guide an answer; prompts are reusable requests; skills provide
 reusable task guidance; agents add a role and limits. MCP servers describe
 external tool connections. Reading or saving any of these never runs it.
-Manual editing works without AI; **model-generated proposals and recommendations
-are unavailable in this build**.
+Manual editing works without AI; model-generated proposals and recommendations
+require an independently qualified local runtime, not merely an installed provider
+([host admission](../src/Kora.Application/Dependencies/ModelTurnHost.cs)).
 
 The dedicated [agent authoring operation](agent-profile-authoring.md#describe-and-review-a-new-tool-free-agent)
 also supports reviewed description-to-v1-source proposals when an admitted local model is available.
@@ -101,33 +102,54 @@ The limits are six selected entries, 128 UTF-8 bytes per readable name, 256 UTF-
 
 The operation is **LocalOnly** and requires the existing qualified local model profile; unavailable readiness remains unavailable, without a service fallback. Ordinary turns do not automatically share this metadata. Built-in definitions, additional registered roots outside the supported chooser, prompts, MCP configuration/accounts, source bodies, scripts/hooks, commands/environment, unsaved buffers, history/memory, automatic instruction loading and hosted disclosure are excluded ([model policy](../src/Kora.Application/Hosting/SessionConversationService.CustomizationDiscovery.cs)).
 
+### Complete a task with one model-selected registered skill
+
+Use the same `discover customizations <original task>` typed or current-name activated-voice route.
+Select only one to six explicitly registered, included single-file skill sources, choose one existing Active conversation,
+and select **Select one registered single-file zero-tool skill for this unchanged task (not use consent)**.
+Do not also select agent recommendation ([native owner](../src/Kora/CustomizationDiscoveryController.cs)).
+
+1. **Read selected primary metadata and preview exact shared fields** separately consents to native metadata and file-identity inspection. Review the unchanged original task, exact target and bounded metadata subset. No skill guidance enters the selector.
+2. **Share only this reviewed metadata for ONE local answer** authorizes the local selection phase only. The model may return one strict opaque `skillRef` actually served from that subset. Its retained proposal is not a skill-produced answer, enablement or use consent.
+3. After the selector has terminated and joined, choose **Authorize exact selected skill source read and revision review**. Review the complete inert guidance, unchanged task, original channel, exact original Active target, LocalOnly destination and budgets. Unsupported tool/input/reference/script profiles are refused, never downgraded.
+4. Separately choose **Enable only this reviewed skill revision once**, then **Review frozen original task invocation**.
+5. Separately choose **Confirm exact selected skill for the unchanged original task**. The existing shared-skill executor runs one local zero-tool turn and retains its actual answer or truthful terminal in that original conversation. Inspect the result in this window or Sessions ([selection](../src/Kora.Application/Tools/CustomizationDiscoverySnapshot.cs), [shared executor](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs)).
+
+Changing the task, selected subset or target retires the selection and every later review. The two-minute original selection expiry is not renewed by reading or enabling.
+Registration, native file/package identity, exact bytes, inclusion, original channel, privacy, ownership and target generation are revalidated across use and terminal retention.
+Cancel/close retires authority immediately and joins owned work; late selector or executor output cannot become success.
+No automatic catalogue, task rewrite, model path/command/grant, hosted disclosure or unrelated composer update is added
+([source binding](../src/Kora.Windows/Skills/WindowsProfileSkillReader.Selection.cs), [proposal fence](../src/Kora.Application/Skills/ProposedSharedSkillUse.cs)).
+
 ### Review and run one model-recommended local agent
 
 Before reviewing metadata, select **Ask for one agent recommendation (never invocation consent)**.
 The same bounded local metadata request may recommend exactly one enabled registered
 Agent from the entries actually returned to it. A recommendation runs nothing and
 is labelled as a proposal, not an answer from that agent.
+Eligible User agents from VS Code, VS Code Insiders and configured agent roots
+use the same exact file-and-bytes binding as Kora agents. Different catalogue
+category labels do not make the same reviewed source unavailable.
 
-1. Select **Review proposed agent in its original conversation**. This opens the
-   existing private agent review with the exact source, unchanged original question,
-   original channel and original conversation fixed. It cannot redirect to another
-   conversation or substitute model-generated input.
-2. Select **Read source and review exact invocation**. Review the complete inert
-   profile, source, original question, conversation, local destination, tools and
+1. Select **Review customization recommendation**. This opens the existing private agent review in the exact original conversation. The strict whole-answer opaque `agentRef` is only an inert hint into the current registered catalogue; rendered prose, paths and claimed approvals are not accepted ([proposal resolution](../src/Kora.Application/Tools/CustomizationDiscoverySnapshot.cs)).
+2. Deliberately choose one **current source-qualified Agent**. Nothing is selected automatically, including when names collide. Readable name, actual host-owned source binding and current use state are shown; executable availability is not inferred. A missing, changed, disabled or unbound source refuses without latest/by-name fallback ([source resolver](../src/Kora.Application/Agents/NamedAgentResolver.cs)).
+3. Enter a **NEW original task** in the empty request field. The metadata question is shown separately as historical context, never copied into invocation input. Native entry is a new local-UI request even when discovery began by voice; exact `agent request <new task>` preserves that new request's actual typed/activated channel. Existing protected-call exceptions remain unchanged ([native owner](../src/Kora/AgentRunController.ModelProposal.cs)).
+4. Select **Read source and review exact invocation**. Only this separate source-read consent reads the chosen profile. Review the complete inert
+   profile, source, fresh unchanged task, conversation, local destination, tools and
    cumulative budgets. Only local v1 instruction-only profiles with `tools: none`
    and `references: none` are eligible for this route.
-3. Separately confirm that exact invocation. The existing bounded agent workflow
+5. Separately confirm that exact invocation. The existing bounded agent workflow
    runs once and retains its genuine answer or truthful terminal in the original
    conversation. The native agent review displays that actual result. Stop/close
    joins owned execution; cancellation-ignoring work cannot publish a late answer.
 
 The recommendation expires with its two-minute metadata review. Source, use control,
-input, session, privacy or ownership changes require a fresh request and review;
-neither a retained recommendation nor profile guidance grants authority.
+catalogue, session, privacy, ownership or call changes retire it; task/source-choice edits retire any in-flight read or invocation review. A new complete review is required before confirmation.
+Neither a retained recommendation nor profile guidance grants authority.
 The parent recommendation has finished before the agent review opens: no fabricated
 tool reply or parent continuation is sent, and no private profile or child answer
 is transmitted to a hosted model. Hosted parents, tools, referenced profiles,
-automatic invocation, nested agent chains and provider fallback remain unavailable.
+automatic invocation, nested agent chains and provider fallback remain unavailable. Arbitrary ordinary or retained prose answers do not gain review buttons or executable meaning. No extra model tool, source activation, grant, source writer, context/egress consent or retained authorization token is introduced ([canonical bounded consumer](../src/Kora.Application/Agents/BoundedAgentWorkflow.cs)).
 
 ## Edit or add
 

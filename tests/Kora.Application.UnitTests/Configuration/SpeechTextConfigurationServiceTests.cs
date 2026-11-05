@@ -219,7 +219,7 @@ public sealed class SpeechTextConfigurationServiceTests : IDisposable
         fixture.Service.Observe();
         fixture.Service.Get().EffectiveCaptionOptions.Should().Be(SpeechCaptionOptions.Default);
         await fixture.Refresh();
-        fixture.Service.CaptionChoices.Should().HaveCount(35);
+        fixture.Service.CaptionChoices.Should().HaveCount(37);
         fixture.Service.CaptionChoices.Select(choice => choice.Label).Should().Contain("Top left").And.Contain("30");
         await fixture.Apply(fixture.Service.CaptionChoices.Single(choice => choice.CaptionValue == new SpeechCaptionValue.Placement(SpeechCaptionPlacement.TopLeft)));
         fixture.Service.Get().Effective.Should().Be(SpeechTextMode.Off);
@@ -241,6 +241,36 @@ public sealed class SpeechTextConfigurationServiceTests : IDisposable
         SpeechTextState.Serialize(fixture.Service.Get()).Should().Contain(SpeechTextCommand.DelayId).And.Contain(SpeechTextCommand.PlacementId);
         SpeechTextState.Serialize(fixture.Service.Get(), SpeechCaptionOption.Placement).Should().Contain("\"default\":\"BottomRight\"");
         SpeechTextState.Serialize(fixture.Service.Get(), SpeechCaptionOption.DismissalDelay).Should().Contain("\"maximum\":30");
+    }
+
+    [Fact]
+    public async Task Word_emphasis_uses_exact_audited_choices_preserves_companions_and_reports_preference_not_readiness()
+    {
+        await using var fixture = new Fixture();
+        fixture.Service.Get().GetCaptionOption(SpeechCaptionOption.WordEmphasis).Recovery.Should().Contain("unconfirmed");
+        fixture.Preferences.Options = new(SpeechCaptionPlacement.TopLeft, 30);
+        await fixture.Refresh();
+        await fixture.Apply(fixture.Service.CaptionChoices.Single(choice => choice.CaptionValue == new SpeechCaptionValue.WordEmphasis(true)));
+        fixture.Preferences.Options.Should().Be(new SpeechCaptionOptions(SpeechCaptionPlacement.TopLeft, 30, true));
+        fixture.Service.Get().Effective.Should().Be(SpeechTextMode.Off);
+        var restart = fixture.Create();
+        restart.Observe();
+        restart.Get().EffectiveCaptionOptions!.WordEmphasis.Should().BeTrue();
+        var state = restart.Get().GetCaptionOption(SpeechCaptionOption.WordEmphasis);
+        state.Saved.Should().Be("true");
+        state.Effective.Should().Be("true");
+        state.Default.Should().Be("false");
+        state.Choices.Should().Equal("false", "true");
+        state.Recovery.Should().Contain("not alignment readiness");
+        Kora.Application.Presentation.SettingsText.Describe(restart.Get()).Should().Contain("saved: on")
+            .And.Contain("effective preference: on").And.Contain("unavailable");
+        fixture.Audit.Events.Select(item => item.ActionId).Should().OnlyContain(action =>
+            string.Equals(action, "configuration.speech-caption-word-emphasis", StringComparison.Ordinal));
+        fixture.Audit.Events.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+        SpeechTextState.Serialize(restart.Get(), SpeechCaptionOption.WordEmphasis).Should().Contain("\"type\":\"boolean\"");
+        await fixture.Refresh();
+        await fixture.Apply(fixture.Service.CaptionChoices.Single(choice => choice.CaptionValue == new SpeechCaptionValue.WordEmphasis(false)));
+        fixture.Preferences.Options.Should().Be(new SpeechCaptionOptions(SpeechCaptionPlacement.TopLeft, 30));
     }
 
     [Theory]

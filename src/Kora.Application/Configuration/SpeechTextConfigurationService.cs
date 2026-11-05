@@ -94,6 +94,7 @@ public sealed class SpeechTextConfigurationService(
                             .Concat(Enumerable.Range(SpeechCaptionOptions.MinimumDelaySeconds,
                                 SpeechCaptionOptions.MaximumDelaySeconds - SpeechCaptionOptions.MinimumDelaySeconds + 1)
                                 .Select(seconds => new SpeechCaptionValue.Delay(seconds)))
+                            .Concat([new SpeechCaptionValue.WordEmphasis(false), new SpeechCaptionValue.WordEmphasis(true)])
                             .Select(value => new SpeechTextChoice(null, revision, owner, authority, request.Origin, eligible, value)).ToArray());
                     Changed?.Invoke(this, EventArgs.Empty);
                     return true;
@@ -149,6 +150,7 @@ public sealed class SpeechTextConfigurationService(
                         {
                             SpeechCaptionOption.Placement => "configuration.speech-caption-placement",
                             SpeechCaptionOption.DismissalDelay => "configuration.speech-caption-dismissal-delay",
+                            SpeechCaptionOption.WordEmphasis => "configuration.speech-caption-word-emphasis",
                             _ => "configuration.speech-text",
                         }, SecurityAuditOutcome.Requested,
                         request.Origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : initiator,

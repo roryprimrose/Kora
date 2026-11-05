@@ -42,13 +42,13 @@ public sealed partial class ModelTurnHost : ICopilotTurnAdmission
     private async ValueTask<bool> HostedCurrentAsync(ModelTurn turn, CancellationToken token)
     {
         if (turn.Profile is not { Service: ProviderService.Copilot or ProviderService.Claude } profile || !turn.IsRunning
-            || await RevalidateAsync(turn, token).ConfigureAwait(false) != ModelTurnReason.None)
+            || await RevalidateContinuationAsync(turn, token).ConfigureAwait(false) != ModelTurnReason.None)
         { return false; }
         // This callback is bound only after configured-profile admission requires both stores.
         var saved = await sessionProfiles!.ReadProviderProfile(turn.Provenance.Request.SessionId, token).ConfigureAwait(false);
         return !saved.Held && saved.Session.IsActive && saved.Session.SessionId == turn.Provenance.Request.SessionId
             && saved.Session.Generation == turn.SessionGeneration && saved.Revision == turn.SessionPolicyRevision
             && await providerProfileConfiguration!.ValidateTurnAsync(profile, token).ConfigureAwait(false)
-            && await RevalidateAsync(turn, token).ConfigureAwait(false) == ModelTurnReason.None;
+            && await RevalidateContinuationAsync(turn, token).ConfigureAwait(false) == ModelTurnReason.None;
     }
 }

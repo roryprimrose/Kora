@@ -38,6 +38,12 @@ internal sealed partial class SessionsPresentationOwner
                 await panel.Operation;
 #pragma warning restore VSTHRD003
             }
+            foreach (var panel in surfaces.SelectMany(surface => surface.GetLogicalDescendants()).OfType<ComposerRequestReviewPanel>().ToArray())
+            {
+#pragma warning disable VSTHRD003 // Join this owner's exact reviewed composer operation before voluntary shutdown.
+                await panel.Operation;
+#pragma warning restore VSTHRD003
+            }
             if (!model.CanRead) { throw new InvalidOperationException("Finish the current native operation before voluntary shutdown."); }
             return await model.ConfirmUnsentDiscardAsync(all: true);
         }
@@ -86,6 +92,7 @@ internal sealed partial class SessionsPresentationOwner
         surface.AddHandler(Button.ClickEvent, OnSpeechSummarySuggestion);
         surface.AddHandler(Button.ClickEvent, OnPlaybackVolumeSuggestion);
         surface.AddHandler(Button.ClickEvent, OnRegisteredSettingSuggestion);
+        surface.AddHandler(Avalonia.Input.InputElement.KeyDownEvent, OnRegisteredSettingReviewKeyDown);
         surface.AddHandler(Button.ClickEvent, OnModelMemoryProposal);
         refresh.Start();
     }
@@ -204,6 +211,7 @@ internal sealed partial class SessionsPresentationOwner
         surface.RemoveHandler(Button.ClickEvent, OnSpeechSummarySuggestion);
         surface.RemoveHandler(Button.ClickEvent, OnPlaybackVolumeSuggestion);
         surface.RemoveHandler(Button.ClickEvent, OnRegisteredSettingSuggestion);
+        surface.RemoveHandler(Avalonia.Input.InputElement.KeyDownEvent, OnRegisteredSettingReviewKeyDown);
         surface.RemoveHandler(Button.ClickEvent, OnModelMemoryProposal);
         ForgetForegroundSurface(surface);
         surfaces.Remove(surface);
@@ -217,6 +225,7 @@ internal sealed partial class SessionsPresentationOwner
 
     private void Release()
     {
+        registeredSettingReviewSource = null;
         refresh.Stop();
         refresh.Tick -= Refresh;
         model.DecideComposerDraft = null;

@@ -76,6 +76,7 @@ public sealed partial class MainViewModel
         Volatile.Read(ref pendingSpeechInputReview)?.Completion.TrySetResult(false);
         speechInputNativeLifetime = lifetime;
         OnPropertyChanged(nameof(CanChangeSpeechInputNative));
+        NotifyVoiceTiming();
     }
 
     private void InitializeSpeechInputConfiguration(SpeechInputConfigurationService? service, Func<Func<Task>, AsyncCommand> createCommand)

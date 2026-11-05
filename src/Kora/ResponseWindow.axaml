@@ -99,6 +99,15 @@
           <Button Content="Stop speaking" Command="{Binding StopSpeechCommand}" />
         </StackPanel>
         <TextBlock Text="{Binding ReadCurrentResponseStatus}" Classes="muted" FontSize="11" TextWrapping="Wrap" />
+        <StackPanel IsVisible="{Binding HasResponseReadProposal}" Spacing="6">
+          <TextBlock Text="{Binding ResponseReadProposalReview}" TextWrapping="Wrap"
+                     AutomationProperties.Name="Exact current answer read proposal review" />
+          <WrapPanel>
+            <Button Content="Interpret read request locally" Command="{Binding PlanCurrentResponseReadCommand}" />
+            <Button Content="Confirm captured answer read once" Command="{Binding ConfirmCurrentResponseReadCommand}" />
+            <Button Content="Cancel answer read proposal" Command="{Binding CancelCurrentResponseReadCommand}" />
+          </WrapPanel>
+        </StackPanel>
         <StackPanel Spacing="6">
           <WrapPanel>
             <Button Content="Review speak once during call" Command="{Binding ReviewCallSpeechCommand}"

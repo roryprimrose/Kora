@@ -33,6 +33,16 @@ when a recognized root has not yet been created, including when several parent
 directories are absent. External creation then refreshes the same catalogue
 without a restart or configuration toggle. Directory rename, move and deletion
 within discovery depth also refresh it, including dotted directory names.
+An already-existing registered directory also has a nonrecursive parent
+membership watch: renaming it away withdraws its sources, and recreation at
+the original registered path rebinds the content watches and refreshes the
+catalogue. The moved sibling is not followed or registered. Replacement
+definitions enter the same revision/review pipeline, including when their
+bytes match a previously withdrawn source; no old approval is restored.
+An observed root removal retires the aggregate file-backed snapshot before
+rediscovery, as source unregistration does, even if debounce coalesces the
+removal and recreation. File-backed definitions need fresh reviewed use;
+bundled definitions remain available.
 Notifications are filtered by exact source ancestry, file patterns and existing
 depth bounds before discovery; watching an ancestor grants no broader content
 read or source registration. Reparse exclusions, file budgets, debounce and
@@ -83,6 +93,8 @@ actions, approval rules, executable implementations, or privileged system
 policy. Agent profiles cannot widen host limits, create grants, automatically
 delegate, or select an unapproved destination.
 
+The admitted metadata-only agent recommendation is an inert proposal, not source selection or task input. **Review customization recommendation** requires a deliberate current source-qualified native choice, a NEW original-user task, separate source-read consent and complete profile/input/scope review before the existing one-use confirmation. Same-name candidates are not collapsed; the discovery question/channel remain provenance only. This consumes only the existing bounded local v1 tools-none/references-none agent workflow, not a new model catalogue, source writer, activation or runtime profile ([complete operation](../docs/customizations.md#review-and-run-one-model-recommended-local-agent), [native owner](../src/Kora/AgentRunController.ModelProposal.cs)).
+
 Keep kind explicit in the common descriptor and apply kind-specific validation
 and context roles. A prompt expands into clearly separated user-request
 content with bounded explicit parameters; instructions are untrusted guidance,
@@ -126,6 +138,25 @@ Deterministic genuine fake-provider/native tests prove the full operation and fo
 not provider enablement or native/acoustic RC qualification
 ([full-operation regressions](../tests/Kora.Windows.IntegrationTests/AgentProfileConversationalAuthoringTests.cs),
 [user operation](../docs/agent-profile-authoring.md#describe-and-review-a-new-tool-free-agent)).
+
+### Manual owned observation-only agent authoring (v1)
+
+The existing native owned-agent editor accepts the canonical reference-free v1
+format with either no tools/zero calls or a distinct subset of the six original
+read-only observation IDs and a positive call budget. It reuses
+`BoundedAgentProfile` validation and host clamps; there is no second tool
+catalogue or artificial instruction dependency. Complete source/destination
+review and separate native Save confirmation create or update only an inert
+owned original, with durable readback and the existing conflict/uncertainty
+recovery. Typed/current-name activated-voice source entry retains original
+channel authority; filesystem confirmation remains native-only.
+
+Conversational generation/refinement remains tool-free v1 and rejects an
+observation-capable manual draft before disclosure or inference. Save does not
+register, enable, select or run an agent, grant tools, or relax protected-source
+inspection. Later compatible-source review and exact single-use invocation
+retain the canonical local permissioned tool loop, retained answer/unavailable
+terminal and joined cancellation. See the [complete manual operation](../docs/agent-profile-authoring.md#manual-source-and-separate-save).
 
 ### Bounded local agent owned-instruction references (v2)
 
@@ -886,6 +917,16 @@ Embedded definitions change only with a verified application replacement.
    new use, even without watcher events. Pin the full applicable definition
    set for the task/clarification; queued work retains exact revisions and
    requires review or re-admission if stale, never an automatic version switch.
+
+The native session-instruction choice retains its exact observed catalogue
+entry through source review, rather than resolving its readable name again.
+A replaced, removed or unavailable selection is refused before a replacement
+source read. Explicit Refresh/reselection and complete source review restore
+the operation; selection alone grants no read or applicability consent
+([native owner](../src/Kora/SessionInstructionScopeController.cs),
+[operation regressions](../tests/Kora.Windows.IntegrationTests/SessionInstructionScopeUiTests.cs)).
+Original typed/activated commands retain their existing unambiguous current-name
+lookup and separate confirmation; neither route silently confirms new bytes.
 
 Active tasks retain their admitted immutable definition set; reload cannot
 inject new guidance mid-task. Access/consent revocation, required resource

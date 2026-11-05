@@ -6,20 +6,28 @@ namespace Kora;
 
 internal sealed partial class SessionsViewModel
 {
-    private enum SettingReviewFamily { Appearance, Summary, Volume, ResponseMode, WindowsRate }
+    private enum SettingReviewFamily { Appearance, Summary, Volume, ResponseMode, WindowsRate, InstalledVoice }
+    private volatile object? registeredSettingReviewIdentity;
 
     public string RegisteredSettingsDescription => "Supported inert suggestions: " + string.Join("; ",
         RegisteredSettingRegistry.Settings.Select(item => $"{item.Id}: "
             + item.SuggestedValues
             + (item.RequiresNativeReview ? " (native review only)" : string.Empty)))
-        + ". All are shared device-local preferences. Review changes nothing.";
+        + ". Set supplies one value; Reset supplies only the exact ID and uses the owner's default. "
+        + "Installed voice supports only Set with an exact installed provider and voice pair, not Reset. "
+        + "All are shared device-local preferences. Review changes nothing.";
 
     public bool CanReviewRegisteredSettingSuggestion => CanReviewAppearanceSuggestion
-        || CanReviewSpeechSummarySuggestion || CanReviewPlaybackVolumeSuggestion || CanReviewResponseModeSuggestion || CanReviewWindowsSpeechRateSuggestion;
+        || CanReviewSpeechSummarySuggestion || CanReviewPlaybackVolumeSuggestion || CanReviewResponseModeSuggestion || CanReviewWindowsSpeechRateSuggestion
+        || CanReviewInstalledSpeechVoiceSuggestion;
     public bool CanConfirmRegisteredSettingSuggestion => CanConfirmAppearanceSuggestion
-        || CanConfirmSpeechSummarySuggestion || CanConfirmPlaybackVolumeSuggestion || CanConfirmResponseModeSuggestion || CanConfirmWindowsSpeechRateSuggestion;
+        || CanConfirmSpeechSummarySuggestion || CanConfirmPlaybackVolumeSuggestion || CanConfirmResponseModeSuggestion || CanConfirmWindowsSpeechRateSuggestion
+        || CanConfirmInstalledSpeechVoiceSuggestion;
+    public bool CanCancelRegisteredSettingSuggestion => !closed && access.CanInspect && access.CanControl
+        && selected?.Authority.IsActive == true && registeredSettingReviewIdentity is not null;
     public string RegisteredSettingSuggestionDescription => AppearanceSuggestionDescription
-        + SpeechSummarySuggestionDescription + PlaybackVolumeSuggestionDescription + ResponseModeSuggestionDescription + WindowsSpeechRateSuggestionDescription;
+        + SpeechSummarySuggestionDescription + PlaybackVolumeSuggestionDescription + ResponseModeSuggestionDescription + WindowsSpeechRateSuggestionDescription
+        + InstalledSpeechVoiceSuggestionDescription;
 
     public Task ReviewRegisteredSettingSuggestionAsync(ConversationMessage message) =>
         ReviewRegisteredSettingSuggestionAsync(message, null);
@@ -28,8 +36,10 @@ internal sealed partial class SessionsViewModel
         RunConversationAsync(async (target, live) =>
         {
             CancelRegisteredSettingSuggestion(reportCancellation: false);
+            var identity = new object();
+            registeredSettingReviewIdentity = identity;
             if (!access.CanControl || !target.Authority.IsActive || message.Generation != target.Authority.Generation
-                || !ConversationMessages.Any(row => ReferenceEquals(row, message)))
+                || !ObservedConversationMessages.Any(row => ReferenceEquals(row, message)))
             { throw new InvalidOperationException("Select an exact admitted answer from this Active conversation's current page for setting review."); }
             var proposal = RegisteredSettingSuggestions.Parse(message.AssistantResponse?.Body
                 ?? throw new InvalidDataException("The selected message has no setting suggestion."));
@@ -40,18 +50,27 @@ internal sealed partial class SessionsViewModel
                 RegisteredSettingProposal.Volume => SettingReviewFamily.Volume,
                 RegisteredSettingProposal.ResponseMode => SettingReviewFamily.ResponseMode,
                 RegisteredSettingProposal.WindowsRate => SettingReviewFamily.WindowsRate,
+                RegisteredSettingProposal.Reset reset when reset.Descriptor.RequiresNativeReview => SettingReviewFamily.Appearance,
+                RegisteredSettingProposal.Reset { Setting: RegisteredSetting.ResponseTimeout } => SettingReviewFamily.Appearance,
+                RegisteredSettingProposal.Reset { Setting: RegisteredSetting.SummaryWords or RegisteredSetting.SummarySentences } => SettingReviewFamily.Summary,
+                RegisteredSettingProposal.Reset { Setting: RegisteredSetting.PlaybackVolume } => SettingReviewFamily.Volume,
+                RegisteredSettingProposal.Reset { Setting: RegisteredSetting.ResponseMode } => SettingReviewFamily.ResponseMode,
+                RegisteredSettingProposal.Reset { Setting: RegisteredSetting.WindowsSpeechRate } => SettingReviewFamily.WindowsRate,
+                RegisteredSettingProposal.InstalledVoice => SettingReviewFamily.InstalledVoice,
                 _ => throw new InvalidDataException("The setting suggestion is not registered."),
             };
             if (expected is not null && family != expected)
             { throw new InvalidDataException("The exact suggestion belongs to a different setting family; nothing was applied."); }
             var page = conversationPage;
             var completed = completedConversationMessage;
-            bool Current() => live() && access.CanControl && !conversationSourceHeld
+            bool Current() => ReferenceEquals(identity, registeredSettingReviewIdentity)
+                && live() && access.CanControl && !conversationSourceHeld
                 && ReferenceEquals(page, conversationPage) && ReferenceEquals(completed, completedConversationMessage);
             async Task Validate(CancellationToken token)
             {
                 _ = await conversation!.ReadSettingSuggestionAsync(target, message, Current, token).ConfigureAwait(false);
             }
+            NotifyRegisteredSettings();
             switch (family)
             {
                 case SettingReviewFamily.Appearance:
@@ -74,6 +93,10 @@ internal sealed partial class SessionsViewModel
                     windowsSpeechRateReview = await (reviewWindowsSpeechRateSuggestion
                         ?? throw new InvalidOperationException("Windows rate review is unavailable."))(message, Current, Validate, lifetime.Token);
                     break;
+                case SettingReviewFamily.InstalledVoice:
+                    installedVoiceReview = await (reviewInstalledVoiceSuggestion
+                        ?? throw new InvalidOperationException("Installed voice review is unavailable."))(message, Current, Validate, lifetime.Token);
+                    break;
             }
             if (!Current())
             {
@@ -86,16 +109,19 @@ internal sealed partial class SessionsViewModel
     public Task ConfirmRegisteredSettingSuggestionAsync() => appearanceReview is not null
         ? ConfirmAppearanceSuggestionAsync()
         : windowsSpeechRateReview is not null ? ConfirmWindowsSpeechRateSuggestionAsync()
+        : installedVoiceReview is not null ? ConfirmInstalledSpeechVoiceSuggestionAsync()
         : speechSummaryReview is not null ? ConfirmSpeechSummarySuggestionAsync()
         : responseModeReview is not null ? ConfirmResponseModeSuggestionAsync() : ConfirmPlaybackVolumeSuggestionAsync();
 
     public void CancelRegisteredSettingSuggestion(bool reportCancellation = true)
     {
+        registeredSettingReviewIdentity = null;
         CancelAppearanceSuggestion(reportCancellation: false);
         CancelSpeechSummarySuggestion(reportCancellation: false);
         CancelPlaybackVolumeSuggestion(reportCancellation: false);
         CancelResponseModeSuggestion();
         CancelWindowsSpeechRateSuggestion();
+        CancelInstalledSpeechVoiceSuggestion();
         if (reportCancellation)
         {
             conversationStatus = "Setting review cancelled. No new setting write was requested.";
@@ -108,8 +134,12 @@ internal sealed partial class SessionsViewModel
     {
         if (responseModeReview is { Available: false }) { CancelResponseModeSuggestion(); }
         if (windowsSpeechRateReview is { Available: false }) { CancelWindowsSpeechRateSuggestion(); }
+        if (installedVoiceReview is { Available: false }) { CancelInstalledSpeechVoiceSuggestion(); }
+        if (!busy && !conversationBusy && !CanConfirmRegisteredSettingSuggestion)
+        { registeredSettingReviewIdentity = null; }
         OnPropertyChanged(nameof(CanReviewRegisteredSettingSuggestion));
         OnPropertyChanged(nameof(CanConfirmRegisteredSettingSuggestion));
+        OnPropertyChanged(nameof(CanCancelRegisteredSettingSuggestion));
         OnPropertyChanged(nameof(RegisteredSettingSuggestionDescription));
     }
 }

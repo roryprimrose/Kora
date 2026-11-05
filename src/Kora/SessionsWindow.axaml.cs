@@ -38,6 +38,11 @@ internal sealed partial class SessionsWindow : Window
         this.owner.Attach(this);
         CompactConversation.Click += (_, _) => CompactConversationRequested?.Invoke(this, EventArgs.Empty);
         ReadConversation.Click += async (_, _) => await (ConversationOperation = model.ReadConversationAsync());
+        NewConversationUpdates.Click += async (_, _) =>
+        {
+            using var presenter = new ReplyPresentationFence(this);
+            await (ConversationOperation = model.ReadLatestConversationAsync(IsVisible ? presenter.Capture() : static () => false));
+        };
         ReadSelectedAnswer.Click += async (_, _) => await (ConversationOperation = model.ReadSelectedAnswerAsync());
         CancelAnswerRead.Click += (_, _) => model.CancelAnswerRead();
         ReviewFailedRetry.Click += async (_, _) => await (ConversationOperation = model.ReviewFailedRetryAsync());
@@ -72,8 +77,10 @@ internal sealed partial class SessionsWindow : Window
         RecoverConversationDraft.Click += async (_, _) => await (ConversationOperation = model.RecoverLegacyUnsentAsync());
         DiscardComposer.Click += async (_, _) => await (ConversationOperation = model.DiscardComposerBufferAsync());
         SubmitConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitConversationAsync());
+        NativeComposerSubmitBinding.Bind(ConversationComposer, SubmitConversation);
         SubmitLocalAnswer.Click += async (_, _) => await (ConversationOperation = model.SubmitLocalAnswerAsync());
         ReviewLocalRequestProfile.Click += async (_, _) => await (ConversationOperation = model.ReviewLocalRequestProfileAsync());
+        ReviewFailedLocalProfile.Click += async (_, _) => await (ConversationOperation = model.ReviewFailedLocalProfileAsync());
         BindLocalRequestProfileDecision(ConfirmLocalRequestProfile, true, model);
         BindLocalRequestProfileDecision(CancelLocalRequestProfile, false, model);
         SubmitCopilotConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitCopilotConversationAsync());

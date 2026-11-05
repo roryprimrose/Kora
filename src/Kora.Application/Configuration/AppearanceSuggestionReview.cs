@@ -1,5 +1,6 @@
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
+using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
@@ -26,13 +27,14 @@ public sealed class AppearanceSuggestionReview : IDisposable
     private Func<CancellationToken, Task>? validateSource;
     private AppearanceOptionState? current;
     private AppearanceValue? proposed;
+    private readonly bool reset;
     private bool consumed;
     private volatile bool retired;
 
     private AppearanceSuggestionReview(AppearanceConfigurationService configuration, AppearanceOptionState current,
         AppearanceValue proposed, HostRequest reviewRequest, HostRequest sourceRequest,
         Func<bool> eligible, Func<CancellationToken, Task> validateSource,
-        CallCommunicationPolicy? policy, TimeProvider time, long callRevision)
+        CallCommunicationPolicy? policy, TimeProvider time, long callRevision, bool reset)
     {
         this.configuration = configuration;
         this.current = current;
@@ -41,6 +43,7 @@ public sealed class AppearanceSuggestionReview : IDisposable
         this.sourceRequest = sourceRequest;
         this.eligible = eligible;
         this.validateSource = validateSource;
+        this.reset = reset;
         this.policy = current.Descriptor.Option == AppearanceOption.ResponseTimeout ? policy : null;
         this.time = time;
         this.callRevision = callRevision;
@@ -60,6 +63,9 @@ public sealed class AppearanceSuggestionReview : IDisposable
                     ? $"{current!.Descriptor.Description}: current {AppearanceCommand.Format(current.Value)}"
                         + $" ({(current.IsSaved ? "saved" : "default")}); proposed {AppearanceCommand.Format(proposed!)}"
                         + $" {current.Descriptor.Units}. Scope: shared device-local appearance, not just this conversation. "
+                        + (reset ? current.Value == proposed
+                            ? "Reset is unchanged: this option already equals its authoritative default; existing saved/default provenance is preserved. Other options are unchanged. "
+                            : "Reset saves this option's authoritative default as a saved preference; other options are unchanged. " : string.Empty)
                         + "The assistant suggestion has changed nothing. Confirm saves only this exact option; Cancel changes nothing."
                         + (policy is null ? string.Empty
                             : " Response-window inactivity hide delay only, not a provider deadline. Always show and required questions/approvals remain unchanged. Review expires in 60 seconds.")
@@ -86,9 +92,17 @@ public sealed class AppearanceSuggestionReview : IDisposable
         ArgumentNullException.ThrowIfNull(eligible);
         ArgumentNullException.ThrowIfNull(validateSource);
         message.Validate();
-        if (RegisteredSettingSuggestions.Parse(message.AssistantResponse?.Body ?? string.Empty) is not RegisteredSettingProposal.Appearance proposal)
-        { throw new InvalidDataException("No bounded appearance suggestion: request one exact registered appearance setting suggestion."); }
-        var nativeOnly = proposal.Option != AppearanceOption.ResponseTimeout || policy is null;
+        var suggestion = RegisteredSettingSuggestions.Parse(message.AssistantResponse?.Body ?? string.Empty);
+        var (option, value, reset) = suggestion switch
+        {
+            RegisteredSettingProposal.Appearance proposal => (proposal.Option, proposal.Value, false),
+            RegisteredSettingProposal.Reset proposal when proposal.Descriptor.RequiresNativeReview
+                || proposal.Setting == RegisteredSetting.ResponseTimeout =>
+                (AppearanceOptionRegistry.Options.Single(item => string.Equals(item.Id, proposal.Descriptor.Id, StringComparison.Ordinal)).Option,
+                    (AppearanceValue?)null, true),
+            _ => throw new InvalidDataException("No bounded appearance suggestion: request one exact registered appearance Set or Reset."),
+        };
+        var nativeOnly = option != AppearanceOption.ResponseTimeout || policy is null;
         var request = RequireInput(message.Request.SessionId, nativeOnly);
         var call = policy?.Current.Revision ?? 0;
         // A UI click cannot relabel an original protected/voice request as a native local request.
@@ -102,11 +116,14 @@ public sealed class AppearanceSuggestionReview : IDisposable
         token.ThrowIfCancellationRequested();
         if (!eligible() || RequireInput(message.Request.SessionId, nativeOnly) != request)
         { throw new InvalidOperationException("The original appearance review input changed."); }
-        var state = configuration.Get(proposal.Option);
+        var state = configuration.Get(option);
         var origin = message.Request.Origin == RequestOrigin.ActivatedVoice ? message.Request.Origin : request.Origin;
         if (!nativeOnly && policy!.CheckMutation(origin, call, eligible) is not null)
         { throw new InvalidOperationException("The original settings channel or call policy denies this review."); }
-        return new(configuration, state, proposal.Value, request, message.Request, eligible, validateSource, policy, time, call);
+        var next = reset
+            ? configuration.ProposeReset(option, state.Revision, SecurityAuditInitiator.LocalUser, origin, eligible).Value
+            : value!;
+        return new(configuration, state, next, request, message.Request, eligible, validateSource, policy, time, call, reset);
     }
 
     public async Task<AppearanceApplyResult> ConfirmAsync(CancellationToken token,
@@ -142,8 +159,10 @@ public sealed class AppearanceSuggestionReview : IDisposable
             { throw new InvalidOperationException("The original appearance source or native confirmation admission changed."); }
             var origin = sourceOrigin == RequestOrigin.ActivatedVoice ? sourceOrigin : request.Origin;
             bool Eligible() => Current() && !token.IsCancellationRequested;
-            var proposal = configuration.Propose(state.Descriptor.Option, value, state.Revision,
-                origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : initiator, origin, Eligible);
+            var auditInitiator = origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : initiator;
+            var proposal = reset
+                ? configuration.ProposeReset(state.Descriptor.Option, state.Revision, auditInitiator, origin, Eligible)
+                : configuration.Propose(state.Descriptor.Option, value, state.Revision, auditInitiator, origin, Eligible);
             var result = policy is null
                 ? await configuration.ApplyAsync(proposal, token).ConfigureAwait(false)
                 : await configuration.ApplyAsync(proposal, policy, callRevision, token).ConfigureAwait(false);

@@ -107,6 +107,13 @@ Editing applies only shared reject-only [text and credential bounds](../src/Kora
 
 Existing question replies, approvals, prompt-input capture and literal composer/owned-editor dictation retain exclusive owners; reviewed command capture refuses those contexts ([host admission](../src/Kora.Application/ViewModels/MainViewModel.ReviewedVoiceCommand.cs)). Capture and review share a 60-second lifetime. Cancel, expiry, private/device/owner changes, native hide/deactivation/close and disposal clear volatile candidate text and join capture cleanup. No candidate audio/text archive, diagnostic content, training, profile enablement or hosted ASR is introduced ([capture lifecycle](../src/Kora.Application/Voice/ReviewedVoiceCommandCapture.cs), [native lifetime](../src/Kora/ResponseWindow.ReviewedVoiceCommand.cs)).
 
+The original deadline is checked independently of timer delivery at capture,
+transcript publication, edit, confirmation and downstream command admission.
+A delayed expiry callback or a confirmed dispatch waiting on other host work
+cannot renew the candidate. At the deadline, late work is refused and owned
+capture retirement is joined; only a fresh deliberate capture creates a new
+lifetime. This is specific to reviewed commands, not a shared question deadline.
+
 The [portable behavioral cases](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ReviewedVoiceCommand.cs), [capture lifecycle cases](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ReviewedVoiceLifecycle.cs) and [native-control cases](../tests/Kora.Windows.IntegrationTests/PushToTalkUiContractTests.cs) use deterministic audio/runtime seams. They are implementation evidence, not live microphone, provider, ASR-profile or acoustic qualification. See the [user interaction](../docs/commands.md#review-one-spoken-command-before-dispatch).
 
 ### Approved development direction and remaining admission evidence

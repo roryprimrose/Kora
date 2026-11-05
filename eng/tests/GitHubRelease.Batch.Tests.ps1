@@ -12,6 +12,7 @@ function Test-BatchReleaseSafety {
     $environment = @{
         KORA_MERGE_QUEUE_PROFILE = 'batch-v1'; GITHUB_JOB = 'release-batch'; GITHUB_RUN_ATTEMPT = '1'
         KORA_MERGE_QUEUE_DELIVERY_PROFILE = ''
+        KORA_MAIN_BUILD_PROFILE = ''
         GITHUB_WORKFLOW_REF = 'roryprimrose/Kora/.github/workflows/ci.yml@refs/heads/main'
         GITHUB_WORKFLOW_SHA = $source
     }
@@ -325,7 +326,7 @@ function Test-BatchReleaseSafety {
             Reject { Invoke-Release Publish } 'actual protected main'
             Assert ($global:KoraReleaseTestState.Writes.Count -eq 0) 'Unprotected or stale main allowed publication.'
         }
-        foreach ($key in $environment.Keys | Where-Object { $_ -notin @('KORA_MERGE_QUEUE_PROFILE', 'KORA_MERGE_QUEUE_DELIVERY_PROFILE') }) {
+        foreach ($key in $environment.Keys | Where-Object { $_ -notin @('KORA_MERGE_QUEUE_PROFILE', 'KORA_MERGE_QUEUE_DELIVERY_PROFILE', 'KORA_MAIN_BUILD_PROFILE') }) {
             $global:KoraReleaseTestState = Copy-State $good
             [Environment]::SetEnvironmentVariable($key, 'spoofed')
             Reject { Invoke-Release Publish } 'trusted serialized'
@@ -342,9 +343,32 @@ function Test-BatchReleaseSafety {
             $record = $global:KoraReleaseTestState.SafetyRecords[$runPath].Record
             if ($field -in @('repository', 'head_repository')) { $record[$field].full_name = 'untrusted/fork' }
             else { $record[$field] = 'wrong' }
-            Reject { Invoke-Release Publish }
+            Reject { Invoke-Release Publish } "rejected predicates: run-$field"
             Assert ($global:KoraReleaseTestState.Writes.Count -eq 0) "Unauthenticated run $field allowed publication."
         }
+        foreach ($status in @('queued', 'waiting', 'completed', 'unknown')) {
+            $global:KoraReleaseTestState = Copy-State $good
+            $global:KoraReleaseTestState.SafetyRecords[$runPath].Record.status = $status
+            Reject { Invoke-Release Publish } "rejected predicates: run-status; lifecycle: $status"
+            Assert ($global:KoraReleaseTestState.Writes.Count -eq 0) 'Run lifecycle diagnostics permitted publication.'
+        }
+        foreach ($field in @('path', 'state')) {
+            $global:KoraReleaseTestState = Copy-State $good
+            $global:KoraReleaseTestState.SafetyRecords[$workflowPath].Record[$field] = 'untrusted-metadata'
+            Reject { Invoke-Release Publish } "rejected predicates: workflow-$field"
+            Assert ($global:KoraReleaseTestState.Writes.Count -eq 0) 'Workflow identity diagnostics permitted publication.'
+        }
+        $global:KoraReleaseTestState = Copy-State $good
+        $global:KoraReleaseTestState.SafetyRecords[$runPath].Record.status = 'untrusted-metadata'
+        $global:KoraReleaseTestState.SafetyRecords[$runPath].Record.head_sha = 'untrusted-metadata'
+        Reject { Invoke-Release Publish } 'rejected predicates: run-head_sha,run-status; lifecycle: unknown'
+        Assert ($global:KoraReleaseTestState.Writes.Count -eq 0) 'Multiple failed predicates permitted publication.'
+        $global:KoraReleaseTestState = Copy-State $good
+        $global:KoraReleaseTestState.SafetyRecords[$runPath].Record.event = 'workflow_dispatch'
+        $env:GITHUB_EVENT_NAME = 'workflow_dispatch'
+        Invoke-Release Publish | Out-Null
+        Assert (-not $global:KoraReleaseTestState.Releases[0].draft) 'The trusted first-attempt manual main caller was rejected.'
+        $env:GITHUB_EVENT_NAME = 'push'
         foreach ($change in @('missing', 'duplicate', 'completed', 'sha', 'run', 'incomplete')) {
             $global:KoraReleaseTestState = Copy-State $good
             $record = $global:KoraReleaseTestState.SafetyRecords[$jobsPath].Record
@@ -496,6 +520,50 @@ function Test-BatchReleaseSafety {
         Assert (-not $global:KoraReleaseTestState.Releases[0].draft) 'New active work revoked an earlier independently admitted beta.'
         Assert ($global:KoraReleaseTestState.Tag.object.sha -ceq $source) 'Independent publication substituted the newer main source.'
         Assert (@($global:KoraReleaseTestState.Calls | Where-Object { $_ -contains 'make_latest=false' }).Count -eq 1) 'Out-of-order beta publication changed the latest channel.'
+        $hourlyQueue = Copy-State $independentQueue
+        $hourlyQueue.mainBuildProfile = 'hourly-v1'
+        $hourlyQueue.hourlyMain = @{ baseline = @{ source = $source; tree = 'd' * 40
+            qualification = @{ run = 42; job = 43; source = $source } }; activated = '2026-01-01T00:00:00.000Z' }
+        $hourly = Copy-State $independent
+        $hourly.SafetyRecords[$queuePath] =
+            New-ReleaseSafetyFile 'queue.json' ($hourlyQueue | ConvertTo-Json -Depth 10)
+        $hourly.SafetyRecords[$runPath].Record.event = 'schedule'
+        $eventBeforeHourly = $env:GITHUB_EVENT_NAME
+        $env:GITHUB_EVENT_NAME = 'schedule'
+        $env:KORA_MAIN_BUILD_PROFILE = 'hourly-v1'
+        $global:KoraReleaseTestState = Copy-State $hourly
+        Invoke-Release Publish | Out-Null
+        Assert (-not $global:KoraReleaseTestState.Releases[0].draft) 'Fully qualified hourly main did not retain independent beta publication.'
+        foreach ($failure in @('snapshot', 'durable', 'unknown', 'event', 'late-profile')) {
+            $global:KoraReleaseTestState = Copy-State $hourly
+            $env:KORA_MAIN_BUILD_PROFILE = 'hourly-v1'
+            switch ($failure) {
+                'snapshot' { $env:KORA_MAIN_BUILD_PROFILE = '' }
+                'durable' {
+                    $global:KoraReleaseTestState.SafetyRecords[$queuePath] =
+                        New-ReleaseSafetyFile 'queue.json' ($independentQueue | ConvertTo-Json -Depth 10)
+                }
+                'unknown' { $env:KORA_MAIN_BUILD_PROFILE = 'future' }
+                'event' { $global:KoraReleaseTestState.SafetyRecords[$runPath].Record.event = 'push' }
+                'late-profile' {
+                    $global:KoraReleaseTestState.SafetyAfterUpload[$queuePath] =
+                        New-ReleaseSafetyFile 'queue.json' ($independentQueue | ConvertTo-Json -Depth 10)
+                }
+            }
+            Reject { Invoke-Release Publish }
+            Assert ($global:KoraReleaseTestState.Writes -notcontains 'publish') "Invalid hourly source crossed publication: $failure."
+        }
+        $env:GITHUB_EVENT_NAME = $eventBeforeHourly
+        $env:KORA_MAIN_BUILD_PROFILE = ''
+        foreach ($schema in @('unit-pr-v1', 'parallel-pr-v1')) {
+            $unitRecord = Copy-State $record
+            $unitRecord.validation.schema = $schema
+            $global:KoraReleaseTestState = Copy-State $independent
+            $global:KoraReleaseTestState.SafetyRecords[$recordPath] =
+                New-ReleaseSafetyFile "releases/$source.json" ($unitRecord | ConvertTo-Json -Depth 10)
+            Invoke-Release Publish | Out-Null
+            Assert (-not $global:KoraReleaseTestState.Releases[0].draft) "Candidate schema $schema must retain full-main independent beta publication."
+        }
         $withManifest = Copy-State $record
         $withManifest.admission = @{ schema = 'batch-manifest-v1'; ticket = $record.ticket
             base = $record.base; combined = $record.combined
@@ -517,7 +585,7 @@ function Test-BatchReleaseSafety {
             New-ReleaseSafetyFile "releases/$source.json" ($withManifest | ConvertTo-Json -Depth 10 -Compress)
         Reject { Invoke-Release Publish }
         Assert ($global:KoraReleaseTestState.Writes.Count -eq 0) 'Mismatched batch manifest crossed publication.'
-        foreach ($change in @('missing', 'blob', 'source', 'tree', 'combined', 'attempt', 'unreachable', 'profile')) {
+        foreach ($change in @('missing', 'blob', 'source', 'tree', 'combined', 'attempt', 'schema', 'unreachable', 'profile')) {
             $global:KoraReleaseTestState = Copy-State $independent
             $invalid = Copy-State $record
             switch ($change) {
@@ -527,10 +595,11 @@ function Test-BatchReleaseSafety {
                 'tree' { $invalid.tree = 'a' * 40 }
                 'combined' { $invalid.combined = 'a' * 40 }
                 'attempt' { $invalid.validation.attempt = 2 }
+                'schema' { $invalid.validation.schema = 'future' }
                 'unreachable' { $global:KoraReleaseTestState.SafetyRecords[$comparisonPath].Record.status = 'diverged' }
                 'profile' { $env:KORA_MERGE_QUEUE_DELIVERY_PROFILE = 'future' }
             }
-            if ($change -in @('source', 'tree', 'combined', 'attempt')) {
+            if ($change -in @('source', 'tree', 'combined', 'attempt', 'schema')) {
                 $global:KoraReleaseTestState.SafetyRecords[$recordPath] =
                     New-ReleaseSafetyFile "releases/$source.json" ($invalid | ConvertTo-Json -Depth 10)
             }

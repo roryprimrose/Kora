@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 using GitHub.Copilot;
 using Kora.Core.Dependencies;
@@ -140,7 +140,7 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotTurnRuntime, IAsyncD
                     }
                     else
                     {
-                        var functions = ReadOnlyCapabilityCatalog.Descriptors.Select(descriptor =>
+                        var functions = ModelToolProtocol.ReadContext(context.Span, provenance).Tools.Select(descriptor =>
                         {
                             var name = "kora_" + descriptor.Id.Replace('.', '_');
                             return CopilotTool.DefineTool(async (string input, ToolInvocation invocation, CancellationToken token) =>

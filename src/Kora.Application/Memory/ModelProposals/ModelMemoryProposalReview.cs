@@ -30,6 +30,7 @@ internal sealed class ModelMemoryProposalReview(
     internal HostId<RequestIdentity> Trigger { get; private set; } = trigger;
     internal bool Current => !retired && eligible() && owner.ModelProposalCurrent(control, expires);
     internal bool CanAccept { get { lock (gate) { return !taken && Current && current.Review == MemoryReviewState.Proposed; } } }
+    internal bool CanReject => CanAccept || CanAdmit;
     internal bool CanAdmit { get { lock (gate) { return !taken && Current && current.Review == MemoryReviewState.Reviewed; } } }
     internal string Description => Current ? "Lower-trust MODEL proposal. Scope: this exact SESSION only. "
         + "Inspection and acceptance do not admit, recall or disclose memory. Verify the value is explicitly yours, "
@@ -42,11 +43,12 @@ internal sealed class ModelMemoryProposalReview(
         + JsonSerializer.Serialize(current, ReviewFormat)
         + "\nExact proposed value:\n" + current.Candidate!.Value : string.Empty;
 
-    internal MemoryRecord Take(bool admit, HostId<RequestIdentity> request)
+    internal MemoryRecord Take(bool admit, bool accept, HostId<RequestIdentity> request)
     {
         lock (gate)
         {
-            if (request == reviewTrigger || request == source.Request.RequestId || request == Trigger || !(admit ? CanAdmit : CanAccept))
+            if (request == reviewTrigger || request == source.Request.RequestId || request == Trigger
+                || !(admit ? CanAdmit : accept ? CanAccept : CanReject))
             { throw new InvalidOperationException("A separate fresh original-user action and current exact model-memory review are required."); }
             taken = true;
             Trigger = request;

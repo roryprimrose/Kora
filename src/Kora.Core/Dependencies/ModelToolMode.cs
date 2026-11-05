@@ -1,4 +1,4 @@
-namespace Kora.Core.Dependencies;
+﻿namespace Kora.Core.Dependencies;
 
 /// <summary>The host-owned tool policy captured for one complete turn, never selected by provider output.</summary>
 public enum ModelToolMode
@@ -24,6 +24,6 @@ public enum ModelToolMode
     /// <summary>One explicitly selected hosted question and canonical answer, without observation tools or sources.</summary>
     HostedClarification,
 
-    /// <summary>Only registered metadata and the seven explicitly reviewed confirmed scalars in one local request.</summary>
+    /// <summary>Only registered metadata and the fifteen explicitly reviewed confirmed scalars in one local request.</summary>
     SettingsDiscovery,
 }

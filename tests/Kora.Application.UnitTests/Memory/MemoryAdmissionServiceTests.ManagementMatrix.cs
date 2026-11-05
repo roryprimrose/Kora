@@ -8,11 +8,11 @@ namespace Kora.Application.UnitTests.Memory;
 
 public sealed partial class MemoryAdmissionServiceTests
 {
-    public static TheoryData<string, MemoryCommandOperation, bool> ManagementTransitions
+    public static TheoryData<string, MemoryCommandOperation, bool, bool> ManagementTransitions
     {
         get
         {
-            var data = new TheoryData<string, MemoryCommandOperation, bool>();
+            var data = new TheoryData<string, MemoryCommandOperation, bool, bool>();
             foreach (var state in new[] { "proposed", "reviewed", "rejected", "admitted", "disabled", "forgotten", "restart-shell" })
             {
                 foreach (var operation in new[] { MemoryCommandOperation.Review, MemoryCommandOperation.Admit,
@@ -26,7 +26,11 @@ public sealed partial class MemoryAdmissionServiceTests
                         MemoryCommandOperation.Disable => state is "admitted",
                         _ => false,
                     };
-                    data.Add(state, operation, succeeds);
+                    data.Add(state, operation, true, succeeds);
+                    if (operation == MemoryCommandOperation.Review)
+                    {
+                        data.Add(state, operation, false, state is "proposed" or "reviewed");
+                    }
                 }
             }
             return data;
@@ -35,7 +39,7 @@ public sealed partial class MemoryAdmissionServiceTests
 
     [Theory]
     [MemberData(nameof(ManagementTransitions))]
-    public async Task ManagementEnforcesEveryStateAndMutationTransition(string state, MemoryCommandOperation operation, bool succeeds)
+    public async Task ManagementEnforcesEveryStateAndMutationTransition(string state, MemoryCommandOperation operation, bool accept, bool succeeds)
     {
         using var fixture = new Fixture(durable: true);
         using (var root = fixture.Root()) { await fixture.Admitted(); }
@@ -63,7 +67,10 @@ public sealed partial class MemoryAdmissionServiceTests
         }
         if (operation == MemoryCommandOperation.Review) { await Run(service, fixture, MemoryCommandOperation.Inspect, row); }
         var saved = fixture.Stored.Single().Value;
-        var result = await Run(service, fixture, operation, row, Candidate);
+        var result = operation == MemoryCommandOperation.Review
+            ? await service.ExecuteAsync(new(operation, fixture.Session.SessionId.Value, row.Id, row.Revision, Accept: accept),
+                RequestOrigin.LocalUi, () => true, Token)
+            : await Run(service, fixture, operation, row, Candidate);
         result.Outcome.Should().Be(succeeds ? "Succeeded" : "InvalidTransition");
         result.Inspected.Should().BeNull();
         var after = (await Run(service, fixture, MemoryCommandOperation.List)).Memories.Single();
@@ -77,7 +84,7 @@ public sealed partial class MemoryAdmissionServiceTests
         {
             var expected = operation switch
             {
-                MemoryCommandOperation.Review => (MemoryReviewState.Reviewed, MemoryRetentionState.Pending),
+                MemoryCommandOperation.Review => (accept ? MemoryReviewState.Reviewed : MemoryReviewState.Rejected, MemoryRetentionState.Pending),
                 MemoryCommandOperation.Admit => (MemoryReviewState.Admitted, MemoryRetentionState.Enabled),
                 MemoryCommandOperation.Edit => (MemoryReviewState.Proposed, MemoryRetentionState.Pending),
                 MemoryCommandOperation.Disable => (MemoryReviewState.Admitted, MemoryRetentionState.Disabled),

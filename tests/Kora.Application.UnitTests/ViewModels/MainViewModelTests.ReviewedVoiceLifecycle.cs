@@ -14,12 +14,30 @@ public sealed partial class MainViewModelTests
     {
         hostListener.Dispose();
         await using var h = new ReviewedCaptureHarness();
-        await h.Service.BeginAsync(() => h.Native);
+        var prior = Activity.Current;
+        Activity.Current = null;
+        try { await h.Service.BeginAsync(() => h.Native); }
+        finally { Activity.Current = prior; }
         h.Fixture.Voice.RaiseTranscript("original without tracing", 1);
         await h.Service.FinishAsync();
         await h.Service.ConfirmAsync(h.Service.Revision);
         await h.Service.Quiescence;
         h.Text.Should().Be("original without tracing");
+        h.Origin.Should().Be(RequestOrigin.ActivatedVoice);
+        h.Calls.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ReviewedCaptureAmbientActivityCannotChangeOriginalVoiceOrigin()
+    {
+        await using var h = new ReviewedCaptureHarness();
+        using var activity = new Activity("reviewed-command-fixture").Start();
+        await h.Service.BeginAsync(() => h.Native);
+        h.Fixture.Voice.RaiseTranscript("original with tracing", 1);
+        await h.Service.FinishAsync();
+        await h.Service.ConfirmAsync(h.Service.Revision);
+        await h.Service.Quiescence;
+        h.Text.Should().Be("original with tracing");
         h.Origin.Should().Be(RequestOrigin.ActivatedVoice);
         h.Calls.Should().Be(1);
     }
@@ -256,6 +274,81 @@ public sealed partial class MainViewModelTests
         h.Calls.Should().Be(0);
     }
 
+    [Theory]
+    [InlineData("opening", 60)]
+    [InlineData("finish", 60)]
+    [InlineData("publication", 60)]
+    [InlineData("edit", 60)]
+    [InlineData("confirm", 60)]
+    [InlineData("consumed", 60)]
+    [InlineData("dispatch", 60)]
+    [InlineData("opening", 61)]
+    [InlineData("finish", 61)]
+    [InlineData("publication", 61)]
+    [InlineData("edit", 61)]
+    [InlineData("confirm", 61)]
+    [InlineData("consumed", 61)]
+    [InlineData("dispatch", 61)]
+    public async Task ReviewedCaptureElapsedDeadlineRejectsLateWorkWithoutWaitingForTimer(string phase, int seconds)
+    {
+        await using var h = new ReviewedCaptureHarness();
+        void Elapse() => h.Clock.Advance(TimeSpan.FromSeconds(seconds));
+        if (phase is "opening") { h.Fixture.Voice.AfterStart = Elapse; }
+        await h.Service.BeginAsync(() => h.Native);
+        h.Fixture.Voice.RaiseTranscript("PRIVATE_EXPIRED_COMMAND", 1);
+        if (phase is "finish") { Elapse(); }
+        if (phase is "publication") { h.Fixture.Dispatcher.BeforeInvoke = Elapse; }
+        await h.Service.FinishAsync();
+        var revision = h.Service.Revision;
+        if (phase is "edit" or "confirm") { Elapse(); }
+        if (phase is "edit") { h.Service.Edit(revision, "late correction").Should().BeFalse(); }
+        if (phase is "consumed") { h.Clock.BeforeDispose = Elapse; }
+        if (phase is "dispatch") { h.BeforeDispatch = Elapse; }
+        await h.Service.ConfirmAsync(revision);
+        await h.Service.Quiescence;
+
+        h.Service.IsActive.Should().BeFalse();
+        h.Service.HasReview.Should().BeFalse();
+        h.Service.Candidate.Should().BeEmpty();
+        h.Fixture.Voice.IsCaptureQuiescent.Should().BeTrue();
+        h.Clock.Disposed.Should().BeTrue();
+        h.Calls.Should().Be(0);
+        h.Fixture.Reasoner.Requests.Should().BeEmpty();
+        h.Fixture.Session.LockCalls.Should().Be(0);
+        h.Fixture.ClipboardReader.Calls.Should().Be(0);
+        h.Logger.Entries.Should().NotContain(text => text.Contains("PRIVATE_EXPIRED_COMMAND", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ReviewedCaptureBeforeDeadlineCompletesOnceAndExpiredReviewAllowsOnlyFreshCapture()
+    {
+        await using var h = new ReviewedCaptureHarness();
+        await h.Service.BeginAsync(() => h.Native);
+        h.Fixture.Voice.RaiseTranscript("expired original", 1);
+        await h.Service.FinishAsync();
+        var expiredRevision = h.Service.Revision;
+        h.Clock.Advance(VoiceInputLimits.MaximumCommandDuration);
+        h.Service.Revalidate();
+        await h.Service.Quiescence;
+        h.Service.Candidate.Should().BeEmpty();
+        h.Calls.Should().Be(0);
+
+        await h.Service.BeginAsync(() => h.Native);
+        h.Fixture.Voice.RaiseTranscript("fresh original", 1);
+        await h.Service.FinishAsync();
+        h.Clock.Advance(VoiceInputLimits.MaximumCommandDuration - TimeSpan.FromMilliseconds(1));
+        h.Service.Edit(h.Service.Revision, "fresh correction").Should().BeTrue();
+        await h.Service.ConfirmAsync(expiredRevision);
+        h.Calls.Should().Be(0);
+        await h.Service.ConfirmAsync(h.Service.Revision);
+        await h.Service.Quiescence;
+        h.Calls.Should().Be(1);
+        h.Text.Should().Be("fresh correction");
+        h.Origin.Should().Be(RequestOrigin.ActivatedVoice);
+        await h.Service.ConfirmAsync(h.Service.Revision);
+        h.Calls.Should().Be(1);
+    }
+
     private sealed class ReviewedCaptureHarness : IAsyncDisposable
     {
         internal Fixture Fixture { get; } = new();
@@ -265,6 +358,7 @@ public sealed partial class MainViewModelTests
         internal bool Native { get; set; } = true;
         internal bool TargetAvailable { get; set; } = true;
         internal bool ThrowDispatch { get; set; }
+        internal Action? BeforeDispatch { get; set; }
         internal int Calls { get; private set; }
         internal string? Text { get; private set; }
         internal RequestOrigin? Origin { get; private set; }
@@ -274,6 +368,7 @@ public sealed partial class MainViewModelTests
             var target = new ReviewedVoiceCommandTarget(new("synthetic", "Fixture"), "Kora", () => Current,
                 (text, request, exact) =>
                 {
+                    BeforeDispatch?.Invoke();
                     if (ThrowDispatch || !exact()) { throw new InvalidOperationException("fixture"); }
                     Calls++;
                     Text = text.Transcript;
@@ -294,9 +389,12 @@ public sealed partial class MainViewModelTests
     {
         private TimerCallback? callback;
         private object? state;
+        private DateTimeOffset now = DateTimeOffset.UnixEpoch;
         internal TimeSpan DueTime { get; private set; }
         internal bool Disposed { get; private set; }
         internal Action? BeforeDispose { get; set; }
+        public override DateTimeOffset GetUtcNow() => now;
+        internal void Advance(TimeSpan elapsed) => now += elapsed;
         public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
         {
             this.callback = callback;

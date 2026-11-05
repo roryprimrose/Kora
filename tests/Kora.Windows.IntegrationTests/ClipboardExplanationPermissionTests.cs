@@ -3,6 +3,8 @@ using System.Text.Json;
 
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Media;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 
 using AwesomeAssertions;
@@ -33,6 +35,10 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class ClipboardExplanationPermissionTests
 {
+    private static readonly int[] ReadingWidths = [640, 1000, 760];
+    private static readonly bool[] SourceWrapping = [false, true, false];
+    private static readonly int[] AnswerScales = [75, 100, 200];
+
     [Theory]
     [InlineData("once", 4)]
     [InlineData("session", 2)]
@@ -167,6 +173,46 @@ public sealed class ClipboardExplanationPermissionTests
                     var answer = window.GetVisualDescendants().OfType<Kora.Controls.NamedTextBlock>().Single(control =>
                         AutomationProperties.GetName(control) is "Volatile local clipboard explanation; untrusted model response");
                     answer.Text.Should().Be(scope is "deny" ? null : Adapter.Answer);
+                    Dispatcher.UIThread.RunJobs();
+                    window.UpdateLayout();
+                    var viewport = answer.GetVisualAncestors().OfType<ScrollViewer>().Single();
+                    viewport.Viewport.Height.Should().BeGreaterThan(0,
+                        "the completed explanation must have a visible reading area after exact review and permission");
+                    answer.Bounds.Width.Should().BeLessThanOrEqualTo(viewport.Viewport.Width + 1,
+                        "the answer must wrap independently of the snapshot's default unwrapped source");
+                    var sourceText = window.GetVisualDescendants().OfType<Kora.Controls.NamedTextBlock>().Single(control =>
+                        AutomationProperties.GetName(control) is "Clipboard snapshot plain text content");
+                    var wrapping = window.GetVisualDescendants().OfType<CheckBox>().Single(control =>
+                        AutomationProperties.GetName(control) is "Wrap snapshot text");
+                    var originalBytes = source.GetUtf8Bytes();
+                    var baseline = answer.FontSize;
+                    window.Height = 900;
+                    foreach (var width in ReadingWidths)
+                    {
+                        window.Width = width;
+                        foreach (var wrap in SourceWrapping)
+                        {
+                            wrapping.IsChecked = wrap;
+                            foreach (var scale in AnswerScales)
+                            {
+                                answer.FontSize = baseline * scale / 100d;
+                                Dispatcher.UIThread.RunJobs();
+                                window.UpdateLayout();
+                                viewport.Viewport.Height.Should().BeGreaterThan(0);
+                                answer.Bounds.Width.Should().BeLessThanOrEqualTo(viewport.Viewport.Width + 1);
+                                answer.Bounds.X.Should().Be(0, "a wider unwrapped source must not center the answer offscreen");
+                                answer.Bounds.Height.Should().BeGreaterThan(answer.FontSize * 2,
+                                    "the complete prose answer must actually occupy multiple wrapped lines");
+                                answer.TextWrapping.Should().Be(TextWrapping.Wrap);
+                                answer.Text.Should().Be(Adapter.Answer);
+                                sourceText.TextWrapping.Should().Be(wrap ? TextWrapping.Wrap : TextWrapping.NoWrap);
+                                source.GetUtf8Bytes().Should().Equal(originalBytes);
+                                consent.IsChecked.Should().BeFalse();
+                                reader.Calls.Should().Be(index + 1);
+                                adapter.Calls.Should().Be(index + 1);
+                            }
+                        }
+                    }
                     if (adapter.Request is { } request)
                     {
                         var recorded = await fixture.Store.ReadTaskAsync(request.SessionId, request.TaskId, fixture.Token);
@@ -175,6 +221,7 @@ public sealed class ClipboardExplanationPermissionTests
                     }
                     window.ClearAndClose();
                     answer.Text.Should().BeNull();
+                    sourceText.Text.Should().BeNull();
                 }
                 finally { window.ClearAndClose(); broker.Clear(); }
             }
@@ -196,7 +243,7 @@ public sealed class ClipboardExplanationPermissionTests
 
     private sealed class Reader : IPlainTextClipboardReader
     {
-        internal const string Source = "private-clipboard-fixture-80f7 ordinary untrusted exact source";
+        internal static readonly string Source = "private-clipboard-fixture-80f7 ordinary untrusted exact source " + new string('x', 4000);
         internal int Calls { get; private set; }
         public Task<ClipboardReadResult> ReadAsync(CancellationToken cancellationToken)
         {
@@ -207,7 +254,9 @@ public sealed class ClipboardExplanationPermissionTests
 
     private sealed class Adapter : IModelTurnAdapter
     {
-        internal const string Answer = "Actual synthetic clipboard explanation from the qualified fake adapter.";
+        internal const string Answer = "Actual synthetic clipboard explanation from the qualified fake adapter. "
+            + "This complete answer must wrap within the visible reading area without changing the exact source's wrapping preference. "
+            + "The immutable source remains untrusted evidence, and this answer creates no permission, action, speech or retained conversation content.";
         internal int Calls { get; private set; }
         internal HostRequest? Request { get; private set; }
         public Task<ModelProviderReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple? profile,

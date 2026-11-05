@@ -94,6 +94,14 @@ In **Settings > Speech & audio > Speech capture timing**, select the timing opti
 
 These are reject-only bounds, with at most seven fractional digits; values are never clamped. Each reset restores only that option, preserving its companions ([timing contract](../src/Kora.Core/Voice/VoiceCaptureTiming.cs)).
 
+An admitted model may suggest one exact timing Set or Reset in its retained final answer.
+Use **Review setting suggestion...** on that answer in Sessions or the compact conversation.
+Review shows the full current/proposed tuple and saved/default state, then requires a separate **Confirm exact setting change** in the current native surface.
+For example, `set voice.trailing-silence to 2.5` proposes more pause without changing a current capture.
+The host verifies the exact retained source, current session, revisions, privacy, call policy and native lifetime again before the same audited timing save/readback.
+Review expires after 60 seconds. Cancel retires pending source checks; it does not promise rollback of a write already started.
+Unconfirmed persistence or audit remains unavailable until explicit inspection/recovery, with no automatic retry ([proposal workflow](setting-proposals.md)).
+
 Typed input and already activated voice share `get voice.timing`, `status voice.timing`, `list voice timing settings`, `set voice.command-start-wait to 7`, `set voice.reply-start-wait to 20`, or `set voice.trailing-silence to 2`. Complete review with `confirm voice.timing` or `cancel voice.timing`; use `reset` followed by one exact option for a reviewed reset ([command grammar](../src/Kora.Application/Configuration/VoiceCaptureTimingCommand.cs)).
 
 Confirmed timing is device-local and applies to the **next eligible capture**. An in-flight capture retains its snapshot until closure. Replies still address only the exact live question; speech-start expiry never answers or dismisses it. The 60-second hard utterance bound, transcript cap, open/cleanup deadlines and response-window timeout are unchanged ([activated consumer](../src/Kora.Windows/Audio/WindowsVoiceRecognitionService.cs), [capture limits](../src/Kora.Windows/Audio/VoiceCaptureLimits.cs)).

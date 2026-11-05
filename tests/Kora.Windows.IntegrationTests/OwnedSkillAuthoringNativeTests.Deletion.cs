@@ -32,8 +32,24 @@ public sealed partial class OwnedSkillAuthoringNativeTests
     [InlineData("control")]
     [InlineData("source")]
     [InlineData("uncertain")]
+    [InlineData("workflow-typed")]
+    [InlineData("workflow-native")]
+    [InlineData("workflow-voice")]
+    [InlineData("workflow-cancel-review")]
+    [InlineData("workflow-cancel-confirm")]
+    [InlineData("workflow-escape-review")]
+    [InlineData("workflow-escape-confirm")]
+    [InlineData("workflow-draft")]
+    [InlineData("workflow-selection")]
+    [InlineData("workflow-privacy")]
+    [InlineData("workflow-owner")]
+    [InlineData("workflow-control")]
+    [InlineData("workflow-source")]
+    [InlineData("workflow-uncertain")]
     public async Task ExactAdmittedDeletionCompletesNativeReviewsAndRealFixtureCatalogueOrTruthfullyDenies(string scenario)
     {
+        var observation = scenario.StartsWith("workflow-", StringComparison.Ordinal);
+        if (observation) { scenario = scenario["workflow-".Length..]; }
         await HeadlessSession.RunAsync(async () =>
         {
             var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
@@ -42,7 +58,10 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             await f.InitializeAsync();
             await using var admission = new OwnedSkillControlAdmission(f.Interactions, f.Interactions, new(f.Tasks));
             var store = new WindowsOwnedDeclarativeSkillStore(f);
-            var document = OwnedDeclarativeSkillDocument.Create("example", "1.0.0", "Example", "Description", "complete literal guidance");
+            var document = observation
+                ? OwnedDeclarativeSkillDocument.CreateObservationWorkflow("example", "1.0.0", "Example", "Description",
+                    """{"steps":[{"tool":"application.get_version","input":{}},{"tool":"readiness.get","input":{"offset":0,"count":6}}]}""")
+                : OwnedDeclarativeSkillDocument.Create("example", "1.0.0", "Example", "Description", "complete literal guidance");
             var saved = await store.Publish(document, static () => true, operation => Task.FromResult(operation()), f.Token);
             var otherDocument = OwnedDeclarativeSkillDocument.Create("another", "1.0.0", "Another", "Description", "other literal guidance");
             var other = await store.Publish(otherDocument, static () => true, operation => Task.FromResult(operation()), f.Token);
@@ -139,6 +158,10 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             var disclosure = string.Join("\n", sourceReview.GetLogicalDescendants().OfType<TextBlock>().Select(block => block.Text));
             disclosure.Should().Contain(store.Destination(document)).And.Contain("references: none")
                 .And.Contain("Immutable admitted tasks are not cancelled").And.Contain("independent grants");
+            if (observation)
+            {
+                disclosure.Should().Contain("application.get_version,readiness.get").And.Contain("No observation steps are run");
+            }
             var originalGuidance = editing.Guidance.Text;
             if (scenario is "draft") { editing.Guidance.Text = "changed draft"; }
             if (scenario is "selection") { editing.Saved.SelectedIndex = 0; }

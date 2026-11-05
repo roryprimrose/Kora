@@ -336,6 +336,13 @@ Use **Read exact conversation**, bounded Next, and **Refresh observed work** exp
 Unsent text is memory-only and separately retained per session while switching topics. Both windows display edits to the same buffer; only explicit Submit retains a new message ([buffer ownership](../src/Kora/SessionsViewModel.Unsent.cs)).
 New request remains a separate fresh-target workflow; opening it never transfers the shared text ([shared controller](../src/Kora/SessionsWindowController.cs)).
 
+In the Sessions management and legacy compact conversation composers, **Ctrl+Enter**
+invokes the same currently enabled **Submit exact message** action as the button.
+Plain **Enter** remains a newline; adding Shift, Alt or Windows to Ctrl+Enter does
+not submit. The shortcut is local to the focused composer, not a global hotkey
+or a shortcut for other fields. Existing reply review, admission and in-progress
+checks remain unchanged; refused or cancelled admission preserves unsent input.
+
 Closing one view leaves the other view and unsent text intact. Closing the last view protects nonempty input across all topics with Discard/Cancel, even if the selected input is empty. Application exit uses the same protection. No Save-as-document is offered.
 Privacy, ownership or session retirement revokes both views without saving or stopping unrelated work ([presentation owner](../src/Kora/SessionsPresentationOwner.cs)).
 

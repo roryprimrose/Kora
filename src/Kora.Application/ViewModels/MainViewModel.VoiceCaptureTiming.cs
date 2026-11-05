@@ -46,7 +46,7 @@ public sealed partial class MainViewModel
     public string VoiceTimingReviewStatus => timingReview is { } review
         ? $"Proposed for next eligible capture: {review.Proposed.Describe()}. Confirm or cancel; the current capture is unchanged."
         : "No capture timing change awaiting confirmation.";
-    public bool CanReviewVoiceTiming => captureTiming?.Get().Timing is not null && !timingWriting
+    public bool CanReviewVoiceTiming => captureTiming?.Get().Timing is not null && !timingWriting && timingSuggestionWork.IsCompleted
         && speechInputNativeLifetime() && IsCallMutationHostEligible && !IsResponseInteractionPending;
     public bool CanConfirmVoiceTiming => timingReview is { } review && !timingWriting && review.Eligible();
     public bool HasVoiceTimingReview => timingReview is not null;
@@ -69,7 +69,7 @@ public sealed partial class MainViewModel
         CancellationToken cancellationToken = default)
     {
         if (command.ReviewDecision == false) { timingReview = null; NotifyVoiceTiming(); return; }
-        if (disposed || timingWriting || !IsCallMutationHostEligible || IsResponseInteractionPending
+        if (disposed || timingWriting || !timingSuggestionWork.IsCompleted || !IsCallMutationHostEligible || IsResponseInteractionPending
             || initiator == SecurityAuditInitiator.LocalUser && !speechInputNativeLifetime())
         { Transcript = "Capture timing requires the current unlocked owning input with no pending question or approval."; return; }
         var service = captureTiming;

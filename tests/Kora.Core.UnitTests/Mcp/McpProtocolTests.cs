@@ -115,9 +115,51 @@ public sealed class McpProtocolTests
         result.ToString().Should().Be("McpRemoteResult");
         Read("""{"content":[{"type":"text","text":""}],"isError":true}""").IsError.Should().BeTrue();
         var empty = Read("""{"content":[{"type":"text","text":""},{"type":"text","text":"value"}],"isError":false}""");
-        empty.Text.Should().Be("value");
+        empty.Text.Should().Be("\nvalue");
         empty.StructuredJson.Should().BeNull();
         empty.IsError.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("""[""]""", "")]
+    [InlineData("""["",""]""", "\n")]
+    [InlineData("""["","",""]""", "\n\n")]
+    [InlineData("""["","","",""]""", "\n\n\n")]
+    [InlineData("""["","value"]""", "\nvalue")]
+    [InlineData("""["","","value"]""", "\n\nvalue")]
+    [InlineData("""["first","","last"]""", "first\n\nlast")]
+    [InlineData("""["value",""]""", "value\n")]
+    [InlineData("""["value","",""]""", "value\n\n")]
+    [InlineData("""[" first ","\r\nlast\n"]""", " first \n\r\nlast\n")]
+    public void PreservesEveryMcpTextBlockBoundaryIncludingEmptyBlocks(string blocks, string expected)
+    {
+        var values = JsonSerializer.Deserialize<string[]>(blocks)!;
+        var content = JsonSerializer.Serialize(values.Select(text => new { type = "text", text }));
+        foreach (var isError in new[] { false, true })
+        {
+            var result = Read("{\"content\":" + content + ",\"isError\":"
+                + (isError ? "true" : "false") + ",\"structuredContent\":{\"value\":42}}");
+            result.Text.Should().Be(expected);
+            result.IsError.Should().Be(isError);
+            result.StructuredJson.Should().Be("""{"value":42}""");
+        }
+    }
+
+    [Fact]
+    public void EmptyMcpTextBlocksDoNotChangeTheCompleteResponseByteBound()
+    {
+        static string Serialize(string last) => JsonSerializer.Serialize(new
+        {
+            jsonrpc = "2.0",
+            id = 3,
+            result = new { content = new[] { "", "", "", last }.Select(text => new { type = "text", text }) },
+        });
+        var padding = new string('x', McpProtocol.MaximumResultUtf8Bytes - Encoding.UTF8.GetByteCount(Serialize("")));
+        var bytes = Encoding.UTF8.GetBytes(Serialize(padding));
+        bytes.Should().HaveCount(McpProtocol.MaximumResultUtf8Bytes);
+        McpProtocol.ReadInvocationResult(bytes).Text.Should().Be("\n\n\n" + padding);
+        FluentActions.Invoking(() => McpProtocol.ReadInvocationResult(Encoding.UTF8.GetBytes(Serialize(padding + "x"))))
+            .Should().Throw<InvalidDataException>();
     }
 
     [Theory]

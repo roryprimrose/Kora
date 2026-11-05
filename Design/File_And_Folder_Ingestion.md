@@ -2,11 +2,20 @@
 
 Status: immutable local previews/retrieval, retained single-file session
 attachments and the [named device-local folder lifecycle](#named-device-local-folder-lifecycle),
-including opt-in bounded descendants, are implemented. Reviewed file/folder
-answers use the [shared private-LocalOnly risk policy](Security_Data_Flows.md#reviewed-localonly-source-use-risk-admission),
-not a secret-free guarantee or provider approval. Unqualified runtimes remain
-unavailable. Named-source model use, multiple-version ingestion,
-persistent/vector indexes, multi-source reasoning and hosted grounding remain gated.
+including opt-in bounded descendants, are implemented. The
+[reviewed single named-source local answer](../docs/knowledge-sources.md#one-reviewed-local-answer)
+is also implemented: one fresh question over one explicitly selected enabled
+retained revision, exact excerpt review, separate one-shot private LocalOnly/no-tools
+confirmation and exact retained answer citations. Registration and inspection are
+not model consent ([named-source contract](#named-device-local-folder-lifecycle)).
+Reviewed file/folder and named-source answers use the
+[shared private-LocalOnly risk policy](Security_Data_Flows.md#reviewed-localonly-source-use-risk-admission),
+not a secret-free guarantee or provider approval. This is
+[implementation, not runtime enablement or RC qualification](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy):
+unqualified runtimes remain explicitly unavailable. Multiple-version ingestion,
+persistent/vector indexes, multi-source reasoning, automatic source context and
+hosted grounding remain gated; this operation admits no hosted disclosure or fallback
+([answer workflow](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerWorkflow.cs)).
 
 Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Data_Flows.md),
 [Interaction and Sessions](Interaction_And_Sessions.md),
@@ -662,6 +671,16 @@ Adding, refreshing and enabling are not model consent. The
 [named answer owner](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerWorkflow.cs)
 now supports one fresh question over one explicitly selected enabled retained revision,
 with exact excerpt review and separate one-shot private LocalOnly/no-tools consent.
+The [optional chosen-evidence review](../src/Kora.Core/KnowledgeSources/KnowledgeSourceAnswerReview.cs)
+narrows that same operation to a deliberate nonempty set of original whole retrieved
+citations. Native candidates start unselected; the existing complete-retrieval review
+remains supported. A changed choice invalidates prior confirmation and derived output.
+Only chosen excerpts enter the shared cited-answer envelope, while every chosen file
+still undergoes complete-file risk admission. Chosen-set review preserves the original
+question, source/revision, target, deadline and one-shot lifetime; omitted retrieved
+excerpts and bounded-search omissions are disclosed separately. Foreign, cloned,
+modified, duplicate, empty and excessive choices are rejected, never substituted or
+trimmed. This introduces no new source purpose, persistence, retrieval engine or recall.
 An unqualified local runtime remains unavailable; hosted disclosure and fallback are not admitted.
 The sibling volatile folder-answer route is independent. Source management remains native;
 the named answer entry additionally supports deliberate typed/current-name voice review.

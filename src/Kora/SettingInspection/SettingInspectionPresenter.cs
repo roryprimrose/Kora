@@ -61,7 +61,7 @@ internal sealed class SettingInspectionPresenter(SettingInspectionWorkflow workf
         if (!CanReview) { throw new InvalidOperationException("The previous inspection still owns work."); }
         RequireOriginalInput(HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi);
         Retire();
-        return active = ReviewCoreAsync();
+        return StartOperation(ReviewCoreAsync);
     }
 
     private async Task ReviewCoreAsync()
@@ -76,6 +76,7 @@ internal sealed class SettingInspectionPresenter(SettingInspectionWorkflow workf
             HostActivityLayer.Desktop, HostOperation.Request);
         try
         {
+            operation.Token.ThrowIfCancellationRequested();
             var host = captureAdmission();
             var lifetime = captureLifetime();
             bool Current() => !closed && revision == version && host() && lifetime();
@@ -109,7 +110,26 @@ internal sealed class SettingInspectionPresenter(SettingInspectionWorkflow workf
         if (!CanConfirm || session is not { } review || admitted is not { } current)
         { throw new InvalidOperationException("Review this exact original question and confirmed source first."); }
         RequireOriginalInput(review.Review.Original.Origin);
-        return active = ConfirmCoreAsync(review, current);
+        return StartOperation(() => ConfirmCoreAsync(review, current));
+    }
+
+    private Task StartOperation(Func<Task> operation)
+    {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        active = completion.Task;
+        _ = RunAsync();
+        return completion.Task;
+
+        async Task RunAsync()
+        {
+            try
+            {
+                await operation();
+                completion.SetResult();
+            }
+            catch (OperationCanceledException exception) { completion.SetCanceled(exception.CancellationToken); }
+            catch (Exception exception) { completion.SetException(exception); }
+        }
     }
 
     private async Task ConfirmCoreAsync(SettingInspectionSession review, Func<bool> current)
@@ -124,6 +144,8 @@ internal sealed class SettingInspectionPresenter(SettingInspectionWorkflow workf
         using var root = HostActivity.BeginRoot(review.Review.Original, HostActivityLayer.Desktop, HostOperation.Request);
         try
         {
+            if (operation.IsCancellationRequested)
+            { root.Complete(HostOperationOutcome.Cancelled); return; }
             bool Current() => version == revision && current();
             var result = await workflow.AnswerAsync(review, Current, operation.Token);
             if (!Current() || operation.IsCancellationRequested)

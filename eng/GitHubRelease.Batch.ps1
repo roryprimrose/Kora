@@ -20,6 +20,13 @@ function Resolve-ReleaseQueueProfile {
     throw 'Unknown release merge queue profile.'
 }
 
+function Resolve-ReleaseMainBuildProfile {
+    param([AllowNull()][string] $Value)
+    if ($null -eq $Value -or $Value -ceq '') { return 'per-merge' }
+    if ($Value -ceq 'hourly-v1') { return $Value }
+    throw 'Unknown release main build profile.'
+}
+
 function Get-ReleaseRepositoryText {
     param([string] $Path, [string] $Revision, [string] $ExpectedBlob)
     if ($Revision -cnotmatch '^[a-f0-9]{40}$') { throw 'Release safety files require an exact commit revision.' }
@@ -176,16 +183,31 @@ function Assert-SerializedBatchReleaseCaller {
     }
     $run = Get-GitHubRecord "repos/$script:KoraRepository/actions/runs/$env:GITHUB_RUN_ID"
     $workflow = Get-GitHubRecord "repos/$script:KoraRepository/actions/workflows/ci.yml"
-    if ($null -eq $run -or $null -eq $workflow -or
-        $run.id.ToString() -cne $env:GITHUB_RUN_ID -or $run.run_attempt.ToString() -cne $env:GITHUB_RUN_ATTEMPT -or
-        $run.repository.full_name -cne $script:KoraRepository -or
-        $run.head_repository.full_name -cne $script:KoraRepository -or
-        $run.path -cne '.github/workflows/ci.yml' -or $workflow.path -cne '.github/workflows/ci.yml' -or
-        $workflow.state -cne 'active' -or $run.workflow_id -ne $workflow.id -or
-        $run.head_branch -cne 'main' -or $run.head_sha -cne $Revision -or
-        $run.event -cne $env:GITHUB_EVENT_NAME -or $run.event -cnotin @('push', 'workflow_dispatch') -or
-        $run.status -cne 'in_progress') {
-        throw 'Batch publication could not authenticate the trusted main workflow run.'
+    if ($null -eq $run -or $null -eq $workflow) {
+        throw 'Batch publication could not authenticate the trusted main workflow run; rejected predicates: metadata-present.'
+    }
+    $predicates = [ordered]@{
+        'run-id' = $run.id.ToString() -ceq $env:GITHUB_RUN_ID
+        'run-run_attempt' = $run.run_attempt.ToString() -ceq $env:GITHUB_RUN_ATTEMPT
+        'run-repository' = $run.repository.full_name -ceq $script:KoraRepository
+        'run-head_repository' = $run.head_repository.full_name -ceq $script:KoraRepository
+        'run-path' = $run.path -ceq '.github/workflows/ci.yml'
+        'workflow-path' = $workflow.path -ceq '.github/workflows/ci.yml'
+        'workflow-state' = $workflow.state -ceq 'active'
+        'run-workflow_id' = $run.workflow_id -eq $workflow.id
+        'run-head_branch' = $run.head_branch -ceq 'main'
+        'run-head_sha' = $run.head_sha -ceq $Revision
+        'run-event' = $run.event -ceq $env:GITHUB_EVENT_NAME -and
+            ($run.event -cin @('push', 'workflow_dispatch') -or
+                ($run.event -ceq 'schedule' -and $env:KORA_MAIN_BUILD_PROFILE -ceq 'hourly-v1'))
+        'run-status' = $run.status -ceq 'in_progress'
+    }
+    $rejected = @($predicates.Keys | Where-Object { -not $predicates[$_] })
+    if ($rejected.Count -gt 0) {
+        $lifecycle = if ($run.status -cin @('queued', 'in_progress', 'completed', 'waiting', 'pending', 'requested')) {
+            $run.status
+        } else { 'unknown' }
+        throw "Batch publication could not authenticate the trusted main workflow run; rejected predicates: $($rejected -join ','); lifecycle: $lifecycle."
     }
     $matchingJobs = @()
     for ($page = 1; ; $page++) {
@@ -210,7 +232,11 @@ function Assert-ReleaseQueueSafety {
     param([string] $Revision, [string] $ExpectedProfile, [switch] $Publishing)
     $snapshot = Resolve-ReleaseQueueProfile $env:KORA_MERGE_QUEUE_PROFILE
     $delivery = $env:KORA_MERGE_QUEUE_DELIVERY_PROFILE
+    $mainBuildProfile = Resolve-ReleaseMainBuildProfile $env:KORA_MAIN_BUILD_PROFILE
     if ($delivery -cnotin @($null, '', 'independent-v1')) { throw 'Unknown release delivery profile.' }
+    if ($mainBuildProfile -ceq 'hourly-v1' -and ($snapshot -cne 'batch-v1' -or $delivery -cne 'independent-v1')) {
+        throw 'Hourly main publication requires independent batch delivery.'
+    }
     $queueSnapshot = if ($delivery -ceq 'independent-v1') { Get-ReleaseQueueSnapshot -WithIdentity } else { $null }
     $text = if ($delivery -ceq 'independent-v1') { $queueSnapshot.Text } else { Get-ReleaseQueueSnapshot }
     $profile = 'singleton-v1'
@@ -230,6 +256,17 @@ function Assert-ReleaseQueueSafety {
     }
     if ($ExpectedProfile -and $profile -cne $ExpectedProfile) {
         throw 'Release durable merge queue profile changed; a fresh run is required.'
+    }
+    $durableMainBuildProfile = 'per-merge'
+    if ($null -ne $state -and $state.Contains('mainBuildProfile')) {
+        if ($state.mainBuildProfile -isnot [string] -or $state.mainBuildProfile -cne 'hourly-v1' -or
+            $profile -cne 'batch-v1' -or $state.deliveryProfile -cne 'independent-v1') {
+            throw 'Invalid durable release main build profile.'
+        }
+        $durableMainBuildProfile = 'hourly-v1'
+    }
+    if ($mainBuildProfile -cne $durableMainBuildProfile) {
+        throw 'Release main build profile changed; a fresh run is required.'
     }
     if ($snapshot -ceq 'batch-v1' -and $profile -cne 'batch-v1') {
         throw 'Batch release requires durable v2 batch-v1 queue state.'
@@ -279,7 +316,7 @@ function Assert-IndependentReleaseSource {
         $record.validation.run -isnot [long] -and $record.validation.run -isnot [int] -or
         $record.validation.run -le 0 -or $record.validation.attempt -ne 1 -or
         $record.validation.source -cne $record.combined -or $record.validation.workflow -cne $record.base -or
-        $record.validation.schema -cne 'windows-12-delivery-v1' -or
+        $record.validation.schema -cnotin @('windows-12-delivery-v1', 'unit-pr-v1', 'parallel-pr-v1') -or
         $record.validation.inventory -isnot [string] -or $record.validation.inventory -cnotmatch '^[a-f0-9]{40}$') {
         throw 'Invalid independent completed-source authority.'
     }

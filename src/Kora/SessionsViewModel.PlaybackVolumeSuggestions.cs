@@ -37,6 +37,7 @@ internal sealed partial class SessionsViewModel
 
     public void CancelPlaybackVolumeSuggestion(bool reportCancellation = true)
     {
+        registeredSettingReviewIdentity = null;
         playbackVolumeReview?.Dispose();
         playbackVolumeReview = null;
         if (reportCancellation)

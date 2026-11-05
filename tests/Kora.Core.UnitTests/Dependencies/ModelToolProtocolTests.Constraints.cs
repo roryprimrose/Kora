@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Text;
 using System.Text.Json.Nodes;
 
@@ -64,7 +64,7 @@ public sealed partial class ModelToolProtocolTests
             "unknown" => ["agent.run"],
             _ => [ReadOnlyCapabilityCatalog.Version],
         };
-        Action act = () => _ = new ModelTurnConstraints(fault is "version" ? 2 : 1, ids,
+        Action act = () => _ = new ModelTurnConstraints(fault is "version" ? 3 : 1, ids,
             fault is "calls-negative" ? -1 : fault is "calls-high" ? 7 : 1,
             fault is "rounds-zero" ? 0 : fault is "rounds-high" ? 3 : 2,
             fault is "input-zero" ? 0 : fault is "input-high" ? 32769 : 16000,

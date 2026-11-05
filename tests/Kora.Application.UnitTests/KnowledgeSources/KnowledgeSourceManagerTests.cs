@@ -368,6 +368,96 @@ public sealed class KnowledgeSourceManagerTests : IDisposable
         fixture.Removed.Should().BeFalse();
     }
 
+    [Theory]
+    [InlineData(RemovalChange.Expired)]
+    [InlineData(RemovalChange.Future)]
+    [InlineData(RemovalChange.PrivateControl)]
+    [InlineData(RemovalChange.Cancelled)]
+    [InlineData(RemovalChange.Terminal)]
+    [InlineData(RemovalChange.Current)]
+    public async Task RemovalJoinsOwnedSourceWorkThenRevalidatesBeforeDeletingCopies(RemovalChange change)
+    {
+        using var host = HostActivity.BeginOperation(HostActivityLayer.Application, HostOperation.Request, RequestOrigin.LocalUi);
+        var fixture = new Fixture();
+        using var manager = fixture.Manager();
+        var review = await manager.ReviewAsync("notes", @"C:\Team", null, () => true, Token);
+        var snapshot = await manager.CaptureAsync(review.ReviewId, () => true, Token);
+        var source = await manager.PublishAsync(snapshot, () => true, Token);
+        var use = await manager.OpenAnswerUseAsync(source, () => true, Token);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var work = use.RunAsync(_ => release.Task, Token);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        var eligible = true;
+        var removal = manager.RemoveAsync(source, fixture.Time.GetUtcNow(), () => eligible, cancellation.Token);
+        try
+        {
+            removal.IsCompleted.Should().BeFalse();
+            use.IsCurrent.Should().BeFalse();
+            fixture.Removed.Should().BeFalse();
+            await FluentActions.Awaiting(() => manager.ListAsync(() => true, Token))
+                .Should().ThrowAsync<InvalidOperationException>();
+            FluentActions.Invoking(manager.Dispose).Should().Throw<InvalidOperationException>();
+            switch (change)
+            {
+                case RemovalChange.Expired: fixture.Time.Advance(); break;
+                case RemovalChange.Future: fixture.Time.Advance(TimeSpan.FromTicks(-1)); break;
+                case RemovalChange.PrivateControl: eligible = false; break;
+                case RemovalChange.Cancelled: cancellation.Cancel(); break;
+                case RemovalChange.Terminal: host.Complete(HostOperationOutcome.Completed); break;
+                case RemovalChange.Current: fixture.Time.Advance(TimeSpan.FromMinutes(2) - TimeSpan.FromTicks(1)); break;
+            }
+        }
+        finally { release.TrySetResult(true); }
+        await work;
+        if (change == RemovalChange.Current) { await removal; }
+        else if (change == RemovalChange.Cancelled)
+        { await FluentActions.Awaiting(() => removal).Should().ThrowAsync<OperationCanceledException>(); }
+        else
+        { await FluentActions.Awaiting(() => removal).Should().ThrowAsync<InvalidOperationException>(); }
+        fixture.Removed.Should().Be(change == RemovalChange.Current);
+        fixture.Disposed.Should().BeTrue();
+        fixture.Reads.Should().Be(1);
+        fixture.Events.Where(item => string.Equals(item.ActionId, "knowledge.remove", StringComparison.Ordinal)).Select(item => item.Outcome)
+            .Should().Equal(SecurityAuditOutcome.Requested,
+                change == RemovalChange.Current ? SecurityAuditOutcome.Succeeded :
+                change == RemovalChange.Cancelled ? SecurityAuditOutcome.Cancelled : SecurityAuditOutcome.Failed);
+    }
+
+    [Theory]
+    [InlineData(RemovalChange.Expired)]
+    [InlineData(RemovalChange.PrivateControl)]
+    [InlineData(RemovalChange.Cancelled)]
+    [InlineData(RemovalChange.Terminal)]
+    public async Task RemovalRevalidatesAfterRequestedAuditBeforeStoreMutation(RemovalChange change)
+    {
+        using var host = HostActivity.BeginOperation(HostActivityLayer.Application, HostOperation.Request, RequestOrigin.LocalUi);
+        var fixture = new Fixture();
+        using var manager = fixture.Manager();
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        var eligible = true;
+        fixture.AfterAudit = entry =>
+        {
+            if (!string.Equals(entry.ActionId, "knowledge.remove", StringComparison.Ordinal)
+                || entry.Outcome != SecurityAuditOutcome.Requested) { return; }
+            switch (change)
+            {
+                case RemovalChange.Expired: fixture.Time.Advance(); break;
+                case RemovalChange.PrivateControl: eligible = false; break;
+                case RemovalChange.Cancelled: cancellation.Cancel(); break;
+                case RemovalChange.Terminal: host.Complete(HostOperationOutcome.Completed); break;
+            }
+        };
+        var removal = () => manager.RemoveAsync(fixture.Source(), fixture.Time.GetUtcNow(), () => eligible, cancellation.Token);
+        if (change == RemovalChange.Cancelled)
+        { await removal.Should().ThrowAsync<OperationCanceledException>(); }
+        else
+        { await removal.Should().ThrowAsync<InvalidOperationException>(); }
+        fixture.Removed.Should().BeFalse();
+        fixture.Reads.Should().Be(0);
+        fixture.Events.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested,
+            change == RemovalChange.Cancelled ? SecurityAuditOutcome.Cancelled : SecurityAuditOutcome.Failed);
+    }
+
     [Fact]
     public async Task NoncooperativeSelectionRemainsOwnedUntilJoinedAndLateResultCannotPublish()
     {
@@ -428,7 +518,8 @@ public sealed class KnowledgeSourceManagerTests : IDisposable
         private DateTimeOffset now = new(2026, 10, 26, 0, 0, 0, TimeSpan.Zero);
         private readonly List<ManualTimer> timers = [];
         public override DateTimeOffset GetUtcNow() => now;
-        internal void Advance() => now = now.AddMinutes(2);
+        internal void Advance() => Advance(TimeSpan.FromMinutes(2));
+        internal void Advance(TimeSpan amount) => now += amount;
         public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
         {
             dueTime.Should().Be(KnowledgeSourcePolicy.MaximumOperationTime);
@@ -453,6 +544,8 @@ public sealed class KnowledgeSourceManagerTests : IDisposable
 
     public enum Scenario { Origin, Invocation, Gate, Terminal, Root, Identity, Inspection, Revoked, Expired, Wrong, Validate,
         Read, Changed, Cancelled, TerminalAudit, Members, Publish }
+
+    public enum RemovalChange { Expired, Future, PrivateControl, Cancelled, Terminal, Current }
 
     private sealed class Fixture : IKnowledgeSourceInspector, IKnowledgeSourceSelection, IKnowledgeSourceStore, ISecurityAuditLog
     {
@@ -480,6 +573,7 @@ public sealed class KnowledgeSourceManagerTests : IDisposable
         internal Action? AfterRead;
         internal Action? AfterPublish;
         internal Action? AfterReadStore;
+        internal Action<SecurityAuditEvent>? AfterAudit;
         internal Task? InspectWait;
         internal Task? DisableWait;
         internal byte[]? CapturedBytes;
@@ -552,6 +646,7 @@ public sealed class KnowledgeSourceManagerTests : IDisposable
         {
             Events.Add(auditEvent);
             if (Events.Count == ThrowAuditAt) { throw new IOException("Synthetic unavailable audit."); }
+            AfterAudit?.Invoke(auditEvent);
         }
     }
 }

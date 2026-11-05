@@ -128,6 +128,8 @@ internal sealed class SessionMemoryContext(
         {
             MemorySource = record.Scope.Kind == MemoryScopeKind.Session
                 ? new(record.Id, record.Revision, new(record.Scope.Identity)) : null,
+            ProfileMemorySource = record.Scope.Kind == MemoryScopeKind.DeviceProfile
+                ? new(record.Id, record.Revision, new(record.Scope.Identity)) : null,
         }), now, now.AddSeconds(15), ModelToolMode.None);
 
     public void Dispose()

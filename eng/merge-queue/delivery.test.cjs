@@ -68,6 +68,46 @@ test('completed-source authority is immutable and excludes transient main qualif
   assert.throws(() => releaseRecord(source));
 });
 
+test('independent completed-source records preserve historical or unit-only proof schemas without cross-schema authority', () => {
+  const { DELIVERY_JOBS, UNIT_PR_JOBS } = require('./policy.cjs');
+  const { digest } = require('./batch-policy.cjs');
+  for (const [schema, jobs] of [['windows-12-delivery-v1', DELIVERY_JOBS], ['unit-pr-v1', UNIT_PR_JOBS]]) {
+    for (const batch of [false, true]) {
+      const source = tip();
+      source.validation.schema = schema;
+      if (batch) {
+        source.admission = { schema: 'batch-manifest-v1', ticket: source.ticket, base: source.base,
+          combined: source.combined, inventory: { blob: source.validation.inventory, schema, jobs: [...jobs] },
+          prefixes: [{ sha: source.combined, tree: source.tree }] };
+        source.manifest = digest(source.admission);
+      }
+      const record = releaseRecord(source);
+      assert.equal(record.validation.schema, schema);
+      assert.deepEqual(validateRelease(record, source.sha), record);
+      for (const invalid of ['windows-12-v1', 'future-v1', undefined]) {
+        const changed = structuredClone(source);
+        changed.validation.schema = invalid;
+        if (batch) {
+          changed.admission.inventory.schema = invalid;
+          changed.manifest = digest(changed.admission);
+        }
+        assert.throws(() => releaseRecord(changed), /completed-source proof/);
+        assert.throws(() => validateRelease({ ...record, validation: changed.validation,
+          ...(batch ? { admission: changed.admission, manifest: changed.manifest } : {}) }, source.sha),
+        /completed-source record/);
+      }
+      if (batch) {
+        const changed = structuredClone(source);
+        changed.admission.inventory.schema = schema === 'unit-pr-v1' ? 'windows-12-delivery-v1' : 'unit-pr-v1';
+        changed.manifest = digest(changed.admission);
+        assert.throws(() => releaseRecord(changed), /completed-source proof/);
+        assert.throws(() => validateRelease({ ...record, admission: changed.admission,
+          manifest: changed.manifest }, source.sha), /completed-source record/);
+      }
+    }
+  }
+});
+
 test('only complete ordinary source changes defer physical candidate packaging', () => {
   const selected = paths => packagingSelection(paths.map(filename => ({ filename, status: 'modified' }))).build;
   assert.equal(selected(['src/Kora.Core/Feature.cs', 'tests/Kora.UnitTests/Test.cs', 'docs/Help.md']), false);

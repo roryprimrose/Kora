@@ -1,12 +1,14 @@
 using Kora.Application.Configuration.RegisteredSettings;
 using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Conversation;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
 
 namespace Kora;
 
 internal sealed partial class SessionsViewModel
 {
-    private enum SettingReviewFamily { Appearance, Summary, Volume, ResponseMode, WindowsRate, InstalledVoice }
+    private enum SettingReviewFamily { Appearance, Summary, Volume, ResponseMode, WindowsRate, InstalledVoice, CaptureTiming }
     private volatile object? registeredSettingReviewIdentity;
 
     public string RegisteredSettingsDescription => "Supported inert suggestions: " + string.Join("; ",
@@ -19,21 +21,23 @@ internal sealed partial class SessionsViewModel
 
     public bool CanReviewRegisteredSettingSuggestion => CanReviewAppearanceSuggestion
         || CanReviewSpeechSummarySuggestion || CanReviewPlaybackVolumeSuggestion || CanReviewResponseModeSuggestion || CanReviewWindowsSpeechRateSuggestion
-        || CanReviewInstalledSpeechVoiceSuggestion;
+        || CanReviewInstalledSpeechVoiceSuggestion || CanReviewCaptureTimingSuggestion;
     public bool CanConfirmRegisteredSettingSuggestion => CanConfirmAppearanceSuggestion
         || CanConfirmSpeechSummarySuggestion || CanConfirmPlaybackVolumeSuggestion || CanConfirmResponseModeSuggestion || CanConfirmWindowsSpeechRateSuggestion
-        || CanConfirmInstalledSpeechVoiceSuggestion;
+        || CanConfirmInstalledSpeechVoiceSuggestion || CanConfirmCaptureTimingSuggestion;
     public bool CanCancelRegisteredSettingSuggestion => !closed && access.CanInspect && access.CanControl
         && selected?.Authority.IsActive == true && registeredSettingReviewIdentity is not null;
     public string RegisteredSettingSuggestionDescription => AppearanceSuggestionDescription
         + SpeechSummarySuggestionDescription + PlaybackVolumeSuggestionDescription + ResponseModeSuggestionDescription + WindowsSpeechRateSuggestionDescription
-        + InstalledSpeechVoiceSuggestionDescription;
+        + InstalledSpeechVoiceSuggestionDescription + CaptureTimingSuggestionDescription;
 
     public Task ReviewRegisteredSettingSuggestionAsync(ConversationMessage message) =>
         ReviewRegisteredSettingSuggestionAsync(message, null);
 
-    private Task ReviewRegisteredSettingSuggestionAsync(ConversationMessage message, SettingReviewFamily? expected) =>
-        RunConversationAsync(async (target, live) =>
+    private Task ReviewRegisteredSettingSuggestionAsync(ConversationMessage message, SettingReviewFamily? expected)
+    {
+        var originalInput = HostActivity.Current;
+        return RunConversationAsync(async (target, live) =>
         {
             CancelRegisteredSettingSuggestion(reportCancellation: false);
             var identity = new object();
@@ -50,6 +54,9 @@ internal sealed partial class SessionsViewModel
                 RegisteredSettingProposal.Volume => SettingReviewFamily.Volume,
                 RegisteredSettingProposal.ResponseMode => SettingReviewFamily.ResponseMode,
                 RegisteredSettingProposal.WindowsRate => SettingReviewFamily.WindowsRate,
+                RegisteredSettingProposal.CaptureTiming => SettingReviewFamily.CaptureTiming,
+                RegisteredSettingProposal.Reset { Setting: RegisteredSetting.CommandStartWait or RegisteredSetting.ReplyStartWait or RegisteredSetting.TrailingSilence } =>
+                    SettingReviewFamily.CaptureTiming,
                 RegisteredSettingProposal.Reset reset when reset.Descriptor.RequiresNativeReview => SettingReviewFamily.Appearance,
                 RegisteredSettingProposal.Reset { Setting: RegisteredSetting.ResponseTimeout } => SettingReviewFamily.Appearance,
                 RegisteredSettingProposal.Reset { Setting: RegisteredSetting.SummaryWords or RegisteredSetting.SummarySentences } => SettingReviewFamily.Summary,
@@ -73,6 +80,20 @@ internal sealed partial class SessionsViewModel
             NotifyRegisteredSettings();
             switch (family)
             {
+                case SettingReviewFamily.CaptureTiming:
+                    if (originalInput is not null && (originalInput.Request.Origin != RequestOrigin.LocalUi
+                        || originalInput.Request.InvocationId is not null || originalInput.Activity!.IsStopped
+                        || originalInput.Outcome != HostOperationOutcome.Unknown))
+                    { throw new InvalidOperationException("Capture timing review requires original native input, not a relabelled model or voice request."); }
+                    var timingReview = await (reviewCaptureTimingSuggestion
+                        ?? throw new InvalidOperationException("Native capture timing review is unavailable."))(message, Current, Validate, lifetime.Token);
+                    if (!Current())
+                    {
+                        timingReview.Dispose();
+                        throw new OperationCanceledException("The exact capture timing review was retired.");
+                    }
+                    captureTimingSuggestionReview = timingReview;
+                    break;
                 case SettingReviewFamily.Appearance:
                     appearanceReview = await (reviewAppearanceSuggestion
                         ?? throw new InvalidOperationException("Native appearance review is unavailable."))(message, Current, Validate, lifetime.Token);
@@ -105,9 +126,11 @@ internal sealed partial class SessionsViewModel
             }
             conversationStatus = "Review exact current/proposed values and shared scope below. Nothing changed; confirmation is separate.";
         });
+    }
 
     public Task ConfirmRegisteredSettingSuggestionAsync() => appearanceReview is not null
         ? ConfirmAppearanceSuggestionAsync()
+        : captureTimingSuggestionReview is not null ? ConfirmCaptureTimingSuggestionAsync()
         : windowsSpeechRateReview is not null ? ConfirmWindowsSpeechRateSuggestionAsync()
         : installedVoiceReview is not null ? ConfirmInstalledSpeechVoiceSuggestionAsync()
         : speechSummaryReview is not null ? ConfirmSpeechSummarySuggestionAsync()
@@ -116,6 +139,7 @@ internal sealed partial class SessionsViewModel
     public void CancelRegisteredSettingSuggestion(bool reportCancellation = true)
     {
         registeredSettingReviewIdentity = null;
+        CancelCaptureTimingSuggestion();
         CancelAppearanceSuggestion(reportCancellation: false);
         CancelSpeechSummarySuggestion(reportCancellation: false);
         CancelPlaybackVolumeSuggestion(reportCancellation: false);

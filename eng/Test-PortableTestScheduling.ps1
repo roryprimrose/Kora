@@ -22,8 +22,17 @@ $expected = @(
     'tests/Kora.Definitions.UnitTests/Kora.Definitions.UnitTests.csproj'
     'tests/Kora.Tools.UnitTests/Kora.Tools.UnitTests.csproj'
 )
-Assert ($projects.Count -eq $expected.Count) 'The portable solution must contain exactly four test projects.'
-Assert (@($projects | Sort-Object -Unique).Count -eq $expected.Count) 'The portable solution must not duplicate projects.'
+$sources = @(
+    'src/Kora.Application/Kora.Application.csproj'
+    'src/Kora.Core/Kora.Core.csproj'
+    'src/Kora.Definitions/Kora.Definitions.csproj'
+    'src/Kora.Tools/Kora.Tools.csproj'
+)
+Assert ($projects.Count -eq ($expected.Count + $sources.Count)) 'The portable solution must contain exactly four unit modules and their four production projects.'
+Assert (@($projects | Sort-Object -Unique).Count -eq $projects.Count) 'The portable solution must not duplicate projects.'
+foreach ($project in $sources) {
+    Assert ($projects -ccontains $project) "Explicit portable dependencies must use the solution's Release configuration: $project."
+}
 foreach ($project in $expected) {
     Assert ($projects -ccontains $project) "The portable solution is missing $project."
     Assert ($mainProjects -ccontains $project) "The main restore/build must include $project before --no-build testing."
@@ -36,6 +45,16 @@ $workflow = Get-Content -Raw -LiteralPath (Join-Path $root '.github\workflows\ci
 $portable = [regex]::Match($workflow, '(?ms)^  portable-tests:\r?\n(?<job>.*?)(?=^  [a-z][a-z-]*:|\z)')
 Assert $portable.Success 'The portable CI job was not found.'
 $job = $portable.Groups['job'].Value
+foreach ($command in @(
+    'dotnet restore Kora.UnitTests.slnx --locked-mode'
+    'dotnet build Kora.UnitTests.slnx --configuration Release --no-restore'
+    'dotnet restore tests/Kora.Architecture.Tests/Kora.Architecture.Tests.csproj --locked-mode'
+    'dotnet build tests/Kora.Architecture.Tests/Kora.Architecture.Tests.csproj --configuration Release --no-restore'
+    './eng/Test-Architecture.ps1'
+)) {
+    Assert ($job.Contains($command, [StringComparison]::Ordinal)) "Missing portable build or architecture prerequisite: $command."
+}
+Assert (-not $job.Contains('dotnet build Kora.slnx', [StringComparison]::Ordinal)) 'Unit validation must not compile desktop or integration fixtures.'
 Assert ([regex]::Matches($job, '(?m)^\s+dotnet test\s*$').Count -eq 1) 'Portable CI must use one multi-project test invocation.'
 $step = [regex]::Match($job,
     '(?m)      - name: Test portable projects with coverage\r?\n        run: >\r?\n(?<command>(?:          [^\r\n]*(?:\r?\n|$))+)')
@@ -77,8 +96,8 @@ Assert $comparisonInput.Success 'The manual comparison input was not found.'
 Assert ($comparisonInput.Groups['input'].Value.Contains('default: false', [StringComparison]::Ordinal)) 'Scheduling comparisons must default to disabled.'
 $comparisonJob = [regex]::Match($workflow, '(?ms)^  portable-test-comparison:\r?\n(?<job>.*?)(?=^  [a-z][a-z-]*:|\z)')
 Assert $comparisonJob.Success 'The comparison job was not found.'
-Assert ($comparisonJob.Groups['job'].Value.Contains('dotnet restore Kora.slnx --locked-mode',
-    [StringComparison]::Ordinal)) 'The comparison must restore the same complete project graph as portable CI.'
-Assert ($comparisonJob.Groups['job'].Value.Contains('dotnet build Kora.slnx --configuration Release --no-restore',
-    [StringComparison]::Ordinal)) 'The comparison must not mix Release tests with Debug dependencies omitted from the unit solution.'
+Assert ($comparisonJob.Groups['job'].Value.Contains('dotnet restore Kora.UnitTests.slnx --locked-mode',
+    [StringComparison]::Ordinal)) 'The comparison must restore the same portable graph as unit CI.'
+Assert ($comparisonJob.Groups['job'].Value.Contains('dotnet build Kora.UnitTests.slnx --configuration Release --no-restore',
+    [StringComparison]::Ordinal)) 'The comparison must build all portable dependencies in Release.'
 Write-Host "Portable test scheduling: $assertions assertions passed."

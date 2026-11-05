@@ -1290,6 +1290,21 @@ Any setting that cannot safely support one of these routes documents the
 specific interaction, ambiguity, availability, privacy, or origin constraint
 in the capability catalogue.
 
+The existing three activated-capture timing settings also accept one inert exact
+Set or Reset from an authoritative retained final model answer. A timing-specific
+host review reads the complete current tuple, saved/default provenance and
+revision, shows all old/new decimal seconds and future-capture-only scope, and
+requires separate current native confirmation through
+`VoiceCaptureTimingConfigurationService`. Reset preserves both companion fields.
+The model is never original user input or write authority. Exact retained-source,
+session, privacy, consent, call, revision, native-lifetime and 60-second expiry
+checks remain mandatory across awaits; cancellation retires pending review and
+joins any actual persistence without claiming rollback. Audit/persistence/readback
+failure remains explicit and unconfirmed. This adds neither microphone admission
+nor a timing reader to generic `settings.get`
+([review operation](../src/Kora.Application/Configuration/VoiceCaptureTimingSuggestionReview.cs),
+[interaction](../docs/setting-proposals.md)).
+
 The desktop system-tray menu exposes a single-instance Settings window with
 every setting currently implemented by the host. All open settings surfaces
 observe the same live state: mouse and validated verbal mutations publish the

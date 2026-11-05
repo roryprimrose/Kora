@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { execution, controllerOperation, CHECKS, GATE, JOBS, WINDOWS_12_JOBS, DELIVERY_JOBS, PREDECESSOR_WORKFLOWS,
+const { execution, controllerOperation, CHECKS, GATE, JOBS, WINDOWS_12_JOBS, DELIVERY_JOBS, UNIT_PR_JOBS, PREDECESSOR_WORKFLOWS,
   workflowJobs, requiredJobsState, terminalJobs } = require('./policy.cjs');
 const root = path.resolve(__dirname, '..', '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8').replaceAll('\r\n', '\n');
@@ -52,9 +52,18 @@ test('independent packaging selection is trusted combined-candidate-only; every 
     await assert.rejects(execute({ env: { QUEUE_MODE: '', DELIVERY_PROFILE: value } }, {}, {}, {}, () => ({})));
   }
   const installer = job('installer');
-  for (const step of ['Install .NET SDK', 'Download exact Linux-published x64 application',
-    'Verify payload digests and build identity', 'Restore locked installer dependencies', 'Build MSI and Burn bundle without installing'])
+  for (const step of ['Download exact Linux-published x64 application',
+    'Verify payload digests and build identity', 'Build MSI and Burn bundle without installing'])
     assert.ok(installer.includes(`- name: ${step}\n        if: needs.version.outputs.packaging == 'true'`), step);
+  for (const step of ['Install .NET SDK', 'Restore locked installer dependencies',
+    'Compile managed setup without running integration tests', 'Test installer metadata contracts without installing']) {
+    const body = installer.match(new RegExp(`      - name: ${step}\\n([\\s\\S]*?)(?=      - name:|$)`))[1];
+    assert.doesNotMatch(body, /^        if:/m, `${step} is required even when MSI/Burn is not selected`);
+  }
+  assert.ok(installer.indexOf('- name: Restore locked installer dependencies')
+    < installer.indexOf('- name: Test installer metadata contracts without installing'));
+  assert.match(installer, /dotnet restore \.\\installer\\Kora\.Setup\\Kora\.Setup\.csproj --locked-mode/);
+  assert.match(installer, /dotnet build installer\/Kora\.Setup\/Kora\.Setup\.csproj --configuration Release --no-restore/);
   assert.match(installer, /Test installer metadata contracts without installing\n        shell: pwsh/);
   assert.match(installer, /MSI\/Burn execution is not claimed/);
 });
@@ -185,9 +194,13 @@ test('independent producers are joined without preventing retirement of predeces
   assert.match(job('portable'), /needs: \[admission, version, portable-tests, payload\]/);
 });
 
-test('trusted workflow schema inventories every candidate producer and matrix identity exactly', () => {
+test('trusted workflow schema keeps full main inventory and a separate unit-only candidate inventory', () => {
   const expected = workflowJobs(ci, 'current');
   assert.deepEqual(expected, DELIVERY_JOBS);
+  assert.deepEqual(workflowJobs(ci, 'current', true), UNIT_PR_JOBS);
+  assert.ok(UNIT_PR_JOBS.length > 0);
+  assert.ok(UNIT_PR_JOBS.every(name => DELIVERY_JOBS.includes(name)));
+  assert.ok(!UNIT_PR_JOBS.some(name => name.includes('Windows')));
   const excluded = ['Compare portable test scheduling', 'Compare native fixture evidence',
     'Queue policy feedback', 'Publish GitHub release', 'Publish completed batch release', 'Qualify completed batch tip'];
   const actual = [...ci.matchAll(/^  ([a-z][\w-]*):\n    name: (.+)$/gm)].flatMap(([, id, name]) => {
@@ -253,17 +266,38 @@ test('required aggregate skips only an explicitly waiting admission or an alread
     const expression = job(name).match(/^    if: (.+)$/m)[1]
       .replace('always()', 'true')
       .replaceAll('needs.version.outputs.already-published', "needs.version.outputs['already-published']");
-    const evaluate = new Function('needs', `return ${expression};`);
+    const evaluate = new Function('needs', 'github', `return ${expression};`);
     for (const result of ['success', 'failure', 'cancelled', 'skipped']) {
       for (const full of ['true', 'false', '']) {
         for (const versionResult of ['success', 'failure', 'cancelled', 'skipped']) {
-          const needs = { admission: { result, outputs: { full } },
+          const needs = { admission: { result, outputs: { full, candidate: 'false' } },
             version: { result: versionResult, outputs: {} } };
-          assert.equal(evaluate(needs), !(result === 'success' && full === 'false'),
+          assert.equal(evaluate(needs, { event_name: 'push' }), !(result === 'success' && full === 'false'),
             JSON.stringify(needs));
           needs.version.outputs['already-published'] = 'true';
-          assert.equal(evaluate(needs), false);
+          assert.equal(evaluate(needs, { event_name: 'push' }), false);
         }
+      }
+    }
+  }
+});
+
+test('all Windows integration producers and aggregates are post-merge only, including fail-closed missing candidate flags', () => {
+  for (const name of ['windows-test-build', 'windows-test-partitions', 'windows-integration-shards', 'windows-integration']) {
+    const expression = job(name).match(/^    if: (.+)$/m)[1]
+      .replace('always()', 'true')
+      .replaceAll('needs.version.outputs.preflight-source', "needs.version.outputs['preflight-source']")
+      .replaceAll('needs.version.outputs.source-revision', "needs.version.outputs['source-revision']")
+      .replaceAll('needs.version.outputs.already-published', "needs.version.outputs['already-published']");
+    const evaluate = new Function('needs', 'github', `return ${expression};`);
+    for (const event_name of ['pull_request', 'push', 'workflow_dispatch']) {
+      for (const candidate of ['true', 'false', '', undefined, 'unknown']) {
+        const needs = { admission: { result: 'success', outputs: { full: 'true', candidate } },
+          version: { outputs: { candidate, 'preflight-source': 'source', 'source-revision': 'source' } } };
+        assert.equal(evaluate(needs, { event_name }), event_name !== 'pull_request' && candidate === 'false',
+          JSON.stringify({ name, event_name, candidate }));
+        needs.version.outputs['already-published'] = 'true';
+        assert.equal(evaluate(needs, { event_name }), false);
       }
     }
   }

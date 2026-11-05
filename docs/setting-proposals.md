@@ -112,6 +112,10 @@ confirmation. A copied message, stale page, changed settings or a changed source
 cannot silently select a newer answer. Speech, volume and response-mode reviews expire after
 60 seconds, including Windows rate, response timeout and installed voice. Closing or losing private control retires the review.
 
+**Cancel setting review** remains available while review or confirmation is checking its source. Cancellation retires that exact review, including work that has not returned yet; a late result cannot restore confirmation or authorize a new write. Wait for the operation to finish, then explicitly review the retained answer again and confirm its fresh current/proposed values.
+This also applies to the installed provider/voice pair; a fresh confirmation still requires the exact installed catalogue and persisted/current pair readback.
+Cancellation is not rollback: if persistence has already started, inspect Settings and the exact audit receipts before a fresh review. Unconfirmed saves are never automatically retried ([shared review owner](../src/Kora/RegisteredSettings/SessionsViewModel.RegisteredSettings.cs)).
+
 ## Activated voice and mandatory exceptions
 
 The existing exact **review speech limit suggestion**, **confirm speech limit

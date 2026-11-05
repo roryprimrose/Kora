@@ -8,6 +8,7 @@ using Avalonia.VisualTree;
 using AwesomeAssertions;
 
 using Kora.Application.Presentation;
+using Kora.Core.Hosting;
 using Kora.Core.Presentation;
 using Kora.NativeUxFixture;
 
@@ -19,11 +20,15 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class DetailReaderLayoutTests
 {
     [Theory]
-    [InlineData(640, 500, 75)]
-    [InlineData(640, 500, 100)]
-    [InlineData(640, 500, 200)]
-    [InlineData(960, 760, 200)]
-    public Task LongChromeAndFindKeepTheExactResultReadableAndAllActionsReachable(int width, int height, int percent) =>
+    [InlineData(640, 500, 75, false)]
+    [InlineData(640, 500, 100, false)]
+    [InlineData(640, 500, 200, false)]
+    [InlineData(960, 760, 200, false)]
+    [InlineData(640, 500, 75, true)]
+    [InlineData(640, 500, 100, true)]
+    [InlineData(640, 500, 200, true)]
+    [InlineData(960, 760, 200, true)]
+    public Task LongChromeAndFindKeepTheExactResultReadableAndAllActionsReachable(int width, int height, int percent, bool finalized) =>
         HeadlessSession.RunAsync(async () =>
     {
         using var fixture = new NativeUxFixtureSession(Path.GetFullPath("."));
@@ -31,11 +36,14 @@ public sealed class DetailReaderLayoutTests
         var literal = new string('a', 256);
         var source = "# Original result\n\n" + literal + "\n\n"
             + string.Join("\n\n", Enumerable.Range(1, 80).Select(index => $"Unchanged result paragraph {index}."));
+        var request = HostRequest.Create(RequestOrigin.ActivatedVoice);
         var content = new AdmittedDetailContent(new(new(Guid.NewGuid()), 1), DetailContentKind.Markdown,
-            DetailContentOrigin.EmbeddedDocument, DetailSensitivity.Public,
+            finalized ? DetailContentOrigin.FinalizedResponse : DetailContentOrigin.EmbeddedDocument,
+            finalized ? DetailSensitivity.DisclosureConfirmationRequired : DetailSensitivity.Public,
             string.Join(" ", Enumerable.Repeat("Long result title", 14)),
-            string.Join(" ", Enumerable.Repeat("Exact immutable source", 11)), source);
-        var state = new DetailViewerState(content);
+            string.Join(" ", Enumerable.Repeat("Exact immutable source", 11)), source,
+            finalized ? new(request.SessionId, request.RequestId, request.TaskId) : null);
+        var state = new DetailViewerState(content, finalized ? () => true : null);
         var result = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance).Render(source, content.Kind);
         state.CompleteRender(state.Generation, result.SemanticText, result.Status, result.IsFallback);
         var writes = 0;
@@ -53,6 +61,27 @@ public sealed class DetailReaderLayoutTests
             state.MatchCount.Should().Be(1);
             Required<ScrollViewer>(window, "RenderedViewport").Bounds.Height.Should().BeGreaterThanOrEqualTo(160,
                 "supported Details dimensions must retain a useful body viewport, not merely a nonzero strip");
+
+            if (finalized)
+            {
+                var index = window.GetVisualDescendants().OfType<Expander>().Single();
+                index.IsExpanded.Should().BeFalse();
+                search.Focus().Should().BeTrue();
+                window.KeyPress(Key.H, RawInputModifiers.Alt, PhysicalKey.H, null);
+                window.KeyRelease(Key.H, RawInputModifiers.Alt, PhysicalKey.H, null);
+                window.UpdateLayout();
+                index.IsExpanded.Should().BeTrue();
+                var entries = (StackPanel)((ScrollViewer)index.Content!).Content!;
+                entries.Children.OfType<Button>().Single().IsFocused.Should().BeTrue();
+                window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+                window.KeyRelease(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+                Required<StackPanel>(window, "RenderedDocument").Children.OfType<TextBlock>()
+                    .Single(block => block.Focusable).IsFocused.Should().BeTrue();
+                state.Status.Should().Be("Focused the exact document heading.");
+                Required<ScrollViewer>(window, "RenderedViewport").Bounds.Height.Should().BeGreaterThanOrEqualTo(160);
+            }
+            else { window.GetVisualDescendants().OfType<Expander>().Should().BeEmpty(); }
+            search.Text.Should().Be(literal);
 
             var metadata = Required<TextBlock>(window, "DigestLabel");
             var chrome = metadata.GetVisualAncestors().OfType<ScrollViewer>().First();
@@ -74,6 +103,16 @@ public sealed class DetailReaderLayoutTests
             window.UpdateLayout();
             reader.Bounds.Height.Should().BeGreaterThanOrEqualTo(160);
             reader.Text.Should().Be(source);
+            reader.Focus().Should().BeTrue();
+            reader.CaretIndex = 0;
+            window.KeyPress(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+            window.KeyRelease(Key.Down, RawInputModifiers.None, PhysicalKey.ArrowDown, null);
+            reader.CaretIndex.Should().BeGreaterThan(0, "child reader arrows must retain native caret navigation");
+            window.KeyPress(Key.Up, RawInputModifiers.None, PhysicalKey.ArrowUp, null);
+            window.KeyRelease(Key.Up, RawInputModifiers.None, PhysicalKey.ArrowUp, null);
+            reader.CaretIndex.Should().Be(0);
+            reader.Text.Should().Be(source);
+            search.Text.Should().BeEmpty();
             state.Content.Should().BeSameAs(content);
             state.Content.Digest.Should().Be(content.Digest);
             writes.Should().Be(0);

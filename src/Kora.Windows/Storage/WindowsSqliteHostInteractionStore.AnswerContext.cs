@@ -54,6 +54,16 @@ public sealed partial class WindowsSqliteHostInteractionStore
                         ? SubmittedHistoryAvailability.RetainedRevision : SubmittedHistoryAvailability.Unavailable);
                 }
             }
+            if (!context.ProfileMemorySources.IsDefault)
+            {
+                var profile = ReadMemoryProfile(connection);
+                foreach (var source in context.ProfileMemorySources)
+                {
+                    token.ThrowIfCancellationRequested();
+                    states.Add(source.Profile == profile && IsSubmittedProfileMemoryRetained(connection, transaction, source)
+                        ? SubmittedHistoryAvailability.RetainedRevision : SubmittedHistoryAvailability.Unavailable);
+                }
+            }
             database.VerifyFiles();
             token.ThrowIfCancellationRequested();
             return states.MoveToImmutable();
@@ -75,6 +85,28 @@ public sealed partial class WindowsSqliteHostInteractionStore
         command.Parameters.AddWithValue("$id", Id(source.Id));
         command.Parameters.AddWithValue("$session", Id(source.Session));
         command.Parameters.AddWithValue("$revision", source.Revision.Value);
+        command.Parameters.AddWithValue("$review", (int)MemoryReviewState.Admitted);
+        command.Parameters.AddWithValue("$retention", (int)MemoryRetentionState.Enabled);
+        return command.ExecuteScalar() is not null;
+    }
+
+    private static bool IsSubmittedProfileMemoryRetained(SqliteConnection connection, SqliteTransaction transaction,
+        SubmittedProfileMemorySource source)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            SELECT 1 FROM reviewed_memory WHERE memory_id=$id AND revision=$revision
+                AND json_extract(payload,'$.Id.Value')=$id
+                AND json_extract(payload,'$.Revision.Value')=$revision
+                AND json_extract(payload,'$.ScopeKind')=$scope
+                AND json_extract(payload,'$.Lineage.Profile.Value')=$profile
+                AND json_extract(payload,'$.Review')=$review AND json_extract(payload,'$.Retention')=$retention;
+            """;
+        command.Parameters.AddWithValue("$id", Id(source.Id));
+        command.Parameters.AddWithValue("$revision", source.Revision.Value);
+        command.Parameters.AddWithValue("$scope", (int)MemoryScopeKind.DeviceProfile);
+        command.Parameters.AddWithValue("$profile", Id(source.Profile));
         command.Parameters.AddWithValue("$review", (int)MemoryReviewState.Admitted);
         command.Parameters.AddWithValue("$retention", (int)MemoryRetentionState.Enabled);
         return command.ExecuteScalar() is not null;

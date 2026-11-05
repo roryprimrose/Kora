@@ -187,6 +187,10 @@ not an old tag workflow definition. The shared
 trusted serialized-caller contract as well as existing source/version/asset
 safeguards. It rechecks at irreversible publication boundaries, including late
 jobs. Missing or unknown state/provenance fails closed.
+Run authentication rejection names the failed predicates and a bounded lifecycle
+value, never raw API metadata. It retains every caller, workflow, source and
+active-job check. A historical composite rejection without the original API
+response does not establish which predicate failed or justify relaxing it.
 
 The [release snapshot reader](../GitHubRelease.Batch.ps1) pins queue commit,
 tree and blob bytes, then rechecks the queue ref. A valid ref move restarts that
@@ -202,6 +206,18 @@ exact run/job/source qualification receipt. This deliberately gives publication
 a turn under sustained arrivals; no throughput benchmark or fivefold speedup is
 claimed. Failed qualification or an unobservable dispatch holds the lane for
 repair rather than starving release behind further batches.
+An authenticated exact-source first attempt with a failed publication job is
+reported as `blocked-publication` / `BLOCKED_PUBLICATION` only after the complete
+expected inventory, publication and qualification jobs are physically terminal.
+The existing controller warning and Actions summary identify source, run,
+attempt, publication job, conclusion and last durable progress (completed tip,
+qualification owner and queue checkpoint), and state that authorized recovery is
+required. The checkpoint is a revision, not an invented progress timestamp.
+Successful reconciliation of this observation is not successful delivery.
+Missing, duplicate, nonterminal or unknown evidence remains held without a
+terminal-publication claim. Every reconciliation still observes fresh evidence;
+a separately authorized successful first attempt can qualify immediately.
+This reporting neither retries publication nor bypasses the qualification fence.
 
 The [qualification reader](github.cjs) observes queued/running runs as well as
 completed runs. An ordinary push with incomplete admission metadata delays

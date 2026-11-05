@@ -21,6 +21,13 @@ Apply [product admission](MVP_Scope.md#product-admission-and-realignment) to dis
 The native conversation row's **Export exact answer...** action reviews one currently admitted retained final ASSISTANT body, never a session-wide latest result or rendered projection. Destination selection and passive Details grant no write authority.
 The [separate review](../src/Kora/ExactAnswerExportWindow.cs) shows complete original text, conversation/result identity, exact destination, UTF-8/no-BOM format and the retention disclosure before a separate original local-UI confirmation.
 
+The destination/retention review and complete answer have independent bounded
+scrolling areas, including at the minimum 480-by-400 native size. Long paths
+remain complete, not abbreviated. Confirmation and cancellation captions wrap
+inside their available width, and long terminal outcomes scroll separately.
+Reading, resizing and scrolling do not confirm a write. Keyboard activation
+uses the same single-use confirmation and cancellation controls.
+
 The [single-use review owner](../src/Kora.Application/Presentation/ExactAnswerExportReview.cs) revalidates the exact source and private/control/presenter lifetime across selection, review and staging.
 The [dedicated Windows writer](../src/Kora.Windows/Presentation/WindowsExactAnswerExportWriter.cs) admits canonical fixed-drive text/Markdown destinations outside protected storage, holds ancestor identities, creates without replacement, flushes durably and verifies exact saved bytes. Existing destinations require a fresh new-file selection.
 

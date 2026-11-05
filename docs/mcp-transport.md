@@ -15,6 +15,13 @@ and separately approve its exact schema and arguments. The result is inert
 lower-trust evidence for the local model, not instructions or permission.
 Discovery annotations never establish a read-only mapping.
 
+When a result contains several text blocks, Kora combines them in server order
+with exactly one newline between blocks, including empty blocks. Leading,
+consecutive and trailing empty blocks are preserved in both the displayed result
+and any separately consented local continuation. Text inside each block and
+optional structured JSON are unchanged; the existing four-block and complete
+1,536-byte response limits still apply.
+
 If a configuration refresh observes changed source bytes, exclusion, removal or
 unavailable configuration while discovery or review is pending, the old review
 cannot continue. Restoring the previous file or inclusion does not revive it.
@@ -52,6 +59,14 @@ text is unchanged. The result remains in memory, not conversation history.
 If remote processing is uncertain, the task remains **Unknown**; stopping is
 not rollback and does not automatically retry. The availability restriction
 below also applies to this route.
+
+After transport disposal and again at terminal readback, Kora checks that the
+exact delegated account, revision, protected credential reference and destination
+remain available. Withdrawal or replacement suppresses the result, including
+the native result review and local-model continuation. A terminal receipt already
+committed before withdrawal is not rewritten or treated as fresh disclosure
+authority. Review the original operation before explicitly starting another;
+Kora does not reconnect or retry automatically.
 
 A disconnected or failed exchange also joins the original transport without
 reconnecting or retrying. Neither route publishes a tool result or assistant

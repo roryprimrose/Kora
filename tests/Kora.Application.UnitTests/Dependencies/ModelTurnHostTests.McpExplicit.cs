@@ -139,6 +139,115 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
+    [InlineData(false, "removed")]
+    [InlineData(false, "identity")]
+    [InlineData(false, "revision")]
+    [InlineData(false, "secret")]
+    [InlineData(false, "destination")]
+    [InlineData(true, "removed")]
+    [InlineData(true, "identity")]
+    [InlineData(true, "revision")]
+    [InlineData(true, "secret")]
+    [InlineData(true, "destination")]
+    public async Task Explicit_mcp_account_withdrawal_after_join_or_terminal_readback_suppresses_result(bool terminalReadback, string change)
+    {
+        using var f = new Fixture();
+        using var source = new McpSource();
+        var broker = new McpBroker(source.Account);
+        void Withdraw()
+        {
+            broker.Disposed.Should().BeTrue();
+            var account = source.Account;
+            McpAccountReference? replacement = change switch
+            {
+                "removed" => null,
+                "identity" => new(Guid.NewGuid(), account.Revision, account.SecretReference, account.Destination),
+                "revision" => new(account.AccountId, new(account.Revision.Value + 1), account.SecretReference, account.Destination),
+                "secret" => new(account.AccountId, account.Revision, Guid.NewGuid(), account.Destination),
+                _ => new(account.AccountId, account.Revision, account.SecretReference, new(new("https://other.example/mcp"))),
+            };
+            broker.Accounts = replacement is null ? [] : [new(replacement, "Test delegated user")];
+        }
+        if (terminalReadback)
+        {
+            f.BeforeTaskRead = () =>
+            {
+                if (f.Task?.Task.IsTerminal == true) { Withdraw(); }
+                return Task.CompletedTask;
+            };
+        }
+        else { broker.AfterDispose = Withdraw; }
+        var approvals = new McpApprovals(f);
+        var service = McpService(f, f.Host, source, broker, approvals, await source.Policy());
+        var result = await service.InvokeMcpAsync(new(f.Session, null), source.ServerId, source.Account,
+            approvals.Present, McpSelect, ExplicitMcpInput, static () => true, Token);
+        result.Outcome.Should().Be(McpExplicitOutcome.Denied);
+        result.Result.Should().BeNull();
+        result.DurableState.Should().Be(terminalReadback ? HostTaskState.Succeeded : HostTaskState.Unknown,
+            "withdrawing disclosure authority does not roll back an already committed remote read or terminal receipt");
+        broker.Methods.Should().Equal("initialize", "tools/list", "tools/call");
+        broker.DisposeCalls.Should().Be(1);
+        approvals.Stages.Should().Equal(McpReviewStage.Connection, McpReviewStage.ToolSelection, McpReviewStage.Invocation);
+        f.Adapter.Calls.Should().Be(0);
+        f.Retained.Should().BeNull();
+        f.Messages.Should().NotContain(message => message.Contains("value 42", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("cancel")]
+    [InlineData("permission")]
+    [InlineData("withdrawn")]
+    [InlineData("read-failure")]
+    [InlineData("unavailable")]
+    public async Task Explicit_mcp_post_join_account_validation_joins_ignoring_reader_without_late_disclosure(string fault)
+    {
+        using var f = new Fixture();
+        using var source = new McpSource();
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pending = new TaskCompletionSource<IReadOnlyList<McpAccountChoice>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var broker = new McpBroker(source.Account) { EnteredAccounts = entered };
+        broker.AfterDispose = () => broker.PendingAccounts = pending;
+        var approvals = new McpApprovals(f);
+        var service = McpService(f, f.Host, source, broker, approvals, await source.Policy());
+        var operation = service.InvokeMcpAsync(new(f.Session, null), source.ServerId, source.Account,
+            approvals.Present, McpSelect, ExplicitMcpInput, static () => true, cancellation.Token);
+        try
+        {
+            await entered.Task.WaitAsync(Token);
+            if (fault is "cancel") { await cancellation.CancelAsync(); }
+            if (fault is "permission") { f.CanControl = false; }
+            operation.IsCompleted.Should().BeFalse("the account reader ignores cancellation and still belongs to the original operation");
+            broker.Disposed.Should().BeTrue("the account validation follows the physical transport join");
+            f.Task!.Task.State.Should().Be(HostTaskState.DispatchRecorded);
+            if (fault is "read-failure") { pending.SetException(new IOException("synthetic private account-read failure")); }
+            else if (fault is "unavailable") { pending.SetException(new McpUnavailableException()); }
+            else { pending.SetResult(fault is "withdrawn" ? [] : [new(source.Account, "Test delegated user")]); }
+        }
+        finally
+        {
+            pending.TrySetResult([]);
+            await operation;
+        }
+        var result = await operation;
+        result.Outcome.Should().Be(fault switch
+        {
+            "cancel" => McpExplicitOutcome.Cancelled,
+            "read-failure" => McpExplicitOutcome.Unknown,
+            "unavailable" => McpExplicitOutcome.Unavailable,
+            _ => McpExplicitOutcome.Denied,
+        });
+        result.Result.Should().BeNull();
+        result.DurableState.Should().Be(HostTaskState.Unknown);
+        broker.Methods.Should().Equal("initialize", "tools/list", "tools/call");
+        broker.DisposeCalls.Should().Be(1);
+        f.Adapter.Calls.Should().Be(0);
+        f.Retained.Should().BeNull();
+        f.Messages.Should().NotContain(message => message.Contains("synthetic private", StringComparison.Ordinal)
+            || message.Contains("value 42", StringComparison.Ordinal));
+    }
+
+    [Theory]
     [InlineData("missing")]
     [InlineData("wrong")]
     [InlineData("cancel")]

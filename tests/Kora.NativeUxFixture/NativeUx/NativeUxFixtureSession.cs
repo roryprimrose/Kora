@@ -39,12 +39,13 @@ using NativeFixturePhaseOutcome = Kora.NativeUxFixture.NativeFixturePhaseScope.O
 
 namespace Kora.NativeUxFixture;
 
-internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, IDisposable
+internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, IDisposable, IAsyncDisposable
 {
     private readonly CancellationTokenSource cancellation = new();
     private readonly List<MaintenanceViewModel> maintenance = [];
     private bool disposed;
     private bool initialized;
+    private Task? disposal;
     private MainViewModel? main;
     private AssistantNameConfigurationService? assistantNameConfiguration;
     private SessionQueueService? queue;
@@ -53,14 +54,17 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     private readonly EvidenceLoggerProvider? evidenceProvider;
     private readonly Serilog.Core.Logger? dailyEvidenceLogger;
     private AudioControlAdmission? captionAdmission;
+    private readonly Func<IApplicationDataPaths, IPreferenceStore>? appearanceStoreFactory;
 
     internal NativeUxFixtureSession(string scratchParent, bool silentCaption = false, bool listOverflow = false,
         bool exactGrants = false, bool allWork = false, bool bufferedEvidence = false,
         ISqliteTransactionCheckpoint? evidenceCheckpoint = null,
         IHostInteractionTransactionCheckpoint? interactionCheckpoint = null, bool syntheticVoice = false,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        Func<IApplicationDataPaths, IPreferenceStore>? appearanceStoreFactory = null)
     {
         Time = timeProvider ?? TimeProvider.System;
+        this.appearanceStoreFactory = appearanceStoreFactory;
         CapturePhaseObserver();
         using var ownedStorage = BeginPhase(NativeFixturePhase.OwnedStorage);
         if ((silentCaption ? 1 : 0) + (listOverflow ? 1 : 0) + (exactGrants ? 1 : 0) + (allWork ? 1 : 0) + (syntheticVoice ? 1 : 0) > 1)
@@ -220,7 +224,9 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         consent.Save(false);
         var models = new LocalModelExecutionPreferences(this);
         models.Save(new(modelReasoner is not null, false));
-        var appearances = new LocalAppearancePreferences(this, NullLogger<LocalAppearancePreferences>.Instance);
+        var appearances = new LocalAppearancePreferences(
+            appearanceStoreFactory?.Invoke(this) ?? new LocalPreferenceStore(this),
+            NullLogger<LocalAppearancePreferences>.Instance);
         var bootstrapper = new DependencyBootstrapper(modelProbe is null ? [] : [modelProbe], NullLogger<DependencyBootstrapper>.Instance);
         var execution = new FixtureExecution();
         var catalogue = new ArtifactCatalogue([
@@ -430,33 +436,48 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
 
     public void Dispose()
     {
+#pragma warning disable VSTHRD002 // Owned model storage and fixture joins do not require UI continuations.
+        (disposal ??= DisposeOwnedAsync()).GetAwaiter().GetResult();
+#pragma warning restore VSTHRD002
+    }
+
+    public ValueTask DisposeAsync() => new(disposal ??= DrainPreferencesAndDisposeAsync());
+
+    private async Task DrainPreferencesAndDisposeAsync()
+    {
+        // Queued preference results finish on the UI context before model retirement.
+        if (main is not null) { await main.PreferenceUpdate; }
+        await DisposeOwnedAsync().ConfigureAwait(false);
+    }
+
+    private async Task DisposeOwnedAsync()
+    {
         if (disposed) { return; }
-        using var disposal = BeginPhase(NativeFixturePhase.Disposal);
-        disposal.Run(DisposeCore);
-        disposal.Dispose();
+        using var phase = BeginPhase(NativeFixturePhase.Disposal);
+        await phase.RunAsync(DisposeCoreAsync).ConfigureAwait(false);
+        phase.Dispose();
         VerifyPhaseEvidence();
     }
 
-    private void DisposeCore()
+    private async Task DisposeCoreAsync()
     {
         disposed = true;
         cancellation.Cancel();
         foreach (var model in maintenance) { model.Dispose(); }
         main?.Dispose();
         assistantNameConfiguration?.Dispose();
-        // The fixture's synchronous shutdown drains only local-version work; queue disposal uses ConfigureAwait(false), with no UI continuation.
         using (var join = BeginPhase(NativeFixturePhase.Join))
         {
-            join.Run(() =>
+            await join.RunAsync(async () =>
             {
-#pragma warning disable VSTHRD002
-                queue?.DisposeAsync().AsTask().GetAwaiter().GetResult();
-                OverflowEvents?.DisposeAsync().AsTask().GetAwaiter().GetResult();
-                captionAdmission?.DisposeAsync().AsTask().GetAwaiter().GetResult();
-                ExactGrantControl?.DisposeAsync().AsTask().GetAwaiter().GetResult();
-                SilentSpeech?.DisposeAsync().AsTask().GetAwaiter().GetResult();
-#pragma warning restore VSTHRD002
-            });
+                var modelDisposal = main?.DisposeAsync().AsTask() ?? Task.CompletedTask;
+                if (queue is not null) { await queue.DisposeAsync().ConfigureAwait(false); }
+                if (OverflowEvents is not null) { await OverflowEvents.DisposeAsync().ConfigureAwait(false); }
+                if (captionAdmission is not null) { await captionAdmission.DisposeAsync().ConfigureAwait(false); }
+                if (ExactGrantControl is not null) { await ExactGrantControl.DisposeAsync().ConfigureAwait(false); }
+                if (SilentSpeech is not null) { await SilentSpeech.DisposeAsync().ConfigureAwait(false); }
+                await modelDisposal.ConfigureAwait(false);
+            }).ConfigureAwait(false);
         }
         Access.Dispose();
         using (var evidenceFlush = BeginPhase(NativeFixturePhase.EvidenceFlush))

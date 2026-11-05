@@ -9,6 +9,11 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
   await api.verifyProtection(PROFILE);
   const state = validateState(await api.load());
   invariant(state.version === 2, 'Batch rollout requires an explicitly migrated idle, quiescent v2 state.');
+  invariant(state.deliveryProfile !== 'independent-v1' || api.independent,
+    'Durable independent delivery configuration differs from this controller; reservations remain closed.');
+  const holding = ['draining', 'ready'].includes(state.deliveryTransition?.phase);
+  invariant(!holding || !api.independent || state.deliveryTransition.phase === 'ready',
+    'Independent configuration changed before the delivery boundary was prepared.');
   api.info(`Batch profile: ${state.active ? `ticket ${state.active.ticket}, phase ${state.active.phase}` : 'idle'}; reconciling live protected state.`);
   const save = async () => { validateState(state); await api.save(state); };
   const main = await api.main();
@@ -42,6 +47,10 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
         }
         return 'waiting-for-tip-qualification';
       }
+    }
+    if (holding) {
+      api.info(`Independent delivery transition ${state.deliveryTransition.ticket}: ${state.deliveryTransition.phase}; new reservations held, existing work and qualification preserved.`);
+      return state.deliveryTransition.phase === 'ready' ? 'delivery-ready' : 'delivery-draining';
     }
     const members = [];
     const prs = await api.pulls();

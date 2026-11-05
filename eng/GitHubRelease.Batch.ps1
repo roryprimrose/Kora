@@ -292,7 +292,7 @@ function Assert-IndependentReleaseSource {
         $record.validation.run -isnot [long] -and $record.validation.run -isnot [int] -or
         $record.validation.run -le 0 -or $record.validation.attempt -ne 1 -or
         $record.validation.source -cne $record.combined -or $record.validation.workflow -cne $record.base -or
-        $record.validation.schema -cne 'windows-12-delivery-v1' -or
+        $record.validation.schema -cnotin @('windows-12-delivery-v1', 'unit-pr-v1') -or
         $record.validation.inventory -isnot [string] -or $record.validation.inventory -cnotmatch '^[a-f0-9]{40}$') {
         throw 'Invalid independent completed-source authority.'
     }

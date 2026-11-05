@@ -203,12 +203,18 @@ Assert ($workflow.Contains('name: windows-execution-results-${{ matrix.partition
     [StringComparison]::Ordinal)) 'Matrix artifacts must have distinct names.'
 Assert ($workflow.Contains('needs: [admission, version, windows-integration-shards]',
     [StringComparison]::Ordinal)) 'The required aggregate must depend on the complete matrix.'
-Assert ($workflow.Contains("if: always() && needs.version.outputs.already-published != 'true' && (needs.admission.result != 'success' || needs.admission.outputs.full != 'false')",
-    [StringComparison]::Ordinal)) 'Failed or cancelled dependencies must not skip the required gate.'
+Assert ($workflow.Contains("if: always() && github.event_name != 'pull_request' && needs.admission.outputs.candidate == 'false' && needs.version.outputs.already-published != 'true' && (needs.admission.result != 'success' || needs.admission.outputs.full != 'false')",
+    [StringComparison]::Ordinal)) 'Post-merge integration must fail closed on dependencies, but never execute for PRs or candidates.'
 Assert ($workflow.Contains('name: Windows integration tests', [StringComparison]::Ordinal)) 'Preserve the required check identity.'
 $shardJob = [regex]::Match($workflow, '(?ms)^  windows-test-partitions:\r?\n(?<job>.*?)(?=^  [a-z][a-z-]*:|\z)')
 Assert $shardJob.Success 'The consumed Windows matrix job was not found.'
 $job = $shardJob.Groups['job'].Value
+foreach ($jobName in @('windows-test-build', 'windows-test-partitions')) {
+    $sourceJob = [regex]::Match($workflow, "(?ms)^  ${jobName}:\r?\n(?<job>.*?)(?=^  [a-z][a-z-]*:|\z)")
+    Assert ($sourceJob.Success -and $sourceJob.Groups['job'].Value.Contains(
+        "if: github.event_name != 'pull_request' && needs.version.outputs.candidate == 'false' &&",
+        [StringComparison]::Ordinal)) "Only explicitly non-candidate post-merge runs may execute $jobName."
+}
 Assert ($job.Contains('name: windows-execution-results-${{ matrix.partition }}',
     [StringComparison]::Ordinal)) 'Phase evidence must belong to the current independent execution artifact.'
 foreach ($path in @(
@@ -780,8 +786,8 @@ finally {
     [Environment]::SetEnvironmentVariable('PARTITION_RESULT', $savedPartition)
 }
 
-Assert ($workflow.Contains("if: github.event_name == 'workflow_dispatch' && inputs.compare_native_evidence",
-    [StringComparison]::Ordinal)) 'Native evidence comparisons must remain opt-in and manual-only.'
+Assert ($workflow.Contains("if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.compare_native_evidence",
+    [StringComparison]::Ordinal)) 'Native evidence comparisons must remain opt-in and manual-only on main.'
 $comparisonCases = @(& (Join-Path $PSScriptRoot 'Compare-NativeFixtureEvidence.ps1') -ListCases)
 Assert ($comparisonCases.Count -eq 4) 'The native evidence comparison must retain its four representative case selectors.'
 foreach ($selector in $comparisonCases) {

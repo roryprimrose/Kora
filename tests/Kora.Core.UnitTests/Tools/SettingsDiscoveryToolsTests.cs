@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using AwesomeAssertions;
+using Kora.Core.Configuration;
 using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Configuration.SettingInspection;
 using Kora.Core.Dependencies;
@@ -28,6 +29,7 @@ public sealed class SettingsDiscoveryToolsTests
             new(RegisteredSetting.SpeechScaling, 1, false, 6),
             new(RegisteredSetting.SpeechScaleAmount, 100, false, 6),
             new(RegisteredSetting.ReducedMotion, 0, false, 6),
+            new(QuietHoursSchedule.Off, false, 7),
         ], "Which registered settings control spoken summaries?", HostRequest.Create(RequestOrigin.LocalUi),
         DateTimeOffset.UnixEpoch, mode);
 
@@ -58,7 +60,7 @@ public sealed class SettingsDiscoveryToolsTests
                 .Should().Be(SettingsDiscoveryTools.HasConfirmedReader(descriptor.Setting));
         }
         review.Observations.Should().OnlyContain(item => review.Source.Contains(item.Text, StringComparison.Ordinal));
-        review.Observations.Should().HaveCount(15).And.NotContain(item => item.Setting == RegisteredSetting.SpeechVoice);
+        review.Observations.Should().HaveCount(16).And.NotContain(item => item.Setting == RegisteredSetting.SpeechVoice);
         SettingsDiscoveryTools.HasConfirmedReader(RegisteredSetting.SpeechVoice).Should().BeFalse();
         review.Text.Should().Contain(review.Source);
         review.Bind(review.Destination, new(1), DateTimeOffset.UnixEpoch).Evidence.Single().Content
@@ -104,8 +106,8 @@ public sealed class SettingsDiscoveryToolsTests
             """{"id":"speech.voice"}""").Should().Be(
                 new CapabilityReply(CapabilityOutcome.Unavailable, "setting-value-unavailable"));
         SettingsDiscoveryTools.Read(review.Observations, "settings.reset", "{}").Outcome.Should().Be(CapabilityOutcome.Denied);
-        SettingsDiscoveryTools.HasConfirmedReader(RegisteredSetting.QuietHours).Should().BeFalse();
-        SettingsDiscoveryTools.Read(review.Observations, SettingsDiscoveryTools.Get,
+        SettingsDiscoveryTools.HasConfirmedReader(RegisteredSetting.QuietHours).Should().BeTrue();
+        SettingsDiscoveryTools.Read([], SettingsDiscoveryTools.Get,
             """{"id":"notices.quiet-hours"}""").Should().Be(
                 new CapabilityReply(CapabilityOutcome.Unavailable, "setting-value-unavailable"));
         SettingsDiscoveryTools.Read(review.Observations, SettingsDiscoveryTools.List, """{"offset":999}""")

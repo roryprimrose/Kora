@@ -87,7 +87,7 @@ public sealed class SettingInspectionWorkflowTests
         private readonly DependencyBootstrapper dependencies = new([], NullLogger<DependencyBootstrapper>.Instance);
         private readonly AudioControlAdmission audio;
         private readonly BoundedModelTurnAdapter? loop;
-        internal Fixture(string mode = "success", IModelToolTransport? transport = null)
+        internal Fixture(string mode = "success", IModelToolTransport? transport = null, string? quietHours = null)
         {
             Controls = new();
             Adapter = new() { Mode = mode };
@@ -116,17 +116,21 @@ public sealed class SettingInspectionWorkflowTests
             var volume = new PlaybackVolumeConfigurationService(new LocalPlaybackVolumePreferences(Preferences), Playback, audio, Controls);
             var response = new ResponseModeConfigurationService(
                 new LocalResponseOutputPreferences(Preferences, NullLogger<LocalResponseOutputPreferences>.Instance), audio, Controls, Playback);
+            if (quietHours is not null) { Preferences.Text["notices-quiet-hours.txt"] = quietHours; }
+            QuietHours = new(new LocalQuietHoursPreferences(Preferences), audio, Controls, Storage.Time,
+                NullLogger<QuietHoursConfigurationService>.Instance);
             appearance.Reload();
             speech.Reload();
             volume.Observe();
             response.Observe();
             Playback.Effects = 0;
             Preferences.Reads = 0;
-            Workflow = new(new(appearance, speech, volume, response), new SettingInspectionConversation(sessions, Conversation, Host),
+            Workflow = new(new(appearance, speech, volume, response, QuietHours), new SettingInspectionConversation(sessions, Conversation, Host),
                 Controls, Controls, Storage.Time, NullLogger<SettingInspectionWorkflow>.Instance);
         }
 
         internal InteractionStorageFixture Storage { get; } = new();
+        internal QuietHoursConfigurationService QuietHours { get; }
         internal CancellationToken Token => TestContext.Current.CancellationToken;
         internal ControlsData Controls { get; }
         internal AdapterData Adapter { get; }
@@ -183,6 +187,8 @@ public sealed class SettingInspectionWorkflowTests
         internal string Mode { get; init; } = "success";
         internal int Calls { get; private set; }
         internal byte[]? Wire { get; private set; }
+        internal HostRequest? Request { get; private set; }
+        internal string FinalAnswer { get; set; } = Answer;
         internal Action? BeforeReturn { get; set; }
         internal Func<Task>? Hold { get; set; }
         internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -191,12 +197,13 @@ public sealed class SettingInspectionWorkflowTests
             CancellationToken cancellationToken)
         {
             Calls++;
+            Request = provenance.Request;
             Wire = context.ToArray();
             Entered.TrySetResult();
             if (Hold is not null) { await Hold(); }
             BeforeReturn?.Invoke();
             return new(ModelTurnOutcome.Succeeded, provenance.Selection,
-                new(Mode is "unsupported" ? SettingInspectionReview.Unsupported : Answer, null));
+                new(Mode is "unsupported" ? SettingInspectionReview.Unsupported : FinalAnswer, null));
         }
     }
 

@@ -25,7 +25,7 @@ internal sealed class SettingInspectionFixture : IAsyncDisposable, ISessionWorks
         Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
     };
 
-    internal SettingInspectionFixture()
+    internal SettingInspectionFixture(string? quietHours = null)
     {
         ActivitySource.AddActivityListener(listener);
         var controls = new AudioControlTestStore();
@@ -37,7 +37,10 @@ internal sealed class SettingInspectionFixture : IAsyncDisposable, ISessionWorks
         Volume = new(new LocalPlaybackVolumePreferences(Store), Playback, Admission, this);
         Response = new(new LocalResponseOutputPreferences(Store, NullLogger<LocalResponseOutputPreferences>.Instance),
             Admission, this, Playback);
-        Source = new(Appearance, Speech, Volume, Response);
+        if (quietHours is not null) { Store.Text["notices-quiet-hours.txt"] = quietHours; }
+        QuietHours = new(new LocalQuietHoursPreferences(Store), Admission, this, Time,
+            NullLogger<QuietHoursConfigurationService>.Instance);
+        Source = new(Appearance, Speech, Volume, Response, QuietHours);
         Workflow = new(Source, this, this, this, Time, Logger);
     }
 
@@ -50,6 +53,7 @@ internal sealed class SettingInspectionFixture : IAsyncDisposable, ISessionWorks
     internal SpeechConfigurationService Speech { get; }
     internal PlaybackVolumeConfigurationService Volume { get; }
     internal ResponseModeConfigurationService Response { get; }
+    internal QuietHoursConfigurationService QuietHours { get; }
     internal ConfirmedSettingsSource Source { get; }
     internal SettingInspectionWorkflow Workflow { get; }
     internal Clock Time { get; } = new();

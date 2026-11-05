@@ -22,6 +22,7 @@ public sealed class SettingInspectionTests
         new(RegisteredSetting.DotSize, 100, saved, 3), new(RegisteredSetting.DotDensity, 100, saved, 3),
         new(RegisteredSetting.MovementSpeed, 100, saved, 3), new(RegisteredSetting.SpeechScaling, 1, saved, 3),
         new(RegisteredSetting.SpeechScaleAmount, 100, saved, 3), new(RegisteredSetting.ReducedMotion, 0, saved, 3),
+        new(QuietHoursSchedule.Off, saved, 3),
     ];
 
     [Theory]
@@ -36,18 +37,18 @@ public sealed class SettingInspectionTests
             HostRequest.Create(origin), Now);
         values[0] = new(RegisteredSetting.Theme, 2, !saved, 100);
         review.Observations[0].Value.Should().Be(0);
-        review.Observations.Should().HaveCount(15);
+        review.Observations.Should().HaveCount(16);
         review.Observations.Select(item => item.Setting).Should().Equal(
             RegisteredSetting.Theme, RegisteredSetting.ReaderTextScale,
             RegisteredSetting.SummaryWords, RegisteredSetting.SummarySentences,
             RegisteredSetting.PlaybackVolume, RegisteredSetting.ResponseMode, RegisteredSetting.PresenceDisplay,
             RegisteredSetting.PresenceTimeout, RegisteredSetting.PresenceSize, RegisteredSetting.DotSize,
             RegisteredSetting.DotDensity, RegisteredSetting.MovementSpeed, RegisteredSetting.SpeechScaling,
-            RegisteredSetting.SpeechScaleAmount, RegisteredSetting.ReducedMotion);
+            RegisteredSetting.SpeechScaleAmount, RegisteredSetting.ReducedMotion, RegisteredSetting.QuietHours);
         review.Source.Should().Contain("System").And.Contain("100").And.Contain("Hybrid")
             .And.Contain(saved ? "confirmed saved" : "confirmed absent");
         review.Source.Should().Contain($"appearance.presence-display = {(presence == 1 ? "true" : "false")} boolean");
-        Encoding.UTF8.GetByteCount(review.Source).Should().BeLessThan(4096, "only fifteen closed scalar rows can enter the source");
+        Encoding.UTF8.GetByteCount(review.Source).Should().BeLessThan(4096, "only sixteen closed typed rows can enter the source");
         review.Text.Should().Contain(review.Source).And.Contain(review.Question)
             .And.Contain(SettingInspectionReview.Policy).And.Contain("NEW Local context conversation");
         review.Original.SessionId.Should().NotBe(review.Destination.SessionId);
@@ -101,6 +102,7 @@ public sealed class SettingInspectionTests
     [InlineData(RegisteredSetting.ResponseTimeout, 10)]
     [InlineData(RegisteredSetting.WindowsSpeechRate, 0)]
     [InlineData(RegisteredSetting.SpeechVoice, 0)]
+    [InlineData(RegisteredSetting.QuietHours, 0)]
     [InlineData((RegisteredSetting)99, 0)]
     public void ClassificationRejectsAnythingOutsideClosedValidatedScalars(RegisteredSetting setting, int value) =>
         FluentActions.Invoking(() => new SettingObservation(setting, value, false, 1)).Should().Throw<ArgumentOutOfRangeException>();

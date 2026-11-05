@@ -16,7 +16,7 @@ inert and changing a preference still requires its separate Review/Confirm/Apply
 
 For the distinct tool-enabled review, select **Use read-only registered-setting
 discovery tools** before inspecting. Read the registered metadata, the closed
-permitted scalar IDs, full confirmed source, original question, local destination
+permitted setting IDs, full confirmed source, original question, local destination
 and expiry; then choose **Confirm ONE settings-discovery LocalOnly request**.
 Changing this choice retires the previous review and requires a fresh inspection
 ([native review owner](../src/Kora/SettingInspection/SettingInspectionPresenter.cs)).
@@ -29,7 +29,7 @@ discovery and the genuine final answer within the unchanged cumulative byte limi
 List accepts bounded `offset`/`count` fields and returns canonical registered
 metadata, scope, validation limits, suggested values, native-review classification
 and whether a confirmed value reader is composed. Get accepts only one exact
-registered `id`; only the fifteen reviewed scalars below can return values.
+registered `id`; only the fifteen reviewed scalars and typed quiet-hours schedule below can return values.
 Other registered values are explicitly unavailable, not guessed or loaded from
 another source ([closed discovery contract](../src/Kora.Core/Tools/SettingsDiscoveryTools.cs)).
 
@@ -41,10 +41,10 @@ results are volatile lower-trust data, not approval or future read authority
 ([bounded loop](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs),
 [exact reviewed binding](../src/Kora.Application/Dependencies/ModelTurnHost.SettingsDiscovery.cs)).
 
-Exactly fifteen registered observations are included: theme, reading text scale,
+Exactly sixteen registered observations are included: theme, reading text scale,
 ordinary spoken-summary word/sentence caps, Kora-only playback volume,
 device-default response mode, `appearance.presence-display`, and these existing
-presence preferences:
+presence preferences, plus the configured quiet-hours schedule:
 
 | ID | Confirmed unsaved default | Units |
 | --- | --- | --- |
@@ -56,6 +56,7 @@ presence preferences:
 | `appearance.speech-scaling` | true | Boolean |
 | `appearance.speech-scale-amount` | 100 | percent |
 | `appearance.reduced-motion` | false | Boolean |
+| `notices.quiet-hours` | Off | Off or ordered weekly days/start/end/explicit zone |
 
 For example: "Why does Kora disappear so quickly, and what presence size and
 movement settings am I using?" Both modes review the full source before a
@@ -69,6 +70,16 @@ the original source and requires fresh inspection.
 Response timeout, Windows speech rate and the registered installed provider/voice
 pair remain value-unavailable. Registering the voice-pair proposal does not add
 its selected value to this confirmed scalar source.
+Quiet-hours questions such as "Which quiet-hours schedule is configured, and why
+might completion speech be quiet?" review exact `Off` or canonical
+`weekly Mon,Wed,Fri 22:00 07:00 UTC` intent with saved/default provenance.
+The host reads the strongly typed schedule from the authoritative quiet-hours
+service and validated preference store without reloading, recovering or renewing
+its state. `settings.get` returns a typed `quietHours` projection, never an integer
+cast or arbitrary preference text; existing scalar results keep their `value` shape.
+This does not determine current quiet-now, output availability or speech consent.
+No clock evaluation, scheduler, quiet-hours write, speech-admission notification,
+capture, listening or playback is caused by inspection.
 No provider, account, device, permission, privacy, credential, session, path or
 file content is read into this source. No setting is saved, applied or reset.
 Service observations are independent, not an atomic cross-service snapshot.

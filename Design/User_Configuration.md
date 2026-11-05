@@ -988,6 +988,29 @@ network/export, renderer replacement or run-only presence mutation. Response
 timeout and Windows speech rate remain outside this confirmed-value subset.
 Deterministic implementation tests do not enable or qualify a provider/profile.
 
+### Delivered confirmed configured quiet-hours answer
+
+The same confirmed-source operation now includes the existing registered
+`notices.quiet-hours` as a closed strongly typed `QuietHoursSchedule`, alongside
+the unchanged fifteen scalar observations. The original question "Which
+quiet-hours schedule is configured, and why might completion speech be quiet?"
+receives full Off-or-weekly ordered days/start/end/explicit-zone review,
+confirmed saved/default provenance, unchanged question, new local conversation
+destination and separate one-use confirmation. Both tool-free and explicitly
+selected `settings.list`/`settings.get` local answers retain only the original
+question and genuine final answer for ordinary conversation readback
+([interaction](../docs/setting-inspection.md)).
+
+The [read-only quiet-hours reader](../src/Kora.Application/Configuration/SettingInspection/QuietHoursConfigurationService.SettingInspection.cs)
+uses the authoritative service gate, known saved/effective intent, revision and
+validated disk preference. It does not call state-mutating inspection, repair
+evidence, write preferences, evaluate the clock, advance speech high-watermarks
+or notify speech admission. Malformed, held, publishing, unconfirmed, changed
+and observed change-and-return sources fail closed before dispatch, get and final
+publication. This is configured intent only, not current quiet-now, output
+availability, speech consent, listening or runtime enablement. Existing private
+original-channel, expiry, cancellation and retention boundaries remain unchanged.
+
 ### Delivered bounded spoken summary limits (R10)
 
 The [closed registered-setting proposal registry](../src/Kora.Core/Configuration/RegisteredSettings/RegisteredSettingRegistry.cs)
@@ -1320,7 +1343,7 @@ observe the same live state: mouse and validated verbal mutations publish the
 same change notifications, so neither surface requires reopening or polling to
 show the new effective value.
 
-The existing compound `notices.quiet-hours` also accepts one exact inert retained-answer proposal: Off, a full weekly ordered days/start/end/explicit installed zone schedule, or Reset to unsaved Off. The host resolves the strong schedule type and reads actual current saved/effective intent for full old/new/default review. Separate current native confirmation calls the existing quiet-hours configuration service and requires committed audit and exact atomic preference readback. Model advice is not original UI input and never confirms itself; source/session/expiry, native lifetime, ownership/privacy/call/control and consent drift retire the review. No confirmed compound `settings.get` reader is added; discovery truthfully reports value unavailable. The change constrains future already-consented completion speech only, never listening, ordinary answers, consent or in-flight output ([owning contract](Proactive_Interaction.md#scheduled-proactive-speech-quiet-hours), [interaction](../docs/setting-proposals.md)).
+The existing compound `notices.quiet-hours` also accepts one exact inert retained-answer proposal: Off, a full weekly ordered days/start/end/explicit installed zone schedule, or Reset to unsaved Off. The host resolves the strong schedule type and reads actual current saved/effective intent for full old/new/default review. Separate current native confirmation calls the existing quiet-hours configuration service and requires committed audit and exact atomic preference readback. Model advice is not original UI input and never confirms itself; source/session/expiry, native lifetime, ownership/privacy/call/control and consent drift retire the review. The separate [confirmed configured quiet-hours answer](#delivered-confirmed-configured-quiet-hours-answer) supplies the bounded compound reader; this proposal route grants no read authority. The change constrains future already-consented completion speech only, never listening, ordinary answers, consent or in-flight output ([owning contract](Proactive_Interaction.md#scheduled-proactive-speech-quiet-hours), [interaction](../docs/setting-proposals.md)).
 
 Bounded R15 now supplies run-scoped manual call controls and truthful automatic
 availability in **Settings > Calls**, outside the future generic settings/tool

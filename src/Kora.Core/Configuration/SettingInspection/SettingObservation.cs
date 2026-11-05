@@ -1,12 +1,15 @@
 using System.Globalization;
+using System.Text.Json.Serialization;
 using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Voice;
 
 namespace Kora.Core.Configuration.SettingInspection;
 
-/// <summary>Closed, non-sensitive scalar metadata, never arbitrary preference text.</summary>
+/// <summary>Closed, non-sensitive setting metadata, never arbitrary preference text.</summary>
+[JsonConverter(typeof(SettingObservationJsonConverter))]
 public sealed record SettingObservation
 {
+    private readonly int scalar;
     public SettingObservation(RegisteredSetting setting, int value, bool saved, long revision)
     {
         switch (setting)
@@ -63,25 +66,38 @@ public sealed record SettingObservation
         }
         ArgumentOutOfRangeException.ThrowIfNegative(revision);
         Setting = setting;
-        Value = value;
+        scalar = value;
+        IsSaved = saved;
+        Revision = revision;
+    }
+
+    public SettingObservation(QuietHoursSchedule schedule, bool saved, long revision)
+    {
+        ArgumentNullException.ThrowIfNull(schedule);
+        ArgumentOutOfRangeException.ThrowIfNegative(revision);
+        Setting = RegisteredSetting.QuietHours;
+        QuietHours = schedule;
         IsSaved = saved;
         Revision = revision;
     }
 
     public RegisteredSetting Setting { get; }
-    public int Value { get; }
+    public int Value => QuietHours is null ? scalar
+        : throw new InvalidOperationException("A quiet-hours schedule is not a scalar.");
+    public QuietHoursSchedule? QuietHours { get; }
     public bool IsSaved { get; }
     public long Revision { get; }
-    public string Text => RegisteredSettingRegistry.Get(Setting).Id + " = " + (Setting switch
+    public string Text => RegisteredSettingRegistry.Get(Setting).Id + " = " + (QuietHours?.ToString() ?? (Setting switch
     {
         RegisteredSetting.Theme => ((ApplicationThemeMode)Value).ToString(),
         RegisteredSetting.ResponseMode => ((ResponseOutputMode)Value).ToString(),
         RegisteredSetting.PresenceDisplay or RegisteredSetting.SpeechScaling or RegisteredSetting.ReducedMotion =>
             Value == 1 ? "true" : "false",
         _ => Value.ToString(CultureInfo.InvariantCulture),
-    }) + " " + RegisteredSettingRegistry.Get(Setting).Units
+    })) + " " + RegisteredSettingRegistry.Get(Setting).Units
         + (IsSaved ? " (confirmed saved; matches live service)" : " (confirmed absent; live default)")
         + (Setting == RegisteredSetting.ReducedMotion
             ? Value == 0 ? "; follows Windows reduced-motion preference, not forced motion" : "; freezes presence particles"
-            : "");
+            : "")
+        + (QuietHours is not null ? "; configured intent only, not current quiet-now, output availability or speech consent" : "");
 }

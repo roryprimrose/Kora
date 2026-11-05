@@ -3,7 +3,7 @@ using Kora.Core.Configuration.SettingInspection;
 namespace Kora.Application.Configuration.SettingInspection;
 
 public sealed class ConfirmedSettingsSource(AppearanceConfigurationService appearance, SpeechConfigurationService speech,
-    PlaybackVolumeConfigurationService volume, ResponseModeConfigurationService response)
+    PlaybackVolumeConfigurationService volume, ResponseModeConfigurationService response, QuietHoursConfigurationService quietHours)
 {
     public async Task<ConfirmedSettingsSnapshot> CaptureAsync(CancellationToken token)
     {
@@ -11,14 +11,16 @@ public sealed class ConfirmedSettingsSource(AppearanceConfigurationService appea
         var s = await speech.ReadConfirmedSettingsAsync(token).ConfigureAwait(false);
         var v = await volume.ReadConfirmedSettingsAsync(token).ConfigureAwait(false);
         var r = await response.ReadConfirmedSettingsAsync(token).ConfigureAwait(false);
-        var snapshot = new ConfirmedSettingsSnapshot(a, s, v, r);
+        var q = await quietHours.ReadConfirmedSettingsAsync(token).ConfigureAwait(false);
+        var snapshot = new ConfirmedSettingsSnapshot(a, s, v, r, q);
         await ValidateAsync(snapshot, token).ConfigureAwait(false);
         return snapshot;
     }
 
     public bool IsCurrent(ConfirmedSettingsSnapshot snapshot) =>
         appearance.IsInspectionCurrent(snapshot.Appearance) && speech.IsInspectionCurrent(snapshot.Speech)
-        && volume.IsInspectionCurrent(snapshot.Volume) && response.IsInspectionCurrent(snapshot.Response);
+        && volume.IsInspectionCurrent(snapshot.Volume) && response.IsInspectionCurrent(snapshot.Response)
+        && quietHours.IsInspectionCurrent(snapshot.QuietHours);
 
     public async Task ValidateAsync(ConfirmedSettingsSnapshot snapshot, CancellationToken token)
     {
@@ -26,9 +28,11 @@ public sealed class ConfirmedSettingsSource(AppearanceConfigurationService appea
         var s = await speech.ReadConfirmedSettingsAsync(token).ConfigureAwait(false);
         var v = await volume.ReadConfirmedSettingsAsync(token).ConfigureAwait(false);
         var r = await response.ReadConfirmedSettingsAsync(token).ConfigureAwait(false);
+        var q = await quietHours.ReadConfirmedSettingsAsync(token).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();
         if (!ReferenceEquals(snapshot.Appearance, a) || !ReferenceEquals(snapshot.Speech, s)
-            || !ReferenceEquals(snapshot.Volume, v) || !ReferenceEquals(snapshot.Response, r) || !IsCurrent(snapshot))
+            || !ReferenceEquals(snapshot.Volume, v) || !ReferenceEquals(snapshot.Response, r)
+            || !ReferenceEquals(snapshot.QuietHours, q) || !IsCurrent(snapshot))
         { throw new InvalidDataException("Confirmed setting source changed or is unavailable. Repair and explicitly inspect again."); }
     }
 }

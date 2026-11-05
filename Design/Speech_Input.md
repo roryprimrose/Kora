@@ -553,6 +553,9 @@ source-context or listening-consent publication receives comparison text.
 Comparison and profile preparation remain mutually exclusive; an unconfirmed
 profile-asset release keeps comparison unavailable without opening input.
 
+The [comparison owner](../src/Kora.Application/Voice/SpeechSetupComparison.cs) clears volatile results and review before requesting asynchronous cancellation. Cancel, close, admission withdrawal and disposal retain both the native attempt and its cancellation callbacks until they join; neither completion alone permits replacement capture.
+Callback failure is reported through the original retirement await and comparison status, without claiming successful cancellation or permitting another comparison until restart. The [retirement regressions](../tests/Kora.Application.UnitTests/Voice/SpeechSetupComparisonTests.cs) hold each join independently and exercise failing callbacks; they do not enable a speech profile.
+
 The [native seam](../src/Kora.Windows/Audio/WindowsVoiceRecognitionService.Comparison.cs)
 measures actual open-to-start elapsed time. First/repeat trials do not establish
 cold/warm cache state. End-of-speech-to-final, cold/warm startup and resource use

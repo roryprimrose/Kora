@@ -162,6 +162,214 @@ public sealed class SpeechSetupComparisonTests : IDisposable
     }
 
     [Theory]
+    [InlineData("cancel")]
+    [InlineData("close")]
+    [InlineData("host")]
+    [InlineData("phrase")]
+    [InlineData("dispose")]
+    public async Task CancellationCallbackFailureClearsPrivateResultsAndStillJoinsNativeCapture(string reason)
+    {
+        using var root = Root();
+        var runtime = new Runtime();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<SpeechComparisonObservation>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var callbackFailure = new InvalidOperationException("Synthetic cancellation callback failure");
+        CancellationTokenRegistration registration = default;
+        runtime.Capture = (_, trial, token) =>
+        {
+            if (trial == 1) { return Task.FromResult(new SpeechComparisonObservation("Private first result", TimeSpan.Zero)); }
+            registration = token.Register(() => throw callbackFailure);
+            entered.SetResult();
+            return release.Task;
+        };
+        var comparison = new SpeechSetupComparison(runtime, runtime);
+        var admitted = true;
+        comparison.Review(Microphone, () => admitted);
+        var work = comparison.TestAsync(true);
+        await entered.Task.WaitAsync(TestContext.Current.CancellationToken);
+        comparison.Results.Should().ContainSingle();
+        Task? joining = null;
+        try
+        {
+            try
+            {
+                var failure = Record.Exception(() =>
+                {
+                    switch (reason)
+                    {
+                        case "close": comparison.Clear(); break;
+                        case "host": admitted = false; comparison.Revalidate(); break;
+                        case "phrase": comparison.ExpectedPhrase = "Changed"; break;
+                        case "dispose": joining = comparison.DisposeAsync().AsTask(); break;
+                        default: joining = comparison.CancelAsync(); break;
+                    }
+                });
+                failure.Should().BeNull("retirement must clear private state and retain its join even when a native cancellation callback fails");
+                comparison.Results.Should().BeEmpty();
+                comparison.ReviewDescription.Should().BeEmpty();
+                comparison.CanTest.Should().BeFalse();
+                comparison.IsRunning.Should().BeTrue();
+                work.IsCompleted.Should().BeFalse();
+                if (joining is not null) { joining.IsCompleted.Should().BeFalse(); }
+                runtime.Disposals.Should().Be(0);
+            }
+            finally
+            {
+                release.TrySetResult(new("Late result must be discarded", TimeSpan.Zero));
+                await work;
+            }
+            var failureResult = await FluentActions.Awaiting(() => joining ?? comparison.CancelAsync()).Should().ThrowAsync<AggregateException>();
+            failureResult.Which.InnerExceptions.Should().Contain(callbackFailure);
+            comparison.Results.Should().BeEmpty();
+            comparison.Status.Should().Contain("cancellation failed").And.Contain("No success");
+            comparison.IsRunning.Should().BeFalse();
+            runtime.Captures.Should().Be(2);
+            runtime.Disposals.Should().Be(1);
+            FluentActions.Invoking(() => comparison.Review(Microphone, static () => true))
+                .Should().Throw<InvalidOperationException>();
+            await FluentActions.Awaiting(() => comparison.TestAsync(true)).Should().ThrowAsync<InvalidOperationException>();
+        }
+        finally
+        {
+            _ = await Record.ExceptionAsync(() => comparison.DisposeAsync().AsTask());
+            registration.Dispose();
+        }
+    }
+
+    [Theory]
+    [InlineData("cancel", false)]
+    [InlineData("cancel", true)]
+    [InlineData("close", false)]
+    [InlineData("close", true)]
+    [InlineData("dispose", false)]
+    [InlineData("dispose", true)]
+    public async Task RetirementReturnsWithoutBlockingAndRetainsBothCallbackAndNativeJoins(string reason, bool callbackFirst)
+    {
+        using var root = Root();
+        using var callbackRelease = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var callbackEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var callbackExited = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var requestReturned = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var nativeRelease = new TaskCompletionSource<SpeechComparisonObservation>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var runtime = new Runtime();
+        CancellationTokenRegistration registration = default;
+        runtime.Capture = (_, trial, token) =>
+        {
+            if (trial == 1) { return Task.FromResult(new SpeechComparisonObservation("Private first result", TimeSpan.Zero)); }
+            registration = token.Register(() =>
+            {
+                callbackEntered.SetResult();
+                callbackRelease.Wait(TestContext.Current.CancellationToken);
+                callbackExited.SetResult();
+            });
+            entered.SetResult();
+            return nativeRelease.Task;
+        };
+        var comparison = new SpeechSetupComparison(runtime, runtime);
+        comparison.Review(Microphone, static () => true);
+        var work = comparison.TestAsync(true);
+        await entered.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var retirement = Task.Run(() =>
+        {
+            Task joining;
+            if (string.Equals(reason, "dispose", StringComparison.Ordinal)) { joining = comparison.DisposeAsync().AsTask(); }
+            else
+            {
+                if (string.Equals(reason, "close", StringComparison.Ordinal)) { comparison.Clear(); }
+                joining = comparison.CancelAsync();
+            }
+            requestReturned.SetResult();
+            return joining;
+        }, TestContext.Current.CancellationToken);
+        try
+        {
+            await requestReturned.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            await callbackEntered.Task.WaitAsync(TestContext.Current.CancellationToken);
+            comparison.Results.Should().BeEmpty();
+            comparison.ReviewDescription.Should().BeEmpty();
+            comparison.CanTest.Should().BeFalse();
+            comparison.IsRunning.Should().BeTrue();
+            if (callbackFirst)
+            {
+                callbackRelease.Set();
+                await callbackExited.Task.WaitAsync(TestContext.Current.CancellationToken);
+                runtime.Disposals.Should().Be(0);
+                work.IsCompleted.Should().BeFalse();
+            }
+            else
+            {
+                nativeRelease.SetResult(new("Late result", TimeSpan.Zero));
+                await work;
+                runtime.Disposals.Should().Be(1);
+                comparison.IsRunning.Should().BeTrue("the cancellation callback still owns retirement after native capture joins");
+            }
+            retirement.IsCompleted.Should().BeFalse();
+            FluentActions.Invoking(() => comparison.Review(Microphone, static () => true))
+                .Should().Throw<InvalidOperationException>();
+        }
+        finally
+        {
+            callbackRelease.Set();
+            nativeRelease.TrySetResult(new("Late result", TimeSpan.Zero));
+            await retirement;
+            registration.Dispose();
+            await comparison.DisposeAsync();
+        }
+        comparison.Results.Should().BeEmpty();
+        comparison.IsRunning.Should().BeFalse();
+        runtime.Captures.Should().Be(2);
+        runtime.Disposals.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task JoinedCancellationAllowsFreshExplicitReviewAndInertCaptureWithoutReplayingOldResults()
+    {
+        using var root = Root();
+        var runtime = new Runtime();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<SpeechComparisonObservation>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        CancellationTokenRegistration registration = default;
+        runtime.Capture = (_, _, token) =>
+        {
+            registration = token.Register(() => cancelled.SetResult());
+            entered.SetResult();
+            return release.Task;
+        };
+        await using var comparison = new SpeechSetupComparison(runtime, runtime);
+        comparison.Review(Microphone, static () => true);
+        var work = comparison.TestAsync(true);
+        await entered.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var retirement = comparison.CancelAsync();
+        try
+        {
+            await cancelled.Task.WaitAsync(TestContext.Current.CancellationToken);
+            comparison.CanTest.Should().BeFalse();
+            retirement.IsCompleted.Should().BeFalse();
+        }
+        finally
+        {
+            release.TrySetResult(new("Discarded old result", TimeSpan.Zero));
+            await work;
+            await retirement;
+            registration.Dispose();
+        }
+        comparison.Results.Should().BeEmpty();
+        comparison.IsRunning.Should().BeFalse();
+        comparison.CanTest.Should().BeFalse();
+        runtime.Capture = static (_, _, _) => Task.FromResult(new SpeechComparisonObservation("Fresh inert result", TimeSpan.Zero));
+        comparison.Review(Microphone, static () => true);
+        comparison.CanTest.Should().BeTrue();
+        await comparison.TestAsync(true);
+        comparison.Results.Should().HaveCount(2).And.OnlyContain(result =>
+            string.Equals(result.Observation.FinalText, "Fresh inert result", StringComparison.Ordinal));
+        runtime.Acquisitions.Should().Be(2);
+        runtime.Captures.Should().Be(3);
+        runtime.Disposals.Should().Be(2);
+    }
+
+    [Theory]
     [InlineData("capture")]
     [InlineData("acquire")]
     [InlineData("length")]

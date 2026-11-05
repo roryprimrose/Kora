@@ -147,6 +147,7 @@ function Assert-BatchReleaseWorkflow {
             $value = $Matches[2]
             $children = @{
                 'permissions.contents' = 'write'; 'permissions.actions' = 'read'
+                'permissions.pull-requests' = 'read'; 'permissions.issues' = 'write'
                 'concurrency.group' = 'merge-queue-controller'; 'concurrency.cancel-in-progress' = 'false'
                 'concurrency.queue' = 'max'
             }
@@ -175,16 +176,29 @@ function Assert-SerializedBatchReleaseCaller {
     }
     $run = Get-GitHubRecord "repos/$script:KoraRepository/actions/runs/$env:GITHUB_RUN_ID"
     $workflow = Get-GitHubRecord "repos/$script:KoraRepository/actions/workflows/ci.yml"
-    if ($null -eq $run -or $null -eq $workflow -or
-        $run.id.ToString() -cne $env:GITHUB_RUN_ID -or $run.run_attempt.ToString() -cne $env:GITHUB_RUN_ATTEMPT -or
-        $run.repository.full_name -cne $script:KoraRepository -or
-        $run.head_repository.full_name -cne $script:KoraRepository -or
-        $run.path -cne '.github/workflows/ci.yml' -or $workflow.path -cne '.github/workflows/ci.yml' -or
-        $workflow.state -cne 'active' -or $run.workflow_id -ne $workflow.id -or
-        $run.head_branch -cne 'main' -or $run.head_sha -cne $Revision -or
-        $run.event -cne $env:GITHUB_EVENT_NAME -or $run.event -cnotin @('push', 'workflow_dispatch') -or
-        $run.status -cne 'in_progress') {
-        throw 'Batch publication could not authenticate the trusted main workflow run.'
+    if ($null -eq $run -or $null -eq $workflow) {
+        throw 'Batch publication could not authenticate the trusted main workflow run; rejected predicates: metadata-present.'
+    }
+    $predicates = [ordered]@{
+        'run-id' = $run.id.ToString() -ceq $env:GITHUB_RUN_ID
+        'run-run_attempt' = $run.run_attempt.ToString() -ceq $env:GITHUB_RUN_ATTEMPT
+        'run-repository' = $run.repository.full_name -ceq $script:KoraRepository
+        'run-head_repository' = $run.head_repository.full_name -ceq $script:KoraRepository
+        'run-path' = $run.path -ceq '.github/workflows/ci.yml'
+        'workflow-path' = $workflow.path -ceq '.github/workflows/ci.yml'
+        'workflow-state' = $workflow.state -ceq 'active'
+        'run-workflow_id' = $run.workflow_id -eq $workflow.id
+        'run-head_branch' = $run.head_branch -ceq 'main'
+        'run-head_sha' = $run.head_sha -ceq $Revision
+        'run-event' = $run.event -ceq $env:GITHUB_EVENT_NAME -and $run.event -cin @('push', 'workflow_dispatch')
+        'run-status' = $run.status -ceq 'in_progress'
+    }
+    $rejected = @($predicates.Keys | Where-Object { -not $predicates[$_] })
+    if ($rejected.Count -gt 0) {
+        $lifecycle = if ($run.status -cin @('queued', 'in_progress', 'completed', 'waiting', 'pending', 'requested')) {
+            $run.status
+        } else { 'unknown' }
+        throw "Batch publication could not authenticate the trusted main workflow run; rejected predicates: $($rejected -join ','); lifecycle: $lifecycle."
     }
     $matchingJobs = @()
     for ($page = 1; ; $page++) {

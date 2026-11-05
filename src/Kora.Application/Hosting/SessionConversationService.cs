@@ -154,6 +154,7 @@ public sealed partial class SessionConversationService(
             copilot || claude ? now.Add(HostedTurnAuthorization.MaximumDuration) : now.AddSeconds(15),
             claude ? ModelToolMode.None : ModelToolMode.ReadOnly)
             : createContext(request, now);
+        context = mcpConfiguration?.RestrictTools(context) ?? context;
         if (pending?.Output is not null)
         {
             pending.OutputCreatedAt = context.CreatedAt;
@@ -197,6 +198,7 @@ public sealed partial class SessionConversationService(
                         if (prepareContext is not null)
                         {
                             context = await prepareContext(request, Live, token).ConfigureAwait(false);
+                            context = mcpConfiguration?.RestrictTools(context) ?? context;
                             context.RequireCompleteInputLimit();
                         }
 

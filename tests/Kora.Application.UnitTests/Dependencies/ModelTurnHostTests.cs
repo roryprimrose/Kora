@@ -590,11 +590,12 @@ public sealed partial class ModelTurnHostTests : IDisposable
             return host;
         }
         internal ModelTurnHost Qualified(ModelProviderSelection selection, ModelQualificationGate? evidence = null,
-            bool composeProfileStoreOnly = false)
+            bool composeProfileStoreOnly = false, McpCapabilityPreferences? capabilities = null)
         {
             var host = new ModelTurnHost(this, this, this, registry, this, this, Time,
                 [new(selection, evidence ?? Gates(selection), Time.Now.AddSeconds(30), Adapter)],
-                sessionProfiles: composeProfileStoreOnly ? this : null);
+                sessionProfiles: composeProfileStoreOnly ? this : null, capabilities: capabilities,
+                builtInMcp: capabilities is null ? null : new Kora.Application.Mcp.KoraMcpServer(registry, capabilities));
             ownedHosts.Add(host);
             return host;
         }

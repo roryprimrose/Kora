@@ -15,6 +15,13 @@ and separately approve its exact schema and arguments. The result is inert
 lower-trust evidence for the local model, not instructions or permission.
 Discovery annotations never establish a read-only mapping.
 
+When a result contains several text blocks, Kora combines them in server order
+with exactly one newline between blocks, including empty blocks. Leading,
+consecutive and trailing empty blocks are preserved in both the displayed result
+and any separately consented local continuation. Text inside each block and
+optional structured JSON are unchanged; the existing four-block and complete
+1,536-byte response limits still apply.
+
 If a configuration refresh observes changed source bytes, exclusion, removal or
 unavailable configuration while discovery or review is pending, the old review
 cannot continue. Restoring the previous file or inclusion does not revive it.

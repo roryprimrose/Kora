@@ -14,7 +14,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection("Host tracing")]
-public sealed class SessionPermissionTests
+public sealed partial class SessionPermissionTests
 {
     [WindowsFact]
     public async Task Live_call_policy_is_checked_inside_answer_commit_not_the_old_presentation_snapshot()

@@ -47,6 +47,22 @@ is separate; this behavior applies when opening or explicitly changing layout.
 Deterministic native tests do not qualify physical monitors, Windows DPI or
 installed assistive technology.
 
+## Reading the compact response
+
+The separate readable response does not automatically hide while the pointer
+rests over it, or while it is the active window with keyboard focus inside it.
+You can pause to read or compose without repeatedly moving the mouse or typing.
+Moving focus between its controls does not dismiss it or confirm an action.
+
+When the pointer leaves and active keyboard focus is no longer inside, a full
+new **Response timeout** period begins. Unresolved questions, approvals, actions,
+unacknowledged failures and **Always show** still prevent ordinary auto-hide.
+Expanded Sessions has no ordinary inactivity timeout.
+
+Explicit Hide and privacy/ownership retirement still hide immediately. Reading
+does not pin the particle presence, renew session retention, submit unsent input,
+start listening or speech, approve anything, or stop work.
+
 ## Reduced motion
 
 Choose **Settings > Appearance > Reduced motion**, or say **"Kora, use reduced motion"** using your current assistant name. This freezes particle movement in both animation modes without hiding state, changing focus or disabling independent speech sizing. Off/reset follows Windows animation settings and never overrides Windows reduced motion; colour and visibility transitions still settle ([settings](settings.md#appearance), [precedence](../src/Kora.Core/Configuration/ReducedMotionSettings.cs), [binding](../src/Kora/Controls/PresenceMotionBinding.cs)).

@@ -193,6 +193,15 @@ scroll changes before asserting `InputHitTest` reachability. Dispatcher/layout
 completion alone does not establish that the compositor's hit-test scene is current.
 Keep the real pointer route and target-hit assertions intact.
 
+Native UX fixture shutdown must join its audited preference writer's physical
+work, including terminal audit, before evidence sinks close or its owned directory
+is deleted. Write outcomes remain on the individual write tasks; quiescence is
+not a success receipt. Synchronous fixture disposal uses that join without UI
+continuations. Window-owning fixtures use asynchronous disposal to drain queued
+preference results on the UI context before retiring their view model. Do not
+mask an active writer with deletion retries or swallowed
+I/O errors; pending-work regressions use an explicit write barrier.
+
 Queued-conversation fakes must derive each terminal message/task pair from the
 exact request-owned retained record before updating shared observation fields.
 Concurrent expiry must preserve both originals' identity, body, generation,

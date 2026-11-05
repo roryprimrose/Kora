@@ -63,6 +63,7 @@ public sealed partial class ResponseWindow : Window
         Closed += OnClosed;
         PositionChanged += OnPositionChanged;
         PropertyChanged += OnSessionPresentationChanged;
+        PropertyChanged += OnResponseEngagementChanged;
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
         Deactivated += OnReviewedCommandUnavailable;
         Closed += OnReviewedCommandUnavailable;
@@ -397,11 +398,7 @@ public sealed partial class ResponseWindow : Window
             responseInactivity.Stop();
             return;
         }
-        if (!viewModel.IsResponseAlwaysVisible && !viewModel.IsResponseInteractionPending
-            && !viewModel.HasResponseActions && !viewModel.IsCurrentResponseReadActive
-            && !viewModel.IsReviewedVoiceCommandActive
-            && !viewModel.CanConfirmCallSpeech
-            && viewModel.State != AssistantState.Failure)
+        if (!KeepsResponseVisible)
         {
             if (!responseInactivity.TryExpire())
             {
@@ -475,12 +472,7 @@ public sealed partial class ResponseWindow : Window
     {
         responseTimeoutTimer.Stop();
         responseInactivity.Stop();
-        if (!IsVisible || IsExpanded || viewModel.IsResponseAlwaysVisible
-            || viewModel.IsResponseInteractionPending
-            || viewModel.HasResponseActions || viewModel.IsCurrentResponseReadActive
-            || viewModel.IsReviewedVoiceCommandActive
-            || viewModel.CanConfirmCallSpeech
-            || viewModel.State == AssistantState.Failure)
+        if (!IsVisible || KeepsResponseVisible)
         {
             return;
         }
@@ -488,6 +480,21 @@ public sealed partial class ResponseWindow : Window
         responseInactivity.Restart(viewModel.ResponseTimeoutSeconds);
         responseTimeoutTimer.Interval = responseInactivity.Remaining;
         responseTimeoutTimer.Start();
+    }
+
+    private bool KeepsResponseVisible => IsExpanded || IsPointerOver || IsActive && IsKeyboardFocusWithin
+        || viewModel.IsResponseAlwaysVisible || viewModel.IsResponseInteractionPending
+        || viewModel.HasResponseActions || viewModel.IsCurrentResponseReadActive
+        || viewModel.IsReviewedVoiceCommandActive || viewModel.CanConfirmCallSpeech
+        || viewModel.State == AssistantState.Failure;
+
+    private void OnResponseEngagementChanged(object? sender, AvaloniaPropertyChangedEventArgs args)
+    {
+        if (args.Property == IsPointerOverProperty || args.Property == IsKeyboardFocusWithinProperty
+            || args.Property == IsActiveProperty || args.Property == IsVisibleProperty)
+        {
+            RestartResponseTimeout();
+        }
     }
 
     private void RestorePosition()

@@ -12,10 +12,58 @@ using Kora.Core.Storage;
 using Kora.Windows.IntegrationTests.Audio;
 using Kora.Windows.Storage;
 
+using Microsoft.Data.Sqlite;
+
 namespace Kora.Windows.IntegrationTests.Storage;
 
 public sealed partial class WindowsSqliteSessionRetentionTests
 {
+    [WindowsFact]
+    public async Task Native_storage_failure_holds_retention_without_mutation_and_a_later_attempt_can_recover()
+    {
+        using var fixture = new InteractionStorageFixture();
+        await fixture.InitializeAsync();
+        var perpetual = await fixture.GrantAsync("perpetual");
+        await WindowsSqliteSessionWorkspaceTests.FinishAsync(fixture, HostTaskState.Succeeded);
+        var id = fixture.Request.SessionId;
+        var clock = await fixture.Store.ReadRetentionAsync(id, fixture.Token);
+        fixture.Time.Now = clock.DeleteDue;
+        var checkpoint = new InteractionTransactionCheckpoint();
+        fixture.Reopen(checkpoint);
+        await fixture.Store.InitializeAsync(fixture.Token);
+        var history = await fixture.Store.ReadHistoryAsync(id, null, 50, fixture.Token);
+        var authority = await fixture.Store.ReadSessionAsync(id, fixture.Token);
+        var audits = fixture.Count("security_audit_events");
+        var failure = new SqliteException("Injected native storage failure", 5);
+        checkpoint.Commit = (_, _) => throw failure;
+
+        var retain = () => RetainAsync(fixture);
+        (await retain.Should().ThrowAsync<IOException>())
+            .Which.InnerException.Should().BeSameAs(failure);
+
+        (await fixture.Store.ReadSessionAsync(id, fixture.Token)).Should().Be(authority);
+        (await fixture.Store.ReadRetentionAsync(id, fixture.Token)).Should().Be(clock);
+        (await fixture.Store.ReadHistoryAsync(id, null, 50, fixture.Token)).Should().BeEquivalentTo(history);
+        fixture.Count("security_audit_events").Should().Be(audits);
+        (await fixture.Store.ReadGrantsAsync(fixture.Token)).Should().ContainSingle().Which.Should().Be(perpetual);
+        (await fixture.Tasks.ReadIncompleteAsync(10, fixture.Token)).Should().BeEmpty();
+
+        checkpoint.Commit = null;
+        fixture.Time.Now = clock.ArchiveDue.AddTicks(-1);
+        (await RetainAsync(fixture)).Should().Be(new SessionRetentionBatch(0, 0, 0, false));
+        (await fixture.Store.ReadSessionAsync(id, fixture.Token)).Should().Be(authority);
+        (await fixture.Store.ReadRetentionAsync(id, fixture.Token)).Should().Be(clock);
+        (await fixture.Store.ReadHistoryAsync(id, null, 50, fixture.Token)).Should().BeEquivalentTo(history);
+        fixture.Count("security_audit_events").Should().Be(audits);
+
+        fixture.Time.Now = clock.DeleteDue;
+        (await RetainAsync(fixture)).Should().Be(new SessionRetentionBatch(0, 1, 0, false));
+        (await fixture.Store.ReadRetentionAsync(id, fixture.Token)).Should().Be(clock with { Purged = true });
+        fixture.Count("security_audit_events").Should().Be(audits + 1);
+        (await fixture.Store.ReadGrantsAsync(fixture.Token)).Should().ContainSingle().Which.Should().Be(perpetual);
+        (await fixture.Tasks.ReadIncompleteAsync(10, fixture.Token)).Should().BeEmpty();
+    }
+
     [WindowsFact]
     public async Task Deletion_clears_previously_freed_content_before_acceptance_and_preserves_independent_records()
     {

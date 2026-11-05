@@ -108,7 +108,7 @@ public sealed class McpToolSchema
     private static bool ValidValue(Field field, JsonElement value) => field.Kind switch
     {
         JsonValueKind.String => value.ValueKind == JsonValueKind.String
-            && value.GetString()!.Length <= field.Length,
+            && value.GetString()!.EnumerateRunes().Count() <= field.Length,
         JsonValueKind.Number => value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var number)
             && number >= field.Minimum && number <= field.Maximum,
         _ => value.ValueKind is JsonValueKind.True or JsonValueKind.False,

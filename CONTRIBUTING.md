@@ -71,10 +71,10 @@ candidate CI. Partial integration is release-blocked until verified recovery or
 actual-tip qualification/publication.
 
 The separately administered [independent beta delivery profile](eng/merge-queue/README.md#opt-in-independent-beta-delivery)
-keeps full candidate behavioral/coverage proof but permits later admission before
+keeps exact-source candidate unit/coverage proof but permits later admission before
 the preceding source's full main beta finishes. Its trusted conditional installer
 policy reports unexecuted MSI/Burn work as not selected; managed setup compilation
-and tests remain mandatory, and actual-source main packaging remains full.
+and metadata contracts remain mandatory, and actual-source main packaging remains full.
 Merging its implementation does not activate the profile. Deterministic
 `node .\eng\run-policy-tests.cjs`, `.\eng\Test-CiPreflight.ps1` and
 `.\eng\Test-GitHubRelease.ps1` cover the source records, legacy fence, publication
@@ -97,6 +97,26 @@ coverage across Core, Application, Tools and Definitions**, retaining reports
 even when the gate fails. Non-destructive Windows integration tests are not
 physical audio, provider or installed acceptance; CI must never lock or restart
 its runner.
+
+PR candidates run the four portable unit modules with unchanged 100% line and
+branch coverage. Windows integration/UI tests, their shared build and twelve
+partitions run only in post-merge main/release validation, not ordinary PR events
+or queue candidate dispatches. Main/tag/manual release gates still require their
+full integration evidence; the opt-in native comparison is main-only.
+Waiting PRs retain cheap policy feedback; only the selected candidate receives
+the expensive exact-source admission build. A skipped integration job is not
+integration success. The reviewed `parallel-pr-v1` inventory requires eight
+candidate jobs while main qualification retains all 27 identities. Historical
+`unit-pr-v1` six-job candidates keep their original proof requirements.
+
+Portable policy/architecture fixtures run alongside unit compilation and coverage,
+not inside the unit producer's critical path. Their independent job restores its
+own production/analyzer fixture graph and keeps both Debug/Release boundary checks.
+The portable aggregate requires unit, policy and payload producers to succeed.
+Managed setup compilation and installer metadata fixtures also start after
+preflight, alongside payload publication. Installer validation still joins both
+producers before selected packaging or an explicit not-selected outcome. No
+cached binaries or proof from another run replace exact-source validation.
 
 The existing [version job](.github/workflows/ci.yml) is also the exact-source
 early preflight barrier: scheduling contracts, static source-tool policy,
@@ -162,11 +182,16 @@ uses the shared frozen fixture clock; lifecycle review and countdown timers rema
 explicitly controlled. All power effects and worker
 qualification are deterministic fakes; these tests do not enable a runtime.
 
-Portable CI runs the four projects in [Kora.UnitTests.slnx](Kora.UnitTests.slnx) together, using [MTP's processor-count-based module concurrency](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-test-mtp#options). The [workflow](.github/workflows/ci.yml) isolates TRX and coverage output in per-module directories and aggregates every module's coverage before enforcing the existing thresholds.
+Portable CI restores and builds [Kora.UnitTests.slnx](Kora.UnitTests.slnx), not the desktop/integration solution. Its four production dependencies are explicit solution members so all outputs use Release. The four unit modules run together using [MTP's processor-count-based module concurrency](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-test-mtp#options). Architecture guard fixtures are restored/built separately; both Debug/Release boundary checks remain mandatory. The [workflow](.github/workflows/ci.yml) isolates TRX and coverage output in per-module directories and aggregates every module's coverage before enforcing the existing thresholds.
 
 Portable fixtures that require host-resolved absolute source paths must construct
 host-native paths with `Path.GetFullPath`, not hard-coded Windows drive paths.
 Keep relative-path rejection intact; fixture portability must not relax source authority.
+
+Headless pointer fixtures must synchronize the rendered frame after layout and
+scroll changes before asserting `InputHitTest` reachability. Dispatcher/layout
+completion alone does not establish that the compositor's hit-test scene is current.
+Keep the real pointer route and target-hit assertions intact.
 
 Queued-conversation fakes must derive each terminal message/task pair from the
 exact request-owned retained record before updating shared observation fields.
@@ -184,9 +209,9 @@ only an explicit fresh read admits the completion into the reader page.
 For independently submitted work, await the completion's UI publication signal;
 joining the service receipt does not join its posted dispatcher notification.
 
-Run [Test-PortableTestScheduling.ps1](eng/Test-PortableTestScheduling.ps1) to check solution membership, main-build coverage, parallel scheduling, report isolation, and coverage-gate arguments without building or running test modules.
+Run [Test-PortableTestScheduling.ps1](eng/Test-PortableTestScheduling.ps1) to check the bounded portable build graph, explicit Release dependencies, architecture prerequisites, parallel scheduling, report isolation, and coverage-gate arguments without building or running test modules.
 
-For a controlled comparison, manually dispatch [CI](.github/workflows/ci.yml) with `compare_portable_tests=true`. Its opt-in job builds the main solution once, then runs [Compare-PortableTestScheduling.ps1](eng/Compare-PortableTestScheduling.ps1) in sequential/parallel/parallel/sequential order with identical coverage and reporting options. The artifact retains all four runs and their mean wall times.
+For a controlled comparison, manually dispatch [CI](.github/workflows/ci.yml) with `compare_portable_tests=true`. Its opt-in job builds the portable unit solution once, then runs [Compare-PortableTestScheduling.ps1](eng/Compare-PortableTestScheduling.ps1) in sequential/parallel/parallel/sequential order with identical coverage and reporting options. The artifact retains all four runs and their mean wall times.
 
 The separate `compare_native_evidence=true` input runs [17 representative headless cases](eng/Compare-NativeFixtureEvidence.ps1) in synchronous/buffered/buffered/synchronous order on one Windows runner. The [test-only selector](tests/Kora.Windows.IntegrationTests/NativeUxTestFixture.cs) uses the fixture's existing buffering option and rejects unknown profiles.
 

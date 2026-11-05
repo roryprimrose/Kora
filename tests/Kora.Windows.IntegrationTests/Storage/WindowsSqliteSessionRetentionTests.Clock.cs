@@ -8,6 +8,47 @@ namespace Kora.Windows.IntegrationTests.Storage;
 
 public sealed partial class WindowsSqliteSessionRetentionTests
 {
+    [Fact]
+    public async Task Backward_clock_after_selection_holds_before_retiring_sources_without_renewing_deadlines()
+    {
+        using var fixture = new InteractionStorageFixture();
+        await fixture.InitializeAsync();
+        await WindowsSqliteSessionWorkspaceTests.FinishAsync(fixture, HostTaskState.Succeeded);
+        var target = fixture.Request.SessionId;
+        var clock = await fixture.Store.ReadRetentionAsync(target, fixture.Token);
+        var metadata = await fixture.Store.ReadMetadataAsync(target, fixture.Token);
+        var history = await fixture.Store.ReadHistoryAsync(target, null, 50, fixture.Token);
+        var audits = fixture.Count("security_audit_events");
+        var tasks = fixture.Count("host_tasks");
+        fixture.Time.Now = clock.DeleteDue;
+        var admissionChecks = 0;
+        var retired = false;
+
+        var retain = () => RetainAsync(fixture, eligible: () =>
+        {
+            if (++admissionChecks == 2) { fixture.Time.Now = clock.ArchiveDue.AddTicks(-1); }
+            return true;
+        }, revoke: (_, _) =>
+        {
+            retired = true;
+            return ValueTask.CompletedTask;
+        });
+
+        await retain.Should().ThrowAsync<InvalidOperationException>();
+
+        admissionChecks.Should().Be(2);
+        retired.Should().BeFalse();
+        fixture.Count("security_audit_events").Should().Be(audits);
+        fixture.Count("host_tasks").Should().Be(tasks);
+        (await fixture.Store.ReadRetentionAsync(target, fixture.Token)).Should().Be(clock);
+        (await fixture.Store.ReadMetadataAsync(target, fixture.Token)).Should().Be(metadata);
+        (await fixture.Store.ReadHistoryAsync(target, null, 50, fixture.Token)).Should().BeEquivalentTo(history);
+        fixture.Time.Now = clock.DeleteDue;
+        (await RetainAsync(fixture)).Should().Be(new SessionRetentionBatch(0, 1, 0, false));
+        (await fixture.Store.ReadRetentionAsync(target, fixture.Token)).Should().Be(clock with { Purged = true });
+        fixture.Count("security_audit_events").Should().Be(audits + 1);
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(false, true)]

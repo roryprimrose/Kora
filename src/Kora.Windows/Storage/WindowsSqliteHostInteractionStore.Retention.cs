@@ -263,6 +263,11 @@ public sealed partial class WindowsSqliteHostInteractionStore
             activity.Complete(HostOperationOutcome.Cancelled);
             throw;
         }
+        catch (SqliteException exception)
+        {
+            activity.Complete(HostOperationOutcome.Failed);
+            throw new IOException("Session retention storage is unavailable; cleanup is unconfirmed.", exception);
+        }
         catch
         {
             activity.Complete(HostOperationOutcome.Failed);

@@ -17,6 +17,8 @@ public sealed class SpeechPreparationCoordinatorTests
     {
         var service = new PreparationService();
         using var coordinator = Create(service);
+        var notifications = new ConcurrentQueue<string>();
+        coordinator.Changed += (_, _) => notifications.Enqueue(coordinator.Status);
         coordinator.Request(new("windows", "Windows", "en-US", SpeechVoiceGender.Female), static () => true);
         await coordinator.WaitForQuiescenceAsync();
         service.Voices.Should().BeEmpty();
@@ -30,6 +32,8 @@ public sealed class SpeechPreparationCoordinatorTests
         service.Voices.Should().Equal("af_heart", "af_sky");
         coordinator.Status.Should().Be("Selected speech voice is prepared.");
         coordinator.IsQuiescent.Should().BeTrue();
+        notifications.Should().HaveCount(4);
+        notifications.Last().Should().Be("Selected speech voice is prepared.");
     }
 
     [Theory]
@@ -147,6 +151,185 @@ public sealed class SpeechPreparationCoordinatorTests
 
         service.Voices.Should().Equal("af_heart");
         coordinator.Status.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task WithdrawalReturnsWithoutCallbacksAndJoinsBothOwners(bool dispose)
+    {
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var callbackStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var nativeReleased = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseNative = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var releaseCallback = new ManualResetEventSlim();
+        CancellationTokenRegistration registration = default;
+        var service = new PreparationService
+        {
+            Prepare = async (_, token) =>
+            {
+                registration = token.Register(() =>
+                {
+                    callbackStarted.SetResult();
+                    releaseCallback.Wait(TestContext.Current.CancellationToken);
+                });
+                started.SetResult();
+                await releaseNative.Task;
+                nativeReleased.SetResult();
+            },
+        };
+        using var coordinator = Create(service);
+        coordinator.Request(Voice("af_heart"), static () => true);
+        await started.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var withdrawal = Task.Run(() =>
+        {
+            if (dispose) { coordinator.Dispose(); }
+            else { coordinator.Request(null); }
+        }, TestContext.Current.CancellationToken);
+        await callbackStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        try
+        {
+            await withdrawal.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            coordinator.Status.Should().BeEmpty();
+            coordinator.IsQuiescent.Should().BeFalse();
+            releaseNative.SetResult();
+            await nativeReleased.Task.WaitAsync(TestContext.Current.CancellationToken);
+            coordinator.WaitForQuiescenceAsync().IsCompleted.Should().BeFalse();
+            coordinator.IsQuiescent.Should().BeFalse();
+            service.Voices.Should().Equal("af_heart");
+        }
+        finally
+        {
+            releaseNative.TrySetResult();
+            releaseCallback.Set();
+            await withdrawal;
+            await coordinator.WaitForQuiescenceAsync();
+            await registration.DisposeAsync();
+        }
+        coordinator.IsQuiescent.Should().BeTrue();
+        coordinator.Status.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CallbackFailureCannotInterruptRetirementOrPublishReadiness(bool dispose)
+    {
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var failure = new InvalidOperationException("Cancellation callback failed.");
+        CancellationTokenRegistration registration = default;
+        var logger = new FailureLogger();
+        var service = new PreparationService
+        {
+            Prepare = (_, token) =>
+            {
+                registration = token.Register(() => throw failure);
+                started.SetResult();
+                return release.Task;
+            },
+        };
+        using var coordinator = new SpeechPreparationCoordinator(service, logger);
+        coordinator.Request(Voice("af_heart"), static () => true);
+        await started.Task.WaitAsync(TestContext.Current.CancellationToken);
+        try
+        {
+            Action retire = () =>
+            {
+                if (dispose) { coordinator.Dispose(); }
+                else { coordinator.Request(null); }
+            };
+            retire.Should().NotThrow();
+            coordinator.IsQuiescent.Should().BeFalse();
+            coordinator.WaitForQuiescenceAsync().IsCompleted.Should().BeFalse();
+        }
+        finally
+        {
+            release.TrySetResult();
+            await coordinator.WaitForQuiescenceAsync();
+            await registration.DisposeAsync();
+        }
+        logger.Failure.Should().BeOfType<AggregateException>().Which.InnerExceptions.Should().Contain(failure);
+        coordinator.Status.Should().NotContain("is prepared");
+        if (!dispose) { coordinator.Status.Should().Contain("cancellation failed"); }
+        service.Voices.Should().Equal("af_heart");
+        coordinator.IsQuiescent.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ReplacementWaitsForRetiredCallbacksAndPreservesItsOwnResult(bool fail)
+    {
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var callbackStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var nativeReleased = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseNative = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var releaseCallback = new ManualResetEventSlim();
+        CancellationTokenRegistration registration = default;
+        var logger = new FailureLogger();
+        var service = new PreparationService
+        {
+            Prepare = async (voice, token) =>
+            {
+                if (!string.Equals(voice.Id, "af_heart", StringComparison.Ordinal)) { return; }
+                registration = token.Register(() =>
+                {
+                    callbackStarted.SetResult();
+                    releaseCallback.Wait(TestContext.Current.CancellationToken);
+                    if (fail) { throw new InvalidOperationException("Cancellation callback failed."); }
+                });
+                started.SetResult();
+                await releaseNative.Task;
+                nativeReleased.SetResult();
+            },
+        };
+        using var coordinator = new SpeechPreparationCoordinator(service, logger);
+        coordinator.Request(Voice("af_heart"), static () => true);
+        await started.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var replacement = Task.Run(() => coordinator.Request(Voice("af_sky"), static () => true),
+            TestContext.Current.CancellationToken);
+        await callbackStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        try
+        {
+            await replacement.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            releaseNative.SetResult();
+            await nativeReleased.Task.WaitAsync(TestContext.Current.CancellationToken);
+            coordinator.Status.Should().Be("Preparing selected speech voice...");
+            coordinator.IsQuiescent.Should().BeFalse();
+            service.Voices.Should().Equal("af_heart");
+        }
+        finally
+        {
+            releaseNative.TrySetResult();
+            releaseCallback.Set();
+            await replacement;
+            await coordinator.WaitForQuiescenceAsync();
+            await registration.DisposeAsync();
+        }
+        service.Voices.Should().Equal("af_heart", "af_sky");
+        coordinator.Status.Should().Be("Selected speech voice is prepared.");
+        (logger.Failure is AggregateException).Should().Be(fail);
+        coordinator.IsQuiescent.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task FatalPreparationFailurePropagatesAfterOwnedRetirement()
+    {
+#pragma warning disable CA2201 // Inject the fatal boundary deterministically without inducing real memory pressure.
+        var failure = new OutOfMemoryException("Simulated fatal preparation failure.");
+#pragma warning restore CA2201
+        var logger = new FailureLogger();
+        var service = new PreparationService { Prepare = (_, _) => Task.FromException(failure) };
+        using var coordinator = new SpeechPreparationCoordinator(service, logger);
+        coordinator.Request(Voice("af_heart"), static () => true);
+
+        Func<Task> join = coordinator.WaitForQuiescenceAsync;
+        (await join.Should().ThrowAsync<OutOfMemoryException>()).Which.Should().BeSameAs(failure);
+        coordinator.IsQuiescent.Should().BeTrue();
+        coordinator.Status.Should().BeEmpty();
+        logger.Failure.Should().BeNull();
+        service.Voices.Should().Equal("af_heart");
     }
 
     [Theory]

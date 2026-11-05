@@ -11,7 +11,7 @@ public sealed partial class SpeechPreparationCoordinator(
 {
     private readonly Lock gate = new();
     private Task pending = Task.CompletedTask;
-    private CancellationTokenSource? cancellation;
+    private Preparation? cancellation;
     private SpeechVoice? requestedVoice;
     private long revision;
     private bool disposed;
@@ -33,19 +33,19 @@ public sealed partial class SpeechPreparationCoordinator(
         {
             if (disposed) { return; }
             if (requestedVoice == voice && (voice is not null || status.Length == 0)) { return; }
-            cancellation?.Cancel();
             requestedVoice = voice;
             var currentRevision = ++revision;
+            if (cancellation is not null) { CancelPreparation(cancellation); }
             status = voice is null ? string.Empty : "Preparing selected speech voice...";
             if (voice is not null)
             {
-                var source = new CancellationTokenSource();
-                cancellation = source;
+                var preparation = new Preparation();
+                cancellation = preparation;
                 var previous = pending;
                 var selected = voice;
                 var begin = HostActivity.CaptureContinuation(HostActivityLayer.Application, HostOperation.Runtime);
 #pragma warning disable VSTHRD003 // The worker joins the prior owned task without using the caller's synchronization context.
-                pending = Task.Run(() => PrepareAsync(previous, selected, source, currentRevision, begin, eligibility));
+                pending = Task.Run(() => PrepareAsync(previous, selected, preparation, currentRevision, begin, eligibility));
 #pragma warning restore VSTHRD003
             }
         }
@@ -66,14 +66,29 @@ public sealed partial class SpeechPreparationCoordinator(
             if (disposed) { return; }
             disposed = true;
             revision++;
-            cancellation?.Cancel();
+            requestedVoice = null;
+            status = string.Empty;
+            if (cancellation is not null) { CancelPreparation(cancellation); }
         }
     }
 
-    private async Task PrepareAsync(Task previous, SpeechVoice voice, CancellationTokenSource source,
+    private void CancelPreparation(Preparation preparation)
+    {
+        lock (gate)
+        {
+            preparation.RetirementRevision = revision;
+            if (!preparation.Source.IsCancellationRequested)
+            {
+                preparation.Callbacks = preparation.Source.CancelAsync();
+            }
+        }
+    }
+
+    private async Task PrepareAsync(Task previous, SpeechVoice voice, Preparation preparation,
         long currentRevision, Func<HostActivity> begin, Func<bool> remainsEligible)
     {
         using var activity = begin();
+        var source = preparation.Source;
         var result = string.Empty;
         var failed = false;
         try
@@ -81,10 +96,10 @@ public sealed partial class SpeechPreparationCoordinator(
 #pragma warning disable VSTHRD003 // Join the previously owned native preparation before starting its replacement.
             await previous.ConfigureAwait(false);
 #pragma warning restore VSTHRD003
-            if (!remainsEligible()) { await source.CancelAsync().ConfigureAwait(false); }
+            if (!remainsEligible()) { CancelPreparation(preparation); }
             source.Token.ThrowIfCancellationRequested();
             await service.PrepareAsync(voice, source.Token).ConfigureAwait(false);
-            if (!remainsEligible()) { await source.CancelAsync().ConfigureAwait(false); }
+            if (!remainsEligible()) { CancelPreparation(preparation); }
             source.Token.ThrowIfCancellationRequested();
             result = "Selected speech voice is prepared.";
             activity.Complete(HostOperationOutcome.Completed);
@@ -103,12 +118,32 @@ public sealed partial class SpeechPreparationCoordinator(
         }
         finally
         {
+            Task callbacks;
+            lock (gate)
+            {
+                if (ReferenceEquals(cancellation, preparation)) { cancellation = null; }
+                callbacks = preparation.Callbacks;
+            }
+            var cancellationFailed = false;
+            try
+            {
+#pragma warning disable VSTHRD003 // Joins this preparation's owned cancellation callbacks before disposal, replacement or shutdown quiescence.
+                await callbacks.ConfigureAwait(false);
+#pragma warning restore VSTHRD003
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                PreparationCancellationFailed(exception);
+                result = "Speech preparation cancellation failed. Native work and cancellation callbacks have finished; refresh readiness to retry.";
+                failed = cancellationFailed = true;
+                activity.Complete(HostOperationOutcome.Failed);
+            }
+            preparation.Dispose();
             bool notify;
             lock (gate)
             {
-                if (ReferenceEquals(cancellation, source)) { cancellation = null; }
-                source.Dispose();
-                notify = !disposed && currentRevision == revision;
+                notify = !disposed && (currentRevision == revision
+                    || cancellationFailed && preparation.RetirementRevision == revision && requestedVoice is null);
                 if (notify)
                 {
                     status = result;
@@ -117,5 +152,13 @@ public sealed partial class SpeechPreparationCoordinator(
             }
             if (notify) { Changed?.Invoke(this, EventArgs.Empty); }
         }
+    }
+
+    private sealed class Preparation : IDisposable
+    {
+        internal CancellationTokenSource Source { get; } = new();
+        internal Task Callbacks { get; set; } = Task.CompletedTask;
+        internal long RetirementRevision { get; set; }
+        public void Dispose() => Source.Dispose();
     }
 }

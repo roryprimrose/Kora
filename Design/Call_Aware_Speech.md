@@ -207,6 +207,10 @@ The [service regressions](../tests/Kora.Application.UnitTests/Communication/Call
 
 ## Ordinary Speech Stop and Recovery
 
+The [selected local voice preparation owner](../src/Kora.Application/Voice/SpeechPreparationCoordinator.cs) also retires readiness immediately on withdrawal or disposal. Cancellation callbacks run asynchronously; replacement preparation and shutdown quiescence wait for both those callbacks and the original native preparation. Callback failures are explicitly diagnosed after that join and cannot restore retired readiness.
+
+The [deterministic preparation regressions](../tests/Kora.Application.UnitTests/Voice/SpeechPreparationCoordinatorTests.cs) hold native work and cancellation callbacks independently and exercise throwing callbacks. This repairs existing voice-selection, call/privacy withdrawal and shutdown ownership; it adds no microphone, playback, consent, provider availability or E/Q qualification.
+
 Ordinary responses and voice previews retain **Stop speaking** and active output
 state while the provider reports playback active, even if its speech operation
 has returned, failed or been cancelled. Returning from Stop is not a silence

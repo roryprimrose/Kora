@@ -1,7 +1,9 @@
 using System.Text.Json;
 using AwesomeAssertions;
+using Kora.Application.Configuration;
 using Kora.Core.Hosting;
 using Kora.Core.Memory;
+using Kora.Core.Providers;
 using Kora.Core.Storage;
 using Kora.Windows.IntegrationTests.Storage;
 
@@ -19,8 +21,10 @@ public sealed partial class SessionsConversationTests
             using var f = new InteractionStorageFixture();
             await f.InitializeAsync();
             await WindowsSqliteConversationTests.FinishInitial(f);
+            new LocalProviderProfilePreferences(f.Paths).Save(new(ProviderService.Local, [HandoffCatalogue.Local]));
             var adapter = qualified ? new MemoryAnswerAdapter() : null;
-            await using var composition = new Composition(f, adapter: adapter, memoryContext: true);
+            await using var composition = new Composition(f, adapter: adapter, memoryContext: true,
+                localRequestCatalogue: new HandoffCatalogue(f));
             var model = composition.Model;
             var window = new SessionsWindow(model);
             window.Show();
@@ -60,7 +64,13 @@ public sealed partial class SessionsConversationTests
                 await model.ConfirmMemoryContextAsync();
                 var retained = (await f.Store.ReadConversationPageAsync(later.Authority.SessionId, null, 25, f.Token)).Messages.Single();
                 retained.Body.Should().Be("Explain the approved preference.");
-                retained.SubmittedContext.Should().BeNull("device-profile memory is outside the same-session provenance subset");
+                if (qualified)
+                {
+                    retained.SubmittedContext!.ProfileMemorySources.Should().ContainSingle()
+                        .Which.Should().Be(new Kora.Core.Conversation.SubmittedProfileMemorySource(
+                            new(memory.Id), new(memory.Revision), new(memory.Scope.Identity)));
+                }
+                else { retained.SubmittedContext.Should().BeNull("no adapter handoff occurred"); }
                 retained.AssistantResponse?.Body.Should().Be(qualified ? "Answer from reviewed session fact." : null);
                 model.MemoryContextOutcome.Should().Contain(qualified ? "ASSISTANT" : "HOST Unavailable");
                 await model.ConfirmMemoryContextAsync();

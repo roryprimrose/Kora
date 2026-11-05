@@ -33,6 +33,16 @@ when a recognized root has not yet been created, including when several parent
 directories are absent. External creation then refreshes the same catalogue
 without a restart or configuration toggle. Directory rename, move and deletion
 within discovery depth also refresh it, including dotted directory names.
+An already-existing registered directory also has a nonrecursive parent
+membership watch: renaming it away withdraws its sources, and recreation at
+the original registered path rebinds the content watches and refreshes the
+catalogue. The moved sibling is not followed or registered. Replacement
+definitions enter the same revision/review pipeline, including when their
+bytes match a previously withdrawn source; no old approval is restored.
+An observed root removal retires the aggregate file-backed snapshot before
+rediscovery, as source unregistration does, even if debounce coalesces the
+removal and recreation. File-backed definitions need fresh reviewed use;
+bundled definitions remain available.
 Notifications are filtered by exact source ancestry, file patterns and existing
 depth bounds before discovery; watching an ancestor grants no broader content
 read or source registration. Reparse exclusions, file budgets, debounce and

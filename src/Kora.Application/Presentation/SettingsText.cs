@@ -109,7 +109,10 @@ internal static class SettingsText
         return $"Default service: {Service(service)}. "
             + (state.Effective is { } profile
                 ? Describe(profile)
-                : "No model is ready to use with these settings.")
+                : "No model is ready to use with these settings."
+                    + (state.Desired?.For(service) is { } retained
+                        ? " Saved choice retained: " + Describe(retained) + " Refresh or explicitly select another model; no replacement was made."
+                        : " Choose a current advertised model when the service is available."))
             + " " + Source(state.Saved is null ? "default" : "saved");
     }
 

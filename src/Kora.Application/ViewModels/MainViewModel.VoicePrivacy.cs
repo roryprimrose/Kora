@@ -380,7 +380,11 @@ public sealed partial class MainViewModel
         if (responseModeConfiguration is not null) { responseModeConfiguration.Changed -= OnResponseModeConfigurationChanged; }
         if (conversationExecution is not null) { conversationExecution.Changed -= OnConversationExecutionChanged; }
         if (providerModeConfiguration is not null) { providerModeConfiguration.Changed -= OnProviderModeConfigurationChanged; }
-        if (providerProfileConfiguration is not null) { providerProfileConfiguration.Changed -= OnProviderProfileConfigurationChanged; }
+        if (providerProfileConfiguration is not null)
+        {
+            providerProfileConfiguration.Changed -= OnProviderProfileConfigurationChanged;
+            providerProfileConfiguration.SuggestionChanged -= OnProviderSuggestionChanged;
+        }
         if (inCallFeedbackConfiguration is not null) { inCallFeedbackConfiguration.Changed -= OnInCallFeedbackChanged; }
         if (speechTextConfiguration is not null) { speechTextConfiguration.Changed -= OnSpeechTextConfigurationChanged; }
         if (foregroundPtt is not null) { foregroundPtt.Changed -= OnForegroundPttChanged; }

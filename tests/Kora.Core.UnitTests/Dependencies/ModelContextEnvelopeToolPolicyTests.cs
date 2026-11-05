@@ -13,6 +13,7 @@ public sealed class ModelContextEnvelopeToolPolicyTests
     [Theory]
     [InlineData(ModelToolMode.ReadOnly)]
     [InlineData(ModelToolMode.None)]
+    [InlineData(ModelToolMode.ProviderSettings)]
     public void SerializeUsesTheSoleExplicitEnvelopeToolPolicy(ModelToolMode toolMode)
     {
         var request = HostRequest.Create(RequestOrigin.LocalUi);
@@ -23,7 +24,8 @@ public sealed class ModelContextEnvelopeToolPolicyTests
         envelope.ToolMode.Should().Be(toolMode);
         json.RootElement.GetProperty("ToolMode").GetInt32().Should().Be((int)toolMode);
         json.RootElement.GetProperty("Tools").GetArrayLength()
-            .Should().Be(toolMode == ModelToolMode.ReadOnly ? ReadOnlyCapabilityCatalog.Descriptors.Count : 0);
+            .Should().Be(toolMode == ModelToolMode.ReadOnly ? ReadOnlyCapabilityCatalog.Descriptors.Count
+                : toolMode == ModelToolMode.ProviderSettings ? ProviderSettingsTools.Descriptors.Count : 0);
         envelope.RequireCompleteInputLimit();
     }
 

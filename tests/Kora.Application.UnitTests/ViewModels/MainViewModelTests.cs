@@ -8930,7 +8930,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 webPageGet,
                 ArtifactDirectoryConfiguration,
                 McpServerConfiguration,
-                enableProviderProfiles ? new ProviderProfileConfigurationService(ProfilePreferences, ProfileCatalogue, OutputAdmission, Audit, ProfileTime) : null,
+                enableProviderProfiles ? AppProviderConfiguration = new ProviderProfileConfigurationService(ProfilePreferences, ProfileCatalogue, OutputAdmission, Audit, ProfileTime) : null,
                 enableAuditImpact ? new AuditImpactPreviewService(ImpactReader, AuditPreferences, AuditConfiguration!) : null,
                 enableSessionRetentionPlanner ? new SessionRetentionPlannerService(SessionPlanReader, SessionRetentionConfiguration!) : null,
                 speechPreparation: enableSpeechPreparation ? SpeechPreparation : null,
@@ -8975,6 +8975,7 @@ public sealed partial class MainViewModelTests : IDisposable
         public CaptionPreferences CaptionPreferences { get; } = new();
         public FakeProviderPreferences ProviderPreferences { get; } = new();
         internal Kora.Application.UnitTests.Configuration.ProviderProfileConfigurationFixture.ProfilePreferences ProfilePreferences { get; } = new();
+        internal ProviderProfileConfigurationService? AppProviderConfiguration { get; }
         internal Kora.Application.UnitTests.Configuration.ProviderProfileConfigurationFixture.ProfileCatalogue ProfileCatalogue { get; } = new();
         internal Kora.Application.UnitTests.Configuration.ProviderProfileConfigurationFixture.ProfileTime ProfileTime { get; } = new();
         public FakePreapprovedUriConfiguration PreapprovedUris { get; } = new();

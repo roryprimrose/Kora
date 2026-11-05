@@ -6,6 +6,8 @@ using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Providers;
+using Kora.Core.Tools;
+using Kora.Tools.Providers;
 
 namespace Kora.Application.Configuration;
 
@@ -29,8 +31,50 @@ public sealed class ProviderProfileConfigurationService(
     private bool held = true;
     private bool applying;
     private string? recovery = "Inspect provider profiles in the owning unlocked host.";
+    private ProviderSettingsSuggestion? suggestion;
 
     public event EventHandler? Changed;
+    public event EventHandler? SuggestionChanged;
+    public ProviderProfilePreferences? Suggested
+    {
+        get { lock (gate) { return suggestion is { } current && time.GetUtcNow() < current.ExpiresAt ? current.Proposed : null; } }
+    }
+
+    public void DiscardSuggestion()
+    {
+        lock (gate) { suggestion = null; }
+        SuggestionChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    internal void WithdrawSuggestion(HostRequest source)
+    {
+        lock (gate)
+        {
+            if (suggestion is null || !ReferenceEquals(suggestion.Source, source)) { return; }
+            suggestion = null;
+        }
+        SuggestionChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public ProviderProfileChoice CreateSuggestionChoice()
+    {
+        lock (gate)
+        {
+            RequireDraft();
+            var current = suggestion;
+            if (current is null || time.GetUtcNow() >= current.ExpiresAt || !Same(current.Base, saved)
+                || current.Input.Tuple is { } tuple
+                    && (ProviderProfileRules.Resolve(tuple, observation!.For(tuple.Service), time.GetUtcNow()) is null
+                        || tuple.Service == ProviderService.Local && observation.Installation != LocalProviderInstallation.Installed))
+            { throw new InvalidOperationException("The provider suggestion expired or its saved/account/catalogue state changed. Request and review a new suggestion."); }
+            var choice = new ProviderProfileChoice(current.Proposed, revision, owner, session!, origin, remainsAdmitted!,
+                current.Input.Tuple, baseTuple: saved?.For(current.Input.Service), requiresConfirmation: true);
+            Issue(choice);
+            suggestion = null;
+            SuggestionChanged?.Invoke(this, EventArgs.Empty);
+            return choice;
+        }
+    }
     public IReadOnlyList<ProviderProfileChoice> Choices { get { lock (gate) { return choices; } } }
     public IReadOnlyList<ProviderCatalogueModel> Models
     {
@@ -78,7 +122,7 @@ public sealed class ProviderProfileConfigurationService(
                 : desired!.Service == ProviderService.Unset ? "Unset: explicitly choose a service"
                 : effective is not null ? "Catalogue tuple resolved; runtime qualification and egress are independent"
                 : observation!.For(desired.Service).Status == ProviderCatalogueStatus.AuthenticationRequired
-                    ? "AuthenticationRequired: no qualified sign-in action is composed"
+                    ? "AuthenticationRequired: configure the service account in native Settings; independent approval gates still apply"
                     : "Unavailable: desired service/tuple retained; no current complete account-bound catalogue";
             return new(revision, saved, desired, effective, status, recovery,
                 observation?.Installation ?? LocalProviderInstallation.Unknown, !held);
@@ -88,15 +132,17 @@ public sealed class ProviderProfileConfigurationService(
     private static bool Same(ProviderProfilePreferences? left, ProviderProfilePreferences? right) => string.Equals(left?.Serialize(), right?.Serialize(), StringComparison.Ordinal);
     private ProviderProfilePreferences? Read(bool readBack = false) => readBack ? preferences.ReadBack() : preferences.Load();
     private static ProviderService Initial(LocalProviderInstallation installation) =>
-        installation == LocalProviderInstallation.Installed ? ProviderService.Local : ProviderService.Unset;
+        ProviderProfileRules.InitialService(installation);
 
-    public async Task RefreshAsync(RequestOrigin requestOrigin, Func<bool> eligible, CancellationToken token)
+    public async Task RefreshAsync(RequestOrigin requestOrigin, Func<bool> eligible, CancellationToken token,
+        ProviderService? refreshService = null)
     {
         Enter();
         var expected = 0L;
         try
         {
-            await admission.RunObservedAsync(requestOrigin, eligible, catalogue.ObserveAsync, (request, authority, current) =>
+            await admission.RunObservedAsync(requestOrigin, eligible,
+                cancellation => ObserveCatalogueAsync(refreshService, eligible, cancellation), (request, authority, current) =>
             {
                 lock (gate)
                 {
@@ -114,6 +160,7 @@ public sealed class ProviderProfileConfigurationService(
                     issued.UnionWith(choices);
                     return true;
                 }
+
             }, token).ConfigureAwait(false);
             lock (gate)
             {
@@ -125,6 +172,66 @@ public sealed class ProviderProfileConfigurationService(
             }
         }
         catch { HoldUnavailable(); throw; }
+        finally { Exit(); }
+    }
+
+    private Task<ProviderCatalogueObservation> ObserveCatalogueAsync(ProviderService? refreshService,
+        Func<bool> eligible, CancellationToken token) =>
+        refreshService is null or ProviderService.Unset ? catalogue.ObserveAsync(token)
+            : new ProviderRefresh().ExecuteAsync(catalogue, refreshService.Value, eligible, token);
+
+    internal async Task<CapabilityReply> InvokeToolAsync(string id, string input, Func<bool> eligible, CancellationToken token)
+    {
+        var descriptor = ProviderSettingsTools.FindExact(id);
+        if (descriptor is null) { return new(CapabilityOutcome.Denied, "unknown-provider-settings-tool"); }
+        var parsed = CapabilityInputPolicy.Read(descriptor, input);
+        if (parsed.DenialReason is { } denial) { return new(CapabilityOutcome.Denied, denial); }
+        var issuer = HostActivity.RequireCurrent();
+        if (issuer.Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
+            || issuer.Request.InvocationId is not null || !eligible())
+        { return new(CapabilityOutcome.Denied, "original-private-provider-settings-input-required"); }
+        Enter();
+        try
+        {
+            var before = Read();
+            bool Current() => eligible() && !token.IsCancellationRequested && !issuer.Activity!.IsStopped
+                && issuer.Outcome == HostOperationOutcome.Unknown && Same(before, Read());
+            var observed = await ObserveCatalogueAsync(id is ProviderSettingsTools.Refresh ? parsed.ProviderSettings!.Service : null,
+                Current, token).ConfigureAwait(false);
+            token.ThrowIfCancellationRequested();
+            if (!Current()) { return new(CapabilityOutcome.Denied, "provider-settings-admission-changed"); }
+            var now = time.GetUtcNow();
+            var snapshot = new ProviderSettingsGet().Execute(before, observed, now);
+            var request = parsed.ProviderSettings;
+            var result = id switch
+            {
+                ProviderSettingsTools.Get => new ProviderSettingsResult(Settings: snapshot),
+                ProviderSettingsTools.Models => new(Models: new ProviderModelsList().Execute(observed, request!, now)),
+                ProviderSettingsTools.Model => new(Model: new ProviderModelGet().Execute(observed, request!, now)),
+                ProviderSettingsTools.Refresh => new(Service: snapshot.Services.Single(item => item.Service == request!.Service)),
+                _ => new(Proposal: new ProviderSettingsPropose().Execute(snapshot.Desired, observed, request!, now)),
+            };
+            if (!Current()) { return new(CapabilityOutcome.Denied, "provider-settings-admission-changed"); }
+            var reply = new CapabilityReply(CapabilityOutcome.Succeeded, ProviderSettingsTools.ResultReason, ProviderSettings: result);
+            if (!CapabilityReplyWire.IsWithinLimit(reply)) { return new(CapabilityOutcome.Failed, "provider-settings-output-limit-exceeded"); }
+            if (result.Proposal is { } proposed)
+            {
+                var pending = new ProviderSettingsSuggestion(proposed, before, request!, now.AddMinutes(5), issuer.Request);
+                lock (gate)
+                {
+                    if (!Current()) { return new(CapabilityOutcome.Denied, "provider-settings-admission-changed"); }
+                    suggestion = pending;
+                }
+                SuggestionChanged?.Invoke(this, EventArgs.Empty);
+                if (!Current())
+                {
+                    lock (gate) { if (ReferenceEquals(suggestion, pending)) { suggestion = null; } }
+                    SuggestionChanged?.Invoke(this, EventArgs.Empty);
+                    return new(CapabilityOutcome.Denied, "provider-settings-admission-changed");
+                }
+            }
+            return reply;
+        }
         finally { Exit(); }
     }
 

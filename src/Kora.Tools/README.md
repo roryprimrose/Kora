@@ -23,6 +23,7 @@ helpers and brokers are not separately advertised actions.
 | [Capabilities](Capabilities) | [CapabilitiesList](Capabilities/CapabilitiesList.cs), [CapabilitiesGet](Capabilities/CapabilitiesGet.cs) | [ReadOnlyPage](Capabilities/ReadOnlyPage.cs) and Core descriptor catalogue. |
 | [Readiness](Readiness) | [ReadinessGet](Readiness/ReadinessGet.cs) | [RecordedDependencyObservation](Readiness/RecordedDependencyObservation.cs). |
 | [Runtime](Runtime) | [RuntimeList](Runtime/RuntimeList.cs), [RuntimeGetStatus](Runtime/RuntimeGetStatus.cs) | [RecordedRuntimeObservation](Runtime/RecordedRuntimeObservation.cs), reusing the readiness projection. |
+| [Providers](Providers) | `ProviderSettingsGet`, `ProviderModelsList`, `ProviderModelGet`, `ProviderRefresh`, `ProviderSettingsPropose` | Core catalogue/profile rules; Application owns private admission, original-user review and audited preference writes. Refresh uses the independently approved platform catalogue seam. |
 | [Clipboard](Clipboard) | [ClipboardRead](Clipboard/ClipboardRead.cs), [ClipboardReuse](Clipboard/ClipboardReuse.cs), [ClipboardRevoke](Clipboard/ClipboardRevoke.cs), [ClipboardExplain](Clipboard/ClipboardExplain.cs) | [ClipboardSnapshotBroker](Clipboard/ClipboardSnapshotBroker.cs) owns the snapshot and lifecycle policy; Application owns permission-granted local explanation. |
 | [Files](Files) | [LocalFilePreview](Files/LocalFilePreview.cs), [LocalFileSearch](Files/LocalFileSearch.cs) | The existing preview owns admission/revocation and quiescence; Core `ILocalFileRetrieval` / `LocalFileLexicalRetrieval` own the bounded deterministic lexical policy. |
 | [Network](Network) | `WebPageGet`, `PreapprovedUriList`, `PreapprovedUriAdd`, `PreapprovedUriRemove`, `PreapprovedUriClear` | `WebPageGet` owns bounded redirect-aware retrieval over a pinned-address transport. Core owns URI/network validation and matching; Application owns configuration, native routing and authorization integration. |
@@ -55,6 +56,15 @@ This is not a public callable SDK.
 
 The [closed queue profiles](../../Design/Work_Management.md#delivered-closed-targeted-metadata-reads---2026-10-12) invoke these same actions through freshly admitted Native registry callers. Four inputs remain `{}`; one exact current descriptor target or fixed recorded `local.inference` uses typed `CapabilityIdInput`.
 Single-record results share the registry wire/shape validation. No probe, inference, arbitrary parameters or model tool-loop qualification is added.
+
+### Provider settings
+
+The [provider settings contract](../../Design/Internal_Model_Tools.md#provider-settings-observations-proposals-and-explicit-refresh)
+defines five additional local-model tools, separate from the unchanged six-ID
+registry/retained observation format. Actions consume typed host snapshots or the
+explicit refresh seam; they cannot authenticate, persist settings, run inference
+or invent a replacement. Proposals require fresh original-user review and separate
+confirmation through the existing profile owner. See the [complete interaction](../../docs/commands.md#inspect-or-change-app-provider-profiles).
 
 ### R07 clipboard actions
 

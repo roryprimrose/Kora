@@ -408,11 +408,11 @@ public sealed partial class ModelTurnHostTests
 
     private sealed partial class Fixture : Microsoft.Extensions.Logging.ILogger<BoundedModelTurnAdapter>
     {
-        internal ModelTurnHost LoopHost(IModelTurnAdapter adapter)
+        internal ModelTurnHost LoopHost(IModelTurnAdapter adapter, bool providerSettings = false)
         {
             var modelHost = new ModelTurnHost(this, this, this, registry, this, this, Time,
                 [new(ModelProviderSelection.OllamaCandidate, Gates(ModelProviderSelection.OllamaCandidate),
-                    Time.Now.AddSeconds(30), adapter)]);
+                    Time.Now.AddSeconds(30), adapter)], providerProfileConfiguration: providerSettings ? ProfileConfiguration : null);
             ownedHosts.Add(modelHost);
             return modelHost;
         }

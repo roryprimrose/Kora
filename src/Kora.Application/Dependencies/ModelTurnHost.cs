@@ -126,6 +126,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             else if (context!.ToolMode == ModelToolMode.HostedClarification
                 && selection.Provider != ModelProviderIdentity.Claude)
             { result = Finish(ModelTurnOutcome.Denied, ModelTurnReason.InvalidPolicy, provenance); }
+            else if (context.ToolMode == ModelToolMode.ProviderSettings && selection.Provider != ModelProviderIdentity.Ollama)
+            { result = Finish(ModelTurnOutcome.Denied, ModelTurnReason.InvalidPolicy, provenance); }
             else if (!Eligible(revision))
             {
                 result = Finish(ModelTurnOutcome.Denied, ModelTurnReason.HostAdmissionClosed, provenance);
@@ -368,7 +370,13 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             return new(CapabilityOutcome.Denied, "tool-call-budget-exhausted");
         }
         turn.PublishExecutionStep?.Invoke(Kora.Core.Conversation.ConversationExecutionStep.ReadingObservation);
-        var reply = settingDiscoveries.TryGetValue(turn, out var settings)
+        var reply = ProviderSettingsTools.FindExact(id) is not null
+            ? turn.Provenance.Selection.Provider == ModelProviderIdentity.Ollama && providerProfileConfiguration is not null
+                ? await providerProfileConfiguration.InvokeToolAsync(id, input,
+                    () => !disposed && turn.IsRunning && host.IsCurrentHost && access.CanControl && access.CanInspect
+                        && access.ControlRevision == turn.ControlRevision, linked.Token).ConfigureAwait(false)
+                : new(CapabilityOutcome.Denied, "local-provider-settings-workflow-required")
+            : settingDiscoveries.TryGetValue(turn, out var settings)
             ? SettingsDiscoveryTools.Read(settings.Observations, id, input)
             : customizationDiscoveries.TryGetValue(turn, out var customizations)
             ? await customizations.Invoke(id, input, linked.Token).ConfigureAwait(false)
@@ -508,6 +516,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
     private ModelTurnResult Finish(ModelTurnOutcome outcome, ModelTurnReason reason,
         ModelTurnProvenance? provenance = null, LocalModelResponse? response = null)
     {
+        if (outcome != ModelTurnOutcome.Succeeded && provenance is not null)
+        { providerProfileConfiguration?.WithdrawSuggestion(provenance.Request); }
         Result(logger, outcome, reason, provenance?.Turn.Value, provenance?.Selection.Provider,
             provenance?.Selection.Model.Value, provenance?.Selection.Revision.Value);
         return new(outcome, reason, provenance, response);

@@ -150,9 +150,13 @@ public sealed partial class SessionConversationService(
         pending?.Output?.Bind(request);
         localRequestProfile?.Bind(request);
         var now = time.GetUtcNow();
-        var context = createContext is null ? new ModelContextEnvelope(request, Policy, body, [], now,
+        var providerSettings = createContext is null && prepareContext is null && !copilot && !claude
+            && localRequestProfile is null && !retainAgentObservations && Kora.Core.Tools.ProviderSettingsTools.IsExplicitRequest(body);
+        if (providerSettings) { choice = ModelTurnChoice.Local; }
+        var context = createContext is null ? new ModelContextEnvelope(request,
+            providerSettings ? Policy + " " + Kora.Core.Tools.ProviderSettingsTools.ModelPolicy : Policy, body, [], now,
             copilot || claude ? now.Add(HostedTurnAuthorization.MaximumDuration) : now.AddSeconds(15),
-            claude ? ModelToolMode.None : ModelToolMode.ReadOnly)
+            providerSettings ? ModelToolMode.ProviderSettings : claude ? ModelToolMode.None : ModelToolMode.ReadOnly)
             : createContext(request, now);
         if (pending?.Output is not null)
         {

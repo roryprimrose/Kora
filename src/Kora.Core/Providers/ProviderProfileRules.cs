@@ -5,6 +5,9 @@ namespace Kora.Core.Providers;
 
 public static class ProviderProfileRules
 {
+    public static ProviderService InitialService(LocalProviderInstallation installation) =>
+        installation == LocalProviderInstallation.Installed ? ProviderService.Local : ProviderService.Unset;
+
     public static ProviderProfileTuple ReplaceField(ProviderProfileTuple tuple, ProviderProfileField field, ProviderChoiceId id)
     {
         ValidateTuple(tuple);

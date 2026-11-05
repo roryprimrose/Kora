@@ -39,6 +39,59 @@ deployment mode. Runtime health is not permission or R02 qualification;
 ToolLoopQualified remains false. No settings/evidence/session/side-effect entries
 are added, and existing exact lock/power behavior is unchanged.
 
+### Provider settings observations, proposals and explicit refresh
+
+The approved outcome is shared voice/native/model control of AI settings. The concrete
+interaction is inspect service availability, list/select a current exact model and
+its dependent options, explicitly refresh, then review and separately confirm a
+proposed app-default change. This is host-owned because account/qualification
+catalogues, preference validation, original-user approval and audited persistence
+must share authority; definitions or external tools cannot own those boundaries.
+
+[ProviderSettingsTools](../src/Kora.Core/Tools/ProviderSettingsTools.cs) adds five
+local-model callbacks in the explicit host-selected `ProviderSettings` mode:
+`providers.get_settings`, `providers.list_models`, `providers.get_model`,
+`providers.refresh`, and `providers.propose_settings`. The original six-ID
+registry, management lane, constrained/hosted observation selection and retained
+observation format remain unchanged. Other tool modes and hosted callers cannot
+dispatch provider callbacks. Original ordinary six-tool framing is unchanged.
+An original Session request beginning `ask about AI service settings: ` selects
+this local-only mode and its bounded provider policy; missing local readiness
+remains unavailable, never a hosted/default-service fallback. This is not
+provider enablement or broader settings-reader access.
+
+Portable [actions](../src/Kora.Tools/Providers) consume typed snapshots and shared
+provider rules. The [profile owner](../src/Kora.Application/Configuration/ProviderProfileConfigurationService.cs)
+validates original live private input, unchanged preferences, cancellation and
+host continuation before disclosing results or publishing an inert proposal.
+Output contains opaque account binding and advertised model metadata, never
+credentials, login identity or source/user content. Strict 1,024-byte input,
+six-record pages and 4,096-byte complete results reject unknown/duplicate fields,
+partial tuples, cross-service binding and oversized output without repair.
+
+Proposals cannot write preferences. One volatile five-minute suggestion is
+displayed with its exact proposed service/tuple. A fresh original native/activated
+review checks the unchanged saved base and exact account/catalogue/options;
+separate host-issued confirmation uses the existing audited atomic writer.
+Cancellation/expiry/changed state writes nothing. Other service tuples and
+session overrides remain unchanged.
+
+[Explicit refresh](../src/Kora.Core/Providers/IProviderCapabilityRefresh.cs) is
+separate from cached observation. It never silently alters a saved choice.
+Native Settings targets its selected service; `refresh providers.app.profile`
+targets the desired service. Ollama revalidates independent runtime qualification.
+Copilot/Claude re-query their bounded Models APIs only with an already configured,
+still-current approved volatile credential; unavailable/expired auth requires
+native recovery. No ambient credentials, sign-in, inference, model acquisition,
+runtime enablement, automatic retry or fallback is added. Every refreshed hosted
+snapshot has fresh revision binding; saved tuples are retained but must be
+explicitly selected again when that binding changes.
+
+[Commands and recovery](../docs/commands.md#inspect-or-change-app-provider-profiles)
+define the exact UI/voice/tool interaction. Deterministic fake-provider tests
+prove operation completion and forbidden effects; shipped unavailable deployment
+approval sources remain closed, not qualified by these tests.
+
 ### Reviewed Active-session discovery - 2026-10-26
 
 The separate [session discovery catalogue](../src/Kora.Core/Tools/SessionDiscoveryTool.cs)

@@ -13,4 +13,5 @@ public sealed record CapabilityReply(
     Kora.Core.Mcp.McpModelResult? Mcp = null,
     SessionDescriptorPage? Sessions = null,
     CustomizationMetadataPage? Customizations = null,
-    RegisteredSettingsResult? Settings = null);
+    RegisteredSettingsResult? Settings = null,
+    ProviderSettingsResult? ProviderSettings = null);

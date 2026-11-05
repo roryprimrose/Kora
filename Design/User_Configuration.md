@@ -1652,7 +1652,11 @@ The [bounded canonical provider increment](Model_Providers_Memory_And_Knowledge.
 Native and exact `providers.app.model`, `.reasoning` and `.context` edits review one field while retaining the saved complete tuple's other exact IDs. Separate host-issued confirmation uses the existing audited atomic writer. Compatible model edits retain reasoning/context; missing, stale or incompatible bases require complete tuple draft/save. No defaults, partial persistence or field-only resets occur. Individual edits leave the app default and session overrides unchanged.
 
 No available model is invented when a service catalogue is unavailable. Desired service can be saved unresolved; saved and effective states remain separate. Unknown/stale/expired/cross-service/account-changed tuples fail closed, without nearby values or local/hosted fallback.
-Sign-in is visibly Unavailable without a qualified adapter; no credentials, auth/acquisition/network/generation calls or egress authority are added.
+Sign-in remains unavailable without independent deployment/account approval; credentials are accepted only in the native secure channel. Settings displays the retained saved tuple and selected-service recovery status.
+
+The [provider settings tools and refresh contract](Internal_Model_Tools.md#provider-settings-observations-proposals-and-explicit-refresh) completes native/activated-voice refresh and local-model inspection/proposals. Explicit refresh revalidates the selected native service (the desired service for exact commands), and can fetch a complete fresh hosted catalogue only with an existing current approved volatile account. No credential discovery, sign-in, model acquisition, inference or fallback is authorized by refresh. A changed revision requires explicit reselection, never silent rebinding.
+
+Tool suggestions are volatile complete app-default proposals. Native **Review AI service suggestion** or `review providers.app.suggestion` opens a new original-user preview; separate existing confirmation uses the audited atomic writer. Cancel, expiry, changed saved state or catalogue/account drift cannot write. Tools cannot confirm their own suggestions, affect session overrides or supply new runtime/egress authority.
 
 Controls expose exact advertised provider-managed choices and context presets/token metadata, not generic effort levels or budget overrides. Bounds and failure recovery are owned by the canonical provider topic and [workflow tests](../tests/Kora.Application.UnitTests/Configuration/ProviderProfileConfigurationServiceTests.cs).
 

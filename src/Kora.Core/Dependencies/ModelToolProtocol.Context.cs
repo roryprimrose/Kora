@@ -57,6 +57,7 @@ public static partial class ModelToolProtocol
     public static IReadOnlyList<CapabilityDescriptor> GetTools(ModelToolMode mode) => mode switch
     {
         ModelToolMode.ReadOnly => ReadOnlyCapabilityCatalog.Descriptors,
+        ModelToolMode.ProviderSettings => ProviderSettingsTools.Descriptors,
         ModelToolMode.None or ModelToolMode.HostedClarification => [],
         ModelToolMode.LocalWebPage => Network.LocalWebPageTool.Descriptors,
         ModelToolMode.McpReadOnly => [],

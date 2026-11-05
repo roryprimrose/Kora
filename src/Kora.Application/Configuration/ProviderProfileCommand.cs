@@ -10,7 +10,8 @@ namespace Kora.Application.Configuration;
 public sealed record ProviderProfileCommand(AppearanceCommandOperation Operation, ProviderService? Service = null,
     string? Model = null, string? Reasoning = null, string? Context = null, string? Account = null, long CatalogueRevision = 0,
     bool TupleOnly = false, bool SignIn = false, string? Error = null, ProviderProfileField? Field = null,
-    ProviderChoiceId? FieldValue = null, Guid? Confirmation = null, bool Cancel = false)
+    ProviderChoiceId? FieldValue = null, Guid? Confirmation = null, bool Cancel = false, bool Refresh = false,
+    bool ReviewSuggestion = false, bool DiscardSuggestion = false)
 {
     public const string ServiceOption = "providers.app.default-service";
     public const string ProfileOption = "providers.app.profile";
@@ -19,13 +20,19 @@ public sealed record ProviderProfileCommand(AppearanceCommandOperation Operation
         + "set providers.app.profile to <model-id> <reasoning-id> <context-id> for <account-id> at <catalogue-revision> | "
         + "set providers.app.<model|reasoning|context> to <exact-id> for <account-id> at <catalogue-revision> | "
         + "confirm/cancel providers.app.profile <host-issued-confirmation-id> | "
-        + "reset providers.app.profile | sign in providers.app.service (Unavailable)";
+        + "reset providers.app.profile | list providers.app.models [for <service>] | refresh providers.app.profile [for <service>] | "
+        + "review/cancel providers.app.suggestion | sign in providers.app.service (Unavailable)";
     public static IReadOnlyList<string> FixedPhrases { get; } = ["list app provider settings", "get " + ProfileOption,
         "status " + ProfileOption, "get providers.app.model", "get providers.app.reasoning", "get providers.app.context",
         "status providers.app.model", "status providers.app.reasoning", "status providers.app.context",
-        "reset " + ServiceOption, "reset " + ProfileOption, "sign in providers.app.service",
+        "get " + ServiceOption, "list providers.app.models", "reset " + ServiceOption, "reset " + ProfileOption, "refresh " + ProfileOption,
+        "list providers.app.models for Local", "list providers.app.models for Copilot",
+        "list providers.app.models for Claude", "list providers.app.models for Codex",
+        "refresh " + ProfileOption + " for Local", "refresh " + ProfileOption + " for Copilot",
+        "refresh " + ProfileOption + " for Claude", "refresh " + ProfileOption + " for Codex",
+        "review providers.app.suggestion", "cancel providers.app.suggestion", "sign in providers.app.service",
         "set " + ServiceOption + " to Unset", "set " + ServiceOption + " to Local",
-        "set " + ServiceOption + " to Copilot", "set " + ServiceOption + " to Claude", "set " + ServiceOption + " to Codex"];
+        "set " + ServiceOption + " to Ollama", "set " + ServiceOption + " to Copilot", "set " + ServiceOption + " to Claude", "set " + ServiceOption + " to Codex"];
 
     public static ProviderProfileCommand? Parse(string input, string assistantName)
     {
@@ -65,6 +72,20 @@ public sealed record ProviderProfileCommand(AppearanceCommandOperation Operation
             return new(AppearanceCommandOperation.Clarify, Error: Syntax);
         }
         if (text.Equals("list app provider settings", StringComparison.OrdinalIgnoreCase)) { return new(AppearanceCommandOperation.List); }
+        if (text.Equals("list providers.app.models", StringComparison.OrdinalIgnoreCase)) { return new(AppearanceCommandOperation.Get); }
+        foreach (var service in Enum.GetValues<ProviderService>().Where(service => service != ProviderService.Unset))
+        {
+            if (text.Equals("list providers.app.models for " + service, StringComparison.OrdinalIgnoreCase))
+            { return new(AppearanceCommandOperation.Get, Service: service); }
+            if (text.Equals("refresh " + ProfileOption + " for " + service, StringComparison.OrdinalIgnoreCase))
+            { return new(AppearanceCommandOperation.Get, Service: service, Refresh: true); }
+        }
+        if (text.Equals("refresh " + ProfileOption, StringComparison.OrdinalIgnoreCase))
+        { return new(AppearanceCommandOperation.Get, Refresh: true); }
+        if (text.Equals("review providers.app.suggestion", StringComparison.OrdinalIgnoreCase))
+        { return new(AppearanceCommandOperation.Get, ReviewSuggestion: true); }
+        if (text.Equals("cancel providers.app.suggestion", StringComparison.OrdinalIgnoreCase))
+        { return new(AppearanceCommandOperation.Get, DiscardSuggestion: true); }
         if (text.Equals("get " + ProfileOption, StringComparison.OrdinalIgnoreCase)
             || text.Equals("status " + ProfileOption, StringComparison.OrdinalIgnoreCase)
             || text.Equals("get " + ServiceOption, StringComparison.OrdinalIgnoreCase))
@@ -77,6 +98,8 @@ public sealed record ProviderProfileCommand(AppearanceCommandOperation Operation
         var prefix = "set " + ServiceOption + " to ";
         if (text.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
         {
+            if (text[prefix.Length..].Equals("Ollama", StringComparison.OrdinalIgnoreCase))
+            { return new(AppearanceCommandOperation.Set, ProviderService.Local); }
             foreach (var service in Enum.GetValues<ProviderService>())
             {
                 if (text[prefix.Length..].Equals(service.ToString(), StringComparison.OrdinalIgnoreCase))

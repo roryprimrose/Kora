@@ -422,6 +422,9 @@ Native **Settings > Providers** and exact typed/current-name activated commands 
 |---|---|
 | `list app provider settings` | Discover desired/saved/effective service, exact current catalogue and scope |
 | `get providers.app.profile` / `status providers.app.profile` | Inspect saved and effective tuple/account/catalogue state |
+| `refresh providers.app.profile` | Explicitly refresh the desired service and its available models without changing saved preferences |
+| `list providers.app.models [for Local|Copilot|Claude|Codex]` | View the desired or explicitly addressed service's current models without saving a service change |
+| `refresh providers.app.profile for Local|Copilot|Claude|Codex` | Refresh one explicitly addressed service without changing saved preferences |
 | `set providers.app.default-service to Unset|Local|Copilot|Claude|Codex` | Explicit desired app service only; retain each service's tuple |
 | `reset providers.app.default-service` | Local if supported Ollama installation is observed, otherwise Unset; retain tuples |
 | `set providers.app.profile to <model-id> <reasoning-id> <context-id> for <account-id> at <catalogue-revision>` | Save the selected service's complete exact advertised tuple, with current opaque account/revision |
@@ -429,6 +432,8 @@ Native **Settings > Providers** and exact typed/current-name activated commands 
 | `set providers.app.<model|reasoning|context> to <exact-id> for <account-id> at <catalogue-revision>` | Review one field against the current saved complete tuple for the desired app service; retain other exact fields |
 | `confirm providers.app.profile <host-issued-confirmation-id>` | Save only that reviewed field and whole complete tuple, with fresh original-user admission |
 | `cancel providers.app.profile <host-issued-confirmation-id>` | Discard the review without writing; confirmation cannot be replayed |
+| `review providers.app.suggestion` | Review the current unsaved AI service/model tool suggestion under fresh original-user admission |
+| `cancel providers.app.suggestion` | Discard an unsaved tool suggestion without writing |
 | `reset providers.app.profile` | Clear only the selected service's tuple; no automatic replacement |
 | `sign in providers.app.service` | Unavailable: no qualified sign-in adapter; no credentials accessed |
 
@@ -436,7 +441,23 @@ IDs are exact, case-sensitive, bounded catalogue values; labels/marketing names 
 
 Individual setters never persist partial profiles or change the desired default service. Model edits preserve saved reasoning/context IDs only when supported by the new model. Missing/incompatible/stale bases require the existing complete tuple draft/save; no default, field reset or silent clearing is offered. Native field review may target another service while retaining the app default. Confirmation IDs are exact lowercase GUIDs issued by this host.
 
-Initially desired Local requires installation observation, not endpoint response, model readiness or generation consent. Missing/unknown installation is Unset. Production services currently advertise no models. Saved desired hosted service does not sign in, enable a provider, approve egress or send a request.
+Initially desired Local requires installation observation, not endpoint response, model readiness or generation consent. Missing/unknown installation is Unset. Models appear only from a current admitted catalogue. Shipped unavailable deployment approvals do not enable hosted accounts. Saved desired hosted service does not sign in, enable a provider, approve egress or send an inference request.
+
+**Refresh service and available models** in Settings targets the selected service, including an unsaved service choice. The exact refresh command targets the saved/default desired service. Ollama refresh revalidates the independently admitted runtime; it does not scan arbitrary endpoints or download models. Copilot/Claude refresh can fetch a fresh model catalogue only for an already configured, still-approved volatile account. Missing/expired authentication requires native account setup, never dictated credentials. Catalogue revision/account/model changes can make the saved tuple unavailable; it remains saved without substitution.
+
+For local model-assisted configuration, submit an original Session request such as `ask about AI service settings: Which models can I select for Claude?`. That exact prefix selects the five provider tools and a local-only request; absent local readiness stays unavailable rather than falling back online. Results are lower-trust observations or proposals, never write, sign-in or execution authority. Ordinary six-observation, hosted, constrained and tools-none turns cannot use these provider tools. `Ollama` is also accepted as an exact app default-service setter alias for `Local`.
+
+| Tool | Exact input example | Result |
+|---|---|---|
+| `providers.get_settings` | `{}` | Desired/saved/effective app settings and per-service availability |
+| `providers.list_models` | `{"service":"Claude","offset":0,"count":6}` | Current account-bound model IDs/labels, total count and next offset; unavailable services return no invented models |
+| `providers.get_model` | `{"service":"Claude","model":"<exact-id>"}` | Exact advertised reasoning/context choices for one current model |
+| `providers.refresh` | `{"service":"Claude"}` | Explicit service/catalogue refresh with current availability and model count |
+| `providers.propose_settings` | `{"service":"Claude"}` | Unsaved desired-service suggestion |
+
+A complete model suggestion supplies `service`, `model`, `reasoning`, `context`, `account` and positive `revision` together. `{"service":"Claude","clearModel":true}` suggests clearing only that service's tuple while selecting that desired service. Other service tuples are retained. The response explicitly says no preference was written. Settings offers **Review AI service suggestion** and **Discard AI service suggestion**; exact review/cancel commands above are equivalent. Review shows current/proposed values, then the existing separate confirmation saves through the audited writer. Suggestions expire after five minutes and cannot survive saved/account/catalogue changes. They are volatile, not disk autosave or retained authority.
+
+Tool input is at most 1,024 UTF-8 bytes and the complete tool result at most 4,096 bytes. Oversized results fail explicitly, never truncate. Provider tools do not add provider metadata to the retained six-observation history format.
 
 Unscoped and one-turn directives are not app-scope aliases and remain unavailable. Exact session controls below are separate; existing LocalOnly mode/default is unchanged.
 Protected/Unknown voice writes, stale previews, ownership/privacy/session changes, cancelled or unconfirmed evidence fail closed. See [app profile settings](settings.md#app-default-service-and-desired-profiles).

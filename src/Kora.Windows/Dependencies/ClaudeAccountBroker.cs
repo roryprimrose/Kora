@@ -101,10 +101,29 @@ public sealed partial class ClaudeAccountBroker : IAsyncDisposable
         return false;
     }
 
-    public async Task SignInAsync(string credential, Func<bool> eligible, CancellationToken token)
+    public async Task RefreshAsync(Func<bool> eligible, CancellationToken token)
+    {
+        ClaudeAccount? current;
+        lock (gate) { current = account; }
+        if (current is null || !await CurrentAsync(current, token).ConfigureAwait(false))
+        {
+            token.ThrowIfCancellationRequested();
+            if (!eligible()) { throw new InvalidOperationException("Claude refresh lost private host admission."); }
+            return;
+        }
+        await SignInCoreAsync(current.Credential, eligible, token, current).ConfigureAwait(false);
+    }
+
+    public Task SignInAsync(string credential, Func<bool> eligible, CancellationToken token) =>
+        SignInCoreAsync(credential, eligible, token);
+
+    private async Task SignInCoreAsync(string credential, Func<bool> eligible, CancellationToken token,
+        ClaudeAccount? refresh = null)
     {
         var issuer = HostActivity.RequireCurrent();
-        if (issuer.Request.Origin != RequestOrigin.LocalUi || !eligible())
+        if ((refresh is null ? issuer.Request.Origin != RequestOrigin.LocalUi
+                : issuer.Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice))
+            || issuer.Request.InvocationId is not null || !eligible())
         { throw new InvalidOperationException("Private original native input is required for Claude setup."); }
         using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(2), time);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, deadline.Token);
@@ -112,7 +131,8 @@ public sealed partial class ClaudeAccountBroker : IAsyncDisposable
         await operation.WaitAsync(token).ConfigureAwait(false);
         using var activity = HostActivity.BeginChild(HostActivityLayer.Windows, HostOperation.Runtime);
         var requested = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.SecurityApproval,
-            "model.claude.account", SecurityAuditOutcome.Requested, SecurityAuditInitiator.LocalUser,
+            refresh is null ? "model.claude.account" : "model.claude.catalogue-refresh", SecurityAuditOutcome.Requested,
+            issuer.Request.Origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.LocalUser,
             issuer.Request.TaskId.Value.ToString("D"));
         var outcome = SecurityAuditOutcome.Denied;
         try
@@ -120,7 +140,13 @@ public sealed partial class ClaudeAccountBroker : IAsyncDisposable
             audit.Write(requested);
             long admittedEpoch;
             ClaudeAccount? previous;
-            lock (gate) { ObjectDisposedException.ThrowIf(disposed, this); previous = account; account = null; admittedEpoch = ++epoch; }
+            lock (gate)
+            {
+                ObjectDisposedException.ThrowIf(disposed, this);
+                if (refresh is not null && !ReferenceEquals(account, refresh))
+                { throw new InvalidOperationException("The Claude account changed before refresh."); }
+                previous = account; account = null; admittedEpoch = ++epoch;
+            }
             previous?.Dispose();
             var approval = await deployments.ResolveAsync(token).ConfigureAwait(false);
             if (approval is null || approval.ExpiresAt <= time.GetUtcNow())

@@ -1677,7 +1677,15 @@
             </WrapPanel>
             <TextBlock Text="Choose a service, then a model and its thinking and conversation-size options. Save just the service or all choices together. Other services keep their saved settings. Models appear only when the service supplies a current list."
                        Classes="settings-description" TextWrapping="Wrap" />
+            <Button Content="Refresh service and available models" Command="{Binding RefreshProviderProfileCommand}"
+                    IsEnabled="{Binding CanChangeProviderProfile}" AutomationProperties.Name="Refresh selected AI service and available models" />
+            <TextBlock Text="Refresh checks the selected service without changing saved choices, downloading models or running inference. Online model lists require an already configured, approved account. Unavailable saved choices are never silently replaced."
+                       Classes="settings-description" TextWrapping="Wrap" />
             <TextBlock Text="{Binding ProviderProfileDraftStatus}" Classes="settings-description" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding ProviderSelectedServiceStatus}" Classes="settings-description" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding ProviderSuggestionStatus}" Classes="settings-description" TextWrapping="Wrap" />
+            <Button Content="Review AI service suggestion" Command="{Binding ReviewProviderSuggestionCommand}" IsEnabled="{Binding CanReviewProviderSuggestion}" />
+            <Button Content="Discard AI service suggestion" Command="{Binding DiscardProviderSuggestionCommand}" IsEnabled="{Binding CanChangeProviderProfile}" />
             <Button Content="Configure Copilot account (volatile token)" Click="OnCopilotAccountClicked"
                     IsEnabled="{Binding CanChangeProviderProfile}" />
             <Button Content="Configure Claude account (volatile API credential)" Click="OnClaudeAccountClicked"

@@ -26,4 +26,7 @@ public enum ModelToolMode
 
     /// <summary>Only registered metadata and the seven explicitly reviewed confirmed scalars in one local request.</summary>
     SettingsDiscovery,
+
+    /// <summary>Explicit original local AI-service settings request; observations, refresh and inert proposals only.</summary>
+    ProviderSettings,
 }

@@ -83,19 +83,40 @@ public sealed partial class CopilotAccountBroker : ICopilotExecutionAccountSourc
 
     private void RevokeCore() { accounts.Clear(); catalogue = null; deployment = null; }
 
-    public async Task SignInAsync(string login, string credential, Func<bool> eligible, CancellationToken token)
+    public async Task RefreshAsync(Func<bool> eligible, CancellationToken token)
+    {
+        _ = await ObserveAsync(token).ConfigureAwait(false);
+        CopilotExecutionAccount? current;
+        lock (stateGate) { current = accounts.Values.FirstOrDefault(); }
+        if (current is null)
+        {
+            token.ThrowIfCancellationRequested();
+            if (!eligible()) { throw new InvalidOperationException("Copilot refresh lost private host admission."); }
+            return;
+        }
+        await SignInCoreAsync(current.Login, current.Token, eligible, token, current).ConfigureAwait(false);
+    }
+
+    public Task SignInAsync(string login, string credential, Func<bool> eligible, CancellationToken token) =>
+        SignInCoreAsync(login, credential, eligible, token);
+
+    private async Task SignInCoreAsync(string login, string credential, Func<bool> eligible, CancellationToken token,
+        CopilotExecutionAccount? refresh = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(login);
         ArgumentException.ThrowIfNullOrWhiteSpace(credential);
         if (login.Length > 128 || login.Any(char.IsControl) || credential.Length > 8192 || credential.Any(char.IsControl))
         { throw new InvalidDataException("Copilot account input exceeds the bounded credential channel."); }
         var issuer = HostActivity.RequireCurrent();
-        if (issuer.Request.Origin != RequestOrigin.LocalUi || !eligible())
+        if ((refresh is null ? issuer.Request.Origin != RequestOrigin.LocalUi
+                : issuer.Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice))
+            || issuer.Request.InvocationId is not null || !eligible())
         { throw new InvalidOperationException("Copilot setup requires private original native input."); }
         using var activity = HostActivity.BeginChild(HostActivityLayer.Windows, HostOperation.Runtime);
         await gate.WaitAsync(token).ConfigureAwait(false);
         var requested = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.SecurityApproval,
-            "model.copilot.account", SecurityAuditOutcome.Requested, SecurityAuditInitiator.LocalUser,
+            refresh is null ? "model.copilot.account" : "model.copilot.catalogue-refresh", SecurityAuditOutcome.Requested,
+            issuer.Request.Origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.LocalUser,
             issuer.Request.TaskId.Value.ToString("D"));
         var outcome = SecurityAuditOutcome.Denied;
         try
@@ -105,6 +126,8 @@ public sealed partial class CopilotAccountBroker : ICopilotExecutionAccountSourc
             lock (stateGate)
             {
                 ObjectDisposedException.ThrowIf(disposed, this);
+                if (refresh is not null && !accounts.Values.Any(item => ReferenceEquals(item, refresh)))
+                { throw new InvalidOperationException("The Copilot account changed before refresh."); }
                 RevokeCore();
                 expectedEpoch = ++epoch;
                 if (heldClient is not null) { throw new InvalidOperationException("Previous Copilot setup has unconfirmed termination."); }
@@ -158,7 +181,7 @@ public sealed partial class CopilotAccountBroker : ICopilotExecutionAccountSourc
             { throw new InvalidOperationException("Original private account admission or deployment changed during sign-in."); }
             var now = time.GetUtcNow();
             var expires = now.AddMinutes(5) < approved.ExpiresAt ? now.AddMinutes(5) : approved.ExpiresAt;
-            var accountId = new ProviderAccountId(Guid.NewGuid().ToString("N"));
+            var accountId = refresh?.Profile.Account ?? new ProviderAccountId(Guid.NewGuid().ToString("N"));
             var next = new HostRevision(checked(++revision));
             var enabled = models.Where(model => string.Equals(model.Policy?.State, "enabled", StringComparison.Ordinal)
                 && model.Capabilities.Limits.MaxContextWindowTokens > 0).ToArray();

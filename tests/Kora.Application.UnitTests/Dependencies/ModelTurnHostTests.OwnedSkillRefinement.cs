@@ -13,6 +13,73 @@ namespace Kora.Application.UnitTests.Dependencies;
 public sealed partial class ModelTurnHostTests
 {
     [Theory]
+    [InlineData(false, "current")]
+    [InlineData(true, "current")]
+    [InlineData(false, "current-ui")]
+    [InlineData(true, "current-ui")]
+    [InlineData(false, "save-before")]
+    [InlineData(true, "save-before")]
+    [InlineData(false, "save-review")]
+    [InlineData(true, "save-review")]
+    [InlineData(false, "save-confirm")]
+    [InlineData(true, "save-confirm")]
+    [InlineData(false, "save-publish")]
+    [InlineData(true, "save-publish")]
+    [InlineData(false, "proposal-review")]
+    [InlineData(true, "proposal-review")]
+    public async Task StagedSkillPublicationRequiresSeparateSaveInputAndOriginalProposal(bool initial, string withdrawal)
+    {
+        await using var f = new SkillRefinementFixture(withdrawal is "current-ui"
+            ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
+        f.Model.Answer("Complete staged guidance");
+        var proposal = initial
+            ? (await f.Service.ProposeInitial(f.Draft, new("Purpose", "Input", "Output", f.Authority),
+                (_, _) => Task.FromResult(true), f.Eligible, Token))!
+            : (await f.Propose())!;
+        var saveCurrent = true;
+        var authority = new OwnedSkillAuthoringAuthority(withdrawal is "current-ui"
+            ? RequestOrigin.LocalUi : RequestOrigin.ActivatedVoice, () => saveCurrent);
+        void Withdraw()
+        {
+            if (withdrawal is "proposal-review") { f.Authority.Retire(); }
+            else { saveCurrent = false; }
+        }
+        if (withdrawal is "save-before") { Withdraw(); }
+        var review = new SkillRefinementReview
+        {
+            BeforeReview = withdrawal is "save-review" or "proposal-review" ? Withdraw : null,
+            BeforeConfirm = withdrawal is "save-confirm" ? Withdraw : null,
+        };
+        f.Store.BeforePublish = withdrawal is "save-publish" ? Withdraw : null;
+        var saving = () => f.Service.Save(proposal, authority, review, f.Eligible, Token);
+        if (withdrawal is "current" or "current-ui")
+        {
+            var saved = (await saving())!;
+            saved.Document.Guidance.Should().Be("Complete staged guidance");
+            saved.Document.IsAvailableForInvocation.Should().BeFalse();
+            f.Store.Writes.Should().Be(1);
+            review.Calls.Should().Equal("review", "confirm");
+            f.Audit.Events.Select(entry => entry.Outcome).Should().Equal(
+                Kora.Core.Auditing.SecurityAuditOutcome.Requested, Kora.Core.Auditing.SecurityAuditOutcome.Succeeded);
+        }
+        else
+        {
+            if (withdrawal is "save-review" or "proposal-review") { (await saving()).Should().BeNull(); }
+            else { await saving.Should().ThrowAsync<InvalidOperationException>(); }
+            f.Store.Writes.Should().Be(0);
+            f.Store.Target.Should().BeNull();
+            f.Audit.Events.Should().NotContain(entry => entry.Outcome == Kora.Core.Auditing.SecurityAuditOutcome.Succeeded);
+            review.Calls.Should().HaveCount(withdrawal is "save-before" ? 0
+                : withdrawal is "save-review" or "proposal-review" ? 1 : 2);
+        }
+        var initiator = authority.Origin == RequestOrigin.ActivatedVoice
+            ? Kora.Core.Auditing.SecurityAuditInitiator.VoiceCommand : Kora.Core.Auditing.SecurityAuditInitiator.LocalUser;
+        f.Audit.Events.Should().OnlyContain(entry => entry.Initiator == initiator);
+        f.Model.Model.RetainCalls.Should().Be(0);
+        f.Model.Model.PolicyHost.IsQuiescent.Should().BeTrue();
+    }
+
+    [Theory]
     [InlineData(RequestOrigin.LocalUi, false)]
     [InlineData(RequestOrigin.ActivatedVoice, true)]
     public async Task OwnedGuidanceRefinementCompletesExactComparisonAndSeparateImmutableSave(RequestOrigin origin, bool inputs)
@@ -42,10 +109,10 @@ public sealed partial class ModelTurnHostTests
         wire.RootElement.GetProperty("Tools").GetArrayLength().Should().Be(0);
         wire.RootElement.GetProperty("ToolMode").GetInt32().Should().Be((int)ModelToolMode.None);
         var review = new SkillRefinementReview { Confirm = false };
-        (await f.Service.Save(proposal, review, f.Eligible, Token)).Should().BeNull();
+        (await f.Service.Save(proposal, f.Authority, review, f.Eligible, Token)).Should().BeNull();
         f.Store.Writes.Should().Be(0);
         review.Confirm = true;
-        var saved = (await f.Service.Save(proposal, review, f.Eligible, Token))!;
+        var saved = (await f.Service.Save(proposal, f.Authority, review, f.Eligible, Token))!;
         saved.Document.ManifestBytes.ToArray().Should().Equal(f.Draft.ManifestBytes.ToArray());
         saved.Document.Guidance.Should().Be(proposed);
         saved.Document.IsAvailableForInvocation.Should().BeFalse();
@@ -194,7 +261,7 @@ public sealed partial class ModelTurnHostTests
         using var cancel = CancellationTokenSource.CreateLinkedTokenSource(Token);
         if (change is "cancel") { cancel.Cancel(); }
         var service = change is "foreign" ? other.Service : f.Service;
-        await service.Invoking(value => value.Save(proposal, review, f.Eligible, cancel.Token)).Should().ThrowAsync<Exception>();
+        await service.Invoking(value => value.Save(proposal, f.Authority, review, f.Eligible, cancel.Token)).Should().ThrowAsync<Exception>();
         f.Store.Writes.Should().Be(0);
     }
 
@@ -314,10 +381,11 @@ public sealed partial class ModelTurnHostTests
     private sealed class SkillRefinementReview : IOwnedSkillSaveReview
     {
         internal bool Confirm = true;
+        internal Action? BeforeReview;
         internal Action? BeforeConfirm;
         internal List<string> Calls { get; } = [];
         public Task<bool> Review(OwnedDeclarativeSkillDocument document, string destination, CancellationToken token)
-        { Calls.Add("review"); return Task.FromResult(true); }
+        { Calls.Add("review"); BeforeReview?.Invoke(); return Task.FromResult(true); }
         public Task<bool> ConfirmPublication(OwnedDeclarativeSkillDocument document, string destination, CancellationToken token)
         { Calls.Add("confirm"); BeforeConfirm?.Invoke(); return Task.FromResult(Confirm); }
     }

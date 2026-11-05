@@ -54,8 +54,11 @@ public sealed partial class KnowledgeSourceAnswerWorkflow(KnowledgeSourceManager
         var input = HostActivity.RequireCurrent();
         if (input.Request.Origin != RequestOrigin.LocalUi || input.Request.InvocationId is not null
             || input.Outcome != HostOperationOutcome.Unknown || !eligible()
-            || use is not { } exact || !ReferenceEquals(exact.Review, review)
-            || !exact.IsCurrent || !review.TryConsume())
+            || use is not { Review: { } prepared } exact || !review.IsFromSameRetrieval(prepared)
+            || !review.IsCurrent(time.GetUtcNow()))
+        { return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Denied); }
+        exact.Review = review;
+        if (!exact.IsCurrent || !review.TryConsume())
         { return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Denied); }
         ActivityLink[] causes = review.Revision.Review.Cause == default
             ? [new(input.Activity!.Context)] : [new(input.Activity!.Context), new(review.Revision.Review.Cause)];
@@ -64,7 +67,9 @@ public sealed partial class KnowledgeSourceAnswerWorkflow(KnowledgeSourceManager
         var result = await Audited("local", () => exact.RunAsync(async cancellation =>
         {
             await exact.ValidateAsync(cancellation).ConfigureAwait(false);
-            using var expiry = new CancellationTokenSource(review.ExpiresAt - time.GetUtcNow(), time);
+            var remaining = review.ExpiresAt - time.GetUtcNow();
+            if (remaining <= TimeSpan.Zero) { return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Stale); }
+            using var expiry = new CancellationTokenSource(remaining, time);
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellation, expiry.Token);
             cancellation = linked.Token;
             bool Current() => eligible() && exact.IsCurrent;

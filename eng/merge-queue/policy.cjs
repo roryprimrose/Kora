@@ -19,6 +19,21 @@ const WINDOWS_12_JOBS = Object.freeze([...SPLIT_JOBS, 'Build exact-source Window
 ]);
 const DELIVERY_JOBS = Object.freeze(WINDOWS_12_JOBS.map(name =>
   name === CHECKS[2] ? 'Validate installer packaging' : name));
+const UNIT_PR_JOBS = Object.freeze(DELIVERY_JOBS.filter(name =>
+  name !== CHECKS[1] && !name.startsWith('Windows integration shard (')
+  && name !== 'Build exact-source Windows test modules' && !name.startsWith('Windows test partition (')));
+const PARALLEL_PR_JOBS = Object.freeze([...UNIT_PR_JOBS,
+  'Portable policy contracts', 'Validate managed setup and installer metadata',
+]);
+const PARALLEL_MAIN_JOBS = Object.freeze([...DELIVERY_JOBS,
+  'Portable policy contracts', 'Validate managed setup and installer metadata',
+]);
+const CANDIDATE_JOBS = Object.freeze({
+  'windows-12-v1': WINDOWS_12_JOBS,
+  'windows-12-delivery-v1': DELIVERY_JOBS,
+  'unit-pr-v1': UNIT_PR_JOBS,
+  'parallel-pr-v1': PARALLEL_PR_JOBS,
+});
 // Only reviewed immutable execution gates can establish that an unexpanded matrix did no work.
 const REJECTED_ADMISSION_BLOBS = Object.freeze(['97e22a8f88bcdc9bbaef32cf9e7200dd6e5c43cd']);
 const REJECTED_PREFLIGHT_BLOBS = Object.freeze(['c75173721c4131cf29d45482ea2edb92934070f1']);
@@ -70,7 +85,8 @@ function controllerOperation(inputs) {
   invariant(inputs && typeof inputs === 'object' && !Array.isArray(inputs), 'Invalid controller inputs.');
   const operation = inputs.operation ?? 'reconcile';
   invariant(['reconcile', 'recover-unobservable-dispatch', 'migrate-batch-v1', 'rollback-batch-v1',
-    'repair-batch', 'resume-batch'].includes(operation), 'Unknown controller operation.');
+    'repair-batch', 'resume-batch', 'hold-independent-delivery', 'prepare-independent-delivery',
+    'resume-independent-delivery', 'abort-independent-delivery'].includes(operation), 'Unknown controller operation.');
   invariant(inputs.acknowledge_uncertain_dispatch === undefined
     || typeof inputs.acknowledge_uncertain_dispatch === 'boolean', 'Invalid recovery acknowledgement.');
   if (operation === 'reconcile') {
@@ -183,16 +199,25 @@ function jobOutcome(job) {
   return job.conclusion === 'success' ? 'success' : 'failure';
 }
 
-function workflowJobs(source, blob) {
+function candidateJobs(schema) {
+  return Object.hasOwn(CANDIDATE_JOBS, schema) ? CANDIDATE_JOBS[schema] : null;
+}
+
+function workflowJobs(source, blob, candidate = false) {
   const delivery = source.replaceAll('\r\n', '\n').split('\n')
     .filter(line => line.includes('merge-queue-delivery-schema:'));
   if (delivery.length && (delivery.length !== 1 || delivery[0] !== '# merge-queue-delivery-schema: independent-v1')) return null;
   const markers = source.replaceAll('\r\n', '\n').split('\n')
     .filter(line => line.includes('merge-queue-job-schema:'));
-  if (markers.length !== 0)
-    return markers.length === 1 && markers[0] === '# merge-queue-job-schema: windows-12-v1'
-      ? delivery.length === 1
-        ? DELIVERY_JOBS : WINDOWS_12_JOBS : null;
+  if (markers.length !== 0) {
+    if (markers.length !== 1) return null;
+    if (markers[0] === '# merge-queue-job-schema: parallel-pr-v1')
+      return delivery.length === 1 ? candidate ? PARALLEL_PR_JOBS : PARALLEL_MAIN_JOBS : null;
+    if (markers[0] === '# merge-queue-job-schema: unit-pr-v1')
+      return delivery.length === 1 ? candidate ? UNIT_PR_JOBS : DELIVERY_JOBS : null;
+    return markers[0] === '# merge-queue-job-schema: windows-12-v1'
+      ? delivery.length === 1 ? DELIVERY_JOBS : WINDOWS_12_JOBS : null;
+  }
   return Object.hasOwn(PREDECESSOR_WORKFLOWS, blob) ? PREDECESSOR_WORKFLOWS[blob] : null;
 }
 
@@ -263,7 +288,8 @@ function successfulJobs(jobs, expected = JOBS) {
   return requiredJobsState(jobs, expected) === 'success';
 }
 
-module.exports = { CHECKS, GATE, JOBS, SPLIT_JOBS, WINDOWS_12_JOBS, DELIVERY_JOBS, PREDECESSOR_WORKFLOWS, workflowJobs,
+module.exports = { CHECKS, GATE, JOBS, SPLIT_JOBS, WINDOWS_12_JOBS, DELIVERY_JOBS, UNIT_PR_JOBS,
+  PARALLEL_PR_JOBS, PARALLEL_MAIN_JOBS, PREDECESSOR_WORKFLOWS, candidateJobs, workflowJobs,
   REJECTED_ADMISSION_JOBS, terminalRejectedAdmission, terminalRejectedPreflight,
   REJECTED_DELIVERY_BLOB, REJECTED_DELIVERY_JOBS, terminalRejectedDelivery,
   STATE_BRANCH, SHA, TICKET, MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS,

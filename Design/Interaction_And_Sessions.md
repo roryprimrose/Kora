@@ -429,6 +429,25 @@ holds the whole session, independently of Perpetual permission grants. There
 was no marking UI in this original slice; the native increment below supplies it. Archive revokes source/generation/scoped authority but
 preserves content and does not reset the activity clock.
 
+Each maintenance batch uses one UTC cutoff for candidate selection and its
+archive/delete effects. UTC moving behind that cutoff during source retirement
+or before the lifecycle COMMIT holds uncommitted changes explicitly; it does
+not renew recorded deadlines. Forward movement cannot promote a selected
+archive into deletion in that batch. A fresh maintenance observation can find
+later-due work. Once deletion revocation commits, clock correction does not
+interrupt the existing finite owned-copy cleanup and acceptance.
+
+Native SQLite failures cross the Windows retention boundary as explicit storage
+failures, not native exceptions that permanently fault the maintenance timer.
+The failed attempt reports held cleanup without a successful batch receipt;
+a later timer tick repeats existing ownership/privacy/policy admission before
+retrying. Transaction failure before commit preserves durable state, while
+post-revocation incomplete acceptance retains its separate recovery semantics.
+No retry executes retained work, renews activity or changes independent retention
+domains. Deterministic [storage failure](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionRetentionTests.cs)
+and [owned timer](../tests/Kora.Application.UnitTests/Hosting/SessionRetentionServiceTests.cs)
+regressions cover recovery and clean shutdown without false success.
+
 Deletion awaits source/presentation revocation, removes owned history,
 question/draft/answer, task/event/wait/run, terminal queue, observation, scoped-grant and metadata
 content, legacy task copies and authenticated owned artifacts/staging, and

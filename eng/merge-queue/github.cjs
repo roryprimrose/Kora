@@ -1,5 +1,5 @@
 const { createHash } = require('node:crypto');
-const { CHECKS, GATE, STATE_BRANCH, SHA, TICKET, invariant, validateState, title, workflowJobs,
+const { CHECKS, GATE, STATE_BRANCH, SHA, TICKET, invariant, validateState, title, candidateJobs, workflowJobs,
   requiredJobsState, terminalJobs, terminalRejectedAdmission, terminalRejectedPreflight,
   terminalRejectedDelivery } = require('./policy.cjs');
 
@@ -189,7 +189,7 @@ class GitHubQueue {
     return records;
   }
   async expectedJobs(source) {
-    return (await this.workflowInventory(source))?.jobs ?? null;
+    return (await this.workflowInventory(source, true))?.jobs ?? null;
   }
   async rejectedAdmission(source, run, jobs) {
     if (run.head_sha !== source) return false;
@@ -198,10 +198,10 @@ class GitHubQueue {
       || terminalRejectedPreflight(run, jobs, inventory.blob) || terminalRejectedDelivery(run, jobs, inventory.blob));
   }
   async trustedInventory(source) {
-    const inventory = await this.workflowInventory(source);
-    return ['windows-12-v1', 'windows-12-delivery-v1'].includes(inventory?.schema) ? inventory : null;
+    const inventory = await this.workflowInventory(source, true);
+    return candidateJobs(inventory?.schema) ? inventory : null;
   }
-  async workflowInventory(source) {
+  async workflowInventory(source, candidate = false) {
     invariant(SHA.test(source), 'Unknown candidate workflow source.');
     let data;
     try {
@@ -223,14 +223,15 @@ class GitHubQueue {
       this.notice('Candidate workflow source bytes do not match its blob; physical quiescence is unknown.');
       return null;
     }
-    const expected = workflowJobs(bytes.toString('utf8'), data.sha);
+    const lines = bytes.toString('utf8').replaceAll('\r\n', '\n').split('\n');
+    const expected = workflowJobs(bytes.toString('utf8'), data.sha, candidate);
     if (expected === null)
       this.notice('Candidate workflow job schema is unknown; physical quiescence is unknown.');
     return expected === null ? null : { blob: data.sha, jobs: expected,
-      schema: bytes.toString('utf8').replaceAll('\r\n', '\n').split('\n')
-        .includes('# merge-queue-delivery-schema: independent-v1') ? 'windows-12-delivery-v1'
-        : bytes.toString('utf8').replaceAll('\r\n', '\n').split('\n')
-          .includes('# merge-queue-job-schema: windows-12-v1') ? 'windows-12-v1' : 'historical' };
+      schema: lines.includes('# merge-queue-job-schema: parallel-pr-v1') ? 'parallel-pr-v1'
+        : lines.includes('# merge-queue-job-schema: unit-pr-v1') ? 'unit-pr-v1'
+          : lines.includes('# merge-queue-delivery-schema: independent-v1') ? 'windows-12-delivery-v1'
+            : lines.includes('# merge-queue-job-schema: windows-12-v1') ? 'windows-12-v1' : 'historical' };
   }
   async releaseSource(source, ref = this.commit) {
     invariant(SHA.test(source) && SHA.test(ref), 'Independent release requires pinned source and queue revisions.');

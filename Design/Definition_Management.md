@@ -33,6 +33,16 @@ when a recognized root has not yet been created, including when several parent
 directories are absent. External creation then refreshes the same catalogue
 without a restart or configuration toggle. Directory rename, move and deletion
 within discovery depth also refresh it, including dotted directory names.
+An already-existing registered directory also has a nonrecursive parent
+membership watch: renaming it away withdraws its sources, and recreation at
+the original registered path rebinds the content watches and refreshes the
+catalogue. The moved sibling is not followed or registered. Replacement
+definitions enter the same revision/review pipeline, including when their
+bytes match a previously withdrawn source; no old approval is restored.
+An observed root removal retires the aggregate file-backed snapshot before
+rediscovery, as source unregistration does, even if debounce coalesces the
+removal and recreation. File-backed definitions need fresh reviewed use;
+bundled definitions remain available.
 Notifications are filtered by exact source ancestry, file patterns and existing
 depth bounds before discovery; watching an ancestor grants no broader content
 read or source registration. Reparse exclusions, file budgets, debounce and
@@ -58,6 +68,16 @@ It adds no Ctrl+F binding and confines Enter/F3 to its own controls.
 See the [editor guide](../docs/instruction-editor.md#find-within-selected-displayed-metadata-details).
 
 ## Product Roles
+
+Session instruction scope controls pin the exact opening Active conversation
+and its selection lifetime. A later selection change, including away and back,
+retires the window's review/control admission rather than silently retargeting
+Review, Confirm, Stop or refresh. Native and original typed/activated-voice
+commands require closing and explicitly reopening for the intended selection.
+Rejection reads no source, changes no confirmed applicability and retains no
+message; closing alone still does not stop a confirmed scope. This is host-owned
+session isolation, not a new applicability mode, instruction precedence rule or
+runtime qualification ([current operation](../docs/session-instructions.md)).
 
 The [bounded owned skill editor](../src/Kora/OwnedSkillEditorWindow.cs) supports native v1 instruction-only packages and additive native v2 selection of exactly the existing host WebPageGet capability. This is immutable disabled publication followed by separate source/target review, enablement, exact request/URL confirmation, independent action approval and genuine retained model answer, not field preparation or automatic Customizations registration ([complete operation](../docs/owned-skill-authoring.md#author-and-use-one-host-webpageget-skill)). General package executors, arbitrary tools/effects and executable resources remain excluded.
 

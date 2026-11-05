@@ -492,6 +492,16 @@ internal static class Program
             provider.GetRequiredKeyedService<HttpClient>("release-metadata"),
             provider.GetRequiredService<TimeProvider>(),
             provider.GetRequiredService<ILogger<GitHubReleaseMetadataClient>>()));
+        services.AddKeyedSingleton("github-issue-lookup", (_, _) => new HttpClient(new HttpClientHandler
+        {
+            AllowAutoRedirect = false,
+            UseCookies = false,
+            UseDefaultCredentials = false,
+            AutomaticDecompression = System.Net.DecompressionMethods.None,
+        }) { Timeout = Timeout.InfiniteTimeSpan });
+        services.AddSingleton<IGitHubIssueLookup>(provider => new GitHubIssueLookup(
+            provider.GetRequiredKeyedService<HttpClient>("github-issue-lookup")));
+        services.AddSingleton<GitHubIssueReportWorkflow>();
         services.AddSingleton<ICanonicalReleasePageOpener, WindowsReleasePageOpener>();
         services.AddSingleton(provider => new MaintenanceViewModel(
             provider.GetRequiredService<IReleaseMetadataClient>(), provider.GetRequiredService<IApplicationInfo>(),

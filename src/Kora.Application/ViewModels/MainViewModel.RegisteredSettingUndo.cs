@@ -66,9 +66,7 @@ public sealed partial class MainViewModel
             else if (operation == RegisteredSettingSuggestionOperation.Review) { settingsUndo.ReviewLast(initiator, Eligible); }
             else
             {
-                var work = settingsUndo.ConfirmAsync(initiator, token);
-                settingsUndoWork = work;
-                confirmed = await work;
+                confirmed = await ConfirmSettingsUndoAsync(initiator, token);
             }
             if (!Eligible()) { return; }
             PresentResponse(confirmed ? AssistantState.Information : AssistantState.Failure, "Settings undo.", settingsUndo.Description,
@@ -78,15 +76,25 @@ public sealed partial class MainViewModel
             or ArgumentException or OperationCanceledException)
         {
             ApplicationLog.Error(logger, exception, "Registered settings undo");
-            settingsUndoError = "Settings undo not confirmed. " + exception.Message
-                + " A write may have persisted if execution began; inspect saved state and audit. No automatic retry or rollback.";
+            const string recoveryMessage = "A write may have persisted if execution began; inspect saved state and audit. No automatic retry or rollback.";
+            settingsUndoError = "Settings undo not confirmed. " + recoveryMessage;
+            if (!Eligible()) { return; }
+            settingsUndoError = "Settings undo not confirmed. " + exception.Message + " " + recoveryMessage;
             PresentResponse(AssistantState.Failure, "Settings undo not confirmed.", settingsUndoError,
                 refreshOutput: false, sourceAssigned: () => forceVisualResponse = true);
         }
         finally
         {
-            settingsUndoWork = Task.CompletedTask;
             NotifySettingsUndo();
         }
+    }
+
+    private async Task<bool> ConfirmSettingsUndoAsync(SecurityAuditInitiator initiator, CancellationToken token)
+    {
+        // Register before synchronous writer callbacks; complete independently of UI presentation.
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        settingsUndoWork = completion.Task;
+        try { return await settingsUndo.ConfirmAsync(initiator, token).ConfigureAwait(false); }
+        finally { completion.SetResult(); }
     }
 }

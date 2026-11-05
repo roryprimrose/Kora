@@ -39,6 +39,11 @@ Select one enabled source, enter one new question in **New named-source answer q
 
 Separately choose **Confirm one private local-only no-tools named-source answer** within the displayed deadline. Consent is one-shot, private LocalOnly and limited to the shown question and excerpts. Saving, enabling or refreshing never grants it. Every evidence-bearing complete file passes the [shared risk policy](../src/Kora.Application/Context/LocalSourceUsePolicy.cs); this is not a secret-free guarantee.
 
+The review expires at its 30-second deadline, including time spent revalidating the source.
+If it expires during confirmation, no answer is claimed and consent is not extended.
+Wait for any pending work to finish, then explicitly review the question and excerpts again
+before confirming a fresh one-shot answer.
+
 The limits remain 8 citations, 16 KiB combined excerpts and 32 KiB complete serialized model input, including overhead. Excess input is rejected without dropping evidence. No match invokes no model. Missing [qualified local runtime](../Design/Local_Inference.md#future-candidate-gate) returns unavailable; there is no hosted fallback, tool use or other-source search ([answer workflow](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerWorkflow.cs)).
 
 Operational failure diagnostics record only the failure type, not the question, source content or exception message. A failed review or source-use check does not dispatch a model or return answer claims.

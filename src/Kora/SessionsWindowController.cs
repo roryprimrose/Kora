@@ -42,6 +42,7 @@ internal sealed partial class SessionsWindowController(
     private SessionInstructionScopeController? instructionScopes;
     internal Func<SessionsViewModel, SessionsPresentationOwner, ResponseWindow>? CreateInteraction { get; set; }
     internal Task InteractionOperation { get; private set; } = Task.CompletedTask;
+    internal Action<Kora.Application.Mcp.McpCapabilityInventory>? McpCapabilityObserved { get; set; }
 
     internal async Task ShowInteractionAsync(bool expanded, Func<bool> admitted)
     {
@@ -459,6 +460,7 @@ internal sealed partial class SessionsWindowController(
             localHandoff: localHandoff, retentionApply: retentionApply);
         if (detailPresentation is not null) { model.BindDetailPresentation(detailPresentation); }
         model.BindDictation(main.ComposerDictation);
+        model.McpCapabilityObserved = inventory => McpCapabilityObserved?.Invoke(inventory);
         model.ExportExactAnswer = async (source, admitted, resolve, token) =>
         {
             var control = access.ControlRevision;

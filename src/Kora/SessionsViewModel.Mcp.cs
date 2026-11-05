@@ -47,6 +47,7 @@ internal sealed partial class SessionsViewModel
     internal McpCapabilitySelector? McpCapabilitySelector { get; set; }
     internal McpContentInputPresenter? McpContentInput { get; set; }
     internal Func<McpCapabilityInventory, Func<bool>, CancellationToken, Task<McpCapabilityChange?>>? McpCapabilityManager { get; set; }
+    internal Action<McpCapabilityInventory>? McpCapabilityObserved { get; set; }
     private Task explicitMcpOperation = Task.CompletedTask;
     private bool HasCurrentMcpOptions => !closed && access.CanInspect && mcpOptionsEpoch == selectionEpoch;
     public IReadOnlyList<McpServerConfigurationSummary> McpServers => HasCurrentMcpOptions ? mcpServers : [];

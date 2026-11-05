@@ -64,6 +64,8 @@ internal sealed partial class SessionsViewModel
                 {
                     var inventory = await conversation!.DiscoverMcpCapabilitiesAsync(target, server.Id, account.Reference,
                         present, Current, cancellation.Token, origin);
+                    if (!Current()) { throw new OperationCanceledException("MCP inventory presentation was retired.", cancellation.Token); }
+                    McpCapabilityObserved?.Invoke(inventory);
                     var manager = McpCapabilityManager ?? throw new InvalidOperationException("The private MCP capability manager is unavailable.");
                     IsMcpCapabilityManagerOpen = true;
                     var change = await manager(inventory, Current, cancellation.Token);

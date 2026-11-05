@@ -59,6 +59,10 @@ connector.
 
 ## Choose which capabilities Kora may consider
 
+The Customizations MCP Servers page shows built-in Kora tools and any external capability metadata admitted during an explicit Session discovery. Its existing Search field also filters those rows by name, exact item identity, source or group; category filtering changes visibility only ([row projection](../src/Kora/McpCapabilityRows.cs), [native catalogue](../src/Kora/CustomizationWindow.Tools.cs)).
+
+Select an admitted capability row and choose **Review selected server capabilities** to edit that server's saved parent/category/item choices through the shared manager. The built-in catalogue needs no delegated account or invented HTTPS endpoint. External editing still requires its original current discovery receipt; expired or retired metadata cannot authorize a save ([native workflow](../src/Kora/CustomizationWindowController.Tools.cs)).
+
 After **Review HTTPS MCP options**, select an included server and delegated account, then choose **Manage MCP capabilities**. Approve connection and bounded metadata discovery; this does not read resource bodies, retrieve prompt messages or invoke tools ([workflow](../src/Kora.Application/Hosting/SessionConversationService.McpCapabilities.cs)).
 
 The private manager groups **Tools**, **Resources** (including resource templates), and **Prompts**. Capability preferences default enabled. A server's master enabled choice suppresses all categories without discarding child selections.

@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Text;
 
 using Avalonia.Controls;
@@ -20,7 +20,10 @@ internal sealed partial class CustomizationWindowController(
     MainViewModel main, CustomizationManagementService management, ICustomizationAuthoring authoring,
     ArtifactCatalogue catalogue, ArtifactCatalogueReloadService reload,
     Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<CustomizationWindowController> logger,
-    Func<string, string, RequestOrigin, Func<bool>, Task>? addOwnedAgent = null) : IDisposable
+    Func<string, string, RequestOrigin, Func<bool>, Task>? addOwnedAgent = null,
+    Kora.Application.Configuration.McpServerConfigurationService? mcpConfiguration = null,
+    Kora.Application.Configuration.ArtifactDirectoryConfigurationService? mcpSettings = null,
+    Kora.Application.Hosting.SessionConversationService? mcpConversation = null) : IDisposable
 {
     private CustomizationWindow? window;
     private CancellationTokenSource? lifetime;
@@ -65,6 +68,7 @@ internal sealed partial class CustomizationWindowController(
         main.PropertyChanged += OnMainChanged;
         management.UseChanged += OnUseChanged;
         catalogue.Changed += OnUseChanged;
+        if (mcpConfiguration is not null) { mcpConfiguration.Changed += RetireCapabilityMetadata; }
         main.BindCustomizationShutdown(PrepareClose);
         main.BindCustomizationVoice(RouteVoice);
     }
@@ -152,6 +156,7 @@ internal sealed partial class CustomizationWindowController(
                 case "Voice": await VoiceCore(Current, token); break;
                 case "Command": await RouteCore(pendingCommand!, Current, token); break;
                 case "Refresh": await Refresh(Current, token); break;
+                case "Mcp capabilities": await ManageCapabilities(Current, token); break;
                 case "Select":
                     if (opened.SelectedSource is { } selected && await LeaveDraft(Current, token)) { await Inspect(selected, false, Current, token); }
                     break;
@@ -305,11 +310,16 @@ internal sealed partial class CustomizationWindowController(
                 package.Files.Select(file => new CustomizationFile(file.Name, file.Bytes)).ToArray()));
         }
         sources = [.. bundled.Values.Select(snapshot => snapshot.Source), .. disk];
+        RefreshCapabilityMetadata();
         RenderSources();
         if (window is { } opened) { opened.Status.Text = "Select an artifact to inspect its source. Disabled artifacts remain visible. Saving never enables changed content."; }
     }
 
-    private void RenderSources() => window?.ShowSources(sources, management.IsDisabled, _ => Start("Select"));
+    private void RenderSources()
+    {
+        window?.SetCapabilityMetadata(displayedServers.Values.ToArray(), () => Start("Mcp capabilities"));
+        window?.ShowSources(sources, management.IsDisabled, _ => Start("Select"));
+    }
 
     private async Task Inspect(CustomizationSource selected, bool recovery, Func<bool> current, CancellationToken token)
     {
@@ -771,6 +781,7 @@ internal sealed partial class CustomizationWindowController(
     private void OnUseChanged(object? sender, EventArgs args)
     {
         Interlocked.Increment(ref promptAuthoringRevision);
+        RetireCapabilityMetadata(sender, args);
         Dispatcher.UIThread.Post(() =>
         { if (window is not null) { RetireVoiceTarget(); RenderSources(); PublishVoiceTarget(); } });
     }
@@ -815,6 +826,8 @@ internal sealed partial class CustomizationWindowController(
         var retiredWindow = window;
         window = null; source = null; baseline = null; deletionRecoverySource = null; skillAdaptation = null; adaptationCatalogue = null;
         draft = []; selectedFile = null; sources = []; bundled.Clear();
+        externalInventories.Clear(); displayedServers.Clear();
+        Interlocked.Increment(ref capabilityPresentationRevision);
         retiredWindow?.ClearPrivateText();
         retired?.Cancel();
         if (retired is not null) { _ = DisposeLifetime(active, retired); }
@@ -834,6 +847,7 @@ internal sealed partial class CustomizationWindowController(
         management.UseChanged -= OnUseChanged; main.BindCustomizationShutdown(null);
         main.BindCustomizationVoice(null);
         catalogue.Changed -= OnUseChanged;
+        if (mcpConfiguration is not null) { mcpConfiguration.Changed -= RetireCapabilityMetadata; }
         OnPrivacyClosed(this, EventArgs.Empty);
     }
 

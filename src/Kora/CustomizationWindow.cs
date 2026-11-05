@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Layout;
@@ -81,7 +81,10 @@ internal sealed partial class CustomizationWindow : Window
         AddButton(add, "Refresh", "Refresh", run);
         browseTop.Children.Add(add);
         DockPanel.SetDock(browseTop, Dock.Top); browse.Children.Add(browseTop);
-        browse.Children.Add(new ScrollViewer { Content = catalogue });
+        var catalogues = new StackPanel { Spacing = 8 };
+        catalogues.Children.Add(catalogue);
+        BindCapabilityMetadata(run, browseTop, catalogues);
+        browse.Children.Add(new ScrollViewer { Content = catalogues });
         Grid.SetColumn(browse, 1); root.Children.Add(browse);
 
         var detail = new DockPanel();
@@ -205,6 +208,7 @@ internal sealed partial class CustomizationWindow : Window
                 HorizontalAlignment = HorizontalAlignment.Stretch,
             });
         }
+        RenderCapabilityMetadata();
     }
 
     internal async Task<string> Review(string title, string text, CancellationToken token, params string[] choices)
@@ -242,12 +246,15 @@ internal sealed partial class CustomizationWindow : Window
             button.Click += (_, _) =>
             {
                 if (question is null) { completion.TrySetResult(choice); opened.Close(); }
-                else { question.Choose(choice switch
+                else
                 {
-                    "Refine this artifact" => CustomizationVoiceChoice.Refine,
-                    "Discuss this artifact" => CustomizationVoiceChoice.Discuss,
-                    _ => CustomizationVoiceChoice.Cancel,
-                }); }
+                    question.Choose(choice switch
+                    {
+                        "Refine this artifact" => CustomizationVoiceChoice.Refine,
+                        "Discuss this artifact" => CustomizationVoiceChoice.Discuss,
+                        _ => CustomizationVoiceChoice.Cancel,
+                    });
+                }
             };
             buttons.Children.Add(button);
         }
@@ -305,6 +312,7 @@ internal sealed partial class CustomizationWindow : Window
 
     internal void ClearPrivateText()
     {
+        ClearCapabilityMetadata();
         CancelReview();
         Editor.Text = string.Empty; Request.Text = string.Empty; NewName.Text = string.Empty; RequiredPromptInputs.Text = string.Empty;
         McpUrl.Text = string.Empty; McpHttpType.IsChecked = false;

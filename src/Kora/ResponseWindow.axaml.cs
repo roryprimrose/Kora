@@ -27,6 +27,7 @@ public sealed partial class ResponseWindow : Window
     private readonly PushToTalkButtonBinding pushToTalk;
     private bool positionInitialized;
     private readonly DetailWindowController? details;
+    private readonly Func<PixelRect?> getWorkingArea;
 
     public ResponseWindow()
         : this(App.Services.GetRequiredService<MainViewModel>(), (Avalonia.Application.Current as App)?.Details)
@@ -35,9 +36,16 @@ public sealed partial class ResponseWindow : Window
 
     public ResponseWindow(MainViewModel viewModel, DetailWindowController? detailController = null,
         TimeProvider? timeProvider = null)
+        : this(viewModel, detailController, timeProvider, null)
+    {
+    }
+
+    internal ResponseWindow(MainViewModel viewModel, DetailWindowController? detailController,
+        TimeProvider? timeProvider, Func<PixelRect?>? workingArea)
     {
         this.viewModel = viewModel;
         details = detailController;
+        getWorkingArea = workingArea ?? (() => (Screens.ScreenFromWindow(this) ?? Screens.Primary)?.WorkingArea);
         responseInactivity = new(timeProvider ?? TimeProvider.System);
         InitializeComponent();
         DataContext = viewModel;
@@ -318,6 +326,7 @@ public sealed partial class ResponseWindow : Window
     private void OnOpened(object? sender, EventArgs eventArgs)
     {
         RestorePosition();
+        FitCompactWorkingArea();
         RestartResponseTimeout();
     }
 

@@ -43,6 +43,6 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.RunTypedCommand.ExecuteAsync();
         fixture.ViewModel.ResponseBody.Should().Contain("list capabilities").And.Contain("describe capability");
         fixture.Catalog.GetCommands().Should().HaveCount(27);
-        ReadOnlyCapabilityCatalog.Descriptors.Should().HaveCount(6);
+        ReadOnlyCapabilityCatalog.Descriptors.Should().HaveCount(7);
     }
 }

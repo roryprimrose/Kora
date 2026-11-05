@@ -138,6 +138,7 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyWork()
     {
+        NotifyMetrics();
         OnPropertyChanged(nameof(CanAnswerRemainingWork));
         OnPropertyChanged(nameof(RemainingWorkStatus));
         NotifyConversationSearch();

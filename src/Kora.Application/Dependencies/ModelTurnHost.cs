@@ -32,6 +32,9 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
     private readonly HostedTransmissionReviewService? hostedReviews;
     private readonly RuntimeResourceAllocator resources;
     private readonly ConversationExecutionConfigurationService? conversationExecution;
+    private readonly SessionModelMetricsLedger metrics;
+    internal Task<SessionModelMetrics> ReadMetricsAsync(HostId<SessionIdentity> session, CancellationToken token) => metrics.ReadAsync(session, token);
+    internal void ForgetMetrics(HostId<SessionIdentity> session) => metrics.Forget(session);
     private static readonly TimeSpan Deadline = ModelToolProtocol.Deadline;
     private readonly Lock dispatchGate = new();
     private readonly CancellationTokenSource lifetime = new();
@@ -85,6 +88,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         this.registrationSource = registrationSource;
         this.hostedReviews = hostedReviews;
         this.conversationExecution = conversationExecution;
+        metrics = new(time, workspace as ISessionModelMetricsStore);
         resources = new(owner, time, audit, runtimeCapacity, conversationExecution);
         if (conversationExecution is not null) { conversationExecution.Changed += resources.PreferenceChanged; }
     }
@@ -301,7 +305,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             token.ThrowIfCancellationRequested();
             if (!ConsumerAdmissionCurrent(turn))
             { return Finish(ModelTurnOutcome.Denied, ModelTurnReason.HostAdmissionClosed, turn.Provenance); }
-            var pending = RunAdapterAsync(turn, token);
+            var pending = RunMeasuredAdapterAsync(turn, token);
             try { reply = await pending.WaitAsync(token).ConfigureAwait(false); }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
@@ -382,6 +386,9 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             ? webPages.TryGetValue(turn, out var webPage)
                 ? await webPage.InvokeAsync(turn.Provenance, id, input, linked.Token).ConfigureAwait(false)
                 : new(CapabilityOutcome.Denied, "web-page-approval-workflow-unavailable")
+            : string.Equals(id, SessionMetricsTool.Id, StringComparison.Ordinal)
+            ? Kora.Tools.Sessions.SessionMetricsGet.Execute(
+                await metrics.ReadAsync(turn.Provenance.Request.SessionId, linked.Token).ConfigureAwait(false), input)
             : tools.Invoke(tools.Admit(CapabilityLane.Execution), id, input, linked.Token);
         if (await RevalidateAdapterContinuationAsync(turn, linked.Token).ConfigureAwait(false) != ModelTurnReason.None)
         {

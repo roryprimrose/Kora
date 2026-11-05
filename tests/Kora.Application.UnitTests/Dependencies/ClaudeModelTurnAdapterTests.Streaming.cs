@@ -46,6 +46,7 @@ public sealed partial class ClaudeModelTurnAdapterTests
             var result = await Run();
             result.Outcome.Should().Be(fault is "success" ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.Unavailable);
             result.Response?.Answer.Should().Be(fault is "success" ? "decoded answer" : null);
+            result.TokenUsage.Should().Be(fault is "success" ? new ModelTokenUsage(25, 5, 25) : null);
         }
         runtime.Buffered.Should().Be(0);
         updates.Count.Should().Be(fault is "success" ? 1 : 0);
@@ -102,7 +103,7 @@ public sealed partial class ClaudeModelTurnAdapterTests
         {
             Streamed++;
             if (Publish is not null) { await Publish(publish, token); }
-            return new(ModelTurnOutcome.Succeeded, "decoded answer");
+            return new(ModelTurnOutcome.Succeeded, "decoded answer") { TokenUsage = new(25, 5, 25) };
         }
     }
 }

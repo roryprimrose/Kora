@@ -79,7 +79,8 @@ internal sealed class ClaudeModelTurnAdapter(IClaudeTurnRuntime runtime, HostedT
                     await publish(update, token).ConfigureAwait(false);
                 }, cancellationToken).ConfigureAwait(false);
             result = new(reply.Outcome, provenance.Selection,
-                reply.Outcome == ModelTurnOutcome.Succeeded ? new LocalModelResponse(reply.Answer, null) : null);
+                reply.Outcome == ModelTurnOutcome.Succeeded ? new LocalModelResponse(reply.Answer, null) : null)
+            { TokenUsage = reply.TokenUsage };
         }
         else if (authorization.Context.ToolMode is ModelToolMode.ReadOnly or ModelToolMode.HostedClarification)
         {
@@ -100,10 +101,11 @@ internal sealed class ClaudeModelTurnAdapter(IClaudeTurnRuntime runtime, HostedT
             var reply = await runtime.RunAsync(provenance, profile, authorization.Context,
                 Review, Live, cancellationToken).ConfigureAwait(false);
             result = new(reply.Outcome, provenance.Selection,
-                reply.Outcome == ModelTurnOutcome.Succeeded ? new LocalModelResponse(reply.Answer, null) : null);
+                reply.Outcome == ModelTurnOutcome.Succeeded ? new LocalModelResponse(reply.Answer, null) : null)
+            { TokenUsage = reply.TokenUsage };
         }
         if (result.Outcome == ModelTurnOutcome.Succeeded && !await Live(cancellationToken).ConfigureAwait(false))
-        { return new(ModelTurnOutcome.DeniedEgress, provenance.Selection); }
+        { return new(ModelTurnOutcome.DeniedEgress, provenance.Selection) { TokenUsage = result.TokenUsage }; }
         return result;
     }
 }

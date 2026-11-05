@@ -40,6 +40,7 @@ public sealed partial class ClaudeMessagesRuntimeTests
         var result = await transport.CompleteAsync(request, Token);
         result.Outcome.Should().Be(expected);
         (result.Usage?.InputUtf8Bytes).Should().Be(expected == ModelTurnOutcome.Succeeded ? bytes : null);
+        result.TokenUsage.Should().Be(expected == ModelTurnOutcome.Succeeded ? new ModelTokenUsage(25, 5, 25) : null);
         f.Requests.Count(item => item.Method is "POST").Should().Be(expected == ModelTurnOutcome.Succeeded ? 2 : 0);
         await transport.DisposeAsync();
         await transport.DisposeAsync();

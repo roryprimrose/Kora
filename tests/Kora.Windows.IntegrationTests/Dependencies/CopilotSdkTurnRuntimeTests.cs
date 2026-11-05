@@ -168,6 +168,22 @@ public sealed class CopilotSdkTurnRuntimeTests : IDisposable
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ReportedUsageSurvivesSuccessAndRejectedAnswerWithoutInferringMissingUsage(bool rejectAnswer)
+    {
+        var fixture = new Fixture();
+        fixture.Client.TokenUsage = new(25, 5, 25, 100);
+        fixture.Client.Models[0].Capabilities.Limits.MaxPromptTokens = 100;
+        if (rejectAnswer) { fixture.Client.Send = _ => Task.FromResult<string?>(null); }
+        using var root = fixture.Root();
+        var reply = await fixture.Run(Token);
+        reply.Outcome.Should().Be(rejectAnswer ? ModelTurnOutcome.Unknown : ModelTurnOutcome.Succeeded);
+        reply.TokenUsage.Should().Be(new ModelTokenUsage(25, 5, 25, 8192));
+        fixture.Runtime.IsQuiescent.Should().BeTrue();
+    }
+
+    [Theory]
     [InlineData("")]
     [InlineData(" ")]
     [InlineData(null)]
@@ -209,6 +225,7 @@ public sealed class CopilotSdkTurnRuntimeTests : IDisposable
         var answer = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var stop = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         fixture.Client.Send = _ => answer.Task;
+        fixture.Client.TokenUsage = new(25, 5, 25);
         fixture.Client.Stop = () => stop.Task;
         using var root = fixture.Root();
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
@@ -221,7 +238,10 @@ public sealed class CopilotSdkTurnRuntimeTests : IDisposable
         (await fixture.Run(Token)).Outcome.Should().Be(ModelTurnOutcome.Unavailable);
         stop.SetResult();
         answer.SetResult("late-output-must-not-be-retained");
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => run);
+        var result = await run;
+        result.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+        result.Answer.Should().BeNull();
+        result.TokenUsage.Should().Be(new ModelTokenUsage(25, 5, 25, 8192));
         fixture.Runtime.IsQuiescent.Should().BeTrue();
     }
 
@@ -353,6 +373,7 @@ public sealed class CopilotSdkTurnRuntimeTests : IDisposable
         internal string? Prompt { get; private set; }
         internal bool ForeignSession { get; set; }
         internal bool Sent { get; private set; }
+        internal ModelTokenUsage? TokenUsage { get; set; }
         internal int ModelReads { get; private set; }
         internal int Stops { get; private set; }
         internal int Disposals { get; private set; }
@@ -369,6 +390,7 @@ public sealed class CopilotSdkTurnRuntimeTests : IDisposable
         { Configuration = configuration; return Task.FromResult<ICopilotSdkSession>(this); }
         public async Task<string?> SendAsync(string prompt, CancellationToken token)
         { Prompt = prompt; Sent = true; await BeforeSend(token); return await Send(token); }
+        public ModelTokenUsage? GetTokenUsage(int modelCalls) => modelCalls > 0 ? TokenUsage : null;
         public Task StopAsync()
         { Stops++; Stopping.TrySetResult(); return Stop(); }
         public ValueTask DisposeAsync()

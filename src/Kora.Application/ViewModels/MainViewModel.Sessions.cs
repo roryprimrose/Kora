@@ -60,6 +60,12 @@ public sealed partial class MainViewModel
         long? originalScopeNameRevision = null, ForegroundConversationTarget? foregroundTarget = null)
     {
         if (disposed) { return; }
+        if (command.Operation == SessionCommandOperation.Metrics
+            || string.Equals(command.Error, SessionCommand.MetricsSyntax, StringComparison.Ordinal))
+        {
+            await ExecuteMetricsCommandAsync(command, initiator, originalScopeEligibility, scopeActivationPrefixed, foregroundTarget);
+            return;
+        }
         if (command.IsRemainingWork || string.Equals(command.Error, SessionCommand.RemainingWorkSyntax, StringComparison.Ordinal))
         {
             await ExecuteRemainingWorkCommandAsync(command, initiator, originalScopeEligibility, scopeActivationPrefixed);

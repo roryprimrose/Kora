@@ -231,7 +231,7 @@ public sealed partial class WindowsSqliteSessionQueueTests
         using (var root = HostActivity.BeginRoot(admitted.Request, HostActivityLayer.Application, HostOperation.Tool))
         {
             await f.Store.CompleteAsync(admitted, SessionQueueState.Succeeded, () => true, f.Token,
-                new(CapabilityOutcome.Succeeded, "catalogue", Capabilities: new(ReadOnlyCapabilityCatalog.Descriptors, 6, null)));
+                new(CapabilityOutcome.Succeeded, "catalogue", Capabilities: new(ReadOnlyCapabilityCatalog.Descriptors.Take(6).ToArray(), 7, 6)));
         }
         f.Mutate("UPDATE session_queue SET payload=" + mutation + ";");
         f.Reopen();

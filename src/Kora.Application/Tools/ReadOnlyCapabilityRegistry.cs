@@ -104,6 +104,8 @@ public sealed class ReadOnlyCapabilityRegistry(
         }
         if (descriptor.Input == CapabilityInputShape.None)
         {
+            if (string.Equals(descriptor.Id, SessionMetricsTool.Id, StringComparison.Ordinal))
+            { return new(CapabilityOutcome.Denied, "exact-model-session-context-required"); }
             return getVersion.Execute();
         }
         if (descriptor.Input == CapabilityInputShape.Id)

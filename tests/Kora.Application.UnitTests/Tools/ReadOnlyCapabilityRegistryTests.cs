@@ -161,6 +161,12 @@ public sealed class ReadOnlyCapabilityRegistryTests : IDisposable
                     ? "{\"id\":\"application.get_version\"}" : "{\"id\":\"local.inference\"}"
                 : "{}";
             var reply = fixture.Registry.Invoke(caller, descriptor.Id, input, TestContext.Current.CancellationToken);
+            if (string.Equals(descriptor.Id, SessionMetricsTool.Id, StringComparison.Ordinal))
+            {
+                reply.Outcome.Should().Be(CapabilityOutcome.Denied);
+                reply.Reason.Should().Be("exact-model-session-context-required");
+                continue;
+            }
             reply.Outcome.Should().Be(CapabilityOutcome.Succeeded);
             var wire = Encoding.UTF8.GetString(ReadOnlyCapabilityRegistry.Serialize(reply));
             wire.Should().Contain(descriptor.Output switch
@@ -186,7 +192,7 @@ public sealed class ReadOnlyCapabilityRegistryTests : IDisposable
     [InlineData("capabilities.list", "{\"offset\":-1}", "page-out-of-range")]
     [InlineData("capabilities.list", "{\"count\":0}", "page-out-of-range")]
     [InlineData("capabilities.list", "{\"count\":7}", "page-out-of-range")]
-    [InlineData("capabilities.list", "{\"offset\":6}", "page-out-of-range")]
+    [InlineData("capabilities.list", "{\"offset\":7}", "page-out-of-range")]
     [InlineData("capabilities.list", "{\"offset\":2147483647}", "page-out-of-range")]
     [InlineData("capabilities.list", "{\"count\":2147483648}", "invalid-page-input")]
     [InlineData("capabilities.list", "{\"count\":1.1}", "invalid-page-input")]
@@ -222,13 +228,13 @@ public sealed class ReadOnlyCapabilityRegistryTests : IDisposable
         var caller = fixture.Registry.Admit(CapabilityLane.Native);
         var first = fixture.Registry.Invoke(caller, ReadOnlyCapabilityCatalog.List, "{\"offset\":0,\"count\":2}",
             TestContext.Current.CancellationToken).Capabilities!;
-        first.TotalRecords.Should().Be(6);
+        first.TotalRecords.Should().Be(7);
         first.NextOffset.Should().Be(2);
         first.Records.Select(item => item.Id).Should().Equal("capabilities.list", "capabilities.get");
         var last = fixture.Registry.Invoke(caller, ReadOnlyCapabilityCatalog.List, "{\"offset\":4,\"count\":6}",
             TestContext.Current.CancellationToken).Capabilities!;
         last.NextOffset.Should().BeNull();
-        last.Records.Should().HaveCount(2);
+        last.Records.Should().HaveCount(3);
     }
 
     [Theory]

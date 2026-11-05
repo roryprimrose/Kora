@@ -7,11 +7,11 @@ namespace Kora.Core.UnitTests.Tools;
 public sealed class ReadOnlyCapabilityCatalogTests
 {
     [Fact]
-    public void Catalog_has_only_the_six_canonical_read_only_descriptors()
+    public void Catalog_has_only_the_canonical_read_only_descriptors()
     {
         ReadOnlyCapabilityCatalog.Descriptors.Select(item => item.Id).Should().Equal(
             "capabilities.list", "capabilities.get", "application.get_version",
-            "readiness.get", "runtime.list", "runtime.get_status");
+            "readiness.get", "runtime.list", "runtime.get_status", "session.get_metrics");
         foreach (var descriptor in ReadOnlyCapabilityCatalog.Descriptors)
         {
             descriptor.SchemaVersion.Should().Be(1);

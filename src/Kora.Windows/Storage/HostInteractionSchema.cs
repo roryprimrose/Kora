@@ -5,7 +5,7 @@ internal static class HostInteractionSchema
     internal const string Partition = "InteractionStorageV1";
     internal const string FileName = "interaction.db";
     internal const int ApplicationId = 1263489587;
-    internal const int Version = 14;
+    internal const int Version = 15;
     internal static readonly string[] Tables =
     [
         """
@@ -225,5 +225,17 @@ internal static class HostInteractionSchema
             payload TEXT NOT NULL CHECK(length(CAST(payload AS BLOB)) BETWEEN 1 AND 2048),
             audit_sequence INTEGER NOT NULL REFERENCES security_audit_events(sequence)) STRICT
         """;
-    internal static readonly string[] CurrentTables = [.. SessionPermissionTables, AnswerReviewTable];
+    internal static readonly string[] AnswerReviewTables = [.. SessionPermissionTables, AnswerReviewTable];
+    internal const string ModelUsageTable = """
+        CREATE TABLE session_model_usage(
+            turn_id TEXT PRIMARY KEY NOT NULL,
+            request_id TEXT NOT NULL,
+            session_id TEXT NOT NULL REFERENCES work_sessions(session_id),
+            task_id TEXT NOT NULL REFERENCES host_tasks(task_id),
+            generation INTEGER NOT NULL CHECK(generation>0),
+            audit_sequence INTEGER NOT NULL REFERENCES security_audit_events(sequence),
+            payload TEXT NOT NULL CHECK(length(CAST(payload AS BLOB)) BETWEEN 1 AND 4096),
+            digest TEXT NOT NULL CHECK(length(digest)=64)) STRICT
+        """;
+    internal static readonly string[] CurrentTables = [.. AnswerReviewTables, ModelUsageTable];
 }

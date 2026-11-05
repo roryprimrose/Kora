@@ -192,7 +192,15 @@ internal sealed class InteractionStorageFixture : IDisposable
     {
         if (Count("conversation_answer_reviews") != 0)
         { throw new InvalidOperationException("A legacy fixture must not discard current answer-review authority."); }
+        DropEmptyModelUsageSchemaForLegacy();
         Mutate("DROP TABLE conversation_answer_reviews;");
+    }
+
+    internal void DropEmptyModelUsageSchemaForLegacy()
+    {
+        if (Count("session_model_usage") != 0)
+        { throw new InvalidOperationException("A legacy fixture must not discard retained model usage."); }
+        Mutate("DROP TABLE session_model_usage;");
     }
 
     internal static HostRequest NewRequest(HostId<SessionIdentity>? session = null,

@@ -66,6 +66,18 @@ over future requests. A changed review needs fresh confirmation, and an unavaila
 native owner reports unavailable. Model suggestions and reusable model grants
 cannot authorize this action. `stop` and `stop speaking` keep their prior meanings.
 
+## Inspect session model metrics
+
+Select a conversation in Sessions or the compact conversation window, then expand **Session metrics**. Opening it reads a fresh observation; **Refresh session metrics** updates it without a model call or network request ([native reader](../src/Kora/SessionsViewModel.Metrics.cs), [session admission](../src/Kora.Application/Hosting/SessionConversationService.Metrics.cs)).
+
+In the global command box, use `show session metrics`, `show token usage`, `how many tokens have I used in this session?` or `what is my context usage`. These require an exact current foreground conversation; otherwise use `session metrics <session-id>`. Activated voice requires the configured assistant-name prefix, for example `Kora, show session metrics`. Existing private, call, question, approval and editor restrictions still apply ([grammar](../src/Kora.Core/Commands/SessionCommand.Metrics.cs), [presentation](../src/Kora.Application/ViewModels/MainViewModel.Metrics.cs)).
+
+Session totals add reported input/output tokens across all models. Separate provider/model rows show their own totals, finished execution counts, elapsed time and latest request context. Context percentages are never added across models. A missing provider report is **not reported**, not zero; partial coverage is labelled. Context means the latest finished request's input, not a live conversation window or guaranteed remaining capacity ([metrics contract](../src/Kora.Core/Dependencies/SessionModelMetrics.cs), [per-model presentation](../src/Kora.Core/Dependencies/ModelUsageSummary.cs)).
+
+With an independently qualified tool-capable model, questions in the conversation can use the read-only `session.get_metrics` tool. It accepts no session identifier and reads only the host-bound current session. Its bounded result includes up to four model rows and explicitly counts omitted rows; session totals still cover every model. The native panel shows all rows. Existing hosted disclosure approval remains required; this feature enables no provider ([host route](../src/Kora.Application/Dependencies/ModelTurnHost.cs), [tool projection](../src/Kora.Tools/Sessions/SessionMetricsGet.cs)).
+
+Usage observations are retained with the conversation and survive restarting Kora. Earlier uninstrumented calls and in-flight/interrupted calls may lack reports; this is not a billing statement. Cost/credits are not reported or estimated. Inspection does not renew activity or retention. Only model identity, counts and timing are recorded, not message bodies or credentials ([ledger](../src/Kora.Application/Dependencies/SessionModelMetricsLedger.cs), [record contract](../src/Kora.Core/Dependencies/SessionModelUsage.cs)).
+
 ## Ask what remains in one conversation
 
 Select one conversation in Sessions or the compact conversation view, then choose **What work remains?** The button completes a factual host answer without opening All Work, submitting a message or stopping execution ([native action](../src/Kora/SessionsViewModel.RemainingWork.cs)).

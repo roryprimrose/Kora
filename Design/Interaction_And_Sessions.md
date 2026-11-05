@@ -13,6 +13,12 @@ Related: [Architecture](Architecture.md), [Work Management](Work_Management.md),
 This is the canonical interaction/session contract. It replaces the former single-conversation, single-executor, memory-only-history direction.
 Windows login sessions, voice capture generations, provider/SDK conversations, and Kora work sessions are different identities; none substitutes for another.
 
+## Session model usage
+
+The [session metrics operation](../docs/commands.md#inspect-session-model-metrics) supports inspectable session conversations with a native panel and equivalent typed/activated-voice queries. The [host ledger](../src/Kora.Application/Dependencies/SessionModelMetricsLedger.cs) groups reported consumption by provider and exact selected model, adds session token totals, and keeps each model's latest request context separate. It records no conversation content and confers no execution authority.
+
+The [scoped read-only tool](../src/Kora.Tools/Sessions/SessionMetricsGet.cs) makes the same observations available to independently qualified model questions without permitting model-selected cross-session access. Content-free usage records survive restart with the session and follow its retention/deletion. Reports may be partial; context occupancy is not cumulative usage, capacity is not inferred from byte budgets, and cost remains explicitly unreported ([contract](../src/Kora.Core/Dependencies/SessionModelMetrics.cs)). Existing session inspection, hosted egress approval, privacy and runtime qualification boundaries remain unchanged ([reader](../src/Kora.Application/Hosting/SessionConversationService.Metrics.cs)).
+
 ## Provisional local answer interaction
 
 Use **Answer locally (no tools)** for bounded incremental text in the originating conversation. Provisional text is labelled, volatile and not spoken automatically; **Stop this answer** in the primary pane and the existing exact-task cancellation controls in Sessions/compact retire it independently of the composer. Only validated completed answers are retained as ASSISTANT; failure/privacy/source/view closure clears or invalidates provisional presentation without manufacturing success ([display contract](Information_Display.md#bounded-provisional-local-answers), [native behavior tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Streaming.cs)).

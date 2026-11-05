@@ -398,6 +398,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
         {
             RemoveConversation(connection, transaction, id);
             Execute(connection, transaction, """
+                DELETE FROM session_model_usage WHERE session_id=$id;
                 DELETE FROM host_task_waits WHERE task_id IN (SELECT task_id FROM host_tasks WHERE session_id=$id);
                 DELETE FROM session_queue_order WHERE session_id=$id;
                 DELETE FROM session_queue WHERE session_id=$id;

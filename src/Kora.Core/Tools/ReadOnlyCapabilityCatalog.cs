@@ -24,6 +24,7 @@ public static class ReadOnlyCapabilityCatalog
             Define(Readiness, CapabilityInputShape.Page, CapabilityOutputShape.Readiness),
             Define(RuntimeList, CapabilityInputShape.Page, CapabilityOutputShape.Runtimes),
             Define(RuntimeStatus, CapabilityInputShape.Id, CapabilityOutputShape.Runtime),
+            Define(SessionMetricsTool.Id, CapabilityInputShape.None, CapabilityOutputShape.SessionMetrics),
         ]);
 
     public static ReadOnlyDictionary<string, string> ExactCommands { get; } = new(

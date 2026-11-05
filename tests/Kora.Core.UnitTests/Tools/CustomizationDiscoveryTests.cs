@@ -22,7 +22,7 @@ public sealed class CustomizationDiscoveryTests
     [Fact]
     public void LocalOnlyCatalogueRoundtripsListAndGetWithoutExpandingOrdinaryOrSessionTools()
     {
-        ReadOnlyCapabilityCatalog.Descriptors.Should().HaveCount(6);
+        ReadOnlyCapabilityCatalog.Descriptors.Should().HaveCount(7);
         ReadOnlyCapabilityCatalog.FindExact(CustomizationDiscoveryTools.List).Should().BeNull();
         CustomizationDiscoveryTools.FindExact("CUSTOMIZATIONS.LIST").Should().BeNull();
         ModelToolProtocol.GetTools(ModelToolMode.CustomizationDiscovery).Should().Equal(CustomizationDiscoveryTools.Descriptors);
@@ -126,6 +126,8 @@ public sealed class CustomizationDiscoveryTests
     [InlineData("capabilities")]
     [InlineData("descriptor")]
     [InlineData("version")]
+    [InlineData("metrics")]
+    [InlineData("settings")]
     [InlineData("readiness")]
     [InlineData("runtimes")]
     [InlineData("runtime")]
@@ -153,6 +155,8 @@ public sealed class CustomizationDiscoveryTests
             "capabilities" => Reply() with { Capabilities = new([], 0, null) },
             "descriptor" => Reply() with { Descriptor = ReadOnlyCapabilityCatalog.Descriptors[0] },
             "version" => Reply() with { Version = new("1", "observed") },
+            "metrics" => Reply() with { SessionMetrics = new(DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, 0, 0, 0, 0, 0, []) },
+            "settings" => Reply() with { Settings = new([], 0, null) },
             "readiness" => Reply() with { Readiness = new([], 0, null) },
             "runtimes" => Reply() with { Runtimes = new([], 0, null) },
             "runtime" => Reply() with { Runtime = new(ReadOnlyCapabilityCatalog.LocalRuntimeId, RuntimeLocality.Local,
@@ -169,6 +173,11 @@ public sealed class CustomizationDiscoveryTests
         var call = fault.StartsWith("get-", StringComparison.Ordinal)
             ? Call(CustomizationDiscoveryTools.Get, $$"""{"ref":"{{Reference}}"}""")
             : fault is "offset" ? Call(input: """{"offset":1}""") : Call();
+        if (fault is "metrics" or "settings")
+        {
+            CustomizationDiscoveryTools.Matches(reply, call.CapabilityId,
+                CapabilityInputPolicy.Read(CustomizationDiscoveryTools.FindExact(call.CapabilityId)!, call.InputJson)).Should().BeFalse();
+        }
         var reject = () => ModelToolProtocol.CreateToolResult(call, reply);
         reject.Should().Throw<InvalidDataException>();
     }

@@ -401,6 +401,7 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyConversation()
     {
+        NotifyMetrics();
         NotifyComposerRequest();
         NotifyClarificationExchange();
         NotifyAnswerReviews();

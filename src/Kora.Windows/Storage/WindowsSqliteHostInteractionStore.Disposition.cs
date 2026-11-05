@@ -116,6 +116,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             SessionHistoryPersistence.Redact(connection, transaction, request.SessionId);
             RemoveConversation(connection, transaction, request.SessionId);
             Execute(connection, transaction, """
+                DELETE FROM session_model_usage WHERE session_id=$id;
                 DELETE FROM host_task_waits WHERE task_id IN (SELECT task_id FROM host_tasks WHERE session_id=$id);
                 DELETE FROM host_observations WHERE session_id=$id;
                 DELETE FROM host_questions WHERE session_id=$id;
@@ -238,6 +239,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             "SELECT * FROM session_provider_profile WHERE session_id=$id ORDER BY session_id;",
             "SELECT * FROM conversation_drafts WHERE session_id=$id ORDER BY session_id;",
             "SELECT * FROM conversation_answer_reviews WHERE session_id=$id ORDER BY request_id;",
+            "SELECT * FROM session_model_usage WHERE session_id=$id ORDER BY turn_id;",
             "SELECT * FROM conversation_messages WHERE session_id=$id AND request_id<>$stoppedRequest ORDER BY sequence;",
             "SELECT * FROM session_queue WHERE session_id=$id ORDER BY task_id;",
             "SELECT * FROM session_queue_order WHERE session_id=$id ORDER BY order_id;",

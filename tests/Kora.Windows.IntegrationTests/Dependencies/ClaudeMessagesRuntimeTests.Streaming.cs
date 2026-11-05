@@ -68,6 +68,7 @@ public sealed partial class ClaudeMessagesRuntimeTests
         var result = await pending;
         result.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
         result.Answer.Should().Be(text + " complete");
+        result.TokenUsage.Should().Be(new ModelTokenUsage(25, 5, 25));
         f.Updates.Select(update => update.Answer).Should().Equal(text, text + " complete");
         stream.Disposed.Should().BeTrue();
         f.Runtime.IsQuiescent.Should().BeTrue();
@@ -212,6 +213,7 @@ public sealed partial class ClaudeMessagesRuntimeTests
         result.Outcome.Should().NotBe(ModelTurnOutcome.Succeeded);
         result.Answer.Should().BeNull();
         f.Updates.Should().ContainSingle();
+        result.TokenUsage.Should().Be(new ModelTokenUsage(25, null, 25));
         stream.Disposed.Should().BeTrue();
         f.Runtime.IsQuiescent.Should().BeTrue();
     }

@@ -296,7 +296,7 @@ public sealed class RetainedLocalObservationsTests
         return id switch
         {
             ReadOnlyCapabilityCatalog.List => ("{}", new(CapabilityOutcome.Succeeded, "observed",
-                Capabilities: new(ReadOnlyCapabilityCatalog.Descriptors, 6, null))),
+                Capabilities: new(ReadOnlyCapabilityCatalog.Descriptors.Take(6).ToArray(), 7, 6))),
             ReadOnlyCapabilityCatalog.Get => ("{\"id\":\"capabilities.list\"}", new(CapabilityOutcome.Succeeded, "observed",
                 Descriptor: ReadOnlyCapabilityCatalog.Descriptors[0])),
             ReadOnlyCapabilityCatalog.Readiness => ("{}", new(CapabilityOutcome.Succeeded, "observed",

@@ -7,7 +7,7 @@ namespace Kora.Windows.Dependencies;
 
 /// <summary>Strict incremental named SSE text profile for anthropic-version 2023-06-01.</summary>
 internal sealed class ClaudeAnswerStream(ProviderProfileTuple profile, int inputLimit, int outputLimit,
-    Func<string, ValueTask> publish)
+    Func<string, ValueTask> publish, Action<ModelTokenUsage>? observeUsage = null)
 {
     internal const int MaximumEvents = 128;
     private readonly StringBuilder answer = new();
@@ -38,13 +38,14 @@ internal sealed class ClaudeAnswerStream(ProviderProfileTuple profile, int input
         }, quarantine, token);
 
     internal static Task<byte[]> ReadAsync(HttpContent content, ProviderProfileTuple profile, int inputLimit,
-        int outputLimit, int limit, Func<string, ValueTask> publish, Action quarantine, CancellationToken token)
+        int outputLimit, int limit, Func<string, ValueTask> publish, Action quarantine, CancellationToken token,
+        Action<ModelTokenUsage>? observeUsage = null)
     {
         if (content.Headers.ContentType?.MediaType is not "text/event-stream"
             || content.Headers.ContentEncoding.Count != 0
             || content.Headers.ContentType.CharSet is { } charset && !charset.Equals("utf-8", StringComparison.OrdinalIgnoreCase))
         { throw new InvalidDataException("Claude text streaming requires unencoded UTF-8 SSE."); }
-        var decoder = new ClaudeAnswerStream(profile, inputLimit, outputLimit, publish);
+        var decoder = new ClaudeAnswerStream(profile, inputLimit, outputLimit, publish, observeUsage);
         return ReadOwnedAsync(content, limit, async stream =>
         {
             var bytes = new byte[limit + 1];
@@ -148,6 +149,7 @@ internal sealed class ClaudeAnswerStream(ProviderProfileTuple profile, int input
                     || usage.TryGetProperty("cache_creation_input_tokens", out var created) && created.GetInt32() != 0
                     || usage.TryGetProperty("cache_read_input_tokens", out var cached) && cached.GetInt32() != 0)
                 { throw new InvalidDataException("Claude SSE start exceeds the exact token profile."); }
+                observeUsage?.Invoke(new(input, null, input));
                 phase = 1;
                 return;
             case "content_block_start" when phase == 1 && blocks < 64:
@@ -193,6 +195,8 @@ internal sealed class ClaudeAnswerStream(ProviderProfileTuple profile, int input
                     || output < outputTokens || output > outputLimit)
                 { throw new InvalidDataException("Claude cumulative output tokens changed invalidly."); }
                 outputTokens = output;
+                var inputTokens = message.GetProperty("usage").GetProperty("input_tokens").GetInt32();
+                observeUsage?.Invoke(new(inputTokens, outputTokens, inputTokens));
                 ended = reason.ValueKind != JsonValueKind.Null;
                 phase = 3;
                 return;

@@ -166,7 +166,7 @@ public sealed class SessionQueueReadProfilesTests
     {
         SessionQueueReadProfile.Version => new(CapabilityOutcome.Succeeded, "observed", Version: new("1.0.0", "fixed")),
         SessionQueueReadProfile.Capabilities => new(CapabilityOutcome.Succeeded, "catalogue",
-            Capabilities: new(ReadOnlyCapabilityCatalog.Descriptors, 6, null)),
+            Capabilities: new(ReadOnlyCapabilityCatalog.Descriptors.Take(6).ToArray(), 7, 6)),
         SessionQueueReadProfile.Readiness => new(CapabilityOutcome.Succeeded, "recorded-observations",
             Readiness: new([new("kora.storage", null, CapabilityAvailability.Unavailable, "not-observed", null)], 1, null)),
         _ => new(CapabilityOutcome.Succeeded, "recorded-observation",

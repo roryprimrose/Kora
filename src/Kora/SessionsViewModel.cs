@@ -772,6 +772,7 @@ internal sealed partial class SessionsViewModel(
 
     private void ClearSelection()
     {
+        ClearMetrics();
         ClearRemainingWork();
         CancelStopAndDeleteReview();
         ClearSessionPermission();

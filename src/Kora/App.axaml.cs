@@ -333,6 +333,8 @@ public sealed partial class App : Avalonia.Application
             sessionRetention.Revoking += memories.ExpireSession;
             Services.GetRequiredService<SessionWorkspaceService>().SessionLifecycleChanged += viewModel.RevokeSessionPresentation;
             Services.GetRequiredService<SessionWorkspaceService>().SessionRetired += viewModel.RevokeSessionPresentation;
+            Services.GetRequiredService<SessionWorkspaceService>().SessionRetired += Services.GetRequiredService<Kora.Application.Dependencies.ModelTurnHost>().ForgetMetrics;
+            sessionRetention.Revoking += Services.GetRequiredService<Kora.Application.Dependencies.ModelTurnHost>().ForgetMetrics;
             sessionRetention.Failed += viewModel.ReportHostInteractionFailure;
             sessionRetention.Start();
             viewModel.BindSessionCommands(Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>(),

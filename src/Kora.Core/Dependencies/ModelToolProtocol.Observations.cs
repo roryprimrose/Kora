@@ -9,7 +9,7 @@ public static partial class ModelToolProtocol
     {
         if (ReadOnlyCapabilityCatalog.FindExact(id) is not { } descriptor
             || CapabilityInputPolicy.Read(descriptor, input).DenialReason is not null)
-        { throw new InvalidDataException("Only a complete original six-ID observation is admitted."); }
+        { throw new InvalidDataException("Only a complete registered read-only observation is admitted."); }
         _ = CreateToolResult(new("host-observation", id, input), reply);
     }
 }

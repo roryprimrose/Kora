@@ -46,7 +46,7 @@ public sealed partial class WindowsOllamaToolTransportTests
         completed.Message.Should().BeOfType<ModelFinalResponse>().Which.Answer.Should().Be("Actual clarified answer");
         using var initial = JsonDocument.Parse(f.Bodies[0]);
         var tools = initial.RootElement.GetProperty("tools");
-        tools.GetArrayLength().Should().Be(readOnly ? 7 : 1);
+        tools.GetArrayLength().Should().Be(readOnly ? 8 : 1);
         var tool = tools[0].GetProperty("function");
         tool.GetProperty("name").GetString().Should().Be("ask_user");
         var parameters = tool.GetProperty("parameters");

@@ -36,8 +36,9 @@ internal sealed class CopilotModelTurnAdapter(ICopilotTurnRuntime runtime, Hoste
             cancellationToken).ConfigureAwait(false);
         if (reply.Outcome == ModelTurnOutcome.Succeeded
             && (!reviews.Current(authorization) || !await current(cancellationToken).ConfigureAwait(false)))
-        { return new(ModelTurnOutcome.DeniedEgress, provenance.Selection); }
+        { return new(ModelTurnOutcome.DeniedEgress, provenance.Selection) { TokenUsage = reply.TokenUsage }; }
         return new(reply.Outcome, provenance.Selection,
-            reply.Outcome == ModelTurnOutcome.Succeeded ? new LocalModelResponse(reply.Answer, null) : null);
+            reply.Outcome == ModelTurnOutcome.Succeeded ? new LocalModelResponse(reply.Answer, null) : null)
+        { TokenUsage = reply.TokenUsage };
     }
 }

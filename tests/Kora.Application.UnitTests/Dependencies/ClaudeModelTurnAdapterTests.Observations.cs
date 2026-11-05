@@ -39,6 +39,7 @@ public sealed partial class ClaudeModelTurnAdapterTests
         }, Token);
         result.Outcome.Should().Be(expected);
         (result.Response?.Answer).Should().Be(fault is "success" ? "genuine observation answer" : null);
+        result.TokenUsage.Should().Be(fault is "success" or "revoked-on-dispose" ? new ModelTokenUsage(50, 10, 25) : null);
         calls.Should().Be(fault is "success" or "revoked-on-dispose" ? 1 : 0);
         transport.Requests.Should().HaveCount(fault is "success" or "revoked-on-dispose" ? 2 : 0);
         transport.Disposed.Should().Be(fault is "success" or "revoked-after-open" or "revoked-on-dispose");
@@ -99,7 +100,8 @@ public sealed partial class ClaudeModelTurnAdapterTests
                 Encoding.UTF8.GetString(result.Result.AsSpan()).Should().Contain("1.0");
             }
             return Task.FromResult(new ModelToolTransportReply(ModelTurnOutcome.Succeeded, request.Provenance,
-                message, new(ModelToolProtocol.SerializeRequest(request).Length, ModelToolProtocol.SerializeMessage(message).Length)));
+                message, new(ModelToolProtocol.SerializeRequest(request).Length, ModelToolProtocol.SerializeMessage(message).Length))
+            { TokenUsage = new(25, 5, 25) });
         }
         public ValueTask DisposeAsync() { Disposed = true; OnDispose?.Invoke(); return ValueTask.CompletedTask; }
     }

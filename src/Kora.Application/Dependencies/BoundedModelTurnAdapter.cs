@@ -73,6 +73,7 @@ internal sealed partial class BoundedModelTurnAdapter(
         Func<ModelAnswerUpdate, CancellationToken, ValueTask>? publish, CancellationToken cancellationToken)
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetime.Token);
+        var tokens = new TokenTotals();
         try
         {
             if (!HasHostContext(provenance))
@@ -81,11 +82,11 @@ internal sealed partial class BoundedModelTurnAdapter(
             try
             {
                 var result = await ContinueAsync(provenance, profile, wire, invokeTool, validateContinuation, ask,
-                    publish, linked.Token).ConfigureAwait(false);
+                    publish, tokens, linked.Token).ConfigureAwait(false);
                 activity.Complete(result.Outcome == ModelTurnOutcome.Succeeded ? HostOperationOutcome.Completed
                     : result.Outcome == ModelTurnOutcome.Cancelled ? HostOperationOutcome.Cancelled
                     : result.Outcome == ModelTurnOutcome.Unknown ? HostOperationOutcome.Unknown : HostOperationOutcome.Failed);
-                return result;
+                return result with { TokenUsage = tokens.Snapshot };
             }
             catch (OperationCanceledException) when (linked.IsCancellationRequested)
             { activity.Complete(HostOperationOutcome.Cancelled); throw; }
@@ -93,7 +94,7 @@ internal sealed partial class BoundedModelTurnAdapter(
             { activity.Complete(HostOperationOutcome.Unknown); throw; }
         }
         catch (OperationCanceledException) when (linked.IsCancellationRequested)
-        { return Finish(provenance, ModelTurnOutcome.Cancelled, ModelTurnReason.CallerCancelled); }
+        { return Finish(provenance, ModelTurnOutcome.Cancelled, ModelTurnReason.CallerCancelled) with { TokenUsage = tokens.Snapshot }; }
         catch (Exception exception)
         {
             Fault(logger, exception.GetType().Name);
@@ -106,7 +107,7 @@ internal sealed partial class BoundedModelTurnAdapter(
         ReadOnlyMemory<byte> wire, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
         Func<CancellationToken, ValueTask<ModelTurnReason>> validateContinuation,
         Func<ModelClarificationQuestion, CancellationToken, Task<ModelQuestionAnswerMessage>>? ask,
-        Func<ModelAnswerUpdate, CancellationToken, ValueTask>? publish, CancellationToken token)
+        Func<ModelAnswerUpdate, CancellationToken, ValueTask>? publish, TokenTotals tokens, CancellationToken token)
     {
         ModelToolContext context;
         try { context = ModelToolProtocol.ReadContext(wire.Span, provenance); }
@@ -144,6 +145,7 @@ internal sealed partial class BoundedModelTurnAdapter(
             { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.ToolLoopBudgetExceeded); }
             var requestBytes = ModelToolProtocol.SerializeRequest(request).Length;
             ModelToolTransportReply reply;
+            tokens.BeginRound();
             try
             {
                 reply = publish is not null && ask is null && context.ToolMode == ModelToolMode.None
@@ -161,11 +163,14 @@ internal sealed partial class BoundedModelTurnAdapter(
             }
             catch (InvalidDataException)
             { return Finish(provenance, ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse); }
-            denied = await CheckContinuationAsync(provenance, started, validateContinuation, deadline, token).ConfigureAwait(false);
-            if (denied is not null) { return denied; }
             if (reply is null || reply.Provenance != provenance || !Enum.IsDefined(reply.Outcome)
                 || (reply.Outcome == ModelTurnOutcome.Succeeded) != (reply.Message is not null))
             { return Finish(provenance, ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse); }
+            try { tokens.Observe(reply.TokenUsage); }
+            catch (InvalidDataException)
+            { return Finish(provenance, ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse); }
+            denied = await CheckContinuationAsync(provenance, started, validateContinuation, deadline, token).ConfigureAwait(false);
+            if (denied is not null) { return denied; }
             if (reply.Outcome != ModelTurnOutcome.Succeeded)
             { return Finish(provenance, reply.Outcome, ModelTurnReason.ProviderOutcome); }
             var message = reply.Message!;
@@ -285,6 +290,42 @@ internal sealed partial class BoundedModelTurnAdapter(
     private static bool HasHostContext(ModelTurnProvenance provenance) =>
         HostActivity.Current is { Outcome: HostOperationOutcome.Unknown, Activity.IsStopped: false } current
         && ReferenceEquals(current.Request, provenance.Request);
+
+    private sealed class TokenTotals
+    {
+        private long? input = 0;
+        private long? output = 0;
+        private ModelTokenUsage? latest;
+        private bool pending;
+        private bool observed;
+
+        internal ModelTokenUsage? Snapshot => observed
+            ? new(pending ? null : input, pending ? null : output, latest?.ContextTokens, latest?.ContextCapacityTokens)
+            : null;
+
+        internal void BeginRound()
+        {
+            pending = true;
+            latest = null;
+        }
+
+        internal void Observe(ModelTokenUsage? usage)
+        {
+            usage?.Validate();
+            try
+            {
+                var nextInput = checked(input + usage?.InputTokens);
+                var nextOutput = checked(output + usage?.OutputTokens);
+                input = nextInput;
+                output = nextOutput;
+            }
+            catch (OverflowException exception)
+            { throw new InvalidDataException("Provider token totals exceed the supported count range.", exception); }
+            latest = usage;
+            observed |= usage is not null;
+            pending = false;
+        }
+    }
 
     private ModelProviderReply Finish(ModelTurnProvenance provenance, ModelTurnOutcome outcome, ModelTurnReason reason,
         LocalModelResponse? response = null)

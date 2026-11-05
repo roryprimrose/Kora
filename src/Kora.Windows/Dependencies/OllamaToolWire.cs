@@ -213,6 +213,20 @@ internal static partial class OllamaToolWire
         writer.WriteEndObject();
     }
 
+    internal static ModelTokenUsage? ReadTokenUsage(byte[] bytes, string model)
+    {
+        using var document = ReadJson(bytes);
+        ValidateReplyEnvelope(document.RootElement, model, completed: true);
+        return ReadTokenUsage(document.RootElement);
+    }
+
+    private static ModelTokenUsage? ReadTokenUsage(JsonElement root)
+    {
+        long? input = root.TryGetProperty("prompt_eval_count", out var prompt) ? prompt.GetInt64() : null;
+        long? output = root.TryGetProperty("eval_count", out var generated) ? generated.GetInt64() : null;
+        return input is null && output is null ? null : new(input, output, input);
+    }
+
     internal static Reply ReadReply(byte[] bytes, string model, int round, bool clarificationAllowed = false,
         Kora.Core.Mcp.McpModelTool? mcpTool = null, ModelToolMode toolMode = ModelToolMode.None)
     {

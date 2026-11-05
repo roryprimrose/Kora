@@ -187,6 +187,7 @@ public sealed class SettingsDiscoveryToolsTests
     [InlineData("mcp")]
     [InlineData("sessions")]
     [InlineData("customizations")]
+    [InlineData("metrics")]
     [InlineData("input")]
     public void SettingsResultsNeverCarryAnotherFamilyOrInvalidCallerInput(string defect)
     {
@@ -205,10 +206,11 @@ public sealed class SettingsDiscoveryToolsTests
             "mcp" => reply with { Mcp = new("mcp.read", new string('a', 64), DateTimeOffset.UnixEpoch, "inert", null) },
             "sessions" => reply with { Sessions = new([], 0, null) },
             "customizations" => reply with { Customizations = new([], 0, null) },
+            "metrics" => reply with { SessionMetrics = new(DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, 0, 0, 0, 0, 0, []) },
             _ => reply,
         };
         var input = defect is "input" ? """{"scope":"session"}""" : "{}";
-        if (defect is "mcp")
+        if (defect is "mcp" or "metrics")
         {
             SettingsDiscoveryTools.Matches(reply, SettingsDiscoveryTools.List,
                 CapabilityInputPolicy.Read(SettingsDiscoveryTools.FindExact(SettingsDiscoveryTools.List)!, "{}"))

@@ -16,6 +16,7 @@ public sealed partial class ClaudeMessagesRuntime
         token = linked.Token;
         await operation.WaitAsync(token).ConfigureAwait(false);
         HttpClient? http = null;
+        ModelTokenUsage? tokenUsage = null;
         void Quarantine() => quarantined = true;
         try
         {
@@ -69,21 +70,22 @@ public sealed partial class ClaudeMessagesRuntime
                         var update = new ModelAnswerUpdate(provenance, answer);
                         update.Validate();
                         await publish(update, ct).ConfigureAwait(false);
-                    }, Quarantine, ct), quarantine: Quarantine).ConfigureAwait(false);
+                    }, Quarantine, ct, usage => tokenUsage = usage), quarantine: Quarantine).ConfigureAwait(false);
             if (response is null) { return new(ModelTurnOutcome.DeniedEgress); }
             var answer = ParseAnswer(response, profile, outputLimit, inputLimit);
             token.ThrowIfCancellationRequested();
             return await Live(token).ConfigureAwait(false)
-                ? new(ModelTurnOutcome.Succeeded, answer) : new(ModelTurnOutcome.DeniedEgress);
+                ? new(ModelTurnOutcome.Succeeded, answer) { TokenUsage = tokenUsage }
+                : new(ModelTurnOutcome.DeniedEgress) { TokenUsage = tokenUsage };
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
-        { return new(ModelTurnOutcome.Cancelled); }
+        { return new(ModelTurnOutcome.Cancelled) { TokenUsage = tokenUsage }; }
         catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidDataException
             or System.Text.Json.JsonException or InvalidOperationException or KeyNotFoundException or FormatException
             or System.Text.EncoderFallbackException or System.Text.DecoderFallbackException)
         {
             RequestFailed(logger, exception.GetType().Name);
-            return new(ModelTurnOutcome.Unknown);
+            return new(ModelTurnOutcome.Unknown) { TokenUsage = tokenUsage };
         }
         finally
         {

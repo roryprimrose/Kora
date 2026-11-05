@@ -162,7 +162,7 @@ public sealed class BoundedAgentProfileTests
             ReadOnlyCapabilityCatalog.Descriptors.Single(item => string.Equals(item.Id, ReadOnlyCapabilityCatalog.Version, StringComparison.Ordinal)));
         profile.MaximumCalls.Should().Be(2);
         profile.MaximumRounds.Should().Be(2);
-        var all = string.Join(",", ReadOnlyCapabilityCatalog.Descriptors.Select(item => item.Id));
+        var all = string.Join(",", ReadOnlyCapabilityCatalog.Descriptors.Take(6).Select(item => item.Id));
         Parse(text.Replace("tools: runtime.get_status, application.get_version", "tools: " + all, StringComparison.Ordinal))
             .Tools.Should().HaveCount(6);
     }
@@ -313,9 +313,9 @@ public sealed class BoundedAgentProfileTests
             "tools: runtime.get_status, application.get_version", StringComparison.Ordinal));
         profile.Tools.Should().Equal(ReadOnlyCapabilityCatalog.RuntimeStatus, ReadOnlyCapabilityCatalog.Version);
         profile.Tools.Length.Should().Be(2);
-        var all = string.Join(",", ReadOnlyCapabilityCatalog.Descriptors.Select(item => item.Id));
+        var all = string.Join(",", ReadOnlyCapabilityCatalog.Descriptors.Take(6).Select(item => item.Id));
         Parse(Profile.Replace("tools: application.get_version", "tools: " + all, StringComparison.Ordinal))
-            .Tools.Should().HaveCount(ReadOnlyCapabilityCatalog.Descriptors.Count);
+            .Tools.Should().HaveCount(6);
         Action excessive = () => Parse(Profile.Replace("tools: application.get_version", "tools: " + all + ",unknown", StringComparison.Ordinal));
         excessive.Should().Throw<InvalidDataException>();
     }

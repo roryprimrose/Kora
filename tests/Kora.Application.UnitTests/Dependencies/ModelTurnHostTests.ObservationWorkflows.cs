@@ -133,9 +133,10 @@ public sealed partial class ModelTurnHostTests
         var selected = (from a in choices from b in choices from c in choices from d in choices from e in choices
             let counts = new[] { a, b, c, d, e }
             let padding = ObservationWorkflowDefinition.MaximumResultBytes - framing - counts.Sum(count => sizes[count]) - versionSize
-            where padding is >= 0 and < 127
+            where padding is >= 0 and < 720
             select (counts, padding)).First();
-        info.Value = "v" + new string('x', selected.padding + excess);
+        var paddingBytes = selected.padding + excess;
+        info.Value = "v" + new string('\u00e9', paddingBytes / 6) + new string('x', paddingBytes % 6);
         var steps = selected.counts.Select(count => new { tool = ReadOnlyCapabilityCatalog.List, input = "{\"count\":" + count + "}" })
             .Append(new { tool = ReadOnlyCapabilityCatalog.Version, input = "{}" });
         var source = "{\"steps\":[" + string.Join(',', steps.Select(step => "{\"tool\":\"" + step.tool + "\",\"input\":" + step.input + "}")) + "]}";

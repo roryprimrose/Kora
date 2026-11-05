@@ -72,6 +72,8 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotTurnRuntime, IAsyncD
         using var http = new HttpClient(createTransport()) { Timeout = Timeout.InfiniteTimeSpan,
             MaxResponseContentBufferSize = CopilotTransmission.MaximumBodyBytes * 2 };
         ICopilotSdkClient? client = null;
+        ICopilotSdkSession? session = null;
+        long? contextCapacityTokens = null;
         Task<string?>? pending = null;
         var stopped = false;
         var live = 1;
@@ -140,6 +142,7 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotTurnRuntime, IAsyncD
                     }
                     else
                     {
+                        contextCapacityTokens = model.Capabilities.Limits.MaxContextWindowTokens;
                         var functions = ReadOnlyCapabilityCatalog.Descriptors.Select(descriptor =>
                         {
                             var name = "kora_" + descriptor.Id.Replace('.', '_');
@@ -163,7 +166,7 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotTurnRuntime, IAsyncD
                             }, new() { SkipPermission = true }, new() { Name = name });
                         }).ToArray();
                         var configuration = CreateSessionConfiguration(account, sessionId, files, functions);
-                        var session = await client.CreateAsync(configuration, callbacks.Token).ConfigureAwait(false);
+                        session = await client.CreateAsync(configuration, callbacks.Token).ConfigureAwait(false);
                         if (!string.Equals(session.SessionId, sessionId, StringComparison.Ordinal) || !Live())
                         {
                             result = new(ModelTurnOutcome.Denied);
@@ -184,19 +187,17 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotTurnRuntime, IAsyncD
                     }
                 }
             }
-            activity.Complete(result.Outcome == ModelTurnOutcome.Succeeded ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
-            return result;
         }
         catch (OperationCanceledException) when (callbacks.IsCancellationRequested)
         {
             activity.Complete(HostOperationOutcome.Cancelled);
-            throw;
+            result = new(ModelTurnOutcome.Cancelled);
         }
         catch (Exception exception) when (requestHandler?.Denied == true)
         {
             TransmissionDenied(logger, exception.GetType().Name);
             activity.Complete(HostOperationOutcome.Failed);
-            return new(ModelTurnOutcome.DeniedEgress);
+            result = new(ModelTurnOutcome.DeniedEgress);
         }
         finally
         {
@@ -241,6 +242,15 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotTurnRuntime, IAsyncD
                 if (!stopped || !cancellationCompleted) { activity.Complete(HostOperationOutcome.Failed); }
             }
         }
+        var tokenUsage = session?.GetTokenUsage(requestHandler?.ModelCalls ?? 0);
+        if (tokenUsage is not null)
+        {
+            tokenUsage = tokenUsage with { ContextCapacityTokens = contextCapacityTokens };
+            tokenUsage.Validate();
+        }
+        activity.Complete(result.Outcome == ModelTurnOutcome.Succeeded ? HostOperationOutcome.Completed
+            : result.Outcome == ModelTurnOutcome.Cancelled ? HostOperationOutcome.Cancelled : HostOperationOutcome.Failed);
+        return result with { TokenUsage = tokenUsage };
     }
 
     internal static SessionConfig CreateSessionConfiguration(CopilotExecutionAccount account, string sessionId,

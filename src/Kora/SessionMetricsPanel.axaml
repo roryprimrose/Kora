@@ -1,0 +1,27 @@
+<UserControl x:Class="Kora.SessionMetricsPanel"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Kora.Controls">
+  <Expander x:Name="MetricsExpander" Header="Session metrics"
+      ToolTip.Tip="Reported model tokens and latest request context for this conversation">
+    <StackPanel Spacing="6">
+      <Button x:Name="RefreshSessionMetrics" Content="_Refresh session metrics" IsEnabled="{Binding CanReadMetrics}"
+          AutomationProperties.Name="Refresh reported usage for this exact selected session; no model call or network" />
+      <controls:NamedTextBlock Text="{Binding MetricsStatus}" TextWrapping="Wrap" Focusable="True"
+          AutomationProperties.Name="Session token totals, per-model usage, observation time and unavailable metrics" />
+      <ItemsControl ItemsSource="{Binding MetricsModels}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <StackPanel Spacing="3" Margin="0,4">
+              <TextBlock Text="{Binding Label}" FontWeight="SemiBold" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding ContextLabel}" TextWrapping="Wrap" />
+              <ProgressBar Minimum="0" Maximum="100" Value="{Binding ContextPercent}"
+                  IsVisible="{Binding HasContextPercent}" Height="8"
+                  AutomationProperties.Name="{Binding ContextLabel}" />
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </Expander>
+</UserControl>

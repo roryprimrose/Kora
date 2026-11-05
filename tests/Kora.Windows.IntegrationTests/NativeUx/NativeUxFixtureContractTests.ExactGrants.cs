@@ -73,16 +73,15 @@ public sealed partial class NativeUxFixtureContractTests
                 var list = window.GetLogicalDescendants().OfType<ListBox>().Single(item =>
                     string.Equals(Avalonia.Automation.AutomationProperties.GetName(item), "Permission grants: exact operation grants and URI rules", StringComparison.Ordinal));
                 list.Items.Count.Should().Be(records.Length);
-                foreach (var (label, displayed) in new[]
-                {
-                    ("Current exact grant inspection", inspection),
-                    ("Exact grant operation status", state.Message),
-                })
-                {
-                    var text = window.GetLogicalDescendants().OfType<NamedTextBlock>().Single(control =>
-                        string.Equals(AutomationProperties.GetName(control), label, StringComparison.Ordinal));
-                    ControlAutomationPeer.CreatePeerForElement(text)!.GetName().Should().Be(label + ": " + displayed);
-                }
+                var inspected = window.FindControl<TextBox>("ExactInspection")!;
+                var inspectionPeer = ControlAutomationPeer.CreatePeerForElement(inspected)!;
+                inspectionPeer.GetName().Should().Be("Current exact grant inspection");
+                var inspectionValue = inspectionPeer.GetProvider<IValueProvider>()!;
+                inspectionValue.IsReadOnly.Should().BeTrue();
+                inspectionValue.Value.Should().Be(inspection);
+                var status = window.GetLogicalDescendants().OfType<NamedTextBlock>().Single(control =>
+                    string.Equals(AutomationProperties.GetName(control), "Exact grant operation status", StringComparison.Ordinal));
+                ControlAutomationPeer.CreatePeerForElement(status)!.GetName().Should().Be("Exact grant operation status: " + state.Message);
                 window.UpdateLayout();
                 var provider = ControlAutomationPeer.CreatePeerForElement(list)!.GetProvider<IScrollProvider>()!;
                 if (provider.VerticallyScrollable)

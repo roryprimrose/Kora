@@ -8,7 +8,9 @@ internal sealed class InteractionTransactionCheckpoint : IHostInteractionTransac
 {
     internal Action<SqliteConnection, SqliteTransaction>? Audit { get; set; }
     internal Action<SqliteConnection, SqliteTransaction>? Commit { get; set; }
+    internal Action<SqliteConnection>? AuditRetentionCommitted { get; set; }
 
     public void BeforeAudit(SqliteConnection connection, SqliteTransaction transaction) => Audit?.Invoke(connection, transaction);
     public void BeforeCommit(SqliteConnection connection, SqliteTransaction transaction) => Commit?.Invoke(connection, transaction);
+    public void AfterAuditRetentionCommit(SqliteConnection connection) => AuditRetentionCommitted?.Invoke(connection);
 }

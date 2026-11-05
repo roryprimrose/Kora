@@ -694,8 +694,9 @@ backlog from missing-or-removed targets without inventing deletion provenance.
 Audit due dates and sequences remain unchanged, including expired audit rows;
 `security_audit_events`, interaction audit/hash chains, tasks, questions,
 sessions and all grants/Perpetual records are outside this operation.
-Audit continuation anchors/pruning, session retention/deletion, configurable
-apply-now, artifact/backup disposal and full R04/D-009 acceptance remain open.
+Independent diagnostic audit-projection pruning, complete session retention/deletion, configurable
+apply-now, artifact/backup disposal and full R04/D-009 acceptance remain open. The
+[authoritative prefix operation](#bounded-authoritative-audit-prefix-retention) is separate.
 The later [future-only diagnostic setting](User_Configuration.md#delivered-bounded-future-only-sqlite-diagnostic-retention-r10r04)
 admits integer 1–365/default-reset30 after required audit/atomic readback/receipt.
 It supplies one coherent deadline per new ordinary SQLite transaction only.
@@ -780,7 +781,8 @@ lost tombstones. Metadata validation permits absent previously committed names
 only behind validated Removed authority. Task/events, independent Perpetual/audit/evidence
 and inert legacy storage survive. No artifact/backup inventory, journal/free-page
 rewrite, full conversation deletion or forensic erasure is delivered.
-Audit due times use the existing independent audit policy; pruning/anchors,
+Audit due times use the existing independent audit policy; broader pruning beyond
+the [conservative authority prefix](#bounded-authoritative-audit-prefix-retention),
 whole-store rollback detection, installed/power-loss acceptance and broader
 R12 lifecycle/UI/retention remain open. Missing/corrupt schema, journal, audit
 or private permissions fail explicitly without replacement or repair.
@@ -952,6 +954,25 @@ Local unlink cannot erase exports, provider copies, filesystem snapshots,
 SSD remnants, OS paging or third-party dumps. Historical encrypted R02
 fixtures do not prove the current implementation or hardware power-loss durability.
 The [acceptance criteria](Acceptance_Criteria.md#persistence-configurable-lifecycle-and-deletion) govern admission and later integration.
+
+#### Bounded Authoritative Audit Prefix Retention
+
+The [host interaction store](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.AuditRetention.cs) runs one batch of at most 128 audit rows during admitted owner startup, after task recovery and existing maintenance. It opens only initialized private authority through its existing lease and PERSIST/FULL transaction; queries never run maintenance.
+
+The [schema 14-to-15 migration](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.AuditRetention.cs) validates existing authority and adds one versioned payload-free `authority_retention_anchor`, initially sequence zero and the original empty hash.
+Each batch fully validates current authority, then selects only a contiguous prefix whose original `DueAt <= cutoff`. The first unexpired or held row stops selection; nonmonotone deadlines can leave later expired records present.
+
+The [reference scan](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.AuditRetention.cs) holds all schema foreign-key audit references, retained queue-receipt dependencies, Requested/Unknown audit outcomes and audited nonterminal/Unknown tasks.
+Existing grant/session/state proofs remain original envelopes; no replacement authority or grant deletion is introduced. Unknown managed artifacts/copies refuse maintenance.
+
+The [removal transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.AuditRetention.cs) commits the latest sequence/hash/cutoff anchor with removal. The original authority head, retained envelopes, sequence numbers and deadlines do not change.
+Exact anchor readback and full retained-authority verification precede success; cancellation after COMMIT cannot claim rollback. An uncertain commit or verification fails startup and requires storage inspection, never automatic replay. Retention is logical pruning, not forensic disposal of journals or other copies.
+
+Writer, [committed inspector](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Inspection.cs), exact-grant history, audit-impact and attachment readers start at the validated anchor. A changed anchor retires prior authority snapshots; fresh evidence pages disclose partial history.
+Missing/inconsistent anchors or gaps in the retained suffix fail closed. Independent evidence-segment audit projections and daily JSON remain unchanged and may retain expired copies under their separate policies.
+
+The anchor extends existing private-store/local SHA-256 consistency only. It does not authenticate expiry against a malicious writer able to coherently rewrite the database and anchor, establish external tamper resistance, detect valid-backup rollback, or reconstruct expired action/content payloads.
+These limits are part of the [approved retention boundary](Security_Data_Flows.md#retention-defaults), not installed or power-loss qualification.
 
 ### Profile Boundary and Validation Responsibility
 

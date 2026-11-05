@@ -199,6 +199,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
 
     private static AuthorityAudit ReadAttachmentAudit(SqliteConnection connection, long sequence)
     {
+        var anchor = ReadAuditAnchor(connection);
         using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT a.correlation_id,a.previous_hash,a.hash,
@@ -210,7 +211,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
         command.Parameters.AddWithValue("$sequence", sequence);
         using var row = command.ExecuteReader();
         if (!row.Read() || row.IsDBNull(3)
-            || !Same(row.GetString(1), sequence == 1 ? EmptyHash : row.IsDBNull(4) ? string.Empty : row.GetString(4)))
+            || !Same(row.GetString(1), sequence == anchor.Sequence + 1 ? anchor.Hash : row.IsDBNull(4) ? string.Empty : row.GetString(4)))
         {
             throw new InvalidDataException("Attachment copy authority is missing, oversized or inconsistent.");
         }

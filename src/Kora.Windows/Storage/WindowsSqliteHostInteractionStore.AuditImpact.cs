@@ -28,8 +28,9 @@ public sealed partial class WindowsSqliteHostInteractionStore
             FROM security_audit_events ORDER BY sequence LIMIT {AuditRetentionImpact.MaximumRows + 1};
             """;
         using var rows = command.ExecuteReader();
-        long sequence = 0;
-        var hash = EmptyHash;
+        var anchor = ReadAuditAnchor(connection);
+        var sequence = anchor.Sequence;
+        var hash = anchor.Hash;
         var complete = true;
         while (rows.Read())
         {

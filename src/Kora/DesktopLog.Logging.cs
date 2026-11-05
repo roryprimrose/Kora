@@ -12,4 +12,7 @@ internal static partial class DesktopLog
 
     [LoggerMessage(302, LogLevel.Error, "{Operation} failed.")]
     public static partial void Error(ILogger logger, Exception exception, string operation);
+
+    [LoggerMessage(303, LogLevel.Information, "Authoritative audit retention removed {Removed} records; due backlog {HasDueBacklog}; reference hold {ReferenceHeld}.")]
+    public static partial void AuditRetentionCompleted(ILogger logger, int removed, bool hasDueBacklog, bool referenceHeld);
 }

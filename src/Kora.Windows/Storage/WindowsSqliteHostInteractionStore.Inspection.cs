@@ -44,6 +44,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 throw new InvalidOperationException("Removed sessions are not browsable.");
             }
             var snapshot = ReadAuditSnapshot(connection, identity, checkpoint?.Snapshot);
+            var anchor = ReadAuditAnchor(connection);
             var after = checkpoint?.After;
             if (after is not null)
             {
@@ -68,7 +69,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 FROM security_audit_events a LEFT JOIN security_audit_events p ON p.sequence=a.sequence-1
                 WHERE a.sequence>$after AND a.sequence<=$ceiling ORDER BY a.sequence LIMIT $limit;
                 """;
-            command.Parameters.AddWithValue("$after", after?.CommittedTicks ?? 0);
+            command.Parameters.AddWithValue("$after", after?.CommittedTicks ?? anchor.Sequence);
             command.Parameters.AddWithValue("$ceiling", snapshot.AuthorityCeiling!.Value);
             command.Parameters.AddWithValue("$limit", WindowsSqliteEvidenceReader.MaximumScannedRows + 1);
             using var rows = command.ExecuteReader();
@@ -82,8 +83,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 cancellationToken.ThrowIfCancellationRequested();
                 if (++scanned > WindowsSqliteEvidenceReader.MaximumScannedRows) { limited = hasMore = true; break; }
                 var sequence = rows.GetInt64(0);
-                if (sequence != (scannedThrough?.CommittedTicks ?? 0) + 1
-                    || !Same(rows.GetString(2), sequence == 1 ? EmptyHash
+                if (sequence != (scannedThrough?.CommittedTicks ?? anchor.Sequence) + 1
+                    || !Same(rows.GetString(2), sequence == anchor.Sequence + 1 ? anchor.Hash
                         : rows.IsDBNull(5) ? string.Empty : rows.GetString(5)))
                 {
                     throw new InvalidDataException("The committed audit prefix has a missing or inconsistent predecessor.");
@@ -104,7 +105,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 candidates.Add(new(position, record));
                 if (candidates.Count > query.Limit) { hasMore = true; break; }
             }
-            if (!hasMore && (scannedThrough?.CommittedTicks ?? 0) != snapshot.AuthorityCeiling)
+            if (!hasMore && (scannedThrough?.CommittedTicks ?? anchor.Sequence) != snapshot.AuthorityCeiling)
             {
                 throw new InvalidDataException("The committed audit snapshot contains a missing suffix.");
             }
@@ -113,7 +114,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
             {
                 throw new InvalidDataException("The committed audit store changed during inspection.");
             }
-            return new(snapshot, candidates, scannedThrough, hasMore, limited);
+            return new(snapshot, candidates, scannedThrough, hasMore, limited,
+                Status: anchor.Sequence > 0 && query.Record is null && !limited ? EvidencePageStatus.Partial : null);
     }
 
     private string RequireInspectionIdentity()
@@ -152,25 +154,27 @@ public sealed partial class WindowsSqliteHostInteractionStore
         command.CommandText = "SELECT count(*) FROM security_audit_events WHERE sequence>$head;";
         command.Parameters.AddWithValue("$head", head);
         if ((long)command.ExecuteScalar()! != 0) { throw new InvalidDataException("The authority head omits committed rows."); }
+        var anchor = ReadAuditAnchor(connection);
+        var sourceIdentity = anchor.Sequence == 0 ? identity : identity + ":" + anchor.Sequence.ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" + anchor.Hash;
         var ceiling = prior?.AuthorityCeiling ?? head;
-        if (ceiling < 0 || ceiling > head || prior is not null && (prior.AuthorityCeiling is null
-            || !Same(prior.AuthorityStoreIdentity ?? string.Empty, identity)))
+        if (ceiling < anchor.Sequence || ceiling > head || prior is not null && (prior.AuthorityCeiling is null
+            || !Same(prior.AuthorityStoreIdentity ?? string.Empty, sourceIdentity)))
         {
             throw new InvalidDataException("The committed audit snapshot belongs to another store or lifetime.");
         }
         command.CommandText = "SELECT hash FROM security_audit_events WHERE sequence=$ceiling;";
         command.Parameters.AddWithValue("$ceiling", ceiling);
-        var digest = ceiling == 0 ? EmptyHash : command.ExecuteScalar() as string
+        var digest = ceiling == anchor.Sequence ? anchor.Hash : command.ExecuteScalar() as string
             ?? throw new InvalidDataException("The exact committed audit ceiling is missing.");
         command.CommandText = "SELECT hash FROM security_audit_events WHERE sequence=$head;";
-        var headDigest = head == 0 ? EmptyHash : command.ExecuteScalar() as string;
+        var headDigest = head == anchor.Sequence ? anchor.Hash : command.ExecuteScalar() as string;
         if (!Same(headDigest ?? string.Empty, hash)
             || prior is not null && !Same(prior.AuthorityCeilingDigest ?? string.Empty, digest))
         {
             throw new InvalidDataException("The committed audit ceiling or head changed.");
         }
         return new(0, 0, 0, 0, AuthorityCeiling: ceiling, AuthorityCeilingDigest: digest,
-            AuthorityStoreIdentity: identity);
+            AuthorityStoreIdentity: sourceIdentity);
     }
 
     private static bool MatchesAuthority(EvidenceRecord record, EvidenceQuery query)

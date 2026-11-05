@@ -244,19 +244,24 @@ public sealed partial class ClaudeAccountBroker : IAsyncDisposable
         request.Headers.ConnectionClose = true;
     }
 
-    internal static async Task<byte[]> ReadBoundedAsync(HttpContent content, int maximum, CancellationToken token)
+    internal static async Task<byte[]> ReadBoundedAsync(HttpContent content, int maximum, CancellationToken token,
+        Action? quarantine = null)
     {
         if (content.Headers.ContentLength > maximum) { throw new InvalidDataException("Claude response exceeds its byte bound."); }
-        await using var stream = await content.ReadAsStreamAsync(token).ConfigureAwait(false);
-        using var memory = new MemoryStream();
-        var buffer = new byte[8192];
-        int read;
-        while ((read = await stream.ReadAsync(buffer.AsMemory(0, Math.Min(buffer.Length, maximum + 1 - (int)memory.Length)), token).ConfigureAwait(false)) != 0)
+        var stream = await content.ReadAsStreamAsync(token).ConfigureAwait(false);
+        try
         {
-            await memory.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
-            if (memory.Length > maximum) { throw new InvalidDataException("Claude response exceeds its byte bound."); }
+            using var memory = new MemoryStream();
+            var buffer = new byte[8192];
+            int read;
+            while ((read = await stream.ReadAsync(buffer.AsMemory(0, Math.Min(buffer.Length, maximum + 1 - (int)memory.Length)), token).ConfigureAwait(false)) != 0)
+            {
+                await memory.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
+                if (memory.Length > maximum) { throw new InvalidDataException("Claude response exceeds its byte bound."); }
+            }
+            return memory.ToArray();
         }
-        return memory.ToArray();
+        finally { await ClaudeAnswerStream.DisposeOwnedAsync(stream, quarantine).ConfigureAwait(false); }
     }
 
     public async ValueTask DisposeAsync()

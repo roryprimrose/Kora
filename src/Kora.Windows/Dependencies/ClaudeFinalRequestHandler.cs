@@ -44,7 +44,7 @@ internal sealed class ClaudeFinalRequestHandler(HttpClient http, ClaudeAccountBr
             token.ThrowIfCancellationRequested();
             if (!response.IsSuccessStatusCode) { throw new HttpRequestException("Claude POST did not return a successful response."); }
             return read is null
-                ? await ClaudeAccountBroker.ReadBoundedAsync(response.Content, maximumResponseBytes, token).ConfigureAwait(false)
+                ? await ClaudeAccountBroker.ReadBoundedAsync(response.Content, maximumResponseBytes, token, quarantine).ConfigureAwait(false)
                 : await read(response.Content, token).ConfigureAwait(false);
         }
         finally { ClaudeAnswerStream.DisposeOwned(response, quarantine); }

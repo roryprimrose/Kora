@@ -795,6 +795,21 @@ stable tie-break in both directions. No number/date/type inference is performed.
 starts with original order. Sorting changes only the volatile view, not source,
 continuous-text selection, literal Find, retention or clipboard authority.
 
+For complete-row inspection in the current sorted order, focus a data cell with
+the pointer or arrows, then activate **Inspect focused row** or press Enter/Space.
+The [native row inspector](../src/Kora/NativeTableControl.Inspection.cs) focuses
+inert, header-labelled readback of every complete cell, including empty cells and
+duplicate headers, with both current and original row positions. Sorting/reset
+keeps that original row selected and updates its displayed position.
+**Return to inspected cell** restores the exact original cell in the current
+order. This is volatile, non-live-region native text, not speech, clipboard,
+editing, a generated summary or persistence; reopening starts without inspection.
+It shares the [table admission and retirement owner](../src/Kora/NativeTableControl.cs)
+and does not enable the independently gated table profile.
+The [row-inspection regressions](../tests/Kora.Windows.IntegrationTests/NativeTableRowInspectionTests.cs)
+exercise native pointer/keyboard entry, stable sorted identity, complete byte-bound
+readback, return, clipboard refusal and reentrant private retirement.
+
 The existing table bounds remain 32 total rows, 8 columns, 128 document cells
 and 2,048 UTF-8 bytes per semantic cell. Profile availability remains separately
 gated and false by default; this implementation does not qualify or enable it.

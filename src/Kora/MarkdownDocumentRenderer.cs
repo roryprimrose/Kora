@@ -24,12 +24,16 @@ internal static class MarkdownDocumentRenderer
     internal const string FinalInteractionFallbackStatus =
         "Final document interaction exceeds the native control bound; exact source fallback. No links or code actions are active.";
 
-    internal static bool RequiresFinalSourceFallback(NativeDocumentResult result) =>
-        result.Sections.Sum(section => section.Table is { IsHeader: false } ? 0L
+    internal static bool RequiresFinalSourceFallback(NativeDocumentResult result)
+    {
+        var headingCount = result.Sections.Count(section => section.HeadingId is not null);
+        return result.Sections.Sum(section => section.Table is { IsHeader: false } ? 0L
             : (section.Table is { IsHeader: true } table
-                ? 4L + table.Data.Headers.Length * 2L + table.Data.Rows.Length * (long)table.Data.Headers.Length : 1L)
+                ? 7L + table.Data.Headers.Length * 2L + table.Data.Rows.Length * (long)table.Data.Headers.Length : 1L)
                 + section.Links.Length + section.ExternalLinks.Count * 2L + (section.Code is null ? 0 : 12))
+            + (headingCount == 0 ? 0 : 4L + headingCount * 2L)
             > Core.Presentation.NativeDetailProfile.MaximumNodes;
+    }
 
     internal static IReadOnlyList<Control> CreateControls(NativeDocumentResult result, bool selectable = true,
         NativeDocumentInteraction? interaction = null,
@@ -77,6 +81,10 @@ internal static class MarkdownDocumentRenderer
             {
                 foreach (var link in section.ExternalLinks) { controls.Add(finalInteraction.CreateLink(link)); }
             }
+        }
+        if (finalInteraction is not null && interaction?.CreateHeadingIndex(result.Sections) is { } index)
+        {
+            controls.Insert(0, index);
         }
         return controls;
     }

@@ -141,6 +141,10 @@ not provider enablement or native/acoustic RC qualification
 
 ### Manual owned observation-only agent authoring (v1)
 
+An original request to create or describe a different owned agent does not retarget an unsaved draft before its Save/Discard/Cancel decision.
+The [shared editor owner](../src/Kora/AgentProfileEditorController.cs) keeps the current ID/source/description intact; Save still reviews and separately confirms the current exact destination.
+Cancelled Save, Cancel or revoked admission retains that draft and cannot start replacement authoring. Only successful disposition under the same current private owner stages the requested new ID, without saving, enabling or invoking it ([operation and regressions](../docs/agent-profile-authoring.md#manual-source-and-separate-save)).
+
 The existing native owned-agent editor accepts the canonical reference-free v1
 format with either no tools/zero calls or a distinct subset of the six original
 read-only observation IDs and a positive call budget. It reuses

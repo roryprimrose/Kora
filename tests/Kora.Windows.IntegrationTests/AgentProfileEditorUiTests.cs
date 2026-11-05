@@ -293,6 +293,178 @@ public sealed class AgentProfileEditorUiTests
         });
     }
 
+    [Theory]
+    [InlineData(false, "Save")]
+    [InlineData(false, "Discard")]
+    [InlineData(false, "Cancel")]
+    [InlineData(false, "Cancel save")]
+    [InlineData(false, "Revoke")]
+    [InlineData(true, "Save")]
+    [InlineData(true, "Discard")]
+    [InlineData(true, "Cancel")]
+    [InlineData(true, "Cancel save")]
+    [InlineData(true, "Revoke")]
+    public async Task StartingAnotherAgentPreservesOriginalIdentityUntilDraftDispositionCompletes(bool existing, string decision)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
+            Directory.CreateDirectory(parent);
+            using var f = new NativeUxFixtureSession(parent);
+            await f.InitializeAsync();
+            await using var admission = new InstructionControlAdmission(f.Interactions, f.Interactions, new HostTaskCoordinator(f.Tasks));
+            var store = new WindowsOwnedAgentProfileStore(f);
+            var original = WindowsOwnedAgentProfileStoreTests.Source;
+            var destination = await store.PrepareNew("example", f.Token);
+            if (existing)
+            {
+                _ = await store.Create(destination, OwnedAgentProfileDocument.Parse("example", original), () => true,
+                    operation => Task.FromResult(operation()), f.Token);
+            }
+            var audit = new ObservedAudit(f.Audit);
+            var owner = 1L;
+            var controller = new AgentProfileEditorController(f.Main, new(store, admission, audit), () => true, () => owner,
+                NullLogger<AgentProfileEditorController>.Instance);
+            AgentProfileEditorWindow? editor = null;
+            var next = new TaskCompletionSource<Window>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var opened = Window.WindowOpenedEvent.AddClassHandler<Window>((window, _) =>
+            {
+                if (window is AgentProfileEditorWindow selected) { editor = selected; }
+                else { next.TrySetResult(window); }
+            });
+            controller.Bind();
+            async Task Run(string command)
+            { f.Main.CommandText = command; await f.Main.RunTypedCommand.ExecuteAsync(); }
+            async Task<Window> Dialog(Task operation)
+            {
+                (await Task.WhenAny(next.Task, operation)).Should().BeSameAs(next.Task,
+                    "the exact native decision must open; status: {0}", editor!.Status.Text);
+                var result = await next.Task.WaitAsync(TestContext.Current.CancellationToken);
+                next = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                return result;
+            }
+            await Run(existing ? "agent author inspect example" : "agent author create example");
+            if (existing)
+            {
+                Click(editor!, "Edit existing original");
+                await controller.ActiveOperation;
+            }
+            var draft = original + "\nKeep the original draft at its original destination.";
+            editor!.Source.Text = draft;
+            editor.DescriptionRequest.Text = "Keep the original description.";
+            var replacement = Run("agent author create replacement");
+            var abandon = await Dialog(replacement);
+            var nameDuringDecision = editor.NameInput.Text;
+            var sourceDuringDecision = editor.Source.Text;
+            var replacementPath = Path.Combine(f.RoamingRoot, "OwnedAgents-v1", "replacement.agent.md");
+            File.Exists(replacementPath).Should().BeFalse();
+            if (decision is "Revoke") { owner++; }
+            Click(abandon, decision switch { "Cancel save" => "Save", "Revoke" => "Discard", _ => decision });
+            if (decision is "Save" or "Cancel save")
+            {
+                var confirmation = await Dialog(replacement);
+                confirmation.Title.Should().Be(existing ? "Confirm Save existing original" : "Confirm Save as new");
+                editor.Review.Text.Should().Contain(draft).And.Contain(destination.DisplayPath).And.NotContain(replacementPath);
+                Click(confirmation, decision is "Cancel save" ? "Cancel" : existing ? "Save existing original" : "Save as new");
+            }
+            await replacement;
+            if (decision is "Cancel" or "Cancel save" or "Revoke")
+            {
+                var retainedName = editor.NameInput.Text;
+                var retainedSource = editor.Source.Text;
+                var retainedDescription = editor.DescriptionRequest.Text;
+                var exit = f.Main.ExitAsync();
+                Click(await Dialog(exit), "Discard");
+                await exit;
+                retainedName.Should().Be("example");
+                retainedSource.Should().Be(draft);
+                retainedDescription.Should().Be("Keep the original description.");
+                audit.Events.Should().BeEmpty();
+                File.Exists(replacementPath).Should().BeFalse();
+            }
+            else
+            {
+                editor.NameInput.Text.Should().Be("replacement");
+                editor.Source.Text.Should().BeEmpty();
+                editor.DescriptionRequest.Text.Should().BeEmpty();
+                editor.Source.IsReadOnly.Should().BeFalse();
+                editor.Confirm.IsEnabled.Should().BeFalse();
+                var newSource = original.Replace("name: example", "name: replacement", StringComparison.Ordinal)
+                    + "\nThe separate replacement draft.";
+                await Run("agent author source " + newSource);
+                await Run("agent author validate");
+                await Run("agent author save as new");
+                editor.Review.Text.Should().Contain(newSource).And.Contain(replacementPath);
+                File.Exists(replacementPath).Should().BeFalse();
+                Click(editor.Confirm);
+                Click(await Dialog(controller.ActiveOperation), "Save as new");
+                await controller.ActiveOperation;
+                File.ReadAllText(replacementPath).Should().Be(newSource);
+                audit.Events.Select(item => item.Outcome).Should().Equal(decision is "Save"
+                    ? [SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded,
+                        SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded]
+                    : [SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded]);
+                await f.Main.ExitAsync();
+            }
+            nameDuringDecision.Should().Be("example");
+            sourceDuringDecision.Should().Be(draft);
+            if (decision is "Save") { File.ReadAllText(destination.DisplayPath).Should().Be(draft); }
+            else if (existing) { File.ReadAllText(destination.DisplayPath).Should().Be(original); }
+            else { File.Exists(destination.DisplayPath).Should().BeFalse(); }
+            editor.IsVisible.Should().BeFalse();
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CancellingDescribedReplacementRetainsOriginalDraftWithoutEnteringAuthoring(bool nativeAdd)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
+            Directory.CreateDirectory(parent);
+            using var f = new NativeUxFixtureSession(parent);
+            await f.InitializeAsync();
+            await using var admission = new InstructionControlAdmission(f.Interactions, f.Interactions, new HostTaskCoordinator(f.Tasks));
+            var store = new WindowsOwnedAgentProfileStore(f);
+            var controller = new AgentProfileEditorController(f.Main, new(store, admission, f.Audit), () => true, () => 1,
+                NullLogger<AgentProfileEditorController>.Instance);
+            AgentProfileEditorWindow? editor = null;
+            Window? dialog = null;
+            var decisionOpened = new TaskCompletionSource<Window>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var opened = Window.WindowOpenedEvent.AddClassHandler<Window>((window, _) =>
+            {
+                if (window is AgentProfileEditorWindow selected) { editor = selected; }
+                else { dialog = window; decisionOpened.TrySetResult(window); }
+            });
+            controller.Bind();
+            async Task Run(string command)
+            { f.Main.CommandText = command; await f.Main.RunTypedCommand.ExecuteAsync(); }
+            await Run("agent author create example");
+            editor!.Source.Text = WindowsOwnedAgentProfileStoreTests.Source;
+            editor.DescriptionRequest.Text = "Keep this request.";
+            var replacement = nativeAdd
+                ? controller.Add("replacement", "A different role.", Kora.Core.Hosting.RequestOrigin.LocalUi, () => true)
+                : Run("agent author draft replacement: A different role.");
+            (await Task.WhenAny(decisionOpened.Task, replacement)).Should().BeSameAs(decisionOpened.Task);
+            Click(await decisionOpened.Task.WaitAsync(TestContext.Current.CancellationToken), "Cancel");
+            await replacement;
+            var retainedName = editor.NameInput.Text;
+            var retainedSource = editor.Source.Text;
+            var retainedRequest = editor.DescriptionRequest.Text;
+            var status = editor.Status.Text;
+            var exit = f.Main.ExitAsync();
+            Click(dialog!, "Discard");
+            await exit;
+            retainedName.Should().Be("example");
+            retainedSource.Should().Be(WindowsOwnedAgentProfileStoreTests.Source);
+            retainedRequest.Should().Be("Keep this request.");
+            status.Should().NotContain("unavailable", "cancelled replacement must not attempt the absent authoring service");
+            (await store.List(f.Token)).Should().BeEmpty();
+        });
+    }
+
     private static void Click(Button button) => button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
     private static void Click(Window window, string label) =>
         Click(window.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, label)));

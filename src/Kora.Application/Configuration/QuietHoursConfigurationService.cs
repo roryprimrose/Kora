@@ -44,9 +44,14 @@ public sealed partial class QuietHoursConfigurationService
     }
 
     internal event Action? SpeechAdmissionChanged;
+    internal TimeProvider Time => time;
     public QuietHoursState Get() { lock (gate) { return state; } }
     internal long SpeechRevision => Volatile.Read(ref state).Revision;
     public void Cancel() { lock (gate) { review = null; } }
+    internal void Cancel(QuietHoursReview candidate)
+    {
+        lock (gate) { if (ReferenceEquals(review, candidate)) { review = null; } }
+    }
 
     internal bool AllowsSpeech(long revision)
     {

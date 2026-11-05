@@ -149,7 +149,8 @@ public sealed class CustomizationAuthoringService(InstructionControlAdmission ad
             if (result.Answer is not { } answer)
             { throw new InvalidOperationException("Local prompt authoring unavailable: " + result.Outcome + " / " + result.Reason + ". Draft retained; no fallback."); }
             if (validateSource is not null) { await validateSource(token).ConfigureAwait(false); }
-            var proposal = parse(answer);
+            var proposal = await admission.Run(eligible, (reviewRequest, session, current, admitted) =>
+                admission.Publish(reviewRequest, session, current, () => parse(answer), admitted).AsTask(), token).ConfigureAwait(false);
             activity.Complete(HostOperationOutcome.Completed);
             return proposal;
         }

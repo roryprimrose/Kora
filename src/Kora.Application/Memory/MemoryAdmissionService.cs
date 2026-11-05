@@ -332,7 +332,8 @@ internal sealed partial class MemoryAdmissionService(
         {
             case MemoryOperation.Review when current.Candidate is null:
                 return new(MemoryOutcome.InvalidTransition, MemoryReason.NotReviewed);
-            case MemoryOperation.Review when current.Review == MemoryReviewState.Proposed:
+            case MemoryOperation.Review when current.Review == MemoryReviewState.Proposed
+                || !accept && current.Review == MemoryReviewState.Reviewed:
                 updated = current with
                 {
                     Revision = revision,

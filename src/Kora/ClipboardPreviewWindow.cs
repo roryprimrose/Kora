@@ -1,5 +1,6 @@
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Data;
 using Avalonia.Layout;
 using Avalonia.Media;
 
@@ -13,7 +14,11 @@ namespace Kora;
 internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFailure, MainViewModel? typographyHost = null) : Window, IClipboardPreviewView
 {
     private readonly NamedTextBlock source = new() { FontFamily = new FontFamily("Consolas") };
-    private readonly NamedTextBlock explanation = new() { TextWrapping = TextWrapping.Wrap };
+    private readonly NamedTextBlock explanation = new()
+    {
+        TextWrapping = TextWrapping.Wrap,
+        HorizontalAlignment = HorizontalAlignment.Left,
+    };
 
     public void Show(ClipboardSnapshot snapshot, Func<Task> reuse, Func<Task> revoke, Func<bool> isCurrent, Func<Task>? explain = null)
     {
@@ -87,6 +92,7 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
             HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
         };
+        explanation.Bind(MaxWidthProperty, new Binding("Viewport.Width") { Source = sourceScrollViewer });
         AddSourceWrapping(chrome, snapshot, sourceScrollViewer);
         body.Children.Add(sourceScrollViewer);
         Content = body;

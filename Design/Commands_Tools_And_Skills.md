@@ -224,6 +224,11 @@ correlation, and rejects paginated/oversize discovery and unsupported schemas.
 The initial schema subset is a closed flat object with at most eight fields:
 bounded strings, bounded integers and Booleans. Results accept bounded inert
 text and optional structured-object data, not images or embedded resources.
+String `maxLength` uses decoded Unicode scalar count, including supplementary
+characters as one and combining marks/joiners separately, without normalization.
+The independent complete 2,048-byte UTF-8 argument bound includes JSON escaping.
+Malformed Unicode and either exceeded limit fail before invocation approval or
+dispatch in the shared direct/model validator ([argument guidance](../docs/mcp-transport.md)).
 Server instructions, descriptions and annotations, including `readOnlyHint`,
 are untrusted metadata; parsing them never establishes an effect mapping.
 Invocation will require a separate host-owned read-only mapping pinned to the

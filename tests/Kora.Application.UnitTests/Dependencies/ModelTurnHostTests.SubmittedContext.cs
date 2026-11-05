@@ -78,7 +78,7 @@ public sealed partial class ModelTurnHostTests
         public async ValueTask<ImmutableArray<SubmittedHistoryAvailability>> ReadSubmittedContextAvailabilityAsync(
             ConversationMessage answer, CancellationToken token)
         {
-            if (answer.SubmittedContext!.MemorySources.IsDefaultOrEmpty)
+            if (answer.SubmittedContext!.MemorySources.IsDefaultOrEmpty && answer.SubmittedContext.ProfileMemorySources.IsDefaultOrEmpty)
             { return await ReadSubmittedHistoryAvailabilityAsync(answer, token); }
             SubmittedAvailabilityReads++;
             if (BeforeSubmittedAvailabilityRead is { } before) { await before(token); }

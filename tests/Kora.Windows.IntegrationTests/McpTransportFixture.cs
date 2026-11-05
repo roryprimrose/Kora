@@ -27,6 +27,7 @@ internal sealed class McpTransportFixture : IDisposable
     internal Func<string, CancellationToken, Task<IPAddress[]>> Resolve { get; set; } =
         (_, _) => Task.FromResult(new[] { IPAddress.Parse("8.8.8.8") });
     internal Func<SentRequest, CancellationToken, Task<HttpResponseMessage>>? Send { get; set; }
+    internal string? ResponseContentType { get; set; }
     internal bool Qualified { get; set; } = true;
     internal WindowsMcpConnectionBroker Broker { get; }
 
@@ -112,14 +113,19 @@ internal sealed class McpTransportFixture : IDisposable
                 request.Headers.Authorization?.ToString(), request.Content.Headers.ContentType?.ToString(),
                 request.Headers.Accept.ToString(), request.Headers.GetValues("MCP-Protocol-Version").Single(), bytes);
             owner.Requests.Add(sent);
-            if (owner.Send is { } send) { return await send(sent, cancellationToken); }
-            return method switch
+            var response = owner.Send is { } send ? await send(sent, cancellationToken) : method switch
             {
                 "initialize" => Json(Initialization),
                 "notifications/initialized" => new(HttpStatusCode.Accepted) { Content = new ByteArrayContent([]) },
                 "tools/list" => Json("{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"tools\":[{\"name\":\"search\",\"inputSchema\":" + Schema + "}]}}"),
                 _ => Json(Result),
             };
+            if (response.StatusCode == HttpStatusCode.OK && owner.ResponseContentType is { } contentType)
+            {
+                response.Content.Headers.Remove("Content-Type");
+                response.Content.Headers.TryAddWithoutValidation("Content-Type", contentType);
+            }
+            return response;
         }
 
         protected override void Dispose(bool disposing)

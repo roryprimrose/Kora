@@ -11,4 +11,5 @@ public enum SessionCommandOperation { Help, List, Status, Inspect, Create, Renam
     InstructionScopeReview, InstructionScopeConfirm, InstructionScopeStop, InstructionScopeStatus,
     ConversationDispatchStatus, ConversationDispatchPause, ConversationDispatchResume,
     PendingClearReview, PendingClearConfirm, PendingClearCancel,
-    RemainingWork, RemainingWorkChoose, RemainingWorkCancel }
+    RemainingWork, RemainingWorkChoose, RemainingWorkCancel,
+    PermissionStatus, PermissionReview, PermissionConfirm, PermissionCancel }

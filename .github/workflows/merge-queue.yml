@@ -16,13 +16,13 @@ on:
       operation:
         description: Controller operation; recovery requires separate administrator authorization
         type: choice
-        options: [reconcile, recover-unobservable-dispatch, migrate-batch-v1, rollback-batch-v1, repair-batch, resume-batch]
+        options: [reconcile, recover-unobservable-dispatch, migrate-batch-v1, rollback-batch-v1, repair-batch, resume-batch, hold-independent-delivery, prepare-independent-delivery, resume-independent-delivery, abort-independent-delivery]
         default: reconcile
       recovery_checkpoint:
         description: Exact automation/merge-queue-state commit reviewed for recovery
         type: string
       recovery_ticket:
-        description: Exact retiring ticket with no observable workflow run
+        description: Exact recovery ticket or independent delivery hold token
         type: string
       recovery_main:
         description: Explicit actual main SHA for a separately reviewed repair preserving unrelated advances
@@ -32,7 +32,7 @@ on:
         type: boolean
         default: false
       acknowledge_batch_change:
-        description: Separately authorized reviewed batch rollout, rollback or repair; never activates settings
+        description: Separately authorized batch recovery or guarded delivery transition; never writes configuration
         type: boolean
         default: false
 
@@ -92,6 +92,9 @@ jobs:
               if (operation === 'recover-unobservable-dispatch') {
                 const { recover } = require('./eng/merge-queue/recovery.cjs');
                 result = await recover(api, { context, inputs, attempt: Number(process.env.QUEUE_RUN_ATTEMPT) });
+              } else if (operation.endsWith('-independent-delivery')) {
+                const { changeDeliveryState } = require('./eng/merge-queue/recovery.cjs');
+                result = await changeDeliveryState(api, { context, inputs, attempt: Number(process.env.QUEUE_RUN_ATTEMPT), profile: process.env.QUEUE_PROFILE });
               } else if (operation !== 'reconcile') {
                 const { changeBatchState } = require('./eng/merge-queue/recovery.cjs');
                 result = await changeBatchState(api, { context, inputs, attempt: Number(process.env.QUEUE_RUN_ATTEMPT) });

@@ -198,7 +198,6 @@ public sealed partial class SessionConversationService(
                         if (prepareContext is not null)
                         {
                             context = await prepareContext(request, Live, token).ConfigureAwait(false);
-                            context = mcpConfiguration?.RestrictTools(context) ?? context;
                             context.RequireCompleteInputLimit();
                         }
 

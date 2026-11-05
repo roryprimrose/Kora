@@ -19,7 +19,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Application.UnitTests.Tools;
 
 [Collection("Host tracing")]
-public sealed class KoraMcpServerTests : IDisposable
+public sealed partial class KoraMcpServerTests : IDisposable
 {
     private readonly ActivityListener listener = new()
     {

@@ -1,4 +1,4 @@
-# MCP servers and read-only HTTPS transport
+# Read-only MCP HTTPS transport
 
 ## Built-in Kora capabilities
 

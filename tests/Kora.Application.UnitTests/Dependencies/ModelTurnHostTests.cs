@@ -570,7 +570,8 @@ public sealed partial class ModelTurnHostTests : IDisposable
             return host;
         }
         internal ModelTurnHost ConfiguredProfiles(bool production = false, bool missingSessionStore = false,
-            IModelTurnAdapter? adapter = null, IModelProviderRegistrationSource? registrationSource = null)
+            IModelTurnAdapter? adapter = null, IModelProviderRegistrationSource? registrationSource = null,
+            McpCapabilityPreferences? capabilities = null)
         {
             var host = production ? new ModelTurnHost(this, this, this, registry, this, this, Time, ProviderConfiguration, ProfileConfiguration, this)
                 : new ModelTurnHost(this, this, this, registry, this, this, Time,
@@ -585,7 +586,8 @@ public sealed partial class ModelTurnHostTests : IDisposable
                                 _ => ModelProviderIdentity.Codex,
                             } };
                             return new ModelProviderRegistration(selection, Gates(selection), Time.Now.AddMinutes(5), adapter ?? Adapter);
-                        }).ToArray(), ProviderConfiguration, ProfileConfiguration, missingSessionStore ? null : this, registrationSource);
+                        }).ToArray(), ProviderConfiguration, ProfileConfiguration, missingSessionStore ? null : this, registrationSource,
+                        capabilities: capabilities, builtInMcp: capabilities is null ? null : new(registry, capabilities));
             ownedHosts.Add(host);
             return host;
         }

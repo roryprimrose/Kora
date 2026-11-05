@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Configuration;
 using Kora.Core.Artifacts;
@@ -116,6 +116,27 @@ public sealed class ArtifactDirectoryConfigurationServiceTests
         preferences.Settings.IncludedMcpServerIds.Should().Equal(serverId);
         var writes = preferences.Writes;
         service.SetMcpServerIncluded(serverId, true);
+        preferences.Writes.Should().Be(writes);
+    }
+
+    [Fact]
+    public void Builtin_item_changes_preserve_explicit_parent_and_revision_exhaustion_cannot_write()
+    {
+        var preferences = new Preferences();
+        preferences.Save(new([], [], [], [], [], [KoraMcpCatalog.ServerId]));
+        var service = new ArtifactDirectoryConfigurationService(preferences, new Audit());
+        service.SetMcpItemEnabled(KoraMcpCatalog.ServerId, McpCapabilityKind.Tool, "settings.get", false)
+            .IncludedMcpServerIds.Should().Equal(KoraMcpCatalog.ServerId);
+        var exhausted = new McpCapabilitySelection(
+            [new(KoraMcpCatalog.ServerId, McpCapabilityCategory.Tools, true, [], long.MaxValue)]);
+        preferences.Save(new([], [], [], [], [], [KoraMcpCatalog.ServerId], mcpCapabilities: exhausted));
+        var writes = preferences.Writes;
+        var mutation = () => service.SetMcpCapabilities(KoraMcpCatalog.ServerId, false, exhausted,
+            exhausted.Fingerprint(KoraMcpCatalog.ServerId));
+        mutation.Should().Throw<InvalidOperationException>();
+        preferences.Writes.Should().Be(writes);
+        var stale = () => service.SetMcpCapabilities(KoraMcpCatalog.ServerId, false, exhausted, "stale");
+        stale.Should().Throw<InvalidOperationException>();
         preferences.Writes.Should().Be(writes);
     }
 

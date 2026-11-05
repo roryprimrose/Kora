@@ -2,6 +2,8 @@
 
 In an already-open **Sessions** window, refresh the selected session's work to see bounded, content-free notices for admitted conversation tasks: completed, failed/unavailable, Unknown, or an exact pending clarification ([source admission](../src/Kora.Application/Interaction/ConversationNotices/AuthorityLocalEventSource.ConversationNotices.cs)).
 
+Hiding Sessions retires a pending notice refresh, including while its independent work snapshot is being published. Reopening does not revive that refresh or spend an unseen completion's delivery budget. Deliberately refresh again to observe the still-current original source; its expiry is unchanged ([refresh lifetime](../src/Kora/SessionsViewModel.Events.cs)).
+
 Select an exact notice and use **Review**, **Dismiss**, or **Defer**. These actions inspect or suppress content-free status without changing the conversation, work selection or focus ([native inspection](../src/Kora/SessionsViewModel.Events.cs)).
 
 For an ordinary conversation clarification, **Review** shows the exact session, task, question and original expiry. Then deliberately select **Answer exact question** to activate only its existing canonical **Questions** window. Enter an answer and **Submit**, use the existing eligible question voice controls, or **Cancel** there ([response gesture](../src/Kora/ConversationNotices/SessionsViewModel.ConversationNotices.cs)).

@@ -397,6 +397,8 @@ Current-run pending-question recovery uses only the host's original live wait/ke
 
 Normal loaded-event browsing retains category/reason only. It clears stale selection/review on edits, source/private retirement and refresh; internal source/correlation/profile validation remains. Event text cannot retarget questions, authorize work or establish a global all-clear ([local event contract](Proactive_Interaction.md#native-content-free-loaded-event-filters)).
 
+Selected-work refresh binds its original native notice-surface lifetime before reading or publishing work. Hiding/reopening cannot lend a retired refresh a new lifetime or consume an undisplayed completion; fresh observation remains separate ([publication owner](../src/Kora/SessionsViewModel.Work.cs), [native regression](../tests/Kora.Windows.IntegrationTests/ConversationNoticeTests.NativePublication.cs)).
+
 The remaining sections distinguish implemented session metadata/history/retention and original-task controls from proposed general execution. Neither retained diagnostics infrastructure nor deterministic test evidence qualifies production providers, arbitrary workers, effects or model routing.
 
 ### R12 Bounded Session Retention Delivered - 2026-10-09

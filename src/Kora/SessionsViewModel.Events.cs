@@ -145,10 +145,9 @@ internal sealed partial class SessionsViewModel
         OnPropertyChanged(nameof(CanRefreshWork));
     }
 
-    private async Task RefreshLocalEventsAsync(HostId<SessionIdentity> session, long epoch)
+    private async Task RefreshLocalEventsAsync(HostId<SessionIdentity> session, long epoch, long choiceEpoch)
     {
-        if (localEvents is null) { return; }
-        var choiceEpoch = eventChoiceEpoch;
+        if (localEvents is null || closed || eventChoiceEpoch != choiceEpoch) { return; }
         var filterEpoch = eventFilterEpoch;
         var filterDigest = LocalEventFilterDigest;
         if (!access.CanControl)
@@ -219,7 +218,7 @@ internal sealed partial class SessionsViewModel
                 () => !closed && routineSurfaceOpen && Volatile.Read(ref routineSurfaceRevision) == surfaceRevision
                     && access.CanControl && selectionEpoch == epoch && eventChoiceEpoch == choiceEpoch
                     && selected?.Authority == target.Authority, lifetime.Token);
-            await RefreshLocalEventsAsync(target.Authority.SessionId, epoch);
+            await RefreshLocalEventsAsync(target.Authority.SessionId, epoch, choiceEpoch);
             status = "Run-only quiet choice admitted. Clear/reset permits future new notices only; no muted backlog, work, question or output policy changed.";
             NotifyLocalEvents();
         }, activitySession: session, routineNoticeControl: true);
@@ -263,13 +262,14 @@ internal sealed partial class SessionsViewModel
         NotifyLocalEvents();
     });
 
-    private void ClearLocalEvents()
+    private long ClearLocalEvents()
     {
+        var epoch = ++eventChoiceEpoch;
         eventSnapshot = null;
         eventAuthority = null;
         RetireLocalEventSelection();
-        eventChoiceEpoch++;
         NotifyLocalEvents();
+        return epoch;
     }
 
     private void NotifyLocalEvents()

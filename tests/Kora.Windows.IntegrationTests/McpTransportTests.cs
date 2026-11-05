@@ -20,10 +20,15 @@ public sealed class McpTransportTests
         await FluentActions.Awaiting(() => broker.ConnectAsync(f.Account, Token)).Should().ThrowAsync<InvalidOperationException>();
     }
 
-    [Fact]
-    public async Task Exact_wire_and_delegated_destination_flow_through_real_connection()
+    [Theory]
+    [InlineData("application/json")]
+    [InlineData("application/json; charset=utf-8")]
+    [InlineData("APPLICATION/JSON; CHARSET=UtF-8")]
+    [InlineData("application/json; charset=\"utf-8\"")]
+    [InlineData("Application/Json; Charset=\"UtF-8\"")]
+    public async Task Exact_wire_and_delegated_destination_flow_through_real_connection(string contentType)
     {
-        using var f = new McpTransportFixture();
+        using var f = new McpTransportFixture { ResponseContentType = contentType };
         (await f.Broker.ReadAccountsAsync(Token)).Should().ContainSingle().Which.Reference.Should().Be(f.Account);
         await using (var connection = await f.Broker.ConnectAsync(f.Account, Token))
         {
@@ -38,6 +43,7 @@ public sealed class McpTransportTests
             var tool = McpProtocol.ReadDiscovery(discovered.AsSpan()).Should().ContainSingle().Subject;
             var invocation = McpProtocol.InvocationRequest(tool.Name, tool.Schema, """{"query":"référence"}""");
             var result = await connection.ExchangeAsync(McpTransportFixture.Wire(invocation), 1536, Token);
+            result.Should().Equal(Encoding.UTF8.GetBytes(McpTransportFixture.Result));
             McpProtocol.ReadInvocationResult(result.AsSpan()).Text.Should().Be("reference 42");
             f.Requests.Select(request => request.Bytes).Should().BeEquivalentTo(new[]
             {
@@ -49,6 +55,45 @@ public sealed class McpTransportTests
                 && request.Protocol == "2025-06-18" && request.Version == HttpVersion.Version11
                 && request.VersionPolicy == HttpVersionPolicy.RequestVersionExact);
             f.Resolutions.Should().Be(1);
+        }
+        f.HandlerDisposed.Should().BeTrue();
+        f.Disposed.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("application/json; charset=utf-16")]
+    [InlineData("application/json; charset=\"utf-16\"")]
+    [InlineData("application/json; charset=unknown")]
+    [InlineData("application/json; charset=\"unknown\"")]
+    [InlineData("application/json; charset=utf8")]
+    [InlineData("application/json; charset=\" utf-8\"")]
+    [InlineData("application/json; charset=\"utf-8 \"")]
+    [InlineData("application/json; charset=\"utf\\-8\"")]
+    [InlineData("application/json; charset=")]
+    [InlineData("application/json; charset=\"\"")]
+    [InlineData("application/json; charset=\"utf-8")]
+    [InlineData("application/json; charset=utf-8\"")]
+    [InlineData("application/json; charset=\"utf-8\"junk")]
+    [InlineData("application/json; charset=\"utf-8\"\"")]
+    [InlineData("application/json; charset=utf-8; charset")]
+    [InlineData("application/json; charset=utf-8; charset=utf-16")]
+    [InlineData("application/json; charset=utf-16; charset=\"utf-8\"")]
+    [InlineData("application/json; charset=utf-8; CHARSET=\"UTF-8\"")]
+    [InlineData("text/plain; charset=\"utf-8\"")]
+    [InlineData("")]
+    public async Task Invalid_or_ambiguous_charset_never_reads_or_returns_result_bytes(string contentType)
+    {
+        using var f = new McpTransportFixture { ResponseContentType = contentType };
+        var stream = new UnseekableStream(Encoding.UTF8.GetBytes(McpTransportFixture.Result));
+        f.Send = (_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(stream) });
+        await using (var connection = await f.Broker.ConnectAsync(f.Account, Token))
+        {
+            await FluentActions.Awaiting(() => Initialize(connection)).Should().ThrowAsync<InvalidDataException>();
+            stream.ReadCount.Should().Be(0);
+            stream.Disposed.Should().BeTrue();
+            f.Requests.Should().ContainSingle().Which.Address.Should().Be(f.Account.Destination.Address);
+            f.Calls.Should().Be(0);
+            f.Acquisitions.Should().Be(1);
         }
         f.HandlerDisposed.Should().BeTrue();
         f.Disposed.Should().BeTrue();
@@ -69,6 +114,7 @@ public sealed class McpTransportTests
         f.Send = (_, _) =>
         {
             var response = McpTransportFixture.Json("{}", (HttpStatusCode)status);
+            response.Content.Headers.ContentType!.CharSet = "\"utf-8\"";
             response.Headers.Location = new("https://other.example/mcp");
             response.Headers.WwwAuthenticate.ParseAdd("Bearer");
             return Task.FromResult(response);
@@ -111,7 +157,7 @@ public sealed class McpTransportTests
     [InlineData(16384)]
     public async Task Complete_utf8_byte_bounds_accept_exact_limit_and_refuse_one_more(int limit)
     {
-        using var f = new McpTransportFixture();
+        using var f = new McpTransportFixture { ResponseContentType = "application/json; charset=\"utf-8\"" };
         var bytes = Encoding.UTF8.GetBytes(new string('é', limit / 2));
         f.Send = (_, _) => Task.FromResult(JsonBytes(bytes));
         await using var connection = await f.Broker.ConnectAsync(f.Account, Token);
@@ -490,6 +536,8 @@ public sealed class McpTransportTests
     private sealed class UnseekableStream(byte[] bytes, Action? onEnd = null) : Stream
     {
         private readonly MemoryStream inner = new(bytes);
+        internal int ReadCount { get; private set; }
+        internal bool Disposed { get; private set; }
         public override bool CanRead => true;
         public override bool CanSeek => false;
         public override bool CanWrite => false;
@@ -498,6 +546,7 @@ public sealed class McpTransportTests
         public override int Read(byte[] buffer, int offset, int count) => inner.Read(buffer, offset, count);
         public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
+            ReadCount++;
             var read = await inner.ReadAsync(buffer, cancellationToken);
             if (read == 0) { onEnd?.Invoke(); }
             return read;
@@ -508,7 +557,7 @@ public sealed class McpTransportTests
         public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
         protected override void Dispose(bool disposing)
         {
-            if (disposing) { inner.Dispose(); }
+            if (disposing) { Disposed = true; inner.Dispose(); }
             base.Dispose(disposing);
         }
     }

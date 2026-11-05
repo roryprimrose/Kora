@@ -1,10 +1,10 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { reconcile } = require('./controller.cjs');
-const { validateState, WINDOWS_12_JOBS, DELIVERY_JOBS, GATE, title,
+const { validateState, CHECKS, WINDOWS_12_JOBS, DELIVERY_JOBS, UNIT_PR_JOBS, PARALLEL_PR_JOBS, GATE, title,
   REJECTED_ADMISSION_JOBS, terminalRejectedAdmission, terminalRejectedPreflight } = require('./policy.cjs');
 const { profile, CONTROL_PATH, digest, manifestFor } = require('./batch-policy.cjs');
-const { changeBatchState } = require('./recovery.cjs');
+const { changeBatchState, changeDeliveryState } = require('./recovery.cjs');
 const sha = n => n.toString(16).padStart(40, '0');
 const BASE = sha(100);
 const TICKET = '01234567-89ab-cdef-0123-456789abcdef';
@@ -44,7 +44,7 @@ class BatchFake {
   async reviewReady(number) { return [null, 'APPROVED'].includes(await this.reviewState(number)); }
   async files() { return ['src/Kora.Core/Feature.cs']; }
   async trustedInventory() { return clone(this.inventory); }
-  async expectedJobs() { return [...WINDOWS_12_JOBS]; }
+  async expectedJobs() { return [...this.inventory.jobs]; }
   async rejectedAdmission(source, run, jobs) {
     return run.head_sha === source && (terminalRejectedAdmission(run, jobs, this.inventory.blob)
       || terminalRejectedPreflight(run, jobs, this.inventory.blob));
@@ -114,20 +114,278 @@ class BatchFake {
 }
 const step = (api, extra = {}) => reconcile(api, { profile: 'batch-v1', now: NOW, ticket: TICKET, ...extra });
 const count = (api, name) => api.calls.filter(call => call[0] === name).length;
+const deliveryOptions = (api, operation) => ({
+  context: { eventName: 'workflow_dispatch', ref: 'refs/heads/main', runId: 123, actor: 'operator' },
+  inputs: { operation, recovery_checkpoint: api.commit, acknowledge_batch_change: true,
+    recovery_ticket: operation === 'hold-independent-delivery' ? undefined : api.state.deliveryTransition?.ticket },
+  profile: 'batch-v1', attempt: 1, now: NOW,
+});
+async function holdDelivery(api) {
+  return changeDeliveryState(api, deliveryOptions(api, 'hold-independent-delivery'));
+}
+function qualifyDelivery(api) {
+  const qualification = { run: 10, job: 11, source: api.base };
+  api.state.completedTip = { sha: api.base, tree: sha(200), ticket: TICKET,
+    qualificationOwner: { run: 10, source: api.base, attempt: 1 }, qualification };
+  api.qualificationObservation = clone({ owner: api.state.completedTip.qualificationOwner,
+    qualification, terminal: true, provisional: false });
+}
 async function until(api, target, limit = 40) {
   for (let index = 0; index < limit; index++) if (await step(api) === target) return;
   assert.fail(`Did not reach ${target}`);
 }
 
-test('independent source completion admits another candidate while its main run is running or has failed', async () => {
-  for (const mainStatus of ['running', 'failed']) {
+test('delivery hold precedes pulls and prevents both batch and singleton reservation without withdrawing intent', async () => {
+  for (const singleton of [false, true]) {
+    const api = new BatchFake();
+    if (singleton) api.files = async () => ['eng/merge-queue/policy.cjs'];
+    const before = clone(api.prs);
+    await holdDelivery(api);
+    api.pulls = async () => assert.fail('A held lane must not inspect or reserve new intent.');
+    assert.equal(await step(api), 'delivery-draining');
+    assert.equal(api.state.active, null);
+    assert.deepEqual(api.prs, before);
+    assert.equal(count(api, 'dispatch'), 0);
+    assert.equal(count(api, 'cancel'), 0);
+  }
+});
+
+test('delivery hold lets the already-owned batch finish normally and retains the hold through qualification', async () => {
+  const api = new BatchFake();
+  await step(api);
+  const active = clone(api.state.active);
+  await holdDelivery(api);
+  await until(api, 'batch-completed');
+  assert.equal(count(api, 'merge'), active.members.length);
+  assert.equal(count(api, 'dispatch'), 1);
+  assert.equal(count(api, 'cancel'), 0);
+  assert.equal(api.state.deliveryTransition.phase, 'draining');
+  assert.equal(await step(api), 'waiting-for-tip-qualification');
+  api.qualified = true;
+  assert.equal(await step(api), 'delivery-draining');
+  assert.equal(api.state.active, null);
+  assert.ok(api.state.completedTip.qualification);
+});
+
+test('delivery hold preserves an already-owned singleton and its original successful validation', async () => {
+  const api = new BatchFake();
+  api.files = async () => ['eng/merge-queue/policy.cjs'];
+  api.expectedJobs = async () => [...WINDOWS_12_JOBS];
+  api.commits.set(api.prs[0].head.sha, { tree: sha(200), parents: [BASE] });
+  api.containsBase = async () => true;
+  await step(api);
+  assert.equal(api.state.active.kind, undefined);
+  await holdDelivery(api);
+  await until(api, 'merged');
+  assert.equal(api.state.active, null);
+  assert.equal(api.state.deliveryTransition.phase, 'draining');
+  assert.equal(count(api, 'merge'), 1);
+  assert.equal(count(api, 'dispatch'), 1);
+  assert.equal(count(api, 'cancel'), 0);
+});
+
+test('delivery transition is checkpoint-owned, prepares exact live qualification and resumes only after configuration adoption', async () => {
+  const api = new BatchFake();
+  qualifyDelivery(api);
+  const original = clone(api.state);
+  const hold = deliveryOptions(api, 'hold-independent-delivery');
+  assert.equal(await changeDeliveryState(api, hold), 'delivery-draining');
+  await assert.rejects(changeDeliveryState(api, hold), /checkpoint/);
+  const token = api.state.deliveryTransition.ticket;
+  assert.equal(await changeDeliveryState(api, deliveryOptions(api, 'prepare-independent-delivery')), 'delivery-ready');
+  assert.equal(api.state.deliveryTransition.source, BASE);
+  assert.equal(api.state.deliveryTransition.ticket, token);
+  assert.deepEqual(api.state.deliveryTransition.qualification, original.completedTip.qualification);
+  await assert.rejects(changeDeliveryState(api, deliveryOptions(api, 'resume-independent-delivery')), /configuration/);
+  assert.equal(api.state.deliveryTransition.phase, 'ready');
+  api.independent = true;
+  assert.equal(await step(api), 'delivery-ready');
+  assert.equal(api.state.active, null);
+  assert.equal(await changeDeliveryState(api, deliveryOptions(api, 'resume-independent-delivery')), 'delivery-resumed');
+  assert.equal(api.state.deliveryProfile, 'independent-v1');
+  assert.equal(api.state.deliveryTransition.phase, 'completed');
+  assert.deepEqual(api.state.completedTip, original.completedTip);
+  assert.equal(count(api, 'dispatch'), 0);
+  assert.equal(count(api, 'cancel'), 0);
+  api.inventory = { schema: 'windows-12-delivery-v1', blob: sha(999), jobs: [...DELIVERY_JOBS] };
+  await step(api);
+  assert.ok(api.state.active);
+  assert.equal(count(api, 'dispatch'), 1);
+  api.independent = false;
+  await assert.rejects(step(api), /delivery configuration/);
+});
+
+test('delivery prepare and resume reject pending, failed, missing or changed qualification and physical ownership', async () => {
+  for (const resume of [false, true]) {
+    for (const fault of ['active', 'main', 'tip', 'proof', 'missing', 'pending', 'failed', 'quiet', 'owner', 'checkpoint']) {
+      const api = new BatchFake();
+      qualifyDelivery(api);
+      await holdDelivery(api);
+      if (resume) {
+        await changeDeliveryState(api, deliveryOptions(api, 'prepare-independent-delivery'));
+        api.independent = true;
+      }
+      if (fault === 'active') {
+        const other = new BatchFake();
+        await step(other);
+        api.state.active = clone(other.state.active);
+      }
+      if (fault === 'main') api.base = sha(999);
+      if (fault === 'tip') api.state.completedTip = null;
+      if (fault === 'proof') api.qualificationObservation.qualification.job++;
+      if (fault === 'missing') api.qualificationObservation = null;
+      if (fault === 'pending') api.qualificationObservation.terminal = false;
+      if (fault === 'failed') api.qualificationObservation.qualification = null;
+      if (fault === 'quiet') api.quiet = false;
+      const options = deliveryOptions(api, resume ? 'resume-independent-delivery' : 'prepare-independent-delivery');
+      if (fault === 'owner') options.context.actor = 'other-operator';
+      if (fault === 'checkpoint') options.inputs.recovery_checkpoint = sha(999);
+      const state = clone(api.state);
+      await assert.rejects(changeDeliveryState(api, options), undefined, `${resume}/${fault}`);
+      assert.deepEqual(api.state, state);
+      assert.equal(count(api, 'cancel'), 0);
+      assert.equal(count(api, 'dispatch'), 0);
+    }
+  }
+});
+
+test('delivery authority, main, physical work and state readback are revalidated without releasing the hold', async () => {
+  for (const fault of ['admin', 'main', 'physical', 'readback', 'api-error']) {
+    const api = new BatchFake();
+    qualifyDelivery(api);
+    await holdDelivery(api);
+    const phase = api.state.deliveryTransition.phase;
+    let checks = 0;
+    if (fault === 'admin') api.administrator = async () => ++checks === 1;
+    if (fault === 'main') api.main = async () => ++checks === 1 ? BASE : sha(999);
+    if (fault === 'physical') api.ciQuiescent = async () => ++checks === 1;
+    if (fault === 'api-error') api.tipQualification = async () => { throw new Error('Qualification HTTP 403'); };
+    if (fault === 'readback') {
+      const load = api.load.bind(api);
+      api.load = async () => {
+        const value = await load();
+        if (++checks > 1) value.deliveryTransition.actor = 'different-owner';
+        return value;
+      };
+    }
+    await assert.rejects(changeDeliveryState(api, deliveryOptions(api, 'prepare-independent-delivery')));
+    assert.equal(api.state.deliveryTransition.phase, fault === 'readback' ? 'ready' : phase);
+    assert.equal(api.state.deliveryProfile, undefined);
+    assert.equal(count(api, 'dispatch'), 0);
+    assert.equal(count(api, 'cancel'), 0);
+  }
+});
+
+test('delivery abort restores only serial reservations and cannot revoke independent publication authority', async () => {
+  const api = new BatchFake();
+  qualifyDelivery(api);
+  await holdDelivery(api);
+  const before = clone(api.state.completedTip);
+  assert.equal(await changeDeliveryState(api, deliveryOptions(api, 'abort-independent-delivery')), 'delivery-aborted');
+  assert.equal(api.state.deliveryTransition.phase, 'aborted');
+  assert.deepEqual(api.state.completedTip, before);
+  await holdDelivery(api);
+  await changeDeliveryState(api, deliveryOptions(api, 'prepare-independent-delivery'));
+  api.independent = true;
+  await assert.rejects(changeDeliveryState(api, deliveryOptions(api, 'abort-independent-delivery')), /configuration/);
+  assert.equal(api.state.deliveryTransition.phase, 'ready');
+  assert.equal(count(api, 'cancel'), 0);
+});
+
+test('delivery operations require trusted first-attempt administrator inputs and reject mixed recovery intent', async () => {
+  for (const change of [
+    options => { options.context.eventName = 'push'; },
+    options => { options.context.ref = 'refs/heads/other'; },
+    options => { options.context.runId = 0; },
+    options => { options.profile = 'singleton-v1'; },
+    options => { options.attempt = 2; },
+    options => { options.inputs.acknowledge_batch_change = false; },
+    options => { options.inputs.acknowledge_uncertain_dispatch = true; },
+    options => { options.inputs.recovery_main = BASE; },
+    options => { options.inputs.recovery_ticket = TICKET; },
+  ]) {
+    const api = new BatchFake();
+    const before = clone(api.state);
+    const options = deliveryOptions(api, 'hold-independent-delivery');
+    change(options);
+    await assert.rejects(changeDeliveryState(api, options));
+    assert.deepEqual(api.state, before);
+  }
+  const api = new BatchFake();
+  api.administratorAllowed = false;
+  await assert.rejects(holdDelivery(api), /administrator/);
+  assert.equal(api.state.deliveryTransition, undefined);
+});
+
+test('delivery transition schema rejects malformed authority, phase and prepared receipts', async () => {
+  const api = new BatchFake();
+  qualifyDelivery(api);
+  await holdDelivery(api);
+  await changeDeliveryState(api, deliveryOptions(api, 'prepare-independent-delivery'));
+  for (const change of [
+    value => { value.ticket = 'unknown'; },
+    value => { value.checkpoint = 'unknown'; },
+    value => { value.actor = ''; },
+    value => { value.run = 0; },
+    value => { value.phase = 'unknown'; },
+    value => { value.created = 'unknown'; },
+    value => { value.source = 'unknown'; },
+    value => { value.tree = 'unknown'; },
+    value => { value.prepareRun = 0; },
+    value => { value.qualification.job = 0; },
+    value => { value.qualification.source = sha(999); },
+    value => { value.phase = 'completed'; },
+  ]) {
+    const state = clone(api.state);
+    change(state.deliveryTransition);
+    assert.throws(() => validateState(state));
+  }
+});
+
+test('ambiguous delivery checkpoint saves are reconciled and never silently replayed or aborted', async () => {
+  for (const after of [false, true]) {
+    const api = new BatchFake();
+    qualifyDelivery(api);
+    await holdDelivery(api);
+    const options = deliveryOptions(api, 'prepare-independent-delivery');
+    const save = api.save.bind(api);
+    api.save = async state => {
+      if (after) await save(state);
+      throw new Error('Ambiguous checkpoint response');
+    };
+    await assert.rejects(changeDeliveryState(api, options), /Ambiguous/);
+    assert.equal(api.state.deliveryTransition.phase, after ? 'ready' : 'draining');
+    api.save = save;
+    if (after) await assert.rejects(changeDeliveryState(api, options), /checkpoint/);
+    else assert.equal(await changeDeliveryState(api, options), 'delivery-ready');
+    assert.equal(api.state.deliveryProfile, undefined);
+    assert.equal(count(api, 'cancel'), 0);
+  }
+});
+
+test('independent historical, unit-only and parallel source completion preserve schemas and admit another candidate after main starts', async () => {
+  for (const [schema, jobs, mainStatus] of [
+    ['windows-12-delivery-v1', DELIVERY_JOBS, 'running'],
+    ['windows-12-delivery-v1', DELIVERY_JOBS, 'failed'],
+    ['unit-pr-v1', UNIT_PR_JOBS, 'running'],
+    ['unit-pr-v1', UNIT_PR_JOBS, 'failed'],
+    ['parallel-pr-v1', PARALLEL_PR_JOBS, 'running'],
+    ['parallel-pr-v1', PARALLEL_PR_JOBS, 'failed'],
+  ]) {
     const api = new BatchFake();
     api.independent = true;
-    api.inventory = { schema: 'windows-12-delivery-v1', blob: sha(999), jobs: [...DELIVERY_JOBS] };
+    api.inventory = { schema, blob: sha(999), jobs: [...jobs] };
+    assert.equal(await step(api), 'dispatched');
+    assert.deepEqual(api.state.active.inventory, api.inventory);
+    const admission = clone(manifestFor(api.state.active));
     await until(api, 'batch-completed');
     const tip = clone(api.state.completedTip);
     assert.equal(tip.delivery, 'independent-v1');
     assert.equal(tip.validation.run, 9);
+    assert.equal(tip.validation.schema, schema);
+    assert.deepEqual(tip.admission, admission);
+    const { releaseRecord, validateRelease } = require('./delivery.cjs');
+    assert.equal(validateRelease(releaseRecord(tip), tip.sha).validation.schema, schema);
     assert.equal(api.state.deliveryProfile, 'independent-v1');
     api.qualificationObservation = { owner: { run: 42, source: tip.sha, attempt: 1 },
       qualification: null, provisional: false, terminal: mainStatus === 'failed' };
@@ -139,6 +397,77 @@ test('independent source completion admits another candidate while its main run 
     assert.equal(count(api, 'cancel'), 0);
   }
 });
+
+test('frozen batch inventories require the exact jobs for each reviewed schema, never an interchangeable subset', async () => {
+  const inventories = [
+    ['windows-12-v1', WINDOWS_12_JOBS],
+    ['windows-12-delivery-v1', DELIVERY_JOBS],
+    ['unit-pr-v1', UNIT_PR_JOBS],
+    ['parallel-pr-v1', PARALLEL_PR_JOBS],
+  ];
+  for (const [schema, jobs] of inventories) {
+    const api = new BatchFake();
+    api.inventory = { schema, blob: sha(999), jobs: [...jobs] };
+    assert.equal(await step(api), 'dispatched');
+    assert.equal(validateState(clone(api.state)).active.inventory.schema, schema);
+    for (const [other] of inventories.filter(([name]) => name !== schema)) {
+      const state = clone(api.state);
+      state.active.inventory.schema = other;
+      state.active.digest = digest(manifestFor(state.active));
+      assert.throws(() => validateState(state), /Invalid active batch/, `${schema}/${other}`);
+    }
+    for (const change of ['missing', 'duplicate', 'extra', 'unknown-schema']) {
+      const state = clone(api.state);
+      if (change === 'missing') state.active.inventory.jobs.pop();
+      if (change === 'duplicate') state.active.inventory.jobs.push(state.active.inventory.jobs[0]);
+      if (change === 'extra') state.active.inventory.jobs.push('Unknown validation');
+      if (change === 'unknown-schema') state.active.inventory.schema = 'future-v1';
+      state.active.digest = digest(manifestFor(state.active));
+      assert.throws(() => validateState(state), /Invalid active batch/, `${schema}/${change}`);
+    }
+  }
+});
+
+for (const [schema, expected] of [['unit-pr-v1', UNIT_PR_JOBS], ['parallel-pr-v1', PARALLEL_PR_JOBS]]) {
+  test(`all ${schema} batch producers must pass uniquely before any member receives admission`, async () => {
+    for (const name of expected) {
+      for (const change of ['missing', 'duplicate', 'failure', 'skipped']) {
+        const api = new BatchFake();
+        api.inventory = { schema, blob: sha(999), jobs: [...expected] };
+        assert.equal(await step(api), 'dispatched');
+        const job = api.workflowJobs.find(job => job.name === name);
+        if (change === 'missing') api.workflowJobs = api.workflowJobs.filter(item => item !== job);
+        else if (change === 'duplicate') api.workflowJobs.push({ ...job, id: 999 });
+        else job.conclusion = change;
+        assert.equal(await step(api), change === 'missing' ? 'waiting-for-jobs' : 'retiring', `${name}/${change}`);
+        assert.equal(count(api, 'merge'), 0);
+        assert.equal(api.calls.some(call => call[0] === 'finish' && call[2] === 'success'), false);
+        assert.ok(api.state.active);
+      }
+    }
+  });
+
+  test(`${schema} batch admission and retirement wait for physically terminal main-only Windows jobs`, async () => {
+    for (const name of DELIVERY_JOBS.filter(job => !UNIT_PR_JOBS.includes(job))) {
+      const api = new BatchFake();
+      api.inventory = { schema, blob: sha(999), jobs: [...expected] };
+      assert.equal(await step(api), 'dispatched');
+      const job = { id: 999, name, status: 'in_progress', conclusion: null,
+        run_id: 9, run_attempt: 1, head_sha: BASE };
+      api.workflowJobs.push(job);
+      assert.equal(await step(api), 'waiting-for-jobs', name);
+      assert.equal(count(api, 'merge'), 0);
+      api.prs[0].enrollment = NOW.toISOString();
+      assert.equal(await step(api), 'retiring', name);
+      assert.equal(await step(api), 'retiring', name);
+      assert.ok(api.state.active);
+      Object.assign(job, { status: 'completed', conclusion: 'skipped' });
+      assert.equal(await step(api), 'retired', name);
+      assert.equal(api.state.active, null);
+      assert.equal(count(api, 'merge'), 0);
+    }
+  });
+}
 
 test('independent delivery still waits for definite source-run admission before moving main', async () => {
   const api = new BatchFake();
@@ -399,18 +728,21 @@ test('control surfaces and group-failure retries use the existing fully validate
 });
 
 test('batch-profile control singleton retains complete exact-head proof and records actual merged-tip qualification', async () => {
-  for (const independent of [false, true]) {
+  for (const [schema, jobs, independent] of [
+    ['windows-12-v1', WINDOWS_12_JOBS, false],
+    ['windows-12-delivery-v1', DELIVERY_JOBS, true],
+    ['unit-pr-v1', UNIT_PR_JOBS, true],
+    ['parallel-pr-v1', PARALLEL_PR_JOBS, true],
+  ]) {
     const api = new BatchFake();
     api.independent = independent;
-    if (independent) {
-      api.inventory = { schema: 'windows-12-delivery-v1', blob: sha(999), jobs: [...DELIVERY_JOBS] };
-      api.expectedJobs = async () => [...DELIVERY_JOBS];
-    }
+    api.inventory = { schema, blob: sha(999), jobs: [...jobs] };
     api.prs = [api.prs[0]];
     api.files = async () => ['.github/workflows/ci.yml'];
     api.commits.set(sha(1), { tree: sha(400), parents: [BASE] });
     assert.equal(await step(api), 'dispatched');
     assert.equal(api.state.active.kind, undefined);
+    const windows = api.state.active.checks[CHECKS[1]];
     assert.equal(await step(api), 'merged');
     assert.equal(api.state.active, null);
     assert.equal(api.state.completedTip.sha, api.base);
@@ -418,10 +750,13 @@ test('batch-profile control singleton retains complete exact-head proof and reco
     assert.equal(count(api, 'check'), 4);
     assert.equal(count(api, 'dispatch'), 1);
     assert.equal(count(api, 'merge'), 1);
+    assert.equal(api.calls.find(call => call[0] === 'finish' && call[1] === windows)[2],
+      ['unit-pr-v1', 'parallel-pr-v1'].includes(schema) ? 'neutral' : 'success');
     assert.equal(await step(api), 'waiting-for-tip-qualification');
     if (independent) {
       assert.equal(api.state.completedTip.delivery, 'independent-v1');
       assert.equal(api.state.completedTip.validation.source, sha(1));
+      assert.equal(api.state.completedTip.validation.schema, schema);
     }
   }
 });
@@ -617,6 +952,35 @@ test('a provisional ordinary push delays dispatch without claiming a qualificati
   api.qualificationObservation = null;
   assert.equal(await step(api), 'waiting-for-tip-qualification');
   assert.equal(count(api, 'qualification'), 1);
+});
+
+test('blocked publication is explicit in the existing summary route without releasing admission or redispatching', async () => {
+  const api = new BatchFake();
+  await until(api, 'batch-completed');
+  const source = api.base;
+  const owner = { run: 41876386020, source, attempt: 1 };
+  api.qualificationObservation = { owner, qualification: null, terminal: true,
+    health: { status: 'BLOCKED_PUBLICATION', ...owner, job: 126747376970,
+      conclusion: 'failure', recovery: 'authorized-recovery-required' } };
+  const dispatched = count(api, 'dispatch');
+  assert.equal(await step(api), 'blocked-publication');
+  const checkpoint = api.commit;
+  const held = clone(api.state);
+  const notice = api.calls.find(call => call[0] === 'notice' && call[1].includes('BLOCKED_PUBLICATION'))?.[1];
+  assert.equal(await step(api), 'blocked-publication');
+  assert.deepEqual(api.state, held);
+  assert.ok(notice?.includes(source));
+  assert.ok(notice?.includes('41876386020'));
+  assert.ok(notice?.includes('126747376970'));
+  assert.ok(notice?.includes(checkpoint));
+  assert.ok(notice?.includes('authorized recovery required'));
+  assert.equal(count(api, 'dispatch'), dispatched);
+  assert.equal(count(api, 'qualification'), 0);
+  assert.equal(api.state.active, null);
+  api.qualificationObservation = { owner: { ...owner, run: owner.run + 1 },
+    qualification: { run: owner.run + 1, source, job: 126749535287 } };
+  await step(api);
+  assert.equal(count(api, 'dispatch'), dispatched + 1);
 });
 
 test('qualification owner state is bounded and compatible with existing unowned receipts and dispatch intents', async () => {

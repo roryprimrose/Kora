@@ -18,6 +18,78 @@ namespace Kora.Application.UnitTests.KnowledgeSources;
 [Collection("Host tracing")]
 public sealed class KnowledgeSourceAnswerTests : IDisposable
 {
+    [Theory]
+    [InlineData(RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.ActivatedVoice)]
+    public async Task ChosenNamedEvidenceUsesOriginalQuestionAndOnlySelectedFilePolicyAndModelDisclosure(RequestOrigin origin)
+    {
+        using var root = Root(origin);
+        using var f = new Fixture();
+        var retrieved = (await f.Prepare()).Review!;
+        var selected = retrieved.SelectEvidence([retrieved.Search.Citations[1]]);
+        f.ModelCalls.Should().Be(0);
+        f.PolicySources.Should().BeEmpty();
+        LocalFileAnswerResult result;
+        using (Root()) { result = await f.Workflow.AnswerAsync(selected, () => f.Eligible, Token); }
+        result.Outcome.Should().Be(LocalFileAnswerOutcome.Succeeded);
+        result.Claims.Single().Citations.Should().Equal(selected.Search.Citations);
+        f.PolicySources.Should().Equal(f.Revision.Files[1]);
+        f.Context!.Evidence.Should().ContainSingle().Which.Content.Should().Be(f.Revision.Files[1].Text);
+        f.Context.UserRequest.Should().Be(retrieved.Question);
+        f.Context.Request.Should().BeSameAs(retrieved.Target.Request);
+        f.Context.Request.Origin.Should().Be(origin);
+        f.Context.Tools.Should().BeEmpty();
+        f.OriginalReads.Should().Be(0);
+        (await f.Workflow.AnswerAsync(retrieved, () => true, Token)).Outcome.Should().Be(LocalFileAnswerOutcome.Denied);
+        (await f.Workflow.AnswerAsync(selected, () => true, Token)).Outcome.Should().Be(LocalFileAnswerOutcome.Denied);
+        f.ModelCalls.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData("foreign")]
+    [InlineData("stale")]
+    [InlineData("expired")]
+    [InlineData("privacy")]
+    public async Task ChosenReviewCannotSubstituteForeignRetrievalOrRenewAuthority(string defect)
+    {
+        using var root = Root();
+        using var f = new Fixture();
+        var retrieved = (await f.Prepare()).Review!;
+        var selected = retrieved.SelectEvidence([retrieved.Search.Citations[0]]);
+        if (defect is "foreign")
+        {
+            selected = new KnowledgeSourceAnswerReview(retrieved.Source, retrieved.Revision, retrieved.Question,
+                retrieved.RetrievedSearch, retrieved.Target).SelectEvidence([retrieved.Search.Citations[0]]);
+        }
+        if (defect is "stale") { retrieved.InvalidateSelection(); }
+        if (defect is "expired") { f.Clock.Now = retrieved.ExpiresAt; }
+        if (defect is "privacy") { f.Eligible = false; }
+        var result = await f.Workflow.AnswerAsync(selected, () => true, Token);
+        result.Outcome.Should().Be(LocalFileAnswerOutcome.Denied);
+        result.Claims.Should().BeEmpty();
+        f.PolicySources.Should().BeEmpty();
+        f.ModelCalls.Should().Be(0);
+        f.Admissions.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("policy")]
+    [InlineData("admission")]
+    [InlineData("model")]
+    public async Task ChangedChosenSetAcrossAwaitCannotDispatchOrPublishOldSelection(string stage)
+    {
+        using var root = Root();
+        using var f = new Fixture();
+        var retrieved = (await f.Prepare()).Review!;
+        var selected = retrieved.SelectEvidence([retrieved.Search.Citations[0]]);
+        f.At = actual => { if (string.Equals(actual, stage, StringComparison.Ordinal)) { retrieved.InvalidateSelection(); } };
+        var result = await f.Workflow.AnswerAsync(selected, () => true, Token);
+        result.Outcome.Should().Be(LocalFileAnswerOutcome.Stale);
+        result.Claims.Should().BeEmpty();
+        f.ModelCalls.Should().Be(stage is "model" ? 1 : 0);
+        if (stage is not "model") { f.Context.Should().BeNull(); }
+    }
+
     private readonly ActivityListener listener = new()
     {
         ShouldListenTo = source => source.Name.StartsWith("Kora.", StringComparison.Ordinal),
@@ -181,16 +253,24 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
         f.Admissions.Should().Be(0);
     }
 
-    [Fact]
-    public async Task RiskOutsideMatchingExcerptStillDeniesWholeEvidenceFile()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RiskOutsideMatchingExcerptStillDeniesWholeEvidenceFile(bool chosen)
     {
         using var root = Root();
         using var f = new Fixture(secondText: "alpha evidence\n\npassword=synthetic-secret");
         var review = (await f.Prepare()).Review!;
+        if (chosen)
+        {
+            review = review.SelectEvidence([review.Search.Citations.Single(item =>
+                string.Equals(item.DisplayIdentity, @"B\notes.md", StringComparison.Ordinal))]);
+        }
         var result = await f.Workflow.AnswerAsync(review, () => true, Token);
         result.Outcome.Should().Be(LocalFileAnswerOutcome.Denied);
         f.ModelCalls.Should().Be(0);
         f.Context.Should().BeNull();
+        f.PolicySources.Should().Equal(chosen ? [f.Revision.Files[1]] : f.Revision.Files);
     }
 
     [Theory]
@@ -238,15 +318,22 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
     }
 
     [Theory]
-    [InlineData(-1)]
-    [InlineData(0)]
-    [InlineData(1)]
-    [InlineData(20000)]
-    public async Task DeadlineSampleAfterAwaitedValidationNeverRenewsExpiredConsent(long offsetTicks)
+    [InlineData(-1, false)]
+    [InlineData(0, false)]
+    [InlineData(1, false)]
+    [InlineData(20000, false)]
+    [InlineData(-1, true)]
+    [InlineData(0, true)]
+    [InlineData(1, true)]
+    [InlineData(20000, true)]
+    public async Task DeadlineSampleAfterAwaitedValidationNeverRenewsExpiredConsent(long offsetTicks, bool chooseExcerpts)
     {
         using var root = Root();
         using var f = new Fixture();
-        var review = (await f.Prepare()).Review!;
+        var retrieved = (await f.Prepare()).Review!;
+        f.Clock.Now = retrieved.RetrievedSearch.ObservedAt.AddSeconds(10);
+        var review = chooseExcerpts ? retrieved.SelectEvidence([retrieved.Search.Citations[1]]) : retrieved;
+        review.ExpiresAt.Should().Be(retrieved.ExpiresAt);
         var timerCount = f.Clock.TimerDelays.Count;
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -270,7 +357,12 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
         result.Outcome.Should().Be(offsetTicks < 0 ? LocalFileAnswerOutcome.Succeeded : LocalFileAnswerOutcome.Stale);
         f.ModelCalls.Should().Be(offsetTicks < 0 ? 1 : 0);
         f.Clock.TimerDelays.Should().HaveCount(timerCount + (offsetTicks < 0 ? 1 : 0));
-        if (offsetTicks < 0) { f.Clock.TimerDelays.Last().Should().Be(TimeSpan.FromTicks(-offsetTicks)); }
+        if (offsetTicks < 0)
+        {
+            f.Clock.TimerDelays.Last().Should().Be(TimeSpan.FromTicks(-offsetTicks));
+            f.Context!.Evidence.Select(item => item.Content).Should().Equal(review.Search.Citations.Select(item => item.Excerpt));
+            f.PolicySources.Should().Equal(chooseExcerpts ? [f.Revision.Files[1]] : f.Revision.Files);
+        }
         if (offsetTicks >= 0)
         {
             result.Claims.Should().BeEmpty();

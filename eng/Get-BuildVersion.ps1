@@ -75,6 +75,7 @@ if ($main) {
     }
 }
 
+$productVersion = & (Join-Path $PSScriptRoot 'Get-InstallerProductVersion.ps1') -Version $version
 $result = [pscustomobject] @{
     Version = $version
     ProductVersion = $productVersion

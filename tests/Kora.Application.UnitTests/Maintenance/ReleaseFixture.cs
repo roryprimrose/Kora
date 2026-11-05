@@ -42,6 +42,7 @@ internal sealed class ReleaseFixture : IDisposable
         Manifest = new()
         {
             ["version"] = version, ["sourceRevision"] = Source, ["unsigned"] = true, ["productionAccepted"] = false,
+            ["installerProtocol"] = CanonicalRelease.InstallerProtocol,
             ["workflowRun"] = CanonicalRelease.RepositoryUrl + "/actions/runs/1",
             ["assets"] = new JsonArray(names.Where(name => name is not ("release-manifest.json" or "SHA256SUMS.txt"))
                 .Select(name => (JsonNode)new JsonObject { ["name"] = name, ["sha256"] = new string('b', 64) }).ToArray()),

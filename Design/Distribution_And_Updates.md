@@ -1,7 +1,7 @@
 # Distribution, Startup, and Application Maintenance
 
 Status: WiX MSI + custom Burn binary packaging, setup UI and release automation are implemented. External managed-source preview/build/staging/verification and immutable source-tool packaging/channel resolution are implemented; source activation, protected deployment and installed acceptance remain open. Source bootstrap and precompiled framework-dependent binaries are required distribution options.
-R02's partial NSIS 3.13 proof remains historical evidence, not the production installer. During the initial unsigned phase, update policy is automatic metadata checking with notify-only handling; Kora cannot download, stage, execute, or activate an application update.
+R02's partial NSIS 3.13 proof remains historical evidence, not the production installer. Configured checks discover releases only; separately reviewed native approval can download and start the exact unsigned canonical installer, never install unattended ([maintenance owner](../src/Kora.Application/Maintenance/MaintenanceViewModel.Upgrade.cs)).
 The source host is a public source-available GitHub repository; use Linux GitHub Actions wherever feasible, with Windows jobs for WiX MSI/Burn packaging and other justified Windows-specific work.
 Initial binary and setup artifacts are intentionally unsigned.
 Windows remains the only supported application runtime for the foreseeable future; Linux build runners do not imply Linux releases.
@@ -722,6 +722,8 @@ Keep update discovery tied to official releases, not latest successful workflow 
 ### Unsigned Initial Releases and Public Contributions
 
 Initial application binaries, maintenance binaries, and setup packages are not Authenticode-signed.
+Unsigned first-party Kora application and installer artifacts are permitted in the current delivery phase; signing is not a Kora-imposed prerequisite for ordinary startup or the reviewed installer upgrade flow ([installer startup](../src/Kora.Windows/Maintenance/WindowsReleaseInstallerLauncher.cs), [application startup](../installer/Kora.Setup/InstallerApplicationLauncher.cs)).
+This does not bypass Windows policy, UAC, canonical-origin and final-byte verification, explicit approval or lifecycle checks. Requiring signed application/installers and independently authenticated update metadata is future-state hardening, to be designed and enabled only when the signing infrastructure and verification contracts exist.
 Release pages, setup instructions, and update prompts must say so plainly and must not display a verified-publisher claim.
 Document the expected Windows Unknown Publisher/SmartScreen experience and provide a user-verifiable SHA-256 digest for every downloadable artifact.
 Canonical GitHub release origin, protected workflow permissions, exact source revision, immutable action pins, build attestations, and final-byte hashes provide traceability; they do not authenticate the Windows publisher or protect against compromise of the release account/workflow.
@@ -800,11 +802,10 @@ Existing same-build activation, handoff, setup completion, restart, errors and n
 ## Update Ownership and Deployment Mode
 
 Application maintenance is separate from the agent's model, tools, scripts, skills, and work queue.
-During the initial unsigned phase, Kora checks for updates and notifies through the host interaction broker, but has no install-capable updater.
-Voice may defer, suppress reminders, show release details, or open the configured canonical release page.
-It cannot approve download, staging, execution, source mutation, or activation.
-The user obtains and launches a replacement outside Kora under the normal unsigned-install disclosure and OS prompts.
-An install-capable updater is a future capability requiring independently authenticated signed metadata with a protected offline/root trust anchor, expiry, rollback/freeze protection, threshold/key-rotation design, exact host-owned voice/UI approval with mandatory OS checks, and separate acceptance evidence.
+Kora offers updates from verified canonical GitHub release metadata using the existing passive notice surface. The shared check/upgrade tools can check or prepare review, but cannot grant network consent or installer approval ([actions](../src/Kora.Core/Maintenance/IApplicationMaintenance.cs)).
+Native Maintenance requires a fresh exact release review and a separate explicit unsigned-installer checkbox before download/run. The host revalidates the release before and after transfer; setup owns installation and ordinary OS prompts ([upgrade owner](../src/Kora.Application/Maintenance/MaintenanceViewModel.Upgrade.cs)).
+This is a deliberate user-approved unsigned installer path, not authenticated unattended activation.
+An independently authenticated updater still requires signed metadata, an offline/root trust anchor, expiry, rollback/freeze protection, threshold/key rotation and separate acceptance evidence; hashes from the same GitHub origin are not that trust root ([security boundary](Security_Data_Flows.md#application-integrity-and-no-self-modification)).
 
 Do not infer update ownership merely by finding `.git`.
 Use installation metadata to distinguish a managed source deployment, binary deployment, and developer checkout.
@@ -813,7 +814,7 @@ Protected update origins/channels cannot be changed by skill content or agent to
 
 Proposed maintenance paths:
 
-- Binary deployment: poll the configured hosted repository release feed and notify/open the canonical release page. Kora does not obtain or execute replacement artifacts during the unsigned phase.
+- Binary deployment: check the configured canonical release policy, offer review, then obtain/start only the exact separately approved installer. Unknown deployment mode does not authorize direct executable replacement or source mutation ([upgrade owner](../src/Kora.Application/Maintenance/MaintenanceViewModel.Upgrade.cs)).
 - Managed source deployment: notify that an update exists; leave fetch/build/activation to an explicit external operator workflow during the unsigned phase.
 - Developer checkout: notify only; leave branch selection, fetching, building, and local changes to the developer.
 
@@ -822,6 +823,27 @@ Update checks have bounded frequency/timeouts, respect offline/maintenance netwo
 Never describe a failed check as proof that the installation is current.
 
 ## Hosted Release Feed and Notify-Only Interaction
+
+### Configured checks and reviewed installer upgrades
+
+Native Maintenance saves explicit public GitHub check consent, the bounded interval (default six hours), and whether betas are included. Stable releases remain eligible when beta inclusion is on.
+Startup and periodic checks use the existing ownership/privacy/call admission, jitter, timeout and backoff rules; they never approve an installer ([maintenance state](../src/Kora.Application/Maintenance/MaintenanceViewModel.cs), [selection](../src/Kora.Application/Maintenance/GitHubReleaseMetadataClient.cs)).
+Beta-inclusive discovery covers at most fifty pages of twenty records (1,000 releases), preserving the per-response bounds and total deadline. Exhausting that bound remains Unknown, not a guessed latest version ([discovery](../src/Kora.Application/Maintenance/GitHubReleaseMetadataClient.cs)).
+
+`maintenance check [latest|version]` and `maintenance upgrade [latest|version]` use the registered `application.check_for_updates` and `application.upgrade` actions. Exact versions use canonical release tags, never supplied URLs or paths; stable-only policy rejects betas.
+The upgrade action prepares native review only, preserving pending questions and approvals ([command](../src/Kora.Core/Maintenance/MaintenanceUpdateCommand.cs), [routing](../src/Kora.Application/ViewModels/MainViewModel.Maintenance.cs)).
+
+Select **Review this exact verified release**, then explicitly approve the displayed unsigned installer and choose **Download and run reviewed installer**. Only a newer supported x64 release is eligible.
+Any refresh, expiry, changed target, revoked approval or admission closure retires the approval; neither saved preferences nor a reusable model grant can approve execution ([approval owner](../src/Kora.Application/Maintenance/MaintenanceViewModel.Upgrade.cs)).
+
+Transfer is bounded to the exact asset ID and one admitted GitHub release-asset CDN redirect, with declared-length and final-byte SHA-256 verification. A file lease and final Windows identity check prevent replacement during startup.
+Partial failures are removed; completed installers are retained under device-local `Updates` for inspection. Process startup is not installation success ([downloader](../src/Kora.Application/Maintenance/ReleaseInstallerDownloader.cs), [launcher](../src/Kora.Windows/Maintenance/WindowsReleaseInstallerLauncher.cs)).
+Installer revalidation failures retain server retry deadlines in the shared maintenance schedule; clearing approval or changing settings must not shorten that deadline ([upgrade owner](../src/Kora.Application/Maintenance/MaintenanceViewModel.Upgrade.cs)).
+
+Only manifest-declared installer protocol **2** admits the graceful in-app upgrade path. Missing protocol is explicitly legacy: discovery still works, but Kora cannot approve or run that older installer. Unsupported future protocols also remain unavailable.
+New publication carries the inspected installer receipt's protocol declaration; old published releases remain immutable ([metadata](../src/Kora.Application/Maintenance/GitHubReleaseMetadataClient.cs), [publisher](../eng/Publish-GitHubRelease.ps1)).
+
+These are deterministic implementation contracts, not installed upgrade, native loading, protected deployment, independently authenticated publisher or production acceptance. The earlier notify-only implementation and receipts below describe the predecessor policy, not current installer authorization.
 
 ### Delivered bounded R17/R18 native foundation
 
@@ -832,7 +854,7 @@ new consent, download, install or model call, and does not close any installed
 release/protected-deployment gate. Broker dismiss/defer is separate from the
 existing exact-release native maintenance review/snooze and Check/Open actions.
 
-Settings **Maintenance** and Tray **Release maintenance (notify-only)** open
+The original Settings **Maintenance** and Tray **Release maintenance (notify-only)** opened
 one explicit native review surface with running version, channel, truthful
 status, last-verification/staleness, expected application ZIP/digest, and an
 exact host-constructed canonical release page. **Check** and **Open reviewed
@@ -873,8 +895,7 @@ Network opt-in/renewal, checks, browser opening, download, staging,
 installation/elevation, source activation and dependency/provider trials
 remain outside these commands.
 
-Public metadata network access is **off by default**, explicitly enabled for
-the current run only. Opt-in schedules an initial check; successful checks
+The predecessor metadata permission was **off by default** and run-only, superseded by the explicitly saved check preference above. Opt-in schedules an initial check; successful checks
 schedule six hours plus 0-30 minutes jitter. Failures back off exponentially
 from five minutes, capped at six hours; GitHub 403/429 deadlines are bounded
 to 1 minute-24 hours. Manual checks, toggling permission and channel selection
@@ -986,10 +1007,10 @@ Validate the configured canonical repository, release identity, immutable source
 During the unsigned phase this detects changed or mismatched release content but does not provide independent Windows publisher authentication; surface that limitation rather than claiming a trusted publisher.
 Repository credentials, if required, remain confined to maintenance.
 
-Proposed checking cadence is startup plus every 6 hours with jitter, bounded requests, and failure backoff.
+Configured checking cadence is startup plus the saved bounded interval (default six hours), with jitter, bounded requests and failure backoff ([maintenance state](../src/Kora.Application/Maintenance/MaintenanceViewModel.cs)).
 Network-disabled/offline mode reports deferred checking and permits a later explicit check; it does not report "up to date".
 Never check through an unapproved remote path under local-only mode.
-Routine checks discover metadata only; no Kora-owned download or staging path exists during the unsigned phase.
+Routine checks discover metadata only. The separate native-approved installer workflow is the only Kora-owned application installer download/start path ([upgrade owner](../src/Kora.Application/Maintenance/MaintenanceViewModel.Upgrade.cs)).
 
 The proactive prompt identifies version, unsigned status, expected manual replacement impact, and canonical release origin.
 “Open the release page” is a browser-navigation proposal bound to that exact canonical URL, not installation approval.
@@ -1044,21 +1065,18 @@ Reassess payload hashes, native closure/licences, CPU/GPU/architecture support,
 disk costs, cancellation and repair/upgrade/uninstall compatibility for each
 offered component. Optional data cannot become an in-app executable updater.
 
-The implemented R17 binary slice has MSI component/product/upgrade identities
-and shared version mapping; production upgrade behavior is not established.
-The custom BA currently rejects silent/passive/layout operation, so related
-bundle upgrades requiring silent execution of the old BA are unsupported.
-Betas sharing a numeric MSI version are not independently upgrade-ordered;
-do not advertise seamless upgrade or enable same-version overrides as a
-shortcut. Until supported upgrade paths are implemented/validated, use an
-explicitly approved external uninstall/reinstall workflow retaining user data.
+MSI/Burn versions now use `major.minor.(patch*1024+offset)`, with beta offsets 1–1022 and stable offset 1023; major/minor are bounded to 255 and patch to 63. This orders supported betas, stable promotion and subsequent patches without same-version overrides ([mapping](../eng/Get-InstallerProductVersion.ps1), [contracts](../eng/Test-InstallerVersionContracts.ps1)).
+Compatible cached protocol-2 bundles support bounded related retirement. Legacy/unknown bundles, including already-published installers with the old silent-BA restriction, require explicit external uninstall/reinstall retaining user data; rebuilding cannot repair those immutable old bootstrapper bytes ([installer contract](../installer/README.md)).
+The installer reserves the current user's lifecycle namespace, authenticates the running owner, obtains native stop consent and normal exit review, and requires actual process exit plus clean ownership before package mutation.
+It never force-kills Kora; cancellation, uncertain closure or conflicting sessions prevent changes ([maintenance lease](../src/Kora.Windows/Coordination/WindowsInstallerMaintenanceLease.cs), [host route](../src/Kora/App.InstallerShutdown.cs)).
+Installer maintenance must also preserve durable continuity across setup crashes: an uncertain native Apply or rollback retains the owned maintenance marker even after all named handles disappear. Only normal disposal after confirmed terminal work, or before Apply starts, may clear that exact owned reservation ([coordination boundary](Instance_Coordination.md#coordinator-and-data-safety)).
+Production installed upgrade behavior remains unqualified.
 Validate fresh install, upgrade, repair, interrupted/failed
 operations and uninstall, with previous-version recovery, local-edit/user-data
 preservation, exact-byte provenance, prerequisite handling and the independent
 protected-deployment boundary. Standard MSI behavior does not by itself prove
 those policies, unprivileged launch or future worker/resource acceptance.
-The app remains notify-only; manual external installer execution is not a
-new in-app updater or permission to bypass release/OS approval.
+The host can request separately reviewed canonical installer startup; that is not permission to bypass installer lifecycle, release identity or OS approval ([upgrade owner](../src/Kora.Application/Maintenance/MaintenanceViewModel.Upgrade.cs)).
 
 Velopack's integrated update machinery is not selected; future update authority
 and authenticated metadata/root trust remain separately gated.

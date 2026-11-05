@@ -74,6 +74,11 @@ function Assert-ReleaseIdentity {
 
 function Assert-ReleaseManifest {
     param($Manifest, $Digests)
+    $installerProtocol = $Manifest.PSObject.Properties['installerProtocol']
+    if ($null -ne $installerProtocol -and
+        (($installerProtocol.Value -isnot [int] -and $installerProtocol.Value -isnot [long]) -or $installerProtocol.Value -cne 2)) {
+        throw 'Release provenance has an unsupported installer lifecycle protocol.'
+    }
     $expected = @($names | Where-Object { $_ -notin @('release-manifest.json', 'SHA256SUMS.txt') } | Sort-Object)
     if ($Manifest.version -cne $Version -or $Manifest.sourceRevision -cne $SourceRevision -or
         $Manifest.unsigned -isnot [bool] -or $Manifest.unsigned -ne $true -or
@@ -236,8 +241,11 @@ if (-not $ArtifactPath) { throw 'Publication requires the exact downloaded build
 $ArtifactPath = [IO.Path]::GetFullPath($ArtifactPath)
 $installer = Join-Path $ArtifactPath 'installer'
 $receipt = Get-Content -LiteralPath (Join-Path $installer 'installer-build.json') -Raw | ConvertFrom-Json
+$receiptProtocol = $receipt.PSObject.Properties['installerProtocol']
 if ($receipt.version -ne $Version -or $receipt.sourceRevision -ne $SourceRevision -or
-    $receipt.productVersion -cne ($Version -split '-')[0] -or
+    $receipt.productVersion -cne (& (Join-Path $PSScriptRoot 'Get-InstallerProductVersion.ps1') -Version $Version) -or
+    $null -eq $receiptProtocol -or
+    ($receiptProtocol.Value -isnot [int] -and $receiptProtocol.Value -isnot [long]) -or $receiptProtocol.Value -cne 2 -or
     $receipt.sourceDirty -or $receipt.buildOrigin -ne 'github-actions' -or
     $receipt.msiIceValidation -ne 'passed' -or $receipt.packageInspection -ne 'passed' -or -not $receipt.unsigned) {
     throw 'Installer receipt does not establish a clean, exact-version CI candidate with full ICE and package inspection.'
@@ -295,6 +303,7 @@ try {
     if ($null -eq $existing -or -not (Save-DraftAsset $existing 'release-manifest.json' $output)) {
         [ordered] @{
             version = $Version; sourceRevision = $SourceRevision; unsigned = $true; productionAccepted = $false
+            installerProtocol = $receipt.installerProtocol
             workflowRun = "https://github.com/$repository/actions/runs/$env:GITHUB_RUN_ID"
             assets = $digests
         } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $output 'release-manifest.json') -Encoding utf8NoBOM
@@ -333,9 +342,12 @@ SHA256SUMS.txt and the exact-source release manifest; these are not independent 
 - Kora-$Version-source-tools.zip is the complete source-bootstrap v1.1.0 tool closure.
   Acquire/review with the maintained static resolver; building exact source requires explicit trust.
   No source activation, installation, elevation, registration or launch is available.
-- MSI uses the numeric $($receipt.productVersion) version; beta builds sharing it are not upgrade-ordered.
-- Silent related-bundle upgrades are unsupported. Use explicit external uninstall/reinstall
-  retaining user data until that lifecycle path is implemented and validated.
+- MSI/Burn use the bounded ordered numeric version $($receipt.productVersion); the display/application version remains $Version.
+- Compatible v2 bundles implement related-bundle retirement after approved shutdown and clean ownership.
+  Immutable older bundles require explicit external uninstall/reinstall retaining user data.
+  Installed upgrade/rollback qualification remains separate from deterministic implementation evidence.
+- Configured GitHub checks never install automatically. Downloading/running an unsigned protocol-2 installer
+  requires separate native approval of the exact verified release and ordinary Windows setup prompts.
 $storageDisclosure
   Validation is front-loaded and risk-based; each release is not exhaustively manually installed.
 - CI: portable/Windows tests, locked dependencies/licences, exact payload/native inspection and full MSI ICE.

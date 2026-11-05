@@ -3,6 +3,7 @@ param()
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+& (Join-Path $PSScriptRoot 'Test-InstallerVersionContracts.ps1')
 $gitExecutable = (Get-Command git -CommandType Application | Select-Object -First 1).Source
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $fixture = Join-Path ([IO.Path]::GetTempPath()) "KoraVersionTests-$([guid]::NewGuid().ToString('N'))"
@@ -95,10 +96,12 @@ try {
     $first = Resolve
     Assert ($first.Version -cmatch '^0\.1\.0-beta\d+$') "Incorrect initial main version: $($first.Version)"
     Assert (-not $first.Publish) 'Local main must not publish.'
+    Assert ($first.ProductVersion -ceq (& (Join-Path $PSScriptRoot 'Get-InstallerProductVersion.ps1') -Version $first.Version)) 'Main MSI version mapping differs.'
     Assert-BinaryVersion $first.Version
     Invoke-FixtureGit -Arguments @('commit', '--allow-empty', '-m', 'Second main commit')
     $second = Resolve
     Assert ($second.Version -cmatch '^0\.1\.0-beta\d+$' -and $second.Version -ne $first.Version) 'Main beta increment did not advance.'
+    Assert ([version]$second.ProductVersion -gt [version]$first.ProductVersion) 'Successive betas must increase the MSI/Burn version.'
     Invoke-FixtureGit -Arguments @('tag', "v$($second.Version)")
     $repeat = Resolve
     Assert ($repeat.Version -eq $second.Version) 'A generated beta release tag changed its own rerun version.'
@@ -116,6 +119,7 @@ try {
     Invoke-FixtureGit -Arguments @('tag', 'v0.1.0')
     $stable = Resolve
     Assert ($stable.Version -eq '0.1.0' -and -not $stable.Prerelease) 'Stable main tag did not produce a stable version.'
+    Assert ([version]$stable.ProductVersion -gt [version]$third.ProductVersion) 'Stable must upgrade every beta for its semantic version.'
     Assert-BinaryVersion $stable.Version
     Invoke-FixtureGit -Arguments @('commit', '--allow-empty', '-m', 'Main after stable release')
     Assert ((Resolve).Version -cmatch '^\d+\.\d+\.\d+-beta\d+$') 'Untagged main after stable release is not beta.'

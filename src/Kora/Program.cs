@@ -408,6 +408,11 @@ internal static class Program
             new LocalStartupPresentationPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<StartupPresentationConfigurationService>();
         services.AddSingleton<MaintenanceCommands>();
+        services.AddSingleton<IApplicationMaintenance>(provider => provider.GetRequiredService<MaintenanceCommands>());
+        services.AddSingleton<IMaintenancePreferences>(provider =>
+            new LocalMaintenancePreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<Kora.Tools.Application.ApplicationCheckForUpdates>();
+        services.AddSingleton<Kora.Tools.Application.ApplicationUpgrade>();
         services.AddSingleton<Kora.Application.Voice.AudioControlAdmission>();
         services.AddSingleton<Kora.Application.Voice.BoundedAudioOutputCatalog>();
         services.AddSingleton<OutputDeviceConfigurationService>();
@@ -503,7 +508,12 @@ internal static class Program
             provider.GetRequiredKeyedService<HttpClient>("github-issue-lookup")));
         services.AddSingleton<GitHubIssueReportWorkflow>();
         services.AddSingleton<ICanonicalReleasePageOpener, WindowsReleasePageOpener>();
-        services.AddSingleton(provider => new MaintenanceViewModel(
+        services.AddSingleton<IReleaseInstallerDownloader>(provider => new ReleaseInstallerDownloader(
+            provider.GetRequiredKeyedService<HttpClient>("release-metadata"), paths));
+        services.AddSingleton<IReleaseInstallerLauncher, WindowsReleaseInstallerLauncher>();
+        services.AddSingleton(provider =>
+        {
+            var maintenance = new MaintenanceViewModel(
             provider.GetRequiredService<IReleaseMetadataClient>(), provider.GetRequiredService<IApplicationInfo>(),
             System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture switch
             {
@@ -513,7 +523,12 @@ internal static class Program
             },
             provider.GetRequiredService<ICanonicalReleasePageOpener>(), provider.GetRequiredService<TimeProvider>(),
             provider.GetRequiredService<IUiDispatcher>(), provider.GetRequiredService<ISecurityAuditLog>(),
-            provider.GetRequiredService<ILogger<MaintenanceViewModel>>()));
+            provider.GetRequiredService<ILogger<MaintenanceViewModel>>(),
+            preferences: provider.GetRequiredService<IMaintenancePreferences>());
+            maintenance.BindUpgradeServices(provider.GetRequiredService<IReleaseInstallerDownloader>(),
+                provider.GetRequiredService<IReleaseInstallerLauncher>());
+            return maintenance;
+        });
         services.AddSingleton<Kora.Application.Interaction.HostQuestionService>();
         services.AddSingleton<Kora.Application.Interaction.HostQuestionReviewService>();
         services.AddSingleton<Kora.Application.Interaction.HostAuthorizationService>();

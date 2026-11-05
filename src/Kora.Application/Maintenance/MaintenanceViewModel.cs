@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using Kora.Application.Configuration;
 using Kora.Application.Infrastructure;
 using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
@@ -24,6 +25,8 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
     private readonly Lock cachedGate = new();
     private readonly Func<int> jitterMinutes;
     private readonly ITimer timer;
+    private readonly IMaintenancePreferences? preferences;
+    private readonly AuditedPreferenceWriter preferenceWriter;
     private Func<bool> admitted = static () => false;
     private CancellationTokenSource? operation;
     private ReleaseCheck? result;
@@ -40,7 +43,16 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
     private bool busy;
     private bool disposed;
     private bool cachedMutationPending;
-    private string message = "Unknown: not checked. Maintenance network access is off for this run.";
+    private bool gateBound;
+    private bool configuredChecksInitialized;
+    private bool configuredChecksPending;
+    private bool preferencesSaving;
+    private bool preferencesBlocked;
+    private bool automaticChecksSuspended;
+    private int checkIntervalHours = MaintenanceSettings.DefaultIntervalHours;
+    private MaintenanceSettings? savedSettings;
+    private string? preferenceError;
+    private string message = "Unknown: not checked. Maintenance network access is off by default.";
     private IMaintenanceCommands? cachedCommands;
     private Func<bool> nativeCachedAdmission = static () => true;
 
@@ -199,7 +211,7 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
 
     public MaintenanceViewModel(IReleaseMetadataClient client, IApplicationInfo info, ReleaseArchitecture architecture,
         ICanonicalReleasePageOpener opener, TimeProvider time, IUiDispatcher dispatcher, ISecurityAuditLog audit,
-        ILogger<MaintenanceViewModel> logger, Func<int>? jitterMinutes = null)
+        ILogger<MaintenanceViewModel> logger, Func<int>? jitterMinutes = null, IMaintenancePreferences? preferences = null)
     {
         this.client = client;
         this.info = info;
@@ -209,12 +221,17 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
         this.audit = audit;
         this.logger = logger;
         this.dispatcher = dispatcher;
+        this.preferences = preferences;
+        preferenceWriter = new(audit);
         this.jitterMinutes = jitterMinutes ?? (() => Random.Shared.Next(0, 31));
         timer = time.CreateTimer(_ => dispatcher.Post(OnTimer), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         CheckCommand = new(CheckAsync, ReportFailure);
         ReviewCommand = new(ReviewAsync, ReportFailure);
         OpenCommand = new(OpenAsync, ReportFailure);
         SnoozeCommand = new(SnoozeAsync, ReportFailure);
+        SavePreferencesCommand = new(SavePreferencesAsync, ReportFailure);
+        InitializeUpgradeCommands();
+        LoadPreferences();
     }
 
     public static IReadOnlyList<ReleaseChannel> Channels { get; } = Enum.GetValues<ReleaseChannel>();
@@ -222,6 +239,7 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
     public AsyncCommand ReviewCommand { get; }
     public AsyncCommand OpenCommand { get; }
     public AsyncCommand SnoozeCommand { get; }
+    public AsyncCommand SavePreferencesCommand { get; }
     public string CurrentVersion => info.Version;
     public string Disclosure => CanonicalRelease.Limits + " " + CanonicalRelease.Runtime;
     public string Status => cachedMutationPending ? "Unknown: cached maintenance audit commit is pending; no success is confirmed." : message;
@@ -242,6 +260,38 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
     public bool CanReview => !disposed && !busy && !cachedMutationPending && admitted() && result?.Release is not null && !IsStale;
     public bool CanOpen => CanReview && ReferenceEquals(result, reviewed);
     public bool CanSnooze => CanOpen && result!.Status == ReleaseAvailability.Available;
+    public string PreferencesStatus => preferenceError
+        ?? (preferencesSaving ? "Saving settings; the write and its audit outcome are not yet confirmed."
+            : preferences is null ? "Settings storage is unavailable. Changes apply only to this run."
+            : savedSettings == CurrentSettings ? "These settings are saved for startup and periodic checks."
+            : "Changes apply to this run only until you select Save update settings.");
+
+    private MaintenanceSettings CurrentSettings => new(networkEnabled, IncludePrereleases, checkIntervalHours);
+
+    public bool IncludePrereleases
+    {
+        get => channel == ReleaseChannel.Preview;
+        set => Channel = value ? ReleaseChannel.Preview : ReleaseChannel.Production;
+    }
+
+    public int CheckIntervalHours
+    {
+        get => checkIntervalHours;
+        set
+        {
+            if (value == checkIntervalHours) { return; }
+            MaintenanceSettings.ValidateInterval(value);
+            Mutate("maintenance.interval", () =>
+            {
+                Invalidate();
+                checkIntervalHours = value;
+                configuredChecksPending = false;
+                automaticChecksSuspended = false;
+                message = "Check interval changed for this run. Existing cadence and backoff are not shortened; save to retain the setting.";
+                Schedule();
+            });
+        }
+    }
 
     public ReleaseChannel Channel
     {
@@ -254,9 +304,12 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
             {
                 Invalidate();
                 channel = value;
+                configuredChecksPending = false;
                 result = null;
                 lastVerified = null;
+                automaticChecksSuspended = false;
                 message = "Unknown: selected channel changed. Start a new explicit check.";
+                Schedule();
             });
         }
     }
@@ -271,9 +324,11 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
             {
                 Invalidate();
                 networkEnabled = value;
+                configuredChecksPending = false;
+                automaticChecksSuspended = false;
                 nextCheck ??= time.GetUtcNow();
                 scheduledCause = Activity.Current?.Context ?? default;
-                message = value ? "Maintenance metadata network access enabled for this run; initial check scheduled."
+                message = value ? "Maintenance metadata network access enabled; initial check scheduled when settings and host admission permit. Save to retain this choice."
                     : "Unknown: maintenance network disabled. Previous verification is historical only.";
                 if (!value) { result = null; }
                 Schedule();
@@ -281,7 +336,138 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
         }
     }
 
-    public void BindGate(Func<bool> gate) => admitted = gate;
+    public void BindGate(Func<bool> gate)
+    {
+        ArgumentNullException.ThrowIfNull(gate);
+        lock (cachedGate)
+        {
+            if (disposed) { return; }
+            admitted = gate;
+            if (!gateBound)
+            {
+                gateBound = true;
+                Schedule();
+            }
+        }
+    }
+
+    public void InitializeConfiguredChecks()
+    {
+        lock (cachedGate)
+        {
+            if (disposed || configuredChecksInitialized) { return; }
+            configuredChecksInitialized = true;
+            if (!configuredChecksPending) { return; }
+            configuredChecksPending = false;
+            if (!gateBound || !admitted() || automaticChecksSuspended)
+            {
+                automaticChecksSuspended = true;
+                message = RearmConfiguredChecks()
+                    ? "Unknown: configured startup check deferred to a future periodic interval by host/privacy/call admission. No unlock replay is scheduled."
+                    : "Unknown: configured startup check deferred by host/privacy/call admission. Initiate a fresh check after recovery; no unlock replay is scheduled.";
+                Notify();
+                return;
+            }
+            scheduledCause = Activity.Current?.Context ?? default;
+            Schedule();
+        }
+    }
+
+    private void LoadPreferences()
+    {
+        if (preferences is null) { return; }
+        try
+        {
+            savedSettings = preferences.Load();
+            if (savedSettings is not { } settings) { return; }
+            networkEnabled = settings.NetworkEnabled;
+            configuredChecksPending = networkEnabled;
+            channel = settings.IncludePrereleases ? ReleaseChannel.Preview : ReleaseChannel.Production;
+            checkIntervalHours = settings.CheckIntervalHours;
+            if (networkEnabled) { nextCheck = time.GetUtcNow(); }
+            message = networkEnabled
+                ? "Saved metadata checks enabled. Startup check waits for host initialization and current host/privacy/call admission."
+                : "Saved maintenance network access is off. No startup or periodic checks are scheduled.";
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException)
+        {
+            BlockPreferences(exception);
+        }
+    }
+
+    public async Task SavePreferencesAsync()
+    {
+        if (disposed || preferencesSaving) { return; }
+        var origin = OriginalOrigin;
+        using var activity = HostActivity.BeginRoot(HostRequest.Create(origin), HostActivityLayer.Application, HostOperation.Policy);
+        preferencesSaving = true;
+        long savingRevision;
+        MaintenanceSettings settings;
+        lock (cachedGate)
+        {
+            Invalidate();
+            savingRevision = revision;
+            settings = CurrentSettings;
+        }
+        Notify();
+        bool Eligible() => !disposed && admitted() && origin == RequestOrigin.LocalUi && revision == savingRevision;
+        try
+        {
+            if (preferences is null) { throw new InvalidOperationException("Maintenance settings storage is unavailable."); }
+            await preferenceWriter.WriteAsync(() =>
+            {
+                lock (cachedGate)
+                {
+                    if (!Eligible()) { throw new InvalidOperationException("Maintenance settings admission changed before persistence."); }
+                    preferences.BeginWrite();
+                    preferences.Save(settings);
+                    if (!Eligible()) { throw new InvalidOperationException("Maintenance settings admission changed during persistence."); }
+                }
+            }, "maintenance.settings", SecurityAuditInitiator.LocalUser, origin, Eligible);
+            lock (cachedGate)
+            {
+                if (!Eligible()) { throw new InvalidOperationException("Maintenance settings write cannot be confirmed after admission changed."); }
+                preferences.ConfirmWrite();
+                if (!Eligible())
+                {
+                    preferences.BeginWrite();
+                    throw new InvalidOperationException("Maintenance settings admission changed during confirmation.");
+                }
+                savedSettings = settings;
+                configuredChecksPending = false;
+                preferencesBlocked = false;
+                preferenceError = null;
+                automaticChecksSuspended = false;
+                message = "Update settings saved. Checks remain subject to current host/privacy/call admission and existing backoff.";
+            }
+            activity.Complete(HostOperationOutcome.Completed);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException)
+        {
+            lock (cachedGate)
+            {
+                if (!disposed) { BlockPreferences(exception); }
+            }
+            activity.Complete(HostOperationOutcome.Failed);
+        }
+        finally
+        {
+            preferencesSaving = false;
+            Schedule();
+            if (!disposed) { Notify(); }
+        }
+    }
+
+    private void BlockPreferences(Exception exception)
+    {
+        preferencesBlocked = true;
+        configuredChecksPending = false;
+        preferenceError = "Saved settings could not be loaded or confirmed (" + exception.GetType().Name
+            + "). Automatic and manual checks remain off. Review the settings and save again to recover.";
+        Invalidate();
+        networkEnabled = false;
+        ReportFailure(exception);
+    }
 
     public void PrivacyClosed()
     {
@@ -293,20 +479,30 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
         if (disposed) { return; }
         Invalidate();
         result = null;
-        message = "Unknown: host/privacy/call admission closed. No release page opened or check replayed.";
+        if (configuredChecksInitialized) { configuredChecksPending = false; }
+        automaticChecksSuspended = true;
+        message = RearmConfiguredChecks()
+            ? "Unknown: host/privacy/call admission closed. A future periodic check remains scheduled; no release page opened or unlock check replayed."
+            : "Unknown: host/privacy/call admission closed. No release page opened or check replayed.";
         Notify();
     }
 
-    public Task CheckAsync() => RunCheckAsync(automatic: false);
+    public Task CheckAsync()
+    {
+        selectedVersion = null;
+        return RunCheckAsync(automatic: false);
+    }
 
-    private async Task RunCheckAsync(bool automatic)
+    private async Task RunCheckAsync(bool automatic, bool originalCommand = false, CancellationToken cancellationToken = default)
     {
         if (disposed || busy) { return; }
         var origin = automatic ? RequestOrigin.HostSystem : OriginalOrigin;
-        using var activity = HostActivity.BeginRoot(HostRequest.Create(origin),
-            HostActivityLayer.Application, HostOperation.Runtime,
-            automatic && scheduledCause != default ? [new ActivityLink(scheduledCause)] : null);
-        if (!admitted() || !networkEnabled || (!automatic && origin != RequestOrigin.LocalUi))
+        using var activity = originalCommand
+            ? HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Runtime)
+            : HostActivity.BeginRoot(HostRequest.Create(origin), HostActivityLayer.Application, HostOperation.Runtime,
+                automatic && scheduledCause != default ? [new ActivityLink(scheduledCause)] : null);
+        var originalInput = origin == RequestOrigin.LocalUi || originalCommand && origin == RequestOrigin.ActivatedVoice;
+        if (!admitted() || !networkEnabled || preferencesBlocked || preferencesSaving || (!automatic && !originalInput))
         {
             message = "Unknown: enable maintenance network access through native UI with current host/privacy/call admission.";
             activity.Complete(HostOperationOutcome.Failed);
@@ -314,7 +510,8 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
             return;
         }
         var now = time.GetUtcNow();
-        if (nextCheck is { } next && next > now)
+        var next = nextCheck!.Value;
+        if (next > now)
         {
             message = "Check deferred until " + next.ToString("u", CultureInfo.InvariantCulture)
                 + "; bounded cadence/backoff cannot be bypassed.";
@@ -322,14 +519,18 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
             Notify();
             return;
         }
+        InvalidateUpgradeApproval();
+        nextCheck = now + TimeSpan.FromMinutes(5);
+        configuredChecksPending = false;
+        automaticChecksSuspended = false;
         busy = true;
-        operation = new();
+        operation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var token = operation.Token;
         var admittedRevision = revision;
         Notify();
         try
         {
-            var checkedRelease = await client.CheckAsync(channel, info.Version, architecture, token);
+            var checkedRelease = await CheckSelectedReleaseAsync(automatic, token);
             lock (cachedGate)
             {
                 if (disposed || admittedRevision != revision || !admitted() || token.IsCancellationRequested)
@@ -347,13 +548,13 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
                     failures = 0;
                     var jitter = jitterMinutes();
                     if (jitter is < 0 or > 30) { throw new InvalidDataException("Maintenance jitter exceeds its 0-30 minute bound."); }
-                    nextCheck = time.GetUtcNow() + Freshness + TimeSpan.FromMinutes(jitter);
+                    nextCheck = time.GetUtcNow() + TimeSpan.FromHours(checkIntervalHours) + TimeSpan.FromMinutes(jitter);
                 }
                 else
                 {
                     failures = Math.Min(failures + 1, 8);
                     nextCheck = time.GetUtcNow() + TimeSpan.FromMinutes(Math.Min(360, 5 * (1 << (failures - 1))));
-                    if (result.RetryAt is { } retry && retry > nextCheck!.Value) { nextCheck = retry; }
+                    PreserveRetryDeadline(result);
                 }
                 message = result.Status + ": " + result.Reason;
                 if (result.Release?.Version == snoozedVersion && snoozedUntil > time.GetUtcNow())
@@ -374,6 +575,7 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
             operation.Dispose();
             operation = null;
             busy = false;
+            Schedule();
             if (!disposed) { Notify(); }
         }
     }
@@ -507,9 +709,20 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
         Notify();
     }
 
+    private void PreserveRetryDeadline(ReleaseCheck check)
+    {
+        if (!disposed && check.RetryAt is { } retry && retry > nextCheck!.Value) { nextCheck = retry; }
+    }
+
     private void Schedule()
     {
-        if (!networkEnabled) { return; }
+        if (disposed || !gateBound || configuredChecksPending || !networkEnabled || preferencesBlocked || preferencesSaving
+            || automaticChecksSuspended) { return; }
+        if (!admitted())
+        {
+            RearmConfiguredChecks();
+            return;
+        }
         var now = time.GetUtcNow();
         var due = nextCheck!.Value;
         if (lastVerified is { } verified)
@@ -521,13 +734,40 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
         timer.Change(delay > TimeSpan.Zero ? delay : TimeSpan.Zero, Timeout.InfiniteTimeSpan);
     }
 
+    private bool RearmConfiguredChecks()
+    {
+        if (disposed || !gateBound || !configuredChecksInitialized || !networkEnabled
+            || savedSettings is not { NetworkEnabled: true } || preferencesBlocked || preferencesSaving)
+        {
+            return false;
+        }
+        var now = time.GetUtcNow();
+        var due = now + TimeSpan.FromHours(checkIntervalHours);
+        var later = nextCheck!.Value;
+        if (later > due) { due = later; }
+        nextCheck = due;
+        automaticChecksSuspended = false;
+        timer.Change(due - now, Timeout.InfiniteTimeSpan);
+        return true;
+    }
+
     private void OnTimer()
     {
-        if (disposed || !networkEnabled) { return; }
+        if (disposed || !gateBound || configuredChecksPending || !networkEnabled || preferencesBlocked || preferencesSaving || automaticChecksSuspended) { return; }
         if (!admitted())
         {
-            message = "Unknown: scheduled metadata check deferred by host/privacy/call admission. Use an explicit check after recovery.";
+            Invalidate();
+            result = null;
+            automaticChecksSuspended = true;
+            message = RearmConfiguredChecks()
+                ? "Unknown: scheduled metadata check deferred to a future periodic interval by host/privacy/call admission. No unlock replay is scheduled."
+                : "Unknown: scheduled metadata check deferred by host/privacy/call admission. Use an explicit check after recovery.";
             Notify();
+            return;
+        }
+        if (busy)
+        {
+            RearmConfiguredChecks();
             return;
         }
         if (nextCheck!.Value > time.GetUtcNow())
@@ -536,12 +776,14 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
             Schedule();
             return;
         }
+        selectedVersion = null;
         var command = new AsyncCommand(() => RunCheckAsync(automatic: true), ReportFailure);
         command.Execute(null);
     }
 
     private void Invalidate()
     {
+        InvalidateUpgradeApproval();
         revision++;
         operation?.Cancel();
         timer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
@@ -577,6 +819,9 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(Status));
         OnPropertyChanged(nameof(Channel));
         OnPropertyChanged(nameof(NetworkEnabled));
+        OnPropertyChanged(nameof(IncludePrereleases));
+        OnPropertyChanged(nameof(CheckIntervalHours));
+        OnPropertyChanged(nameof(PreferencesStatus));
         OnPropertyChanged(nameof(Availability));
         OnPropertyChanged(nameof(NextCheck));
         OnPropertyChanged(nameof(LastVerified));
@@ -587,5 +832,6 @@ public sealed partial class MaintenanceViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(CanOpen));
         OnPropertyChanged(nameof(CanSnooze));
         OnPropertyChanged(nameof(CanReview));
+        NotifyUpgradeProperties();
     }
 }

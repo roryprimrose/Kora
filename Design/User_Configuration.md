@@ -1753,12 +1753,12 @@ See the [entry point](../src/Kora/Program.cs) and [microphone matrix](Security_D
 |---|---|---|
 | Start at logon | Explicit opt-in | "Enable start at logon" |
 | Startup presentation | Delivered native-only for the supported manual shortcut/`--manual-startup`; absent/reset preserves existing initialization; tray/minimal or existing Main workspace | Native Settings review and separate confirmation required |
-| Automatic update checking | Notify-only; enabled only for configured/permitted maintenance networking | "Only check for updates when I ask" |
-| Update-check interval | 6 hours; 30 minutes-24 hours with backoff/jitter | "Check for updates twice a day" |
-| Release channel | Stable; only trusted published channels | "Use the preview release channel" |
+| Automatic update checking | Off by default; native saved public GitHub metadata opt-in; checks never install | Native Maintenance settings |
+| Update-check interval | Six hours by default; 1–168 whole hours with backoff/jitter ([native bounds](../src/Kora/MaintenanceWindow.axaml)) | Native Maintenance settings |
+| Include beta releases | Off by default; enabled includes both stable and beta, never drafts | Native Maintenance settings |
 | Update reminder preference | Per-release reminder/suppression through proactive policy | "Don't remind me about this version" |
 
-During the unsigned phase, update installation is external to Kora; no install/stage/download approval or "automatic install" setting exists.
+Native Maintenance can separately review and approve downloading/running an exact unsigned newer x64 installer; there is no automatic-install setting. Saved check consent, interval and beta policy do not authorize execution ([maintenance owner](../src/Kora.Application/Maintenance/MaintenanceViewModel.cs), [installer approval](../src/Kora.Application/Maintenance/MaintenanceViewModel.Upgrade.cs)).
 Changing channels does not authorise a downgrade, skip verification, or rewrite the protected feed/trust configuration.
 ### Delivered normal manual startup presentation
 

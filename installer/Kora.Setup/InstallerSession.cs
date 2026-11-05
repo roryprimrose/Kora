@@ -2,9 +2,12 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Text.Json;
 
+using Kora.Windows.Coordination;
+
 namespace Kora.Setup;
 
-public sealed class InstallerSession(IInstallerEngine engine, IOptionalComponentSetup? optionalSetup = null) : INotifyPropertyChanged
+public sealed class InstallerSession(IInstallerEngine engine, IOptionalComponentSetup? optionalSetup = null,
+    IInstallerShutdown? shutdown = null) : INotifyPropertyChanged, IAsyncDisposable
 {
     public const int UserCancelled = 1602;
     public const int RebootRequired = 3010;
@@ -17,6 +20,9 @@ public sealed class InstallerSession(IInstallerEngine engine, IOptionalComponent
     private bool closeAccepted;
     private bool launchApproved;
     private bool launchAttempted;
+    private readonly Lock lifecycle = new();
+    private IInstallerMaintenanceLease? maintenanceLease;
+    private bool disposalStarted;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -38,7 +44,9 @@ public sealed class InstallerSession(IInstallerEngine engine, IOptionalComponent
 
     public bool CanChooseScope => CanStart && !scopeLocked;
 
-    public bool CanClose => Phase is not (SetupPhase.Planning or SetupPhase.Applying or SetupPhase.PreparingOptional);
+    public bool CanClose => Phase is not (SetupPhase.StoppingHost or SetupPhase.Planning or SetupPhase.Applying or SetupPhase.PreparingOptional);
+
+    public bool CanCancelShutdown => Phase == SetupPhase.StoppingHost;
 
     public bool CanCancelOptional => Phase == SetupPhase.PreparingOptional;
 
@@ -116,6 +124,52 @@ public sealed class InstallerSession(IInstallerEngine engine, IOptionalComponent
     public void Start(SetupAction requestedAction, bool consent, OptionalComponents? optionalComponents = null,
         bool startAtLogin = false)
     {
+        if (shutdown is not null)
+        {
+            throw new InvalidOperationException("This setup requires asynchronous verified host shutdown before planning.");
+        }
+        PrepareStart(requestedAction, consent, optionalComponents, startAtLogin, SetupPhase.Planning);
+        engine.Plan(action, Scope, StartAtLogin);
+    }
+
+    public async Task StartAsync(SetupAction requestedAction, bool consent, OptionalComponents? optionalComponents = null,
+        bool startAtLogin = false, CancellationToken cancellationToken = default)
+    {
+        if (shutdown is null)
+        {
+            throw new InvalidOperationException("Verified installer shutdown is unavailable.");
+        }
+        PrepareStart(requestedAction, consent, optionalComponents, startAtLogin, SetupPhase.StoppingHost);
+        try
+        {
+            maintenanceLease = await shutdown.AcquireAsync(Scope, cancellationToken)
+                ?? throw new InvalidOperationException("The installer shutdown service returned no maintenance reservation.");
+            cancellationToken.ThrowIfCancellationRequested();
+            Phase = SetupPhase.Planning;
+            Status = "Kora has stopped. Preparing the package plan...";
+            Notify();
+            engine.Plan(action, Scope, StartAtLogin);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            Phase = SetupPhase.Cancelled;
+            ExitCode = UserCancelled;
+            Status = "Setup cancelled before package changes. Kora may have stopped; setup will not restart it.";
+            Notify();
+        }
+        catch (Exception exception) when (exception is IOException or InvalidOperationException or UnauthorizedAccessException
+            or Win32Exception or TimeoutException or OperationCanceledException or System.Security.SecurityException)
+        {
+            Fail(exception.HResult);
+            Status = "Kora shutdown could not be confirmed. No package changes were admitted. " +
+                "Finish active work, close Kora normally and retry setup. " + exception.Message;
+            Notify();
+        }
+    }
+
+    private void PrepareStart(SetupAction requestedAction, bool consent, OptionalComponents? optionalComponents,
+        bool startAtLogin, SetupPhase nextPhase)
+    {
         if (!CanStart || !consent)
         {
             throw new InvalidOperationException("Setup requires completed detection and explicit consent.");
@@ -144,10 +198,11 @@ public sealed class InstallerSession(IInstallerEngine engine, IOptionalComponent
         components = selection;
         action = requestedAction;
         StartAtLogin = startAtLogin;
-        Phase = SetupPhase.Planning;
-        Status = "Preparing the package plan...";
+        Phase = nextPhase;
+        Status = nextPhase == SetupPhase.StoppingHost
+            ? "Checking for running Kora. Approve its shutdown question to continue; no package changes have started."
+            : "Preparing the package plan...";
         Notify();
-        engine.Plan(action, Scope, StartAtLogin);
     }
 
     public void Planned(int status)
@@ -163,6 +218,18 @@ public sealed class InstallerSession(IInstallerEngine engine, IOptionalComponent
             return;
         }
 
+        try
+        {
+            shutdown?.Validate(Scope);
+            maintenanceLease?.BeginNativeApply();
+        }
+        catch (Exception exception) when (exception is IOException or InvalidOperationException or UnauthorizedAccessException
+            or Win32Exception or System.Security.SecurityException)
+        {
+            Fail(exception.HResult);
+            ReportFailureDetail("The installer user/scope changed before native apply. No package apply was admitted. " + exception.Message);
+            return;
+        }
         Phase = SetupPhase.Applying;
         Status = "Applying changes. Windows may request administrator approval.";
         Notify();
@@ -186,7 +253,17 @@ public sealed class InstallerSession(IInstallerEngine engine, IOptionalComponent
     {
         if (Phase != SetupPhase.Applying)
         {
+            if (Phase == SetupPhase.Failed || disposalStarted)
+            {
+                engine.LogFailure(UnexpectedState);
+                return;
+            }
             throw new InvalidOperationException("No apply is in progress.");
+        }
+        if (!RecordNativeApplyComplete())
+        {
+            Fail(UnexpectedState);
+            return;
         }
 
         if (status < 0)
@@ -205,6 +282,15 @@ public sealed class InstallerSession(IInstallerEngine engine, IOptionalComponent
         }
 
         Complete();
+    }
+
+    public bool RecordNativeApplyComplete()
+    {
+        lock (lifecycle)
+        {
+            if (disposalStarted) { return false; }
+            return maintenanceLease?.ConfirmNativeApplyComplete() ?? shutdown is null;
+        }
     }
 
     public async Task PrepareOptionalAsync(CancellationToken cancellationToken)
@@ -279,7 +365,10 @@ public sealed class InstallerSession(IInstallerEngine engine, IOptionalComponent
     public async Task LaunchAfterCloseAsync(IInstallerApplicationLauncher launcher, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(launcher);
-        if (!closeAccepted) { throw new InvalidOperationException("Wait for setup to close before launching Kora."); }
+        if (!closeAccepted || maintenanceLease is not null)
+        {
+            throw new InvalidOperationException("Wait for setup to close and release package-maintenance ownership before launching Kora.");
+        }
         if (!launchApproved) { return; }
         if (!CanLaunchOnClose || launchAttempted)
         {
@@ -314,6 +403,35 @@ public sealed class InstallerSession(IInstallerEngine engine, IOptionalComponent
         Status = string.Create(CultureInfo.InvariantCulture,
             $"Setup failed (0x{status:X8}). See the Burn log in your temporary folder. Close setup and retry after correcting the problem.");
         Notify();
+    }
+
+    public void ReportFailureDetail(string detail)
+    {
+        if (Phase != SetupPhase.Failed || string.IsNullOrWhiteSpace(detail))
+        {
+            throw new InvalidOperationException("Failure detail requires a failed setup operation.");
+        }
+        Status = detail;
+        Notify();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        IInstallerMaintenanceLease? lease;
+        lock (lifecycle)
+        {
+            if (!CanClose)
+            {
+                throw new InvalidOperationException("Package work, rollback and shutdown must terminate before releasing maintenance ownership.");
+            }
+            disposalStarted = true;
+            lease = maintenanceLease;
+        }
+        if (lease is not null)
+        {
+            await lease.DisposeAsync();
+            lock (lifecycle) { maintenanceLease = null; }
+        }
     }
 
     private void Notify()

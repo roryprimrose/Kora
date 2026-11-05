@@ -40,6 +40,7 @@ function Copy-State {
     return ($State | ConvertTo-Json -Depth 15 | ConvertFrom-Json -AsHashtable)
 }
 function New-Candidate {
+    $candidateProductVersion = & (Join-Path $PSScriptRoot 'Get-InstallerProductVersion.ps1') -Version $version
     $toolDirectory = Join-Path $fixture 'source-tools'
     if (!(Test-Path -LiteralPath $toolDirectory)) { New-ProofDirectory $toolDirectory }
     $tree = @(Get-LocalSourceToolTree (Join-Path $PSScriptRoot '..') $source)
@@ -56,14 +57,15 @@ function New-Candidate {
     $installer = Join-Path $fixture 'installer'
     New-Item -ItemType Directory -Path $installer -Force | Out-Null
     $files = @()
-    foreach ($name in @('Kora-0.1.0-win-x64.msi', "Kora-Setup-$version-win-x64.exe")) {
+    foreach ($name in @("Kora-$candidateProductVersion-win-x64.msi", "Kora-Setup-$version-win-x64.exe")) {
         [IO.File]::WriteAllText((Join-Path $installer $name), "Fake inspected $name")
         $files += @{ name = $name; sha256 = (Get-FileHash -LiteralPath (Join-Path $installer $name) -Algorithm SHA256).Hash }
     }
     Copy-Item -LiteralPath (Join-Path $fixture 'Kora-win-x64\payload-manifest.json') -Destination $installer -Force
     @{
-        version = $version; productVersion = '0.1.0'; sourceRevision = $source; sourceDirty = $false
+        version = $version; productVersion = $candidateProductVersion; sourceRevision = $source; sourceDirty = $false
         buildOrigin = 'github-actions'; msiIceValidation = 'passed'; packageInspection = 'passed'
+        installerProtocol = 2
         unsigned = $true; files = $files
     } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $installer 'installer-build.json') -Encoding utf8NoBOM
 }
@@ -198,6 +200,15 @@ try {
     New-Candidate
     $receiptPath = Join-Path $fixture 'installer\installer-build.json'
     $receiptBytes = [IO.File]::ReadAllBytes($receiptPath)
+    foreach ($protocol in @($null, 0, 1, 3, '2', $true, 2.5)) {
+        $unsupported = [Text.Encoding]::UTF8.GetString($receiptBytes) | ConvertFrom-Json
+        if ($null -eq $protocol) { $unsupported.PSObject.Properties.Remove('installerProtocol') }
+        else { $unsupported.installerProtocol = $protocol }
+        $unsupported | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $receiptPath
+        Reject { Invoke-Release Publish }
+        Assert ($global:KoraReleaseTestState.Writes.Count -eq 0) 'Unsupported installer protocol performed a release write.'
+    }
+    [IO.File]::WriteAllBytes($receiptPath, $receiptBytes)
     $receipt = Get-Content -LiteralPath $receiptPath -Raw | ConvertFrom-Json
     $receipt.msiIceValidation = 'skipped-explicitly'
     $receipt | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $receiptPath
@@ -368,7 +379,7 @@ try {
     $global:KoraReleaseTestState = Copy-State $complete
     $global:KoraReleaseTestState.Releases[0].assets = @($global:KoraReleaseTestState.Releases[0].assets | Select-Object -Skip 1)
     Reject { Invoke-Release } 'missing or unexpected assets'
-    foreach ($field in @('version', 'sourceRevision', 'unsigned', 'productionAccepted', 'workflowRun', 'sha256', 'duplicate')) {
+    foreach ($field in @('version', 'sourceRevision', 'unsigned', 'productionAccepted', 'installerProtocol', 'workflowRun', 'sha256', 'duplicate')) {
         $global:KoraReleaseTestState = Copy-State $complete
         $manifest = [Text.Encoding]::UTF8.GetString([byte[]] $complete.Content['8']) | ConvertFrom-Json
         switch ($field) {

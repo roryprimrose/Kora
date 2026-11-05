@@ -9,6 +9,9 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+if ($ProductVersion -cne (& (Join-Path $PSScriptRoot 'Get-InstallerProductVersion.ps1') -Version $Version)) {
+    throw 'Installer inspection requires the exact bounded semantic-to-MSI version mapping.'
+}
 $candidate = [IO.Path]::GetFullPath($CandidatePath)
 # WiX's .NET Framework extraction host can still hit MAX_PATH with notice filenames.
 $inspection = Join-Path ([IO.Path]::GetDirectoryName($candidate)) "i-$([guid]::NewGuid().ToString('N').Substring(0, 8))"
@@ -34,6 +37,11 @@ foreach ($identity in @(
     if ($null -eq $variable -or $variable.Value -cne $identity.Expected) {
         throw 'Burn UI/path versions do not match the shared build version.'
     }
+}
+$installerProtocols = @($manifest.SelectNodes("/b:BurnManifest/b:Variable[@Id='KoraInstallerProtocol']", $burnNamespace))
+if ($installerProtocols.Count -ne 1 -or $installerProtocols[0].Type -cne 'numeric' -or
+    $installerProtocols[0].Value -cne '2') {
+    throw 'The built Burn bundle must explicitly declare numeric KoraInstallerProtocol=2 before a protocol-v2 receipt can be issued.'
 }
 foreach ($binary in @((Join-Path $ApplicationPayloadPath 'Kora.dll'), (Join-Path $BootstrapperPayloadPath 'Kora.Setup.dll'))) {
     if ([Diagnostics.FileVersionInfo]::GetVersionInfo($binary).ProductVersion -cne $Version) {
@@ -62,6 +70,9 @@ if ($null -eq $startupProperty -or $startupProperty.Value -cne '[KoraStartAtLogi
     throw 'Burn must pass the approved startup choice to the MSI explicitly.'
 }
 $authoring = [xml](Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\installer\Kora.Bundle\Bundle.wxs') -Raw)
+if ($authoring.SelectSingleNode("//*[local-name()='Bundle']").Tag -cne 'Kora.Installer.v2') {
+    throw 'Related-bundle maintenance requires the explicit compatible-bootstrapper protocol tag.'
+}
 foreach ($id in @('DesktopRuntime', 'VCRuntime')) {
     $package = $manifest.SelectSingleNode("/b:BurnManifest/b:Chain/b:ExePackage[@Id='$id']", $burnNamespace)
     if ($package.Permanent -cne 'yes' -or $package.Vital -cne 'yes' -or $package.Scope -cne 'perMachine' -or
@@ -109,6 +120,9 @@ if ($package.SelectSingleNode('/w:Wix/w:Package', $namespaces).Version -cne $Pro
 }
 if ($package.SelectSingleNode('/w:Wix/w:Package', $namespaces).Scope -cne 'perUserOrMachine') {
     throw 'MSI must support both installation contexts and default to per-user.'
+}
+if ($package.SelectSingleNode("//w:Property[@Id='MSIRESTARTMANAGERCONTROL']", $namespaces).Value -cne 'Disable') {
+    throw 'MSI Restart Manager must not close running applications on behalf of setup.'
 }
 if (-not $package.SelectSingleNode("//w:StandardDirectory[@Id='ProgramFiles64Folder']/w:Directory[@Name='Kora']/w:Directory[@Id='INSTALLFOLDER']", $namespaces)) {
     throw 'MSI must use the context-redirected x64 Programs directory for user/machine installs.'

@@ -8,7 +8,7 @@ using Kora.Core.Storage;
 namespace Kora.Application.Maintenance;
 
 public sealed class MaintenanceCommands(MaintenanceViewModel state, ISessionWorkspaceStore workspace,
-    IMaintenanceControlSessionStore sessions, HostTaskCoordinator tasks) : IMaintenanceCommands, IAsyncDisposable
+    IMaintenanceControlSessionStore sessions, HostTaskCoordinator tasks) : IMaintenanceCommands, IApplicationMaintenance, IAsyncDisposable
 {
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly CancellationTokenSource lifetime = new();
@@ -17,6 +17,58 @@ public sealed class MaintenanceCommands(MaintenanceViewModel state, ISessionWork
     private WorkSessionAuthorization? session;
     private bool unavailable;
     private bool disposed;
+
+    public Task<string> CheckForUpdatesAsync(ReleaseVersion? version, RequestOrigin origin,
+        Func<bool> admitted, CancellationToken cancellationToken) =>
+        ExecuteUpdateAsync(version, false, origin, admitted, cancellationToken);
+
+    public Task<string> RequestUpgradeAsync(ReleaseVersion? version, RequestOrigin origin,
+        Func<bool> admitted, CancellationToken cancellationToken) =>
+        ExecuteUpdateAsync(version, true, origin, admitted, cancellationToken);
+
+    private async Task<string> ExecuteUpdateAsync(ReleaseVersion? version, bool upgrade, RequestOrigin origin,
+        Func<bool> eligible, CancellationToken cancellationToken)
+    {
+        // Establish/revalidate the same durable control session used by cached maintenance.
+        await ExecuteAsync(MaintenanceCommand.Status, origin, eligible, cancellationToken).ConfigureAwait(false);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetime.Token);
+        var token = linked.Token;
+        await gate.WaitAsync(token).ConfigureAwait(false);
+        string output;
+        try
+        {
+            bool Admitted() => !disposed && !unavailable && eligible();
+            if (!Admitted()) { throw new InvalidOperationException("Maintenance host admission is unavailable."); }
+            var authority = session!;
+            var request = new HostRequest(new(Guid.NewGuid()), authority.SessionId, new(Guid.NewGuid()), origin);
+            using var operation = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
+            var intent = await workspace.RecordControlIntentAsync(request, token).ConfigureAwait(false);
+            var terminal = false;
+            try
+            {
+                await sessions.WithMaintenanceControlSessionAsync(request, authority.Generation,
+                    () => Admitted() ? true : throw new InvalidOperationException("Maintenance admission changed."), token).ConfigureAwait(false);
+                output = await state.ExecuteUpdateAsync(version, upgrade, Admitted, token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+                await sessions.WithMaintenanceControlSessionAsync(request, authority.Generation,
+                    () => Admitted() ? true : throw new InvalidOperationException("Maintenance admission changed before receipt."), token).ConfigureAwait(false);
+                try { await tasks.RecordOutcomeAsync(intent, HostTaskState.Succeeded, CancellationToken.None).ConfigureAwait(false); }
+                catch { unavailable = true; throw; }
+                terminal = true;
+                token.ThrowIfCancellationRequested();
+                if (!Admitted()) { throw new InvalidOperationException("Maintenance result returned after admission closed."); }
+                operation.Complete(HostOperationOutcome.Completed);
+            }
+            catch (Exception exception)
+            {
+                operation.Complete(exception is OperationCanceledException ? HostOperationOutcome.Cancelled : HostOperationOutcome.Failed);
+                if (!terminal) { await tasks.RecordOutcomeAsync(intent, HostTaskState.Failed, CancellationToken.None).ConfigureAwait(false); }
+                throw;
+            }
+        }
+        finally { gate.Release(); }
+        return output;
+    }
 
     public async Task<string> ExecuteAsync(MaintenanceCommand command, RequestOrigin origin,
         Func<bool> eligible, CancellationToken cancellationToken)

@@ -18,14 +18,11 @@ if (-not $Version) {
     $resolved = & (Join-Path $PSScriptRoot 'Get-BuildVersion.ps1') -RepositoryPath $root
     $Version = $resolved.Version
 }
-if (-not $ProductVersion) { $ProductVersion = ($Version -split '[-+]')[0] }
-$numericVersion = [version] $ProductVersion
-if ($numericVersion.Major -gt 255 -or $numericVersion.Minor -gt 255 -or $numericVersion.Build -gt 65535) {
-    throw 'ProductVersion exceeds Windows Installer limits (255.255.65535).'
+$mappedProductVersion = & (Join-Path $PSScriptRoot 'Get-InstallerProductVersion.ps1') -Version $Version
+if ($ProductVersion -and $ProductVersion -cne $mappedProductVersion) {
+    throw 'ProductVersion must exactly match the bounded installer version mapping.'
 }
-if (($Version -split '[-+]')[0] -ne $ProductVersion) {
-    throw 'Version and ProductVersion must have the same major.minor.patch.'
-}
+$ProductVersion = $mappedProductVersion
 $sourceRevision = & git -C $root rev-parse HEAD
 if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve source revision.' }
 $sourceChanges = & git -C $root status --porcelain
@@ -164,6 +161,7 @@ Copy-Item -LiteralPath (Join-Path $application 'payload-manifest.json') -Destina
 $receipt = [ordered] @{
     version = $Version
     productVersion = $ProductVersion
+    installerProtocol = 2
     sourceRevision = $sourceRevision
     sourceDirty = -not [string]::IsNullOrEmpty(($sourceChanges -join "`n"))
     buildOrigin = if ($env:GITHUB_ACTIONS -eq 'true') { 'github-actions' } else { 'local' }

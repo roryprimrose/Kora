@@ -2,7 +2,8 @@
   <Package Name="Kora" Manufacturer="Kora" Version="$(ProductVersion)"
            UpgradeCode="9F375B94-FE7C-4B0E-B74F-A885D889A03C"
            Scope="perUserOrMachine" InstallerVersion="500" Compressed="yes">
-    <MajorUpgrade DowngradeErrorMessage="A newer version of Kora is already installed." />
+    <MajorUpgrade Schedule="afterInstallInitialize"
+                  DowngradeErrorMessage="A newer version of Kora is already installed." />
     <MediaTemplate EmbedCab="yes" />
     <!-- WindowsBuild reports the legacy 9600 value on modern Windows. -->
     <Property Id="KORA_WINDOWS_BUILD">
@@ -16,6 +17,7 @@
     <Property Id="ARPPRODUCTICON" Value="KoraIcon.exe" />
     <Property Id="ARPNOMODIFY" Value="1" />
     <Property Id="REBOOT" Value="ReallySuppress" />
+    <Property Id="MSIRESTARTMANAGERCONTROL" Value="Disable" />
     <Property Id="KORA_START_AT_LOGIN" Value="0" Secure="yes" />
     <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLFOLDER]" After="CostFinalize" Sequence="both" />
     <StandardDirectory Id="ProgramFiles64Folder">

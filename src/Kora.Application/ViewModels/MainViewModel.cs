@@ -4868,6 +4868,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await ExecuteLocalEventCommandAsync(eventCommand, initiator);
             return;
         }
+        if (Kora.Core.Maintenance.MaintenanceUpdateCommand.Parse(spokenText, AssistantName) is { } updateCommand)
+        {
+            await ExecuteMaintenanceUpdateCommandAsync(updateCommand, initiator);
+            return;
+        }
         if (Kora.Core.Maintenance.MaintenanceCommandParser.Parse(spokenText, AssistantName) is { } maintenanceCommand)
         {
             await ExecuteMaintenanceCommandAsync(maintenanceCommand, initiator);
@@ -6908,6 +6913,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(LogonStartupCommand.FixedPhrases)
             .Concat(DetailPresentationCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)
+            .Concat(Kora.Core.Maintenance.MaintenanceUpdateCommand.FixedPhrases)
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
             .Concat(ClipboardPreview is { } snapshot
                 ? ["reuse clipboard snapshot " + snapshot.SnapshotId.ToString("D")] : []);

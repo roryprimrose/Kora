@@ -3,7 +3,7 @@ using Kora.Core.Hosting;
 
 namespace Kora.Core.Storage;
 
-/// <summary>Host-only cached maintenance admission; grants no network, audio or execution authority.</summary>
+/// <summary>Host-only maintenance session admission; network consent and native installer approval remain separate.</summary>
 public interface IMaintenanceControlSessionStore
 {
     ValueTask<WorkSessionAuthorization> CreateMaintenanceControlSessionAsync(

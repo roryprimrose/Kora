@@ -64,7 +64,6 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
-    [InlineData("maintenance check")]
     [InlineData("maintenance status appended")]
     [InlineData("maintenance review https://example.com")]
     [InlineData("maintenance snooze approval")]
@@ -107,6 +106,8 @@ public sealed partial class MainViewModelTests
         f.ViewModel.BindMaintenanceCommands(commands);
         f.ViewModel.CanRunMaintenanceCommands.Should().BeFalse();
         await f.RunAsync("maintenance snooze");
+        await f.RunAsync("maintenance upgrade");
+        await f.RunAsync("maintenance check invalid");
         commands.Command.Should().BeNull();
         f.ViewModel.ResponseBody.Should().Be(preview);
         f.ViewModel.ResponseTitle.Should().Be(title);

@@ -854,6 +854,8 @@ maintenance workflow:
 | `maintenance status` | Cached channel/status, last verification/staleness and review/snooze readiness; missing or failed checks remain Unknown/error, not "up to date" |
 | `maintenance review` | Review the exact fresh host-held canonical record/source/architecture/digest/unsigned disclosure and reveal the existing native review window |
 | `maintenance snooze` | Snooze only that fresh, reviewed Available notice for 24 hours within this run; no persistent reminder policy or other prompt change |
+| `maintenance check [latest\|version]` | Check canonical GitHub releases using already-saved network consent; optional exact version such as `1.2.3-beta7` |
+| `maintenance upgrade [latest\|version]` | Check and open native upgrade review; downloading/running the exact unsigned installer needs separate native approval |
 
 The optional **Kora,** prefix uses the current configured name. The complete
 original input is at most 128 characters; phrases are case-insensitive with
@@ -862,17 +864,20 @@ Complete visual results are at most 8,192 characters; oversized results fail
 explicitly, not by truncation. No command speaks, probes devices, activates
 capture, invokes a model/provider or treats release text/URLs as authority.
 
-Use native Maintenance to grant **public metadata checks for this run**, check
-or explicitly open an already reviewed canonical page. These cached commands
+Use native Maintenance to save public metadata-check consent, a periodic interval and optional beta inclusion; stable releases remain included. Checks never install automatically ([settings](../src/Kora.Application/Maintenance/MaintenanceViewModel.cs), [release selection](../src/Kora.Application/Maintenance/GitHubReleaseMetadataClient.cs)).
+The original status/review/snooze cached commands
 never check/refresh, grant/renew consent, open a browser, download, install,
 elevate or activate source. Stale or failed metadata requires a deliberate
-native check after admission recovery, not automatic command fallback.
+check after admission recovery, not automatic command fallback.
 Commands preserve the complete current exact question/approval and cannot
 answer it. Unknown ownership/privacy, protected/unknown calls, stale/foreign
 records, changed original voice generation/session or failed required audit/
 receipt deny success and require a fresh explicit request. This is bounded
 command parity, not a general notification broker, production wake or
 installed/native/runtime acceptance.
+
+For installation, review the exact newer x64 release, select its separate unsigned-installer approval and choose **Download and run reviewed installer**. Setup requests graceful Kora shutdown and starts the installed version only after success.
+A changed target, expired verification or admission closure requires fresh approval; installer startup does not mean installation completed ([upgrade owner](../src/Kora.Application/Maintenance/MaintenanceViewModel.Upgrade.cs), [installer](../installer/README.md)).
 
 ## Optional communications activity observations
 

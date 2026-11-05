@@ -2,16 +2,15 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-
 using Kora.Core.Artifacts;
-using Kora.Core.Configuration;
 
 namespace Kora.Core.Mcp;
 
 /// <summary>Device-local consideration preferences, never connection, disclosure or execution authority.</summary>
 public sealed class McpCapabilitySelection
 {
-    public const int MaximumCategories = ArtifactDirectorySettings.MaximumIncludedMcpServers * 3;
+    private const int MaximumExternalCategories = 128 * 3;
+    public const int MaximumCategories = MaximumExternalCategories + 3;
     public const int MaximumOverrides = 1024;
     public static McpCapabilitySelection Default { get; } = new([]);
 
@@ -20,6 +19,7 @@ public sealed class McpCapabilitySelection
         ArgumentNullException.ThrowIfNull(categories);
         Categories = categories.Take(MaximumCategories + 1).ToImmutableArray();
         if (Categories.Length > MaximumCategories || Categories.Any(category => category is null)
+            || Categories.Count(category => !string.Equals(category.ServerId, KoraMcpCatalog.ServerId, StringComparison.Ordinal)) > MaximumExternalCategories
             || Categories.Select(category => (category.ServerId, category.Category)).Distinct().Count() != Categories.Length
             || Categories.Sum(category => category.Items.Length) > MaximumOverrides)
         { throw new ArgumentException("MCP capability preferences require unique, bounded server categories.", nameof(categories)); }
@@ -50,7 +50,8 @@ public sealed class McpCapabilitySelection
         ValidateServer(serverId);
         var category = Category(kind);
         var key = ItemKey(kind, identity);
-        var saved = Categories.SingleOrDefault(item => string.Equals(item.ServerId, serverId, StringComparison.Ordinal) && item.Category == category);
+        var saved = Categories.SingleOrDefault(item => string.Equals(item.ServerId, serverId, StringComparison.Ordinal)
+            && item.Category == category);
         return saved?.Items.Any(item => string.Equals(item.Key, key, StringComparison.Ordinal) && !item.Enabled) == true;
     }
 
@@ -83,13 +84,8 @@ public sealed class McpCapabilitySelection
         ValidateServer(serverId);
         return Convert.ToHexStringLower(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(
             Categories.Where(item => string.Equals(item.ServerId, serverId, StringComparison.Ordinal)).OrderBy(item => item.Category)
-                .Select(item => new
-                {
-                    item.Category,
-                    item.Enabled,
-                    item.Revision,
-                    Items = item.Items.OrderBy(value => value.Key, StringComparer.Ordinal)
-                }))));
+                .Select(item => new { item.Category, item.Enabled, item.Revision,
+                    Items = item.Items.OrderBy(value => value.Key, StringComparer.Ordinal) }))));
     }
 
     public static McpCapabilityCategory Category(McpCapabilityKind kind) => kind switch
@@ -110,7 +106,17 @@ public sealed class McpCapabilitySelection
 
     internal static void ValidateServer(string serverId)
     {
-        _ = ArtifactDigest.Validate(serverId);
+        ArgumentNullException.ThrowIfNull(serverId);
+        if (string.Equals(serverId, KoraMcpCatalog.ServerId, StringComparison.Ordinal)) { return; }
+        ValidateItemKey(serverId);
+        _ = ArtifactUseIdentity.Mcp(serverId);
+    }
+
+    internal static void ValidateItemKey(string key)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        if (key.Length != 64 || key.Any(value => value is not (>= 'a' and <= 'f' or >= '0' and <= '9')))
+        { throw new ArgumentException("Use an exact source-qualified MCP identity.", nameof(key)); }
     }
 
     internal static void ValidateCategory(McpCapabilityCategory category)

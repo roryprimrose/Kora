@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { recover } = require('./recovery.cjs');
+const { recover, changeMainBuildState } = require('./recovery.cjs');
 const { controllerOperation, validateState, title, DISPATCH_OBSERVATION_MS } = require('./policy.cjs');
 
 const CHECKPOINT = 'a'.repeat(40);
@@ -37,6 +37,120 @@ class Fake {
 const observable = (active, overrides = {}) => ({ id: 9, display_title: title(active),
   event: 'workflow_dispatch', head_branch: 'main', status: 'completed', ...overrides });
 const writes = api => api.calls.filter(call => ['save', 'wake'].includes(call[0]));
+
+class MainSchedulingFake extends Fake {
+  independent = true;
+  mainBuildProfile = 'per-merge';
+  state = { version: 2, profile: 'batch-v1', active: null, blocked: [], singletonRetries: [],
+    deliveryProfile: 'independent-v1', completedTip: { sha: CHECKPOINT, tree: 'c'.repeat(40),
+      ticket: TICKET, delivery: 'independent-v1', base: NEXT, combined: 'd'.repeat(40),
+      validation: { run: 7, attempt: 1, source: 'd'.repeat(40), workflow: NEXT,
+        inventory: 'e'.repeat(40), schema: 'parallel-pr-v1' } } };
+  saves = 0;
+  async main() { return CHECKPOINT; }
+  async releaseSource(source) { return { source, tree: this.state.completedTip.tree }; }
+  async supportsHourlyMain() { return true; }
+  async commitInfo(source) { return { sha: source, tree: this.state.completedTip.tree }; }
+  async ciQuiescent() { return true; }
+  async tipQualification(tip, options) {
+    assert.equal(options.allowScheduled, true);
+    return { owner: { run: 31, source: tip.sha, attempt: 1 },
+      qualification: { run: 31, job: 32, source: tip.sha }, terminal: true, provisional: false };
+  }
+  async save(state, message) {
+    validateState(state);
+    this.state = structuredClone(state);
+    this.commit = (++this.saves + 20).toString(16).padStart(40, '0');
+    this.calls.push(['save', structuredClone(state), message]);
+  }
+}
+
+const mainOptions = (api, operation, target = 'hourly-v1') => ({
+  context: { eventName: 'workflow_dispatch', ref: 'refs/heads/main', actor: 'operator', runId: 123 },
+  profile: 'batch-v1', attempt: 1, now: NOW,
+  inputs: { operation, main_build_profile: target, recovery_checkpoint: api.commit,
+    ...(operation === 'hold-main-builds' ? {} : { recovery_ticket: api.state.mainSchedulingTransition.ticket }),
+    acknowledge_batch_change: true },
+});
+
+test('hourly main activation and rollback require a guarded qualified drained boundary', async () => {
+  const api = new MainSchedulingFake();
+  for (const target of ['hourly-v1', 'per-merge']) {
+    assert.equal(await changeMainBuildState(api, mainOptions(api, 'hold-main-builds', target)), 'main-builds-draining');
+    assert.equal(await changeMainBuildState(api, mainOptions(api, 'prepare-main-builds', target)), 'main-builds-ready');
+    api.mainBuildProfile = target;
+    assert.equal(await changeMainBuildState(api, mainOptions(api, 'resume-main-builds', target)), 'main-builds-resumed');
+    assert.equal(api.state.mainBuildProfile ?? 'per-merge', target);
+    if (target === 'hourly-v1') {
+      assert.equal(api.state.hourlyMain.baseline.source, CHECKPOINT);
+      assert.equal(api.state.hourlyMain.baseline.qualification.run, 31);
+    } else assert.equal(api.state.hourlyMain, undefined);
+  }
+  assert.equal(api.calls.filter(call => call[0] === 'save').length, 6);
+  assert.ok(api.calls.filter(call => call[0] === 'save').every(call => call[2].includes('Administrator: operator')));
+});
+
+test('main scheduling input, administrator and configuration failures never write a hold', async () => {
+  for (const mutate of [
+    (api, value) => { value.attempt = 2; },
+    (api, value) => { value.context.eventName = 'pull_request_target'; },
+    (api, value) => { value.context.ref = 'refs/heads/topic'; },
+    (api, value) => { value.inputs.acknowledge_batch_change = false; },
+    (api, value) => { value.inputs.main_build_profile = 'unknown'; },
+    (api, value) => { value.inputs.recovery_main = NEXT; },
+    api => { api.independent = false; },
+    api => { api.mainBuildProfile = 'hourly-v1'; },
+    api => { api.administrator = async () => false; },
+    api => { api.administrator = async () => { throw new Error('HTTP 403'); }; },
+  ]) {
+    const api = new MainSchedulingFake();
+    const value = mainOptions(api, 'hold-main-builds');
+    mutate(api, value);
+    await assert.rejects(changeMainBuildState(api, value));
+    assert.deepEqual(writes(api), []);
+  }
+});
+
+test('failed, skipped, pending, wrong-tree and nonquiescent main cannot prepare hourly activation', async () => {
+  for (const failure of ['failed', 'skipped', 'pending', 'tree', 'record', 'workflow', 'quiescence', 'checkpoint']) {
+    const api = new MainSchedulingFake();
+    await changeMainBuildState(api, mainOptions(api, 'hold-main-builds'));
+    const value = mainOptions(api, 'prepare-main-builds');
+    if (failure === 'failed' || failure === 'skipped')
+      api.tipQualification = async () => ({ terminal: true, provisional: false, qualification: null });
+    if (failure === 'pending') api.tipQualification = async () => ({ terminal: false, provisional: true });
+    if (failure === 'tree') api.commitInfo = async () => ({ tree: NEXT });
+    if (failure === 'record') api.releaseSource = async () => ({ source: NEXT, tree: NEXT });
+    if (failure === 'workflow') api.supportsHourlyMain = async () => false;
+    if (failure === 'quiescence') api.ciQuiescent = async () => false;
+    if (failure === 'checkpoint') api.commit = NEXT;
+    await assert.rejects(changeMainBuildState(api, value));
+    assert.equal(writes(api).length, 1);
+    assert.equal(api.state.mainSchedulingTransition.phase, 'draining');
+  }
+});
+
+test('main scheduling hold ownership, stale source and late authority are revalidated before mutation', async () => {
+  const api = new MainSchedulingFake();
+  await changeMainBuildState(api, mainOptions(api, 'hold-main-builds'));
+  const wrongOwner = mainOptions(api, 'prepare-main-builds');
+  wrongOwner.context.actor = 'other-admin';
+  await assert.rejects(changeMainBuildState(api, wrongOwner));
+  await changeMainBuildState(api, mainOptions(api, 'prepare-main-builds'));
+  api.mainBuildProfile = 'hourly-v1';
+  api.main = async () => NEXT;
+  await assert.rejects(changeMainBuildState(api, mainOptions(api, 'resume-main-builds')));
+  assert.equal(api.state.mainBuildProfile, undefined);
+  api.main = async () => CHECKPOINT;
+  api.mainBuildProfile = 'per-merge';
+  let checks = 0;
+  api.administrator = async () => ++checks === 1;
+  await assert.rejects(changeMainBuildState(api, mainOptions(api, 'abort-main-builds')));
+  assert.equal(api.state.mainSchedulingTransition.phase, 'ready');
+  api.administrator = async () => true;
+  assert.equal(await changeMainBuildState(api, mainOptions(api, 'abort-main-builds')), 'main-builds-aborted');
+  assert.equal(api.state.mainBuildProfile, undefined);
+});
 
 test('ordinary wakeups cannot accidentally request recovery and unknown or mixed operations fail explicitly', () => {
   for (const inputs of [{}, { operation: 'reconcile' }, { operation: 'reconcile',

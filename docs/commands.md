@@ -24,6 +24,11 @@ In the response window, choose **Review one spoken command**, speak one general 
 
 This one-shot action does not change ordinary push-to-talk or any listening preference. It requires existing voice consent, local command readiness and unchanged private ownership. Capture and review expire after 60 seconds; changing the original target, input, device, call or private context discards the candidate instead of sending it elsewhere. Hiding, deactivating or closing the window cancels it ([host admission](../src/Kora.Application/ViewModels/MainViewModel.ReviewedVoiceCommand.cs), [window lifetime](../src/Kora/ResponseWindow.ReviewedVoiceCommand.cs)).
 
+Finishing capture, editing or confirming does not restart that deadline.
+Late confirmation or delayed dispatch is refused even if the expiry notice has
+not appeared yet. Start a fresh **Review one spoken command** after cleanup;
+the expired transcript is not replayed.
+
 Ordinary response auto-hide is suspended during capture, transcript review and the original confirmed dispatch. Completed ordinary feedback resumes the configured response timeout. This does not extend the command's independent expiry or prevent explicit dismissal or privacy closure.
 
 The corrected command still originates from **voice**, even though you edited it and clicked dispatch. Normal call restrictions, authentication, operation approval and hosted-transmission consent still apply. Transcript acceptance is not approval of the command's action, microphone consent or egress. Oversized, malformed or credential-like text is rejected, never truncated ([normal command admission](../src/Kora.Application/ViewModels/MainViewModel.cs), [text bounds](../src/Kora.Core/Conversation/ConversationText.cs)).
@@ -950,6 +955,12 @@ Use these exact whole commands, optionally prefixed by the current assistant nam
 | `call speech status` | Inspect current review/playback status without starting speech. |
 
 Review/confirmation require fresh original local UI input, even during Active/Suspected/Unknown protection; voice cannot be relabelled through a later click. Voice status/cancel remain available. The review expires after two minutes; changed source, call, input, owner/privacy or output retires it. Ordinary VisualOnly, both summary caps, mute, capture and speech availability still win. No saved preference or general protection changes ([complete interaction](responses-and-calls.md#speak-one-current-response-during-call-protection), [host operation](../src/Kora.Application/ViewModels/MainViewModel.CallSpeech.cs)).
+
+**Cancel call speech** also withdraws a review that is still being prepared.
+Late preparation cannot open a new review or enable confirmation after cancellation.
+If the exact review is already open, it becomes ineligible and cannot play.
+Wait for preparation to finish before starting a fresh review; status is passive
+and does not cancel or extend preparation.
 
 ## Read-only host discovery
 

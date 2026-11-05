@@ -235,6 +235,11 @@ Optional local question/prompt use separately reviews complete unchanged text be
 
 Only text and embedded text resources are admitted. Unsupported binary/image/audio blocks, roles and mixed replies reject the whole operation; prompt roles remain lower-trust template data, not genuine history or host policy.
 Native, original typed/activated-voice and model-free routes share source/session/privacy/approval/audit/lifecycle owners. No subscriptions, automatic context population, cached grants, provider-native tools or production connector qualification are introduced ([user interaction](../docs/mcp-transport.md)).
+String `maxLength` uses decoded Unicode scalar count, including supplementary
+characters as one and combining marks/joiners separately, without normalization.
+The independent complete 2,048-byte UTF-8 argument bound includes JSON escaping.
+Malformed Unicode and either exceeded limit fail before invocation approval or
+dispatch in the shared direct/model validator ([argument guidance](../docs/mcp-transport.md)).
 
 The Sessions composer provides explicit server/account selection, connection and
 schema review, one host-mapped tool selection, exact outgoing-argument approval,
@@ -271,6 +276,14 @@ called, no assistant answer is fabricated, and unsent conversation input stays
 unchanged. Task/audit outcomes remain durable; the tool result is a volatile
 original-session presentation. Cancellation or an uncertain dispatched outcome
 does not claim remote rollback and never retries automatically.
+
+The shared invocation owner revalidates the exact delegated account reference
+after physical transport join, before any result-bearing native review or local
+continuation, and at terminal readback before publishing either route's result.
+Account removal or changes to its identity, revision, credential reference or
+destination suppress disclosure without rewriting an already committed terminal
+receipt. Disposing a credential lease does not end result-disclosure authority
+checks or grant a replacement account the original approval.
 
 An exchange disconnect, disposed transport, or transport-owned cancellation
 retires that invocation's connection without reconnecting, retrying or falling

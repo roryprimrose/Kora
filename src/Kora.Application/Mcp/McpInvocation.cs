@@ -31,6 +31,7 @@ internal sealed partial class McpInvocation(
 {
     private readonly long control = access.ControlRevision;
     private readonly long useRevision = configuration.UseControlRevision;
+    private readonly string? capabilityRevision = configuration.CaptureCapabilityRevision(serverId);
     private readonly DateTimeOffset expiresAt = time.GetUtcNow().AddMinutes(2);
     private readonly HostRequest interactionRequest = new(original.RequestId, original.SessionId,
         original.TaskId, original.Origin, new(Guid.NewGuid()));
@@ -101,7 +102,8 @@ internal sealed partial class McpInvocation(
             {
                 using var definition = JsonDocument.Parse(item.DefinitionJson);
                 return new McpDiscoveredTool(item.Id, new(definition.RootElement.GetProperty("inputSchema").GetRawText()));
-            }).Where(tool => effects.Find(Source, tool) is not null).ToArray();
+            }).Where(tool => effects.Find(Source, tool) is not null
+                && configuration.IsToolEnabled(serverId, tool.Name)).ToArray();
         if (eligible.Length == 0)
         { throw new InvalidOperationException("No discovered MCP tool has an exact current host-owned read-only effect mapping."); }
         var choice = await SelectToolAsync(eligible, token).ConfigureAwait(false);
@@ -226,6 +228,8 @@ internal sealed partial class McpInvocation(
     {
         token.ThrowIfCancellationRequested();
         if (!Live(token)) { throw new InvalidOperationException("The exact MCP session, source or permission admission is closed."); }
+        if (selected is not null && !configuration.IsToolEnabled(serverId, selected.Name))
+        { throw new InvalidOperationException("The selected MCP tool is disabled."); }
         var session = await workspace.ReadMetadataAsync(original.SessionId, token).ConfigureAwait(false);
         var task = await workspace.ReadTaskAsync(original.SessionId, original.TaskId, token).ConfigureAwait(false);
         if (!Live(token) || !session.Authority.IsActive || session.Authority.SessionId != original.SessionId
@@ -248,11 +252,13 @@ internal sealed partial class McpInvocation(
             { throw new InvalidOperationException("The exact delegated account, HTTPS destination or public DNS binding is unavailable."); }
         }
         foreach (var validate in grants) { await validate(token).ConfigureAwait(false); }
+        if (transportJoin is not null) { await ValidateAccountAsync(token).ConfigureAwait(false); }
         if (!Live(token)) { throw new InvalidOperationException("MCP admission changed during validation."); }
     }
 
     private bool Admitted(CancellationToken token) => !disposed && !token.IsCancellationRequested
         && access.CanControl && access.ControlRevision == control && configuration.UseControlRevision == useRevision
+        && string.Equals(configuration.CaptureCapabilityRevision(serverId), capabilityRevision, StringComparison.Ordinal)
         && (descriptor is null || configuration.SourceControlRevision(serverId) == descriptor.SourceControlRevision)
         && admitted() && time.GetUtcNow() < expiresAt
         && (skill is null || time.GetUtcNow() < skill.ExpiresAt);
@@ -390,7 +396,16 @@ internal sealed partial class McpInvocation(
         token.ThrowIfCancellationRequested();
         if (!Live(token)) { throw new InvalidOperationException("The original MCP result presentation was retired."); }
         await configuration.ValidateCurrentAsync(descriptor!, token).ConfigureAwait(false);
+        await ValidateAccountAsync(token).ConfigureAwait(false);
         if (!Live(token)) { throw new InvalidOperationException("The original MCP result source was retired."); }
+    }
+
+    private async Task ValidateAccountAsync(CancellationToken token)
+    {
+        var accounts = await broker.ReadAccountsAsync(token).ConfigureAwait(false);
+        token.ThrowIfCancellationRequested();
+        if (!accounts.Any(choice => choice.Reference == account))
+        { throw new InvalidOperationException("The exact MCP result's delegated account is no longer available."); }
     }
 
     private static string Hash(string value) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(value)));

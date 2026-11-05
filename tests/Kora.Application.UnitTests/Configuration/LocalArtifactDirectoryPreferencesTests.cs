@@ -18,6 +18,15 @@ public sealed class LocalArtifactDirectoryPreferencesTests
             .Should().BeSameAs(ArtifactDirectorySettings.Empty);
     }
 
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("null")]
+    public void Capability_inventory_requires_a_bounded_array(string inventory)
+    {
+        Invalid("""{"Version":4,"UseDefaultDirectories":false,"Skills":[],"Instructions":[],"Prompts":[],"Agents":[],"McpConfigurationFiles":[],"IncludedMcpServerIds":[],"McpCapabilities":"""
+            + inventory + "}");
+    }
+
     [Fact]
     public void CapabilityDefaultsAndIndividualExceptionsRoundTripWithoutRawIdentities()
     {

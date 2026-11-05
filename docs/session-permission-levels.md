@@ -13,6 +13,34 @@ action, create a grant, or change another session. Confirmation requires a fresh
 original native user action and current private desktop ownership. A model/tool
 callback or voice request cannot relabel itself as that native action.
 
+## Typed and activated-voice changes
+
+Use the exact conversation ID shown in Sessions, not its name or the foreground
+window. These commands complete the same policy change without opening another
+native confirmation:
+
+```text
+session permission status <session-id>
+session permission review <session-id> review-all
+session permission review <session-id> model-review
+session permission review <session-id> approve-all
+session permission confirm <session-id>
+session permission cancel <session-id>
+```
+
+Review shows the conversation, old/new level, original channel and warning.
+Nothing changes until separate confirmation, within 60 seconds and through the
+same channel. Activated voice requires the current assistant-name prefix on both
+commands, for example `Kora, session permission confirm <session-id>`.
+Permission voice commands are unavailable during protected calls; use native
+controls instead. Changing channel, policy, lifecycle, private ownership or the
+reviewed source requires a fresh review. Cancel discards only the volatile review.
+A confirmation attempt consumes it even when the outcome is unconfirmed.
+
+These are original-user controls, not model tools. Selection, review, retained
+text, grants and Approve all cannot supply confirmation authority. No command
+executes an action, changes another conversation or enables a provider/reviewer.
+
 ## What each level means
 
 - **Review all**: otherwise-ungranted actions require your approval.

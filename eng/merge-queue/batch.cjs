@@ -9,14 +9,38 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
   await api.verifyProtection(PROFILE);
   const state = validateState(await api.load());
   invariant(state.version === 2, 'Batch rollout requires an explicitly migrated idle, quiescent v2 state.');
+  invariant(state.deliveryProfile !== 'independent-v1' || api.independent,
+    'Durable independent delivery configuration differs from this controller; reservations remain closed.');
+  const deliveryHolding = ['draining', 'ready'].includes(state.deliveryTransition?.phase);
+  const mainHolding = ['draining', 'ready'].includes(state.mainSchedulingTransition?.phase);
+  const mainProfile = state.mainBuildProfile ?? 'per-merge';
+  const configuredMainProfile = api.mainBuildProfile ?? 'per-merge';
+  invariant(mainProfile === configuredMainProfile || state.mainSchedulingTransition?.phase === 'ready'
+    && configuredMainProfile === state.mainSchedulingTransition.target,
+  'Durable main scheduling differs from configuration; reservations remain held.');
+  invariant(!deliveryHolding || !api.independent || state.deliveryTransition.phase === 'ready',
+    'Independent configuration changed before the delivery boundary was prepared.');
   api.info(`Batch profile: ${state.active ? `ticket ${state.active.ticket}, phase ${state.active.phase}` : 'idle'}; reconciling live protected state.`);
   const save = async () => { validateState(state); await api.save(state); };
   const main = await api.main();
+  if (state.mainSchedulingTransition?.phase === 'ready') {
+    invariant(state.active === null && main === state.mainSchedulingTransition.source,
+      'Prepared main scheduling source changed; reservations remain held.');
+    return 'main-builds-ready';
+  }
+  if (mainProfile === 'hourly-v1' && await api.observeHourlyMain(state)) await save();
   if (state.active && state.active.kind !== 'batch')
     return reconcileSingleton(api, state, state.active.number, { now, ticket });
   if (!state.active) {
-    // Independent delivery waits only until an admitted full source run starts, never for its result.
-    if (state.completedTip && !state.completedTip.qualification
+    if (mainProfile === 'hourly-v1') {
+      invariant(api.independent && state.completedTip?.delivery === 'independent-v1'
+        && main === state.completedTip.sha, 'Hourly admission requires the exact recorded completed main tip.');
+      const record = await api.releaseSource(main);
+      invariant(record.source === main && record.tree === state.completedTip.tree,
+        'Hourly admission source record changed; no new candidate admitted.');
+    }
+    // Per-merge delivery waits for full main to start; hourly delivery retains source proof without that barrier.
+    if (mainProfile !== 'hourly-v1' && state.completedTip && !state.completedTip.qualification
       && !(api.independent && state.completedTip.delivery === 'independent-v1'
         && state.completedTip.qualificationOwner)) {
       invariant(main === state.completedTip.sha, 'Main moved before completed-tip qualification; explicit recovery required.');
@@ -42,6 +66,14 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
         }
         return 'waiting-for-tip-qualification';
       }
+    }
+    if (mainHolding) {
+      api.info(`Main scheduling transition ${state.mainSchedulingTransition.ticket}: draining; new reservations held.`);
+      return 'main-builds-draining';
+    }
+    if (deliveryHolding) {
+      api.info(`Independent delivery transition ${state.deliveryTransition.ticket}: ${state.deliveryTransition.phase}; new reservations held, existing work and qualification preserved.`);
+      return state.deliveryTransition.phase === 'ready' ? 'delivery-ready' : 'delivery-draining';
     }
     const members = [];
     const prs = await api.pulls();
@@ -288,7 +320,7 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
           members: active.members.map(item => ({ number: item.number, source: item.head,
             admittedHead: item.mergeIntent.head, merged: item.merged })) };
         if (api.independent) {
-          invariant(active.inventory.schema === 'windows-12-delivery-v1',
+          invariant(['windows-12-delivery-v1', 'unit-pr-v1', 'parallel-pr-v1'].includes(active.inventory.schema),
             'Independent delivery requires the reviewed delivery workflow.');
           Object.assign(state.completedTip, { delivery: 'independent-v1', base: active.base,
             admission: manifestFor(active),
@@ -388,7 +420,7 @@ async function reconcileSingleton(api, state, number, options) {
         if (api.independent) {
           const inventory = await api.trustedInventory(state.active.base);
           const runs = matchingRuns(await api.runs(state.active), state.active);
-          invariant(inventory?.schema === 'windows-12-delivery-v1' && runs.length === 1
+          invariant(['windows-12-delivery-v1', 'unit-pr-v1', 'parallel-pr-v1'].includes(inventory?.schema) && runs.length === 1
             && runs[0].status === 'completed' && runs[0].conclusion === 'success'
             && runs[0].run_attempt === 1 && runs[0].head_sha === state.active.base,
           'Independent singleton completion lacks trusted candidate proof.');

@@ -44,22 +44,14 @@ public sealed class ArtifactDirectoryConfigurationService(
         lock (gate)
         {
             settings = preferences.Load();
-            var next = included
-                ? settings.IncludedMcpServerIds.Append(serverId).Distinct(StringComparer.Ordinal).ToArray()
-                : settings.IncludedMcpServerIds.Where(id => !string.Equals(id, serverId, StringComparison.Ordinal)).ToArray();
-            if (next.SequenceEqual(settings.IncludedMcpServerIds, StringComparer.Ordinal))
+            if (!string.Equals(serverId, KoraMcpCatalog.ServerId, StringComparison.Ordinal)
+                && settings.IncludedMcpServerIds.Contains(serverId, StringComparer.Ordinal) == included)
             {
                 return settings;
             }
-            return Save(new(
-                settings.SkillDirectories,
-                settings.InstructionDirectories,
-                settings.PromptDirectories,
-                settings.AgentDirectories,
-                settings.McpConfigurationFiles,
-                next, settings.UseDefaultDirectories, settings.McpCapabilities));
+            return SetMcpCapabilities(serverId, included, settings.McpCapabilities,
+                settings.McpCapabilities.Fingerprint(serverId));
         }
-
     }
 
     public ArtifactDirectorySettings SetMcpCategoryEnabled(string serverId, McpCapabilityCategory category, bool enabled)
@@ -80,10 +72,19 @@ public sealed class ArtifactDirectoryConfigurationService(
         }
     }
 
-    private ArtifactDirectorySettings WithCapabilities(McpCapabilitySelection capabilities) => new(
-        settings.SkillDirectories, settings.InstructionDirectories, settings.PromptDirectories,
-        settings.AgentDirectories, settings.McpConfigurationFiles, settings.IncludedMcpServerIds,
-        settings.UseDefaultDirectories, capabilities);
+    private ArtifactDirectorySettings WithCapabilities(McpCapabilitySelection capabilities)
+    {
+        var included = settings.IncludedMcpServerIds.AsEnumerable();
+        if (!settings.McpCapabilities.Categories.Any(category =>
+                string.Equals(category.ServerId, KoraMcpCatalog.ServerId, StringComparison.Ordinal))
+            && capabilities.Categories.Any(category =>
+                string.Equals(category.ServerId, KoraMcpCatalog.ServerId, StringComparison.Ordinal))
+            && !settings.IncludedMcpServerIds.Contains(KoraMcpCatalog.ServerId, StringComparer.Ordinal))
+        { included = included.Append(KoraMcpCatalog.ServerId); }
+        return new(settings.SkillDirectories, settings.InstructionDirectories, settings.PromptDirectories,
+            settings.AgentDirectories, settings.McpConfigurationFiles, included.ToArray(),
+            settings.UseDefaultDirectories, capabilities);
+    }
 
     public ArtifactDirectorySettings SetMcpCapabilities(string serverId, bool included,
         McpCapabilitySelection proposed, string expectedFingerprint)
@@ -95,14 +96,14 @@ public sealed class ArtifactDirectoryConfigurationService(
             if (!string.Equals(settings.McpCapabilities.Fingerprint(serverId), expectedFingerprint, StringComparison.Ordinal))
             { throw new InvalidOperationException("MCP capability preferences changed. Review a fresh inventory."); }
             var replacements = Enum.GetValues<McpCapabilityCategory>().Select(category =>
-                {
-                    var item = proposed.Categories.SingleOrDefault(value => string.Equals(value.ServerId, serverId, StringComparison.Ordinal)
-                        && value.Category == category) ?? new McpCategorySelection(serverId, category, true, []);
-                    var revision = settings.McpCapabilities.Categories.SingleOrDefault(current =>
-                        string.Equals(current.ServerId, serverId, StringComparison.Ordinal) && current.Category == item.Category)?.Revision ?? 0;
-                    if (revision == long.MaxValue) { throw new InvalidOperationException("The MCP category revision is exhausted."); }
-                    return new McpCategorySelection(serverId, item.Category, item.Enabled, item.Items, revision + 1);
-                });
+            {
+                var item = proposed.Categories.SingleOrDefault(value => string.Equals(value.ServerId, serverId, StringComparison.Ordinal)
+                    && value.Category == category) ?? new McpCategorySelection(serverId, category, true, []);
+                var revision = settings.McpCapabilities.Categories.SingleOrDefault(current =>
+                    string.Equals(current.ServerId, serverId, StringComparison.Ordinal) && current.Category == item.Category)?.Revision ?? 0;
+                if (revision == long.MaxValue) { throw new InvalidOperationException("The MCP category revision is exhausted."); }
+                return new McpCategorySelection(serverId, item.Category, item.Enabled, item.Items, revision + 1);
+            });
             var selection = new McpCapabilitySelection(settings.McpCapabilities.Categories
                 .Where(item => !string.Equals(item.ServerId, serverId, StringComparison.Ordinal))
                 .Concat(replacements));
@@ -196,5 +197,6 @@ public sealed class ArtifactDirectoryConfigurationService(
         && left.IncludedMcpServerIds.SequenceEqual(right.IncludedMcpServerIds, StringComparer.Ordinal)
         && left.McpCapabilities.Categories.Select(category => category.ServerId)
             .Concat(right.McpCapabilities.Categories.Select(category => category.ServerId))
-            .All(serverId => string.Equals(left.McpCapabilities.Fingerprint(serverId), right.McpCapabilities.Fingerprint(serverId), StringComparison.Ordinal));
+            .All(serverId => string.Equals(left.McpCapabilities.Fingerprint(serverId),
+                right.McpCapabilities.Fingerprint(serverId), StringComparison.Ordinal));
 }

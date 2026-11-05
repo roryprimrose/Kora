@@ -192,6 +192,46 @@ public sealed class ArtifactDirectoryConfigurationServiceTests
     }
 
     [Fact]
+    public void External_parent_off_on_advances_persistent_revision_without_resetting_children_or_noop_writes()
+    {
+        var preferences = new Preferences();
+        var service = new ArtifactDirectoryConfigurationService(preferences, new Audit());
+        var serverId = new string('b', 64);
+        service.SetMcpServerIncluded(serverId, true);
+        service.SetMcpItemEnabled(serverId, McpCapabilityKind.Tool, "search", false);
+        var before = preferences.Settings.McpCapabilities.Fingerprint(serverId);
+        service.SetMcpServerIncluded(serverId, false);
+        service.SetMcpServerIncluded(serverId, true);
+        preferences.Settings.McpCapabilities.Fingerprint(serverId).Should().NotBe(before);
+        preferences.Settings.McpCapabilities.IsEnabled(serverId, McpCapabilityKind.Tool, "search").Should().BeFalse();
+        preferences.Settings.IncludedMcpServerIds.Should().Equal(serverId);
+        var writes = preferences.Writes;
+        service.SetMcpServerIncluded(serverId, true);
+        preferences.Writes.Should().Be(writes);
+    }
+
+    [Fact]
+    public void Builtin_item_changes_preserve_explicit_parent_and_revision_exhaustion_cannot_write()
+    {
+        var preferences = new Preferences();
+        preferences.Save(new([], [], [], [], [], [KoraMcpCatalog.ServerId]));
+        var service = new ArtifactDirectoryConfigurationService(preferences, new Audit());
+        service.SetMcpItemEnabled(KoraMcpCatalog.ServerId, McpCapabilityKind.Tool, "settings.get", false)
+            .IncludedMcpServerIds.Should().Equal(KoraMcpCatalog.ServerId);
+        var exhausted = new McpCapabilitySelection(
+            [new(KoraMcpCatalog.ServerId, McpCapabilityCategory.Tools, true, [], long.MaxValue)]);
+        preferences.Save(new([], [], [], [], [], [KoraMcpCatalog.ServerId], mcpCapabilities: exhausted));
+        var writes = preferences.Writes;
+        var mutation = () => service.SetMcpCapabilities(KoraMcpCatalog.ServerId, false, exhausted,
+            exhausted.Fingerprint(KoraMcpCatalog.ServerId));
+        mutation.Should().Throw<InvalidOperationException>();
+        preferences.Writes.Should().Be(writes);
+        var stale = () => service.SetMcpCapabilities(KoraMcpCatalog.ServerId, false, exhausted, "stale");
+        stale.Should().Throw<InvalidOperationException>();
+        preferences.Writes.Should().Be(writes);
+    }
+
+    [Fact]
     public void Duplicate_and_missing_changes_are_rejected_without_writes()
     {
         var preferences = new Preferences();

@@ -116,12 +116,15 @@ public sealed class ArtifactDirectorySettings
         string parameterName)
     {
         ArgumentNullException.ThrowIfNull(identifiers, parameterName);
-        if (identifiers.Count > MaximumIncludedMcpServers
-            || identifiers.Any(identifier => identifier.Length != 64
-                || identifier.Any(character => character is not (>= 'a' and <= 'f' or >= '0' and <= '9')))
+        var maximum = MaximumIncludedMcpServers
+            + (identifiers.Contains(KoraMcpCatalog.ServerId, StringComparer.Ordinal) ? 1 : 0);
+        if (identifiers.Count > maximum
+            || identifiers.Any(identifier => !string.Equals(identifier, KoraMcpCatalog.ServerId, StringComparison.Ordinal)
+                && (string.IsNullOrEmpty(identifier) || identifier.Length != 64
+                    || identifier.Any(character => character is not (>= 'a' and <= 'f' or >= '0' and <= '9'))))
             || identifiers.Distinct(StringComparer.Ordinal).Count() != identifiers.Count)
         {
-            throw new ArgumentException("Included MCP server identifiers must be unique SHA-256 values.", parameterName);
+            throw new ArgumentException("Included MCP server identifiers must be unique source-qualified or reserved built-in identities.", parameterName);
         }
         return new ReadOnlyCollection<string>(identifiers.ToArray());
     }

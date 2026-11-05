@@ -187,7 +187,7 @@ public sealed class LocalArtifactDirectoryPreferences : IArtifactDirectoryPrefer
     {
         var value = root.GetProperty(propertyName);
         if (value.ValueKind != JsonValueKind.Array
-            || value.GetArrayLength() > ArtifactDirectorySettings.MaximumIncludedMcpServers)
+            || value.GetArrayLength() > ArtifactDirectorySettings.MaximumIncludedMcpServers + 1)
         {
             throw new InvalidDataException("The included MCP server identifiers are not a bounded array.");
         }

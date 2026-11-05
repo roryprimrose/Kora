@@ -854,15 +854,15 @@
                   <TextBlock Text="{Binding PlaybackVolumeStatus}" TextWrapping="Wrap" Classes="settings-description" />
                   <controls:SettingsNumberField Label="Volume" Unit="%" Value="{Binding SelectedPlaybackVolume}" SavedValue="{Binding SavedPlaybackVolume}"
                       Minimum="0" Maximum="{x:Static configuration:PlaybackVolume.MaximumPercent}"
-                      ActionCommand="{Binding SavePlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolume}" />
+                      ActionCommand="{Binding SavePlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolumeNative}" />
                 </StackPanel>
                 <controls:SettingActionsButton Grid.Column="1" SettingName="Kora playback volume"
-                                               IsEnabled="{Binding CanChangePlaybackVolume}">
+                                               IsEnabled="{Binding CanChangePlaybackVolumeNative}">
                   <controls:SettingActionsButton.Flyout>
                     <MenuFlyout>
-                      <MenuItem Header="Refresh" Command="{Binding RefreshPlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolume}" AutomationProperties.Name="Refresh volume" />
+                      <MenuItem Header="Refresh" Command="{Binding RefreshPlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolumeNative}" AutomationProperties.Name="Refresh volume" />
                       <Separator />
-                      <MenuItem Header="Reset volume to 100%" Command="{Binding ResetPlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolume}" />
+                      <MenuItem Header="Reset volume to 100%" Command="{Binding ResetPlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolumeNative}" />
                     </MenuFlyout>
                   </controls:SettingActionsButton.Flyout>
                 </controls:SettingActionsButton>

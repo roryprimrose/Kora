@@ -1,6 +1,6 @@
 ﻿using AwesomeAssertions;
-
 using Kora.Core.Mcp;
+using Kora.Core.Configuration;
 
 namespace Kora.Core.UnitTests.Mcp;
 
@@ -112,22 +112,21 @@ public sealed class McpCapabilitySelectionTests
     }
 
     [Fact]
-    public void TemplateExceptionsCanBeDistinguishedFromExplicitResolvedResourceExclusions()
+    public void Reserved_built_in_slot_preserves_but_does_not_expand_external_capacity()
     {
-        var defaults = McpCapabilitySelection.Default;
-        defaults.IsExplicitlyDisabled(Server, McpCapabilityKind.Resource, "data://item").Should().BeFalse();
-        var templateOnly = defaults.SetCategory(Server, McpCapabilityCategory.Resources, false)
-            .SetItem(Server, McpCapabilityKind.ResourceTemplate, "data://{value}", true);
-        templateOnly.IsEnabled(Server, McpCapabilityKind.ResourceTemplate, "data://{value}").Should().BeTrue();
-        templateOnly.IsExplicitlyDisabled(Server, McpCapabilityKind.Resource, "data://item").Should().BeFalse();
-        var excluded = templateOnly.SetItem(Server, McpCapabilityKind.Resource, "data://item", false);
-        excluded.IsExplicitlyDisabled(Server, McpCapabilityKind.Resource, "data://item").Should().BeTrue();
-        excluded.IsExplicitlyDisabled(Server, McpCapabilityKind.Resource, "data://other").Should().BeFalse();
-        excluded.IsExplicitlyDisabled(Other, McpCapabilityKind.Resource, "data://item").Should().BeFalse();
-        excluded.IsExplicitlyDisabled(Server, McpCapabilityKind.Prompt, "review").Should().BeFalse();
-        excluded.IsExplicitlyDisabled(Server, McpCapabilityKind.ResourceTemplate, "data://{value}").Should().BeFalse();
-        excluded.SetItem(Server, McpCapabilityKind.Resource, "data://item", true)
-            .IsExplicitlyDisabled(Server, McpCapabilityKind.Resource, "data://item").Should().BeFalse();
-        excluded.SetCategory(Server, McpCapabilityCategory.Resources, true).Categories.Single().Items.Should().BeEmpty();
+        var external = Enumerable.Range(0, ArtifactDirectorySettings.MaximumIncludedMcpServers)
+            .Select(index => index.ToString("x64", System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+        var settings = new ArtifactDirectorySettings([], [], [], [], [], [.. external, KoraMcpCatalog.ServerId]);
+        settings.IncludedMcpServerIds.Should().HaveCount(129);
+        var tooManyExternal = () => new ArtifactDirectorySettings([], [], [], [], [], [.. external, new string('f', 64)]);
+        tooManyExternal.Should().Throw<ArgumentException>();
+        var categories = external.SelectMany(server => Enum.GetValues<McpCapabilityCategory>()
+            .Select(category => new McpCategorySelection(server, category, true, []))).ToArray();
+        var complete = new McpCapabilitySelection([.. categories, .. Enum.GetValues<McpCapabilityCategory>()
+            .Select(category => new McpCategorySelection(KoraMcpCatalog.ServerId, category, true, []))]);
+        complete.Categories.Should().HaveCount(387);
+        var extraExternal = () => new McpCapabilitySelection([.. categories,
+            new(new string('f', 64), McpCapabilityCategory.Tools, true, [])]);
+        extraExternal.Should().Throw<ArgumentException>();
     }
 }

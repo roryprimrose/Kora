@@ -337,7 +337,7 @@ test('controller workflow awaits its summary on success and preserves reconcilia
 });
 
 test('manual recovery uses the same trusted main checkout, App environment and serialized lane with explicit inputs', async () => {
-  assert.match(controller, /options: \[reconcile, recover-unobservable-dispatch, migrate-batch-v1, rollback-batch-v1, repair-batch, resume-batch\]/);
+  assert.match(controller, /options: \[reconcile, recover-unobservable-dispatch, migrate-batch-v1, rollback-batch-v1, repair-batch, resume-batch, hold-independent-delivery, prepare-independent-delivery, resume-independent-delivery, abort-independent-delivery\]/);
   assert.match(controller, /acknowledge_uncertain_dispatch:[\s\S]*?type: boolean\n        default: false/);
   assert.match(controller, /ref: refs\/heads\/main\n          persist-credentials: false/);
   assert.match(controller, /environment: merge-queue/);
@@ -377,6 +377,35 @@ test('manual recovery uses the same trusted main checkout, App environment and s
       assert.deepEqual(calls.at(-1), ['summary', 'failed']);
     }
   }
+});
+
+test('guarded delivery operations use the existing protected serialized administrator route without configuration permissions', async () => {
+  const script = controller.match(/          script: \|\n([\s\S]*)/)[1]
+    .split('\n').map(line => line.replace(/^            /, '')).join('\n');
+  const execute = new AsyncFunction('process', 'context', 'core', 'github', 'require', script);
+  const { controllerOperation } = require('./policy.cjs');
+  for (const operation of ['hold', 'prepare', 'resume', 'abort'].map(name => `${name}-independent-delivery`)) {
+    const calls = [];
+    const inputs = { operation, recovery_checkpoint: 'a'.repeat(40), acknowledge_batch_change: true };
+    const context = { eventName: 'workflow_dispatch', ref: 'refs/heads/main', actor: 'operator', runId: 123 };
+    const api = { summarize: async value => calls.push(['summary', value]) };
+    await execute({ env: { QUEUE_APP_ID: '42', QUEUE_INPUTS: JSON.stringify(inputs), QUEUE_RUN_ATTEMPT: '1',
+      QUEUE_PROFILE: 'batch-v1' } },
+      context, { notice: message => calls.push(['notice', message]) }, {}, name => {
+        if (name === './eng/merge-queue/policy.cjs') return { controllerOperation };
+        if (name === './eng/merge-queue/controller.cjs') return { reconcile: () => assert.fail() };
+        if (name === './eng/merge-queue/github.cjs') return { GitHubQueue: class { constructor() { return api; } } };
+        assert.equal(name, './eng/merge-queue/recovery.cjs');
+        return { changeDeliveryState: async (received, options) => {
+          assert.equal(received, api);
+          assert.deepEqual(options, { context, inputs, attempt: 1, profile: 'batch-v1' });
+          calls.push(['transition', operation]);
+          return operation;
+        } };
+      });
+    assert.deepEqual(calls, [['transition', operation], ['notice', `Merge queue: ${operation}.`], ['summary', operation]]);
+  }
+  assert.doesNotMatch(controller, /permission-variables|permission-administration: write|updateRepoVariable|createRepoVariable/);
 });
 
 test('privileged controller never checks out PR code, bypasses protection or waits for CI on a runner', () => {

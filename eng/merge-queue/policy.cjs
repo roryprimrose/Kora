@@ -70,7 +70,8 @@ function controllerOperation(inputs) {
   invariant(inputs && typeof inputs === 'object' && !Array.isArray(inputs), 'Invalid controller inputs.');
   const operation = inputs.operation ?? 'reconcile';
   invariant(['reconcile', 'recover-unobservable-dispatch', 'migrate-batch-v1', 'rollback-batch-v1',
-    'repair-batch', 'resume-batch'].includes(operation), 'Unknown controller operation.');
+    'repair-batch', 'resume-batch', 'hold-independent-delivery', 'prepare-independent-delivery',
+    'resume-independent-delivery', 'abort-independent-delivery'].includes(operation), 'Unknown controller operation.');
   invariant(inputs.acknowledge_uncertain_dispatch === undefined
     || typeof inputs.acknowledge_uncertain_dispatch === 'boolean', 'Invalid recovery acknowledgement.');
   if (operation === 'reconcile') {

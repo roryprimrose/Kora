@@ -114,6 +114,15 @@ Outstanding HTTP/account/model work remains owned until it actually joins;
 exit does not equate cancellation requested with resource quiescence.
 Human reviews are included in the bounded request lifetime.
 
+For a buffered text-only turn, Count Tokens and Messages share one
+32768-byte physical request budget and one 4096-byte physical response budget,
+including JSON framing and whitespace. Both outbound bodies must fit together
+before either disclosure is offered. A count response that exhausts the output
+budget prevents the Messages review and send; otherwise Messages can read only
+the remaining bytes. Declared-length and unknown-length overflow produce no
+retained assistant answer, retry or provider fallback. These implementation
+limits do not enable or qualify a Claude deployment.
+
 ## Separately qualified native text streaming
 
 In private Sessions, **Stream explicitly with Claude (text only, separately qualified)** submits only the original USER body, without history, memory, tools or source instructions. It uses the same provisional conversation pane, labelled **Provisional answer - not retained**, not a new renderer ([submission](../src/Kora.Application/Hosting/SessionConversationService.Claude.cs), [presentation](../src/Kora/SessionsViewModel.ConversationCancellation.cs)).

@@ -31,7 +31,7 @@ public sealed class DetailLiteralFindWindowTests
         var result = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance).Render(content.Source, content.Kind);
         state.CompleteRender(state.Generation, result.SemanticText, result.Status, result.IsFallback);
         var writes = 0;
-        var window = new DetailWindow(state, result, (_, _, _) => { writes++; return Task.CompletedTask; });
+        var window = new DetailWindow(state, result, (_, _, _, _) => { writes++; return Task.CompletedTask; });
         window.Show();
         try
         {
@@ -95,7 +95,7 @@ public sealed class DetailLiteralFindWindowTests
             var state = new DetailViewerState(content);
             var result = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance).Render(content.Source, content.Kind);
             state.CompleteRender(state.Generation, result.SemanticText, result.Status, result.IsFallback);
-            var window = new DetailWindow(state, result, (_, _, _) => throw new InvalidOperationException("No clipboard authority."), fixture.Main)
+            var window = new DetailWindow(state, result, (_, _, _, _) => throw new InvalidOperationException("No clipboard authority."), fixture.Main)
             { Width = 640, Height = 500 };
             window.Show();
             try
@@ -129,7 +129,7 @@ public sealed class DetailLiteralFindWindowTests
         var state = new DetailViewerState(content);
         var result = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance).Render(content.Source, content.Kind);
         state.CompleteRender(state.Generation, result.SemanticText, result.Status, result.IsFallback);
-        var window = new DetailWindow(state, result, (_, _, _) => throw new InvalidOperationException("No clipboard authority."));
+        var window = new DetailWindow(state, result, (_, _, _, _) => throw new InvalidOperationException("No clipboard authority."));
         window.Show();
         try
         {
@@ -169,7 +169,7 @@ public sealed class DetailLiteralFindWindowTests
         var result = renderer.Render(admitted.Source, admitted.Kind, admitted.Reference);
         state.CompleteRender(state.Generation, result.SemanticText, result.Status, result.IsFallback);
         var writes = 0;
-        var window = new DetailWindow(state, result, (_, _, _) => { writes++; return Task.CompletedTask; });
+        var window = new DetailWindow(state, result, (_, _, _, _) => { writes++; return Task.CompletedTask; });
         window.Show();
         try
         {
@@ -248,7 +248,7 @@ public sealed class DetailLiteralFindWindowTests
         var content = Content();
         var state = new DetailViewerState(content);
         var result = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance).Render(content.Source, content.Kind);
-        var window = new DetailWindow(state, result, (_, _, _) => throw new InvalidOperationException("No clipboard authority."));
+        var window = new DetailWindow(state, result, (_, _, _, _) => throw new InvalidOperationException("No clipboard authority."));
         window.Show();
         try
         {
@@ -279,7 +279,7 @@ public sealed class DetailLiteralFindWindowTests
         var allowed = true;
         var state = new DetailViewerState(content, () => allowed && ReferenceEquals(current, content));
         var result = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance).Render(content.Source, content.Kind);
-        var window = new DetailWindow(state, result, (_, _, _) => throw new InvalidOperationException("No clipboard authority."));
+        var window = new DetailWindow(state, result, (_, _, _, _) => throw new InvalidOperationException("No clipboard authority."));
         window.Show();
         Required<TextBox>(window, "SearchInput").Text = "alpha";
         Click(window, "FirstMatch");
@@ -317,7 +317,7 @@ public sealed class DetailLiteralFindWindowTests
         var content = Content();
         var state = new DetailViewerState(content);
         var result = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance).Render(content.Source, content.Kind);
-        var window = new DetailWindow(state, result, (_, _, _) => throw new InvalidOperationException("No clipboard authority."));
+        var window = new DetailWindow(state, result, (_, _, _, _) => throw new InvalidOperationException("No clipboard authority."));
         window.Show();
         try
         {

@@ -175,7 +175,9 @@ profiles retain their labelled source fallback without active links.
 
 ### Copy already-authorized Markdown
 
-Where **Copy** is already available for an admitted Markdown item, copying from rendered view also includes supported rich formatting for applications that accept HTML. The existing plain-text copy remains the complete original source; an exact selected range remains only that selected text. Rendered selections add escaped preformatted text, not reconstructed Markdown formatting ([copy route](../src/Kora/DetailWindowController.cs)).
+Where copying is already authorized, **Copy all** copies the complete active view. Rendered Markdown supplies semantic plain text and inert HTML together, including all list items, code, table cells and visible link destinations, not just the visible or searched portion ([copy route](../src/Kora/DetailWindowController.cs)).
+
+Choose **Copy source** for the complete original Markdown with unchanged tabs and line breaks, without changing your view. Copy all in **Exact source**, plain-text content or source fallback also copies unchanged source only. **Copy selection** still copies only the exact selected text, with escaped preformatted HTML for rendered Markdown ([native interaction](../tests/Kora.Windows.IntegrationTests/DetailCopyNativeTests.cs)).
 
 Headings, emphasis, lists, quotes, code and already-available tables can retain formatting. Link destinations stay visible inert text; images and remote resources are never fetched or included. **Exact source**, plain-text content and unavailable/unsupported renderers keep plain-text-only copying ([serializer](../src/Kora/NativeDetailRenderer.Clipboard.cs)).
 

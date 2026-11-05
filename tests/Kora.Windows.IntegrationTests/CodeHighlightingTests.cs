@@ -223,7 +223,7 @@ public sealed class CodeHighlightingTests
         var result = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance).Render(text);
         state.CompleteRender(state.Generation, result.SemanticText, result.Status, result.IsFallback);
         var copies = 0;
-        var view = new DetailContentView(state, result, (_, _, _) => { copies++; return Task.CompletedTask; });
+        var view = new DetailContentView(state, result, (_, _, _, _) => { copies++; return Task.CompletedTask; });
         var window = new Window { Content = view };
         window.Show();
         var code = view.GetVisualDescendants().OfType<NativeCodeBlock>().Single();

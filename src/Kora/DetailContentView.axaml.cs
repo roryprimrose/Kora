@@ -19,7 +19,7 @@ public sealed partial class DetailContentView : UserControl
 {
     internal event EventHandler? CloseRequested;
     private readonly DetailViewerState state;
-    private readonly Func<bool, int?, int, Task> copySource;
+    private readonly DetailCopy copySource;
     private readonly TextBox reader;
     private readonly TextBox search;
     private readonly CheckBox source;
@@ -37,7 +37,7 @@ public sealed partial class DetailContentView : UserControl
     // XAML tooling requires a public default constructor. It cannot admit or open content.
     public DetailContentView() => throw new InvalidOperationException("Use the explicit host-owned native detail route.");
 
-    internal DetailContentView(DetailViewerState state, NativeDocumentResult result, Func<bool, int?, int, Task> copySource,
+    internal DetailContentView(DetailViewerState state, NativeDocumentResult result, DetailCopy copySource,
         MainViewModel? typographyHost = null, Diagrams.IMermaidRenderer? mermaidRenderer = null)
     {
         this.state = state;
@@ -147,6 +147,7 @@ public sealed partial class DetailContentView : UserControl
             Required<CheckBox>("FindHostToggle").IsVisible = true;
             Required<TextBlock>("CopyPolicyLabel").Text = "Passive retained conversation Details grant no clipboard/export disclosure authority. Exact-source and selection copy are blocked.";
             Required<Button>("CopySource").IsEnabled = false;
+            Required<Button>("CopyAll").IsEnabled = false;
             Required<Button>("CopySelection").IsEnabled = false;
         }
         Required<TextBlock>("RendererStatus").Text = state.Status;
@@ -175,7 +176,8 @@ public sealed partial class DetailContentView : UserControl
             if (!cleared && args.Property == TextBox.TextProperty) { state.EditFindQuery(search.Text ?? string.Empty); }
         };
         Required<Button>("CloseDetail").Click += (_, _) => RequestClose();
-        Required<Button>("CopySource").Click += OnCopyRequested;
+        Required<Button>("CopyAll").Click += OnCopyRequested;
+        Required<Button>("CopySource").Click += OnCopySourceRequested;
         Required<Button>("CopySelection").Click += OnCopySelectionRequested;
         AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
         // Also intercept programmatic/accessibility TextBox.Copy and platform context commands.
@@ -284,10 +286,16 @@ public sealed partial class DetailContentView : UserControl
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
         Justification = "Avalonia Click requires void; CopyAsync reports failures without claiming a clipboard write.")]
+    private async void OnCopySourceRequested(object? sender, RoutedEventArgs eventArgs) =>
+        await CopyAsync(representation: DetailCopyRepresentation.ExactSource);
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia Click requires void; CopyAsync reports failures without claiming a clipboard write.")]
     private async void OnCopySelectionRequested(object? sender, RoutedEventArgs eventArgs) =>
         await CopyAsync(selection: true);
 
-    private async Task CopyAsync(bool selection = false)
+    private async Task CopyAsync(bool selection = false,
+        DetailCopyRepresentation representation = DetailCopyRepresentation.ActiveView)
     {
         try
         {
@@ -305,7 +313,7 @@ public sealed partial class DetailContentView : UserControl
             }
             else
             {
-                await copySource(disclosure.IsChecked == true, null, 0);
+                await copySource(disclosure.IsChecked == true, null, 0, representation);
             }
             disclosure.IsChecked = false;
         }
@@ -360,7 +368,7 @@ public sealed partial class DetailContentView : UserControl
     private void BlockAutomaticCopy(object? sender, RoutedEventArgs eventArgs)
     {
         eventArgs.Handled = true;
-        state.ReportStatus("Automatic copy is disabled. Use native Copy selection or Copy exact source with the disclosure gate.");
+        state.ReportStatus("Automatic copy is disabled. Use native Copy all, Copy selection or Copy source with the disclosure gate.");
     }
 
     private void BlockClipboardRead(object? sender, RoutedEventArgs eventArgs)

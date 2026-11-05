@@ -37,7 +37,7 @@ public sealed class NativeReaderTextScaleTests
             var result = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance).Render(source);
             var state = new DetailViewerState(content);
             state.CompleteRender(state.Generation, result.SemanticText, result.Status, result.IsFallback).Should().BeTrue();
-            var window = new DetailWindow(state, result, (_, _, _) => Task.CompletedTask, fixture.Main)
+            var window = new DetailWindow(state, result, (_, _, _, _) => Task.CompletedTask, fixture.Main)
             {
                 Width = 640,
                 Height = 500,
@@ -106,7 +106,7 @@ public sealed class NativeReaderTextScaleTests
                 Dispatcher.UIThread.RunJobs();
                 var secondState = new DetailViewerState(content);
                 secondState.CompleteRender(secondState.Generation, result.SemanticText, result.Status, false);
-                var second = new DetailWindow(secondState, result, (_, _, _) => Task.CompletedTask, fixture.Main);
+                var second = new DetailWindow(secondState, result, (_, _, _, _) => Task.CompletedTask, fixture.Main);
                 try { second.FindControl<TextBox>("ContentReader")!.FontSize.Should().Be(originalFont * percent / 100d); }
                 finally { second.ClearAndClose(); }
             }

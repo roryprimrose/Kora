@@ -8,7 +8,7 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class DetailWindowControllerTests
 {
     [Fact]
-    public async Task AuthorizedRenderedMarkdownCopiesFormattingAndUnchangedCompleteSourceInOneWrite()
+    public async Task AuthorizedRenderedMarkdownCopiesCompleteSemanticTextAndFormattingInOneWrite()
     {
         const string markdown = "# Heading\n\n**Strong** and *emphasis* with `code & text`.\n\n"
             + "> Quote\n\n3. Third\n4. Fourth\n\n- Bullet\n\n---\n\n"
@@ -19,7 +19,10 @@ public sealed partial class DetailWindowControllerTests
         var state = f.Views.Single().State;
         state.Search("Heading").Should().BeTrue();
         await f.Controller.CopyAsync(state.Reference, state.Generation, false);
-        f.Clipboard.Writes.Should().ContainSingle().Which.Should().Be(markdown);
+        f.Clipboard.Writes.Should().ContainSingle().Which.Should().Be(string.Join(Environment.NewLine + Environment.NewLine,
+            "Heading", "Strong and emphasis with code & text.", "> Quote", "3. Third", "4. Fourth",
+            "- Bullet", "—", "<script>inert & exact</script>"));
+        f.Clipboard.Writes.Single().Should().Be(state.ActiveText).And.NotBe(markdown);
         var html = f.Clipboard.HtmlWrites.Should().ContainSingle().Which;
         html.Should().Contain("<h1>Heading</h1>")
             .And.Contain("<strong>Strong</strong>").And.Contain("<em>emphasis</em>")
@@ -76,7 +79,10 @@ public sealed partial class DetailWindowControllerTests
         f.Controller.OpenEmbeddedPage(f.Documents.GetStartPage(), null);
         var state = f.Views.Single().State;
         await f.Controller.CopyAsync(state.Reference, state.Generation, false);
-        f.Clipboard.Writes.Should().ContainSingle().Which.Should().Be(TableSource);
+        f.Clipboard.Writes.Should().ContainSingle().Which.Should().Be(available
+            ? string.Join(Environment.NewLine, "Table 1: 2 columns, 1 data rows. Headers:", "Column 1: Name", "Column 2: State",
+                "", "Table 1, data row 1:", "Column 1 (Name): Alpha", "Column 2 (State): Ready")
+            : TableSource);
         if (available)
         {
             f.Clipboard.HtmlWrites.Should().ContainSingle().Which.Should().Be(
@@ -99,7 +105,7 @@ public sealed partial class DetailWindowControllerTests
         f.Controller.OpenEmbeddedPage(f.Documents.GetStartPage(), null);
         var state = f.Views.Single().State;
         await f.Controller.CopyAsync(state.Reference, state.Generation, false);
-        f.Clipboard.Writes.Should().ContainSingle().Which.Should().Be(markdown);
+        f.Clipboard.Writes.Should().ContainSingle().Which.Should().Be("<label> (destination: " + destination + ")");
         f.Clipboard.HtmlWrites.Should().ContainSingle().Which.Should().Be(
             "<p><code>&lt;label&gt;</code> (destination: " + System.Net.WebUtility.HtmlEncode(destination) + ")</p>");
     }
@@ -120,7 +126,7 @@ public sealed partial class DetailWindowControllerTests
         f.Clipboard.Writes.Should().BeEmpty();
         state.Status.Should().Contain("Confirm disclosure");
         await f.Controller.CopyAsync(state.Reference, state.Generation, true);
-        f.Clipboard.Writes.Should().ContainSingle().Which.Should().Be(content.Source);
+        f.Clipboard.Writes.Should().ContainSingle().Which.Should().Be("Private" + Environment.NewLine + Environment.NewLine + "exact source");
         f.Clipboard.HtmlWrites.Should().ContainSingle().Which.Should().Be("<h1>Private</h1><p>exact source</p>");
         admitted = false;
         await f.Controller.CopyAsync(state.Reference, state.Generation, true);
@@ -142,6 +148,8 @@ public sealed partial class DetailWindowControllerTests
         var denied = f.Views.Single().State;
         await f.Controller.CopyAsync(denied.Reference, denied.Generation, true);
         await f.Controller.CopyAsync(denied.Reference, denied.Generation, true, 0, 3);
+        await f.Controller.CopyAsync(denied.Reference, denied.Generation, true,
+            representation: DetailCopyRepresentation.ExactSource);
         f.Clipboard.Writes.Should().BeEmpty();
         f.Clipboard.HtmlWrites.Should().BeEmpty();
         denied.Status.Should().Contain("no clipboard authority");
@@ -160,5 +168,38 @@ public sealed partial class DetailWindowControllerTests
         await f.Controller.CopyAsync(state.Reference, state.Generation, true);
         f.Clipboard.Writes.Should().ContainSingle();
         state.Content.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExplicitCopySourcePreservesEveryCharacterWithoutChangingTheActiveView(bool sourceView)
+    {
+        const string markdown = "# Exact é 😀\r\n\r\n**Strong**\n\n```text\n\tone\r\n\ttwo\n```\r\n";
+        using var f = new Fixture();
+        f.Documents.Pages[0] = f.Documents.GetStartPage() with { Markdown = markdown };
+        f.Controller.OpenEmbeddedPage(f.Documents.GetStartPage(), null);
+        var state = f.Views.Single().State;
+        state.SetSource(sourceView);
+        state.Search("Strong").Should().BeTrue();
+        var previous = (state.IsSource, state.ActiveText, state.Generation, state.MatchStart);
+        await f.Controller.CopyAsync(state.Reference, state.Generation, false,
+            representation: DetailCopyRepresentation.ExactSource);
+        f.Clipboard.Writes.Should().ContainSingle().Which.Should().Be(markdown);
+        f.Clipboard.HtmlWrites.Should().ContainSingle().Which.Should().BeNull();
+        state.Status.Should().StartWith("Exact source copied");
+        (state.IsSource, state.ActiveText, state.Generation, state.MatchStart).Should().Be(previous);
+    }
+
+    [Fact]
+    public async Task InvalidRepresentationAndSourceSelectionCannotWriteOrClaimSuccess()
+    {
+        using var f = new Fixture();
+        f.Controller.OpenEmbeddedPage(f.Documents.GetStartPage(), null);
+        var state = f.Views.Single().State;
+        await f.Controller.CopyAsync(state.Reference, state.Generation, true, representation: (DetailCopyRepresentation)42);
+        await f.Controller.CopyAsync(state.Reference, state.Generation, true, 0, 1, DetailCopyRepresentation.ExactSource);
+        f.Clipboard.Writes.Should().BeEmpty();
+        state.Status.Should().Contain("blocked").And.Contain("representation");
     }
 }

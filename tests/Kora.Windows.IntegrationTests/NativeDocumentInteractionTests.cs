@@ -418,7 +418,7 @@ public sealed class NativeDocumentInteractionTests
         var result = Render(source, format);
         result.IsFallback.Should().BeFalse();
         state.CompleteRender(state.Generation, result.SemanticText, result.Status, false).Should().BeTrue();
-        var window = new DetailWindow(state, result, (_, _, _) =>
+        var window = new DetailWindow(state, result, (_, _, _, _) =>
         {
             if (copied is null) { throw new InvalidOperationException("No clipboard authority."); }
             copied();

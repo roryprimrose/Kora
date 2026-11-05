@@ -150,7 +150,7 @@ public sealed class MarkdownStrikethroughTests
         var generation = state.Generation;
         state.CompleteRender(generation, result.SemanticText, result.Status, result.IsFallback).Should().BeTrue();
         var copies = 0;
-        var view = new DetailContentView(state, result, (_, _, _) => { copies++; return Task.CompletedTask; });
+        var view = new DetailContentView(state, result, (_, _, _, _) => { copies++; return Task.CompletedTask; });
         var stack = view.FindControl<StackPanel>("RenderedDocument")!;
         var strike = stack.Children[0].Should().BeAssignableTo<TextBlock>().Subject;
         var codeBlocks = stack.Children.OfType<NativeCodeBlock>().ToArray();
@@ -329,7 +329,7 @@ public sealed class MarkdownStrikethroughTests
         var result = Render(source);
         state.CompleteRender(generation, result.SemanticText, result.Status, result.IsFallback).Should().BeTrue();
         var writes = 0;
-        var view = new DetailContentView(state, result, (_, _, _) => { writes++; return Task.CompletedTask; });
+        var view = new DetailContentView(state, result, (_, _, _, _) => { writes++; return Task.CompletedTask; });
         var stack = view.FindControl<StackPanel>("RenderedDocument")!;
         var text = (TextBlock)stack.Children.Single();
         var peer = ControlAutomationPeer.CreatePeerForElement(text)!;

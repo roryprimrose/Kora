@@ -49,7 +49,7 @@ public sealed class DetailWindowContractTests
         var expectedOrder = new[]
         {
             "SourceToggle", "ReadingTextToggle", "WrapTextToggle", "SearchInput", "FindHostToggle", "FirstMatch", "PreviousMatch", "NextMatch",
-            "CancelFind", "ClearFind", "DisclosureConfirmation", "CopySelection", "CopySource", "CloseDetail", "ContentReader", "FindSpan",
+            "CancelFind", "ClearFind", "DisclosureConfirmation", "CopySelection", "CopyAll", "CopySource", "CloseDetail", "ContentReader", "FindSpan",
         };
         for (var index = 0; index < expectedOrder.Length; index++)
         {
@@ -67,7 +67,7 @@ public sealed class DetailWindowContractTests
         Named(document, "FindSpan").Parent!.Attribute("MaxHeight")!.Value.Should().Be("100");
         Named(document, "FindSummary").Attribute("AutomationProperties.Name")!.Value.Should().Contain("current admitted text only");
         Named(document, "FindSummary").Attribute("AutomationProperties.LiveSetting")!.Value.Should().Be("Off");
-        Read("DetailContentView.axaml").Should().Contain("DynamicResource").And.Contain("authorized rendered Markdown also includes inert HTML")
+        Read("DetailContentView.axaml").Should().Contain("DynamicResource").And.Contain("rendered Markdown as semantic plain text with inert HTML")
             .And.Contain("Clipboard content leaves Kora").And.NotContain("Animation").And.NotContain("WebView");
     }
 

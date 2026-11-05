@@ -177,7 +177,7 @@ public sealed class DiagramTests
         var state = new DetailViewerState(content);
         var fallback = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance).Render(content.Source);
         state.CompleteRender(state.Generation, fallback.SemanticText, fallback.Status, true);
-        var view = new DetailContentView(state, fallback, (_, _, _) => Task.CompletedTask);
+        var view = new DetailContentView(state, fallback, (_, _, _, _) => Task.CompletedTask);
         var diagram = (MermaidDetailView)view.FindControl<ContentControl>("MermaidContent")!.Content!;
         await diagram.RenderSelectedAsync();
         diagram.Children.OfType<NamedTextBlock>().Single().Text.Should().Contain("Unavailable").And.Contain("fallback");
@@ -271,7 +271,7 @@ public sealed class DiagramTests
         fallback.IsFallback.Should().BeTrue();
         state.CompleteRender(state.Generation, fallback.SemanticText, fallback.Status, fallback.IsFallback).Should().BeTrue();
         var renderer = new CountingRenderer();
-        var view = new DetailContentView(state, fallback, (_, _, _) => Task.CompletedTask, mermaidRenderer: renderer);
+        var view = new DetailContentView(state, fallback, (_, _, _, _) => Task.CompletedTask, mermaidRenderer: renderer);
         var diagrams = (MermaidDetailView)view.FindControl<ContentControl>("MermaidContent")!.Content!;
         renderer.Calls.Should().Be(0);
         await diagrams.RenderSelectedAsync();
@@ -296,7 +296,7 @@ public sealed class DiagramTests
         var state = new DetailViewerState(content);
         var fallback = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance).Render(content.Source);
         var renderer = new HeldRenderer();
-        var view = new DetailContentView(state, fallback, (_, _, _) => Task.CompletedTask, mermaidRenderer: renderer);
+        var view = new DetailContentView(state, fallback, (_, _, _, _) => Task.CompletedTask, mermaidRenderer: renderer);
         var diagrams = (MermaidDetailView)view.FindControl<ContentControl>("MermaidContent")!.Content!;
         var rendering = diagrams.RenderSelectedAsync();
         view.ClearPresentation();

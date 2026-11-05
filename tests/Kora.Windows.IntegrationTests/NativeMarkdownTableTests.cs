@@ -224,7 +224,7 @@ public sealed class NativeMarkdownTableTests
         var result = Render(Source);
         state.CompleteRender(state.Generation, result.SemanticText, result.Status, result.IsFallback).Should().BeTrue();
         var generation = state.Generation;
-        var window = new DetailWindow(state, result, (_, _, _) =>
+        var window = new DetailWindow(state, result, (_, _, _, _) =>
             throw new InvalidOperationException("No clipboard authority."));
         window.Show();
         try

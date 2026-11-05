@@ -1172,11 +1172,13 @@ The existing native Copy action adds Windows HTML Clipboard Format only for an a
 
 The [serializer](../src/Kora/NativeDetailRenderer.Clipboard.cs) consumes the same bounded validated Markdig tree as native rendering, not another parse or renderer DOM. It preserves supported headings, emphasis, lists, quotations, code and independently available tables. Destinations remain encoded inert visible text, not active links or resource attributes. There are no images, styles, external assets or renderer-profile enablement.
 
-For compatibility, Copy all still includes the complete original admitted source as Unicode plain text, even in rendered view; it does not yet switch to the target semantic plain representation below. Rendered selections add only an escaped preformatted HTML representation of the exact selected text, without reparsing or expanding the selection. Source/plain-text views and unsupported/unavailable renderer fallbacks remain plain-text-only ([routing regressions](../tests/Kora.Windows.IntegrationTests/DetailWindowControllerTests.RichCopy.cs)).
+**Copy all** now follows the active view for independently copy-authorized native Markdown: the complete validated semantic text in reading order plus inert HTML from the same document. It includes headings, list markers, code, all header-labelled table cells and visible link destinations, independent of viewport, wrapping or Find ([routing regressions](../tests/Kora.Windows.IntegrationTests/DetailWindowControllerTests.RichCopy.cs)).
+
+The separate **Copy source** always copies every original admitted character, tab and line break as Unicode plain text only, without changing the active view. Copy all in source/plain-text mode or unsupported/unavailable renderer fallback also remains exact plain text. Rendered selections retain escaped preformatted HTML of only the exact selected range ([native embedded-document interaction](../tests/Kora.Windows.IntegrationTests/DetailCopyNativeTests.cs)).
 
 The [native adapter](../src/Kora/NativeDetailClipboard.cs) publishes plain text and optional UTF-8 HTML with byte-accurate fragment boundaries as one clipboard transfer. It never reads, clears, flushes or retries a failed rich write as a plain-only success. Existing explicit error notification and content-free logging remain; no persistence/schema/audit change is introduced ([adapter regressions](../tests/Kora.Windows.IntegrationTests/NativeDetailClipboardTests.cs)).
 
-This is bounded implementation evidence, not installed paste-consumer/accessibility or provider qualification. Registered Markdown, rich static HTML/source styling, fully styled rich selections and the broader target representation/interaction contract below remain undelivered; no new Copy entry point or content scope is enabled.
+This is bounded implementation evidence, not installed paste-consumer/accessibility or provider qualification. Registered Markdown, rich static HTML/source styling, fully styled rich selections and the broader target representation/interaction contract below remain undelivered; no new content scope or clipboard authority is enabled.
 
 #### Target clipboard contract
 

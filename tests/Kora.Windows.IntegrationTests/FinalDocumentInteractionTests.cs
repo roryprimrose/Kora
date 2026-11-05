@@ -51,7 +51,7 @@ public sealed class FinalDocumentInteractionTests
             format == NativeDetailFormat.PipeTablesV2
                 ? [Link, "[reference][site]", "<https://example.com/auto>"] : [Link]);
         var state = State(markdown, () => fixture.Main.CanRevealPrivatePresentation, rendered: result);
-        var view = new DetailContentView(state, result, (_, _, _) => throw new InvalidOperationException("No clipboard authority."), fixture.Main);
+        var view = new DetailContentView(state, result, (_, _, _, _) => throw new InvalidOperationException("No clipboard authority."), fixture.Main);
         var window = new Window { Content = view, Width = 900, Height = 1000 };
         window.Show();
         var code = view.GetVisualDescendants().OfType<NativeCodeBlock>().Single();
@@ -114,7 +114,7 @@ public sealed class FinalDocumentInteractionTests
         fixture.Main.BindExternalBrowserWorkflow(new(launcher, new Network(), fixture.Audit, TimeProvider.System));
         var state = State(Link, () => fixture.Main.CanRevealPrivatePresentation, retained: keyboard);
         var result = Render(Link);
-        var view = new DetailContentView(state, result, (_, _, _) => throw new InvalidOperationException("No copy authority."), fixture.Main);
+        var view = new DetailContentView(state, result, (_, _, _, _) => throw new InvalidOperationException("No copy authority."), fixture.Main);
         var window = new Window { Content = view, Width = 900, Height = 1000 };
         window.Show();
         try
@@ -187,7 +187,7 @@ public sealed class FinalDocumentInteractionTests
         fixture.Main.BindExternalBrowserWorkflow(new(launcher, new Network(), fixture.Audit, TimeProvider.System));
         var live = true;
         var state = State(Link, () => live);
-        var view = new DetailContentView(state, Render(Link), (_, _, _) => Task.CompletedTask, fixture.Main);
+        var view = new DetailContentView(state, Render(Link), (_, _, _, _) => Task.CompletedTask, fixture.Main);
         var window = new Window { Content = view, Width = 900, Height = 1000 };
         window.Show();
         var link = window.GetVisualDescendants().OfType<Button>().Single(button => button.Tag is NativeExternalDocumentLink);
@@ -222,7 +222,7 @@ public sealed class FinalDocumentInteractionTests
         var state = State(markdown, () => live, retained: true);
         var result = Render(markdown);
         var copies = 0;
-        var view = new DetailContentView(state, result, (_, _, _) => { copies++; return Task.CompletedTask; });
+        var view = new DetailContentView(state, result, (_, _, _, _) => { copies++; return Task.CompletedTask; });
         var window = new Window { Content = view, Width = 650, Height = 1000 };
         window.Show();
         var block = window.GetVisualDescendants().OfType<NativeCodeBlock>().Single();
@@ -313,7 +313,7 @@ public sealed class FinalDocumentInteractionTests
         result.IsFallback.Should().BeFalse();
         (codeBlocks * 13 + 1 > NativeDetailProfile.MaximumNodes).Should().Be(fallback);
         var state = State(source, () => true);
-        var view = new DetailContentView(state, result, (_, _, _) => Task.CompletedTask);
+        var view = new DetailContentView(state, result, (_, _, _, _) => Task.CompletedTask);
         var window = new Window { Content = view, Width = 650, Height = 1000 };
         window.Show();
         try
@@ -342,7 +342,7 @@ public sealed class FinalDocumentInteractionTests
         const string markdown = "```cs\nprivate literal code\n```";
         var live = true;
         var state = State(markdown, () => live, retained: true);
-        var view = new DetailContentView(state, Render(markdown), (_, _, _) => throw new InvalidOperationException("No clipboard authority."));
+        var view = new DetailContentView(state, Render(markdown), (_, _, _, _) => throw new InvalidOperationException("No clipboard authority."));
         var window = new Window { Content = view, Width = 650, Height = 1000 };
         window.Show();
         var block = window.GetVisualDescendants().OfType<NativeCodeBlock>().Single();

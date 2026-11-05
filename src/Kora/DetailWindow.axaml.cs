@@ -14,7 +14,7 @@ public sealed partial class DetailWindow : Window, IDetailView
 
     public DetailWindow() => throw new InvalidOperationException("Use the explicit host-owned native detail route.");
 
-    internal DetailWindow(DetailViewerState state, NativeDocumentResult result, Func<bool, int?, int, Task> copySource,
+    internal DetailWindow(DetailViewerState state, NativeDocumentResult result, DetailCopy copySource,
         MainViewModel? typographyHost = null)
     {
         AvaloniaXamlLoader.Load(this);

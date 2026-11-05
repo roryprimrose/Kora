@@ -4,6 +4,9 @@ namespace Kora.Application.ViewModels;
 
 public sealed partial class MainViewModel
 {
+    [LoggerMessage(124, LogLevel.Warning, "Scheduled quiet-hours control not confirmed: {FailureType}.")]
+    private static partial void QuietHoursControlFailed(ILogger logger, string failureType);
+
     [LoggerMessage(123, LogLevel.Error, "Exact-session speech interruption unconfirmed; exception type {ExceptionType}.")]
     private static partial void SpeechInterruptionFailed(ILogger logger, string exceptionType);
 

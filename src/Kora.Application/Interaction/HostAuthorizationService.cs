@@ -106,6 +106,16 @@ public sealed partial class HostAuthorizationService(
         if (!Eligible(snapshot, request) || !review.IsBoundTo(snapshot.Proposal!)
             || snapshot.Questions.Any(question => question.Proposal == snapshot.Proposal))
         { return InteractionTransaction.Reject(snapshot, "exact-mcp-proposal-not-current"); }
+        if (review.Stage == Mcp.McpReviewStage.ResultContinuation)
+        {
+            var continuationSpec = new QuestionSpec(
+                "Review the complete actual MCP result and original task. Separately consent to ONE continuation"
+                + " of this exact local model task. Invocation approval is not result-use consent."
+                + " Declining does not roll back the external read.",
+                QuestionKind.SingleChoice, [new("once", "Consent to one local continuation")],
+                purpose: "authorization", sourceId: "mcp-local-result-continuation");
+            return Present(ObserveContent(snapshot, request).Item1, request, consentSpec: continuationSpec);
+        }
         var spec = new QuestionSpec("Review the complete exact HTTPS MCP " + review.Stage
             + " record, including destination, delegated account, schema and any outgoing arguments. "
             + "Choose a duration for this exact mapping, account, schema and arguments only.",

@@ -21,6 +21,71 @@ public sealed partial class ModelTurnHostTests
         """{"kind":"toolCalls","calls":[{"callId":"list_1","capabilityId":"customizations.list","input":{"count":6}}]}""";
 
     [Theory]
+    [InlineData("kora-profile")]
+    [InlineData("vscode-profile")]
+    [InlineData("vscode-insiders-profile")]
+    [InlineData("additional")]
+    [InlineData("foreign-binding")]
+    [InlineData("wrong-user-id")]
+    [InlineData("wrong-kora-id")]
+    public async Task AgentRecommendationResolvesExactFileAndDigestAcrossMetadataCategoriesWithoutIdentityFallback(string category)
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        var sources = new MetadataSources();
+        var use = new MetadataUse();
+        var scope = category is "kora-profile" or "wrong-kora-id" ? CustomizationScope.Kora : CustomizationScope.User;
+        var source = new CustomizationSource("raw.source.2", CustomizationKind.Agent, scope,
+            "helper", Path.GetFullPath("helper.agent.md"), "helper.agent.md");
+        var bytes = Encoding.UTF8.GetBytes("---\nname: Helper\ndescription: Local role\n---\nInert role.");
+        var observed = ArtifactFileDocument.Parse(bytes, ArtifactKind.Agent,
+            scope == CustomizationScope.Kora ? "kora-profile" : "user-profile", "helper").Definition;
+        var registered = ArtifactFileDocument.Parse(bytes, ArtifactKind.Agent,
+            category switch
+            {
+                "foreign-binding" => "user-profile",
+                "wrong-user-id" => "vscode-profile",
+                "wrong-kora-id" => "kora-profile",
+                _ => category,
+            }, "helper").Definition with
+        { UseControlId = category is "foreign-binding" ? "raw.source.other" : source.Id };
+        sources.Values = [new(source, "native-revision", observed.Name, observed.Description,
+            category is "wrong-user-id" or "wrong-kora-id" ? "disk.user-profile.agent.other" : observed.Id, observed.Digest)];
+        using var catalogue = new ArtifactCatalogue([registered], use);
+        using var snapshot = await new CustomizationDiscoveryService(sources, catalogue, use, f, f.Time)
+            .Review([source], new(f.Session, null), "Which agent?", RequestOrigin.LocalUi, static () => true, Token,
+                proposeAgent: true);
+        snapshot.Records.Single().Enabled.Should().BeTrue();
+        var answer = JsonSerializer.Serialize(new
+        {
+            kind = "answer", answer = JsonSerializer.Serialize(new { agentRef = snapshot.Records.Single().Ref }),
+        });
+        var transport = new ToolTransport(CustomizationListCall, answer);
+        await using var loop = CreateLoop(f, transport);
+        var host = ConfigureAgentLoop(f, loop);
+        var receipt = await f.ConversationService(host, execution: host)
+            .SubmitCustomizationDiscovery(snapshot, static () => true, Token);
+        if (category is "foreign-binding" or "wrong-user-id" or "wrong-kora-id")
+        {
+            if (category is "foreign-binding")
+            { registered.Id.Should().Be(observed.Id, "a shared category ID is not file authority"); }
+            receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Unknown);
+            receipt.Message.AssistantResponse.Should().BeNull();
+            snapshot.AgentProposal.Should().BeNull();
+        }
+        else
+        {
+            receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+            receipt.Message.AssistantResponse!.Body.Should().Contain("No agent has run");
+            snapshot.AgentProposal!.Definition.Should().Be(registered);
+            await snapshot.AgentProposal.ValidateAsync(Token);
+        }
+        transport.Requests.Should().HaveCount(2, "recommendation cannot invoke an agent or continue into a child");
+        f.Audits.Should().OnlyContain(item => item.ApprovalId == null);
+        host.IsQuiescent.Should().BeTrue();
+    }
+
+    [Theory]
     [InlineData(RequestOrigin.LocalUi)]
     [InlineData(RequestOrigin.ActivatedVoice)]
     public async Task ReviewedSubsetThroughRealModelListGetAndHostMetadataRetainsGenuineAnswerAndExactOriginalChannel(RequestOrigin origin)

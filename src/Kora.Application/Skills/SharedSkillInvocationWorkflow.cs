@@ -65,7 +65,39 @@ public sealed partial class SharedSkillInvocationWorkflow(
     }
 
     public async Task<SharedSkillUseReview> ReviewAsync(SharedSkillSource source, SharedSkillSnapshot snapshot,
-        Func<bool> eligible, RequestOrigin origin, CancellationToken token)
+        Func<bool> eligible, RequestOrigin origin, CancellationToken token) =>
+        await ReviewCoreAsync(source, snapshot, eligible, origin, token).ConfigureAwait(false);
+
+    public async Task<SharedSkillUseReview> ReviewSelectedAsync(ProposedSharedSkillUse proposal, Func<bool> eligible, CancellationToken token)
+    {
+        if (HostActivity.RequireCurrent().Request.Origin != RequestOrigin.LocalUi)
+        { throw new InvalidOperationException("Separately authorize the exact selected skill's native source-read/revision review."); }
+        try
+        {
+            await proposal.ConsumeForReadAsync(token).ConfigureAwait(false);
+            bool Current() => eligible() && proposal.IsCurrent;
+            await RequireTargetAsync(proposal.Target, Current, token).ConfigureAwait(false);
+            var snapshot = await discovery.ReadSelectedFileAsync(proposal.Binding, Current, token).ConfigureAwait(false);
+            await proposal.ValidateAsync(token).ConfigureAwait(false);
+            proposal.RequireSnapshot(snapshot);
+            using var activity = HostActivity.BeginRoot(HostRequest.Create(proposal.Origin),
+                HostActivityLayer.Application, HostOperation.Policy, [new(HostActivity.RequireCurrent().Activity!.Context)]);
+            try
+            {
+                var review = await ReviewCoreAsync(proposal.Binding.Source, snapshot, Current, proposal.Origin, token,
+                    proposal.Binding, proposal.ValidateAsync).ConfigureAwait(false);
+                activity.Complete(HostOperationOutcome.Completed);
+                return review;
+            }
+            catch (OperationCanceledException) { activity.Complete(HostOperationOutcome.Cancelled); throw; }
+            catch { activity.Complete(HostOperationOutcome.Failed); throw; }
+        }
+        catch { proposal.Dispose(); throw; }
+    }
+
+    private async Task<SharedSkillUseReview> ReviewCoreAsync(SharedSkillSource source, SharedSkillSnapshot snapshot,
+        Func<bool> eligible, RequestOrigin origin, CancellationToken token,
+        SharedSkillFileBinding? selectedFile = null, Func<CancellationToken, Task>? validateSelection = null)
     {
         SessionConversationService.RequireOriginalSource(origin);
         if (source.Id != snapshot.SourceId || !snapshot.IsInstructionCompatible || snapshot.Text is null
@@ -78,9 +110,14 @@ public sealed partial class SharedSkillInvocationWorkflow(
         var useRevision = discovery.UseRevision;
         bool Current() => eligible() && access.CanControl && access.CanInspect && access.ControlRevision == control
             && discovery.ConsentRevision == consent && discovery.UseRevision == useRevision && discovery.IsUseAllowed(source, snapshot);
-        await discovery.ValidateForUseAsync(snapshot, source, admission, Current, origin, token).ConfigureAwait(false);
+        if (selectedFile is null)
+        { await discovery.ValidateForUseAsync(snapshot, source, admission, Current, origin, token).ConfigureAwait(false); }
+        else
+        { await discovery.ValidateSelectedForUseAsync(snapshot, selectedFile, admission, Current, origin, token).ConfigureAwait(false); }
+        if (validateSelection is not null) { await validateSelection(token).ConfigureAwait(false); }
         using var activity = HostActivity.BeginOperation(HostActivityLayer.Application, HostOperation.Policy, origin);
-        var review = new SharedSkillUseReview(this, source, snapshot, Current, time, new(activity.Activity!.Context));
+        var review = new SharedSkillUseReview(this, source, snapshot, Current, time, new(activity.Activity!.Context),
+            selectedFile, validateSelection);
         if (!review.IsCurrent)
         {
             review.Dispose();
@@ -199,8 +236,14 @@ public sealed partial class SharedSkillInvocationWorkflow(
         try
         {
             Require(eligible, token);
-            await discovery.ValidateForUseAsync(review.Require(this), review.Source, admission,
-                () => eligible() && review.IsCurrent, origin, token).ConfigureAwait(false);
+            if (review.ValidateSelection is { } before) { await before(token).ConfigureAwait(false); }
+            if (review.SelectedFile is { } selected)
+            { await discovery.ValidateSelectedForUseAsync(review.Require(this), selected, admission,
+                () => eligible() && review.IsCurrent, origin, token).ConfigureAwait(false); }
+            else
+            { await discovery.ValidateForUseAsync(review.Require(this), review.Source, admission,
+                () => eligible() && review.IsCurrent, origin, token).ConfigureAwait(false); }
+            if (review.ValidateSelection is { } after) { await after(token).ConfigureAwait(false); }
             _ = review.Require(this);
         }
         catch { review.Dispose(); throw; }

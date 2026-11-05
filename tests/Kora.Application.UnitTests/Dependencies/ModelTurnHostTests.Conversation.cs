@@ -292,8 +292,9 @@ public sealed partial class ModelTurnHostTests
                 1, Time.Now, body, null, null);
             Task = new(task, Session.Generation, "host", true, null);
             Retained = message;
+            var receipt = new ConversationSubmissionReceipt(message, task);
             AfterRetain?.Invoke();
-            var receipt = TrackPendingRecords ? new(message, task) : new ConversationSubmissionReceipt(Retained, Task!.Task);
+            if (!TrackPendingRecords) { receipt = new(Retained, Task.Task); }
             RememberPendingRecord(receipt);
             return ValueTask.FromResult(receipt);
         }

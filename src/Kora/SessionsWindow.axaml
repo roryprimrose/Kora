@@ -79,6 +79,8 @@
         <WrapPanel>
           <Button x:Name="ReadConversation" Content="Read exact conversation" IsEnabled="{Binding CanReadConversation}" />
           <Button x:Name="NextConversation" Content="Next bounded conversation page" IsEnabled="{Binding CanNextConversation}" />
+          <Button x:Name="NewConversationUpdates" Content="{Binding ConversationUpdatesLabel}" IsEnabled="{Binding CanPresentConversationReader}"
+              AutomationProperties.Name="New updates: deliberately read the latest bounded page of this exact conversation; keep unsent input and keyboard focus" />
           <Button x:Name="AnswerAttachment" Content="Answer from this session's retained attachment" IsEnabled="{Binding CanCompose}" />
           <Button x:Name="ReviewHistoryContext" Content="Review earlier messages for a follow-up" IsEnabled="{Binding CanOpenHistoryContext}" />
           <Button x:Name="OpenMixedContext" Content="Review history, instruction and session memory together" IsEnabled="{Binding CanOpenMixedContext}" />
@@ -87,6 +89,9 @@
             SelectedItem="{Binding SelectedAnswerRecord, Mode=TwoWay}"
             ItemTemplate="{StaticResource ConversationMessageTemplate}"
             AutomationProperties.Name="Original USER messages, separate retained ASSISTANT answers and typed HOST outcomes; selection never starts speech" />
+        <TextBlock Text="Separately confirmed update; the earlier page is unchanged. Read latest messages for a fresh coherent page."
+            IsVisible="{Binding HasConversationUpdates}" TextWrapping="Wrap" />
+        <ItemsControl ItemsSource="{Binding ConversationUpdates}" ItemTemplate="{StaticResource ConversationMessageTemplate}" />
         <WrapPanel>
           <Button x:Name="ReadSelectedAnswer" Content="Read selected ASSISTANT answer once" IsEnabled="{Binding CanReadSelectedAnswer}" />
           <Button x:Name="CancelAnswerRead" Content="Cancel answer reading" IsEnabled="{Binding CanCancelAnswerRead}" />
@@ -159,6 +164,7 @@
         <controls:NamedTextBlock x:Name="DraftSizeFeedback" Text="{Binding ComposerDraftSizeFeedback}" TextWrapping="Wrap"
             AutomationProperties.Name="Current editable shared conversation draft size and shape" />
         <local:SessionDictationButton IsEnabled="{Binding CanCompose}" />
+        <local:ComposerRequestReviewPanel />
         <local:TaskResponseOutputPanel />
         <TextBlock Text="Optional Claude observation scope: comma-separated exact IDs from capabilities.list, capabilities.get, application.get_version, readiness.get, runtime.list, runtime.get_status. No files, web, MCP, settings or provider tools. Ordinary Claude stays tool-free."
             TextWrapping="Wrap" />
@@ -251,11 +257,12 @@
         </Expander>
         <local:ModelMemoryProposalPanel />
         <TextBlock Text="{Binding RegisteredSettingsDescription}" TextWrapping="Wrap" />
-        <TextBlock Text="{Binding RegisteredSettingSuggestionDescription}" TextWrapping="Wrap"
+        <TextBlock Name="RegisteredSettingReviewReadback" Text="{Binding RegisteredSettingSuggestionDescription}" TextWrapping="Wrap"
+            Focusable="True"
             AutomationProperties.Name="Exact current and proposed registered setting values, provenance, shared scope, timing and recovery; review is not approval" />
         <WrapPanel>
           <Button Name="ConfirmRegisteredSettingSuggestion" Content="Confirm exact setting change" IsEnabled="{Binding CanConfirmRegisteredSettingSuggestion}" />
-          <Button Name="CancelRegisteredSettingSuggestion" Content="Cancel setting review" IsEnabled="{Binding CanConfirmRegisteredSettingSuggestion}" />
+          <Button Name="CancelRegisteredSettingSuggestion" Content="Cancel setting review" IsEnabled="{Binding CanCancelRegisteredSettingSuggestion}" />
         </WrapPanel>
       </StackPanel>
     </Expander>
@@ -330,24 +337,28 @@
           </ComboBox>
           <Button x:Name="ReviewProviderContext" Content="Review context only" IsEnabled="{Binding CanReviewProviderContextField}" />
         </WrapPanel>
-        <TextBlock Text="This request only - LOCAL: choose all three advertised values for the unchanged composer input. Review, then confirm separately. No preference write, model download, qualification, hosted fallback or automatic retry. Subsequent requests inherit normally." TextWrapping="Wrap" />
+        <TextBlock Text="This request only: choose an existing service and all three advertised values for the unchanged input. Review, then confirm separately. Hosted processing requires separate native approval of each physical send. No preference write, authentication, qualification, fallback or automatic retry. Subsequent requests inherit normally." TextWrapping="Wrap" />
         <WrapPanel>
+          <ComboBox x:Name="RequestProfileService" ItemsSource="{Binding RequestProfileServices}" SelectedItem="{Binding RequestProfileService, Mode=TwoWay}" Width="150"
+              IsEnabled="{Binding CanCompose}" AutomationProperties.Name="This request only: Local, Copilot or Claude service; does not change saved defaults" />
           <ComboBox ItemsSource="{Binding LocalRequestModels}" SelectedItem="{Binding LocalRequestModel, Mode=TwoWay}" Width="200"
-              IsEnabled="{Binding CanCompose}" AutomationProperties.Name="This request only: advertised local model; no implicit selection">
+              IsEnabled="{Binding CanCompose}" AutomationProperties.Name="This request only: currently advertised model; no implicit selection">
             <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
           </ComboBox>
           <ComboBox ItemsSource="{Binding LocalRequestReasonings}" SelectedItem="{Binding LocalRequestReasoning, Mode=TwoWay}" Width="150"
-              IsEnabled="{Binding CanCompose}" AutomationProperties.Name="This request only: exact local model reasoning">
+              IsEnabled="{Binding CanCompose}" AutomationProperties.Name="This request only: exact model reasoning">
             <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
           </ComboBox>
           <ComboBox ItemsSource="{Binding LocalRequestContexts}" SelectedItem="{Binding LocalRequestContext, Mode=TwoWay}" Width="150"
-              IsEnabled="{Binding CanCompose}" AutomationProperties.Name="This request only: exact local model context; envelope ceilings unchanged">
+              IsEnabled="{Binding CanCompose}" AutomationProperties.Name="This request only: exact model context; envelope ceilings unchanged">
             <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
           </ComboBox>
           <Button x:Name="ReviewLocalRequestProfile" Content="Review this request only" IsEnabled="{Binding CanReviewLocalRequestProfile}" />
+          <Button x:Name="ReviewFailedLocalProfile" Content="Review selected failure with this LOCAL profile"
+              IsEnabled="{Binding CanReviewFailedLocalProfile}" AutomationProperties.Name="Review selected confirmed failed request for one new attempt with this exact local profile; no replay or preference write" />
         </WrapPanel>
         <TextBox Text="{Binding LocalRequestProfileText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="260"
-            AutomationProperties.Name="This request only review: complete exact destination, local tuple, original input and expiry" />
+            AutomationProperties.Name="This request only review: complete exact destination, profile, original input and expiry; not hosted transmission approval" />
         <WrapPanel>
           <Button x:Name="ConfirmLocalRequestProfile" Content="Confirm this request only once" IsEnabled="{Binding CanConfirmLocalRequestProfile}" />
           <Button x:Name="CancelLocalRequestProfile" Content="Cancel this request-only review (no submission)" />

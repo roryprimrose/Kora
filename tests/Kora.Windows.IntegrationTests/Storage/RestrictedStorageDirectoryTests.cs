@@ -16,16 +16,19 @@ public sealed class RestrictedStorageDirectoryTests
         using var fixture = new OwnedStorageFixture();
         using var identity = WindowsIdentity.GetCurrent();
         var directory = new RestrictedStorageDirectory(fixture);
-        var descriptor = new FileSecurity();
-        descriptor.SetOwner(new SecurityIdentifier(WellKnownSidType.WorldSid, null));
-        descriptor.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
-        descriptor.AddAccessRule(new(identity.User ?? throw new InvalidOperationException("The fixture profile is unavailable."),
-            FileSystemRights.FullControl, AccessControlType.Allow));
-        var before = descriptor.GetSecurityDescriptorBinaryForm();
-        // Exercise the production owner policy in memory without changing an OS owner or requiring privilege.
-        var verify = () => directory.VerifyPermissions(descriptor, requireProtected: true, allowSystemAdministrators: false);
-        verify.Should().Throw<UnauthorizedAccessException>();
-        descriptor.GetSecurityDescriptorBinaryForm().Should().Equal(before);
+        foreach (var owner in new[] { WellKnownSidType.WorldSid, WellKnownSidType.BuiltinAdministratorsSid })
+        {
+            var descriptor = new FileSecurity();
+            descriptor.SetOwner(new SecurityIdentifier(owner, null));
+            descriptor.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+            descriptor.AddAccessRule(new(identity.User ?? throw new InvalidOperationException("The fixture profile is unavailable."),
+                FileSystemRights.FullControl, AccessControlType.Allow));
+            var before = descriptor.GetSecurityDescriptorBinaryForm();
+            // Exercise the production owner policy in memory without changing an OS owner or requiring privilege.
+            var verify = () => directory.VerifyPermissions(descriptor, requireProtected: true, allowSystemAdministrators: false);
+            verify.Should().Throw<UnauthorizedAccessException>();
+            descriptor.GetSecurityDescriptorBinaryForm().Should().Equal(before);
+        }
     }
 
     [WindowsFact]

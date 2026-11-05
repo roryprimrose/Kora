@@ -239,6 +239,38 @@ public sealed partial class ModelTurnHostTests
             Kora.Core.Conversation.ConversationExecutionPhase.Completing, Kora.Core.Conversation.ConversationExecutionPhase.Terminal);
     }
 
+    [Theory]
+    [InlineData(RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.ActivatedVoice)]
+    public async Task Explicit_mcp_dismissed_tool_selection_cancels_without_input_or_dispatch_and_joins_the_connection(RequestOrigin origin)
+    {
+        using var f = new Fixture(origin);
+        using var source = new McpSource();
+        var broker = new McpBroker(source.Account);
+        var approvals = new McpApprovals(f);
+        var service = McpService(f, f.Host, source, broker, approvals, await source.Policy());
+        var inputRequested = false;
+        Task<string?> Input(HostRequest request, HostRevision generation, DateTimeOffset expiresAt,
+            McpModelTool tool, Func<bool> admitted, CancellationToken token)
+        {
+            inputRequested = true;
+            return ExplicitMcpInput(request, generation, expiresAt, tool, admitted, token);
+        }
+        var result = await service.InvokeMcpAsync(new(f.Session, null), source.ServerId, source.Account,
+            approvals.Present, (_, _, _, _, _, _) => Task.FromResult<string?>(null), Input, static () => true, Token, origin);
+        result.Outcome.Should().Be(McpExplicitOutcome.Cancelled);
+        result.Request.Origin.Should().Be(origin);
+        result.DurableState.Should().Be(HostTaskState.Unknown, "the admitted dispatch record is not a remote rollback receipt");
+        result.Result.Should().BeNull();
+        inputRequested.Should().BeFalse();
+        broker.Methods.Should().Equal("initialize", "tools/list");
+        broker.Disposed.Should().BeTrue();
+        approvals.Stages.Should().Equal(McpReviewStage.Connection);
+        f.Retained.Should().BeNull();
+        f.Adapter.Calls.Should().Be(0);
+        (await service.ReadRunningConversationAsync(new(f.Session, null), static () => true, Token)).Should().BeNull();
+    }
+
     [Fact]
     public async Task Explicit_mcp_join_failure_never_releases_a_confirmed_terminal_or_discloses_content()
     {

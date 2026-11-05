@@ -4681,11 +4681,15 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(WindowsSpeechRateCommand.FixedPhrases)
             .Concat(SpeechInputCommand.FixedPhrases)
+            .Concat(QuietHoursCommand.FixedPhrases)
+            .Concat(VoiceCaptureTimingCommand.FixedPhrases)
             .Concat(SpeechComparisonCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
+            .Concat(OrdinaryTurnDeadlineCommand.FixedPhrases)
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(Kora.Application.Communication.ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
+            .Concat(ForegroundPttCommand.FixedPhrases)
             .Concat(ResponseWindowCommand.FixedPhrases)
             .Concat(ProviderModeCommand.FixedPhrases)
             .Concat(ProviderProfileCommand.FixedPhrases)
@@ -4703,6 +4707,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(["review speech limit suggestion", "confirm speech limit change", "cancel speech limit review"])
             .Concat(PlaybackVolumeSuggestionCommand.FixedPhrases)
             .Concat(WindowsSpeechRateSuggestionCommand.FixedPhrases)
+            .Concat(InstalledSpeechVoiceSuggestionCommand.FixedPhrases)
             .Concat(Kora.Application.Configuration.RegisteredSettings.RegisteredSettingSuggestionCommand.FixedPhrases)
             .Concat(Kora.Application.Configuration.RegisteredSettings.RegisteredSettingSuggestionCommand.ResponseTimeoutPhrases)
             .Concat(Kora.Application.Configuration.RegisteredSettings.RegisteredSettingUndoCommand.FixedPhrases)
@@ -4711,6 +4716,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(SettingsSectionCommand.FixedPhrases)
             .Concat(ConversationExecutionCommand.FixedPhrases)
             .Concat(LogonStartupCommand.FixedPhrases)
+            .Concat(DetailPresentationCommand.FixedPhrases)
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases);
         fixture.Voice.StartedPhrases.Should().BeEquivalentTo(
@@ -8724,10 +8730,15 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableConversationalReplies = false, Exception? conversationalReadFailure = null,
             Kora.Application.Communication.CommunicationActivityCallStateService? communicationActivity = null,
             CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
+            OrdinaryTurnDeadlineConfigurationService? ordinaryDeadlineConfiguration = null,
             Kora.Application.Voice.SpeechSetupComparison? speechSetupComparison = null,
             bool enableConversationExecution = false,
             LogonStartupConfigurationService? logonStartupConfiguration = null,
-            StartupPresentationConfigurationService? startupPresentationConfiguration = null)
+            StartupPresentationConfigurationService? startupPresentationConfiguration = null,
+            ForegroundPttConfigurationService? foregroundPtt = null,
+            bool enableCaptureTiming = false,
+            DetailPresentationConfigurationService? detailPresentationConfiguration = null,
+            QuietHoursConfigurationService? quietHoursConfiguration = null)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8745,6 +8756,8 @@ public sealed partial class MainViewModelTests : IDisposable
             var audioStore = new Kora.Application.UnitTests.Configuration.AudioControlTestStore();
             ManualCallStore = audioStore;
             OutputAdmission = new(audioStore, audioStore, new HostTaskCoordinator(audioStore));
+            CaptureTimingConfiguration = enableCaptureTiming ? new(CaptureTimingPreferences, OutputAdmission,
+                Audit ??= new FakeSecurityAuditLog(), NullLogger<VoiceCaptureTimingConfigurationService>.Instance) : null;
             QueuePreferences.ReadFailure = queueReadFailure;
             QueueConfiguration = enableQueueConfiguration ? new(QueuePreferences, OutputAdmission, Audit ??= new FakeSecurityAuditLog()) : null;
             var outputCatalog = new Kora.Application.Voice.BoundedAudioOutputCatalog(
@@ -8927,10 +8940,15 @@ public sealed partial class MainViewModelTests : IDisposable
                 speechComponentSetup: speechComponentSetup,
                 conversationalReplies: ConversationalConfiguration,
                 communicationActivityConfiguration: communicationActivityConfiguration,
+                ordinaryDeadlineConfiguration: ordinaryDeadlineConfiguration,
                 speechSetupComparison: speechSetupComparison,
                 conversationExecution: ConversationExecutionConfiguration,
                 logonStartupConfiguration: logonStartupConfiguration,
-                startupPresentationConfiguration: startupPresentationConfiguration);
+                startupPresentationConfiguration: startupPresentationConfiguration,
+                foregroundPtt: foregroundPtt,
+                voiceCaptureTimingConfiguration: CaptureTimingConfiguration,
+                detailPresentationConfiguration: detailPresentationConfiguration,
+                quietHoursConfiguration: quietHoursConfiguration);
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
@@ -8980,6 +8998,8 @@ public sealed partial class MainViewModelTests : IDisposable
         public FakeSpeechInputPreferences InputPreferences { get; } = new();
         public SpeechInputTestRuntime InputRuntime { get; }
         public SpeechInputConfigurationService? InputConfiguration { get; }
+        public Kora.Application.UnitTests.Configuration.VoiceCaptureTimingConfigurationServiceTests.Preferences CaptureTimingPreferences { get; } = new();
+        public VoiceCaptureTimingConfigurationService? CaptureTimingConfiguration { get; }
         public FakeInCallFeedbackPreferences FeedbackPreferences { get; } = new();
         public InCallFeedbackConfigurationService? FeedbackConfiguration { get; }
         public DiagnosticRetentionAdmission DiagnosticAdmission { get; }
@@ -9778,12 +9798,13 @@ public sealed partial class MainViewModelTests : IDisposable
         {
             Interlocked.Increment(ref outputGeneration);
             events.Add("speech.invalidate");
-            IsSpeaking = false;
+            if (!IgnoreOutputInvalidation) { IsSpeaking = false; }
             PlaybackFrame = SpeechPlaybackFrame.Inactive;
             PlaybackFrameException = null;
         }
 
         public bool IsSpeaking { get; private set; }
+        public bool IgnoreOutputInvalidation { get; set; }
 
         private SpeechPlaybackFrame playbackFrame = SpeechPlaybackFrame.Inactive;
 
@@ -10052,6 +10073,7 @@ public sealed partial class MainViewModelTests : IDisposable
             switch (setting)
             {
                 case AppearanceOption.Theme: Mode = null; break;
+                case AppearanceOption.ReducedMotion: ReducedMotionEnabled = null; break;
                 case AppearanceOption.ReaderTextScale: ReaderTextScalePercent = null; break;
                 case AppearanceOption.PresenceDisplay: PresenceDisplayEnabled = null; break;
                 case AppearanceOption.PresenceTimeout: PresenceTimeoutSeconds = null; break;
@@ -10066,6 +10088,14 @@ public sealed partial class MainViewModelTests : IDisposable
             }
         }
         public bool? NativePresenceRendererEnabled { get; private set; }
+        public bool? ReducedMotionEnabled { get; private set; }
+        public bool? LoadReducedMotionEnabled() => ReducedMotionEnabled;
+        public void SaveReducedMotionEnabled(bool enabled)
+        {
+            ThrowIfSaveFails();
+            ReducedMotionEnabled = enabled;
+        }
+
         public bool? LoadNativePresenceRendererEnabled() => NativePresenceRendererEnabled;
         public void SaveNativePresenceRendererEnabled(bool value)
         {

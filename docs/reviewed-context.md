@@ -57,6 +57,19 @@ remain separate ([strict advisory](../src/Kora.Core/Conversation/ModelHistoryCon
 [host binding](../src/Kora.Application/Hosting/SessionConversationService.ModelHistoryContext.cs),
 [native interaction](../src/Kora/ModelHistoryContext/ModelHistoryContextWindow.axaml)).
 
+## Keep your reading position when answers arrive
+
+After explicitly reading a conversation, scroll back to keep an earlier message in view. New completions do not replace the admitted page. The main conversation follows new content only when you were already at its tail (within 24 device-independent pixels); otherwise it keeps your earlier position without moving keyboard focus
+([conversation reader](../src/Kora/ConversationViewport.cs)).
+
+Choose **New updates - read latest**, using Tab and Enter or Space if preferred, to admit the latest bounded page of that exact conversation and return to its tail. A separately confirmed completion is not an extension of the old page's snapshot; **More messages** continues only the old snapshot.
+Changed/unavailable sources require a new explicit read, not an automatic retry ([read operation](../src/Kora/SessionsViewModel.ConversationReading.cs)).
+
+Switching conversations preserves each session's unsent text and memory-only reading position, but does not read history automatically. Explicitly read the original page again to restore its matching message/revision. If that anchor is no longer admitted, the reader says so instead of choosing another message.
+Reading does not submit work, mark answers reviewed or save a draft; privacy/ownership retirement clears volatile state ([reading regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ReadingPosition.cs), [unsent state](../src/Kora/SessionsViewModel.Unsent.cs)).
+
+The separately confirmed completion retains its own **Show clarification exchange** and **Context submitted for this answer** actions. These inspect only that exact retained turn without replacing the earlier page or changing unsent input. Reopening its context Details remains metadata-only; it does not substitute the answer body.
+
 ## Read a turn's retained clarification exchange
 
 In the conversation pane, Sessions or compact conversation, choose **Show clarification exchange** under the exact original turn. Read its retained structured questions/options, accepted text or choices, original answer channel and observed terminal outcomes inline. These are historical observations, never live answer or approval controls ([native reader](../src/Kora/ClarificationExchangeView.cs)).

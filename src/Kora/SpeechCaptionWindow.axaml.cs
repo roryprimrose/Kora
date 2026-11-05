@@ -11,6 +11,7 @@ namespace Kora;
 public sealed partial class SpeechCaptionWindow : Window
 {
     private readonly TextBox captionText;
+    private readonly SpeechCaptionEmphasisLayer emphasisLayer;
     private readonly Action<int> scaleCaption;
     private int captionPercent = ReaderTextScaleSettings.DefaultPercent;
 
@@ -21,19 +22,23 @@ public sealed partial class SpeechCaptionWindow : Window
         AvaloniaXamlLoader.Load(this);
         DataContext = viewModel;
         captionText = this.FindControl<TextBox>("CaptionText")!;
+        emphasisLayer = this.FindControl<SpeechCaptionEmphasisLayer>("CaptionEmphasis")!;
+        captionText.LayoutUpdated += (_, _) => emphasisLayer.InvalidateVisual();
         scaleCaption = NativeReaderTypography.Capture(captionText);
         Closed += (_, _) => ClearCaption();
     }
 
-    internal void ApplyCaption(string text, int percent)
+    internal void ApplyCaption(string text, int percent, SpeechCaptionEmphasis? emphasis = null)
     {
         scaleCaption(percent);
         captionPercent = percent;
-        captionText.Text = text;
+        if (!string.Equals(captionText.Text, text, StringComparison.Ordinal)) { captionText.Text = text; }
+        emphasisLayer.Apply(captionText, emphasis);
     }
 
     internal void ClearCaption()
     {
+        emphasisLayer.Apply(captionText, null);
         captionText.Text = null;
         scaleCaption(ReaderTextScaleSettings.DefaultPercent);
         captionPercent = ReaderTextScaleSettings.DefaultPercent;

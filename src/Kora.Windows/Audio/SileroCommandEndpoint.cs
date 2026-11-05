@@ -1,5 +1,6 @@
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
+using Kora.Core.Voice;
 
 namespace Kora.Windows.Audio;
 
@@ -12,9 +13,14 @@ internal sealed class SileroCommandEndpoint : IHandsFreeCommandEndpoint
     private int totalSamples;
     private int silenceSamples;
     private bool speech;
+    private readonly int startSamples;
+    private readonly int trailingSamples;
 
-    public SileroCommandEndpoint(string path)
+    public SileroCommandEndpoint(string path, VoiceCaptureTiming timing)
     {
+        timing.Validate();
+        startSamples = decimal.ToInt32(decimal.Ceiling(timing.CommandStartSeconds * 16000));
+        trailingSamples = decimal.ToInt32(decimal.Ceiling(timing.TrailingSilenceSeconds * 16000));
         using var options = new SessionOptions
         {
             InterOpNumThreads = 1,
@@ -51,7 +57,7 @@ internal sealed class SileroCommandEndpoint : IHandsFreeCommandEndpoint
             Array.Copy(input, 512, input, 0, 64);
             if (probability.GetValue(0) >= 0.5f) { speech = true; silenceSamples = 0; }
             else { silenceSamples = checked(silenceSamples + 512); }
-            if (speech ? silenceSamples >= 12800 : totalSamples >= 64000) { return true; }
+            if (speech ? silenceSamples >= trailingSamples : totalSamples >= startSamples) { return true; }
         }
         return false;
     }

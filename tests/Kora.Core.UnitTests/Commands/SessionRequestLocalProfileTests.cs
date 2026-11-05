@@ -27,12 +27,34 @@ public sealed class SessionRequestLocalProfileTests
     }
 
     [Theory]
+    [InlineData("", "copilot", ProviderService.Copilot)]
+    [InlineData("Nova, ", "ClAuDe", ProviderService.Claude)]
+    [InlineData("", "local", ProviderService.Local)]
+    public void OnceAcceptsOnlyAnExplicitSupportedServiceWithExactTupleAndUnchangedBody(
+        string prefix, string service, ProviderService expected)
+    {
+        const string body = "  Original e\u0301🙂\r\nend -- data  ";
+        var command = SessionCommand.Parse(prefix + "session request once " + Target
+            + " 2 0 " + service + " account 3 model reasoning context -- " + body, "Nova")!;
+        command.Operation.Should().Be(SessionCommandOperation.RequestReview);
+        command.RequestLocalProfile.Should().Be(new ProviderProfileTuple(expected, new("account"),
+            new(3), new("model"), new("reasoning"), new("context")));
+        command.RequestBody.Should().Be(body);
+        command.RequestProvider.Should().Be(Kora.Core.Conversation.SessionRequestReview.ProviderChoice.Default);
+    }
+
+    [Theory]
     [InlineData("once")]
     [InlineData("once " + Target + " 1 0 account 1 model reasoning context")]
     [InlineData("once " + Target + " 1 0 account 1 model reasoning -- body")]
     [InlineData("once " + Target + " 1 0 account 0 model reasoning context -- body")]
     [InlineData("once " + Target + " 1 0 account -1 model reasoning context -- body")]
     [InlineData("once " + Target + " 1 0 account 1 model reasoning context extra -- body")]
+    [InlineData("once " + Target + " 1 0 codex account 1 model reasoning context -- body")]
+    [InlineData("once " + Target + " 1 0 2 account 1 model reasoning context -- body")]
+    [InlineData("once " + Target + " 1 0 unset account 1 model reasoning context -- body")]
+    [InlineData("once " + Target + " 1 0 claude account 0 model reasoning context -- body")]
+    [InlineData("once " + Target + " 1 0 copilot account 1 model reasoning -- body")]
     [InlineData("once " + Target + " 0 0 account 1 model reasoning context -- body")]
     [InlineData("once " + Target + " 1 0 accøunt 1 model reasoning context -- body")]
     [InlineData("once active 1 0 account 1 model reasoning context -- body")]

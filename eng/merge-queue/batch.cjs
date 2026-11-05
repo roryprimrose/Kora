@@ -1,5 +1,5 @@
 const { randomUUID } = require('node:crypto');
-const { invariant, validateState, readinessIssue, matchingRuns, requiredJobsState, terminalJobs,
+const { SHA, invariant, validateState, readinessIssue, matchingRuns, requiredJobsState, terminalJobs,
   JOB_OBSERVATION_MS, DISPATCH_OBSERVATION_MS, MERGE_CONFIRMATION_MS } = require('./policy.cjs');
 const { PROFILE, MAX_MEMBERS, CONTROL_PATH, digest, manifestFor, liveMember, ordered, gateMessage, GATE,
   BatchUpdateError } = require('./batch-policy.cjs');
@@ -15,20 +15,33 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
   if (state.active && state.active.kind !== 'batch')
     return reconcileSingleton(api, state, state.active.number, { now, ticket });
   if (!state.active) {
-    // Hold the lane for actual-tip qualification/publication, even under a sustained arrival rate.
-    if (state.completedTip && !state.completedTip.qualification) {
+    // Independent delivery waits only until an admitted full source run starts, never for its result.
+    if (state.completedTip && !state.completedTip.qualification
+      && !(api.independent && state.completedTip.delivery === 'independent-v1'
+        && state.completedTip.qualificationOwner)) {
       invariant(main === state.completedTip.sha, 'Main moved before completed-tip qualification; explicit recovery required.');
-      const qualification = await api.tipQualification(state.completedTip);
-      if (!qualification) {
-        if (!state.completedTip.qualificationRequested) {
+      const observation = await api.tipQualification(state.completedTip);
+      if (observation?.provisional) return 'waiting-for-tip-qualification';
+      if (observation) {
+        state.completedTip.qualificationOwner = observation.owner;
+        state.completedTip.qualificationRequested = true;
+        if (observation.qualification) state.completedTip.qualification = observation.qualification;
+        await save();
+      }
+      if (!state.completedTip.qualification && !(api.independent
+        && state.completedTip.delivery === 'independent-v1' && observation && !observation.provisional)) {
+        if (observation?.health?.status === 'BLOCKED_PUBLICATION') {
+          const health = observation.health;
+          api.notice(`BLOCKED_PUBLICATION: source ${health.source}; run ${health.run}; attempt ${health.attempt}; publication job ${health.job}; conclusion ${health.conclusion}; last durable progress: completed tip ${state.completedTip.sha}, qualification owner ${state.completedTip.qualificationOwner.run}, queue checkpoint ${api.commit}; authorized recovery required. Admission remains held; no retry dispatched.`);
+          return 'blocked-publication';
+        }
+        if (!state.completedTip.qualificationRequested && !state.completedTip.qualificationOwner) {
           state.completedTip.qualificationRequested = true;
           await save();
           await api.dispatchQualification(state.completedTip);
         }
         return 'waiting-for-tip-qualification';
       }
-      state.completedTip.qualification = qualification;
-      await save();
     }
     const members = [];
     const prs = await api.pulls();
@@ -48,16 +61,20 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
       if (!enrollment || ![null, 'APPROVED'].includes(review)) continue;
       if (state.blocked.some(item => item.number === pr.number && item.head === pr.head.sha
         && item.enrollment === enrollment)) continue;
-      const member = { number: pr.number, head: pr.head.sha, enrollment, review };
+      const member = { number: pr.number, head: pr.head.sha, enrollment, review, priority: priority(pr) };
       if (!liveMember(pr, member, api.repository, enrollment, review)) continue;
-      const files = await api.files(pr.number);
-      invariant(Array.isArray(files) && files.length > 0 && files.every(file => typeof file === 'string'),
+      const files = await api.files(pr.number, pr);
+      invariant(Array.isArray(files) && files.every(file => typeof file === 'string' && file.length > 0),
         'Candidate file inventory is unavailable.');
-      const singleton = files.some(file => CONTROL_PATH.test(file))
+      const singleton = files.length === 0 || files.some(file => CONTROL_PATH.test(file))
         || state.singletonRetries.some(item => item.number === member.number && item.head === member.head
           && item.enrollment === member.enrollment);
       if (singleton && members.length) break;
-      if (singleton) return reconcileSingleton(api, state, member.number, { now, ticket });
+      if (singleton) {
+        if (files.length === 0)
+          api.info(`PR #${pr.number}: complete zero-file inventory; requiring exact-head singleton validation and actual merge confirmation.`);
+        return reconcileSingleton(api, state, member.number, { now, ticket });
+      }
       members.push(member);
       if (singleton || members.length === MAX_MEMBERS) break;
     }
@@ -74,17 +91,31 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
     'Batch reconciliation clock moved before its reservation.');
   const merged = () => active.members.filter(member => member.merged).length;
   const expectedMain = () => merged() ? active.members[merged() - 1].merged : active.base;
-  async function halt(reason) {
+  async function halt(reason, failureKind = 'stale', cancelWork = false) {
     active.phase = 'retiring';
     active.reason = reason;
+    active.failureKind = failureKind;
     await save();
     api.notice(reason);
+    if (cancelWork) await quiescent();
+    await api.wake();
     return active.phase;
   }
   async function authorized(member) {
     const pr = await api.pull(member.number);
-    return liveMember(pr, member, api.repository, await api.enrollment(member.number),
-      await api.reviewState(member.number));
+    invariant(pr && ['open', 'closed'].includes(pr.state) && typeof pr.draft === 'boolean'
+      && typeof pr.base?.ref === 'string' && pr.base.ref.length > 0 && SHA.test(pr.head?.sha)
+      && typeof pr.head?.repo?.full_name === 'string' && pr.head.repo.full_name.length > 0
+      && (pr.auto_merge === null || ['squash', 'merge', 'rebase'].includes(pr.auto_merge?.merge_method)),
+    'Batch live source or intent metadata is unavailable; staleness is not established.');
+    invariant(pr.state !== 'open' || typeof pr.mergeable === 'boolean',
+      'Batch mergeability is unavailable; authority and physical quiescence remain unconfirmed.');
+    const enrollment = await api.enrollment(member.number);
+    const review = await api.reviewState(member.number);
+    invariant((enrollment === null || typeof enrollment === 'string' && Number.isFinite(Date.parse(enrollment)))
+      && [null, 'APPROVED', 'REVIEW_REQUIRED', 'CHANGES_REQUESTED'].includes(review),
+    'Batch enrollment or review authority is unavailable; staleness is not established.');
+    return liveMember(pr, member, api.repository, enrollment, review);
   }
   async function recoverRequired(reason) {
     active.phase = 'recovery-required';
@@ -105,7 +136,18 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
       if (!await authorized(member)) return halt('Batch enrollment, source or reviews changed before construction.');
     for (let index = active.prefixes.length; index < active.members.length; index++) {
       const prefix = await api.syntheticPrefix(active, index);
-      if (prefix === null) return halt('Synthetic batch has a merge conflict; no original PR was merged.');
+      if (prefix === null) {
+        const conflict = active.members[index];
+        if (!index) return halt('First synthetic member conflicts with protected main; isolate its exact head.',
+          'construction-conflict');
+        // No manifest or dispatch exists yet. Seal only the contiguous compatible prefix.
+        if (!state.singletonRetries.some(item => item.number === conflict.number && item.head === conflict.head
+          && item.enrollment === conflict.enrollment)) state.singletonRetries.push({ ...conflict });
+        active.members = active.members.slice(0, index);
+        api.notice(`Batch ${active.ticket}: construction conflict at PR #${conflict.number}; sealing a new `
+          + `${index}-member prefix manifest. The conflicting member retains its ordered singleton retry.`);
+        break;
+      }
       active.prefixes.push(prefix);
       await save();
       api.info(`Batch ${active.ticket}: prefix ${index + 1}; commit ${prefix.sha}; tree ${prefix.tree}.`);
@@ -141,7 +183,8 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
   }
   async function quiescent() {
     if (!observed) return !active.dispatchRecorded;
-    if (observed.run.status !== 'completed' || !terminalJobs(observed.jobs, active.inventory.jobs)) {
+    if (observed.run.status !== 'completed' || (!terminalJobs(observed.jobs, active.inventory.jobs)
+      && !await api.rejectedAdmission(active.base, observed.run, observed.jobs))) {
       await api.cancel(observed.run.id);
       return false;
     }
@@ -153,41 +196,47 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
     for (const member of active.members) {
       if (member.check) await api.finishCheck(member.check, 'cancelled', active.reason);
     }
-    if (active.phase === 'dispatched') {
-      let current = await api.main() === active.base;
-      for (const member of active.members) current = await authorized(member) && current;
-      if (!current) {
-        await halt('Batch source, protected base, enrollment or reviews changed during validation.');
-        await quiescent();
-        return 'retiring';
-      }
-    }
     // Group failure is not independent member failure. Isolate with full singleton validations.
-    if (active.members.length > 1) state.singletonRetries.push(...active.members.map(({ number, head, enrollment, review }) =>
-      ({ number, head, enrollment, review })));
-    else state.blocked.push({ number: active.members[0].number, head: active.members[0].head,
-      enrollment: active.members[0].enrollment, reason: active.reason });
+    const retry = active.failureKind === 'construction-conflict' ? active.members.slice(0, 1)
+      : active.failureKind === undefined || active.failureKind === 'validation-failure' ? active.members : [];
+    if (active.failureKind === 'construction-conflict' || retry.length > 1) {
+      for (const member of retry)
+        if (!state.singletonRetries.some(item => item.number === member.number && item.head === member.head
+          && item.enrollment === member.enrollment)) {
+          const { number, head, enrollment, review } = member;
+          state.singletonRetries.push({ number, head, enrollment, review });
+        }
+    } else if (retry.length === 1) state.blocked.push({ number: retry[0].number, head: retry[0].head,
+      enrollment: retry[0].enrollment, reason: active.reason });
     state.active = null;
     await save();
     await api.wake();
     return 'retired';
   }
+  if (active.phase === 'dispatched') {
+    let current = await api.main() === active.base;
+    for (const member of active.members) current = await authorized(member) && current;
+    if (!current)
+      return halt('Batch source, protected base, enrollment, priority or reviews changed during validation.',
+        'stale', true);
+  }
   if (!observed) {
     if (now - Date.parse(active.created) >= DISPATCH_OBSERVATION_MS)
-      return halt('Batch dispatch is unobservable; cancellation acknowledgement cannot release its lane.');
+      return halt('Batch dispatch is unobservable; cancellation acknowledgement cannot release its lane.', 'unavailable');
     return 'waiting-for-run';
   }
   const { run, jobs } = observed;
   api.info(`Batch ${active.ticket}: observed run ${run.id}, status ${run.status}; ${jobs.length} exact-run job records.`);
-  if (run.status !== 'completed') return 'validating';
   const outcome = requiredJobsState(jobs, active.inventory.jobs);
-  if (run.conclusion !== 'success' || outcome === 'failure')
-    return halt('Combined validation failed or duplicated required evidence; no independent member failure is inferred.');
+  if (outcome === 'failure' || run.status === 'completed' && run.conclusion !== 'success')
+    return halt('Combined validation failed or duplicated required evidence; no independent member failure is inferred.',
+      'validation-failure', true);
+  if (run.status !== 'completed') return 'validating';
   if (outcome !== 'success' || !terminalJobs(jobs, active.inventory.jobs)) {
     active.jobObservationStarted ??= now.toISOString();
     await save();
     if (now - Date.parse(active.jobObservationStarted) >= JOB_OBSERVATION_MS)
-      return halt('Batch required-job observation deadline expired; lane held until physical quiescence.');
+      return halt('Batch required-job observation deadline expired; lane held until physical quiescence.', 'unavailable', true);
     return 'waiting-for-jobs';
   }
   if (active.phase === 'dispatched') {
@@ -238,6 +287,15 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
           combined: active.head, manifest: active.digest,
           members: active.members.map(item => ({ number: item.number, source: item.head,
             admittedHead: item.mergeIntent.head, merged: item.merged })) };
+        if (api.independent) {
+          invariant(active.inventory.schema === 'windows-12-delivery-v1',
+            'Independent delivery requires the reviewed delivery workflow.');
+          Object.assign(state.completedTip, { delivery: 'independent-v1', base: active.base,
+            admission: manifestFor(active),
+            validation: { run: run.id, attempt: 1, source: active.head, workflow: active.base,
+              inventory: active.inventory.blob, schema: active.inventory.schema } });
+          state.deliveryProfile = 'independent-v1';
+        }
         state.active = null;
         state.singletonRetries = state.singletonRetries.filter(item => !active.members.some(done =>
           done.number === item.number && done.head === item.head && done.enrollment === item.enrollment));
@@ -327,6 +385,23 @@ async function reconcileSingleton(api, state, number, options) {
           && await api.containsBase(pr.merge_commit_sha, await api.main()),
         'Singleton actual merge differs from validated source/base; release remains blocked.');
         tip = { sha: pr.merge_commit_sha, tree: commit.tree, ticket: state.active.ticket };
+        if (api.independent) {
+          const inventory = await api.trustedInventory(state.active.base);
+          const runs = matchingRuns(await api.runs(state.active), state.active);
+          invariant(inventory?.schema === 'windows-12-delivery-v1' && runs.length === 1
+            && runs[0].status === 'completed' && runs[0].conclusion === 'success'
+            && runs[0].run_attempt === 1 && runs[0].head_sha === state.active.base,
+          'Independent singleton completion lacks trusted candidate proof.');
+          const jobs = await api.jobs(runs[0].id, 1);
+          invariant(requiredJobsState(jobs, inventory.jobs) === 'success' && terminalJobs(jobs, inventory.jobs),
+            'Independent singleton candidate jobs are incomplete.');
+          invariant(jobs.every(job => job.run_id === runs[0].id && job.run_attempt === 1
+            && job.head_sha === state.active.base), 'Independent singleton job identity changed.');
+          Object.assign(tip, { delivery: 'independent-v1', base: state.active.base,
+            combined: state.active.head, validation: { run: runs[0].id, attempt: 1,
+              source: state.active.head, workflow: state.active.base, inventory: inventory.blob, schema: inventory.schema } });
+          state.deliveryProfile = 'independent-v1';
+        }
       }
     }
     state.active = inner.active;
@@ -334,6 +409,7 @@ async function reconcileSingleton(api, state, number, options) {
     if (tip) state.completedTip = tip;
     await api.save(state);
   };
+  view.independent = false;
   const singleton = new Proxy(api, { get(target, key) {
     if (Object.hasOwn(view, key)) return view[key];
     const value = Reflect.get(target, key);

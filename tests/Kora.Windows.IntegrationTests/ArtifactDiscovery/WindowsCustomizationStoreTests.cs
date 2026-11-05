@@ -14,8 +14,21 @@ namespace Kora.Windows.IntegrationTests.ArtifactDiscovery;
 
 public sealed partial class WindowsCustomizationStoreTests : IDisposable
 {
-    private readonly string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-        ".net-test-artifacts", "customizations", Guid.NewGuid().ToString("N")));
+    private readonly string fixtureDirectory = CreateFixtureDirectory();
+    private string root => Path.Combine(fixtureDirectory, "storage");
+
+    private static string CreateFixtureDirectory()
+    {
+        var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..",
+            ".net-test-artifacts", "customizations"));
+        Directory.CreateDirectory(parent);
+        var directory = Path.Combine(parent, Guid.NewGuid().ToString("N"));
+        using var identity = WindowsIdentity.GetCurrent();
+        RestrictedStorageDirectory.CreateRestrictedDirectory(directory,
+            identity.User ?? throw new InvalidOperationException("The private fixture owner is unavailable."));
+        return directory;
+    }
+
     private WindowsCustomizationStore Create() => new(new Paths(root), Path.Combine(root, "editor-profile"), Path.Combine(root, "user-profile"));
     private sealed class DirectoryPreferences(ArtifactDirectorySettings settings) : IArtifactDirectoryPreferences
     {
@@ -282,6 +295,6 @@ public sealed partial class WindowsCustomizationStoreTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(root)) { Directory.Delete(root, recursive: true); }
+        if (Directory.Exists(fixtureDirectory)) { Directory.Delete(fixtureDirectory, recursive: true); }
     }
 }

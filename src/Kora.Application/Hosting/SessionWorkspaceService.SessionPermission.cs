@@ -20,6 +20,13 @@ public sealed partial class SessionWorkspaceService
         var origin = ProviderProfileOrigin(RequestOrigin.LocalUi);
         if (origin != RequestOrigin.LocalUi)
         { throw new InvalidOperationException("Start a fresh native permission review; voice/model input cannot be relabeled as a native confirmation."); }
+        return SetReviewedSessionPermissionAsync(expected, desired, origin, admitted, token);
+    }
+
+    internal Task<SessionPermissionPolicy> SetReviewedSessionPermissionAsync(SessionPermissionPolicy expected,
+        SessionPermissionLevel desired, RequestOrigin origin, Func<bool> admitted, CancellationToken token)
+    {
+        origin = ProviderProfileOrigin(origin);
         return ControlAsync(expected.SessionId, origin,
             (request, eligible) => PermissionStore.SetSessionPermissionAsync(request, expected, desired, eligible, token),
             token, admitted, existingSubject: true);

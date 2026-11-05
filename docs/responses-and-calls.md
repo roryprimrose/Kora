@@ -9,17 +9,23 @@ Long results can have [a brief and full Details](#brief-answers-and-full-details
 workflows below describe their reviews and limits; their controls do not enable
 a model. Built-in command responses and local speech still work.
 
+## Navigate headings in a final Markdown answer
+
+In an already opened final Markdown **Details** view, expand **Document headings (Alt+H)**. Each entry shows its position, heading level and complete heading text, including duplicate titles. Click an entry, or focus it and press Enter or Space, to move to and focus that exact heading. Alt+H focuses the first index entry again ([native interaction](../src/Kora/NativeDocumentInteraction.cs)).
+
+The index does not need links in the answer. It is unavailable in Exact source, Continuous text, source fallback, provisional answers and documents without headings. Switching back to the same admitted rendered view restores navigation; closing or losing source/private access retires it. Navigation does not copy, speak, open websites or grant permissions ([view lifetime](../src/Kora/DetailContentView.axaml.cs)).
+
 ## Inspect context submitted for a retained answer
 
 Select one exact retained ASSISTANT answer in Sessions or the conversation pane, then choose **Context submitted for this answer**. The private native Details view shows historical host metadata, not a new answer or source-body recall ([native route](../src/Kora/ConversationPresentation.axaml), [inspection owner](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs)).
 
-The supported subset is one explicitly reviewed, same-session history or **Session memory** request that completed successfully through a qualified local adapter. It shows original host-admitted local model/reasoning/context option IDs, locality, handoff time, complete canonical byte count and ordered content-free source references; identity/revision bindings stay internal ([record](../src/Kora.Core/Conversation/SubmittedAnswerContext.cs)).
+The supported subset is one explicitly reviewed same-session history, **Session memory** or **Device-profile memory** request that completed successfully through a qualified local adapter. It shows original host-admitted local model/reasoning/context option IDs, locality, handoff time, complete canonical byte count and ordered content-free source references; identity/revision bindings stay internal ([record](../src/Kora.Core/Conversation/SubmittedAnswerContext.cs)).
 
-The evidence means **canonical bytes handed to the admitted adapter**, not physical provider delivery, processing, reasoning or proof that the model used a source. Merely reviewing/selecting input and a model claiming a source prove neither. Device-profile memory, mixed context, instructions, attachments, tools and hosted context are not supported by this recorder; legacy/unsupported answers explicitly say **Unknown / not recorded** ([projection](../src/Kora.Core/Conversation/AnswerContextInspection.cs)).
+The evidence means **canonical bytes handed to the admitted adapter**, not physical provider delivery, processing, reasoning or proof that the model used a source. Merely reviewing/selecting input and a model claiming a source prove neither. Mixed context, instructions, attachments, tools and hosted context are not supported by this recorder; legacy/unsupported answers explicitly say **Unknown / not recorded** ([projection](../src/Kora.Core/Conversation/AnswerContextInspection.cs)).
 
 Only metadata appears in this inspector, including its native labels. The original USER and retained ASSISTANT bodies are not displayed as a secondary answer or substituted for unknown provenance; use the separate exact conversation Details actions to read them.
 
-Current source-row metadata may report the exact revision retained, or missing/changed and unavailable. Session memory must still have its exact enabled revision; disabling, forgetting or replacing it makes the historical reference unavailable. No newer revision is substituted. That does not validate or admit its body. Opening a body requires a separate existing fresh source-admission operation; this inspector has no body-opening, refresh, automatic transfer or fallback action ([metadata-only reader](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.AnswerContext.cs)).
+Current source-row metadata may report the exact revision retained, or missing/changed and unavailable. Memory must still have its exact enabled revision; Device-profile memory must also match the current profile. Disabling, forgetting or replacing it makes the historical reference unavailable. No newer revision is substituted. That does not validate or admit its body. Opening a body requires a separate existing fresh source-admission operation; this inspector has no body-opening, refresh, automatic transfer or fallback action ([metadata-only reader](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.AnswerContext.cs)).
 
 Use **Back to conversation** in the conversation pane to return to the exact originating answer; a separate Details window can be closed to return to its owner. No model call, source-body read, speech, clipboard copy, grant, history write or retention renewal occurs. Source/private/session changes retire stale presentation. The metadata follows its answer's existing session deletion and retention, not audit retention ([native return](../src/Kora/SessionInteractionView.axaml.cs), [passive inspection](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs)).
 
@@ -138,11 +144,31 @@ ordinal text, then again for descending. Equal values keep original order.
 **Reset table order** restores original order and the last focused cell.
 Reopening starts in original order. Sorting never edits the answer.
 
+To read a whole sorted row together, click or focus a data cell and choose
+**Inspect focused row**, or press Enter/Space on the cell. The readback lists every
+complete value with its header, current row and original row, including empty
+cells. **Return to inspected cell** goes back to that exact cell even after
+sorting or reset. This is read-only native text, not speech or copying; reopening
+starts without an inspected row ([row inspection](../src/Kora/NativeTableControl.Inspection.cs)).
+
 **Continuous text** and **Exact source** retain their existing selection and
 literal Find behavior. No table action copies content or grants clipboard
 access. Closing or retiring the original result retires its navigation too.
 An unavailable table profile still shows the complete source, not an incomplete
 table; these controls do not enable an unqualified profile.
+
+### See a literal match in context
+
+Use **Find first**, **Next** or **Previous** in Details, then choose **Show match
+in reader** to select and reveal that exact occurrence with its surrounding text.
+A rendered result switches to **Continuous text**; **Exact source** stays in its
+original projection. Find does not wrap at either end.
+
+The button is unavailable after query edits, Cancel/Clear, projection changes or
+direction exhaustion until another match is found. Separate typed HOST matches
+stay in their own observation, never in the answer or original USER body.
+Showing a match reads no additional source and grants no copy permission.
+Closing or losing access clears the reader and its selection.
 
 ### Wrap or horizontally scroll Details text
 
@@ -153,9 +179,12 @@ Space, or use its native toggle automation. Structured Markdown and its separate
 code-block wrapping are unchanged.
 
 This is a view-only choice, not a saved setting. Text, selection and literal Find
-stay unchanged. Closing or losing source/private access clears the reader; reopen
-the exact source normally to recover, with wrapping on by default. Wrapping grants
-no copy permission and reads no additional source.
+stay unchanged when toggling it. In integrated session Details, **Hide details**
+clears text and Find but remembers wrapping with that exact item's reading
+position. Explicit **Show details** rechecks access before restoring the projection,
+wrapping and scroll position. Other new readers start wrapped. Losing source/private
+access clears the reader; a remembered position cannot bypass normal admission.
+Wrapping grants no copy permission and reads no additional source.
 
 ### Review a final-answer external link
 
@@ -531,6 +560,7 @@ In **Sessions > Session memories**, explicitly list the exact active session, se
 A genuine final answer is displayed as ASSISTANT and retained through the existing conversation path; unavailable or denied HOST status is not an answer. Unqualified providers remain unavailable ([workflow](../src/Kora.Application/Memory/SessionMemoryContext.cs), [submission](../src/Kora.Application/Hosting/SessionConversationService.MemoryContext.cs)).
 
 Changed, disabled, forgotten, foreign, stale or unreviewed memory cannot be used. Memory management, private-access loss, navigation, cancellation and expiry retire pending review/use and clear its source bodies; late provider results cannot become a successful answer.
+While a memory change is pending, new memory-context reviews are unavailable, including reviews opened from another view. Wait for the operation to finish, explicitly list and select current eligible memories, review their complete values and request, then confirm again. A failed or cancelled change never restores earlier consent; inspect current memory and receipts before retrying an uncertain operation.
 Inspection/use never changes retention or remembers a new fact ([source admission](../src/Kora.Application/Memory/SessionMemoryContextSource.cs), [review lifecycle](../src/Kora.Application/Memory/SessionMemoryContextReview.cs)).
 
 Private source reads use their own host-owned control intent and confirmed terminal receipt before disclosure. This does not remember content or alter a selected memory's revision ([read admission](../src/Kora.Application/Hosting/SessionWorkspaceService.MemoryContext.cs)).

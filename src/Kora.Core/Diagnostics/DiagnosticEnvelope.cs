@@ -19,4 +19,5 @@ public sealed record DiagnosticEnvelope(
     HostRequest? Host,
     string? ExceptionType,
     Guid? AuditCorrelationId = null,
-    Guid? ApprovalId = null);
+    Guid? ApprovalId = null,
+    ExceptionReportSignature? ExceptionReport = null);

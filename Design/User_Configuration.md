@@ -16,6 +16,8 @@ or restore retired public diagnostic-queue settings. The
 [roadmap](Implementation_Roadmap.md#current-delivery) owns delivery status;
 the contracts below distinguish implemented controls from proposed scopes.
 
+Native single-setting review cancellation also retires pending source checks and confirmation eligibility, not just the visible readback. A late review cannot revive cancelled consent; recovery explicitly reviews the retained answer against current authoritative values before separate confirmation. In-flight persistence is not rolled back ([interaction and recovery](../docs/setting-proposals.md#review-confirm-or-cancel)).
+
 ## Fixed Reviewed Session Memory Management Boundary
 
 The [reviewed selected-subset memory workflow](Model_Providers_Memory_And_Knowledge.md#reviewed-selected-subset-session-memory-forget---2026-10-19)
@@ -879,6 +881,15 @@ Typed input and current-name-activated voice carry their original provenance ([p
 
 ### Delivered bounded installed speech choices (R10)
 
+The [retained model-answer bridge](../src/Kora.Application/Configuration/InstalledSpeechVoiceSuggestionReview.cs) also accepts one exact `speech.voice` Set with a user-supplied installed `provider / voice ID`.
+Both conversation sizes and exact typed/activated-voice Review/Confirm/Cancel routes bind the successful source, current catalogue and configuration; fresh original-user confirmation uses the existing atomic pair writer and exact persisted/current readback.
+
+Review exposes current/proposed provider AND voice, effective selection, saved/default provenance, shared device-local scope and future-only timing. The 60-second review never synthesizes/replays the answer or acquires assets.
+Original channel, protected calls, privacy/ownership, source/request/configuration revisions and unnotified catalogue changes remain authoritative; unknown or stale choices make no write ([host composition](../src/Kora.Application/ViewModels/MainViewModel.InstalledSpeechVoiceSuggestions.cs)).
+
+This adds no provider-only model Set/Reset, catalogue-enumeration tool, new provider, Reset/Undo behavior or adapter enablement. The parser derives the qualified answer bound from the full 256-character domain voice-ID bound without increasing other setting-family limits ([parser](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestions.cs)).
+See [user interaction and recovery](../docs/voice-and-audio.md#review-an-installed-voice-suggestion).
+
 Schema version 1 admits `speech.provider` (spoken name: speech provider) and
 `speech.voice` (speech voice), using the delivered Windows SAPI (`windows-sapi`)
 and Kokoro adapters only. Descriptors classify both as device-local,
@@ -943,6 +954,39 @@ Both conversation windows and exact typed/current-name activated-voice review/co
 The call-policy lock encloses final admission, atomic preference write and exact readback. Requested/terminal audit failures remain unconfirmed, with no automatic retry or rollback. The shared [one-change undo](../src/Kora.Application/Configuration/RegisteredSettings/AppearanceConfigurationService.Undo.cs) restores a compatible saved value or unsaved default through a new audited write. Other appearance review/undo remains native-only; no provider, visibility override, consent, grant or capability is enabled.
 
 See the [complete interaction](../docs/settings.md#review-a-response-timeout-suggestion) and [deterministic regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseTimeoutSuggestions.cs). This is bounded implementation evidence, not provider, acoustic or installed enablement/qualification.
+
+### Delivered confirmed presence settings answer
+
+The existing [confirmed settings inspection](../docs/setting-inspection.md)
+completes the read-only question "Why does Kora disappear so quickly, and what
+presence size and movement settings am I using?" through the host-owned
+[confirmed appearance reader](../src/Kora.Application/Configuration/SettingInspection/AppearanceConfigurationService.SettingInspection.cs)
+and [closed review](../src/Kora.Core/Configuration/SettingInspection/SettingInspectionReview.cs).
+The prior seven observations now include eight additional existing registered
+presence preferences: inactivity timeout, size, dot size/density, movement speed,
+speech scaling/amount and reduced motion. Existing domain defaults, units and
+bounds are unchanged; no setting or persistence format is added.
+
+The original native or admitted activated-voice question is preserved in the
+exact full source review with scalar values, saved/default provenance, a new
+local-only conversation destination, the original two-minute lifetime and no
+write authority. Separate confirmation permits one tool-free local answer or
+the existing opt-in `settings.list`/`settings.get` flow; only the question and
+genuine final answer enter existing conversation retention. Native Settings
+navigation remains navigation, not source consent or completed inspection.
+
+All eleven appearance observations must agree with disk and live saved/default
+state at the service revision. Malformed, unobserved, publishing, unconfirmed or
+changed state is unavailable; changes across review, tool or publication waits
+retire the original source and require fresh review. Reduced-motion false means
+follow Windows, not force motion. Preferences do not certify rendered frames,
+visibility, performance or Windows motion state.
+
+Mutation remains the separate existing setting-suggestion/native review.
+Inspection performs no preference write, grant, consent change, capture, speech,
+network/export, renderer replacement or run-only presence mutation. Response
+timeout and Windows speech rate remain outside this confirmed-value subset.
+Deterministic implementation tests do not enable or qualify a provider/profile.
 
 ### Delivered bounded spoken summary limits (R10)
 
@@ -1245,6 +1289,21 @@ operation and policy gate; model identification is never execution authority.
 Any setting that cannot safely support one of these routes documents the
 specific interaction, ambiguity, availability, privacy, or origin constraint
 in the capability catalogue.
+
+The existing three activated-capture timing settings also accept one inert exact
+Set or Reset from an authoritative retained final model answer. A timing-specific
+host review reads the complete current tuple, saved/default provenance and
+revision, shows all old/new decimal seconds and future-capture-only scope, and
+requires separate current native confirmation through
+`VoiceCaptureTimingConfigurationService`. Reset preserves both companion fields.
+The model is never original user input or write authority. Exact retained-source,
+session, privacy, consent, call, revision, native-lifetime and 60-second expiry
+checks remain mandatory across awaits; cancellation retires pending review and
+joins any actual persistence without claiming rollback. Audit/persistence/readback
+failure remains explicit and unconfirmed. This adds neither microphone admission
+nor a timing reader to generic `settings.get`
+([review operation](../src/Kora.Application/Configuration/VoiceCaptureTimingSuggestionReview.cs),
+[interaction](../docs/setting-proposals.md)).
 
 The desktop system-tray menu exposes a single-instance Settings window with
 every setting currently implemented by the host. All open settings surfaces

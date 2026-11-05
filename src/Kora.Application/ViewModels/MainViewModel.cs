@@ -2520,13 +2520,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public void ShowApplication()
     {
-        if (!sessionController.IsCurrentSessionUnlocked() || lifecycleAdmissionClosed)
-        {
-            ApplicationLog.Information(logger, "Denied revealing the application outside an eligible Windows session");
-            return;
-        }
-        Interlocked.Exchange(ref privacyPresentationHeld, 0);
-        OnPropertyChanged(nameof(IsPrivacyPresentationHeld));
+        if (!TryRecoverPrivatePresentation()) { return; }
         if (State == AssistantState.Hidden)
         {
             State = AssistantState.Information;
@@ -2555,7 +2549,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public void ShowPresentation()
     {
-        if (!IsPrivacyPresentationHeld && sessionController.IsCurrentSessionUnlocked())
+        if (CanRevealPrivatePresentation)
         {
             WindowActionRequested?.Invoke(this, WindowAction.Show);
         }
@@ -2580,13 +2574,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public void ShowSettings()
     {
-        if (!sessionController.IsCurrentSessionUnlocked() || lifecycleAdmissionClosed)
-        {
-            ApplicationLog.Information(logger, "Denied opening settings outside an eligible Windows session");
-            return;
-        }
-        Interlocked.Exchange(ref privacyPresentationHeld, 0);
-        OnPropertyChanged(nameof(IsPrivacyPresentationHeld));
+        if (!TryRecoverPrivatePresentation()) { return; }
         SettingsRequested?.Invoke(this, EventArgs.Empty);
     }
 
@@ -2597,7 +2585,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public event EventHandler? SessionsRequested;
 
-    public void ShowSessions() => SessionsRequested?.Invoke(this, EventArgs.Empty);
+    public void ShowSessions()
+    {
+        if (!TryRecoverPrivatePresentation()) { return; }
+        SessionsRequested?.Invoke(this, EventArgs.Empty);
+    }
 
     public string GetGrantDocument()
     {
@@ -4846,6 +4838,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 HasCurrentNameActivation(spokenText));
             return;
         }
+        if (InstalledSpeechVoiceSuggestionCommand.Parse(spokenText, AssistantName) is { } installedVoiceSuggestionCommand)
+        {
+            await ExecuteInstalledSpeechVoiceSuggestionAsync(installedVoiceSuggestionCommand, initiator,
+                HasCurrentNameActivation(spokenText));
+            return;
+        }
         if (SpeechCommand.Parse(spokenText, AssistantName) is { IsNaturalSummary: true } speechCommand)
         {
             if (initiator == SecurityAuditInitiator.VoiceCommand
@@ -4884,6 +4882,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         {
             if (initiator == SecurityAuditInitiator.VoiceCommand
                 && (sessionCommand.IsRetentionCommand || sessionCommand.IsConversationSearch || sessionCommand.IsPendingClear
+                    || sessionCommand.IsPermissionCommand
                     || sessionCommand.IsConversationDispatch
                     || sessionCommand.Operation is SessionCommandOperation.RequestReview or SessionCommandOperation.RequestConfirm
                         or SessionCommandOperation.RequestCancel or SessionCommandOperation.AttachmentInspect)
@@ -4898,7 +4897,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 reviewEligibility ?? CaptureSkillReviewEligibility(manualInput
                     ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision)),
                 HasCurrentNameActivation(spokenText),
-                manualInput?.AssistantNameRevision ?? assistantNameConfiguration.Get().Revision, foregroundTarget);
+                manualInput?.AssistantNameRevision ?? assistantNameConfiguration.Get().Revision, foregroundTarget,
+                sessionCommand.IsPermissionCommand
+                    ? CapturePermissionReviewSource(manualInput
+                        ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision))
+                    : null);
             return;
         }
         if (MemoryCommand.Parse(spokenText, AssistantName) is { } memoryCommand)
@@ -6352,6 +6355,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     + Environment.NewLine + Environment.NewLine + DurableVersionQuery.StorageDisclosure);
                 break;
             case BuiltInAction.ShowStatus:
+                RefreshSubmittedWorkActivity();
                 var outstanding = SetupTasks
                     .Where(task => task.State is SetupTaskState.Running
                         or SetupTaskState.NeedsAction or SetupTaskState.Failed)
@@ -6361,11 +6365,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                         ? $"Setting up {active.Name}."
                         : outstanding.Length > 0
                             ? "Setup needs attention."
-                            : IsVoiceEnabled ? "Waiting for your command." : "Voice is not active.",
-                    outstanding.Length > 0
+                            : "Assistant status.",
+                    (outstanding.Length > 0
                         ? string.Join(" ", outstanding.Select(task =>
                             $"{task.Name}: {task.State} — {task.Detail}"))
-                        : IsVoiceEnabled ? ListeningStatus : "Enable listening or use the typed proof field.");
+                        : IsVoiceEnabled ? ListeningStatus : "Enable listening or use the typed proof field.")
+                    + Environment.NewLine + Environment.NewLine + SubmittedWorkActivityStatus);
                 break;
             case BuiltInAction.ShowCurrentTaskProgress:
                 var currentTask = dependencyBootstrapper.Tasks.ActiveTask;
@@ -6373,19 +6378,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 {
                     ShowInformation(
                         $"{currentTask.Name}: running.",
-                        currentTask.ProgressPercentage is { } percentage
+                        (currentTask.ProgressPercentage is { } percentage
                             ? $"Current stage: {currentTask.Detail} Completion: {percentage}%."
-                            : $"Current stage: {currentTask.Detail} No completion percentage is available for this task.");
+                            : $"Current stage: {currentTask.Detail} No completion percentage is available for this task.")
+                        + Environment.NewLine + Environment.NewLine + SubmittedWorkActivityStatus);
                     break;
                 }
 
                 var nextTask = SetupTasks.FirstOrDefault(task =>
                     task.State is SetupTaskState.Queued or SetupTaskState.NeedsAction or SetupTaskState.Failed);
                 ShowInformation(
-                    "No task is running.",
-                    nextTask is null
+                    "No setup task is running.",
+                    (nextTask is null
                         ? "There is no active or pending setup task."
-                        : $"{nextTask.Name}: {nextTask.State}. {nextTask.Detail}");
+                        : $"{nextTask.Name}: {nextTask.State}. {nextTask.Detail}")
+                    + Environment.NewLine + Environment.NewLine + SubmittedWorkActivityStatus);
                 break;
             case BuiltInAction.CancelTask:
                 await CancelCurrentTaskAsync();
@@ -6798,6 +6805,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         OnPropertyChanged(nameof(CanChangeAudioOutputDevice));
         OnPropertyChanged(nameof(AudioOutputConfigurationStatus));
         OnPropertyChanged(nameof(CanChangePlaybackVolume));
+        OnPropertyChanged(nameof(CanChangePlaybackVolumeNative));
         OnPropertyChanged(nameof(CanInspectWindowsSpeechRate));
         OnPropertyChanged(nameof(CanChangeWindowsSpeechRate));
         OnPropertyChanged(nameof(CanInspectWindowsSpeechRateNative));
@@ -6893,6 +6901,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(SpeechSummarySuggestionCommand.FixedPhrases)
             .Concat(PlaybackVolumeSuggestionCommand.FixedPhrases)
             .Concat(WindowsSpeechRateSuggestionCommand.FixedPhrases)
+            .Concat(InstalledSpeechVoiceSuggestionCommand.FixedPhrases)
             .Concat(RegisteredSettingSuggestionCommand.FixedPhrases)
             .Concat(RegisteredSettingSuggestionCommand.ResponseTimeoutPhrases)
             .Concat(RegisteredSettingUndoCommand.FixedPhrases)

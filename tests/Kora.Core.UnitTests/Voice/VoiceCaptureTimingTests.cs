@@ -32,6 +32,7 @@ public sealed class VoiceCaptureTimingTests
     [InlineData(VoiceCaptureTiming.TrailingSilenceId, "0.4999999")]
     [InlineData(VoiceCaptureTiming.TrailingSilenceId, "3.0000001")]
     [InlineData(VoiceCaptureTiming.TrailingSilenceId, "0.50000001")]
+    [InlineData(VoiceCaptureTiming.TrailingSilenceId, "0.50000000000000000000000000001")]
     [InlineData(VoiceCaptureTiming.CommandStartId, "NaN")]
     [InlineData(VoiceCaptureTiming.CommandStartId, "-5")]
     [InlineData(VoiceCaptureTiming.CommandStartId, "5 s")]

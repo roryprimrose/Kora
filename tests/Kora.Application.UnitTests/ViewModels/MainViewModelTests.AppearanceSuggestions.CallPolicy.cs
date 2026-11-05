@@ -1,6 +1,8 @@
 using AwesomeAssertions;
 
 using Kora.Application.Configuration;
+using Kora.Application.Configuration.RegisteredSettings;
+using Kora.Application.Hosting;
 using Kora.Core.Auditing;
 using Kora.Core.Communication;
 using Kora.Core.Configuration;
@@ -195,6 +197,95 @@ public sealed partial class MainViewModelTests
             f.ViewModel.IsProtectedCall.Should().BeTrue();
             f.Audit.Events.Skip(auditCount).Select(item => item.Outcome).Should()
                 .Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+            f.Reasoner.Requests.Should().BeEmpty();
+            f.TextToSpeech.SpokenText.Should().BeNull();
+        }
+        finally { await f.ViewModel.DisposeAsync(); }
+    }
+
+    [Theory]
+    [InlineData(CallState.Active, false)]
+    [InlineData(CallState.Unknown, false)]
+    [InlineData(CallState.Active, true)]
+    [InlineData(CallState.Unknown, true)]
+    public async Task ProtectedCallAppearanceSuggestionUndoRetainsPrivateHostFence(CallState call, bool closePrivacy)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        try
+        {
+            f.CallState.SetState(call);
+            await f.Dispatcher.LastInvocation;
+            var message = AppearanceSuggestionMessage();
+            AppearanceSuggestionReview review;
+            using (AppearanceSuggestionInput(message))
+            {
+                review = await f.ViewModel.ReviewAppearanceSuggestionAsync(message, () => true,
+                    _ => Task.CompletedTask, TestContext.Current.CancellationToken);
+            }
+            using (review)
+            using (AppearanceSuggestionInput(message))
+            {
+                (await f.ViewModel.ConfirmAppearanceSuggestionAsync(review, TestContext.Current.CancellationToken))
+                    .Outcome.Should().Be(AppearanceApplyOutcome.Applied);
+            }
+            f.AppearancePreferences.SavedMode.Should().Be(ApplicationThemeMode.Dark);
+            var auditCount = f.Audit.Events.Count;
+            Task Native(RegisteredSettingSuggestionOperation operation) => HostRequestRunner.RunAsync(RequestOrigin.LocalUi,
+                () => f.ViewModel.ExecuteSettingsUndoAsync(operation, SecurityAuditInitiator.LocalUser,
+                    TestContext.Current.CancellationToken, static () => true));
+            await Native(RegisteredSettingSuggestionOperation.Review);
+            f.ViewModel.CanConfirmSettingsUndo.Should().BeTrue();
+            f.Audit.Events.Should().HaveCount(auditCount, "undo review is not a write");
+            if (closePrivacy)
+            {
+                f.ViewModel.CloseForObservedPrivacyEvent("fixture", true);
+                await f.ViewModel.PrivacyClosureTask;
+            }
+            await Native(RegisteredSettingSuggestionOperation.Confirm);
+            f.ViewModel.CanConfirmSettingsUndo.Should().BeFalse();
+            f.AppearancePreferences.LoadThemeMode().Should().Be(closePrivacy ? ApplicationThemeMode.Dark : null);
+            f.ViewModel.ThemeMode.Should().Be(closePrivacy ? ApplicationThemeMode.Dark : ApplicationThemeMode.System);
+            f.Audit.Events.Should().HaveCount(auditCount + (closePrivacy ? 0 : 2));
+            f.ViewModel.IsProtectedCall.Should().BeTrue();
+            f.CallState.CurrentState.Should().Be(call);
+            f.Reasoner.Requests.Should().BeEmpty();
+            f.TextToSpeech.SpokenText.Should().BeNull();
+        }
+        finally { await f.ViewModel.DisposeAsync(); }
+    }
+
+    [Theory]
+    [InlineData(CallState.Active)]
+    [InlineData(CallState.Unknown)]
+    public async Task ProtectedCallAppearanceReviewRejectsChangedAndRestoredPreference(CallState call)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        try
+        {
+            f.CallState.SetState(call);
+            await f.Dispatcher.LastInvocation;
+            var message = AppearanceSuggestionMessage();
+            AppearanceSuggestionReview review;
+            using (AppearanceSuggestionInput(message))
+            {
+                review = await f.ViewModel.ReviewAppearanceSuggestionAsync(message, () => true,
+                    _ => Task.CompletedTask, TestContext.Current.CancellationToken);
+            }
+            using (review)
+            using (AppearanceSuggestionInput(message))
+            {
+                f.ViewModel.ThemeMode = ApplicationThemeMode.Light;
+                await f.ViewModel.AppearanceUpdate;
+                f.ViewModel.ThemeMode = ApplicationThemeMode.System;
+                await f.ViewModel.AppearanceUpdate;
+                var auditCount = f.Audit.Events.Count;
+                review.Available.Should().BeFalse("returning to the same value does not restore the reviewed revision");
+                (await f.ViewModel.ConfirmAppearanceSuggestionAsync(review, TestContext.Current.CancellationToken))
+                    .Outcome.Should().Be(AppearanceApplyOutcome.Stale);
+                f.AppearancePreferences.SavedMode.Should().Be(ApplicationThemeMode.System);
+                f.Audit.Events.Should().HaveCount(auditCount);
+            }
+            f.ViewModel.IsProtectedCall.Should().BeTrue();
             f.Reasoner.Requests.Should().BeEmpty();
             f.TextToSpeech.SpokenText.Should().BeNull();
         }

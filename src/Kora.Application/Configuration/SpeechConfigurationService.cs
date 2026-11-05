@@ -244,6 +244,8 @@ public sealed partial class SpeechConfigurationService(
                             {
                                 preferences.SaveSelection(proposal.Selection);
                             }
+                            if (preferences.LoadSelection() != proposal.Selection)
+                            { throw new InvalidDataException("Speech selection readback does not match the exact provider and voice pair."); }
                         }
                     });
                 if (denied is not null)

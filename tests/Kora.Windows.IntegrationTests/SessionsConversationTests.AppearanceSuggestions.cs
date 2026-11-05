@@ -78,6 +78,16 @@ public sealed partial class SessionsConversationTests
                     .And.Contain("shared device-local");
                 restored.Reload();
                 restored.Get(option).IsSaved.Should().BeFalse("native Review cannot write");
+                window.FindControl<Button>("CancelRegisteredSettingSuggestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                model.RegisteredSettingSuggestionDescription.Should().BeEmpty();
+                model.CanConfirmRegisteredSettingSuggestion.Should().BeFalse();
+                restored.Reload();
+                restored.Get(option).IsSaved.Should().BeFalse("cancellation cannot save the reviewed value");
+                await model.ConfirmRegisteredSettingSuggestionAsync();
+                restored.Reload();
+                restored.Get(option).IsSaved.Should().BeFalse("cancelled review cannot be replayed");
+                await model.ReviewRegisteredSettingSuggestionAsync(answer);
+                model.CanConfirmRegisteredSettingSuggestion.Should().BeTrue(model.ConversationStatus);
                 window.FindControl<Button>("ConfirmRegisteredSettingSuggestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await owner.RegisteredSettingOperation;
                 Dispatcher.UIThread.RunJobs();

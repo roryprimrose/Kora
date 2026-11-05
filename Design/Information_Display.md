@@ -107,6 +107,7 @@ wide result does not lose its horizontal reading position. A different reference
 without a remembered position starts wrapped. Source/private retirement does not
 grant restoration authority. The offsets settle after the initial native caret
 reveal; intervening input or retirement cancels that deferred restoration.
+This includes Alt+H heading-index navigation: its explicit focus and scroll take precedence over a pending restored offset ([native regression](../tests/Kora.Windows.IntegrationTests/FinalDocumentInteractionTests.Headings.cs)).
 Toggling wrapping does not change the immutable source, logical lines, selection,
 caret or literal Find cursor/count, and it neither reads another source nor acquires
 clipboard authority.
@@ -1525,6 +1526,25 @@ does not reconstruct them from displayed text. The complete interaction-control
 budget includes local links, external review buttons, table cells/headers and
 code controls. Exceeding it retains the complete labelled source fallback,
 without partially active navigation or enabling an unavailable profile.
+
+Final Markdown Details also provides a collapsed **Document headings (Alt+H)**
+index, including when the author supplied no fragment links. Each native entry
+names its document ordinal, original parser heading level and complete semantic
+heading text. Activate an entry by pointer, Enter or Space to bring its exact
+parser-identified heading into view and focus it; duplicate and Unicode headings
+are not resolved by reconstructing text. Alt+H returns focus to the first index
+entry without selecting another source or changing the reading projection
+([native owner](../src/Kora/NativeDocumentInteraction.cs), [parser metadata](../src/Kora/NativeDetailRenderer.cs)).
+
+The index exists only for an admitted final rendered document with headings,
+not provisional text, source fallback or the guide/grants facade. Source and
+continuous-text projections deny index actions and accessible entry readback;
+returning to the rendered projection reuses only the same admitted view.
+Source/private/generation withdrawal, closure and detachment retire entries.
+The final control budget includes the index and its entries; exceeding it uses
+complete exact-source fallback. No copy, speech, browser, source read, model
+call or permission is added, and installed accessibility qualification is not
+claimed ([native regressions](../tests/Kora.Windows.IntegrationTests/FinalDocumentInteractionTests.Headings.cs)).
 
 [CODE-only native controls](../src/Kora/CodeHighlighting/NativeCodeBlock.cs)
 provide read-only keyboard focus/local selection and wrapping or horizontal

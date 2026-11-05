@@ -30,6 +30,11 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
       }
       if (!state.completedTip.qualification && !(api.independent
         && state.completedTip.delivery === 'independent-v1' && observation && !observation.provisional)) {
+        if (observation?.health?.status === 'BLOCKED_PUBLICATION') {
+          const health = observation.health;
+          api.notice(`BLOCKED_PUBLICATION: source ${health.source}; run ${health.run}; attempt ${health.attempt}; publication job ${health.job}; conclusion ${health.conclusion}; last durable progress: completed tip ${state.completedTip.sha}, qualification owner ${state.completedTip.qualificationOwner.run}, queue checkpoint ${api.commit}; authorized recovery required. Admission remains held; no retry dispatched.`);
+          return 'blocked-publication';
+        }
         if (!state.completedTip.qualificationRequested && !state.completedTip.qualificationOwner) {
           state.completedTip.qualificationRequested = true;
           await save();

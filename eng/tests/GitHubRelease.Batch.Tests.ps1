@@ -342,9 +342,32 @@ function Test-BatchReleaseSafety {
             $record = $global:KoraReleaseTestState.SafetyRecords[$runPath].Record
             if ($field -in @('repository', 'head_repository')) { $record[$field].full_name = 'untrusted/fork' }
             else { $record[$field] = 'wrong' }
-            Reject { Invoke-Release Publish }
+            Reject { Invoke-Release Publish } "rejected predicates: run-$field"
             Assert ($global:KoraReleaseTestState.Writes.Count -eq 0) "Unauthenticated run $field allowed publication."
         }
+        foreach ($status in @('queued', 'waiting', 'completed', 'unknown')) {
+            $global:KoraReleaseTestState = Copy-State $good
+            $global:KoraReleaseTestState.SafetyRecords[$runPath].Record.status = $status
+            Reject { Invoke-Release Publish } "rejected predicates: run-status; lifecycle: $status"
+            Assert ($global:KoraReleaseTestState.Writes.Count -eq 0) 'Run lifecycle diagnostics permitted publication.'
+        }
+        foreach ($field in @('path', 'state')) {
+            $global:KoraReleaseTestState = Copy-State $good
+            $global:KoraReleaseTestState.SafetyRecords[$workflowPath].Record[$field] = 'untrusted-metadata'
+            Reject { Invoke-Release Publish } "rejected predicates: workflow-$field"
+            Assert ($global:KoraReleaseTestState.Writes.Count -eq 0) 'Workflow identity diagnostics permitted publication.'
+        }
+        $global:KoraReleaseTestState = Copy-State $good
+        $global:KoraReleaseTestState.SafetyRecords[$runPath].Record.status = 'untrusted-metadata'
+        $global:KoraReleaseTestState.SafetyRecords[$runPath].Record.head_sha = 'untrusted-metadata'
+        Reject { Invoke-Release Publish } 'rejected predicates: run-head_sha,run-status; lifecycle: unknown'
+        Assert ($global:KoraReleaseTestState.Writes.Count -eq 0) 'Multiple failed predicates permitted publication.'
+        $global:KoraReleaseTestState = Copy-State $good
+        $global:KoraReleaseTestState.SafetyRecords[$runPath].Record.event = 'workflow_dispatch'
+        $env:GITHUB_EVENT_NAME = 'workflow_dispatch'
+        Invoke-Release Publish | Out-Null
+        Assert (-not $global:KoraReleaseTestState.Releases[0].draft) 'The trusted first-attempt manual main caller was rejected.'
+        $env:GITHUB_EVENT_NAME = 'push'
         foreach ($change in @('missing', 'duplicate', 'completed', 'sha', 'run', 'incomplete')) {
             $global:KoraReleaseTestState = Copy-State $good
             $record = $global:KoraReleaseTestState.SafetyRecords[$jobsPath].Record

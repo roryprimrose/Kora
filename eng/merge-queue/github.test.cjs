@@ -146,7 +146,7 @@ test('candidate packaging diff must prove exact admitted ancestry and never trea
 
 test('independent main early failure is negative terminal evidence, not successful qualification or a permanent lane dependency', async () => {
   const { REJECTED_DELIVERY_JOBS } = require('./policy.cjs');
-  const workflow = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8').replaceAll('\r\n', '\n');
+  const workflow = fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-3ed51a1b.yml'), 'utf8').replaceAll('\r\n', '\n');
   const run = { id: 42, run_attempt: 1, head_sha: BASE, head_branch: 'main', event: 'push',
     display_title: 'CI main', status: 'completed', conclusion: 'failure' };
   const jobs = REJECTED_DELIVERY_JOBS.map((name, index) => ({ id: index + 1, name,
@@ -234,20 +234,67 @@ test('independent main early failure is negative terminal evidence, not successf
   });
 
   test('batch changed-file inventory is complete and bounded; truncation and duplicates cannot hide control changes', async () => {
-    const value = fixture({ get: () => ({ ...pr(), changed_files: 2 }),
+    const source = () => ({ ...pr(), number: 1, base: { ref: 'main', sha: BASE }, changed_files: 2 });
+    const value = fixture({ get: source,
       listFiles: () => [{ filename: 'src/feature.cs' }, { filename: '.github/workflows/ci.yml' }] });
     assert.deepEqual(await value.api.files(1), ['src/feature.cs', '.github/workflows/ci.yml']);
     value.responses.listFiles = () => [{ filename: 'src/feature.cs' },
       { filename: 'docs/old-policy.txt', previous_filename: 'eng/merge-queue/policy.cjs' }];
     assert.deepEqual(await value.api.files(1), ['src/feature.cs', 'docs/old-policy.txt', 'eng/merge-queue/policy.cjs']);
-    for (const count of [undefined, 0, 3000, 3001]) {
-      value.responses.get = () => ({ ...pr(), changed_files: count });
+    for (const count of [undefined, null, -1, 0.5, '0', 3000, 3001]) {
+      value.responses.get = () => ({ ...source(), changed_files: count });
       await assert.rejects(value.api.files(1), /inventory/);
     }
-    value.responses.get = () => ({ ...pr(), changed_files: 2 });
+    value.responses.get = source;
     for (const files of [[{ filename: 'one' }], [{ filename: 'one' }, { filename: 'one' }]]) {
       value.responses.listFiles = () => files;
       await assert.rejects(value.api.files(1), /Incomplete or duplicate/);
+    }
+  });
+
+  test('complete zero-file inventory is read and bound to the exact live source and base', async () => {
+    const source = () => ({ ...pr(), number: 1, base: { ref: 'main', sha: BASE }, changed_files: 0 });
+    const value = fixture({ get: source, listFiles: () => [] });
+    assert.deepEqual(await value.api.files(1, source()), []);
+    assert.equal(value.calls.filter(([name]) => name === 'listFiles').length, 1);
+    assert.equal(value.calls.filter(([name]) => name === 'get').length, 2);
+    value.responses.listFiles = () => [{ filename: 'unexpected' }];
+    await assert.rejects(value.api.files(1, source()), /Incomplete/);
+    value.responses.listFiles = () => { throw error(403); };
+    await assert.rejects(value.api.files(1, source()), /HTTP 403/);
+    value.responses.listFiles = () => ({ files: [] });
+    await assert.rejects(value.api.files(1, source()));
+    value.github.paginate = async () => undefined;
+    await assert.rejects(value.api.files(1, source()), /inventory is unavailable/);
+  });
+
+  test('file inventory rejects foreign, stale, malformed or changing source and base metadata', async () => {
+    const source = () => ({ ...pr(), number: 1, base: { ref: 'main', sha: BASE }, changed_files: 0 });
+    const changes = [
+      value => { value.number = 2; },
+      value => { value.head.sha = OTHER; },
+      value => { value.head.sha = undefined; },
+      value => { value.head.repo.full_name = 'foreign/repo'; },
+      value => { value.base.sha = OTHER; },
+      value => { value.base.sha = undefined; },
+      value => { value.base.ref = 'other'; },
+      value => { value.changed_files = 1; },
+    ];
+    for (const change of changes) {
+      for (const stage of ['initial', 'readback']) {
+        let reads = 0;
+        const value = fixture({ get: () => {
+          const current = source();
+          if (stage === 'initial' || reads++ > 0) change(current);
+          return current;
+        }, listFiles: () => [] });
+        await assert.rejects(value.api.files(1, source()), /inventory|source|metadata/i);
+      }
+    }
+    for (const files of [[null], [{}], [{ filename: '' }], [{ filename: 'ok', previous_filename: '' }]]) {
+      const current = { ...source(), changed_files: 1 };
+      const value = fixture({ get: () => current, listFiles: () => files });
+      await assert.rejects(value.api.files(1, current), /Malformed/);
     }
   });
 
@@ -387,6 +434,67 @@ test('independent main early failure is negative terminal evidence, not successf
     assert.equal(full.terminal, false);
     assert.equal(value.calls.some(call => ['createWorkflowDispatch', 'cancelWorkflowRun'].includes(call[0])), false);
   });
+
+test('terminal failed publication exposes blocked health only with complete physical evidence and yields to observed recovery', async () => {
+  const source = '042232e948053c44bbc5f3b92bd6a7eda486a3a3';
+  const run = { id: 41876386020, run_attempt: 1, head_sha: source, status: 'completed',
+    conclusion: 'failure', event: 'workflow_dispatch', head_branch: 'main', display_title: 'CI main',
+    path: '.github/workflows/ci.yml', repository: { full_name: 'owner/repo' },
+    head_repository: { full_name: 'owner/repo' } };
+  const jobs = [...DELIVERY_JOBS, 'Publish completed batch release', 'Qualify completed batch tip']
+    .map((name, index) => ({ id: index + 1, name, status: 'completed', conclusion: 'success',
+      run_id: run.id, run_attempt: 1, head_sha: source }));
+  const publisher = jobs.find(job => job.name === 'Publish completed batch release');
+  Object.assign(publisher, { id: 126747376970, conclusion: 'failure' });
+  Object.assign(jobs.at(-1), { id: 126749535286, conclusion: 'failure' });
+  const tip = { sha: source, qualificationOwner: { run: run.id, source, attempt: 1 } };
+  const runs = [run];
+  const value = fixture({ getContent: () => workflowContent(
+    '# merge-queue-job-schema: windows-12-v1\n# merge-queue-delivery-schema: independent-v1\n'),
+    listWorkflowRuns: () => ({ total_count: runs.length, workflow_runs: runs }),
+    listJobsForWorkflowRunAttempt: ({ run_id }) => {
+      const observed = run_id === run.id ? jobs : jobs.map(job => ({ ...job, run_id, conclusion: 'success' }));
+      return { total_count: observed.length, jobs: observed };
+    } });
+  const blocked = { status: 'BLOCKED_PUBLICATION', source, run: run.id, attempt: 1,
+    job: publisher.id, conclusion: 'failure', recovery: 'authorized-recovery-required' };
+  assert.deepEqual((await value.api.tipQualification(tip)).health, blocked);
+  for (const change of ['pending', 'missing', 'duplicate', 'cancelled-not-quiescent', 'wrong-source', 'wrong-attempt',
+    'wrong-repository', 'wrong-workflow']) {
+    const saved = structuredClone(jobs);
+    const target = jobs.find(job => job.name === 'Publish completed batch release');
+    if (change === 'pending') run.status = 'in_progress';
+    if (change === 'missing') jobs.shift();
+    if (change === 'duplicate') jobs.push({ ...target, id: 999 });
+    if (change === 'cancelled-not-quiescent') {
+      target.conclusion = 'cancelled';
+      jobs[0].status = 'in_progress';
+    }
+    if (change === 'wrong-source') target.head_sha = OTHER;
+    if (change === 'wrong-attempt') target.run_attempt = 2;
+    if (change === 'wrong-repository') run.repository.full_name = 'untrusted/fork';
+    if (change === 'wrong-workflow') run.path = '.github/workflows/forged.yml';
+    if (['wrong-source', 'wrong-attempt'].includes(change)) await assert.rejects(value.api.tipQualification(tip), /identity/);
+    else assert.equal((await value.api.tipQualification(tip)).health, undefined, change);
+    jobs.splice(0, jobs.length, ...saved);
+    run.status = 'completed';
+    run.repository.full_name = 'owner/repo';
+    run.path = '.github/workflows/ci.yml';
+  }
+  value.responses.listWorkflowRuns = () => { throw error(503); };
+  await assert.rejects(value.api.tipQualification(tip), /503/);
+  value.responses.listWorkflowRuns = () => ({ total_count: runs.length, workflow_runs: runs });
+  runs.push({ ...run, id: run.id + 1, status: 'in_progress', conclusion: null });
+  const pendingRecovery = await value.api.tipQualification(tip);
+  assert.equal(pendingRecovery.owner.run, run.id + 1);
+  assert.equal(pendingRecovery.health, undefined);
+  assert.equal(pendingRecovery.qualification, null);
+  Object.assign(runs.at(-1), { status: 'completed', conclusion: 'success' });
+  const recovery = await value.api.tipQualification(tip);
+  assert.equal(recovery.health, undefined);
+  assert.equal(recovery.qualification.run, run.id + 1);
+  assert.equal(value.calls.some(call => ['createWorkflowDispatch', 'cancelWorkflowRun'].includes(call[0])), false);
+});
 test('App check protection must include every required identity, strict freshness and administrators', async () => {
   await fixture().api.verifyProtection();
   for (const missing of ['strict', 'admins', ...CHECKS, GATE, 'source']) {
@@ -694,16 +802,34 @@ test('preflight rejection retirement authenticates the exact reviewed workflow b
   assert.equal(value.calls.some(call => ['merge', 'createWorkflowDispatch', 'updateRef'].includes(call[0])), false);
 });
 
-test('real schema-declared workflow resolves complete inventory; new unversioned source fails closed', async () => {
+test('real schema-declared and historical protected workflows resolve their complete producer inventories', async () => {
   const source = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8')
     .replaceAll('\r\n', '\n');
-  const unversioned = source.replace('# merge-queue-job-schema: windows-12-v1\n', '');
-  assert.equal(await fixture({ getContent: () => workflowContent(unversioned) }).api.expectedJobs(BASE), null);
-  for (const workflow of [source]) {
+  const unversioned = fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-native-fixture-timing.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  assert.equal(workflowContent(unversioned).sha, 'd3db4c610d08468c508f09e63b10f7c6568b82ea');
+  for (const [workflow, inventory] of [[source, DELIVERY_JOBS], [unversioned, WINDOWS_12_JOBS]]) {
     const value = fixture({ getContent: () => workflowContent(workflow) });
-    assert.deepEqual(await value.api.expectedJobs(BASE), DELIVERY_JOBS);
+    assert.deepEqual(await value.api.expectedJobs(BASE), inventory);
     assert.deepEqual(value.calls, [['getContent', { owner: 'owner', repo: 'repo',
       ref: BASE, path: '.github/workflows/ci.yml' }]]);
+  }
+});
+
+test('removing the schema or modifying a predecessor does not authorize an unknown workflow blob', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'ci.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  const predecessor = fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-native-fixture-timing.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  for (const workflow of [source.replace('# merge-queue-job-schema: windows-12-v1\n', ''),
+    `${predecessor}\n# Unrecognized revision\n`]) {
+    const value = fixture({ getContent: () => workflowContent(workflow) });
+    assert.equal(await value.api.expectedJobs(BASE), null);
+    assert.deepEqual(value.calls.filter(call => call[0] === 'getContent'),
+      [['getContent', { owner: 'owner', repo: 'repo', ref: BASE, path: '.github/workflows/ci.yml' }]]);
+    assert.equal(value.calls.filter(call => call[0] === 'warning').length, 1);
+    assert.match(value.calls.at(-1)[1], /physical quiescence is unknown/);
+    assert.equal(value.calls.some(call => ['update', 'merge', 'createWorkflowDispatch'].includes(call[0])), false);
   }
 });
 
@@ -765,7 +891,7 @@ test('a late recovered ticket cannot admit expensive candidate work after its re
 });
 
 test('decision logs and warnings appear in both the console and awaited Actions summary', async () => {
-  for (const result of ['idle', 'dispatched', 'failed']) {
+  for (const result of ['idle', 'dispatched', 'blocked-publication', 'failed']) {
     const value = fixture();
     const summaryCalls = [];
     let written = false;

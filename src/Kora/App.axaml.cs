@@ -247,7 +247,9 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Core.Diagnostics.IEvidenceQueryAccess>(),
                 Services.GetRequiredService<ILogger<EvidenceViewModel>>(),
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
-                CreateEvidenceAnswers(), Services.GetRequiredService<TimeProvider>());
+                CreateEvidenceAnswers(), Services.GetRequiredService<TimeProvider>(),
+                Services.GetRequiredService<Kora.Application.Diagnostics.GitHubIssueReportWorkflow>(),
+                Services.GetRequiredService<Kora.Core.Hosting.IApplicationInfo>());
             evidenceWindow.Bind();
             BindSettingInspection(settingsWindow);
             fileWindow = new LocalFilePreviewWindowController(viewModel, GetPresenceOwner);

@@ -30,6 +30,11 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
       }
       if (!state.completedTip.qualification && !(api.independent
         && state.completedTip.delivery === 'independent-v1' && observation && !observation.provisional)) {
+        if (observation?.health?.status === 'BLOCKED_PUBLICATION') {
+          const health = observation.health;
+          api.notice(`BLOCKED_PUBLICATION: source ${health.source}; run ${health.run}; attempt ${health.attempt}; publication job ${health.job}; conclusion ${health.conclusion}; last durable progress: completed tip ${state.completedTip.sha}, qualification owner ${state.completedTip.qualificationOwner.run}, queue checkpoint ${api.commit}; authorized recovery required. Admission remains held; no retry dispatched.`);
+          return 'blocked-publication';
+        }
         if (!state.completedTip.qualificationRequested && !state.completedTip.qualificationOwner) {
           state.completedTip.qualificationRequested = true;
           await save();
@@ -58,14 +63,18 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
         && item.enrollment === enrollment)) continue;
       const member = { number: pr.number, head: pr.head.sha, enrollment, review, priority: priority(pr) };
       if (!liveMember(pr, member, api.repository, enrollment, review)) continue;
-      const files = await api.files(pr.number);
-      invariant(Array.isArray(files) && files.length > 0 && files.every(file => typeof file === 'string'),
+      const files = await api.files(pr.number, pr);
+      invariant(Array.isArray(files) && files.every(file => typeof file === 'string' && file.length > 0),
         'Candidate file inventory is unavailable.');
-      const singleton = files.some(file => CONTROL_PATH.test(file))
+      const singleton = files.length === 0 || files.some(file => CONTROL_PATH.test(file))
         || state.singletonRetries.some(item => item.number === member.number && item.head === member.head
           && item.enrollment === member.enrollment);
       if (singleton && members.length) break;
-      if (singleton) return reconcileSingleton(api, state, member.number, { now, ticket });
+      if (singleton) {
+        if (files.length === 0)
+          api.info(`PR #${pr.number}: complete zero-file inventory; requiring exact-head singleton validation and actual merge confirmation.`);
+        return reconcileSingleton(api, state, member.number, { now, ticket });
+      }
       members.push(member);
       if (singleton || members.length === MAX_MEMBERS) break;
     }

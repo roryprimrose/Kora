@@ -1,5 +1,5 @@
 name: CI
-# merge-queue-job-schema: windows-12-v1
+# merge-queue-job-schema: unit-pr-v1
 # merge-queue-delivery-schema: independent-v1
 run-name: "${{ inputs.queue_batch && format('Merge queue batch [{0}]', inputs.queue_ticket) || inputs.queue_ticket && format('Merge queue PR #{0} [{1}]', inputs.queue_pr, inputs.queue_ticket) || format('CI {0}', github.ref_name) }}"
 
@@ -261,10 +261,10 @@ jobs:
             **/packages.lock.json
 
       - name: Restore locked dependencies
-        run: dotnet restore Kora.slnx --locked-mode
+        run: dotnet restore Kora.UnitTests.slnx --locked-mode
 
       - name: Build the same Release solution as portable CI once
-        run: dotnet build Kora.slnx --configuration Release --no-restore
+        run: dotnet build Kora.UnitTests.slnx --configuration Release --no-restore
 
       - name: Compare sequential and parallel execution
         shell: pwsh
@@ -280,7 +280,7 @@ jobs:
 
   native-evidence-comparison:
     name: Compare native fixture evidence
-    if: github.event_name == 'workflow_dispatch' && inputs.compare_native_evidence && needs.version.outputs.preflight-source != '' && needs.version.outputs.preflight-source == needs.version.outputs.source-revision
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.compare_native_evidence && needs.version.outputs.preflight-source != '' && needs.version.outputs.preflight-source == needs.version.outputs.source-revision
     runs-on: windows-latest
     timeout-minutes: 30
     needs: version
@@ -344,13 +344,19 @@ jobs:
             **/packages.lock.json
 
       - name: Restore locked dependencies
-        run: dotnet restore Kora.slnx --locked-mode
+        run: dotnet restore Kora.UnitTests.slnx --locked-mode
+
+      - name: Restore architecture guard fixtures
+        run: dotnet restore tests/Kora.Architecture.Tests/Kora.Architecture.Tests.csproj --locked-mode
 
       - name: Restore local tools
         run: dotnet tool restore
 
-      - name: Build solution without restore
-        run: dotnet build Kora.slnx --configuration Release --no-restore
+      - name: Build portable unit solution without restore
+        run: dotnet build Kora.UnitTests.slnx --configuration Release --no-restore
+
+      - name: Build architecture guard fixtures
+        run: dotnet build tests/Kora.Architecture.Tests/Kora.Architecture.Tests.csproj --configuration Release --no-restore
 
       # Publication tests use a fake CLI, including abrupt child exits under the Actions pwsh wrapper.
       - name: Test version and draft-publication process policy
@@ -599,7 +605,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     needs: version
-    if: needs.version.outputs.already-published != 'true' && needs.version.outputs.preflight-source != '' && needs.version.outputs.preflight-source == needs.version.outputs.source-revision
+    if: github.event_name != 'pull_request' && needs.version.outputs.candidate == 'false' && needs.version.outputs.already-published != 'true' && needs.version.outputs.preflight-source != '' && needs.version.outputs.preflight-source == needs.version.outputs.source-revision
     env:
       Version: ${{ needs.version.outputs.version }}
 
@@ -662,7 +668,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     needs: [version, windows-test-build]
-    if: needs.version.outputs.already-published != 'true' && needs.version.outputs.preflight-source != '' && needs.version.outputs.preflight-source == needs.version.outputs.source-revision
+    if: github.event_name != 'pull_request' && needs.version.outputs.candidate == 'false' && needs.version.outputs.already-published != 'true' && needs.version.outputs.preflight-source != '' && needs.version.outputs.preflight-source == needs.version.outputs.source-revision
     strategy:
       fail-fast: false
       matrix:
@@ -713,7 +719,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [admission, version, windows-test-build, windows-test-partitions]
-    if: always() && needs.version.outputs.already-published != 'true' && (needs.admission.result != 'success' || needs.admission.outputs.full != 'false')
+    if: always() && github.event_name != 'pull_request' && needs.admission.outputs.candidate == 'false' && needs.version.outputs.already-published != 'true' && (needs.admission.result != 'success' || needs.admission.outputs.full != 'false')
     strategy:
       fail-fast: false
       matrix:
@@ -734,7 +740,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [admission, version, windows-integration-shards]
-    if: always() && needs.version.outputs.already-published != 'true' && (needs.admission.result != 'success' || needs.admission.outputs.full != 'false')
+    if: always() && github.event_name != 'pull_request' && needs.admission.outputs.candidate == 'false' && needs.version.outputs.already-published != 'true' && (needs.admission.result != 'success' || needs.admission.outputs.full != 'false')
     steps:
       - name: Require every Windows shard to succeed
         shell: pwsh
@@ -774,6 +780,7 @@ jobs:
     needs: [version, payload]
     if: needs.version.outputs.preflight-source != '' && needs.version.outputs.preflight-source == needs.version.outputs.source-revision
     env:
+      Version: ${{ needs.version.outputs.version }}
       SOURCE_REVISION: ${{ needs.version.outputs.source-revision }}
     steps:
       - name: Check out source
@@ -783,7 +790,6 @@ jobs:
           persist-credentials: false
 
       - name: Install .NET SDK
-        if: needs.version.outputs.packaging == 'true'
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
@@ -810,13 +816,17 @@ jobs:
           -SourceRevision "$env:SOURCE_REVISION"
 
       - name: Restore locked installer dependencies
-        if: needs.version.outputs.packaging == 'true'
         shell: pwsh
         run: |
           dotnet restore .\installer\Kora.Msi\Kora.Msi.wixproj --locked-mode
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet restore .\installer\Kora.Bundle\Kora.Bundle.wixproj --locked-mode
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet restore .\installer\Kora.Setup\Kora.Setup.csproj --locked-mode
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Compile managed setup without running integration tests
+        run: dotnet build installer/Kora.Setup/Kora.Setup.csproj --configuration Release --no-restore
 
       - name: Test installer metadata contracts without installing
         shell: pwsh

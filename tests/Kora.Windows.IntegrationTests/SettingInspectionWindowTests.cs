@@ -60,6 +60,52 @@ public sealed class SettingInspectionWindowTests
         });
     }
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task ReentrantCancellationOrCloseJoinsTheOperationBeforeStartupNotifications(bool confirm, bool close)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            await using var f = new SettingInspectionWorkflowTests.Fixture();
+            await f.InitializeAsync();
+            var presenter = new SettingInspectionPresenter(f.Workflow, () => () => true, () => () => true, f.Storage.Time)
+            { Question = "What is my reading text size?" };
+            if (confirm) { await presenter.ReviewAsync(); }
+            Task? retirement = null;
+            bool? prematurelyJoined = null;
+            presenter.PropertyChanged += (_, args) =>
+            {
+                if (!string.Equals(args.PropertyName, nameof(presenter.IsBusy), StringComparison.Ordinal)
+                    || !presenter.IsBusy || prematurelyJoined.HasValue)
+                { return; }
+                prematurelyJoined = false;
+                retirement = close ? presenter.CloseAsync() : presenter.CancelAsync();
+                prematurelyJoined = retirement.IsCompleted;
+            };
+
+            await (confirm ? presenter.ConfirmAsync() : presenter.ReviewAsync());
+            prematurelyJoined.Should().BeFalse("startup observers must join the newly owned operation, not its predecessor");
+            retirement.Should().NotBeNull();
+            await retirement!;
+            presenter.IsBusy.Should().BeFalse();
+            presenter.CanConfirm.Should().BeFalse();
+            presenter.CanReview.Should().Be(!close);
+            presenter.ReviewText.Should().BeEmpty();
+            presenter.Answer.Should().BeEmpty();
+            presenter.Status.Should().Contain("physically joined");
+            f.Adapter.Calls.Should().Be(0);
+            f.Storage.Count("work_sessions").Should().Be(0);
+            f.Storage.Count("conversation_messages").Should().Be(0);
+            f.Preferences.Writes.Should().Be(0);
+            f.Playback.Effects.Should().Be(0);
+            f.Host.IsQuiescent.Should().BeTrue();
+            await presenter.CloseAsync();
+        });
+    }
+
     [Fact]
     public async Task ExplicitNativeDiscoveryChoiceRequiresFreshReviewAndSeparateExactConfirmation()
     {

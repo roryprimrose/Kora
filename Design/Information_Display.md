@@ -795,6 +795,21 @@ stable tie-break in both directions. No number/date/type inference is performed.
 starts with original order. Sorting changes only the volatile view, not source,
 continuous-text selection, literal Find, retention or clipboard authority.
 
+For complete-row inspection in the current sorted order, focus a data cell with
+the pointer or arrows, then activate **Inspect focused row** or press Enter/Space.
+The [native row inspector](../src/Kora/NativeTableControl.Inspection.cs) focuses
+inert, header-labelled readback of every complete cell, including empty cells and
+duplicate headers, with both current and original row positions. Sorting/reset
+keeps that original row selected and updates its displayed position.
+**Return to inspected cell** restores the exact original cell in the current
+order. This is volatile, non-live-region native text, not speech, clipboard,
+editing, a generated summary or persistence; reopening starts without inspection.
+It shares the [table admission and retirement owner](../src/Kora/NativeTableControl.cs)
+and does not enable the independently gated table profile.
+The [row-inspection regressions](../tests/Kora.Windows.IntegrationTests/NativeTableRowInspectionTests.cs)
+exercise native pointer/keyboard entry, stable sorted identity, complete byte-bound
+readback, return, clipboard refusal and reentrant private retirement.
+
 The existing table bounds remain 32 total rows, 8 columns, 128 document cells
 and 2,048 UTF-8 bytes per semantic cell. Profile availability remains separately
 gated and false by default; this implementation does not qualify or enable it.
@@ -1517,6 +1532,25 @@ does not reconstruct them from displayed text. The complete interaction-control
 budget includes local links, external review buttons, table cells/headers and
 code controls. Exceeding it retains the complete labelled source fallback,
 without partially active navigation or enabling an unavailable profile.
+
+Final Markdown Details also provides a collapsed **Document headings (Alt+H)**
+index, including when the author supplied no fragment links. Each native entry
+names its document ordinal, original parser heading level and complete semantic
+heading text. Activate an entry by pointer, Enter or Space to bring its exact
+parser-identified heading into view and focus it; duplicate and Unicode headings
+are not resolved by reconstructing text. Alt+H returns focus to the first index
+entry without selecting another source or changing the reading projection
+([native owner](../src/Kora/NativeDocumentInteraction.cs), [parser metadata](../src/Kora/NativeDetailRenderer.cs)).
+
+The index exists only for an admitted final rendered document with headings,
+not provisional text, source fallback or the guide/grants facade. Source and
+continuous-text projections deny index actions and accessible entry readback;
+returning to the rendered projection reuses only the same admitted view.
+Source/private/generation withdrawal, closure and detachment retire entries.
+The final control budget includes the index and its entries; exceeding it uses
+complete exact-source fallback. No copy, speech, browser, source read, model
+call or permission is added, and installed accessibility qualification is not
+claimed ([native regressions](../tests/Kora.Windows.IntegrationTests/FinalDocumentInteractionTests.Headings.cs)).
 
 [CODE-only native controls](../src/Kora/CodeHighlighting/NativeCodeBlock.cs)
 provide read-only keyboard focus/local selection and wrapping or horizontal

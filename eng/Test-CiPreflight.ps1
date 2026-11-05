@@ -38,7 +38,7 @@ function Get-StepScript {
 function Assert-Workflow {
     param([string] $Source)
     $version = Get-Job $Source 'version'
-    Assert ($Source.Contains('# merge-queue-job-schema: windows-12-v1', [StringComparison]::Ordinal)) 'Preserve the complete required-job schema and predecessor retirement contract.'
+    Assert ($Source.Contains('# merge-queue-job-schema: unit-pr-v1', [StringComparison]::Ordinal)) 'Use the reviewed unit-only candidate and complete main inventories.'
     Assert ($version.Contains("needs: admission`n    if: needs.admission.outputs.full == 'true'", [StringComparison]::Ordinal)) 'Preflight must run only after successful full admission.'
     Assert ($version.Contains('ref: ${{ needs.admission.outputs.source }}', [StringComparison]::Ordinal)) 'Preflight must check out the admitted source.'
     Assert ($version.Contains('persist-credentials: false', [StringComparison]::Ordinal)) 'Preflight must not retain checkout credentials.'
@@ -88,7 +88,7 @@ function Assert-Workflow {
     Assert (-not $payload.Contains('./eng/Test-DependencyLicenses.ps1', [StringComparison]::Ordinal)) 'Payload must reuse, not repeat, successful exact-source license scanning.'
     Assert (([regex]::Matches($Source, 'run: \./eng/Test-DependencyLicenses\.ps1')).Count -eq 1) 'The complete workflow license gate must run exactly once before fanout.'
     $portable = Get-Job $Source 'portable-tests'
-    foreach ($command in @('./eng/Test-Architecture.ps1', 'dotnet build Kora.slnx --configuration Release --no-restore',
+    foreach ($command in @('./eng/Test-Architecture.ps1', 'dotnet build Kora.UnitTests.slnx --configuration Release --no-restore',
         '--solution Kora.UnitTests.slnx', '-MinimumLine 100', '-MinimumBranch 100',
         '-assemblyfilters:+Kora.Core;+Kora.Application;+Kora.Tools;+Kora.Definitions')) {
         Assert ($portable.Contains($command, [StringComparison]::Ordinal)) "Complete downstream portable gate must remain: $command."
@@ -189,12 +189,16 @@ foreach ($name in @('portable-tests', 'payload', 'windows-test-build', 'windows-
     $condition = $condition.Replace('needs.version.outputs.preflight-source', '$preflightSource').
         Replace('needs.version.outputs.source-revision', '$revision').
         Replace('needs.version.outputs.already-published', '$alreadyPublished').
+        Replace('needs.version.outputs.candidate', '$candidate').
         Replace('github.event_name', '$eventName').
+        Replace('github.ref', '$ref').
         Replace('inputs.compare_portable_tests', '$true').
         Replace('inputs.compare_native_evidence', '$true').
         Replace(' != ', ' -cne ').Replace(' == ', ' -ceq ').Replace(' && ', ' -and ')
     $evaluate = [scriptblock]::Create($condition)
     $alreadyPublished = 'false'
+    $candidate = 'false'
+    $ref = 'refs/heads/main'
     $eventName = 'workflow_dispatch'
     foreach ($result in $outcomes) {
         foreach ($preflightSource in @('', 'unknown', ('b' * 40), $revision)) {

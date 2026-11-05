@@ -540,6 +540,7 @@ public sealed partial class MainViewModel
 
     private void NotifyVoiceEnablementChanged()
     {
+        RefreshSubmittedWorkActivity();
         OnPropertyChanged(nameof(TrayInputStatus));
         OnPropertyChanged(nameof(IsVoiceEnabled));
         OnPropertyChanged(nameof(IsPushToTalkVisible));

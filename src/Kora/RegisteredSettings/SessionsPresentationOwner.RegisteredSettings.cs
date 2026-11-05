@@ -77,7 +77,7 @@ internal sealed partial class SessionsPresentationOwner
     {
         if (revoked || args.Handled || args.Key != Key.Escape || args.KeyModifiers != KeyModifiers.None
             || sender is not Window surface || args.Source is not Control control
-            || !IsRegisteredSettingReviewControl(control) || !model.CanConfirmRegisteredSettingSuggestion)
+            || !IsRegisteredSettingReviewControl(control) || !model.CanCancelRegisteredSettingSuggestion)
         { return; }
         args.Handled = true;
         model.CancelRegisteredSettingSuggestion();

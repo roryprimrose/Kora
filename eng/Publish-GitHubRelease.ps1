@@ -14,8 +14,10 @@ param(
 . (Join-Path $PSScriptRoot 'SourceTools.Common.ps1')
 . (Join-Path $PSScriptRoot 'GitHubRelease.Batch.ps1')
 $repository = $script:KoraRepository
+$scheduledMain = $env:GITHUB_EVENT_NAME -ceq 'schedule' -and
+    $env:KORA_MAIN_BUILD_PROFILE -ceq 'hourly-v1' -and $env:GITHUB_REF -ceq 'refs/heads/main'
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:GITHUB_REPOSITORY -ne $repository -or
-    $env:GITHUB_EVENT_NAME -notin @('push', 'workflow_dispatch')) {
+    ($env:GITHUB_EVENT_NAME -notin @('push', 'workflow_dispatch') -and -not $scheduledMain)) {
     throw 'Release operations require the canonical repository main/tag workflow, never a local, fork or PR run.'
 }
 if ($env:GITHUB_REF -ne 'refs/heads/main' -and $env:GITHUB_REF -ne "refs/tags/v$Version") {

@@ -98,6 +98,10 @@ Observed changes, including change-and-return, invalidate earlier observations.
 Unobserved external filesystem history cannot be detected or certified.
 Cancel closes answer authority immediately, but the operation remains owned until
 source/model work physically joins; retained request receipts are not rolled back.
+This ownership is established before native busy-state notifications or source
+callbacks run. A Cancel or Close triggered during startup still waits for that
+exact inspection or confirmed-answer operation; it cannot report completion by
+joining an earlier request.
 
 A qualified local runtime is required. The actual answer, unsupported response or
 explicit unavailable/unconfirmed outcome is shown without automatic speech.

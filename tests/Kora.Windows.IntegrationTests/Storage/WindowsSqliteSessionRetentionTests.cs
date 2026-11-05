@@ -16,7 +16,7 @@ using Microsoft.Data.Sqlite;
 
 namespace Kora.Windows.IntegrationTests.Storage;
 
-public sealed class WindowsSqliteSessionRetentionTests
+public sealed partial class WindowsSqliteSessionRetentionTests
 {
     [WindowsFact]
     public async Task Native_storage_failure_holds_retention_without_mutation_and_a_later_attempt_can_recover()
@@ -49,8 +49,16 @@ public sealed class WindowsSqliteSessionRetentionTests
         (await fixture.Tasks.ReadIncompleteAsync(10, fixture.Token)).Should().BeEmpty();
 
         checkpoint.Commit = null;
+        fixture.Time.Now = clock.ArchiveDue.AddTicks(-1);
+        (await RetainAsync(fixture)).Should().Be(new SessionRetentionBatch(0, 0, 0, false));
+        (await fixture.Store.ReadSessionAsync(id, fixture.Token)).Should().Be(authority);
+        (await fixture.Store.ReadRetentionAsync(id, fixture.Token)).Should().Be(clock);
+        (await fixture.Store.ReadHistoryAsync(id, null, 50, fixture.Token)).Should().BeEquivalentTo(history);
+        fixture.Count("security_audit_events").Should().Be(audits);
+
+        fixture.Time.Now = clock.DeleteDue;
         (await RetainAsync(fixture)).Should().Be(new SessionRetentionBatch(0, 1, 0, false));
-        (await fixture.Store.ReadRetentionAsync(id, fixture.Token)).Purged.Should().BeTrue();
+        (await fixture.Store.ReadRetentionAsync(id, fixture.Token)).Should().Be(clock with { Purged = true });
         fixture.Count("security_audit_events").Should().Be(audits + 1);
         (await fixture.Store.ReadGrantsAsync(fixture.Token)).Should().ContainSingle().Which.Should().Be(perpetual);
         (await fixture.Tasks.ReadIncompleteAsync(10, fixture.Token)).Should().BeEmpty();

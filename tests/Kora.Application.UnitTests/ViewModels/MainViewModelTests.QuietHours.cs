@@ -3,11 +3,131 @@ using Kora.Application.UnitTests.Configuration;
 using Kora.Core.Communication;
 using Kora.Core.Configuration;
 using Kora.Core.Dependencies;
+using Kora.Application.Configuration;
 
 namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task QuietHoursSuggestionWithoutAnAdmittedServiceIsExplicitlyUnavailable()
+    {
+        var f = new Fixture();
+        await f.ViewModel.Invoking(view => view.ReviewQuietHoursSuggestionAsync(QuietHoursSuggestionReviewTests.Answer(),
+            () => true, _ => Task.CompletedTask, TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+        await f.ViewModel.DisposeAsync();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task QuietHoursSuggestionNativeHostCompletesConfirmedScheduleWithoutCaptureSpeechOrConsent(bool reset)
+    {
+        await using var quiet = new QuietHoursConfigurationServiceTests.Fixture();
+        quiet.Preferences.Value = QuietHoursSchedule.Off;
+        var f = new Fixture(quietHoursConfiguration: quiet.Service);
+        var message = QuietHoursSuggestionReviewTests.Answer(reset ? "reset notices.quiet-hours"
+            : "set notices.quiet-hours to weekly Mon,Fri 22:00 06:00 UTC");
+        QuietHoursSuggestionReview review;
+        using (QuietHoursSuggestionReviewTests.Input(message))
+        {
+            review = await f.ViewModel.ReviewQuietHoursSuggestionAsync(message, () => true,
+                _ => Task.CompletedTask, TestContext.Current.CancellationToken);
+            review.Description.Should().Contain("Current saved: Off");
+        }
+        using (review)
+        using (QuietHoursSuggestionReviewTests.Input(message))
+        { (await f.ViewModel.ConfirmQuietHoursSuggestionAsync(review, TestContext.Current.CancellationToken)).Should().BeTrue(); }
+        quiet.Preferences.Value.Should().Be(reset ? null : QuietHoursSchedule.Parse("weekly Mon,Fri 22:00 06:00 UTC"));
+        f.ViewModel.QuietHoursStatus.Should().Contain(reset ? "default Off" : "effective weekly Mon,Fri");
+        f.Voice.StartedMicrophone.Should().BeNull();
+        f.TextToSpeech.SpokenText.Should().BeNull();
+        f.ViewModel.HasVoiceConsent.Should().BeFalse();
+        f.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        f.Reasoner.Requests.Should().BeEmpty();
+        await f.ViewModel.DisposeAsync();
+    }
+
+    [Theory]
+    [InlineData("ownership")]
+    [InlineData("binding")]
+    [InlineData("privacy")]
+    [InlineData("call")]
+    [InlineData("consent")]
+    [InlineData("source")]
+    [InlineData("native-setting")]
+    [InlineData("foreign-owner")]
+    public async Task QuietHoursSuggestionKeepsHostAuthorityAcrossNativeReviewAndConfirmation(string loss)
+    {
+        await using var quiet = new QuietHoursConfigurationServiceTests.Fixture();
+        var f = new Fixture(quietHoursConfiguration: quiet.Service);
+        var message = QuietHoursSuggestionReviewTests.Answer();
+        long owner = 1;
+        var live = true;
+        f.ViewModel.BindCallOwnershipGate(() => true, () => owner);
+        QuietHoursSuggestionReview review;
+        using (QuietHoursSuggestionReviewTests.Input(message))
+        {
+            review = await f.ViewModel.ReviewQuietHoursSuggestionAsync(message, () => live,
+                _ => Task.CompletedTask, TestContext.Current.CancellationToken);
+        }
+        if (loss is "ownership") { owner++; }
+        if (loss is "binding") { f.ViewModel.BindCallOwnershipGate(() => true, () => owner); }
+        if (loss is "privacy") { f.PrivacyObservation.Current = f.PrivacyObservation.Current with { TopologyRevision = 2 }; }
+        if (loss is "call") { f.CallState.SetState(CallState.Unknown); await f.Dispatcher.LastInvocation; }
+        if (loss is "consent") { await f.ViewModel.SetVoiceConsentAsync(true); }
+        if (loss is "source") { live = false; }
+        if (loss is "native-setting") { await f.RunAsync("get notices.quiet-hours"); }
+        var target = loss is "foreign-owner" ? new Fixture().ViewModel : f.ViewModel;
+        using (review)
+        using (QuietHoursSuggestionReviewTests.Input(message))
+        {
+            await target.Invoking(view => view.ConfirmQuietHoursSuggestionAsync(review, TestContext.Current.CancellationToken))
+                .Should().ThrowAsync<InvalidOperationException>();
+        }
+        quiet.Preferences.Writes.Should().Be(0);
+        quiet.Audit.Records.Should().BeEmpty();
+        if (!ReferenceEquals(target, f.ViewModel)) { await target.DisposeAsync(); }
+        await f.ViewModel.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task QuietHoursSuggestionDisposalJoinsPendingSourceValidationWithoutWriteOrLateSuccess()
+    {
+        await using var quiet = new QuietHoursConfigurationServiceTests.Fixture();
+        var f = new Fixture(quietHoursConfiguration: quiet.Service);
+        var message = QuietHoursSuggestionReviewTests.Answer();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var confirming = false;
+        async Task Validate(CancellationToken token)
+        {
+            if (!confirming) { return; }
+            entered.TrySetResult();
+            await release.Task.WaitAsync(token);
+        }
+        QuietHoursSuggestionReview review;
+        using (QuietHoursSuggestionReviewTests.Input(message))
+        { review = await f.ViewModel.ReviewQuietHoursSuggestionAsync(message, () => true, Validate, TestContext.Current.CancellationToken); }
+        using (review)
+        using (QuietHoursSuggestionReviewTests.Input(message))
+        {
+            confirming = true;
+            var work = f.ViewModel.ConfirmQuietHoursSuggestionAsync(review, TestContext.Current.CancellationToken);
+            await entered.Task;
+            f.ViewModel.CanChangeQuietHours.Should().BeFalse();
+            await f.ViewModel.Invoking(view => view.ReviewQuietHoursSuggestionAsync(message, () => true, Validate,
+                TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+            var disposal = f.ViewModel.DisposeAsync().AsTask();
+            disposal.IsCompleted.Should().BeFalse();
+            release.TrySetResult();
+            await FluentActions.Awaiting(() => work).Should().ThrowAsync<InvalidOperationException>();
+            await FluentActions.Awaiting(() => disposal).Should().ThrowAsync<InvalidOperationException>();
+            quiet.Preferences.Writes.Should().Be(0);
+            quiet.Audit.Records.Should().BeEmpty();
+        }
+    }
+
     [Fact]
     public async Task ActiveScheduledQuietNeverSuppressesOrdinaryRequestedSpeech()
     {

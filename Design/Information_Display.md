@@ -21,6 +21,13 @@ Apply [product admission](MVP_Scope.md#product-admission-and-realignment) to dis
 The native conversation row's **Export exact answer...** action reviews one currently admitted retained final ASSISTANT body, never a session-wide latest result or rendered projection. Destination selection and passive Details grant no write authority.
 The [separate review](../src/Kora/ExactAnswerExportWindow.cs) shows complete original text, conversation/result identity, exact destination, UTF-8/no-BOM format and the retention disclosure before a separate original local-UI confirmation.
 
+The destination/retention review and complete answer have independent bounded
+scrolling areas, including at the minimum 480-by-400 native size. Long paths
+remain complete, not abbreviated. Confirmation and cancellation captions wrap
+inside their available width, and long terminal outcomes scroll separately.
+Reading, resizing and scrolling do not confirm a write. Keyboard activation
+uses the same single-use confirmation and cancellation controls.
+
 The [single-use review owner](../src/Kora.Application/Presentation/ExactAnswerExportReview.cs) revalidates the exact source and private/control/presenter lifetime across selection, review and staging.
 The [dedicated Windows writer](../src/Kora.Windows/Presentation/WindowsExactAnswerExportWriter.cs) admits canonical fixed-drive text/Markdown destinations outside protected storage, holds ancestor identities, creates without replacement, flushes durably and verifies exact saved bytes. Existing destinations require a fresh new-file selection.
 
@@ -997,6 +1004,15 @@ or mutate that chrome. Opening the same immutable reference activates its
 existing session-bound view. Explicit comparison, where supported, preserves
 distinct immutable references without requiring separate windows; comparison
 and detachable windows are not part of the first integrated increment.
+Native **Expand details** gives the existing pane the surplus reading width,
+leaving the conversation/composer at its existing minimum. **Restore split**
+recovers the prior user-chosen column lengths, including star proportions.
+The divider remains keyboard/pointer resizable. These controls reuse the same
+reader, selection, Find and admitted source; they do not resolve content again,
+resize the window or submit work. Hide, replacement and session/private retirement
+discard the temporary expansion before remembering the ordinary split.
+This is native implementation evidence, not installed accessibility qualification
+([regressions](../tests/Kora.Windows.IntegrationTests/AdaptiveInteractionTests.DetailExpansion.cs)).
 New revisions never silently replace a viewer's
 current item. A user-requested refresh resolves and displays a new immutable
 revision with the change made visible.

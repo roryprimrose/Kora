@@ -15,6 +15,7 @@ internal static class FixtureBoundaries
         ISessionController, IMicrophoneAccessService, IWindowsPrivacyObservationService, ICurrentUserNameProvider
     {
         private bool disposed;
+        private WindowsSessionState closedSessionState = WindowsSessionState.Unknown;
         public bool Open { get; private set; } = true;
         public bool CanInspect => Open;
         public bool CanControl => Open;
@@ -26,7 +27,7 @@ internal static class FixtureBoundaries
             get
             {
                 BeforePrivacyObservation?.Invoke();
-                return new(Open ? WindowsSessionState.Unlocked : WindowsSessionState.Unknown,
+                return new(Open ? WindowsSessionState.Unlocked : closedSessionState,
                     syntheticVoice ? MicrophoneAccessState.Allowed : MicrophoneAccessState.Denied, ControlRevision,
                     syntheticVoice ? [FixtureVoice.SyntheticMicrophone.Id] : [],
                     syntheticVoice ? FixtureVoice.SyntheticMicrophone.Id : null, null);
@@ -46,8 +47,19 @@ internal static class FixtureBoundaries
             ObjectDisposedException.ThrowIf(disposed, this);
             var previous = Current;
             Open = open;
+            closedSessionState = WindowsSessionState.Unknown;
             ControlRevision++;
             Changed?.Invoke(this, new(previous, Current));
+        }
+
+        internal void SetLocked()
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            var previous = Current;
+            Open = false;
+            closedSessionState = WindowsSessionState.Locked;
+            ControlRevision++;
+            Changed?.Invoke(this, new(previous, Current, WindowsPrivacyChangeReason.Session));
         }
 
         public void Dispose()

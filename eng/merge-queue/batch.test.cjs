@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { reconcile } = require('./controller.cjs');
-const { validateState, WINDOWS_12_JOBS, DELIVERY_JOBS, GATE, title,
+const { validateState, CHECKS, WINDOWS_12_JOBS, DELIVERY_JOBS, UNIT_PR_JOBS, GATE, title,
   REJECTED_ADMISSION_JOBS, terminalRejectedAdmission, terminalRejectedPreflight } = require('./policy.cjs');
 const { profile, CONTROL_PATH, digest, manifestFor } = require('./batch-policy.cjs');
 const { changeBatchState, changeDeliveryState } = require('./recovery.cjs');
@@ -44,7 +44,7 @@ class BatchFake {
   async reviewReady(number) { return [null, 'APPROVED'].includes(await this.reviewState(number)); }
   async files() { return ['src/Kora.Core/Feature.cs']; }
   async trustedInventory() { return clone(this.inventory); }
-  async expectedJobs() { return [...WINDOWS_12_JOBS]; }
+  async expectedJobs() { return [...this.inventory.jobs]; }
   async rejectedAdmission(source, run, jobs) {
     return run.head_sha === source && (terminalRejectedAdmission(run, jobs, this.inventory.blob)
       || terminalRejectedPreflight(run, jobs, this.inventory.blob));
@@ -363,15 +363,27 @@ test('ambiguous delivery checkpoint saves are reconciled and never silently repl
   }
 });
 
-test('independent source completion admits another candidate while its main run is running or has failed', async () => {
-  for (const mainStatus of ['running', 'failed']) {
+test('independent historical and unit-only source completion preserve schemas and admit another candidate after main starts', async () => {
+  for (const [schema, jobs, mainStatus] of [
+    ['windows-12-delivery-v1', DELIVERY_JOBS, 'running'],
+    ['windows-12-delivery-v1', DELIVERY_JOBS, 'failed'],
+    ['unit-pr-v1', UNIT_PR_JOBS, 'running'],
+    ['unit-pr-v1', UNIT_PR_JOBS, 'failed'],
+  ]) {
     const api = new BatchFake();
     api.independent = true;
-    api.inventory = { schema: 'windows-12-delivery-v1', blob: sha(999), jobs: [...DELIVERY_JOBS] };
+    api.inventory = { schema, blob: sha(999), jobs: [...jobs] };
+    assert.equal(await step(api), 'dispatched');
+    assert.deepEqual(api.state.active.inventory, api.inventory);
+    const admission = clone(manifestFor(api.state.active));
     await until(api, 'batch-completed');
     const tip = clone(api.state.completedTip);
     assert.equal(tip.delivery, 'independent-v1');
     assert.equal(tip.validation.run, 9);
+    assert.equal(tip.validation.schema, schema);
+    assert.deepEqual(tip.admission, admission);
+    const { releaseRecord, validateRelease } = require('./delivery.cjs');
+    assert.equal(validateRelease(releaseRecord(tip), tip.sha).validation.schema, schema);
     assert.equal(api.state.deliveryProfile, 'independent-v1');
     api.qualificationObservation = { owner: { run: 42, source: tip.sha, attempt: 1 },
       qualification: null, provisional: false, terminal: mainStatus === 'failed' };
@@ -381,6 +393,74 @@ test('independent source completion admits another candidate while its main run 
     assert.equal(api.state.completedTip.qualificationOwner.run, 42);
     assert.equal(count(api, 'qualification'), 0);
     assert.equal(count(api, 'cancel'), 0);
+  }
+});
+
+test('frozen batch inventories require the exact jobs for each reviewed schema, never an interchangeable subset', async () => {
+  const inventories = [
+    ['windows-12-v1', WINDOWS_12_JOBS],
+    ['windows-12-delivery-v1', DELIVERY_JOBS],
+    ['unit-pr-v1', UNIT_PR_JOBS],
+  ];
+  for (const [schema, jobs] of inventories) {
+    const api = new BatchFake();
+    api.inventory = { schema, blob: sha(999), jobs: [...jobs] };
+    assert.equal(await step(api), 'dispatched');
+    assert.equal(validateState(clone(api.state)).active.inventory.schema, schema);
+    for (const [other] of inventories.filter(([name]) => name !== schema)) {
+      const state = clone(api.state);
+      state.active.inventory.schema = other;
+      state.active.digest = digest(manifestFor(state.active));
+      assert.throws(() => validateState(state), /Invalid active batch/, `${schema}/${other}`);
+    }
+    for (const change of ['missing', 'duplicate', 'extra', 'unknown-schema']) {
+      const state = clone(api.state);
+      if (change === 'missing') state.active.inventory.jobs.pop();
+      if (change === 'duplicate') state.active.inventory.jobs.push(state.active.inventory.jobs[0]);
+      if (change === 'extra') state.active.inventory.jobs.push('Unknown validation');
+      if (change === 'unknown-schema') state.active.inventory.schema = 'future-v1';
+      state.active.digest = digest(manifestFor(state.active));
+      assert.throws(() => validateState(state), /Invalid active batch/, `${schema}/${change}`);
+    }
+  }
+});
+
+test('all unit-only batch producers must pass uniquely before any member receives admission', async () => {
+  for (const name of UNIT_PR_JOBS) {
+    for (const change of ['missing', 'duplicate', 'failure', 'skipped']) {
+      const api = new BatchFake();
+      api.inventory = { schema: 'unit-pr-v1', blob: sha(999), jobs: [...UNIT_PR_JOBS] };
+      assert.equal(await step(api), 'dispatched');
+      const job = api.workflowJobs.find(job => job.name === name);
+      if (change === 'missing') api.workflowJobs = api.workflowJobs.filter(item => item !== job);
+      else if (change === 'duplicate') api.workflowJobs.push({ ...job, id: 999 });
+      else job.conclusion = change;
+      assert.equal(await step(api), change === 'missing' ? 'waiting-for-jobs' : 'retiring', `${name}/${change}`);
+      assert.equal(count(api, 'merge'), 0);
+      assert.equal(api.calls.some(call => call[0] === 'finish' && call[2] === 'success'), false);
+      assert.ok(api.state.active);
+    }
+  }
+});
+
+test('unit-only batch admission and retirement wait for physically terminal main-only Windows jobs', async () => {
+  for (const name of DELIVERY_JOBS.filter(job => !UNIT_PR_JOBS.includes(job))) {
+    const api = new BatchFake();
+    api.inventory = { schema: 'unit-pr-v1', blob: sha(999), jobs: [...UNIT_PR_JOBS] };
+    assert.equal(await step(api), 'dispatched');
+    const job = { id: 999, name, status: 'in_progress', conclusion: null,
+      run_id: 9, run_attempt: 1, head_sha: BASE };
+    api.workflowJobs.push(job);
+    assert.equal(await step(api), 'waiting-for-jobs', name);
+    assert.equal(count(api, 'merge'), 0);
+    api.prs[0].enrollment = NOW.toISOString();
+    assert.equal(await step(api), 'retiring', name);
+    assert.equal(await step(api), 'retiring', name);
+    assert.ok(api.state.active);
+    Object.assign(job, { status: 'completed', conclusion: 'skipped' });
+    assert.equal(await step(api), 'retired', name);
+    assert.equal(api.state.active, null);
+    assert.equal(count(api, 'merge'), 0);
   }
 });
 
@@ -643,18 +723,20 @@ test('control surfaces and group-failure retries use the existing fully validate
 });
 
 test('batch-profile control singleton retains complete exact-head proof and records actual merged-tip qualification', async () => {
-  for (const independent of [false, true]) {
+  for (const [schema, jobs, independent] of [
+    ['windows-12-v1', WINDOWS_12_JOBS, false],
+    ['windows-12-delivery-v1', DELIVERY_JOBS, true],
+    ['unit-pr-v1', UNIT_PR_JOBS, true],
+  ]) {
     const api = new BatchFake();
     api.independent = independent;
-    if (independent) {
-      api.inventory = { schema: 'windows-12-delivery-v1', blob: sha(999), jobs: [...DELIVERY_JOBS] };
-      api.expectedJobs = async () => [...DELIVERY_JOBS];
-    }
+    api.inventory = { schema, blob: sha(999), jobs: [...jobs] };
     api.prs = [api.prs[0]];
     api.files = async () => ['.github/workflows/ci.yml'];
     api.commits.set(sha(1), { tree: sha(400), parents: [BASE] });
     assert.equal(await step(api), 'dispatched');
     assert.equal(api.state.active.kind, undefined);
+    const windows = api.state.active.checks[CHECKS[1]];
     assert.equal(await step(api), 'merged');
     assert.equal(api.state.active, null);
     assert.equal(api.state.completedTip.sha, api.base);
@@ -662,10 +744,13 @@ test('batch-profile control singleton retains complete exact-head proof and reco
     assert.equal(count(api, 'check'), 4);
     assert.equal(count(api, 'dispatch'), 1);
     assert.equal(count(api, 'merge'), 1);
+    assert.equal(api.calls.find(call => call[0] === 'finish' && call[1] === windows)[2],
+      schema === 'unit-pr-v1' ? 'neutral' : 'success');
     assert.equal(await step(api), 'waiting-for-tip-qualification');
     if (independent) {
       assert.equal(api.state.completedTip.delivery, 'independent-v1');
       assert.equal(api.state.completedTip.validation.source, sha(1));
+      assert.equal(api.state.completedTip.validation.schema, schema);
     }
   }
 });

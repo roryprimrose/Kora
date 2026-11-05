@@ -1,5 +1,5 @@
 const { createHash } = require('node:crypto');
-const { SHA, TICKET, GATE, invariant, readinessIssue, priority } = require('./policy.cjs');
+const { SHA, TICKET, GATE, invariant, readinessIssue, priority, candidateJobs } = require('./policy.cjs');
 
 const PROFILE = 'batch-v1';
 const SCHEMA = 'batch-manifest-v1';
@@ -94,10 +94,9 @@ function validateBatchState(state) {
     && new Set(active.members.map(member => member.number)).size === active.members.length
     && Array.isArray(active.prefixes) && active.prefixes.length <= active.members.length
     && active.prefixes.every(item => SHA.test(item.sha) && SHA.test(item.tree))
-    && ['windows-12-v1', 'windows-12-delivery-v1'].includes(active.inventory?.schema) && SHA.test(active.inventory.blob)
+    && candidateJobs(active.inventory?.schema) && SHA.test(active.inventory.blob)
     && Array.isArray(active.inventory.jobs) && active.inventory.jobs.length > 0
-    && JSON.stringify(active.inventory.jobs) === JSON.stringify(active.inventory.schema === 'windows-12-v1'
-      ? require('./policy.cjs').WINDOWS_12_JOBS : require('./policy.cjs').DELIVERY_JOBS),
+    && JSON.stringify(active.inventory.jobs) === JSON.stringify(candidateJobs(active.inventory.schema)),
   'Invalid active batch.');
   if (active.failureKind !== undefined)
     invariant(['construction-conflict', 'validation-failure', 'stale', 'unavailable'].includes(active.failureKind),

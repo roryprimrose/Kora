@@ -304,6 +304,7 @@ public sealed class NativeTableRowInspectionTests
         control.BringIntoView();
         Dispatcher.UIThread.RunJobs();
         window.UpdateLayout();
+        using var frame = window.CaptureRenderedFrame();
         var point = control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), window)!.Value;
         var hit = window.InputHitTest(point);
         var viewport = control.GetVisualAncestors().OfType<ScrollViewer>().First();

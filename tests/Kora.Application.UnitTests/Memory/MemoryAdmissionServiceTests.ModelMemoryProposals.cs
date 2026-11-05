@@ -20,6 +20,110 @@ public sealed partial class MemoryAdmissionServiceTests
     private const string ModelProposalText = """{"version":1,"class":"responsePreference","value":"Prefer short answers."}""";
 
     [Theory]
+    [InlineData(RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.ActivatedVoice)]
+    public async Task ModelProposalAcceptedCandidateCanBeRejectedBySeparateOriginalInputWithoutAdmission(RequestOrigin origin)
+    {
+        using var f = new Fixture(durable: true);
+        await using var service = f.Management();
+        var source = f.ModelSource = CreateModelSource(f, origin);
+        ModelMemoryProposalReview review;
+        using (f.Root(origin))
+        { review = await service.ReviewModelProposalAsync(new(f.Session, null), source, () => true, Token); }
+        using (review)
+        {
+            MemoryRecord accepted;
+            using (f.Root(origin))
+            {
+                accepted = (await service.ActOnModelProposalAsync(review, false, true, Token)).Record!;
+                review.CanAccept.Should().BeFalse();
+                review.CanReject.Should().BeTrue();
+                await FluentActions.Awaiting(() => service.ActOnModelProposalAsync(review, false, false, Token))
+                    .Should().ThrowAsync<InvalidOperationException>("acceptance cannot also reject itself");
+            }
+            MemoryResult rejected;
+            using (f.Root(origin))
+            { rejected = await service.ActOnModelProposalAsync(review, false, false, Token); }
+            rejected.Outcome.Should().Be(MemoryOutcome.Succeeded);
+            rejected.Record!.Should().Be(accepted with
+            {
+                Revision = new(accepted.Revision.Value + 1),
+                Review = MemoryReviewState.Rejected,
+                Receipt = null,
+            });
+            rejected.Use.Should().BeNull();
+            review.Description.Should().BeEmpty();
+            review.CanAdmit.Should().BeFalse();
+            review.CanReject.Should().BeFalse();
+            f.Stored.Should().BeEmpty();
+            f.Audits.Should().Contain(item => item.ActionId == "memory.review"
+                && item.Outcome == Kora.Core.Auditing.SecurityAuditOutcome.Succeeded);
+            f.Audits.Select(item => item.ActionId).Should().NotContain(["memory.admit", "memory.use"]);
+            using (f.Root(origin))
+            {
+                await FluentActions.Awaiting(() => service.ActOnModelProposalAsync(review, true, false, Token))
+                    .Should().ThrowAsync<InvalidOperationException>();
+                (await service.ExecuteAsync(new(Kora.Core.Commands.MemoryCommandOperation.List, source.Request.SessionId.Value),
+                    origin, () => true, Token)).Memories.Should().BeEmpty();
+            }
+            f.ModelSource.Should().Be(source);
+        }
+    }
+
+    [Theory]
+    [InlineData("privacy")]
+    [InlineData("control")]
+    [InlineData("owner")]
+    [InlineData("lifecycle")]
+    [InlineData("withdraw")]
+    [InlineData("source")]
+    [InlineData("cancel")]
+    [InlineData("input")]
+    [InlineData("expire")]
+    public async Task ModelProposalAcceptedRejectionRevalidatesAcrossAnOutstandingSourceRead(string change)
+    {
+        using var f = new Fixture(durable: true);
+        var clock = new ModelProposalClock();
+        await using var service = f.Management(time: clock);
+        var source = f.ModelSource = CreateModelSource(f);
+        var live = true;
+        ModelMemoryProposalReview review;
+        using (f.Root())
+        { review = await service.ReviewModelProposalAsync(new(f.Session, null), source, () => live, Token); }
+        using (review)
+        {
+            using (f.Root()) { await service.ActOnModelProposalAsync(review, false, true, Token); }
+            using var cancel = new CancellationTokenSource();
+            using var input = f.Root();
+            var read = new TaskCompletionSource<ConversationMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            f.ModelSourceRead = read.Task;
+            var pending = service.ActOnModelProposalAsync(review, false, false, cancel.Token);
+            pending.IsCompleted.Should().BeFalse();
+            switch (change)
+            {
+                case "privacy": f.InspectEnabled = false; break;
+                case "control": f.ControlRevision++; break;
+                case "owner": f.Current = false; break;
+                case "lifecycle": f.Session = f.Session with { IsActive = false }; break;
+                case "withdraw": live = false; break;
+                case "cancel": cancel.Cancel(); break;
+                case "input": input.Complete(HostOperationOutcome.Completed); break;
+                case "expire": clock.Now = DateTimeOffset.UnixEpoch.AddSeconds(60); break;
+            }
+            pending.IsCompleted.Should().BeFalse("revocation does not join an ignoring source read");
+            read.SetResult(change is "source" ? source with { Body = "changed retained source" } : source);
+            await FluentActions.Awaiting(() => pending).Should().ThrowAsync<Exception>();
+            review.CanReject.Should().BeFalse();
+            review.CanAdmit.Should().BeFalse();
+            f.Stored.Should().BeEmpty();
+            f.Audits.Count(item => string.Equals(item.ActionId, "memory.review", StringComparison.Ordinal)
+                && item.Outcome == Kora.Core.Auditing.SecurityAuditOutcome.Succeeded).Should().Be(1,
+                    "only acceptance, not the revoked rejection, committed a review transition");
+            f.Audits.Select(item => item.ActionId).Should().NotContain(["memory.admit", "memory.use"]);
+        }
+    }
+
+    [Theory]
     [InlineData("explicitFact", MemoryContentClass.ExplicitFact)]
     [InlineData("responsePreference", MemoryContentClass.ResponsePreference)]
     [InlineData("workflowPreference", MemoryContentClass.WorkflowPreference)]

@@ -56,7 +56,7 @@ internal sealed class NativeFixturePhaseScope : IDisposable
     {
         try
         {
-            await operation();
+            await operation().ConfigureAwait(false);
             Complete();
         }
         catch (OperationCanceledException)
@@ -70,7 +70,7 @@ internal sealed class NativeFixturePhaseScope : IDisposable
     {
         try
         {
-            var result = await operation();
+            var result = await operation().ConfigureAwait(false);
             Complete();
             return result;
         }

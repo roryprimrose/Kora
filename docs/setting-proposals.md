@@ -27,6 +27,11 @@ do not require you to remember these names.
 | `speech.playback-volume` | Integer 0-100 | Native or existing exact typed/activated-voice review |
 | `responses.default-mode` | Exact `Hybrid`, `VoiceOnly`, `VisualOnly` | Native or exact typed/activated-voice review |
 | `speech.windows-rate` | Canonical integer -10 through 10, normal 0 | Native or exact typed/activated-voice review |
+| `notices.quiet-hours` | `Off` or one complete explicit weekly days/start/end/zone schedule | Separate current native review and confirmation |
+| `speech.voice` | Exact installed `provider / voice ID` supplied in your request | Native or exact typed/activated-voice review |
+| `voice.command-start-wait` | Exact decimal 2-10 seconds, default 5 | Separate current native review and confirmation |
+| `voice.reply-start-wait` | Exact decimal 5-60 seconds, default 15 | Separate current native review and confirmation |
+| `voice.trailing-silence` | Exact decimal 0.5-3 seconds, default 1 | Separate current native review and confirmation |
 
 For example, the complete answer may be `set appearance.theme to dark`,
 `set appearance.reduced-motion to true`, `set appearance.movement-speed to 50`,
@@ -44,18 +49,48 @@ Presence suggestions likewise require the exact lowercase syntax and IDs above,
 canonical decimal integers or lowercase `true`/`false`, with no surrounding text.
 Response-timeout suggestions use the same canonical lowercase syntax, for example `set appearance.response-timeout to 15`. This is the response-window inactivity hide delay, not a provider/request deadline ([existing preference](settings.md#independent-visibility-timeouts)).
 Native renderer selection is not an admitted model suggestion.
+For quiet hours, the complete retained answer may be
+`set notices.quiet-hours to weekly Mon,Tue,Wed,Thu,Fri 09:00 17:00 UTC`,
+`set notices.quiet-hours to Off`, or `reset notices.quiet-hours`.
+Use distinct days in Mon-Sun order, exact 24-hour times and an explicitly requested
+installed zone ID (including spaces where the ID requires them). Missing zones,
+duplicate/reordered days, equal start/end, extra fields, commentary and batches
+are rejected. Kora never infers your local zone.
+Native review reads the actual current saved/effective schedule, shows the full
+proposal and default Off, and expires after 60 seconds. Confirming separately
+uses the same audited atomic save/readback as Settings. Reset removes the saved
+schedule and restores unsaved Off; explicit Set Off saves Off.
+Only future already-consented proactive completion speech is constrained.
+Visual notices, ordinary requested answers, listening, consent, in-flight answers
+and call/privacy protections do not change; suppressed completions never replay.
+Hide/reopen, source replacement, cancellation, expiry or changed host authority
+requires a fresh review. Unconfirmed saves remain unavailable, not successful.
+Native Cancel remains available while quiet-hours source validation is awaiting completion; it retires that review or confirmation without requesting a new write. It does not undo an already persisted write ([review owner](../src/Kora/RegisteredSettings/SessionsViewModel.QuietHoursSuggestions.cs)).
+
+For capture timing, the complete retained answer may be `set voice.trailing-silence to 2.5000001` or `reset voice.reply-start-wait`.
+Seconds use a canonical dot decimal with at most seven fractional digits; no exponent, suffix, padding, redundant zeros, rounding or batch is accepted.
+Review reads the authoritative current timing service and shows all three old/new values and saved/default provenance.
+Separate native confirmation saves only the selected field's change, preserving companions.
+Timing and appearance use distinct review owners; an appearance review cannot accept a timing Reset.
+The save affects future eligible captures only; it never replaces an in-flight snapshot, opens a microphone, selects a provider or grants consent.
+An unavailable timing service blocks review. Timing values remain unavailable through `settings.get`; suggestion metadata is not confirmed-value read authority.
 This suggestion registry does not expand setting inspection: inspection remains
 limited to theme, reader text scale, both summary caps, playback volume and response mode.
 
+For an [installed voice](voice-and-audio.md#review-an-installed-voice-suggestion), supply its exact qualified ID in your request. The complete answer must be `set speech.voice to <provider / voice ID>`.
+Kora validates that exact installed pair privately; the model cannot enumerate choices, select a provider alone, download assets or invent an available voice ([parser](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestions.cs)).
+
 ## Propose one Reset
 
-The complete retained answer may instead be exactly `reset <exact ID>` for one setting in the table, for example `reset speech.playback-volume`. No value, model-supplied default, aliases, commentary or batch is accepted ([parser](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestions.cs)).
+The complete retained answer may instead be exactly `reset <exact ID>` for one setting in the table except `speech.voice`, for example `reset speech.playback-volume`.
+Installed voice remains Set-only and requires an exact installed pair. No value, model-supplied default, aliases, commentary or batch is accepted ([parser](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestions.cs)).
 
 Use the same separate review and confirmation below. Review resolves the default through the host, shows current and proposed values/provenance and preserves the exact source and original channel. Reset does not mean every owner removes its saved preference:
 
 - Appearance saves the option's default as a **saved** value when changed. If it already equals the default, Reset is unchanged and preserves its existing saved/default provenance; other appearance options are unchanged ([owner](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
 - Response-timeout Reset follows those same appearance-owner semantics with the authoritative 5-second default. It retains its existing native/typed/activated-voice review, 60-second expiry and original-channel call/privacy checks; other appearance settings remain native-only ([review](../src/Kora.Application/Configuration/AppearanceSuggestionReview.cs)).
 - A summary cap saves the complete pair with that cap reset and the known companion unchanged. An unreadable companion blocks review; it is never defaulted ([owner](../src/Kora.Application/Configuration/SpeechConfigurationService.cs)).
+- A capture timing Reset saves the complete timing tuple with only that field restored to its default and both known companions unchanged; it does not remove the saved tuple ([owner](../src/Kora.Application/Configuration/VoiceCaptureTimingConfigurationService.cs)).
 - Volume and Windows rate remove their saved preference and use the authoritative **unsaved default** ([volume](../src/Kora.Application/Configuration/PlaybackVolumeConfigurationService.cs), [rate](../src/Kora.Application/Configuration/WindowsSpeechRateConfigurationService.cs)).
 - Response mode saves **Hybrid**, matching native Reset; it does not remove the preference or change session/task/call overrides ([native route](../src/Kora.Application/ViewModels/MainViewModel.ResponseModeConfiguration.cs)).
 
@@ -77,7 +112,11 @@ Existing review-channel restrictions and uncertain-write recovery remain unchang
    Windows rate shows provider/support, saved/default provenance and desired/effective
    native units (-10 through 10, normal 0), not percentages or a universal speed scale.
    It uses the same guarded, validated writer as Settings > Speech & audio.
+   Capture timing likewise uses its existing timing writer, requires separate current native confirmation, and expires after 60 seconds.
+   Cancel remains available while its source check or confirmation is awaiting. Late completions cannot revive the cancelled review.
+   A write already started is joined, not rolled back; an unconfirmed save requires Settings and audit inspection, never automatic retry.
    Only the already available Windows provider/adapter can apply; Kokoro is unchanged.
+   Installed voice review shows both current/proposed provider and voice, the current effective voice, saved/default provenance and the retained-answer/installed-catalogue binding. Confirmation saves the pair atomically, then checks exact persisted/current readback ([review owner](../src/Kora.Application/Configuration/InstalledSpeechVoiceSuggestionReview.cs)).
    Presence changes affect the existing display and animation immediately after a
    confirmed save. Disabling presence hides it; speech scaling only changes its
    animation, never speech permission, synthesis or playback.
@@ -104,7 +143,11 @@ old one. The original request, answer, session, preference revision, private
 control/ownership and call admission remain bound throughout source checks and
 confirmation. A copied message, stale page, changed settings or a changed source
 cannot silently select a newer answer. Speech, volume and response-mode reviews expire after
-60 seconds, including Windows rate and response timeout. Closing or losing private control retires the review.
+60 seconds, including Windows rate, response timeout and installed voice. Closing or losing private control retires the review.
+
+**Cancel setting review** remains available while review or confirmation is checking its source. Cancellation retires that exact review, including work that has not returned yet; a late result cannot restore confirmation or authorize a new write. Wait for the operation to finish, then explicitly review the retained answer again and confirm its fresh current/proposed values.
+This also applies to the installed provider/voice pair and native-only capture timing review in both conversation windows; a fresh confirmation still requires the exact installed catalogue or complete timing tuple and persisted/current readback ([shared review owner](../src/Kora/RegisteredSettings/SessionsViewModel.RegisteredSettings.cs), [timing review](../src/Kora/RegisteredSettings/SessionsViewModel.VoiceCaptureTimingSuggestions.cs)).
+Cancellation is not rollback: if persistence has already started, inspect Settings and the exact audit receipts before a fresh review. Unconfirmed saves are never automatically retried ([shared review owner](../src/Kora/RegisteredSettings/SessionsViewModel.RegisteredSettings.cs)).
 
 ## Activated voice and mandatory exceptions
 
@@ -121,6 +164,7 @@ review commands do not execute model text as a direct setting command.
 Windows rate uses **review rate suggestion**, **confirm rate change**, and
 **cancel rate review** against that same exact successful-submission pin.
 Response timeout uses **review response timeout suggestion**, **confirm response timeout change**, and **cancel response timeout review**, using the same exact retained answer and existing validated, audited appearance writer ([shared review](../src/Kora.Application/Configuration/AppearanceSuggestionReview.cs), [command route](../src/Kora.Application/ViewModels/MainViewModel.ResponseTimeoutSuggestions.cs)).
+Installed voice uses **review installed voice suggestion**, **confirm installed voice change**, and **cancel installed voice review**, with the same original-source and channel restrictions ([commands](../src/Kora.Application/Configuration/InstalledSpeechVoiceSuggestionCommand.cs)).
 
 Original voice provenance survives later typed/native confirmation; a protected
 or unknown call cannot be laundered into local UI authority. Other appearance settings stay
@@ -131,14 +175,14 @@ A generic "yes", the model's answer or the original request cannot confirm.
 ## Recovery and availability
 
 After a confirmed registered change, [Undo the last settings change](settings.md#undo-the-last-registered-settings-change) offers one exact run-only preference restoration through separate review and confirmation. A model suggestion cannot invent the prior value or create undo authority; the host receipt and current authoritative writer decide eligibility ([undo owner](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
-Windows rate is not added to that undo subset; direct rate Reset remains available
+Windows rate and installed voice are not added to that undo subset; direct Reset remains available
 through its existing admitted controls.
 Response timeout supports the same separate native/typed/activated-voice undo review and confirmation. Undo restores one compatible saved value or the unsaved default, with no redo or provider effect ([undo writer](../src/Kora.Application/Configuration/RegisteredSettings/AppearanceConfigurationService.Undo.cs)).
 
 Review and cancellation never invoke a model, synthesize audio or replay an
 answer. Confirmed speech changes apply to the **next** eligible ordinary speech,
 not truncation or regeneration of the current answer. No system/device/call
-volume, provider, microphone, consent, grant or unrelated preference is changed.
+volume, microphone, consent, grant or unrelated preference is changed. Only `speech.voice` changes the provider together with its exact installed voice ([atomic writer](../src/Kora.Application/Configuration/SpeechConfigurationService.cs)).
 Windows rate applies only to future eligible Windows synthesis. It never switches
 provider, sets system speech speed, qualifies an adapter or claims acoustic results.
 

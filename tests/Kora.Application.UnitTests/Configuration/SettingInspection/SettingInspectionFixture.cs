@@ -37,7 +37,9 @@ internal sealed class SettingInspectionFixture : IAsyncDisposable, ISessionWorks
         Volume = new(new LocalPlaybackVolumePreferences(Store), Playback, Admission, this);
         Response = new(new LocalResponseOutputPreferences(Store, NullLogger<LocalResponseOutputPreferences>.Instance),
             Admission, this, Playback);
-        Source = new(Appearance, Speech, Volume, Response);
+        Timing = new(new LocalVoiceCaptureTimingPreferences(Store), Admission, this,
+            NullLogger<VoiceCaptureTimingConfigurationService>.Instance);
+        Source = new(Appearance, Speech, Volume, Response, Timing);
         Workflow = new(Source, this, this, this, Time, Logger);
     }
 
@@ -50,6 +52,7 @@ internal sealed class SettingInspectionFixture : IAsyncDisposable, ISessionWorks
     internal SpeechConfigurationService Speech { get; }
     internal PlaybackVolumeConfigurationService Volume { get; }
     internal ResponseModeConfigurationService Response { get; }
+    internal VoiceCaptureTimingConfigurationService Timing { get; }
     internal ConfirmedSettingsSource Source { get; }
     internal SettingInspectionWorkflow Workflow { get; }
     internal Clock Time { get; } = new();
@@ -76,6 +79,7 @@ internal sealed class SettingInspectionFixture : IAsyncDisposable, ISessionWorks
         Speech.Reload();
         Volume.Observe();
         Response.Observe();
+        Timing.Reload();
         Store.Reads.Clear();
         Catalog.Reads = 0;
         Playback.Effects = 0;

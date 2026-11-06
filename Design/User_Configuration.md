@@ -88,6 +88,10 @@ Build/analyzers, required module/shard evidence and 100% portable line/branch co
 **Settings > Speech & audio > Conversational voice replies** provides explicit **Enable conversational replies** and **Turn off** actions ([native controls](../src/Kora/SettingsWindow.axaml)).
 The shared device-local preference defaults Off and uses current original-user/native/call admission, typed requested/terminal audit, atomic preference replacement, exact readback and an unconfirmed-write hold ([configuration owner](../src/Kora.Application/Configuration/ConversationalReplyConfigurationService.cs)).
 
+Final confirmation retains the original channel/call revision and rechecks native/private eligibility and cancellation before activation. Admission loss or uncertain marker removal/readback restores the durable hold, without claiming rollback of committed On/Off bytes ([regressions](../tests/Kora.Application.UnitTests/Configuration/ConversationalReplyConfigurationServiceTests.cs)).
+
+The native operation reports **not confirmed**, keeps automatic replies unavailable and never opens capture on this failure. Ordinary refresh and restart cannot clear the hold: inspect saved state and required audit/control receipts, explicitly repair, then freshly inspect and choose again ([native-route regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ConversationalReplies.cs)).
+
 This choice permits a new exact foreground host clarification to finish speaking before one bounded schema reply. It never enables listening by itself, replaces microphone consent or approves an operation ([conversational turn contract](Interaction_And_Sessions.md#opt-in-exact-playback-conversational-replies)).
 Manual voice/native answers remain available under that contract. This preference is not a new registered model-proposal setting or an alias for session dictation ([shared setting owner](../src/Kora.Application/Configuration/ConversationalReplyConfigurationService.cs)).
 
@@ -178,6 +182,8 @@ At one fixed UTC cutoff, Complete reports hypothetical newly archive/delete-due 
 The reader checks dates, flags, lifecycle, typed changes and authority head. Each scanned candidate is validated before exclusion, including the budget-crossing lookahead.
 No session bodies, names, attachment paths or question payloads are projected; retained questions/unavailable tasks are unknown exclusions ([reader](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.RetentionPlanner.cs)).
 Preview failure diagnostics retain only the exception type, never exception messages, private paths or source contents ([typed diagnostic](../src/Kora.Application/Diagnostics/ApplicationLog.Logging.cs)).
+
+After independent audit-prefix expiry, the reader starts at the existing validated anchor and checks the retained suffix without reconstructing expired events. Restart preserves the same read-only counts and recorded clocks; missing or inconsistent anchor/suffix state remains Unavailable ([regressions](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionRetentionPlannerTests.cs)).
 
 The scan shares 4,096 admissions and 4 MiB charges across authority, work metadata, clocks and orphan checks.
 Entries charge envelope size without returning it; task/session metadata charge 192 bytes, questions 96, ledger rows 40 and clock keys 36. A further validated candidate exhausts a limit, never truncated Complete ([accounting](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.RetentionPlanner.cs)).

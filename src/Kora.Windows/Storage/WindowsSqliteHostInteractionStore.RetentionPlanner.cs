@@ -71,8 +71,9 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 """;
             command.Parameters.AddWithValue("$limit", SessionRetentionPlanner.MaximumCandidates + 1);
             using var rows = command.ExecuteReader();
-            long sequence = 0;
-            var previous = EmptyHash;
+            var anchor = ReadAuditAnchor(connection);
+            var sequence = anchor.Sequence;
+            var previous = anchor.Hash;
             while (rows.Read())
             {
                 RequireTime();

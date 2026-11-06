@@ -1595,6 +1595,11 @@ and the [staged roadmap](Implementation_Roadmap.md#r02-windows-containment-follo
 
 ## Retention Defaults
 
+The [explicit Details presentation decision](Decision_Register.md#exact-opted-in-details-presentation-question---2026-11-06) is non-substantive even when answered.
+Only its validated typed binding exempts question/task bookkeeping from meaningful-activity updates, never purpose/action strings or caller flags.
+Its fixed question/choice remains session-retained, without a second answer body.
+Independent content-free audit records original source and actual answer channel without renewing source access ([authority](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.DetailsOffers.cs)).
+
 Exact-answer review acknowledgements are metadata owned by the retained conversation, not an independent retention domain or a read-receipt claim. Source deletion removes them; acknowledgement does not renew activity, deadlines, grants, model/source consent or execution authority. Details still needs fresh canonical native admission; unknown or malformed acknowledgement state fails unavailable ([contract and storage](Interaction_And_Sessions.md#explicit-retained-answer-review-acknowledgement)).
 
 | Data | Default |

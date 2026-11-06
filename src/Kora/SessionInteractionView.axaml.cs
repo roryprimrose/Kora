@@ -39,6 +39,10 @@ internal sealed partial class SessionInteractionView : UserControl
     private readonly EventHandler<RoutedEventArgs> detailCommandClick;
     internal Task EvidenceValidationOperation { get; private set; } = Task.CompletedTask;
     internal bool DetailsVisible => DetailsPane.IsVisible;
+    internal void RetireOfferedDetails(DetailContentReference reference)
+    {
+        if (activeDetails?.Reference == reference) { activeDetails.ClearAndClose(); }
+    }
     internal bool IsConversationPresented => IsEffectivelyVisible && TopLevel.GetTopLevel(this)?.IsVisible == true
         && ConversationTabs.SelectedItem == ConversationTab;
     private long conversationPresentationRevision;
@@ -384,8 +388,10 @@ internal sealed partial class SessionInteractionView : UserControl
         if (!choose && acceptOffer && model.DetailsOfferMessage is { } offered)
         { await model.OpenConversationDetailAsync(offered, assistant: true); return; }
         if (!choose && model.LastDetailMessage is { } previous)
-        { await model.OpenConversationDetailAsync(previous, model.LastDetailAssistant, model.LastDetailObservation,
-            submittedContext: model.LastDetailContext); return; }
+        {
+            await model.OpenConversationDetailAsync(previous, model.LastDetailAssistant, model.LastDetailObservation,
+            submittedContext: model.LastDetailContext); return;
+        }
         if (!choose && model.LastEvidenceDetail is { } evidence)
         { await model.OpenEvidenceDetailsAsync(evidence); return; }
         if (!choose && model.CanRestoreHistoryDetail)
@@ -396,7 +402,8 @@ internal sealed partial class SessionInteractionView : UserControl
         {
             choices.Children.Add(new Button
             {
-                Name = message.HasAssistantResponse ? "OpenAssistantConversationDetail" : "OpenConversationDetail", DataContext = message,
+                Name = message.HasAssistantResponse ? "OpenAssistantConversationDetail" : "OpenConversationDetail",
+                DataContext = message,
                 Content = $"Message {message.Sequence}: {(message.HasAssistantResponse ? "answer and original message" : "original message")}",
             });
         }

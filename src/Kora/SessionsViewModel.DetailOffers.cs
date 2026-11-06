@@ -76,4 +76,27 @@ internal sealed partial class SessionsViewModel
         Array.Clear(terminalDetailPublications);
         completedDetailPublication = null;
     }
+
+    internal Task OpenOfferedDetailAsync(Kora.Application.Presentation.DetailsOfferRequest request,
+        Kora.Application.Presentation.DetailsOfferService offers, Func<bool> admitted) =>
+        RunConversationAsync(async (target, live) =>
+        {
+            if (target != request.Target || !ObservedConversationMessages.Any(message => ReferenceEquals(message, request.Receipt.Message)))
+            { throw new InvalidOperationException("The exact offered answer is no longer presented in its original conversation."); }
+            bool Current() => live() && admitted();
+            var content = await offers.ReadDetailAsync(request, service, Current, lifetime.Token);
+            var continuation = Kora.Core.Diagnostics.HostActivity.CaptureContinuation(
+                Kora.Core.Diagnostics.HostActivityLayer.Desktop, Kora.Core.Diagnostics.HostOperation.Storage);
+            async Task<Kora.Core.Presentation.AdmittedDetailContent> Resolve(CancellationToken token)
+            {
+                using var activity = continuation();
+                var resolved = await offers.ReadDetailAsync(request, service, Current, token);
+                activity.Complete(Kora.Core.Diagnostics.HostOperationOutcome.Completed);
+                return resolved;
+            }
+            conversationStatus = await (openConversationDetail
+                ?? throw new InvalidOperationException("The native exact Details pane is unavailable."))(content, Current, Resolve, lifetime.Token);
+            if (!Current()) { throw new OperationCanceledException("The exact offered Details publication was withdrawn."); }
+            RememberSelectedDetail(DetailPart.Assistant, request.Receipt.Message.Request.RequestId.Value);
+        }, sourceRead: true, detailsOffer: request);
 }

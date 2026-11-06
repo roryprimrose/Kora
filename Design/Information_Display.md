@@ -1155,13 +1155,33 @@ settings; answering one offer changes no preference. Explicit Open/Close,
 Rendered/Source, search, copy, and navigation commands target the current
 viewer/item and remain available in every preference mode.
 
+#### Explicit request-local Details question
+
+The [approved P1 decision](Decision_Register.md#exact-opted-in-details-presentation-question---2026-11-06) is a narrow exception to the passive preference boundary below, not delivery of the full default hands-free design.
+An original foreground request explicitly opts into one Details offer during its review; old/default Offer alone does not grant question authority.
+LinkOnly and unavailable or changed preference evidence still suppress the offer.
+
+The host admits only a genuinely retained successful ASSISTANT result from that original request.
+A separate HostSystem presentation task and fixed native Yes/Not now question bind its exact source, session/generation, record/revision, digest and original channel; the terminal original is not reopened ([admission](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.DetailsOffers.cs), [producer](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)).
+
+Yes consumes the exact question once and freshly resolves that retained answer before native pane disclosure.
+No, Not now, dismissal, expiry, selection/composer/reader/input/preference/private-owner change or a higher-priority target retires the offer.
+Manual Details keeps its independent admission.
+Creation does not focus/open a window, replay history, run a provider/tool or renew activity/retention ([native owner](../src/Kora/SessionsPresentationOwner.DetailsOffers.cs)).
+
+The offer expires no later than 60 seconds from admission or the earlier source/session deadline; presentation and replies never reset it.
+Native answers and already deliberately activated voice input are supported without automatic capture, mic arming, prefix-free reply integration or new preference modes.
+This bounded implementation does not qualify unavailable runtime, voice or renderer profiles ([lifecycle](../src/Kora.Application/Presentation/DetailsOfferService.cs)).
+
 #### Implemented existing Offer versus Link only suppression
 
 The bounded implementation consumes only the existing Offer/Link only portion, not the full three-way contract or new post-finalization question authority. Offer preserves the existing passive cue exactly; LinkOnly suppresses that host cue on future current-response and session publications. The shared native conversation template hides its offer card when no admitted offer exists ([policy/workflow](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs), [current response](../src/Kora.Application/ViewModels/MainViewModel.CurrentResponse.cs), [session consumer](../src/Kora/SessionsViewModel.Conversation.cs)).
 
 Native Settings and exact original typed/current-name activated commands inspect, review, separately confirm, cancel or review reset of one device-local preference. Reset saves Offer. Original session/channel, call, privacy, ownership, input and revision checks remain required. Unconfirmed storage/audit/readback holds offers rather than inferring a default ([interaction](../src/Kora.Application/ViewModels/MainViewModel.DetailPresentation.cs), [format](../src/Kora.Core/Presentation/DetailPresentationPreference.cs), [persistence](../src/Kora.Application/Configuration/LocalDetailPresentationPreferences.cs)).
 
-This changes no retained content, manual Details/navigation/copy admission, existing window preferences or per-task output modes. One-off acceptance/decline writes no preference; restoring Offer allows only future new publications, with no historical offer/content/speech replay. Existing published text is not rewritten. Automatic opening, new questions, reply turns and presentation intents remain unavailable/out of scope ([current route](../src/Kora.Application/ViewModels/MainViewModel.cs), [session retirement](../src/Kora/SessionsViewModel.DetailOffers.cs)).
+The preference alone changes no retained content, manual Details/navigation/copy admission, window preferences or per-task output modes.
+One-off acceptance/decline writes no preference; restoring Offer allows only future publications, never historical replay.
+It grants no automatic opening, new questions or reply turns; the separately opted-in question above has its own authority ([current route](../src/Kora.Application/ViewModels/MainViewModel.cs)).
 
 All completed session-publication routes share one offer-epoch capture,
 including ordinary queued completions and original-request foreground

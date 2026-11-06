@@ -158,10 +158,10 @@ public sealed partial class MainViewModel
                     && snapshot.MicrophoneAccess == previous.MicrophoneAccess
                     && string.Equals(snapshot.DefaultMicrophoneId, previous.DefaultMicrophoneId, StringComparison.Ordinal)
                     && snapshot.ActiveMicrophoneIds.SequenceEqual(previous.ActiveMicrophoneIds, StringComparer.Ordinal))
-                {
-                    // Output-only revisions retain validated input metadata, not input admission or capture.
-                    catalogPrivacyRevision = snapshot.TopologyRevision;
-                }
+        {
+            // Output-only revisions retain validated input metadata, not input admission or capture.
+            catalogPrivacyRevision = snapshot.TopologyRevision;
+        }
         else { await RefreshMicrophonesAsync(); }
         if (!disposed && !lifecycleAdmissionClosed) { await RefreshOutputEndpointsAsync(); }
         activity.Complete(HostOperationOutcome.Completed);
@@ -281,6 +281,8 @@ public sealed partial class MainViewModel
             if (disposed) { return; }
             disposed = true;
         }
+        RetireDetailsOffer();
+        PrivacyClosureRequested -= OnDetailsOfferPrivacyClosure;
         if (speechComparison is not null)
         {
             speechComparison.Changed -= OnSpeechComparisonChanged;
@@ -749,6 +751,7 @@ public sealed partial class MainViewModel
 
     public async Task BeginPushToTalkAsync()
     {
+        var detailsTarget = CurrentDetailsOffer?.Key;
         if (!IsReviewedVoiceCaptureReleased)
         {
             ShowInformation("Reviewed command owns input.", "Finish or cancel its exact review before starting a direct command.");
@@ -841,6 +844,7 @@ public sealed partial class MainViewModel
 
             CaptureCustomizationVoice(editorTarget);
             Volatile.Write(ref capturedSpeechInterruption, speechInput with { Generation = voiceRecognition.Generation });
+            CaptureDetailsReply(detailsTarget);
             Interlocked.Exchange(ref acceptedTranscriptGeneration, voiceRecognition.Generation);
             IsListening = voiceRecognition.IsListening;
             BeginPushToTalkCommand.NotifyCanExecuteChanged();

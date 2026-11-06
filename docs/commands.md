@@ -18,6 +18,19 @@ model-dependent operation.
 Full identifiers are needed only where the exact command syntax asks for them;
 use native lists or readable-name routes elsewhere.
 
+## Ask once about this request's Details
+
+Use `ask this conversation with details offer <original message>` in the global command box, or prefix it with the current assistant name during deliberate push-to-talk.
+Review the unchanged original request and **Offer to open Details once for this request**, then separately confirm.
+The equivalent unchecked choice is available in an ordinary foreground original-request review ([review](../src/Kora/SessionRequestReviewPanel.cs)).
+
+If that exact foreground request genuinely completes with eligible full Details, answer the native question with **Yes** or **Not now**.
+Typed `yes`/`show it` and `no`/`not now`, or deliberately activated equivalents, target only that exact question.
+There is no automatic microphone opening.
+The offer expires within 60 seconds; source, selection, input, preference or privacy changes retire it without replay ([owner](../src/Kora.Application/Presentation/DetailsOfferService.cs)).
+
+Existing Offer/LinkOnly preference, manual Details and unsent conversation text remain independent. Answering does not rerun work, change preferences or renew retention. Unavailable answer runtimes remain unavailable; this command does not enable a model ([boundary](../Design/Decision_Register.md#exact-opted-in-details-presentation-question---2026-11-06)).
+
 ## Review one spoken command before dispatch
 
 In the response window, choose **Review one spoken command**, speak one general command using the current assistant name, then choose **Finish capture**. The microphone closes before the exact final transcript appears. Correct the text if needed, then separately choose **Dispatch this exact voice command once**, or **Cancel reviewed command**. Editing never runs the command ([capture and review](../src/Kora.Application/Voice/ReviewedVoiceCommandCapture.cs)).

@@ -25,7 +25,8 @@ internal sealed partial class SessionsWindowController(
     Kora.Application.Dependencies.VerifiedLocalHandoffOperation? localHandoff = null,
     SessionRetentionApplyService? retentionApply = null,
     ExactAnswerExportWindowController? answerExports = null,
-    Kora.Application.Configuration.DetailPresentationConfigurationService? detailPresentation = null) : IDisposable, ISessionDispositionReviewPresenter,
+    Kora.Application.Configuration.DetailPresentationConfigurationService? detailPresentation = null,
+    Kora.Application.Presentation.DetailsOfferService? detailsOffers = null) : IDisposable, ISessionDispositionReviewPresenter,
     ISessionQueueCancellationReviewPresenter
 {
     private SessionsWindow? window;
@@ -255,7 +256,8 @@ internal sealed partial class SessionsWindowController(
             && ReferenceEquals(interaction, interactionView) && buffer();
     }
     internal Func<SessionWorkspaceEntry, Kora.Core.Conversation.ConversationMessage, Avalonia.Controls.Window?,
-        Func<bool>, CancellationToken, Task<string>>? ReviewOriginalMessageReuse { get; set; }
+        Func<bool>, CancellationToken, Task<string>>? ReviewOriginalMessageReuse
+    { get; set; }
 
     internal void Bind()
     {
@@ -503,6 +505,8 @@ internal sealed partial class SessionsWindowController(
         model.RemainingWorkAnswer = main.AnswerRemainingWorkAsync;
         model.RemainingWorkAdmission = () => main.CanAnswerRemainingWork;
         presentation = new(model, main);
+        if (detailsOffers is not null && detailPresentation is not null)
+        { presentation.BindDetailsOffers(detailsOffers, detailPresentation); }
         model.OpenSessionInstructionScopes = () =>
         {
             try

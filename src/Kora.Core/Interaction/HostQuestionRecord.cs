@@ -11,4 +11,8 @@ public sealed record HostQuestionRecord(
     QuestionStatus Status = QuestionStatus.Pending,
     QuestionAnswer? Draft = null,
     RequestOrigin? AnswerChannel = null,
-    HostOperationProposal? Proposal = null);
+    HostOperationProposal? Proposal = null)
+{
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public Kora.Core.Presentation.DetailsOfferBinding? DetailsOffer { get; init; }
+}

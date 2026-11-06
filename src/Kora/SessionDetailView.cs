@@ -13,6 +13,7 @@ internal sealed class SessionDetailView : IDetailView
     private bool closed;
     internal DetailContentView Reader { get; }
     internal AdmittedDetailContent? Content => state.Content;
+    internal DetailContentReference Reference => state.Reference;
     public event EventHandler? Closed;
 
     internal SessionDetailView(SessionInteractionView host, DetailViewerState state, NativeDocumentResult result,

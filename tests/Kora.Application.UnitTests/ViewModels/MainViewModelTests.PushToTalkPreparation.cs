@@ -11,6 +11,37 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task PushToTalkCannotStartDuringReadinessRefreshAndRequiresANewGestureAfterward()
+    {
+        var f = await ReplyHostAsync();
+        f.ViewModel.CanPushToTalk.Should().BeTrue();
+        f.Probe.Gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var refresh = f.ViewModel.RefreshCommand.ExecuteAsync();
+        try
+        {
+            f.ViewModel.IsBusy.Should().BeTrue();
+            f.ViewModel.IsSpeaking.Should().BeFalse();
+            f.ViewModel.CanPushToTalk.Should().BeFalse();
+            f.ViewModel.BeginPushToTalkCommand.CanExecute(null).Should().BeFalse();
+            await f.ViewModel.BeginPushToTalkAsync();
+            f.Voice.StartCalls.Should().Be(0);
+            f.Voice.IsListening.Should().BeFalse();
+        }
+        finally
+        {
+            f.Probe.Gate.SetResult();
+            await refresh;
+        }
+        f.Voice.StartCalls.Should().Be(0);
+        f.ViewModel.CanPushToTalk.Should().BeTrue();
+        await f.ViewModel.BeginPushToTalkCommand.ExecuteAsync();
+        f.Voice.StartCalls.Should().Be(1);
+        f.ViewModel.IsListening.Should().BeTrue();
+        await f.ViewModel.EndPushToTalkCommand.ExecuteAsync();
+        await f.ViewModel.DisposeAsync();
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(false, true)]

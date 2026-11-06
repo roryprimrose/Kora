@@ -8,6 +8,7 @@ public sealed record RegisteredSettingDescriptor(
     public string SuggestedValues => Setting switch
     {
         RegisteredSetting.ResponseMode => "Hybrid/VoiceOnly/VisualOnly",
+        RegisteredSetting.DetailPresentation => "Offer/LinkOnly/OpenAutomatically",
         RegisteredSetting.QuietHours => "Off or weekly <ordered days> <HH:mm start> <HH:mm end> <explicit installed zone ID>",
         RegisteredSetting.SpeechVoice => "exact installed provider / voice ID supplied by the user",
         RegisteredSetting.PresenceDisplay or RegisteredSetting.SpeechScaling or RegisteredSetting.ReducedMotion => "true/false",

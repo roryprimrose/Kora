@@ -4,6 +4,7 @@ using Kora.Application.Configuration;
 using Kora.Application.Configuration.RegisteredSettings;
 using Kora.Core.Configuration;
 using Kora.Core.Configuration.RegisteredSettings;
+using Kora.Core.Presentation;
 using Kora.Core.Voice;
 
 namespace Kora.Application.UnitTests.Configuration;
@@ -21,15 +22,15 @@ public sealed class RegisteredSettingsTests
             "appearance.speech-scaling", "appearance.speech-scale-amount", "speech.windows-rate",
             "appearance.response-timeout", "appearance.reduced-motion", "speech.voice",
             "voice.command-start-wait", "voice.reply-start-wait", "voice.trailing-silence",
-            "notices.quiet-hours");
-        RegisteredSettingRegistry.Settings.Select(item => (int)item.Setting).Should().Equal(Enumerable.Range(0, 22));
+            "notices.quiet-hours", "responses.detail-presentation");
+        RegisteredSettingRegistry.Settings.Select(item => (int)item.Setting).Should().Equal(Enumerable.Range(0, 23));
     }
 
     [Fact]
     public void ClosedRegistryInspectionAndPolicyDeclareOnlyTheExistingAdmittedSubset()
     {
         RegisteredSettingRegistry.Settings.Select(item => item.Setting).Should().Equal(Enum.GetValues<RegisteredSetting>());
-        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().OnlyHaveUniqueItems().And.HaveCount(22);
+        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().OnlyHaveUniqueItems().And.HaveCount(23);
         foreach (var descriptor in RegisteredSettingRegistry.Settings)
         {
             RegisteredSettingRegistry.Get(descriptor.Setting).Should().BeSameAs(descriptor);
@@ -37,7 +38,7 @@ public sealed class RegisteredSettingsTests
             RegisteredSettingSuggestions.ModelPolicy.Should().Contain(descriptor.Id).And.Contain(descriptor.Description);
             descriptor.SuggestedValues.Should().NotBeNullOrWhiteSpace();
             RegisteredSettingSuggestions.ModelPolicy.Should().Contain(descriptor.SuggestedValues);
-            descriptor.RequiresNativeReview.Should().Be(descriptor.Setting == RegisteredSetting.QuietHours
+            descriptor.RequiresNativeReview.Should().Be(descriptor.Setting is RegisteredSetting.QuietHours or RegisteredSetting.DetailPresentation
                 || descriptor.Id.StartsWith("voice.", StringComparison.Ordinal)
                 || descriptor.Id.StartsWith("appearance.", StringComparison.Ordinal) && descriptor.Setting != RegisteredSetting.ResponseTimeout);
             if (descriptor.Id.StartsWith("appearance.", StringComparison.Ordinal))
@@ -56,6 +57,28 @@ public sealed class RegisteredSettingsTests
         RegisteredSettingSuggestions.ModelPolicy.Should().Contain("never write authority").And.Contain("separately confirm or cancel")
             .And.Contain("companion cap").And.Contain("desired/effective").And.Contain("zero blocks future synthesis")
             .And.Contain("native/authentication exceptions");
+    }
+
+    [Theory]
+    [InlineData("Offer", DetailPresentationMode.Offer)]
+    [InlineData("LinkOnly", DetailPresentationMode.LinkOnly)]
+    [InlineData("OpenAutomatically", DetailPresentationMode.OpenAutomatically)]
+    public void DetailsSuggestionsUseOnlyExactExistingModesAndNativeReview(string literal, DetailPresentationMode mode)
+    {
+        RegisteredSettingSuggestions.Parse("set responses.detail-presentation to " + literal)
+            .Should().Be(new RegisteredSettingProposal.DetailPresentation(mode));
+        RegisteredSettingRegistry.Get(RegisteredSetting.DetailPresentation).RequiresNativeReview.Should().BeTrue();
+        RegisteredSettingSuggestions.Parse("reset responses.detail-presentation")
+            .Should().Be(new RegisteredSettingProposal.Reset(RegisteredSetting.DetailPresentation));
+        foreach (var invalid in new[] { literal.ToLowerInvariant(), literal + " ", " " + literal, "0",
+            literal + "\nconfirm detail presentation change", literal + "\nset speech.playback-volume to 0" })
+        {
+            FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse("set responses.detail-presentation to " + invalid))
+                .Should().Throw<InvalidDataException>();
+        }
+        foreach (var invalid in new[] { "always open detailed results", "offer detailed results", "stop asking about details",
+            "Set responses.detail-presentation to " + literal, "Kora, set responses.detail-presentation to " + literal })
+        { FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse(invalid)).Should().Throw<InvalidDataException>(); }
     }
 
     [Fact]

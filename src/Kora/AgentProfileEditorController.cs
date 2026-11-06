@@ -97,10 +97,8 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
         var opened = window!;
         if (command.Action is AgentProfileAuthoringAction.Create or AgentProfileAuthoringAction.DraftFromDescription)
         {
-            opened.NameInput.Text = command.Argument;
-            await CreateDraft(origin, eligible);
-            if (command.Action == AgentProfileAuthoringAction.DraftFromDescription
-                && string.Equals(draftName, command.Argument, StringComparison.Ordinal) && !Dirty)
+            var created = await CreateDraft(command.Argument, origin, eligible);
+            if (created && command.Action == AgentProfileAuthoringAction.DraftFromDescription)
             {
                 opened.DescriptionRequest.Text = command.Description;
                 descriptionEligible = eligible;
@@ -174,22 +172,23 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
             var eligible = main.CaptureInstructionEditorEligibility();
             using var activity = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Desktop, HostOperation.Request);
             active = Reported(() => string.Equals(action, "Create", StringComparison.Ordinal)
-                ? CreateDraft(RequestOrigin.LocalUi, eligible) : Run(action, eligible));
+                ? CreateDraft(window!.NameInput.Text ?? string.Empty, RequestOrigin.LocalUi, eligible) : Run(action, eligible));
             await JoinActive();
             activity.Complete(HostOperationOutcome.Completed);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException) { Report(exception); }
     }
 
-    private async Task CreateDraft(RequestOrigin origin, Func<bool> eligible)
+    private async Task<bool> CreateDraft(string requestedName, RequestOrigin origin, Func<bool> eligible)
     {
         var opened = window!;
-        var name = OwnedInstructionNames.WriteName(opened.NameInput.Text ?? string.Empty);
-        if (!await Abandon(opened) || !Eligible() || !eligible()) { return; }
+        var name = OwnedInstructionNames.WriteName(requestedName);
+        if (!await Abandon(opened) || !ReferenceEquals(window, opened) || !Eligible() || !eligible()) { return false; }
         Retire();
         draftName = name;
         originalSnapshot = null;
         opened.NameInput.IsReadOnly = false;
+        opened.NameInput.Text = name;
         originalOrigin = origin;
         originalEligible = eligible;
         proposalDestination = null;
@@ -200,6 +199,7 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
         opened.Source.IsReadOnly = false;
         opened.Source.Text = string.Empty;
         opened.Status.Text = "New volatile draft. Supply the complete v1 or v4 source, validate and review Save as new. Nothing saved or selected.";
+        return true;
     }
 
     private void RequireDraft()

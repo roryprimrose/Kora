@@ -21,9 +21,15 @@ In an Active conversation, explicitly select **Review session-memory proposal...
 
 1. **Accept exact session candidate** only after inspecting the complete source and value. Acceptance remains volatile, pending and unused.
 2. Separately select **Admit accepted session memory** to save this exact session-only memory through the existing admission, audit and durable transaction. This does not use memory, grant tools, invoke a model or approve hosted disclosure.
-3. **Reject candidate** records rejection without saving a body. **Cancel without saving** withdraws an unadmitted review, including after acceptance. It cannot undo an already committed admission ([shared workflow](../src/Kora.Application/Memory/ModelProposals/MemoryManagementService.ModelProposals.cs)).
+3. **Reject candidate** records rejection without saving a body, including after acceptance but before admission. This separate original-user action withdraws the accepted candidate's review receipt and closes the proposal; it cannot then be admitted or used. **Cancel without saving** instead withdraws the unadmitted review without a rejection decision. Neither action can undo an already committed admission ([shared workflow](../src/Kora.Application/Memory/ModelProposals/MemoryManagementService.ModelProposals.cs)).
 
 Review expires after 60 seconds. Refresh, reselection, source withdrawal, privacy/control changes, session lifecycle changes and closure retire the old review. Each consequential action requires fresh original-user input and rechecks the exact retained source; stale or replayed approval is not reusable. Failures may leave an uncertain committed result: inspect Session memories and audit receipts, never automatically retry or infer rollback ([workflow](../src/Kora.Application/Memory/ModelProposals/MemoryManagementService.ModelProposals.cs), [native lifecycle](../src/Kora/ModelMemoryProposals/SessionsViewModel.ModelMemoryProposals.cs)).
+
+Starting a model-memory proposal action also retires open Session and Device-profile memory-use reviews. Replacement use reviews remain closed until the source and transaction work finishes, including cancellation or failure.
+Afterwards, explicitly review the selected memories and question again before separate confirmation; old consent never resumes ([shared mutation boundary](../src/Kora.Application/Memory/ModelProposals/MemoryManagementService.ModelProposals.cs)).
+
+**Cancel without saving** also retires a review whose source read is still pending. The source operation remains owned until it joins; its late result cannot restore the review or enable Accept/Admit. A new review requires a separate deliberate action.
+See the [native owner](../src/Kora/ModelMemoryProposals/SessionsViewModel.ModelMemoryProposals.cs) and [three-surface regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ModelMemoryReviewCancellation.cs).
 
 ## Boundaries and availability
 

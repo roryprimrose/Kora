@@ -14,7 +14,7 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
-    private static async Task<Fixture> ReviewedCommandFixture(bool speechProfile = false)
+    private static async Task<Fixture> ReviewedCommandFixture(bool speechProfile = false, TimeProvider? time = null)
     {
         var fixture = speechProfile ? new Fixture(enableSpeechInput: true, enableQuestionReplies: true) : CreateVoicePrivacyFixture();
         fixture.VoiceConsent.Consent = true;
@@ -24,7 +24,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.BindCallOwnershipGate(static () => true);
         BindAdmittedLockResourceOwner(fixture);
         await fixture.ViewModel.InitializeAsync();
-        fixture.ViewModel.BindReviewedVoiceCommand(NullLogger<ReviewedVoiceCommandCapture>.Instance, TimeProvider.System);
+        fixture.ViewModel.BindReviewedVoiceCommand(NullLogger<ReviewedVoiceCommandCapture>.Instance, time ?? TimeProvider.System);
         return fixture;
     }
 
@@ -303,6 +303,40 @@ public sealed partial class MainViewModelTests
         f.Reasoner.Requests.Should().BeEmpty();
         await f.ViewModel.CancelReviewedVoiceCommandAsync();
         f.ViewModel.Dispose();
+    }
+
+    [Theory]
+    [InlineData(false, 59, 1)]
+    [InlineData(true, 59, 1)]
+    [InlineData(false, 60, 0)]
+    [InlineData(true, 60, 0)]
+    public async Task ReviewedCommandOriginalDeadlineFencesTheNormalActionWithoutTimerDelivery(
+        bool queued, int elapsedSeconds, int expectedActions)
+    {
+        var clock = new ReviewedClock();
+        var f = await ReviewedCommandFixture(time: clock);
+        try
+        {
+            await f.ViewModel.BeginReviewedVoiceCommandAsync(static () => true);
+            await f.Voice.RaiseTranscriptAsync("Kora, lock the machine", 1);
+            await f.ViewModel.FinishReviewedVoiceCommandAsync();
+            var confirm = f.ViewModel.CaptureReviewedVoiceCommandConfirmation();
+            void Elapse() => clock.Advance(TimeSpan.FromSeconds(elapsedSeconds));
+            if (queued) { f.Dispatcher.BeforeInvoke = Elapse; }
+            else { Elapse(); }
+            await confirm();
+            await confirm();
+            await f.ViewModel.CancelReviewedVoiceCommandAsync();
+
+            f.Session.LockCalls.Should().Be(expectedActions);
+            f.ViewModel.IsReviewedVoiceCommandActive.Should().BeFalse();
+            f.ViewModel.ReviewedVoiceCommandText.Should().BeEmpty();
+            f.Voice.IsCaptureQuiescent.Should().BeTrue();
+            f.VoiceConsent.Consent.Should().BeTrue();
+            f.ClipboardReader.Calls.Should().Be(0);
+            f.Reasoner.Requests.Should().BeEmpty();
+        }
+        finally { await f.ViewModel.DisposeAsync(); }
     }
 
     [Theory]

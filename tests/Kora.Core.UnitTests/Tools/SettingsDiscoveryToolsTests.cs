@@ -1,11 +1,14 @@
+using System.Collections.Immutable;
 using System.Text;
 using System.Text.Json;
 using AwesomeAssertions;
+using Kora.Core.Configuration;
 using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Configuration.SettingInspection;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Tools;
+using Kora.Core.Voice;
 
 namespace Kora.Core.UnitTests.Tools;
 
@@ -28,6 +31,10 @@ public sealed class SettingsDiscoveryToolsTests
             new(RegisteredSetting.SpeechScaling, 1, false, 6),
             new(RegisteredSetting.SpeechScaleAmount, 100, false, 6),
             new(RegisteredSetting.ReducedMotion, 0, false, 6),
+            new(RegisteredSetting.CommandStartWait, VoiceCaptureTiming.Default, false, 7),
+            new(RegisteredSetting.ReplyStartWait, VoiceCaptureTiming.Default, false, 7),
+            new(RegisteredSetting.TrailingSilence, VoiceCaptureTiming.Default, false, 7),
+            new(SpeechSelection.Default, false, 3),
         ], "Which registered settings control spoken summaries?", HostRequest.Create(RequestOrigin.LocalUi),
         DateTimeOffset.UnixEpoch, mode);
 
@@ -58,8 +65,10 @@ public sealed class SettingsDiscoveryToolsTests
                 .Should().Be(SettingsDiscoveryTools.HasConfirmedReader(descriptor.Setting));
         }
         review.Observations.Should().OnlyContain(item => review.Source.Contains(item.Text, StringComparison.Ordinal));
-        review.Observations.Should().HaveCount(15).And.NotContain(item => item.Setting == RegisteredSetting.SpeechVoice);
-        SettingsDiscoveryTools.HasConfirmedReader(RegisteredSetting.SpeechVoice).Should().BeFalse();
+        review.Observations.Should().HaveCount(19).And.OnlyHaveUniqueItems(item => item.Setting);
+        review.Observations.Single(item => item.Setting == RegisteredSetting.SpeechVoice)
+            .Selection.Should().Be(SpeechSelection.Default);
+        SettingsDiscoveryTools.HasConfirmedReader(RegisteredSetting.SpeechVoice).Should().BeTrue();
         review.Text.Should().Contain(review.Source);
         review.Bind(review.Destination, new(1), DateTimeOffset.UnixEpoch).Evidence.Single().Content
             .Should().Be(review.Source);
@@ -101,11 +110,37 @@ public sealed class SettingsDiscoveryToolsTests
             """{"id":"appearance.response-timeout"}""").Should().Be(
                 new CapabilityReply(CapabilityOutcome.Unavailable, "setting-value-unavailable"));
         SettingsDiscoveryTools.Read(review.Observations, SettingsDiscoveryTools.Get,
-            """{"id":"speech.voice"}""").Should().Be(
+            """{"id":"speech.windows-rate"}""").Should().Be(
                 new CapabilityReply(CapabilityOutcome.Unavailable, "setting-value-unavailable"));
         SettingsDiscoveryTools.Read(review.Observations, "settings.reset", "{}").Outcome.Should().Be(CapabilityOutcome.Denied);
+        SettingsDiscoveryTools.HasConfirmedReader(RegisteredSetting.QuietHours).Should().BeFalse();
+        SettingsDiscoveryTools.Read(review.Observations, SettingsDiscoveryTools.Get,
+            """{"id":"notices.quiet-hours"}""").Should().Be(
+                new CapabilityReply(CapabilityOutcome.Unavailable, "setting-value-unavailable"));
         SettingsDiscoveryTools.Read(review.Observations, SettingsDiscoveryTools.List, """{"offset":999}""")
             .Reason.Should().Be("page-out-of-range");
+    }
+
+    [Theory]
+    [InlineData('x')]
+    [InlineData('"')]
+    [InlineData('\\')]
+    [InlineData('\u4e00')]
+    public void FullDomainSpeechVoiceIdsRemainTypedAndFitTheExactGetWireLimit(char character)
+    {
+        var selection = new SpeechSelection("windows-sapi", new string(character, SpeechSelection.MaximumVoiceIdLength));
+        var observations = Review().Observations.Select(item => item.Setting == RegisteredSetting.SpeechVoice
+            ? new SettingObservation(selection, true, long.MaxValue) : item).ToImmutableArray();
+        const string input = """{"id":"speech.voice"}""";
+        var reply = SettingsDiscoveryTools.Read(observations, SettingsDiscoveryTools.Get, input);
+        reply.Outcome.Should().Be(CapabilityOutcome.Succeeded);
+        CapabilityReplyWire.GetSerializedSize(reply).Should().BeLessThanOrEqualTo(
+            SettingsDiscoveryTools.FindExact(SettingsDiscoveryTools.Get)!.Limits.MaximumOutputUtf8Bytes);
+        using var wire = JsonDocument.Parse(ModelToolProtocol.CreateToolResult(new("voice_1", SettingsDiscoveryTools.Get, input), reply).Result.AsMemory());
+        var observation = wire.RootElement.GetProperty("settings").GetProperty("observation");
+        observation.GetProperty("selection").GetProperty("voiceId").GetString().Should().Be(selection.VoiceId);
+        observation.TryGetProperty("value", out _).Should().BeFalse("the compound pair has no fabricated scalar");
+        observation.GetProperty("text").GetString().Should().Be(observations.Single(item => item.Setting == RegisteredSetting.SpeechVoice).Text);
     }
 
     [Theory]

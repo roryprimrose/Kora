@@ -11,6 +11,144 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class SessionInstructionScopeUiTests
 {
+    [Theory]
+    [InlineData("review", false)]
+    [InlineData("confirm", false)]
+    [InlineData("stop", false)]
+    [InlineData("status", false)]
+    [InlineData("refresh", false)]
+    [InlineData("stop", true)]
+    [InlineData("typed-stop", false)]
+    [InlineData("voice-stop", false)]
+    public async Task NativeScopeWindowCannotRetargetAfterSessionSelectionChanges(string action, bool returnToOriginal)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            await using var f = await SessionInstructionScopeWorkflowTests.Fixture.CreateAsync();
+            var original = await f.Workspace.CreateAsync(new("Original conversation"), RequestOrigin.LocalUi, f.Storage.Token);
+            var other = await f.Workspace.CreateAsync(new("Other conversation"), RequestOrigin.LocalUi, f.Storage.Token);
+            await f.Model.RefreshAsync();
+            await f.Model.SelectAsync(f.Model.Sessions.Single(row => row == original));
+            foreach (var target in new[] { original, other })
+            {
+                var review = await f.Scopes.ReviewAsync(target, f.Commands.Choices.Single(),
+                    static () => true, static () => true, f.Storage.Token);
+                await f.Scopes.ConfirmAsync(review, static () => true, f.Storage.Token);
+            }
+            var failures = new List<string>();
+            var controller = new SessionInstructionScopeController(static () => static () => true, static () => true,
+                failures.Add, f.Commands, f.Scopes, () => f.Model, static () => null);
+            try
+            {
+                controller.Open();
+                var window = controller.Window!;
+                window.Preview.Text.Should().Contain(original.Metadata!.Name.Value);
+                window.Sources.SelectedItem = f.Commands.Choices.Single();
+                window.Review.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await controller.Operation;
+                f.Commands.Pending.Should().NotBeNull();
+                var reads = f.Source.Reads;
+                await f.Model.SelectAsync(f.Model.Sessions.Single(row => row == other));
+                if (returnToOriginal)
+                { await f.Model.SelectAsync(f.Model.Sessions.Single(row => row == original)); }
+
+                if (action is "typed-stop" or "voice-stop")
+                {
+                    var origin = action is "voice-stop" ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi;
+                    await controller.Invoking(async item => await item.ExecuteAsync(
+                        new(SessionCommandOperation.InstructionScopeStop), origin, static () => true, f.Storage.Token))
+                        .Should().ThrowAsync<InvalidOperationException>();
+                    failures.Should().BeEmpty();
+                    window.Preview.Text.Should().BeEmpty();
+                }
+                else
+                {
+                    var button = action switch
+                    {
+                        "review" => window.Review,
+                        "confirm" => window.Confirm,
+                        "stop" => window.Stop,
+                        "status" => window.Status,
+                        "refresh" => window.Refresh,
+                        _ => throw new InvalidOperationException("Unknown test action."),
+                    };
+                    button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    await controller.Operation;
+                    failures.Should().ContainSingle();
+                    window.Preview.Text.Should().StartWith("Unconfirmed:").And.NotContain(f.Source.Snapshot!.Document.Text);
+                }
+                window.Confirm.IsEnabled.Should().BeFalse();
+                f.Commands.Pending.Should().BeNull();
+                f.Source.Reads.Should().Be(reads, "stale controls must not read the newly selected target's source");
+                f.Scopes.Status(original).Should().StartWith("Applying example");
+                f.Scopes.Status(other).Should().StartWith("Applying example");
+                f.Adapter.Contexts.Should().BeEmpty();
+                f.Storage.Count("conversation_messages").Should().Be(0);
+                f.Storage.Count("scoped_grants").Should().Be(0);
+
+                window.Close();
+                await controller.CloseOperation;
+                await f.Model.SelectAsync(f.Model.Sessions.Single(row => row == other));
+                controller.Open();
+                var reopened = controller.Window!;
+                reopened.Should().NotBeSameAs(window);
+                reopened.Preview.Text.Should().Contain(other.Metadata!.Name.Value);
+                reopened.Stop.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await controller.Operation;
+                f.Scopes.Status(other).Should().StartWith("No session instruction applies.");
+                f.Scopes.Status(original).Should().StartWith("Applying example");
+                var guided = await f.Conversation.SubmitAsync(original, "Original conversation request", static () => true, f.Storage.Token);
+                var bare = await f.Conversation.SubmitAsync(other, "Other conversation request", static () => true, f.Storage.Token);
+                guided.Message.AssistantResponse!.Body.Should().Be("Genuine guided local answer");
+                bare.Message.AssistantResponse!.Body.Should().Be("Genuine context-free answer");
+                f.Adapter.Guidance.Should().Equal(true, false);
+                f.Storage.Count("conversation_messages").Should().Be(2);
+                failures.Should().HaveCount(action is "typed-stop" or "voice-stop" ? 0 : 1);
+            }
+            finally { await controller.ShutdownAsync(); }
+        });
+    }
+
+    [Fact]
+    public async Task SelectionChangeDuringCancellationIgnoringSourceReadCannotPublishLateReview()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            await using var f = await SessionInstructionScopeWorkflowTests.Fixture.CreateAsync();
+            var original = f.Model.SelectedSessionRecord!;
+            var other = await f.Workspace.CreateAsync(new("Other conversation"), RequestOrigin.LocalUi, f.Storage.Token);
+            await f.Model.RefreshAsync();
+            await f.Model.SelectAsync(f.Model.Sessions.Single(row => row == original));
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            f.Source.BeforeRead = async () => { entered.TrySetResult(); await release.Task; };
+            var failures = new List<string>();
+            var controller = new SessionInstructionScopeController(static () => static () => true, static () => true,
+                failures.Add, f.Commands, f.Scopes, () => f.Model, static () => null);
+            try
+            {
+                controller.Open();
+                var window = controller.Window!;
+                window.Sources.SelectedItem = f.Commands.Choices.Single();
+                window.Review.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await entered.Task;
+                await f.Model.SelectAsync(f.Model.Sessions.Single(row => row == other));
+                controller.Operation.IsCompleted.Should().BeFalse();
+                release.SetResult();
+                await controller.Operation.Invoking(async task => await task).Should().ThrowAsync<InvalidOperationException>();
+                f.Commands.Pending.Should().BeNull();
+                window.Confirm.IsEnabled.Should().BeFalse();
+                window.Preview.Text.Should().StartWith("Unconfirmed:").And.NotContain(f.Source.Snapshot!.Document.Text);
+                f.Scopes.Status(original).Should().StartWith("No session instruction applies.");
+                f.Scopes.Status(other).Should().StartWith("No session instruction applies.");
+                f.Adapter.Contexts.Should().BeEmpty();
+                f.Storage.Count("conversation_messages").Should().Be(0);
+                failures.Should().ContainSingle();
+            }
+            finally { release.TrySetResult(); await controller.ShutdownAsync(); }
+        });
+    }
+
     [Fact]
     public async Task NativeStaleSelectionCannotReviewSameNameReplacementAndFreshSelectionCompletesUseAndStop()
     {

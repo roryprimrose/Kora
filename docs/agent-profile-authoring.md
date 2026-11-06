@@ -132,6 +132,12 @@ select, enable or invoke the profile, refresh executable discovery or grant tool
 providers, accounts or permissions. Later execution requires the existing separate
 explicit source/invocation review and its own readiness and consent.
 
+When another **agent author create** or **agent author draft** request (including Customizations **Agents / Kora / Add**) arrives with unsaved changes, resolve **Save / Discard / Cancel** for the current agent first.
+The [editor](../src/Kora/AgentProfileEditorController.cs) retains its current ID, complete source and description during that decision.
+**Save** reviews and separately confirms the current agent's original destination, not the requested new ID.
+**Cancel**, cancelled Save confirmation or expired ownership retains the current draft; no new description enters authoring.
+Only a completed, still-admitted decision creates the requested new volatile draft. That draft still needs its own validation, review and native Save confirmation.
+
 ## Edit the same existing original
 
 Use the owned inventory or **agent author inspect example**, then explicitly choose **Edit existing original**.

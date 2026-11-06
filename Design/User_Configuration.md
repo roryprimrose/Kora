@@ -77,6 +77,10 @@ Deterministic behavioral regressions exercise the complete bounded workflow and 
 **Settings > Speech & audio > Conversational voice replies** provides explicit **Enable conversational replies** and **Turn off** actions ([native controls](../src/Kora/SettingsWindow.axaml)).
 The shared device-local preference defaults Off and uses current original-user/native/call admission, typed requested/terminal audit, atomic preference replacement, exact readback and an unconfirmed-write hold ([configuration owner](../src/Kora.Application/Configuration/ConversationalReplyConfigurationService.cs)).
 
+Final confirmation retains the original channel/call revision and rechecks native/private eligibility and cancellation before activation. Admission loss or uncertain marker removal/readback restores the durable hold, without claiming rollback of committed On/Off bytes ([regressions](../tests/Kora.Application.UnitTests/Configuration/ConversationalReplyConfigurationServiceTests.cs)).
+
+The native operation reports **not confirmed**, keeps automatic replies unavailable and never opens capture on this failure. Ordinary refresh and restart cannot clear the hold: inspect saved state and required audit/control receipts, explicitly repair, then freshly inspect and choose again ([native-route regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ConversationalReplies.cs)).
+
 This choice permits a new exact foreground host clarification to finish speaking before one bounded schema reply. It never enables listening by itself, replaces microphone consent or approves an operation ([conversational turn contract](Interaction_And_Sessions.md#opt-in-exact-playback-conversational-replies)).
 Manual voice/native answers remain available under that contract. This preference is not a new registered model-proposal setting or an alias for session dictation ([shared setting owner](../src/Kora.Application/Configuration/ConversationalReplyConfigurationService.cs)).
 
@@ -167,6 +171,8 @@ At one fixed UTC cutoff, Complete reports hypothetical newly archive/delete-due 
 The reader checks dates, flags, lifecycle, typed changes and authority head. Each scanned candidate is validated before exclusion, including the budget-crossing lookahead.
 No session bodies, names, attachment paths or question payloads are projected; retained questions/unavailable tasks are unknown exclusions ([reader](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.RetentionPlanner.cs)).
 Preview failure diagnostics retain only the exception type, never exception messages, private paths or source contents ([typed diagnostic](../src/Kora.Application/Diagnostics/ApplicationLog.Logging.cs)).
+
+After independent audit-prefix expiry, the reader starts at the existing validated anchor and checks the retained suffix without reconstructing expired events. Restart preserves the same read-only counts and recorded clocks; missing or inconsistent anchor/suffix state remains Unavailable ([regressions](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionRetentionPlannerTests.cs)).
 
 The scan shares 4,096 admissions and 4 MiB charges across authority, work metadata, clocks and orphan checks.
 Entries charge envelope size without returning it; task/session metadata charge 192 bytes, questions 96, ledger rows 40 and clock keys 36. A further validated candidate exhausts a limit, never truncated Complete ([accounting](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.RetentionPlanner.cs)).
@@ -1035,6 +1041,33 @@ Mutation remains the separate existing setting-suggestion/native review.
 Inspection performs no preference write, grant, consent change, capture, speech,
 network/export, renderer replacement or run-only presence mutation. Response
 timeout and Windows speech rate remain outside this confirmed-value subset.
+
+### Delivered confirmed capture-timing answer
+
+The same [complete inspection operation](../docs/setting-inspection.md) also
+answers "Why does capture stop or wait, and which command-start, reply-start
+and trailing-silence timings are configured?" The
+[authoritative timing reader](../src/Kora.Application/Configuration/SettingInspection/VoiceCaptureTimingConfigurationService.SettingInspection.cs)
+adds the three existing registered timing preferences to the closed review.
+Absent confirmed storage means defaults of 5, 15 and 1 seconds respectively;
+saved values retain exact decimal seconds and validated domain precision,
+including seven fractional digits. No registration, bounds, defaults or
+persisted format changes.
+
+The host compares saved/default provenance and values with its usable timing
+service at the exact revision. Committing, held, malformed, unconfirmed or
+externally changed state blocks the complete source. An observed change and
+return or service reload cannot renew an earlier source. Existing revalidation
+before dispatch, `settings.get` and final publication applies unchanged.
+
+Native review shows the full source, unchanged original question, local
+destination and expiry before separate one-use confirmation, in tool-free or
+explicit settings-discovery mode. Only the original question and genuine final
+answer enter existing retention. Timing preferences are not evidence of active
+capture, acoustic behavior or runtime qualification. This operation never
+writes settings, starts capture/playback, changes listening consent or enables
+a provider. Original channel, privacy, session, expiry, cancellation and
+physical-join boundaries remain authoritative.
 Deterministic implementation tests do not enable or qualify a provider/profile.
 
 ### Delivered bounded spoken summary limits (R10)
@@ -1814,6 +1847,9 @@ Reserved malformed input clarifies without model/approval fallthrough ([grammar]
 
 Review expires after 60 seconds. Changed input, original channel, native visibility/binding, ownership, privacy, call policy, saved intent, installed image or registration requires a fresh review.
 Voice confirmation uses a separate freshly admitted capture; native confirmation cannot relabel a voice review. Pending questions and approvals remain unchanged ([workflow](../src/Kora.Application/Configuration/LogonStartupConfigurationService.cs), [host binding](../src/Kora.Application/ViewModels/MainViewModel.LogonStartup.cs)).
+
+Cancel also retires pending inspection and review completion, and remains effective during separate confirmation. A late result cannot revive cancelled review or publish completed readback; a fresh review and separate confirmation are required ([cancellation regressions](../tests/Kora.Application.UnitTests/Configuration/LogonStartupConfigurationServiceTests.cs)).
+Cancellation after a real write does not undo registration or saved intent. Unconfirmed completion retains the durable hold and explicit inspection/recovery requirement, without rollback or automatic retry ([configuration owner](../src/Kora.Application/Configuration/LogonStartupConfigurationService.cs)).
 
 The [Windows seam](../src/Kora.Windows/Startup/WindowsLogonStartupRegistration.cs) controls the existing MSI-owned HKCU `Kora` Run value only for the exact running current-user MSI installation.
 Developer, older installations lacking install-location metadata, machine-wide, foreign, Windows-disabled and unknown state remain unavailable. Existing unowned entries and Windows approval are never overwritten. Inspect distinguishes last confirmed saved/desired intent, observed registration and unavailable/unconfirmed state.

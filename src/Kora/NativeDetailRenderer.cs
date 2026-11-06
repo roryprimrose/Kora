@@ -140,6 +140,12 @@ internal sealed partial class NativeDetailRenderer(
             return Fallback(source, "TableStructure", tableError, reference,
                 validation.Blocks, validation.Nodes, validation.Depth);
         }
+        if (document.Descendants<CodeBlock>().Any(code => !HasContiguousCodeSource(code, source)))
+        {
+            return Fallback(source, "CodeSource",
+                "Noncontiguous literal code source; exact source fallback (container markers are not code).", reference,
+                validation.Blocks, validation.Nodes, validation.Depth);
+        }
         List<NativeTextSection> sections;
         try { sections = Flatten(document, source, strikethrough); }
         catch (InvalidDataException)
@@ -328,6 +334,18 @@ internal sealed partial class NativeDetailRenderer(
             _ when SupportedTypes.Contains(node.GetType()) => null,
             _ => "Unsupported Markdown node/extension; exact source fallback.",
         };
+
+    private static bool HasContiguousCodeSource(CodeBlock code, string source)
+    {
+        for (var index = 1; index < code.Lines.Count; index++)
+        {
+            var end = code.Lines.Lines[index - 1].Slice.End + 1;
+            if (end < source.Length && source[end] == '\r') { end++; }
+            if (end < source.Length && source[end] == '\n') { end++; }
+            if (end != code.Lines.Lines[index].Slice.Start) { return false; }
+        }
+        return true;
+    }
 
     private static List<NativeTextSection> Flatten(MarkdownDocument document, string source, bool strikethrough)
     {

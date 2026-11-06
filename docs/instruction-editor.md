@@ -108,6 +108,13 @@ withdrawn privacy/input admission and uncertain publication do not authorize
 overwrite, automatic retry or rollback
 ([writer](../src/Kora.Windows/ArtifactDiscovery/WindowsOwnedDefinitionFileAccess.Rename.cs)).
 
+A staging write/flush failure before private intent publication removes only
+that unpublished staging file and leaves the exact original untouched.
+The error does not confirm a rename. Explicitly inspect the original and start
+a fresh review; no retry happens automatically. If cleanup is also reported
+unconfirmed, inspect storage recovery rather than assume the staging file is gone
+([failure checks](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsOwnedInstructionStoreTests.Rename.cs)).
+
 After an interruption, choose **Recover rename** or
 `instructions recover-rename`. Inspect the original proposal and exact
 observed phase, then separately confirm continuation. No recovery replays

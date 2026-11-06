@@ -21,6 +21,55 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class CodeHighlightingTests
 {
     [Theory]
+    [InlineData("\n", "\npublic class C { }\n")]
+    [InlineData("\r\n", "\r\npublic class C { }\r\n")]
+    [InlineData("\n", "\n\npublic class C { }\n\n")]
+    [InlineData("\r\n", "\r\n\r\npublic class C { }\r\n\r\n")]
+    public void FencedCodeKeepsLeadingBlankLinesWithoutIncludingSurroundingMarkdown(string newline, string literal)
+    {
+        var source = "Earlier prose." + newline + newline + "```cs" + newline
+            + literal + "```" + newline + newline + "Later prose.";
+        var result = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance).Render(source);
+        result.IsFallback.Should().BeFalse();
+        var code = result.Sections.Single(section => section.Code is not null).Code!;
+        code.Text.Should().Be(literal);
+        code.SourceStart.Should().Be(source.IndexOf("```cs", StringComparison.Ordinal) + 5 + newline.Length);
+        source.Substring(code.SourceStart, code.Text.Length).Should().Be(literal);
+        result.Source.Should().Be(source);
+    }
+
+    [Theory]
+    [InlineData("> ```cs\n> alpha\n> beta\n> ```\n")]
+    [InlineData("> ```cs\r\n> alpha\r\n> beta\r\n> ```\r\n")]
+    [InlineData("> ```cs\n> alpha\n>\n> beta\n> ```\n")]
+    [InlineData("- ```cs\n  alpha\n  beta\n  ```\n")]
+    [InlineData("- ```cs\r\n  alpha\r\n  beta\r\n  ```\r\n")]
+    [InlineData("    alpha\n    beta\n")]
+    public void DiscontiguousCodeKeepsExactDocumentFallbackInsteadOfInventingLiteralSpan(string source)
+    {
+        var result = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance).Render(source);
+        result.IsFallback.Should().BeTrue("container markers between literal lines cannot become code");
+        result.Status.Should().Contain("code source").And.Contain("fallback");
+        result.Source.Should().Be(source);
+        result.SemanticText.Should().Be(source);
+        result.Sections.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("> ```cs\n> alpha\n> ```\n")]
+    [InlineData("- ```cs\n  alpha\n  ```\n")]
+    [InlineData("    alpha\n")]
+    public void SingleLineContainerCodeKeepsItsUnchangedContiguousLiteral(string source)
+    {
+        var result = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance).Render(source);
+        result.IsFallback.Should().BeFalse();
+        var code = result.Sections.Single().Code!;
+        code.Text.Should().Be("alpha\n");
+        source.Substring(code.SourceStart, code.Text.Length).Should().Be(code.Text);
+        result.Source.Should().Be(source);
+    }
+
+    [Theory]
     [InlineData(CodeLanguage.CSharp, "public class C { string s = \"é😀\"; // comment\r\n}\r\n")]
     [InlineData(CodeLanguage.PowerShell, "function X { Write-Output 'ok' # inert\n}\n")]
     [InlineData(CodeLanguage.Json, "{ \"a\": true, \"b\": 12 }")]

@@ -13,6 +13,13 @@ public sealed partial class MainViewModel
 {
     private readonly AudioPlaybackSettings audioPlaybackSettings;
     private bool volumeControlActive;
+    private Func<bool> playbackVolumeNativeLifetime = static () => false;
+
+    public void BindPlaybackVolumeNativeLifetime(Func<bool> lifetime)
+    {
+        playbackVolumeNativeLifetime = lifetime;
+        OnPropertyChanged(nameof(CanChangePlaybackVolumeNative));
+    }
 
     public int? SavedPlaybackVolume => audioPlaybackSettings.VolumeState?.Effective?.Percent;
     public IReadOnlyList<int> PlaybackVolumeChoices => audioPlaybackSettings.PlaybackVolumeChoices;
@@ -31,6 +38,7 @@ public sealed partial class MainViewModel
     public AsyncCommand ResetPlaybackVolumeCommand { get; }
     public bool CanChangePlaybackVolume => audioPlaybackSettings.VolumeState is not null && IsCallMutationHostEligible
         && !volumeControlActive && !IsResponseInteractionPending;
+    public bool CanChangePlaybackVolumeNative => CanChangePlaybackVolume && playbackVolumeNativeLifetime();
     public string PlaybackVolumeStatus => audioPlaybackSettings.PlaybackVolumeStatus;
 
     private void OnAudioPlaybackOutputInvalidated(object? sender, EventArgs args)
@@ -51,13 +59,16 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(PlaybackVolumeStatus));
         OnPropertyChanged(nameof(SavedPlaybackVolume));
         OnPropertyChanged(nameof(CanChangePlaybackVolume));
+        OnPropertyChanged(nameof(CanChangePlaybackVolumeNative));
         NotifyOutputPolicyChanged();
     }
 
     internal async Task ExecutePlaybackVolumeCommandAsync(PlaybackVolumeCommand command, SecurityAuditInitiator initiator,
         CancellationToken cancellationToken = default)
     {
-        if (!CanChangePlaybackVolume)
+        var nativeLifetime = playbackVolumeNativeLifetime;
+        bool NativeCurrent() => ReferenceEquals(nativeLifetime, playbackVolumeNativeLifetime) && nativeLifetime();
+        if (!CanChangePlaybackVolume || initiator == SecurityAuditInitiator.LocalUser && !NativeCurrent())
         {
             if (!disposed) { Transcript = "Volume control requires the owning unlocked host, admitted audio session and no pending question/approval."; }
             return;
@@ -72,12 +83,14 @@ public sealed partial class MainViewModel
         var hostEligible = CaptureAudioControlEligibility(origin);
         var nameRevision = assistantNameConfiguration.Get().Revision;
         var generation = voiceRecognition.Generation;
-        bool Eligible() => hostEligible() && assistantNameConfiguration.Get().Revision == nameRevision
+        bool Eligible() => hostEligible() && (initiator != SecurityAuditInitiator.LocalUser || NativeCurrent())
+            && assistantNameConfiguration.Get().Revision == nameRevision
             && (origin != RequestOrigin.ActivatedVoice || voiceRecognition.Generation == generation);
         Func<bool> eligible = Eligible;
         var preserveResponse = IsSpeaking;
         volumeControlActive = true;
         OnPropertyChanged(nameof(CanChangePlaybackVolume));
+        OnPropertyChanged(nameof(CanChangePlaybackVolumeNative));
         try
         {
             var change = await audioPlaybackSettings.ExecuteVolumeAsync(command, origin, initiator,
@@ -95,7 +108,7 @@ public sealed partial class MainViewModel
         }
         catch (ArgumentOutOfRangeException exception)
         {
-            if (!disposed)
+            if (!disposed && (initiator != SecurityAuditInitiator.LocalUser || NativeCurrent()))
             {
                 if (preserveResponse || IsResponseInteractionPending)
                 {
@@ -109,7 +122,7 @@ public sealed partial class MainViewModel
             or OperationCanceledException or TimeoutException)
         {
             audioPlaybackSettings.HoldVolumeUnavailable();
-            if (disposed) { return; }
+            if (disposed || initiator == SecurityAuditInitiator.LocalUser && !NativeCurrent()) { return; }
             if (preserveResponse || IsResponseInteractionPending)
             {
                 Transcript = "Volume preference not confirmed. " + exception.Message;

@@ -4,7 +4,8 @@ const { createHash } = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { reconcile } = require('./controller.cjs');
-const { CHECKS, GATE, JOBS, WINDOWS_12_JOBS, DELIVERY_JOBS, PREDECESSOR_WORKFLOWS, workflowJobs,
+const { CHECKS, GATE, JOBS, WINDOWS_12_JOBS, DELIVERY_JOBS, UNIT_PR_JOBS, PARALLEL_PR_JOBS, PARALLEL_MAIN_JOBS,
+  PREDECESSOR_WORKFLOWS, candidateJobs, workflowJobs,
   REJECTED_ADMISSION_JOBS, terminalRejectedAdmission, terminalRejectedPreflight,
   MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS,
   mode, validateState, ready, priority, title, requiredJobsState, terminalJobs, successfulJobs } = require('./policy.cjs');
@@ -15,6 +16,8 @@ const OTHER = 'c'.repeat(40);
 const TICKET = '01234567-89ab-cdef-0123-456789abcdef';
 const NOW = new Date('2026-01-01T12:00:00Z');
 const ENROLLED = '2026-01-01T11:00:00Z';
+const UNIT_PR_SOURCE = '# merge-queue-job-schema: unit-pr-v1\n# merge-queue-delivery-schema: independent-v1\n';
+const PARALLEL_PR_SOURCE = UNIT_PR_SOURCE.replace('unit-pr-v1', 'parallel-pr-v1');
 const clone = value => structuredClone(value);
 function pr(number = 1, overrides = {}) {
   return { number, state: 'open', draft: false, merged: false, mergeable: true, labels: [],
@@ -59,7 +62,7 @@ class Fake {
   async jobs() { return clone(this.workflowJobs); }
   async expectedJobs(source) {
     this.calls.push(['inventory', source]);
-    return workflowJobs(this.workflowSource, this.workflowBlob);
+    return workflowJobs(this.workflowSource, this.workflowBlob, true);
   }
   async rejectedAdmission(source, value, jobs) {
     return value.head_sha === source && (terminalRejectedAdmission(value, jobs, this.workflowBlob)
@@ -81,6 +84,142 @@ class Fake {
 const step = (api, options = {}) => reconcile(api, { now: NOW, ticket: TICKET, ...options });
 const count = (api, action) => api.calls.filter(call => call[0] === action).length;
 const labels = (...names) => names.map(name => ({ name }));
+
+function unitCandidate(parallel = false) {
+  const api = new Fake();
+  api.workflowSource = parallel ? PARALLEL_PR_SOURCE : UNIT_PR_SOURCE;
+  const bytes = Buffer.from(api.workflowSource);
+  api.workflowBlob = createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
+  api.state.active = active();
+  api.workflowRuns = [run()];
+  api.workflowJobs = (parallel ? PARALLEL_MAIN_JOBS : DELIVERY_JOBS).map((name, index) => ({ id: index + 1, name,
+    status: 'completed', conclusion: (parallel ? PARALLEL_PR_JOBS : UNIT_PR_JOBS).includes(name) ? 'success' : 'skipped',
+    run_id: 9, run_attempt: 1, head_sha: BASE }));
+  return api;
+}
+
+test('unit-pr-v1 selects only portable admission jobs for candidates and preserves the full main inventory', () => {
+  assert.deepEqual(UNIT_PR_JOBS, ['Admit CI execution', 'Resolve build version',
+    'Portable build, tests, coverage, and package', 'Validate installer packaging',
+    'Portable build, tests, and coverage', 'Publish and inspect exact-source payloads']);
+  assert.equal(Object.isFrozen(UNIT_PR_JOBS), true);
+  assert.equal(workflowJobs(UNIT_PR_SOURCE, OTHER), DELIVERY_JOBS);
+  assert.equal(workflowJobs(UNIT_PR_SOURCE, OTHER, false), DELIVERY_JOBS);
+  assert.equal(workflowJobs(UNIT_PR_SOURCE.replaceAll('\n', '\r\n'), OTHER, true), UNIT_PR_JOBS);
+  for (const candidate of [false, true]) {
+    assert.equal(workflowJobs('# merge-queue-job-schema: windows-12-v1\n', OTHER, candidate), WINDOWS_12_JOBS);
+    assert.equal(workflowJobs(UNIT_PR_SOURCE.replace('unit-pr-v1', 'windows-12-v1'), OTHER, candidate), DELIVERY_JOBS);
+    for (const [blob, jobs] of Object.entries(PREDECESSOR_WORKFLOWS))
+      assert.equal(workflowJobs('name: CI\n', blob, candidate), jobs);
+    for (const source of [UNIT_PR_SOURCE.replace('unit-pr-v1', 'future-v1'),
+      UNIT_PR_SOURCE.replace('# merge-queue-delivery-schema: independent-v1\n', ''),
+      UNIT_PR_SOURCE.replace('independent-v1', 'future-v1'),
+      `${UNIT_PR_SOURCE}# merge-queue-job-schema: unit-pr-v1\n`,
+      `${UNIT_PR_SOURCE}# merge-queue-job-schema: windows-12-v1\n`,
+      `${UNIT_PR_SOURCE}# merge-queue-delivery-schema: independent-v1\n`,
+      ` ${UNIT_PR_SOURCE}`])
+      assert.equal(workflowJobs(source, Object.keys(PREDECESSOR_WORKFLOWS)[0], candidate), null, source);
+  }
+});
+
+test('parallel-pr-v1 adds mandatory policy and setup jobs without changing historical candidate or main inventories', () => {
+  const additions = ['Portable policy contracts', 'Validate managed setup and installer metadata'];
+  assert.deepEqual(PARALLEL_PR_JOBS, [...UNIT_PR_JOBS, ...additions]);
+  assert.deepEqual(PARALLEL_MAIN_JOBS, [...DELIVERY_JOBS, ...additions]);
+  assert.equal(PARALLEL_PR_JOBS.length, 8);
+  assert.equal(PARALLEL_MAIN_JOBS.length, 27);
+  assert.equal(new Set(PARALLEL_MAIN_JOBS).size, 27);
+  assert.equal(Object.isFrozen(PARALLEL_PR_JOBS), true);
+  assert.equal(Object.isFrozen(PARALLEL_MAIN_JOBS), true);
+  assert.equal(candidateJobs('parallel-pr-v1'), PARALLEL_PR_JOBS);
+  assert.equal(candidateJobs('unit-pr-v1'), UNIT_PR_JOBS);
+  assert.equal(candidateJobs('windows-12-delivery-v1'), DELIVERY_JOBS);
+  assert.equal(candidateJobs('windows-12-v1'), WINDOWS_12_JOBS);
+  assert.equal(candidateJobs('future-v1'), null);
+  assert.equal(workflowJobs(PARALLEL_PR_SOURCE, OTHER), PARALLEL_MAIN_JOBS);
+  assert.equal(workflowJobs(PARALLEL_PR_SOURCE, OTHER, false), PARALLEL_MAIN_JOBS);
+  assert.equal(workflowJobs(PARALLEL_PR_SOURCE.replaceAll('\n', '\r\n'), OTHER, true), PARALLEL_PR_JOBS);
+  for (const candidate of [false, true]) {
+    for (const source of [PARALLEL_PR_SOURCE.replace('# merge-queue-delivery-schema: independent-v1\n', ''),
+      PARALLEL_PR_SOURCE.replace('independent-v1', 'future-v1'),
+      `${PARALLEL_PR_SOURCE}# merge-queue-job-schema: parallel-pr-v1\n`,
+      `${PARALLEL_PR_SOURCE}# merge-queue-job-schema: unit-pr-v1\n`,
+      `${PARALLEL_PR_SOURCE}# merge-queue-job-schema: windows-12-v1\n`,
+      `${PARALLEL_PR_SOURCE}# merge-queue-delivery-schema: independent-v1\n`,
+      ` ${PARALLEL_PR_SOURCE}`, PARALLEL_PR_SOURCE.replace('parallel-pr-v1\n', 'parallel-pr-v1 \n'),
+      PARALLEL_PR_SOURCE.replace('# merge-queue-delivery-schema:', ' # merge-queue-delivery-schema:')])
+      assert.equal(workflowJobs(source, Object.keys(PREDECESSOR_WORKFLOWS)[0], candidate), null, source);
+  }
+});
+
+test('six and eight job singleton admission report Windows neutral, not successful, whether absent or skipped', async () => {
+  for (const [parallel, absent] of [[false, false], [false, true], [true, false], [true, true]]) {
+    const api = unitCandidate(parallel);
+    const expected = parallel ? PARALLEL_PR_JOBS : UNIT_PR_JOBS;
+    if (absent) api.workflowJobs = api.workflowJobs.filter(job => expected.includes(job.name));
+    const checks = clone(api.state.active.checks);
+    assert.equal(await step(api), 'merged');
+    assert.equal(count(api, 'merge'), 1);
+    const finished = api.calls.filter(call => call[0] === 'finish');
+    assert.equal(finished.length, 4);
+    const windows = finished.find(call => call[1] === checks[CHECKS[1]]);
+    assert.equal(windows[2], 'neutral');
+    assert.match(windows[3], /not selected.*full Windows validation runs on main/);
+    assert.ok(finished.filter(call => call !== windows).every(call => call[2] === 'success'));
+    assert.equal(finished.find(call => call[1] === checks[GATE])[2], 'success');
+  }
+});
+
+for (const [parallel, expected] of [[false, UNIT_PR_JOBS], [true, PARALLEL_PR_JOBS]]) {
+  test(`every ${parallel ? 'parallel' : 'unit'} candidate job remains required, unique and successful before singleton admission`, async () => {
+    for (const name of expected) {
+      for (const change of ['missing', 'duplicate', 'failure', 'skipped']) {
+        const api = unitCandidate(parallel);
+        const job = api.workflowJobs.find(job => job.name === name);
+        if (change === 'missing') api.workflowJobs = api.workflowJobs.filter(item => item !== job);
+        else if (change === 'duplicate') api.workflowJobs.push({ ...job, id: 999 });
+        else job.conclusion = change;
+        assert.equal(await step(api), change === 'missing' ? 'waiting-for-jobs'
+          : change === 'duplicate' ? 'retiring' : 'blocked', `${name}/${change}`);
+        assert.equal(count(api, 'merge'), 0);
+        assert.equal(api.calls.some(call => call[0] === 'finish' && call[2] === 'success'), false);
+      }
+    }
+  });
+
+  test(`all main-only Windows jobs must be physically terminal before ${parallel ? 'parallel' : 'unit'} candidate merge or retirement`, async () => {
+    for (const name of DELIVERY_JOBS.filter(job => !UNIT_PR_JOBS.includes(job))) {
+      const api = unitCandidate(parallel);
+      const job = api.workflowJobs.find(job => job.name === name);
+      Object.assign(job, { status: 'in_progress', conclusion: null });
+      assert.equal(await step(api), 'waiting-for-jobs', name);
+      assert.equal(count(api, 'merge'), 0);
+      api.enrolled = NOW.toISOString();
+      assert.equal(await step(api), 'retiring', name);
+      assert.ok(api.state.active);
+      Object.assign(job, { status: 'completed', conclusion: 'skipped' });
+      assert.equal(await step(api), 'retired', name);
+      assert.equal(api.state.active, null);
+      assert.equal(count(api, 'merge'), 0);
+    }
+  });
+}
+
+test('only exact reviewed six or eight job singleton inventories qualify for Windows neutral checks', async () => {
+  for (const expected of [[...UNIT_PR_JOBS.slice(0, -1), 'Unknown validation'],
+    [...UNIT_PR_JOBS, 'Portable policy contracts'],
+    [...UNIT_PR_JOBS, 'Unknown policy', 'Validate managed setup and installer metadata'],
+    [...UNIT_PR_JOBS, 'Portable policy contracts', 'Portable policy contracts'],
+    [...PARALLEL_PR_JOBS, 'Unknown validation'], PARALLEL_MAIN_JOBS, DELIVERY_JOBS, WINDOWS_12_JOBS]) {
+    const api = unitCandidate(true);
+    api.expectedJobs = async () => expected;
+    api.workflowJobs = expected.filter((name, index) => expected.indexOf(name) === index)
+      .map((name, index) => ({ id: index + 1, name, status: 'completed', conclusion: 'success',
+        run_id: 9, run_attempt: 1, head_sha: BASE }));
+    assert.equal(await step(api), 'merged');
+    assert.equal(api.calls.some(call => call[0] === 'finish' && call[2] === 'neutral'), false);
+  }
+});
 
 test('a failed required job cancels a running singleton immediately without releasing nonterminal or missing work', async () => {
   for (const missing of [false, true]) {
@@ -318,10 +457,12 @@ test('missing source-required producers cannot release failed, stale, merged or 
     .replaceAll('\r\n', '\n');
   const predecessor = fs.readFileSync(path.join(__dirname, 'fixtures', 'ci-native-fixture-timing.yml'), 'utf8')
     .replaceAll('\r\n', '\n');
-  for (const [workflow, inventory] of [[source, DELIVERY_JOBS], [predecessor, WINDOWS_12_JOBS]]) {
+  for (const [workflow, inventory] of [[source, source.includes('# merge-queue-job-schema: parallel-pr-v1')
+    ? PARALLEL_PR_JOBS : source.includes('# merge-queue-job-schema: unit-pr-v1')
+      ? UNIT_PR_JOBS : DELIVERY_JOBS], [predecessor, WINDOWS_12_JOBS]]) {
     const bytes = Buffer.from(workflow);
     const blob = createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
-    assert.deepEqual(workflowJobs(workflow, blob), inventory);
+    assert.deepEqual(workflowJobs(workflow, blob, true), inventory);
     for (const producer of inventory.filter(name => !JOBS.includes(name))) {
       for (const scenario of ['success', 'cancelled', 'failure', null, 'unknown',
         'stale-head', 'stale-base', 'stale-enrollment', 'merged', 'retiring']) {

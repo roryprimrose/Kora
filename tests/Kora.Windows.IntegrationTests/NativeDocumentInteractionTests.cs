@@ -42,6 +42,8 @@ public sealed class NativeDocumentInteractionTests
         result.IsFallback.Should().BeFalse();
         result.Sections.Where(section => section.HeadingId is not null).Select(section => section.HeadingId)
             .Should().Equal(parsed.Descendants<HeadingBlock>().Select(heading => heading.GetAttributes().Id));
+        result.Sections.Where(section => section.HeadingId is not null).Select(section => section.HeadingLevel)
+            .Should().Equal(parsed.Descendants<HeadingBlock>().Select(heading => heading.Level));
         result.Sections.SelectMany(section => section.Links).Should()
             .ContainSingle().Which.Should().Be(new NativeDocumentLink("go", "#repeat-1"));
         result.SemanticText.Should().Contain("go (destination: #repeat-1)")
@@ -167,7 +169,7 @@ public sealed class NativeDocumentInteractionTests
                 RowIdentities(grid).Should().Equal("empty", "first-a", "second-a", "first-b", "last-c");
                 Press(window, Key.Enter, PhysicalKey.Enter);
                 RowIdentities(grid).Should().Equal("last-c", "first-b", "first-a", "second-a", "empty");
-                var reset = table.Children.OfType<Button>().Single();
+                var reset = table.Children.OfType<Button>().Single(button => Equals(button.Content, "Reset table order"));
                 reset.Focus();
                 Press(window, Key.Enter, PhysicalKey.Enter);
                 RowIdentities(grid).Should().Equal("first-b", "first-a", "second-a", "empty", "last-c");

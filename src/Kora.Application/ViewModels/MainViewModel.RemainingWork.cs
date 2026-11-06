@@ -21,6 +21,7 @@ public sealed partial class MainViewModel
         RetireRemainingWorkBinding();
         remainingWorkCommands = commands;
         remainingWorkConversation = conversation;
+        RefreshSubmittedWorkActivity();
         if (sessionCommands is { } workspace)
         {
             remainingWorkWorkspace = workspace;
@@ -35,6 +36,7 @@ public sealed partial class MainViewModel
         remainingWorkCommands?.Retire();
         remainingWorkCommands = null;
         remainingWorkConversation = null;
+        RefreshSubmittedWorkActivity();
         if (remainingWorkWorkspace is { } previous)
         {
             previous.SessionMetadataChanging -= RetireRemainingWorkSource;

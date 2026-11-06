@@ -124,12 +124,12 @@ public sealed class RegisteredSettingUndo : IDisposable
     {
         var candidate = Volatile.Read(ref review);
         if (candidate is null || host.Request.RequestId == candidate.Request.RequestId
-            || candidate.Origin == RequestOrigin.ActivatedVoice && host.Request.Origin != RequestOrigin.ActivatedVoice
             || candidate.Change.Descriptor.RequiresNativeReview && initiator != SecurityAuditInitiator.LocalUser
             || !Current(candidate))
-        { throw new InvalidOperationException("Undo needs a separate fresh confirmation of the exact current review and original channel."); }
+        { throw new InvalidOperationException("Undo needs a separate fresh confirmation of the exact current review under its original channel restrictions."); }
         using var activity = HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Policy);
         activity.Activity!.AddLink(new(candidate.Cause));
+        HostActivity? channel = null;
         try
         {
             token.ThrowIfCancellationRequested();
@@ -140,29 +140,43 @@ public sealed class RegisteredSettingUndo : IDisposable
             Description = "Undo write pending or unconfirmed. No automatic retry or rollback.";
             bool Eligible() => !disposed && candidate.Generation == Volatile.Read(ref generation)
                 && candidate.Eligible() && time.GetUtcNow() < candidate.Expires
+                && !host.Activity!.IsStopped && host.Outcome == HostOperationOutcome.Unknown
                 && !token.IsCancellationRequested && policy.Current.Revision == candidate.CallRevision;
             restoring.Value = true;
             var origin = candidate.Origin == RequestOrigin.ActivatedVoice ? candidate.Origin : host.Request.Origin;
-            var accepted = await candidate.Change.Restore(origin, initiator, policy,
+            if (origin != host.Request.Origin)
+            {
+                // Audio admission captures ambient input; preserve voice lineage through native confirmation.
+                channel = HostActivity.BeginRoot(new(new(Guid.NewGuid()), host.Request.SessionId,
+                    new(Guid.NewGuid()), origin), HostActivityLayer.Application, HostOperation.Policy,
+                    [new(activity.Activity.Context)]);
+            }
+            var auditInitiator = origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : initiator;
+            var accepted = await candidate.Change.Restore(origin, auditInitiator, policy,
                 candidate.CallRevision, Eligible, token).ConfigureAwait(false);
             Description = accepted
-                ? "Last setting undone by a new audited write. Undo consumed; no redo. Future eligible output only."
+                ? $"Last setting undone by a new audited write: {candidate.Change.Descriptor.Id}; restored {candidate.Change.Before}. "
+                    + "Undo consumed; no redo. Future eligible output only."
                 : "Undo is unconfirmed; a write may have persisted. Inspect saved state and audit. No automatic retry or rollback.";
+            channel?.Complete(accepted ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
             activity.Complete(accepted ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
             return accepted;
         }
         catch (OperationCanceledException)
         {
+            channel?.Complete(HostOperationOutcome.Cancelled);
             activity.Complete(HostOperationOutcome.Cancelled);
             throw;
         }
         catch
         {
+            channel?.Complete(HostOperationOutcome.Failed);
             activity.Complete(HostOperationOutcome.Failed);
             throw;
         }
         finally
         {
+            channel?.Dispose();
             Volatile.Write(ref review, null);
             restoring.Value = false;
         }

@@ -158,6 +158,66 @@ public sealed class ConversationalReplyConfigurationServiceTests : IDisposable
         observed.Should().BeTrue();
     }
 
+    [Theory]
+    [InlineData(true, "native")]
+    [InlineData(false, "native")]
+    [InlineData(true, "call")]
+    [InlineData(false, "call")]
+    [InlineData(true, "call-aba")]
+    [InlineData(false, "call-aba")]
+    [InlineData(true, "terminal-call")]
+    [InlineData(false, "terminal-call")]
+    [InlineData(true, "cancel")]
+    [InlineData(false, "cancel")]
+    public async Task Final_admission_loss_preserves_committed_bytes_but_holds_confirmation_and_restart(
+        bool enabled, string boundary)
+    {
+        await using var f = new Fixture();
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        f.Preferences.Value = !enabled;
+        f.Service.Observe();
+        f.Preferences.AfterConfirm = () =>
+        {
+            if (boundary is "native") { f.Eligible = false; }
+            if (boundary is "call" or "call-aba") { f.Call.State = CallState.Active; }
+            if (boundary is "call-aba") { f.Call.State = CallState.Clear; }
+            if (boundary is "cancel") { cancellation.Cancel(); }
+        };
+        f.Store.BeforeCommit = task =>
+        {
+            if (boundary is "terminal-call" && task.State == HostTaskState.Succeeded && f.Preferences.Writes == 1)
+            { f.Call.State = CallState.Active; }
+        };
+        var apply = () => f.Service.SetAsync(enabled, f.Service.Get()!.Revision, f.Policy.Current.Revision,
+            RequestOrigin.LocalUi, SecurityAuditInitiator.LocalUser, f.Policy, () => f.Eligible, cancellation.Token);
+
+        if (boundary is "cancel") { await apply.Should().ThrowAsync<OperationCanceledException>(); }
+        else { await apply.Should().ThrowAsync<InvalidOperationException>(); }
+
+        f.Preferences.Value.Should().Be(enabled);
+        f.Preferences.Writes.Should().Be(1);
+        f.Preferences.Pending.Should().BeTrue();
+        f.Service.Get().Should().BeNull();
+        f.Audit.Events.Select(item => item.Outcome).Should().Equal(
+            SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+        f.Service.Invoking(service => service.Observe()).Should().Throw<InvalidDataException>();
+        var restarted = f.Create();
+        restarted.Invoking(service => service.Observe()).Should().Throw<InvalidDataException>();
+        restarted.Get().Should().BeNull();
+        f.Preferences.Writes.Should().Be(1);
+
+        f.Preferences.AfterConfirm = null;
+        f.Eligible = true;
+        f.Preferences.ReadBack().Should().Be(enabled);
+        f.Preferences.ConfirmWrite();
+        f.Service.Observe();
+        f.Service.Get()!.Enabled.Should().Be(enabled);
+        await f.Set(!enabled);
+        f.Service.Get()!.Enabled.Should().Be(!enabled);
+        f.Preferences.Pending.Should().BeFalse();
+        f.Preferences.Writes.Should().Be(2);
+    }
+
     internal sealed class Fixture : IAsyncDisposable
     {
         public Fixture() { Admission = new(Store, Store, new(Store)); Policy = new(Call); Service = Create(); }

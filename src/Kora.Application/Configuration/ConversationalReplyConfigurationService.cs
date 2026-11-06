@@ -57,6 +57,7 @@ public sealed class ConversationalReplyConfigurationService(
             throw new InvalidOperationException("Conversational reply settings require original admitted user input.");
         }
         var entered = false;
+        var originalOrigin = origin;
         try
         {
             var accepted = await admission.RunAsync(origin, eligible, (request, _) =>
@@ -73,6 +74,7 @@ public sealed class ConversationalReplyConfigurationService(
                     catch { HoldUnavailable(); throw; }
                     writesInProgress = checked(writesInProgress + 1);
                     entered = true;
+                    originalOrigin = request.Origin;
                     var audit = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.ConfigurationWrite,
                         "configuration.conversational-replies", SecurityAuditOutcome.Requested,
                         request.Origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : initiator,
@@ -108,17 +110,25 @@ public sealed class ConversationalReplyConfigurationService(
             {
                 lock (gate)
                 {
-                    if (!eligible()) { throw new InvalidOperationException("Conversational reply setting lost original admission before confirmation."); }
-                    RequireReadback();
-                    preferences.ConfirmWrite();
-                    try
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var denied = policy.CommitVoiceSetting(originalOrigin, callRevision, eligible, () =>
                     {
-                        if (preferences.Load() != enabled) { throw new InvalidDataException("Confirmed conversational reply preference does not match."); }
-                    }
-                    catch { preferences.BeginWrite(); throw; }
-                    available = true;
-                    current = new(enabled, revision);
-                    Changed?.Invoke(this, EventArgs.Empty);
+                        RequireReadback();
+                        preferences.ConfirmWrite();
+                        try
+                        {
+                            if (preferences.Load() != enabled) { throw new InvalidDataException("Confirmed conversational reply preference does not match."); }
+                            cancellationToken.ThrowIfCancellationRequested();
+                            if (policy.CheckMutation(originalOrigin, callRevision, eligible) is not null)
+                            { throw new InvalidOperationException("Conversational reply setting lost original admission during confirmation."); }
+                        }
+                        catch { preferences.BeginWrite(); throw; }
+                        available = true;
+                        current = new(enabled, revision);
+                        Changed?.Invoke(this, EventArgs.Empty);
+                    });
+                    if (denied is not null)
+                    { throw new InvalidOperationException("Conversational reply setting lost original admission before confirmation."); }
                 }
             }
             return accepted;

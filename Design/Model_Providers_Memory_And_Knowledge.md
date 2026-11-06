@@ -25,6 +25,9 @@ USER/task lineage. Missing model/adapter qualification instead retains a
 truthful HOST Unavailable terminal and matching task receipt, never an answer.
 Complete host envelopes remain bounded to 32768 UTF-8 bytes.
 
+The [optional read-only remaining-work operation](Work_Management.md#reviewed-local-remaining-work-answer) adds an exact ledger-disclosure review and separate one-use confirmation for an independently qualified local host.
+Only its explicitly selected different idle answer conversation retains the question/answer; evidence remains volatile. It does not borrow ordinary qualification or enable a provider.
+
 Separately confirmed owned-v2 expanded prompts enter as exact USER bodies for
 one explicitly selected existing Active session, not system instructions,
 source authority or a second legacy prompt invocation. Optional reviewed

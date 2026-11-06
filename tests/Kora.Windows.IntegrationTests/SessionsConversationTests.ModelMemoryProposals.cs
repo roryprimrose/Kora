@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 
 using AwesomeAssertions;
@@ -14,6 +15,104 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class SessionsConversationTests
 {
     private const string MemoryProposal = """{"version":1,"class":"responsePreference","value":"Prefer short answers."}""";
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task NativeMemoryScopeChangeRetiresModelCandidateAndRequiresFreshSeparateAdmission(
+        bool profileMode, bool accepted)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            var adapter = new SummaryAnswerAdapter(MemoryProposal);
+            await using var composed = new Composition(f, adapter: adapter, memoryContext: true);
+            var model = composed.Model;
+            await model.RefreshAsync();
+            await model.SelectAsync(model.Sessions.Single());
+            await model.ReadConversationAsync();
+            model.DeviceProfileMemory = profileMode;
+            model.ComposerBody = "Explicitly propose one short-answer preference for this session.";
+            await model.SubmitConversationAsync();
+            var source = model.ConversationMessages.Single();
+            var owner = new SessionsPresentationOwner(model);
+            var window = new SessionsWindow(model, owner);
+            window.Show();
+            try
+            {
+                Button Button(string name) => window.GetVisualDescendants().OfType<Button>()
+                    .Single(item => string.Equals(item.Name, name, StringComparison.Ordinal));
+                async Task Click(string name)
+                {
+                    Button(name).RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+                    await owner.ModelMemoryOperation;
+                }
+
+                await Click("ReviewModelMemoryProposal");
+                model.ModelMemoryProposalDescription.Should().Contain(source.Body).And.Contain("Prefer short answers.");
+                if (accepted) { await Click("AcceptModelMemoryProposal"); }
+                model.CanAcceptModelMemoryProposal.Should().Be(!accepted);
+                model.CanAdmitModelMemoryProposal.Should().Be(accepted);
+                model.CanRejectModelMemoryProposal.Should().BeTrue();
+
+                var tabs = window.GetVisualDescendants().OfType<TabControl>().Single();
+                tabs.SelectedItem = tabs.Items.OfType<TabItem>()
+                    .Single(item => string.Equals(item.Header as string, "Memories", StringComparison.Ordinal));
+                window.UpdateLayout();
+                Dispatcher.UIThread.RunJobs();
+                var scope = window.GetVisualDescendants().OfType<CheckBox>().Single(item =>
+                    string.Equals(item.Content as string,
+                        "Device profile: explicitly manage memories for later conversations on this Windows profile",
+                        StringComparison.Ordinal));
+                scope.IsEnabled.Should().BeTrue();
+                scope.IsChecked.Should().Be(profileMode);
+                scope.IsChecked = !profileMode;
+
+                model.DeviceProfileMemory.Should().Be(!profileMode);
+                model.ModelMemoryProposalDescription.Should().BeEmpty("scope changes discard the volatile candidate");
+                model.CanAcceptModelMemoryProposal.Should().BeFalse();
+                model.CanRejectModelMemoryProposal.Should().BeFalse();
+                model.CanAdmitModelMemoryProposal.Should().BeFalse();
+                Button("AcceptModelMemoryProposal").IsEnabled.Should().BeFalse();
+                Button("RejectModelMemoryProposal").IsEnabled.Should().BeFalse();
+                Button("AdmitModelMemoryProposal").IsEnabled.Should().BeFalse();
+                await Click("AdmitModelMemoryProposal");
+                f.Count("reviewed_memory").Should().Be(0);
+                var list = new MemoryCommand(MemoryCommandOperation.List, source.Request.SessionId.Value);
+                (await composed.Memories.ExecuteAsync(list, RequestOrigin.LocalUi, () => true, f.Token))
+                    .Memories.Should().BeEmpty();
+                (await composed.Memories.ExecuteDeviceProfileAsync(list, RequestOrigin.LocalUi, () => true, f.Token))
+                    .Memories.Should().BeEmpty();
+
+                await Click("ReviewModelMemoryProposal");
+                model.CanAcceptModelMemoryProposal.Should().BeTrue();
+                model.CanAdmitModelMemoryProposal.Should().BeFalse();
+                await Click("AcceptModelMemoryProposal");
+                model.CanAdmitModelMemoryProposal.Should().BeTrue();
+                f.Count("reviewed_memory").Should().Be(0);
+                await Click("AdmitModelMemoryProposal");
+                model.ConversationStatus.Should().Contain("Exact SESSION memory admitted");
+                model.ModelMemoryProposalDescription.Should().BeEmpty();
+                f.Count("reviewed_memory").Should().Be(1);
+                var row = (await composed.Memories.ExecuteAsync(list, RequestOrigin.LocalUi, () => true, f.Token))
+                    .Memories.Should().ContainSingle().Which;
+                row.Scope.Should().Be(MemoryScope.Session(source.Request.SessionId));
+                row.Review.Should().Be(MemoryReviewState.Admitted);
+                row.Retention.Should().Be(MemoryRetentionState.Enabled);
+                (await composed.Memories.ExecuteDeviceProfileAsync(list, RequestOrigin.LocalUi, () => true, f.Token))
+                    .Memories.Should().BeEmpty();
+                adapter.Calls.Should().Be(1);
+                f.Count("scoped_grants").Should().Be(0);
+                (await f.Store.ReadConversationMessageAsync(source.Request.SessionId, source.Request.RequestId, f.Token))
+                    .Should().Be(source);
+            }
+            finally { owner.Revoke(); }
+        });
+    }
 
     [Theory]
     [InlineData(0, false, false)]

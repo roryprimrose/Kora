@@ -38,6 +38,7 @@ public sealed class SettingInspectionTests
         new(RegisteredSetting.DotSize, 100, saved, 3), new(RegisteredSetting.DotDensity, 100, saved, 3),
         new(RegisteredSetting.MovementSpeed, 100, saved, 3), new(RegisteredSetting.SpeechScaling, 1, saved, 3),
         new(RegisteredSetting.SpeechScaleAmount, 100, saved, 3), new(RegisteredSetting.ReducedMotion, 0, saved, 3),
+        new(QuietHoursSchedule.Off, saved, 3),
         new(RegisteredSetting.CommandStartWait, VoiceCaptureTiming.Default, saved, 5),
         new(RegisteredSetting.ReplyStartWait, VoiceCaptureTiming.Default, saved, 5),
         new(RegisteredSetting.TrailingSilence, VoiceCaptureTiming.Default, saved, 5),
@@ -57,20 +58,20 @@ public sealed class SettingInspectionTests
             HostRequest.Create(origin), Now);
         values[0] = new(RegisteredSetting.Theme, 2, !saved, 100);
         review.Observations[0].Value.Should().Be(0);
-        review.Observations.Should().HaveCount(20);
+        review.Observations.Should().HaveCount(21);
         review.Observations.Select(item => item.Setting).Should().Equal(
             RegisteredSetting.Theme, RegisteredSetting.ReaderTextScale,
             RegisteredSetting.SummaryWords, RegisteredSetting.SummarySentences,
             RegisteredSetting.PlaybackVolume, RegisteredSetting.ResponseMode, RegisteredSetting.PresenceDisplay,
             RegisteredSetting.PresenceTimeout, RegisteredSetting.PresenceSize, RegisteredSetting.DotSize,
             RegisteredSetting.DotDensity, RegisteredSetting.MovementSpeed, RegisteredSetting.SpeechScaling,
-            RegisteredSetting.SpeechScaleAmount, RegisteredSetting.ReducedMotion,
+            RegisteredSetting.SpeechScaleAmount, RegisteredSetting.ReducedMotion, RegisteredSetting.QuietHours,
             RegisteredSetting.CommandStartWait, RegisteredSetting.ReplyStartWait, RegisteredSetting.TrailingSilence,
             RegisteredSetting.SpeechVoice, RegisteredSetting.DetailPresentation);
         review.Source.Should().Contain("System").And.Contain("100").And.Contain("Hybrid")
             .And.Contain(saved ? "confirmed saved" : "confirmed absent");
         review.Source.Should().Contain($"appearance.presence-display = {(presence == 1 ? "true" : "false")} boolean");
-        Encoding.UTF8.GetByteCount(review.Source).Should().BeLessThan(4096, "the closed source includes presence and timing scalars and the typed speech selection");
+        Encoding.UTF8.GetByteCount(review.Source).Should().BeLessThan(4096, "the closed source includes presence and timing scalars, quiet hours and the typed speech selection");
         review.Text.Should().Contain(review.Source).And.Contain(review.Question)
             .And.Contain(SettingInspectionReview.Policy).And.Contain("NEW Local context conversation");
         review.Original.SessionId.Should().NotBe(review.Destination.SessionId);
@@ -126,6 +127,7 @@ public sealed class SettingInspectionTests
     [InlineData(RegisteredSetting.ResponseTimeout, 10)]
     [InlineData(RegisteredSetting.WindowsSpeechRate, 0)]
     [InlineData(RegisteredSetting.SpeechVoice, 0)]
+    [InlineData(RegisteredSetting.QuietHours, 0)]
     [InlineData((RegisteredSetting)99, 0)]
     public void ClassificationRejectsAnythingOutsideClosedValidatedScalars(RegisteredSetting setting, int value) =>
         FluentActions.Invoking(() => new SettingObservation(setting, value, false, 1)).Should().Throw<ArgumentOutOfRangeException>();
@@ -151,8 +153,9 @@ public sealed class SettingInspectionTests
         using var wire = JsonDocument.Parse(JsonSerializer.Serialize(observation));
         wire.RootElement.GetProperty("Selection").GetProperty("ProviderId").GetString().Should().Be(provider);
         wire.RootElement.GetProperty("Selection").GetProperty("VoiceId").GetString().Should().Be(voice);
-        wire.RootElement.GetProperty("Value").ValueKind.Should().Be(JsonValueKind.Null);
+        wire.RootElement.TryGetProperty("Value", out _).Should().BeFalse("a compound selection has no scalar");
         wire.RootElement.GetProperty("Text").GetString().Should().Be(observation.Text);
+        JsonSerializer.Deserialize<SettingObservation>(wire.RootElement.GetRawText()).Should().Be(observation);
     }
 
     [Theory]
@@ -168,7 +171,7 @@ public sealed class SettingInspectionTests
     [Fact]
     public void CompoundSelectionRequiresTypedValueAndFullDomainVoiceBound()
     {
-        FluentActions.Invoking(() => new SettingObservation(null!, false, 1)).Should().Throw<ArgumentNullException>();
+        FluentActions.Invoking(() => new SettingObservation(selection: null!, false, 1)).Should().Throw<ArgumentNullException>();
         var longest = new SpeechSelection("windows-sapi", new string('x', SpeechSelection.MaximumVoiceIdLength));
         new SettingObservation(longest, true, 1).Selection.Should().Be(longest);
         FluentActions.Invoking(() => new SettingObservation(longest with { VoiceId = longest.VoiceId + "x" }, true, 1))

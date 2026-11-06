@@ -921,7 +921,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.VoiceUnlockRecoveryTask;
 
         fixture.ViewModel.IsVoiceEnabled.Should().BeTrue();
-        fixture.ViewModel.IsPrivacyPresentationHeld.Should().BeFalse();
+        fixture.ViewModel.IsPrivacyPresentationHeld.Should().BeTrue();
         fixture.ViewModel.ListeningStatus.Should().StartWith("Push-to-talk ready");
         fixture.ViewModel.IsListening.Should().BeFalse();
         fixture.Voice.IsListening.Should().BeFalse();
@@ -930,6 +930,9 @@ public sealed partial class MainViewModelTests
         fixture.WindowActions.Should().BeEmpty();
         fixture.Voice.RaiseTranscriptForGeneration(retired);
         fixture.Session.LockCalls.Should().Be(0);
+        await fixture.ViewModel.BeginPushToTalkCommand.ExecuteAsync();
+        fixture.Voice.StartCalls.Should().Be(1, "unlock cannot reopen private input admission");
+        fixture.ViewModel.ShowApplication();
         await fixture.ViewModel.BeginPushToTalkCommand.ExecuteAsync();
         fixture.Voice.StartCalls.Should().Be(2);
         await fixture.ViewModel.EndPushToTalkCommand.ExecuteAsync();

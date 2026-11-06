@@ -51,6 +51,9 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.PrivacyClosureTask;
         fixture.ViewModel.CommandText.Should().BeEmpty();
         PublishVoiceSession(fixture, WindowsSessionState.Unlocked);
+        await fixture.ViewModel.VoiceUnlockRecoveryTask;
+        fixture.ViewModel.IsPrivacyPresentationHeld.Should().BeTrue();
+        fixture.ViewModel.ShowApplication();
         var listed = await service.ExecuteAsync(new(Kora.Core.Commands.MemoryCommandOperation.List,
             store.Session.Authority.SessionId.Value), Kora.Core.Hosting.RequestOrigin.LocalUi, () => true, CancellationToken.None);
         listed.Memories.Should().BeEmpty();

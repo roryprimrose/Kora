@@ -17,6 +17,7 @@ public sealed record SessionDispositionPreview(
         + "Exact session provider overrides are inventoried and removed from the private SQLite authority and committed journal, never promoted to app preferences. "
         + "Exact session file attachments, when present, are inventoried, revoked and securely removed from owned SQLite cells/free pages and the committed rollback journal; uninventoried copies hold completion. "
         + "Original USER conversation bodies, separately retained ASSISTANT answers and explicitly saved drafts are inventoried and removed from owned SQLite cells/free pages and committed journals; "
+        + "Stop-and-delete also inventories the exact running turn's one content-free terminal model-usage observation; existing usage and all other turns must remain unchanged. "
         + "All addressed name, question/draft/answer, observation, history and session-memory content is also removed from owned SQLite cells/free pages, "
         + "and the committed rollback journal is verified empty before completion, even without attachments or conversation records. "
         + "Unconfirmed post-commit cleanup holds completion; inspect durable authority and recovery, never infer rollback or retry automatically. "

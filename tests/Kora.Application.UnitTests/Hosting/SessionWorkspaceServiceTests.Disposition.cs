@@ -11,6 +11,26 @@ namespace Kora.Application.UnitTests.Hosting;
 
 public sealed partial class SessionWorkspaceServiceTests
 {
+    [Fact]
+    public void StoppedWorkReviewCapturesExactExistingUsageWithoutChangingTheOriginal()
+    {
+        using var f = new Fixture();
+        var provenance = new Kora.Core.Dependencies.ModelTurnProvenance(new(Guid.NewGuid()), f.Request,
+            Kora.Core.Dependencies.ModelProviderSelection.OllamaCandidate);
+        var message = new Kora.Core.Conversation.ConversationMessage(f.Request, new(1), 1, 2,
+            DateTimeOffset.UnixEpoch, "original", null, null);
+        var work = new SessionStoppedWorkReview(new(Guid.NewGuid(), f.Request, new(1), new(2),
+            DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddMinutes(1)), message);
+        work.ModelUsage.Should().BeNull();
+        var usage = new Kora.Core.Dependencies.SessionModelUsage(provenance, "Selected model", null, TimeSpan.Zero, DateTimeOffset.UnixEpoch);
+        var captured = work with { ModelUsage = usage };
+        captured.ModelUsage.Should().Be(usage);
+        captured.Target.Should().Be(work.Target);
+        captured.Message.Should().Be(message);
+        captured.Should().NotBe(work);
+        work.ModelUsage.Should().BeNull();
+    }
+
     [Theory]
     [InlineData("origin")]
     [InlineData("missing")]

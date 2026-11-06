@@ -38,6 +38,8 @@ internal sealed partial class SessionsViewModel
     internal void BindDetailPresentation(DetailPresentationConfigurationService service)
     {
         ObjectDisposedException.ThrowIf(closed, this);
+        automaticPreferenceBindingEpoch++;
+        Array.Clear(automaticDetails);
         if (detailPresentation is not null) { detailPresentation.Changed -= OnDetailPresentationChanged; }
         for (var index = 0; index < terminalDetailPublications.Length; index++)
         {
@@ -73,6 +75,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearTerminalDetailPublications()
     {
+        Array.Clear(automaticDetails);
         Array.Clear(terminalDetailPublications);
         completedDetailPublication = null;
     }

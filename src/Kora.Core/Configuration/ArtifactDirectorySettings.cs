@@ -1,6 +1,7 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 
 using Kora.Core.Artifacts;
+using Kora.Core.Mcp;
 
 namespace Kora.Core.Configuration;
 
@@ -18,7 +19,8 @@ public sealed class ArtifactDirectorySettings
         IReadOnlyList<string> agentDirectories,
         IReadOnlyList<string> mcpConfigurationFiles,
         IReadOnlyList<string> includedMcpServerIds,
-        bool useDefaultDirectories = true)
+        bool useDefaultDirectories = true,
+        McpCapabilitySelection? mcpCapabilities = null)
     {
         UseDefaultDirectories = useDefaultDirectories;
         var directoryLimit = useDefaultDirectories ? MaximumPathsPerKind : MaximumConfiguredDirectoriesPerKind;
@@ -28,6 +30,7 @@ public sealed class ArtifactDirectorySettings
         AgentDirectories = ValidatePaths(agentDirectories, nameof(agentDirectories), directoryLimit);
         McpConfigurationFiles = ValidatePaths(mcpConfigurationFiles, nameof(mcpConfigurationFiles));
         IncludedMcpServerIds = ValidateIdentifiers(includedMcpServerIds, nameof(includedMcpServerIds));
+        McpCapabilities = mcpCapabilities ?? McpCapabilitySelection.Default;
     }
 
     public ReadOnlyCollection<string> SkillDirectories { get; }
@@ -37,6 +40,7 @@ public sealed class ArtifactDirectorySettings
     public ReadOnlyCollection<string> McpConfigurationFiles { get; }
     public ReadOnlyCollection<string> IncludedMcpServerIds { get; }
     public bool UseDefaultDirectories { get; }
+    public McpCapabilitySelection McpCapabilities { get; }
 
     public static ArtifactDirectorySettings DefaultDirectories(string koraRoot, string roamingRoot, string userProfile)
     {
@@ -65,7 +69,7 @@ public sealed class ArtifactDirectorySettings
             Merge(defaults.InstructionDirectories, InstructionDirectories),
             Merge(defaults.PromptDirectories, PromptDirectories),
             Merge(defaults.AgentDirectories, AgentDirectories),
-            McpConfigurationFiles, IncludedMcpServerIds, useDefaultDirectories: false);
+            McpConfigurationFiles, IncludedMcpServerIds, useDefaultDirectories: false, mcpCapabilities: McpCapabilities);
     }
 
     public IReadOnlyList<string> GetDirectories(ArtifactKind kind) => kind switch
@@ -112,12 +116,15 @@ public sealed class ArtifactDirectorySettings
         string parameterName)
     {
         ArgumentNullException.ThrowIfNull(identifiers, parameterName);
-        if (identifiers.Count > MaximumIncludedMcpServers
-            || identifiers.Any(identifier => identifier.Length != 64
-                || identifier.Any(character => character is not (>= 'a' and <= 'f' or >= '0' and <= '9')))
+        var maximum = MaximumIncludedMcpServers
+            + (identifiers.Contains(KoraMcpCatalog.ServerId, StringComparer.Ordinal) ? 1 : 0);
+        if (identifiers.Count > maximum
+            || identifiers.Any(identifier => !string.Equals(identifier, KoraMcpCatalog.ServerId, StringComparison.Ordinal)
+                && (string.IsNullOrEmpty(identifier) || identifier.Length != 64
+                    || identifier.Any(character => character is not (>= 'a' and <= 'f' or >= '0' and <= '9'))))
             || identifiers.Distinct(StringComparer.Ordinal).Count() != identifiers.Count)
         {
-            throw new ArgumentException("Included MCP server identifiers must be unique SHA-256 values.", parameterName);
+            throw new ArgumentException("Included MCP server identifiers must be unique source-qualified or reserved built-in identities.", parameterName);
         }
         return new ReadOnlyCollection<string>(identifiers.ToArray());
     }

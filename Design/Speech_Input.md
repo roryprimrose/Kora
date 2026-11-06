@@ -107,6 +107,13 @@ Editing applies only shared reject-only [text and credential bounds](../src/Kora
 
 Existing question replies, approvals, prompt-input capture and literal composer/owned-editor dictation retain exclusive owners; reviewed command capture refuses those contexts ([host admission](../src/Kora.Application/ViewModels/MainViewModel.ReviewedVoiceCommand.cs)). Capture and review share a 60-second lifetime. Cancel, expiry, private/device/owner changes, native hide/deactivation/close and disposal clear volatile candidate text and join capture cleanup. No candidate audio/text archive, diagnostic content, training, profile enablement or hosted ASR is introduced ([capture lifecycle](../src/Kora.Application/Voice/ReviewedVoiceCommandCapture.cs), [native lifetime](../src/Kora/ResponseWindow.ReviewedVoiceCommand.cs)).
 
+The original deadline is checked independently of timer delivery at capture,
+transcript publication, edit, confirmation and downstream command admission.
+A delayed expiry callback or a confirmed dispatch waiting on other host work
+cannot renew the candidate. At the deadline, late work is refused and owned
+capture retirement is joined; only a fresh deliberate capture creates a new
+lifetime. This is specific to reviewed commands, not a shared question deadline.
+
 The [portable behavioral cases](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ReviewedVoiceCommand.cs), [capture lifecycle cases](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ReviewedVoiceLifecycle.cs) and [native-control cases](../tests/Kora.Windows.IntegrationTests/PushToTalkUiContractTests.cs) use deterministic audio/runtime seams. They are implementation evidence, not live microphone, provider, ASR-profile or acoustic qualification. See the [user interaction](../docs/commands.md#review-one-spoken-command-before-dispatch).
 
 ### Approved development direction and remaining admission evidence
@@ -244,6 +251,17 @@ Preserve "Kora, open settings" without a pause, without transcribing the precedi
 conversation. PTT enters command capture without requiring a wake name.
 Host-opened replies remain bound to their exact question/revision and cannot
 become general commands or extend ambient transcription.
+
+Explicit PTT owns the original held gesture before awaiting prior prompt,
+dictation, editor-reply or wake cleanup. Releasing the control during that wait
+retires the gesture: cleanup remains joined, but its eventual completion cannot
+open command capture or accept a transcript. Concurrent activation cannot replace
+that pending owner. A fresh deliberate press after confirmed cleanup rechecks
+ordinary consent, device, ownership, privacy and call policy; early release does
+not change saved consent or listening preference. The existing five-second
+native-open deadline remains independent of joined prior-input cleanup.
+The [held-intent regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.PushToTalkPreparation.cs)
+use deterministic capture barriers, not hardware or acoustic qualification.
 
 Explicit command interruption of a retained-answer reading captures the
 foreground session and exact playback at PTT activation, not final recognition.

@@ -27,7 +27,7 @@ public sealed class DetailPresentationConfigurationService(
             {
                 return available
                     ? $"Detail presentation: {saved ?? DetailPresentationPreference.Default} ({(saved is null ? "unsaved default" : "saved")}). "
-                        + "Device-local, future publications only. Manual details remain available. Automatic opening is unavailable."
+                        + "Device-local, future publications only. Manual details remain available. OpenAutomatically is foreground-only and never activates or focuses a window."
                     : "Detail presentation unavailable; proactive offers are held. Inspect saved state and audit before explicit recovery. Manual details remain available.";
             }
         }
@@ -42,6 +42,23 @@ public sealed class DetailPresentationConfigurationService(
     }
 
     public bool IsOfferCurrent(long? epoch) => epoch is not null && epoch == CaptureOfferEpoch();
+    internal AutomaticDetailPreference? CaptureAutomaticPreference()
+    {
+        lock (gate)
+        {
+            return available && saved == DetailPresentationMode.OpenAutomatically
+                ? new(offerEpoch, time.GetUtcNow().AddMinutes(2)) : null;
+        }
+    }
+
+    internal bool IsAutomaticCurrent(AutomaticDetailPreference preference)
+    {
+        lock (gate)
+        {
+            return available && saved == DetailPresentationMode.OpenAutomatically && preference.Epoch == offerEpoch
+                && time.GetUtcNow() < preference.Expires;
+        }
+    }
     public void Cancel() { lock (gate) { review = null; } }
 
     private DetailPresentationMode? Read(bool readBack = false)

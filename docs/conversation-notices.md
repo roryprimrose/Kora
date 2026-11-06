@@ -33,6 +33,13 @@ you read them. Questions may expire sooner. Privacy or protected-call changes,
 loss of control, marking a session Done, deletion or restart can withdraw a
 notice. Refresh never renews activity or authority; it does not extend a notice's lifetime.
 
+If source validation takes time, **Dismiss** and **Defer** recheck the original
+deadline before applying the choice. Defer starts from the fresh action time
+and still ends no later than the original expiry. An expired notice or a clock
+behind Kora's confirmed watermark cannot be acknowledged as current. Refresh
+selected work and select again after the clock recovers; a held/unconfirmed
+write is not a confirmed dismissal or deferral.
+
 Kora spaces and limits routine notices to reduce interruptions. **Defer** hides
 the current notice for up to fifteen minutes, never beyond its original expiry.
 Quiet hides routine completion notices, not Failure or Attention. Omitted work

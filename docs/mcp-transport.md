@@ -1,5 +1,31 @@
 # Read-only MCP HTTPS transport
 
+## Built-in Kora capabilities
+
+Kora has a private built-in MCP server. Its catalogue and capability-manager projection are host metadata:
+listing them does not open a network endpoint, launch a process or require a delegated account
+([catalogue](../src/Kora.Core/Mcp/KoraMcpCatalog.cs), [private server](../src/Kora.Application/Mcp/KoraMcpServer.cs)).
+
+Server, category and individual-tool consideration choices use the same device-local MCP preferences as external servers.
+Disabling a server preserves its category/item choices, including after restart. A category-wide change replaces its individual
+exceptions. Enabling consideration is not execution, consent or approval
+([shared policy](../src/Kora.Core/Mcp/McpCapabilitySelection.cs), [host adapter](../src/Kora.Application/Configuration/McpCapabilityPreferences.cs)).
+
+The metadata inventory includes the original observations, reviewed settings/session/customization discovery, the scoped webpage
+tool and conversational `ask_user`. It does not create one tool per setting or enable an unavailable model. Source-bound entries
+are labelled as requiring their existing review; `ask_user` cannot confirm a protected operation
+([inventory](../src/Kora.Core/Mcp/KoraMcpCatalog.cs), [host dispatch](../src/Kora.Application/Dependencies/ModelTurnHost.cs)).
+
+Disabled tools are removed from supported model context selections and rejected again at dispatch, including cached calls.
+Changes retire turns using the built-in catalogue; re-enabling cannot revive them. Unrelated tool-free answers and external-only
+turns retain their own authority checks. Native controls remain recovery paths, and mandatory approvals are not disabled with `ask_user`
+([selection](../src/Kora.Application/Configuration/McpCapabilityPreferences.cs), [revalidation](../src/Kora.Application/Dependencies/ModelTurnHost.Capabilities.cs)).
+
+The private MCP observation interface and provider adapters use the existing typed actions and shared input schemas. Reviewed source-bound operations use the same server's host-bound dispatch, not an unrestricted settings/file/session reader. The external HTTPS workflow below retains its independent account, destination, effect mapping and approval requirements
+([schemas](../src/Kora.Core/Tools/CapabilityInputSchema.cs), [server](../src/Kora.Application/Mcp/KoraMcpServer.cs)).
+
+## External read-only HTTPS servers
+
 **MCP (Model Context Protocol)** connects tools offered by another service.
 Kora's first supported connection is read-only and uses HTTPS. It is not a
 general remote-command runner.
@@ -14,6 +40,13 @@ account, review the exact connection in native UI, select a host-mapped tool,
 and separately approve its exact schema and arguments. The result is inert
 lower-trust evidence for the local model, not instructions or permission.
 Discovery annotations never establish a read-only mapping.
+
+When a result contains several text blocks, Kora combines them in server order
+with exactly one newline between blocks, including empty blocks. Leading,
+consecutive and trailing empty blocks are preserved in both the displayed result
+and any separately consented local continuation. Text inside each block and
+optional structured JSON are unchanged; the existing four-block and complete
+1,536-byte response limits still apply.
 
 If a configuration refresh observes changed source bytes, exclusion, removal or
 unavailable configuration while discovery or review is pending, the old review
@@ -53,6 +86,14 @@ If remote processing is uncertain, the task remains **Unknown**; stopping is
 not rollback and does not automatically retry. The availability restriction
 below also applies to this route.
 
+After transport disposal and again at terminal readback, Kora checks that the
+exact delegated account, revision, protected credential reference and destination
+remain available. Withdrawal or replacement suppresses the result, including
+the native result review and local-model continuation. A terminal receipt already
+committed before withdrawal is not rewritten or treated as fresh disclosure
+authority. Review the original operation before explicitly starting another;
+Kora does not reconnect or retry automatically.
+
 A disconnected or failed exchange also joins the original transport without
 reconnecting or retrying. Neither route publishes a tool result or assistant
 answer from that failure. The direct operation reports failure with an
@@ -85,6 +126,13 @@ Arguments must be one JSON object of at most 2,048 UTF-8 bytes, starting with `{
 and ending with `}`. Whitespace inside those braces is preserved; leading or
 trailing whitespace is rejected before confirmation because the model protocol
 cannot reproduce it. No approved argument bytes are silently reformatted.
+Reviewed string `maxLength` limits count Unicode scalar values, not UTF-16 code
+units or displayed grapheme clusters. Supplementary characters count once;
+combining marks and joiners count separately. Literal and JSON-escaped inputs
+use the same decoded length without normalization or rewriting. The complete
+2,048-byte limit still applies to the actual JSON, including escape sequences;
+malformed surrogates and over-limit inputs are refused before invocation approval
+or a tool call. Direct and local-model invocation share this validation.
 
 Invocation preparation checks the complete local input against the inclusive
 32,768-byte serialized limit: original request, full guidance, argument/revision
@@ -187,6 +235,12 @@ destination details require new admission. Unknown readiness stays unavailable;
 configuration and successful tests are not a real signed-in account.
 
 ## Supported profile
+
+Responses must use `application/json`, with either no charset parameter or one
+UTF-8 charset parameter. Media type and charset matching are case-insensitive;
+both `charset=utf-8` and `charset="utf-8"` are accepted without changing the
+response bytes. Malformed, duplicate, empty or other charset values are refused,
+not decoded using a fallback.
 
 The supported protocol version is `2025-06-18`, with one HTTPS request at a
 time and complete JSON responses. Server-managed sessions, streaming,

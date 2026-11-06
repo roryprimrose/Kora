@@ -1,5 +1,5 @@
 const { createHash } = require('node:crypto');
-const { CHECKS, GATE, STATE_BRANCH, SHA, TICKET, invariant, validateState, title, workflowJobs,
+const { CHECKS, GATE, STATE_BRANCH, SHA, TICKET, invariant, validateState, title, candidateJobs, workflowJobs,
   requiredJobsState, terminalJobs, terminalRejectedAdmission, terminalRejectedPreflight,
   terminalRejectedDelivery } = require('./policy.cjs');
 
@@ -7,7 +7,7 @@ const FILE = 'queue.json';
 const WORKFLOW = 'ci.yml';
 
 class GitHubQueue {
-  constructor(github, context, core, appId, deliveryProfile = '') {
+  constructor(github, context, core, appId, deliveryProfile = '', mainBuildProfile = '') {
     this.github = github;
     this.context = context;
     this.core = core;
@@ -15,6 +15,9 @@ class GitHubQueue {
     this.repository = `${this.repo.owner}/${this.repo.repo}`;
     this.appId = Number(appId);
     this.independent = require('./delivery.cjs').independent(deliveryProfile);
+    this.mainBuildProfile = require('./main-scheduling.cjs').mainBuildProfile(mainBuildProfile);
+    invariant(this.mainBuildProfile !== 'hourly-v1' || this.independent,
+      'Hourly main builds require independent delivery.');
     invariant(Number.isSafeInteger(this.appId) && this.appId > 0, 'Missing queue App ID.');
     this.commit = null;
     this.serialized = null;
@@ -23,6 +26,8 @@ class GitHubQueue {
 
   async verifyProtection(profile = 'singleton-v1') {
     profile = require('./batch-policy.cjs').profile(profile);
+    invariant(this.mainBuildProfile !== 'hourly-v1' || profile === 'batch-v1',
+      'Hourly main builds require batch admission.');
     const { data } = await this.github.rest.repos.getBranchProtection({ ...this.repo, branch: 'main' });
     invariant(data.required_status_checks?.strict === true && data.enforce_admins?.enabled === true,
       'Queue requires strict up-to-date checks enforced for administrators.');
@@ -189,7 +194,19 @@ class GitHubQueue {
     return records;
   }
   async expectedJobs(source) {
-    return (await this.workflowInventory(source))?.jobs ?? null;
+    return (await this.workflowInventory(source, true))?.jobs ?? null;
+  }
+  async observeHourlyMain(state) {
+    return require('./main-scheduling.cjs').observeAttempts(this, state);
+  }
+  async admitScheduledMain(state, runAttempt) {
+    return require('./main-scheduling.cjs').admitScheduled(this, {
+      eventName: this.context.eventName, ref: this.context.ref, sha: this.context.sha,
+      runId: this.context.runId, runAttempt,
+    }, state);
+  }
+  async supportsHourlyMain(source) {
+    return (await this.workflowInventory(source))?.mainBuildSchema === 'hourly-v1';
   }
   async rejectedAdmission(source, run, jobs) {
     if (run.head_sha !== source) return false;
@@ -198,10 +215,10 @@ class GitHubQueue {
       || terminalRejectedPreflight(run, jobs, inventory.blob) || terminalRejectedDelivery(run, jobs, inventory.blob));
   }
   async trustedInventory(source) {
-    const inventory = await this.workflowInventory(source);
-    return ['windows-12-v1', 'windows-12-delivery-v1'].includes(inventory?.schema) ? inventory : null;
+    const inventory = await this.workflowInventory(source, true);
+    return candidateJobs(inventory?.schema) ? inventory : null;
   }
-  async workflowInventory(source) {
+  async workflowInventory(source, candidate = false) {
     invariant(SHA.test(source), 'Unknown candidate workflow source.');
     let data;
     try {
@@ -223,14 +240,16 @@ class GitHubQueue {
       this.notice('Candidate workflow source bytes do not match its blob; physical quiescence is unknown.');
       return null;
     }
-    const expected = workflowJobs(bytes.toString('utf8'), data.sha);
+    const lines = bytes.toString('utf8').replaceAll('\r\n', '\n').split('\n');
+    const expected = workflowJobs(bytes.toString('utf8'), data.sha, candidate);
     if (expected === null)
       this.notice('Candidate workflow job schema is unknown; physical quiescence is unknown.');
     return expected === null ? null : { blob: data.sha, jobs: expected,
-      schema: bytes.toString('utf8').replaceAll('\r\n', '\n').split('\n')
-        .includes('# merge-queue-delivery-schema: independent-v1') ? 'windows-12-delivery-v1'
-        : bytes.toString('utf8').replaceAll('\r\n', '\n').split('\n')
-          .includes('# merge-queue-job-schema: windows-12-v1') ? 'windows-12-v1' : 'historical' };
+      ...(lines.includes('# main-validation-schema: hourly-v1') ? { mainBuildSchema: 'hourly-v1' } : {}),
+      schema: lines.includes('# merge-queue-job-schema: parallel-pr-v1') ? 'parallel-pr-v1'
+        : lines.includes('# merge-queue-job-schema: unit-pr-v1') ? 'unit-pr-v1'
+          : lines.includes('# merge-queue-delivery-schema: independent-v1') ? 'windows-12-delivery-v1'
+            : lines.includes('# merge-queue-job-schema: windows-12-v1') ? 'windows-12-v1' : 'historical' };
   }
   async releaseSource(source, ref = this.commit) {
     invariant(SHA.test(source) && SHA.test(ref), 'Independent release requires pinned source and queue revisions.');
@@ -327,13 +346,15 @@ class GitHubQueue {
     'Synthetic prefix moved outside its expected parent identities.');
     return { sha: current, tree: commit.tree };
   }
-  async tipQualification(tip) {
+  async tipQualification(tip, { allowScheduled = false } = {}) {
     const runs = await this.completePages(this.github.rest.actions.listWorkflowRuns,
       { workflow_id: WORKFLOW, branch: 'main', head_sha: tip.sha }, 'tip qualification run');
     invariant(runs.every(run => Number.isSafeInteger(run.id) && run.id > 0)
       && new Set(runs.map(run => run.id)).size === runs.length, 'Invalid or duplicate qualification run identities.');
     const eligible = run => run.head_sha === tip.sha && run.head_branch === 'main'
-      && run.run_attempt === 1 && ['push', 'workflow_dispatch'].includes(run.event)
+      && run.run_attempt === 1 && (['push', 'workflow_dispatch'].includes(run.event)
+        || (this.mainBuildProfile === 'hourly-v1' || allowScheduled)
+          && inventory?.mainBuildSchema === 'hourly-v1' && run.event === 'schedule')
       && run.display_title === 'CI main';
     const inventory = await this.workflowInventory(tip.sha);
     invariant(inventory, 'Completed-tip workflow inventory is unavailable.');
@@ -357,7 +378,17 @@ class GitHubQueue {
         && qualification[0].status === 'completed' && qualification[0].conclusion === 'success'
         ? { run: run.id, source: tip.sha, job: qualification[0].id } : null;
       const deliveryRejected = terminalRejectedDelivery(run, jobs, inventory.blob);
+      const publication = jobs.filter(job => job.name === 'Publish completed batch release');
+      const health = run.status === 'completed' && ['failure', 'cancelled', 'timed_out'].includes(run.conclusion)
+        && run.path === '.github/workflows/ci.yml'
+        && run.repository?.full_name === api.repository && run.head_repository?.full_name === api.repository
+        && terminalJobs(jobs, [...inventory.jobs, 'Publish completed batch release', 'Qualify completed batch tip'])
+        && publication.length === 1 && ['failure', 'cancelled', 'timed_out'].includes(publication[0].conclusion)
+        ? { status: 'BLOCKED_PUBLICATION', source: tip.sha, run: run.id, attempt: 1,
+          job: publication[0].id, conclusion: publication[0].conclusion, recovery: 'authorized-recovery-required' }
+        : null;
       return { owner: { run: run.id, source: tip.sha, attempt: 1 }, qualification: proof,
+        ...(health ? { health } : {}),
         provisional: !started && !(api.independent && deliveryRejected), suppressed,
         terminal: run.status === 'completed' && (terminalJobs(jobs, inventory.jobs)
           || terminalRejectedAdmission(run, jobs, inventory.blob) || deliveryRejected) };
@@ -480,8 +511,8 @@ async function admit({ github, context, inputs }) {
   return active.head;
 }
 
-async function admitBatchTip({ github, context, appId, deliveryProfile = '' }) {
-  const api = new GitHubQueue(github, context, null, appId, deliveryProfile);
+async function admitBatchTip({ github, context, appId, deliveryProfile = '', mainBuildProfile = '' }) {
+  const api = new GitHubQueue(github, context, null, appId, deliveryProfile, mainBuildProfile);
   const state = await api.load();
   invariant(state.version === 2, 'Batch main qualification requires migrated state.');
   if (api.independent) {

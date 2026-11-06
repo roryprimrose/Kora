@@ -167,6 +167,16 @@ notifications alone do not extend an existing presence deadline. Response
 **Always show** does not pin presence. Legacy shared timeout values are
 retained for the response window, while the new presence setting defaults to 10.
 
+The compact native response suspends ordinary inactivity auto-hide while its
+pointer is over the window or it has active keyboard focus within. Leaving both
+starts a full fresh response timeout; moving focus between its controls remains
+engagement. Deactivation ends the keyboard hold without activating anything.
+Explicit hide and privacy retirement remain immediate; required attention and
+expanded Sessions remain exempt. This is presentation-only reading support, not
+retention activity, approval, speech or capture authority
+([guidance](../docs/presence-accessibility.md#reading-the-compact-response),
+[deterministic native regressions](../tests/Kora.Windows.IntegrationTests/ResponseEngagementTests.cs)).
+
 During Kora speech playback, the presence contracts and expands between 90%
 and 112% of its resting size at the default speech scale amount. A normalized
 20-ms RMS envelope from Kora's synthesized output follows the audio device's

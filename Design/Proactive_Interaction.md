@@ -69,6 +69,14 @@ original source expiry, never a work or approval deadline extension. Cached
 maintenance's existing Check/Open/release-specific snooze remain separate.
 Reserved event commands preserve any pending foreground question/approval.
 
+Exact actions recheck UTC against the original expiry and durable high watermark
+after awaited source validation, under the source lease. Dismiss/Defer use that
+fresh action time, not the time before waiting. Expiry or rollback cannot
+acknowledge a current notice or commit suppression; time revocation during
+the suppression audit/write boundary holds the broker unconfirmed rather than
+claiming success or rollback. Recovery requires fresh selected-work observation;
+it never renews the source deadline or replays a prior presentation.
+
 Schema-1 `local-events.json` and `local-events-unconfirmed.txt` use
 `IApplicationDataPaths` and the shared atomic preference store. At most 64
 content-free suppression receipts and four fatigue budgets fit the complete
@@ -163,6 +171,8 @@ This adds no scheduler, detector enablement, microphone acquisition, foreground 
 One device-local Off-or-weekly schedule completes the documented quiet-hours operation for otherwise-consented completion speech. The host owns explicit zone interpretation, reviewed persistence and final output admission; no model timer, skill scheduler or external presence service is involved ([configuration owner](../src/Kora.Application/Configuration/QuietHoursConfigurationService.cs)).
 
 Native Settings and exact typed/current-name activated-voice requests share get, set, reset, review and separate same-channel confirmation. Days, start, end and installed zone are shown before confirmation. Reviews bind original host/session/control, call policy, assistant name, consent and native visibility where applicable; stale or expired reviews cannot commit ([interaction](../src/Kora.Application/ViewModels/MainViewModel.QuietHours.cs), [operation tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.QuietHours.cs)).
+
+One exact successful retained model answer may also supply an inert `notices.quiet-hours` Set or Reset suggestion. Its closed typed value is the existing schedule domain, never arbitrary preference text or model authority. The native Sessions/compact review revalidates the exact answer/session, reads actual saved/effective intent through the same configuration service, shows the full old/new/default schedule and explicit zone, and requires independent current native confirmation within 60 seconds. Reset restores unsaved Off. Changed source, host/privacy/call/control or native lifetime retires the review across awaits; uncertain persistence/audit/readback is not success. No timezone inference, listening/consent change, ordinary-answer suppression or automatic output is admitted ([review owner](../src/Kora.Application/Configuration/QuietHoursSuggestionReview.cs), [user steps](../docs/setting-proposals.md), [native/store regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.QuietHoursSuggestions.cs)).
 
 UTC from the injected clock is converted into the selected zone at every actual synthesis and playback boundary. Intervals include start and exclude end; overnight intervals belong to their starting day. Repeated local DST hours remain quiet inside the interval and skipped times create no deferred speech. Clock rollback holds speech until the observed high watermark is reached ([domain](../src/Kora.Core/Configuration/QuietHoursSchedule.cs), [platform admission](../src/Kora.Windows/Audio/WindowsTextToSpeechService.cs)).
 

@@ -12,7 +12,7 @@ operations. Registering or inspecting a root grants none of the later
 authorities; see the [source contract](Skill_Storage.md#delivered-bounded-r21-native-inspection)
 and [reviewed invocation](Skill_Storage.md).
 
-Native v1/v2/v3 owned sources also support [explicit reviewed deletion](../docs/owned-skill-authoring.md#delete-one-saved-owned-source).
+Native v1/v2/v3/v4 owned sources also support [explicit reviewed deletion](../docs/owned-skill-authoring.md#delete-one-saved-owned-source).
 Dirty drafts retain Save/Discard/Cancel. Full source/inventory/use-impact review
 precedes separate confirmation; deletion does not enable work or revoke
 independent grants, and an uncertain effect requires explicit recovery

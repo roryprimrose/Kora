@@ -79,12 +79,14 @@
         </ListBox.ItemTemplate>
       </controls:ScrollableListBox>
       <Grid Grid.Column="1" RowDefinitions="*,*,2*" RowSpacing="12">
-        <ScrollViewer>
-          <controls:NamedTextBlock Text="{Binding Inspection}" AutomationProperties.Name="Current exact grant inspection" TextWrapping="Wrap" />
-        </ScrollViewer>
-        <ScrollViewer Grid.Row="1">
-          <controls:NamedTextBlock Text="{Binding BatchInspection}" AutomationProperties.Name="Complete exact selected batch preview" TextWrapping="Wrap" />
-        </ScrollViewer>
+        <TextBox x:Name="ExactInspection" Text="{Binding Inspection, Mode=OneWay}" IsReadOnly="True"
+                 AcceptsReturn="True" IsUndoEnabled="False" TextWrapping="Wrap"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                 AutomationProperties.Name="Current exact grant inspection" />
+        <TextBox x:Name="ExactBatchInspection" Grid.Row="1" Text="{Binding BatchInspection, Mode=OneWay}" IsReadOnly="True"
+                 AcceptsReturn="True" IsUndoEnabled="False" TextWrapping="Wrap"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                 AutomationProperties.Name="Complete exact selected batch preview" />
         <Grid Grid.Row="2" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="8">
           <ScrollViewer MaxHeight="180">
           <WrapPanel>

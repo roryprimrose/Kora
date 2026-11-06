@@ -23,6 +23,7 @@ public sealed class SettingInspectionTests
         new(RegisteredSetting.MovementSpeed, 100, saved, 3), new(RegisteredSetting.SpeechScaling, 1, saved, 3),
         new(RegisteredSetting.SpeechScaleAmount, 100, saved, 3), new(RegisteredSetting.ReducedMotion, 0, saved, 3),
         new(QuietHoursSchedule.Off, saved, 3),
+        new(SpeechSelection.Default, saved, 7),
     ];
 
     [Theory]
@@ -37,18 +38,19 @@ public sealed class SettingInspectionTests
             HostRequest.Create(origin), Now);
         values[0] = new(RegisteredSetting.Theme, 2, !saved, 100);
         review.Observations[0].Value.Should().Be(0);
-        review.Observations.Should().HaveCount(16);
+        review.Observations.Should().HaveCount(17);
         review.Observations.Select(item => item.Setting).Should().Equal(
             RegisteredSetting.Theme, RegisteredSetting.ReaderTextScale,
             RegisteredSetting.SummaryWords, RegisteredSetting.SummarySentences,
             RegisteredSetting.PlaybackVolume, RegisteredSetting.ResponseMode, RegisteredSetting.PresenceDisplay,
             RegisteredSetting.PresenceTimeout, RegisteredSetting.PresenceSize, RegisteredSetting.DotSize,
             RegisteredSetting.DotDensity, RegisteredSetting.MovementSpeed, RegisteredSetting.SpeechScaling,
-            RegisteredSetting.SpeechScaleAmount, RegisteredSetting.ReducedMotion, RegisteredSetting.QuietHours);
+            RegisteredSetting.SpeechScaleAmount, RegisteredSetting.ReducedMotion, RegisteredSetting.QuietHours,
+            RegisteredSetting.SpeechVoice);
         review.Source.Should().Contain("System").And.Contain("100").And.Contain("Hybrid")
             .And.Contain(saved ? "confirmed saved" : "confirmed absent");
         review.Source.Should().Contain($"appearance.presence-display = {(presence == 1 ? "true" : "false")} boolean");
-        Encoding.UTF8.GetByteCount(review.Source).Should().BeLessThan(4096, "only sixteen closed typed rows can enter the source");
+        Encoding.UTF8.GetByteCount(review.Source).Should().BeLessThan(4096, "the closed source includes presence scalars, quiet hours and the typed speech selection");
         review.Text.Should().Contain(review.Source).And.Contain(review.Question)
             .And.Contain(SettingInspectionReview.Policy).And.Contain("NEW Local context conversation");
         review.Original.SessionId.Should().NotBe(review.Destination.SessionId);
@@ -106,6 +108,52 @@ public sealed class SettingInspectionTests
     [InlineData((RegisteredSetting)99, 0)]
     public void ClassificationRejectsAnythingOutsideClosedValidatedScalars(RegisteredSetting setting, int value) =>
         FluentActions.Invoking(() => new SettingObservation(setting, value, false, 1)).Should().Throw<ArgumentOutOfRangeException>();
+
+    [Theory]
+    [InlineData("windows-sapi", null, false)]
+    [InlineData("windows-sapi", "Exact voice", true)]
+    [InlineData("kokoro", "af_heart", true)]
+    [InlineData("kokoro", "\"instructions\" / are data", true)]
+    public void CompoundSelectionPreservesExactValidatedFieldsAndDefaultSemantics(string provider, string? voice, bool saved)
+    {
+        var selection = new SpeechSelection(provider, voice);
+        var observation = new SettingObservation(selection, saved, 17);
+        observation.Setting.Should().Be(RegisteredSetting.SpeechVoice);
+        observation.Value.Should().BeNull();
+        observation.Selection.Should().Be(selection);
+        observation.IsSaved.Should().Be(saved);
+        observation.Revision.Should().Be(17);
+        observation.Text.Should().Contain(JsonSerializer.Serialize(provider))
+            .And.Contain("future-only")
+            .And.Contain("no runtime claim");
+        observation.Text.Should().Contain(voice is null ? "provider-advertised default (exact voice not resolved)" : JsonSerializer.Serialize(voice));
+        using var wire = JsonDocument.Parse(JsonSerializer.Serialize(observation));
+        wire.RootElement.GetProperty("Selection").GetProperty("ProviderId").GetString().Should().Be(provider);
+        wire.RootElement.GetProperty("Selection").GetProperty("VoiceId").GetString().Should().Be(voice);
+        wire.RootElement.TryGetProperty("Value", out _).Should().BeFalse("a compound selection has no scalar");
+        wire.RootElement.GetProperty("Text").GetString().Should().Be(observation.Text);
+        JsonSerializer.Deserialize<SettingObservation>(wire.RootElement.GetRawText()).Should().Be(observation);
+    }
+
+    [Theory]
+    [InlineData("unknown", "voice", 1)]
+    [InlineData("windows-sapi", "", 1)]
+    [InlineData("windows-sapi", " padded ", 1)]
+    [InlineData("windows-sapi", "line\nbreak", 1)]
+    [InlineData("windows-sapi", "valid", -1)]
+    public void CompoundSelectionCannotBypassDomainValidationOrRevision(string provider, string voice, long revision) =>
+        FluentActions.Invoking(() => new SettingObservation(new SpeechSelection(provider, voice), true, revision))
+            .Should().Throw<ArgumentOutOfRangeException>();
+
+    [Fact]
+    public void CompoundSelectionRequiresTypedValueAndFullDomainVoiceBound()
+    {
+        FluentActions.Invoking(() => new SettingObservation(selection: null!, false, 1)).Should().Throw<ArgumentNullException>();
+        var longest = new SpeechSelection("windows-sapi", new string('x', SpeechSelection.MaximumVoiceIdLength));
+        new SettingObservation(longest, true, 1).Selection.Should().Be(longest);
+        FluentActions.Invoking(() => new SettingObservation(longest with { VoiceId = longest.VoiceId + "x" }, true, 1))
+            .Should().Throw<ArgumentOutOfRangeException>();
+    }
 
     [Theory]
     [InlineData(RegisteredSetting.PresenceTimeout, 1, "seconds")]

@@ -30,7 +30,8 @@ public sealed class QuietHoursInspectionTests
         var observation = new SettingObservation(domain, saved, 42);
         observation.Setting.Should().Be(RegisteredSetting.QuietHours);
         observation.QuietHours.Should().Be(domain);
-        FluentActions.Invoking(() => observation.Value).Should().Throw<InvalidOperationException>();
+        observation.Value.Should().BeNull("a compound schedule must not fabricate a scalar");
+        observation.Selection.Should().BeNull();
         observation.Text.Should().Contain(schedule).And.Contain("configured intent only")
             .And.Contain(saved ? "confirmed saved" : "confirmed absent");
         var reply = SettingsDiscoveryTools.Read([observation], SettingsDiscoveryTools.Get, """{"id":"notices.quiet-hours"}""");
@@ -56,7 +57,7 @@ public sealed class QuietHoursInspectionTests
         JsonSerializer.Deserialize<SettingObservation>(wire, Options).Should().Be(scalar);
         FluentActions.Invoking(() => new SettingObservation(RegisteredSetting.QuietHours, 0, false, 0))
             .Should().Throw<ArgumentOutOfRangeException>();
-        FluentActions.Invoking(() => new SettingObservation(null!, false, 0)).Should().Throw<ArgumentNullException>();
+        FluentActions.Invoking(() => new SettingObservation(schedule: null!, false, 0)).Should().Throw<ArgumentNullException>();
         FluentActions.Invoking(() => new SettingObservation(QuietHoursSchedule.Off, false, -1))
             .Should().Throw<ArgumentOutOfRangeException>();
     }
@@ -69,6 +70,11 @@ public sealed class QuietHoursInspectionTests
     [InlineData("""{"setting":21,"quietHours":"Off","isSaved":false,"revision":0,"text":"forged"}""")]
     [InlineData("""{"setting":21,"quietHours":"weekly Mon 22:00 07:00 utc","isSaved":false,"revision":0,"text":"forged"}""")]
     [InlineData("""{"setting":21,"quietHours":"weekly Mon 22:00 07:00 Etc/UTC","value":0,"isSaved":false,"revision":0,"text":"forged"}""")]
+    [InlineData("""{"setting":0,"value":0,"selection":{"providerId":"windows-sapi","voiceId":null},"isSaved":false,"revision":0,"text":"forged"}""")]
+    [InlineData("""{"setting":0,"value":0,"quietHours":"Off","isSaved":false,"revision":0,"text":"forged"}""")]
+    [InlineData("""{"setting":21,"quietHours":"Off","selection":{"providerId":"windows-sapi","voiceId":null},"isSaved":false,"revision":0,"text":"forged"}""")]
+    [InlineData("""{"setting":20,"value":0,"selection":{"providerId":"windows-sapi","voiceId":null},"isSaved":false,"revision":0,"text":"forged"}""")]
+    [InlineData("""{"setting":17,"isSaved":false,"revision":0,"text":"forged"}""")]
     public void ForgedWireCannotCreateASettingObservation(string json)
     {
         var converter = new SettingObservationJsonConverter();

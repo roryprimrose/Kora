@@ -33,6 +33,7 @@ public sealed partial class ModelTurnHostTests
                 new(RegisteredSetting.SpeechScaleAmount, 100, false, 1),
                 new(RegisteredSetting.ReducedMotion, 0, false, 1),
                 new(QuietHoursSchedule.Off, false, 1),
+                new(SpeechSelection.Default, false, 1),
             ], "What controls summaries?", f.Request, f.Time.Now, mode);
         f.Request = review.Destination;
         f.Session = new(f.Request.SessionId, new(1), true);

@@ -22,22 +22,28 @@ public sealed class QuietHoursInspectionOperationTests
     private const string Question = "Which quiet-hours schedule is configured, and why might completion speech be quiet?";
 
     [Theory]
-    [InlineData(null, false)]
-    [InlineData("Off", true)]
-    [InlineData("weekly Mon,Wed,Fri 22:00 07:00 UTC", false)]
-    [InlineData("weekly Mon,Tue,Wed,Thu,Fri,Sat,Sun 22:00 07:00 UTC", true)]
+    [InlineData(null, false, false)]
+    [InlineData("Off", true, false)]
+    [InlineData("weekly Mon,Wed,Fri 22:00 07:00 UTC", false, false)]
+    [InlineData("weekly Mon,Tue,Wed,Thu,Fri,Sat,Sun 22:00 07:00 UTC", true, false)]
+    [InlineData(null, false, true)]
+    [InlineData("Off", true, true)]
+    [InlineData("weekly Mon,Wed,Fri 22:00 07:00 UTC", false, true)]
+    [InlineData("weekly Mon,Tue,Wed,Thu,Fri,Sat,Sun 22:00 07:00 UTC", true, true)]
     public async Task NativeReviewSeparateConfirmationAndReopenedConversationCompleteConfiguredIntentAnswer(
-        string? configured, bool discovery)
+        string? configured, bool discovery, bool savedSelection)
     {
         await HeadlessSession.RunAsync(async () =>
         {
             var answer = $"The confirmed {(configured is null ? "default" : "saved")} quiet-hours schedule is "
                 + $"{configured ?? "Off"}. This is configured intent, not current quiet-now or speech consent.";
             var transport = new SettingsDiscoveryWorkflowTests.Transport(Get, JsonSerializer.Serialize(new { kind = "answer", answer }));
+            var selection = savedSelection ? new SpeechSelection("kokoro", "af_heart") : SpeechSelection.Default;
             await using var f = new SettingInspectionWorkflowTests.Fixture(
-                transport: discovery ? transport : null, quietHours: configured is null ? null : "1\n" + configured);
+                transport: discovery ? transport : null, speechSelection: savedSelection ? selection : null,
+                quietHours: configured is null ? null : "1\n" + configured);
             await f.InitializeAsync();
-            f.Adapter.FinalAnswer = answer;
+            f.Adapter.Response = answer;
             var state = f.QuietHours.Get();
             var speechChanges = 0;
             f.QuietHours.SpeechAdmissionChanged += () => speechChanges++;
@@ -58,6 +64,9 @@ public sealed class QuietHoursInspectionOperationTests
                     .And.Contain(Question).And.Contain("NEW Local context conversation")
                     .And.Contain("configured intent only").And.Contain("not current quiet-now")
                     .And.Contain("speech consent").And.Contain("two minutes");
+                presenter.ReviewText.Should().Contain("speech.voice = " + JsonSerializer.Serialize(selection.ProviderId))
+                    .And.Contain("future-only; no runtime claim");
+                if (savedSelection) { presenter.ReviewText.Should().Contain(JsonSerializer.Serialize(selection.VoiceId)); }
                 f.Adapter.Calls.Should().Be(0);
                 transport.Requests.Should().BeEmpty();
                 f.Storage.Count("conversation_messages").Should().Be(0);

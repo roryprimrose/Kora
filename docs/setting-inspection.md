@@ -16,7 +16,7 @@ inert and changing a preference still requires its separate Review/Confirm/Apply
 
 For the distinct tool-enabled review, select **Use read-only registered-setting
 discovery tools** before inspecting. Read the registered metadata, the closed
-permitted setting IDs, full confirmed source, original question, local destination
+permitted value IDs, full confirmed source, original question, local destination
 and expiry; then choose **Confirm ONE settings-discovery LocalOnly request**.
 Changing this choice retires the previous review and requires a fresh inspection
 ([native review owner](../src/Kora/SettingInspection/SettingInspectionPresenter.cs)).
@@ -29,7 +29,7 @@ discovery and the genuine final answer within the unchanged cumulative byte limi
 List accepts bounded `offset`/`count` fields and returns canonical registered
 metadata, scope, validation limits, suggested values, native-review classification
 and whether a confirmed value reader is composed. Get accepts only one exact
-registered `id`; only the fifteen reviewed scalars and typed quiet-hours schedule below can return values.
+registered `id`; only the seventeen reviewed observations below can return values.
 Other registered values are explicitly unavailable, not guessed or loaded from
 another source ([closed discovery contract](../src/Kora.Core/Tools/SettingsDiscoveryTools.cs)).
 
@@ -41,10 +41,15 @@ results are volatile lower-trust data, not approval or future read authority
 ([bounded loop](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs),
 [exact reviewed binding](../src/Kora.Application/Dependencies/ModelTurnHost.SettingsDiscovery.cs)).
 
-Exactly sixteen registered observations are included: theme, reading text scale,
+Exactly seventeen registered observations are included: theme, reading text scale,
 ordinary spoken-summary word/sentence caps, Kora-only playback volume,
-device-default response mode, `appearance.presence-display`, and these existing
-presence preferences, plus the configured quiet-hours schedule:
+device-default response mode, `appearance.presence-display`, the compound
+`speech.voice` preference, the configured quiet-hours schedule and the eight
+presence preferences below. Presence display
+is a reviewed Boolean (`true` or `false`), not a claim that the presence renderer
+is currently available or visible. Its saved/default provenance and source
+invalidation follow the same rules as the other observations
+([closed source](../src/Kora.Core/Configuration/SettingInspection/SettingInspectionReview.cs)).
 
 | ID | Confirmed unsaved default | Units |
 | --- | --- | --- |
@@ -66,10 +71,9 @@ presence particles. These are confirmed saved/default intentions, not proof of
 current visibility, rendered size, animation, Windows motion state or performance.
 The appearance values must all match the live service and saved/default provenance
 at its observed revision. A change during review, tool work or publication retires
-the original source and requires fresh inspection.
-Response timeout, Windows speech rate and the registered installed provider/voice
-pair remain value-unavailable. Registering the voice-pair proposal does not add
-its selected value to this confirmed scalar source.
+the original source and requires fresh inspection
+([confirmed appearance reader](../src/Kora.Application/Configuration/SettingInspection/AppearanceConfigurationService.SettingInspection.cs)).
+
 Quiet-hours questions such as "Which quiet-hours schedule is configured, and why
 might completion speech be quiet?" review exact `Off` or canonical
 `weekly Mon,Wed,Fri 22:00 07:00 UTC` intent with saved/default provenance.
@@ -80,7 +84,27 @@ cast or arbitrary preference text; existing scalar results keep their `value` sh
 This does not determine current quiet-now, output availability or speech consent.
 No clock evaluation, scheduler, quiet-hours write, speech-admission notification,
 capture, listening or playback is caused by inspection.
-No provider, account, device, permission, privacy, credential, session, path or
+
+For example, ask **Which installed speech provider and voice are configured?**
+The complete review includes the exact configured provider ID and voice ID,
+saved/default provenance and future-only semantics. `settings.get` returns a
+typed `selection` containing `providerId` and an optional `voiceId`, not a scalar
+or arbitrary preference text. An absent voice ID means that provider's advertised
+default; the exact default voice is **not resolved** by this read. Confirmed absent
+storage means the domain default `windows-sapi` with that default-voice policy,
+not a fabricated installed voice ID.
+
+The existing atomic selection reader also preserves its legacy-file precedence.
+The selection must match the service's already-observed selection and provenance.
+No provider/voice catalogue is enumerated or disclosed. A saved choice can refer
+to unavailable assets; this read does not establish installation, availability,
+effective playback, profile qualification or permission to speak. A selection
+change or observed source failure retires an earlier review, including an
+observed change-and-return.
+
+Response timeout and Windows speech rate remain value-unavailable
+([closed source](../src/Kora.Core/Configuration/SettingInspection/SettingInspectionReview.cs)).
+No account, device, permission, privacy, credential, session, path or arbitrary
 file content is read into this source. No setting is saved, applied or reset.
 Service observations are independent, not an atomic cross-service snapshot.
 Saved preferences must match the live service state; missing files mean a
@@ -96,6 +120,10 @@ Observed changes, including change-and-return, invalidate earlier observations.
 Unobserved external filesystem history cannot be detected or certified.
 Cancel closes answer authority immediately, but the operation remains owned until
 source/model work physically joins; retained request receipts are not rolled back.
+This ownership is established before native busy-state notifications or source
+callbacks run. A Cancel or Close triggered during startup still waits for that
+exact inspection or confirmed-answer operation; it cannot report completion by
+joining an earlier request.
 
 A qualified local runtime is required. The actual answer, unsupported response or
 explicit unavailable/unconfirmed outcome is shown without automatic speech.

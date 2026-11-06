@@ -1,15 +1,15 @@
 using System.Globalization;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Voice;
 
 namespace Kora.Core.Configuration.SettingInspection;
 
-/// <summary>Closed, non-sensitive setting metadata, never arbitrary preference text.</summary>
+/// <summary>Closed validated preference values, never arbitrary preference text or runtime qualification.</summary>
 [JsonConverter(typeof(SettingObservationJsonConverter))]
 public sealed record SettingObservation
 {
-    private readonly int scalar;
     public SettingObservation(RegisteredSetting setting, int value, bool saved, long revision)
     {
         switch (setting)
@@ -66,7 +66,7 @@ public sealed record SettingObservation
         }
         ArgumentOutOfRangeException.ThrowIfNegative(revision);
         Setting = setting;
-        scalar = value;
+        Value = value;
         IsSaved = saved;
         Revision = revision;
     }
@@ -81,23 +81,41 @@ public sealed record SettingObservation
         Revision = revision;
     }
 
+    public SettingObservation(SpeechSelection selection, bool saved, long revision)
+    {
+        ArgumentNullException.ThrowIfNull(selection);
+        selection.Validate();
+        ArgumentOutOfRangeException.ThrowIfNegative(revision);
+        Setting = RegisteredSetting.SpeechVoice;
+        Selection = selection;
+        IsSaved = saved;
+        Revision = revision;
+    }
+
     public RegisteredSetting Setting { get; }
-    public int Value => QuietHours is null ? scalar
-        : throw new InvalidOperationException("A quiet-hours schedule is not a scalar.");
+    public int? Value { get; }
     public QuietHoursSchedule? QuietHours { get; }
+    public SpeechSelection? Selection { get; }
     public bool IsSaved { get; }
     public long Revision { get; }
-    public string Text => RegisteredSettingRegistry.Get(Setting).Id + " = " + (QuietHours?.ToString() ?? (Setting switch
-    {
-        RegisteredSetting.Theme => ((ApplicationThemeMode)Value).ToString(),
-        RegisteredSetting.ResponseMode => ((ResponseOutputMode)Value).ToString(),
-        RegisteredSetting.PresenceDisplay or RegisteredSetting.SpeechScaling or RegisteredSetting.ReducedMotion =>
-            Value == 1 ? "true" : "false",
-        _ => Value.ToString(CultureInfo.InvariantCulture),
-    })) + " " + RegisteredSettingRegistry.Get(Setting).Units
+    public string Text => RegisteredSettingRegistry.Get(Setting).Id + " = " + (QuietHours?.ToString() ?? (Selection is { } selection
+        ? JsonSerializer.Serialize(selection.ProviderId) + " / "
+            + (selection.VoiceId is { } voice ? JsonSerializer.Serialize(voice) : "provider-advertised default (exact voice not resolved)")
+            + " (future-only; no runtime claim)"
+        : ScalarText))
+        + " " + RegisteredSettingRegistry.Get(Setting).Units
         + (IsSaved ? " (confirmed saved; matches live service)" : " (confirmed absent; live default)")
         + (Setting == RegisteredSetting.ReducedMotion
             ? Value == 0 ? "; follows Windows reduced-motion preference, not forced motion" : "; freezes presence particles"
             : "")
         + (QuietHours is not null ? "; configured intent only, not current quiet-now, output availability or speech consent" : "");
+
+    private string ScalarText => Setting switch
+    {
+        RegisteredSetting.Theme => ((ApplicationThemeMode)Value!.Value).ToString(),
+        RegisteredSetting.ResponseMode => ((ResponseOutputMode)Value!.Value).ToString(),
+        RegisteredSetting.PresenceDisplay or RegisteredSetting.SpeechScaling or RegisteredSetting.ReducedMotion =>
+            Value == 1 ? "true" : "false",
+        _ => Value!.Value.ToString(CultureInfo.InvariantCulture),
+    };
 }

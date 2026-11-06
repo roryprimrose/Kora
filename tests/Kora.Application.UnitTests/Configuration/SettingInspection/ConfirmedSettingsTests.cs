@@ -130,7 +130,7 @@ public sealed class ConfirmedSettingsTests
     [InlineData(true)]
     public async Task ActualServicesConfirmSavedOrDefaultProvenanceWithoutAnyWritesEffectsOrOtherReads(bool saved)
     {
-        await using var f = new SettingInspectionFixture();
+        await using var f = new SettingInspectionFixture(saved ? "1\nOff" : null);
         if (saved)
         {
             f.Store.Text["appearance-theme.txt"] = "Dark";
@@ -154,7 +154,7 @@ public sealed class ConfirmedSettingsTests
         f.Observe();
         var before = f.Appearance.Get(AppearanceOption.Theme);
         var snapshot = await f.Source.CaptureAsync(f.Token);
-        snapshot.Observations.Should().HaveCount(20).And.OnlyHaveUniqueItems(item => item.Setting);
+        snapshot.Observations.Should().HaveCount(21).And.OnlyHaveUniqueItems(item => item.Setting);
         snapshot.Observations.Should().OnlyContain(item => item.IsSaved == saved);
         snapshot.Observations.Single(item => item.Setting == RegisteredSetting.ReaderTextScale).Value.Should().Be(saved ? 125 : 100);
         f.Source.IsCurrent(snapshot).Should().BeTrue();
@@ -171,6 +171,7 @@ public sealed class ConfirmedSettingsTests
              "presence-inactivity-timeout-seconds.txt", "presence-size-pixels.txt", "presence-dot-size-percent.txt",
              "presence-dot-density-percent.txt", "presence-movement-speed-percent.txt", "presence-speech-scaling-enabled.txt",
              "presence-speech-scale-amount-percent.txt", "appearance-reduced-motion-enabled.txt",
+             "notices-quiet-hours-unconfirmed.txt", "notices-quiet-hours.txt",
              "voice-capture-timing.txt", "voice-capture-timing-unconfirmed.txt",
              "detail-presentation.txt", "detail-presentation-unconfirmed.txt"];
         if (!saved) { expectedReads.Add("speech-provider.txt"); expectedReads.Add("speech-voice.txt"); }
@@ -222,6 +223,9 @@ public sealed class ConfirmedSettingsTests
     [InlineData("reader-text-scale-unconfirmed.txt", "1")]
     [InlineData("speech-playback-volume-unconfirmed.txt", "1")]
     [InlineData("response-output-mode-unconfirmed.txt", "1")]
+    [InlineData("notices-quiet-hours.txt", "1\nOff")]
+    [InlineData("notices-quiet-hours.txt", "1\nweekly Mon,Fri 22:00 07:00 UTC")]
+    [InlineData("notices-quiet-hours-unconfirmed.txt", "1")]
     public async Task ExternalChangeOrUnconfirmedStateInvalidatesPriorSourceIncludingObservedAba(string file, string value)
     {
         await using var f = new SettingInspectionFixture();
@@ -259,6 +263,7 @@ public sealed class ConfirmedSettingsTests
     [InlineData("speech-selection.txt")]
     [InlineData("speech-playback-volume.txt")]
     [InlineData("response-output-mode.txt")]
+    [InlineData("notices-quiet-hours.txt")]
     public async Task MalformedConfirmedStateNeverBecomesDefaultOrRenewsOldObservation(string file)
     {
         await using var f = new SettingInspectionFixture();

@@ -1,5 +1,9 @@
 # Task Lifecycle and Recovery
 
+The [approved source-bound Details presentation control](Decision_Register.md#exact-opted-in-details-presentation-question---2026-11-06) is a separate non-executing host task.
+It never advances to DispatchRecorded, enters a worker/provider queue, renews activity or modifies its original completed task.
+Accepted Yes precedes confirmed native reveal; unconfirmed reveal is not success, and retirement never claims cancellation of original work ([store](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.DetailsOffers.cs)).
+
 Status: durable task observation, admitted model-turn execution and reviewed
 work/application lifecycle controls are implemented. The complete effect queue,
 worker termination and script-backed skill lifecycle remain gated.

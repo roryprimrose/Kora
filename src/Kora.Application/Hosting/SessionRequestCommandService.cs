@@ -18,13 +18,39 @@ public sealed partial class SessionRequestCommandService(
     private readonly Lock gate = new();
     private Pending? pending;
     private long epoch;
+    private Func<Func<bool>>? captureDetailsOffer;
+    private Presentation.DetailsOfferRequest? completedDetailsOffer;
+    internal void BindDetailsOfferAdmission(Func<Func<bool>> capture) => captureDetailsOffer = capture;
+    internal SessionRequestReview SetDetailsOfferChoice(bool value)
+    {
+        lock (gate)
+        {
+            if (pending is not { Foreground: true } current)
+            { throw new InvalidOperationException("One live foreground original-request review is required."); }
+            pending = current with
+            {
+                Review = current.Review with { OfferDetailsOnce = value },
+                DetailsAdmission = value ? captureDetailsOffer?.Invoke() : null
+            };
+            return pending.Review;
+        }
+    }
+    internal Presentation.DetailsOfferRequest? TakeDetailsOffer(ConversationSubmissionReceipt receipt)
+    {
+        lock (gate)
+        {
+            var result = completedDetailsOffer;
+            completedDetailsOffer = null;
+            return ReferenceEquals(result?.Receipt, receipt) ? result : null;
+        }
+    }
 
     internal void BindTaskResponseOutput(Func<Kora.Core.Voice.TaskResponseMode, RequestOrigin, TaskResponseOutputReview> review) =>
         conversation.BindTaskResponseOutput(review);
 
     public void Retire()
     {
-        lock (gate) { pending = null; epoch++; }
+        lock (gate) { pending = null; completedDetailsOffer = null; epoch++; }
         RetirePendingClear();
     }
 
@@ -33,6 +59,7 @@ public sealed partial class SessionRequestCommandService(
         Action? expiredOrdinaryAccepted = null)
     {
         SessionConversationService.RequireOriginalSource(origin);
+        var optedDetailsAdmission = command.RequestDetailsOffer ? captureDetailsOffer?.Invoke() : null;
         if (command.IsPendingClear)
         { return await ExecutePendingClearAsync(command, origin, admitted, token).ConfigureAwait(false); }
         RetirePendingClear();
@@ -41,7 +68,7 @@ public sealed partial class SessionRequestCommandService(
         ActivityLink[] sourceLinks = HostActivity.Current?.Activity is { } source ? [new(source.Context)] : [];
         Pending? previous;
         long attempt;
-        lock (gate) { previous = pending; pending = null; attempt = ++epoch; }
+        lock (gate) { previous = pending; pending = null; completedDetailsOffer = null; attempt = ++epoch; }
         var control = access.ControlRevision;
         bool Live() => !token.IsCancellationRequested && access.CanInspect && access.CanControl && access.ControlRevision == control && admitted()
             && (!command.RequestForegroundTarget || foregroundTarget?.IsCurrent == true);
@@ -53,8 +80,12 @@ public sealed partial class SessionRequestCommandService(
                 || foregroundTarget is null || !Live())
             { throw new InvalidOperationException("No unique eligible foreground conversation is current. Show and focus an Active conversation, then request a fresh review. Nothing was submitted."); }
             var entry = foregroundTarget.Entry;
-            command = command with { SessionId = entry.Authority.SessionId.Value,
-                Generation = entry.Authority.Generation.Value, MetadataRevision = entry.Metadata?.Revision.Value ?? 0 };
+            command = command with
+            {
+                SessionId = entry.Authority.SessionId.Value,
+                Generation = entry.Authority.Generation.Value,
+                MetadataRevision = entry.Metadata?.Revision.Value ?? 0
+            };
         }
 
         if (command.RequestUsesPendingReview)
@@ -74,8 +105,11 @@ public sealed partial class SessionRequestCommandService(
             {
                 var resolved = await ResolveReadableAsync(command, Live, token).ConfigureAwait(false);
                 command = command with
-                { SessionId = resolved.Authority.SessionId.Value, Generation = resolved.Authority.Generation.Value,
-                    MetadataRevision = resolved.Metadata?.Revision.Value ?? 0 };
+                {
+                    SessionId = resolved.Authority.SessionId.Value,
+                    Generation = resolved.Authority.Generation.Value,
+                    MetadataRevision = resolved.Metadata?.Revision.Value ?? 0
+                };
                 resolution.Complete(HostOperationOutcome.Completed);
             }
             catch { resolution.Complete(HostOperationOutcome.Failed); throw; }
@@ -115,7 +149,14 @@ public sealed partial class SessionRequestCommandService(
                     || command.RequestForegroundTarget && target != foregroundTarget!.Entry)
                 { throw new InvalidOperationException("Review requires the exact current Active session, generation and metadata revision."); }
                 var review = new SessionRequestReview(Guid.NewGuid(), target, body, origin, time.GetUtcNow().AddSeconds(60),
-                    command.RequestProvider) { ClaudeTools = command.RequestClaudeTools, LocalRequestProfile = command.RequestLocalProfile };
+                    command.RequestProvider)
+                {
+                    ClaudeTools = command.RequestClaudeTools,
+                    LocalRequestProfile = command.RequestLocalProfile,
+                    OfferDetailsOnce = command.RequestDetailsOffer
+                };
+                if (command.RequestDetailsOffer && !command.RequestForegroundTarget)
+                { throw new InvalidOperationException("Details opt-in requires the exact foreground original request."); }
                 TaskResponseOutputReview? output = null;
                 if (command.RequestTaskResponseMode is { } outputMode)
                 {
@@ -143,8 +184,12 @@ public sealed partial class SessionRequestCommandService(
                     var expiredSource = await workspace.ReadExpiredOrdinarySourceAsync(target, expired, Live, token).ConfigureAwait(false);
                     retryProvider = await conversation.ReviewCurrentLocalProviderAsync(target, Live, token).ConfigureAwait(false);
                     queue = await conversation.ReadPendingConversationAsync(target, Live, token).ConfigureAwait(false);
-                    review = review with { ExpiredSource = expiredSource, CurrentLocalProvider = retryProvider.Selection,
-                        RetryProviderProfile = retryProvider.Profile };
+                    review = review with
+                    {
+                        ExpiredSource = expiredSource,
+                        CurrentLocalProvider = retryProvider.Selection,
+                        RetryProviderProfile = retryProvider.Profile
+                    };
                 }
                 if (command.RequestFailedMessage is { } failed)
                 {
@@ -165,7 +210,8 @@ public sealed partial class SessionRequestCommandService(
                 {
                     if (epoch != attempt || !Live()) { throw new InvalidOperationException("Review admission changed."); }
                     pending = new(review, Live, control, new(activity.Activity!.Context), command.RequestForegroundTarget,
-                        retryProvider, localProfile, bareCurrent, queue, output);
+                        retryProvider, localProfile, bareCurrent, queue, output,
+                        optedDetailsAdmission);
                 }
                 activity.Complete(HostOperationOutcome.Completed);
                 return new("review", output is not null
@@ -269,6 +315,15 @@ public sealed partial class SessionRequestCommandService(
                 throw;
             }
             activity.Complete(HostOperationOutcome.Completed);
+            if (previous.Review.OfferDetailsOnce && previous.DetailsAdmission is { } detailLive
+                && detailLive() && receipt.Message.AssistantResponse is not null && receipt.Task.IsTerminal)
+            {
+                lock (gate)
+                {
+                    completedDetailsOffer = new(receipt, previous.Review.Target, previous.Review.Id,
+                        detailLive, [previous.Cause, new(submission.Activity!.Context)]);
+                }
+            }
             return new("retained", (receipt.Message.Outcome is null
                 ? "Exact original USER request accepted and pending in its original conversation/channel. Inspect submitted work for position or exact cancellation; no execution success, fallback or authority renewal is implied."
                 : "Exact original USER request retained with its original channel and terminal HOST/task outcome. Inspect these receipts; no fallback or automatic replay.")
@@ -365,5 +420,6 @@ public sealed partial class SessionRequestCommandService(
 
     private sealed record Pending(SessionRequestReview Review, Func<bool> SourceAdmitted, long ControlRevision, ActivityLink Cause,
         bool Foreground, ModelTurnHost.RetryProviderReview? RetryProvider, LocalRequestProfileReview? LocalProfile,
-        Func<bool>? BareCurrent, ConversationPendingSnapshot? Queue, TaskResponseOutputReview? Output);
+        Func<bool>? BareCurrent, ConversationPendingSnapshot? Queue, TaskResponseOutputReview? Output,
+        Func<bool>? DetailsAdmission);
 }

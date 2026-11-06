@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using AwesomeAssertions;
 using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Configuration.SettingInspection;
@@ -9,6 +10,9 @@ namespace Kora.Core.UnitTests.Configuration.SettingInspection;
 
 public sealed class CaptureTimingObservationTests
 {
+    private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
+    { Converters = { new JsonStringEnumConverter() } };
+
     [Theory]
     [InlineData(RegisteredSetting.CommandStartWait, "7.1234567")]
     [InlineData(RegisteredSetting.ReplyStartWait, "20.7654321")]
@@ -29,6 +33,32 @@ public sealed class CaptureTimingObservationTests
         value.GetProperty("isSaved").GetBoolean().Should().BeTrue();
         value.GetProperty("text").GetString().Should().Be(observation.Text);
         value.TryGetProperty("selection", out _).Should().BeFalse();
+        value.TryGetProperty("quietHours", out _).Should().BeFalse();
+        JsonSerializer.Deserialize<SettingObservation>(value.GetRawText(), Options).Should().Be(observation);
+    }
+
+    [Theory]
+    [InlineData("ReaderTextScale", "125.5")]
+    [InlineData("ReaderTextScale", "2147483648")]
+    [InlineData("ReaderTextScale", "\"125\"")]
+    [InlineData("CommandStartWait", "true")]
+    public void ScalarWireRejectsFractionalIntegerOverflowAndNonNumericValues(string setting, string value)
+    {
+        var json = $$"""{"setting":"{{setting}}","value":{{value}},"isSaved":false,"revision":0,"text":"forged"}""";
+        FluentActions.Invoking(() => JsonSerializer.Deserialize<SettingObservation>(json, Options))
+            .Should().Throw<JsonException>();
+    }
+
+    [Theory]
+    [InlineData("CommandStartWait", "1")]
+    [InlineData("ReplyStartWait", "61")]
+    [InlineData("TrailingSilence", "0.50000001")]
+    [InlineData("TrailingSilence", "0.500000000000000000000000000001")]
+    public void TimingWireCannotRoundOrBypassDomainBounds(string setting, string value)
+    {
+        var json = $$"""{"setting":"{{setting}}","value":{{value}},"isSaved":false,"revision":0,"text":"forged"}""";
+        FluentActions.Invoking(() => JsonSerializer.Deserialize<SettingObservation>(json, Options))
+            .Should().Throw<ArgumentException>();
     }
 
     [Fact]

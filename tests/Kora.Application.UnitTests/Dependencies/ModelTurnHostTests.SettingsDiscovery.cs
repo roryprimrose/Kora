@@ -34,6 +34,7 @@ public sealed partial class ModelTurnHostTests
                 new(RegisteredSetting.SpeechScaling, 1, false, 1),
                 new(RegisteredSetting.SpeechScaleAmount, 100, false, 1),
                 new(RegisteredSetting.ReducedMotion, 0, false, 1),
+                new(QuietHoursSchedule.Off, false, 1),
                 new(RegisteredSetting.CommandStartWait, VoiceCaptureTiming.Default, false, 1),
                 new(RegisteredSetting.ReplyStartWait, VoiceCaptureTiming.Default, false, 1),
                 new(RegisteredSetting.TrailingSilence, VoiceCaptureTiming.Default, false, 1),

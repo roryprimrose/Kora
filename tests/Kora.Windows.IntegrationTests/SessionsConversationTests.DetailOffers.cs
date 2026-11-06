@@ -1,4 +1,4 @@
-using System.Text;
+using System.Text.Json;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -958,7 +958,13 @@ public sealed partial class SessionsConversationTests
             CancellationToken token)
         {
             Calls++;
-            Encoding.UTF8.GetString(context.Span).Should().NotContain("responses.detail-presentation");
+            using var envelope = JsonDocument.Parse(context);
+            envelope.RootElement.GetProperty("Evidence").EnumerateArray().Should().BeEmpty();
+            foreach (var property in envelope.RootElement.EnumerateObject())
+            {
+                if (!property.NameEquals("SystemPolicy"))
+                { property.ToString().Should().NotContain("responses.detail-presentation"); }
+            }
             return Task.FromResult(new ModelProviderReply(ModelTurnOutcome.Succeeded, provenance.Selection, new(Body, null)));
         }
     }

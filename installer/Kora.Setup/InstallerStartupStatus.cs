@@ -14,10 +14,12 @@ public sealed record InstallerStartupStatus(InstallerStartupState State, string 
     public static InstallerStartupStatus Checking { get; } =
         new(InstallerStartupState.Checking, "Checking startup registration...");
 
-    public static InstallerStartupStatus Inspect(string? command, ReadOnlySpan<byte> approval, string expectedCommand)
+    public static InstallerStartupStatus Inspect(string? command, ReadOnlySpan<byte> approval, string expectedCommand,
+        string? relatedExpectedCommand = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedCommand);
-        if (command is not null && !string.Equals(command, expectedCommand, StringComparison.OrdinalIgnoreCase))
+        if (command is not null && !string.Equals(command, expectedCommand, StringComparison.OrdinalIgnoreCase)
+            && (relatedExpectedCommand is null || !string.Equals(command, relatedExpectedCommand, StringComparison.OrdinalIgnoreCase)))
         {
             return new(InstallerStartupState.Conflict,
                 "Another command occupies Kora's startup entry. Resolve it in Windows Startup apps before retrying; setup will not overwrite it.");

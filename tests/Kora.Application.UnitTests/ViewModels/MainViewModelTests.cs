@@ -4718,7 +4718,8 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(LogonStartupCommand.FixedPhrases)
             .Concat(DetailPresentationCommand.FixedPhrases)
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
-            .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases);
+            .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)
+            .Concat(Kora.Core.Maintenance.MaintenanceUpdateCommand.FixedPhrases);
         fixture.Voice.StartedPhrases.Should().BeEquivalentTo(
             commandPhrases.SelectMany(phrase => new[] { phrase, $"Kora {phrase}" })
                 .Concat(ModelApprovalSpeech.GetPhrases("Kora"))

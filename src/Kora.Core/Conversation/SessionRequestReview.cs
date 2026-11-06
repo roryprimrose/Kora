@@ -19,6 +19,7 @@ public sealed record SessionRequestReview(Guid Id, SessionWorkspaceEntry Target,
     public Kora.Core.Providers.ProviderProfileTuple? LocalRequestProfile { get; init; }
     public Kora.Core.Voice.TaskResponseMode? TaskResponseMode { get; init; }
     public Kora.Core.Voice.ResponseOutputMode? ConfiguredTaskResponseMode { get; init; }
+    public bool OfferDetailsOnce { get; init; }
 
     [JsonConverter(typeof(JsonStringEnumConverter<ProviderChoice>))]
     public enum ProviderChoice { Default, Copilot, Claude }

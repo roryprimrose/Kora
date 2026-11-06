@@ -41,6 +41,7 @@ public sealed partial class MainViewModel
         SetForegroundRequestReview(null);
         sessionCommands = service;
         sessionRequests = requests;
+        BindDetailsOfferRequestAdmission();
         sessionPermissionCommands = permissions;
         requests?.BindTaskResponseOutput(ReviewTaskResponseOutput);
         conversationSearchCommands = searches;
@@ -102,11 +103,13 @@ public sealed partial class MainViewModel
         var dispatchInput = CommandText;
         var requestCommand = command.Operation is SessionCommandOperation.RequestReview
             or SessionCommandOperation.RequestConfirm or SessionCommandOperation.RequestCancel || command.IsPendingClear;
+        var originalRequests = sessionRequests;
         if (requestCommand) { RetireSpeechSummarySuggestions(); }
         var attachmentCommand = command.Operation == SessionCommandOperation.AttachmentInspect;
         var sourceBoundCommand = requestCommand || command.IsRetentionCommand || attachmentCommand || command.IsConversationDispatch
             || command.IsPermissionCommand;
         bool StableEligible() => !disposed && IsHostInputEligible && CallPolicyRevision == callRevision
+            && (!requestCommand || ReferenceEquals(originalRequests, sessionRequests))
             && (!command.RequestForegroundTarget || originalScopeEligibility?.Invoke() == true
                 && foregroundTarget?.IsCurrent == true
                 && originalScopeNameRevision == assistantNameConfiguration.Get().Revision
@@ -200,7 +203,7 @@ public sealed partial class MainViewModel
                 : command.IsRetentionCommand
                 ? await ExecuteSessionRetentionCommandAsync(command, origin, Eligible, CancellationToken.None)
                 : requestCommand || command.IsConversationDispatch
-                ? await (sessionRequests ?? throw new InvalidOperationException("The canonical retained-request command service is unavailable."))
+                ? await (originalRequests ?? throw new InvalidOperationException("The canonical retained-request command service is unavailable."))
                     .ExecuteAsync(command, origin, inputEligible, CancellationToken.None, foregroundTarget)
                 : await sessionCommands.ExecuteCommandAsync(command, origin, Eligible, CancellationToken.None);
             if (!Eligible()) { return; }
@@ -208,6 +211,7 @@ public sealed partial class MainViewModel
             if (result.RequestSubmission is { } submitted)
             {
                 if (foregroundConfirmation) { ForegroundRequestSubmitted?.Invoke(submitted); }
+                if (originalRequests!.TakeDetailsOffer(submitted) is { } detailsRequest) { PresentDetailsOffer(detailsRequest); }
                 await PinSpeechSummarySuggestionAsync(submitted, Eligible, sessionCommands);
             }
             if (result.RequestSubmission is not null && originalForegroundReview?.TaskResponseMode is not null)

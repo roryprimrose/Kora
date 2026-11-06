@@ -23,6 +23,30 @@ Screen-reader behavior can depend on your Windows and assistive-software setup;
 the presence's accessible name does not promise that every combination has
 been verified.
 
+## Compact responses on small working areas
+
+The compact response fits within the display's available working area, including
+scaled displays smaller than its ordinary 480 by 570 layout. The content keeps
+its readable layout inside native horizontal and vertical scrolling; it is not
+shortened or scaled down. Tab reaches the original controls and command input.
+Focus either named scrolling area and use Page Up/Page Down to read its content;
+native scrollbars and accessibility scrolling remain available.
+The existing **Refresh submitted activity** and **Review stop all work** controls
+remain reachable in the same compact layout; focusing them does not invoke them.
+
+If the existing expanded Sessions minimum (820 by 560) cannot fit, Kora stays
+compact and reports the limitation without replacing the response or input.
+Side-by-side conversation and Details still requires its separate 1040-wide
+minimum; it is not silently stacked or shrunk.
+
+Fitting and scrolling do not activate the window, run a command, read a new
+source, copy text, start capture or speech, change permissions, or renew retained
+content. Existing explicit controls and privacy retirement remain unchanged.
+Recovery immediately after an already-open window's display topology changes
+is separate; this behavior applies when opening or explicitly changing layout.
+Deterministic native tests do not qualify physical monitors, Windows DPI or
+installed assistive technology.
+
 ## Response position recovery
 
 When a compact response opens, Kora keeps its saved position if the window fits
@@ -33,9 +57,10 @@ continues to use the normal placement near presence.
 
 This reuses the same working-area layout as expanding or collapsing Sessions.
 Recovery does not activate the window, submit unsent input, replace its response,
-start listening or speech, or save a new position by itself. Existing minimum
-window sizes still apply; this does not add a small-display layout or qualify
-physical multi-display or installed accessibility behavior.
+start listening or speech, or save a new position by itself. Compact responses
+use the small-working-area layout above; expanded Sessions and side-by-side
+Details retain their existing minimum sizes. This does not qualify physical
+multi-display or installed accessibility behavior.
 
 ## Reading the compact response
 

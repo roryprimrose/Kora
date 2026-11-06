@@ -7,7 +7,7 @@ internal static class WindowsStartupRegistrationProbe
     private const string RunKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
     private const string ApprovalKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run";
 
-    public static InstallerStartupStatus Inspect(InstallScope scope, string productVersion)
+    public static InstallerStartupStatus Inspect(InstallScope scope, string productVersion, string? relatedProductVersion = null)
     {
         var expected = $"\"{WindowsInstalledApplicationPaths.Executable(scope, productVersion)}\"";
         using var hive = RegistryKey.OpenBaseKey(
@@ -16,7 +16,9 @@ internal static class WindowsStartupRegistrationProbe
         var command = ReadCommand(run);
         using var approved = hive.OpenSubKey(ApprovalKey, writable: false);
         var approval = ReadApproval(approved);
-        return InstallerStartupStatus.Inspect(command, approval, expected);
+        var relatedExpected = relatedProductVersion is null ? null
+            : $"\"{WindowsInstalledApplicationPaths.Executable(scope, relatedProductVersion)}\"";
+        return InstallerStartupStatus.Inspect(command, approval, expected, relatedExpected);
     }
 
     private static string? ReadCommand(RegistryKey? key)

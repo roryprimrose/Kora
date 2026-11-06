@@ -26,6 +26,7 @@ internal sealed partial class NativeQuestionHost : IDisposable
     private SessionWorkspaceService? workspace;
     private NativeQuestionViewModel? current;
     private int waiting;
+    internal bool IsWaiting => Volatile.Read(ref waiting) != 0;
     private volatile bool disposed;
     private readonly HostQuestionVoiceReplyService? voiceReplies;
     private Func<long>? privateRevision;

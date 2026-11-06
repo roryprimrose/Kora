@@ -76,4 +76,28 @@ public sealed class InstallerStartupTests
         var enableDisabled = () => result.ValidateSelection(new OptionalComponents(), InstallScope.AllUsers, startAtLogin: true);
         enableDisabled.Should().Throw<InvalidOperationException>();
     }
+
+    [Theory]
+    [InlineData("\"C:\\Program Files\\Kora\\0.1.1\\Kora.exe\"", InstallerStartupState.Enabled)]
+    [InlineData("\"C:\\Program Files\\Kora\\0.1.2\\Kora.exe\"", InstallerStartupState.Conflict)]
+    [InlineData("\"C:\\Temp\\Kora.exe\"", InstallerStartupState.Conflict)]
+    [InlineData("\"C:\\Program Files\\Kora\\0.1.1\\Kora.exe\" --task", InstallerStartupState.Conflict)]
+    public void UpgradeStartupMigrationAcceptsOnlyTheExactDetectedRelatedMsiPath(string command, InstallerStartupState expected)
+    {
+        const string related = "\"C:\\Program Files\\Kora\\0.1.1\\Kora.exe\"";
+        var status = InstallerStartupStatus.Inspect(command, [], Expected, related);
+        status.State.Should().Be(expected);
+    }
+
+    [Fact]
+    public void UpgradeCannotReenableWindowsDisabledStartup()
+    {
+        const string related = "\"C:\\Program Files\\Kora\\0.1.1\\Kora.exe\"";
+        byte[] approval = new byte[12];
+        approval[0] = 3;
+        var status = InstallerStartupStatus.Inspect(related, approval, Expected, related);
+        status.State.Should().Be(InstallerStartupState.DisabledByWindows);
+        status.CanConfigure.Should().BeFalse();
+        status.DefaultEnabled.Should().BeFalse();
+    }
 }

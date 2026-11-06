@@ -3,9 +3,11 @@
      xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
   <Bundle Name="Kora Setup" Manufacturer="Kora" Version="$(ProductVersion)"
           UpgradeCode="3D730D46-EA2D-42CB-9E84-EFE59FD10316"
+          Tag="Kora.Installer.v2"
           IconSourceFile="..\..\src\Kora\Assets\Kora.ico">
     <Variable Name="KoraDisplayVersion" Type="string" Value="$(DisplayVersion)" />
     <Variable Name="KoraProductVersion" Type="string" Value="$(ProductVersion)" />
+    <Variable Name="KoraInstallerProtocol" Type="numeric" Value="2" />
     <Variable Name="KoraStartAtLogin" Type="numeric" Value="0" />
     <Variable Name="KoraApplicationExeHash" Type="string" Value="$(ApplicationExeHash)" />
     <Variable Name="KoraApplicationAssemblyHash" Type="string" Value="$(ApplicationAssemblyHash)" />

@@ -27,7 +27,8 @@ foreach ($file in Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.ps1') {
 }
 $passed.Add('All maintained eng scripts parse')
 $expectedTools = @('eng\Invoke-SourceBootstrap.ps1', 'eng\SourceBootstrap.Common.ps1',
-    'eng\Test-SourceStage.ps1', 'eng\Get-BuildVersion.ps1', 'eng\SourceCheckout.Common.ps1',
+    'eng\Test-SourceStage.ps1', 'eng\Get-BuildVersion.ps1', 'eng\Get-InstallerProductVersion.ps1',
+    'eng\SourceCheckout.Common.ps1',
     'eng\Distribution.Common.ps1', 'eng\NativeInspection.Common.ps1', 'eng\Inspect-Publish.ps1')
 $tools = @(Get-SourceToolFiles)
 if (($tools.path -join '|') -cne ($expectedTools -join '|')) { throw 'Maintained bootstrap tool closure changed.' }
@@ -37,7 +38,7 @@ foreach ($tool in $tools) {
         throw "Tool identity does not describe maintained bytes: $($tool.path)"
     }
 }
-$passed.Add('Exact eight maintained helper paths and actual SHA-256 tool closure; no experiment ownership')
+$passed.Add('Exact nine maintained helper paths and actual SHA-256 tool closure; no experiment ownership')
 $repository = Join-Path $OutputDirectory 'fixture-repository'
 New-ProofDirectory $repository
 Invoke-Checked 'git' @('init', $repository)

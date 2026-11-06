@@ -135,6 +135,10 @@ privacy tests do not replace unique speech, runtime or distribution evidence.
 
 ## Product Requirement
 
+The separately [approved exact Details offer](Interaction_And_Sessions.md#exact-read-only-details-presentation-controls) uses fixed readable native Yes/Not now controls in the existing original-request panel, without a microphone or speech prerequisite.
+The card cannot open capture; deliberately activated answers bind that same exact one-use question.
+Expiry/private/source withdrawal clears it rather than restoring another target ([controls](../src/Kora/SessionRequestReviewPanel.cs)).
+
 Kora can ask questions and receive mouse input when no microphone is configured, permitted, connected, or usable.
 Voice, UI-only, and mixed-channel questions are equal supported paths, not merely microphone-failure fallbacks.
 Single-choice, multi-choice checkbox, bounded text/form, draft, submit/cancel, and session ownership semantics are defined in [Interaction and Sessions](Interaction_And_Sessions.md#structured-questions-and-mixed-channel-replies).

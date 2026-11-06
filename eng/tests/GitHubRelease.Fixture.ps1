@@ -230,7 +230,9 @@ function gh {
         'create' {
             $notes = @($arguments | Where-Object { $_ -like 'body=*' })[0].Substring(5)
             if ($notes -notlike '*Unsigned proof-of-concept*' -or $notes -notlike '*Customer-visible fixture*' -or
-                $notes -notlike '*not upgrade-ordered*' -or $notes -notlike '*Silent related-bundle upgrades are unsupported*' -or
+                $notes -notlike '*bounded ordered numeric version*' -or $notes -notlike '*Compatible v2 bundles*' -or
+                $notes -notlike '*Immutable older bundles require explicit external uninstall/reinstall retaining user data*' -or
+                $notes -notlike '*separate native approval*' -or
                 $notes -notlike '*private-profile standard SQLite*' -or $notes -notlike '*optional future R30*' -or
                 $notes -like '*encrypted-storage/native admission*') {
                 throw 'Release notes lack current storage/signing/upgrade disclosure or generated changes.'

@@ -9,7 +9,8 @@ namespace Kora.Setup;
 
 internal sealed class WindowsInstallerPreflight(
     ILogger<WindowsInstallerPreflight> logger,
-    ILogger<KokoroTextToSpeechProvider> kokoroLogger, string productVersion) : IInstallerPreflight
+    ILogger<KokoroTextToSpeechProvider> kokoroLogger, string productVersion,
+    Func<InstallScope, string?>? relatedProductVersion = null) : IInstallerPreflight
 {
     public async Task<InstallerPreflightResult> ProbeAsync(CancellationToken cancellationToken)
     {
@@ -69,7 +70,7 @@ internal sealed class WindowsInstallerPreflight(
             var result = await Task.Run(() =>
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                return WindowsStartupRegistrationProbe.Inspect(scope, productVersion);
+                return WindowsStartupRegistrationProbe.Inspect(scope, productVersion, relatedProductVersion?.Invoke(scope));
             }, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             if (!result.CanConfigure)

@@ -808,14 +808,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public bool IsModelActionApprovalPending => pendingModelAction is not null;
     public bool IsModelQuestionPending => pendingModelQuestion is not null;
-    public bool IsResponseInteractionPending => IsApprovalPending || IsModelQuestionPending;
+    public bool IsResponseInteractionPending => IsApprovalPending || IsModelQuestionPending || HasDetailsQuestion;
     public IReadOnlyList<ResponseAction> ResponseActions { get; private set; } = [];
     public bool HasResponseActions => ResponseActions.Count > 0;
     public IReadOnlyList<ModelQuestionChoice> ModelQuestionChoices { get; private set; } = [];
     public string CommandInputPlaceholder => IsModelQuestionPending
         ? "Type an option or your own answer"
+        : HasDetailsQuestion ? "Answer this exact Details question: Yes or Not now"
         : "Type a command or / for artifacts";
-    public string CommandSubmitLabel => IsModelQuestionPending ? "Answer" : "Run";
+    public string CommandSubmitLabel => IsModelQuestionPending || HasDetailsQuestion ? "Answer" : "Run";
     public bool IsGrantChangePending => pendingGrantChange is not null;
     public bool IsApprovalPending => IsModelActionApprovalPending || IsGrantChangePending;
     public bool IsGrantEditorVisible
@@ -4326,6 +4327,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         ForegroundConversationTarget? foregroundTarget = null)
     {
         CancelStartupPresentationReview();
+        if (await TryAnswerDetailsOffer(spokenText, initiator)) { return; }
         if (await TryHandleResponseReadProposal(spokenText, initiator, responseReadInput)) { return; }
         if (responseReadPlanCancellation is not null
             && commandRouter.Match(spokenText, AssistantName).Command?.Action is not
@@ -4868,6 +4870,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (Kora.Core.Interaction.LocalEventCommand.Parse(spokenText, AssistantName) is { } eventCommand)
         {
             await ExecuteLocalEventCommandAsync(eventCommand, initiator);
+            return;
+        }
+        if (Kora.Core.Maintenance.MaintenanceUpdateCommand.Parse(spokenText, AssistantName) is { } updateCommand)
+        {
+            await ExecuteMaintenanceUpdateCommandAsync(updateCommand, initiator);
             return;
         }
         if (Kora.Core.Maintenance.MaintenanceCommandParser.Parse(spokenText, AssistantName) is { } maintenanceCommand)
@@ -6922,7 +6929,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(SettingsSectionCommand.FixedPhrases)
             .Concat(LogonStartupCommand.FixedPhrases)
             .Concat(DetailPresentationCommand.FixedPhrases)
+            .Concat(HasDetailsQuestion ? ["yes", "show it", "no", "not now"] : [])
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)
+            .Concat(Kora.Core.Maintenance.MaintenanceUpdateCommand.FixedPhrases)
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
             .Concat(ClipboardPreview is { } snapshot
                 ? ["reuse clipboard snapshot " + snapshot.SnapshotId.ToString("D")] : []);

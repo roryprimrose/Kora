@@ -674,6 +674,8 @@ public sealed partial class MainViewModelTests
     private sealed class WakeAnswerAdapter(Func<bool> captureJoined) : IModelTurnAdapter
     {
         internal const string Answer = "Answer from the ordinary admitted model turn.";
+        internal string ResponseBody { get; set; } = Answer;
+        internal Action? BeforeReply { get; set; }
         internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal int Calls { get; private set; }
@@ -692,7 +694,8 @@ public sealed partial class MainViewModelTests
             document.RootElement.GetProperty("Evidence").GetArrayLength().Should().Be(0);
             Entered.SetResult();
             await Release.Task.WaitAsync(cancellationToken);
-            return new(ModelTurnOutcome.Succeeded, provenance.Selection, new(Answer, null));
+            BeforeReply?.Invoke();
+            return new(ModelTurnOutcome.Succeeded, provenance.Selection, new(ResponseBody, null));
         }
     }
 }

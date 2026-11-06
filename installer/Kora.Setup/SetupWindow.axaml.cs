@@ -63,7 +63,7 @@ public sealed partial class SetupWindow : Window
         Opened += OnCheckDependencies;
         CloseButton.Click += (_, _) =>
         {
-            if (session.CanCancelOptional)
+            if (session.CanCancelOptional || session.CanCancelShutdown)
             {
                 optionalCancellation.Cancel();
                 CloseButton.IsEnabled = false;
@@ -105,7 +105,9 @@ public sealed partial class SetupWindow : Window
 
     private SetupAction PrimaryAction => presentation.Action;
 
-    private void Start(SetupAction action)
+    [SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia Click boundary; shutdown cancellation and failures are surfaced before planning.")]
+    private async void Start(SetupAction action)
     {
         var selection = action == SetupAction.Uninstall ? new OptionalComponents()
             : new OptionalComponents(PowerShellOption.IsChecked == true,
@@ -115,7 +117,8 @@ public sealed partial class SetupWindow : Window
         {
             var startAtLogin = action != SetupAction.Uninstall && StartupOption.IsChecked == true;
             if (action != SetupAction.Uninstall) { preflight.ValidateSelection(selection, session.Scope, startAtLogin); }
-            session.Start(action, consent: true, optionalComponents: selection, startAtLogin: startAtLogin);
+            await session.StartAsync(action, consent: true, optionalComponents: selection, startAtLogin: startAtLogin,
+                cancellationToken: optionalCancellation.Token);
         }
         catch (InvalidOperationException exception)
         {
@@ -127,6 +130,7 @@ public sealed partial class SetupWindow : Window
         Justification = "Avalonia Opened/Click require void; cancellation is observed and failures route to the logged setup failure state.")]
     private async void OnCheckDependencies(object? sender, EventArgs args)
     {
+        if (checkingPreflight || closed || closeRequested || !session.CanStart) { return; }
         checkingPreflight = true;
         try
         {
@@ -206,6 +210,10 @@ public sealed partial class SetupWindow : Window
     private async void OnSessionChanged(object? sender, PropertyChangedEventArgs args)
     {
         Refresh();
+        if (session.CanStart && !preflight.IsComplete && !checkingPreflight)
+        {
+            OnCheckDependencies(sender, args);
+        }
         if (session.CanCancelOptional && !preparingOptional)
         {
             preparingOptional = true;
@@ -243,7 +251,7 @@ public sealed partial class SetupWindow : Window
                 ? "Checking optional dependencies without installing, starting services, downloading or running inference..."
             : session.CanStart ? presentation.ReadyStatus : session.Status;
         SetupProgress.Value = session.Progress;
-        SetupProgress.IsIndeterminate = session.Phase is SetupPhase.Detecting or SetupPhase.Planning or SetupPhase.PreparingOptional
+        SetupProgress.IsIndeterminate = session.Phase is SetupPhase.Detecting or SetupPhase.StoppingHost or SetupPhase.Planning or SetupPhase.PreparingOptional
             || (session.CanStart && presentation.ShowConfiguration && preflight.IsChecking);
         ActionButton.Content = PrimaryAction.ToString();
         var startup = preflight.Result.StartupFor(session.Scope);
@@ -289,8 +297,10 @@ public sealed partial class SetupWindow : Window
                 InstallerDependencyState.NeedsPreparation => "Repair/prepare Kokoro model and all voices",
                 _ => "Install Kokoro model and all voice assets",
             });
-        CloseButton.IsEnabled = !closeRequested && (session.CanClose || (session.CanCancelOptional && !optionalCancellation.IsCancellationRequested));
-        CloseButton.Content = session.CanCancelOptional ? "Cancel optional setup"
+        CloseButton.IsEnabled = !closeRequested && (session.CanClose ||
+            ((session.CanCancelOptional || session.CanCancelShutdown) && !optionalCancellation.IsCancellationRequested));
+        CloseButton.Content = session.CanCancelShutdown ? "Cancel shutdown wait"
+            : session.CanCancelOptional ? "Cancel optional setup"
             : session.Phase is SetupPhase.Succeeded or SetupPhase.Failed or SetupPhase.Cancelled ? "Close" : "Cancel";
     }
 

@@ -1199,7 +1199,7 @@ High-risk action confirmation names the action/target verbally or identifies tha
 Fixed local-machine shutdown/restart uses distinct action-specific voice or UI confirmation as specified, safe-work handling, and a cancellable countdown.
 An assistant-name prefix is not speaker authentication. Make the action and chosen duration visible/readable; neither a match nor a click establishes physical identity.
 Lock is side-effecting and retains the future exact version-bound grant gate for both direct and model-suggested requests; priority routing does not waive it. Today's direct Windows-API lock path does not yet enforce that gate, unlike model-suggested lock.
-During the initial unsigned phase, application update checks are notify-only and cannot create an installation approval.
+Application update checks and tool requests cannot create installation approval. Only separate exact native unsigned-installer review authorizes the bounded download/start path; normal OS and installer lifecycle checks remain mandatory ([upgrade owner](../src/Kora.Application/Maintenance/MaintenanceViewModel.Upgrade.cs)).
 These rules do not permit arbitrary script/code installation or generic destructive commands; power actions warn about unsaved work and never force application termination.
 See [OOTB Phrases](OOTB_Phrases.md#shutdown-and-restart-safety).
 No speaker recognition claim substitutes for user identity.
@@ -1280,7 +1280,8 @@ The agent has no elevation, installer, updater, or executable-extension activati
 The built-in environment controller is a separate trusted host path for exact catalogue-defined dependency setup, not a model/skill installer capability.
 It may initialise Kora data and offer approved external prerequisites, but cannot alter Kora code or use arbitrary supplied installer paths.
 See [Environment Setup](Environment_Setup.md).
-During the unsigned phase, application maintenance is notify-only with no model-callable or host-install-capable entry point.
+Application maintenance has a narrow host-owned unsigned-installer exception: original-user check/upgrade tools can check or request review, never approve or execute installation. Saved network consent only permits canonical metadata discovery.
+Separate native review/approval binds the exact newer x64 release, asset ID, byte count and SHA-256; it is invalidated by target/metadata/admission changes ([tools contract](../src/Kora.Core/Maintenance/IApplicationMaintenance.cs), [upgrade owner](../src/Kora.Application/Maintenance/MaintenanceViewModel.Upgrade.cs)).
 The delivered exact typed/activated `maintenance status`, `maintenance review`
 and `maintenance snooze` commands are original-user cached controls, not model
 tools. Native review/snooze share their dedicated maintenance-session durable
@@ -1295,7 +1296,9 @@ revalidated; failure/cancellation/late completion cannot become cached success.
 These commands cannot grant/renew network consent, check/refresh, navigate,
 download, install, elevate, activate source or start a runtime/provider.
 Full bounded visual output is preserved without audio/device probes.
-Any future updater requires an independently authenticated metadata trust root, native secure per-release approval, and separate acceptance evidence.
+The host verifies metadata before/after download, restricts transfer to the canonical asset API and admitted CDN, leases verified bytes and requests ordinary non-elevated installer startup. It does not replace running application files itself or claim completed installation.
+Unsigned GitHub-origin consistency is not independent publisher authentication, rollback/freeze safety or protected deployment ([transfer](../src/Kora.Application/Maintenance/ReleaseInstallerDownloader.cs), [launcher](../src/Kora.Windows/Maintenance/WindowsReleaseInstallerLauncher.cs)).
+An independently authenticated updater still requires an authenticated metadata trust root, native secure per-release approval and separate acceptance evidence; this explicitly disclosed unsigned path does not claim that guarantee.
 Source-bootstrap installation and precompiled deployment follow the same protected-code boundary; discovering `.git` does not grant update authority.
 The implemented external [source build-only interface](Distribution_And_Updates.md#source-bootstrap)
 requires operator review and explicit installation-time trust before executing
@@ -1314,6 +1317,8 @@ The guarantee covers supported agent operations and contained extensions, not a 
 Embedding removes editable built-in skill files; it does not prevent an owner patching the whole application or deliberately rebuilding changed source.
 Application provenance must be enforced by the strongest available deployment/launch boundary outside any replaced binary; a resource digest stored in that same binary is not sufficient authentication.
 Initial unsigned releases cannot provide Authenticode publisher authentication.
+Unsigned first-party Kora application binaries and installers are allowed under the current [distribution policy](Distribution_And_Updates.md#unsigned-initial-releases-and-public-contributions). Missing code signing alone must not block their ordinary startup or separately approved installer flow; existing identity, integrity, consent, ownership, OS and lifecycle checks remain mandatory.
+Signed-artifact and independently authenticated updater requirements describe a potential future hardened state, not a current implementation or deployment prerequisite.
 Their canonical release origin, exact revision, external final-byte hashes/build provenance, and protected installation permissions provide narrower traceability and tamper-detection guarantees that must not be described as equivalent to code signing.
 Do not claim immunity against those excluded threats.
 
@@ -1596,6 +1601,11 @@ and the [staged roadmap](Implementation_Roadmap.md#r02-windows-containment-follo
 - A server using user identity is still an external data processor.
 
 ## Retention Defaults
+
+The [explicit Details presentation decision](Decision_Register.md#exact-opted-in-details-presentation-question---2026-11-06) is non-substantive even when answered.
+Only its validated typed binding exempts question/task bookkeeping from meaningful-activity updates, never purpose/action strings or caller flags.
+Its fixed question/choice remains session-retained, without a second answer body.
+Independent content-free audit records original source and actual answer channel without renewing source access ([authority](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.DetailsOffers.cs)).
 
 The [shared device-local preference availability boundary](User_Configuration.md#shared-device-local-preference-availability) distinguishes missing files/directories from unavailable saved files or unconfirmed-write markers.
 An obstructing directory or denied read/delete must surface failure, not confer default or confirmed state ([store](../src/Kora.Application/Configuration/LocalPreferenceStore.cs)).

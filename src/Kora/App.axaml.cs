@@ -136,6 +136,7 @@ public sealed partial class App : Avalonia.Application
                 questions => viewModel.BindQuestionVoiceReplies(questions, Services.GetRequiredService<TimeProvider>(),
                     Services.GetRequiredService<ILogger<Kora.Application.Interaction.HostQuestionVoiceReplyService>>()));
             nativeQuestions.BindWorkspace(Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>());
+            viewModel.BindDetailsOfferPriority(() => !nativeQuestions.IsWaiting);
             nativeQuestions.BindPrivateRevision(() => Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>().ControlRevision);
             nativeQuestions.BindClipboardAnswers(model => new QuestionClipboardAnswer(model,
                 Services.GetRequiredService<Kora.Core.Context.IPlainTextClipboardReader>(),
@@ -290,7 +291,8 @@ public sealed partial class App : Avalonia.Application
                     Services.GetRequiredService<Kora.Core.Auditing.ISecurityAuditLog>(),
                     Services.GetRequiredService<ILogger<Kora.Application.Presentation.ExactAnswerExportReview>>(),
                     ExactAnswerExportWindowController.SelectDestinationAsync),
-                Services.GetRequiredService<Kora.Application.Configuration.DetailPresentationConfigurationService>());
+                Services.GetRequiredService<Kora.Application.Configuration.DetailPresentationConfigurationService>(),
+                Services.GetRequiredService<Kora.Application.Presentation.DetailsOfferService>());
             sessionsWindow.Bind();
             sessionsWindow.McpCapabilityObserved = inventory => customizations?.ObserveMcpCapabilities(inventory);
             sessionsWindow.CreateInteraction = (state, owner) =>
@@ -382,6 +384,8 @@ public sealed partial class App : Avalonia.Application
             Services.GetRequiredService<MaintenanceViewModel>().BindCachedCommands(maintenanceCommands,
                 () => viewModel.CanRunMaintenanceCommands);
             viewModel.BindMaintenanceCommands(maintenanceCommands);
+            viewModel.BindMaintenanceUpdateTools(Services.GetRequiredService<Kora.Tools.Application.ApplicationCheckForUpdates>(),
+                Services.GetRequiredService<Kora.Tools.Application.ApplicationUpgrade>());
             var host = viewModel;
             host.BindClipboardOwnershipGate(() => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsCapabilityAdmissionOpen
                 && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired);
@@ -431,6 +435,7 @@ public sealed partial class App : Avalonia.Application
                 }));
             desktopLifetime = new(viewModel, () => desktop.Shutdown(),
                 Services.GetRequiredService<ILogger<DesktopLifetimeController>>());
+            BindInstallerShutdown(host, dispatcher, desktop);
             desktop.Exit += OnDesktopExit;
         }
 
@@ -450,6 +455,7 @@ public sealed partial class App : Avalonia.Application
             DesktopLog.Error(logger!, exception, "Applying confirmed manual startup presentation");
             host.ReportHostInteractionFailure("Manual startup presentation unavailable. Inspect saved intent and audit before manual recovery. " + exception.Message);
         }
+        Services.GetRequiredService<MaintenanceViewModel>().InitializeConfiguredChecks();
     }
 
     private void OnDesktopExit(object? sender, ControlledApplicationLifetimeExitEventArgs eventArgs)

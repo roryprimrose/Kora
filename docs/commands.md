@@ -23,6 +23,19 @@ model-dependent operation.
 Full identifiers are needed only where the exact command syntax asks for them;
 use native lists or readable-name routes elsewhere.
 
+## Ask once about this request's Details
+
+Use `ask this conversation with details offer <original message>` in the global command box, or prefix it with the current assistant name during deliberate push-to-talk.
+Review the unchanged original request and **Offer to open Details once for this request**, then separately confirm.
+The equivalent unchecked choice is available in an ordinary foreground original-request review ([review](../src/Kora/SessionRequestReviewPanel.cs)).
+
+If that exact foreground request genuinely completes with eligible full Details, answer the native question with **Yes** or **Not now**.
+Typed `yes`/`show it` and `no`/`not now`, or deliberately activated equivalents, target only that exact question.
+There is no automatic microphone opening.
+The offer expires within 60 seconds; source, selection, input, preference or privacy changes retire it without replay ([owner](../src/Kora.Application/Presentation/DetailsOfferService.cs)).
+
+Existing Offer/LinkOnly preference, manual Details and unsent conversation text remain independent. Answering does not rerun work, change preferences or renew retention. Unavailable answer runtimes remain unavailable; this command does not enable a model ([boundary](../Design/Decision_Register.md#exact-opted-in-details-presentation-question---2026-11-06)).
+
 ## Review one spoken command before dispatch
 
 In the response window, choose **Review one spoken command**, speak one general command using the current assistant name, then choose **Finish capture**. The microphone closes before the exact final transcript appears. Correct the text if needed, then separately choose **Dispatch this exact voice command once**, or **Cancel reviewed command**. Editing never runs the command ([capture and review](../src/Kora.Application/Voice/ReviewedVoiceCommandCapture.cs)).
@@ -876,6 +889,8 @@ maintenance workflow:
 | `maintenance status` | Cached channel/status, last verification/staleness and review/snooze readiness; missing or failed checks remain Unknown/error, not "up to date" |
 | `maintenance review` | Review the exact fresh host-held canonical record/source/architecture/digest/unsigned disclosure and reveal the existing native review window |
 | `maintenance snooze` | Snooze only that fresh, reviewed Available notice for 24 hours within this run; no persistent reminder policy or other prompt change |
+| `maintenance check [latest\|version]` | Check canonical GitHub releases using already-saved network consent; optional exact version such as `1.2.3-beta7` |
+| `maintenance upgrade [latest\|version]` | Check and open native upgrade review; downloading/running the exact unsigned installer needs separate native approval |
 
 The optional **Kora,** prefix uses the current configured name. The complete
 original input is at most 128 characters; phrases are case-insensitive with
@@ -884,17 +899,20 @@ Complete visual results are at most 8,192 characters; oversized results fail
 explicitly, not by truncation. No command speaks, probes devices, activates
 capture, invokes a model/provider or treats release text/URLs as authority.
 
-Use native Maintenance to grant **public metadata checks for this run**, check
-or explicitly open an already reviewed canonical page. These cached commands
+Use native Maintenance to save public metadata-check consent, a periodic interval and optional beta inclusion; stable releases remain included. Checks never install automatically ([settings](../src/Kora.Application/Maintenance/MaintenanceViewModel.cs), [release selection](../src/Kora.Application/Maintenance/GitHubReleaseMetadataClient.cs)).
+The original status/review/snooze cached commands
 never check/refresh, grant/renew consent, open a browser, download, install,
 elevate or activate source. Stale or failed metadata requires a deliberate
-native check after admission recovery, not automatic command fallback.
+check after admission recovery, not automatic command fallback.
 Commands preserve the complete current exact question/approval and cannot
 answer it. Unknown ownership/privacy, protected/unknown calls, stale/foreign
 records, changed original voice generation/session or failed required audit/
 receipt deny success and require a fresh explicit request. This is bounded
 command parity, not a general notification broker, production wake or
 installed/native/runtime acceptance.
+
+For installation, review the exact newer x64 release, select its separate unsigned-installer approval and choose **Download and run reviewed installer**. Setup requests graceful Kora shutdown and starts the installed version only after success.
+A changed target, expired verification or admission closure requires fresh approval; installer startup does not mean installation completed ([upgrade owner](../src/Kora.Application/Maintenance/MaintenanceViewModel.Upgrade.cs), [installer](../installer/README.md)).
 
 ## Optional communications activity observations
 

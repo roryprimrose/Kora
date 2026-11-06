@@ -11,6 +11,7 @@ public static class KoraMcpCatalog
     public static IReadOnlyList<CapabilityDescriptor> Descriptors { get; } = Array.AsReadOnly(
         ReadOnlyCapabilityCatalog.Descriptors
             .Concat(SettingsDiscoveryTools.Descriptors)
+            .Concat(ProviderSettingsTools.Descriptors)
             .Concat(CustomizationDiscoveryTools.Descriptors)
             .Concat(SessionDiscoveryTool.Descriptors)
             .Concat(Network.LocalWebPageTool.Descriptors).ToArray());

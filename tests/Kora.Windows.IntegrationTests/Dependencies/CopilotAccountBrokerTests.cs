@@ -101,6 +101,44 @@ public sealed class CopilotAccountBrokerTests : IDisposable
         (await broker.ObserveAsync(Token)).Models.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task ExplicitVoiceRefreshRequeriesOnlyThePreviouslyConfiguredAccountAndNeverInfers()
+    {
+        var f = new Fixture();
+        await using var broker = f.Create();
+        using (HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Windows, HostOperation.Request))
+        { await broker.SignInAsync("selected-user", "synthetic-token", () => true, Token); }
+        var before = await broker.ObserveAsync(Token);
+        f.Client.Models[0].Id = "model-2";
+        using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice), HostActivityLayer.Windows, HostOperation.Request);
+        await broker.RefreshAsync(() => true, Token);
+        var after = await broker.ObserveAsync(Token);
+        after.Models.Should().ContainSingle().Which.Id.Value.Should().Be("model-2");
+        after.Account.Should().Be(before.Account);
+        after.Revision.Value.Should().BeGreaterThan(before.Revision.Value);
+        f.Starts.Should().Be(2);
+        f.Client.Stops.Should().Be(2);
+        f.Client.Disposals.Should().Be(2);
+        var old = new ProviderProfileTuple(ProviderService.Copilot, before.Account!, before.Revision,
+            new("model-1"), new("default"), new("default"));
+        (await broker.ResolveAsync(old, Token)).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task RefreshWithoutCurrentApprovedAccountNeverStartsAuthenticationAndRevocationDuringRefreshPublishesNothing()
+    {
+        var f = new Fixture();
+        await using var broker = f.Create();
+        using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Windows, HostOperation.Request);
+        await broker.RefreshAsync(() => true, Token);
+        f.Starts.Should().Be(0);
+        await broker.SignInAsync("selected-user", "synthetic-token", () => true, Token);
+        f.Client.OnModels = broker.Revoke;
+        await Assert.ThrowsAsync<InvalidOperationException>(() => broker.RefreshAsync(() => true, Token));
+        (await broker.ObserveAsync(Token)).Models.Should().BeEmpty();
+        broker.IsQuiescent.Should().BeTrue();
+    }
+
     private sealed class Fixture : ICopilotDeploymentApprovalSource, ISecurityAuditLog
     {
         internal bool Approved { get; set; } = true;

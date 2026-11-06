@@ -7,6 +7,25 @@ namespace Kora.Application.UnitTests.Configuration;
 public sealed class ProviderProfileCommandTests
 {
     [Theory]
+    [InlineData(ProviderService.Local)]
+    [InlineData(ProviderService.Copilot)]
+    [InlineData(ProviderService.Claude)]
+    [InlineData(ProviderService.Codex)]
+    public void ExplicitModelBrowsingAndRefreshDoNotRequestAServiceWrite(ProviderService service)
+    {
+        var list = ProviderProfileCommand.Parse("Kora, list providers.app.models for " + service, "Kora")!;
+        list.Operation.Should().Be(AppearanceCommandOperation.Get);
+        list.Service.Should().Be(service);
+        list.Refresh.Should().BeFalse();
+        var refresh = ProviderProfileCommand.Parse("refresh providers.app.profile for " + service, "Kora")!;
+        refresh.Service.Should().Be(service);
+        refresh.Refresh.Should().BeTrue();
+        ProviderProfileCommand.Parse("set providers.app.default-service to Ollama", "Kora")!.Service.Should().Be(ProviderService.Local);
+        ProviderProfileCommand.Parse("review providers.app.suggestion", "Kora")!.ReviewSuggestion.Should().BeTrue();
+        ProviderProfileCommand.Parse("cancel providers.app.suggestion", "Kora")!.DiscardSuggestion.Should().BeTrue();
+    }
+
+    [Theory]
     [InlineData(ProviderProfileField.Model)]
     [InlineData(ProviderProfileField.Reasoning)]
     [InlineData(ProviderProfileField.Context)]
@@ -58,6 +77,8 @@ public sealed class ProviderProfileCommandTests
     [InlineData("get providers.app.profile", AppearanceCommandOperation.Get)]
     [InlineData("status providers.app.profile", AppearanceCommandOperation.Get)]
     [InlineData("get providers.app.default-service", AppearanceCommandOperation.Get)]
+    [InlineData("list providers.app.models", AppearanceCommandOperation.Get)]
+    [InlineData("refresh providers.app.profile", AppearanceCommandOperation.Get)]
     [InlineData("reset providers.app.default-service", AppearanceCommandOperation.Reset)]
     [InlineData("reset providers.app.profile", AppearanceCommandOperation.Reset)]
     [InlineData("sign in providers.app.service", AppearanceCommandOperation.Get)]
@@ -69,6 +90,7 @@ public sealed class ProviderProfileCommandTests
         ProviderProfileCommand.Parse("Kora " + input, "Kora")!.Operation.Should().Be(operation);
         command.TupleOnly.Should().Be(input.StartsWith("reset providers.app.profile", StringComparison.Ordinal));
         command.SignIn.Should().Be(input.StartsWith("sign in", StringComparison.Ordinal));
+        command.Refresh.Should().Be(input.StartsWith("refresh", StringComparison.Ordinal));
     }
 
     [Theory]

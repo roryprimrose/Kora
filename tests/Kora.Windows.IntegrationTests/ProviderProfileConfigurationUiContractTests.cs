@@ -42,8 +42,9 @@ public sealed class ProviderProfileConfigurationUiContractTests
             ("CancelProviderFieldCommand", "CanConfirmProviderField"),
         })
         {
-            controls.Single(control => string.Equals(control.Attribute("Command")?.Value, "{Binding " + command + "}", StringComparison.Ordinal))
-                .Attribute("IsEnabled")!.Value.Should().Be("{Binding " + enabled + "}");
+            var matches = controls.Where(control => string.Equals(control.Attribute("Command")?.Value, "{Binding " + command + "}", StringComparison.Ordinal)).ToArray();
+            matches.Should().HaveCount(command is "RefreshProviderProfileCommand" ? 2 : 1);
+            matches.Should().OnlyContain(control => string.Equals(control.Attribute("IsEnabled")!.Value, "{Binding " + enabled + "}", StringComparison.Ordinal));
         }
         controls.Any(control => string.Equals(control.Attribute("Text")?.Value, "{Binding ProviderProfileConfigurationStatus}", StringComparison.Ordinal)).Should().BeTrue();
         File.ReadAllText(Path.Combine(root, "src", "Kora", "Program.cs")).Should().Contain("ProviderProfileComposition.Configure(services);");

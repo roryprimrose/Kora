@@ -17,6 +17,33 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task OriginalProviderSettingsQuestionSelectsOnlyTheExplicitLocalTools(bool voice)
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        var admission = new RequestAdmission();
+        var store = BindRequestCommands(fixture, admission);
+        const string body = "ask about AI service settings: Which Claude models are available?";
+        var session = store.Session.Authority.SessionId.Value.ToString("D");
+        var reviewCommand = "session request review " + session + " 1 0 -- " + body;
+        if (voice) { await fixture.RaiseActivatedTranscriptAsync("Kora, " + reviewCommand, 1); }
+        else { await fixture.RunAsync(reviewCommand); }
+        using var review = JsonDocument.Parse(fixture.ViewModel.ResponseBody);
+        var id = review.RootElement.GetProperty("requestReview").GetProperty("id").GetString();
+        var confirm = "session request confirm " + session + " " + id;
+        if (voice) { await fixture.RaiseActivatedTranscriptAsync("Kora, " + confirm, 1); }
+        else { await fixture.RunAsync(confirm); }
+        admission.Context!.ToolMode.Should().Be(ModelToolMode.ProviderSettings);
+        admission.Choice.Should().Be(ModelTurnChoice.Local);
+        admission.Context.Tools.Select(tool => tool.Id).Should().Equal(Kora.Core.Tools.ProviderSettingsTools.Descriptors.Select(tool => tool.Id));
+        admission.Context.SystemPolicy.Should().Contain("Proposals never save settings");
+        admission.CopilotCalls.Should().Be(0);
+        store.RequestMessage!.Outcome.Should().Be(ModelTurnOutcome.Unavailable);
+        fixture.Reasoner.Requests.Should().BeEmpty();
+    }
+
     [Fact]
     public void HostedRequestGuideIsEmbeddedWithExplicitReviewAndNativeSendBoundary()
     {
@@ -285,10 +312,13 @@ public sealed partial class MainViewModelTests
         internal int DefaultCalls { get; private set; }
         internal int CopilotCalls { get; private set; }
         internal ModelContextEnvelope? Context { get; private set; }
+        internal ModelTurnChoice? Choice { get; private set; }
         public Task<ModelTurnAdmission> AdmitAsync(ModelTurnChoice choice, ModelContextEnvelope context,
             ModelHandoffReview? review, CancellationToken token)
         {
             DefaultCalls++;
+            Context = context;
+            Choice = choice;
             return Task.FromResult(new ModelTurnAdmission(new(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel)));
         }
         public Task<ModelTurnAdmission> AdmitCopilotAsync(ModelContextEnvelope context, CancellationToken token)

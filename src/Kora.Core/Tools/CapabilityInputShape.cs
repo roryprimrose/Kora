@@ -8,4 +8,5 @@ public enum CapabilityInputShape
     WebPageAddress,
     MetadataReference,
     RegisteredSettingId,
+    ProviderSettings,
 }

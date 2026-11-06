@@ -34,6 +34,14 @@ public sealed partial class MainViewModel
     private ProviderProfileOption? selectedProviderContextField;
 
     public AsyncCommand RefreshProviderProfileCommand { get; }
+    public AsyncCommand ReviewProviderSuggestionCommand { get; }
+    public AsyncCommand DiscardProviderSuggestionCommand { get; }
+    public bool CanReviewProviderSuggestion => CanChangeProviderProfile && providerProfileConfiguration!.Suggested is not null;
+    public string ProviderSuggestionStatus => providerProfileConfiguration?.Suggested is { } proposed
+        ? $"Unsaved AI service suggestion: {SettingsText.Service(proposed.Service)}. "
+            + (proposed.For(proposed.Service) is { } tuple ? SettingsText.Describe(tuple) : "No model selected.")
+            + " Review and separately confirm to save; a model cannot confirm it."
+        : "No current AI service suggestion. Model suggestions never save preferences automatically.";
     public AsyncCommand SaveProviderServiceCommand { get; }
     public AsyncCommand ResetProviderServiceCommand { get; }
     public AsyncCommand SaveProviderProfileCommand { get; }
@@ -67,19 +75,22 @@ public sealed partial class MainViewModel
     public bool CanReviewProviderContext => CanChangeProviderProfile && SelectedProviderContextField is not null
         && ProviderContextFieldChoices.Any(option => ReferenceEquals(option, SelectedProviderContextField));
     public string ProviderFieldPreviewStatus => providerFieldPreview is { } preview
-        ? $"Review changes for {SettingsText.Service(preview.Service)}. Nothing is saved until you confirm. "
-            + "Current: " + SettingsText.Describe(preview.BaseTuple!)
-            + " Proposed: " + SettingsText.Describe(preview.Tuple!)
+        ? $"Review changes for {SettingsText.Service(preview.Tuple?.Service ?? preview.Service)}. Nothing is saved until you confirm. "
+            + "Current: default service: " + SettingsText.Service(providerProfileConfiguration!.Get().Desired!.Service) + ". "
+            + (preview.BaseTuple is { } before ? SettingsText.Describe(before) : "No saved model tuple.")
+            + " Proposed: default service: " + SettingsText.Service(preview.Value.Service) + ". "
+            + (preview.Value.For(preview.Tuple?.Service ?? preview.Service) is { } after ? SettingsText.Describe(after) : "No model tuple.")
         : "No change awaiting confirmation. Save a complete set of model settings before changing an individual option.";
 
     private string? SerializeProviderFieldPreview() => providerFieldPreview is { } preview ? JsonSerializer.Serialize(new
     {
-        scope = "App individual field review; no write before confirmation",
+        scope = "App provider settings review; no write before confirmation",
         field = preview.Field,
-        service = preview.Tuple!.Service,
+        service = preview.Tuple?.Service ?? preview.Service,
         savedTuple = preview.BaseTuple,
         proposedTuple = preview.Tuple,
-        dependentValidity = "All retained exact IDs supported in this account/catalogue",
+        dependentValidity = preview.Tuple is not null ? "All retained exact IDs supported in this account/catalogue"
+            : "Desired service may remain unavailable; no authentication, fallback or runtime enablement",
         preferenceRevision = preview.Revision,
         catalogue = providerProfileConfiguration!.CatalogueFor(preview),
         confirmation = preview.Confirmation,
@@ -103,6 +114,7 @@ public sealed partial class MainViewModel
             OnPropertyChanged(nameof(ProviderContextFieldChoices));
             NotifyProviderFieldControls();
             OnPropertyChanged(nameof(ProviderProfileModels));
+            OnPropertyChanged(nameof(ProviderSelectedServiceStatus));
             OnPropertyChanged(nameof(CanSaveProviderService));
             OnPropertyChanged(nameof(ProviderProfileDraftStatus));
         }
@@ -162,8 +174,31 @@ public sealed partial class MainViewModel
     public string ProviderProfileConfigurationStatus => providerProfileConfiguration is null
         ? "AI service settings are unavailable."
         : SettingsText.Describe(providerProfileConfiguration.Get());
+    public string ProviderSelectedServiceStatus
+    {
+        get
+        {
+            if (SelectedProviderServiceChoice is not { } choice || choice.Service == ProviderService.Unset)
+            { return "No service selected. Built-in commands remain available without a model."; }
+            var current = providerProfileConfiguration?.CatalogueFor(choice);
+            if (current is null) { return "Service status is unconfirmed. Refresh to inspect it again."; }
+            if (choice.Service == ProviderService.Local && providerProfileConfiguration!.Get().Installation != LocalProviderInstallation.Installed)
+            { return "Ollama installation is missing or unconfirmed. Review on-device setup; no other service will be selected automatically."; }
+            if (current.Status == ProviderCatalogueStatus.AuthenticationRequired)
+            { return "Account authentication is required. Use native account configuration; do not dictate credentials."; }
+            return ProviderProfileModels.Count == 0
+                ? "No current models are available. Refresh, then check service setup, account access and readiness. Saved choices are retained without fallback."
+                : $"{ProviderProfileModels.Count} current models advertised. Runtime qualification and permission to send data remain separate.";
+        }
+    }
 
     private void OnProviderProfileConfigurationChanged(object? sender, EventArgs args) => uiDispatcher.Post(SynchronizeProviderProfileConfiguration);
+    private void OnProviderSuggestionChanged(object? sender, EventArgs args) => uiDispatcher.Post(() =>
+    {
+        if (disposed) { return; }
+        OnPropertyChanged(nameof(CanReviewProviderSuggestion));
+        OnPropertyChanged(nameof(ProviderSuggestionStatus));
+    });
     private void SynchronizeProviderProfileConfiguration()
     {
         if (disposed) { return; }
@@ -172,6 +207,7 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(ProviderServiceChoices));
         OnPropertyChanged(nameof(ProviderProfileModels));
         OnPropertyChanged(nameof(ProviderProfileConfigurationStatus));
+        OnPropertyChanged(nameof(ProviderSelectedServiceStatus));
         OnPropertyChanged(nameof(CanChangeProviderProfile));
         OnPropertyChanged(nameof(CanSaveProviderService));
         OnPropertyChanged(nameof(CanSaveProviderProfile));
@@ -186,6 +222,8 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(CanConfirmProviderField));
         OnPropertyChanged(nameof(ProviderFieldConfirmationId));
         OnPropertyChanged(nameof(ProviderFieldPreviewStatus));
+        OnPropertyChanged(nameof(CanReviewProviderSuggestion));
+        OnPropertyChanged(nameof(ProviderSuggestionStatus));
     }
 
     private Task ReviewNativeProviderField(ProviderProfileField field)
@@ -203,7 +241,8 @@ public sealed partial class MainViewModel
     }
 
     private Task RunNativeProviderProfileAsync(ProviderProfileCommand command) =>
-        ExecuteProviderProfileCommandAsync(command, SecurityAuditInitiator.LocalUser,
+        ExecuteProviderProfileCommandAsync(command.Refresh ? command with { Service = SelectedProviderServiceChoice?.Service } : command,
+            SecurityAuditInitiator.LocalUser,
             command.Operation == AppearanceCommandOperation.Reset && command.TupleOnly && SelectedProviderServiceChoice is { } selected
                 ? providerProfileConfiguration!.CreateResetChoice(tupleOnly: true, selected)
             : command.Operation != AppearanceCommandOperation.Set ? null : command.Service is not null
@@ -231,6 +270,7 @@ public sealed partial class MainViewModel
         bool Eligible() => !disposed && remainsEligible();
         var callRevision = CallPolicyRevision;
         providerProfileControlActive = true;
+        ProviderService? refreshedService = null;
         OnPropertyChanged(nameof(CanChangeProviderProfile));
         NotifyProviderFieldControls();
         try
@@ -238,11 +278,29 @@ public sealed partial class MainViewModel
             if (command.Confirmation is null)
             {
                 providerFieldPreview = null;
-                if (nativeChoice is null) { await service.RefreshAsync(origin, Eligible, cancellationToken); }
+                if (nativeChoice is null)
+                {
+                    if (command.Refresh && command.Service is null && service.Get().Desired is null)
+                    { await service.RefreshAsync(origin, Eligible, cancellationToken); }
+                    refreshedService = command.Refresh
+                        ? command.Service ?? service.Get().Desired!.Service
+                        : (ProviderService?)null;
+                    await service.RefreshAsync(origin, Eligible, cancellationToken, refreshedService);
+                }
             }
             var saved = false;
             var reviewed = false;
-            if (command.Confirmation is { } confirmation)
+            if (command.ReviewSuggestion)
+            {
+                var preview = service.CreateSuggestionChoice();
+                SynchronizeProviderProfileConfiguration();
+                providerFieldPreview = preview;
+                providerFieldPreviewCallRevision = callRevision;
+                providerFieldPreviewSelectionRevision = providerServiceDraftRevision;
+                reviewed = true;
+            }
+            else if (command.DiscardSuggestion) { service.DiscardSuggestion(); }
+            else if (command.Confirmation is { } confirmation)
             {
                 var preview = providerFieldPreview;
                 if (preview is null || preview.Confirmation != confirmation || providerFieldPreviewSelectionRevision != providerServiceDraftRevision)
@@ -291,13 +349,16 @@ public sealed partial class MainViewModel
                 scope = "App default only; exact session overrides use separate review; one-turn changes are unavailable",
                 outcome = command.SignIn ? "Unavailable: no qualified sign-in adapter; no account credentials accessed"
                     : reviewed ? "Review exact field and whole resulting tuple; confirm or cancel using the host-issued ID; no write yet"
-                    : command.Cancel ? "Cancelled; no write"
+                    : command.Cancel || command.DiscardSuggestion ? "Cancelled; no write"
                     : saved ? "Desired configuration saved only; nothing authenticated, sent or executed"
                     : command.Operation is AppearanceCommandOperation.Set or AppearanceCommandOperation.Reset ? "Denied; no confirmed write"
                     : "Observed; no execution authority",
                 fieldReview = reviewed ? SerializeProviderFieldPreview() : null,
                 state = service.Get(),
-                models = service.Models,
+                refreshedService,
+                models = (refreshedService ?? command.Service) is { } observedService
+                    && service.Choices.SingleOrDefault(choice => choice.Service == observedService) is { } observedChoice
+                    ? service.ModelsFor(observedChoice) : service.Models,
                 syntax = ProviderProfileCommand.Syntax,
             }, ProviderProfileJsonOptions);
             if (Encoding.UTF8.GetByteCount(response) > 65536) { throw new InvalidDataException("Provider discovery exceeds its complete 64 KiB output bound."); }
@@ -315,7 +376,7 @@ public sealed partial class MainViewModel
             }
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException
-            or OperationCanceledException or TimeoutException or ArgumentOutOfRangeException)
+            or OperationCanceledException or TimeoutException or ArgumentOutOfRangeException or HttpRequestException)
         {
             providerFieldPreview = null;
             service.HoldUnavailable();
@@ -334,6 +395,10 @@ public sealed partial class MainViewModel
         {
             providerProfileControlActive = false;
             if (providerFieldPreview is null) { SynchronizeProviderProfileConfiguration(); }
+            if (refreshedService is { } refreshed)
+            { SelectedProviderServiceChoice = ProviderServiceChoices.SingleOrDefault(choice => choice.Service == refreshed); }
+            else if (command.Operation == AppearanceCommandOperation.Get && command.Service is { } observedService)
+            { SelectedProviderServiceChoice = ProviderServiceChoices.SingleOrDefault(choice => choice.Service == observedService); }
             OnPropertyChanged(nameof(CanChangeProviderProfile));
             NotifyProviderFieldControls();
         }

@@ -409,11 +409,12 @@ public sealed partial class ModelTurnHostTests
     private sealed partial class Fixture : Microsoft.Extensions.Logging.ILogger<BoundedModelTurnAdapter>
     {
         internal ModelTurnHost LoopHost(IModelTurnAdapter adapter,
-            Kora.Application.Configuration.McpCapabilityPreferences? capabilities = null)
+            Kora.Application.Configuration.McpCapabilityPreferences? capabilities = null, bool providerSettings = false)
         {
             var modelHost = new ModelTurnHost(this, this, this, registry, this, this, Time,
                 [new(ModelProviderSelection.OllamaCandidate, Gates(ModelProviderSelection.OllamaCandidate),
-                    Time.Now.AddSeconds(30), adapter)], capabilities: capabilities,
+                    Time.Now.AddSeconds(30), adapter)], providerProfileConfiguration: providerSettings ? ProfileConfiguration : null,
+                capabilities: capabilities,
                 builtInMcp: capabilities is null ? null : new(registry, capabilities));
             ownedHosts.Add(modelHost);
             return modelHost;

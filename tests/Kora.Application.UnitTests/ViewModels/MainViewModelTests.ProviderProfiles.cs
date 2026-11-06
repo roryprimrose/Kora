@@ -10,6 +10,154 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Theory]
+    [InlineData("unset", "No service selected")]
+    [InlineData("missing", "Ollama installation is missing")]
+    [InlineData("auth", "Account authentication is required")]
+    [InlineData("current", "current models advertised")]
+    [InlineData("unavailable", "No current models")]
+    [InlineData("unconfirmed", "Service status is unconfirmed")]
+    public async Task ProviderServiceStatusNamesTheActualRecoveryWithoutSubstitution(string state, string expected)
+    {
+        var f = new Fixture(enableProviderProfiles: true);
+        await using var admission = f.OutputAdmission;
+        if (state is "missing") { f.ProfileCatalogue.Installation = LocalProviderInstallation.Missing; }
+        f.ProfileCatalogue.Status = state is "auth" ? ProviderCatalogueStatus.AuthenticationRequired
+            : state is "current" ? ProviderCatalogueStatus.Current : ProviderCatalogueStatus.Unavailable;
+        await f.ViewModel.InitializeAsync();
+        await f.RunAsync("get providers.app.profile");
+        var selected = f.ViewModel.ProviderServiceChoices.Single(choice => choice.Service ==
+            (state is "unset" ? ProviderService.Unset : state is "missing" ? ProviderService.Local : ProviderService.Claude));
+        if (state is "unconfirmed") { f.AppProviderConfiguration!.HoldUnavailable(); }
+        f.ViewModel.SelectedProviderServiceChoice = selected;
+        f.ViewModel.ProviderSelectedServiceStatus.Should().Contain(expected);
+        f.ProfilePreferences.Writes.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ProviderSuggestionsShowExactValuesAndLateNotificationsDoNotRepopulateDisposedPresentation()
+    {
+        var missing = new Fixture();
+        missing.ViewModel.CanReviewProviderSuggestion.Should().BeFalse();
+        missing.ViewModel.ProviderSuggestionStatus.Should().Contain("No current AI service suggestion");
+        missing.ViewModel.ProviderSelectedServiceStatus.Should().Contain("No service selected");
+        var f = new Fixture(enableProviderProfiles: true);
+        await using var admission = f.OutputAdmission;
+        f.ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
+        await f.ViewModel.InitializeAsync();
+        await f.RunAsync("get providers.app.profile");
+        missing.ViewModel.SelectedProviderServiceChoice = f.ViewModel.ProviderServiceChoices.Single(choice => choice.Service == ProviderService.Local);
+        missing.ViewModel.ProviderSelectedServiceStatus.Should().Contain("Service status is unconfirmed");
+        f.ViewModel.ProviderSuggestionStatus.Should().Contain("No current AI service suggestion");
+        using var root = Kora.Core.Diagnostics.HostActivity.BeginRoot(
+            Kora.Core.Hosting.HostRequest.Create(Kora.Core.Hosting.RequestOrigin.LocalUi),
+            Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request);
+        await f.AppProviderConfiguration!.InvokeToolAsync(Kora.Core.Tools.ProviderSettingsTools.Propose,
+            """{"service":"Claude"}""", () => true, TestContext.Current.CancellationToken);
+        f.ViewModel.ProviderSuggestionStatus.Should().Contain("Unsaved AI service suggestion").And.Contain("No model selected");
+        f.AppProviderConfiguration.WithdrawSuggestion(root.Request);
+        f.AppProviderConfiguration.Suggested.Should().BeNull();
+        await f.AppProviderConfiguration.InvokeToolAsync(Kora.Core.Tools.ProviderSettingsTools.Propose,
+            """{"service":"Local","model":"exact-model","reasoning":"managed-effort","context":"managed-window","account":"account","revision":1}""",
+            () => true, TestContext.Current.CancellationToken);
+        f.ViewModel.ProviderSuggestionStatus.Should().Contain("exact-model").And.Contain("managed-effort");
+        await f.ViewModel.ReviewProviderSuggestionCommand.ExecuteAsync();
+        f.ViewModel.ProviderFieldPreviewStatus.Should().Contain("exact-model");
+        await f.ViewModel.CancelProviderFieldCommand.ExecuteAsync();
+        f.Dispatcher.DeferPosts = true;
+        await f.AppProviderConfiguration.InvokeToolAsync(Kora.Core.Tools.ProviderSettingsTools.Propose,
+            """{"service":"Copilot"}""", () => true, TestContext.Current.CancellationToken);
+        f.ViewModel.Dispose();
+        var changed = new List<string?>();
+        f.ViewModel.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
+        f.Dispatcher.FlushPosts();
+        changed.Should().NotContain(nameof(f.ViewModel.ProviderSuggestionStatus));
+        f.ProfilePreferences.Writes.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ProviderModelBrowsingAndFailedRefreshKeepSavedPreferencesAndExposeRecovery()
+    {
+        var f = new Fixture(enableProviderProfiles: true);
+        await using var admission = f.OutputAdmission;
+        f.ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
+        await f.ViewModel.InitializeAsync();
+        await f.RunAsync("list providers.app.models for Claude");
+        f.ViewModel.SelectedProviderServiceChoice!.Service.Should().Be(ProviderService.Claude);
+        f.ViewModel.ProviderProfileModels.Should().ContainSingle();
+        f.ProfilePreferences.Writes.Should().Be(0);
+        f.ProfileCatalogue.BeforeObservation = () => throw new HttpRequestException("Synthetic offline service");
+        await f.RunAsync("refresh providers.app.profile for Claude");
+        f.ViewModel.ResponseTitle.Should().Be("App provider configuration not confirmed.");
+        f.ViewModel.SelectedProviderServiceChoice.Should().BeNull();
+        f.ProfilePreferences.Writes.Should().Be(0);
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task NativeAndActivatedProviderSuggestionReviewConfirmAndCancelShareTheAuditedWriter()
+    {
+        var f = new Fixture(enableProviderProfiles: true);
+        await using var admission = f.OutputAdmission;
+        f.Voice.Microphones = [new MicrophoneDevice("voice-fixture", "Synthetic microphone")];
+        f.Voice.DefaultMicrophoneId = "voice-fixture";
+        await f.ViewModel.InitializeAsync();
+        using (Kora.Core.Diagnostics.HostActivity.BeginRoot(Kora.Core.Hosting.HostRequest.Create(Kora.Core.Hosting.RequestOrigin.LocalUi),
+            Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request))
+        {
+            await f.AppProviderConfiguration!.InvokeToolAsync(Kora.Core.Tools.ProviderSettingsTools.Propose,
+                """{"service":"Claude"}""", () => true, TestContext.Current.CancellationToken);
+        }
+        f.ViewModel.CanReviewProviderSuggestion.Should().BeTrue();
+        f.ProfilePreferences.Writes.Should().Be(0);
+        await f.ViewModel.ReviewProviderSuggestionCommand.ExecuteAsync();
+        f.ViewModel.ProviderFieldPreviewStatus.Should().Contain("No model tuple");
+        f.ViewModel.ProviderFieldConfirmationId.Should().NotBe(Guid.Empty);
+        f.ViewModel.CanConfirmProviderField.Should().BeTrue();
+        f.ProfilePreferences.Writes.Should().Be(0);
+        await f.ViewModel.ConfirmProviderFieldCommand.ExecuteAsync();
+        f.ProfilePreferences.Value!.Service.Should().Be(ProviderService.Claude);
+        using (Kora.Core.Diagnostics.HostActivity.BeginRoot(Kora.Core.Hosting.HostRequest.Create(Kora.Core.Hosting.RequestOrigin.LocalUi),
+            Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request))
+        {
+            await f.AppProviderConfiguration!.InvokeToolAsync(Kora.Core.Tools.ProviderSettingsTools.Propose,
+                """{"service":"Copilot"}""", () => true, TestContext.Current.CancellationToken);
+        }
+        await f.RaiseActivatedTranscriptAsync("Kora, review providers.app.suggestion", 1);
+        f.ViewModel.CanConfirmProviderField.Should().BeTrue();
+        var confirmation = f.ViewModel.ProviderFieldConfirmationId;
+        await f.RunAsync($"cancel providers.app.profile {confirmation:D}");
+        f.ProfilePreferences.Value.Service.Should().Be(ProviderService.Claude);
+        f.ProfilePreferences.Writes.Should().Be(1);
+        await f.ViewModel.DiscardProviderSuggestionCommand.ExecuteAsync();
+        f.ViewModel.CanReviewProviderSuggestion.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task NativeAndActivatedProviderRefreshTargetsSelectedServiceWithoutChangingSavedSelectionsOrRunningModels()
+    {
+        var f = new Fixture(enableProviderProfiles: true);
+        await using var admission = f.OutputAdmission;
+        f.Voice.Microphones = [new MicrophoneDevice("voice-fixture", "Synthetic microphone")];
+        f.Voice.DefaultMicrophoneId = "voice-fixture";
+        await f.ViewModel.InitializeAsync();
+        await f.RunAsync("set providers.app.default-service to Claude");
+        var before = f.ProfilePreferences.Value!.Serialize();
+        await f.ViewModel.RefreshProviderProfileCommand.ExecuteAsync();
+        f.ViewModel.SelectedProviderServiceChoice = f.ViewModel.ProviderServiceChoices.Single(choice => choice.Service == ProviderService.Copilot);
+        await f.ViewModel.RefreshProviderProfileCommand.ExecuteAsync();
+        f.ProfileCatalogue.Refreshes.Should().Contain(ProviderService.Copilot);
+        f.ViewModel.SelectedProviderServiceChoice!.Service.Should().Be(ProviderService.Copilot);
+        await f.RaiseActivatedTranscriptAsync("Kora, refresh providers.app.profile", 1);
+        f.ProfileCatalogue.Refreshes.Should().Contain(ProviderService.Claude);
+        f.ProfilePreferences.Value.Serialize().Should().Be(before);
+        f.ViewModel.ProviderSelectedServiceStatus.Should().Contain("No current models");
+        f.ViewModel.ProviderProfileModels.Should().BeEmpty();
+        f.ViewModel.CanSaveProviderProfile.Should().BeFalse();
+        f.Voice.StartedPhrases.Should().Contain("refresh providers.app.profile");
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
     [InlineData(LocalProviderInstallation.Installed, ProviderService.Local)]
     [InlineData(LocalProviderInstallation.Unknown, ProviderService.Unset)]
     public async Task NativeTypedAndActivatedAppProviderDefaultsNeverAuthenticateOrInfer(LocalProviderInstallation installation, ProviderService expected)

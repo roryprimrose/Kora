@@ -63,7 +63,7 @@ public static class CustomizationDiscoveryTools
             || reply.Capabilities is not null || reply.Descriptor is not null || reply.Version is not null
             || reply.Readiness is not null || reply.Runtimes is not null || reply.Runtime is not null
             || reply.WebPage is not null || reply.Mcp is not null || reply.Sessions is not null || reply.Settings is not null
-            || reply.SessionMetrics is not null)
+            || reply.SessionMetrics is not null || reply.ProviderSettings is not null)
         { return false; }
         return string.Equals(id, Get, StringComparison.Ordinal)
             ? page.TotalRecords == 1 && page.NextOffset is null && page.Records.Count == 1

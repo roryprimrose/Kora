@@ -178,7 +178,8 @@ public sealed class ClipboardTests
         public Func<Task>? SavedReuse { get; private set; }
         public Func<Task>? Revoke { get; private set; }
         public Action? DuringShow { get; init; }
-        public void Show(ClipboardSnapshot snapshot, Func<Task> reuse, Func<Task> revoke, Func<bool> isCurrent, Func<Task>? explain = null)
+        public void Show(ClipboardSnapshot snapshot, Func<Task> reuse, Func<Task> revoke, Func<bool> isCurrent,
+            Func<Task>? explain = null, ClipboardQuestionActions? questions = null)
         {
             Snapshot = snapshot;
             Reuse = SavedReuse = reuse;

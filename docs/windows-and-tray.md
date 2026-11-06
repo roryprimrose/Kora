@@ -1241,6 +1241,17 @@ confirmation even with a reusable grant. A qualified local runtime is required;
 the answer appears only here, remains volatile and is never automatically spoken.
 There is no hosted/bootstrap fallback.
 
+For a new original question about that same capture, expand **Ask a question
+about this same snapshot**. Type the question, choose **Review question and same
+snapshot**, review the full unchanged question and source with its LocalOnly
+destination, and separately confirm **Ask locally using this same snapshot**.
+The existing clipboard explanation permission still applies. No previous answer
+or history is included; no clipboard read, lifetime renewal, saved question or
+speech is added. Editing retires review. **Cancel clipboard question** cancels
+disclosure and waits for actual owned work to join. Expired/replaced/revoked
+sources and lost original host admission require a fresh deliberate operation,
+never automatic recapture or replay.
+
 **Wrap snapshot text** soft-wraps only the original source body to the available
 width. It starts unchecked (the existing unwrapped view); uncheck it to scroll
 long lines horizontally. Resizing and reader text scaling change visual lines,

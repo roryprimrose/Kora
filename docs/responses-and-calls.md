@@ -60,6 +60,11 @@ In the conversation, choose **Export exact answer...** on the particular retaine
 This action is separate from **Context submitted for this answer** in the primary conversation pane, compact view and Sessions: inspecting historical metadata does not select export content or confirm a write.
 Review the complete original answer, conversation/result identity, exact destination, UTF-8/no-BOM format and retention warning. Separately choose **Confirm this one new-file export** ([native review](../src/Kora/ExactAnswerExportWindow.cs)).
 
+In a small window or with enlarged text, scroll the destination/retention area
+and original answer separately. Long paths remain complete. The confirmation
+and **Cancel / Close** controls remain below the reading areas; scrolling or
+resizing never confirms an export. Long outcome messages also scroll.
+
 Opening Details, choosing a destination or cancelling does not authorize a write. Existing files are refused, not overwritten. Confirmed success means the complete original text was saved unchanged and its exact bytes read back after durable flush. The file is not opened automatically.
 On an uncertain result, inspect the chosen destination before any fresh review; Kora does not retry automatically
 ([export owner](../src/Kora.Application/Presentation/ExactAnswerExportReview.cs), [native writer](../src/Kora.Windows/Presentation/WindowsExactAnswerExportWriter.cs)).
@@ -144,11 +149,31 @@ ordinal text, then again for descending. Equal values keep original order.
 **Reset table order** restores original order and the last focused cell.
 Reopening starts in original order. Sorting never edits the answer.
 
+To read a whole sorted row together, click or focus a data cell and choose
+**Inspect focused row**, or press Enter/Space on the cell. The readback lists every
+complete value with its header, current row and original row, including empty
+cells. **Return to inspected cell** goes back to that exact cell even after
+sorting or reset. This is read-only native text, not speech or copying; reopening
+starts without an inspected row ([row inspection](../src/Kora/NativeTableControl.Inspection.cs)).
+
 **Continuous text** and **Exact source** retain their existing selection and
 literal Find behavior. No table action copies content or grants clipboard
 access. Closing or retiring the original result retires its navigation too.
 An unavailable table profile still shows the complete source, not an incomplete
 table; these controls do not enable an unqualified profile.
+
+### See a literal match in context
+
+Use **Find first**, **Next** or **Previous** in Details, then choose **Show match
+in reader** to select and reveal that exact occurrence with its surrounding text.
+A rendered result switches to **Continuous text**; **Exact source** stays in its
+original projection. Find does not wrap at either end.
+
+The button is unavailable after query edits, Cancel/Clear, projection changes or
+direction exhaustion until another match is found. Separate typed HOST matches
+stay in their own observation, never in the answer or original USER body.
+Showing a match reads no additional source and grants no copy permission.
+Closing or losing access clears the reader and its selection.
 
 ### Wrap or horizontally scroll Details text
 
@@ -159,9 +184,12 @@ Space, or use its native toggle automation. Structured Markdown and its separate
 code-block wrapping are unchanged.
 
 This is a view-only choice, not a saved setting. Text, selection and literal Find
-stay unchanged. Closing or losing source/private access clears the reader; reopen
-the exact source normally to recover, with wrapping on by default. Wrapping grants
-no copy permission and reads no additional source.
+stay unchanged when toggling it. In integrated session Details, **Hide details**
+clears text and Find but remembers wrapping with that exact item's reading
+position. Explicit **Show details** rechecks access before restoring the projection,
+wrapping and scroll position. Other new readers start wrapped. Losing source/private
+access clears the reader; a remembered position cannot bypass normal admission.
+Wrapping grants no copy permission and reads no additional source.
 
 ### Review a final-answer external link
 
@@ -181,7 +209,11 @@ profiles retain their labelled source fallback without active links.
 
 ### Copy already-authorized Markdown
 
-Where **Copy** is already available for an admitted Markdown item, copying from rendered view also includes supported rich formatting for applications that accept HTML. The existing plain-text copy remains the complete original source; an exact selected range remains only that selected text. Rendered selections add escaped preformatted text, not reconstructed Markdown formatting ([copy route](../src/Kora/DetailWindowController.cs)).
+Where copying is already authorized, **Copy all** copies the complete active view. Rendered Markdown supplies semantic plain text and inert HTML together, including all list items, code, table cells and visible link destinations, not just the visible or searched portion ([copy route](../src/Kora/DetailWindowController.cs)).
+
+**Show match in reader** only reveals the current literal Find occurrence. It does not copy; a subsequent **Copy all** still copies the complete active view, not that selected occurrence.
+
+Choose **Copy source** for the complete original Markdown with unchanged tabs and line breaks, without changing your view. Copy all in **Exact source**, plain-text content or source fallback also copies unchanged source only. **Copy selection** still copies only the exact selected text, with escaped preformatted HTML for rendered Markdown ([native interaction](../tests/Kora.Windows.IntegrationTests/DetailCopyNativeTests.cs)).
 
 Headings, emphasis, lists, quotes, code and already-available tables can retain formatting. Link destinations stay visible inert text; images and remote resources are never fetched or included. **Exact source**, plain-text content and unavailable/unsupported renderers keep plain-text-only copying ([serializer](../src/Kora/NativeDetailRenderer.Clipboard.cs)).
 
@@ -403,6 +435,13 @@ No caption content is saved, logged or sent to a model.
 If the native caption surface fails, captions stop until restart; the complete
 answer and required recovery remain visual. Diagnostics record only the failure
 type, never caption content.
+
+Caption display changes also invalidate an in-progress native layout. Kora keeps
+that layout hidden rather than showing text at the previous display coordinates.
+If the selected screen disappears, even pinned text is retired; reconnecting it
+does not restore that text. Use the native display controls to select a connected
+screen for future eligible speech. A working-area or scale change on the same
+connected screen uses a fresh layout without replaying speech.
 
 Drag the response title area to reposition the window. Its last position is
 stored on this device and restored when that position remains on a connected

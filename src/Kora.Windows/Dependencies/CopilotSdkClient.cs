@@ -16,7 +16,7 @@ internal sealed class CopilotSdkClient(CopilotClientOptions options) : ICopilotS
     private sealed class Session(CopilotSession session) : ICopilotSdkSession
     {
         public string SessionId => session.SessionId;
-        public async Task<string?> SendAsync(string prompt, CancellationToken token) =>
-            (await session.SendAndWaitAsync(prompt, cancellationToken: token).ConfigureAwait(false))?.Data.Content;
+        public async Task<string?> SendAsync(string prompt, TimeSpan timeout, CancellationToken token) =>
+            (await session.SendAndWaitAsync(prompt, timeout, token).ConfigureAwait(false))?.Data.Content;
     }
 }

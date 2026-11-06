@@ -26,6 +26,7 @@ namespace Kora;
 public sealed partial class App : Avalonia.Application
 {
     private SystemTrayController? systemTray;
+    private DesktopLifetimeController? desktopLifetime;
     private SettingsWindowController? settingsWindow;
     private MicrophoneRecoveryWindowController? microphoneRecovery;
     private DocumentationWindowController? documentationWindow;
@@ -337,7 +338,8 @@ public sealed partial class App : Avalonia.Application
             sessionRetention.Start();
             viewModel.BindSessionCommands(Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>(),
                 Services.GetRequiredService<SessionRequestCommandService>(),
-                Services.GetRequiredService<ConversationSearchCommandService>());
+                Services.GetRequiredService<ConversationSearchCommandService>(),
+                Services.GetRequiredService<SessionPermissionCommandService>());
             viewModel.BindRemainingWork(Services.GetRequiredService<SessionRemainingWorkCommandService>(),
                 Services.GetRequiredService<SessionConversationService>());
             viewModel.BindSpeechSummarySuggestions(Services.GetRequiredService<SessionConversationService>(),
@@ -423,6 +425,8 @@ public sealed partial class App : Avalonia.Application
                     host.AbandonHandoffPreparation();
                     return Task.CompletedTask;
                 }));
+            desktopLifetime = new(viewModel, () => desktop.Shutdown(),
+                Services.GetRequiredService<ILogger<DesktopLifetimeController>>());
             BindInstallerShutdown(host, dispatcher, desktop);
             desktop.Exit += OnDesktopExit;
         }
@@ -452,6 +456,8 @@ public sealed partial class App : Avalonia.Application
 
     private void DisposeDesktopControllers()
     {
+        desktopLifetime?.Dispose();
+        desktopLifetime = null;
         presenceRendererTimer.Stop();
         presenceRendererTimer.Tick -= OnPresenceRendererTick;
         presenceWindows?.Stop();

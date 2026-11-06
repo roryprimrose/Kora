@@ -225,26 +225,41 @@ public sealed partial class WindowsInstanceCoordinator : IInstanceCoordinator
 
     private async Task ListenAsync(NamedPipeServerStream first, CancellationToken cancellationToken)
     {
-        var pipe = first;
         try
         {
-            while (!cancellationToken.IsCancellationRequested)
+            await AcceptConnectionsAsync(first, CreateServerPipe, connectionLimit.WaitAsync, pipe =>
             {
-                await connectionLimit.WaitAsync(cancellationToken).ConfigureAwait(false);
                 connections.TryAdd(pipe, 0);
-                await pipe.WaitForConnectionAsync(cancellationToken).ConfigureAwait(false);
-                var connected = pipe;
-                _ = HandleConnectionAsync(connected, stopping.Token);
-                pipe = CreateServerPipe();
-            }
+                _ = HandleConnectionAsync(pipe, stopping.Token);
+            }, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception exception) when (IsLifecycleFailure(exception))
         {
             FailureReason = "The ownership listener became unavailable; existing ownership is retained.";
         }
+    }
+
+    internal static async Task AcceptConnectionsAsync(NamedPipeServerStream first,
+        Func<NamedPipeServerStream> createPipe, Func<CancellationToken, Task> waitForSlot,
+        Action<NamedPipeServerStream> connected, CancellationToken cancellationToken)
+    {
+        NamedPipeServerStream? pipe = first;
+        try
+        {
+            await waitForSlot(cancellationToken).ConfigureAwait(false);
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await pipe.WaitForConnectionAsync(cancellationToken).ConfigureAwait(false);
+                connected(pipe);
+                pipe = null;
+                // A connected handler returns capacity only after disposing its pipe.
+                await waitForSlot(cancellationToken).ConfigureAwait(false);
+                pipe = createPipe();
+            }
+        }
         finally
         {
-            await pipe.DisposeAsync().ConfigureAwait(false);
+            if (pipe is not null) { await pipe.DisposeAsync().ConfigureAwait(false); }
         }
     }
 

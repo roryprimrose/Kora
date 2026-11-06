@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Input;
 
 using Kora.Application.Infrastructure;
 using Kora.Application.Presentation;
@@ -17,6 +18,7 @@ namespace Kora;
 internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailure, MainViewModel? typographyHost = null) : Window
 {
     private NamedTextBlock content = CreateContent();
+    private ScrollViewer? reviewViewport;
     private TextBox? queryBox;
     private NamedTextBlock? searchResults;
     private LocalFileSearchSelection? searchSelection;
@@ -421,7 +423,24 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
         AutomationProperties.SetName(disclosure, "Local file preview privacy and unavailable capabilities");
         chrome.Children.Add(disclosure);
         if (confirm is not null) { chrome.Children.Add(confirm); }
-        var reviewScroll = new ScrollViewer { Content = chrome, MaxHeight = text is null ? 320 : 160 };
+        var reviewScroll = new ScrollViewer
+        {
+            Content = chrome,
+            MaxHeight = text is null ? 320 : 160,
+            Focusable = confirm is not null,
+            IsTabStop = confirm is not null,
+        };
+        reviewViewport = reviewScroll;
+        AutomationProperties.SetName(reviewScroll, "Complete local file or folder metadata and consent disclosure; scroll to review before confirming");
+        reviewScroll.KeyDown += (_, args) =>
+        {
+            if (!ReferenceEquals(reviewViewport, reviewScroll) || !reviewScroll.IsFocused
+                || args.KeyModifiers != KeyModifiers.None) { return; }
+            if (args.Key == Key.Home) { reviewScroll.ScrollToHome(); }
+            else if (args.Key == Key.End) { reviewScroll.ScrollToEnd(); }
+            else { return; }
+            args.Handled = true;
+        };
         DockPanel.SetDock(reviewScroll, Dock.Top);
         body.Children.Add(reviewScroll);
         content.Text = text;
@@ -437,7 +456,7 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
         Grid.SetRow(sourceViewport, 1);
         source.Children.Add(sourceViewport);
         if (text is not null) { PrepareSourceWrapping(body, sourceViewport); }
-        var layout = new Grid { Margin = new Avalonia.Thickness(16), RowDefinitions = new RowDefinitions("2*,3*") };
+        var layout = new Grid { Margin = new Avalonia.Thickness(16), RowDefinitions = new RowDefinitions(text is null ? "*,0" : "2*,3*") };
         layout.Children.Add(new ScrollViewer
         {
             Content = body,
@@ -453,6 +472,20 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
 
     private void ClearContent()
     {
+        if (reviewViewport is { } retired)
+        {
+            reviewViewport = null;
+            retired.IsEnabled = false;
+            if (retired.Content is StackPanel chrome)
+            {
+                foreach (var child in chrome.Children)
+                {
+                    if (child is NamedTextBlock block) { block.Text = null; }
+                    else if (child is Button button) { button.IsEnabled = false; button.Command = null; }
+                }
+            }
+            retired.Content = null;
+        }
         ClearSourceWrapping();
         wrappingPanel = null;
         wrappingViewport = null;

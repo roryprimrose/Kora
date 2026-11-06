@@ -142,6 +142,94 @@ public sealed partial class ModelTurnHostTests
         observations.Should().Contain(item => item.Paused).And.Contain(item => !item.Paused && item.Turns.Length == 0);
     }
 
+    [Theory]
+    [InlineData(RequestOrigin.LocalUi, "source-at-commit")]
+    [InlineData(RequestOrigin.ActivatedVoice, "source-at-commit")]
+    [InlineData(RequestOrigin.LocalUi, "metadata-at-commit")]
+    [InlineData(RequestOrigin.ActivatedVoice, "metadata-at-commit")]
+    [InlineData(RequestOrigin.LocalUi, "source-at-readback")]
+    [InlineData(RequestOrigin.ActivatedVoice, "source-at-readback")]
+    public async Task PendingCancellationCannotBorrowOriginalSubmissionAuthorityAfterItsOwnSourceRetires(
+        RequestOrigin origin, string fault)
+    {
+        using var f = new Fixture(origin) { TrackPendingRecords = true };
+        var host = ConfigureCancellation(f);
+        await using var service = f.ConversationService(host, execution: host);
+        var provider = new TaskCompletionSource<ModelProviderReply>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var terminalEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var terminalRelease = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.Adapter.Pending = provider.Task;
+        var target = new SessionWorkspaceEntry(f.Session, null);
+        var active = await service.SubmitQueuedAsync(target, "active original", () => true, Token, origin: origin);
+        var pending = await service.SubmitQueuedAsync(target, "pending original", () => true, Token, origin: origin);
+        var kept = await service.SubmitQueuedAsync(target, "unrelated pending original", () => true, Token, origin: origin);
+        var snapshot = await service.ReadPendingConversationAsync(target, () => true, Token);
+        var exact = snapshot.Turns.Single(item => item.Submission == pending.Receipt);
+        var source = true;
+        bool? terminalAdmission = null;
+        f.BeforeSubmissionComplete = async request =>
+        {
+            if (request != pending.Receipt.Message.Request) { return; }
+            terminalEntered.TrySetResult();
+            await terminalRelease.Task.WaitAsync(Token);
+        };
+        f.BeforePendingTerminal = (request, admitted) =>
+        {
+            if (request != pending.Receipt.Message.Request) { return; }
+            terminalAdmission = admitted();
+            if (!terminalAdmission.Value) { throw new InvalidOperationException("Original cancellation source retired before commit."); }
+        };
+        f.BeforeTaskRead = () =>
+        {
+            if (fault is "source-at-readback" && f.PendingRecords[pending.Receipt.Message.Request.RequestId].Task.IsTerminal)
+            { source = false; }
+            return Task.CompletedTask;
+        };
+        var resources = f.Audits.Count(item => item.ActionId is "runtime.resource.acquire");
+        try
+        {
+            var cancellation = service.CancelPendingConversationAsync(target, exact, snapshot.Revision, () => source, Token, origin);
+            await terminalEntered.Task.WaitAsync(Token);
+            cancellation.IsCompleted.Should().BeFalse();
+            if (fault is "source-at-commit") { source = false; }
+            if (fault is "metadata-at-commit") { f.Metadata = new(f.Session.SessionId, new(1), new("changed")); }
+            terminalRelease.TrySetResult();
+            await cancellation.Invoking(async task => await task).Should().ThrowAsync<ConversationSubmissionUnconfirmedException>();
+            terminalAdmission.Should().Be(fault is "source-at-readback");
+            var completion = await pending.Completion;
+            completion.Receipt.Should().BeNull();
+            completion.Failure.Should().BeOfType<ConversationSubmissionUnconfirmedException>();
+            var retained = f.PendingRecords[pending.Receipt.Message.Request.RequestId];
+            retained.Task.State.Should().Be(fault is "source-at-readback" ? HostTaskState.Cancelled : HostTaskState.IntentRecorded);
+            retained.Message.Body.Should().Be(pending.Receipt.Message.Body);
+            retained.Message.Execution.Should().BeNull();
+            retained.Message.AssistantResponse.Should().BeNull();
+            if (fault is not "source-at-readback") { retained.Should().Be(pending.Receipt); }
+            f.PendingRecords[kept.Receipt.Message.Request.RequestId].Should().Be(kept.Receipt);
+            active.Completion.IsCompleted.Should().BeFalse();
+            kept.Completion.IsCompleted.Should().BeFalse();
+            f.Adapter.RunToken.IsCancellationRequested.Should().BeFalse();
+            f.Adapter.Calls.Should().Be(1);
+            f.Audits.Count(item => item.ActionId is "runtime.resource.acquire").Should().Be(resources);
+            f.Metadata = null;
+            (await service.ReadPendingConversationAsync(target, () => true, Token)).Paused.Should().BeTrue();
+            f.CancelAudit.Events.Should().HaveCount(2).And.OnlyContain(item =>
+                string.Equals(item.ActionId, "conversation.pending-cancel", StringComparison.Ordinal)
+                && item.Initiator == (origin == RequestOrigin.ActivatedVoice
+                    ? Kora.Core.Auditing.SecurityAuditInitiator.VoiceCommand : Kora.Core.Auditing.SecurityAuditInitiator.LocalUser));
+        }
+        finally
+        {
+            terminalRelease.TrySetResult();
+            f.BeforeSubmissionComplete = null;
+            f.BeforePendingTerminal = null;
+            f.BeforeTaskRead = null;
+            f.Metadata = null;
+            provider.TrySetResult(LateAnswer());
+            await active.Completion;
+        }
+    }
+
     [Fact]
     public async Task OriginalContextDeadlineExpiresPendingIntentWithoutRenewalOrWaitingForActiveProvider()
     {

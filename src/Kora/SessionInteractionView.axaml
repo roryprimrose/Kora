@@ -100,7 +100,7 @@
     </Grid>
     <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns" />
     <Grid x:Name="ReadingPanes" Grid.Column="2" ColumnDefinitions="*,0,0">
-    <Grid MinWidth="320" RowDefinitions="Auto,Auto,*,Auto,Auto,Auto" RowSpacing="8">
+    <Grid x:Name="ConversationPane" MinWidth="320" RowDefinitions="Auto,Auto,*,Auto,Auto,Auto" RowSpacing="8">
       <Grid ColumnDefinitions="*,Auto">
       <TextBlock Text="{Binding InteractionTarget}" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap"
           AutomationProperties.Name="Selected conversation; context is not a lock for general voice requests" />
@@ -237,6 +237,8 @@
       <StackPanel Spacing="6">
         <TextBlock x:Name="DetailsHeading" Text="Details" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
         <WrapPanel>
+          <Button x:Name="ExpandSessionDetails" Content="Expand details" IsEnabled="False"
+              AutomationProperties.HelpText="Give Details the available reading width while keeping the conversation and composer visible. Activate again to restore the previous split. Does not reread or submit content." />
           <Button x:Name="BackToConversation" Content="Back to conversation" IsEnabled="False"
               AutomationProperties.Name="Return focus to this exact originating message without hiding Details" />
           <Button x:Name="HideSessionDetails" Content="Hide details"

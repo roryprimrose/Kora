@@ -64,11 +64,17 @@ public sealed record VoiceCaptureTiming(decimal CommandStartSeconds, decimal Rep
 
     public string Describe() => $"command start {Format(CommandStartSeconds)} s; reply start {Format(ReplyStartSeconds)} s; trailing silence {Format(TrailingSilenceSeconds)} s";
 
-    private static string Format(decimal value) => value.ToString("0.#######", CultureInfo.InvariantCulture);
+    public static string Format(decimal value) => value.ToString("0.#######", CultureInfo.InvariantCulture);
     private static TimeSpan ToDuration(decimal seconds) => TimeSpan.FromTicks(decimal.ToInt64(seconds * TimeSpan.TicksPerSecond));
-    private static decimal ParseSeconds(string value) =>
-        decimal.TryParse(value, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var seconds)
+    private static decimal ParseSeconds(string value)
+    {
+        // Decimal.TryParse can round excess precision before range/tick validation sees it.
+        var point = value.IndexOf('.');
+        if (point >= 0 && value.AsSpan(Math.Min(point + 8, value.Length)).ContainsAnyExcept('0'))
+        { throw new ArgumentException("Capture timing cannot round fractional seconds.", nameof(value)); }
+        return decimal.TryParse(value, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var seconds)
             ? seconds : throw new ArgumentException("Use an exact decimal number of seconds with a dot, without a suffix.", nameof(value));
+    }
     private static void RequireRange(decimal value, decimal minimum, decimal maximum, string name)
     {
         if (value < minimum || value > maximum || decimal.Truncate(value * TimeSpan.TicksPerSecond) != value * TimeSpan.TicksPerSecond)

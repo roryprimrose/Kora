@@ -17,6 +17,7 @@ internal sealed class SessionMemoryContextSource(
 {
     private long revision;
     private bool closed;
+    private bool mutationInProgress;
     public long Revision => Interlocked.Read(ref revision);
     public event Action? Invalidated;
     internal void Invalidate()
@@ -30,6 +31,12 @@ internal sealed class SessionMemoryContextSource(
         Invalidate();
     }
 
+    internal void SetMutationInProgress(bool value)
+    {
+        Volatile.Write(ref mutationInProgress, value);
+        Invalidate();
+    }
+
     public async Task<SessionMemoryContextSnapshot> ReadAsync(SessionWorkspaceEntry target,
         ImmutableArray<MemorySummary> selection, Func<bool> admitted, CancellationToken token)
     {
@@ -40,7 +47,8 @@ internal sealed class SessionMemoryContextSource(
         { throw new InvalidOperationException("Memory context requires the exact original session activity."); }
         var control = access.ControlRevision;
         var sourceRevision = Revision;
-        bool Current() => !Volatile.Read(ref closed) && access.CanInspect && access.CanControl && host.IsCurrentHost
+        bool Current() => !Volatile.Read(ref closed) && !Volatile.Read(ref mutationInProgress)
+            && access.CanInspect && access.CanControl && host.IsCurrentHost
             && access.ControlRevision == control && Revision == sourceRevision && admitted()
             && !token.IsCancellationRequested && !issuer.Activity!.IsStopped && issuer.Outcome == HostOperationOutcome.Unknown;
         HostRequest? readRequest = null;

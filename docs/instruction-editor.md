@@ -49,6 +49,10 @@ Supported source files refresh automatically when changed outside Kora.
 This also works if a supported editor source tree is created after Kora starts,
 even when its parent folders were missing, or a supported profile folder is
 renamed or deleted (including folder names containing dots). Existing source
+directories registered outside the default locations also recover if the whole
+directory is renamed away and recreated at its registered path. Kora withdraws
+the missing source and watches the replacement, not the renamed sibling.
+Restoring the old bytes does not restore a previous use approval. Existing source
 and discovery-depth limits still apply; Kora does not scan unrelated profile
 content or create missing folders. No restart or configuration toggle is needed.
 A changed source retires stale requests, questions and approvals. Discovery

@@ -77,9 +77,7 @@ internal sealed class McpHttpConnection : IMcpConnection
             || response.Content.Headers.ContentEncoding.Count != 0
             || response.RequestMessage?.RequestUri is { } observed && observed != Endpoint.Address)
         { throw new InvalidDataException("The MCP response requires an unsupported status, redirect, session or encoding."); }
-        var type = response.Content.Headers.ContentType;
-        if (!notification && (type is null || !string.Equals(type.MediaType, "application/json", StringComparison.OrdinalIgnoreCase)
-            || type.CharSet is { } charset && !string.Equals(charset, "utf-8", StringComparison.OrdinalIgnoreCase)))
+        if (!notification && !IsUtf8Json(response.Content.Headers.ContentType))
         { throw new InvalidDataException("The MCP transport requires a bounded UTF-8 JSON response."); }
         if (response.Content.Headers.ContentLength is { } length && (length > limit || length < 0))
         { throw new InvalidDataException("The MCP response exceeds the complete byte bound."); }
@@ -97,6 +95,22 @@ internal sealed class McpHttpConnection : IMcpConnection
         { throw new InvalidDataException("The complete MCP response is empty or exceeds its byte bound."); }
         await WindowsMcpConnectionBroker.RequireCurrentAsync(lease, Account, token).ConfigureAwait(false);
         return ImmutableArray.CreateRange(bytes.AsSpan(0, count).ToArray());
+    }
+
+    private static bool IsUtf8Json(MediaTypeHeaderValue? type)
+    {
+        if (type is null || !string.Equals(type.MediaType, "application/json", StringComparison.OrdinalIgnoreCase))
+        { return false; }
+        var charsetSeen = false;
+        foreach (var parameter in type.Parameters)
+        {
+            if (!string.Equals(parameter.Name, "charset", StringComparison.OrdinalIgnoreCase)) { continue; }
+            if (charsetSeen || !string.Equals(parameter.Value, "utf-8", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(parameter.Value, "\"utf-8\"", StringComparison.OrdinalIgnoreCase))
+            { return false; }
+            charsetSeen = true;
+        }
+        return true;
     }
 
     private Task<T> RunAsync<T>(Func<CancellationToken, Task<T>> operation, CancellationToken token)

@@ -97,7 +97,8 @@ public sealed partial class SessionWorkspaceService
             admission, existingSubject: true, terminalCommitted: true).ConfigureAwait(false);
         InvalidateWorkOverview(receipt.SessionId);
         SessionRetired?.Invoke(receipt.SessionId);
-        if (localEvents is not null) { await localEvents.RetireSessionAsync(receipt.SessionId, token).ConfigureAwait(false); }
+        // Deletion and its terminal receipt committed; caller cancellation cannot interrupt owned-state cleanup.
+        if (localEvents is not null) { await localEvents.RetireSessionAsync(receipt.SessionId, CancellationToken.None).ConfigureAwait(false); }
         return receipt;
     }
 

@@ -22,7 +22,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class FinalDocumentInteractionTests
+public sealed partial class FinalDocumentInteractionTests
 {
     private const string Address = "https://example.com/final?q=generated%20target";
     private const string Link = "[original site](" + Address + ")";

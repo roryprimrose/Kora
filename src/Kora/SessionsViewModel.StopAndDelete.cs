@@ -118,6 +118,11 @@ internal sealed partial class SessionsViewModel
     {
         if (!CanConfirmStopAndDelete || stopAndDeleteReview is not { } review) { return; }
         var admitted = stopAndDeleteAdmission;
+        var target = selected;
+        var selection = selectionEpoch;
+        var control = access.ControlRevision;
+        bool PresentLive() => !closed && access.CanInspect && access.ControlRevision == control
+            && selected == target && selectionEpoch == selection;
         stopAndDeleteReview = null;
         stopAndDeleteBusy = true;
         stopAndDeleteStatus = "Stopping reviewed work; waiting for actual owned resources. Conversation not deleted yet. Cancel deletion does not abandon that join.";
@@ -125,10 +130,12 @@ internal sealed partial class SessionsViewModel
         try
         {
             var result = await conversation!.ConfirmStopAndDeleteAsync(review, admitted, lifetime.Token);
-            if (closed || !access.CanInspect) { return; }
+            var present = PresentLive();
+            if (result.Outcome == SessionStopAndDeleteOutcome.Deleted)
+            { RetireUnsent(review.Disposition.Session.Authority.SessionId); }
+            if (!present) { return; }
             if (result.Outcome == SessionStopAndDeleteOutcome.Deleted)
             {
-                RetireUnsent(review.Disposition.Session.Authority.SessionId);
                 sessions = null;
                 ClearSelection();
             }
@@ -145,7 +152,7 @@ internal sealed partial class SessionsViewModel
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             Failure(logger, exception.GetType().Name);
-            if (!closed && access.CanInspect)
+            if (PresentLive())
             { stopAndDeleteStatus = "Stop/deletion outcome unconfirmed. Inspect exact receipts; no success, rollback or replay is inferred."; }
         }
         finally { stopAndDeleteBusy = false; Notify(); }

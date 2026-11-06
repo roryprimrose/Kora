@@ -142,6 +142,12 @@ internal static class Program
                                     static (_, _) => ValueTask.CompletedTask, CancellationToken.None).AsTask()).GetAwaiter().GetResult();
                             Task.Run(() => provider.GetRequiredService<WindowsSqliteDiagnosticRetention>()
                                 .RunAsync(CancellationToken.None).AsTask()).GetAwaiter().GetResult();
+                            var auditObservation = auditConfiguration.GetObservation();
+                            var auditRetention = Task.Run(() => provider.GetRequiredService<WindowsSqliteHostInteractionStore>()
+                                .PruneAuditPrefixAsync(() => auditConfiguration.IsCurrentObservation(auditObservation), CancellationToken.None).AsTask())
+                                .GetAwaiter().GetResult();
+                            DesktopLog.AuditRetentionCompleted(startupLogger, auditRetention.Removed,
+                                auditRetention.HasDueBacklog, auditRetention.ReferenceHeld);
                             startup.Complete(HostOperationOutcome.Completed);
                         }
                         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
@@ -303,6 +309,8 @@ internal static class Program
         services.AddSingleton<ArtifactDirectoryConfigurationService>();
         services.AddSingleton<ArtifactUsePreferences>();
         services.AddSingleton<IArtifactUsePolicy>(provider => provider.GetRequiredService<ArtifactUsePreferences>());
+        services.AddSingleton<McpCapabilityPreferences>();
+        services.AddSingleton<Kora.Application.Mcp.KoraMcpServer>();
         services.AddSingleton<WindowsCustomizationStore>();
         services.AddSingleton<Kora.Core.Customizations.ICustomizationStore>(provider => provider.GetRequiredService<WindowsCustomizationStore>());
         services.AddSingleton<Kora.Core.Customizations.ICustomizationMetadataStore>(provider => provider.GetRequiredService<WindowsCustomizationStore>());
@@ -580,7 +588,9 @@ internal static class Program
             provider.GetRequiredService<ISessionProviderProfileStore>(),
             provider.GetRequiredService<HostedModelProviderFactory>(),
             provider.GetRequiredService<HostedTransmissionReviewService>(),
-            conversationExecution: provider.GetRequiredService<ConversationExecutionConfigurationService>()));
+            conversationExecution: provider.GetRequiredService<ConversationExecutionConfigurationService>(),
+            capabilities: provider.GetRequiredService<McpCapabilityPreferences>(),
+            builtInMcp: provider.GetRequiredService<Kora.Application.Mcp.KoraMcpServer>()));
         services.AddSingleton<IModelTurnAdmission>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<IModelTurnExecution>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<SessionConversationService>();
@@ -589,6 +599,7 @@ internal static class Program
         services.AddSingleton<SessionInstructionScopeCommandService>();
         services.AddSingleton<SessionRequestCommandService>();
         services.AddSingleton<SessionRetentionCommandService>();
+        services.AddSingleton<SessionPermissionCommandService>();
         services.AddSingleton<SessionRetentionApplyService>();
         services.AddSingleton<ConversationSearchCommandService>();
         services.AddSingleton<SessionRemainingWorkCommandService>();

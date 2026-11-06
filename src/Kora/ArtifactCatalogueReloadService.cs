@@ -29,6 +29,8 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
     private readonly List<FileSystemWatcher> watchers = [];
     private Timer? timer;
     private ArtifactDirectorySettings? watchedSettings;
+    private bool watchersNeedRefresh;
+    private bool sourcesNeedRetirement;
     private bool disposed;
 
     internal ArtifactCatalogueReloadService(
@@ -121,6 +123,11 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
         {
             if (!disposed)
             {
+                if (args.ChangeType == WatcherChangeTypes.Deleted)
+                {
+                    RetireRemovedRoot(target, args.FullPath, isDirectory);
+                }
+                watchersNeedRefresh |= isDirectory;
                 ScheduleReload();
             }
         }
@@ -138,12 +145,20 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
         {
             if (!disposed)
             {
+                RetireRemovedRoot(target, args.OldFullPath, isDirectory);
+                watchersNeedRefresh |= isDirectory;
                 ScheduleReload();
             }
         }
     }
 
     private void ScheduleReload() => timer!.Change(DebounceDelay, Timeout.InfiniteTimeSpan);
+
+    private void RetireRemovedRoot(WatchTarget target, string removedPath, bool isDirectory)
+    {
+        sourcesNeedRetirement |= !target.IsFile && isDirectory
+            && AffectsTarget(target with { MembershipOnly = true }, removedPath, isDirectory: true);
+    }
 
     internal bool ReloadNow()
     {
@@ -154,6 +169,18 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
             if (disposed) { return false; }
             try
             {
+                if (sourcesNeedRetirement)
+                {
+                    // Like source unregistration, retire the aggregate file-backed snapshot before
+                    // rediscovery so a replacement hidden by debounce cannot inherit old reviews.
+                    PublishReconciled(EmbeddedArtifactCatalogue.Load().Artifacts);
+                    sourcesNeedRetirement = false;
+                }
+                if (watchersNeedRefresh)
+                {
+                    ConfigureWatchers();
+                    watchersNeedRefresh = false;
+                }
                 var settings = preferences.Load();
                 var disk = Discovery(settings).Load();
                 var embedded = EmbeddedArtifactCatalogue.Load();
@@ -192,7 +219,7 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
             token.ThrowIfCancellationRequested();
             lock (gate)
             {
-                if (disposed || !eligible() || catalogue.IsReloadUnavailable
+                if (disposed || sourcesNeedRetirement || !eligible() || catalogue.IsReloadUnavailable
                     || !catalogue.IsCurrent(selected.Id, selected.Digest)) { return false; }
                 try
                 {
@@ -304,6 +331,13 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
             {
                 continue;
             }
+            if (!target.IsFile && string.Equals(directory, desiredDirectory, StringComparison.OrdinalIgnoreCase)
+                && Path.GetDirectoryName(directory) is { } parent)
+            {
+                // A watcher inside an existing root cannot observe that root's own rename.
+                // Observe only its membership in the parent, never the moved sibling's contents.
+                AddWatcher(target with { MembershipOnly = true }, parent, parent, isDirectory: true);
+            }
             AddWatcher(target, directory, desiredDirectory, isDirectory: false);
             AddWatcher(target, directory, desiredDirectory, isDirectory: true);
         }
@@ -319,8 +353,8 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
                 directory, desiredDirectory, StringComparison.OrdinalIgnoreCase)
                     ? Path.GetFileName(target.Path)
                     : "*",
-            IncludeSubdirectories = !target.IsFile
-                || !string.Equals(directory, desiredDirectory, StringComparison.OrdinalIgnoreCase),
+            IncludeSubdirectories = !target.MembershipOnly && (!target.IsFile
+                || !string.Equals(directory, desiredDirectory, StringComparison.OrdinalIgnoreCase)),
             NotifyFilter = isDirectory ? NotifyFilters.DirectoryName
                 : NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.CreationTime | NotifyFilters.Size,
         };
@@ -349,7 +383,7 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
             return true;
         }
 
-        if (target.IsFile
+        if (target.IsFile || target.MembershipOnly
             || !changed.StartsWith(expected.TrimEnd(Path.DirectorySeparatorChar) + separator,
                 StringComparison.OrdinalIgnoreCase))
         {
@@ -452,7 +486,8 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
         bool IsFile,
         IReadOnlyList<string> Patterns,
         int MaximumDepth,
-        bool WatchAllFiles);
+        bool WatchAllFiles,
+        bool MembershipOnly = false);
 
     private WindowsDiskArtifactDiscovery Discovery(ArtifactDirectorySettings settings) =>
         new(paths, settings, ownedInstructions, profileRoamingRoot, ownedPrompts);

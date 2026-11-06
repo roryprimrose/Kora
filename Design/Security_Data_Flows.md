@@ -718,6 +718,7 @@ The clipboard envelope performs identity, Unicode, lifetime and complete seriali
 Content-free task authority is separate from conversation retention, preserving original input origin; the exact capture object retains its original request/source identity while model evidence belongs to the newly admitted task ([clipboard admission](../src/Kora.Application/Context/ClipboardExplanationAdmission.cs), [workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs)).
 The production permission policy consumes an actual user grant and one invocation dispatch receipt before reaching `ModelTurnChoice.Local` and the existing model host. Permission is revalidated after asynchronous session/task reads at the adapter and response boundaries; revocation blocks subsequent dispatch/publication. No qualified runtime means explicit unavailability, never a hosted/bootstrap fallback. Deterministic fake-provider evidence is implementation proof, not production runtime qualification or enablement ([consumer tests](../tests/Kora.Application.UnitTests/Context/ClipboardExplanationWorkflowTests.Permissions.cs)).
 Only a successful admitted host response can become a volatile answer in that exact native preview, after terminal task evidence and current-source/eligibility checks; source/answer are not generic responses, transcripts, speech, saved clipboard history or conversation bodies ([workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs), [presentation](../src/Kora.Application/ViewModels/MainViewModel.Clipboard.cs)).
+The [native answer](../src/Kora/ClipboardPreviewWindow.cs) wraps at the current reading viewport width independently of the source-only wrapping preference. Resizing or wrapping the snapshot does not alter answer bytes, repeat inference or renew review/grant authority. [Complete-operation native tests](../tests/Kora.Windows.IntegrationTests/ClipboardExplanationPermissionTests.cs) measure rendered answer bounds after actual permission consumption and local fake-provider completion, including a wider unwrapped immutable source.
 Source revocation and cancellation suppress late output while actual adapter quiescence remains mandatory for exit/handoff; deterministic fake-provider tests cover these boundaries without clipboard/model/network calls ([workflow tests](../tests/Kora.Application.UnitTests/Context/ClipboardExplanationWorkflowTests.cs)).
 Invalid presentation reads retire volatile answer/source references, so restored eligibility cannot resurrect a retired answer; model-envelope expiry is checked again after terminal task evidence before publication ([workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs)).
 The [clipboard admission bridge](../src/Kora.Application/Context/ClipboardExplanationAdmission.cs) reuses the existing content-free local-context dispatch store and host task coordinator. Actual current-run source authority, not a generic control intent or fake-store assumption, is required. Terminal task evidence precedes answer publication; cancellation after durable dispatch is conservatively Unknown, not a claim that already-running work was rolled back.
@@ -1644,8 +1645,9 @@ ordinary SQLite rows use the policy; existing deadlines never change and
 apply-now is unavailable. Audit90/domain, files30/30 and every grant retain
 their independent rules. Unavailable ordinary policy reports explicit
 independent delivery gaps without waiving mandatory trusted audit. This is logical
-row pruning, not recoverable-copy disposal or forensic erasure. Audit expiry
-and its continuation/checkpoint requirements remain independently unimplemented.
+row pruning, not recoverable-copy disposal or forensic erasure. Authoritative
+audit-prefix expiry uses its [independent bounded operation](Architecture.md#bounded-authoritative-audit-prefix-retention);
+diagnostic audit-projection expiry remains unavailable.
 The independent [ordinary diagnostic impact preview](User_Configuration.md#read-only-ordinary-diagnostic-shortening-impact-preview)
 only observes hypothetically newly-due ordinary logs/spans/owned links at one
 fixed cutoff. It never counts security audit; bounded protected-prefix and
@@ -1831,8 +1833,19 @@ under the selected tamper-evidence scheme so expiry is distinguishable from
 removal inside the retained window. Preserve the latest minimal chain anchor
 outside ordinary audit-event expiry; it contains no action/content payload and
 cannot reconstruct expired records.
-Audit pruning and its continuation/anchor mechanism are not implemented.
-Ordinary diagnostic pruning never removes audit rows; expired audits may
+The approved conservative implementation increment prunes only a contiguous
+verified expired prefix of the authoritative interaction audit, in a bounded
+owning-host startup transaction. State-referenced audit proofs, retained audit
+dependencies and unresolved work hold the boundary; expired backlog may remain.
+Removal and a versioned payload-free sequence/hash/cutoff anchor commit together.
+Readers verify the retained suffix from that anchor, never reconstruct expired
+payloads or reinterpret the independent diagnostic/file copies as authority.
+This uses the existing private-store/local SHA-256 consistency boundary, not
+checkpoint authentication against an attacker able to coherently rewrite both
+the database and anchor. Malformed/inconsistent state fails closed; independent
+anchoring, hostile-writer resistance, rollback detection and forensic erasure
+remain unavailable. See the [implementation contract](Architecture.md#bounded-authoritative-audit-prefix-retention).
+Ordinary diagnostic pruning never removes audit rows; expired diagnostic audit projections may
 therefore remain present beyond their due dates. The independent daily JSON
 stream contains secondary `TypedAuditCopy` records, not committed authority
 receipts. Its existing 30-day/30-calendar-file policy is separate from the

@@ -42,6 +42,7 @@ internal sealed partial class SessionsViewModel
 
     public void CancelAppearanceSuggestion(bool reportCancellation = true)
     {
+        registeredSettingReviewIdentity = null;
         appearanceReview?.Dispose();
         appearanceReview = null;
         if (reportCancellation)

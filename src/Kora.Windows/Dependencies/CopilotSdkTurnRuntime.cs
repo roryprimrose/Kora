@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 using GitHub.Copilot;
 using Kora.Core.Dependencies;
@@ -140,7 +140,7 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotTurnRuntime, IAsyncD
                     }
                     else
                     {
-                        var functions = ReadOnlyCapabilityCatalog.Descriptors.Select(descriptor =>
+                        var functions = ModelToolProtocol.ReadContext(context.Span, provenance).Tools.Select(descriptor =>
                         {
                             var name = "kora_" + descriptor.Id.Replace('.', '_');
                             return CopilotTool.DefineTool(async (string input, ToolInvocation invocation, CancellationToken token) =>
@@ -170,7 +170,8 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotTurnRuntime, IAsyncD
                         }
                         else
                         {
-                            pending = session.SendAsync(new UTF8Encoding(false, true).GetString(context.Span), callbacks.Token);
+                            // Human transmission review shares the host deadline; the SDK's default 60-second wait must not truncate it.
+                            pending = session.SendAsync(new UTF8Encoding(false, true).GetString(context.Span), Timeout.InfiniteTimeSpan, callbacks.Token);
                             unreleasedSend = pending;
                             var answer = await pending.WaitAsync(callbacks.Token).ConfigureAwait(false);
                             callbacks.Token.ThrowIfCancellationRequested();

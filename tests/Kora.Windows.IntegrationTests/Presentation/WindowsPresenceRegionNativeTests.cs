@@ -107,6 +107,34 @@ public sealed partial class WindowsPresenceRegionNativeTests
     }
 
     [WindowsFact]
+    public void UiFrameBuffersAreReusableAndCannotBeDrawnByTheWorker()
+    {
+        var owner = CreateWindowEx(0, "STATIC", string.Empty, 0x80000000,
+            -30000, -30000, 100, 100, 0, 0, 0, 0);
+        owner.Should().NotBe(0);
+        try
+        {
+            using var target = new WindowsPresenceRenderTarget(owner);
+            nint first = 0;
+            target.CopyFrame(3, 5, (pixels, length, stride) =>
+            {
+                first = pixels;
+                length.Should().Be(60);
+                stride.Should().Be(12);
+            });
+            target.CopyFrame(3, 5, (pixels, _, _) => pixels.Should().Be(first));
+            Exception? error = null;
+            var worker = new Thread(() => error = Record.Exception(() =>
+                target.Draw([], 3, 5, 1, 0, 0, 0, 1)));
+            worker.Start();
+            worker.Join(TimeSpan.FromSeconds(5)).Should().BeTrue();
+            error.Should().BeOfType<InvalidOperationException>();
+            target.ReleaseDrawingResources();
+        }
+        finally { DestroyWindow(owner).Should().BeTrue(); }
+    }
+
+    [WindowsFact]
     public void PopupRejectsMissingOrChildOwner()
     {
         var missing = () => new WindowsPresenceRenderTarget(0);

@@ -75,14 +75,11 @@ public sealed partial class WindowsPresenceRenderTarget : IPresenceRenderTarget
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         var thread = Environment.CurrentManagedThreadId;
-        if (drawingThread == 0)
-        {
-            drawingThread = thread;
-        }
-        if (drawingThread != thread || thread == uiThread)
+        if (thread == uiThread || drawingThread != 0 && drawingThread != thread)
         {
             throw new InvalidOperationException("Presence drawing resources belong to one non-UI rendering worker.");
         }
+        drawingThread = thread;
         if (!double.IsFinite(width) || width <= 0 || !double.IsFinite(height) || height <= 0
             || !double.IsFinite(scaling) || scaling <= 0 || !double.IsFinite(opacity) || opacity is < 0 or > 1)
         {
@@ -98,13 +95,32 @@ public sealed partial class WindowsPresenceRenderTarget : IPresenceRenderTarget
                 throw new InvalidDataException("A native presence dot has invalid geometry or opacity band.");
             }
         }
+        EnsureBuffer(pixelWidth, pixelHeight);
+        buffer!.Draw(particles, scaling, red, green, blue, opacity);
+    }
+
+    public void CopyFrame(int pixelWidth, int pixelHeight, Action<nint, int, int> copyPixels)
+    {
+        VerifyUiThread();
+        ObjectDisposedException.ThrowIf(disposed, this);
+        ArgumentNullException.ThrowIfNull(copyPixels);
+        if (drawingThread != 0 && drawingThread != uiThread)
+        {
+            throw new InvalidOperationException("A worker-owned presence buffer cannot accept UI-rendered frames.");
+        }
+        drawingThread = uiThread;
+        EnsureBuffer(pixelWidth, pixelHeight);
+        buffer!.WritePixels(copyPixels);
+    }
+
+    private void EnsureBuffer(int pixelWidth, int pixelHeight)
+    {
         if (buffer is null || buffer.Width != pixelWidth || buffer.Height != pixelHeight)
         {
             buffer?.Dispose();
             buffer = null;
             buffer = new WindowsPresenceDib(pixelWidth, pixelHeight);
         }
-        buffer.Draw(particles, scaling, red, green, blue, opacity);
     }
 
     public void Present()

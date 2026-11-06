@@ -30,8 +30,8 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore
                 var saved = ReadPackage(selected, token, scope: OwnedSkillReadScope.PrimaryDeclaration);
                 if (!string.Equals(saved.Document.Id, id, StringComparison.Ordinal)
                     || !string.Equals(saved.Document.Version, version, StringComparison.Ordinal)
-                    || saved.Document.ReferenceDeclaration is not null || saved.Document.ObservationWorkflow is not null)
-                { throw new InvalidDataException("Deletion supports only exact native owned v1/v2/v3 sources, never reference/observation packages or other sources."); }
+                    || saved.Document.ReferenceDeclaration is not null)
+                { throw new InvalidDataException("Deletion supports only exact native owned v1/v2/v3/v4 two-file sources, never reference packages or other sources."); }
                 return new OwnedSkillDeletionSnapshot(saved, target, rootIdentity!, WindowsFileIdentity.Read(parentHandle), CatalogueIdentity(token));
             }
         }, token);
@@ -50,7 +50,7 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore
     {
         var source = expected.Source;
         RequireNoPendingRename(source.Document.Id, source.Document.Version, token);
-        if (source.Document.ReferenceDeclaration is not null || source.Document.ObservationWorkflow is not null
+        if (source.Document.ReferenceDeclaration is not null
             || deletionHolds.Contains(expected.Destination)
             || !string.Equals(expected.Destination, Destination(source.Document), StringComparison.Ordinal)
             || !string.Equals(rootIdentity, expected.RootIdentity, StringComparison.Ordinal))

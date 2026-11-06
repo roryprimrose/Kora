@@ -146,6 +146,7 @@ public sealed partial class SessionsConversationTests
                 model.MemoryContextOutcome.Should().NotContain("Answer from reviewed session fact.");
                 var retained = (await f.Store.ReadConversationPageAsync(target.Authority.SessionId, null, 25, f.Token)).Messages.Single();
                 retained.AssistantResponse.Should().BeNull();
+                retained.SubmittedContext.Should().BeNull("revoked and noncooperative late work cannot retain handoff metadata");
                 retained.Outcome.Should().BeNull("caller/source revocation retains an unconfirmed dispatch, not fake success");
                 composition.Turns.IsQuiescent.Should().BeFalse();
                 pending.SetResult(new(ModelTurnOutcome.Succeeded, ModelProviderSelection.OllamaCandidate,

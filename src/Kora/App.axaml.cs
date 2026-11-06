@@ -382,6 +382,8 @@ public sealed partial class App : Avalonia.Application
             Services.GetRequiredService<MaintenanceViewModel>().BindCachedCommands(maintenanceCommands,
                 () => viewModel.CanRunMaintenanceCommands);
             viewModel.BindMaintenanceCommands(maintenanceCommands);
+            viewModel.BindMaintenanceUpdateTools(Services.GetRequiredService<Kora.Tools.Application.ApplicationCheckForUpdates>(),
+                Services.GetRequiredService<Kora.Tools.Application.ApplicationUpgrade>());
             var host = viewModel;
             host.BindClipboardOwnershipGate(() => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsCapabilityAdmissionOpen
                 && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired);
@@ -431,6 +433,7 @@ public sealed partial class App : Avalonia.Application
                 }));
             desktopLifetime = new(viewModel, () => desktop.Shutdown(),
                 Services.GetRequiredService<ILogger<DesktopLifetimeController>>());
+            BindInstallerShutdown(host, dispatcher, desktop);
             desktop.Exit += OnDesktopExit;
         }
 
@@ -450,6 +453,7 @@ public sealed partial class App : Avalonia.Application
             DesktopLog.Error(logger!, exception, "Applying confirmed manual startup presentation");
             host.ReportHostInteractionFailure("Manual startup presentation unavailable. Inspect saved intent and audit before manual recovery. " + exception.Message);
         }
+        Services.GetRequiredService<MaintenanceViewModel>().InitializeConfiguredChecks();
     }
 
     private void OnDesktopExit(object? sender, ControlledApplicationLifetimeExitEventArgs eventArgs)

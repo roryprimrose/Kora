@@ -19,7 +19,7 @@ helpers and brokers are not separately advertised actions.
 
 | Folder / namespace suffix | Action classes | Shared collaborators |
 |---|---|---|
-| [Application](Application) | [ApplicationGetVersion](Application/ApplicationGetVersion.cs) | Core `IApplicationVersion`; running-assembly implementation in Application. |
+| [Application](Application) | [ApplicationGetVersion](Application/ApplicationGetVersion.cs), [ApplicationCheckForUpdates](Application/ApplicationCheckForUpdates.cs), [ApplicationUpgrade](Application/ApplicationUpgrade.cs) | Running version observation; Core `IApplicationMaintenance` routes check and exact upgrade-review actions through host admission. |
 | [Capabilities](Capabilities) | [CapabilitiesList](Capabilities/CapabilitiesList.cs), [CapabilitiesGet](Capabilities/CapabilitiesGet.cs) | [ReadOnlyPage](Capabilities/ReadOnlyPage.cs) and Core descriptor catalogue. |
 | [Readiness](Readiness) | [ReadinessGet](Readiness/ReadinessGet.cs) | [RecordedDependencyObservation](Readiness/RecordedDependencyObservation.cs). |
 | [Runtime](Runtime) | [RuntimeList](Runtime/RuntimeList.cs), [RuntimeGetStatus](Runtime/RuntimeGetStatus.cs) | [RecordedRuntimeObservation](Runtime/RecordedRuntimeObservation.cs), reusing the readiness projection. |
@@ -52,6 +52,9 @@ For example, `describe capability application.get_version` resolves to
 See [presentation wiring](../Kora.Application/ViewModels/MainViewModel.Capabilities.cs)
 and [exact commands](../../docs/commands.md#read-only-host-discovery).
 This is not a public callable SDK.
+
+Application maintenance actions are separate from the six read-only model-loop descriptors. `application.check_for_updates` checks latest or an exact canonical version with existing network consent; `application.upgrade` prepares the same native review and cannot approve/download/run an installer.
+Typed/activated `maintenance check` and `maintenance upgrade` use these same registered actions, preserving original-user, session, privacy and call authority ([commands](../../docs/commands.md#exact-cached-release-maintenance), [owner](../Kora.Application/Maintenance/MaintenanceCommands.cs)).
 
 The [closed queue profiles](../../Design/Work_Management.md#delivered-closed-targeted-metadata-reads---2026-10-12) invoke these same actions through freshly admitted Native registry callers. Four inputs remain `{}`; one exact current descriptor target or fixed recorded `local.inference` uses typed `CapabilityIdInput`.
 Single-record results share the registry wire/shape validation. No probe, inference, arbitrary parameters or model tool-loop qualification is added.

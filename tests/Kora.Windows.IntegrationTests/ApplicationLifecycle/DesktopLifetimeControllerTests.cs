@@ -70,6 +70,8 @@ public sealed class DesktopLifetimeControllerTests
             var releasedReview = false;
             var joined = false;
             var shutdowns = 0;
+            var closeObserved = false;
+            var controllers = new List<IDisposable>();
             fixture.Main.BindSubmittedWorkShutdown((_, _, current) =>
                 Task.FromResult<ApplicationLifecycleShutdown?>(confirm
                     ? new(current, async () =>
@@ -83,7 +85,14 @@ public sealed class DesktopLifetimeControllerTests
             {
                 joined.Should().BeTrue("the lifetime binding cannot supply work-control authority or bypass physical joins");
                 shutdowns++;
+                foreach (var controller in controllers) { controller.Dispose(); }
             }, NullLogger<DesktopLifetimeController>.Instance);
+            controllers.Add(lifetime);
+            void ObserveInstallerClose(object? sender, WindowAction action)
+            {
+                if (action == WindowAction.Close) { closeObserved = true; }
+            }
+            fixture.Main.WindowActionRequested += ObserveInstallerClose;
             var exiting = fixture.Main.ExitAsync();
             try
             {
@@ -92,15 +101,18 @@ public sealed class DesktopLifetimeControllerTests
                     await entered.Task.WaitAsync(fixture.Token);
                     exiting.IsCompleted.Should().BeFalse();
                     shutdowns.Should().Be(0);
+                    closeObserved.Should().BeFalse();
                     releasedReview.Should().BeFalse();
                 }
             }
             finally
             {
                 release.TrySetResult();
-                await exiting;
+                try { await exiting; }
+                finally { fixture.Main.WindowActionRequested -= ObserveInstallerClose; }
             }
             shutdowns.Should().Be(confirm ? 1 : 0);
+            closeObserved.Should().Be(confirm, "installer close observation must survive desktop lifetime disposal during shutdown");
             joined.Should().Be(confirm);
             releasedReview.Should().Be(confirm);
             fixture.Voice.StartCalls.Should().Be(0);

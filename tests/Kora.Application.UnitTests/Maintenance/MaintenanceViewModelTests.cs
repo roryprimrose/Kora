@@ -19,7 +19,7 @@ public sealed partial class MaintenanceViewModelTests
     {
         using var f = new Fixture();
         f.State.CurrentVersion.Should().Be("1.0.0");
-        f.State.Disclosure.Should().Contain("No updater");
+        f.State.Disclosure.Should().Contain("Installer download/start requires separate exact native approval");
         MaintenanceViewModel.Channels.Should().Contain(ReleaseChannel.Production).And.Contain(ReleaseChannel.Preview);
         await f.State.CheckCommand.ExecuteAsync();
         f.Client.Calls.Should().Be(0);
@@ -138,6 +138,7 @@ public sealed partial class MaintenanceViewModelTests
         f.State.Availability.Should().Be(ReleaseAvailability.Unknown);
         f.Admitted = true;
         f.Client.Pending = null;
+        f.Time.Now = f.State.NextCheck!.Value;
         await f.State.CheckAsync();
         await f.State.ReviewAsync();
         f.State.CanOpen.Should().BeTrue();
@@ -193,8 +194,10 @@ public sealed partial class MaintenanceViewModelTests
         f.State.Status.Should().Contain("cancelled");
         f.Client.Pending = null;
         f.Jitter = 31;
+        f.Time.Now = f.State.NextCheck!.Value;
         await ((Func<Task>)(() => f.State.CheckCommand.ExecuteAsync())).Should().ThrowAsync<InvalidDataException>();
         f.Jitter = 0;
+        f.Time.Now = f.State.NextCheck!.Value;
         await f.State.CheckAsync();
         await f.State.ReviewAsync();
         f.Opener.Failure = new IOException("fixture");
@@ -339,12 +342,13 @@ public sealed partial class MaintenanceViewModelTests
         internal readonly MaintenanceCommands Commands;
         internal bool Admitted = true;
         internal int Jitter = 15;
-        internal Fixture()
+        internal Fixture(IMaintenancePreferences? preferences = null, bool bindGate = true, bool initializeConfiguredChecks = true)
         {
             Client = new();
             State = new(Client, new AssemblyApplicationInfo(() => "1.0.0"), ReleaseArchitecture.X64,
-                Opener, Time, new Dispatcher(), Audit, NullLogger<MaintenanceViewModel>.Instance, () => Jitter);
-            State.BindGate(() => Admitted);
+                Opener, Time, new Dispatcher(), Audit, NullLogger<MaintenanceViewModel>.Instance, () => Jitter, preferences);
+            if (bindGate) { State.BindGate(() => Admitted); }
+            if (initializeConfiguredChecks) { State.InitializeConfiguredChecks(); }
             Commands = new MaintenanceCommands(State, Store, Store, new HostTaskCoordinator(Store));
             State.BindCachedCommands(Commands);
         }
@@ -360,25 +364,32 @@ public sealed partial class MaintenanceViewModelTests
         public Task InvokeAsync(Func<Task> action) => action();
         public void Post(Action action) => action();
     }
-    private sealed class Client : IReleaseMetadataClient
+    private sealed class Client : IReleaseVersionMetadataClient
     {
         internal int Calls;
         internal ReleaseCheck? Result;
         internal Task<ReleaseCheck>? Pending;
         internal CancellationToken Token;
+        internal ReleaseChannel Channel;
         internal ReleaseCheck Success(DateTimeOffset now)
         {
             var version = ReleaseVersion.Parse("1.2.3");
             return new(ReleaseAvailability.Available, "canonical", now, now, new(1, version,
                 ReleaseFixture.Source, ReleaseArchitecture.X64,
-                [new(10, "Kora-1.2.3-win-x64.zip", 123, new string('b', 64))]));
+                [new(10, "Kora-1.2.3-win-x64.zip", 123, new string('b', 64)),
+                    new(11, "Kora-Setup-1.2.3-win-x64.exe", 123, new string('b', 64))]) { InstallerProtocol = 2 });
         }
         public Task<ReleaseCheck> CheckAsync(ReleaseChannel channel, string currentVersion, ReleaseArchitecture architecture, CancellationToken cancellationToken)
         {
             Calls++;
+            Channel = channel;
             Token = cancellationToken;
             return Pending ?? Task.FromResult(Result ?? Success(new(2026, 10, 7, 0, 0, 0, TimeSpan.Zero)));
         }
+
+        public Task<ReleaseCheck> CheckVersionAsync(ReleaseChannel channel, string currentVersion,
+            ReleaseArchitecture architecture, ReleaseVersion version, CancellationToken cancellationToken) =>
+            CheckAsync(channel, currentVersion, architecture, cancellationToken);
     }
     private sealed class Opener : ICanonicalReleasePageOpener
     {

@@ -577,6 +577,10 @@ These fixtures qualify only this bounded native presentation path. No experiment
 
 R26.1c extends the volatile R26.1a/b foundation, not the durable R26.2 lifecycle. **Tray > Preview folder (immediate files, local lexical search)** and exact `preview folder` use the trusted native single-folder picker. Typed/voice paths do not authorize reads ([native selection](../src/Kora/LocalFilePreviewWindowController.cs), [commands](../src/Kora.Core/Context/LocalFileCommand.cs)).
 
+The [shared native consent viewport](../src/Kora/LocalFilePreviewWindow.cs) is keyboard-focusable before separate confirmation: Page Up / Page Down and Home / End expose the complete metadata and disclosure without reading content or granting consent. Metadata-only reviews use the full available window area.
+
+Replacement and closure clear old metadata/accessibility text and disable detached confirmation controls; file/folder refresh and retained attachment reviews share this presentation lifecycle ([behavioral regressions](../tests/Kora.Windows.IntegrationTests/LocalFileReviewWindowTests.cs)). This is deterministic implementation evidence, not installed accessibility qualification.
+
 Admission is all-or-nothing: **1–32 immediate files**, **1 MiB (1,048,576 bytes) combined original bytes**, and the unchanged **256 KiB (262,144 bytes) per file**, including any UTF-8 BOM. Empty individual files remain valid; empty folders are rejected. Files are ordered by ordinal canonical path, independent of enumeration order. Any subdirectory, including an empty, generated, hidden or text-named directory, rejects the whole selection; there is no recursion or silent partial admission ([folder policy](../src/Kora.Core/Context/LocalFolderPolicy.cs)).
 
 The Windows inspector applies the same fixed-drive absolute canonical path, verified-handle, sharing, ancestor, reparse, hard-link, hidden/system, protected/generated/source-control and unstable-source policy to the root and every immediate file. Unsupported extensions, including archives/binaries, reject the whole inventory before content reads. Strict UTF-8 and binary/control-text sniffing remain the single-file decoder's authority; renaming binary data does not bypass decoding ([inspector](../src/Kora.Windows/Context/WindowsLocalFileInspector.cs), [file policy](../src/Kora.Core/Context/LocalFilePolicy.cs)).
@@ -654,6 +658,16 @@ It does not change the shared interaction schema or store raw content in
 preferences. Publication binds complete metadata and encrypted original-byte
 snapshots atomically; removal revokes first and deletes only inventoried Kora
 copies, clearing the owned persistent journal before reporting success.
+
+Every retained inspection, refresh, replacement publication, disable and removal
+compares the complete observed source inventory at the authoritative store
+boundary, not just its ID/version. Name, lifecycle state, changed time, retained
+copy byte count and structural root/traversal/directory/file metadata must still
+match. Same-version inventory drift is rejected before content disclosure or
+mutation; reload and review the current inventory instead of silently targeting
+its replacement. Structurally identical observations remain valid after reopen.
+The [exact-inventory regressions](../tests/Kora.Windows.IntegrationTests/KnowledgeSources/WindowsKnowledgeSourceTests.ExactInventory.cs)
+cover all existing store operations and unchanged durable state on rejection.
 
 Inspection checks original access/identity/membership without rereading content.
 Old revisions become unavailable when refresh starts, including failed refresh.

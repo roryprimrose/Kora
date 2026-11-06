@@ -81,8 +81,9 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionAttachme
             throw new InvalidDataException("Attachment catalogue authority changed. Refresh; no stale continuation is admitted.");
         }
         var expires = continuation?.ExpiresAt ?? now.AddMinutes(SessionAttachmentPage.SnapshotMinutes);
-        var audit = ValidateCatalogueAuditSegment(connection, snapshot, continuation?.AuditedThrough ?? 0,
-            continuation?.AuditedHash ?? EmptyHash, token);
+        var anchor = ReadAuditAnchor(connection);
+        var audit = ValidateCatalogueAuditSegment(connection, snapshot, continuation?.AuditedThrough ?? anchor.Sequence,
+            continuation?.AuditedHash ?? anchor.Hash, token);
         if (audit.Through < snapshot.AuthorityCeiling)
         {
             var pending = new SessionAttachmentPage(query, [], EncodeAttachmentCursor(new(query, identity, expires,
@@ -277,7 +278,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionAttachme
         ValidateMetadataProvenance(connection);
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT count(*) FROM security_audit_events;";
-        if ((long)command.ExecuteScalar()! != snapshot.AuthorityCeiling)
+        if ((long)command.ExecuteScalar()! != snapshot.AuthorityCeiling - ReadAuditAnchor(connection).Sequence)
         {
             throw new InvalidDataException("Attachment catalogue committed audit chain has missing rows.");
         }
@@ -301,12 +302,17 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionAttachme
     private static (long Through, string Hash, int Scanned) ValidateCatalogueAuditSegment(SqliteConnection connection,
         EvidenceSnapshot snapshot, long sequence, string hash, CancellationToken token)
     {
-        if (sequence < 0 || sequence > snapshot.AuthorityCeiling)
+        var anchor = ReadAuditAnchor(connection);
+        if (sequence < anchor.Sequence || sequence > snapshot.AuthorityCeiling)
         {
             throw new InvalidDataException("The attachment authority continuation is invalid.");
         }
         using var command = connection.CreateCommand();
-        if (sequence != 0)
+        if (sequence == anchor.Sequence)
+        {
+            if (!Same(hash, anchor.Hash)) { throw new InvalidDataException("The attachment authority anchor changed."); }
+        }
+        else
         {
             command.CommandText = "SELECT hash FROM security_audit_events WHERE sequence=$previous;";
             command.Parameters.AddWithValue("$previous", sequence);

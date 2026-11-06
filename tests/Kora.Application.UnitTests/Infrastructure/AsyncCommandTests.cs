@@ -46,6 +46,52 @@ public sealed class AsyncCommandTests
         executions.Should().Be(0);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Explicit_reentry_preserves_policy_and_all_outstanding_executions(bool failReentry)
+    {
+        var first = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var second = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reentry = false;
+        var eligible = true;
+        var calls = 0;
+        var command = new AsyncCommand(() => ++calls == 1 ? first.Task : second.Task,
+            _ => { }, () => eligible, () => reentry);
+        var running = command.ExecuteAsync();
+        await command.ExecuteAsync();
+        calls.Should().Be(1);
+        command.CanExecute(null).Should().BeFalse();
+
+        reentry = true;
+        command.CanExecute(null).Should().BeTrue();
+        eligible = false;
+        command.CanExecute(null).Should().BeFalse();
+        await command.ExecuteAsync();
+        calls.Should().Be(1);
+        eligible = true;
+        var stopping = command.ExecuteAsync();
+        calls.Should().Be(2);
+        reentry = false;
+        command.CanExecute(null).Should().BeFalse();
+        if (failReentry)
+        {
+            second.SetException(new IOException("stop failed"));
+            await stopping.Invoking(task => task).Should().ThrowAsync<IOException>();
+        }
+        else
+        {
+            second.SetResult();
+            await stopping;
+        }
+        command.CanExecute(null).Should().BeFalse("the original operation still owns the command");
+        await command.ExecuteAsync();
+        calls.Should().Be(2);
+        first.SetResult();
+        await running;
+        command.CanExecute(null).Should().BeTrue();
+    }
+
     [Fact]
     public async Task ExecuteAsync_restores_availability_when_work_fails()
     {

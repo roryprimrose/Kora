@@ -1,7 +1,10 @@
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Templates;
+using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
 using Avalonia.Threading;
 using Kora.Application.Hosting;
 using Kora.Application.Network.ExternalBrowser;
@@ -31,9 +34,17 @@ internal sealed class ExternalBrowserReviewWindow : Window
         this.reportStatus = reportStatus;
         Title = "Review external browser opening";
         Width = 620;
-        SizeToContent = SizeToContent.Height;
-        CanResize = false;
-        address = new TextBox { Text = review.Destination.ExactAddress, IsReadOnly = true, TextWrapping = Avalonia.Media.TextWrapping.Wrap };
+        Height = 620;
+        MinWidth = 420;
+        MinHeight = 500;
+        WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        address = new TextBox
+        {
+            Text = review.Destination.ExactAddress, IsReadOnly = true, AcceptsReturn = true,
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+        };
+        ScrollViewer.SetVerticalScrollBarVisibility(address, ScrollBarVisibility.Auto);
+        ScrollViewer.SetHorizontalScrollBarVisibility(address, ScrollBarVisibility.Disabled);
         AutomationProperties.SetName(address, "Exact external HTTPS destination");
         if (review.FinalSource is not null)
         {
@@ -53,12 +64,33 @@ internal sealed class ExternalBrowserReviewWindow : Window
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
         };
         AutomationProperties.SetName(originalSource, "Original exact source for this separate navigation review");
-        Content = new StackPanel
+        var sourceReview = new ScrollViewer
         {
-            Margin = new Thickness(20), Spacing = 12,
-            Children = { new TextBlock { Text = "External website - separate browser privacy review" },
-                new ScrollViewer { MaxHeight = 180, Content = originalSource }, address, disclosure, confirm, cancel },
+            MaxHeight = 100, Focusable = true, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Content = new StackPanel
+            {
+                Spacing = 8,
+                Children = { new TextBlock { Text = "External website - separate browser privacy review",
+                    TextWrapping = Avalonia.Media.TextWrapping.Wrap }, originalSource },
+            },
         };
+        AutomationProperties.SetName(sourceReview, "Scrollable exact original source review");
+        var privacyReview = new ScrollViewer
+        {
+            MaxHeight = 140, Focusable = true, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = disclosure,
+        };
+        AutomationProperties.SetName(privacyReview, "Scrollable external browser privacy disclosure");
+        var caption = new FuncDataTemplate<string>((text, _) =>
+            new TextBlock { Text = text, TextWrapping = Avalonia.Media.TextWrapping.Wrap });
+        confirm.ContentTemplate = cancel.ContentTemplate = caption;
+        confirm.HorizontalAlignment = cancel.HorizontalAlignment = HorizontalAlignment.Stretch;
+        var actions = new StackPanel { Spacing = 8, Children = { confirm, cancel } };
+        var layout = new Grid { Margin = new Thickness(16), RowSpacing = 10, RowDefinitions = new RowDefinitions("Auto,*,Auto,Auto") };
+        layout.Children.Add(sourceReview);
+        Grid.SetRow(address, 1); layout.Children.Add(address);
+        Grid.SetRow(privacyReview, 2); layout.Children.Add(privacyReview);
+        Grid.SetRow(actions, 3); layout.Children.Add(actions);
+        Content = layout;
         confirm.Click += OnConfirm;
         cancel.Click += (_, _) => Close();
         timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };

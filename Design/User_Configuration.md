@@ -51,6 +51,17 @@ No format/limit override, folder attachment, managed source, extra version, mode
 
 ## Configuration Contract
 
+### Shared device-local preference availability
+
+The [shared preference store](../src/Kora.Application/Configuration/LocalPreferenceStore.cs) resolves files beneath `IApplicationDataPaths.LocalRoot/Preferences`; domain adapters retain format and value validation.
+Missing files/directories retain each adapter's existing first-use/default behavior, but a directory at a preference filename, denied access or another I/O failure is unavailable, not an absent preference.
+
+Reads and deletes perform the file operation directly. An obstructed saved value or unconfirmed-write marker cannot silently default, confirm a write or complete a reset.
+Recovery requires explicit saved-state/evidence inspection and repair, followed by a fresh admitted operation; no automatic deletion, marker clearing or rollback is inferred ([behavioral regressions](../tests/Kora.Application.UnitTests/Configuration/LocalPreferenceStoreTests.cs)).
+
+Atomic writes still use a unique temporary file, durable flush, replacement and cleanup ([store](../src/Kora.Application/Configuration/LocalPreferenceStore.cs)).
+Setting values, formats, admission, requested/terminal audit and independent retention remain unchanged; this storage repair adds no setting, proposal, UI route or enablement ([retention contract](#r12-bounded-session-retention-delivered---2026-10-09)).
+
 ### Implemented existing detail-offer suppression
 
 The bounded `responses.detail-presentation` implementation has only Offer (unsaved legacy/default) and LinkOnly. Native Responses settings and exact original typed/current-name activated commands share inspect/review/confirm/cancel/reset. Set/reset require separate confirmation; reset explicitly saves Offer, not file deletion. This is not a new model setting observation/proposal catalogue ([workflow](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs), [parser](../src/Kora.Application/Configuration/DetailPresentationCommand.cs), [native controls](../src/Kora/SettingsWindow.axaml)).
@@ -129,6 +140,14 @@ readback and durable completed control receipt precede confirmation/activation.
 Unknown/unconfirmed/inaccessible state holds policy and new clock writes.
 Inspect saved state and receipts, explicitly repair, then refresh; ordinary
 refresh cannot clear an unconfirmed marker or claim rollback.
+
+Save/Reset owns one operation from initial admission through requested/terminal
+audit, persistence, durable control receipt, exact readback and activation.
+Overlapping Save/Reset or Refresh is explicitly refused without retiring the
+active writer. Audit callbacks cannot refresh a changed saved source into
+authority for the original write; a source conflict requires explicit Refresh
+and a new native decision ([owner](../src/Kora.Application/Configuration/SessionRetentionConfigurationService.cs),
+[regressions](../tests/Kora.Application.UnitTests/Configuration/SessionRetentionConfigurationServiceTests.cs)).
 
 Changes affect only new sessions or subsequent meaningful activity. Existing
 sessions retain their snapshotted archive/deletion intervals and due dates;
@@ -873,6 +892,13 @@ The preference uses the shared atomic store and strict domain parsing. Save/read
 
 Reduced motion and response timeout remain independent registered preferences. Reduced-motion suggestions and undo require native review/confirmation; the [response-timeout interaction](#delivered-registered-response-timeout-proposal) retains its original-channel review and confirmation.
 
+An already protected Active/Unknown call does not block a fresh native review and
+separate local confirmation of an existing appearance suggestion. Original local
+source/native-only restrictions remain; response timeout retains its separate
+original-channel call-policy check. The captured call revision, private host,
+source and preference must still remain current through confirmation. This
+changes no call protection, consent, speech permission or playback.
+
 The reader option is the separately bounded native [source/detail, complete serialized Evidence-page and observed speech-caption content typography contract](Information_Display.md#bounded-native-reader-text-scale): absolute integer percent, default 100, inclusive 75–200. Its original input/host eligibility is rechecked at commit; atomic pending evidence stays held until exact readback and successful audit. A failed terminal receipt does not claim disk rollback and new readers reject unconfirmed evidence. Open Evidence readers and captions retire explicitly when preference evidence becomes unavailable; no chrome or global UI scale is added. Caption labels, pin/display controls, accessible names, geometry, enablement, speech and privacy/call/source lifetimes are unchanged. Existing option formats and migrations are preserved ([workflow](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs), [store](../src/Kora.Application/Configuration/LocalReaderTextScalePreferences.cs)).
 
 Natural exact theme and native reader-scale [aliases](../docs/commands.md#natural-exact-app-theme-and-native-reader-text-scale) reuse this admitted service.
@@ -880,6 +906,28 @@ Relative percentage-point changes read confirmed current state at execution, use
 Typed input and current-name-activated voice carry their original provenance ([parser](../src/Kora.Application/Configuration/NaturalAppearanceCommand.cs), [service](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
 
 ### Delivered bounded installed speech choices (R10)
+
+The separate [confirmed-settings inspection](../docs/setting-inspection.md) now
+includes one typed `speech.voice` observation: the exact confirmed provider and
+optional voice IDs from the existing atomic/legacy selection reader, matching
+the already-observed service selection, provenance and revision. Native review
+shows the complete immutable original question and source before separate
+one-use LocalOnly answer confirmation. Tool-free and explicitly selected
+`settings.list`/`settings.get` modes share this source and currentness boundary
+([observation](../src/Kora.Core/Configuration/SettingInspection/SettingObservation.cs),
+[reader](../src/Kora.Application/Configuration/SettingInspection/SpeechConfigurationService.SettingInspection.cs)).
+
+Confirmed absent storage means `SpeechSelection.Default`: Windows with its
+advertised default-voice policy, not a guessed concrete voice. The read never
+enumerates OS/catalogue metadata, reloads or activates a preference, writes,
+captures, plays, grants permission or enables a profile. Saved intent remains
+inspectable when runtime assets are unavailable; it does not establish installed
+availability, resolved default voice, effective output or qualification.
+Malformed/unconfirmed/changed sources refuse review rather than defaulting.
+Value, provenance and observed service revision changes retire previous reviews;
+privacy/session/original-channel/expiry and exact local disclosure gates remain
+unchanged. Production model qualification remains unavailable; deterministic
+qualified-fake local-answer/native tests prove implementation, not E/Q enablement.
 
 The [retained model-answer bridge](../src/Kora.Application/Configuration/InstalledSpeechVoiceSuggestionReview.cs) also accepts one exact `speech.voice` Set with a user-supplied installed `provider / voice ID`.
 Both conversation sizes and exact typed/activated-voice Review/Confirm/Cancel routes bind the successful source, current catalogue and configuration; fresh original-user confirmation uses the existing atomic pair writer and exact persisted/current readback.
@@ -962,7 +1010,8 @@ completes the read-only question "Why does Kora disappear so quickly, and what
 presence size and movement settings am I using?" through the host-owned
 [confirmed appearance reader](../src/Kora.Application/Configuration/SettingInspection/AppearanceConfigurationService.SettingInspection.cs)
 and [closed review](../src/Kora.Core/Configuration/SettingInspection/SettingInspectionReview.cs).
-The prior seven observations now include eight additional existing registered
+The [complete sixteen-observation source](../src/Kora.Core/Configuration/SettingInspection/SettingInspectionReview.cs)
+includes the typed speech selection alongside eight additional existing registered
 presence preferences: inactivity timeout, size, dot size/density, movement speed,
 speech scaling/amount and reduced motion. Existing domain defaults, units and
 bounds are unchanged; no setting or persistence format is added.
@@ -1871,6 +1920,12 @@ Deterministic [complete-route tests](../tests/Kora.Windows.IntegrationTests/Clip
 **Group permissions by** offers **None** (default), **Artefact type**, or **Artefact scope** (Built-in/Kora/User, not Once/Session/Perpetual). This is a cached projection of the displayed page/rules, not a global scan or whole-group selection. Regrouping retires selection, history and confirmations without writes or reads. New host-issued exact records retain validated optional target metadata; absent legacy/unclassifiable metadata and URI artefact ownership remain Unknown. Missing metadata stays omitted from serialization and does not change legacy authority equality. URI Add/Remove/Clear controls now live in this shared window and retain their original host admission; **Clear all URI rules** never clears exact grants.
 
 Select one exact approval ID, then **Inspect selected exact ID** to reread current immutable metadata. It shows the actual revision, capability/source/skill, binding/content SHA-256 identities, recorded effect classification, scope, original session/generation, creator channel/time, status, count, last use and retained revocation reason. Raw parameters, scripts, bodies, credentials and provider content are not displayed or logged.
+
+The [single and complete selected-batch review panes](../src/Kora/ExactGrantsWindow.axaml) are read-only native text controls. Tab reaches each pane; Ctrl+A selects its displayed metadata locally and Ctrl+Home/End navigates the complete text with scrolling.
+Clipboard transfer and context menus remain blocked. Reading, selecting or navigating text does not confirm revocation; the separate review checkbox and exact revoke button remain mandatory.
+
+Changing the selection, filters, grouping or current private control authority retires the existing review through the [shared grant owner](../src/Kora.Application/Interaction/ExactGrantsViewModel.cs). Replaced review text resets native caret/selection; window closure clears both text values.
+The [headless behavioral checks](../tests/Kora.Windows.IntegrationTests/PermissionGrantsWindowTests.cs) establish deterministic implementation behavior, not installed screen-reader or accessibility qualification.
 
 **Read-only exact inventory filters.** Settings defaults to active Perpetual grants and device URI rules. Session navigation adds only that exact session's Session grants. Explicit **Show retained history** includes terminal records and, only for the selected session, Once records. Native scope/status, canonical ActionId and original-session filters can narrow but never widen that management boundary. Status remains Active outside history; **Clear filters** preserves the current view/history mode. Query digests authenticate the management session/history predicates alongside the existing filters, byte bound and ordinal approval-ID order.
 

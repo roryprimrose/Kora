@@ -25,6 +25,59 @@ namespace Kora.Windows.IntegrationTests.KnowledgeSources;
 public sealed class KnowledgeSourceAnswerWindowTests
 {
     [Fact]
+    public Task ChosenNamedSourceSectionsAreReviewedSeparatelyAndOnlyThoseSectionsReachTheAnswer() =>
+        HeadlessSession.RunAsync(async () =>
+        {
+            using var listener = Listen();
+            using var host = new NativeUxFixtureSession(OwnedStorageFixture.ScratchParent());
+            await host.InitializeAsync();
+            host.Main.BindClipboardOwnershipGate(static () => true);
+            var f = new Fixture(multipleFiles: true);
+            var window = new KnowledgeSourcesWindow(host.Main, f.Manager, answers: f.Workflow);
+            window.Show();
+            window.UpdateLayout();
+            try
+            {
+                await Press(window, "Reload source inventory");
+                window.GetVisualDescendants().OfType<ListBox>().Single(item =>
+                    string.Equals(AutomationProperties.GetName(item), "Explicit named knowledge source selection",
+                        StringComparison.Ordinal)).SelectedIndex = 0;
+                Question(window).Text = "  alpha question?  ";
+                await Press(window, "Review selected named source excerpts for this question");
+                var candidates = window.GetVisualDescendants().OfType<ListBox>().Single(item =>
+                    string.Equals(AutomationProperties.GetName(item), "Choose whole retrieved named-source excerpts; none selected by default",
+                        StringComparison.Ordinal));
+                candidates.SelectedItems!.Cast<LocalFileCitation>().Should().BeEmpty();
+                candidates.Items.Should().HaveCount(2);
+                f.Context.Should().BeNull();
+                candidates.SelectedIndex = 1;
+                await Press(window, "Review only chosen named-source excerpts");
+                Status(window).Text.Should().Contain("User omitted 1 retrieved excerpt").And.Contain("alpha chosen retained")
+                    .And.NotContain("alpha FIRST retained").And.Contain("  alpha question?  ");
+                f.Context.Should().BeNull();
+                candidates.SelectedItems!.Clear();
+                window.GetVisualDescendants().OfType<Button>().Should().NotContain(item =>
+                    item.Content != null && string.Equals(item.Content.ToString(),
+                        "Confirm one private local-only no-tools named-source answer", StringComparison.Ordinal));
+                window.GetVisualDescendants().OfType<Button>().Single(item =>
+                    string.Equals(item.Content?.ToString(), "Review only chosen named-source excerpts", StringComparison.Ordinal))
+                    .IsEnabled.Should().BeFalse();
+                candidates.SelectedIndex = 1;
+                await Press(window, "Review only chosen named-source excerpts");
+                await Press(window, "Confirm one private local-only no-tools named-source answer");
+                f.Context!.UserRequest.Should().Be("  alpha question?  ");
+                f.Context.Evidence.Should().ContainSingle().Which.Content.Should().Be("alpha chosen retained");
+                Status(window).Text.Should().Contain("Succeeded");
+                await Press(window, "Inspect exact answer citation: selected.md, line 1");
+                var preview = window.GetVisualDescendants().OfType<TextBox>().Single(item =>
+                    string.Equals(AutomationProperties.GetName(item), "Exact admitted untrusted text, never executed", StringComparison.Ordinal));
+                preview.Text.Should().Be("alpha chosen retained");
+                f.OriginalReads.Should().Be(0);
+            }
+            finally { await window.StopAsync(); }
+        });
+
+    [Fact]
     public Task NativeReviewSeparateConsentAndCitationUseOnlyExactRetainedSelectedSource() =>
         HeadlessSession.RunAsync(async () =>
         {
@@ -101,15 +154,17 @@ public sealed class KnowledgeSourceAnswerWindowTests
             finally { await window.StopAsync(); }
         });
 
-    [Fact]
-    public Task ClosingPrivateSurfaceCancelsAndJoinsIgnoringModelBeforeDisposalWithoutLateResult() =>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task ClosingPrivateSurfaceCancelsAndJoinsIgnoringModelBeforeDisposalWithoutLateResult(bool chosen) =>
         HeadlessSession.RunAsync(async () =>
         {
             using var listener = Listen();
             using var host = new NativeUxFixtureSession(OwnedStorageFixture.ScratchParent());
             await host.InitializeAsync();
             host.Main.BindClipboardOwnershipGate(static () => true);
-            var f = new Fixture { Delay = true };
+            var f = new Fixture(multipleFiles: chosen) { Delay = true };
             var window = new KnowledgeSourcesWindow(host.Main, f.Manager, answers: f.Workflow);
             window.Show();
             window.UpdateLayout();
@@ -119,6 +174,13 @@ public sealed class KnowledgeSourceAnswerWindowTests
                 window.GetVisualDescendants().OfType<ListBox>().Single().SelectedIndex = 0;
                 Question(window).Text = "alpha";
                 await Press(window, "Review selected named source excerpts for this question");
+                if (chosen)
+                {
+                    window.GetVisualDescendants().OfType<ListBox>().Single(item =>
+                        string.Equals(AutomationProperties.GetName(item), "Choose whole retrieved named-source excerpts; none selected by default",
+                            StringComparison.Ordinal)).SelectedIndex = 1;
+                    await Press(window, "Review only chosen named-source excerpts");
+                }
                 var work = Press(window, "Confirm one private local-only no-tools named-source answer");
                 await f.Entered.Task.WaitAsync(host.Token);
                 var stop = window.StopAsync();
@@ -168,23 +230,28 @@ public sealed class KnowledgeSourceAnswerWindowTests
         internal readonly TaskCompletionSource Entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal readonly TaskCompletionSource Release = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal readonly TaskCompletionSource Cancelled = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        internal Fixture()
+        internal Fixture(bool multipleFiles = false)
         {
             Sources = Enumerable.Range(0, 2).Select(index =>
             {
                 var path = index == 0 ? @"C:\First" : @"C:\Second";
                 var text = index == 0 ? "alpha FIRST retained" : "alpha SECOND retained";
+                LocalFileMetadata[] files = multipleFiles
+                    ? [new(path + @"\notes.md", "file", Encoding.UTF8.GetByteCount(text), DateTimeOffset.UnixEpoch),
+                        new(path + @"\selected.md", "selected", Encoding.UTF8.GetByteCount("alpha chosen retained"), DateTimeOffset.UnixEpoch)]
+                    : [new(path + @"\notes.md", "file", Encoding.UTF8.GetByteCount(text), DateTimeOffset.UnixEpoch)];
                 var metadata = new KnowledgeSourceMetadata(path, "root", KnowledgeSourceScope.ImmediateFiles,
-                    [new(path, "root")], [new(path + @"\notes.md", "file", Encoding.UTF8.GetByteCount(text), DateTimeOffset.UnixEpoch)]);
+                    [new(path, "root")], files);
                 return new KnowledgeSource(Guid.NewGuid(), 2, index == 0 ? "First" : "Second", metadata,
                     KnowledgeSourceState.Enabled, DateTimeOffset.UnixEpoch, 100);
             }).ToArray();
             revisions = Sources.Select((source, index) =>
             {
                 var review = new KnowledgeSourceReview(Guid.NewGuid(), source.Id, HostRequest.Create(RequestOrigin.LocalUi), source.Folder);
-                return new KnowledgeSourceRevision(review, [new LocalFileRevision(
-                    new(review.ReviewId, review.SourceId, review.Request, source.Folder.Files[0]),
-                    Encoding.UTF8.GetBytes(index == 0 ? "alpha FIRST retained" : "alpha SECOND retained"), DateTimeOffset.UnixEpoch)]);
+                return new KnowledgeSourceRevision(review, source.Folder.Files.Select((file, fileIndex) => new LocalFileRevision(
+                    new(review.ReviewId, review.SourceId, review.Request, file),
+                    Encoding.UTF8.GetBytes(fileIndex == 1 ? "alpha chosen retained"
+                        : index == 0 ? "alpha FIRST retained" : "alpha SECOND retained"), DateTimeOffset.UnixEpoch)).ToArray());
             }).ToArray();
             Manager = new(this, this, this, TimeProvider.System);
             Workflow = new(Manager, new LocalFileLexicalRetrieval(), LocalSourceUsePolicy.Instance, this, this,

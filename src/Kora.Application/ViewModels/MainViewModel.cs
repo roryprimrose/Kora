@@ -441,12 +441,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (clipboardExplanation is not null) { clipboardExplanation.Changed += OnClipboardPreviewChanged; }
         clipboardPreview.Changed += OnClipboardPreviewChanged;
 
-        AsyncCommand CreateCommand(Func<Task> execute, Func<bool>? canExecute = null) =>
+        AsyncCommand CreateCommand(Func<Task> execute, Func<bool>? canExecute = null, Func<bool>? canExecuteWhileExecuting = null) =>
             new(() => Kora.Application.Hosting.HostRequestRunner.RunAsync(
                     HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi, execute),
                 exception => Kora.Application.Hosting.HostRequestRunner.Run(
                     HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi,
-                    () => HandleCommandException(exception)), canExecute);
+                    () => HandleCommandException(exception)), canExecute, canExecuteWhileExecuting);
 
         InitializeSpeechInputConfiguration(speechInputConfiguration, execute => CreateCommand(execute));
         InitializeVoiceCaptureTiming(voiceCaptureTimingConfiguration, execute => CreateCommand(execute));
@@ -645,7 +645,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || Kora.Application.KnowledgeSources.KnowledgeSourceAnswerCommand.Parse(CommandText, AssistantName) is not null
                       || NewRequestOpenCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Core.Interaction.LocalEventCommand.Parse(CommandText, AssistantName) is not null
-                      || ManualCallCommand.Parse(CommandText, AssistantName) is not null));
+                      || ManualCallCommand.Parse(CommandText, AssistantName) is not null),
+            () => Kora.Application.Skills.OwnedSkillAuthoringCommand.Parse(CommandText, AssistantName)?.Operation is "close-use");
         PreviewVoiceCommand = CreateCommand(
             PreviewVoiceAsync,
             () => SelectedVoice is not null && SelectedOutputDevice is not null
@@ -2519,13 +2520,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public void ShowApplication()
     {
-        if (!sessionController.IsCurrentSessionUnlocked() || lifecycleAdmissionClosed)
-        {
-            ApplicationLog.Information(logger, "Denied revealing the application outside an eligible Windows session");
-            return;
-        }
-        Interlocked.Exchange(ref privacyPresentationHeld, 0);
-        OnPropertyChanged(nameof(IsPrivacyPresentationHeld));
+        if (!TryRecoverPrivatePresentation()) { return; }
         if (State == AssistantState.Hidden)
         {
             State = AssistantState.Information;
@@ -2554,7 +2549,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public void ShowPresentation()
     {
-        if (!IsPrivacyPresentationHeld && sessionController.IsCurrentSessionUnlocked())
+        if (CanRevealPrivatePresentation)
         {
             WindowActionRequested?.Invoke(this, WindowAction.Show);
         }
@@ -2579,13 +2574,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public void ShowSettings()
     {
-        if (!sessionController.IsCurrentSessionUnlocked() || lifecycleAdmissionClosed)
-        {
-            ApplicationLog.Information(logger, "Denied opening settings outside an eligible Windows session");
-            return;
-        }
-        Interlocked.Exchange(ref privacyPresentationHeld, 0);
-        OnPropertyChanged(nameof(IsPrivacyPresentationHeld));
+        if (!TryRecoverPrivatePresentation()) { return; }
         SettingsRequested?.Invoke(this, EventArgs.Empty);
     }
 
@@ -2596,7 +2585,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public event EventHandler? SessionsRequested;
 
-    public void ShowSessions() => SessionsRequested?.Invoke(this, EventArgs.Empty);
+    public void ShowSessions()
+    {
+        if (!TryRecoverPrivatePresentation()) { return; }
+        SessionsRequested?.Invoke(this, EventArgs.Empty);
+    }
 
     public string GetGrantDocument()
     {
@@ -4889,6 +4882,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         {
             if (initiator == SecurityAuditInitiator.VoiceCommand
                 && (sessionCommand.IsRetentionCommand || sessionCommand.IsConversationSearch || sessionCommand.IsPendingClear
+                    || sessionCommand.IsPermissionCommand
                     || sessionCommand.IsConversationDispatch
                     || sessionCommand.Operation is SessionCommandOperation.RequestReview or SessionCommandOperation.RequestConfirm
                         or SessionCommandOperation.RequestCancel or SessionCommandOperation.AttachmentInspect)
@@ -4903,7 +4897,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 reviewEligibility ?? CaptureSkillReviewEligibility(manualInput
                     ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision)),
                 HasCurrentNameActivation(spokenText),
-                manualInput?.AssistantNameRevision ?? assistantNameConfiguration.Get().Revision, foregroundTarget);
+                manualInput?.AssistantNameRevision ?? assistantNameConfiguration.Get().Revision, foregroundTarget,
+                sessionCommand.IsPermissionCommand
+                    ? CapturePermissionReviewSource(manualInput
+                        ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision))
+                    : null);
             return;
         }
         if (MemoryCommand.Parse(spokenText, AssistantName) is { } memoryCommand)
@@ -6807,6 +6805,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         OnPropertyChanged(nameof(CanChangeAudioOutputDevice));
         OnPropertyChanged(nameof(AudioOutputConfigurationStatus));
         OnPropertyChanged(nameof(CanChangePlaybackVolume));
+        OnPropertyChanged(nameof(CanChangePlaybackVolumeNative));
         OnPropertyChanged(nameof(CanInspectWindowsSpeechRate));
         OnPropertyChanged(nameof(CanChangeWindowsSpeechRate));
         OnPropertyChanged(nameof(CanInspectWindowsSpeechRateNative));

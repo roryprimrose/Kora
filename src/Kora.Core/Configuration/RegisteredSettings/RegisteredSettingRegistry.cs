@@ -41,6 +41,9 @@ public static class RegisteredSettingRegistry
             "reply speech-start wait for future eligible captures only", "seconds", null, null, true),
         new(RegisteredSetting.TrailingSilence, VoiceCaptureTiming.TrailingSilenceId,
             "trailing silence for future eligible captures only", "seconds", null, null, true),
+        new(RegisteredSetting.QuietHours, "notices.quiet-hours",
+            "future already-consented proactive completion speech only; ordinary requested answers and listening unchanged",
+            "weekly schedule", null, null, true),
     ]);
 
     public static RegisteredSettingDescriptor Get(RegisteredSetting setting) =>

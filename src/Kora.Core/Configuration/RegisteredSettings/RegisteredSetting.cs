@@ -23,4 +23,5 @@ public enum RegisteredSetting
     CommandStartWait,
     ReplyStartWait,
     TrailingSilence,
+    QuietHours,
 }

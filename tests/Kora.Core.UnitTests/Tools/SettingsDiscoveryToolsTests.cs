@@ -104,6 +104,10 @@ public sealed class SettingsDiscoveryToolsTests
             """{"id":"speech.voice"}""").Should().Be(
                 new CapabilityReply(CapabilityOutcome.Unavailable, "setting-value-unavailable"));
         SettingsDiscoveryTools.Read(review.Observations, "settings.reset", "{}").Outcome.Should().Be(CapabilityOutcome.Denied);
+        SettingsDiscoveryTools.HasConfirmedReader(RegisteredSetting.QuietHours).Should().BeFalse();
+        SettingsDiscoveryTools.Read(review.Observations, SettingsDiscoveryTools.Get,
+            """{"id":"notices.quiet-hours"}""").Should().Be(
+                new CapabilityReply(CapabilityOutcome.Unavailable, "setting-value-unavailable"));
         SettingsDiscoveryTools.Read(review.Observations, SettingsDiscoveryTools.List, """{"offset":999}""")
             .Reason.Should().Be("page-out-of-range");
     }

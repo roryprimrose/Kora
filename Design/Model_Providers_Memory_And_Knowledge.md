@@ -609,6 +609,13 @@ The [exact grammar](../src/Kora.Core/Commands/MemoryCommand.cs) provides `memory
   Edit clears review and returns to Proposed/Pending, immediately redacting the earlier durable body. Disable closes use; re-enabling requires edit, inspect, review and admit. Forget retains a content-free non-reusable tombstone, not a claim of forensic erasure.
 - [Session observation](../src/Kora.Application/Memory/MemoryAdmissionService.Observation.cs) and each mutation revalidate exact active session/generation, ownership, privacy/control revision, cancellation and lifecycle.
   Lifecycle, disposition, retention and privacy closure revoke cached inspection/presentation. Invalid persisted state propagates `InvalidDataException`, never an empty successful inventory or cached-body fallback.
+  Each authoritative action transaction also evicts missing durable cached records before
+  evaluating use or mutation, including a withdrawal after inspection. A missing record
+  returns `NotFound/Missing` without content, use or replacement; exact-record batch
+  actions retain their revision-conflict fence. Never-persisted proposals alone remain
+  volatile and can still complete separate review/admission. Session and Device-profile
+  routes share this rule; no lifetime, recall or disclosure authority is added
+  ([transaction regressions](../tests/Kora.Application.UnitTests/Memory/MemoryAdmissionServiceTests.MissingDurable.cs)).
 - [Typed/activated routing](../src/Kora.Application/ViewModels/MainViewModel.Memory.cs) is visual-only and precedes inference; inspected values are not spoken, attached to history or sent to a provider.
   Model/HostSystem and completed host callbacks cannot relabel themselves as fresh original input. Failed receipts explicitly require inspecting durable state; no rollback or automatic retry is claimed.
 

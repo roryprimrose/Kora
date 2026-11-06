@@ -200,6 +200,7 @@ internal sealed partial class MemoryAdmissionService(
         {
             lock (stateGate)
             {
+                RemoveMissingDurableRecords(rows, boundary);
                 foreach (var row in rows)
                 {
                     // Keep an unpersisted edit/review only while its exact redacted disk revision still matches.

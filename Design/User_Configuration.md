@@ -130,6 +130,14 @@ Unknown/unconfirmed/inaccessible state holds policy and new clock writes.
 Inspect saved state and receipts, explicitly repair, then refresh; ordinary
 refresh cannot clear an unconfirmed marker or claim rollback.
 
+Save/Reset owns one operation from initial admission through requested/terminal
+audit, persistence, durable control receipt, exact readback and activation.
+Overlapping Save/Reset or Refresh is explicitly refused without retiring the
+active writer. Audit callbacks cannot refresh a changed saved source into
+authority for the original write; a source conflict requires explicit Refresh
+and a new native decision ([owner](../src/Kora.Application/Configuration/SessionRetentionConfigurationService.cs),
+[regressions](../tests/Kora.Application.UnitTests/Configuration/SessionRetentionConfigurationServiceTests.cs)).
+
 Changes affect only new sessions or subsequent meaningful activity. Existing
 sessions retain their snapshotted archive/deletion intervals and due dates;
 shortening or resetting never silently applies an immediate purge on a later
@@ -873,6 +881,13 @@ The preference uses the shared atomic store and strict domain parsing. Save/read
 
 Reduced motion and response timeout remain independent registered preferences. Reduced-motion suggestions and undo require native review/confirmation; the [response-timeout interaction](#delivered-registered-response-timeout-proposal) retains its original-channel review and confirmation.
 
+An already protected Active/Unknown call does not block a fresh native review and
+separate local confirmation of an existing appearance suggestion. Original local
+source/native-only restrictions remain; response timeout retains its separate
+original-channel call-policy check. The captured call revision, private host,
+source and preference must still remain current through confirmation. This
+changes no call protection, consent, speech permission or playback.
+
 The reader option is the separately bounded native [source/detail, complete serialized Evidence-page and observed speech-caption content typography contract](Information_Display.md#bounded-native-reader-text-scale): absolute integer percent, default 100, inclusive 75–200. Its original input/host eligibility is rechecked at commit; atomic pending evidence stays held until exact readback and successful audit. A failed terminal receipt does not claim disk rollback and new readers reject unconfirmed evidence. Open Evidence readers and captions retire explicitly when preference evidence becomes unavailable; no chrome or global UI scale is added. Caption labels, pin/display controls, accessible names, geometry, enablement, speech and privacy/call/source lifetimes are unchanged. Existing option formats and migrations are preserved ([workflow](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs), [store](../src/Kora.Application/Configuration/LocalReaderTextScalePreferences.cs)).
 
 Natural exact theme and native reader-scale [aliases](../docs/commands.md#natural-exact-app-theme-and-native-reader-text-scale) reuse this admitted service.
@@ -1188,6 +1203,15 @@ Native Settings draft/save/reset and exact typed/ACTIVATED
 `list volume settings`, `get/status speech.playback-volume`,
 `set speech.playback-volume to <0-100>` and `reset speech.playback-volume`
 share the [volume workflow](../src/Kora.Application/Configuration/PlaybackVolumeConfigurationService.cs).
+Native Save, Reset and Refresh require the current visible Settings lifetime.
+Hiding, closing, replacing or disposing that surface retires pending native
+admission; reopening does not revive the old input. A fresh visible action is
+required. The final audited write rechecks this same lifetime. If it changes
+after persistence but before the apply receipt is confirmed, the
+unconfirmed-write hold remains: no rollback, replay,
+automatic retry or successful native receipt is inferred. Exact typed/activated
+voice and separately confirmed retained-model suggestions keep their independent
+original-source admission.
 Exact typed/current-name ACTIVATED `speak louder` / `speak quieter` take a [domain-owned step of up to 10 percentage points](../src/Kora.Core/Configuration/PlaybackVolume.cs#L21).
 They refresh original-channel admission before deriving an exact target from desired state/revision, then use the [existing held proposal and audited apply action](../src/Kora.Application/Configuration/PlaybackVolumeConfigurationService.cs#L86); they never mutate the draft or infer a target through a model.
 The [result orchestration](../src/Kora.Application/ViewModels/MainViewModel.PlaybackVolume.cs#L76) explicitly reports a final shorter step reaching 0/100, or unchanged if already there.
@@ -1310,6 +1334,8 @@ every setting currently implemented by the host. All open settings surfaces
 observe the same live state: mouse and validated verbal mutations publish the
 same change notifications, so neither surface requires reopening or polling to
 show the new effective value.
+
+The existing compound `notices.quiet-hours` also accepts one exact inert retained-answer proposal: Off, a full weekly ordered days/start/end/explicit installed zone schedule, or Reset to unsaved Off. The host resolves the strong schedule type and reads actual current saved/effective intent for full old/new/default review. Separate current native confirmation calls the existing quiet-hours configuration service and requires committed audit and exact atomic preference readback. Model advice is not original UI input and never confirms itself; source/session/expiry, native lifetime, ownership/privacy/call/control and consent drift retire the review. No confirmed compound `settings.get` reader is added; discovery truthfully reports value unavailable. The change constrains future already-consented completion speech only, never listening, ordinary answers, consent or in-flight output ([owning contract](Proactive_Interaction.md#scheduled-proactive-speech-quiet-hours), [interaction](../docs/setting-proposals.md)).
 
 Bounded R15 now supplies run-scoped manual call controls and truthful automatic
 availability in **Settings > Calls**, outside the future generic settings/tool

@@ -252,6 +252,17 @@ conversation. PTT enters command capture without requiring a wake name.
 Host-opened replies remain bound to their exact question/revision and cannot
 become general commands or extend ambient transcription.
 
+Explicit PTT owns the original held gesture before awaiting prior prompt,
+dictation, editor-reply or wake cleanup. Releasing the control during that wait
+retires the gesture: cleanup remains joined, but its eventual completion cannot
+open command capture or accept a transcript. Concurrent activation cannot replace
+that pending owner. A fresh deliberate press after confirmed cleanup rechecks
+ordinary consent, device, ownership, privacy and call policy; early release does
+not change saved consent or listening preference. The existing five-second
+native-open deadline remains independent of joined prior-input cleanup.
+The [held-intent regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.PushToTalkPreparation.cs)
+use deterministic capture barriers, not hardware or acoustic qualification.
+
 Explicit command interruption of a retained-answer reading captures the
 foreground session and exact playback at PTT activation, not final recognition.
 The host revalidates that immutable binding and original generation, joins

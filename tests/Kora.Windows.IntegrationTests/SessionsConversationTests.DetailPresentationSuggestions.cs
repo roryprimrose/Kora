@@ -19,6 +19,8 @@ public sealed partial class SessionsConversationTests
 {
     [Theory]
     [InlineData(false, "Offer")]
+    [InlineData(true, "Offer")]
+    [InlineData(false, "LinkOnly")]
     [InlineData(true, "LinkOnly")]
     [InlineData(false, "OpenAutomatically")]
     [InlineData(true, "OpenAutomatically")]
@@ -86,20 +88,33 @@ public sealed partial class SessionsConversationTests
     }
 
     [Theory]
-    [InlineData("cancel")]
-    [InlineData("refresh")]
-    [InlineData("source")]
-    [InlineData("private")]
-    [InlineData("control")]
-    [InlineData("close")]
-    [InlineData("settings")]
-    [InlineData("revision")]
-    [InlineData("hide-reopen")]
-    [InlineData("write-unconfirmed")]
-    [InlineData("cancel-await")]
-    [InlineData("cancel-confirm-await")]
-    [InlineData("voice-laundering")]
-    public async Task DetailsSuggestionRejectsCopiedReplacedAndRevokedNativeSourcesWithoutSuccessfulWrite(string transition)
+    [InlineData(false, "cancel")]
+    [InlineData(true, "cancel")]
+    [InlineData(false, "refresh")]
+    [InlineData(true, "refresh")]
+    [InlineData(false, "source")]
+    [InlineData(true, "source")]
+    [InlineData(false, "private")]
+    [InlineData(true, "private")]
+    [InlineData(false, "control")]
+    [InlineData(true, "control")]
+    [InlineData(false, "close")]
+    [InlineData(true, "close")]
+    [InlineData(false, "settings")]
+    [InlineData(true, "settings")]
+    [InlineData(false, "revision")]
+    [InlineData(true, "revision")]
+    [InlineData(false, "hide-reopen")]
+    [InlineData(true, "hide-reopen")]
+    [InlineData(false, "write-unconfirmed")]
+    [InlineData(true, "write-unconfirmed")]
+    [InlineData(false, "cancel-await")]
+    [InlineData(true, "cancel-await")]
+    [InlineData(false, "cancel-confirm-await")]
+    [InlineData(true, "cancel-confirm-await")]
+    [InlineData(false, "voice-laundering")]
+    [InlineData(true, "voice-laundering")]
+    public async Task DetailsSuggestionRejectsCopiedReplacedAndRevokedNativeSourcesWithoutSuccessfulWrite(bool compact, string transition)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -133,7 +148,7 @@ public sealed partial class SessionsConversationTests
             await model.SubmitConversationAsync();
             var answer = model.ConversationMessages.Single();
             var owner = new SessionsPresentationOwner(model);
-            var window = new SessionsWindow(model, owner);
+            Window window = compact ? new CompactSessionWindow(model, owner) : new SessionsWindow(model, owner);
             window.Show();
             await ActivateOriginalRequestWindow(window);
             try

@@ -12,9 +12,13 @@ using Avalonia.VisualTree;
 using AwesomeAssertions;
 
 using Kora.Application.Infrastructure;
+using Kora.Application.Configuration;
+using Kora.Application.Voice;
 using Kora.Controls;
+using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Providers;
 using Kora.NativeUxFixture;
 
 using Microsoft.Extensions.Logging.Abstractions;
@@ -404,6 +408,155 @@ public sealed class SettingsResetMenuTests
             }
             finally { window.Close(); }
         });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Provider_cog_refreshes_the_selected_service_without_saving_and_requires_separate_field_confirmation(
+        bool available)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            await using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
+            await using var admission = new AudioControlAdmission(fixture.Interactions, fixture.Interactions, new(fixture.Tasks));
+            var preferences = new LocalProviderProfilePreferences(fixture);
+            var original = new ProviderProfileTuple(ProviderService.Claude, new("account"), new(1),
+                new("model"), new("effort"), new("window"));
+            var local = original with { Service = ProviderService.Local };
+            var saved = new ProviderProfilePreferences(ProviderService.Local, [local, original]);
+            preferences.Save(saved);
+            var catalogue = new RefreshCatalogue(fixture.Time, available);
+            var configuration = new ProviderProfileConfigurationService(preferences, catalogue, admission, fixture.Audit, fixture.Time);
+            await fixture.InitializeAsync(null, providerProfileConfiguration: configuration);
+            await configuration.RefreshAsync(RequestOrigin.LocalUi, () => fixture.Access.Open, fixture.Token);
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            fixture.Main.SelectedProviderServiceChoice = fixture.Main.ProviderServiceChoices.Single(choice =>
+                choice.Service == ProviderService.Claude);
+            fixture.Main.SelectedProviderProfileModel = fixture.Main.ProviderProfileModels.Single();
+            var window = new SettingsWindow(fixture.Main);
+            try
+            {
+                window.Show();
+                var tabs = window.FindControl<TabControl>("SettingsTabs")!;
+                tabs.SelectedItem = tabs.Items.OfType<TabItem>().Single(tab => tab.Header is "Providers");
+                window.UpdateLayout();
+                var cog = window.GetVisualDescendants().OfType<SettingActionsButton>().Single(button =>
+                    button.SettingName is "Default service and model");
+                cog.BringIntoView();
+                window.UpdateLayout();
+                using (window.CaptureRenderedFrame()) { }
+                var point = cog.TranslatePoint(new Point(16, 16), window)
+                    ?? throw new InvalidOperationException("The provider cog is not attached to its window.");
+                var hit = window.InputHitTest(point) as Visual
+                    ?? throw new InvalidOperationException("The provider cog has no rendered pointer target.");
+                hit.GetSelfAndVisualAncestors().Should().Contain(cog);
+                window.MouseDown(point, MouseButton.Left);
+                window.MouseUp(point, MouseButton.Left);
+                window.UpdateLayout();
+                var flyout = (MenuFlyout)cog.Flyout!;
+                flyout.IsOpen.Should().BeTrue();
+                var items = flyout.Items.OfType<MenuItem>().ToArray();
+                items.Select(item => item.Header).Should().Equal(
+                    "Refresh", "Reset default service", "Clear model settings for this service");
+                var refresh = items[0];
+                refresh.Command.Should().BeSameAs(fixture.Main.RefreshProviderProfileCommand);
+                ControlAutomationPeer.CreatePeerForElement(refresh)!.GetName().Should().Be("Refresh services and models");
+                preferences.Load()!.Serialize().Should().Be(saved.Serialize());
+                var operation = ((AsyncCommand)refresh.Command!).ExecuteAsync();
+                await catalogue.Started.Task;
+                catalogue.RefreshedService.Should().Be(ProviderService.Claude);
+                fixture.Main.CanChangeProviderProfile.Should().BeFalse();
+                cog.IsEffectivelyEnabled.Should().BeFalse();
+                refresh.IsEffectivelyEnabled.Should().BeFalse();
+                await ((AsyncCommand)refresh.Command!).ExecuteAsync();
+                catalogue.RefreshCount.Should().Be(1);
+                catalogue.Release.SetResult();
+                await operation;
+                window.UpdateLayout();
+                cog.IsEffectivelyEnabled.Should().BeTrue();
+                refresh.IsEffectivelyEnabled.Should().BeTrue();
+                preferences.Load()!.Serialize().Should().Be(saved.Serialize());
+                fixture.Main.SelectedProviderProfileModel.Should().BeNull();
+                fixture.Main.CanSaveProviderProfile.Should().BeFalse();
+                fixture.Main.CanConfirmProviderField.Should().BeFalse();
+                fixture.Main.ResponseBody.Should().Contain("Observed; no execution authority").And.Contain("\"refreshedService\":\"Claude\"");
+                flyout.Hide();
+                fixture.Main.SelectedProviderServiceChoice = fixture.Main.ProviderServiceChoices.Single(choice =>
+                    choice.Service == ProviderService.Claude);
+                if (!available)
+                {
+                    fixture.Main.ProviderProfileModels.Should().BeEmpty();
+                    fixture.Main.ProviderSelectedServiceStatus.Should().Contain("No current models are available");
+                    fixture.Main.CanReviewProviderModel.Should().BeFalse();
+                    return;
+                }
+
+                fixture.Main.ProviderProfileModels.Select(model => model.Id.Value).Should().Equal("model", "model-next");
+                fixture.Main.SelectedProviderProfileModel = fixture.Main.ProviderProfileModels.Single(model => model.Id.Value is "model-next");
+                var review = window.GetVisualDescendants().OfType<Button>().Single(button =>
+                    ReferenceEquals(button.Command, fixture.Main.ReviewProviderModelCommand));
+                await ((AsyncCommand)review.Command!).ExecuteAsync();
+                fixture.Main.ProviderFieldPreviewStatus.Should().Contain("Nothing is saved until you confirm").And.Contain("model-next");
+                preferences.Load()!.Serialize().Should().Be(saved.Serialize());
+                var confirm = window.GetVisualDescendants().OfType<Button>().Single(button =>
+                    ReferenceEquals(button.Command, fixture.Main.ConfirmProviderFieldCommand));
+                confirm.IsEffectivelyEnabled.Should().BeTrue();
+                await ((AsyncCommand)confirm.Command!).ExecuteAsync();
+                preferences.Load()!.Service.Should().Be(ProviderService.Local);
+                preferences.Load()!.For(ProviderService.Local).Should().Be(local);
+                preferences.Load()!.For(ProviderService.Claude).Should().Be(original with { Model = new("model-next") });
+                fixture.Main.ResponseBody.Should().Contain("Desired configuration saved only");
+                fixture.Main.CanConfirmProviderField.Should().BeFalse();
+            }
+            finally
+            {
+                catalogue.Release.TrySetResult();
+                window.Close();
+            }
+        });
+    }
+
+    private sealed class RefreshCatalogue(TimeProvider time, bool available) : IProviderCapabilityCatalogue, IProviderCapabilityRefresh
+    {
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public ProviderService? RefreshedService { get; private set; }
+        public int RefreshCount { get; private set; }
+
+        public Task<ProviderCatalogueObservation> ObserveAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(Observe(refreshed: RefreshCount > 0 && Release.Task.IsCompleted));
+        }
+
+        public async Task<ProviderCatalogueObservation> RefreshAsync(ProviderService service, Func<bool> admitted, CancellationToken token)
+        {
+            RefreshCount++;
+            RefreshedService = service;
+            admitted().Should().BeTrue();
+            Started.SetResult();
+            await Release.Task.WaitAsync(token);
+            admitted().Should().BeTrue();
+            return Observe(refreshed: true);
+        }
+
+        private ProviderCatalogueObservation Observe(bool refreshed) =>
+            new(LocalProviderInstallation.Installed, Enum.GetValues<ProviderService>()
+                .Where(service => service != ProviderService.Unset).Select(service =>
+                {
+                    var current = service is ProviderService.Local
+                        || service is ProviderService.Claude && (!refreshed || available);
+                    string[] ids = refreshed && service is ProviderService.Claude ? ["model", "model-next"] : ["model"];
+                    return new ProviderCapabilityCatalogue(service,
+                        current ? ProviderCatalogueStatus.Current : ProviderCatalogueStatus.Unavailable,
+                        current ? new("account") : null, new(1), time.GetUtcNow().AddMinutes(-1), time.GetUtcNow().AddMinutes(10),
+                        !current ? [] : ids.Select((id, index) => new ProviderCatalogueModel(new(id), "Inert fake model",
+                            new(service is ProviderService.Local ? ModelProviderIdentity.Ollama : ModelProviderIdentity.Claude,
+                                new(new Guid(index + 1, 0, 0, new byte[8])), new(1)),
+                            [new(new("effort"), "Exact effort", false)],
+                            [new(new("window"), "Exact window", false, 4096)])).ToArray());
+                }).ToArray());
     }
 
     private static XDocument LoadSettings() =>

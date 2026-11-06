@@ -448,6 +448,7 @@ public sealed partial class CustomizationWindowTests
             await f.Main.ToggleListeningCommand.ExecuteAsync();
             f.Main.IsVoiceEnabled.Should().BeFalse();
             var response = new ResponseWindow(f.Main);
+            var pendingEnd = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             try
             {
                 response.Show();
@@ -461,23 +462,42 @@ public sealed partial class CustomizationWindowTests
                 var key = state is "enter" ? Key.Enter : Key.Space;
                 var physical = state is "enter" ? PhysicalKey.Enter : PhysicalKey.Space;
                 var symbol = state is "enter" ? "\r" : " ";
+                using var frame = response.CaptureRenderedFrame();
                 var point = button.TranslatePoint(new Point(2, 2), response)!.Value;
-                if (state is "pointer") { response.MouseDown(point, MouseButton.Left); }
+                if (state is "pointer")
+                {
+                    var hit = response.InputHitTest(point) as Visual;
+                    (ReferenceEquals(hit, button) || hit?.GetVisualAncestors().Contains(button) == true)
+                        .Should().BeTrue($"the PTT button at {point} with bounds {button.Bounds} must be pointer-reachable, not {hit?.GetType().Name}");
+                    response.MouseDown(point, MouseButton.Left);
+                }
                 else { response.KeyPress(key, RawInputModifiers.None, physical, symbol); }
                 await f.Voice.Started.Task.WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
                 f.Main.IsListening.Should().BeTrue();
                 f.Voice.StartCalls.Should().Be(1);
                 button.IsEnabled.Should().BeTrue();
+                f.Voice.PendingCommandEnd = pendingEnd;
+                var released = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                f.Main.PropertyChanged += (_, args) =>
+                {
+                    if (args.PropertyName is nameof(f.Main.IsListening) && !f.Main.IsListening)
+                    { released.TrySetResult(); }
+                };
                 if (state is "pointer") { response.MouseUp(point, MouseButton.Left); }
                 else if (state is "focus-loss") { response.FindControl<TextBox>("CommandInput")!.Focus(); }
                 else if (state is "hide") { response.Hide(); }
                 else if (state is "close") { response.Close(); }
                 else { response.KeyRelease(key, RawInputModifiers.None, physical, symbol); }
+                await f.Voice.CommandEndStarted.Task.WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
+                f.Voice.EndCalls.Should().Be(0);
+                f.Voice.IsCaptureQuiescent.Should().BeFalse();
+                pendingEnd.SetResult();
+                await released.Task.WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
                 f.Voice.EndCalls.Should().Be(1);
                 f.Voice.IsCaptureQuiescent.Should().BeTrue();
                 f.Main.IsListening.Should().BeFalse();
             }
-            finally { response.Close(); }
+            finally { pendingEnd.TrySetResult(); response.Close(); }
         });
     }
 

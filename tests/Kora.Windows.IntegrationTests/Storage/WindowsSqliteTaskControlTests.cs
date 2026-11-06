@@ -13,6 +13,54 @@ namespace Kora.Windows.IntegrationTests.Storage;
 public sealed class WindowsSqliteTaskControlTests
 {
     [Theory]
+    [InlineData(RequestOrigin.LocalUi, "current")]
+    [InlineData(RequestOrigin.ActivatedVoice, "current")]
+    [InlineData(RequestOrigin.ActivatedVoice, "privacy")]
+    [InlineData(RequestOrigin.ActivatedVoice, "expired")]
+    [InlineData(RequestOrigin.ActivatedVoice, "reopened")]
+    [InlineData(RequestOrigin.ActivatedVoice, "foreign-question")]
+    [InlineData(RequestOrigin.ActivatedVoice, "additional-question")]
+    public async Task Original_version_dispatch_accepts_only_the_current_answer_under_live_authority(RequestOrigin channel, string boundary)
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        var question = await WaitAsync(f);
+        var answer = await f.RunAsync(() => f.Questions.SubmitAsync(question.Key, new(["show"]), channel, f.Token));
+        answer.Outcome.Should().Be(HostInteractionOutcome.Answered);
+        answer.Question!.AnswerChannel.Should().Be(channel);
+        var key = answer.Question.Key;
+        if (boundary is "expired") { f.Time.Now = question.ExpiresAt; }
+        if (boundary is "reopened") { f.Reopen(); }
+        if (boundary is "foreign-question") { key = new(key.Request, new(Guid.NewGuid()), key.Revision); }
+        if (boundary is "additional-question")
+        {
+            await f.RunAsync(() => f.Questions.CreateAsync(f.Request, LocalVersionWait.CreateSpec(),
+                f.Time.Now.AddMinutes(5), f.Token));
+        }
+        var audits = f.Count("security_audit_events");
+        var dispatch = () => f.RunAsync(() => f.Store.AdmitVersionDispatchAsync(key, () => boundary is not "privacy", f.Token));
+        if (boundary is "current")
+        {
+            var admitted = await dispatch();
+            admitted.Request.Should().Be(question.Key.Request);
+            admitted.Request.Origin.Should().Be(RequestOrigin.LocalUi);
+            admitted.State.Should().Be(HostTaskState.DispatchRecorded);
+            f.Count("security_audit_events").Should().Be(audits + 1);
+            await dispatch.Should().ThrowAsync<InvalidOperationException>();
+            (await f.Tasks.ReadTaskAsync(f.Request.TaskId, f.Token)).Should().Be(admitted);
+        }
+        else
+        {
+            await dispatch.Should().ThrowAsync<InvalidOperationException>();
+            (await f.Tasks.ReadTaskAsync(f.Request.TaskId, f.Token))!.State.Should().Be(HostTaskState.IntentRecorded);
+            f.Count("security_audit_events").Should().Be(audits);
+        }
+        (await f.Store.ReadQuestionsAsync(f.Request.SessionId, f.Token)).Single(item => item.Key == answer.Question.Key)
+            .Should().BeEquivalentTo(answer.Question);
+        (await f.Store.ReadGrantsAsync(f.Token)).Should().BeEmpty();
+    }
+
+    [Theory]
     [InlineData(RequestOrigin.LocalUi)]
     [InlineData(RequestOrigin.ActivatedVoice)]
     public async Task Exact_current_wait_cancellation_is_atomic_terminal_reopens_without_replay_and_preserves_other_authority(RequestOrigin origin)

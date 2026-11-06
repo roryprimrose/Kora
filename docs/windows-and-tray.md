@@ -57,6 +57,21 @@ See [native editor commands, bounds and recovery](instruction-editor.md).
 
 ## Authoritative Sessions work
 
+### Optional local model answer about remaining work
+
+In the full or compact conversation, expand **Optional local model answer about this conversation's remaining work**. Enable the optional operation for this private view; it starts off in each new view. The selected conversation is the source. Enter your question and choose a different existing Active idle answer conversation ([native controls](../src/Kora/ManagementAnswerPanel.axaml)).
+
+Choose **Review exact local ledger disclosure**. Read the complete question, policy, body-free work facts, local catalogue selection, destination and retention disclosure. Review alone neither calls a model nor saves a message.
+Choose **Confirm one local answer and retention** once, or **Cancel / clear management review** ([review owner](../src/Kora.Application/Hosting/RemainingWorkManagement.cs)).
+
+Disabling the operation, editing the question/destination, changing the source, closing the view or losing private access retires the review. No submitted message bodies or unsent composer text are read. It cannot change work or approve effects. Source work continues; manual status and stop remain available ([presentation owner](../src/Kora/SessionsViewModel.ManagementAnswer.cs)).
+
+Production management inference is unqualified and unavailable. If a separately qualified local host is provided, the complete input/output are bounded to 32/4 KiB and one attempt has at most fifteen seconds.
+Source observations expire after ten seconds; changed or expired facts refuse an answer. Missing/omitted or diagnostic-queue records require manual status instead ([operation contract](../Design/Work_Management.md#reviewed-local-remaining-work-answer)).
+
+Inspect the reported HOST outcome and actual retained answer in the destination. An unavailable or unconfirmed result is not an answer; do not retry automatically. The evidence is not saved as history, although the retained answer may repeat its metadata.
+No remote fallback, work mutation or provider enablement is introduced ([retained-answer adapter](../src/Kora.Application/Hosting/SessionConversationService.ManagementAnswer.cs)).
+
 ### Stop all submitted work without exiting
 
 Open **All Work**, then deliberately choose **Stop all work…**. Opening,
@@ -273,7 +288,16 @@ The expanded window opens a Details pane beside the conversation and composer;
 it does not open another session-result window or repeat the task.
 Each message link opens that exact original or answer, including earlier results.
 
-Drag the divider to resize both panes. **Hide details** or the reader's Escape
+Drag the divider to resize both panes, or focus it and use the arrow keys.
+**Expand details** gives the result more reading width while keeping the
+conversation and composer visible. **Restore split** returns to the previous
+split, even after adjusting the divider while expanded. These native buttons
+also work with Enter/Space. They keep the same source, selection and Find
+without rereading or rerunning anything, and do not resize the window.
+Hiding, replacing the result or switching sessions discards the temporary
+expansion and keeps the ordinary split.
+
+**Hide details** or the reader's Escape
 closes the content, not the conversation or unsent text. **Show details** restores
 the last explicitly chosen available item after fresh admission, or offers a
 chooser. It is disabled until the selected session has observed available details;

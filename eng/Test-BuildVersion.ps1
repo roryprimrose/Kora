@@ -13,7 +13,7 @@ $rejections = 0
 $binaryChecks = 0
 $buildAttempts = 0
 $restores = 0
-foreach ($name in @('GITHUB_ACTIONS', 'GITHUB_EVENT_NAME', 'GITHUB_REF', 'GITHUB_REPOSITORY', 'GITHUB_SHA')) {
+foreach ($name in @('GITHUB_ACTIONS', 'GITHUB_EVENT_NAME', 'GITHUB_REF', 'GITHUB_REPOSITORY', 'GITHUB_SHA', 'KORA_MAIN_BUILD_PROFILE')) {
     $saved[$name] = [Environment]::GetEnvironmentVariable($name)
     [Environment]::SetEnvironmentVariable($name, $null)
 }
@@ -112,6 +112,13 @@ try {
     $env:GITHUB_SHA = & git -C $fixture rev-parse HEAD
     $mainCi = Resolve
     Assert ($mainCi.Version -eq $third.Version -and $mainCi.Prerelease -and $mainCi.Publish) 'Main CI did not publish the same beta version.'
+    $env:GITHUB_EVENT_NAME = 'schedule'
+    Assert (-not (Resolve).Publish) 'An unconfigured schedule must not publish.'
+    $env:KORA_MAIN_BUILD_PROFILE = 'hourly-v1'
+    Assert ((Resolve).Publish) 'The admitted hourly main schedule must preserve beta publication.'
+    $env:KORA_MAIN_BUILD_PROFILE = 'unknown'
+    Reject { Resolve } 'Unknown main build profile.'
+    $env:KORA_MAIN_BUILD_PROFILE = $null
     $env:GITHUB_ACTIONS = $null
     Invoke-FixtureGit -Arguments @('tag', 'v0.1.0')
     $stable = Resolve

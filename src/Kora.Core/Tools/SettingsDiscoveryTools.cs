@@ -4,7 +4,7 @@ using Kora.Core.Configuration.SettingInspection;
 
 namespace Kora.Core.Tools;
 
-/// <summary>Read-only registered metadata and reviewed scalars, never an arbitrary configuration reader.</summary>
+/// <summary>Read-only registered metadata and reviewed values, never an arbitrary configuration reader.</summary>
 public static class SettingsDiscoveryTools
 {
     public const string List = "settings.list";

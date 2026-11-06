@@ -19,6 +19,7 @@ public sealed record ExactGrantHistoryPage(
         + "Creation time, last use and count are stored metadata, not missing use rows or exhaustive retained history. "
         + "Unlinked review/failed attempts and diagnostic mirrors are unavailable in this exact-ID history. "
         + "Expired-but-present is a retained deadline, not physical removal. Gaps/retention and execution/applicability remain unknown. "
+        + "Verified expired prefixes may have been pruned; audits required by retained authority remain held. "
         + "Observed finite snapshot; not forensic or tamperproof evidence. No replay, export or new authority. "
         + "Audit correlation and approval IDs are committed correlation metadata only, not identity or execution authority. "
         + "Request session/request/task IDs match only the committed envelope, not the current viewer or original grant proposal; no session selection. "

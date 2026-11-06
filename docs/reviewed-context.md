@@ -36,6 +36,13 @@ The advisory itself is not included as evidence. Your unrelated unsent composer
 is neither used nor changed. The complete envelope still has the shared
 16-item / 32768-UTF-8-byte limit; nothing is truncated.
 
+Use Tab to reach the complete read-only review between **Review** and
+**Confirm**. Arrow keys and Ctrl+Home / Ctrl+End navigate the full text, including
+sources longer than the viewport; native accessibility exposes its complete
+read-only value. Tab leaves the reader. Selection remains local: copy, cut,
+paste and context menus are unavailable. Reading or selecting text never
+confirms. Cancel or Escape closes the review without submitting.
+
 Separately choose **Confirm ONE local-only tool-free answer**. This consumes one
 source-bound confirmation and submits the host's byte-exact original question in
 the same Active conversation, preserving LocalUi or ActivatedVoice origin.

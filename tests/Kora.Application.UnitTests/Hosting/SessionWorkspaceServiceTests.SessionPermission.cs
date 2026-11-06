@@ -48,18 +48,26 @@ public sealed partial class SessionWorkspaceServiceTests
         f.TaskWrites.Should().BeEmpty();
     }
 
-    private sealed class PermissionFixture : Fixture, ISessionPermissionStore
+    private sealed partial class PermissionFixture : Fixture, ISessionPermissionStore
     {
-        internal SessionPermissionPolicy? Saved { get; private set; }
-        public ValueTask<SessionPermissionPolicy> ReadSessionPermissionAsync(HostId<SessionIdentity> session, CancellationToken token) =>
-            ValueTask.FromResult(Saved ?? SessionPermissionPolicy.Default(Session));
+        internal SessionPermissionPolicy? Saved { get; set; }
+        public async ValueTask<SessionPermissionPolicy> ReadSessionPermissionAsync(HostId<SessionIdentity> session, CancellationToken token)
+        {
+            if (BeforePermissionRead is { } read) { await read(); }
+            return Saved ?? SessionPermissionPolicy.Default(Session);
+        }
 
         public ValueTask<SessionPermissionPolicy> SetSessionPermissionAsync(HostRequest request, SessionPermissionPolicy expected,
             SessionPermissionLevel desired, Func<bool> admitted, CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
-            if (!admitted() || request.SessionId != expected.SessionId || request.Origin != RequestOrigin.LocalUi)
-            { throw new InvalidOperationException("Exact private native admission is required."); }
+            BeforePermissionWrite?.Invoke();
+            if (PermissionWriteFailure is { } failure) { throw failure; }
+            if (!admitted() || request.SessionId != expected.SessionId
+                || request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
+                || !Session.IsActive || expected != (Saved ?? SessionPermissionPolicy.Default(Session)))
+            { throw new InvalidOperationException("Exact private original-user admission is required."); }
+            PermissionWrites++;
             Saved = expected with { Level = desired, Revision = new(expected.Revision.Value + 1) };
             return ValueTask.FromResult(Saved);
         }

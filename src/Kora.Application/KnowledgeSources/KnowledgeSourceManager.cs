@@ -203,17 +203,26 @@ public sealed partial class KnowledgeSourceManager(
         Enter(eligible);
         try
         {
-            var now = time.GetUtcNow();
-            if (reviewedAt > now || now - reviewedAt >= TimeSpan.FromMinutes(2))
-            { throw new InvalidOperationException("Removal inventory review expired; inspect the current inventory again."); }
+            var host = HostActivity.RequireCurrent();
+            bool Current() => eligible() && host.Outcome == HostOperationOutcome.Unknown;
+            CheckRemovalReview(reviewedAt, Current, cancellationToken);
             await RevokeAnswerUsesAsync().ConfigureAwait(false);
             await Audited("remove", async () =>
             {
+                CheckRemovalReview(reviewedAt, Current, cancellationToken);
                 await store.RemoveAsync(exact, cancellationToken).ConfigureAwait(false);
                 return true;
             }).ConfigureAwait(false);
         }
         finally { Volatile.Write(ref busy, 0); }
+    }
+
+    private void CheckRemovalReview(DateTimeOffset reviewedAt, Func<bool> eligible, CancellationToken cancellationToken)
+    {
+        Check(eligible, cancellationToken);
+        var now = time.GetUtcNow();
+        if (reviewedAt > now || now - reviewedAt >= TimeSpan.FromMinutes(2))
+        { throw new InvalidOperationException("Removal inventory review expired; inspect the current inventory again."); }
     }
 
     private async Task<T> Audited<T>(string operation, Func<Task<T>> action)

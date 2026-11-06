@@ -25,7 +25,8 @@ internal sealed partial class SessionsWindowController(
     Kora.Application.Dependencies.VerifiedLocalHandoffOperation? localHandoff = null,
     SessionRetentionApplyService? retentionApply = null,
     ExactAnswerExportWindowController? answerExports = null,
-    Kora.Application.Configuration.DetailPresentationConfigurationService? detailPresentation = null) : IDisposable, ISessionDispositionReviewPresenter,
+    Kora.Application.Configuration.DetailPresentationConfigurationService? detailPresentation = null,
+    RemainingWorkManagement? workManagement = null) : IDisposable, ISessionDispositionReviewPresenter,
     ISessionQueueCancellationReviewPresenter
 {
     private SessionsWindow? window;
@@ -447,7 +448,7 @@ internal sealed partial class SessionsWindowController(
             answerReads: new SessionAnswerReadWorkflow(service, main),
             reviewPlaybackVolumeSuggestion: main.ReviewPlaybackVolumeSuggestionAsync,
             confirmPlaybackVolumeSuggestion: (review, token) => main.ConfirmPlaybackVolumeSuggestionAsync(review, token),
-            localHandoff: localHandoff, retentionApply: retentionApply);
+            localHandoff: localHandoff, retentionApply: retentionApply, workManagement: workManagement);
         if (detailPresentation is not null) { model.BindDetailPresentation(detailPresentation); }
         model.BindDictation(main.ComposerDictation);
         model.ExportExactAnswer = async (source, admitted, resolve, token) =>

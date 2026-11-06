@@ -18,6 +18,7 @@ public sealed class WindowsOwnedInstructionStore : IOwnedInstructionStore, IOwne
     internal Action? AfterFinalComparison { get => files.AfterFinalComparison; set => files.AfterFinalComparison = value; }
     internal Action? AfterPublication { get => files.AfterPublication; set => files.AfterPublication = value; }
     internal Action<OwnedInstructionRenamePhase>? AfterRenamePhase { get => files.AfterRenamePhase; set => files.AfterRenamePhase = value; }
+    internal Action? BeforeRenameStagingFlush { get => files.BeforeRenameStagingFlush; set => files.BeforeRenameStagingFlush = value; }
     internal Func<SafeFileHandle, uint> RenameDirectoryFlags { get => files.RenameDirectoryFlags; set => files.RenameDirectoryFlags = value; }
     public Task<OwnedInstructionSnapshot> Rename(OwnedInstructionRename proposal, Func<bool> eligible,
         Func<Func<OwnedInstructionSnapshot>, Task<OwnedInstructionSnapshot>> commit, CancellationToken token) =>

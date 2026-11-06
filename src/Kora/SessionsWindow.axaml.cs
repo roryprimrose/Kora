@@ -13,6 +13,7 @@ internal sealed partial class SessionsWindow : Window
     internal Task ConversationNoticeOperation { get; private set; } = Task.CompletedTask;
     internal Task StopAndDeleteOperation { get; private set; } = Task.CompletedTask;
     internal Task MemoryBatchOperation { get; private set; } = Task.CompletedTask;
+    internal Task MemoryOperation { get; private set; } = Task.CompletedTask;
     internal Task SessionMemoryCopyOperation { get; private set; } = Task.CompletedTask;
     internal void ClosePrivate()
     {
@@ -240,7 +241,7 @@ internal sealed partial class SessionsWindow : Window
         ReviewStopAndDelete.Click += async (_, _) => await (StopAndDeleteOperation = model.ReviewStopAndDeleteAsync());
         ConfirmStopAndDelete.Click += async (_, _) => await (StopAndDeleteOperation = model.ConfirmStopAndDeleteAsync());
         CancelStopAndDelete.Click += (_, _) => model.CancelStopAndDeleteReview();
-        ListMemories.Click += async (_, _) => await model.ListMemoriesAsync();
+        ListMemories.Click += async (_, _) => await (MemoryOperation = model.ListMemoriesAsync());
         BindMemoryContext(model);
         ProposeMemory.Click += async (_, _) => await model.ProposeMemoryAsync();
         KeepSessionMemory.Click += async (_, _) => await (SessionMemoryCopyOperation = PresentSessionMemoryCopyAsync(model, model.KeepSessionMemoryAsync));
@@ -268,12 +269,12 @@ internal sealed partial class SessionsWindow : Window
         }
         MemoryRecords.SelectionChanged += (_, _) =>
             model.SelectMemory(MemoryRecords.SelectedItem as Kora.Core.Commands.MemorySummary);
-        InspectMemory.Click += async (_, _) => await model.InspectMemoryAsync();
+        InspectMemory.Click += async (_, _) => await (MemoryOperation = PresentMemoryManagementAsync(model, model.InspectMemoryAsync));
         AcceptMemory.Click += async (_, _) => await model.ReviewMemoryAsync(accept: true);
         RejectMemory.Click += async (_, _) => await model.ReviewMemoryAsync(accept: false);
         AdmitMemory.Click += async (_, _) => await model.AdmitMemoryAsync();
         EditMemory.Click += async (_, _) => await model.EditMemoryAsync();
-        DisableMemory.Click += async (_, _) => await model.DisableMemoryAsync();
+        DisableMemory.Click += async (_, _) => await (MemoryOperation = PresentMemoryManagementAsync(model, model.DisableMemoryAsync));
         ForgetMemory.Click += async (_, _) => await model.ForgetMemoryAsync();
         var synchronizingMemoryBatch = false;
         MemoryBatchRecords.SelectionChanged += (_, _) =>

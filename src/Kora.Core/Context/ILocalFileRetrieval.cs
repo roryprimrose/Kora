@@ -17,6 +17,11 @@ public interface ILocalFileRetrieval
         DateTimeOffset observedAt, CancellationToken cancellationToken) =>
         throw new InvalidOperationException("Named-source lexical retrieval is unavailable.");
 
+    /// <summary>Searches only the deliberately selected named revisions with one global result budget.</summary>
+    LocalFileSearchResult Search(IReadOnlyList<Kora.Core.KnowledgeSources.KnowledgeSourceRevision> revisions,
+        string query, DateTimeOffset observedAt, CancellationToken cancellationToken) =>
+        throw new InvalidOperationException("Combined named-source lexical retrieval is unavailable.");
+
     /// <summary>Searches an exact admitted file with an explicitly selected run-only mode.</summary>
     LocalFileSearchResult Search(LocalFileRevision revision, LocalFileReference exactSource, string query,
         LocalFileRetrievalMode mode, DateTimeOffset observedAt, CancellationToken cancellationToken) =>

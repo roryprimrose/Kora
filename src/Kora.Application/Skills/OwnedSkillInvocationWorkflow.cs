@@ -213,11 +213,10 @@ public sealed partial class OwnedSkillInvocationWorkflow(
 
     private void RequireUseAllowed(OwnedDeclarativeSkillSnapshot snapshot)
     {
-        if (snapshot.Document.ReferenceDeclaration is null) { return; }
         if (usePolicy is null)
-        { throw new InvalidOperationException("Owned component use requires the current host exclusion policy."); }
+        { throw new InvalidOperationException("Owned skill use requires the current host exclusion policy."); }
         var root = store.Destination(snapshot.Document);
-        if (snapshot.Document.ReferenceDeclaration.Paths.Prepend("instructions.md").Prepend("manifest.yaml")
+        if ((snapshot.Document.ReferenceDeclaration?.Paths ?? []).Prepend("instructions.md").Prepend("manifest.yaml")
             .Any(relative => usePolicy.IsDisabled(ArtifactUseIdentity.File(Path.Combine(root, relative)))))
         { throw new InvalidOperationException("A selected package component is excluded from Kora use. Review again after independent re-enablement."); }
     }

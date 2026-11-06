@@ -69,6 +69,13 @@ Type **review agent**, or say your current assistant name followed by **review a
 
 Equivalent typed/current-name activated voice controls are **agent source &lt;full path&gt;**, **agent request &lt;original text&gt;**, **agent targets**, **agent next targets**, **agent target &lt;displayed session ID&gt;**, **agent review invocation** (also **agent review references**), **agent consent resolution**, **agent confirm invocation**, and **agent stop**. Resolution consent is not invocation confirmation. Changing input, target or source requires a fresh review. Reviews expire after two minutes and cannot be replayed. Disabling, holding, replacing or losing access to a referenced instruction retires this bundle without changing unrelated captured-answer rules.
 
+The original task keeps its input authority as well as its channel through
+source review, resolution and invocation. Withdrawing voice consent retires a
+voice task; restoring listening or confirming on screen does not renew it.
+Enter a genuinely new native task, or deliberately submit a fresh **agent
+request** command, then review and confirm that new exact invocation separately.
+Refreshing targets or changing the source alone never renews the old task.
+
 If the selected conversation changes while its profile is being read, Kora
 refuses the stale review without running the agent. Refresh the Active
 conversations, select the current target and start a fresh review; Kora does not

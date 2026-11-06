@@ -44,6 +44,8 @@ public static class RegisteredSettingRegistry
         new(RegisteredSetting.QuietHours, "notices.quiet-hours",
             "future already-consented proactive completion speech only; ordinary requested answers and listening unchanged",
             "weekly schedule", null, null, true),
+        new(RegisteredSetting.DetailPresentation, "responses.detail-presentation",
+            "future eligible detail presentation only; no retained answer opening or replay", "mode", null, null, true),
     ]);
 
     public static RegisteredSettingDescriptor Get(RegisteredSetting setting) =>

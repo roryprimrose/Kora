@@ -25,6 +25,59 @@ namespace Kora.Windows.IntegrationTests.KnowledgeSources;
 public sealed class KnowledgeSourceAnswerWindowTests
 {
     [Fact]
+    public Task TwoExplicitRowsHaveOneReviewOneCombinedAnswerAndUnambiguousExactCitationNavigation() =>
+        HeadlessSession.RunAsync(async () =>
+        {
+            using var listener = Listen();
+            using var host = new NativeUxFixtureSession(OwnedStorageFixture.ScratchParent());
+            await host.InitializeAsync();
+            host.Main.BindClipboardOwnershipGate(static () => true);
+            var f = new Fixture();
+            var window = new KnowledgeSourcesWindow(host.Main, f.Manager, answers: f.Workflow);
+            window.Show();
+            window.UpdateLayout();
+            try
+            {
+                await Press(window, "Reload source inventory");
+                var sources = window.GetVisualDescendants().OfType<ListBox>().Single();
+                var selected = sources.SelectedItems!;
+                selected.Cast<KnowledgeSource>().Should().BeEmpty();
+                selected.Add(f.Sources[0]);
+                selected.Add(f.Sources[1]);
+                Question(window).Text = "Compare alpha in First and Second";
+                f.Context.Should().BeNull();
+                await Press(window, "Review selected named source excerpts for this question");
+                Status(window).Text.Should().Contain("First; exact retained revision").And.Contain("Second; exact retained revision")
+                    .And.Contain("alpha FIRST retained").And.Contain("alpha SECOND retained")
+                    .And.Contain("Compare alpha in First and Second").And.Contain("2 citations")
+                    .And.Contain("Private LocalOnly").And.Contain("no tools");
+                f.Context.Should().BeNull();
+                await Press(window, "Confirm one private local-only no-tools named-source answer");
+                f.Context!.Evidence.Should().HaveCount(2);
+                f.Context.Tools.Should().BeEmpty();
+                f.Context.UserRequest.Should().Be("Compare alpha in First and Second");
+                var reads = f.StoreReads;
+                var inspections = f.Inspections;
+                await Press(window, "Inspect exact answer citation: First: notes.md, line 1");
+                var preview = window.GetVisualDescendants().OfType<TextBox>().Single(item =>
+                    string.Equals(AutomationProperties.GetName(item), "Exact admitted untrusted text, never executed", StringComparison.Ordinal));
+                preview.Text.Should().Be("alpha FIRST retained");
+                await Press(window, "Inspect exact answer citation: Second: notes.md, line 1");
+                preview.Text.Should().Be("alpha SECOND retained");
+                preview.SelectionStart.Should().Be(0);
+                preview.SelectionEnd.Should().Be(preview.Text!.Length);
+                f.StoreReads.Should().Be(reads);
+                f.Inspections.Should().Be(inspections);
+                f.OriginalReads.Should().Be(0);
+                selected.Remove(f.Sources[0]);
+                Status(window).Text.Should().BeNull();
+                preview.Text.Should().BeNull();
+            }
+            finally { await window.StopAsync(); }
+            f.Disposals.Should().Be(2);
+        });
+
+    [Fact]
     public Task ChosenNamedSourceSectionsAreReviewedSeparatelyAndOnlyThoseSectionsReachTheAnswer() =>
         HeadlessSession.RunAsync(async () =>
         {

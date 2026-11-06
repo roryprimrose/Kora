@@ -1264,11 +1264,15 @@ The [serializer](../src/Kora/NativeDetailRenderer.Clipboard.cs) consumes the sam
 
 **Copy all** now follows the active view for independently copy-authorized native Markdown: the complete validated semantic text in reading order plus inert HTML from the same document. It includes headings, list markers, code, all header-labelled table cells and visible link destinations, independent of viewport, wrapping or Find ([routing regressions](../tests/Kora.Windows.IntegrationTests/DetailWindowControllerTests.RichCopy.cs)).
 
-The separate **Copy source** always copies every original admitted character, tab and line break as Unicode plain text only, without changing the active view. Copy all in source/plain-text mode or unsupported/unavailable renderer fallback also remains exact plain text. Rendered selections retain escaped preformatted HTML of only the exact selected range ([native embedded-document interaction](../tests/Kora.Windows.IntegrationTests/DetailCopyNativeTests.cs)).
+The separate **Copy source** always copies every original admitted character, tab and line break as Unicode plain text only, without changing the active view. Copy all in source/plain-text mode or unsupported/unavailable renderer fallback also remains exact plain text ([native embedded-document interaction](../tests/Kora.Windows.IntegrationTests/DetailCopyNativeTests.cs)).
+
+**Copy selection** and **Ctrl+C** in the continuous native Markdown reader copy exactly the selected semantic Unicode range plus supported selected formatting as sanitized HTML in one native transfer. An immutable host-built [formatting map](../src/Kora/NativeDetailRenderer.Selection.cs) uses the same validated tree and semantic projection, not source offsets or a second parse. Clipped nested emphasis, headings, lists (including the selected ordered-item ordinal), quotes, code and independently available table cells retain balanced formatting without unselected text, headers, destinations or Kora chrome. Generated semantic list/quote markers and table labels remain selected text, never new authority. Destinations stay inert encoded text; source-mode selections stay exact plain text only.
+
+The existing item/revision/generation, access, privacy and disclosure checks still own selection admission. Empty, stale, revoked, unauthorized or split-Unicode selections perform no transfer. Mapping mismatch or a failed rich write reports failure without retry or plain-only success; selection and immutable source are unchanged ([range regressions](../tests/Kora.Windows.IntegrationTests/NativeClipboardSelectionTests.cs), [controller regressions](../tests/Kora.Windows.IntegrationTests/DetailWindowControllerTests.RichCopy.cs), [native keyboard/button transfer](../tests/Kora.Windows.IntegrationTests/DetailCopyNativeTests.cs)).
 
 The [native adapter](../src/Kora/NativeDetailClipboard.cs) publishes plain text and optional UTF-8 HTML with byte-accurate fragment boundaries as one clipboard transfer. It never reads, clears, flushes or retries a failed rich write as a plain-only success. Existing explicit error notification and content-free logging remain; no persistence/schema/audit change is introduced ([adapter regressions](../tests/Kora.Windows.IntegrationTests/NativeDetailClipboardTests.cs)).
 
-This is bounded implementation evidence, not installed paste-consumer/accessibility or provider qualification. Registered Markdown, rich static HTML/source styling, fully styled rich selections and the broader target representation/interaction contract below remain undelivered; no new content scope or clipboard authority is enabled.
+This is bounded implementation evidence, not installed paste-consumer/accessibility or provider qualification. Registered Markdown, rich static HTML/source styling, rich selections outside this bounded native Markdown subset and the broader target representation/interaction contract below remain undelivered; no renderer/profile, new content scope or clipboard authority is enabled.
 
 #### Target clipboard contract
 
@@ -1637,6 +1641,9 @@ selection does not authorize clipboard transfer, and keyboard, context and
 programmatic TextBox clipboard routes are blocked. Retirement clears private
 text, selection and pending color projections; no editing, disk autosave,
 scripts, network or new grant is introduced.
+
+When parsed code lines are separated by quote/list markers or stripped indentation, the existing reader keeps the complete labelled exact-source fallback rather than presenting those intervening characters as literal code ([regressions](../tests/Kora.Windows.IntegrationTests/FinalDocumentInteractionTests.CodeSource.cs)).
+Contiguous code keeps original line endings and blank lines. Exact-source Find, private retirement and origin-specific clipboard policy are unchanged.
 
 ### Internet Pages
 

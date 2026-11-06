@@ -116,7 +116,7 @@ public sealed partial class MainViewModel
     {
         var origin = OriginalOrigin(initiator);
         var native = detailPresentationNativeLifetime;
-        if (!CanControlDetailPresentation || initiator is not
+        if (!CanControlDetailPresentation || !detailPresentationSuggestionWork.IsCompleted || initiator is not
                 (SecurityAuditInitiator.LocalUser or SecurityAuditInitiator.TypedCommand or SecurityAuditInitiator.VoiceCommand)
             || initiator == SecurityAuditInitiator.LocalUser && !native())
         {

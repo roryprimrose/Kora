@@ -27,7 +27,7 @@ public sealed partial class SessionsConversationTests
             var saved = await store.Publish(document, static () => true, operation => Task.FromResult(operation()), f.Token);
             await using var admission = new OwnedSkillControlAdmission(f.Store, f.Store, new(f.Tasks));
             var use = new OwnedSkillInvocationWorkflow(store, admission, composed.Access, f.Store,
-                composed.Workspace, composed.Conversation, composed.Audit, f.Time);
+                composed.Workspace, composed.Conversation, composed.Audit, f.Time, new MarkdownUsePolicy());
             var authority = new OwnedSkillAuthoringAuthority(RequestOrigin.LocalUi, static () => true);
             using var oldReview = await use.ReviewAsync("example", "1.0.0", authority, static () => true, f.Token);
             await use.EnableAsync(oldReview, authority, static () => true, f.Token);

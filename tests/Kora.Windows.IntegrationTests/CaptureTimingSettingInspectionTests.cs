@@ -45,7 +45,17 @@ public sealed class CaptureTimingSettingInspectionTests
             HostActivityLayer.Desktop, HostOperation.Request);
         var session = await f.Workflow.ReviewAsync(Question, () => true, f.Token, ModelToolMode.SettingsDiscovery);
         session.Review.Question.Should().Be(Question);
-        session.Review.Observations.Should().HaveCount(20).And.OnlyHaveUniqueItems(item => item.Setting);
+        session.Review.Observations.Should().HaveCount(21).And.OnlyHaveUniqueItems(item => item.Setting);
+        var quiet = session.Review.Observations.Single(item => item.Setting == RegisteredSetting.QuietHours);
+        quiet.QuietHours.Should().Be(QuietHoursSchedule.Off);
+        quiet.Value.Should().BeNull();
+        quiet.IsSaved.Should().BeFalse();
+        var expectedTiming = saved ? new VoiceCaptureTiming(7.1234567m, 20.7654321m, 0.5000001m) : VoiceCaptureTiming.Default;
+        var timing = session.Review.Observations.Where(item => item.Setting is RegisteredSetting.CommandStartWait
+            or RegisteredSetting.ReplyStartWait or RegisteredSetting.TrailingSilence).ToArray();
+        timing.Select(item => item.Value).Should().Equal(expectedTiming.CommandStartSeconds,
+            expectedTiming.ReplyStartSeconds, expectedTiming.TrailingSilenceSeconds);
+        timing.Should().OnlyContain(item => item.IsSaved == saved && item.QuietHours == null && item.Selection == null);
         var speech = session.Review.Observations.Single(item => item.Setting == RegisteredSetting.SpeechVoice);
         speech.Selection.Should().Be(savedSpeech ? new("kokoro", "af_heart") : SpeechSelection.Default);
         speech.Value.Should().BeNull();

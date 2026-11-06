@@ -176,6 +176,13 @@ inspection. Later compatible-source review and exact single-use invocation
 retain the canonical local permissioned tool loop, retained answer/unavailable
 terminal and joined cancellation. See the [complete manual operation](../docs/agent-profile-authoring.md#manual-source-and-separate-save).
 
+Selected-source invocation retains the original task's host eligibility across
+later source/reference review and separate confirmation, not only its channel
+label. Voice withdrawal and restoration cannot renew that task through native
+controls. Fresh native task entry or a deliberate new original request captures
+new eligibility and still requires a new complete exact invocation review.
+Source/target navigation alone is not new task authority.
+
 ### Bounded local agent owned-instruction references (v2)
 
 The existing selected-source v1 agent operation remains unchanged, including its

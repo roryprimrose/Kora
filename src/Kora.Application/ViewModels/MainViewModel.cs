@@ -646,7 +646,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || NewRequestOpenCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Core.Interaction.LocalEventCommand.Parse(CommandText, AssistantName) is not null
                       || ManualCallCommand.Parse(CommandText, AssistantName) is not null),
-            () => Kora.Application.Skills.OwnedSkillAuthoringCommand.Parse(CommandText, AssistantName)?.Operation is "close-use");
+            () => Kora.Application.Skills.OwnedSkillAuthoringCommand.Parse(CommandText, AssistantName)?.Operation is "close-use"
+                  || CallSpeechCommand.Parse(CommandText, AssistantName)?.Operation == CallSpeechOperation.Cancel);
         PreviewVoiceCommand = CreateCommand(
             PreviewVoiceAsync,
             () => SelectedVoice is not null && SelectedOutputDevice is not null

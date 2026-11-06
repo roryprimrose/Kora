@@ -1035,6 +1035,33 @@ Mutation remains the separate existing setting-suggestion/native review.
 Inspection performs no preference write, grant, consent change, capture, speech,
 network/export, renderer replacement or run-only presence mutation. Response
 timeout and Windows speech rate remain outside this confirmed-value subset.
+
+### Delivered confirmed capture-timing answer
+
+The same [complete inspection operation](../docs/setting-inspection.md) also
+answers "Why does capture stop or wait, and which command-start, reply-start
+and trailing-silence timings are configured?" The
+[authoritative timing reader](../src/Kora.Application/Configuration/SettingInspection/VoiceCaptureTimingConfigurationService.SettingInspection.cs)
+adds the three existing registered timing preferences to the closed review.
+Absent confirmed storage means defaults of 5, 15 and 1 seconds respectively;
+saved values retain exact decimal seconds and validated domain precision,
+including seven fractional digits. No registration, bounds, defaults or
+persisted format changes.
+
+The host compares saved/default provenance and values with its usable timing
+service at the exact revision. Committing, held, malformed, unconfirmed or
+externally changed state blocks the complete source. An observed change and
+return or service reload cannot renew an earlier source. Existing revalidation
+before dispatch, `settings.get` and final publication applies unchanged.
+
+Native review shows the full source, unchanged original question, local
+destination and expiry before separate one-use confirmation, in tool-free or
+explicit settings-discovery mode. Only the original question and genuine final
+answer enter existing retention. Timing preferences are not evidence of active
+capture, acoustic behavior or runtime qualification. This operation never
+writes settings, starts capture/playback, changes listening consent or enables
+a provider. Original channel, privacy, session, expiry, cancellation and
+physical-join boundaries remain authoritative.
 Deterministic implementation tests do not enable or qualify a provider/profile.
 
 ### Delivered bounded spoken summary limits (R10)
@@ -1814,6 +1841,9 @@ Reserved malformed input clarifies without model/approval fallthrough ([grammar]
 
 Review expires after 60 seconds. Changed input, original channel, native visibility/binding, ownership, privacy, call policy, saved intent, installed image or registration requires a fresh review.
 Voice confirmation uses a separate freshly admitted capture; native confirmation cannot relabel a voice review. Pending questions and approvals remain unchanged ([workflow](../src/Kora.Application/Configuration/LogonStartupConfigurationService.cs), [host binding](../src/Kora.Application/ViewModels/MainViewModel.LogonStartup.cs)).
+
+Cancel also retires pending inspection and review completion, and remains effective during separate confirmation. A late result cannot revive cancelled review or publish completed readback; a fresh review and separate confirmation are required ([cancellation regressions](../tests/Kora.Application.UnitTests/Configuration/LogonStartupConfigurationServiceTests.cs)).
+Cancellation after a real write does not undo registration or saved intent. Unconfirmed completion retains the durable hold and explicit inspection/recovery requirement, without rollback or automatic retry ([configuration owner](../src/Kora.Application/Configuration/LogonStartupConfigurationService.cs)).
 
 The [Windows seam](../src/Kora.Windows/Startup/WindowsLogonStartupRegistration.cs) controls the existing MSI-owned HKCU `Kora` Run value only for the exact running current-user MSI installation.
 Developer, older installations lacking install-location metadata, machine-wide, foreign, Windows-disabled and unknown state remain unavailable. Existing unowned entries and Windows approval are never overwritten. Inspect distinguishes last confirmed saved/desired intent, observed registration and unavailable/unconfirmed state.

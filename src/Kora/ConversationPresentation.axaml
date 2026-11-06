@@ -1,6 +1,7 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:Kora">
+    xmlns:local="using:Kora"
+    xmlns:controls="using:Kora.Controls">
   <local:ObservationChoicesConverter x:Key="ObservedResultChoices" />
   <DataTemplate x:Key="ConversationMessageTemplate">
     <StackPanel Spacing="4">
@@ -11,7 +12,7 @@
       <TextBlock Name="OriginalMessageText" Text="{Binding Body}" TextWrapping="Wrap" Focusable="True" />
       <StackPanel IsVisible="{Binding HasAssistantResponse}">
         <TextBlock Text="ASSISTANT - finalized admitted local-model answer (not original USER or effect evidence)" />
-        <TextBlock Name="RetainedAssistantText" Text="{Binding AssistantResponse.Body}" TextWrapping="Wrap" Focusable="True"
+        <controls:NamedTextBlock Name="RetainedAssistantText" Text="{Binding AssistantResponse.Body}" TextWrapping="Wrap" Focusable="True"
             AutomationProperties.Name="Complete finalized retained ASSISTANT text, inert read-only data separate from original USER and typed HOST status" />
         <Button Name="ReplyToAssistantAnswer" Content="_Reply to this answer"
             IsEnabled="{Binding $parent[Window].DataContext.CanReplyToAnswer}"

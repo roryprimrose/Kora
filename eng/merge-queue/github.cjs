@@ -333,14 +333,20 @@ class GitHubQueue {
       current = previous;
     }
     if (current === previous) {
+      let merged;
       try {
-        await this.github.rest.repos.merge({ ...this.repo, base: ref.slice('heads/'.length), head,
-          commit_message: `Merge queue synthetic ${active.ticket} prefix ${index + 1}` });
+        merged = (await this.github.rest.repos.merge({ ...this.repo, base: ref.slice('heads/'.length), head,
+          commit_message: `Merge queue synthetic ${active.ticket} prefix ${index + 1}` })).data;
       } catch (error) {
         if (error.status === 409) return null;
         throw error;
       }
-      current = (await this.github.rest.git.getRef({ ...this.repo, ref })).data.object.sha;
+      if (merged?.sha !== undefined) {
+        invariant(typeof merged.sha === 'string' && SHA.test(merged.sha), 'Incomplete synthetic merge identity.');
+        current = merged.sha;
+      } else {
+        current = (await this.github.rest.git.getRef({ ...this.repo, ref })).data.object.sha;
+      }
     }
     const commit = await this.commitInfo(current);
     invariant(current === head && await this.containsBase(previous, head)

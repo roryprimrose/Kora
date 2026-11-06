@@ -258,6 +258,25 @@ public sealed partial class SessionsConversationTests
                 }
                 scroll.Viewport.Height.Should().BeGreaterThan(100,
                     "exact anchor restoration requires a measurable reader after the narrower composer reflows");
+                var composer = interaction.FindControl<TextBox>("SessionComposer")!;
+                composer.Bounds.Height.Should().BeGreaterThanOrEqualTo(70);
+                var composerTop = composer.TranslatePoint(default, interaction)!.Value.Y;
+                composerTop.Should().BeGreaterThanOrEqualTo(0);
+                (composerTop + composer.Bounds.Height).Should().BeLessThanOrEqualTo(interaction.Bounds.Height);
+                var work = interaction.FindControl<ScrollViewer>("ConversationWorkScroll")!;
+                work.Viewport.Height.Should().BeGreaterThan(0);
+                work.Extent.Height.Should().BeGreaterThan(work.Viewport.Height,
+                    "wrapped work and review controls scroll independently instead of consuming the reader");
+                work.ScrollToEnd();
+                ReadingLayout(window);
+                var guidance = interaction.FindControl<TextBlock>("ConversationWorkGuidance")!;
+                var guidanceTop = guidance.TranslatePoint(default, work)!.Value.Y;
+                guidanceTop.Should().BeGreaterThanOrEqualTo(0);
+                (guidanceTop + guidance.Bounds.Height).Should().BeLessThanOrEqualTo(work.Viewport.Height + 0.1,
+                    "the final work guidance remains reachable in the actual native scroll viewport");
+                reader.Reads.Should().Be(readsBeforeResize,
+                    "hide, resize, composer reflow and scrolling work controls never fetch conversation content");
+                model.ComposerBody.Should().Be("first session unsent");
                 restored = ReadingAnchor(interaction);
                 restored.Message.Should().Be(anchor.Message);
                 restored.Offset.Should().BeApproximately(anchor.Offset, 0.1);

@@ -286,6 +286,12 @@ The App creates ticket-owned `automation/merge-queue-batch/<ticket>/<prefix>`
 refs through GitHub's normal ref/merge APIs. Candidate code never executes with
 the App token. Construction reconciles exact parents after interruption rather
 than forcing refs or blindly repeating a merge with an ambiguous outcome.
+After a successful merge returns a commit SHA, construction verifies that
+immutable commit's exact identity, tree and expected parents instead of
+immediately rereading the mutable ref, which can still report its pre-merge tip.
+A malformed returned SHA fails explicitly. A response without a commit identity
+still requires observed ref ancestry; ambiguous requests retain the existing
+restart checks. No response alone seals a prefix without commit verification.
 
 Construction stops at the first conflict instead of discarding a compatible
 prefix. Before any digest or dispatch exists, the controller seals a **new

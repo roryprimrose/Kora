@@ -425,6 +425,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (providerProfileConfiguration is not null)
         {
             providerProfileConfiguration.Changed += OnProviderProfileConfigurationChanged;
+            providerProfileConfiguration.SuggestionChanged += OnProviderSuggestionChanged;
         }
         if (outputConfiguration is not null)
         {
@@ -533,7 +534,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         RefreshProviderModeCommand = CreateCommand(() => RunNativeProviderModeAsync(AppearanceCommandOperation.Get));
         SaveProviderModeCommand = CreateCommand(() => RunNativeProviderModeAsync(AppearanceCommandOperation.Set));
         ResetProviderModeCommand = CreateCommand(() => RunNativeProviderModeAsync(AppearanceCommandOperation.Reset));
-        RefreshProviderProfileCommand = CreateCommand(() => RunNativeProviderProfileAsync(new(AppearanceCommandOperation.Get)));
+        RefreshProviderProfileCommand = CreateCommand(() => RunNativeProviderProfileAsync(new(AppearanceCommandOperation.Get, Refresh: true)));
+        ReviewProviderSuggestionCommand = CreateCommand(() => RunNativeProviderProfileAsync(new(AppearanceCommandOperation.Get, ReviewSuggestion: true)));
+        DiscardProviderSuggestionCommand = CreateCommand(() => RunNativeProviderProfileAsync(new(AppearanceCommandOperation.Get, DiscardSuggestion: true)));
         SaveProviderServiceCommand = CreateCommand(() => RunNativeProviderProfileAsync(new(AppearanceCommandOperation.Set, Kora.Core.Providers.ProviderService.Unset)));
         ResetProviderServiceCommand = CreateCommand(() => RunNativeProviderProfileAsync(new(AppearanceCommandOperation.Reset)));
         SaveProviderProfileCommand = CreateCommand(() => RunNativeProviderProfileAsync(new(AppearanceCommandOperation.Set)));

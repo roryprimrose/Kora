@@ -91,7 +91,7 @@ internal sealed class ProviderProfileConfigurationFixture : IAsyncDisposable
         }
     }
 
-    internal sealed class ProfileCatalogue : IProviderCapabilityCatalogue
+    internal sealed class ProfileCatalogue : IProviderCapabilityCatalogue, IProviderCapabilityRefresh
     {
         internal LocalProviderInstallation Installation { get; set; } = LocalProviderInstallation.Installed;
         internal ProviderCatalogueStatus Status { get; set; } = ProviderCatalogueStatus.Unavailable;
@@ -101,6 +101,15 @@ internal sealed class ProviderProfileConfigurationFixture : IAsyncDisposable
         internal string Reasoning { get; set; } = "managed-effort";
         internal string Context { get; set; } = "managed-window";
         internal int Calls { get; private set; }
+        internal List<ProviderService> Refreshes { get; } = [];
+        public async Task<ProviderCatalogueObservation> RefreshAsync(ProviderService service, Func<bool> admitted, CancellationToken token)
+        {
+            if (!admitted()) { throw new InvalidOperationException("Refresh admission changed."); }
+            Refreshes.Add(service);
+            var result = await ObserveAsync(token).ConfigureAwait(false);
+            if (!admitted()) { throw new InvalidOperationException("Refresh admission changed."); }
+            return result;
+        }
         internal Func<Task>? BeforeObservation { get; set; }
         internal Action? AfterObservation { get; set; }
         internal DateTimeOffset Expiry { get; set; } = DateTimeOffset.UnixEpoch.AddMinutes(10);

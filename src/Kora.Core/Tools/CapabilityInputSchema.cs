@@ -49,18 +49,57 @@ public static class CapabilityInputSchema
             writer.WriteNumber("maxLength", 32);
             writer.WriteEndObject();
         }
+        else if (descriptor.Input == CapabilityInputShape.ProviderSettings)
+        {
+            writer.WriteStartObject("service");
+            writer.WriteString("type", "string");
+            writer.WriteStartArray("enum");
+            foreach (var service in Enum.GetValues<Providers.ProviderService>())
+            {
+                if (service != Providers.ProviderService.Unset
+                    || string.Equals(descriptor.Id, ProviderSettingsTools.Propose, StringComparison.Ordinal))
+                { writer.WriteStringValue(service.ToString()); }
+            }
+            writer.WriteEndArray();
+            writer.WriteEndObject();
+            if (string.Equals(descriptor.Id, ProviderSettingsTools.Models, StringComparison.Ordinal))
+            {
+                Integer(writer, "offset", 0, int.MaxValue);
+                Integer(writer, "count", 1, descriptor.Limits.MaximumRecords);
+            }
+            if (descriptor.Id is ProviderSettingsTools.Model or ProviderSettingsTools.Propose)
+            {
+                foreach (var field in string.Equals(descriptor.Id, ProviderSettingsTools.Model, StringComparison.Ordinal)
+                    ? new[] { "model" } : ["model", "reasoning", "context", "account"])
+                {
+                    writer.WriteStartObject(field);
+                    writer.WriteString("type", "string");
+                    writer.WriteEndObject();
+                }
+            }
+            if (string.Equals(descriptor.Id, ProviderSettingsTools.Propose, StringComparison.Ordinal))
+            {
+                Integer(writer, "revision", 1, null);
+                writer.WriteStartObject("clearModel");
+                writer.WriteString("type", "boolean");
+                writer.WriteEndObject();
+            }
+        }
         writer.WriteEndObject();
         var required = descriptor.Input switch
         {
             CapabilityInputShape.Id or CapabilityInputShape.RegisteredSettingId => "id",
             CapabilityInputShape.WebPageAddress => "address",
             CapabilityInputShape.MetadataReference => "ref",
+            CapabilityInputShape.ProviderSettings => "service",
             _ => null,
         };
         if (required is not null || includeEmptyRequired)
         {
             writer.WriteStartArray("required");
             if (required is not null) { writer.WriteStringValue(required); }
+            if (string.Equals(descriptor.Id, ProviderSettingsTools.Model, StringComparison.Ordinal))
+            { writer.WriteStringValue("model"); }
             writer.WriteEndArray();
         }
         writer.WriteEndObject();

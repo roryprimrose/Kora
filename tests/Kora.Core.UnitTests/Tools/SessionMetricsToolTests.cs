@@ -22,6 +22,7 @@ public sealed class SessionMetricsToolTests
     [InlineData("Sessions")]
     [InlineData("Customizations")]
     [InlineData("Settings")]
+    [InlineData("ProviderSettings")]
     public void RejectsMixedResultShapesBeforeTheyCanBeUsed(string extra)
     {
         var node = JsonSerializer.SerializeToNode(new CapabilityReply(CapabilityOutcome.Succeeded, "observed", SessionMetrics: Empty))!;
@@ -79,6 +80,7 @@ public sealed class SessionMetricsToolTests
             good with { Sessions = new([], 0, null) },
             good with { Customizations = new([], 0, null) },
             good with { Settings = new([], 0, null) },
+            good with { ProviderSettings = new() },
         })
         { SessionMetricsTool.Matches(mixed).Should().BeFalse(); }
     }

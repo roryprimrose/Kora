@@ -80,6 +80,42 @@ public sealed class ClaudeAccountBrokerTests : IDisposable
         f.Audits.Select(item => item.ActionId).Should().NotContain(Fixture.Credential);
     }
 
+    [Fact]
+    public async Task VoiceRefreshFetchesANewCompleteModelListWithExistingCredentialAndNoInference()
+    {
+        var f = new Fixture();
+        await using var broker = f.Create();
+        using (HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Windows, HostOperation.Request))
+        { await broker.SignInAsync(Fixture.Credential, () => true, Token); }
+        var before = await broker.ObserveAsync(Token);
+        f.ModelsJson = Fixture.Page([Fixture.Model("model-2")]);
+        using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice), HostActivityLayer.Windows, HostOperation.Request);
+        await broker.RefreshAsync(() => true, Token);
+        var after = await broker.ObserveAsync(Token);
+        after.Models.Should().ContainSingle().Which.Id.Value.Should().Be("model-2");
+        after.Account.Should().Be(before.Account);
+        after.Revision.Value.Should().BeGreaterThan(before.Revision.Value);
+        f.Requests.Should().HaveCount(2).And.OnlyContain(request => string.Equals(request.Method, "GET", StringComparison.Ordinal));
+        f.Audits.Where(item => string.Equals(item.ActionId, "model.claude.catalogue-refresh", StringComparison.Ordinal))
+            .Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+        (await broker.IsProfileCurrentAsync(f.Profile(before), Token)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RefreshWithoutApprovedAccountDoesNotAuthenticateAndFailedRefreshDoesNotReuseOldModels()
+    {
+        var f = new Fixture();
+        await using var broker = f.Create();
+        using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Windows, HostOperation.Request);
+        await broker.RefreshAsync(() => true, Token);
+        f.Requests.Should().BeEmpty();
+        await broker.SignInAsync(Fixture.Credential, () => true, Token);
+        f.ModelsJson = """{"data":[],"has_more":false}""";
+        await Assert.ThrowsAsync<InvalidDataException>(() => broker.RefreshAsync(() => true, Token));
+        (await broker.ObserveAsync(Token)).Models.Should().BeEmpty();
+        broker.IsQuiescent.Should().BeTrue();
+    }
+
     [Theory]
     [InlineData("duplicate")]
     [InlineData("null-limit")]

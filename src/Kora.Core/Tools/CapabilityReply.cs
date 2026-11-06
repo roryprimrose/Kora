@@ -14,4 +14,5 @@ public sealed record CapabilityReply(
     SessionDescriptorPage? Sessions = null,
     CustomizationMetadataPage? Customizations = null,
     RegisteredSettingsResult? Settings = null,
-    Kora.Core.Dependencies.SessionModelMetrics? SessionMetrics = null);
+    Kora.Core.Dependencies.SessionModelMetrics? SessionMetrics = null,
+    ProviderSettingsResult? ProviderSettings = null);

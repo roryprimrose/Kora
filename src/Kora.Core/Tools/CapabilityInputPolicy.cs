@@ -27,6 +27,11 @@ public static class CapabilityInputPolicy
             if (duplicates) { return new("duplicate-input-field"); }
             if (document.RootElement.ValueKind != JsonValueKind.Object) { return new("invalid-input"); }
             var fields = document.RootElement.EnumerateObject().ToArray();
+            if (descriptor.Input == CapabilityInputShape.ProviderSettings)
+            {
+                try { return new(null, ProviderSettings: ProviderSettingsTools.ReadInput(descriptor.Id, document.RootElement)); }
+                catch (InvalidDataException) { return new("invalid-provider-settings-input"); }
+            }
             if (descriptor.Input == CapabilityInputShape.MetadataReference)
             {
                 return fields.Length == 1 && string.Equals(fields[0].Name, "ref", StringComparison.Ordinal)

@@ -24,7 +24,7 @@ public sealed partial class DetailWindowController : IDisposable
     private readonly NativeDetailFormat finalizedMarkdownFormat;
     private readonly StaticHtmlDetailRenderer staticHtmlRenderer;
     private readonly IDetailClipboard clipboard;
-    private readonly Func<DetailViewerState, NativeDocumentResult, Func<bool, int?, int, Task>, IDetailView> createView;
+    private readonly Func<DetailViewerState, NativeDocumentResult, DetailCopy, IDetailView> createView;
     private readonly ILogger<DetailWindowController> logger;
     private readonly DetailViewerRegistry registry = new();
     private readonly Dictionary<DetailContentReference, (DetailViewerState State, IDetailView View, string? ClipboardHtml)> windows = [];
@@ -76,7 +76,7 @@ public sealed partial class DetailWindowController : IDisposable
 
     internal DetailWindowController(
         IUserDocumentationProvider documentation, Func<bool> canAccess, NativeDetailRenderer renderer,
-        IDetailClipboard clipboard, Func<DetailViewerState, NativeDocumentResult, Func<bool, int?, int, Task>, IDetailView> createView,
+        IDetailClipboard clipboard, Func<DetailViewerState, NativeDocumentResult, DetailCopy, IDetailView> createView,
         ILogger<DetailWindowController> logger, StaticHtmlDetailRenderer? staticHtmlRenderer = null,
         NativeDetailFormat finalizedMarkdownFormat = NativeDetailFormat.MarkdownChecklistsV3)
     {
@@ -326,8 +326,8 @@ public sealed partial class DetailWindowController : IDisposable
         IDetailView view;
         try
         {
-            Task Copy(bool confirmed, int? selectionStart, int selectionLength) =>
-                CopyAsync(reference, generation, confirmed, selectionStart, selectionLength);
+            Task Copy(bool confirmed, int? selectionStart, int selectionLength, DetailCopyRepresentation representation) =>
+                CopyAsync(reference, generation, confirmed, selectionStart, selectionLength, representation);
             view = owner is ResponseWindow primary && viewModel is not null
                 && content.Origin is DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant
                     or DetailContentOrigin.RetainedLocalObservation or DetailContentOrigin.RetainedAnswerContext or DetailContentOrigin.SessionHistory or DetailContentOrigin.FinalizedResponse
@@ -427,7 +427,8 @@ public sealed partial class DetailWindowController : IDisposable
     }
 
     internal async Task CopyAsync(DetailContentReference reference, long generation, bool confirmed,
-        int? selectionStart = null, int selectionLength = 0)
+        int? selectionStart = null, int selectionLength = 0,
+        DetailCopyRepresentation representation = DetailCopyRepresentation.ActiveView)
     {
         if (disposed || !windows.TryGetValue(reference, out var entry)) { return; }
         var state = entry.State;
@@ -441,6 +442,12 @@ public sealed partial class DetailWindowController : IDisposable
             state.ReportStatus("Copy blocked: the requested immutable revision or generation is stale.");
             return;
         }
+        if (!Enum.IsDefined(representation)
+            || representation == DetailCopyRepresentation.ExactSource && selectionStart is not null)
+        {
+            state.ReportStatus("Copy blocked: the requested representation is invalid.");
+            return;
+        }
         string? source;
         var accessible = state.Content is { } content && CanAccess(content);
         var allowed = selectionStart is { } start
@@ -449,7 +456,11 @@ public sealed partial class DetailWindowController : IDisposable
         if (!allowed) { return; }
         try
         {
-            var html = !state.IsSource && state.RenderState == DetailRenderState.Rendered
+            var rendered = representation == DetailCopyRepresentation.ActiveView
+                && !state.IsSource && state.RenderState == DetailRenderState.Rendered
+                && state.Content?.Kind == DetailContentKind.Markdown;
+            if (selectionStart is null && rendered) { source = state.ActiveText; }
+            var html = rendered
                 && state.Content?.Kind == DetailContentKind.Markdown && entry.ClipboardHtml is not null
                 ? selectionStart is null ? entry.ClipboardHtml
                     : "<pre>" + System.Net.WebUtility.HtmlEncode(source) + "</pre>"
@@ -465,7 +476,9 @@ public sealed partial class DetailWindowController : IDisposable
             if (state.Generation == generation && state.Content is not null && CanAccess(state.Content))
             {
                 state.ReportStatus(selectionStart is null
-                    ? "Exact source copied as Unicode plain text outside Kora."
+                    ? (rendered && state.Content.Kind == DetailContentKind.Markdown
+                        ? "Complete rendered Markdown copied as semantic Unicode plain text outside Kora."
+                        : "Exact source copied as Unicode plain text outside Kora.")
                         + (html is null ? string.Empty : " Supported Markdown formatting included as sanitized HTML.")
                     : "Selected text copied as Unicode plain text outside Kora."
                         + (html is null ? string.Empty : " Exact selected text also included as inert HTML."));

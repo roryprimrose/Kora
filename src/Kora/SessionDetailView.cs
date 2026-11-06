@@ -16,7 +16,7 @@ internal sealed class SessionDetailView : IDetailView
     public event EventHandler? Closed;
 
     internal SessionDetailView(SessionInteractionView host, DetailViewerState state, NativeDocumentResult result,
-        Func<bool, int?, int, Task> copy, MainViewModel typographyHost)
+        DetailCopy copy, MainViewModel typographyHost)
     {
         this.host = host;
         this.state = state;

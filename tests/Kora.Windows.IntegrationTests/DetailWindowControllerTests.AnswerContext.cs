@@ -39,8 +39,8 @@ public sealed partial class DetailWindowControllerTests
             var result = renderer.Render(content.Source, content.Kind, content.Reference);
             state.CompleteRender(state.Generation, result.SemanticText, result.Status, result.IsFallback).Should().BeTrue();
             independent.CompleteRender(independent.Generation, result.SemanticText, result.Status, result.IsFallback).Should().BeTrue();
-            var reader = new DetailContentView(state, result, (_, _, _) => Task.CompletedTask);
-            var otherReader = new DetailContentView(independent, result, (_, _, _) => Task.CompletedTask);
+            var reader = new DetailContentView(state, result, (_, _, _, _) => Task.CompletedTask);
+            var otherReader = new DetailContentView(independent, result, (_, _, _, _) => Task.CompletedTask);
             try
             {
                 foreach (var view in new[] { reader, otherReader })

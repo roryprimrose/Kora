@@ -34,7 +34,7 @@ public sealed class DetailReaderWrappingTests
         HeadlessSession.RunAsync(() =>
         {
             var state = State(Content("plain"));
-            var window = Window(state, (_, _, _) => throw new InvalidOperationException("No clipboard effect."));
+            var window = Window(state, (_, _, _, _) => throw new InvalidOperationException("No clipboard effect."));
             window.Show();
             try
             {
@@ -82,7 +82,7 @@ public sealed class DetailReaderWrappingTests
             var allowed = true;
             var state = State(content, () => allowed);
             var writes = 0;
-            var window = Window(state, (_, _, _) => { writes++; return Task.CompletedTask; });
+            var window = Window(state, (_, _, _, _) => { writes++; return Task.CompletedTask; });
             window.Show();
             try
             {
@@ -119,7 +119,7 @@ public sealed class DetailReaderWrappingTests
             var content = Content(profile);
             var state = State(content);
             var writes = 0;
-            var window = Window(state, (_, _, _) => { writes++; return Task.CompletedTask; });
+            var window = Window(state, (_, _, _, _) => { writes++; return Task.CompletedTask; });
             window.Show();
             try
             {
@@ -220,7 +220,7 @@ public sealed class DetailReaderWrappingTests
             var allowed = true;
             var state = State(content, () => allowed && ReferenceEquals(content, current));
             var writes = 0;
-            var window = Window(state, (_, _, _) => { writes++; return Task.CompletedTask; });
+            var window = Window(state, (_, _, _, _) => { writes++; return Task.CompletedTask; });
             window.Show();
             var toggle = Required<CheckBox>(window, "WrapTextToggle");
             var reader = Required<TextBox>(window, "ContentReader");
@@ -248,7 +248,7 @@ public sealed class DetailReaderWrappingTests
             window.ClearAndClose();
 
             var freshState = State(content);
-            var fresh = Window(freshState, (_, _, _) => throw new InvalidOperationException("No clipboard effect."));
+            var fresh = Window(freshState, (_, _, _, _) => throw new InvalidOperationException("No clipboard effect."));
             fresh.Show();
             try
             {
@@ -277,7 +277,7 @@ public sealed class DetailReaderWrappingTests
         return state;
     }
 
-    private static DetailWindow Window(DetailViewerState state, Func<bool, int?, int, Task> copy) =>
+    private static DetailWindow Window(DetailViewerState state, DetailCopy copy) =>
         new(state, new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance)
             .Render(state.Content!.Source, state.Content.Kind), copy) { Width = 640, Height = 760 };
 

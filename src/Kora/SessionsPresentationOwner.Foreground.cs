@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 
 using Avalonia;
 using Avalonia.Controls;
@@ -17,6 +17,7 @@ internal sealed partial class SessionsPresentationOwner
     private ForegroundConversationTarget? foregroundTarget;
     private Window? foregroundSurface;
     private long foregroundSourceRevision;
+    private int uniqueForegroundWindow;
     private SessionRoutingPresentationLease? routingPresentation;
 
     internal SessionRoutingPresentationLease? RetainRoutingPresentation()
@@ -31,7 +32,7 @@ internal sealed partial class SessionsPresentationOwner
         });
     }
 
-    internal bool HasUniqueForegroundWindow => UniqueForegroundSurface(conversationRequired: false) is not null;
+    internal bool HasUniqueForegroundWindow => Volatile.Read(ref uniqueForegroundWindow) != 0;
     internal Func<bool> CaptureForegroundSourceEligibility()
     {
         var source = UniqueForegroundSurface(conversationRequired: true);
@@ -64,6 +65,7 @@ internal sealed partial class SessionsPresentationOwner
 
     private void ForgetForegroundSurface(Window surface)
     {
+        Volatile.Write(ref uniqueForegroundWindow, 0);
         Interlocked.Increment(ref foregroundSourceRevision);
         surface.PropertyChanged -= OnForegroundSurfaceChanged;
         surface.RemoveHandler(InputElement.PointerPressedEvent, OnDetailsSourceInteraction);
@@ -96,6 +98,7 @@ internal sealed partial class SessionsPresentationOwner
 
     private void UpdateForegroundTarget()
     {
+        Volatile.Write(ref uniqueForegroundWindow, UniqueForegroundSurface(conversationRequired: false) is not null ? 1 : 0);
         var surface = UniqueForegroundSurface(conversationRequired: true);
         if (surface is null || !model.CanCompose || model.SelectedSessionRecord is not { } entry)
         {

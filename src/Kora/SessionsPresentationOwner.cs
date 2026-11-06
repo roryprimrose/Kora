@@ -66,6 +66,7 @@ internal sealed partial class SessionsPresentationOwner
     {
         this.model = model;
         model.CaptureQuietHoursNativeLifetime = CaptureForegroundSourceEligibility;
+        model.CaptureDetailPresentationNativeLifetime = CaptureForegroundSourceEligibility;
         this.requestCommands = requestCommands;
         if (requestCommands is not null)
         {
@@ -111,6 +112,7 @@ internal sealed partial class SessionsPresentationOwner
         if (revoked) { return; }
         revoked = true;
         requestCommands?.RetireDetailsOffer();
+        Volatile.Write(ref uniqueForegroundWindow, 0);
         draftDialog?.Close();
         model.Close();
         foreach (var surface in surfaces.ToArray()) { surface.Close(); }
@@ -132,6 +134,15 @@ internal sealed partial class SessionsPresentationOwner
         Justification = "Avalonia routed Click requires void; failures route to the session model's logged recovery status.")]
     private async void OpenConversationDetail(object? sender, RoutedEventArgs args)
     {
+        if (!revoked && !args.Handled && sender is Window auditPresenter
+            && args.Source is Button { Name: "ReadRequestAudit", DataContext: ConversationMessage auditMessage })
+        {
+            args.Handled = true;
+            try { await (DetailOperation = model.ReadRequestEvidenceAsync(auditMessage, replyPresenters[auditPresenter].Capture())); }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            { model.ReportDetailPresentationFailure(exception); }
+            return;
+        }
         if (!revoked && !args.Handled && sender is Window exportPresenter
             && args.Source is Button { Name: "ExportExactAssistantAnswer", DataContext: ConversationMessage exportSource })
         {

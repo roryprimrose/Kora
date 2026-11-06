@@ -118,6 +118,14 @@ Failed audit, terminal readback or uncertain resource release blocks clean succe
 with a visible recovery message. Stopped requests are never retried or resurrected;
 retained history and grants are not deleted.
 
+The [desktop lifetime owner](../src/Kora/DesktopLifetimeController.cs), bound by
+desktop composition, consumes the admitted Close independently of the replaceable
+presence window. If animation replacement retires the old window and the new
+renderer fails, native tray Exit still reaches the same desktop Shutdown after
+the existing reviews and physical joins; no fallback renderer or forced exit is
+created. [Deterministic regressions](../tests/Kora.Windows.IntegrationTests/ApplicationLifecycle/DesktopLifetimeControllerTests.cs)
+cover that recovery route and blocked or unfinished shutdown preparation.
+
 Mandatory lock/privacy/ownership retirement and OS-required shutdown remain
 prompt-free. This does not add computer power actions, input autosave or provider
 qualification. [Host regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ApplicationLifecycle.cs)
@@ -399,6 +407,9 @@ Interaction schema 8 preserves existing memory/grant, queue/admitted-deadline, h
 
 Native full-source inspection and the same lexical-lines citations remain available after restart and for retained Done sessions, without resuming them. Browsing does not renew meaningful activity or invoke cleanup. Existing passive-inspection/source-copy/retention fences, original/current privacy/control generations and actual quiescence remain mandatory.
 
+If native inspection invalidation notification fails during attachment-owner shutdown, disposal still clears pending capture review, joins retained reads and controls, and disposes the shared capture action before propagating that failure ([owner](../src/Kora.Application/Hosting/SessionFileAttachmentService.cs)).
+Late reads remain cancelled, fresh reads are rejected, and retained storage is unchanged ([regression](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.Attachments.cs)).
+
 Exact reviewed attachment removal revokes native view/search before atomic body/path-metadata removal and owned-journal verification. Session disposition and ordinary deletion inventory the same copies; live/Unknown work and uninventoried copies hold completion. Content-free provenance remains, original user files and unrelated/kept sessions/Perpetual grants do not change. No body is added to history, memory, preferences, models, logs or audit text.
 
 The separate [retained metadata catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11) retains Browse/ExactId, lifecycle, media type, copy status, byte bounds, ordering and Find within selected displayed metadata. Technical correlation/generation/digest query widgets are removed.
@@ -412,6 +423,8 @@ Public diagnostic scheduling/preparation/settings are retired. Inspection, revie
 Current-run pending-question recovery uses only the host's original live wait/key/revision/expiry. It restores committed QUESTION drafts, not conversation input, and creates no task/question/grant/dispatch. Restart has no live registration ([question recovery](Interaction_Fallback.md#current-run-dismissal-recovery---2026-10-11)).
 
 Normal loaded-event browsing retains category/reason only. It clears stale selection/review on edits, source/private retirement and refresh; internal source/correlation/profile validation remains. Event text cannot retarget questions, authorize work or establish a global all-clear ([local event contract](Proactive_Interaction.md#native-content-free-loaded-event-filters)).
+
+Selected-work refresh binds its original native notice-surface lifetime before reading or publishing work. Hiding/reopening cannot lend a retired refresh a new lifetime or consume an undisplayed completion; fresh observation remains separate ([publication owner](../src/Kora/SessionsViewModel.Work.cs), [native regression](../tests/Kora.Windows.IntegrationTests/ConversationNoticeTests.NativePublication.cs)).
 
 The remaining sections distinguish implemented session metadata/history/retention and original-task controls from proposed general execution. Neither retained diagnostics infrastructure nor deterministic test evidence qualifies production providers, arbitrary workers, effects or model routing.
 
@@ -1010,6 +1023,20 @@ The approved outcome is governed model/tool conversation with equivalent native 
 
 The host owns original request/origin, unique task/session/generation, question identity/revision, exact schema and selection bounds, input channels, expiry and live source/privacy/permission checks. Existing native Submit/draft/cancel and exact activated-voice/readback controls remain authoritative; selecting another conversation cannot retarget this wait. No automatic microphone opening or relaxation of OS/provider authentication is added ([question continuation](../src/Kora.Application/Hosting/ConversationQuestionContinuation.cs), [native owner](../src/Kora/NativeQuestionHost.Conversation.cs)).
 
+Once that original task requests its question, Sessions and compact release their
+submission-only UI hold. The original request's unchanged input clears only after
+the canonical task has been retained and dispatched. Switching conversations and
+editing independent unsent input do not withdraw or retarget that live question.
+Review, Save draft, Submit and Cancel remain on the same native question and
+original task; only a genuine admitted completion is retained in its conversation.
+Late completion never clears another or newer composer. Returning and explicitly
+reading the original conversation reveals its retained ASSISTANT or truthful HOST
+outcome ([native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.IndependentQuestions.cs)).
+The same presentation lifetime applies to explicit Claude clarification; each
+physical-send consent remains separate. Private/control/source loss, cancellation,
+expiry and actual resource joins remain authoritative. No question is reopened,
+recreated or admitted after a terminal task.
+
 The implementation is restricted to local Ollama admission and the original six `ReadOnlyCapabilityCatalog` IDs, or an already constrained subset. The native `ask_user` tool is advertised only in the two explicit clarification paths, once per original turn, separately from observation tool batches. It accepts `prompt`, `options`, `minimum` and `maximum`: no options with bounds 1..1 requests bounded text; two-to-four unambiguous labels with bounds 1..1 requests radio buttons; other valid selection bounds request checkboxes. Text is bounded to 500 characters. The session-owned native question window and exact voice reply share the same validation, including multi-answer selection. Spoken readback includes labels/bounds; spoken lists use comma or "and" separators, with whole-label matching taking precedence. A reply is returned as a correlated `ask_user` tool result, never as a fresh conversation or instruction. Repeated/mixed calls are refused. Legacy structured questions and ordinary read-only tools keep their separate paths and wire versions. Web, MCP, session discovery, hosted questions and effectful/setting operations remain excluded ([protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Questions.cs), [catalogue](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs)).
 
 The accepted reply stays typed lower-trust user data. It is not approval, grant, source/context permission, final hosted-send consent or tool-input authority. Existing question/decision retention and content-free audit remain separate from USER, HOST and final ASSISTANT retention; no conversation schema or profile format changes. Unqualified/default profiles remain unavailable ([answer message](../src/Kora.Core/Dependencies/ModelQuestionAnswerMessage.cs), [canonical retained execution](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
@@ -1121,6 +1148,21 @@ after successful playback of that same question. Existing consent, listening hol
 unlocked interactive Windows session, ownership/private-control revision,
 exact device/readiness, local recognizer and call-policy gates remain required;
 unknown state denies capture.
+
+For the already-admitted host clarification/local-version and model clarification
+questions, playback includes the canonical ordered choice labels and single- or
+multiple-selection bounds, not only the prompt. For example, the native
+local-version question reads **Option 1: Show local version. Choose one option.**
+before opening its reply; saying **Show local version** then completes that
+original question. Explicit playback and opt-in conversational playback use the
+same reviewed record, never caller-supplied replacement labels. Other question
+purposes retain their existing readback; form-field entry and exact approvals
+are unchanged. Text questions do not acquire a choice list.
+The original native local-version wait accepts its existing native or activated-
+voice answer channel through dispatch, without relabelling the original LocalUi
+request. Both the continuation and the SQLite transaction revalidate that same
+ordinary answer; stale/private/session/source failures still prevent dispatch.
+This adds no spoken approval, authentication, consent or protected-call exception.
 
 One application-wide turn binds the original question key/revision,
 session/generation and unique visible presenter. Its accessible countdown allows
@@ -1274,6 +1316,8 @@ All surfaces share theme, accessibility, safe rendering, and provenance rules in
 
 Closing/dismissing a window changes presentation only, not session lifecycle, work, microphone consent, or approval.
 Passive updates do not steal focus. Pending questions, grants, errors, and unknown outcomes remain reachable even when a compact surface auto-hides.
+Successful **Read** and **Read latest** preserve a genuine completion arriving during the awaited read as an exact update unless the returned page includes it. They do not silently expand the admitted snapshot; the update remains inspectable until a deliberate fresh read consumes it.
+Failed or retired source reads retain their existing fail-closed behavior ([reader owner](../src/Kora/SessionsViewModel.ConversationReading.cs), [regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ReaderCompletion.cs)).
 Only ordinary non-interactive feedback uses the response timeout; an actively edited question or presented approval does not disappear under that timer.
 Prompt expiry still applies independently and is shown honestly.
 Switching sessions does not cancel background work. Content and delayed callbacks remain attached to their originating session.

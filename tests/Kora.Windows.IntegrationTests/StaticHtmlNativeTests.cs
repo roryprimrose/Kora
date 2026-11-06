@@ -36,7 +36,7 @@ public sealed class StaticHtmlNativeTests
             }
             var state = new DetailViewerState(content);
             state.CompleteRender(state.Generation, result.SemanticText, result.Status, false).Should().BeTrue();
-            var window = new DetailWindow(state, result, (_, _, _) => Task.CompletedTask);
+            var window = new DetailWindow(state, result, (_, _, _, _) => Task.CompletedTask);
             window.FindControl<StackPanel>("RenderedDocument")!.Children.Should().HaveCount(9);
             window.GetVisualDescendants().OfType<TextBox>().Should().OnlyContain(control =>
                 control.ContextMenu == null && control.ContextFlyout == null);

@@ -27,7 +27,7 @@ public sealed partial class FinalDocumentInteractionTests
                 + "## Last\n\nFinal paragraph";
             var state = State(text, () => admitted, retained);
             var view = new DetailContentView(state, Render(text),
-                (_, _, _) => throw new InvalidOperationException("No clipboard authority."));
+                (_, _, _, _) => throw new InvalidOperationException("No clipboard authority."));
             var window = new Window { Content = view, Width = 900, Height = 600 };
             window.Show();
             try
@@ -84,7 +84,7 @@ public sealed partial class FinalDocumentInteractionTests
             const string text = "# Repeat\n\nFirst\n\n### Repeat\n\nSecond\n\n###### Caf\u00e9 \u6771\u4eac\n\nLast";
             var result = Render(text);
             var state = State(text, () => true, retained);
-            var view = new DetailContentView(state, result, (_, _, _) => throw new InvalidOperationException("No clipboard authority."));
+            var view = new DetailContentView(state, result, (_, _, _, _) => throw new InvalidOperationException("No clipboard authority."));
             var window = new Window { Content = view, Width = 900, Height = 1000 };
             window.Show();
             try
@@ -149,7 +149,7 @@ public sealed partial class FinalDocumentInteractionTests
             var admitted = true;
             const string text = "# Private heading\n\nExact body";
             var state = State(text, () => admitted);
-            var view = new DetailContentView(state, Render(text), (_, _, _) => Task.CompletedTask);
+            var view = new DetailContentView(state, Render(text), (_, _, _, _) => Task.CompletedTask);
             var window = new Window { Content = view };
             window.Show();
             var index = view.GetVisualDescendants().OfType<Expander>().Single();
@@ -198,7 +198,7 @@ public sealed partial class FinalDocumentInteractionTests
             var admitted = true;
             const string text = "# Target";
             var state = State(text, () => admitted);
-            var view = new DetailContentView(state, Render(text), (_, _, _) => Task.CompletedTask);
+            var view = new DetailContentView(state, Render(text), (_, _, _, _) => Task.CompletedTask);
             var window = new Window { Content = view };
             window.Show();
             try
@@ -231,7 +231,7 @@ public sealed partial class FinalDocumentInteractionTests
             result.IsFallback.Should().BeFalse();
             (codeBlocks * 13 + 1 + 6 + paragraphs > NativeDetailProfile.MaximumNodes).Should().Be(fallback);
             var state = State(text, () => true);
-            var view = new DetailContentView(state, result, (_, _, _) => Task.CompletedTask);
+            var view = new DetailContentView(state, result, (_, _, _, _) => Task.CompletedTask);
             var window = new Window { Content = view };
             window.Show();
             try
@@ -254,7 +254,7 @@ public sealed partial class FinalDocumentInteractionTests
         {
             var result = Render(text);
             var state = State(text, () => true);
-            var view = new DetailContentView(state, result, (_, _, _) => Task.CompletedTask);
+            var view = new DetailContentView(state, result, (_, _, _, _) => Task.CompletedTask);
             var window = new Window { Content = view };
             window.Show();
             try { view.GetVisualDescendants().OfType<Expander>().Should().BeEmpty(); }
@@ -268,8 +268,8 @@ public sealed partial class FinalDocumentInteractionTests
             const string text = "# Same heading";
             var state = State(text, () => true);
             var otherState = State(text, () => true, retained: true);
-            var view = new DetailContentView(state, Render(text), (_, _, _) => Task.CompletedTask);
-            var other = new DetailContentView(otherState, Render(text), (_, _, _) => Task.CompletedTask);
+            var view = new DetailContentView(state, Render(text), (_, _, _, _) => Task.CompletedTask);
+            var other = new DetailContentView(otherState, Render(text), (_, _, _, _) => Task.CompletedTask);
             var window = new Window { Content = view };
             var otherWindow = new Window { Content = other };
             window.Show();

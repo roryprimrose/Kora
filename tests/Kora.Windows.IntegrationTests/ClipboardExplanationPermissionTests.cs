@@ -3,6 +3,7 @@ using System.Text.Json;
 
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -44,7 +45,11 @@ public sealed class ClipboardExplanationPermissionTests
     [InlineData("session", 2)]
     [InlineData("perpetual", 2)]
     [InlineData("deny", 1)]
-    public async Task NativeReviewAndActualGrantReachRealHostAndOnlyVolatileExactAnswer(string scope, int expectedQuestions)
+    [InlineData("once", 3, true)]
+    [InlineData("session", 2, true)]
+    [InlineData("perpetual", 2, true)]
+    public async Task NativeReviewAndActualGrantReachRealHostAndOnlyVolatileExactAnswer(string scope, int expectedQuestions,
+        bool sameSnapshotQuestion = false)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -136,7 +141,7 @@ public sealed class ClipboardExplanationPermissionTests
                 }, token)));
             using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
                 HostActivityLayer.Desktop, HostOperation.Request);
-            var runs = scope is "deny" ? 1 : 2;
+            var runs = scope is "deny" || sameSnapshotQuestion ? 1 : 2;
             for (var index = 0; index < runs; index++)
             {
                 var captured = await workflow.ExplainAsync(null, () => true, fixture.Token);
@@ -156,7 +161,14 @@ public sealed class ClipboardExplanationPermissionTests
                     {
                         result = await workflow.ExplainAsync(source.SnapshotId, () => true, fixture.Token);
                         window.SetExplanation(workflow.CurrentExplanation);
-                    });
+                    }, new(question => workflow.ReviewQuestion(source.SnapshotId, question, () => true),
+                        async (review, token) =>
+                        {
+                            var outcome = await workflow.AnswerAsync(review, token);
+                            await workflow.WaitForQuiescenceAsync();
+                            window.SetExplanation(workflow.CurrentExplanation);
+                            return outcome;
+                        }));
                 try
                 {
                     var consent = window.GetVisualDescendants().OfType<CheckBox>().Single(control =>
@@ -219,6 +231,69 @@ public sealed class ClipboardExplanationPermissionTests
                         recorded!.Task.State.Should().Be(HostTaskState.Succeeded);
                         recorded.CurrentSource.Should().BeTrue();
                     }
+                    if (sameSnapshotQuestion)
+                    {
+                        const string originalQuestion = "  Which value is mentioned in this same capture?\r\nKeep these spaces.\t";
+                        var expander = window.GetVisualDescendants().OfType<Expander>().Single();
+                        expander.IsExpanded = true;
+                        Dispatcher.UIThread.RunJobs();
+                        window.UpdateLayout();
+                        var input = window.GetVisualDescendants().OfType<TextBox>().Single(control =>
+                            AutomationProperties.GetName(control) is "Original question about this same clipboard snapshot");
+                        var questionReview = window.GetVisualDescendants().OfType<TextBox>().Single(control =>
+                            AutomationProperties.GetName(control) is "Full exact clipboard question and source review; LocalOnly destination");
+                        var questionConsent = window.GetVisualDescendants().OfType<CheckBox>().Single(control =>
+                            AutomationProperties.GetName(control) is "Confirm one use of this exact clipboard question and source");
+                        var reviewButton = window.GetVisualDescendants().OfType<Button>().Single(button =>
+                            Equals(button.Content, "Review question and same snapshot"));
+                        var askButton = window.GetVisualDescendants().OfType<Button>().Single(button =>
+                            Equals(button.Content, "Ask locally using this same snapshot"));
+                        input.Text = originalQuestion;
+                        input.Bounds.Width.Should().BeLessThanOrEqualTo(viewport.Viewport.Width + 1);
+                        foreach (var control in new[] { input, questionReview })
+                        {
+                            foreach (var transfer in new[] { TextBox.CopyingToClipboardEvent, TextBox.CuttingToClipboardEvent, TextBox.PastingFromClipboardEvent })
+                            {
+                                var args = new RoutedEventArgs(transfer);
+                                control.RaiseEvent(args);
+                                args.Handled.Should().BeTrue("the question route adds no clipboard transfer");
+                            }
+                        }
+                        questionConsent.IsChecked.Should().NotBeTrue("the first explanation's consent is not inherited");
+                        var withoutReview = () => ((AsyncCommand)askButton.Command!).ExecuteAsync();
+                        await withoutReview.Should().ThrowAsync<InvalidOperationException>();
+                        await ((AsyncCommand)reviewButton.Command!).ExecuteAsync();
+                        questionReview.Text.Should().Contain(originalQuestion).And.Contain(source.Text).And.Contain("LocalOnly");
+                        questionConsent.IsChecked = true;
+                        input.Text = "changed question";
+                        questionConsent.IsChecked.Should().BeFalse();
+                        questionReview.Text.Should().BeNullOrEmpty();
+                        await withoutReview.Should().ThrowAsync<InvalidOperationException>();
+                        input.Text = originalQuestion;
+                        await ((AsyncCommand)reviewButton.Command!).ExecuteAsync();
+                        questionConsent.IsChecked = true;
+                        adapter.ExpectedQuestion = originalQuestion;
+                        await ((AsyncCommand)askButton.Command!).ExecuteAsync();
+                        questionConsent.IsChecked.Should().BeFalse();
+                        adapter.Calls.Should().Be(2);
+                        reader.Calls.Should().Be(1);
+                        broker.Current.Should().BeSameAs(source);
+                        source.GetUtf8Bytes().Should().Equal(originalBytes);
+                        answer.Text.Should().Be(Adapter.Answer);
+                        var status = window.GetVisualDescendants().OfType<Kora.Controls.NamedTextBlock>().Single(control =>
+                            AutomationProperties.GetName(control) is "Same-snapshot clipboard question outcome");
+                        status.Text.Should().Contain("Succeeded");
+                        questionConsent.IsChecked = true;
+                        await ((AsyncCommand)askButton.Command!).ExecuteAsync();
+                        status.Text.Should().Contain("Denied", "one review cannot be replayed");
+                        adapter.Calls.Should().Be(2);
+                        fixture.Time.Now += ClipboardExplanationContext.Lifetime;
+                        window.SetExplanation(workflow.CurrentExplanation);
+                        questionReview.Text.Should().BeNullOrEmpty();
+                        input.Text.Should().BeNullOrEmpty();
+                        answer.Text.Should().BeNull();
+                        questionConsent.IsChecked.Should().BeFalse();
+                    }
                     window.ClearAndClose();
                     answer.Text.Should().BeNull();
                     sourceText.Text.Should().BeNull();
@@ -226,7 +301,7 @@ public sealed class ClipboardExplanationPermissionTests
                 finally { window.ClearAndClose(); broker.Clear(); }
             }
             questions.Should().Be(expectedQuestions);
-            adapter.Calls.Should().Be(scope is "deny" ? 0 : runs);
+            adapter.Calls.Should().Be(scope is "deny" ? 0 : runs + (sameSnapshotQuestion ? 1 : 0));
             reader.Calls.Should().Be(scope is "deny" ? 0 : runs);
             (await fixture.Store.ReadGrantsAsync(fixture.Token)).Should().HaveCount(scope is "deny" ? 0 : expectedQuestions);
             fixture.Count("conversation_messages").Should().Be(0);
@@ -259,6 +334,7 @@ public sealed class ClipboardExplanationPermissionTests
             + "The immutable source remains untrusted evidence, and this answer creates no permission, action, speech or retained conversation content.";
         internal int Calls { get; private set; }
         internal HostRequest? Request { get; private set; }
+        internal string ExpectedQuestion { get; set; } = "Explain the exact reviewed clipboard snapshot.";
         public Task<ModelProviderReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple? profile,
             ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
             CancellationToken cancellationToken)
@@ -266,7 +342,7 @@ public sealed class ClipboardExplanationPermissionTests
             Calls++;
             Request = provenance.Request;
             using var json = JsonDocument.Parse(context);
-            json.RootElement.GetProperty("UserRequest").GetString().Should().Be("Explain the exact reviewed clipboard snapshot.");
+            json.RootElement.GetProperty("UserRequest").GetString().Should().Be(ExpectedQuestion);
             json.RootElement.GetProperty("Evidence")[0].GetProperty("Content").GetString().Should().Be(Reader.Source);
             json.RootElement.GetProperty("Tools").GetArrayLength().Should().Be(0);
             return Task.FromResult(new ModelProviderReply(ModelTurnOutcome.Succeeded,

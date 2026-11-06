@@ -711,6 +711,8 @@ The [native review control](../src/Kora/ClipboardPreviewWindow.cs) requires a de
 **Product decision, 2026-10-28:** the built-in clipboard tool's permission grant is sufficient source-use authority. The user is responsible for sensitive material they place in the clipboard and explicitly ask Kora to examine. There is no additional clipboard sensitivity classification, user classification attestation, credential-pattern scan, redaction or secret-free guarantee. This replaces the earlier affirmative-classifier requirement, not merely its implementation.
 [IClipboardSourceUsePolicy](../src/Kora.Core/Context/IClipboardSourceUsePolicy.cs) is composed with the [permission policy](../src/Kora.Application/Context/ClipboardPermissionSourceUsePolicy.cs), not an accepting content classifier. Original native controls allow denial, Once, This session or Always through the [existing durable grant service](../src/Kora.Application/Interaction/HostAuthorizationService.cs) and [native permission host](../src/Kora/NativeQuestionHost.Clipboard.cs). Session grants are bound to the active clipboard explanation control session/generation; Always grants remain in the independent perpetual-grant partition. The grant's exact operation scope covers subsequent explicitly reviewed clipboard snapshots, not their content digests. Definition/implementation/policy changes invalidate matching authority through the existing binding rules.
 A grant is not model consent: each explanation separately consumes a fresh exact-snapshot native review gesture. Preview, Find, wrapping, reuse and source text cannot create a grant or run inference. Original deliberate preview requests retain their existing one-read authority; no model-selected or background capture is introduced.
+The native **Ask a question about this same snapshot** operation accepts a new original local-user question, not a model clarification or a previous-answer continuation. The host validates the complete unchanged question with the shared original conversation-input policy, without applying that policy to clipboard evidence. Review displays the full question, complete exact source and LocalOnly/no-tools destination; a separate checkbox/button confirms only one use under the existing `clipboard.explain-local` permission. A reusable grant never supplies that confirmation.
+The [question review](../src/Kora.Application/Context/ClipboardQuestionReview.cs) binds the original host request and exact capture object, is consumed once and permanently retires on observed source/input/privacy/owner/call/expiry loss. Editing, cancellation, close or replacement clears the native review and cancels its owned work; completion/exit joins actual model resources. The [question envelope](../src/Kora.Core/Context/ClipboardExplanationContext.cs) contains only the unchanged original question and the still-current snapshot, never the previous answer or history. Preparation and confirmation never read native clipboard state, refresh capture time, revive an old review or renew the original 15-minute source lifetime. The existing permission checks at adapter dispatch/response and final source/eligibility/expiry checks before volatile publication remain authoritative; terminal task records do not admit new permission decisions. No conversation body/draft, speech, hosted fallback, new grant scope or source authority is added.
 The host commits only content-free session/task, proposal, question and grant evidence to obtain permission. Missing/unbound permission presentation, denied/revoked/unknown authority and stale source/host state fail closed before context construction or provider use. Ordinary Approve all session policy and model review cannot manufacture this tool grant.
 Review expires 15 minutes after capture; a [clipboard context](../src/Kora.Core/Context/ClipboardExplanationContext.cs) binds its one evidence item to the new content-free host request, exact snapshot ID/native sequence and `LocalOnly` disclosure, with a maximum 15-second model envelope.
 The complete existing `ModelContextEnvelope` serialization, including policy and tool overhead, must fit 32768 UTF-8 bytes without truncation ([boundary tests](../tests/Kora.Core.UnitTests/Context/ClipboardExplanationContextTests.cs)).
@@ -1600,6 +1602,10 @@ Only its validated typed binding exempts question/task bookkeeping from meaningf
 Its fixed question/choice remains session-retained, without a second answer body.
 Independent content-free audit records original source and actual answer channel without renewing source access ([authority](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.DetailsOffers.cs)).
 
+The [shared device-local preference availability boundary](User_Configuration.md#shared-device-local-preference-availability) distinguishes missing files/directories from unavailable saved files or unconfirmed-write markers.
+An obstructing directory or denied read/delete must surface failure, not confer default or confirmed state ([store](../src/Kora.Application/Configuration/LocalPreferenceStore.cs)).
+Explicit repair never renews authority or clears another retention domain; fresh admitted save/reset, readback and required audit remain mandatory ([regressions](../tests/Kora.Application.UnitTests/Configuration/LocalPreferenceStoreTests.cs)).
+
 Exact-answer review acknowledgements are metadata owned by the retained conversation, not an independent retention domain or a read-receipt claim. Source deletion removes them; acknowledgement does not renew activity, deadlines, grants, model/source consent or execution authority. Details still needs fresh canonical native admission; unknown or malformed acknowledgement state fails unavailable ([contract and storage](Interaction_And_Sessions.md#explicit-retained-answer-review-acknowledgement)).
 
 | Data | Default |
@@ -1650,8 +1656,9 @@ ordinary SQLite rows use the policy; existing deadlines never change and
 apply-now is unavailable. Audit90/domain, files30/30 and every grant retain
 their independent rules. Unavailable ordinary policy reports explicit
 independent delivery gaps without waiving mandatory trusted audit. This is logical
-row pruning, not recoverable-copy disposal or forensic erasure. Audit expiry
-and its continuation/checkpoint requirements remain independently unimplemented.
+row pruning, not recoverable-copy disposal or forensic erasure. Authoritative
+audit-prefix expiry uses its [independent bounded operation](Architecture.md#bounded-authoritative-audit-prefix-retention);
+diagnostic audit-projection expiry remains unavailable.
 The independent [ordinary diagnostic impact preview](User_Configuration.md#read-only-ordinary-diagnostic-shortening-impact-preview)
 only observes hypothetically newly-due ordinary logs/spans/owned links at one
 fixed cutoff. It never counts security audit; bounded protected-prefix and
@@ -1837,8 +1844,19 @@ under the selected tamper-evidence scheme so expiry is distinguishable from
 removal inside the retained window. Preserve the latest minimal chain anchor
 outside ordinary audit-event expiry; it contains no action/content payload and
 cannot reconstruct expired records.
-Audit pruning and its continuation/anchor mechanism are not implemented.
-Ordinary diagnostic pruning never removes audit rows; expired audits may
+The approved conservative implementation increment prunes only a contiguous
+verified expired prefix of the authoritative interaction audit, in a bounded
+owning-host startup transaction. State-referenced audit proofs, retained audit
+dependencies and unresolved work hold the boundary; expired backlog may remain.
+Removal and a versioned payload-free sequence/hash/cutoff anchor commit together.
+Readers verify the retained suffix from that anchor, never reconstruct expired
+payloads or reinterpret the independent diagnostic/file copies as authority.
+This uses the existing private-store/local SHA-256 consistency boundary, not
+checkpoint authentication against an attacker able to coherently rewrite both
+the database and anchor. Malformed/inconsistent state fails closed; independent
+anchoring, hostile-writer resistance, rollback detection and forensic erasure
+remain unavailable. See the [implementation contract](Architecture.md#bounded-authoritative-audit-prefix-retention).
+Ordinary diagnostic pruning never removes audit rows; expired diagnostic audit projections may
 therefore remain present beyond their due dates. The independent daily JSON
 stream contains secondary `TypedAuditCopy` records, not committed authority
 receipts. Its existing 30-day/30-calendar-file policy is separate from the

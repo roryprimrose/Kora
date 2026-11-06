@@ -155,6 +155,10 @@ not provider enablement or native/acoustic RC qualification
 
 ### Manual owned observation-only agent authoring (v1)
 
+An original request to create or describe a different owned agent does not retarget an unsaved draft before its Save/Discard/Cancel decision.
+The [shared editor owner](../src/Kora/AgentProfileEditorController.cs) keeps the current ID/source/description intact; Save still reviews and separately confirms the current exact destination.
+Cancelled Save, Cancel or revoked admission retains that draft and cannot start replacement authoring. Only successful disposition under the same current private owner stages the requested new ID, without saving, enabling or invoking it ([operation and regressions](../docs/agent-profile-authoring.md#manual-source-and-separate-save)).
+
 The existing native owned-agent editor accepts the canonical reference-free v1
 format with either no tools/zero calls or a distinct subset of the six original
 read-only observation IDs and a positive call budget. It reuses
@@ -171,6 +175,13 @@ register, enable, select or run an agent, grant tools, or relax protected-source
 inspection. Later compatible-source review and exact single-use invocation
 retain the canonical local permissioned tool loop, retained answer/unavailable
 terminal and joined cancellation. See the [complete manual operation](../docs/agent-profile-authoring.md#manual-source-and-separate-save).
+
+Selected-source invocation retains the original task's host eligibility across
+later source/reference review and separate confirmation, not only its channel
+label. Voice withdrawal and restoration cannot renew that task through native
+controls. Fresh native task entry or a deliberate new original request captures
+new eligibility and still requires a new complete exact invocation review.
+Source/target navigation alone is not new task authority.
 
 ### Bounded local agent owned-instruction references (v2)
 
@@ -640,6 +651,9 @@ not approve changed bytes, resolve missing dependencies, grant tools, authentica
 an MCP account, start a process or qualify a runtime. Missing/corrupt/unconfirmed
 control state fails closed and is reported.
 
+MCP server exclusion is additionally a master gate over default-enabled Tools, Resources (including templates), and Prompts consideration choices. Category-wide Enable all/Disable all replaces individual exceptions and sets the inheritance default; server exclusion preserves those choices.
+The separate [capability management workflow](Commands_Tools_And_Skills.md#mcp-configuration-sources-and-future-request-use) never turns a preference into source, account, content or execution authority.
+
 ### Reviewed transactions for User package originals
 
 The product owner explicitly selected recoverable multi-file writes to User
@@ -1054,6 +1068,13 @@ rewrite, replacement or silent rollback is admitted. Another writer, alias,
 reparse/hardlink, parent/root replacement, changed source, occupied destination
 case-sensitive/unknown native directory semantics or unconfirmed readback refuses or holds the operation
 ([native protocol](../src/Kora.Windows/ArtifactDiscovery/WindowsOwnedDefinitionFileAccess.Rename.cs)).
+
+Before intent publication, failed staging writes or flushes retire only the
+unpublished file through its still-open native handle. The exact original and
+unrelated definitions remain unchanged; cleanup failure is explicitly unconfirmed,
+not publication or a recovery receipt. After confirmed cleanup, a fresh explicit
+review can rename the retained original
+([staging failure regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsOwnedInstructionStoreTests.Rename.cs)).
 
 Cancellation after possible intent publication and interrupted/unconfirmed
 publication remain explicit recovery-required. Startup/list/reload never

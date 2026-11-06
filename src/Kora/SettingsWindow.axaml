@@ -932,6 +932,7 @@
                 <WrapPanel ItemSpacing="8" LineSpacing="6">
                   <Button x:Name="OfferDetailPresentation" Content="Review Offer" Command="{Binding OfferDetailPresentationCommand}" IsEnabled="{Binding CanControlDetailPresentationNative}" />
                   <Button x:Name="LinkOnlyDetailPresentation" Content="Review Link only" Command="{Binding LinkOnlyDetailPresentationCommand}" IsEnabled="{Binding CanControlDetailPresentationNative}" />
+                  <Button x:Name="AutomaticDetailPresentation" Content="Review Open automatically" Command="{Binding AutomaticDetailPresentationCommand}" IsEnabled="{Binding CanControlDetailPresentationNative}" />
                 </WrapPanel>
                 <TextBlock Text="{Binding DetailPresentationReviewText}" TextWrapping="Wrap"
                     AutomationProperties.Name="Exact detail presentation preference review" />
@@ -1603,7 +1604,7 @@
                 <StackPanel IsVisible="{Binding IsMcpConfigurationSelected}" Spacing="8">
                   <TextBlock Text="External tool servers (MCP)" Classes="settings-title" />
                   <TextBlock
-                      Text="Connection details and credentials are not displayed or sent to AI models. Including a server saves your choice but does not connect to it or run tools. MCP connections are not yet available."
+                      Text="Including a server saves a master consideration choice, not connection or execution approval. Child selections are preserved when excluded. In Sessions, Manage MCP capabilities reviews category-wide and individual choices after explicit discovery. The unqualified production connector remains unavailable."
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                   <ListBox

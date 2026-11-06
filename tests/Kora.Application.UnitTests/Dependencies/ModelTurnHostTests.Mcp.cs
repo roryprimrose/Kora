@@ -1,7 +1,9 @@
 ﻿using System.Collections.Immutable;
 using System.Net;
 using System.Text;
+
 using AwesomeAssertions;
+
 using Kora.Application.Configuration;
 using Kora.Application.Dependencies;
 using Kora.Application.Hosting;
@@ -16,6 +18,7 @@ using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Mcp;
 using Kora.Core.Storage;
+
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Application.UnitTests.Dependencies;
@@ -557,6 +560,7 @@ public sealed partial class ModelTurnHostTests
         internal McpServerConfigurationService Configuration { get; }
         internal McpCapabilityPreferences? Capabilities { get; }
         private readonly McpPreferences preferences;
+        internal IArtifactDirectoryPreferences Preferences => preferences;
         internal ArtifactDirectorySettings Settings { get => preferences.Value; set => preferences.Value = value; }
         internal Action? BeforeLoad { set => preferences.BeforeLoad = value; }
         internal string ServerId { get; }

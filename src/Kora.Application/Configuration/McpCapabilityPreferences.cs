@@ -33,7 +33,14 @@ public sealed class McpCapabilityPreferences(ArtifactUsePreferences preferences,
             && !preferences.IsDisabled(ArtifactUseIdentity.Mcp(serverId));
     }
 
-    private static bool IsIncluded(ArtifactDirectorySettings settings, string serverId) =>
+    public bool IsServerSelected(string serverId)
+    {
+        McpCapabilitySelection.ValidateServer(serverId);
+        RequireAvailable();
+        return IsIncluded(directories.Load(), serverId);
+    }
+
+    internal static bool IsIncluded(ArtifactDirectorySettings settings, string serverId) =>
         settings.IncludedMcpServerIds.Contains(serverId, StringComparer.Ordinal)
         || string.Equals(serverId, KoraMcpCatalog.ServerId, StringComparison.Ordinal)
             && !settings.McpCapabilities.Categories.Any(category =>

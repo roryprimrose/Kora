@@ -21,7 +21,7 @@ public sealed partial class MainViewModel
         await Task.WhenAll(comparisonDisposal, completionNoticeDisposal, detailsOfferDisposal, appearancePersistence, preferencePersistence, consentPersistence,
             appearanceSuggestionPersistence, speechSummaryPersistence, volumeSuggestionPersistence, volumeSuggestionReviewWork,
             rateSuggestionPersistence, rateSuggestionReviewWork,
-            quietHoursSuggestionWork, timingSuggestionWork,
+            quietHoursSuggestionWork, timingSuggestionWork, detailPresentationSuggestionWork,
             installedVoicePersistence, installedVoiceReviewWork,
             responseModeSuggestionWork, settingsUndoWork,
             responseReadPlanQuiescence, responseReadQuiescence,

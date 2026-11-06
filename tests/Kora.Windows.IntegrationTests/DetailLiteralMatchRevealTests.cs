@@ -255,7 +255,7 @@ public sealed class DetailLiteralMatchRevealTests
         new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance).Render(content.Source, content.Kind);
 
     private static DetailWindow Window(DetailViewerState state, Action? copy = null) =>
-        new(state, Render(state.Content!), (_, _, _) =>
+        new(state, Render(state.Content!), (_, _, _, _) =>
         {
             if (copy is null) { throw new InvalidOperationException("Reveal grants no clipboard authority."); }
             copy();

@@ -44,6 +44,8 @@ In **Sessions**, select the exact Active conversation and choose **Answer from t
 
 Enter a bounded lexical question, choose **Review exact evidence for this question**, and inspect the complete admitted excerpts and question. Separately choose **Consent once: answer locally and retain in this conversation**. Saving or reading an attachment is not permission to send it to a model; source-use policy and qualified local runtime independently admit the turn ([review workflow](../src/Kora.Application/Hosting/SessionAttachmentAnswerWorkflow.cs)).
 
+Use **Tab / Shift+Tab** to focus the complete question/evidence or disclosure/answer reading area. **Page Up / Page Down** scroll; **Home / End** reach its beginning/end. These reading keys do not confirm consent or submit another question. The complete answer and exact retained references remain unchanged. Closing or replacing the source view clears these private readers and retires their keyboard controls.
+
 This explicit operation uses one local-only, tool-free turn. It does not add history, memory, other attachments, folders, tools or hosted fallback. Changed/deleted/replaced sources, revoked consent, incomplete lexical selection and over-budget input are rejected rather than silently truncated. Inspection does not renew retention or Keep ([source and budget fences](../src/Kora.Application/Hosting/SessionAttachmentAnswerWorkflow.cs)).
 
 The host binds reviewed evidence to the exact submitted request through the [shared reviewed-context lifecycle](../src/Kora.Application/Hosting/SessionConversationService.cs). Citation resolution runs before the assistant response is committed, after the owning turn's terminal identity and cancellation checks ([execution boundary](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
@@ -209,7 +211,11 @@ profiles retain their labelled source fallback without active links.
 
 ### Copy already-authorized Markdown
 
-Where **Copy** is already available for an admitted Markdown item, copying from rendered view also includes supported rich formatting for applications that accept HTML. The existing plain-text copy remains the complete original source; an exact selected range remains only that selected text. Rendered selections add escaped preformatted text, not reconstructed Markdown formatting ([copy route](../src/Kora/DetailWindowController.cs)).
+Where copying is already authorized, **Copy all** copies the complete active view. Rendered Markdown supplies semantic plain text and inert HTML together, including all list items, code, table cells and visible link destinations, not just the visible or searched portion ([copy route](../src/Kora/DetailWindowController.cs)).
+
+**Show match in reader** only reveals the current literal Find occurrence. It does not copy; a subsequent **Copy all** still copies the complete active view, not that selected occurrence.
+
+Choose **Copy source** for the complete original Markdown with unchanged tabs and line breaks, without changing your view. Copy all in **Exact source**, plain-text content or source fallback also copies unchanged source only. **Copy selection** still copies only the exact selected text, with escaped preformatted HTML for rendered Markdown ([native interaction](../tests/Kora.Windows.IntegrationTests/DetailCopyNativeTests.cs)).
 
 Headings, emphasis, lists, quotes, code and already-available tables can retain formatting. Link destinations stay visible inert text; images and remote resources are never fetched or included. **Exact source**, plain-text content and unavailable/unsupported renderers keep plain-text-only copying ([serializer](../src/Kora/NativeDetailRenderer.Clipboard.cs)).
 

@@ -12,6 +12,7 @@ const ci = process.env.KORA_QUEUE_WORKFLOW_TEST_PATH
   ? fs.readFileSync(process.env.KORA_QUEUE_WORKFLOW_TEST_PATH, 'utf8').replaceAll('\r\n', '\n')
   : read('.github/workflows/ci.yml');
 const controller = read('.github/workflows/merge-queue.yml');
+const timer = read('.github/workflows/merge-queue-timer.yml');
 const coverage = read('.github/workflows/coverage-comment.yml');
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 
@@ -140,7 +141,9 @@ test('hourly CI coalesces automatic main pushes and runs only admitted changed h
     await assert.rejects(execute({ env: { QUEUE_MODE: 'enabled', QUEUE_PROFILE: 'batch-v1',
       DELIVERY_PROFILE: 'independent-v1', QUEUE_INPUTS: '{}', ...values } }, {}, {}, {}, () => ({})));
   }
-  assert.match(ci, /\n  schedule:\n    - cron: '17 \* \* \* \*'/);
+  assert.doesNotMatch(ci, /^  schedule:/m);
+  assert.doesNotMatch(controller, /^  schedule:/m);
+  assert.match(timer, /\n  schedule:\n    - cron: '2-57\/5 \* \* \* \*'/);
   assert.match(job('admission'), /permissions:\n      contents: read\n      actions: read/);
   assert.doesNotMatch(ci, /^      main_build_profile:/m);
   assert.match(controller, /MAIN_BUILD_PROFILE: \$\{\{ vars.KORA_MAIN_BUILD_PROFILE \}\}/);
@@ -429,10 +432,58 @@ test('controller wakes on both priority label additions and removals without tru
 test('merge and CI events wake the serialized trusted controller without waiting for the recovery timer', () => {
   assert.match(controller, /pull_request_target:\n    branches: \[main\]\n    types: \[[^\]]*\bclosed\b[^\]]*\]/);
   assert.match(controller, /\n  push:\n    branches: \[main\]/);
-  assert.match(controller, /\n  workflow_run:\n    workflows: \[CI\]\n    types: \[requested, completed\]/);
-  assert.match(controller, /\n  schedule:\n    - cron: '\*\/5 \* \* \* \*'/);
+  assert.match(controller, /\n  workflow_run:\n    workflows: \[CI\]\n    branches: \[main\]\n    types: \[requested, completed\]/);
+  assert.doesNotMatch(controller, /^  schedule:/m);
+  assert.match(timer, /\n  schedule:\n    - cron: '2-57\/5 \* \* \* \*'/);
   assert.match(controller, /\n  workflow_dispatch:/);
   assert.match(controller, /concurrency:\n  group: merge-queue-controller\n  cancel-in-progress: false/);
+});
+
+test('waiting PR feedback cannot occupy a controller runner; candidate and main lifecycle events remain wakeups', () => {
+  const expression = controller.match(/^    if: (.+)$/m)[1];
+  const enabled = new Function('vars', 'github', `return ${expression};`);
+  for (const mode of ['enabled', '', 'disabled', 'future']) {
+    for (const event of ['pull_request_target', 'push', 'workflow_dispatch', 'workflow_run']) {
+      for (const runEvent of ['pull_request', 'workflow_dispatch', 'push', 'schedule']) {
+        assert.equal(enabled({ KORA_MERGE_QUEUE_MODE: mode },
+          { event_name: event, event: { workflow_run: { event: runEvent } } }),
+        mode === 'enabled' && !(event === 'workflow_run' && runEvent === 'pull_request'),
+        JSON.stringify({ mode, event, runEvent }));
+      }
+    }
+  }
+  assert.equal(enabled({ KORA_MERGE_QUEUE_MODE: 'enabled' },
+    { event_name: 'workflow_dispatch', event: {} }), true);
+  assert.match(controller, /types: \[requested, completed\]/);
+  assert.match(controller, /workflow_run:\n    workflows: \[CI\]\n    branches: \[main\]/);
+  assert.match(controller, /types: \[[^\]]*\bsynchronize\b[^\]]*\bauto_merge_enabled\b[^\]]*\bauto_merge_disabled\b[^\]]*\]/);
+});
+
+test('independent timer only requests protected reconciliation with a minimal Actions token', async () => {
+  assert.match(timer, /permissions: \{\}/);
+  assert.match(timer, /push:\n    branches: \[main\]\n    paths: \[\.github\/workflows\/merge-queue-timer.yml\]/);
+  assert.match(timer, /concurrency:\n  group: merge-queue-timer\n  cancel-in-progress: false/);
+  assert.match(timer, /timeout-minutes: 2\n    permissions:\n      actions: write/);
+  assert.match(timer, /^    if: vars.KORA_MERGE_QUEUE_MODE == 'enabled'$/m);
+  assert.doesNotMatch(timer, /pull_request|workflow_run|workflow_dispatch:\n|actions\/checkout|secrets\.|environment:|contents: write|checks: write|administration:|queue_ticket|queue\.json/);
+  const script = timer.match(/          script: \|\n([\s\S]*)/)[1]
+    .split('\n').map(line => line.replace(/^            /, '')).join('\n');
+  const execute = new AsyncFunction('github', 'context', 'core', script);
+  for (const failure of [null, 403, 503]) {
+    const calls = [];
+    const messages = [];
+    const operation = execute({ rest: { actions: {
+      async createWorkflowDispatch(parameters) {
+        calls.push(parameters);
+        if (failure) throw Object.assign(new Error('Dispatch denied'), { status: failure });
+      },
+    } } }, { repo: { owner: 'owner', repo: 'repo' } }, { notice: message => messages.push(message) });
+    if (failure) await assert.rejects(operation, /Dispatch denied/);
+    else await operation;
+    assert.deepEqual(calls, [{ owner: 'owner', repo: 'repo', workflow_id: 'merge-queue.yml',
+      ref: 'main', inputs: { operation: 'reconcile' } }]);
+    assert.equal(messages.length, failure ? 0 : 1);
+  }
 });
 
 test('controller workflow awaits its summary on success and preserves reconciliation failures', async () => {
@@ -583,7 +634,7 @@ test('privileged controller never checks out PR code, bypasses protection or wai
   assert.doesNotMatch(controller, /permission-administration: write|persist-credentials: true|pull_request\.head|sleep|while \(/);
   assert.match(controller, /if: vars\.KORA_MERGE_QUEUE_MODE == 'enabled'/);
   assert.ok(GATE);
-  for (const uses of (ci + controller).matchAll(/uses: ([^\s]+)/g)) {
+  for (const uses of (ci + controller + timer).matchAll(/uses: ([^\s]+)/g)) {
     assert.match(uses[1], /^[^@]+@[0-9a-f]{40}$/);
   }
   new vm.Script(`(async () => { ${controller.match(/          script: \|\n([\s\S]*)/)[1]

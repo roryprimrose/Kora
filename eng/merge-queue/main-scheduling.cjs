@@ -41,7 +41,7 @@ function validateHourlyState(state) {
     return state;
   }
   const hourly = state.hourlyMain;
-  invariant(exactKeys(hourly, ['baseline', 'activated', 'lastAttempt', 'observedThrough'])
+  invariant(exactKeys(hourly, ['baseline', 'activated', 'lastAttempt', 'observedThrough', 'lastDispatch'])
     && canonical(hourly.activated), 'Invalid hourly main activation.');
   const baseline = hourly.baseline;
   invariant(exactKeys(baseline, ['source', 'tree', 'qualification'])
@@ -63,6 +63,16 @@ function validateHourlyState(state) {
     'Invalid hourly main observation cursor.');
     invariant(cursor.run !== hourly.lastAttempt?.run || cursor.created === hourly.lastAttempt.created,
       'Hourly main cursor and attempt disagree.');
+  }
+  if (hourly.lastDispatch !== undefined) {
+    const dispatch = hourly.lastDispatch;
+    invariant(exactKeys(dispatch, ['slot', 'source', 'requested', 'run', 'created'])
+      && sha(dispatch.source) && canonical(dispatch.requested) && dispatch.requested >= hourly.activated
+      && dispatch.slot === slot(dispatch.requested)
+      && (dispatch.run === undefined || positive(dispatch.run))
+      && (dispatch.created === undefined || positive(dispatch.run) && canonical(dispatch.created)
+        && dispatch.created >= hourly.activated),
+    'Invalid hourly main dispatch receipt.');
   }
   return state;
 }
@@ -111,6 +121,7 @@ async function sourceProof(api, source, main, revision, baseline) {
   invariant(await api.containsBase(source, main) === true, 'Hourly main source is not reachable from main.');
   invariant(source !== baseline.source || record.tree === baseline.tree,
     'Hourly main baseline tree changed.');
+  return record;
 }
 
 async function attempts(api, state, revision, main, exclude) {
@@ -240,4 +251,59 @@ async function admitScheduled(api, context, state) {
   return decision(true, 'changed-source');
 }
 
-module.exports = { mainBuildProfile, validateHourlyState, observeAttempts, admitScheduled };
+async function dispatchHourly(api, state, now, save) {
+  validateHourlyState(state);
+  if (state.mainBuildProfile !== PROFILE) return false;
+  invariant(now instanceof Date && Number.isFinite(now.valueOf()), 'Unknown hourly controller clock.');
+  const hourly = state.hourlyMain;
+  const dispatch = hourly.lastDispatch;
+  if (dispatch && dispatch.run === undefined) {
+    api.notice(`Hourly main dispatch outcome is unresolved; source ${dispatch.source}; slot ${dispatch.slot}. No dispatch is replayed; PR admission remains independent.`);
+    return false;
+  }
+  if (dispatch && dispatch.created === undefined) {
+    let run;
+    try { ({ data: run } = await api.github.rest.actions.getWorkflowRun({ ...api.repo, run_id: dispatch.run })); }
+    catch (error) {
+      if (error.status !== 404) throw error;
+      api.notice(`Hourly main run ${dispatch.run} is not yet observable; no replacement dispatch is authorized.`);
+      return false;
+    }
+    if (run.run_attempt !== 1) {
+      ({ data: run } = await api.github.rest.actions.getWorkflowRunAttempt({
+        ...api.repo, run_id: dispatch.run, attempt_number: 1 }));
+    }
+    const actual = identity(run, api);
+    invariant(actual.run === dispatch.run && actual.source === dispatch.source
+      && actual.event === 'workflow_dispatch' && run.run_attempt === 1
+      && Date.parse(actual.created) >= Math.floor(Date.parse(dispatch.requested) / 1000) * 1000,
+    'Hourly main dispatch source or first attempt changed.');
+    dispatch.created = actual.created;
+    await save();
+  }
+  if (state.active !== null || state.mainSchedulingTransition?.phase === 'ready') return false;
+  const currentSlot = slot(now.toISOString());
+  invariant(now.toISOString() >= hourly.activated, 'Hourly controller clock predates activation.');
+  const previousTimes = [hourly.activated, hourly.lastAttempt?.created, dispatch?.requested, dispatch?.created]
+    .filter(Boolean);
+  if (previousTimes.some(created => now.valueOf() - Date.parse(created) < 60 * 60_000)) return false;
+  if ([hourly.lastAttempt?.created, dispatch?.requested, dispatch?.created]
+    .some(created => created && slot(created) >= currentSlot)) return false;
+  const main = await api.main();
+  invariant(sha(main) && state.completedTip?.sha === main && state.completedTip.delivery === 'independent-v1',
+    'Hourly controller dispatch requires the exact recorded completed main tip.');
+  if ([hourly.baseline.source, hourly.lastAttempt?.source, dispatch?.source].includes(main)) return false;
+  const revision = checkpoint(api);
+  const record = await sourceProof(api, main, main, revision, hourly.baseline);
+  invariant(record.tree === state.completedTip.tree, 'Hourly main completed-tip tree differs from its source record.');
+  hourly.lastDispatch = { slot: currentSlot, source: main, requested: now.toISOString() };
+  await save();
+  api.info(`Hourly main dispatch reserved; source ${main}; slot ${currentSlot}.`);
+  const run = await api.dispatchHourlyMain(state.completedTip);
+  invariant(positive(run), 'Hourly main dispatch returned no verifiable run identity; receipt retained without replay.');
+  hourly.lastDispatch.run = run;
+  await save();
+  return true;
+}
+
+module.exports = { mainBuildProfile, validateHourlyState, observeAttempts, admitScheduled, dispatchHourly };

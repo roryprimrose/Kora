@@ -17,14 +17,33 @@ public sealed class KnowledgeSourceAnswerReview
 
     public KnowledgeSourceAnswerReview(KnowledgeSource source, KnowledgeSourceRevision revision, string question,
         LocalFileSearchResult search, LocalContextSessionTarget target)
+        : this([new(source, revision)], question, search, target)
     {
-        ArgumentNullException.ThrowIfNull(source);
-        ArgumentNullException.ThrowIfNull(revision);
+    }
+
+    public KnowledgeSourceAnswerReview(IReadOnlyList<KnowledgeSourceAnswerSource> sources, string question,
+        LocalFileSearchResult search, LocalContextSessionTarget target)
+    {
+        ArgumentNullException.ThrowIfNull(sources);
         ArgumentNullException.ThrowIfNull(search);
         ArgumentNullException.ThrowIfNull(target);
-        if (source.State != KnowledgeSourceState.Enabled || source.Id != revision.Reference.SourceId
-            || !source.Folder.Matches(revision.Review.Metadata)
-            || !LocalFileRetrievalPolicy.TryQuery(question, out _)
+        var inputs = sources.Take(3).ToArray();
+        if (inputs.Length is < 1 or > 2 || inputs.Any(item => item is null))
+        { throw new InvalidDataException("Select one or two distinct named sources."); }
+        foreach (var input in inputs)
+        {
+            if (input.Source is null || input.Revision is null)
+            { throw new ArgumentNullException(nameof(sources)); }
+            if (input.Source.State != KnowledgeSourceState.Enabled || input.Source.Id != input.Revision.Reference.SourceId
+                || !input.Source.Folder.Matches(input.Revision.Review.Metadata)
+                || target.SourceRequest.RequestId == input.Revision.Review.Request.RequestId
+                || target.SourceRequest.TaskId == input.Revision.Review.Request.TaskId)
+            { throw new InvalidDataException("Named answering requires exact enabled retained sources and a fresh question."); }
+        }
+        if (inputs.Select(item => item.Source.Id).Distinct().Count() != inputs.Length)
+        { throw new InvalidDataException("A named source cannot be selected twice."); }
+        Sources = Array.AsReadOnly(inputs);
+        if (!LocalFileRetrievalPolicy.TryQuery(question, out _)
             || search.Outcome != LocalFileSearchOutcome.Matched
             || search.Mode != LocalFileRetrievalMode.LexicalLines
             || !string.Equals(search.PolicyVersion, LocalFileRetrievalPolicy.Version, StringComparison.Ordinal)
@@ -32,22 +51,18 @@ public sealed class KnowledgeSourceAnswerReview
             || search.MatchingChunks < search.Citations.Count
             || search.Truncated != (search.MatchingChunks > search.Citations.Count)
             || target.SourceRequest.InvocationId is not null
-            || target.Request.InvocationId is not null
-            || target.SourceRequest.RequestId == revision.Review.Request.RequestId
-            || target.SourceRequest.TaskId == revision.Review.Request.TaskId)
-        { throw new InvalidDataException("Named answering requires a fresh original question and one exact enabled retained source."); }
+            || target.Request.InvocationId is not null)
+        { throw new InvalidDataException("Named answering requires a fresh question and bounded exact retained evidence."); }
         var spans = new HashSet<(LocalFileReference, int, int)>();
         var bytes = 0;
         foreach (var citation in search.Citations)
         {
-            _ = revision.ResolveCitation(citation);
+            _ = ResolveCitation(citation);
             bytes += Encoding.UTF8.GetByteCount(citation.Excerpt);
             if (!spans.Add((citation.Source, citation.Start, citation.Length))
                 || bytes > LocalFileRetrievalPolicy.MaximumExcerptUtf8Bytes)
             { throw new InvalidDataException("Duplicate or excessive named evidence is not admitted."); }
         }
-        Source = source;
-        Revision = revision;
         Question = question;
         Search = search with { Citations = Array.AsReadOnly(search.Citations.ToArray()) };
         Target = target;
@@ -57,15 +72,16 @@ public sealed class KnowledgeSourceAnswerReview
     }
 
     private KnowledgeSourceAnswerReview(KnowledgeSourceAnswerReview original, LocalFileSearchResult selected, long version)
-        : this(original.Source, original.Revision, original.Question, selected, original.Target)
+        : this(original.Sources, original.Question, selected, original.Target)
     {
         owner = original.owner;
         selectionVersion = version;
         RetrievedSearch = original.RetrievedSearch;
     }
 
-    public KnowledgeSource Source { get; }
-    public KnowledgeSourceRevision Revision { get; }
+    public IReadOnlyList<KnowledgeSourceAnswerSource> Sources { get; }
+    public KnowledgeSource Source => Sources[0].Source;
+    public KnowledgeSourceRevision Revision => Sources[0].Revision;
     public string Question { get; }
     public LocalFileSearchResult Search { get; }
     public LocalFileSearchResult RetrievedSearch { get; }
@@ -73,6 +89,23 @@ public sealed class KnowledgeSourceAnswerReview
     public int ExcerptUtf8Bytes { get; }
     public DateTimeOffset ExpiresAt => RetrievedSearch.ObservedAt.AddSeconds(30);
     public bool IsRevoked { get { lock (owner.sync) { return owner.retired; } } }
+
+    public KnowledgeSourceAnswerSource SourceFor(LocalFileCitation citation)
+    {
+        ArgumentNullException.ThrowIfNull(citation);
+        return Sources.SingleOrDefault(item => item.Revision.Files.Any(file => file.Reference == citation.Source))
+            ?? throw new InvalidDataException("The citation does not belong to the exact selected source set.");
+    }
+
+    public LocalFileCitationSpan ResolveCitation(LocalFileCitation citation) =>
+        SourceFor(citation).Revision.ResolveCitation(citation);
+
+    public string DescribeCitation(LocalFileCitation citation)
+    {
+        var source = SourceFor(citation);
+        return $"{source.Source.Name}; exact retained revision {source.Revision.Reference.RevisionId:D}; "
+            + $"{citation.DisplayIdentity}, lines {citation.StartLine}-{citation.EndLine}";
+    }
 
     public KnowledgeSourceAnswerReview SelectEvidence(IReadOnlyList<LocalFileCitation> selected)
     {

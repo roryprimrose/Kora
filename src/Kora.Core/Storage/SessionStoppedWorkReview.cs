@@ -7,4 +7,5 @@ namespace Kora.Core.Storage;
 public sealed record SessionStoppedWorkReview(ConversationCancellationTarget Target, ConversationMessage Message)
 {
     public SessionModelUsage? ModelUsage { get; init; }
+    public bool PendingModelUsage { get; init; }
 }

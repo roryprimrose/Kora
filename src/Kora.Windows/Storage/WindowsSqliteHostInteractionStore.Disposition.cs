@@ -43,7 +43,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             var usage = ReadModelUsage(connection, target.Authority.SessionId, cancellationToken)
                 .SingleOrDefault(value => value.Provenance.Turn == original.Execution!.Turn);
             var preview = DescribeDisposition(connection, target, null, Guid.NewGuid(),
-                new(running, original) { ModelUsage = usage });
+                new(running, original) { ModelUsage = usage, PendingModelUsage = usage is null });
             database.VerifyFiles();
             cancellationToken.ThrowIfCancellationRequested();
             return preview;
@@ -96,6 +96,12 @@ public sealed partial class WindowsSqliteHostInteractionStore
                     || task.Revision.Value != stopped.Target.TaskRevision.Value + 1
                     || task.State != expected.ExpectedTaskState || ReadRun(connection, task.Request.TaskId) != runId)
                 { throw new InvalidOperationException("Only the reviewed, physically joined cancellation may be disposed. Review again."); }
+                var usage = ReadModelUsage(connection, request.SessionId, cancellationToken)
+                    .SingleOrDefault(value => value.Provenance.Turn == expected.Execution!.Turn);
+                if (stopped.PendingModelUsage && stopped.ModelUsage is not null
+                    || usage is null || usage.Provenance != expected.Execution
+                    || !stopped.PendingModelUsage && usage != stopped.ModelUsage)
+                { throw new InvalidOperationException("The inventoried original terminal model usage is absent or changed. Review again."); }
             }
             RequireDispositionIdle(connection, request.SessionId, request.TaskId, preview.StoppedWork?.Target.Request.TaskId);
             if (preview.ConfirmationId == Guid.Empty
@@ -231,7 +237,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
         HostId<TaskIdentity>? control, SessionStoppedWorkReview? stopped = null)
     {
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        var terminalUsage = stopped is { ModelUsage: null };
+        var terminalUsage = stopped is { PendingModelUsage: true, ModelUsage: null };
         if (stopped is not null)
         {
             var usage = ReadModelUsage(connection, session, CancellationToken.None)

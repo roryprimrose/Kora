@@ -12,6 +12,21 @@ namespace Kora.Core.UnitTests.Configuration.SettingInspection;
 
 public sealed class SettingInspectionTests
 {
+    [Theory]
+    [InlineData(0, "Offer", false)]
+    [InlineData(0, "Offer", true)]
+    [InlineData(1, "LinkOnly", true)]
+    [InlineData(2, "OpenAutomatically", true)]
+    public void DetailsModeObservationUsesDomainValidationAndExactSavedProvenance(int value, string mode, bool saved)
+    {
+        var observation = new SettingObservation(RegisteredSetting.DetailPresentation, value, saved, 17);
+        observation.Value.Should().Be(value);
+        observation.Selection.Should().BeNull();
+        observation.Revision.Should().Be(17);
+        observation.Text.Should().Be("responses.detail-presentation = " + mode + " mode "
+            + (saved ? "(confirmed saved; matches live service)" : "(confirmed absent; live default)"));
+    }
+
     private static DateTimeOffset Now => DateTimeOffset.UnixEpoch;
     private static SettingObservation[] Values(bool saved = false, int presence = 1) =>
     [
@@ -27,6 +42,7 @@ public sealed class SettingInspectionTests
         new(RegisteredSetting.ReplyStartWait, VoiceCaptureTiming.Default, saved, 5),
         new(RegisteredSetting.TrailingSilence, VoiceCaptureTiming.Default, saved, 5),
         new(SpeechSelection.Default, saved, 7),
+        new(RegisteredSetting.DetailPresentation, 0, saved, 23),
     ];
 
     [Theory]
@@ -41,7 +57,7 @@ public sealed class SettingInspectionTests
             HostRequest.Create(origin), Now);
         values[0] = new(RegisteredSetting.Theme, 2, !saved, 100);
         review.Observations[0].Value.Should().Be(0);
-        review.Observations.Should().HaveCount(19);
+        review.Observations.Should().HaveCount(20);
         review.Observations.Select(item => item.Setting).Should().Equal(
             RegisteredSetting.Theme, RegisteredSetting.ReaderTextScale,
             RegisteredSetting.SummaryWords, RegisteredSetting.SummarySentences,
@@ -50,7 +66,7 @@ public sealed class SettingInspectionTests
             RegisteredSetting.DotDensity, RegisteredSetting.MovementSpeed, RegisteredSetting.SpeechScaling,
             RegisteredSetting.SpeechScaleAmount, RegisteredSetting.ReducedMotion,
             RegisteredSetting.CommandStartWait, RegisteredSetting.ReplyStartWait, RegisteredSetting.TrailingSilence,
-            RegisteredSetting.SpeechVoice);
+            RegisteredSetting.SpeechVoice, RegisteredSetting.DetailPresentation);
         review.Source.Should().Contain("System").And.Contain("100").And.Contain("Hybrid")
             .And.Contain(saved ? "confirmed saved" : "confirmed absent");
         review.Source.Should().Contain($"appearance.presence-display = {(presence == 1 ? "true" : "false")} boolean");
@@ -85,6 +101,8 @@ public sealed class SettingInspectionTests
     [InlineData(RegisteredSetting.SummarySentences, 0)]
     [InlineData(RegisteredSetting.PlaybackVolume, 101)]
     [InlineData(RegisteredSetting.ResponseMode, 3)]
+    [InlineData(RegisteredSetting.DetailPresentation, -1)]
+    [InlineData(RegisteredSetting.DetailPresentation, 3)]
     [InlineData(RegisteredSetting.PresenceDisplay, -1)]
     [InlineData(RegisteredSetting.PresenceDisplay, 2)]
     [InlineData(RegisteredSetting.PresenceDisplay, int.MinValue)]

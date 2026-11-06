@@ -24,6 +24,7 @@ public sealed partial class ModelTurnHostTests
                 new(RegisteredSetting.SummarySentences, 3, false, 1),
                 new(RegisteredSetting.PlaybackVolume, 100, false, 1),
                 new(RegisteredSetting.ResponseMode, 0, false, 1),
+                new(RegisteredSetting.DetailPresentation, 0, false, 1),
                 new(RegisteredSetting.PresenceDisplay, 1, false, 1),
                 new(RegisteredSetting.PresenceTimeout, 10, false, 1),
                 new(RegisteredSetting.PresenceSize, 360, false, 1),

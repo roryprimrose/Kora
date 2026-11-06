@@ -3,16 +3,24 @@ using Kora.Core.KnowledgeSources;
 namespace Kora.Application.KnowledgeSources;
 
 /// <summary>Retains native source ownership through actual model completion, including cancellation-ignoring work.</summary>
-internal sealed class KnowledgeSourceAnswerUse(KnowledgeSource source, KnowledgeSourceRevision revision,
-    IKnowledgeSourceSelection access, IKnowledgeSourceStore store, Func<bool> eligible, TimeProvider time)
+internal sealed class KnowledgeSourceAnswerUse(
+    IReadOnlyList<(KnowledgeSourceAnswerSource Evidence, IKnowledgeSourceSelection Access)> inputs,
+    IKnowledgeSourceStore store, Func<bool> eligible, TimeProvider time)
     : IDisposable, IAsyncDisposable
 {
+    internal KnowledgeSourceAnswerUse(KnowledgeSource source, KnowledgeSourceRevision revision,
+        IKnowledgeSourceSelection access, IKnowledgeSourceStore store, Func<bool> eligible, TimeProvider time)
+        : this([(new(source, revision), access)], store, eligible, time)
+    {
+    }
+
     private readonly Lock sync = new();
     private readonly CancellationTokenSource revocation = new();
     private TaskCompletionSource? work;
     private bool revoked;
     private bool disposed;
-    internal KnowledgeSourceRevision Revision { get; } = revision;
+    internal IReadOnlyList<KnowledgeSourceAnswerSource> Sources { get; } =
+        Array.AsReadOnly(inputs.Select(item => item.Evidence).ToArray());
     internal KnowledgeSourceAnswerReview? Review { get; set; }
     internal bool IsCurrent
     {
@@ -26,15 +34,19 @@ internal sealed class KnowledgeSourceAnswerUse(KnowledgeSource source, Knowledge
         try
         {
             RequireCurrent(token);
-            if (source.State != KnowledgeSourceState.Enabled || Revision.Reference.SourceId != source.Id
-                || !source.Folder.Matches(Revision.Review.Metadata))
-            { throw new InvalidDataException("The exact enabled retained source is required."); }
-            await access.ValidateAsync(token).ConfigureAwait(false);
-            RequireCurrent(token);
-            var current = await store.ReadAsync(source, token).ConfigureAwait(false);
-            RequireCurrent(token);
-            if (current.Reference != Revision.Reference)
-            { throw new InvalidDataException("The retained source revision changed."); }
+            foreach (var (evidence, access) in inputs)
+            {
+                var (source, revision) = evidence;
+                if (source.State != KnowledgeSourceState.Enabled || revision.Reference.SourceId != source.Id
+                    || !source.Folder.Matches(revision.Review.Metadata))
+                { throw new InvalidDataException("The exact enabled retained source is required."); }
+                await access.ValidateAsync(token).ConfigureAwait(false);
+                RequireCurrent(token);
+                var current = await store.ReadAsync(source, token).ConfigureAwait(false);
+                RequireCurrent(token);
+                if (current.Reference != revision.Reference)
+                { throw new InvalidDataException("The retained source revision changed."); }
+            }
         }
         catch
         {
@@ -96,7 +108,7 @@ internal sealed class KnowledgeSourceAnswerUse(KnowledgeSource source, Knowledge
             if (disposed) { return; }
             if (work is not null) { throw new InvalidOperationException("Join the model use before releasing source ownership."); }
             Revoke();
-            access.Dispose();
+            foreach (var input in inputs) { input.Access.Dispose(); }
             revocation.Dispose();
             disposed = true;
         }

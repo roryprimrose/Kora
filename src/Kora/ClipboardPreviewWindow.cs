@@ -20,11 +20,13 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
         HorizontalAlignment = HorizontalAlignment.Left,
     };
 
-    public void Show(ClipboardSnapshot snapshot, Func<Task> reuse, Func<Task> revoke, Func<bool> isCurrent, Func<Task>? explain = null)
+    public void Show(ClipboardSnapshot snapshot, Func<Task> reuse, Func<Task> revoke, Func<bool> isCurrent,
+        Func<Task>? explain = null, ClipboardQuestionActions? questions = null)
     {
         typographyHost?.EnsureReaderTypographyAvailable();
         ClearFindState();
         ClearWrappingState();
+        ClearQuestion();
         Title = "Local clipboard snapshot (untrusted plain text)";
         Width = 760;
         Height = 600;
@@ -92,6 +94,7 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
             HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
         };
+        if (questions is not null) { AddQuestion(content, snapshot, isCurrent, questions, sourceScrollViewer); }
         explanation.Bind(MaxWidthProperty, new Binding("Viewport.Width") { Source = sourceScrollViewer });
         AddSourceWrapping(chrome, snapshot, sourceScrollViewer);
         body.Children.Add(sourceScrollViewer);
@@ -101,11 +104,16 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
         Activate();
     }
 
-    public void SetExplanation(string? text) => explanation.Text = text;
+    public void SetExplanation(string? text)
+    {
+        RefreshQuestion();
+        explanation.Text = text;
+    }
 
     public void ClearAndClose()
     {
         ClearFindState();
+        ClearQuestion();
         source.Text = null;
         ClearWrappingState();
         explanation.Text = null;
@@ -117,6 +125,7 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
     {
         Closed -= OnFindClosed;
         ClearFindState();
+        ClearQuestion();
         source.Text = null;
         ClearWrappingState();
         explanation.Text = null;

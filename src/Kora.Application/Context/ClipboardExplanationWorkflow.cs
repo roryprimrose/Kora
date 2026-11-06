@@ -3,6 +3,7 @@ using System.Diagnostics;
 using Kora.Application.Dependencies;
 using Kora.Core.Auditing;
 using Kora.Core.Context;
+using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -27,6 +28,7 @@ public sealed partial class ClipboardExplanationWorkflow(
     private DateTimeOffset answerExpiresAt;
     private bool disposed;
     private long generation;
+    private long reviewGeneration;
 
     public event EventHandler? Changed;
     public bool IsQuiescent { get { lock (gate) { return pending is null && models.IsQuiescent; } } }
@@ -48,7 +50,34 @@ public sealed partial class ClipboardExplanationWorkflow(
     private bool IsFresh(ClipboardSnapshot source) =>
         time.GetUtcNow() >= source.CapturedAt && time.GetUtcNow() < source.CapturedAt + ClipboardExplanationContext.Lifetime;
 
-    public async Task<ClipboardExplanationResult> ExplainAsync(Guid? reviewedSnapshotId, Func<bool> eligible, CancellationToken token)
+    public ClipboardQuestionReview ReviewQuestion(Guid snapshotId, string question, Func<bool> eligible)
+    {
+        var input = HostActivity.RequireCurrent().Request;
+        if (input.Origin != RequestOrigin.LocalUi || input.InvocationId is not null || disposed || !eligible())
+        { throw new InvalidOperationException("An original current local user question is required."); }
+        var source = snapshots.Current;
+        if (source is null || source.SnapshotId != snapshotId || !IsFresh(source))
+        { throw new InvalidOperationException("The exact clipboard snapshot is unavailable or expired; nothing was recaptured."); }
+        ConversationText.Validate(question, submission: true);
+        var reviewedGeneration = Interlocked.Increment(ref reviewGeneration);
+        return new(source, question, input,
+            () => !disposed && Interlocked.Read(ref reviewGeneration) == reviewedGeneration && eligible()
+                && ReferenceEquals(snapshots.Current, source) && IsFresh(source));
+    }
+
+    public Task<ClipboardExplanationResult> AnswerAsync(ClipboardQuestionReview review, CancellationToken token)
+    {
+        ArgumentNullException.ThrowIfNull(review);
+        if (HostActivity.RequireCurrent().Request != review.Request || !review.IsCurrent() || !review.TryConsume())
+        { return Task.FromResult(Report(new(ClipboardExplanationOutcome.Denied))); }
+        return RunAsync(review.Source.SnapshotId, review.IsCurrent, review, token);
+    }
+
+    public Task<ClipboardExplanationResult> ExplainAsync(Guid? reviewedSnapshotId, Func<bool> eligible, CancellationToken token) =>
+        RunAsync(reviewedSnapshotId, eligible, null, token);
+
+    private async Task<ClipboardExplanationResult> RunAsync(Guid? reviewedSnapshotId, Func<bool> eligible,
+        ClipboardQuestionReview? question, CancellationToken token)
     {
         var input = HostActivity.RequireCurrent();
         var origin = input.Request.Origin;
@@ -124,7 +153,9 @@ public sealed partial class ClipboardExplanationWorkflow(
                 var contextValidated = false;
                 try
                 {
-                    var context = ClipboardExplanationContext.Create(source, request, time.GetUtcNow());
+                    var context = question is null
+                        ? ClipboardExplanationContext.Create(source, request, time.GetUtcNow())
+                        : ClipboardExplanationContext.CreateQuestion(source, request, time.GetUtcNow(), question.Question);
                     contextValidated = true;
                     var admittedTurn = await models.AdmitAsync(ModelTurnChoice.Local, context, null, admitted).ConfigureAwait(false);
                     if (!current()) { result = new(ClipboardExplanationOutcome.Cancelled); }
@@ -242,6 +273,7 @@ public sealed partial class ClipboardExplanationWorkflow(
 
     public void Clear()
     {
+        Interlocked.Increment(ref reviewGeneration);
         lock (gate)
         {
             ++generation;

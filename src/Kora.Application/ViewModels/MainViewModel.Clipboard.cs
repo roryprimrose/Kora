@@ -2,6 +2,7 @@ using Kora.Tools.Clipboard;
 using Kora.Core.Context;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Application.Context;
 
 namespace Kora.Application.ViewModels;
 
@@ -14,10 +15,58 @@ public sealed partial class MainViewModel
     private readonly ClipboardExplain clipboardExplain;
     private readonly Kora.Application.Context.ClipboardExplanationWorkflow? clipboardExplanation;
     private Func<bool> clipboardOwnershipEligible = static () => false;
+    private long clipboardOwnershipBindingRevision;
     public ClipboardSnapshot? ClipboardPreview => clipboardPreview.Current;
     public string? ClipboardExplanation => clipboardExplanation?.CurrentExplanation;
     public event EventHandler? ClipboardPreviewChanged;
-    public void BindClipboardOwnershipGate(Func<bool> gate) => clipboardOwnershipEligible = gate;
+    public void BindClipboardOwnershipGate(Func<bool> gate)
+    {
+        clipboardOwnershipEligible = gate;
+        Interlocked.Increment(ref clipboardOwnershipBindingRevision);
+    }
+
+    public ClipboardQuestionReview ReviewClipboardQuestion(Guid snapshotId, string question)
+    {
+        RequireClipboardQuestionInput();
+        using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+            HostActivityLayer.Application, HostOperation.Request);
+        var call = CallPolicyRevision;
+        var input = CaptureManualCallInput(RequestOrigin.LocalUi, call);
+        var privacy = privacyObservation.Current.TopologyRevision;
+        var binding = Interlocked.Read(ref clipboardOwnershipBindingRevision);
+        bool Current() => IsClipboardEligible(RequestOrigin.LocalUi, call) && input.Eligible()
+            && CanRevealPrivatePresentation && privacyObservation.Current.TopologyRevision == privacy
+            && Interlocked.Read(ref workspaceSurfaceInputRevision) == input.InputRevision
+            && assistantNameConfiguration.Get().Revision == input.AssistantNameRevision
+            && Interlocked.Read(ref clipboardOwnershipBindingRevision) == binding;
+        var review = (clipboardExplanation ?? throw new InvalidOperationException("Clipboard explanation is unavailable."))
+            .ReviewQuestion(snapshotId, question, Current);
+        root.Complete(HostOperationOutcome.Completed);
+        return review;
+    }
+
+    public async Task<ClipboardExplanationResult> AnswerClipboardQuestionAsync(ClipboardQuestionReview review, CancellationToken token)
+    {
+        RequireClipboardQuestionInput();
+        using var root = HostActivity.BeginRoot(review.Request, HostActivityLayer.Application, HostOperation.Request);
+        var workflow = clipboardExplanation ?? throw new InvalidOperationException("Clipboard explanation is unavailable.");
+        try
+        {
+            var result = await workflow.AnswerAsync(review, token);
+            ShowClipboardExplanationOutcome(result);
+            root.Complete(result.Outcome == ClipboardExplanationOutcome.Succeeded ? HostOperationOutcome.Completed
+                : result.Outcome == ClipboardExplanationOutcome.Cancelled ? HostOperationOutcome.Cancelled : HostOperationOutcome.Failed);
+            return result;
+        }
+        finally { await workflow.WaitForQuiescenceAsync(); }
+    }
+
+    private static void RequireClipboardQuestionInput()
+    {
+        if (HostActivity.HasScope && (HostActivity.Current is not { Outcome: HostOperationOutcome.Unknown } input
+            || input.Request.Origin != RequestOrigin.LocalUi || input.Request.InvocationId is not null))
+        { throw new InvalidOperationException("Only original local user input can review or confirm a clipboard question."); }
+    }
 
     private bool IsClipboardEligible(RequestOrigin origin, long callRevision) =>
         !disposed && IsHostInputEligible && clipboardOwnershipEligible()

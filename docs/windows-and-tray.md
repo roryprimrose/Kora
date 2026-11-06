@@ -273,7 +273,16 @@ The expanded window opens a Details pane beside the conversation and composer;
 it does not open another session-result window or repeat the task.
 Each message link opens that exact original or answer, including earlier results.
 
-Drag the divider to resize both panes. **Hide details** or the reader's Escape
+Drag the divider to resize both panes, or focus it and use the arrow keys.
+**Expand details** gives the result more reading width while keeping the
+conversation and composer visible. **Restore split** returns to the previous
+split, even after adjusting the divider while expanded. These native buttons
+also work with Enter/Space. They keep the same source, selection and Find
+without rereading or rerunning anything, and do not resize the window.
+Hiding, replacing the result or switching sessions discards the temporary
+expansion and keeps the ordinary split.
+
+**Hide details** or the reader's Escape
 closes the content, not the conversation or unsent text. **Show details** restores
 the last explicitly chosen available item after fresh admission, or offers a
 chooser. It is disabled until the selected session has observed available details;

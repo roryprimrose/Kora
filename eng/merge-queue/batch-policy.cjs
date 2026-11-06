@@ -31,8 +31,36 @@ function manifestFor(active) {
 }
 
 function validateBatchState(state) {
+  require('./main-scheduling.cjs').validateHourlyState(state);
   invariant(state.deliveryProfile === undefined || state.deliveryProfile === 'independent-v1',
     'Unknown durable delivery profile.');
+  if (state.mainSchedulingTransition !== undefined) {
+    const change = state.mainSchedulingTransition;
+    invariant(change && TICKET.test(change.ticket) && SHA.test(change.checkpoint)
+      && typeof change.actor === 'string' && /^[a-z0-9][a-z0-9-]{0,38}$/i.test(change.actor)
+      && Number.isSafeInteger(change.run) && change.run > 0 && timestamp(change.created)
+      && ['draining', 'ready', 'completed', 'aborted'].includes(change.phase)
+      && ['per-merge', 'hourly-v1'].includes(change.target)
+      && state.deliveryProfile === 'independent-v1',
+    'Invalid main scheduling transition.');
+    if (['ready', 'completed'].includes(change.phase)) {
+      invariant(SHA.test(change.source) && SHA.test(change.tree) && timestamp(change.prepared)
+        && Number.isSafeInteger(change.prepareRun) && change.prepareRun > 0
+        && change.qualification?.source === change.source
+        && Number.isSafeInteger(change.qualification.run) && change.qualification.run > 0
+        && Number.isSafeInteger(change.qualification.job) && change.qualification.job > 0,
+      'Invalid prepared main scheduling boundary.');
+    }
+    if (change.phase === 'ready')
+      invariant(state.active === null, 'A prepared main scheduling boundary cannot own an active candidate.');
+    if (change.phase === 'completed')
+      invariant((state.mainBuildProfile ?? 'per-merge') === change.target && timestamp(change.completed)
+        && Number.isSafeInteger(change.resumeRun) && change.resumeRun > 0,
+      'Completed main scheduling transition requires durable adoption.');
+    if (change.phase === 'aborted')
+      invariant(timestamp(change.aborted) && Number.isSafeInteger(change.abortRun) && change.abortRun > 0,
+        'Invalid aborted main scheduling transition.');
+  }
   if (state.deliveryTransition !== undefined) {
     const change = state.deliveryTransition;
     invariant(change && TICKET.test(change.ticket) && SHA.test(change.checkpoint)

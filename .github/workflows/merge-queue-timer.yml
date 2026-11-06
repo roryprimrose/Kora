@@ -1,0 +1,32 @@
+name: Merge queue timer
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/merge-queue-timer.yml]
+  schedule:
+    - cron: '2-57/5 * * * *'
+
+permissions: {}
+
+concurrency:
+  group: merge-queue-timer
+  cancel-in-progress: false
+
+jobs:
+  wake:
+    if: vars.KORA_MERGE_QUEUE_MODE == 'enabled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      actions: write
+    steps:
+      - name: Request protected reconciliation
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              ...context.repo, workflow_id: 'merge-queue.yml', ref: 'main',
+              inputs: { operation: 'reconcile' },
+            });
+            core.notice('Requested protected queue reconciliation; the timer does not dispatch CI or change queue state.');

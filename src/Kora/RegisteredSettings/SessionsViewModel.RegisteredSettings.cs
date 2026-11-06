@@ -8,7 +8,7 @@ namespace Kora;
 
 internal sealed partial class SessionsViewModel
 {
-    private enum SettingReviewFamily { Appearance, Summary, Volume, ResponseMode, WindowsRate, InstalledVoice, CaptureTiming }
+    private enum SettingReviewFamily { Appearance, Summary, Volume, ResponseMode, WindowsRate, InstalledVoice, CaptureTiming, QuietHours }
     private volatile object? registeredSettingReviewIdentity;
 
     public string RegisteredSettingsDescription => "Supported inert suggestions: " + string.Join("; ",
@@ -21,15 +21,15 @@ internal sealed partial class SessionsViewModel
 
     public bool CanReviewRegisteredSettingSuggestion => CanReviewAppearanceSuggestion
         || CanReviewSpeechSummarySuggestion || CanReviewPlaybackVolumeSuggestion || CanReviewResponseModeSuggestion || CanReviewWindowsSpeechRateSuggestion
-        || CanReviewInstalledSpeechVoiceSuggestion || CanReviewCaptureTimingSuggestion;
+        || CanReviewQuietHoursSuggestion || CanReviewInstalledSpeechVoiceSuggestion || CanReviewCaptureTimingSuggestion;
     public bool CanConfirmRegisteredSettingSuggestion => CanConfirmAppearanceSuggestion
         || CanConfirmSpeechSummarySuggestion || CanConfirmPlaybackVolumeSuggestion || CanConfirmResponseModeSuggestion || CanConfirmWindowsSpeechRateSuggestion
-        || CanConfirmInstalledSpeechVoiceSuggestion || CanConfirmCaptureTimingSuggestion;
+        || CanConfirmQuietHoursSuggestion || CanConfirmInstalledSpeechVoiceSuggestion || CanConfirmCaptureTimingSuggestion;
     public bool CanCancelRegisteredSettingSuggestion => !closed && access.CanInspect && access.CanControl
         && selected?.Authority.IsActive == true && registeredSettingReviewIdentity is not null;
     public string RegisteredSettingSuggestionDescription => AppearanceSuggestionDescription
         + SpeechSummarySuggestionDescription + PlaybackVolumeSuggestionDescription + ResponseModeSuggestionDescription + WindowsSpeechRateSuggestionDescription
-        + InstalledSpeechVoiceSuggestionDescription + CaptureTimingSuggestionDescription;
+        + QuietHoursSuggestionDescription + InstalledSpeechVoiceSuggestionDescription + CaptureTimingSuggestionDescription;
 
     public Task ReviewRegisteredSettingSuggestionAsync(ConversationMessage message) =>
         ReviewRegisteredSettingSuggestionAsync(message, null);
@@ -54,6 +54,8 @@ internal sealed partial class SessionsViewModel
                 RegisteredSettingProposal.Volume => SettingReviewFamily.Volume,
                 RegisteredSettingProposal.ResponseMode => SettingReviewFamily.ResponseMode,
                 RegisteredSettingProposal.WindowsRate => SettingReviewFamily.WindowsRate,
+                RegisteredSettingProposal.QuietHours => SettingReviewFamily.QuietHours,
+                RegisteredSettingProposal.Reset { Setting: RegisteredSetting.QuietHours } => SettingReviewFamily.QuietHours,
                 RegisteredSettingProposal.CaptureTiming => SettingReviewFamily.CaptureTiming,
                 RegisteredSettingProposal.Reset { Setting: RegisteredSetting.CommandStartWait or RegisteredSetting.ReplyStartWait or RegisteredSetting.TrailingSilence } =>
                     SettingReviewFamily.CaptureTiming,
@@ -70,8 +72,13 @@ internal sealed partial class SessionsViewModel
             { throw new InvalidDataException("The exact suggestion belongs to a different setting family; nothing was applied."); }
             var page = conversationPage;
             var completed = completedConversationMessage;
+            var quietIdentity = family == SettingReviewFamily.QuietHours ? new object() : null;
+            quietHoursSuggestionIdentity = quietIdentity;
+            var native = quietIdentity is null ? static () => true
+                : (CaptureQuietHoursNativeLifetime ?? throw new InvalidOperationException("A current native quiet-hours surface is required."))();
             bool Current() => ReferenceEquals(identity, registeredSettingReviewIdentity)
                 && live() && access.CanControl && !conversationSourceHeld
+                && (quietIdentity is null || ReferenceEquals(quietIdentity, quietHoursSuggestionIdentity) && native())
                 && ReferenceEquals(page, conversationPage) && ReferenceEquals(completed, completedConversationMessage);
             async Task Validate(CancellationToken token)
             {
@@ -80,6 +87,17 @@ internal sealed partial class SessionsViewModel
             NotifyRegisteredSettings();
             switch (family)
             {
+                case SettingReviewFamily.QuietHours:
+                    RequireQuietHoursNativeInput(originalInput);
+                    var quietReview = await (reviewQuietHoursSuggestion
+                        ?? throw new InvalidOperationException("Native quiet-hours review is unavailable."))(message, Current, Validate, lifetime.Token);
+                    if (!Current())
+                    {
+                        quietReview.Dispose();
+                        throw new OperationCanceledException("The exact quiet-hours review was retired.");
+                    }
+                    quietHoursSuggestionReview = quietReview;
+                    break;
                 case SettingReviewFamily.CaptureTiming:
                     if (originalInput is not null && (originalInput.Request.Origin != RequestOrigin.LocalUi
                         || originalInput.Request.InvocationId is not null || originalInput.Activity!.IsStopped
@@ -130,6 +148,7 @@ internal sealed partial class SessionsViewModel
 
     public Task ConfirmRegisteredSettingSuggestionAsync() => appearanceReview is not null
         ? ConfirmAppearanceSuggestionAsync()
+        : quietHoursSuggestionReview is not null ? ConfirmQuietHoursSuggestionAsync()
         : captureTimingSuggestionReview is not null ? ConfirmCaptureTimingSuggestionAsync()
         : windowsSpeechRateReview is not null ? ConfirmWindowsSpeechRateSuggestionAsync()
         : installedVoiceReview is not null ? ConfirmInstalledSpeechVoiceSuggestionAsync()
@@ -139,6 +158,7 @@ internal sealed partial class SessionsViewModel
     public void CancelRegisteredSettingSuggestion(bool reportCancellation = true)
     {
         registeredSettingReviewIdentity = null;
+        CancelQuietHoursSuggestion();
         CancelCaptureTimingSuggestion();
         CancelAppearanceSuggestion(reportCancellation: false);
         CancelSpeechSummarySuggestion(reportCancellation: false);
@@ -158,6 +178,7 @@ internal sealed partial class SessionsViewModel
     {
         if (responseModeReview is { Available: false }) { CancelResponseModeSuggestion(); }
         if (windowsSpeechRateReview is { Available: false }) { CancelWindowsSpeechRateSuggestion(); }
+        if (quietHoursSuggestionReview is { Available: false }) { CancelQuietHoursSuggestion(); }
         if (installedVoiceReview is { Available: false }) { CancelInstalledSpeechVoiceSuggestion(); }
         if (!busy && !conversationBusy && !CanConfirmRegisteredSettingSuggestion)
         { registeredSettingReviewIdentity = null; }

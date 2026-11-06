@@ -42,9 +42,9 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionPermissi
             RequireFreshMetadataIntent(intent);
             var session = RequireSession(connection, request.SessionId).Authority;
             var previous = ReadSessionPermission(connection, session);
-            if (request.Origin != RequestOrigin.LocalUi || request.InvocationId is not null
+            if (request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice) || request.InvocationId is not null
                 || !session.IsActive || previous != expected || !admitted())
-            { throw new InvalidOperationException("Permission changes require a fresh native confirmation of this exact Active session and policy revision."); }
+            { throw new InvalidOperationException("Permission changes require fresh original-user confirmation of this exact Active session and policy revision."); }
             var next = previous with { Revision = new(checked(previous.Revision.Value + 1)), Level = desired };
             var questions = ReadQuestions(connection, request.SessionId)
                 .Where(question => question.Status == QuestionStatus.Pending)

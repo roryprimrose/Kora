@@ -20,6 +20,13 @@ function Resolve-ReleaseQueueProfile {
     throw 'Unknown release merge queue profile.'
 }
 
+function Resolve-ReleaseMainBuildProfile {
+    param([AllowNull()][string] $Value)
+    if ($null -eq $Value -or $Value -ceq '') { return 'per-merge' }
+    if ($Value -ceq 'hourly-v1') { return $Value }
+    throw 'Unknown release main build profile.'
+}
+
 function Get-ReleaseRepositoryText {
     param([string] $Path, [string] $Revision, [string] $ExpectedBlob)
     if ($Revision -cnotmatch '^[a-f0-9]{40}$') { throw 'Release safety files require an exact commit revision.' }
@@ -190,7 +197,9 @@ function Assert-SerializedBatchReleaseCaller {
         'run-workflow_id' = $run.workflow_id -eq $workflow.id
         'run-head_branch' = $run.head_branch -ceq 'main'
         'run-head_sha' = $run.head_sha -ceq $Revision
-        'run-event' = $run.event -ceq $env:GITHUB_EVENT_NAME -and $run.event -cin @('push', 'workflow_dispatch')
+        'run-event' = $run.event -ceq $env:GITHUB_EVENT_NAME -and
+            ($run.event -cin @('push', 'workflow_dispatch') -or
+                ($run.event -ceq 'schedule' -and $env:KORA_MAIN_BUILD_PROFILE -ceq 'hourly-v1'))
         'run-status' = $run.status -ceq 'in_progress'
     }
     $rejected = @($predicates.Keys | Where-Object { -not $predicates[$_] })
@@ -223,7 +232,11 @@ function Assert-ReleaseQueueSafety {
     param([string] $Revision, [string] $ExpectedProfile, [switch] $Publishing)
     $snapshot = Resolve-ReleaseQueueProfile $env:KORA_MERGE_QUEUE_PROFILE
     $delivery = $env:KORA_MERGE_QUEUE_DELIVERY_PROFILE
+    $mainBuildProfile = Resolve-ReleaseMainBuildProfile $env:KORA_MAIN_BUILD_PROFILE
     if ($delivery -cnotin @($null, '', 'independent-v1')) { throw 'Unknown release delivery profile.' }
+    if ($mainBuildProfile -ceq 'hourly-v1' -and ($snapshot -cne 'batch-v1' -or $delivery -cne 'independent-v1')) {
+        throw 'Hourly main publication requires independent batch delivery.'
+    }
     $queueSnapshot = if ($delivery -ceq 'independent-v1') { Get-ReleaseQueueSnapshot -WithIdentity } else { $null }
     $text = if ($delivery -ceq 'independent-v1') { $queueSnapshot.Text } else { Get-ReleaseQueueSnapshot }
     $profile = 'singleton-v1'
@@ -243,6 +256,17 @@ function Assert-ReleaseQueueSafety {
     }
     if ($ExpectedProfile -and $profile -cne $ExpectedProfile) {
         throw 'Release durable merge queue profile changed; a fresh run is required.'
+    }
+    $durableMainBuildProfile = 'per-merge'
+    if ($null -ne $state -and $state.Contains('mainBuildProfile')) {
+        if ($state.mainBuildProfile -isnot [string] -or $state.mainBuildProfile -cne 'hourly-v1' -or
+            $profile -cne 'batch-v1' -or $state.deliveryProfile -cne 'independent-v1') {
+            throw 'Invalid durable release main build profile.'
+        }
+        $durableMainBuildProfile = 'hourly-v1'
+    }
+    if ($mainBuildProfile -cne $durableMainBuildProfile) {
+        throw 'Release main build profile changed; a fresh run is required.'
     }
     if ($snapshot -ceq 'batch-v1' -and $profile -cne 'batch-v1') {
         throw 'Batch release requires durable v2 batch-v1 queue state.'

@@ -93,6 +93,9 @@ the complete actual UTF-8 JSON body, without truncation. Credentials are not
 displayed, logged or audited. There is no affirmative default; closing, Deny,
 missing presentation, expiry, privacy or changed authority denies.
 
+Use Tab to focus the [read-only disclosure](../src/Kora/ClaudeTransmissionWindowController.cs), then arrow keys, Page Up/Down or Ctrl+Home/End to read through the complete request. Tab moves to the separate transmit-once or Deny action; reading and typing never approve or edit the outgoing bytes.
+The reader is cleared when its review closes, is cancelled or loses private presentation ([native regression coverage](../tests/Kora.Windows.IntegrationTests/HostedTransmissionDisclosureTests.cs)). Installed screen-reader qualification is separate from these deterministic checks.
+
 Only private native input can approve physical sends. Voice/model text cannot
 approve a send or enter a credential. Request review, saved profile, account
 setup and earlier consent never authorize another POST. No hidden preflight,
@@ -113,6 +116,16 @@ late answer publication. They cannot retract bytes already transmitted.
 Outstanding HTTP/account/model work remains owned until it actually joins;
 exit does not equate cancellation requested with resource quiescence.
 Human reviews are included in the bounded request lifetime.
+
+Buffered Count Tokens and Messages also require confirmed reader, response and
+HTTP-client disposal before releasing ownership. Failed disposal suppresses the
+answer and quarantines that runtime: it remains nonquiescent, refuses later
+turns and reports unconfirmed shutdown rather than silently retrying cleanup.
+The host retains its existing unconfirmed submission/recovery path; recovering
+the retained task does not authorize replay or clear physical-resource quarantine.
+No new account approval or provider qualification is granted
+([runtime](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.cs),
+[disposal regressions](../tests/Kora.Windows.IntegrationTests/Dependencies/ClaudeMessagesRuntimeTests.Disposal.cs)).
 
 For a buffered text-only turn, Count Tokens and Messages share one
 32768-byte physical request budget and one 4096-byte physical response budget,

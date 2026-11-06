@@ -142,6 +142,12 @@ internal static class Program
                                     static (_, _) => ValueTask.CompletedTask, CancellationToken.None).AsTask()).GetAwaiter().GetResult();
                             Task.Run(() => provider.GetRequiredService<WindowsSqliteDiagnosticRetention>()
                                 .RunAsync(CancellationToken.None).AsTask()).GetAwaiter().GetResult();
+                            var auditObservation = auditConfiguration.GetObservation();
+                            var auditRetention = Task.Run(() => provider.GetRequiredService<WindowsSqliteHostInteractionStore>()
+                                .PruneAuditPrefixAsync(() => auditConfiguration.IsCurrentObservation(auditObservation), CancellationToken.None).AsTask())
+                                .GetAwaiter().GetResult();
+                            DesktopLog.AuditRetentionCompleted(startupLogger, auditRetention.Removed,
+                                auditRetention.HasDueBacklog, auditRetention.ReferenceHeld);
                             startup.Complete(HostOperationOutcome.Completed);
                         }
                         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);

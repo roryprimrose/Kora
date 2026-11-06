@@ -49,6 +49,12 @@ Presence suggestions likewise require the exact lowercase syntax and IDs above,
 canonical decimal integers or lowercase `true`/`false`, with no surrounding text.
 Response-timeout suggestions use the same canonical lowercase syntax, for example `set appearance.response-timeout to 15`. This is the response-window inactivity hide delay, not a provider/request deadline ([existing preference](settings.md#independent-visibility-timeouts)).
 Native renderer selection is not an admitted model suggestion.
+During a protected call, a fresh native appearance review and separate local
+confirmation remain available under the table's existing channel restrictions.
+They never clear call protection or enable speech. A changed call observation,
+private host or source requires a fresh review; a later click cannot relabel a
+voice-originated suggestion as an original local source.
+
 For quiet hours, the complete retained answer may be
 `set notices.quiet-hours to weekly Mon,Tue,Wed,Thu,Fri 09:00 17:00 UTC`,
 `set notices.quiet-hours to Off`, or `reset notices.quiet-hours`.

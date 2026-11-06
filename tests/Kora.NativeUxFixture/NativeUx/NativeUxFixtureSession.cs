@@ -187,14 +187,15 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         ForegroundPttConfigurationService? foregroundPtt = null,
         VoiceCaptureTimingConfigurationService? voiceCaptureTimingConfiguration = null,
         QuietHoursConfigurationService? quietHoursConfiguration = null,
-        Kora.Application.Presentation.AudioPlaybackSettings? audioPlaybackSettings = null)
+        Kora.Application.Presentation.AudioPlaybackSettings? audioPlaybackSettings = null,
+        ProviderProfileConfigurationService? providerProfileConfiguration = null)
     {
         using var setup = BeginPhase(NativeFixturePhase.Setup);
         await setup.RunAsync(() => InitializeCoreAsync(webPageGet, webSummary, callState, dispatcher, modelReasoner,
             modelProbe, speechComponentSetup, ordinaryDeadlineConfiguration, conversationExecution,
             speechSetupComparison, logonStartupConfiguration, detailPresentationConfiguration, startupPresentationConfiguration,
             voiceRecognition, speechInputConfiguration, foregroundPtt, voiceCaptureTimingConfiguration, quietHoursConfiguration,
-            audioPlaybackSettings));
+            audioPlaybackSettings, providerProfileConfiguration));
     }
 
     private async Task InitializeCoreAsync(Kora.Tools.Network.WebPageGet? webPageGet,
@@ -212,7 +213,8 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         ForegroundPttConfigurationService? foregroundPtt,
         VoiceCaptureTimingConfigurationService? voiceCaptureTimingConfiguration,
         QuietHoursConfigurationService? quietHoursConfiguration,
-        Kora.Application.Presentation.AudioPlaybackSettings? audioPlaybackSettings)
+        Kora.Application.Presentation.AudioPlaybackSettings? audioPlaybackSettings,
+        ProviderProfileConfigurationService? providerProfileConfiguration)
     {
         if (initialized) { throw new InvalidOperationException("A fixture session may be initialized only once."); }
         using (var context = BeginPhase(NativeFixturePhase.Context))
@@ -298,7 +300,8 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             speechInputConfiguration: speechInputConfiguration,
             foregroundPtt: foregroundPtt,
             voiceCaptureTimingConfiguration: voiceCaptureTimingConfiguration,
-            quietHoursConfiguration: quietHoursConfiguration);
+            quietHoursConfiguration: quietHoursConfiguration,
+            providerProfileConfiguration: providerProfileConfiguration);
         if (webSummary is not null) { Main.BindWebSummaryWorkflow(webSummary); }
         Main.BindCallOwnershipGate(() => Access.Open);
         Main.BindClipboardOwnershipGate(static () => false);

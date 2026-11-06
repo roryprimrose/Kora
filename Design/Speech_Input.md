@@ -263,6 +263,14 @@ native-open deadline remains independent of joined prior-input cleanup.
 The [held-intent regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.PushToTalkPreparation.cs)
 use deterministic capture barriers, not hardware or acoustic qualification.
 
+The [shared response-window PTT regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.cs)
+synchronize the rendered hit-test scene and prove the translated button point
+hits that control or its visual descendant before real headless mouse down/up.
+Keyboard, Enter, pointer release, focus loss, hide and close retain the same
+host-owned consent and capture route. An explicit capture-end barrier separates
+release requested from exactly-once physical quiescence. These fixtures do not
+qualify a physical pointer, microphone or provider.
+
 Explicit command interruption of a retained-answer reading captures the
 foreground session and exact playback at PTT activation, not final recognition.
 The host revalidates that immutable binding and original generation, joins

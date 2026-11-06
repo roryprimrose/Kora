@@ -581,9 +581,9 @@ provider fallback or confidence-based handoff.
 
 **Settings > Providers > Default service and model** is configuration only. Initially the desired service is **On-device (Ollama)** if a supported Ollama installation is observed; otherwise **Not selected**. Unknown installation is not selected. A detected executable is not a running runtime, an available model, consent to generate, or account/egress authorization.
 
-1. **Refresh services and models**.
+1. Open the **Default service and model** actions cog and choose **Refresh** (**Refresh services and models** for accessibility). This checks the selected service, including an unsaved choice, without changing saved settings.
 2. Choose **Not selected**, **On-device (Ollama)**, **GitHub Copilot**, **Claude** or **Codex**. Picking a service changes the draft without changing saved settings or erasing other services.
-3. **Save default service**, or choose a model, thinking level and conversation size and **Save service and model settings**. These correspond to the exact model/reasoning/context choices supplied by the service. Refresh again after a completed save.
+3. **Save default service**, or choose a model, thinking level and conversation size and **Save service and model settings**. These correspond to the exact model/reasoning/context choices supplied by the service. Refresh again from the same cog after a completed save; reselect current advertised choices before a new change.
 4. With a current saved complete profile, use **Review model change**, **Review thinking level change** or **Review conversation size change**. Compare the current and proposed settings, then **Confirm model settings change** or **Cancel change**.
 
 Individual edits retain the saved other fields, app default service and other service tuples. A model edit never replaces incompatible reasoning/context IDs: use the complete draft/save above to choose all dependents explicitly. Missing/stale complete bases and changed selection/ownership/privacy/call/session/generation/app/account/catalogue state reject confirmation. No individual app field reset exists; selected-service tuple reset remains unresolved, not a substitute.

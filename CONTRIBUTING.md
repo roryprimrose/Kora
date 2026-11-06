@@ -90,6 +90,10 @@ to one per UTC hour and at least 60 minutes
 apart; GitHub wakeups do not guarantee an exact launch time. Default behavior remains per-merge
 until the guarded, fully qualified administrator transition activates
 `KORA_MAIN_BUILD_PROFILE=hourly-v1`. Merging code alone does not activate it.
+The [separate timer](.github/workflows/merge-queue-timer.yml) requests protected
+reconciliation only; it cannot start CI directly. Waiting-PR feedback callbacks
+do not occupy a controller runner, while candidate/main lifecycle events retain
+their reconciliation path.
 
 Restore, build, and test with the pinned SDK and locked dependencies:
 

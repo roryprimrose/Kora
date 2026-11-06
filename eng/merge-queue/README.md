@@ -21,7 +21,7 @@ implementation does not activate the profile.
 Automatic main pushes then run admission feedback only, explicitly reporting
 coalescing rather than claiming skipped validation passed. The existing
 serialized App controller owns automatic main dispatch; CI has no separate cron.
-Repository events and the controller's existing five-minute wakeup check whether
+Repository events and the separate five-minute timer wakeup check whether
 the current completed main source differs from the qualified activation baseline,
 last actual full attempt and last dispatch. The controller reserves at most one
 automatic dispatch per UTC hourly slot, with at least 60 minutes since activation,
@@ -31,6 +31,24 @@ manual/tag validation remains available under its existing source and release
 rules. GitHub controller wakeups remain best-effort, not a promise of exact
 wall-clock launch time. Live automatic dispatch and same-source/hour suppression
 require observation rather than a manual-run proxy.
+
+The [timer workflow](../../.github/workflows/merge-queue-timer.yml) runs separately
+from the serialized controller, on the off-peak `2-57/5 * * * *` schedule. With
+queue mode enabled it uses an Actions-only token to request ordinary protected
+reconciliation on main. A main push that changes the timer file also
+requests reconciliation, providing automatic runtime validation of timer edits
+without treating that push as evidence of cron delivery. It never checks out source, changes queue state, reserves
+candidates or dispatches CI. Duplicate or delayed wakeups still pass the same
+durable source/hour guards. Separating timer requests from controller execution
+does not make GitHub cron a guaranteed clock; delayed or dropped schedules can
+still postpone an otherwise eligible build on a quiet repository.
+
+The controller's CI lifecycle trigger accepts only main-branch runs; a second
+job guard excludes ordinary `pull_request` feedback, including fork branches
+named main. PR lifecycle, review/enrollment changes, main pushes,
+candidate/main CI lifecycle, explicit continuation and timer requests remain
+wakeups. Lightweight waiting-PR feedback is not an admission dependency, and
+selected candidate CI still executes its own complete policy/unit/coverage gates.
 
 The eight candidate gates and all 27 main identities remain unchanged. Candidate
 admission advances from the App's exact persisted completed-source record; it

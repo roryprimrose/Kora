@@ -48,12 +48,28 @@ public sealed partial class LocalFileLexicalRetrieval : ILocalFileRetrieval
         if (revision.Reference != exactSource)
         { return LocalFileSearchResult.Empty(LocalFileSearchOutcome.Stale, observedAt); }
         return SearchFiles(revision.Files, query, LocalFileRetrievalMode.LexicalLines, observedAt,
-            cancellationToken, revision.Review.Metadata.CanonicalPath);
+            cancellationToken, file => KnowledgeSourcePolicy.RelativePath(
+                revision.Review.Metadata.CanonicalPath, file.Review.Metadata.CanonicalPath));
+    }
+
+    public LocalFileSearchResult Search(IReadOnlyList<KnowledgeSourceRevision> revisions, string query,
+        DateTimeOffset observedAt, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(revisions);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (revisions.Count is < 1 or > 2 || revisions.Any(item => item is null)
+            || revisions.Select(item => item.Reference.SourceId).Distinct().Count() != revisions.Count)
+        { throw new InvalidDataException("Select one or two distinct exact named revisions."); }
+        var locations = revisions.SelectMany(revision => revision.Files.Select(file => (file.Reference,
+            Location: KnowledgeSourcePolicy.RelativePath(revision.Review.Metadata.CanonicalPath, file.Review.Metadata.CanonicalPath))))
+            .ToDictionary(item => item.Reference, item => item.Location);
+        return SearchFiles(revisions.SelectMany(item => item.Files).ToArray(), query,
+            LocalFileRetrievalMode.LexicalLines, observedAt, cancellationToken, file => locations[file.Reference]);
     }
 
     private static LocalFileSearchResult SearchFiles(IReadOnlyList<LocalFileRevision> files,
         string query, LocalFileRetrievalMode mode, DateTimeOffset observedAt, CancellationToken cancellationToken,
-        string? namedRoot = null)
+        Func<LocalFileRevision, string>? displayIdentity = null)
     {
         if (!LocalFileRetrievalPolicy.TryQuery(query, out var terms))
         {
@@ -96,8 +112,8 @@ public sealed partial class LocalFileLexicalRetrieval : ILocalFileRetrieval
             cancellationToken.ThrowIfCancellationRequested();
             var revision = match.Revision;
             var text = revision.Text;
-            var identity = namedRoot is null ? revision.Review.Metadata.CanonicalPath.Split('\\')[^1]
-                : KnowledgeSourcePolicy.RelativePath(namedRoot, revision.Review.Metadata.CanonicalPath);
+            var identity = displayIdentity is null ? revision.Review.Metadata.CanonicalPath.Split('\\')[^1]
+                : displayIdentity(revision);
             var chunk = match.Chunk;
             var excerpt = text.Substring(chunk.Start, chunk.Length);
             var size = Encoding.UTF8.GetByteCount(excerpt);

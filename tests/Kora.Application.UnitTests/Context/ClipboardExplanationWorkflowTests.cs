@@ -619,11 +619,11 @@ public sealed partial class ClipboardExplanationWorkflowTests
             var preferenceStore = new AudioControlTestStore();
             preferencesAdmission = new(preferenceStore, preferenceStore, new(preferenceStore));
             var configuration = new ProviderModeConfigurationService(new Preferences(), preferencesAdmission, this);
+            if (broker is not null) { Time.Now = DateTimeOffset.UtcNow; }
             models = new(store, this, this, registry, this, NullLogger<ModelTurnHost>.Instance, Time,
                 [new(ModelProviderSelection.OllamaCandidate, qualified
                     ? ModelQualificationGate.LocalCandidateSelection | ModelQualificationGate.IntegratedHost : ModelQualificationGate.None,
                     Time.Now.AddDays(1), qualified ? Adapter : null)], configuration);
-            if (broker is not null) { Time.Now = DateTimeOffset.UtcNow; }
             Broker = broker ?? new(Reader, Time, NullLogger<ClipboardSnapshotBroker>.Instance);
             if (broker is not null) { Time.ReadTime = () => broker.Current?.CapturedAt ?? Time.Now; }
             admission = new(store, store, new(store));

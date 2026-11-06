@@ -21,7 +21,7 @@ internal sealed partial class KnowledgeSourcesWindow : Window, IDisposable
     private readonly IUserFolderPicker picker;
     private readonly CancellationTokenSource lifetime = new();
     private readonly StackPanel body = new() { Spacing = 10, Margin = new Thickness(20) };
-    private readonly ListBox sources = new();
+    private readonly ListBox sources = new() { SelectionMode = SelectionMode.Multiple | SelectionMode.Toggle };
     private readonly TextBox sourceName = new() { PlaceholderText = "Name for this device-local folder", MaxLength = 80 };
     private readonly CheckBox descendants = new() { Content = "Explicitly include bounded subfolders (depth 4; 32 directories including root)" };
     private readonly TextBlock status = new() { TextWrapping = Avalonia.Media.TextWrapping.Wrap };
@@ -142,11 +142,12 @@ internal sealed partial class KnowledgeSourcesWindow : Window, IDisposable
     {
         RetirePresentation();
         sources.ItemsSource = await manager.ListAsync(Eligible, lifetime.Token);
-        status.Text = "Current private inventory loaded. Select one source explicitly; nothing was read from original files.";
+        status.Text = "Current private inventory loaded. Explicitly select one source for management, or one or two for an answer; "
+            + "nothing was read from original files.";
     }
 
-    private KnowledgeSource Selected() => sources.SelectedItem as KnowledgeSource
-        ?? throw new InvalidOperationException("Select exactly one current named source.");
+    private KnowledgeSource Selected() => sources.SelectedItems?.Count == 1 && sources.SelectedItem is KnowledgeSource exact ? exact
+        : throw new InvalidOperationException("Select exactly one current named source for this operation.");
 
     private async Task AddAsync()
     {

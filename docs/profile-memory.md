@@ -54,6 +54,9 @@ accept, save, list or inspect a different memory; readback still requires step 6
 The [source-bound service](../src/Kora.Application/Memory/DeviceProfile/MemoryManagementService.SessionCopy.cs) re-reads the exact original before proposing, reviewing and admitting; the [canonical transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Memory.cs) compares it again at the actual destination operation.
 Changed, edited, disabled, forgotten, deleted or replaced sources cannot authorize the pending copy. Selection/scope changes, privacy/control loss, cancellation, restart and the sixty-second review expiry retire pending work. Start a fresh review rather than retrying a held result.
 
+Proposing, accepting, rejecting or admitting a copy retires open Session and Device-profile memory-use reviews. Replacement use reviews stay closed until the actual source and transaction work joins, including cancellation or failure.
+A new complete memory-use review and separate confirmation are required afterwards; inspecting the source alone does not change it or retire unrelated use consent ([shared boundary](../src/Kora.Application/Memory/ModelProposals/MemoryManagementService.ModelProposals.cs)).
+
 The original Session memory is unchanged. No grant, receipt, review or retention deadline is copied. Once independently admitted, the new Device-profile memory follows its own lifetime: forgetting the original or deleting its session does **not** delete the profile copy. Disable or forget the new record separately.
 Nothing automatically reads a model, recalls memory, sends content, starts speech or activates a tool. These copy controls require fresh native input; existing typed/activated Session commands and model Session proposals do not gain a copy/promotion command.
 

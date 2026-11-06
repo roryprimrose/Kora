@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Net;
 using System.Text;
 using AwesomeAssertions;
@@ -10,6 +10,7 @@ using Kora.Application.Mcp;
 using Kora.Core.Authorization;
 using Kora.Core.Artifacts;
 using Kora.Core.Configuration;
+using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
@@ -224,6 +225,55 @@ public sealed partial class ModelTurnHostTests
         var wire = Encoding.UTF8.GetString(ModelToolProtocol.SerializeRequest(transport.Requests[0]));
         wire.Should().NotContain("https://").And.NotContain(source.Account.AccountId.ToString())
             .And.NotContain(source.Account.SecretReference.ToString());
+        f.Messages.Should().NotContain(message => message.Contains("value 42", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(false, RequestOrigin.LocalUi)]
+    [InlineData(false, RequestOrigin.ActivatedVoice)]
+    [InlineData(true, RequestOrigin.LocalUi)]
+    [InlineData(true, RequestOrigin.ActivatedVoice)]
+    public async Task Mcp_account_withdrawal_after_join_or_terminal_readback_suppresses_result_publication(
+        bool terminalReadback, RequestOrigin origin)
+    {
+        using var f = new Fixture(origin);
+        using var source = new McpSource();
+        f.ProfileCatalogue.Status = Kora.Core.Providers.ProviderCatalogueStatus.Current;
+        f.ProfilePreferences.Value = new(Kora.Core.Providers.ProviderService.Local, [Profile()]);
+        var model = new McpModelTransport();
+        await using var loop = new BoundedModelTurnAdapter(model, f.Time, f);
+        var host = f.ConfiguredProfiles(adapter: loop);
+        var broker = new McpBroker(source.Account);
+        if (terminalReadback)
+        {
+            f.BeforeTaskRead = () =>
+            {
+                if (f.Task?.Task.IsTerminal == true) { broker.Accounts = []; }
+                return Task.CompletedTask;
+            };
+        }
+        else { broker.AfterDispose = () => broker.Accounts = []; }
+        var approvals = new McpApprovals(f);
+        var service = McpService(f, host, source, broker, approvals, await source.Policy());
+        var published = false;
+        var action = () => service.SubmitMcpAsync(new(f.Session, null), "Find the reviewed reference.",
+            source.ServerId, source.Account, approvals.Present, McpSelect, static () => true, Token, origin,
+            (_, _) => published = true);
+        await action.Should().ThrowAsync<ConversationSubmissionUnconfirmedException>();
+        published.Should().BeFalse();
+        broker.Disposed.Should().BeTrue();
+        broker.DisposeCalls.Should().Be(1);
+        broker.Methods.Should().Equal("initialize", "tools/list", "tools/call");
+        model.Requests.Should().HaveCount(terminalReadback ? 2 : 1);
+        approvals.Stages.Should().Equal(terminalReadback
+            ? [McpReviewStage.Connection, McpReviewStage.ToolSelection, McpReviewStage.Invocation, McpReviewStage.ResultContinuation]
+            : [McpReviewStage.Connection, McpReviewStage.ToolSelection, McpReviewStage.Invocation]);
+        if (terminalReadback)
+        {
+            f.Task!.Task.State.Should().Be(HostTaskState.Succeeded,
+                "withdrawing disclosure authority does not rewrite an already committed terminal receipt");
+        }
+        else { f.Retained!.AssistantResponse.Should().BeNull(); }
         f.Messages.Should().NotContain(message => message.Contains("value 42", StringComparison.Ordinal));
     }
 
@@ -505,18 +555,24 @@ public sealed partial class ModelTurnHostTests
         private readonly string directory = Path.Combine(Directory.GetCurrentDirectory(), "artifacts", "mcp-" + Guid.NewGuid().ToString("N"));
         internal string File { get; }
         internal McpServerConfigurationService Configuration { get; }
+        internal McpCapabilityPreferences? Capabilities { get; }
         private readonly McpPreferences preferences;
         internal ArtifactDirectorySettings Settings { get => preferences.Value; set => preferences.Value = value; }
         internal Action? BeforeLoad { set => preferences.BeforeLoad = value; }
         internal string ServerId { get; }
         internal McpAccountReference Account { get; } = new(Guid.NewGuid(), new(1), Guid.NewGuid(), new(new("https://example.com/mcp")));
-        internal McpSource(IArtifactUsePolicy? usePolicy = null)
+        internal McpSource(IArtifactUsePolicy? usePolicy = null, Kora.Core.Auditing.ISecurityAuditLog? audit = null)
         {
             Directory.CreateDirectory(directory);
             File = Path.Combine(directory, "source.json");
             System.IO.File.WriteAllText(File, """{"servers":{"reference":{"url":"https://example.com/mcp"}}}""");
             preferences = new McpPreferences(new([], [], [], [], [File], []));
-            Configuration = new(new McpPaths(directory), preferences, Path.Combine(directory, "profile"), usePolicy);
+            if (audit is not null)
+            {
+                Capabilities = new(new ArtifactUsePreferences(new Tools.KoraMcpServerTests.MemoryStore()),
+                    preferences, new ArtifactDirectoryConfigurationService(preferences, audit));
+            }
+            Configuration = new(new McpPaths(directory), preferences, Path.Combine(directory, "profile"), usePolicy, Capabilities);
             ServerId = Configuration.Load().Single().Id;
             preferences.Value = new([], [], [], [], [File], [ServerId]);
         }
@@ -583,11 +639,14 @@ public sealed partial class ModelTurnHostTests
     private sealed class McpBroker(McpAccountReference account) : IMcpConnectionBroker, IMcpConnection
     {
         internal string? Fault { get; set; }
+        internal IReadOnlyList<McpAccountChoice>? Accounts { get; set; }
         internal Action<string>? AfterExchange { get; set; }
         internal TaskCompletionSource<ImmutableArray<byte>>? PendingCall { get; init; }
         internal TaskCompletionSource? EnteredCall { get; init; }
         internal TaskCompletionSource? PendingDispose { get; init; }
         internal TaskCompletionSource? EnteredDispose { get; init; }
+        internal TaskCompletionSource<IReadOnlyList<McpAccountChoice>>? PendingAccounts { get; set; }
+        internal TaskCompletionSource? EnteredAccounts { get; init; }
         internal List<string> Methods { get; } = [];
         internal string? InvocationArguments { get; private set; }
         internal int Notifications { get; private set; }
@@ -600,9 +659,16 @@ public sealed partial class ModelTurnHostTests
         public McpEndpoint Endpoint => Fault is "redirect" ? new(new("https://other.example.com/mcp")) : account.Destination;
         public IReadOnlyList<IPAddress> RemoteAddresses => Fault switch
         { "private-dns" => [IPAddress.Loopback], "unknown-dns" => [], _ => [IPAddress.Parse("8.8.8.8")] };
-        public Task<IReadOnlyList<McpAccountChoice>> ReadAccountsAsync(CancellationToken token) =>
-            Fault is "unavailable" ? throw new McpUnavailableException()
-                : Task.FromResult<IReadOnlyList<McpAccountChoice>>(Fault is "denied-account" ? [] : [new(account, "Test delegated user")]);
+        public Task<IReadOnlyList<McpAccountChoice>> ReadAccountsAsync(CancellationToken token)
+        {
+            if (PendingAccounts is { } pending)
+            {
+                EnteredAccounts?.TrySetResult();
+                return pending.Task;
+            }
+            return Fault is "unavailable" ? throw new McpUnavailableException()
+                : Task.FromResult(Fault is "denied-account" ? [] : Accounts ?? [new(account, "Test delegated user")]);
+        }
         public Task<IMcpConnection> ConnectAsync(McpAccountReference selected, CancellationToken token)
         {
             selected.Should().Be(account);

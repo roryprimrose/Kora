@@ -870,7 +870,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             || audit.Audit.Outcome is not (SecurityAuditOutcome.Succeeded or SecurityAuditOutcome.Denied)
                 && !(conversationControl && audit.Audit.Outcome is SecurityAuditOutcome.Cancelled or SecurityAuditOutcome.Unknown)
             || !(Same(requested.ActionId, "approval.revoke-exact") || batch || queueControl || conversationControl || permissionControl || answerReviewControl)
-            || !queueControl && !conversationControl && audit.Request.Origin != RequestOrigin.LocalUi))
+            || !queueControl && !conversationControl && !permissionControl && audit.Request.Origin != RequestOrigin.LocalUi))
         {
             throw new InvalidDataException("The exact-revocation requested and terminal audit pair is invalid.");
         }
@@ -882,13 +882,16 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             || audit.Changes.Count(change => Same(change.Kind, "task") && Same(change.Id, Id(audit.Request.TaskId))
                 && change.Revision == audit.IntentRevision.Value + 1) != 1))
         { throw new InvalidDataException("Answer review requires exact native input, requested/terminal audit and a terminal control without grants."); }
-        if (permissionControl && (audit.Request.Origin != RequestOrigin.LocalUi || audit.Request.InvocationId is not null
+        if (permissionControl && (audit.Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
+            || audit.Request.InvocationId is not null
+            || audit.Audit.Initiator != (audit.Request.Origin == RequestOrigin.LocalUi
+                ? SecurityAuditInitiator.TypedCommand : SecurityAuditInitiator.VoiceCommand)
             || audit.RequestedGrantRevision is not null || audit.RequestedGrants is not null || audit.Audit.ApprovalId is not null
             || audit.Outcome is not null || audit.QuestionId is not null || audit.ApprovalId is not null
             || audit.Audit.Outcome != SecurityAuditOutcome.Succeeded
             || audit.Changes.Count(change => Same(change.Kind, "session-permission") && Same(change.Id, Id(audit.Request.SessionId))) != 1
             || audit.Changes.Any(change => change.Kind is not ("session-permission" or "question"))))
-        { throw new InvalidDataException("Session permission requires exact native input and separate requested/terminal authority without grants."); }
+        { throw new InvalidDataException("Session permission requires exact original input and separate requested/terminal authority without grants."); }
         if (conversationControl && (audit.Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
             || audit.Request.Origin == RequestOrigin.ActivatedVoice && audit.Audit.ActionId.StartsWith("conversation.draft.", StringComparison.Ordinal)
             || audit.Request.InvocationId is not null

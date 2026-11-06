@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using AwesomeAssertions;
@@ -136,13 +136,27 @@ public sealed class CopilotSdkTurnRuntimeTests : IDisposable
 #pragma warning restore GHCP001
 
     [Fact]
+    public async Task Sdk_advertises_only_the_host_selected_capabilities()
+    {
+        var fixture = new Fixture
+        {
+            Constraints = new(2, [ReadOnlyCapabilityCatalog.Version], 6, 7, 32768, 4096, 15000),
+        };
+        using var root = fixture.Root();
+        (await fixture.Run(Token)).Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        fixture.Client.Configuration!.AvailableTools.Should().Equal("kora_application_get_version");
+        fixture.Client.Configuration.Tools.Should().ContainSingle();
+        fixture.Client.Configuration.ExcludedTools.Should().Equal("builtin:*", "mcp:*");
+    }
+
+    [Fact]
     public async Task Original_request_and_host_turn_identity_are_preserved_and_native_facilities_are_disabled()
     {
         var fixture = new Fixture();
         using var root = fixture.Root();
         var reply = await fixture.Run(Token);
         reply.Should().Be(new CopilotTurnReply(ModelTurnOutcome.Succeeded, "genuine-sdk-boundary-answer"));
-        fixture.Client.Prompt.Should().Be("{\"UserRequest\":\"original-session-request\"}");
+        fixture.Client.Prompt.Should().Be(Encoding.UTF8.GetString(fixture.Context));
         fixture.Options!.Mode.Should().Be(CopilotClientMode.Empty);
         fixture.Options.UseLoggedInUser.Should().BeFalse();
         fixture.Options.Environment.Should().BeEmpty();
@@ -303,6 +317,9 @@ public sealed class CopilotSdkTurnRuntimeTests : IDisposable
             new("model-1"), new("default"), new("default"));
         internal CopilotSdkTurnRuntime Runtime { get; }
         internal FakeClient Client { get; } = new();
+        internal ModelTurnConstraints? Constraints { get; set; }
+        internal byte[] Context => new ModelContextEnvelope(Request, "policy", "original-session-request", [],
+            DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddMinutes(1), ModelToolMode.ReadOnly, Constraints).Serialize();
         internal CopilotClientOptions? Options { get; private set; }
         internal bool AccountAvailable { get; set; } = true;
         internal bool ApproveTransmission { get; set; } = true;
@@ -338,7 +355,7 @@ public sealed class CopilotSdkTurnRuntimeTests : IDisposable
             ValueTask.FromResult(AccountAvailable ? account : null);
         internal HostActivity Root() => HostActivity.BeginRoot(Request, HostActivityLayer.Windows, HostOperation.Request);
         internal Task<CopilotTurnReply> Run(CancellationToken token) => Runtime.RunAsync(Provenance, Profile,
-            Encoding.UTF8.GetBytes("{\"UserRequest\":\"original-session-request\"}"),
+            Context,
             Tool,
             (_, _) => ValueTask.FromResult(ApproveTransmission), token);
     }

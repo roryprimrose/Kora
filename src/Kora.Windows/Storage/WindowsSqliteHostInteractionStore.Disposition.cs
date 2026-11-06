@@ -40,7 +40,10 @@ public sealed partial class WindowsSqliteHostInteractionStore
             { throw new InvalidOperationException("The reviewed running task is no longer the exact current execution."); }
             RequireDispositionIdle(connection, target.Authority.SessionId, null, running.Request.TaskId);
             var original = message with { Revision = 2, Outcome = null, Reason = null };
-            var preview = DescribeDisposition(connection, target, null, Guid.NewGuid(), new(running, original));
+            var usage = ReadModelUsage(connection, target.Authority.SessionId, cancellationToken)
+                .SingleOrDefault(value => value.Provenance.Turn == original.Execution!.Turn);
+            var preview = DescribeDisposition(connection, target, null, Guid.NewGuid(),
+                new(running, original) { ModelUsage = usage });
             database.VerifyFiles();
             cancellationToken.ThrowIfCancellationRequested();
             return preview;
@@ -228,6 +231,22 @@ public sealed partial class WindowsSqliteHostInteractionStore
         HostId<TaskIdentity>? control, SessionStoppedWorkReview? stopped = null)
     {
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var terminalUsage = stopped is { ModelUsage: null };
+        if (stopped is not null)
+        {
+            var usage = ReadModelUsage(connection, session, CancellationToken.None)
+                .SingleOrDefault(value => value.Provenance.Turn == stopped.Message.Execution!.Turn);
+            if (usage is not null && usage.Provenance != stopped.Message.Execution
+                || stopped.ModelUsage is not null && usage != stopped.ModelUsage)
+            { throw new InvalidOperationException("The reviewed original turn's model usage changed. Review again."); }
+            // The running review inventories one not-yet-observed terminal sample, not arbitrary new usage.
+            // Existing samples remain exact; shared usage validation binds any new sample to its audited source.
+            if (terminalUsage)
+            {
+                Append("reviewed-terminal-model-usage");
+                Append(HostInteractionCodec.Encode(stopped.Message.Execution));
+            }
+        }
         // Length framing covers exact live records and all task transitions, not a UI page or global audit head.
         foreach (var query in new[]
         {
@@ -243,7 +262,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             "SELECT * FROM session_provider_profile WHERE session_id=$id ORDER BY session_id;",
             "SELECT * FROM conversation_drafts WHERE session_id=$id ORDER BY session_id;",
             "SELECT * FROM conversation_answer_reviews WHERE session_id=$id ORDER BY request_id;",
-            "SELECT * FROM session_model_usage WHERE session_id=$id ORDER BY turn_id;",
+            "SELECT * FROM session_model_usage WHERE session_id=$id AND turn_id<>$terminalUsageTurn ORDER BY turn_id;",
             "SELECT * FROM conversation_messages WHERE session_id=$id AND request_id<>$stoppedRequest ORDER BY sequence;",
             "SELECT * FROM session_queue WHERE session_id=$id ORDER BY task_id;",
             "SELECT * FROM session_queue_order WHERE session_id=$id ORDER BY order_id;",
@@ -267,6 +286,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
             command.Parameters.AddWithValue("$control", control is { } task ? Id(task) : string.Empty);
             command.Parameters.AddWithValue("$stoppedTask", stopped is null ? string.Empty : Id(stopped.Target.Request.TaskId));
             command.Parameters.AddWithValue("$stoppedRequest", stopped is null ? string.Empty : Id(stopped.Target.Request.RequestId));
+            command.Parameters.AddWithValue("$terminalUsageTurn", terminalUsage
+                ? Id(stopped!.Message.Execution!.Turn) : string.Empty);
             command.Parameters.AddWithValue("$taskKind", (int)SessionHistoryKind.Task);
             command.Parameters.AddWithValue("$stoppedRevision", stopped is null ? 0 : stopped.Target.TaskRevision.Value + 1);
             command.Parameters.AddWithValue("$unknownState", (int)HostTaskState.Unknown);

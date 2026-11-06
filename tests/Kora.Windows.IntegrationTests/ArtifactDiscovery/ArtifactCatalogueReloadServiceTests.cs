@@ -24,6 +24,187 @@ public sealed class ArtifactCatalogueReloadServiceTests : IDisposable
         "Kora.Windows.IntegrationTests",
         Guid.NewGuid().ToString("N"));
 
+    [Fact]
+    public async Task Existing_registered_root_replacement_recovers_native_commands_without_following_the_moved_root()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            Directory.CreateDirectory(root);
+            using var native = new NativeUxFixtureSession(root);
+            await native.InitializeAsync();
+            var prompts = Path.Combine(root, "registered", "prompts");
+            Directory.CreateDirectory(prompts);
+            var prompt = Path.Combine(prompts, "replacement.prompt.md");
+            WritePrompt(prompt, "Original", "Original registered source.");
+            var preferences = new Preferences(new([], [], [prompts], [], [], [], false));
+            var profile = Path.Combine(root, "profile");
+            var mcp = CreateIsolatedMcp(native, preferences, profile);
+            using var reload = CreateReload(native.ArtifactCatalogue, native, preferences, profile, mcp: mcp);
+            native.Main.BindFileArtifactFreshness((candidate, token) => reload.IsCurrentAsync(candidate, () => true, token));
+            reload.ReloadNow().Should().BeTrue();
+            reload.Start();
+            var original = native.ArtifactCatalogue.Artifacts.Single(item =>
+                string.Equals(item.CommandName, "original", StringComparison.Ordinal));
+            var moved = Path.Combine(root, "registered", "moved");
+
+            await ObserveChange(native.ArtifactCatalogue,
+                () => !native.ArtifactCatalogue.IsCurrent(original.Id, original.Digest),
+                () => Directory.Move(prompts, moved));
+            native.ArtifactCatalogue.Artifacts.Should().NotContain(item => item.CommandName == "original");
+            await ObserveChange(native.ArtifactCatalogue,
+                () => native.ArtifactCatalogue.Artifacts.Any(item =>
+                    string.Equals(item.CommandName, "replacement", StringComparison.Ordinal)),
+                () =>
+                {
+                    WritePrompt(Path.Combine(moved, "ignored.prompt.md"), "Ignored", "Unregistered sibling.");
+                    Directory.CreateDirectory(prompts);
+                    WritePrompt(prompt, "Replacement", "Replacement registered source.");
+                });
+            native.ArtifactCatalogue.Artifacts.Should().NotContain(item => item.CommandName == "ignored");
+            await native.Main.ArtifactChangeUpdate;
+            native.Main.CommandText = "/";
+            native.Main.ArtifactCommandOptions.Should().Contain(item => item.Name == "Replacement");
+            native.Main.ArtifactCommandOptions.Should().NotContain(item => item.Name == "Original" || item.Name == "Ignored");
+            var router = new ArtifactCommandRouter(native.ArtifactCatalogue);
+            router.Match("Kora, use Replacement", "Kora").Invocation!.Artifact.Content
+                .Should().Be("Replacement registered source.");
+            router.Match("Kora, use Original", "Kora").Invocation.Should().BeNull();
+            native.Main.CommandText = "/replacement";
+            await native.Main.RunTypedCommand.ExecuteAsync();
+            native.Main.ResponseTitle.Should().Be("Model use is turned off.");
+            native.Main.IsModelQuestionPending.Should().BeFalse();
+            native.Main.IsModelActionApprovalPending.Should().BeFalse();
+            await ObserveChange(native.ArtifactCatalogue,
+                () => native.ArtifactCatalogue.Artifacts.Any(item =>
+                    string.Equals(item.Content, "Later replacement edit.", StringComparison.Ordinal)),
+                () => WritePrompt(prompt, "Replacement", "Later replacement edit."));
+            File.ReadAllText(Path.Combine(moved, "replacement.prompt.md")).Should().Contain("Original registered source.");
+        });
+    }
+
+    [Theory]
+    [InlineData(ArtifactKind.Skill, "SKILL.md")]
+    [InlineData(ArtifactKind.Instruction, "example.instructions.md")]
+    [InlineData(ArtifactKind.Prompt, "example.prompt.md")]
+    [InlineData(ArtifactKind.Agent, "example.agent.md")]
+    public async Task Root_replacement_failure_and_recovery_never_restore_reviewed_use(ArtifactKind kind, string fileName)
+    {
+        var source = Path.Combine(root, "registered", "example");
+        Directory.CreateDirectory(source);
+        var file = Path.Combine(source, fileName);
+        WritePrompt(file, "Example", "Original source.");
+        var paths = new Paths(Path.Combine(root, "kora"));
+        var preferences = new Preferences(new(
+            kind == ArtifactKind.Skill ? [source] : [],
+            kind == ArtifactKind.Instruction ? [source] : [],
+            kind == ArtifactKind.Prompt ? [source] : [],
+            kind == ArtifactKind.Agent ? [source] : [], [], [], false));
+        var profile = Path.Combine(root, "profile");
+        var mcp = CreateIsolatedMcp(paths, preferences, profile);
+        var use = new ArtifactUsePreferences(paths);
+        using var catalogue = new ArtifactCatalogue(EmbeddedArtifactCatalogue.Load().Artifacts, use);
+        using var reload = new ArtifactCatalogueReloadService(catalogue, paths, preferences,
+            new ArtifactDirectoryConfigurationService(preferences, new Audit()), mcp,
+            NullLogger<ArtifactCatalogueReloadService>.Instance, profileRoamingRoot: profile, use: use);
+        reload.ReloadNow().Should().BeTrue();
+        var original = catalogue.Candidates.Single(item => item.UseControlId is not null);
+        use.SetDisabled(original.UseControlId!, false, original.Digest);
+        (await reload.IsCurrentAsync(original, () => true, TestContext.Current.CancellationToken)).Should().BeTrue();
+        reload.Start();
+
+        await ObserveChange(catalogue,
+            () => !catalogue.SourceCandidates.Any(item => item.UseControlId is not null),
+            () => Directory.Move(source, Path.Combine(root, "registered", "moved")));
+        (await reload.IsCurrentAsync(original, () => true, TestContext.Current.CancellationToken)).Should().BeFalse();
+        use.IsRevisionAllowed(original.UseControlId!, original.Digest).Should().BeFalse();
+        var failed = new TaskCompletionSource<Exception>(TaskCreationOptions.RunContinuationsAsynchronously);
+        void Failed(object? sender, ArtifactCatalogueReloadFailedEventArgs args) => failed.TrySetResult(args.Exception);
+        catalogue.ReloadFailed += Failed;
+        try
+        {
+            Directory.CreateDirectory(source);
+            File.WriteAllText(file, "Invalid replacement.");
+            (await failed.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken))
+                .Should().BeOfType<InvalidDataException>();
+        }
+        finally { catalogue.ReloadFailed -= Failed; }
+        catalogue.IsReloadUnavailable.Should().BeTrue();
+        catalogue.Artifacts.Should().OnlyContain(item => item.UseControlId == null);
+
+        await ObserveChange(catalogue,
+            () => !catalogue.IsReloadUnavailable && catalogue.SourceCandidates.Any(item => item.UseControlId is not null),
+            () => WritePrompt(file, "Example", "Original source."));
+        var restored = catalogue.Candidates.Single(item => item.UseControlId is not null);
+        restored.Digest.Should().Be(original.Digest);
+        restored.IsUseEnabled.Should().BeFalse("restoring identical bytes must not resurrect the old review");
+        new ArtifactUsePreferences(paths).IsRevisionAllowed(original.UseControlId!, original.Digest).Should().BeFalse();
+        (await reload.IsCurrentAsync(original, () => true, TestContext.Current.CancellationToken)).Should().BeFalse();
+        use.SetDisabled(restored.UseControlId!, false, restored.Digest);
+        (await reload.IsCurrentAsync(restored, () => true, TestContext.Current.CancellationToken)).Should().BeTrue();
+        await ObserveChange(catalogue,
+            () => catalogue.SourceCandidates.Any(item => item.UseControlId is not null
+                && !string.Equals(item.Digest, restored.Digest, StringComparison.Ordinal)),
+            () => WritePrompt(file, "Example", "Changed replacement."), mcp);
+        var changed = catalogue.Candidates.Single(item => item.UseControlId is not null);
+        changed.IsUseEnabled.Should().BeFalse();
+        (await reload.IsCurrentAsync(restored, () => true, TestContext.Current.CancellationToken)).Should().BeFalse();
+        use.SetDisabled(changed.UseControlId!, false, changed.Digest);
+        (await reload.IsCurrentAsync(changed, () => true, TestContext.Current.CancellationToken)).Should().BeTrue();
+        var reconciled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void Reconciled(object? sender, EventArgs args) => reconciled.TrySetResult();
+        mcp.Changed += Reconciled;
+        try
+        {
+            Directory.Move(source, Path.Combine(root, "registered", "replaced"));
+            Directory.CreateDirectory(source);
+            WritePrompt(file, "Example", "Changed replacement.");
+            await reconciled.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        }
+        finally { mcp.Changed -= Reconciled; }
+        catalogue.Candidates.Single(item => item.UseControlId is not null).IsUseEnabled.Should().BeFalse(
+            "a coalesced root replacement cannot inherit the prior source review even with identical bytes");
+        (await reload.IsCurrentAsync(changed, () => true, TestContext.Current.CancellationToken)).Should().BeFalse();
+        File.ReadAllText(file).Should().Contain("Changed replacement.");
+    }
+
+    [Fact]
+    public async Task Root_membership_watch_ignores_sibling_names_contents_and_out_of_depth_files()
+    {
+        var prompts = Path.Combine(root, "registered", "prompts");
+        Directory.CreateDirectory(prompts);
+        WritePrompt(Path.Combine(prompts, "example.prompt.md"), "Example", "Registered source.");
+        var paths = new Paths(Path.Combine(root, "kora"));
+        var preferences = new Preferences(new([], [], [prompts], [], [], [], false));
+        var profile = Path.Combine(root, "profile");
+        var mcp = CreateIsolatedMcp(paths, preferences, profile);
+        using var catalogue = new ArtifactCatalogue([
+            .. EmbeddedArtifactCatalogue.Load().Artifacts,
+            .. new WindowsDiskArtifactDiscovery(paths, preferences.Load(), profile).Load()]);
+        var logger = new ActivityCapturingLogger();
+        using var reload = CreateReload(catalogue, paths, preferences, profile, logger, mcp);
+        reload.Start();
+        var sibling = Path.Combine(root, "registered", "sibling");
+        Directory.CreateDirectory(sibling);
+        File.WriteAllText(Path.Combine(sibling, "unregistered.prompt.md"), "Must not read.");
+        var renamed = sibling + ".renamed";
+        Directory.Move(sibling, renamed);
+        File.WriteAllText(Path.Combine(renamed, "another.prompt.md"), "Must not read.");
+        var deep = Path.Combine(prompts, "too.deep");
+        Directory.CreateDirectory(deep);
+        File.WriteAllText(Path.Combine(deep, "invalid.prompt.md"), "Must not read.");
+        var unrelated = Path.Combine(prompts, "state.json");
+        File.WriteAllText(unrelated, "{}");
+        File.Move(unrelated, unrelated + ".old");
+        File.Delete(unrelated + ".old");
+
+        var unexpectedReload = async () =>
+            await logger.ReloadActivity.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+        await unexpectedReload.Should().ThrowAsync<TimeoutException>();
+        catalogue.IsReloadUnavailable.Should().BeFalse();
+        catalogue.Artifacts.Where(item => item.UseControlId != null).Should().ContainSingle()
+            .Which.Content.Should().Be("Registered source.");
+    }
+
     [Theory]
     [InlineData(ArtifactKind.Instruction)]
     [InlineData(ArtifactKind.Prompt)]
@@ -201,21 +382,32 @@ public sealed class ArtifactCatalogueReloadServiceTests : IDisposable
         catalogue.Artifacts.Should().NotContain(item => item.CommandName == "outside" || item.CommandName == "deep");
     }
 
-    [Fact]
-    public async Task Disposal_joins_an_in_flight_reload_and_prevents_late_publication()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Disposal_joins_an_in_flight_reload_and_prevents_late_publication(bool replaceRoot)
     {
         var prompts = Path.Combine(root, "prompts");
         Directory.CreateDirectory(prompts);
         var prompt = Path.Combine(prompts, "joined.prompt.md");
         var catalogue = EmbeddedArtifactCatalogue.Load();
         using var logger = new BlockingReloadLogger();
-        var reload = CreateReload(catalogue, new Paths(Path.Combine(root, "kora")),
-            new Preferences(new([], [], [prompts], [], [], [])), Path.Combine(root, "profile"), logger);
+        var paths = new Paths(Path.Combine(root, "kora"));
+        var preferences = new Preferences(new([], [], [prompts], [], [], [], false));
+        var profile = Path.Combine(root, "profile");
+        var mcp = CreateIsolatedMcp(paths, preferences, profile);
+        var reload = CreateReload(catalogue, paths, preferences, profile, logger, mcp);
         using (reload)
         {
             reload.Start();
-            WritePrompt(prompt, "Joined", "Current source.");
+            if (replaceRoot) { Directory.Move(prompts, Path.Combine(root, "moved")); }
+            else { WritePrompt(prompt, "Joined", "Current source."); }
             await logger.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            if (replaceRoot)
+            {
+                Directory.CreateDirectory(prompts);
+                WritePrompt(prompt, "Joined", "Queued replacement.");
+            }
             var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             var disposal = Task.Run(() =>
             {
@@ -225,8 +417,9 @@ public sealed class ArtifactCatalogueReloadServiceTests : IDisposable
             try
             {
                 await started.Task;
-                await Task.WhenAny(disposal, Task.Delay(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken));
-                disposal.IsCompleted.Should().BeFalse();
+                var prematureDisposal = async () =>
+                    await disposal.WaitAsync(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
+                await prematureDisposal.Should().ThrowAsync<TimeoutException>();
             }
             finally
             {
@@ -234,6 +427,7 @@ public sealed class ArtifactCatalogueReloadServiceTests : IDisposable
                 await disposal.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
             }
             var published = catalogue.Candidates;
+            if (replaceRoot) { catalogue.Artifacts.Should().NotContain(item => item.CommandName == "joined"); }
             WritePrompt(prompt, "Late", "Must not publish.");
             reload.ReloadNow().Should().BeFalse();
             catalogue.Candidates.Should().BeSameAs(published);
@@ -249,6 +443,17 @@ public sealed class ArtifactCatalogueReloadServiceTests : IDisposable
             mcp ?? new McpServerConfigurationService(paths, preferences, profile),
             logger ?? NullLogger<ArtifactCatalogueReloadService>.Instance, profileRoamingRoot: profile);
 
+    private static McpServerConfigurationService CreateIsolatedMcp(
+        IApplicationDataPaths paths, Preferences preferences, string profile)
+    {
+        var mcp = new McpServerConfigurationService(paths, preferences, profile);
+        foreach (var source in mcp.SourceFiles)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(source)!);
+        }
+        return mcp;
+    }
+
     private static async Task ObserveChange(ArtifactCatalogue catalogue, Func<bool> complete, Action change,
         McpServerConfigurationService? mcp = null)
     {
@@ -259,7 +464,7 @@ public sealed class ArtifactCatalogueReloadServiceTests : IDisposable
         }
         void Failed(object? sender, ArtifactCatalogueReloadFailedEventArgs args) =>
             observed.TrySetException(args.Exception);
-        catalogue.Changed += Changed;
+        if (mcp is null) { catalogue.Changed += Changed; }
         catalogue.ReloadFailed += Failed;
         if (mcp is not null) { mcp.Changed += Changed; }
         try
@@ -269,7 +474,7 @@ public sealed class ArtifactCatalogueReloadServiceTests : IDisposable
         }
         finally
         {
-            catalogue.Changed -= Changed;
+            if (mcp is null) { catalogue.Changed -= Changed; }
             catalogue.ReloadFailed -= Failed;
             if (mcp is not null) { mcp.Changed -= Changed; }
         }

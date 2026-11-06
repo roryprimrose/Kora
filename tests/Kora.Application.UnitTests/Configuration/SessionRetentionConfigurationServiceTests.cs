@@ -177,6 +177,97 @@ public sealed class SessionRetentionConfigurationServiceTests : IDisposable
         fixture.Preferences.Writes.Should().Be(0);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Save_and_reset_own_admission_before_refresh_or_another_write_can_enter(bool reset)
+    {
+        await using var fixture = new Fixture();
+        fixture.Service.Observe();
+        var creation = new TaskCompletionSource<Kora.Core.Authorization.WorkSessionAuthorization>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Store.PendingCreation = creation.Task;
+        var first = fixture.Save(reset ? null : new(2, 60));
+        var second = fixture.Save(new(3, 90));
+        var rejectedBeforeAdmission = second.IsCompleted;
+        var refresh = Record.Exception(fixture.Service.Observe);
+        var observation = Record.Exception(() => fixture.Service.GetObservation());
+        creation.SetResult(fixture.Store.Authority!);
+        var firstFailure = await Record.ExceptionAsync(async () => (await first).Should().BeTrue());
+        var secondFailure = await Record.ExceptionAsync(async () => await second);
+
+        rejectedBeforeAdmission.Should().BeTrue();
+        refresh.Should().BeOfType<InvalidOperationException>();
+        observation.Should().BeOfType<InvalidOperationException>();
+        firstFailure.Should().BeNull();
+        secondFailure.Should().BeOfType<InvalidOperationException>();
+        fixture.Preferences.Writes.Should().Be(1);
+        fixture.Preferences.Pending.Should().BeFalse();
+        fixture.Preferences.Value.Should().Be(reset ? null : new SessionRetentionSettings(2, 60));
+        fixture.Policy.Settings.Should().Be(reset ? SessionRetentionSettings.Default : new(2, 60));
+        fixture.Service.Available.Should().BeTrue();
+        fixture.Audit.Events.Should().HaveCount(2);
+        fixture.Store.Tasks.Should().HaveCount(4);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Requested_audit_cannot_refresh_a_changed_source_into_save_or_reset_authority(bool reset)
+    {
+        await using var fixture = new Fixture();
+        fixture.Service.Observe();
+        Exception? refreshFailure = null;
+        fixture.Audit.BeforeWrite = item =>
+        {
+            if (item.Outcome != SecurityAuditOutcome.Requested) { return; }
+            fixture.Preferences.Value = new(3, 90);
+            refreshFailure = Record.Exception(fixture.Service.Observe);
+        };
+
+        (await fixture.Save(reset ? null : new(2, 60))).Should().BeFalse();
+
+        refreshFailure.Should().BeOfType<InvalidOperationException>();
+        fixture.Preferences.Writes.Should().Be(0);
+        fixture.Preferences.Pending.Should().BeFalse();
+        fixture.Preferences.Value.Should().Be(new SessionRetentionSettings(3, 90));
+        fixture.Policy.Settings.Should().Be(SessionRetentionSettings.Default);
+        fixture.Audit.Events.Select(item => item.Outcome)
+            .Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Denied);
+        fixture.Audit.BeforeWrite = null;
+        fixture.Service.Observe();
+        (await fixture.Save(reset ? null : new(2, 60))).Should().BeTrue();
+        fixture.Policy.Settings.Should().Be(reset ? SessionRetentionSettings.Default : new(2, 60));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Terminal_receipt_cannot_start_a_second_write_or_poison_the_confirming_operation(bool reset)
+    {
+        await using var fixture = new Fixture();
+        fixture.Service.Observe();
+        Task<bool>? second = null;
+        fixture.Preferences.AfterSave = () => fixture.Store.BeforeCommit = task =>
+        {
+            if (task.IsTerminal && second is null) { second = fixture.Save(new(3, 90)); }
+        };
+
+        var firstFailure = await Record.ExceptionAsync(async () =>
+            (await fixture.Save(reset ? null : new(2, 60))).Should().BeTrue());
+        second.Should().NotBeNull();
+        var secondFailure = await Record.ExceptionAsync(async () => await second!);
+
+        firstFailure.Should().BeNull();
+        secondFailure.Should().BeOfType<InvalidOperationException>();
+        fixture.Preferences.Writes.Should().Be(1);
+        fixture.Preferences.Pending.Should().BeFalse();
+        fixture.Policy.Settings.Should().Be(reset ? SessionRetentionSettings.Default : new(2, 60));
+        fixture.Service.Available.Should().BeTrue();
+        fixture.Audit.Events.Should().HaveCount(2);
+        fixture.Store.Tasks.Should().HaveCount(4);
+    }
+
     private sealed class Fixture : IAsyncDisposable
     {
         internal Fixture()

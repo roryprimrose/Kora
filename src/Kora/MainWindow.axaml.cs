@@ -2,7 +2,6 @@ using System.ComponentModel;
 
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -403,20 +402,10 @@ public sealed partial class MainWindow : Window
                 await HidePresenceAfterTransitionAsync();
                 break;
             case WindowAction.Close:
-                DesktopLog.Information(logger, "Shutting down the desktop application");
                 CancelPendingHide();
                 presenceTimeoutTimer.Stop();
                 presenceInactivity.Stop();
                 shutdownRequested = true;
-                if (Avalonia.Application.Current?.ApplicationLifetime
-                    is IClassicDesktopStyleApplicationLifetime desktop)
-                {
-                    desktop.Shutdown();
-                }
-                else
-                {
-                    Close();
-                }
                 break;
             default:
                 throw new InvalidOperationException($"Unknown window action: {action}.");

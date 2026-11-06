@@ -12,11 +12,206 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task Native_volume_without_a_settings_surface_cannot_save()
+    {
+        var fixture = new Fixture(enablePlaybackVolume: true);
+        await using var admission = fixture.OutputAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.BindPlaybackVolumeNativeLifetime(static () => false);
+        fixture.ViewModel.SelectedPlaybackVolume = 0;
+        await fixture.ViewModel.SavePlaybackVolumeCommand.ExecuteAsync();
+        fixture.VolumePreferences.Value.Should().BeNull("no native Settings surface admitted this action");
+        fixture.VolumePreferences.Pending.Should().BeFalse();
+        fixture.Audit.Events.Should().NotContain(item => string.Equals(item.ActionId,
+            "configuration.playback-volume", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("save", false)]
+    [InlineData("reset", false)]
+    [InlineData("refresh", false)]
+    [InlineData("save", true)]
+    [InlineData("reset", true)]
+    [InlineData("refresh", true)]
+    public async Task Native_volume_pending_admission_retires_on_close_or_replacement(string operation, bool replace)
+    {
+        var fixture = new Fixture(enablePlaybackVolume: true);
+        await using var admission = fixture.OutputAdmission;
+        fixture.VolumePreferences.Value = new PlaybackVolume(30);
+        fixture.VolumeConfiguration!.Observe();
+        await fixture.ViewModel.InitializeAsync();
+        fixture.TextToSpeech.ClearSpokenResponse();
+        var visible = true;
+        fixture.ViewModel.BindPlaybackVolumeNativeLifetime(() => visible);
+        fixture.ViewModel.CanChangePlaybackVolumeNative.Should().BeTrue();
+        fixture.ViewModel.SelectedPlaybackVolume = 0;
+        var before = fixture.ViewModel.ResponseBody;
+        var writes = fixture.Audit.Events.Count;
+        var microphones = fixture.Voice.StartCalls;
+        var creation = new TaskCompletionSource<Kora.Core.Authorization.WorkSessionAuthorization>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.ManualCallStore.PendingCreation = creation.Task;
+        var pending = (operation switch
+        {
+            "save" => fixture.ViewModel.SavePlaybackVolumeCommand,
+            "reset" => fixture.ViewModel.ResetPlaybackVolumeCommand,
+            _ => fixture.ViewModel.RefreshPlaybackVolumeCommand,
+        }).ExecuteAsync();
+        try
+        {
+            pending.IsCompleted.Should().BeFalse();
+            fixture.ViewModel.CanChangePlaybackVolumeNative.Should().BeFalse();
+            if (replace) { fixture.ViewModel.BindPlaybackVolumeNativeLifetime(static () => true); }
+            else { visible = false; }
+        }
+        finally { creation.TrySetResult(fixture.ManualCallStore.Authority!); }
+        await pending;
+        fixture.VolumePreferences.Value.Should().Be(new PlaybackVolume(30));
+        fixture.VolumePreferences.Pending.Should().BeFalse();
+        fixture.Audit.Events.Count.Should().Be(writes, "retired admission cannot reach the volume writer");
+        fixture.ViewModel.ResponseBody.Should().Be(before, "a closed or replaced surface cannot publish a late result");
+        fixture.TextToSpeech.SpokenText.Should().BeNull();
+        fixture.Voice.StartCalls.Should().Be(microphones);
+        fixture.ManualCallStore.Tasks.GroupBy(task => task.Request.TaskId)
+            .Select(tasks => tasks.Last()).Should().OnlyContain(task => task.IsTerminal);
+
+        fixture.ManualCallStore.PendingCreation = null;
+        fixture.ViewModel.BindPlaybackVolumeNativeLifetime(static () => true);
+        await fixture.ViewModel.RefreshPlaybackVolumeCommand.ExecuteAsync();
+        fixture.ViewModel.PlaybackVolumeStatus.Should().Contain("30%");
+        fixture.ViewModel.SelectedPlaybackVolume = 0;
+        await fixture.ViewModel.SavePlaybackVolumeCommand.ExecuteAsync();
+        fixture.VolumePreferences.Value.Should().Be(new PlaybackVolume(0));
+        fixture.VolumePreferences.Pending.Should().BeFalse();
+        fixture.ViewModel.SavedPlaybackVolume.Should().Be(0);
+        fixture.ViewModel.IsSpeechOutputAvailable.Should().BeFalse();
+        await fixture.ViewModel.ResetPlaybackVolumeCommand.ExecuteAsync();
+        fixture.VolumePreferences.Value.Should().BeNull();
+        fixture.ViewModel.SavedPlaybackVolume.Should().Be(100);
+        fixture.TextToSpeech.SpokenText.Should().BeNull();
+        fixture.Voice.StartCalls.Should().Be(microphones);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Native_volume_revalidates_its_surface_inside_the_final_audited_commit(bool reset, bool replace)
+    {
+        var fixture = new Fixture(enablePlaybackVolume: true);
+        await using var admission = fixture.OutputAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.RunAsync("set speech.playback-volume to 30");
+        var visible = true;
+        fixture.ViewModel.BindPlaybackVolumeNativeLifetime(() => visible);
+        fixture.ViewModel.SelectedPlaybackVolume = 0;
+        var before = fixture.ViewModel.ResponseBody;
+        var writes = fixture.Audit.Events.Count;
+        fixture.Audit.BeforeWrite = item =>
+        {
+            if (item.Outcome != SecurityAuditOutcome.Requested
+                || !string.Equals(item.ActionId, "configuration.playback-volume", StringComparison.Ordinal)) { return; }
+            if (replace) { fixture.ViewModel.BindPlaybackVolumeNativeLifetime(static () => true); }
+            else { visible = false; }
+        };
+        await (reset ? fixture.ViewModel.ResetPlaybackVolumeCommand : fixture.ViewModel.SavePlaybackVolumeCommand).ExecuteAsync();
+        fixture.VolumePreferences.Value.Should().Be(new PlaybackVolume(30));
+        fixture.VolumePreferences.Pending.Should().BeFalse();
+        fixture.Audit.Events.Skip(writes).Select(item => item.Outcome)
+            .Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Denied);
+        fixture.ViewModel.ResponseBody.Should().Be(before);
+        fixture.Audit.BeforeWrite = null;
+
+        fixture.ViewModel.BindPlaybackVolumeNativeLifetime(static () => false);
+        fixture.ViewModel.CanChangePlaybackVolumeNative.Should().BeFalse();
+        await fixture.RunAsync("set speech.playback-volume to 40");
+        fixture.VolumePreferences.Value.Should().Be(new PlaybackVolume(40),
+            "typed input has its own admission, not authority from a native Settings surface");
+    }
+
+    [Fact]
+    public async Task Native_volume_close_after_persistence_keeps_unknown_commit_held_without_rollback_or_replay()
+    {
+        var fixture = new Fixture(enablePlaybackVolume: true);
+        await using var admission = fixture.OutputAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        fixture.TextToSpeech.ClearSpokenResponse();
+        var before = fixture.ViewModel.ResponseBody;
+        var visible = true;
+        fixture.ViewModel.BindPlaybackVolumeNativeLifetime(() => visible);
+        fixture.VolumePreferences.AfterWrite = () => visible = false;
+        fixture.ViewModel.SelectedPlaybackVolume = 0;
+        await fixture.ViewModel.SavePlaybackVolumeCommand.ExecuteAsync();
+        fixture.VolumePreferences.Value.Should().Be(new PlaybackVolume(0), "revocation cannot undo an actual write");
+        fixture.VolumePreferences.Pending.Should().BeTrue("the apply receipt was not confirmed");
+        fixture.ViewModel.SavedPlaybackVolume.Should().BeNull();
+        fixture.ViewModel.PlaybackVolumeStatus.Should().Contain("unconfirmed");
+        fixture.ViewModel.ResponseBody.Should().Be(before);
+        fixture.TextToSpeech.SpokenText.Should().BeNull();
+        fixture.ViewModel.BindPlaybackVolumeNativeLifetime(static () => true);
+        await fixture.ViewModel.RefreshPlaybackVolumeCommand.ExecuteAsync();
+        fixture.VolumePreferences.Pending.Should().BeTrue("reopening and refresh are not saved-state/evidence recovery");
+        fixture.ViewModel.SavedPlaybackVolume.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Native_volume_invalid_input_reports_only_to_its_current_surface(bool revoke)
+    {
+        var fixture = new Fixture(enablePlaybackVolume: true);
+        await using var admission = fixture.OutputAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        var before = fixture.ViewModel.ResponseBody;
+        var visible = true;
+        fixture.ViewModel.BindPlaybackVolumeNativeLifetime(() => visible);
+        if (revoke)
+        {
+            fixture.VolumePreferences.BeforeRead = () => visible = false;
+            fixture.VolumePreferences.ReadFailure = new ArgumentOutOfRangeException(nameof(revoke), "Synthetic invalid persisted volume.");
+        }
+        await fixture.ViewModel.ExecutePlaybackVolumeCommandAsync(new(AppearanceCommandOperation.Set, "101"),
+            SecurityAuditInitiator.LocalUser, TestContext.Current.CancellationToken);
+        if (revoke) { fixture.ViewModel.ResponseBody.Should().Be(before); }
+        else { fixture.ViewModel.ResponseTitle.Should().Be("Choose an exact playback percent from 0 through 100."); }
+        fixture.VolumePreferences.Value.Should().BeNull();
+        fixture.VolumePreferences.Pending.Should().BeFalse();
+        fixture.Audit.Events.Should().NotContain(item => string.Equals(item.ActionId,
+            "configuration.playback-volume", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Native_volume_close_during_output_join_preserves_the_actual_write_without_late_result()
+    {
+        var fixture = new Fixture(enablePlaybackVolume: true);
+        await using var admission = fixture.OutputAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        fixture.TextToSpeech.SpeakGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var speaking = fixture.RunAsync("what power action is pending");
+        await fixture.TextToSpeech.SpeakStarted.Task;
+        var before = fixture.ViewModel.ResponseBody;
+        var visible = true;
+        fixture.ViewModel.BindPlaybackVolumeNativeLifetime(() => visible);
+        fixture.TextToSpeech.BeforeStop = () => visible = false;
+        fixture.ViewModel.SelectedPlaybackVolume = 30;
+        try { await fixture.ViewModel.SavePlaybackVolumeCommand.ExecuteAsync(); }
+        finally { fixture.TextToSpeech.SpeakGate.TrySetResult(); }
+        await speaking;
+        fixture.VolumePreferences.Value.Should().Be(new PlaybackVolume(30));
+        fixture.VolumePreferences.Pending.Should().BeFalse("the completed write is not rolled back by later output retirement");
+        fixture.ViewModel.ResponseBody.Should().Be(before);
+        fixture.ViewModel.IsSpeaking.Should().BeFalse();
+        fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
+    }
+
     private sealed class FakePlaybackVolumePreferences : IPlaybackVolumePreferences
     {
         public PlaybackVolume? Value { get; set; }
         public Exception? ReadFailure { get; set; }
         public Exception? WriteFailure { get; set; }
+        public Action? BeforeRead { get; set; }
         public Action? AfterWrite { get; set; }
         public bool Pending { get; set; }
         public PlaybackVolume? Load()
@@ -24,7 +219,7 @@ public sealed partial class MainViewModelTests
             if (Pending) { throw new InvalidDataException("Unconfirmed write"); }
             return ReadBack();
         }
-        public PlaybackVolume? ReadBack() { if (ReadFailure is { } failure) { throw failure; } return Value; }
+        public PlaybackVolume? ReadBack() { BeforeRead?.Invoke(); if (ReadFailure is { } failure) { throw failure; } return Value; }
         public void BeginWrite() => Pending = true;
         public void ConfirmWrite() => Pending = false;
         public void Save(PlaybackVolume volume) { if (WriteFailure is { } failure) { throw failure; } Value = volume; AfterWrite?.Invoke(); }

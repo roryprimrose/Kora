@@ -48,6 +48,7 @@ internal sealed partial class SessionsViewModel
 
     private void CancelInstalledSpeechVoiceSuggestion()
     {
+        registeredSettingReviewIdentity = null;
         installedVoiceReview?.Dispose();
         installedVoiceReview = null;
     }

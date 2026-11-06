@@ -29,7 +29,7 @@ discovery and the genuine final answer within the unchanged cumulative byte limi
 List accepts bounded `offset`/`count` fields and returns canonical registered
 metadata, scope, validation limits, suggested values, native-review classification
 and whether a confirmed value reader is composed. Get accepts only one exact
-registered `id`; only the nineteen reviewed observations below can return values.
+registered `id`; only the twenty reviewed observations below can return values.
 Other registered values are explicitly unavailable, not guessed or loaded from
 another source ([closed discovery contract](../src/Kora.Core/Tools/SettingsDiscoveryTools.cs)).
 
@@ -41,14 +41,29 @@ results are volatile lower-trust data, not approval or future read authority
 ([bounded loop](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs),
 [exact reviewed binding](../src/Kora.Application/Dependencies/ModelTurnHost.SettingsDiscovery.cs)).
 
-Exactly nineteen registered observations are included: theme, reading text scale,
+Exactly twenty registered observations are included: theme, reading text scale,
 ordinary spoken-summary word/sentence caps, Kora-only playback volume,
-device-default response mode, `appearance.presence-display`, the compound
+device-default response mode, Details presentation mode, `appearance.presence-display`, the compound
 `speech.voice` preference and the eight presence and three capture-timing preferences below. Presence display
 is a reviewed Boolean (`true` or `false`), not a claim that the presence renderer
 is currently available or visible. Its saved/default provenance and source
 invalidation follow the same rules as the other observations
 ([closed source](../src/Kora.Core/Configuration/SettingInspection/SettingInspectionReview.cs)).
+
+For example, ask **Which Details presentation mode is actually confirmed?**
+The complete review includes `responses.detail-presentation`: exactly `Offer`,
+`LinkOnly` or `OpenAutomatically`, its saved/default provenance and the current
+service revision. Confirmed absent storage means the existing `Offer` default,
+not an inferred choice from a description or model suggestion. The persisted
+value must match the already-observed service; malformed, unconfirmed, changed
+or unavailable state requires existing recovery and a fresh explicit inspection.
+Both answer modes use that same source, and `settings.get` returns its validated
+mode value and exact text. Reading, reviewing, receiving a recommendation or
+reopening a retained answer never writes the preference, opens Details, captures
+audio or renews presentation/answer authority. A confirmed future preference is
+not proof that anything opened or that a renderer is available
+([confirmed reader](../src/Kora.Application/Configuration/SettingInspection/DetailPresentationConfigurationService.SettingInspection.cs),
+[domain modes](../src/Kora.Core/Presentation/DetailPresentationPreference.cs)).
 
 | ID | Confirmed unsaved default | Units |
 | --- | --- | --- |

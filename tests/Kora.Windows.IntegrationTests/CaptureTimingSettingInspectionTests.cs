@@ -45,7 +45,7 @@ public sealed class CaptureTimingSettingInspectionTests
             HostActivityLayer.Desktop, HostOperation.Request);
         var session = await f.Workflow.ReviewAsync(Question, () => true, f.Token, ModelToolMode.SettingsDiscovery);
         session.Review.Question.Should().Be(Question);
-        session.Review.Observations.Should().HaveCount(19).And.OnlyHaveUniqueItems(item => item.Setting);
+        session.Review.Observations.Should().HaveCount(20).And.OnlyHaveUniqueItems(item => item.Setting);
         var speech = session.Review.Observations.Single(item => item.Setting == RegisteredSetting.SpeechVoice);
         speech.Selection.Should().Be(savedSpeech ? new("kokoro", "af_heart") : SpeechSelection.Default);
         speech.Value.Should().BeNull();

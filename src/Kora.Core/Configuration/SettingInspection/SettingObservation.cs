@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using Kora.Core.Configuration.RegisteredSettings;
+using Kora.Core.Presentation;
 using Kora.Core.Voice;
 
 namespace Kora.Core.Configuration.SettingInspection;
@@ -75,6 +76,9 @@ public sealed record SettingObservation
             case RegisteredSetting.ResponseMode:
                 _ = ResponseOutputModeResolver.Resolve((ResponseOutputMode)value, null, null);
                 break;
+            case RegisteredSetting.DetailPresentation:
+                _ = DetailPresentationPreference.Format((DetailPresentationMode)value);
+                break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(setting));
         }
@@ -116,6 +120,7 @@ public sealed record SettingObservation
     {
         RegisteredSetting.Theme => ((ApplicationThemeMode)Value!.Value).ToString(),
         RegisteredSetting.ResponseMode => ((ResponseOutputMode)Value!.Value).ToString(),
+        RegisteredSetting.DetailPresentation => DetailPresentationPreference.Format((DetailPresentationMode)Value!.Value),
         RegisteredSetting.PresenceDisplay or RegisteredSetting.SpeechScaling or RegisteredSetting.ReducedMotion =>
             Value == 1 ? "true" : "false",
         RegisteredSetting.CommandStartWait or RegisteredSetting.ReplyStartWait or RegisteredSetting.TrailingSilence =>

@@ -24,7 +24,7 @@ public sealed partial class FinalDocumentInteractionTests
             var state = State(text, () => admitted, retained, result);
             var content = state.Content!;
             var view = new DetailContentView(state, result,
-                (_, _, _) => throw new InvalidOperationException("Fallback reading grants no clipboard authority."));
+                (_, _, _, _) => throw new InvalidOperationException("Fallback reading grants no clipboard authority."));
             var window = new Window { Content = view, Width = 900, Height = 1000 };
             window.Show();
             try

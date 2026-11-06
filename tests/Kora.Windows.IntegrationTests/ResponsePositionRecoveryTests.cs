@@ -1,6 +1,9 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Input;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 
 using AwesomeAssertions;
 
@@ -68,6 +71,22 @@ public sealed class ResponsePositionRecoveryTests
                 var input = window.FindControl<TextBox>("CommandInput")!;
                 input.IsEffectivelyVisible.Should().BeTrue();
                 input.Text.Should().Be("Unsent original input");
+                var recoveredPosition = window.Position;
+                var viewport = window.FindControl<ScrollViewer>("ResponseViewport")!;
+                viewport.Focus().Should().BeTrue();
+                var focusableCount = window.GetVisualDescendants().OfType<Control>()
+                    .Count(control => control.Focusable);
+                for (var index = 0; index < focusableCount
+                    && !ReferenceEquals(window.FocusManager!.GetFocusedElement(), input); index++)
+                {
+                    window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, "Tab");
+                }
+                window.UpdateLayout();
+                window.FocusManager!.GetFocusedElement().Should().BeSameAs(input,
+                    "the original command input must be reachable through native Tab navigation");
+                viewport.Offset.Y.Should().BeGreaterThan(0,
+                    "native keyboard focus must reveal the input through the compact scrolling route");
+                window.Position.Should().Be(recoveredPosition);
                 var inputOrigin = input.TranslatePoint(default, window)!.Value;
                 inputOrigin.X.Should().BeGreaterThanOrEqualTo(0);
                 inputOrigin.Y.Should().BeGreaterThanOrEqualTo(0);

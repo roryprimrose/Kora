@@ -60,6 +60,12 @@ deferred, expired and category-limited rows are truthful **status**, not new
 notifications. Ordinary VoiceOnly output alone never requests speech; the separate
 [run-consented completion operation](#run-consented-conversation-completion-speech) is the only bounded extension.
 
+First visual delivery calculates spacing and hourly budget rollover using fresh
+UTC under the authoritative source lease, not the time before waiting for it.
+Presented receipts and fatigue charges share that delivery timestamp. A clock
+behind the confirmed watermark at lease acquisition returns ClockRollback with
+no rows, receipt write or fatigue charge; recovery never replays a prior delivery.
+
 Native review/dismiss/defer and [exact original typed/current-name activated
 commands](../docs/commands.md#trusted-local-events) share this broker. They
 require a host-held exact event ID/revision and fresh admission. Review/status

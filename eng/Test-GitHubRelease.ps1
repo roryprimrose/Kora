@@ -8,7 +8,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'SourceTools.Common.ps1')
 $fixture = Join-Path ([IO.Path]::GetTempPath()) "KoraReleaseTests-$([guid]::NewGuid().ToString('N'))"
 $saved = @{}
-foreach ($name in @('GITHUB_ACTIONS', 'GITHUB_EVENT_NAME', 'GITHUB_REF', 'GITHUB_REPOSITORY', 'GITHUB_SHA', 'GITHUB_RUN_ID', 'KORA_MERGE_QUEUE_PROFILE', 'KORA_MERGE_QUEUE_DELIVERY_PROFILE')) {
+foreach ($name in @('GITHUB_ACTIONS', 'GITHUB_EVENT_NAME', 'GITHUB_REF', 'GITHUB_REPOSITORY', 'GITHUB_SHA', 'GITHUB_RUN_ID', 'KORA_MERGE_QUEUE_PROFILE', 'KORA_MERGE_QUEUE_DELIVERY_PROFILE', 'KORA_MAIN_BUILD_PROFILE')) {
     $saved[$name] = [Environment]::GetEnvironmentVariable($name)
 }
 $source = (& git -C (Join-Path $PSScriptRoot '..') rev-parse HEAD | Out-String).Trim()
@@ -178,6 +178,7 @@ try {
     $env:GITHUB_RUN_ID = '123'
     $env:KORA_MERGE_QUEUE_PROFILE = ''
     $env:KORA_MERGE_QUEUE_DELIVERY_PROFILE = ''
+    $env:KORA_MAIN_BUILD_PROFILE = ''
     New-Item -ItemType Directory -Path $fixture | Out-Null
     Assert (-not (Invoke-Release).AlreadyPublished) 'Known 404 was not absent.'
     Assert ($global:LASTEXITCODE -eq 0) 'Expected 404 escaped to the Actions epilogue.'

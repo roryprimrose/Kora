@@ -58,10 +58,10 @@ public sealed partial class ModelTurnHostTests
         f.Store.Writes.Should().Be(0);
         f.Model.Model.RetainCalls.Should().Be(0);
         var review = new SkillRefinementReview { Confirm = false };
-        (await f.Service.Save(proposal, review, f.Eligible, Token)).Should().BeNull();
+        (await f.Service.Save(proposal, f.Authority, review, f.Eligible, Token)).Should().BeNull();
         f.Store.Writes.Should().Be(0);
         review.Confirm = true;
-        var saved = (await f.Service.Save(proposal, review, f.Eligible, Token))!;
+        var saved = (await f.Service.Save(proposal, f.Authority, review, f.Eligible, Token))!;
         saved.Document.Guidance.Should().Be(body);
         saved.Document.Tool.Should().Be(OwnedSkillToolSelection.None);
         saved.Document.InputTemplate.Should().BeNull();
@@ -171,7 +171,7 @@ public sealed partial class ModelTurnHostTests
                 if (change is "save-catalogue") { ChangeCatalogue(); }
                 if (change is "destination") { f.Store.Path = "other-destination"; }
                 if (change is "original-authority") { f.Authority.Retire(); }
-                await f.Service.Invoking(service => service.Save(refined, new SkillRefinementReview(), f.Eligible, Token))
+                await f.Service.Invoking(service => service.Save(refined, fresh, new SkillRefinementReview(), f.Eligible, Token))
                     .Should().ThrowAsync<InvalidOperationException>();
             }
         }

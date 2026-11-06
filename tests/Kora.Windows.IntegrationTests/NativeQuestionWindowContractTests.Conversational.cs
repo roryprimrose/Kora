@@ -44,7 +44,7 @@ public sealed partial class NativeQuestionWindowContractTests
                 () => new QuestionVoiceAdmission(new("mic", "Synthetic"), 1, 1, 1), async (text, eligible, token) =>
                 {
                     speechCount++;
-                    text.Should().Be(model.Question.Spec.Text);
+                    text.Should().Be(model.Question.Spec.Text + " Option 1: Show local version. Choose one option.");
                     eligible().Should().BeTrue();
                     capture.IsListening.Should().BeFalse();
                     spoken.TrySetResult();

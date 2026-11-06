@@ -166,6 +166,7 @@ internal sealed partial class SessionsViewModel
     {
         if (next && !ConversationReadingAvailable)
         { throw new InvalidOperationException("The original private conversation page is retired. Read again explicitly."); }
+        var observedCompletion = completedConversationMessage;
         var page = await conversation!.ReadPageAsync(target.Authority.SessionId,
             next ? conversationPage?.Next ?? throw new InvalidOperationException("No conversation continuation; refresh the exact source.") : null,
             25, lifetime.Token);
@@ -175,8 +176,7 @@ internal sealed partial class SessionsViewModel
         conversationReadingControl = access.ControlRevision;
         if (!next)
         {
-            completedConversationMessage = null;
-            conversationUpdates = false;
+            RetireReadCompletion(observedCompletion, page);
         }
         conversationSourceHeld = false;
         composerAuthority = target.Authority;
@@ -382,10 +382,7 @@ internal sealed partial class SessionsViewModel
         ClearInstructionContext();
         ClearHistoryContext();
         ClearConversationCancellation();
-        CancelAppearanceSuggestion(reportCancellation: false);
-        CancelSpeechSummarySuggestion(reportCancellation: false);
-        CancelPlaybackVolumeSuggestion(reportCancellation: false);
-        CancelWindowsSpeechRateSuggestion();
+        CancelRegisteredSettingSuggestion(reportCancellation: false);
         CancelModelMemoryProposal();
         if (preserveUnsent) { RememberUnsent(); }
         ClearAssistantReply();

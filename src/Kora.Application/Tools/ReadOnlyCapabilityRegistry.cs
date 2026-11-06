@@ -1,5 +1,7 @@
-using Kora.Core.Diagnostics;
+﻿using Kora.Core.Diagnostics;
+using Kora.Core.Mcp;
 using Kora.Core.Tools;
+using Kora.Application.Configuration;
 using Kora.Tools.Application;
 using Kora.Tools.Capabilities;
 using Kora.Tools.Readiness;
@@ -17,9 +19,13 @@ public sealed class ReadOnlyCapabilityRegistry(
     ReadinessGet getReadiness,
     RuntimeList listRuntimes,
     RuntimeGetStatus getRuntimeStatus,
-    ILogger<ReadOnlyCapabilityRegistry> logger)
+    ILogger<ReadOnlyCapabilityRegistry> logger,
+    McpCapabilityPreferences? capabilities = null)
 {
     private readonly Guid registryId = Guid.NewGuid();
+
+    internal bool IsCurrentCaller(CapabilityCaller caller) =>
+        IsAdmitted(caller) && ReferenceEquals(HostActivity.Current, caller.Activity);
 
     public CapabilityCaller Admit(CapabilityLane lane)
     {
@@ -44,11 +50,15 @@ public sealed class ReadOnlyCapabilityRegistry(
         using var activity = HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Tool);
         try
         {
+            var useRevision = capabilities?.Revision;
             var reply = descriptor is null
                 ? new CapabilityReply(CapabilityOutcome.Denied, "unknown-capability")
+                : capabilities?.IsToolEnabled(KoraMcpCatalog.ServerId, id) == false
+                ? new CapabilityReply(CapabilityOutcome.Denied, "mcp-capability-disabled")
                 : Dispatch(descriptor, input);
             cancellationToken.ThrowIfCancellationRequested();
-            if (!IsAdmitted(caller) || !ReferenceEquals(HostActivity.Current, activity))
+            if (!IsAdmitted(caller) || !ReferenceEquals(HostActivity.Current, activity)
+                || !string.Equals(capabilities?.Revision, useRevision, StringComparison.Ordinal))
             {
                 reply = new(CapabilityOutcome.Denied, "host-admission-changed");
             }

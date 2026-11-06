@@ -96,10 +96,9 @@ public sealed class AppearanceSuggestionReview : IDisposable
         var (option, value, reset) = suggestion switch
         {
             RegisteredSettingProposal.Appearance proposal => (proposal.Option, proposal.Value, false),
-            RegisteredSettingProposal.Reset proposal when proposal.Descriptor.RequiresNativeReview
-                || proposal.Setting == RegisteredSetting.ResponseTimeout =>
-                (AppearanceOptionRegistry.Options.Single(item => string.Equals(item.Id, proposal.Descriptor.Id, StringComparison.Ordinal)).Option,
-                    (AppearanceValue?)null, true),
+            RegisteredSettingProposal.Reset proposal when AppearanceOptionRegistry.Options.SingleOrDefault(
+                item => string.Equals(item.Id, proposal.Descriptor.Id, StringComparison.Ordinal)) is { } descriptor =>
+                (descriptor.Option, (AppearanceValue?)null, true),
             _ => throw new InvalidDataException("No bounded appearance suggestion: request one exact registered appearance Set or Reset."),
         };
         var nativeOnly = option != AppearanceOption.ResponseTimeout || policy is null;

@@ -91,6 +91,15 @@ public sealed partial class WindowsSqliteHostInteractionStore
                         { throw new InvalidOperationException("The exact submitted session memory changed before answer retention."); }
                     }
                 }
+                if (!context.ProfileMemorySources.IsDefault)
+                {
+                    var profile = ReadMemoryProfile(connection);
+                    foreach (var source in context.ProfileMemorySources)
+                    {
+                        if (source.Profile != profile || !IsSubmittedProfileMemoryRetained(connection, transaction, source))
+                        { throw new InvalidOperationException("The exact submitted device-profile memory changed before answer retention."); }
+                    }
+                }
             }
             var message = previous with
             {

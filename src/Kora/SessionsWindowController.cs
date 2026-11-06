@@ -26,6 +26,7 @@ internal sealed partial class SessionsWindowController(
     SessionRetentionApplyService? retentionApply = null,
     ExactAnswerExportWindowController? answerExports = null,
     Kora.Application.Configuration.DetailPresentationConfigurationService? detailPresentation = null,
+    Kora.Application.Presentation.DetailsOfferService? detailsOffers = null,
     RemainingWorkManagement? workManagement = null) : IDisposable, ISessionDispositionReviewPresenter,
     ISessionQueueCancellationReviewPresenter
 {
@@ -521,6 +522,8 @@ internal sealed partial class SessionsWindowController(
         model.RemainingWorkAnswer = main.AnswerRemainingWorkAsync;
         model.RemainingWorkAdmission = () => main.CanAnswerRemainingWork;
         presentation = new(model, main);
+        if (detailsOffers is not null && detailPresentation is not null)
+        { presentation.BindDetailsOffers(detailsOffers, detailPresentation); }
         model.OpenSessionInstructionScopes = () =>
         {
             try

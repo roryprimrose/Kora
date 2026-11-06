@@ -199,7 +199,7 @@ stable source-tool release may not exist, so explicitly select preview when
 appropriate.
 
 Each new canonical main/tag release includes
-`Kora-<version>-source-tools.zip`. It contains exactly the eight maintained
+`Kora-<version>-source-tools.zip`. It contains exactly the nine maintained
 v1.1.0 bootstrap/build/staging/verification scripts and `source-tools.json`,
 not an installer, application binary, source checkout or another bootstrap
 orchestrator. The manifest declares exact canonical repository/commit,

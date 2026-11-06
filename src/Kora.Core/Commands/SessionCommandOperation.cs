@@ -12,4 +12,4 @@ public enum SessionCommandOperation { Help, List, Status, Inspect, Create, Renam
     ConversationDispatchStatus, ConversationDispatchPause, ConversationDispatchResume,
     PendingClearReview, PendingClearConfirm, PendingClearCancel,
     RemainingWork, RemainingWorkChoose, RemainingWorkCancel,
-    PermissionStatus, PermissionReview, PermissionConfirm, PermissionCancel }
+    PermissionStatus, PermissionReview, PermissionConfirm, PermissionCancel, Metrics }

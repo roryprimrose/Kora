@@ -193,6 +193,7 @@ public sealed class ProviderSettingsToolsTests
             original with { Mcp = new("tool", new string('a', 64), DateTimeOffset.UnixEpoch, "inert", null) },
             original with { Sessions = new([], 0, null) }, original with { Customizations = new([], 0, null) },
             original with { Settings = new([], 0, null) },
+            original with { SessionMetrics = new(DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, 0, 0, 0, 0, 0, []) },
         })
         { ProviderSettingsTools.Matches(mixed, ProviderSettingsTools.Refresh, input).Should().BeFalse(); }
         var metadata = new CustomizationMetadata(Guid.NewGuid().ToString("N"), Kora.Core.Customizations.CustomizationKind.Skill,

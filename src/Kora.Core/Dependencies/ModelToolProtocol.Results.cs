@@ -18,6 +18,15 @@ public static partial class ModelToolProtocol
         }
         if (reply.ProviderSettings is not null)
         { throw new InvalidDataException("Provider settings cannot be returned by another tool."); }
+        if (string.Equals(call.CapabilityId, SessionMetricsTool.Id, StringComparison.Ordinal))
+        {
+            if (CapabilityInputPolicy.Read(ReadOnlyCapabilityCatalog.FindExact(SessionMetricsTool.Id)!, call.InputJson).DenialReason is not null
+                || !SessionMetricsTool.Matches(reply))
+            { throw new InvalidDataException("Metrics must be an exact bounded host session observation."); }
+            return;
+        }
+        if (reply.SessionMetrics is not null)
+        { throw new InvalidDataException("Session metrics cannot be returned by another tool."); }
         if (SettingsDiscoveryTools.FindExact(call.CapabilityId) is { } setting)
         {
             var settingInput = CapabilityInputPolicy.Read(setting, call.InputJson);
@@ -63,7 +72,8 @@ public static partial class ModelToolProtocol
         var valid = shapeCount == 1 && (descriptor.Output switch
         {
             CapabilityOutputShape.Descriptors => reply.Capabilities is { Records: not null } capabilities
-                && ValidPage(capabilities.Records, capabilities.TotalRecords, capabilities.NextOffset, input.Page!)
+                && ValidPage(capabilities.Records, capabilities.TotalRecords, capabilities.NextOffset, input.Page!,
+                    ReadOnlyCapabilityCatalog.Descriptors.Count)
                 && (historical ? capabilities.Records.All(ValidHistoricalDescriptor)
                     : capabilities.TotalRecords == ReadOnlyCapabilityCatalog.Descriptors.Count
                         && capabilities.Records.Select((item, index) => item is not null && CapabilityReplyWire.IsExactDescriptor(
@@ -84,9 +94,10 @@ public static partial class ModelToolProtocol
         if (!valid) { throw new InvalidDataException("The host tool result does not match its exact requested output shape."); }
     }
 
-    private static bool ValidPage<T>(IReadOnlyList<T> records, int total, int? next, CapabilityPageInput input)
+    private static bool ValidPage<T>(IReadOnlyList<T> records, int total, int? next, CapabilityPageInput input,
+        int maximumTotal = ReadOnlyCapabilityCatalog.MaximumRecords)
     {
-        return total is >= 1 and <= ReadOnlyCapabilityCatalog.MaximumRecords
+        return total >= 1 && total <= maximumTotal
             && CapabilityPagePolicy.Resolve(input, total) is { } page
             && records.Count == page.Count && next == page.NextOffset;
     }

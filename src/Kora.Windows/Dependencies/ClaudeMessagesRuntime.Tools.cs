@@ -81,6 +81,7 @@ public sealed partial class ClaudeMessagesRuntime
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cancellation.Token);
             var token = linked.Token;
             await exchange.WaitAsync(token).ConfigureAwait(false);
+            ModelTokenUsage? tokenUsage = null;
             try
             {
                 if (disposed || !ReferenceEquals(request.Provenance, provenance) || request.Profile != profile
@@ -112,22 +113,26 @@ public sealed partial class ClaudeMessagesRuntime
                     "/v1/messages", messageBody), account, admit, Live, token,
                     request.Budget.OutputUtf8Bytes - counted.Length).ConfigureAwait(false);
                 if (response is null) { return new(ModelTurnOutcome.DeniedEgress, provenance); }
+                tokenUsage = ReadTokenUsage(response, outputLimit, inputLimit);
                 var assistant = ClaudeObservationWire.Parse(response, profile, outputLimit, inputLimit, request.Context.Tools,
                     request.ClarificationAllowed && request.Messages.IsEmpty);
                 token.ThrowIfCancellationRequested();
-                if (!await Live(token).ConfigureAwait(false)) { return new(ModelTurnOutcome.DeniedEgress, provenance); }
+                if (!await Live(token).ConfigureAwait(false))
+                { return new(ModelTurnOutcome.DeniedEgress, provenance) { TokenUsage = tokenUsage }; }
                 var chargedOutput = Math.Max(ModelToolProtocol.SerializeMessage(assistant).Length,
                     checked(counted.Length + response.Length));
-                if (chargedOutput > request.Budget.OutputUtf8Bytes) { return new(ModelTurnOutcome.DeniedEgress, provenance); }
-                return new(ModelTurnOutcome.Succeeded, provenance, assistant, new(chargedInput, chargedOutput));
+                if (chargedOutput > request.Budget.OutputUtf8Bytes)
+                { return new(ModelTurnOutcome.DeniedEgress, provenance) { TokenUsage = tokenUsage }; }
+                return new(ModelTurnOutcome.Succeeded, provenance, assistant, new(chargedInput, chargedOutput))
+                { TokenUsage = tokenUsage };
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
-            { return new(ModelTurnOutcome.Cancelled, provenance); }
+            { return new(ModelTurnOutcome.Cancelled, provenance) { TokenUsage = tokenUsage }; }
             catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidDataException or System.Text.Json.JsonException
                 or InvalidOperationException or KeyNotFoundException or FormatException)
             {
                 RequestFailed(owner.logger, exception.GetType().Name);
-                return new(ModelTurnOutcome.Unknown, provenance);
+                return new(ModelTurnOutcome.Unknown, provenance) { TokenUsage = tokenUsage };
             }
             finally { exchange.Release(); }
         }

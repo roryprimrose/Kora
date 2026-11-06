@@ -52,6 +52,7 @@ public sealed partial class ClaudeMessagesRuntimeTests : IDisposable
         }, _ => ValueTask.FromResult(true), Token);
         result.Outcome.Should().Be(outcome);
         result.Answer.Should().Be(outcome == ModelTurnOutcome.Succeeded ? "genuine exact answer" : null);
+        result.TokenUsage.Should().Be(outcome == ModelTurnOutcome.Succeeded ? new ModelTokenUsage(25, 5, 25) : null);
         var posts = f.Requests.Where(request => request.Method is "POST").ToArray();
         posts.Length.Should().Be(sends);
         if (sends == 2)

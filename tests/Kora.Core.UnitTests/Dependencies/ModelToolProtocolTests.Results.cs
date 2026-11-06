@@ -20,9 +20,9 @@ public sealed partial class ModelToolProtocolTests
             (ReadOnlyCapabilityCatalog.Get, """{"id":"application.get_version"}""",
                 new(CapabilityOutcome.Succeeded, "read", Descriptor: ReadOnlyCapabilityCatalog.FindExact(ReadOnlyCapabilityCatalog.Version))),
             (ReadOnlyCapabilityCatalog.List, "{}",
-                new(CapabilityOutcome.Succeeded, "read", Capabilities: new(ReadOnlyCapabilityCatalog.Descriptors.ToArray(), 6, null))),
+                new(CapabilityOutcome.Succeeded, "read", Capabilities: new(ReadOnlyCapabilityCatalog.Descriptors.Take(6).ToArray(), 7, 6))),
             (ReadOnlyCapabilityCatalog.List, """{"offset":1,"count":1}""",
-                new(CapabilityOutcome.Succeeded, "read", Capabilities: new([ReadOnlyCapabilityCatalog.Descriptors[1]], 6, 2))),
+                new(CapabilityOutcome.Succeeded, "read", Capabilities: new([ReadOnlyCapabilityCatalog.Descriptors[1]], 7, 2))),
             (ReadOnlyCapabilityCatalog.Readiness, "{}",
                 new(CapabilityOutcome.Succeeded, "read", Readiness: new([readiness], 1, null))),
             (ReadOnlyCapabilityCatalog.Readiness, "{}",
@@ -108,13 +108,13 @@ public sealed partial class ModelToolProtocolTests
         var capability = ReadOnlyCapabilityCatalog.List;
         var input = "{}";
         var reply = new CapabilityReply(CapabilityOutcome.Succeeded, "observed",
-            Capabilities: new(ReadOnlyCapabilityCatalog.Descriptors.ToArray(), 6, null));
+            Capabilities: new(ReadOnlyCapabilityCatalog.Descriptors.Take(6).ToArray(), 7, 6));
         switch (fault)
         {
             case "page-missing": reply = reply with { Capabilities = new(null!, 6, null) }; break;
             case "page-total": reply = reply with { Capabilities = new([], 0, null) }; break;
             case "page-count": reply = reply with { Capabilities = new([], 6, null) }; break;
-            case "page-next": reply = reply with { Capabilities = reply.Capabilities! with { NextOffset = 6 } }; break;
+            case "page-next": reply = reply with { Capabilities = reply.Capabilities! with { NextOffset = null } }; break;
             case "page-descriptor":
                 reply = reply with { Capabilities = new(
                     ReadOnlyCapabilityCatalog.Descriptors.Select(item => item with { SchemaVersion = 999 }).ToArray(), 6, null) };

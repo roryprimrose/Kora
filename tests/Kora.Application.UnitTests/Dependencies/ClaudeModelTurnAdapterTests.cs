@@ -78,12 +78,14 @@ public sealed partial class ClaudeModelTurnAdapterTests : IDisposable
                 new("https://api.anthropic.com/v1/messages"), new byte[] { 1 }, []);
             var approved = await admit(transmission, Token);
             if (fault is "late-answer") { live = false; }
-            return new(approved && fault is not "runtime-denied" ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.DeniedEgress, "genuine");
+            return new(approved && fault is not "runtime-denied" ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.DeniedEgress, "genuine")
+            { TokenUsage = new(25, 5, 25) };
         };
         var result = await adapter.RunAsync(f.Provenance, f.Profile, f.Context.Serialize(),
             (_, _, _) => throw new InvalidOperationException("No tool authority."), Token);
         result.Outcome.Should().Be(fault is "success" ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.DeniedEgress);
         result.Response?.Answer.Should().Be(fault is "success" ? "genuine" : null);
+        result.TokenUsage.Should().Be(new ModelTokenUsage(25, 5, 25));
         offered.Should().Be(fault is "wrong-transmission" or "wrong-profile" ? 0 : 1);
         runtime.Calls.Should().Be(1);
     }

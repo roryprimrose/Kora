@@ -35,6 +35,7 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, ICla
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, deadline.Token, lifetime.Token);
         token = linked.Token;
         await operation.WaitAsync(token).ConfigureAwait(false);
+        ModelTokenUsage? tokenUsage = null;
         void Quarantine() => quarantined = true;
         try
         {
@@ -80,20 +81,22 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, ICla
                     "/v1/messages", messageBody), account, admit, Live, token,
                     ModelContextEnvelope.MaximumOutputUtf8Bytes - counted.Length, quarantine: Quarantine).ConfigureAwait(false);
                 if (response is null) { return new(ModelTurnOutcome.DeniedEgress); }
+                tokenUsage = ReadTokenUsage(response, outputLimit, inputLimit.Value);
                 var answer = ParseAnswer(response, profile, outputLimit, inputLimit.Value);
                 token.ThrowIfCancellationRequested();
-                return await Live(token).ConfigureAwait(false) ? new(ModelTurnOutcome.Succeeded, answer)
-                    : new(ModelTurnOutcome.DeniedEgress);
+                return await Live(token).ConfigureAwait(false)
+                    ? new(ModelTurnOutcome.Succeeded, answer) { TokenUsage = tokenUsage }
+                    : new(ModelTurnOutcome.DeniedEgress) { TokenUsage = tokenUsage };
             }
             finally { ClaudeAnswerStream.DisposeOwned(http, Quarantine); }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
-        { return new(ModelTurnOutcome.Cancelled); }
+        { return new(ModelTurnOutcome.Cancelled) { TokenUsage = tokenUsage }; }
         catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidDataException or JsonException
             or InvalidOperationException or KeyNotFoundException or FormatException)
         {
             RequestFailed(logger, exception.GetType().Name);
-            return new(ModelTurnOutcome.Unknown);
+            return new(ModelTurnOutcome.Unknown) { TokenUsage = tokenUsage };
         }
         finally { operation.Release(); }
     }
@@ -189,7 +192,17 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, ICla
             || !string.Equals(root.GetProperty("stop_reason").GetString(), stopReason, StringComparison.Ordinal)
             || root.GetProperty("stop_sequence").ValueKind != JsonValueKind.Null)
         { throw new InvalidDataException("Claude did not return an exact final text message."); }
-        var usage = root.GetProperty("usage");
+        _ = ReadTokenUsage(root.GetProperty("usage"), outputLimit, inputLimit);
+    }
+
+    internal static ModelTokenUsage ReadTokenUsage(byte[] bytes, int outputLimit, int inputLimit)
+    {
+        using var json = Parse(bytes);
+        return ReadTokenUsage(json.RootElement.GetProperty("usage"), outputLimit, inputLimit);
+    }
+
+    private static ModelTokenUsage ReadTokenUsage(JsonElement usage, int outputLimit, int inputLimit)
+    {
         if (usage.EnumerateObject().Any(property => property.Name is not
                 ("input_tokens" or "output_tokens" or "cache_creation_input_tokens" or "cache_read_input_tokens"))
             || !usage.GetProperty("output_tokens").TryGetInt32(out var output) || output <= 0 || output > outputLimit
@@ -197,6 +210,7 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, ICla
             || usage.TryGetProperty("cache_creation_input_tokens", out var created) && created.GetInt32() != 0
             || usage.TryGetProperty("cache_read_input_tokens", out var cached) && cached.GetInt32() != 0)
         { throw new InvalidDataException("Claude token usage exceeds the exact profile."); }
+        return new(input, output, input);
     }
 
     public ValueTask DisposeAsync()

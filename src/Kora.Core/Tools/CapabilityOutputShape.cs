@@ -12,5 +12,6 @@ public enum CapabilityOutputShape
     Sessions,
     CustomizationMetadata,
     RegisteredSettings,
+    SessionMetrics,
     ProviderSettings,
 }

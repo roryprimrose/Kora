@@ -18,7 +18,7 @@ public sealed class SessionDiscoveryTests
     [Fact]
     public void The_exact_source_catalogue_is_separate_and_roundtrips_without_expanding_six_default_capabilities()
     {
-        ReadOnlyCapabilityCatalog.Descriptors.Should().HaveCount(6);
+        ReadOnlyCapabilityCatalog.Descriptors.Should().HaveCount(7);
         ReadOnlyCapabilityCatalog.FindExact(SessionDiscoveryTool.Id).Should().BeNull();
         ModelToolProtocol.GetTools(ModelToolMode.None).Should().BeEmpty();
         ModelToolProtocol.GetTools(ModelToolMode.ReadOnly).Should().Equal(ReadOnlyCapabilityCatalog.Descriptors);

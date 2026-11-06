@@ -68,6 +68,7 @@ public sealed partial class ClaudeMessagesRuntimeTests
         var result = await pending;
         result.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
         result.Answer.Should().Be(text + " complete");
+        result.TokenUsage.Should().Be(new ModelTokenUsage(25, 5, 25));
         f.Updates.Select(update => update.Answer).Should().Equal(text, text + " complete");
         stream.Disposed.Should().BeTrue();
         f.Runtime.IsQuiescent.Should().BeTrue();
@@ -212,6 +213,7 @@ public sealed partial class ClaudeMessagesRuntimeTests
         result.Outcome.Should().NotBe(ModelTurnOutcome.Succeeded);
         result.Answer.Should().BeNull();
         f.Updates.Should().ContainSingle();
+        result.TokenUsage.Should().Be(new ModelTokenUsage(25, null, 25));
         stream.Disposed.Should().BeTrue();
         f.Runtime.IsQuiescent.Should().BeTrue();
     }
@@ -296,6 +298,7 @@ public sealed partial class ClaudeMessagesRuntimeTests
         var disposal = f.Runtime.DisposeAsync().AsTask();
         try
         {
+            await stream.StopRequested.Task.WaitAsync(Token);
             f.Runtime.IsQuiescent.Should().BeFalse();
             disposal.IsCompleted.Should().BeFalse();
             pending.IsCompleted.Should().BeFalse();
@@ -373,6 +376,7 @@ public sealed partial class ClaudeMessagesRuntimeTests
         private bool registered;
         internal byte[] Bytes => bytes;
         internal TaskCompletionSource Paused { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource StopRequested { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal bool Disposed { get; private set; }
         internal bool FailDisposal { get; set; }
@@ -387,7 +391,11 @@ public sealed partial class ClaudeMessagesRuntimeTests
             if (FailStop && !registered)
             {
                 registered = true;
-                stopRegistration = cancellationToken.Register(() => throw new IOException("Synthetic stop failure."));
+                stopRegistration = cancellationToken.Register(() =>
+                {
+                    StopRequested.TrySetResult();
+                    throw new IOException("Synthetic stop failure.");
+                });
             }
             if (position == pauseAt)
             {

@@ -85,8 +85,10 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
                 HostInteractionSchema.ConversationTables, MigrateSessionPermission),
             answerReviewMigration: new(13, 14,
                 HostInteractionSchema.SessionPermissionTables, MigrateAnswerReviews),
-            auditRetentionMigration: new(14, HostInteractionSchema.Version,
-                HostInteractionSchema.AnswerReviewTables, MigrateAuditRetention));
+            auditRetentionMigration: new(14, 15,
+                HostInteractionSchema.AnswerReviewTables, MigrateAuditRetention),
+            modelUsageMigration: new(15, HostInteractionSchema.Version,
+                HostInteractionSchema.AuditRetentionTables, MigrateModelUsage));
     }
 
     public ValueTask InitializeAsync(CancellationToken cancellationToken) =>
@@ -301,6 +303,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
                 if (remove)
                 {
                     Execute(connection, transaction, """
+                        DELETE FROM session_model_usage WHERE session_id=$id;
                         DELETE FROM host_questions WHERE session_id=$id;
                         DELETE FROM scoped_grants WHERE session_id=$id;
                         """, ("$id", Id(request.SessionId)));
@@ -563,6 +566,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         { ValidateSessionPermissions(connection); }
         if (Convert.ToInt32(version.ExecuteScalar(), CultureInfo.InvariantCulture) >= 14)
         { ValidateAnswerReviews(connection); }
+        if (Convert.ToInt32(version.ExecuteScalar(), CultureInfo.InvariantCulture) >= 16)
+        { ValidateModelUsage(connection); }
     }
 
     private static void ValidateConsolidatedAuthority(SqliteConnection connection)

@@ -4412,6 +4412,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
         var addressedWorkCommand = SessionCommand.Parse(spokenText, AssistantName);
+        if ((addressedWorkCommand?.Operation == SessionCommandOperation.Metrics
+                || string.Equals(addressedWorkCommand?.Error, SessionCommand.MetricsSyntax, StringComparison.Ordinal))
+            && (!CanAnswerRemainingWork || editorTarget is not null))
+        {
+            Transcript = "Session metrics are unavailable while a question, approval, editor or dictation owns input. Its decision is unchanged.";
+            return;
+        }
         if (addressedWorkCommand?.IsRemainingWork != true) { remainingWorkCommands?.Retire(); }
         if ((addressedWorkCommand?.IsRemainingWork == true || string.Equals(addressedWorkCommand?.Error, SessionCommand.RemainingWorkSyntax, StringComparison.Ordinal))
             && (!CanAnswerRemainingWork || editorTarget is not null))

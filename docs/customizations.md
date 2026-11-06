@@ -65,6 +65,16 @@ filter stays in place when you switch categories without discarding editor text
 Filtering uses already-listed metadata, not artifact bodies or MCP tool schemas;
 it never reads a definition, connects to a server or invokes a tool
 ([filter regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.Filter.cs)).
+
+In **MCP Servers**, the same input additionally filters built-in Kora tools and external capabilities from an explicitly admitted discovery snapshot.
+**All capabilities / Tools / Resources / Prompts** narrows those rows; the count shows matching/total artifacts and capabilities separately. **Clear** restores the current category without discarding editor text or selected items ([shared catalogue](../src/Kora/CustomizationWindow.Tools.cs)).
+
+Capability matching uses names, exact item identities and displayed source/group labels, not schemas or content. Without an admitted capability snapshot, ordinary artifact filtering/counts remain unchanged.
+A hidden selected row is not silently replaced; private closure removes the snapshot and blocks late repopulation ([consumer regression](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.Tools.cs)).
+
+Select one capability and **Review selected server capabilities** to review server/category/item consideration choices. A category's **Enable all / Disable all** applies to every item, including filter-hidden rows, and sets the default for new entries.
+Saving requires separate confirmation; filtering never saves or supplies permission ([capability management](mcp-transport.md#choose-which-capabilities-kora-may-consider)).
+
 Built-in groups can
 be empty for a type. Selecting an artifact reads its complete bounded file set as
 plain source; it does not execute scripts, invoke agents or connect MCP servers.

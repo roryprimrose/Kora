@@ -2,6 +2,8 @@
 
 In an already-open **Sessions** window, refresh the selected session's work to see bounded, content-free notices for admitted conversation tasks: completed, failed/unavailable, Unknown, or an exact pending clarification ([source admission](../src/Kora.Application/Interaction/ConversationNotices/AuthorityLocalEventSource.ConversationNotices.cs)).
 
+Hiding Sessions retires a pending notice refresh, including while its independent work snapshot is being published. Reopening does not revive that refresh or spend an unseen completion's delivery budget. Deliberately refresh again to observe the still-current original source; its expiry is unchanged ([refresh lifetime](../src/Kora/SessionsViewModel.Events.cs)).
+
 Select an exact notice and use **Review**, **Dismiss**, or **Defer**. These actions inspect or suppress content-free status without changing the conversation, work selection or focus ([native inspection](../src/Kora/SessionsViewModel.Events.cs)).
 
 For an ordinary conversation clarification, **Review** shows the exact session, task, question and original expiry. Then deliberately select **Answer exact question** to activate only its existing canonical **Questions** window. Enter an answer and **Submit**, use the existing eligible question voice controls, or **Cancel** there ([response gesture](../src/Kora/ConversationNotices/SessionsViewModel.ConversationNotices.cs)).
@@ -42,6 +44,9 @@ write is not a confirmed dismissal or deferral.
 
 Kora spaces and limits routine notices to reduce interruptions. **Defer** hides
 the current notice for up to fifteen minutes, never beyond its original expiry.
+The one-minute category spacing starts from fresh authoritative delivery time,
+including when refresh waited for the source. A clock rollback during that wait
+holds delivery without spending its notice budget; refresh after the clock recovers.
 Quiet hides routine completion notices, not Failure or Attention. Omitted work
 is reported in the work panel's gap counts. Unknown is never inferred success.
 

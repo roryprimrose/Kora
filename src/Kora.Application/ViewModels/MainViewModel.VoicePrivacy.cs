@@ -75,7 +75,7 @@ public sealed partial class MainViewModel
         && sessionController.IsCurrentSessionUnlocked()
         && privacyObservation.Current.SessionState == WindowsSessionState.Unlocked;
 
-    public bool CanRevealPrivatePresentation => IsHostInputEligible;
+    public bool CanRevealPrivatePresentation => !disposed && IsHostInputEligible && callOwnershipEligible();
 
     private void OnWindowsPrivacyChanged(object? sender, WindowsPrivacyChangedEventArgs eventArgs)
     {
@@ -158,10 +158,10 @@ public sealed partial class MainViewModel
                     && snapshot.MicrophoneAccess == previous.MicrophoneAccess
                     && string.Equals(snapshot.DefaultMicrophoneId, previous.DefaultMicrophoneId, StringComparison.Ordinal)
                     && snapshot.ActiveMicrophoneIds.SequenceEqual(previous.ActiveMicrophoneIds, StringComparer.Ordinal))
-                {
-                    // Output-only revisions retain validated input metadata, not input admission or capture.
-                    catalogPrivacyRevision = snapshot.TopologyRevision;
-                }
+        {
+            // Output-only revisions retain validated input metadata, not input admission or capture.
+            catalogPrivacyRevision = snapshot.TopologyRevision;
+        }
         else { await RefreshMicrophonesAsync(); }
         if (!disposed && !lifecycleAdmissionClosed) { await RefreshOutputEndpointsAsync(); }
         activity.Complete(HostOperationOutcome.Completed);
@@ -281,6 +281,8 @@ public sealed partial class MainViewModel
             if (disposed) { return; }
             disposed = true;
         }
+        RetireDetailsOffer();
+        PrivacyClosureRequested -= OnDetailsOfferPrivacyClosure;
         if (speechComparison is not null)
         {
             speechComparison.Changed -= OnSpeechComparisonChanged;
@@ -458,6 +460,7 @@ public sealed partial class MainViewModel
     internal void CloseForObservedPrivacyEvent(string reason, bool hidePresentation,
         WindowsSessionState? sessionState = null, bool restoreOnUnlock = false)
     {
+        var presentationRevision = hidePresentation ? BeginPrivatePresentationRetirement() : -1;
         RetireCurrentResponseSpeech();
         speechPreparation?.Request(null);
         RetireWebResultDetails();
@@ -465,17 +468,16 @@ public sealed partial class MainViewModel
         uiDispatcher.Post(RetireSpeechCaption);
         if (hidePresentation)
         {
-            Interlocked.Exchange(ref privacyPresentationHeld, 1);
             ClearClipboardPreview();
             ClearFilePreview();
         }
         HoldVoiceInput("Microphone closed · " + reason + "; use Enable listening", sessionState, restoreOnUnlock);
         textToSpeech.InvalidateOutput();
         settingsUndo.Clear();
-        privacyClosureTask = CompletePrivacyClosureAsync(reason, hidePresentation);
+        privacyClosureTask = CompletePrivacyClosureAsync(reason, hidePresentation, presentationRevision);
     }
 
-    private async Task CompletePrivacyClosureAsync(string reason, bool hidePresentation)
+    private async Task CompletePrivacyClosureAsync(string reason, bool hidePresentation, long presentationRevision)
     {
         try
         {
@@ -522,6 +524,7 @@ public sealed partial class MainViewModel
             await JoinCustomizationClarification();
             await ClosePromptPreparation();
             if (bundledActionShutdown is not null) { await bundledActionShutdown(); }
+            if (hidePresentation) { CompletePrivatePresentationRetirement(presentationRevision); }
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
@@ -544,6 +547,7 @@ public sealed partial class MainViewModel
 
     private void NotifyVoiceEnablementChanged()
     {
+        RefreshSubmittedWorkActivity();
         OnPropertyChanged(nameof(TrayInputStatus));
         OnPropertyChanged(nameof(IsVoiceEnabled));
         OnPropertyChanged(nameof(IsPushToTalkVisible));
@@ -552,6 +556,7 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(ListeningStatus));
         OnPropertyChanged(nameof(CanChangeAudioOutputDevice));
         OnPropertyChanged(nameof(CanChangePlaybackVolume));
+        OnPropertyChanged(nameof(CanChangePlaybackVolumeNative));
         ToggleListeningCommand.NotifyCanExecuteChanged();
         BeginPushToTalkCommand.NotifyCanExecuteChanged();
     }
@@ -623,7 +628,6 @@ public sealed partial class MainViewModel
             if (listeningStop.IsHeld && !listeningStop.TryRecover()) { return false; }
             Interlocked.Exchange(ref automaticUnlockRecoveryRevision, -1);
             Interlocked.Exchange(ref voiceEnabled, 1);
-            Interlocked.Exchange(ref privacyPresentationHeld, 0);
             return true;
         }
     }
@@ -676,7 +680,8 @@ public sealed partial class MainViewModel
     public async Task SetVoiceConsentAsync(bool consent)
     {
         if (disposed) { return; }
-        if (!AdmitVoiceOptionMutation("configuration.voice-consent")) { return; }
+        if (!AdmitVoiceOptionMutation("configuration.voice-consent",
+            eligible: consent ? null : () => IsPrivatePresentationRecoveryEligible)) { return; }
         var origin = OriginalOrigin();
         var callRevision = CallPolicyRevision;
         var revision = Interlocked.Increment(ref consentRevision);
@@ -750,6 +755,7 @@ public sealed partial class MainViewModel
 
     public async Task BeginPushToTalkAsync()
     {
+        var detailsTarget = CurrentDetailsOffer?.Key;
         if (!IsReviewedVoiceCaptureReleased)
         {
             ShowInformation("Reviewed command owns input.", "Finish or cancel its exact review before starting a direct command.");
@@ -762,57 +768,65 @@ public sealed partial class MainViewModel
             ReportResponseRead("Spoken interruption is unavailable for this speech-input profile. Use the selected answer's native Cancel reading or typed stop speaking; playback was not stopped by activation.");
             return;
         }
-        RetirePromptInputVoice();
-#pragma warning disable VSTHRD003 // Ordinary command activation joins the retired prompt input's exact capture receipt.
-        if (promptInputVoice is not null) { await promptInputVoice.Quiescence; }
-#pragma warning restore VSTHRD003
-        RetireComposerDictation();
-#pragma warning disable VSTHRD003 // Explicit command activation joins the independently owned native dictation release first.
-        if (composerDictation is not null) { await composerDictation.Quiescence; }
-#pragma warning restore VSTHRD003
-        RetireQuestionVoiceReply();
-        await JoinCustomizationClarification();
-        if (voiceRecognition is HandsFreeVoiceRecognitionService handsFree)
-        {
-            try { await handsFree.PauseWakeForReplyAsync(); }
-            catch (Exception exception) when (exception is not OutOfMemoryException)
-            {
-                HoldVoiceInput("Microphone closed - wake capture release failed before manual activation");
-                ApplicationLog.Error(logger, exception, "Retiring wake capture before push-to-talk");
-                ShowFailure("Microphone cleanup needs attention.", "No manual capture was opened. " + exception.Message);
-                return;
-            }
-        }
-        if (Volatile.Read(ref listeningStopRequests) != 0 || !listeningStop.CanRecover
-            || lifecycleAdmissionClosed || IsBusy && !IsSpeaking
-            || !IsHostInputEligible || !RefreshVoiceReadiness())
-        {
-            if (IsVoiceEnabled)
-            {
-                HoldVoiceInput("Microphone closed · push-to-talk readiness checks failed");
-            }
-            ApplicationLog.Information(logger, "Denied push-to-talk without eligible one-shot capture readiness");
-            ShowInformation("Push-to-talk is unavailable.",
-                "Wait for confirmed microphone release, review voice consent, microphone availability and Windows privacy, then try again.");
-            return;
-        }
-        if (Interlocked.Exchange(ref pushToTalkHeld, 1) != 0)
+        using var opening = new CancellationTokenSource();
+        if (Volatile.Read(ref pushToTalkHeld) != 0
+            || Interlocked.CompareExchange(ref captureOpenCancellation, opening, null) is not null)
         {
             return;
         }
+        Interlocked.Exchange(ref pushToTalkHeld, 1);
         Interlocked.Exchange(ref acceptedTranscriptGeneration, -1);
-
         var revision = Interlocked.Read(ref voiceRecoveryRevision);
-        using var opening = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        captureOpenCancellation = opening;
-        var ownsBusyState = !IsBusy && speechInput.Playback is null;
+        var ownsBusyState = false;
         long generationToAccept = -1;
-        if (ownsBusyState)
-        {
-            IsBusy = true;
-        }
         try
         {
+            NotifyVoiceEnablementChanged();
+            RetirePromptInputVoice();
+#pragma warning disable VSTHRD003 // Ordinary command activation joins the retired prompt input's exact capture receipt.
+            if (promptInputVoice is not null) { await promptInputVoice.Quiescence; }
+#pragma warning restore VSTHRD003
+            RetireComposerDictation();
+#pragma warning disable VSTHRD003 // Explicit command activation joins the independently owned native dictation release first.
+            if (composerDictation is not null) { await composerDictation.Quiescence; }
+#pragma warning restore VSTHRD003
+            RetireQuestionVoiceReply();
+            await JoinCustomizationClarification();
+            if (voiceRecognition is HandsFreeVoiceRecognitionService handsFree)
+            {
+                try { await handsFree.PauseWakeForReplyAsync(); }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                {
+                    HoldVoiceInput("Microphone closed - wake capture release failed before manual activation");
+                    ApplicationLog.Error(logger, exception, "Retiring wake capture before push-to-talk");
+                    ShowFailure("Microphone cleanup needs attention.", "No manual capture was opened. " + exception.Message);
+                    return;
+                }
+            }
+            if (opening.IsCancellationRequested)
+            {
+                ApplicationLog.Information(logger, "Push-to-talk retired during prior input cleanup; no command capture opened");
+                return;
+            }
+            if (Volatile.Read(ref listeningStopRequests) != 0 || !listeningStop.CanRecover
+                || lifecycleAdmissionClosed || IsBusy && !IsSpeaking
+                || !IsHostInputEligible || !RefreshVoiceReadiness())
+            {
+                if (IsVoiceEnabled)
+                {
+                    HoldVoiceInput("Microphone closed · push-to-talk readiness checks failed");
+                }
+                ApplicationLog.Information(logger, "Denied push-to-talk without eligible one-shot capture readiness");
+                ShowInformation("Push-to-talk is unavailable.",
+                    "Wait for confirmed microphone release, review voice consent, microphone availability and Windows privacy, then try again.");
+                return;
+            }
+            ownsBusyState = !IsBusy && speechInput.Playback is null;
+            if (ownsBusyState)
+            {
+                IsBusy = true;
+            }
+            opening.CancelAfter(TimeSpan.FromSeconds(5));
             MicrophoneAccessStatus = microphoneAccessService.GetStatus();
             var privacy = privacyObservation.Refresh();
             if (EffectiveMicrophone is null || MicrophoneAccessStatus.State != MicrophoneAccessState.Allowed
@@ -842,6 +856,7 @@ public sealed partial class MainViewModel
 
             CaptureCustomizationVoice(editorTarget);
             Volatile.Write(ref capturedSpeechInterruption, speechInput with { Generation = voiceRecognition.Generation });
+            CaptureDetailsReply(detailsTarget);
             Interlocked.Exchange(ref acceptedTranscriptGeneration, voiceRecognition.Generation);
             IsListening = voiceRecognition.IsListening;
             BeginPushToTalkCommand.NotifyCanExecuteChanged();
@@ -903,14 +918,13 @@ public sealed partial class MainViewModel
         }
         finally
         {
-            if (ReferenceEquals(captureOpenCancellation, opening))
-            {
-                captureOpenCancellation = null;
-            }
+            if (generationToAccept < 0) { Interlocked.Exchange(ref pushToTalkHeld, 0); }
+            Interlocked.Exchange(ref captureOpenCancellation, null);
             if (ownsBusyState)
             {
                 IsBusy = false;
             }
+            NotifyVoiceEnablementChanged();
         }
         if (generationToAccept >= 0 && !voiceRecognition.AcceptCaptureGeneration(generationToAccept))
         {

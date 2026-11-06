@@ -225,26 +225,41 @@ public sealed partial class WindowsInstanceCoordinator : IInstanceCoordinator
 
     private async Task ListenAsync(NamedPipeServerStream first, CancellationToken cancellationToken)
     {
-        var pipe = first;
         try
         {
-            while (!cancellationToken.IsCancellationRequested)
+            await AcceptConnectionsAsync(first, CreateServerPipe, connectionLimit.WaitAsync, pipe =>
             {
-                await connectionLimit.WaitAsync(cancellationToken).ConfigureAwait(false);
                 connections.TryAdd(pipe, 0);
-                await pipe.WaitForConnectionAsync(cancellationToken).ConfigureAwait(false);
-                var connected = pipe;
-                _ = HandleConnectionAsync(connected, stopping.Token);
-                pipe = CreateServerPipe();
-            }
+                _ = HandleConnectionAsync(pipe, stopping.Token);
+            }, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception exception) when (IsLifecycleFailure(exception))
         {
             FailureReason = "The ownership listener became unavailable; existing ownership is retained.";
         }
+    }
+
+    internal static async Task AcceptConnectionsAsync(NamedPipeServerStream first,
+        Func<NamedPipeServerStream> createPipe, Func<CancellationToken, Task> waitForSlot,
+        Action<NamedPipeServerStream> connected, CancellationToken cancellationToken)
+    {
+        NamedPipeServerStream? pipe = first;
+        try
+        {
+            await waitForSlot(cancellationToken).ConfigureAwait(false);
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await pipe.WaitForConnectionAsync(cancellationToken).ConfigureAwait(false);
+                connected(pipe);
+                pipe = null;
+                // A connected handler returns capacity only after disposing its pipe.
+                await waitForSlot(cancellationToken).ConfigureAwait(false);
+                pipe = createPipe();
+            }
+        }
         finally
         {
-            await pipe.DisposeAsync().ConfigureAwait(false);
+            if (pipe is not null) { await pipe.DisposeAsync().ConfigureAwait(false); }
         }
     }
 
@@ -261,8 +276,13 @@ public sealed partial class WindowsInstanceCoordinator : IInstanceCoordinator
                 throw new InvalidOperationException("The caller process cannot be authenticated.");
             }
 
-            peer = VerifiedInstanceProcess.Open(pid, sid, sessionId);
             var request = await InstanceProtocol.ReadAsync(pipe, timeout.Token).ConfigureAwait(false);
+            if (string.Equals(request.Kind, "InstallerStop", StringComparison.Ordinal))
+            {
+                await HandleInstallerShutdownAsync(pipe, pid, request, timeout.Token).ConfigureAwait(false);
+                return;
+            }
+            peer = VerifiedInstanceProcess.Open(pid, sid, sessionId);
             if (string.Equals(request.Kind, "Ready", StringComparison.Ordinal))
             {
                 await ReplyAsync(pipe, callbacks.IsReady && ownsMutex ? "Ready" : "Busy", "", timeout.Token)
@@ -296,7 +316,7 @@ public sealed partial class WindowsInstanceCoordinator : IInstanceCoordinator
 
             lock (sync)
             {
-                if (pending is null && !restartRequested)
+                if (pending is null && !restartRequested && !installerShutdownPending)
                 {
                     transaction = new PendingHandoff(peer, new HandoffTransaction(epoch, original.Identity,
                         peer.Identity, DateTimeOffset.UtcNow.AddSeconds(90)));
@@ -738,7 +758,7 @@ public sealed partial class WindowsInstanceCoordinator : IInstanceCoordinator
     {
         lock (sync)
         {
-            if (!ownsMutex || pending is not null || restartRequested || !prompt.IsEligible())
+            if (!ownsMutex || pending is not null || restartRequested || installerShutdownPending || !prompt.IsEligible())
             {
                 throw new InvalidOperationException("Another lifecycle transition is pending or the session is ineligible.");
             }

@@ -15,11 +15,13 @@ public sealed partial class MainViewModel
         Dispose();
         var comparisonDisposal = speechComparison?.DisposeAsync().AsTask() ?? Task.CompletedTask;
         var completionNoticeDisposal = completionNotices?.DisposeAsync().AsTask() ?? Task.CompletedTask;
+        var detailsOfferDisposal = detailsOfferService?.DisposeAsync().AsTask() ?? Task.CompletedTask;
         // A forced desktop close need not pump UI continuations to join the owned storage write.
 #pragma warning disable VSTHRD003 // The owned persistence task runs entirely on the thread pool.
-        await Task.WhenAll(comparisonDisposal, completionNoticeDisposal, appearancePersistence, preferencePersistence, consentPersistence,
+        await Task.WhenAll(comparisonDisposal, completionNoticeDisposal, detailsOfferDisposal, appearancePersistence, preferencePersistence, consentPersistence,
             appearanceSuggestionPersistence, speechSummaryPersistence, volumeSuggestionPersistence, volumeSuggestionReviewWork,
             rateSuggestionPersistence, rateSuggestionReviewWork,
+            quietHoursSuggestionWork, timingSuggestionWork, detailPresentationSuggestionWork,
             installedVoicePersistence, installedVoiceReviewWork,
             responseModeSuggestionWork, settingsUndoWork,
             responseReadPlanQuiescence, responseReadQuiescence,
@@ -68,7 +70,7 @@ public sealed partial class MainViewModel
         var name = AssistantName;
         var voice = message.Request.Origin == RequestOrigin.ActivatedVoice
             || HostActivity.RequireCurrent().Request.Origin == RequestOrigin.ActivatedVoice;
-        bool Eligible() => !disposed && IsCallMutationHostEligible && !IsProtectedCall
+        bool Eligible() => !disposed && IsCallMutationHostEligible
             && !IsBusy && !IsResponseInteractionPending && !applyingAppearance
             && privacyObservation.Current.TopologyRevision == privacy && CallPolicyRevision == call
             && settingsOwnershipRevision() == ownership

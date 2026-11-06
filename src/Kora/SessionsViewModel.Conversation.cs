@@ -29,6 +29,7 @@ internal sealed partial class SessionsViewModel
     private bool conversationBusy;
     private bool protectingComposer;
     private long composerBufferRevision;
+    internal long ComposerRevision => Interlocked.Read(ref composerBufferRevision);
     private string conversationStatus = "Select a session. Unsent messages stay in memory per session; nothing is autosaved.";
     internal Func<Task<ComposerDraftDecision>>? DecideComposerDraft { get; set; }
     internal void ReportComposerCloseFailure(Exception exception)
@@ -166,6 +167,7 @@ internal sealed partial class SessionsViewModel
     {
         if (next && !ConversationReadingAvailable)
         { throw new InvalidOperationException("The original private conversation page is retired. Read again explicitly."); }
+        var observedCompletion = completedConversationMessage;
         var page = await conversation!.ReadPageAsync(target.Authority.SessionId,
             next ? conversationPage?.Next ?? throw new InvalidOperationException("No conversation continuation; refresh the exact source.") : null,
             25, lifetime.Token);
@@ -175,8 +177,7 @@ internal sealed partial class SessionsViewModel
         conversationReadingControl = access.ControlRevision;
         if (!next)
         {
-            completedConversationMessage = null;
-            conversationUpdates = false;
+            RetireReadCompletion(observedCompletion, page);
         }
         conversationSourceHeld = false;
         composerAuthority = target.Authority;
@@ -270,7 +271,8 @@ internal sealed partial class SessionsViewModel
 
     private async Task RunConversationAsync(Func<Kora.Core.Storage.SessionWorkspaceEntry, Func<bool>, Task> operation,
         bool submission = false, bool sourceRead = false, long? searchDetailEpoch = null, bool legacyRecovery = false,
-        RequestOrigin origin = RequestOrigin.LocalUi, bool replyOperation = false, bool requireOriginalInput = false)
+        RequestOrigin origin = RequestOrigin.LocalUi, bool replyOperation = false, bool requireOriginalInput = false,
+        Kora.Application.Presentation.DetailsOfferRequest? detailsOffer = null)
     {
         if (!CanReadConversation) { return; }
         if (replyOperation || requireOriginalInput)
@@ -292,8 +294,11 @@ internal sealed partial class SessionsViewModel
         conversationBusy = true;
         busy = true;
         Notify();
-        using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), target.Authority.SessionId,
-            new(Guid.NewGuid()), origin), HostActivityLayer.Desktop, HostOperation.Request);
+        var presentationRequest = detailsOffer is null ? new HostRequest(new(Guid.NewGuid()), target.Authority.SessionId,
+            new(Guid.NewGuid()), origin) : detailsOffer.PresentationRequest
+                ?? throw new InvalidOperationException("The exact Details offer has no admitted presentation control.");
+        using var activity = HostActivity.BeginRoot(presentationRequest, HostActivityLayer.Desktop, HostOperation.Request,
+            detailsOffer?.Causes);
         try
         {
             if (submission && assistantReply && !replyOperation)
@@ -370,6 +375,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversation(bool preserveUnsent = true)
     {
+        RetireMcpContent();
         RetireComposerRequest();
         ClearClarificationExchange();
         ClearAnswerReviews();
@@ -439,7 +445,7 @@ internal sealed partial class SessionsViewModel
             nameof(HasEvidenceDetails), nameof(EvidenceDetails), nameof(ObservationChoices),
             nameof(DetailsOfferMessage), nameof(HasDetailsOffer),
             nameof(CanRecoverConversationDraft), nameof(ComposerDraftSizeFeedback), nameof(CanSubmitConversationWithClarification),
-            nameof(McpServers), nameof(McpAccounts), nameof(SelectedMcpServer), nameof(SelectedMcpAccount), nameof(IsMcpActive), nameof(McpResultText) })
+            nameof(McpServers), nameof(McpAccounts), nameof(SelectedMcpServer), nameof(SelectedMcpAccount), nameof(IsMcpActive), nameof(McpResultText), nameof(McpContentText) })
         { OnPropertyChanged(name); }
     }
 }

@@ -63,6 +63,12 @@ public sealed partial class WindowsSqliteHostInteractionStore
     private void ObserveTaskActivity(SqliteConnection connection, SqliteTransaction transaction, HostTaskRecord record,
         bool substantiveIntent)
     {
+        if (DetailsOfferForTask(connection, record.Request) is not null)
+        {
+            if (substantiveIntent || record.State == HostTaskState.DispatchRecorded)
+            { throw new InvalidOperationException("A Details presentation control cannot become substantive or dispatched work."); }
+            return;
+        }
         ObserveConversationRecovery(connection, transaction, record);
         if (substantiveIntent)
         {
@@ -156,14 +162,14 @@ public sealed partial class WindowsSqliteHostInteractionStore
         }, token, admitted, requireIdle: false).AsTask());
 
     private static void ValidateRetention(SqliteConnection connection)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT session_id FROM work_sessions;";
+        using (var reader = command.ExecuteReader())
         {
-            using var command = connection.CreateCommand();
-            command.CommandText = "SELECT session_id FROM work_sessions;";
-            using (var reader = command.ExecuteReader())
-            {
-                while (reader.Read()) { _ = ReadRetention(connection, new(ParseId(reader.GetString(0)))); }
-            }
-            command.CommandText = """
+            while (reader.Read()) { _ = ReadRetention(connection, new(ParseId(reader.GetString(0)))); }
+        }
+        command.CommandText = """
                 SELECT 1 FROM (
                     SELECT json_extract(c.value,'$.Id') AS id,MAX(a.sequence) AS sequence
                     FROM security_audit_events a,json_each(a.envelope,'$.Changes') c
@@ -182,11 +188,11 @@ public sealed partial class WindowsSqliteHostInteractionStore
                     OR EXISTS(SELECT 1 FROM session_history WHERE session_id=r.session_id AND source<>'{}'))
                 LIMIT 1;
                 """;
-            if (command.ExecuteScalar() is not null)
-            {
-                throw new InvalidDataException("Session retention exemption or deletion acceptance disagrees with committed authority/content.");
-            }
+        if (command.ExecuteScalar() is not null)
+        {
+            throw new InvalidDataException("Session retention exemption or deletion acceptance disagrees with committed authority/content.");
         }
+    }
     public ValueTask<SessionRetentionBatch> ApplyRetentionAsync(Func<bool> admitted,
         Func<HostId<SessionIdentity>, CancellationToken, ValueTask> revokeSources, CancellationToken token)
     {
@@ -210,18 +216,22 @@ public sealed partial class WindowsSqliteHostInteractionStore
             using var lease = database.AcquireReadLease(token);
             using var connection = Open(created: false, token);
             database.RequireEmptyArtifactInventory();
-            var candidates = ReadRetentionCandidates(connection, token);
+            var cutoff = time.GetUtcNow();
+            bool Current() => admitted() && time.GetUtcNow() >= cutoff;
+            var candidates = ReadRetentionCandidates(connection, token, cutoff);
             var archived = 0;
             var deleted = 0;
             var held = 0;
             foreach (var id in candidates.Take(MaximumRetentionSessions))
             {
                 token.ThrowIfCancellationRequested();
-                if (!admitted()) { throw new InvalidOperationException("Host retention admission was revoked."); }
+                if (!Current()) { throw new InvalidOperationException("Host retention admission was revoked or UTC moved behind the batch cutoff."); }
+                RetireDetailsOffersBeforeLifecycle(connection, id);
                 if (HasRetentionHold(connection, id)) { held++; continue; }
                 var clock = ReadRetention(connection, id);
-                var deleting = clock.DeleteDue <= time.GetUtcNow();
+                var deleting = clock.DeleteDue <= cutoff;
                 await revokeSources(id, token).ConfigureAwait(false);
+                if (!Current()) { throw new InvalidOperationException("Host retention admission was revoked or UTC moved behind the batch cutoff."); }
                 using var host = HostActivity.BeginRoot(
                     new(new(Guid.NewGuid()), id, new(Guid.NewGuid()), RequestOrigin.HostSystem),
                     HostActivityLayer.Windows, HostOperation.Retention);
@@ -230,7 +240,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
                     await DeleteArtifactsAsync(id, () =>
                     {
                         tasks.PurgeRetiredSession(id, token);
-                        PurgeOrArchive(connection, id, deleting: true, admitted, token);
+                        PurgeOrArchive(connection, id, deleting: true, Current, token);
                         return Task.CompletedTask;
                     }, token).ConfigureAwait(false);
                     try
@@ -248,7 +258,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
                     }
                 }
 
-                else { PurgeOrArchive(connection, id, deleting: false, admitted, token); }
+                else { PurgeOrArchive(connection, id, deleting: false, Current, token); }
                 if (deleting) { deleted++; } else { archived++; }
                 host.Complete(HostOperationOutcome.Completed);
             }
@@ -260,6 +270,11 @@ public sealed partial class WindowsSqliteHostInteractionStore
             activity.Complete(HostOperationOutcome.Cancelled);
             throw;
         }
+        catch (SqliteException exception)
+        {
+            activity.Complete(HostOperationOutcome.Failed);
+            throw new IOException("Session retention storage is unavailable; cleanup is unconfirmed.", exception);
+        }
         catch
         {
             activity.Complete(HostOperationOutcome.Failed);
@@ -267,7 +282,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
         }
     }
 
-    private List<HostId<SessionIdentity>> ReadRetentionCandidates(SqliteConnection connection, CancellationToken token)
+    private List<HostId<SessionIdentity>> ReadRetentionCandidates(SqliteConnection connection, CancellationToken token,
+        DateTimeOffset? cutoff = null)
     {
         using var command = connection.CreateCommand();
         command.CommandText = """
@@ -286,7 +302,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             var id = new HostId<SessionIdentity>(ParseId(reader.GetString(0)));
             var clock = ReadRetention(connection, id);
             var state = RequireSession(connection, id);
-            var now = time.GetUtcNow();
+            var now = cutoff ?? time.GetUtcNow();
             if (clock.DeleteDue <= now || state.State == 0 && clock.ArchiveDue <= now)
             {
                 // Current-run control authorities must not crowd idle content out of the bounded batch.

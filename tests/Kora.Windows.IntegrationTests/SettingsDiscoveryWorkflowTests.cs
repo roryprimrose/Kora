@@ -3,21 +3,167 @@ using System.Text.Json;
 using AwesomeAssertions;
 using Kora.Application.Configuration.SettingInspection;
 using Kora.Core.Auditing;
+using Kora.Core.Configuration;
 using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Configuration.SettingInspection;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Tools;
+using Kora.Core.Voice;
 
 namespace Kora.Windows.IntegrationTests;
 
 [Collection("Host tracing")]
 public sealed class SettingsDiscoveryWorkflowTests
 {
+    private static readonly JsonSerializerOptions ObservationOptions = new(JsonSerializerDefaults.Web)
+    { Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() } };
+
     private const string List = """{"kind":"toolCalls","calls":[{"callId":"list_1","capabilityId":"settings.list","input":{"count":3}}]}""";
     private const string Get = """{"kind":"toolCalls","calls":[{"callId":"get_2","capabilityId":"settings.get","input":{"id":"speech.summary-words"}}]}""";
     private const string Final = """{"kind":"answer","answer":"The confirmed default summary word cap is 80 words. A recommendation changes nothing."}""";
+
+    [Theory]
+    [InlineData(RequestOrigin.LocalUi, false, false)]
+    [InlineData(RequestOrigin.ActivatedVoice, false, false)]
+    [InlineData(RequestOrigin.LocalUi, true, false)]
+    [InlineData(RequestOrigin.ActivatedVoice, true, false)]
+    [InlineData(RequestOrigin.LocalUi, false, true)]
+    [InlineData(RequestOrigin.ActivatedVoice, false, true)]
+    [InlineData(RequestOrigin.LocalUi, true, true)]
+    [InlineData(RequestOrigin.ActivatedVoice, true, true)]
+    public async Task CombinedQuietTimingAndSpeechReviewRetainsExactOriginalAnswerWithoutRenewedAuthority(
+        RequestOrigin origin, bool saved, bool discovery)
+    {
+        const string question = "Which quiet schedule, capture timings and speech voice are configured?";
+        var schedule = saved ? "weekly Mon,Wed,Fri 22:00 07:00 UTC" : "Off";
+        var timing = saved ? new VoiceCaptureTiming(7.1234567m, 20.7654321m, 0.5000001m) : VoiceCaptureTiming.Default;
+        var selection = saved ? new SpeechSelection("kokoro", "af_heart") : SpeechSelection.Default;
+        var answer = $"Configured quiet hours: {schedule}; {timing.Describe()}; speech: {selection.ProviderId}"
+            + (saved ? " / af_heart." : " / provider-advertised default.")
+            + " These are preferences, not quiet-now, capture permission, speech consent or runtime availability.";
+        var transport = new Transport("""
+            {"kind":"toolCalls","calls":[
+              {"callId":"list_page","capabilityId":"settings.list","input":{"count":1}},
+              {"callId":"quiet","capabilityId":"settings.get","input":{"id":"notices.quiet-hours"}},
+              {"callId":"silence","capabilityId":"settings.get","input":{"id":"voice.trailing-silence"}},
+              {"callId":"speech","capabilityId":"settings.get","input":{"id":"speech.voice"}}
+            ]}
+            """, JsonSerializer.Serialize(new { kind = "answer", answer }));
+        await using var f = new SettingInspectionWorkflowTests.Fixture(transport: discovery ? transport : null,
+            savedTiming: saved ? timing : null, speechSelection: saved ? selection : null,
+            quietHours: saved ? "1\n" + schedule : null);
+        await f.InitializeAsync();
+        f.Adapter.Response = answer;
+        using var root = HostActivity.BeginRoot(HostRequest.Create(origin), HostActivityLayer.Desktop, HostOperation.Request);
+        var session = await f.Workflow.ReviewAsync(question, () => true, f.Token,
+            discovery ? ModelToolMode.SettingsDiscovery : ModelToolMode.None);
+        session.Review.Observations.Should().HaveCount(21).And.OnlyHaveUniqueItems(item => item.Setting);
+        var quiet = session.Review.Observations.Single(item => item.Setting == RegisteredSetting.QuietHours);
+        quiet.QuietHours.Should().Be(QuietHoursSchedule.Parse(schedule));
+        quiet.Value.Should().BeNull();
+        quiet.IsSaved.Should().Be(saved);
+        session.Review.Observations.Where(item => item.Setting is RegisteredSetting.CommandStartWait
+            or RegisteredSetting.ReplyStartWait or RegisteredSetting.TrailingSilence)
+            .Select(item => item.Value).Should().Equal(timing.CommandStartSeconds, timing.ReplyStartSeconds, timing.TrailingSilenceSeconds);
+        session.Review.Observations.Single(item => item.Setting == RegisteredSetting.SpeechVoice).Selection.Should().Be(selection);
+        session.Review.Observations.Should().OnlyContain(item => session.Review.Text.Contains(item.Text, StringComparison.Ordinal));
+        session.Review.Text.Should().Contain(question).And.Contain("NEW Local context conversation");
+        transport.Requests.Should().BeEmpty();
+        f.Adapter.Calls.Should().Be(0);
+        f.Storage.Count("conversation_messages").Should().Be(0);
+        var quietState = f.QuietHours.Get();
+        var timingState = f.Timing.Get();
+        var result = await f.Workflow.AnswerAsync(session, () => true, f.Token);
+        result.Outcome.Should().Be(SettingInspectionOutcome.Succeeded, "reason {0}, request sizes {1}",
+            result.Receipt?.Message.Reason,
+            string.Join(", ", transport.Requests.Select(item => ModelToolProtocol.SerializeRequest(item).Length)));
+        if (discovery)
+        {
+            transport.Requests.Should().HaveCount(2);
+            transport.Requests.Should().OnlyContain(item => item.Context.UserRequest == question
+                && item.Context.Evidence.Single().Content == session.Review.Source
+                && item.Provenance.Request.SessionId == session.Review.Destination.SessionId
+                && item.Provenance.Request.Origin == origin);
+            var results = transport.Requests[1].Messages.OfType<ModelToolResultMessage>().ToArray();
+            results.Should().HaveCount(4);
+            foreach (var toolResult in results.Skip(1))
+            {
+                using var wire = JsonDocument.Parse(toolResult.Result.AsMemory());
+                var observation = JsonSerializer.Deserialize<SettingObservation>(
+                    wire.RootElement.GetProperty("settings").GetProperty("observation").GetRawText(), ObservationOptions)!;
+                observation.Should().Be(session.Review.Observations.Single(item => item.Setting == observation.Setting));
+            }
+            transport.Requests.Sum(item => ModelToolProtocol.SerializeRequest(item).Length)
+                .Should().BeLessThanOrEqualTo(ModelToolProtocol.MaximumInputUtf8Bytes);
+        }
+        else
+        {
+            f.Adapter.Calls.Should().Be(1);
+            using var wire = JsonDocument.Parse(f.Adapter.Wire!);
+            wire.RootElement.GetProperty("UserRequest").GetString().Should().Be(question);
+            wire.RootElement.GetProperty("Tools").GetArrayLength().Should().Be(0);
+            wire.RootElement.GetProperty("Evidence")[0].GetProperty("Content").GetString().Should().Be(session.Review.Source);
+        }
+        var receipt = result.Receipt!;
+        f.Storage.Reopen();
+        await f.Storage.Store.InitializeAsync(f.Token);
+        var retained = await f.Storage.Store.ReadConversationMessageAsync(receipt.Message.Request.SessionId,
+            receipt.Message.Request.RequestId, f.Token);
+        retained.Should().Be(receipt.Message);
+        retained.Body.Should().Be(question);
+        retained.AssistantResponse!.Body.Should().Be(answer);
+        retained.Observations.Should().BeNull();
+        (await f.Workflow.AnswerAsync(session, () => true, f.Token)).Outcome.Should().Be(SettingInspectionOutcome.Denied);
+        f.QuietHours.Get().Should().BeSameAs(quietState);
+        f.Timing.Get().Should().Be(timingState);
+        f.Timing.Get().Timing.Should().BeSameAs(timingState.Timing);
+        f.Host.IsQuiescent.Should().BeTrue();
+        AssertNoEffects(f);
+    }
+
+    [Theory]
+    [InlineData(RequestOrigin.LocalUi, false)]
+    [InlineData(RequestOrigin.ActivatedVoice, false)]
+    [InlineData(RequestOrigin.LocalUi, true)]
+    [InlineData(RequestOrigin.ActivatedVoice, true)]
+    public async Task OriginalConfiguredSpeechQuestionCompletesOneReviewedLocalGetAnswer(RequestOrigin origin, bool saved)
+    {
+        const string question = "Which installed speech provider and voice are configured?";
+        var answer = saved
+            ? "The confirmed saved speech preference is kokoro / af_heart. This does not establish runtime availability."
+            : "The confirmed unsaved speech preference is windows-sapi with its advertised default voice. This does not establish runtime availability.";
+        var transport = new Transport(
+            """{"kind":"toolCalls","calls":[{"callId":"voice_1","capabilityId":"settings.get","input":{"id":"speech.voice"}}]}""",
+            $$"""{"kind":"answer","answer":"{{answer}}"}""");
+        await using var f = new SettingInspectionWorkflowTests.Fixture(transport: transport,
+            speechSelection: saved ? new SpeechSelection("kokoro", "af_heart") : null);
+        await f.InitializeAsync();
+        using var root = HostActivity.BeginRoot(HostRequest.Create(origin), HostActivityLayer.Desktop, HostOperation.Request);
+        var session = await f.Workflow.ReviewAsync(question, () => true, f.Token, ModelToolMode.SettingsDiscovery);
+        transport.Requests.Should().BeEmpty();
+        var result = await f.Workflow.AnswerAsync(session, () => true, f.Token);
+        result.Outcome.Should().Be(SettingInspectionOutcome.Succeeded);
+        transport.Requests.Should().HaveCount(2);
+        using var value = JsonDocument.Parse(((ModelToolResultMessage)transport.Requests[1].Messages[1]).Result.AsMemory());
+        var selection = value.RootElement.GetProperty("settings").GetProperty("observation").GetProperty("selection");
+        selection.GetProperty("providerId").GetString().Should().Be(saved ? "kokoro" : "windows-sapi");
+        if (saved) { selection.GetProperty("voiceId").GetString().Should().Be("af_heart"); }
+        else { selection.TryGetProperty("voiceId", out _).Should().BeFalse("null means the advertised provider default, not an invented concrete voice"); }
+        transport.Requests.Should().OnlyContain(item => item.Context.UserRequest == question
+            && item.Context.Evidence.Single().Content == session.Review.Source);
+        result.Receipt!.Message.Body.Should().Be(question);
+        result.Receipt.Message.Request.Origin.Should().Be(origin);
+        result.Receipt.Message.AssistantResponse!.Body.Should().Be(answer);
+        f.Storage.Reopen();
+        await f.Storage.Store.InitializeAsync(f.Token);
+        (await f.Storage.Store.ReadConversationMessageAsync(result.Receipt.Message.Request.SessionId,
+            result.Receipt.Message.Request.RequestId, f.Token)).Should().Be(result.Receipt.Message);
+        AssertNoEffects(f);
+        (await f.Workflow.AnswerAsync(session, () => true, f.Token)).Outcome.Should().Be(SettingInspectionOutcome.Denied);
+        transport.Requests.Should().HaveCount(2);
+    }
 
     [Theory]
     [InlineData("appearance.presence-timeout", 10, "seconds", RequestOrigin.LocalUi)]
@@ -41,7 +187,7 @@ public sealed class SettingsDiscoveryWorkflowTests
         var session = await f.Workflow.ReviewAsync(
             "Why does Kora disappear so quickly, and what presence size and movement settings am I using?",
             () => true, f.Token, ModelToolMode.SettingsDiscovery);
-        session.Review.Observations.Should().HaveCount(15).And.OnlyHaveUniqueItems(item => item.Setting);
+        session.Review.Observations.Should().HaveCount(21).And.OnlyHaveUniqueItems(item => item.Setting);
         var observed = session.Review.Observations.Single(item =>
             string.Equals(RegisteredSettingRegistry.Get(item.Setting).Id, id, StringComparison.Ordinal));
         observed.Value.Should().Be(expected);
@@ -160,6 +306,10 @@ public sealed class SettingsDiscoveryWorkflowTests
     [Theory]
     [InlineData("source")]
     [InlineData("late-source")]
+    [InlineData("speech-source")]
+    [InlineData("speech-late-source")]
+    [InlineData("presence-source")]
+    [InlineData("presence-late-source")]
     [InlineData("permission")]
     [InlineData("session")]
     [InlineData("expiry")]
@@ -172,11 +322,15 @@ public sealed class SettingsDiscoveryWorkflowTests
         var session = await f.Workflow.ReviewAsync("What is confirmed?", () => true, f.Token, ModelToolMode.SettingsDiscovery);
         transport.AfterRequest = async request =>
         {
-            if (request.Round != (change is "late-source" ? 3 : 1)) { return; }
+            if (request.Round != (change is "late-source" or "speech-late-source" or "presence-late-source" ? 3 : 1)) { return; }
             switch (change)
             {
                 case "source":
-                case "late-source": f.Preferences.Text["presence-movement-speed-percent.txt"] = "150"; break;
+                case "late-source": f.Preferences.Text["reader-text-scale-percent.txt"] = "150"; break;
+                case "presence-source":
+                case "presence-late-source": f.Preferences.Text["presence-movement-speed-percent.txt"] = "150"; break;
+                case "speech-source":
+                case "speech-late-source": f.Preferences.Lines["speech-selection.txt"] = ["1", "kokoro", "af_heart"]; break;
                 case "permission": f.Controls.CanControl = false; break;
                 case "expiry": f.Storage.Time.Now = session.Review.ExpiresAt; break;
                 case "session":

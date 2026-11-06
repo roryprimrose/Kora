@@ -854,15 +854,15 @@
                   <TextBlock Text="{Binding PlaybackVolumeStatus}" TextWrapping="Wrap" Classes="settings-description" />
                   <controls:SettingsNumberField Label="Volume" Unit="%" Value="{Binding SelectedPlaybackVolume}" SavedValue="{Binding SavedPlaybackVolume}"
                       Minimum="0" Maximum="{x:Static configuration:PlaybackVolume.MaximumPercent}"
-                      ActionCommand="{Binding SavePlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolume}" />
+                      ActionCommand="{Binding SavePlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolumeNative}" />
                 </StackPanel>
                 <controls:SettingActionsButton Grid.Column="1" SettingName="Kora playback volume"
-                                               IsEnabled="{Binding CanChangePlaybackVolume}">
+                                               IsEnabled="{Binding CanChangePlaybackVolumeNative}">
                   <controls:SettingActionsButton.Flyout>
                     <MenuFlyout>
-                      <MenuItem Header="Refresh" Command="{Binding RefreshPlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolume}" AutomationProperties.Name="Refresh volume" />
+                      <MenuItem Header="Refresh" Command="{Binding RefreshPlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolumeNative}" AutomationProperties.Name="Refresh volume" />
                       <Separator />
-                      <MenuItem Header="Reset volume to 100%" Command="{Binding ResetPlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolume}" />
+                      <MenuItem Header="Reset volume to 100%" Command="{Binding ResetPlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolumeNative}" />
                     </MenuFlyout>
                   </controls:SettingActionsButton.Flyout>
                 </controls:SettingActionsButton>
@@ -932,6 +932,7 @@
                 <WrapPanel ItemSpacing="8" LineSpacing="6">
                   <Button x:Name="OfferDetailPresentation" Content="Review Offer" Command="{Binding OfferDetailPresentationCommand}" IsEnabled="{Binding CanControlDetailPresentationNative}" />
                   <Button x:Name="LinkOnlyDetailPresentation" Content="Review Link only" Command="{Binding LinkOnlyDetailPresentationCommand}" IsEnabled="{Binding CanControlDetailPresentationNative}" />
+                  <Button x:Name="AutomaticDetailPresentation" Content="Review Open automatically" Command="{Binding AutomaticDetailPresentationCommand}" IsEnabled="{Binding CanControlDetailPresentationNative}" />
                 </WrapPanel>
                 <TextBlock Text="{Binding DetailPresentationReviewText}" TextWrapping="Wrap"
                     AutomationProperties.Name="Exact detail presentation preference review" />
@@ -1603,7 +1604,7 @@
                 <StackPanel IsVisible="{Binding IsMcpConfigurationSelected}" Spacing="8">
                   <TextBlock Text="External tool servers (MCP)" Classes="settings-title" />
                   <TextBlock
-                      Text="Connection details and credentials are not displayed or sent to AI models. Including a server saves your choice but does not connect to it or run tools. MCP connections are not yet available."
+                      Text="Including a server saves a master consideration choice, not connection or execution approval. Child selections are preserved when excluded. In Sessions, Manage MCP capabilities reviews category-wide and individual choices after explicit discovery. The unqualified production connector remains unavailable."
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                   <ListBox

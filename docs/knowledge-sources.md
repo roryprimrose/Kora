@@ -35,16 +35,29 @@ Snapshots are historical admitted revisions, not current filesystem observations
 
 ## One reviewed local answer
 
-Select one enabled source, enter one new question in **New named-source answer question**, and choose **Review selected named source excerpts for this question**. Review the unchanged question, exact retained revision, root-relative locations and complete retrieved excerpts. This does not invoke a model ([review owner](../src/Kora/KnowledgeSources/KnowledgeSourcesWindow.Answers.cs)).
+Explicitly select one or two enabled source rows (Ctrl+click adds a second), enter one new question in **New named-source answer question**, and choose **Review selected named source excerpts for this question**. No source is selected by default. Review the unchanged question, every selected source's exact retained revision, source-qualified root-relative locations and complete retrieved excerpts. Two selected sources produce one combined answer, not two independent model calls. This does not invoke a model ([review owner](../src/Kora/KnowledgeSources/KnowledgeSourcesWindow.Answers.cs)).
+
+For example, select **Team notes** and **Release notes** and ask how their alpha guidance differs. Both retained revisions must still pass original access, membership and exact retained-revision checks; one unavailable source rejects the whole use, without falling back to the other. The review labels sources with no shown supporting excerpt. Ranking and the global evidence budget are shared across both sources, not multiplied. Inspection, refresh, disable and removal still require exactly one selected row.
 
 Separately choose **Confirm one private local-only no-tools named-source answer** within the displayed deadline. Consent is one-shot, private LocalOnly and limited to the shown question and excerpts. Saving, enabling or refreshing never grants it. Every evidence-bearing complete file passes the [shared risk policy](../src/Kora.Application/Context/LocalSourceUsePolicy.cs); this is not a secret-free guarantee.
+
+To answer from fewer of the retrieved sections, deliberately select whole excerpts in
+**Choose whole retrieved named-source excerpts; none selected by default**, then choose
+**Review only chosen named-source excerpts**. Review the unchanged question and complete
+chosen excerpts before the same separate confirmation. Unchosen excerpts do not enter
+model context; each chosen excerpt's complete file still passes risk screening.
+The review distinguishes user-omitted retrieved excerpts from matches omitted by the
+bounded search. Changing the selection clears the previous confirmation and requires
+another chosen-set review. It does not renew the original deadline or one-shot consent.
+Highlighting preview text is not context selection. The original complete-retrieval
+review remains available when this optional selection is unchanged.
 
 The review expires at its 30-second deadline, including time spent revalidating the source.
 If it expires during confirmation, no answer is claimed and consent is not extended.
 Wait for any pending work to finish, then explicitly review the question and excerpts again
-before confirming a fresh one-shot answer.
+before confirming a fresh one-shot answer ([answer workflow](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerWorkflow.cs)).
 
-The limits remain 8 citations, 16 KiB combined excerpts and 32 KiB complete serialized model input, including overhead. Excess input is rejected without dropping evidence. No match invokes no model. Missing [qualified local runtime](../Design/Local_Inference.md#future-candidate-gate) returns unavailable; there is no hosted fallback, tool use or other-source search ([answer workflow](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerWorkflow.cs)).
+The limits remain 8 citations, 16 KiB combined excerpts and 32 KiB complete serialized model input, including source labels and overhead. Excess input is rejected without dropping reviewed evidence. For two-source answers the reviewed source name, exact revision and relative location accompany each excerpt as inert data and pass shared risk screening before model admission. No match invokes no model. Missing [qualified local runtime](../Design/Local_Inference.md#future-candidate-gate) returns unavailable; there is no hosted fallback, tool use or unselected-source search ([answer workflow](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerWorkflow.cs)).
 
 Operational failure diagnostics record only the failure type, not the question, source content or exception message. A failed review or source-use check does not dispatch a model or return answer claims.
 

@@ -20,4 +20,9 @@ public enum RegisteredSetting
     ResponseTimeout,
     ReducedMotion,
     SpeechVoice,
+    CommandStartWait,
+    ReplyStartWait,
+    TrailingSilence,
+    QuietHours,
+    DetailPresentation,
 }

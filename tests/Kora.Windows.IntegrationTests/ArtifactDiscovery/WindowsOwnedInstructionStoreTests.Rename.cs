@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 
 using AwesomeAssertions;
@@ -11,6 +12,96 @@ namespace Kora.Windows.IntegrationTests.ArtifactDiscovery;
 public sealed partial class WindowsOwnedInstructionStoreTests
 {
     private static Task<OwnedInstructionSnapshot> CommitRename(Func<OwnedInstructionSnapshot> operation) => Task.FromResult(operation());
+
+    [Fact]
+    public async Task FailedStagingCleanupPreservesBothErrorsAndNeverClaimsPublication()
+    {
+        var store = Create();
+        var source = (await store.Write("example", null, Document(), () => true, TestContext.Current.CancellationToken)).Current!;
+        var staging = string.Empty;
+        store.BeforeRenameStagingFlush = () =>
+        {
+            staging = Directory.GetFiles(OwnedDirectory, ".instruction-rename-*.proposed").Single();
+            File.SetAttributes(staging, FileAttributes.ReadOnly);
+            throw new IOException("Injected staging flush failure.");
+        };
+        try
+        {
+            var rename = () => store.Rename(new(source, "renamed"), () => true, CommitRename, TestContext.Current.CancellationToken);
+            var failure = (await rename.Should().ThrowAsync<IOException>()).Which;
+            failure.Message.Should().Be("Unpublished rename staging cleanup is unconfirmed.");
+            var causes = failure.InnerException.Should().BeOfType<AggregateException>().Which.InnerExceptions;
+            causes.Should().HaveCount(2);
+            causes[0].Should().BeOfType<IOException>().Which.Message.Should().Be("Injected staging flush failure.");
+            causes[1].Should().BeOfType<Win32Exception>();
+            File.Exists(staging).Should().BeTrue();
+            File.Exists(Path.Combine(OwnedDirectory, "renamed.instructions.md")).Should().BeFalse();
+            (await store.ReadRenameRecovery(TestContext.Current.CancellationToken)).Should().BeNull();
+            var retained = await store.Read("example", TestContext.Current.CancellationToken);
+            retained!.FileIdentity.Should().Be(source.FileIdentity);
+            retained.Document.CopyBytes().Should().Equal(source.Document.CopyBytes());
+        }
+        finally
+        {
+            if (File.Exists(staging))
+            {
+                File.SetAttributes(staging, FileAttributes.Normal);
+                File.Delete(staging);
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData("io")]
+    [InlineData("access")]
+    [InlineData("cancel")]
+    [InlineData("privacy")]
+    public async Task PreIntentStagingFailureRemovesOnlyUnpublishedBytesAndAllowsFreshRename(string failure)
+    {
+        var store = Create();
+        var source = (await store.Write("example", null, Document(bom: true), () => true, TestContext.Current.CancellationToken)).Current!;
+        var proposal = new OwnedInstructionRename(source, "renamed");
+        var unrelated = Path.Combine(OwnedDirectory, "unrelated.txt");
+        File.WriteAllBytes(unrelated, [1, 2, 3, 0, 4]);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var eligible = true;
+        store.BeforeRenameStagingFlush = () =>
+        {
+            Directory.GetFiles(OwnedDirectory, ".instruction-rename-*.proposed").Should().ContainSingle();
+            switch (failure)
+            {
+                case "io": throw new IOException("Injected staging flush failure.");
+                case "access": throw new UnauthorizedAccessException("Injected staging access failure.");
+                case "cancel": cancellation.Cancel(); break;
+                case "privacy": eligible = false; break;
+            }
+        };
+        var rename = () => store.Rename(proposal, () => eligible, CommitRename, cancellation.Token);
+        var exception = (await rename.Should().ThrowAsync<Exception>()).Which;
+        exception.Should().NotBeOfType<InstructionRenameUnconfirmedException>();
+        switch (failure)
+        {
+            case "io": exception.Should().BeOfType<IOException>(); break;
+            case "access": exception.Should().BeOfType<UnauthorizedAccessException>(); break;
+            case "cancel": exception.Should().BeAssignableTo<OperationCanceledException>(); break;
+            case "privacy": exception.Should().BeOfType<InvalidOperationException>(); break;
+        }
+        Directory.GetFiles(OwnedDirectory, ".instruction-rename-*").Should().BeEmpty();
+        File.Exists(Path.Combine(OwnedDirectory, "renamed.instructions.md")).Should().BeFalse();
+        File.ReadAllBytes(unrelated).Should().Equal([1, 2, 3, 0, 4]);
+        var restarted = new WindowsOwnedInstructionStore(new Paths(root));
+        (await restarted.ReadRenameRecovery(TestContext.Current.CancellationToken)).Should().BeNull();
+        var retained = await restarted.Read("example", TestContext.Current.CancellationToken);
+        retained!.FileIdentity.Should().Be(source.FileIdentity);
+        retained.RootBindingIdentity.Should().Be(source.RootBindingIdentity);
+        retained.Document.CopyBytes().Should().Equal(source.Document.CopyBytes());
+        var saved = await restarted.Rename(proposal, () => true, CommitRename, TestContext.Current.CancellationToken);
+        saved.Document.CopyBytes().Should().Equal(proposal.Proposed.CopyBytes());
+        (await restarted.Read("example", TestContext.Current.CancellationToken)).Should().BeNull();
+        (await restarted.ReadRenameRecovery(TestContext.Current.CancellationToken)).Should().BeNull();
+        Directory.GetFiles(OwnedDirectory, ".instruction-rename-*").Should().BeEmpty();
+        File.ReadAllBytes(unrelated).Should().Equal([1, 2, 3, 0, 4]);
+    }
 
     [Theory]
     [InlineData(true)]

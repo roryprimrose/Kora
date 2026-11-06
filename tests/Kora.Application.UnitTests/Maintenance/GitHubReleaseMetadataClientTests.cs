@@ -39,6 +39,7 @@ public sealed class GitHubReleaseMetadataClientTests
         draft["draft"] = true;
         var stable = fixture.Release.DeepClone();
         stable["prerelease"] = false;
+        stable["tag_name"] = "v1.2.2";
         fixture.Pages = page => page == 1
             ? new JsonArray(Enumerable.Range(1, 19).Select(_ => draft.DeepClone()).Append(older).ToArray())
             : new JsonArray(stable, fixture.Release.DeepClone());
@@ -62,7 +63,7 @@ public sealed class GitHubReleaseMetadataClientTests
         (await fixture.CheckAsync(ReleaseChannel.Preview)).Reason.Should().Contain("duplicate");
         fixture.Release["tag_name"] = "v1.2.3";
         fixture.Pages = _ => new JsonArray(fixture.Release.DeepClone());
-        (await fixture.CheckAsync(ReleaseChannel.Preview)).Reason.Should().Contain("not a canonical beta");
+        (await fixture.CheckAsync(ReleaseChannel.Preview)).Reason.Should().Contain("prerelease flag");
         fixture.Override = request => fixture.Respond(request, HttpStatusCode.OK, "null"u8.ToArray());
         (await fixture.CheckAsync(ReleaseChannel.Preview)).Status.Should().Be(ReleaseAvailability.Unknown);
         fixture.Override = null;

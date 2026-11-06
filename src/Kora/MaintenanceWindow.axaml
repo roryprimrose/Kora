@@ -3,7 +3,7 @@
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:Kora.Controls"
-    Title="Kora release maintenance (notify-only)"
+    Title="Kora release maintenance"
     Icon="/Assets/Kora.ico"
     Width="790" Height="660" MinWidth="650" MinHeight="520"
     Background="{DynamicResource KoraWindowBackgroundBrush}"
@@ -15,12 +15,22 @@
                  AutomationProperties.Name="Running application version" />
       <controls:NamedTextBlock Text="{Binding Disclosure}" TextWrapping="Wrap"
                  AutomationProperties.Name="Maintenance storage and network disclosure" />
-      <TextBlock Text="Production excludes drafts and prereleases. Preview explicitly selects published beta releases. Remote notes are not rendered. Review this exact page before opening it; replacement is external and manual." TextWrapping="Wrap" />
-      <ComboBox ItemsSource="{Binding Channels}" SelectedItem="{Binding Channel}" Width="200" HorizontalAlignment="Left"
-                AutomationProperties.Name="Release channel" />
-      <CheckBox Content="Permit public metadata checks for this run (initial check, then 6 hours + jitter/backoff)"
+      <TextBlock Text="Stable releases only by default; optionally include published beta releases. Drafts are excluded and remote notes are not rendered. Review this exact release before opening its page." TextWrapping="Wrap" />
+      <CheckBox Content="Enable GitHub update checks at startup and periodically"
                 IsChecked="{Binding NetworkEnabled}"
-                AutomationProperties.Name="Permit public release metadata checks for this run only" />
+                AutomationProperties.Name="Enable GitHub update checks at startup and periodically" />
+      <CheckBox Content="Include beta releases as well as stable releases"
+                IsChecked="{Binding IncludePrereleases}"
+                AutomationProperties.Name="Include beta releases as well as stable releases" />
+      <TextBlock Text="Check interval in whole hours (1 to 168)" />
+      <NumericUpDown Value="{Binding CheckIntervalHours}" Minimum="1" Maximum="168" Increment="1"
+                     FormatString="0" AllowSpin="True" Width="140" HorizontalAlignment="Left"
+                     AutomationProperties.Name="Update check interval in whole hours from 1 to 168" />
+      <TextBlock Text="Changes apply to this run immediately. Save to retain them across restart. The interval applies after the next successful check, plus bounded jitter; changing settings never shortens an existing wait or GitHub backoff." TextWrapping="Wrap" />
+      <Button Content="Save update settings" Command="{Binding SavePreferencesCommand}" HorizontalAlignment="Left"
+              AutomationProperties.Name="Save update settings for future startups" />
+      <controls:NamedTextBlock Text="{Binding PreferencesStatus}" TextWrapping="Wrap"
+                 AutomationProperties.Name="Saved update settings status" AutomationProperties.LiveSetting="Polite" />
       <Button Content="Check canonical releases" Command="{Binding CheckCommand}" HorizontalAlignment="Left"
               AutomationProperties.Name="Check canonical releases now" />
       <controls:NamedTextBlock Text="{Binding Status}" TextWrapping="Wrap"
@@ -41,7 +51,22 @@
         <Button Content="Snooze this version (24h)" Command="{Binding SnoozeCommand}" IsEnabled="{Binding CanSnooze}"
                 AutomationProperties.Name="Snooze this version for 24 hours" />
       </StackPanel>
-      <TextBlock Text="No unsolicited window, focus, audio, microphone, model call or install approval. Unknown deployment mode never authorizes source mutation. Permission and snooze are not saved across restart." TextWrapping="Wrap" />
+      <TextBlock Text="No unsolicited window, focus, audio, microphone, model call or install approval. Unknown deployment mode never authorizes source mutation. Only explicitly saved check settings survive restart; release review and snooze do not." TextWrapping="Wrap" />
+      <Separator />
+      <TextBlock Text="Upgrade Kora" FontSize="20" FontWeight="SemiBold" />
+      <TextBlock Text="Leave the version blank for latest, or enter an exact version such as 1.2.3-beta7. Only newer releases matching your beta policy can be installed."
+                 TextWrapping="Wrap" />
+      <TextBox Text="{Binding RequestedVersionText}" PlaceholderText="Latest, or exact version"
+               MaxLength="64" AutomationProperties.Name="Requested upgrade version" />
+      <Button Content="Check selected version" Command="{Binding CheckSelectedVersionCommand}"
+              HorizontalAlignment="Left" AutomationProperties.Name="Check latest or exact upgrade version" />
+      <controls:NamedTextBlock Text="{Binding UpgradeDisclosure}" TextWrapping="Wrap"
+                 AutomationProperties.Name="Unsigned installer approval disclosure" />
+      <CheckBox Content="I approve downloading and running the installer for this exact reviewed release"
+                IsChecked="{Binding UpgradeApproved}" IsEnabled="{Binding CanReviewUpgrade}"
+                AutomationProperties.Name="Approve this exact unsigned installer download and startup" />
+      <Button Content="Download and run reviewed installer" Command="{Binding UpgradeCommand}" IsEnabled="{Binding CanUpgrade}"
+              HorizontalAlignment="Left" AutomationProperties.Name="Download and run the separately approved installer" />
     </StackPanel>
   </ScrollViewer>
 </Window>

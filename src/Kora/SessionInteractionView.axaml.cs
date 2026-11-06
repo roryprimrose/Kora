@@ -39,6 +39,10 @@ internal sealed partial class SessionInteractionView : UserControl
     private readonly EventHandler<RoutedEventArgs> detailCommandClick;
     internal Task EvidenceValidationOperation { get; private set; } = Task.CompletedTask;
     internal bool DetailsVisible => DetailsPane.IsVisible;
+    internal void RetireOfferedDetails(DetailContentReference reference)
+    {
+        if (activeDetails?.Reference == reference) { activeDetails.ClearAndClose(); }
+    }
     internal bool IsConversationPresented => IsEffectivelyVisible && TopLevel.GetTopLevel(this)?.IsVisible == true
         && ConversationTabs.SelectedItem == ConversationTab;
     private long conversationPresentationRevision;
@@ -47,6 +51,7 @@ internal sealed partial class SessionInteractionView : UserControl
     public SessionInteractionView()
     {
         InitializeComponent();
+        ObserveAutomaticDetailsInput();
         conversationReader = new(this, ConversationScroll, ConversationMessageItems, ConversationUpdateItems, ConversationReaderStatus);
         replyPresentation = new(this);
         ConversationTabs.SelectionChanged += (_, _) =>
@@ -122,6 +127,7 @@ internal sealed partial class SessionInteractionView : UserControl
             }
         };
         HideSessionDetails.Click += (_, _) => HideDetailsAndRestoreFocus();
+        ExpandSessionDetails.Click += (_, _) => ToggleDetailsExpansion();
         evidenceValidation.Tick += async (_, _) => await (EvidenceValidationOperation = RevalidateEvidenceAsync());
         DetachedFromVisualTree += (_, _) => HideDetails();
         DataContextChanged += (_, _) => ObserveModel();
@@ -143,7 +149,13 @@ internal sealed partial class SessionInteractionView : UserControl
     {
         try
         {
-            if (args.Source is Button { Name: "OpenSubmittedAnswerContext", DataContext: ConversationMessage answer })
+            if (args.Source is Button { Name: "ReadRequestAudit", DataContext: ConversationMessage request })
+            {
+                args.Handled = true;
+                var native = replyPresentation.Capture();
+                await Run(current => current.ReadRequestEvidenceAsync(request, native));
+            }
+            else if (args.Source is Button { Name: "OpenSubmittedAnswerContext", DataContext: ConversationMessage answer })
             { args.Handled = true; await Run(current => current.OpenConversationDetailAsync(answer, submittedContext: true)); }
             else if (args.Source is Button { Name: "ReplyToAssistantAnswer", DataContext: ConversationMessage replySource }
                 && DataContext is SessionsViewModel)
@@ -244,6 +256,7 @@ internal sealed partial class SessionInteractionView : UserControl
 
     internal bool ShowDetails(SessionDetailView view, AdmittedDetailContent content)
     {
+        if (!publishingAutomaticDetails) { automaticReaderEpoch++; }
         var subject = content.ConversationMessage?.Request.SessionId ?? content.HistorySession ?? content.SessionSource?.SessionId;
         var selected = observedModel?.SelectedSessionRecord?.Authority.SessionId;
         if (subject is null || observedModel?.CanPresentDetails != true
@@ -276,12 +289,15 @@ internal sealed partial class SessionInteractionView : UserControl
         DetailsDivider.IsVisible = true;
         DetailsPane.IsVisible = true;
         ShowSessionDetails.IsVisible = false;
+        ExpandSessionDetails.IsEnabled = true;
         RefreshReturnNavigation();
     }
 
     private void RememberSplit()
     {
         if (!DetailsVisible) { return; }
+        RestoreDetailsSplit();
+        ExpandSessionDetails.IsEnabled = false;
         conversationWidth = ReadingPanes.ColumnDefinitions[0].Width;
         detailWidth = ReadingPanes.ColumnDefinitions[2].Width;
     }
@@ -298,11 +314,12 @@ internal sealed partial class SessionInteractionView : UserControl
         ReadingPanes.ColumnDefinitions[2].Width = new(0);
         ShowSessionDetails.IsVisible = true;
         RefreshReturnNavigation();
-        if (IsVisible && observedModel?.CanPresentDetails == true) { ShowSessionDetails.Focus(); }
+        if (!publishingAutomaticDetails && IsVisible && observedModel?.CanPresentDetails == true) { ShowSessionDetails.Focus(); }
     }
 
     internal void HideDetails()
     {
+        if (!publishingAutomaticDetails) { automaticReaderEpoch++; }
         RememberSplit();
         evidenceValidation.Stop();
         var retired = evidenceLifetime;
@@ -342,12 +359,54 @@ internal sealed partial class SessionInteractionView : UserControl
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
         };
         evidenceBody = body;
-        DetailsHeading.Text = detail.Source == EvidenceSource.AuthorityAudit
-            ? "Session typed security audit" : "Session diagnostic evidence";
+        DetailsHeading.Text = detail.Heading;
         evidenceAdmission = admitted;
         validateEvidence = validate;
         evidenceLifetime = new();
-        DetailsContent.Content = new ScrollViewer { Content = body, VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto };
+        var reader = new ScrollViewer { Content = body, VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto };
+        if (detail.RequestMessage is { } request)
+        {
+            var next = new Button
+            {
+                Name = "NextRequestAudit",
+                Content = "Next request-audit snapshot page",
+                IsEnabled = detail.Page.Cursor is not null,
+            };
+            Avalonia.Automation.AutomationProperties.SetName(next, "Read the next bounded page for this same exact request audit snapshot");
+            next.Click += async (_, _) =>
+            {
+                try
+                {
+                    if (!ReferenceEquals(evidenceBody, body) || !admitted())
+                    {
+                        observedModel?.ReportDetailPresentationFailure(
+                            new InvalidOperationException("The original request-audit page was retired; no newer page was selected."));
+                        return;
+                    }
+                    var native = replyPresentation.Capture();
+                    await Run(current => current.ReadRequestEvidenceAsync(request, native, detail));
+                }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                {
+                    observedModel?.ReportDetailPresentationFailure(exception);
+                    if (ReferenceEquals(evidenceBody, body)) { HideDetails(); }
+                }
+            };
+            var disclosure = new TextBlock
+            {
+                Text = detail.Label + (detail.Page.Cursor is not null ? " Incomplete bounded snapshot; use Next."
+                    : " End of this bounded snapshot.")
+                    + " Missing terminal evidence is not proof of running work or success; a recorded outcome does not prove an effect.",
+                TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+            };
+            var navigation = new StackPanel { Spacing = 6, Children = { disclosure, next } };
+            var content = new Grid { RowDefinitions = new("Auto,*"), RowSpacing = 8 };
+            content.Children.Add(navigation);
+            Grid.SetRow(reader, 1);
+            content.Children.Add(reader);
+            DetailsContent.Content = content;
+        }
+        else { DetailsContent.Content = reader; }
         RevealDetails();
         if (!admitted()) { body.Text = null; HideDetails(); return false; }
         evidenceValidation.Start();
@@ -380,8 +439,10 @@ internal sealed partial class SessionInteractionView : UserControl
         if (!choose && acceptOffer && model.DetailsOfferMessage is { } offered)
         { await model.OpenConversationDetailAsync(offered, assistant: true); return; }
         if (!choose && model.LastDetailMessage is { } previous)
-        { await model.OpenConversationDetailAsync(previous, model.LastDetailAssistant, model.LastDetailObservation,
-            submittedContext: model.LastDetailContext); return; }
+        {
+            await model.OpenConversationDetailAsync(previous, model.LastDetailAssistant, model.LastDetailObservation,
+            submittedContext: model.LastDetailContext); return;
+        }
         if (!choose && model.LastEvidenceDetail is { } evidence)
         { await model.OpenEvidenceDetailsAsync(evidence); return; }
         if (!choose && model.CanRestoreHistoryDetail)
@@ -392,7 +453,8 @@ internal sealed partial class SessionInteractionView : UserControl
         {
             choices.Children.Add(new Button
             {
-                Name = message.HasAssistantResponse ? "OpenAssistantConversationDetail" : "OpenConversationDetail", DataContext = message,
+                Name = message.HasAssistantResponse ? "OpenAssistantConversationDetail" : "OpenConversationDetail",
+                DataContext = message,
                 Content = $"Message {message.Sequence}: {(message.HasAssistantResponse ? "answer and original message" : "original message")}",
             });
         }

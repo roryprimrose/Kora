@@ -54,6 +54,9 @@ accept, save, list or inspect a different memory; readback still requires step 6
 The [source-bound service](../src/Kora.Application/Memory/DeviceProfile/MemoryManagementService.SessionCopy.cs) re-reads the exact original before proposing, reviewing and admitting; the [canonical transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Memory.cs) compares it again at the actual destination operation.
 Changed, edited, disabled, forgotten, deleted or replaced sources cannot authorize the pending copy. Selection/scope changes, privacy/control loss, cancellation, restart and the sixty-second review expiry retire pending work. Start a fresh review rather than retrying a held result.
 
+Proposing, accepting, rejecting or admitting a copy retires open Session and Device-profile memory-use reviews. Replacement use reviews stay closed until the actual source and transaction work joins, including cancellation or failure.
+A new complete memory-use review and separate confirmation are required afterwards; inspecting the source alone does not change it or retire unrelated use consent ([shared boundary](../src/Kora.Application/Memory/ModelProposals/MemoryManagementService.ModelProposals.cs)).
+
 The original Session memory is unchanged. No grant, receipt, review or retention deadline is copied. Once independently admitted, the new Device-profile memory follows its own lifetime: forgetting the original or deleting its session does **not** delete the profile copy. Disable or forget the new record separately.
 Nothing automatically reads a model, recalls memory, sends content, starts speech or activates a tool. These copy controls require fresh native input; existing typed/activated Session commands and model Session proposals do not gain a copy/promotion command.
 
@@ -83,6 +86,29 @@ enable a provider. The original question and actual answer or terminal outcome
 follow conversation retention; selected memory bodies are not copied into
 conversation history.
 
+## Inspect context submitted for a retained answer
+
+Select the exact successful retained **ASSISTANT** answer and choose
+**Context submitted for this answer**. For this explicit profile-only operation,
+the native inspector shows the ordered content-free memory references actually
+included in the canonical envelope handed to the admitted local adapter.
+It does not prove provider delivery, processing or reasoning. Merely reviewing
+or selecting a memory does not create a submission record.
+
+Only immutable memory identity, revision and device-profile identity are retained;
+their bindings stay internal. No value, classification, source lineage or review
+body is copied. The inspector checks current exact enabled metadata, not memory
+values. Edited, disabled, forgotten, removed or foreign-profile references are
+unavailable; a newer revision is never substituted. Unresolved integrity or private
+authority checks close inspection instead of reconstructing a source.
+
+This passive no-copy view grants no recall, use, source opening or retention
+extension. Profile memory keeps its independent lifetime; deleting the answer's
+conversation deletes its submission metadata, not the profile memory.
+Older unsupported answers remain **Unknown / not recorded**. Mixed-context
+answers remain outside this recorder. Failed, denied, expired, stale or cancelled
+attempts cannot retain successful-answer submission metadata.
+
 ## Inspect, edit, disable and forget
 
 All management works without inference. Explicitly list, select and inspect
@@ -98,6 +124,27 @@ the exact current revision before acting:
   non-reusable identity tombstone. It is not a promise of forensic erasure.
 - Exact individual actions are supported; existing session batch operations
   remain Session-only.
+
+### Disable one memory with the keyboard
+
+In **Sessions > Memories**, choose the Session or Device-profile scope and
+explicitly **List**. Tab into the content-free inventory and use the arrow
+keys to select one enabled memory. Select **Inspect exact memory** with Enter.
+Focus moves to the read-only **Exact memory inspection or retained mutation
+result** field, at the beginning of the complete value, classification, source
+scope and lineage. Use normal text navigation to read the entire result.
+Reading or pressing Enter in that field does not disable or admit anything.
+
+Shift+Tab passes **Forget exact memory** to **Disable admitted memory**.
+Deliberately press Enter on **Disable admitted memory**. Focus returns to the
+same read-only field with the authoritative result: check the exact memory
+identity, scope, new revision and **Disabled** retention state. Disabled keeps
+the admitted value but closes use; it does not renew retention, consent or
+permissions. Explicit List and Inspect after restart can read that retained
+state. Re-enabling still requires edit, inspect, review and separate admission.
+Changing selection, scope, private control or native surface during the
+operation retires the pending focus handoff, not the transaction's outcome.
+If an outcome is uncertain, inspect retained state rather than retrying.
 
 Done, deletion and retention of the originating session do not delete
 independently admitted Device-profile memories or transfer any session

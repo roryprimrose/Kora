@@ -1,4 +1,4 @@
-using Kora.Application.Mcp;
+﻿using Kora.Application.Mcp;
 using Kora.Core.Auditing;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
@@ -16,7 +16,18 @@ public sealed partial class SessionConversationService
     public async Task<McpExplicitResult> InvokeMcpAsync(SessionWorkspaceEntry target, string serverId,
         McpAccountReference account, McpApprovalPresenter present, McpToolSelector select,
         McpArgumentsPresenter input, Func<bool> admitted, CancellationToken token,
-        RequestOrigin origin = RequestOrigin.LocalUi)
+        RequestOrigin origin = RequestOrigin.LocalUi) =>
+        await InvokeMcpCoreAsync(target, serverId, account, present, select,
+            async (invocation, cancellation) =>
+            {
+                await invocation.PrepareAsync(cancellation).ConfigureAwait(false);
+                return await invocation.InvokeOriginalUserAsync(input, cancellation).ConfigureAwait(false);
+            }, admitted, origin, token).ConfigureAwait(false);
+
+    private async Task<McpExplicitResult> InvokeMcpCoreAsync(SessionWorkspaceEntry target, string serverId,
+        McpAccountReference account, McpApprovalPresenter present, McpToolSelector? select,
+        Func<McpInvocation, CancellationToken, Task<CapabilityReply>> execute,
+        Func<bool> admitted, RequestOrigin origin, CancellationToken token)
     {
         RequireOriginalSource(origin);
         if (mcpConfiguration is null || mcpBroker is null || mcpEffects is null || interactions is null
@@ -36,6 +47,7 @@ public sealed partial class SessionConversationService
         ConversationCancellationLease? running = null;
         McpInvocation? invocation = null;
         McpModelResult? observed = null;
+        McpContentResult? content = null;
         var outcome = McpExplicitOutcome.Unknown;
         var confirmed = false;
         try
@@ -54,14 +66,20 @@ public sealed partial class SessionConversationService
                     cancellationAudit, time, request, target.Authority.Generation, serverId, account, present, select,
                     () => running.CanContinue);
                 invocation.BindOriginalUserTask(prior);
-                await invocation.PrepareAsync(running.Token).ConfigureAwait(false);
-                var reply = await invocation.InvokeOriginalUserAsync(input, running.Token).ConfigureAwait(false);
+                var reply = await execute(invocation, running.Token).ConfigureAwait(false);
                 outcome = McpExplicitResult.From(reply.Outcome);
                 observed = reply.Mcp;
+                if (invocation.Content is { } document)
+                { content = new(invocation.ContentCapability!, document, invocation.Source.SourceRevision, invocation.ContentObservedAt); }
                 await invocation.ValidateAsync(running.Token).ConfigureAwait(false);
             }
             catch (McpUnavailableException) { outcome = McpExplicitOutcome.Unavailable; }
             catch (OperationCanceledException) { outcome = McpExplicitOutcome.Cancelled; }
+            catch (McpProtocolException exception)
+            {
+                Failure(logger, exception.GetType().Name);
+                outcome = McpExplicitOutcome.Failed;
+            }
             catch (InvalidDataException exception)
             {
                 Failure(logger, exception.GetType().Name);
@@ -121,7 +139,7 @@ public sealed partial class SessionConversationService
             activity.Complete(outcome == McpExplicitOutcome.Succeeded ? HostOperationOutcome.Completed
                 : outcome == McpExplicitOutcome.Cancelled ? HostOperationOutcome.Cancelled
                 : outcome == McpExplicitOutcome.Unknown ? HostOperationOutcome.Unknown : HostOperationOutcome.Failed);
-            return new(request, outcome, terminal.State, observed);
+            return new(request, outcome, terminal.State, observed, outcome == McpExplicitOutcome.Succeeded ? content : null);
         }
         finally
         {

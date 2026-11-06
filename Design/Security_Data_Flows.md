@@ -711,6 +711,8 @@ The [native review control](../src/Kora/ClipboardPreviewWindow.cs) requires a de
 **Product decision, 2026-10-28:** the built-in clipboard tool's permission grant is sufficient source-use authority. The user is responsible for sensitive material they place in the clipboard and explicitly ask Kora to examine. There is no additional clipboard sensitivity classification, user classification attestation, credential-pattern scan, redaction or secret-free guarantee. This replaces the earlier affirmative-classifier requirement, not merely its implementation.
 [IClipboardSourceUsePolicy](../src/Kora.Core/Context/IClipboardSourceUsePolicy.cs) is composed with the [permission policy](../src/Kora.Application/Context/ClipboardPermissionSourceUsePolicy.cs), not an accepting content classifier. Original native controls allow denial, Once, This session or Always through the [existing durable grant service](../src/Kora.Application/Interaction/HostAuthorizationService.cs) and [native permission host](../src/Kora/NativeQuestionHost.Clipboard.cs). Session grants are bound to the active clipboard explanation control session/generation; Always grants remain in the independent perpetual-grant partition. The grant's exact operation scope covers subsequent explicitly reviewed clipboard snapshots, not their content digests. Definition/implementation/policy changes invalidate matching authority through the existing binding rules.
 A grant is not model consent: each explanation separately consumes a fresh exact-snapshot native review gesture. Preview, Find, wrapping, reuse and source text cannot create a grant or run inference. Original deliberate preview requests retain their existing one-read authority; no model-selected or background capture is introduced.
+The native **Ask a question about this same snapshot** operation accepts a new original local-user question, not a model clarification or a previous-answer continuation. The host validates the complete unchanged question with the shared original conversation-input policy, without applying that policy to clipboard evidence. Review displays the full question, complete exact source and LocalOnly/no-tools destination; a separate checkbox/button confirms only one use under the existing `clipboard.explain-local` permission. A reusable grant never supplies that confirmation.
+The [question review](../src/Kora.Application/Context/ClipboardQuestionReview.cs) binds the original host request and exact capture object, is consumed once and permanently retires on observed source/input/privacy/owner/call/expiry loss. Editing, cancellation, close or replacement clears the native review and cancels its owned work; completion/exit joins actual model resources. The [question envelope](../src/Kora.Core/Context/ClipboardExplanationContext.cs) contains only the unchanged original question and the still-current snapshot, never the previous answer or history. Preparation and confirmation never read native clipboard state, refresh capture time, revive an old review or renew the original 15-minute source lifetime. The existing permission checks at adapter dispatch/response and final source/eligibility/expiry checks before volatile publication remain authoritative; terminal task records do not admit new permission decisions. No conversation body/draft, speech, hosted fallback, new grant scope or source authority is added.
 The host commits only content-free session/task, proposal, question and grant evidence to obtain permission. Missing/unbound permission presentation, denied/revoked/unknown authority and stale source/host state fail closed before context construction or provider use. Ordinary Approve all session policy and model review cannot manufacture this tool grant.
 Review expires 15 minutes after capture; a [clipboard context](../src/Kora.Core/Context/ClipboardExplanationContext.cs) binds its one evidence item to the new content-free host request, exact snapshot ID/native sequence and `LocalOnly` disclosure, with a maximum 15-second model envelope.
 The complete existing `ModelContextEnvelope` serialization, including policy and tool overhead, must fit 32768 UTF-8 bytes without truncation ([boundary tests](../tests/Kora.Core.UnitTests/Context/ClipboardExplanationContextTests.cs)).
@@ -718,6 +720,7 @@ The clipboard envelope performs identity, Unicode, lifetime and complete seriali
 Content-free task authority is separate from conversation retention, preserving original input origin; the exact capture object retains its original request/source identity while model evidence belongs to the newly admitted task ([clipboard admission](../src/Kora.Application/Context/ClipboardExplanationAdmission.cs), [workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs)).
 The production permission policy consumes an actual user grant and one invocation dispatch receipt before reaching `ModelTurnChoice.Local` and the existing model host. Permission is revalidated after asynchronous session/task reads at the adapter and response boundaries; revocation blocks subsequent dispatch/publication. No qualified runtime means explicit unavailability, never a hosted/bootstrap fallback. Deterministic fake-provider evidence is implementation proof, not production runtime qualification or enablement ([consumer tests](../tests/Kora.Application.UnitTests/Context/ClipboardExplanationWorkflowTests.Permissions.cs)).
 Only a successful admitted host response can become a volatile answer in that exact native preview, after terminal task evidence and current-source/eligibility checks; source/answer are not generic responses, transcripts, speech, saved clipboard history or conversation bodies ([workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs), [presentation](../src/Kora.Application/ViewModels/MainViewModel.Clipboard.cs)).
+The [native answer](../src/Kora/ClipboardPreviewWindow.cs) wraps at the current reading viewport width independently of the source-only wrapping preference. Resizing or wrapping the snapshot does not alter answer bytes, repeat inference or renew review/grant authority. [Complete-operation native tests](../tests/Kora.Windows.IntegrationTests/ClipboardExplanationPermissionTests.cs) measure rendered answer bounds after actual permission consumption and local fake-provider completion, including a wider unwrapped immutable source.
 Source revocation and cancellation suppress late output while actual adapter quiescence remains mandatory for exit/handoff; deterministic fake-provider tests cover these boundaries without clipboard/model/network calls ([workflow tests](../tests/Kora.Application.UnitTests/Context/ClipboardExplanationWorkflowTests.cs)).
 Invalid presentation reads retire volatile answer/source references, so restored eligibility cannot resurrect a retired answer; model-envelope expiry is checked again after terminal task evidence before publication ([workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs)).
 The [clipboard admission bridge](../src/Kora.Application/Context/ClipboardExplanationAdmission.cs) reuses the existing content-free local-context dispatch store and host task coordinator. Actual current-run source authority, not a generic control intent or fake-store assumption, is required. Terminal task evidence precedes answer publication; cancellation after durable dispatch is conservatively Unknown, not a claim that already-running work was rolled back.
@@ -1196,7 +1199,7 @@ High-risk action confirmation names the action/target verbally or identifies tha
 Fixed local-machine shutdown/restart uses distinct action-specific voice or UI confirmation as specified, safe-work handling, and a cancellable countdown.
 An assistant-name prefix is not speaker authentication. Make the action and chosen duration visible/readable; neither a match nor a click establishes physical identity.
 Lock is side-effecting and retains the future exact version-bound grant gate for both direct and model-suggested requests; priority routing does not waive it. Today's direct Windows-API lock path does not yet enforce that gate, unlike model-suggested lock.
-During the initial unsigned phase, application update checks are notify-only and cannot create an installation approval.
+Application update checks and tool requests cannot create installation approval. Only separate exact native unsigned-installer review authorizes the bounded download/start path; normal OS and installer lifecycle checks remain mandatory ([upgrade owner](../src/Kora.Application/Maintenance/MaintenanceViewModel.Upgrade.cs)).
 These rules do not permit arbitrary script/code installation or generic destructive commands; power actions warn about unsaved work and never force application termination.
 See [OOTB Phrases](OOTB_Phrases.md#shutdown-and-restart-safety).
 No speaker recognition claim substitutes for user identity.
@@ -1277,7 +1280,8 @@ The agent has no elevation, installer, updater, or executable-extension activati
 The built-in environment controller is a separate trusted host path for exact catalogue-defined dependency setup, not a model/skill installer capability.
 It may initialise Kora data and offer approved external prerequisites, but cannot alter Kora code or use arbitrary supplied installer paths.
 See [Environment Setup](Environment_Setup.md).
-During the unsigned phase, application maintenance is notify-only with no model-callable or host-install-capable entry point.
+Application maintenance has a narrow host-owned unsigned-installer exception: original-user check/upgrade tools can check or request review, never approve or execute installation. Saved network consent only permits canonical metadata discovery.
+Separate native review/approval binds the exact newer x64 release, asset ID, byte count and SHA-256; it is invalidated by target/metadata/admission changes ([tools contract](../src/Kora.Core/Maintenance/IApplicationMaintenance.cs), [upgrade owner](../src/Kora.Application/Maintenance/MaintenanceViewModel.Upgrade.cs)).
 The delivered exact typed/activated `maintenance status`, `maintenance review`
 and `maintenance snooze` commands are original-user cached controls, not model
 tools. Native review/snooze share their dedicated maintenance-session durable
@@ -1292,7 +1296,9 @@ revalidated; failure/cancellation/late completion cannot become cached success.
 These commands cannot grant/renew network consent, check/refresh, navigate,
 download, install, elevate, activate source or start a runtime/provider.
 Full bounded visual output is preserved without audio/device probes.
-Any future updater requires an independently authenticated metadata trust root, native secure per-release approval, and separate acceptance evidence.
+The host verifies metadata before/after download, restricts transfer to the canonical asset API and admitted CDN, leases verified bytes and requests ordinary non-elevated installer startup. It does not replace running application files itself or claim completed installation.
+Unsigned GitHub-origin consistency is not independent publisher authentication, rollback/freeze safety or protected deployment ([transfer](../src/Kora.Application/Maintenance/ReleaseInstallerDownloader.cs), [launcher](../src/Kora.Windows/Maintenance/WindowsReleaseInstallerLauncher.cs)).
+An independently authenticated updater still requires an authenticated metadata trust root, native secure per-release approval and separate acceptance evidence; this explicitly disclosed unsigned path does not claim that guarantee.
 Source-bootstrap installation and precompiled deployment follow the same protected-code boundary; discovering `.git` does not grant update authority.
 The implemented external [source build-only interface](Distribution_And_Updates.md#source-bootstrap)
 requires operator review and explicit installation-time trust before executing
@@ -1311,6 +1317,8 @@ The guarantee covers supported agent operations and contained extensions, not a 
 Embedding removes editable built-in skill files; it does not prevent an owner patching the whole application or deliberately rebuilding changed source.
 Application provenance must be enforced by the strongest available deployment/launch boundary outside any replaced binary; a resource digest stored in that same binary is not sufficient authentication.
 Initial unsigned releases cannot provide Authenticode publisher authentication.
+Unsigned first-party Kora application binaries and installers are allowed under the current [distribution policy](Distribution_And_Updates.md#unsigned-initial-releases-and-public-contributions). Missing code signing alone must not block their ordinary startup or separately approved installer flow; existing identity, integrity, consent, ownership, OS and lifecycle checks remain mandatory.
+Signed-artifact and independently authenticated updater requirements describe a potential future hardened state, not a current implementation or deployment prerequisite.
 Their canonical release origin, exact revision, external final-byte hashes/build provenance, and protected installation permissions provide narrower traceability and tamper-detection guarantees that must not be described as equivalent to code signing.
 Do not claim immunity against those excluded threats.
 
@@ -1594,6 +1602,15 @@ and the [staged roadmap](Implementation_Roadmap.md#r02-windows-containment-follo
 
 ## Retention Defaults
 
+The [explicit Details presentation decision](Decision_Register.md#exact-opted-in-details-presentation-question---2026-11-06) is non-substantive even when answered.
+Only its validated typed binding exempts question/task bookkeeping from meaningful-activity updates, never purpose/action strings or caller flags.
+Its fixed question/choice remains session-retained, without a second answer body.
+Independent content-free audit records original source and actual answer channel without renewing source access ([authority](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.DetailsOffers.cs)).
+
+The [shared device-local preference availability boundary](User_Configuration.md#shared-device-local-preference-availability) distinguishes missing files/directories from unavailable saved files or unconfirmed-write markers.
+An obstructing directory or denied read/delete must surface failure, not confer default or confirmed state ([store](../src/Kora.Application/Configuration/LocalPreferenceStore.cs)).
+Explicit repair never renews authority or clears another retention domain; fresh admitted save/reset, readback and required audit remain mandatory ([regressions](../tests/Kora.Application.UnitTests/Configuration/LocalPreferenceStoreTests.cs)).
+
 Exact-answer review acknowledgements are metadata owned by the retained conversation, not an independent retention domain or a read-receipt claim. Source deletion removes them; acknowledgement does not renew activity, deadlines, grants, model/source consent or execution authority. Details still needs fresh canonical native admission; unknown or malformed acknowledgement state fails unavailable ([contract and storage](Interaction_And_Sessions.md#explicit-retained-answer-review-acknowledgement)).
 
 | Data | Default |
@@ -1644,8 +1661,9 @@ ordinary SQLite rows use the policy; existing deadlines never change and
 apply-now is unavailable. Audit90/domain, files30/30 and every grant retain
 their independent rules. Unavailable ordinary policy reports explicit
 independent delivery gaps without waiving mandatory trusted audit. This is logical
-row pruning, not recoverable-copy disposal or forensic erasure. Audit expiry
-and its continuation/checkpoint requirements remain independently unimplemented.
+row pruning, not recoverable-copy disposal or forensic erasure. Authoritative
+audit-prefix expiry uses its [independent bounded operation](Architecture.md#bounded-authoritative-audit-prefix-retention);
+diagnostic audit-projection expiry remains unavailable.
 The independent [ordinary diagnostic impact preview](User_Configuration.md#read-only-ordinary-diagnostic-shortening-impact-preview)
 only observes hypothetically newly-due ordinary logs/spans/owned links at one
 fixed cutoff. It never counts security audit; bounded protected-prefix and
@@ -1831,8 +1849,19 @@ under the selected tamper-evidence scheme so expiry is distinguishable from
 removal inside the retained window. Preserve the latest minimal chain anchor
 outside ordinary audit-event expiry; it contains no action/content payload and
 cannot reconstruct expired records.
-Audit pruning and its continuation/anchor mechanism are not implemented.
-Ordinary diagnostic pruning never removes audit rows; expired audits may
+The approved conservative implementation increment prunes only a contiguous
+verified expired prefix of the authoritative interaction audit, in a bounded
+owning-host startup transaction. State-referenced audit proofs, retained audit
+dependencies and unresolved work hold the boundary; expired backlog may remain.
+Removal and a versioned payload-free sequence/hash/cutoff anchor commit together.
+Readers verify the retained suffix from that anchor, never reconstruct expired
+payloads or reinterpret the independent diagnostic/file copies as authority.
+This uses the existing private-store/local SHA-256 consistency boundary, not
+checkpoint authentication against an attacker able to coherently rewrite both
+the database and anchor. Malformed/inconsistent state fails closed; independent
+anchoring, hostile-writer resistance, rollback detection and forensic erasure
+remain unavailable. See the [implementation contract](Architecture.md#bounded-authoritative-audit-prefix-retention).
+Ordinary diagnostic pruning never removes audit rows; expired diagnostic audit projections may
 therefore remain present beyond their due dates. The independent daily JSON
 stream contains secondary `TypedAuditCopy` records, not committed authority
 receipts. Its existing 30-day/30-calendar-file policy is separate from the

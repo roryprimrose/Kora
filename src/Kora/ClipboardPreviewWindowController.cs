@@ -18,6 +18,7 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
     private readonly Action<string> reportFailure;
     private readonly Func<Guid, Task>? explain;
     private readonly Func<string?> explanation;
+    private readonly Func<Guid, ClipboardQuestionActions>? questions;
     private readonly DispatcherTimer? privacyTimer;
     private IClipboardPreviewView? window;
     private ClipboardSnapshot? showing;
@@ -27,7 +28,8 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
         : this(() => host.ClipboardPreview, host.ReuseClipboardAsync, host.ClearClipboardPreview, host.RevokeClipboardAsync,
             () => new ClipboardPreviewWindow(exception => host.ReportHostInteractionFailure(
                 "Native clipboard preview failed. No success is claimed. Failure type: " + exception.GetType().Name), host),
-            host.ReportHostInteractionFailure, host.ExplainClipboardAsync, () => host.ClipboardExplanation)
+            host.ReportHostInteractionFailure, host.ExplainClipboardAsync, () => host.ClipboardExplanation,
+            id => new(question => host.ReviewClipboardQuestion(id, question), host.AnswerClipboardQuestionAsync))
     {
         this.host = host;
         host.ClipboardPreviewChanged += OnChanged;
@@ -39,7 +41,8 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
 
     internal ClipboardPreviewWindowController(Func<ClipboardSnapshot?> current, Func<Guid, Task> reuse,
         Action clear, Func<Task> revoke, Func<IClipboardPreviewView> create, Action<string> reportFailure,
-        Func<Guid, Task>? explain = null, Func<string?>? explanation = null)
+        Func<Guid, Task>? explain = null, Func<string?>? explanation = null,
+        Func<Guid, ClipboardQuestionActions>? questions = null)
     {
         this.current = current;
         this.reuse = reuse;
@@ -49,6 +52,7 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
         this.reportFailure = reportFailure;
         this.explain = explain;
         this.explanation = explanation ?? (static () => null);
+        this.questions = questions;
     }
 
     private void OnChanged(object? sender, EventArgs args)
@@ -93,12 +97,19 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
         bool IsCurrent() => !disposed && ReferenceEquals(window, view) && ReferenceEquals(current(), snapshot)
             && !disposed && ReferenceEquals(window, view) && ReferenceEquals(showing, snapshot);
         // A queued callback cannot reuse or retarget another generation.
+        var questionActions = questions?.Invoke(id);
+        var guardedQuestions = questionActions is null ? null : new ClipboardQuestionActions(
+            question => IsCurrent() ? questionActions.Review(question)
+                : throw new InvalidOperationException("The original clipboard question source is no longer current."),
+            (review, token) => IsCurrent() && ReferenceEquals(review.Source, snapshot)
+                ? questionActions.Answer(review, token)
+                : Task.FromException<ClipboardExplanationResult>(new InvalidOperationException("The exact clipboard question review is stale; nothing was sent.")));
         view.Show(snapshot, () => IsCurrent()
             ? reuse(id) : Task.FromException(new InvalidOperationException("Clipboard preview generation is stale; start a new explicit request.")),
             () => IsCurrent() ? revoke()
                 : Task.FromException(new InvalidOperationException("Clipboard preview generation is stale; nothing was revoked. Start a new explicit request.")),
             IsCurrent, explain is null ? null : () => IsCurrent() ? explain(id)
-                : Task.FromException(new InvalidOperationException("Clipboard explanation source is stale; nothing was sent.")));
+                : Task.FromException(new InvalidOperationException("Clipboard explanation source is stale; nothing was sent.")), guardedQuestions);
         if (!IsCurrent()) { CloseView(); }
         else { view.SetExplanation(explanation()); }
     }

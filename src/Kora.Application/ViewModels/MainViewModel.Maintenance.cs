@@ -20,8 +20,60 @@ public sealed partial class MainViewModel
 
     private IMaintenanceCommands? maintenanceCommands;
     public void BindMaintenanceCommands(IMaintenanceCommands commands) => maintenanceCommands = commands;
+    private Kora.Tools.Application.ApplicationCheckForUpdates? updateCheckTool;
+    private Kora.Tools.Application.ApplicationUpgrade? upgradeTool;
+
+    public void BindMaintenanceUpdateTools(Kora.Tools.Application.ApplicationCheckForUpdates check,
+        Kora.Tools.Application.ApplicationUpgrade upgrade)
+    { updateCheckTool = check; upgradeTool = upgrade; }
     public bool CanRunMaintenanceCommands => !disposed && IsHostInputEligible && !IsProtectedCall
         && pendingModelQuestion is null && !IsGrantChangePending && !IsModelActionApprovalPending;
+
+    internal async Task ExecuteMaintenanceUpdateCommandAsync(MaintenanceUpdateCommand command, SecurityAuditInitiator initiator)
+    {
+        if (disposed) { return; }
+        if (pendingModelQuestion is not null || IsGrantChangePending || IsModelActionApprovalPending)
+        {
+            Transcript = "Maintenance command blocked. Resolve the current exact question or approval first; it remains unchanged.";
+            return;
+        }
+        if (!command.IsValid)
+        {
+            PresentCachedMaintenance("Update command not accepted.", MaintenanceUpdateCommand.Syntax);
+            return;
+        }
+        var origin = initiator == SecurityAuditInitiator.VoiceCommand ? RequestOrigin.ActivatedVoice
+            : initiator is SecurityAuditInitiator.LocalUser or SecurityAuditInitiator.TypedCommand ? RequestOrigin.LocalUi : RequestOrigin.HostSystem;
+        var call = CallPolicyRevision;
+        var topology = privacyObservation.Current.TopologyRevision;
+        var recovery = Volatile.Read(ref voiceRecoveryRevision);
+        bool Eligible() => CanRunMaintenanceCommands && CallPolicyRevision == call
+            && privacyObservation.Current.TopologyRevision == topology
+            && (origin != RequestOrigin.ActivatedVoice || IsVoiceEnabled && HasVoiceConsent
+                && CallObservation.AllowActivation && privacyObservation.Current.CanCapture
+                && Volatile.Read(ref voiceRecoveryRevision) == recovery);
+        if (origin == RequestOrigin.HostSystem || !Eligible() || updateCheckTool is null || upgradeTool is null)
+        {
+            PresentCachedMaintenance("Update request unavailable.", "Resolve pending questions and restore current original-input, host, privacy and call admission. No check or installer was started.");
+            return;
+        }
+        try
+        {
+            var output = command.Upgrade
+                ? await upgradeTool.ExecuteAsync(command.Version, origin, Eligible, CancellationToken.None)
+                : await updateCheckTool.ExecuteAsync(command.Version, origin, Eligible, CancellationToken.None);
+            if (!Eligible()) { throw new InvalidOperationException("Update request admission changed before presentation."); }
+            PresentCachedMaintenance("Release maintenance.", output);
+            if (command.Upgrade) { ShowMaintenance(); }
+        }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or InvalidOperationException
+            or UnauthorizedAccessException or OperationCanceledException or HttpRequestException)
+        {
+            ApplicationLog.Error(logger, exception, "Running a governed release maintenance action");
+            if (!disposed && IsHostInputEligible)
+            { PresentCachedMaintenance("Update outcome not confirmed.", "Inspect native Maintenance before retrying. No installer approval was granted by this command.", failed: true); }
+        }
+    }
 
     internal async Task ExecuteMaintenanceCommandAsync(MaintenanceCommand command, SecurityAuditInitiator initiator)
     {

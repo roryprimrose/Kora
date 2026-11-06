@@ -27,6 +27,7 @@ public sealed partial class ResponseWindow : Window
     private readonly PushToTalkButtonBinding pushToTalk;
     private bool positionInitialized;
     private readonly DetailWindowController? details;
+    private readonly Func<PixelRect?> getWorkingArea;
 
     public ResponseWindow()
         : this(App.Services.GetRequiredService<MainViewModel>(), (Avalonia.Application.Current as App)?.Details)
@@ -35,9 +36,16 @@ public sealed partial class ResponseWindow : Window
 
     public ResponseWindow(MainViewModel viewModel, DetailWindowController? detailController = null,
         TimeProvider? timeProvider = null)
+        : this(viewModel, detailController, timeProvider, null)
+    {
+    }
+
+    internal ResponseWindow(MainViewModel viewModel, DetailWindowController? detailController,
+        TimeProvider? timeProvider, Func<PixelRect?>? workingArea)
     {
         this.viewModel = viewModel;
         details = detailController;
+        getWorkingArea = workingArea ?? (() => (Screens.ScreenFromWindow(this) ?? Screens.Primary)?.WorkingArea);
         responseInactivity = new(timeProvider ?? TimeProvider.System);
         InitializeComponent();
         DataContext = viewModel;
@@ -55,6 +63,7 @@ public sealed partial class ResponseWindow : Window
         Closed += OnClosed;
         PositionChanged += OnPositionChanged;
         PropertyChanged += OnSessionPresentationChanged;
+        PropertyChanged += OnResponseEngagementChanged;
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
         Deactivated += OnReviewedCommandUnavailable;
         Closed += OnReviewedCommandUnavailable;
@@ -94,6 +103,18 @@ public sealed partial class ResponseWindow : Window
         Justification = "Avalonia Click requires void; RunResponseActionAsync explicitly reports failures.")]
     private async void OnCancelTaskClicked(object? sender, RoutedEventArgs eventArgs) =>
         await RunResponseActionAsync(viewModel.CancelCurrentTaskAsync);
+
+    private void OnRefreshSubmittedActivity(object? sender, RoutedEventArgs eventArgs) =>
+        viewModel.RefreshSubmittedWorkActivity();
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia Click requires void; RunResponseActionAsync explicitly reports failures.")]
+    private async void OnStopSubmittedActivity(object? sender, RoutedEventArgs eventArgs) =>
+        await RunResponseActionAsync(async () =>
+        {
+            await viewModel.StopAllWorkAsync();
+            viewModel.RefreshSubmittedWorkActivity();
+        });
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
         Justification = "Avalonia Click requires void; RunResponseActionAsync explicitly reports failures.")]
@@ -306,6 +327,7 @@ public sealed partial class ResponseWindow : Window
     private void OnOpened(object? sender, EventArgs eventArgs)
     {
         RestorePosition();
+        FitCompactWorkingArea();
         RestartResponseTimeout();
     }
 
@@ -376,11 +398,7 @@ public sealed partial class ResponseWindow : Window
             responseInactivity.Stop();
             return;
         }
-        if (!viewModel.IsResponseAlwaysVisible && !viewModel.IsResponseInteractionPending
-            && !viewModel.HasResponseActions && !viewModel.IsCurrentResponseReadActive
-            && !viewModel.IsReviewedVoiceCommandActive
-            && !viewModel.CanConfirmCallSpeech
-            && viewModel.State != AssistantState.Failure)
+        if (!KeepsResponseVisible)
         {
             if (!responseInactivity.TryExpire())
             {
@@ -454,12 +472,7 @@ public sealed partial class ResponseWindow : Window
     {
         responseTimeoutTimer.Stop();
         responseInactivity.Stop();
-        if (!IsVisible || IsExpanded || viewModel.IsResponseAlwaysVisible
-            || viewModel.IsResponseInteractionPending
-            || viewModel.HasResponseActions || viewModel.IsCurrentResponseReadActive
-            || viewModel.IsReviewedVoiceCommandActive
-            || viewModel.CanConfirmCallSpeech
-            || viewModel.State == AssistantState.Failure)
+        if (!IsVisible || KeepsResponseVisible)
         {
             return;
         }
@@ -467,6 +480,21 @@ public sealed partial class ResponseWindow : Window
         responseInactivity.Restart(viewModel.ResponseTimeoutSeconds);
         responseTimeoutTimer.Interval = responseInactivity.Remaining;
         responseTimeoutTimer.Start();
+    }
+
+    private bool KeepsResponseVisible => IsExpanded || IsPointerOver || IsActive && IsKeyboardFocusWithin
+        || viewModel.IsResponseAlwaysVisible || viewModel.IsResponseInteractionPending
+        || viewModel.HasResponseActions || viewModel.IsCurrentResponseReadActive
+        || viewModel.IsReviewedVoiceCommandActive || viewModel.CanConfirmCallSpeech
+        || viewModel.State == AssistantState.Failure;
+
+    private void OnResponseEngagementChanged(object? sender, AvaloniaPropertyChangedEventArgs args)
+    {
+        if (args.Property == IsPointerOverProperty || args.Property == IsKeyboardFocusWithinProperty
+            || args.Property == IsActiveProperty || args.Property == IsVisibleProperty)
+        {
+            RestartResponseTimeout();
+        }
     }
 
     private void RestorePosition()
@@ -483,6 +511,7 @@ public sealed partial class ResponseWindow : Window
             PositionNearPresence();
         }
 
+        KeepOnScreen();
         positionInitialized = true;
     }
 

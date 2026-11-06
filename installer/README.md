@@ -2,9 +2,11 @@
 
 The Windows 11 x64 installer uses WiX MSI and a custom Avalonia Burn UI.
 Artifacts are currently **unsigned**; signing is a known technical constraint.
+Unsigned Kora application binaries and installers are permitted now.
+Requiring signed artifacts or independently authenticated update metadata is future-state hardening, not a current Kora install/start/upgrade gate; normal Windows policy and the existing verification/approval checks still apply ([signing policy](../Design/Distribution_And_Updates.md#unsigned-initial-releases-and-public-contributions)).
 The delivered packaging/UI/lifecycle implementation is not production
 acceptance or complete redistribution approval. Source bootstrap, protected
-activation, updates and the remaining R17 installed gates are not implemented
+activation and the remaining R17 installed gates are not implemented
 or established by this installer.
 
 ## Build and preview
@@ -23,7 +25,7 @@ failed attempts do not overwrite earlier candidates.
 
 The successful attempt's `output` directory contains:
 
-- `Kora-0.1.0-win-x64.msi`;
+- `Kora-0.1.1023-win-x64.msi` (the numeric MSI build identity for `0.1.0`);
 - `Kora-Setup-0.1.0-win-x64.exe`;
 - WiX debugging symbols;
 - `payload-manifest.json`, with the application file hashes and build identity;
@@ -143,19 +145,106 @@ Burn.
   selected downloads and start-at-login configuration. Repair/uninstall require a known installed package.
 - Cancellation is supported before planning. Close is disabled while planning
   or applying, so the UI does not abandon a running transaction or rollback.
-  Optional per-user preparation has its own **Cancel optional setup** action.
+  The shutdown wait has **Cancel shutdown wait**; optional per-user preparation has its own **Cancel optional setup** action ([window](Kora.Setup/SetupWindow.axaml.cs)).
 - HRESULT failures are logged through Burn and shown explicitly. Restart-required
   success returns `3010`; setup does not restart Windows automatically.
 
 The preview has no installer engine, and all package buttons remain disabled.
 The maintenance-mode switch remains interactive because it only changes the
 view; it never plans or applies an action.
-The bootstrapper deliberately rejects `/quiet`, passive display, and layout requests
-before planning. Related-bundle upgrade flows that require a silent old
-bootstrapper are therefore **not supported or accepted**. Until that path is
-implemented and validated, use an explicitly approved external
-uninstall/reinstall workflow and retain user data; do not advertise seamless
-in-place bundle upgrades.
+Standalone `/quiet`, passive display and layout remain unsupported.
+The only noninteractive path is Burn's related-upgrade uninstall (`Uninstall`,
+`Upgrade` relation, `None` or `Embedded` display); it retires the superseded
+compatible bundle without optional preparation or launch. It does not enable
+quiet install/repair ([policy](Kora.Setup/InstallerRelatedBundlePolicy.cs),
+[bootstrapper](Kora.Setup/KoraBootstrapper.cs)).
+
+### Running application and upgrade shutdown
+
+Before native planning, setup reserves the existing per-user lifecycle/return
+namespace and checks assistant ownership. A running owner receives a bounded,
+user-restricted local-pipe request. Both peers validate the actual Windows
+process token, SID, interactive session and canonical image; the client pins
+the owner image and process handle, not a process name or caller-supplied PID
+([lease](../src/Kora.Windows/Coordination/WindowsInstallerMaintenanceLease.cs),
+[peer validation](../src/Kora.Windows/Coordination/InstallerShutdownPeer.cs)).
+
+The owner presents a native shutdown decision identifying the actual setup
+path. Authentication is not signed-publisher trust. Acceptance invokes the
+ordinary desktop exit route, including unsent-input/active-work review and
+existing resource joins; it grants no task, microphone, ownership-transfer
+or elevation authority
+([coordinator route](../src/Kora.Windows/Coordination/WindowsInstanceCoordinator.InstallerShutdown.cs),
+[desktop binding](../src/Kora/App.InstallerShutdown.cs)).
+
+An acknowledgement is not proof of shutdown. Setup waits for that exact
+authenticated process to exit, acquires exclusive assistant ownership and
+rejects the persisted unclean-owner marker. The reservation remains held
+through native apply/rollback and optional preparation, then is released
+after setup closes, before the existing exact-version non-elevated launch
+([lease](../src/Kora.Windows/Coordination/WindowsInstallerMaintenanceLease.cs),
+[session](Kora.Setup/InstallerSession.cs)).
+
+Before admitting the package plan, the reservation creates and durably flushes
+two private, create-new continuity files. The existing `unclean-owner` path
+blocks Release startup; its `.debug-recovery` sidecar is created first with
+an explicit `Kora.InstallerMaintenance.v1.guard` identity. That identity cannot
+satisfy the existing Debug recovery reader's 60-byte/versioned assistant
+record format, so it cannot be mistaken for an exited assistant with no work
+([maintenance continuity](../src/Kora.Windows/Coordination/InstallerMaintenanceContinuity.cs),
+[marker store](../src/Kora.Windows/Coordination/WindowsInstallerMaintenanceMarkerStore.cs),
+[Debug record reader](../src/Kora.Windows/Coordination/DebugOwnerRecovery.cs)).
+
+Creation never replaces existing markers. Neither file uses DeleteOnClose.
+Normal cleanup deletes only the exact objects held by the reservation's
+retained handles, not whatever later occupies their paths
+([native marker operations](../src/Kora.Windows/Coordination/CoordinationNative.InstallerMaintenance.cs)).
+The reservation records Apply as potentially mutating before invoking Burn.
+Only the real terminal Apply/rollback callback confirms completion, independently
+of UI dispatch. Normal disposal may clear unused or terminal-confirmed owned
+markers; an unknown Apply exception, abnormal BA exit, or a terminal callback
+after disposal was sealed leaves the dirty markers in place. Finish native
+recovery/reconcile uncertain work before manually clearing retained markers
+([session](Kora.Setup/InstallerSession.cs),
+[Burn callback](Kora.Setup/KoraBootstrapper.cs),
+[fake-only regressions](../tests/Kora.Windows.IntegrationTests/InstallerCrashContinuityTests.cs)).
+
+Decline, busy work, unknown ownership, incompatible protocol, lock/session
+change, timeout or cancellation admits no package plan. Cancelling the wait
+does not kill or restart Kora; a separately approved exit may have stopped it.
+All-users setup rejects other logged-on users at admission and revalidates
+before apply/each forward package; rollback remains allowed
+([lease](../src/Kora.Windows/Coordination/WindowsInstallerMaintenanceLease.cs),
+[bootstrapper](Kora.Setup/KoraBootstrapper.cs)).
+
+MSI Restart Manager application closure is disabled. Major-upgrade removal
+runs after transaction initialization so the old product participates in
+rollback; installed rollback qualification is still required
+([MSI](Kora.Msi/Package.wxs)).
+
+Compatible bundles carry `Kora.Installer.v2`. Detection rejects older/unknown
+tags and missing cached bundles before mutation, with explicit recovery:
+close Kora, remove the old version through its original full-display setup
+or Windows Installed apps, retain device-local data, then install the new
+release. Immutable historical bootstrapper binaries are not retroactively
+repaired ([related-bundle policy](Kora.Setup/InstallerRelatedBundlePolicy.cs),
+[bundle authoring](Kora.Bundle/Bundle.wxs)).
+
+The bundle also declares numeric `KoraInstallerProtocol=2`. Package inspection
+requires that exact variable/value in the extracted Burn manifest before
+the builder emits numeric `installerProtocol: 2` in `installer-build.json`
+([inspection](../eng/Test-Installer.ps1),
+[receipt](../eng/Build-Installer.ps1)). Missing protocol metadata is not
+evidence that a historical installer supports graceful stop/install/start;
+published source/display version alone does not establish that capability.
+
+These are implementation contracts, not installed qualification.
+Disposable-Windows trials must cover the real Burn parent/related-child path,
+decline/busy/timeout, concurrent launches and logons, all-users scope, locked
+files, rollback/cancel/reboot, service disposal and exact unprivileged completion
+launch ([session regressions](../tests/Kora.Windows.IntegrationTests/InstallerShutdownTests.cs),
+[handshake regressions](../tests/Kora.Windows.IntegrationTests/InstallerShutdownHandshakeTests.cs),
+[related-bundle tests](../tests/Kora.Windows.IntegrationTests/InstallerRelatedBundleTests.cs)).
 
 ## Package behavior and limits
 
@@ -455,11 +544,26 @@ that its revision belongs to `origin/main`. GitVersion must calculate the exact
 checkout SHA, without normalizing/moving checkout refs. PR/fork runs cannot
 publish. Beta release tags do not convert reruns into stable releases.
 
-`MajorMinorPatch` supplies the numeric MSI/Burn version. MSI permits at most
-`255.255.65535` and does not understand prerelease ordering. Multiple beta
-candidates with the same numeric version are **not independently upgrade-ordered**;
-the installer does not enable same-version upgrade overrides. Release notes
-must retain this limitation; a new beta label is not an MSI upgrade sequence.
+The [installer version mapper](../eng/Get-InstallerProductVersion.ps1)
+supplies numeric MSI/Burn versions without changing application/display
+versions. For `M.m.p-betaN`, the numeric version is `M.m.(p * 1024 + N)`;
+stable `M.m.p` uses offset `1023`. Examples: `0.1.0-beta12` becomes `0.1.12`,
+stable `0.1.0` becomes `0.1.1023`, and `0.1.1-beta1` becomes `0.1.1025`.
+
+The mapping admits major/minor `0..255`, patch `0..63`, beta `1..1022`,
+and no build metadata or other prerelease labels. Exceeding a bound fails
+explicitly; advance the semantic release version rather than wrapping/reusing
+a numeric version. Stable sorts above every admitted beta for its patch,
+then the next patch's betas advance again. No `AllowSameVersionUpgrades`
+override is authored ([mapping contracts](../eng/Test-InstallerVersionContracts.ps1),
+[MSI](Kora.Msi/Package.wxs)).
+
+Local packaging uses the numeric MSI staging filename. Published assets
+retain display-version names `Kora-{displayVersion}-win-x64.msi` and
+`Kora-Setup-{displayVersion}-win-x64.exe`; publication validates the mapped
+receipt and renames the MSI without changing bytes
+([packaging](../eng/Build-Installer.ps1),
+[publisher](../eng/Publish-GitHubRelease.ps1)).
 
 Portable builds/tests/application publishing remain on Linux. The Windows
 packaging job verifies the exact Linux-produced x64 payload file hashes,
@@ -480,7 +584,7 @@ The x86 publish is not an accepted x86 installer/runtime commitment.
 
 Release notes combine generated PR changes using [.github/release.yml](../.github/release.yml)
 with explicit unsigned/non-production POC disclosures, prerequisites, numeric
-MSI beta limitations and remaining installed/protection/storage gates. Only
+MSI mapping/migration limits and remaining installed/protection/storage gates. Only
 the release job has `contents: write`; no PR/fork code gets publication rights.
 
 Before rebuilding, CI checks the exact version's release, source/channel,
@@ -565,8 +669,7 @@ native and security-sensitive changes, not an exhaustive manual trial of every
 POC MSI. Separate approved Windows trials remain for actual install/repair/
 uninstall/all-users/logon/completion, upgrade/recovery, prerequisite failures,
 rollback/restart/locked files, effective ACL/token/native-loading protection,
-user-data retention and runtime-only launch. The known silent-upgrade and
-numeric-beta limitations above remain open.
+user-data retention and runtime-only launch. Compatible-bundle upgrade implementation does not establish installed acceptance; legacy bundle migration remains explicit as described above.
 
 Merge, publication, process creation, static native inspection and a local ICE
 skip do not establish protected deployment, encrypted-storage admission or

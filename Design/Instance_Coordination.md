@@ -35,6 +35,16 @@ Timeout is not proof the owner is dead: report an unreachable instance and exit 
 An older owner that does not support the explicit activation-only request reports
 an incompatibility; a Release candidate never falls back to a takeover request.
 
+The Windows listener bounds connected and waiting server pipes together to four
+instances. It waits for a connected handler to dispose its pipe and return
+capacity before creating another server pipe. Four overlapping activations must
+not permanently stop acceptance of later launches. Stopping acceptance or a
+native pipe-creation failure does not close a pipe already owned by a connected
+handler; existing identity, timeout, privacy and activation-only checks remain
+authoritative. The isolated [listener regressions](../tests/Kora.Windows.IntegrationTests/Coordination/InstanceListenerTests.cs)
+exercise saturation, subsequent activation acknowledgement, cancellation and
+creation failure without acquiring the live assistant's ownership namespace.
+
 ## Different Debug Build Launch
 
 An incoming different Debug build remains a waiting startup candidate, without assistant services, recording, task tools, migrations, or a second assistant tray.
@@ -64,7 +74,8 @@ After approval:
 
 One candidate/handoff may be pending; competing launches receive a truthful pending/busy response, not independent approvals.
 Ownership transfer, app/power restart, update activation (when available), and source/deployment maintenance share a lifecycle barrier.
-Do not broaden the current unsigned-release notification-only update policy through a handoff.
+An installer stop request uses separate authenticated user/session IPC, native shutdown consent, the normal work/unsent-input exit review and actual process/clean-owner closure.
+It grants no handoff ticket or installation authority; a lifecycle reservation blocks new ownership while setup mutates the package ([installer lifecycle](../src/Kora.Windows/Coordination/WindowsInstallerMaintenanceLease.cs), [host binding](../src/Kora/App.InstallerShutdown.cs)).
 The original installation is not uninstalled or replaced by the debug session.
 
 ## Return to the Original
@@ -102,6 +113,10 @@ Owner death invalidates its tickets, but does not prove orphaned workers/remote 
 Use existing owned-worker lifetime containment and reconcile uncertainty before enabling overlapping execution; never kill unrelated processes by name.
 Release failure or unknown worker effects blocks takeover and reports a blocker.
 The lifecycle supervisor cannot reserve assistant ownership permanently after decline/failure.
+
+Installer maintenance must persist its own durable, non-sensitive continuity marker before package mutation. Disappearance of named mutex handles or the setup process is not proof that elevated Burn work or rollback has finished.
+An uncertain Apply outcome must retain that marker across process death. Normal lease disposal may remove only the exact reservation it owns, and only when native work is known terminal or Apply never started.
+Pre-existing or replaced markers must be preserved; ordinary debug-owner recovery must not interpret a maintenance reservation as a recoverable assistant run. Re-entry after an uncertain installer outcome requires explicit reconciliation, not automatic marker deletion.
 
 Debug and installed builds share the coordination domain but must not mutate the same data concurrently.
 Developer runs default to an isolated device-local development data partition, not production credentials/database/schema or enablement.

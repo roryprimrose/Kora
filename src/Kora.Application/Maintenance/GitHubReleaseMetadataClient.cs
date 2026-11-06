@@ -12,9 +12,9 @@ using Microsoft.Extensions.Logging;
 namespace Kora.Application.Maintenance;
 
 public sealed partial class GitHubReleaseMetadataClient(
-    HttpClient http, TimeProvider time, ILogger<GitHubReleaseMetadataClient> logger) : IReleaseMetadataClient
+    HttpClient http, TimeProvider time, ILogger<GitHubReleaseMetadataClient> logger) : IReleaseVersionMetadataClient
 {
-    public const int MaximumPages = 5;
+    public const int MaximumPages = 50;
     public const int PageSize = 20;
     public const int MaximumResponseBytes = 1_048_576;
     public const int MaximumManifestBytes = 131_072;
@@ -22,8 +22,19 @@ public sealed partial class GitHubReleaseMetadataClient(
     private readonly Dictionary<Uri, CachedResponse> cache = [];
     private readonly Lock cacheGate = new();
 
-    public async Task<ReleaseCheck> CheckAsync(ReleaseChannel channel, string currentVersion,
-        ReleaseArchitecture architecture, CancellationToken cancellationToken)
+    public Task<ReleaseCheck> CheckAsync(ReleaseChannel channel, string currentVersion,
+        ReleaseArchitecture architecture, CancellationToken cancellationToken) =>
+        CheckCoreAsync(channel, currentVersion, architecture, null, cancellationToken);
+
+    public Task<ReleaseCheck> CheckVersionAsync(ReleaseChannel channel, string currentVersion,
+        ReleaseArchitecture architecture, ReleaseVersion version, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(version);
+        return CheckCoreAsync(channel, currentVersion, architecture, version, cancellationToken);
+    }
+
+    private async Task<ReleaseCheck> CheckCoreAsync(ReleaseChannel channel, string currentVersion,
+        ReleaseArchitecture architecture, ReleaseVersion? version, CancellationToken cancellationToken)
     {
         var attempted = time.GetUtcNow();
         using var activity = HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Runtime);
@@ -35,7 +46,20 @@ public sealed partial class GitHubReleaseMetadataClient(
             if (!Enum.IsDefined(channel)) { throw new InvalidDataException("Unknown release channel."); }
             var current = ReleaseVersion.Parse(currentVersion);
             _ = CanonicalRelease.Rid(architecture);
-            var release = await DiscoverAsync(channel, linked.Token).ConfigureAwait(false);
+            if (version is not null)
+            {
+                _ = ReleaseVersion.Parse(version.ToString());
+                if (channel == ReleaseChannel.Production && version.Beta is not null)
+                { throw new InvalidDataException("The requested version is not admitted by the selected release policy."); }
+            }
+            JsonElement? release;
+            if (version is null) { release = await DiscoverAsync(channel, linked.Token).ConfigureAwait(false); }
+            else
+            {
+                using var exact = ParseJson(await GetAsync(new(CanonicalRelease.ApiRoot + "/releases/tags/v" + version.ToString()),
+                    MaximumResponseBytes, false, linked.Token).ConfigureAwait(false));
+                release = exact.RootElement.Clone();
+            }
             if (release is null)
             {
                 result = new(ReleaseAvailability.Unavailable, "No published release exists in the selected channel.", attempted);
@@ -43,6 +67,8 @@ public sealed partial class GitHubReleaseMetadataClient(
             else
             {
                 var metadata = ParseRelease(release.Value, channel, architecture);
+                if (version is not null && metadata.Version != version)
+                { throw new InvalidDataException("The published release differs from the requested exact version."); }
                 await VerifyTagAsync(metadata, linked.Token).ConfigureAwait(false);
                 var manifest = metadata.Assets.Single(asset => string.Equals(asset.Name, "release-manifest.json", StringComparison.Ordinal));
                 if (manifest.Bytes > MaximumManifestBytes) { throw new InvalidDataException("Release manifest exceeds its size bound."); }
@@ -54,7 +80,7 @@ public sealed partial class GitHubReleaseMetadataClient(
                     throw new InvalidDataException("Release manifest size/digest changed.");
                 }
                 using var document = ParseJson(bytes);
-                ValidateManifest(document.RootElement, metadata);
+                metadata = metadata with { InstallerProtocol = ValidateManifest(document.RootElement, metadata) };
                 // The published identity must still describe the exact manifest and nine assets.
                 var readbackBytes = await GetAsync(new(CanonicalRelease.ApiRoot + "/releases/" + Number(metadata.Id)),
                     MaximumResponseBytes, false, linked.Token).ConfigureAwait(false);
@@ -68,7 +94,7 @@ public sealed partial class GitHubReleaseMetadataClient(
                 await VerifyTagAsync(metadata, linked.Token).ConfigureAwait(false);
                 linked.Token.ThrowIfCancellationRequested();
                 result = new(metadata.Version.CompareTo(current) > 0 ? ReleaseAvailability.Available : ReleaseAvailability.UpToDate,
-                    "Canonical published metadata is consistent; replacement remains manual and unsigned.",
+                    "Canonical published metadata is consistent. Installation requires separate exact-version approval; artifacts are unsigned.",
                     attempted, time.GetUtcNow(), metadata);
             }
         }
@@ -114,10 +140,11 @@ public sealed partial class GitHubReleaseMetadataClient(
             foreach (var record in records.EnumerateArray())
             {
                 if (Boolean(record, "draft")) { continue; }
-                if (!Boolean(record, "prerelease")) { continue; }
+                var prerelease = Boolean(record, "prerelease");
                 var tag = Text(record, "tag_name");
                 var version = ParseTag(tag);
-                if (version.Beta is null) { throw new InvalidDataException("Preview release is not a canonical beta."); }
+                if (prerelease != (version.Beta is not null))
+                { throw new InvalidDataException("Release prerelease flag conflicts with its canonical stable/beta version."); }
                 if (!tags.Add(tag)) { throw new InvalidDataException("Ambiguous duplicate published version."); }
                 if (bestVersion is null || version.CompareTo(bestVersion) > 0)
                 {
@@ -135,7 +162,7 @@ public sealed partial class GitHubReleaseMetadataClient(
         var id = Positive(record, "id");
         var version = ParseTag(Text(record, "tag_name"));
         if (Boolean(record, "draft") || Boolean(record, "prerelease") != (version.Beta is not null) ||
-            (channel == ReleaseChannel.Production) != (version.Beta is null))
+            channel == ReleaseChannel.Production && version.Beta is not null)
         {
             throw new InvalidDataException("Release is not published in the requested stable/beta channel.");
         }
@@ -207,7 +234,7 @@ public sealed partial class GitHubReleaseMetadataClient(
         }
     }
 
-    private static void ValidateManifest(JsonElement manifest, ReleaseMetadata metadata)
+    private static int ValidateManifest(JsonElement manifest, ReleaseMetadata metadata)
     {
         if (!string.Equals(Text(manifest, "version"), metadata.Version.ToString(), StringComparison.Ordinal) ||
             !string.Equals(Text(manifest, "sourceRevision"), metadata.SourceRevision, StringComparison.Ordinal) ||
@@ -232,6 +259,11 @@ public sealed partial class GitHubReleaseMetadataClient(
                 throw new InvalidDataException("Manifest expected final-byte digest/name differs from release assets.");
             }
         }
+        var protocol = 0;
+        if (manifest.TryGetProperty("installerProtocol", out var protocolValue)
+            && (protocolValue.ValueKind != JsonValueKind.Number || !protocolValue.TryGetInt32(out protocol) || protocol < 0))
+        { throw new InvalidDataException("The installer lifecycle protocol declaration is malformed."); }
+        return protocol;
     }
 
     private async Task<byte[]> GetAsync(Uri uri, int limit, bool manifest, CancellationToken token)
@@ -251,14 +283,11 @@ public sealed partial class GitHubReleaseMetadataClient(
         {
             var location = response.Headers.Location;
             // GitHub's public asset API redirects only the manifest to its asset CDN.
-            if (location is null || !location.IsAbsoluteUri || !string.Equals(location.Scheme, "https", StringComparison.Ordinal) ||
-                !string.Equals(location.Host, "release-assets.githubusercontent.com", StringComparison.Ordinal) || !location.IsDefaultPort ||
-                location.UserInfo.Length != 0 || location.Fragment.Length != 0 ||
-                !location.AbsolutePath.StartsWith("/github-production-release-asset/", StringComparison.Ordinal))
+            if (!IsAssetRedirect(location))
             {
                 throw new InvalidDataException("Manifest redirect is not the admitted GitHub asset CDN.");
             }
-            using var redirectedRequest = CreateRequest(location, true, null);
+            using var redirectedRequest = CreateRequest(location!, true, null);
             using var redirected = await http.SendAsync(redirectedRequest, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
             if (redirected.RequestMessage?.RequestUri != location) { throw new InvalidDataException("Implicit CDN redirect denied."); }
             CheckStatus(redirected);
@@ -306,7 +335,14 @@ public sealed partial class GitHubReleaseMetadataClient(
             "GitHub metadata returned HTTP " + Number((int)status) + "; no verified up-to-date claim.", null);
     }
 
-    private static HttpRequestMessage CreateRequest(Uri uri, bool manifest, string? etag)
+    internal static bool IsAssetRedirect(Uri? location) =>
+        location is { IsAbsoluteUri: true, IsDefaultPort: true }
+        && string.Equals(location.Scheme, "https", StringComparison.Ordinal)
+        && string.Equals(location.Host, "release-assets.githubusercontent.com", StringComparison.Ordinal)
+        && location.UserInfo.Length == 0 && location.Fragment.Length == 0
+        && location.AbsolutePath.StartsWith("/github-production-release-asset/", StringComparison.Ordinal);
+
+    internal static HttpRequestMessage CreateRequest(Uri uri, bool manifest, string? etag)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, uri);
         request.Headers.UserAgent.ParseAdd("Kora-ReleaseMetadata/1.0");

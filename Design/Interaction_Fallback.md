@@ -135,6 +135,10 @@ privacy tests do not replace unique speech, runtime or distribution evidence.
 
 ## Product Requirement
 
+The separately [approved exact Details offer](Interaction_And_Sessions.md#exact-read-only-details-presentation-controls) uses fixed readable native Yes/Not now controls in the existing original-request panel, without a microphone or speech prerequisite.
+The card cannot open capture; deliberately activated answers bind that same exact one-use question.
+Expiry/private/source withdrawal clears it rather than restoring another target ([controls](../src/Kora/SessionRequestReviewPanel.cs)).
+
 Kora can ask questions and receive mouse input when no microphone is configured, permitted, connected, or usable.
 Voice, UI-only, and mixed-channel questions are equal supported paths, not merely microphone-failure fallbacks.
 Single-choice, multi-choice checkbox, bounded text/form, draft, submit/cancel, and session ownership semantics are defined in [Interaction and Sessions](Interaction_And_Sessions.md#structured-questions-and-mixed-channel-replies).
@@ -190,6 +194,28 @@ specific endpoint overrides remain pinned.
 An optional microphone test opens only the chosen device after explicit consent, for at most 5 seconds.
 Show a live level indicator, not continuous transcription; do not save/transmit test audio or invoke a model.
 Stop/release on completion/cancel/lock/removal. Testing does not grant ongoing wake listening.
+
+## Confirmed Release Before Question Reply Acceptance
+
+The [question voice owner](../src/Kora.Application/Interaction/HostQuestionVoiceReplyService.cs)
+requires both completion of native stop and confirmed capture quiescence before
+submitting an exact ordinary question answer or editing one volatile form field.
+A completed stop task alone is not a resource-release receipt. Field entry still
+requires independent native review and Submit of the whole form.
+
+Unconfirmed release admits no answer or field edit, leaves the original question
+pending for typed/native recovery and reports microphone cleanup as unconfirmed.
+Cancellation, reply timeout, recognition failure and privacy withdrawal apply
+the same release check. The owned retirement receipt faults and prevents another
+voice reply, even if a later device observation appears quiescent; restart is
+required rather than silently clearing that failed lifetime. Late transcripts
+cannot retry or retarget the answer.
+
+[Deterministic regressions](../tests/Kora.Application.UnitTests/Interaction/HostQuestionVoiceReplyServiceTests.CaptureRelease.cs)
+cover single/multiple-choice, text and draft-only form fields, delayed successful
+release and failed retirement. These are implementation evidence, not microphone,
+ASR-provider, acoustic or installed-native accessibility qualification. No consent,
+call policy, question authority, grant, audio archive or diagnostic content changes.
 
 ## Failure and Device Changes
 

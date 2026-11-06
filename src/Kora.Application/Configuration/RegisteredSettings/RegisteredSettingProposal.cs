@@ -1,5 +1,6 @@
 using Kora.Core.Configuration;
 using Kora.Core.Configuration.RegisteredSettings;
+using Kora.Core.Presentation;
 using Kora.Core.Voice;
 
 namespace Kora.Application.Configuration.RegisteredSettings;
@@ -17,5 +18,8 @@ public abstract record RegisteredSettingProposal(RegisteredSetting Setting)
     public sealed record Volume(PlaybackVolume Value) : RegisteredSettingProposal(RegisteredSetting.PlaybackVolume);
     public sealed record ResponseMode(ResponseOutputMode Value) : RegisteredSettingProposal(RegisteredSetting.ResponseMode);
     public sealed record WindowsRate(WindowsSpeechRate Value) : RegisteredSettingProposal(RegisteredSetting.WindowsSpeechRate);
+    public sealed record QuietHours(QuietHoursSchedule Value) : RegisteredSettingProposal(RegisteredSetting.QuietHours);
+    public sealed record DetailPresentation(DetailPresentationMode Value) : RegisteredSettingProposal(RegisteredSetting.DetailPresentation);
+    public sealed record CaptureTiming(RegisteredSetting Key, decimal Seconds) : RegisteredSettingProposal(Key);
     public sealed record InstalledVoice(SpeechSelection Value) : RegisteredSettingProposal(RegisteredSetting.SpeechVoice);
 }

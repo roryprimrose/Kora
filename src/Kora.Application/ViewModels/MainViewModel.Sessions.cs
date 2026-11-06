@@ -13,6 +13,7 @@ public sealed partial class MainViewModel
 {
     private SessionWorkspaceService? sessionCommands;
     private SessionRequestCommandService? sessionRequests;
+    private SessionPermissionCommandService? sessionPermissionCommands;
     private ConversationSearchCommandService? conversationSearchCommands;
     private bool conversationSearchPresentation;
     private SessionAttachmentCommandService? attachmentCommands;
@@ -31,14 +32,17 @@ public sealed partial class MainViewModel
     }
 
     public void BindSessionCommands(SessionWorkspaceService service, SessionRequestCommandService? requests = null,
-        ConversationSearchCommandService? searches = null)
+        ConversationSearchCommandService? searches = null, SessionPermissionCommandService? permissions = null)
     {
         RetireRemainingWorkBinding();
         conversationSearchCommands?.Retire();
         sessionRequests?.Retire();
+        sessionPermissionCommands?.Retire();
         SetForegroundRequestReview(null);
         sessionCommands = service;
         sessionRequests = requests;
+        BindDetailsOfferRequestAdmission();
+        sessionPermissionCommands = permissions;
         requests?.BindTaskResponseOutput(ReviewTaskResponseOutput);
         conversationSearchCommands = searches;
         PrivacyClosureRequested -= OnSessionRequestPrivacyClosure;
@@ -51,13 +55,14 @@ public sealed partial class MainViewModel
         RetireSessionCommandReviews();
         if (SessionCommand.Parse(CommandText, AssistantName) is { } command
             && (command.Operation == SessionCommandOperation.RequestReview || command.IsRetentionCommand || command.IsConversationSearch
-                || command.IsPendingClear))
+                || command.IsPendingClear || command.IsPermissionCommand))
         { CommandText = string.Empty; }
     }
 
     internal async Task ExecuteSessionCommandAsync(SessionCommand command, SecurityAuditInitiator initiator,
         Func<bool>? originalScopeEligibility = null, bool scopeActivationPrefixed = false,
-        long? originalScopeNameRevision = null, ForegroundConversationTarget? foregroundTarget = null)
+        long? originalScopeNameRevision = null, ForegroundConversationTarget? foregroundTarget = null,
+        Func<bool>? permissionReviewSource = null)
     {
         if (disposed) { return; }
         if (command.IsRemainingWork || string.Equals(command.Error, SessionCommand.RemainingWorkSyntax, StringComparison.Ordinal))
@@ -92,17 +97,20 @@ public sealed partial class MainViewModel
         var dispatchInput = CommandText;
         var requestCommand = command.Operation is SessionCommandOperation.RequestReview
             or SessionCommandOperation.RequestConfirm or SessionCommandOperation.RequestCancel || command.IsPendingClear;
+        var originalRequests = sessionRequests;
         if (requestCommand) { RetireSpeechSummarySuggestions(); }
         var attachmentCommand = command.Operation == SessionCommandOperation.AttachmentInspect;
-        var sourceBoundCommand = requestCommand || command.IsRetentionCommand || attachmentCommand || command.IsConversationDispatch;
-        bool Eligible() => !disposed && IsHostInputEligible && CallPolicyRevision == callRevision
+        var sourceBoundCommand = requestCommand || command.IsRetentionCommand || attachmentCommand || command.IsConversationDispatch
+            || command.IsPermissionCommand;
+        bool StableEligible() => !disposed && IsHostInputEligible && CallPolicyRevision == callRevision
+            && (!requestCommand || ReferenceEquals(originalRequests, sessionRequests))
             && (!command.RequestForegroundTarget || originalScopeEligibility?.Invoke() == true
                 && foregroundTarget?.IsCurrent == true
                 && originalScopeNameRevision == assistantNameConfiguration.Get().Revision
                 && privacyObservation.Current.TopologyRevision == topologyRevision
                 && Volatile.Read(ref voiceRecoveryRevision) == recoveryRevision
                 && string.Equals(originalName, AssistantName, StringComparison.Ordinal))
-            && (!(command.IsRetentionCommand || command.IsPendingClear || command.IsConversationDispatch)
+            && (!(command.IsRetentionCommand || command.IsPendingClear || command.IsConversationDispatch || command.IsPermissionCommand)
                 || privacyObservation.Current.TopologyRevision == topologyRevision
                 && Volatile.Read(ref voiceRecoveryRevision) == recoveryRevision
                 && string.Equals(originalName, AssistantName, StringComparison.Ordinal))
@@ -119,6 +127,9 @@ public sealed partial class MainViewModel
                 && (!sourceBoundCommand || !IsProtectedCall && string.Equals(originalName, AssistantName, StringComparison.Ordinal))
                 && (!command.IsConversationSearch
                     || isAssistantNameAvailable && string.Equals(originalName, AssistantName, StringComparison.Ordinal))));
+        bool Eligible() => StableEligible() && (!command.IsPermissionCommand || originalScopeEligibility?.Invoke() == true
+            && originalScopeNameRevision == assistantNameConfiguration.Get().Revision);
+        bool PermissionReviewSource() => StableEligible() && permissionReviewSource?.Invoke() == true;
         if (sessionCommands is null)
         {
             ShowInformation("Session commands unavailable.", "The trusted durable workspace service is not bound. Use the native Sessions workspace when available.");
@@ -180,10 +191,13 @@ public sealed partial class MainViewModel
                 }
                 return;
             }
-            var result = command.IsRetentionCommand
+            var result = command.IsPermissionCommand
+                ? await (sessionPermissionCommands ?? throw new InvalidOperationException("The exact-session permission command service is unavailable."))
+                    .ExecuteAsync(command, origin, Eligible, CancellationToken.None, PermissionReviewSource)
+                : command.IsRetentionCommand
                 ? await ExecuteSessionRetentionCommandAsync(command, origin, Eligible, CancellationToken.None)
                 : requestCommand || command.IsConversationDispatch
-                ? await (sessionRequests ?? throw new InvalidOperationException("The canonical retained-request command service is unavailable."))
+                ? await (originalRequests ?? throw new InvalidOperationException("The canonical retained-request command service is unavailable."))
                     .ExecuteAsync(command, origin, inputEligible, CancellationToken.None, foregroundTarget)
                 : await sessionCommands.ExecuteCommandAsync(command, origin, Eligible, CancellationToken.None);
             if (!Eligible()) { return; }
@@ -191,6 +205,7 @@ public sealed partial class MainViewModel
             if (result.RequestSubmission is { } submitted)
             {
                 if (foregroundConfirmation) { ForegroundRequestSubmitted?.Invoke(submitted); }
+                if (originalRequests!.TakeDetailsOffer(submitted) is { } detailsRequest) { PresentDetailsOffer(detailsRequest); }
                 await PinSpeechSummarySuggestionAsync(submitted, Eligible, sessionCommands);
             }
             if (result.RequestSubmission is not null && originalForegroundReview?.TaskResponseMode is not null)
@@ -258,5 +273,15 @@ public sealed partial class MainViewModel
             ShowFailure("Session command not confirmed.", command.RequestForegroundTarget || originalForegroundReview is not null
                 ? result.Message : Encoding.UTF8.GetString(SessionCommandResult.Serialize(result)));
         }
+
+    }
+
+    private Func<bool> CapturePermissionReviewSource(ManualCallInput input)
+    {
+        var owner = settingsOwnershipRevision();
+        return () => input.SkillQuestionEligible() && input.Revision == CallPolicyRevision
+            && input.AssistantNameRevision == assistantNameConfiguration.Get().Revision
+            && input.OwnershipBindingRevision == Interlocked.Read(ref settingsOwnershipBindingRevision)
+            && owner == settingsOwnershipRevision();
     }
 }

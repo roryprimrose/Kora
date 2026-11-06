@@ -18,6 +18,201 @@ namespace Kora.Application.UnitTests.KnowledgeSources;
 [Collection("Host tracing")]
 public sealed class KnowledgeSourceAnswerTests : IDisposable
 {
+    [Fact]
+    public async Task TwoSelectedNamedSourcesProduceOneCombinedLocalAnswerAndBothExactCitationBindings()
+    {
+        using var root = Root();
+        using var f = new Fixture(twoSources: true);
+        var prepared = await f.Workflow.PrepareAsync([f.Source, f.Other], "compare alpha", () => f.Eligible, Token);
+        var review = prepared.Review!;
+        review.Sources.Select(item => item.Source).Should().Equal(f.Source, f.Other);
+        review.Search.Citations.Should().HaveCount(3);
+        f.ModelCalls.Should().Be(0);
+        f.PolicySources.Should().BeEmpty();
+        var result = await f.Workflow.AnswerAsync(review, () => f.Eligible, Token);
+        result.Outcome.Should().Be(LocalFileAnswerOutcome.Succeeded);
+        f.ModelCalls.Should().Be(1);
+        f.Admissions.Should().Be(1);
+        f.Context!.UserRequest.Should().Be("compare alpha");
+        f.Context.ToolMode.Should().Be(ModelToolMode.None);
+        f.Context.Evidence.Should().HaveCount(3).And.OnlyContain(item => item.Disclosure == ModelEvidenceDisclosure.LocalOnly);
+        f.PolicySources.Should().Equal(f.Revision.Files.Concat(f.OtherRevision!.Files));
+        result.Claims.Single().Citations.Select(item => review.SourceFor(item).Source.Id)
+            .Should().Contain(f.Source.Id).And.Contain(f.Other.Id);
+        foreach (var citation in result.Claims.Single().Citations)
+        { review.ResolveCitation(citation).Text.Should().Be(citation.Excerpt); }
+        f.OriginalReads.Should().Be(0);
+        f.Mutations.Should().Be(0);
+        await f.Manager.RevokeAnswerUsesAsync();
+        review.IsRevoked.Should().BeTrue();
+        f.DisposedSelections.Should().Be(2);
+        (await f.Workflow.AnswerAsync(review, () => true, Token)).Outcome.Should().Be(LocalFileAnswerOutcome.Denied);
+        f.Events.Where(item => string.Equals(item.ActionId, "knowledge.answer.local", StringComparison.Ordinal)).Select(item => item.Outcome)
+            .Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+    }
+
+    [Theory]
+    [InlineData("empty")]
+    [InlineData("too-many")]
+    [InlineData("duplicate")]
+    [InlineData("null-item")]
+    [InlineData("disabled")]
+    [InlineData("second-inspect")]
+    [InlineData("second-read")]
+    [InlineData("second-membership")]
+    public async Task InvalidTwoSourceAdmissionReleasesEveryAcquiredSelectionWithoutModelDisclosure(string defect)
+    {
+        using var root = Root();
+        using var f = new Fixture(twoSources: true);
+        f.FailureStage = defect;
+        KnowledgeSource[] selected = defect switch
+        {
+            "empty" => [],
+            "too-many" => [f.Source, f.Other, f.Source],
+            "duplicate" => [f.Source, f.Source],
+            "null-item" => [f.Source, null!],
+            "disabled" => [f.Source, f.Other with { State = KnowledgeSourceState.Disabled }],
+            _ => [f.Source, f.Other],
+        };
+        var prepared = await f.Workflow.PrepareAsync(selected, "alpha", () => true, Token);
+        prepared.Outcome.Should().Be(LocalFileAnswerOutcome.Unavailable);
+        prepared.Review.Should().BeNull();
+        f.DisposedSelections.Should().Be(defect is "second-inspect" ? 1
+            : defect is "second-read" or "second-membership" ? 2 : 0);
+        f.ModelCalls.Should().Be(0);
+        f.Admissions.Should().Be(0);
+        f.PolicySources.Should().BeEmpty();
+        f.OriginalReads.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("policy")]
+    [InlineData("admission")]
+    [InlineData("model")]
+    public async Task EitherSelectedSourceChangingAcrossAwaitRetiresTheWholeCombinedAnswer(string stage)
+    {
+        using var root = Root();
+        using var f = new Fixture(twoSources: true);
+        var review = (await f.Workflow.PrepareAsync([f.Source, f.Other], "alpha", () => true, Token)).Review!;
+        f.At = point => { if (string.Equals(point, stage, StringComparison.Ordinal)) { f.EnabledOther = false; } };
+        var result = await f.Workflow.AnswerAsync(review, () => true, Token);
+        result.Outcome.Should().Be(LocalFileAnswerOutcome.Stale);
+        result.Claims.Should().BeEmpty();
+        review.IsRevoked.Should().BeTrue();
+        f.ModelCalls.Should().Be(stage is "model" ? 1 : 0);
+        await f.Manager.RevokeAnswerUsesAsync();
+        f.DisposedSelections.Should().Be(2);
+    }
+
+    [Theory]
+    [InlineData("password=synthetic")]
+    [InlineData("\"invalid")]
+    public async Task DisclosedSourceLabelsAreScreenedBeforeAnyModelAdmission(string name)
+    {
+        using var root = Root();
+        using var f = new Fixture(twoSources: true, otherName: name);
+        var review = (await f.Workflow.PrepareAsync([f.Source, f.Other], "alpha", () => true, Token)).Review!;
+        var result = await f.Workflow.AnswerAsync(review, () => true, Token);
+        result.Outcome.Should().Be(name.StartsWith('"') ? LocalFileAnswerOutcome.SourceUseUnavailable : LocalFileAnswerOutcome.Denied);
+        result.Claims.Should().BeEmpty();
+        f.PolicySources.Should().BeEmpty();
+        f.ModelCalls.Should().Be(0);
+        f.Admissions.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task CombinedSourceRetirementJoinsCancellationIgnoringModelBeforeReleasingEitherLease()
+    {
+        using var root = Root();
+        using var f = new Fixture(twoSources: true) { DelayModel = true };
+        var review = (await f.Workflow.PrepareAsync([f.Source, f.Other], "alpha", () => true, Token)).Review!;
+        var answer = f.Workflow.AnswerAsync(review, () => true, Token);
+        await f.ModelEntered.Task;
+        var retirement = f.Manager.RevokeAnswerUsesAsync();
+        await f.ModelCancelled.Task;
+        retirement.IsCompleted.Should().BeFalse();
+        f.DisposedSelections.Should().Be(0);
+        f.ModelRelease.SetResult();
+        await FluentActions.Awaiting(() => answer).Should().ThrowAsync<OperationCanceledException>();
+        await retirement;
+        f.DisposedSelections.Should().Be(2);
+        review.IsRevoked.Should().BeTrue();
+        f.Events.Where(item => string.Equals(item.ActionId, "knowledge.answer.local", StringComparison.Ordinal))
+            .Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Cancelled);
+    }
+
+    [Theory]
+    [InlineData(RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.ActivatedVoice)]
+    public async Task ChosenNamedEvidenceUsesOriginalQuestionAndOnlySelectedFilePolicyAndModelDisclosure(RequestOrigin origin)
+    {
+        using var root = Root(origin);
+        using var f = new Fixture();
+        var retrieved = (await f.Prepare()).Review!;
+        var selected = retrieved.SelectEvidence([retrieved.Search.Citations[1]]);
+        f.ModelCalls.Should().Be(0);
+        f.PolicySources.Should().BeEmpty();
+        LocalFileAnswerResult result;
+        using (Root()) { result = await f.Workflow.AnswerAsync(selected, () => f.Eligible, Token); }
+        result.Outcome.Should().Be(LocalFileAnswerOutcome.Succeeded);
+        result.Claims.Single().Citations.Should().Equal(selected.Search.Citations);
+        f.PolicySources.Should().Equal(f.Revision.Files[1]);
+        f.Context!.Evidence.Should().ContainSingle().Which.Content.Should().Be(f.Revision.Files[1].Text);
+        f.Context.UserRequest.Should().Be(retrieved.Question);
+        f.Context.Request.Should().BeSameAs(retrieved.Target.Request);
+        f.Context.Request.Origin.Should().Be(origin);
+        f.Context.Tools.Should().BeEmpty();
+        f.OriginalReads.Should().Be(0);
+        (await f.Workflow.AnswerAsync(retrieved, () => true, Token)).Outcome.Should().Be(LocalFileAnswerOutcome.Denied);
+        (await f.Workflow.AnswerAsync(selected, () => true, Token)).Outcome.Should().Be(LocalFileAnswerOutcome.Denied);
+        f.ModelCalls.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData("foreign")]
+    [InlineData("stale")]
+    [InlineData("expired")]
+    [InlineData("privacy")]
+    public async Task ChosenReviewCannotSubstituteForeignRetrievalOrRenewAuthority(string defect)
+    {
+        using var root = Root();
+        using var f = new Fixture();
+        var retrieved = (await f.Prepare()).Review!;
+        var selected = retrieved.SelectEvidence([retrieved.Search.Citations[0]]);
+        if (defect is "foreign")
+        {
+            selected = new KnowledgeSourceAnswerReview(retrieved.Source, retrieved.Revision, retrieved.Question,
+                retrieved.RetrievedSearch, retrieved.Target).SelectEvidence([retrieved.Search.Citations[0]]);
+        }
+        if (defect is "stale") { retrieved.InvalidateSelection(); }
+        if (defect is "expired") { f.Clock.Now = retrieved.ExpiresAt; }
+        if (defect is "privacy") { f.Eligible = false; }
+        var result = await f.Workflow.AnswerAsync(selected, () => true, Token);
+        result.Outcome.Should().Be(LocalFileAnswerOutcome.Denied);
+        result.Claims.Should().BeEmpty();
+        f.PolicySources.Should().BeEmpty();
+        f.ModelCalls.Should().Be(0);
+        f.Admissions.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("policy")]
+    [InlineData("admission")]
+    [InlineData("model")]
+    public async Task ChangedChosenSetAcrossAwaitCannotDispatchOrPublishOldSelection(string stage)
+    {
+        using var root = Root();
+        using var f = new Fixture();
+        var retrieved = (await f.Prepare()).Review!;
+        var selected = retrieved.SelectEvidence([retrieved.Search.Citations[0]]);
+        f.At = actual => { if (string.Equals(actual, stage, StringComparison.Ordinal)) { retrieved.InvalidateSelection(); } };
+        var result = await f.Workflow.AnswerAsync(selected, () => true, Token);
+        result.Outcome.Should().Be(LocalFileAnswerOutcome.Stale);
+        result.Claims.Should().BeEmpty();
+        f.ModelCalls.Should().Be(stage is "model" ? 1 : 0);
+        if (stage is not "model") { f.Context.Should().BeNull(); }
+    }
+
     private readonly ActivityListener listener = new()
     {
         ShouldListenTo = source => source.Name.StartsWith("Kora.", StringComparison.Ordinal),
@@ -181,16 +376,24 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
         f.Admissions.Should().Be(0);
     }
 
-    [Fact]
-    public async Task RiskOutsideMatchingExcerptStillDeniesWholeEvidenceFile()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RiskOutsideMatchingExcerptStillDeniesWholeEvidenceFile(bool chosen)
     {
         using var root = Root();
         using var f = new Fixture(secondText: "alpha evidence\n\npassword=synthetic-secret");
         var review = (await f.Prepare()).Review!;
+        if (chosen)
+        {
+            review = review.SelectEvidence([review.Search.Citations.Single(item =>
+                string.Equals(item.DisplayIdentity, @"B\notes.md", StringComparison.Ordinal))]);
+        }
         var result = await f.Workflow.AnswerAsync(review, () => true, Token);
         result.Outcome.Should().Be(LocalFileAnswerOutcome.Denied);
         f.ModelCalls.Should().Be(0);
         f.Context.Should().BeNull();
+        f.PolicySources.Should().Equal(chosen ? [f.Revision.Files[1]] : f.Revision.Files);
     }
 
     [Theory]
@@ -238,15 +441,22 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
     }
 
     [Theory]
-    [InlineData(-1)]
-    [InlineData(0)]
-    [InlineData(1)]
-    [InlineData(20000)]
-    public async Task DeadlineSampleAfterAwaitedValidationNeverRenewsExpiredConsent(long offsetTicks)
+    [InlineData(-1, false)]
+    [InlineData(0, false)]
+    [InlineData(1, false)]
+    [InlineData(20000, false)]
+    [InlineData(-1, true)]
+    [InlineData(0, true)]
+    [InlineData(1, true)]
+    [InlineData(20000, true)]
+    public async Task DeadlineSampleAfterAwaitedValidationNeverRenewsExpiredConsent(long offsetTicks, bool chooseExcerpts)
     {
         using var root = Root();
         using var f = new Fixture();
-        var review = (await f.Prepare()).Review!;
+        var retrieved = (await f.Prepare()).Review!;
+        f.Clock.Now = retrieved.RetrievedSearch.ObservedAt.AddSeconds(10);
+        var review = chooseExcerpts ? retrieved.SelectEvidence([retrieved.Search.Citations[1]]) : retrieved;
+        review.ExpiresAt.Should().Be(retrieved.ExpiresAt);
         var timerCount = f.Clock.TimerDelays.Count;
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -270,7 +480,12 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
         result.Outcome.Should().Be(offsetTicks < 0 ? LocalFileAnswerOutcome.Succeeded : LocalFileAnswerOutcome.Stale);
         f.ModelCalls.Should().Be(offsetTicks < 0 ? 1 : 0);
         f.Clock.TimerDelays.Should().HaveCount(timerCount + (offsetTicks < 0 ? 1 : 0));
-        if (offsetTicks < 0) { f.Clock.TimerDelays.Last().Should().Be(TimeSpan.FromTicks(-offsetTicks)); }
+        if (offsetTicks < 0)
+        {
+            f.Clock.TimerDelays.Last().Should().Be(TimeSpan.FromTicks(-offsetTicks));
+            f.Context!.Evidence.Select(item => item.Content).Should().Equal(review.Search.Citations.Select(item => item.Excerpt));
+            f.PolicySources.Should().Equal(chooseExcerpts ? [f.Revision.Files[1]] : f.Revision.Files);
+        }
         if (offsetTicks >= 0)
         {
             result.Claims.Should().BeEmpty();
@@ -647,6 +862,7 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
         internal readonly KnowledgeSource Source;
         internal readonly KnowledgeSource Other;
         internal readonly KnowledgeSourceRevision Revision;
+        internal readonly KnowledgeSourceRevision? OtherRevision;
         internal readonly KnowledgeSourceManager Manager;
         internal readonly KnowledgeSourceAnswerWorkflow Workflow;
         internal readonly List<LocalFileRevision> PolicySources = [];
@@ -659,6 +875,7 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
         internal readonly TaskCompletionSource DisposeRelease = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal bool Eligible = true;
         internal bool Enabled = true;
+        internal bool EnabledOther = true;
         internal bool InvalidAccess;
         internal bool WrongMembership;
         internal bool ChangedRevision;
@@ -681,7 +898,8 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
         internal ModelContextEnvelope? Context;
 
         internal Fixture(string secondText = "alpha second retained evidence", int fileCount = 2, string? textOverride = null,
-            bool correlated = false, ILogger<KnowledgeSourceAnswerWorkflow>? logger = null)
+            bool correlated = false, ILogger<KnowledgeSourceAnswerWorkflow>? logger = null,
+            bool twoSources = false, string otherName = "Other")
         {
             const string root = @"C:\SyntheticNamedSource";
             string[] texts = textOverride is null ? ["alpha first retained evidence", secondText]
@@ -697,6 +915,17 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
                 correlated ? HostActivity.RequireCurrent().Activity!.Context : default);
             Revision = new(historical, metadata.Files.Select((file, index) => new LocalFileRevision(
                 new(historical.ReviewId, historical.SourceId, historical.Request, file, historical.Cause), Encoding.UTF8.GetBytes(texts[index]), Clock.Now)));
+            if (twoSources)
+            {
+                var otherBytes = Encoding.UTF8.GetBytes("alpha OTHER retained evidence");
+                var otherMetadata = new KnowledgeSourceMetadata(@"C:\Other", "other-root", KnowledgeSourceScope.ImmediateFiles,
+                    [new(@"C:\Other", "other-root")],
+                    [new(@"C:\Other\notes.md", "other-file", otherBytes.Length, Clock.Now)]);
+                Other = new(Guid.NewGuid(), 2, otherName, otherMetadata, KnowledgeSourceState.Enabled, Clock.Now, 100);
+                var otherReview = new KnowledgeSourceReview(Guid.NewGuid(), Other.Id, HostRequest.Create(RequestOrigin.LocalUi), otherMetadata);
+                OtherRevision = new(otherReview, [new(new(otherReview.ReviewId, Other.Id, otherReview.Request,
+                    otherMetadata.Files[0]), otherBytes, Clock.Now)]);
+            }
             Manager = new(this, this, this, Clock);
             Workflow = new(Manager, new LocalFileLexicalRetrieval(), this, this, this, Clock,
                 logger ?? NullLogger<KnowledgeSourceAnswerWorkflow>.Instance);
@@ -712,11 +941,14 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
             At?.Invoke("inspect");
             if (InspectWait is not null) { await InspectWait; }
             if (FailureStage is "inspect") { throw new IOException("synthetic unavailable"); }
-            return new Selection(this);
+            var other = OtherRevision is not null && string.Equals(selectedPath, Other.Folder.CanonicalPath, StringComparison.Ordinal);
+            if (other && FailureStage is "second-inspect") { throw new IOException("synthetic second source unavailable"); }
+            return new Selection(this, other);
         }
-        private sealed class Selection(Fixture owner) : IKnowledgeSourceSelection
+        private sealed class Selection(Fixture owner, bool other = false) : IKnowledgeSourceSelection
         {
-            public KnowledgeSourceMetadata Metadata => owner.WrongMembership ? new(owner.Source.Folder.CanonicalPath,
+            public KnowledgeSourceMetadata Metadata => other && owner.FailureStage is not "second-membership" ? owner.Other.Folder
+                : owner.WrongMembership ? new(owner.Source.Folder.CanonicalPath,
                 "changed", owner.Source.Folder.Scope, [new(owner.Source.Folder.CanonicalPath, "changed")], owner.Source.Folder.Files)
                 : owner.Source.Folder;
             public async Task ValidateAsync(CancellationToken cancellationToken)
@@ -736,6 +968,11 @@ public sealed class KnowledgeSourceAnswerTests : IDisposable
             Requests.Add(exact);
             At?.Invoke("read");
             if (ReadWait is not null) { await ReadWait; }
+            if (OtherRevision is not null && exact == Other)
+            {
+                if (!EnabledOther || FailureStage is "second-read") { throw new InvalidDataException("Other source unavailable"); }
+                return OtherRevision;
+            }
             if (!Enabled || exact != Source || FailureStage is "read") { throw new InvalidOperationException("Unavailable exact source"); }
             return ChangedRevision
                 ? new KnowledgeSourceRevision(Revision.Review, Revision.Files, new(Source.Id, Guid.NewGuid())) : Revision;

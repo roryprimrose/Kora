@@ -83,8 +83,10 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
                 HostInteractionSchema.LegacyConversationTables, MigrateConversationExecution),
             sessionPermissionMigration: new(12, 13,
                 HostInteractionSchema.ConversationTables, MigrateSessionPermission),
-            answerReviewMigration: new(13, HostInteractionSchema.Version,
-                HostInteractionSchema.SessionPermissionTables, MigrateAnswerReviews));
+            answerReviewMigration: new(13, 14,
+                HostInteractionSchema.SessionPermissionTables, MigrateAnswerReviews),
+            auditRetentionMigration: new(14, HostInteractionSchema.Version,
+                HostInteractionSchema.AnswerReviewTables, MigrateAuditRetention));
     }
 
     public ValueTask InitializeAsync(CancellationToken cancellationToken) =>
@@ -101,6 +103,9 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             }
             inspectionIdentity = identity;
             InitializeAttachmentCatalogue(connection);
+            using var retirement = connection.BeginTransaction();
+            RetireDetailsOffers(connection, retirement, session: null, previousRunOnly: true);
+            retirement.Commit();
         }, cancellationToken));
 
     private void ConsolidateTasks(SqliteConnection connection, SqliteTransaction transaction, CancellationToken token)
@@ -236,10 +241,12 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         return SetLifecycleAsync(request, expectedGeneration, active, remove: false, canControl: null, cancellationToken);
     }
 
-    private ValueTask<WorkSessionAuthorization> SetLifecycleAsync(HostRequest request,
+    private async ValueTask<WorkSessionAuthorization> SetLifecycleAsync(HostRequest request,
         HostRevision expectedGeneration, bool active, bool remove, Func<bool>? canControl, CancellationToken cancellationToken,
-        SessionRetentionApplyReview? retentionReview = null) =>
-        RunHostMutationAsync(request, remove ? "session.remove" : active ? "session.resume" : "session.done",
+        SessionRetentionApplyReview? retentionReview = null)
+    {
+        await WithdrawDetailsOffersAsync(request.SessionId, expectedGeneration, cancellationToken).ConfigureAwait(false);
+        return await RunHostMutationAsync(request, remove ? "session.remove" : active ? "session.resume" : "session.done",
             (connection, transaction, intent, audit) =>
             {
                 if (retentionReview is not null)
@@ -299,7 +306,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
                         """, ("$id", Id(request.SessionId)));
                 }
                 return session;
-            }, cancellationToken, canControl);
+            }, cancellationToken, canControl).ConfigureAwait(false);
+    }
 
     /// <summary>
     /// Publish only host-resolved fresh policy/content/identity snapshots, before exposing changed content.
@@ -389,7 +397,12 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             var observation = ReadObservation(connection, request.RequestId);
             var admitted = observation is not null && observation.RunId == runId
                 && observation.Request == request && observation.Generation == session.Generation;
-            var baseline = admitted ? observation!.Policy : new(false, false, false, true);
+            var detailsOffer = DetailsOfferForTask(connection, request);
+            if (detailsOffer is not null && detailsOffer.Key.Request != request)
+            { throw new InvalidOperationException("The read-only Details control has no child invocation or alternate request authority."); }
+            var baseline = detailsOffer is not null
+                ? new(DetailsOfferAdmissionCurrent(connection, detailsOffer), false, false, true)
+                : admitted ? observation!.Policy : new(false, false, false, true);
             HostInteractionDecision Apply(HostAuthorizationPolicy policy)
             {
                 var snapshot = new HostInteractionSnapshot(intent, session, policy,
@@ -419,7 +432,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
                     WriteGrant(connection, transaction, grant, sequence);
                 }
                 WriteSessionAdmissions(connection, transaction, snapshot, commit.Snapshot, sequence);
-                Commit(transaction, request, cancellationToken);
+                Commit(transaction, request, cancellationToken, detailsOffer is null ? null
+                    : () => DetailsOfferAdmissionCurrent(connection, detailsOffer));
                 storage.Complete(HostOperationOutcome.Completed);
                 return commit.Decision;
             }
@@ -515,6 +529,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
                 using var transaction = connection.BeginTransaction();
                 tasks.ImportAuthority(connection, transaction, cancellationToken);
                 Execute(connection, transaction, "INSERT INTO authority_head VALUES(1,0,$hash);", ("$hash", EmptyHash));
+                SeedAuditAnchor(connection, transaction);
                 SeedMemoryProfile(connection, transaction);
                 transaction.Commit();
             }
@@ -572,6 +587,10 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
     private static void ValidateCommit(HostInteractionSnapshot before, HostInteractionCommit commit, HostRequest request)
     {
         var after = commit.Snapshot;
+        if (before.Questions.Any(question => question.DetailsOffer is not null)
+            && (!IsDetailsQuestionAction(commit.Audit.ActionId) || after.Questions.Length != 1 || !after.Grants.SequenceEqual(before.Grants)
+                || !after.Admissions.SequenceEqual(before.Admissions)))
+        { throw new InvalidDataException("A Details presentation intent admits only its one fixed read-only question."); }
         if (after.Intent != before.Intent || after.Session != before.Session || after.Policy != before.Policy
             || after.Proposal != before.Proposal || after.Permission != before.Permission
             || before.Questions.Any(q => !after.Questions.Any(next => next.Key.QuestionId == q.Key.QuestionId))
@@ -585,6 +604,11 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         {
             HostInteractionCodec.Validate(question);
             var previous = before.Questions.FirstOrDefault(q => q.Key.QuestionId == question.Key.QuestionId);
+            if (question.DetailsOffer != previous?.DetailsOffer
+                || previous?.DetailsOffer is not null
+                    && (question.Spec != previous.Spec || question.ExpiresAt != previous.ExpiresAt
+                        || question.Status == QuestionStatus.Pending && question.Draft is not null))
+            { throw new InvalidDataException("Details presentation bindings cannot be created or revised by an ordinary question transition."); }
             if (question.Key.Request != request || (previous != question
                 && question.Key.Revision.Value != checked((previous?.Key.Revision.Value ?? 0) + 1)))
             {
@@ -644,6 +668,11 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         }
         var trace = live.Activity!;
         var committedAt = admissionTime ?? time.GetUtcNow();
+        if (decision?.Question?.DetailsOffer is not null)
+        {
+            requestedAudit ??= new SecurityAuditEvent(audit.CorrelationId, audit.Category, audit.ActionId,
+                SecurityAuditOutcome.Requested, audit.Initiator, audit.TargetId, audit.ApprovalId);
+        }
         var envelope = new AuthorityAudit(live.Request, intent.Revision, session.Generation, audit,
             trace.TraceId.ToHexString(), trace.SpanId.ToHexString(), committedAt,
             auditPolicy is null ? retentionPolicy.AuditDue(committedAt) : auditPolicy.Due(committedAt), decision?.Outcome,
@@ -651,7 +680,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             decision?.Grant?.Id, decision?.Grant?.Revision, changes?.ToArray() ?? [], requestedAudit, requestedGrantRevision, requestedGrants,
             queueMoveReceipt, queueCancelReceipt, queueRequeueReceipt, decision?.Admission,
             permissionPolicy ?? (changes?.Any(change => Same(change.Kind, "session")) == true
-                ? SessionPermissionPolicy.Default(session) : null));
+                ? SessionPermissionPolicy.Default(session) : null), decision?.Question?.DetailsOffer,
+            decision?.Question?.DetailsOffer is null ? null : decision.Question.AnswerChannel);
         var json = HostInteractionCodec.Encode(envelope);
         var hash = Hash(sequence, previousHash, json);
         checkpoint?.BeforeAudit(connection, transaction);
@@ -663,9 +693,9 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         if (decision is not null)
         {
             SessionHistoryPersistence.Decision(connection, transaction, live.Request, session.Generation, decision.Outcome, sequence);
-            if (decision.Question?.Status == QuestionStatus.Answered
+            if (decision.Question?.DetailsOffer is null && (decision.Question?.Status == QuestionStatus.Answered
                 || decision.Outcome == HostInteractionOutcome.Cancelled
-                    && live.Request.Origin is RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
+                    && live.Request.Origin is RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice))
             {
                 TouchActivity(connection, transaction, session.SessionId);
             }
@@ -677,8 +707,9 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
     {
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT sequence,correlation_id,previous_hash,hash,envelope FROM security_audit_events ORDER BY sequence;";
-        long sequence = 0;
-        var hash = EmptyHash;
+        var anchor = ReadAuditAnchor(connection);
+        var sequence = anchor.Sequence;
+        var hash = anchor.Hash;
         using (var reader = command.ExecuteReader())
         {
             while (reader.Read())
@@ -748,6 +779,18 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             throw new InvalidDataException("The typed interaction audit chain or identity is invalid.");
         }
         var batch = Same(audit.Audit.ActionId, "approval.revoke-exact-batch");
+        if (audit.DetailsOffer is { } source)
+        {
+            if (audit.QuestionId is not { } question || audit.QuestionRevision is not { } revision)
+            { throw new InvalidDataException("Details audit requires its exact independent question identity."); }
+            source.Validate(new(new(audit.Request, question, revision),
+                Kora.Core.Presentation.DetailsOfferBinding.CreateSpec(), audit.SessionGeneration, source.ExpiresAt)
+            { DetailsOffer = source });
+            if (audit.DetailsAnswerChannel is { } channel && channel is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice))
+            { throw new InvalidDataException("Details audit has an invalid actual answer channel."); }
+        }
+        else if (audit.DetailsAnswerChannel is not null)
+        { throw new InvalidDataException("An answer channel cannot fabricate Details audit lineage."); }
         if (Same(audit.Audit.ActionId, ProviderProfileAction)
             && (audit.Request.InvocationId is not null || audit.Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
                 || audit.Audit.Initiator != (audit.Request.Origin == RequestOrigin.LocalUi ? SecurityAuditInitiator.TypedCommand : SecurityAuditInitiator.VoiceCommand)
@@ -826,8 +869,13 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             }
         }
         var answerReviewControl = Same(audit.Audit.ActionId, "session.answer-review.set");
-        if ((Same(audit.Audit.ActionId, "approval.revoke-exact") || batch || queueControl || conversationControl || permissionControl || answerReviewControl) != (audit.RequestedAudit is not null)
-            || !batch && !queueControl && !conversationControl && !permissionControl && !answerReviewControl && (audit.RequestedAudit is null) != (audit.RequestedGrantRevision is null)
+        var detailsControl = audit.DetailsOffer is not null;
+        if (detailsControl && (audit.RequestedGrantRevision is not null || audit.RequestedGrants is not null
+            || audit.ApprovalId is not null || audit.GrantRevision is not null || audit.Request.InvocationId is not null
+            || !IsDetailsAuditAction(audit.Audit.ActionId)))
+        { throw new InvalidDataException("Details audit cannot authorize unrelated question, grant or execution operations."); }
+        if ((Same(audit.Audit.ActionId, "approval.revoke-exact") || batch || queueControl || conversationControl || permissionControl || answerReviewControl || detailsControl) != (audit.RequestedAudit is not null)
+            || !batch && !queueControl && !conversationControl && !permissionControl && !answerReviewControl && !detailsControl && (audit.RequestedAudit is null) != (audit.RequestedGrantRevision is null)
             || audit.RequestedGrantRevision is { Value: <= 0 }
             || batch != (audit.RequestedGrants is not null)
             || batch && (audit.RequestedGrantRevision is not null || audit.Audit.ApprovalId is not null
@@ -868,9 +916,9 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             || !Same(requested.ActionId, audit.Audit.ActionId) || requested.Initiator != audit.Audit.Initiator
             || !Same(requested.TargetId, audit.Audit.TargetId) || requested.ApprovalId != audit.Audit.ApprovalId
             || audit.Audit.Outcome is not (SecurityAuditOutcome.Succeeded or SecurityAuditOutcome.Denied)
-                && !(conversationControl && audit.Audit.Outcome is SecurityAuditOutcome.Cancelled or SecurityAuditOutcome.Unknown)
-            || !(Same(requested.ActionId, "approval.revoke-exact") || batch || queueControl || conversationControl || permissionControl || answerReviewControl)
-            || !queueControl && !conversationControl && audit.Request.Origin != RequestOrigin.LocalUi))
+                && !((conversationControl || detailsControl) && audit.Audit.Outcome is SecurityAuditOutcome.Cancelled or SecurityAuditOutcome.Unknown)
+            || !(Same(requested.ActionId, "approval.revoke-exact") || batch || queueControl || conversationControl || permissionControl || answerReviewControl || detailsControl)
+            || !queueControl && !conversationControl && !permissionControl && !detailsControl && audit.Request.Origin != RequestOrigin.LocalUi))
         {
             throw new InvalidDataException("The exact-revocation requested and terminal audit pair is invalid.");
         }
@@ -882,13 +930,16 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             || audit.Changes.Count(change => Same(change.Kind, "task") && Same(change.Id, Id(audit.Request.TaskId))
                 && change.Revision == audit.IntentRevision.Value + 1) != 1))
         { throw new InvalidDataException("Answer review requires exact native input, requested/terminal audit and a terminal control without grants."); }
-        if (permissionControl && (audit.Request.Origin != RequestOrigin.LocalUi || audit.Request.InvocationId is not null
+        if (permissionControl && (audit.Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
+            || audit.Request.InvocationId is not null
+            || audit.Audit.Initiator != (audit.Request.Origin == RequestOrigin.LocalUi
+                ? SecurityAuditInitiator.TypedCommand : SecurityAuditInitiator.VoiceCommand)
             || audit.RequestedGrantRevision is not null || audit.RequestedGrants is not null || audit.Audit.ApprovalId is not null
             || audit.Outcome is not null || audit.QuestionId is not null || audit.ApprovalId is not null
             || audit.Audit.Outcome != SecurityAuditOutcome.Succeeded
             || audit.Changes.Count(change => Same(change.Kind, "session-permission") && Same(change.Id, Id(audit.Request.SessionId))) != 1
             || audit.Changes.Any(change => change.Kind is not ("session-permission" or "question"))))
-        { throw new InvalidDataException("Session permission requires exact native input and separate requested/terminal authority without grants."); }
+        { throw new InvalidDataException("Session permission requires exact original input and separate requested/terminal authority without grants."); }
         if (conversationControl && (audit.Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
             || audit.Request.Origin == RequestOrigin.ActivatedVoice && audit.Audit.ActionId.StartsWith("conversation.draft.", StringComparison.Ordinal)
             || audit.Request.InvocationId is not null
@@ -1008,17 +1059,20 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         var questions = ImmutableArray.CreateBuilder<HostQuestionRecord>();
         while (reader.Read())
         {
-            var question = HostInteractionCodec.Decode<HostInteractionCodec.QuestionData>(reader.GetString(4)).ToQuestion();
-            if (!Same(Id(question.Key.QuestionId), reader.GetString(0)) || !Same(Id(question.Key.Request.RequestId), reader.GetString(1))
-                || !Same(Id(question.Key.Request.SessionId), reader.GetString(2)) || question.Key.Revision.Value != reader.GetInt64(3))
-            {
-                throw new InvalidDataException("The typed question and indexed identity disagree.");
-            }
-            ValidateRowAuthority(connection, reader.GetInt64(5), Change("question", Id(question.Key.QuestionId),
-                question.Key.Revision.Value, reader.GetString(4)));
-            questions.Add(question);
+            questions.Add(ReadQuestionRow(connection, reader));
         }
         return questions.ToImmutable();
+    }
+
+    private static HostQuestionRecord ReadQuestionRow(SqliteConnection connection, SqliteDataReader reader)
+    {
+        var question = HostInteractionCodec.Decode<HostInteractionCodec.QuestionData>(reader.GetString(4)).ToQuestion();
+        if (!Same(Id(question.Key.QuestionId), reader.GetString(0)) || !Same(Id(question.Key.Request.RequestId), reader.GetString(1))
+            || !Same(Id(question.Key.Request.SessionId), reader.GetString(2)) || question.Key.Revision.Value != reader.GetInt64(3))
+        { throw new InvalidDataException("The typed question and indexed identity disagree."); }
+        ValidateRowAuthority(connection, reader.GetInt64(5), Change("question", Id(question.Key.QuestionId),
+            question.Key.Revision.Value, reader.GetString(4)));
+        return question;
     }
 
     private static ImmutableArray<OperationGrant> ReadGrants(SqliteConnection connection)
@@ -1154,7 +1208,9 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SessionQueueCancelReceipt? QueueCancelReceipt = null,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SessionQueueRequeueReceipt? QueueRequeueReceipt = null,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SessionPermissionAdmission? PermissionAdmission = null,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SessionPermissionPolicy? PermissionPolicy = null);
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SessionPermissionPolicy? PermissionPolicy = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Kora.Core.Presentation.DetailsOfferBinding? DetailsOffer = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] RequestOrigin? DetailsAnswerChannel = null);
 
     private sealed record AuthorityChange(string Kind, string Id, long Revision, string Digest);
 

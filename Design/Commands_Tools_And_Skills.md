@@ -219,15 +219,27 @@ and a separate atomic Save confirmation/readback. It accepts a sole `servers` or
 Saving disables the source and independently removes inclusion before publication; it grants no connection, account, capability, tool, egress or model authority.
 Personal/additional configuration, stdio and credential/authentication fields are not writable.
 
-The bounded protocol parser targets MCP `2025-06-18`, requires exact JSON-RPC
-correlation, and rejects paginated/oversize discovery and unsupported schemas.
-The initial schema subset is a closed flat object with at most eight fields:
-bounded strings, bounded integers and Booleans. Results accept bounded inert
-text and optional structured-object data, not images or embedded resources.
-Server instructions, descriptions and annotations, including `readOnlyHint`,
-are untrusted metadata; parsing them never establishes an effect mapping.
-Invocation will require a separate host-owned read-only mapping pinned to the
-endpoint, account, exact tool and schema, followed by explicit user review.
+The [capability parser](../src/Kora.Core/Mcp/McpCapabilityProtocol.cs) targets MCP `2025-06-18` with exact JSON-RPC correlation and typed failure. Negotiation admits tool-only, resource-only, prompt-only and mixed servers. Explicit metadata discovery supports opaque cursor pagination with hard page/item/byte bounds, duplicate/cursor-cycle refusal and no partial-success inventory.
+
+The tool schema subset remains a closed flat object with at most eight bounded string/integer/Boolean fields. Unsupported definitions remain visible with an unavailable reason without hiding supported siblings.
+Tool use still requires a host-owned read-only mapping pinned to endpoint/account/source/tool/schema. Server instructions, descriptions, annotations and `readOnlyHint` never populate that mapping ([admission](../src/Kora.Application/Mcp/McpInvocation.cs)).
+
+Kora owns persisted consideration choices: server inclusion is the master gate; Tools, Resources (including resource templates) and Prompts have default-enabled category defaults and individual exceptions.
+Category Enable all/Disable all resets exceptions and applies to newly discovered entries. Server exclusion preserves child choices. Capability mutations advance category revisions so disable/re-enable cannot revive old reviews ([policy](../src/Kora.Core/Mcp/McpCapabilitySelection.cs)).
+
+The [private manager](../src/Kora/McpCapabilityManagerWindow.cs) completes explicit discovery, server/category/item editing, full change review and separate confirmed audited Save/readback. Choices live in device-local preferences, never external MCP JSON.
+Enabled preference, supported definition, fresh discovery, host policy, session selection and operation/disclosure approval are distinct states; unknown or corrupt control state is unavailable.
+
+The [canonical content workflow](../src/Kora.Application/Hosting/SessionConversationService.McpCapabilities.cs) completes resource selection/review/read/display, scalar resource-template parameter expansion/read, and prompt argument review/retrieval/preview.
+Optional local question/prompt use separately reviews complete unchanged text before a tool-free model turn. Embedded resource identities and resolved URIs recheck resource exclusions; MCP URIs cannot open local files or alternate destinations.
+
+Only text and embedded text resources are admitted. Unsupported binary/image/audio blocks, roles and mixed replies reject the whole operation; prompt roles remain lower-trust template data, not genuine history or host policy.
+Native, original typed/activated-voice and model-free routes share source/session/privacy/approval/audit/lifecycle owners. No subscriptions, automatic context population, cached grants, provider-native tools or production connector qualification are introduced ([user interaction](../docs/mcp-transport.md)).
+String `maxLength` uses decoded Unicode scalar count, including supplementary
+characters as one and combining marks/joiners separately, without normalization.
+The independent complete 2,048-byte UTF-8 argument bound includes JSON escaping.
+Malformed Unicode and either exceeded limit fail before invocation approval or
+dispatch in the shared direct/model validator ([argument guidance](../docs/mcp-transport.md)).
 
 The Sessions composer provides explicit server/account selection, connection and
 schema review, one host-mapped tool selection, exact outgoing-argument approval,
@@ -264,6 +276,14 @@ called, no assistant answer is fabricated, and unsent conversation input stays
 unchanged. Task/audit outcomes remain durable; the tool result is a volatile
 original-session presentation. Cancellation or an uncertain dispatched outcome
 does not claim remote rollback and never retries automatically.
+
+The shared invocation owner revalidates the exact delegated account reference
+after physical transport join, before any result-bearing native review or local
+continuation, and at terminal readback before publishing either route's result.
+Account removal or changes to its identity, revision, credential reference or
+destination suppress disclosure without rewriting an already committed terminal
+receipt. Disposing a credential lease does not end result-disclosure authority
+checks or grant a replacement account the original approval.
 
 An exchange disconnect, disposed transport, or transport-owned cancellation
 retires that invocation's connection without reconnecting, retrying or falling

@@ -45,7 +45,8 @@ public sealed partial class MainViewModel
     {
         var review = foregroundRequestReview;
         var command = new SessionCommand(confirm ? SessionCommandOperation.RequestConfirm : SessionCommandOperation.RequestCancel,
-            review?.Target.Authority.SessionId.Value) { RequestReviewId = review?.Id };
+            review?.Target.Authority.SessionId.Value)
+        { RequestReviewId = review?.Id };
         return () => ExecuteSessionCommandAsync(command, SecurityAuditInitiator.LocalUser);
     }
 
@@ -55,5 +56,6 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(HasForegroundRequestReview));
         OnPropertyChanged(nameof(HasSessionOperationReview));
         OnPropertyChanged(nameof(ForegroundRequestReviewText));
+        OnPropertyChanged(nameof(OfferDetailsOnce));
     }
 }

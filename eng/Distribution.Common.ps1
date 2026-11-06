@@ -13,7 +13,7 @@ function Assert-CanonicalSourceOrigin {
 
 function Get-SourceToolPaths {
     @('eng/Invoke-SourceBootstrap.ps1', 'eng/SourceBootstrap.Common.ps1',
-        'eng/Test-SourceStage.ps1', 'eng/Get-BuildVersion.ps1',
+        'eng/Test-SourceStage.ps1', 'eng/Get-BuildVersion.ps1', 'eng/Get-InstallerProductVersion.ps1',
         'eng/SourceCheckout.Common.ps1', 'eng/Distribution.Common.ps1',
         'eng/NativeInspection.Common.ps1', 'eng/Inspect-Publish.ps1')
 }

@@ -142,6 +142,12 @@ internal static class Program
                                     static (_, _) => ValueTask.CompletedTask, CancellationToken.None).AsTask()).GetAwaiter().GetResult();
                             Task.Run(() => provider.GetRequiredService<WindowsSqliteDiagnosticRetention>()
                                 .RunAsync(CancellationToken.None).AsTask()).GetAwaiter().GetResult();
+                            var auditObservation = auditConfiguration.GetObservation();
+                            var auditRetention = Task.Run(() => provider.GetRequiredService<WindowsSqliteHostInteractionStore>()
+                                .PruneAuditPrefixAsync(() => auditConfiguration.IsCurrentObservation(auditObservation), CancellationToken.None).AsTask())
+                                .GetAwaiter().GetResult();
+                            DesktopLog.AuditRetentionCompleted(startupLogger, auditRetention.Removed,
+                                auditRetention.HasDueBacklog, auditRetention.ReferenceHeld);
                             startup.Complete(HostOperationOutcome.Completed);
                         }
                         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
@@ -303,6 +309,8 @@ internal static class Program
         services.AddSingleton<ArtifactDirectoryConfigurationService>();
         services.AddSingleton<ArtifactUsePreferences>();
         services.AddSingleton<IArtifactUsePolicy>(provider => provider.GetRequiredService<ArtifactUsePreferences>());
+        services.AddSingleton<McpCapabilityPreferences>();
+        services.AddSingleton<Kora.Application.Mcp.KoraMcpServer>();
         services.AddSingleton<WindowsCustomizationStore>();
         services.AddSingleton<Kora.Core.Customizations.ICustomizationStore>(provider => provider.GetRequiredService<WindowsCustomizationStore>());
         services.AddSingleton<Kora.Core.Customizations.ICustomizationMetadataStore>(provider => provider.GetRequiredService<WindowsCustomizationStore>());
@@ -408,6 +416,11 @@ internal static class Program
             new LocalStartupPresentationPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<StartupPresentationConfigurationService>();
         services.AddSingleton<MaintenanceCommands>();
+        services.AddSingleton<IApplicationMaintenance>(provider => provider.GetRequiredService<MaintenanceCommands>());
+        services.AddSingleton<IMaintenancePreferences>(provider =>
+            new LocalMaintenancePreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<Kora.Tools.Application.ApplicationCheckForUpdates>();
+        services.AddSingleton<Kora.Tools.Application.ApplicationUpgrade>();
         services.AddSingleton<Kora.Application.Voice.AudioControlAdmission>();
         services.AddSingleton<Kora.Application.Voice.BoundedAudioOutputCatalog>();
         services.AddSingleton<OutputDeviceConfigurationService>();
@@ -464,6 +477,7 @@ internal static class Program
         services.AddSingleton<ILocalContextTaskStore>(interactions);
         services.AddSingleton<LocalContextTurnWorkflow>();
         services.AddSingleton<IModelContextRunner>(provider => provider.GetRequiredService<LocalContextTurnWorkflow>());
+        RemainingWorkManagementComposition.Configure(services);
         services.AddSingleton<ISessionQueueStore>(interactions);
         services.AddSingleton<ISessionWorkStore>(interactions);
         services.AddSingleton<Kora.Core.Memory.IMemoryStore>(interactions);
@@ -498,12 +512,18 @@ internal static class Program
             UseCookies = false,
             UseDefaultCredentials = false,
             AutomaticDecompression = System.Net.DecompressionMethods.None,
-        }) { Timeout = Timeout.InfiniteTimeSpan });
+        })
+        { Timeout = Timeout.InfiniteTimeSpan });
         services.AddSingleton<IGitHubIssueLookup>(provider => new GitHubIssueLookup(
             provider.GetRequiredKeyedService<HttpClient>("github-issue-lookup")));
         services.AddSingleton<GitHubIssueReportWorkflow>();
         services.AddSingleton<ICanonicalReleasePageOpener, WindowsReleasePageOpener>();
-        services.AddSingleton(provider => new MaintenanceViewModel(
+        services.AddSingleton<IReleaseInstallerDownloader>(provider => new ReleaseInstallerDownloader(
+            provider.GetRequiredKeyedService<HttpClient>("release-metadata"), paths));
+        services.AddSingleton<IReleaseInstallerLauncher, WindowsReleaseInstallerLauncher>();
+        services.AddSingleton(provider =>
+        {
+            var maintenance = new MaintenanceViewModel(
             provider.GetRequiredService<IReleaseMetadataClient>(), provider.GetRequiredService<IApplicationInfo>(),
             System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture switch
             {
@@ -513,7 +533,12 @@ internal static class Program
             },
             provider.GetRequiredService<ICanonicalReleasePageOpener>(), provider.GetRequiredService<TimeProvider>(),
             provider.GetRequiredService<IUiDispatcher>(), provider.GetRequiredService<ISecurityAuditLog>(),
-            provider.GetRequiredService<ILogger<MaintenanceViewModel>>()));
+            provider.GetRequiredService<ILogger<MaintenanceViewModel>>(),
+            preferences: provider.GetRequiredService<IMaintenancePreferences>());
+            maintenance.BindUpgradeServices(provider.GetRequiredService<IReleaseInstallerDownloader>(),
+                provider.GetRequiredService<IReleaseInstallerLauncher>());
+            return maintenance;
+        });
         services.AddSingleton<Kora.Application.Interaction.HostQuestionService>();
         services.AddSingleton<Kora.Application.Interaction.HostQuestionReviewService>();
         services.AddSingleton<Kora.Application.Interaction.HostAuthorizationService>();
@@ -580,7 +605,9 @@ internal static class Program
             provider.GetRequiredService<ISessionProviderProfileStore>(),
             provider.GetRequiredService<HostedModelProviderFactory>(),
             provider.GetRequiredService<HostedTransmissionReviewService>(),
-            conversationExecution: provider.GetRequiredService<ConversationExecutionConfigurationService>()));
+            conversationExecution: provider.GetRequiredService<ConversationExecutionConfigurationService>(),
+            capabilities: provider.GetRequiredService<McpCapabilityPreferences>(),
+            builtInMcp: provider.GetRequiredService<Kora.Application.Mcp.KoraMcpServer>()));
         services.AddSingleton<IModelTurnAdmission>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<IModelTurnExecution>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<SessionConversationService>();
@@ -588,7 +615,11 @@ internal static class Program
         services.AddSingleton<SessionInstructionScopeBroker>();
         services.AddSingleton<SessionInstructionScopeCommandService>();
         services.AddSingleton<SessionRequestCommandService>();
+        services.AddSingleton<Kora.Core.Presentation.IDetailsOfferStore>(provider =>
+            provider.GetRequiredService<Kora.Windows.Storage.WindowsSqliteHostInteractionStore>());
+        services.AddSingleton<Kora.Application.Presentation.DetailsOfferService>();
         services.AddSingleton<SessionRetentionCommandService>();
+        services.AddSingleton<SessionPermissionCommandService>();
         services.AddSingleton<SessionRetentionApplyService>();
         services.AddSingleton<ConversationSearchCommandService>();
         services.AddSingleton<SessionRemainingWorkCommandService>();

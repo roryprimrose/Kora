@@ -4,6 +4,7 @@ public enum SetupPhase
 {
     Detecting,
     Ready,
+    StoppingHost,
     Planning,
     Applying,
     PreparingOptional,

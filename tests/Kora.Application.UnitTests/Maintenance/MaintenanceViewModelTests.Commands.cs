@@ -24,7 +24,7 @@ public sealed partial class MaintenanceViewModelTests
         var snapshot = f.State.LastVerified;
         var review = await f.Commands.ExecuteAsync(MaintenanceCommand.Review, origin, () => true, TestContext.Current.CancellationToken);
         review.Should().Contain("Canonical cached record: 1").And.Contain(ReleaseFixture.Source)
-            .And.Contain("Expected SHA-256").And.Contain("Unsigned POC").And.Contain("No updater");
+            .And.Contain("Expected SHA-256").And.Contain("Unsigned POC").And.Contain("separate exact native approval");
         f.State.CanOpen.Should().BeTrue();
         var snooze = await f.Commands.ExecuteAsync(MaintenanceCommand.Snooze, origin, () => true, TestContext.Current.CancellationToken);
         snooze.Should().Contain("24 hours in this run").And.Contain("No approval or security prompt changed");

@@ -30,8 +30,8 @@ Reject 'Fork origin cannot acquire canonical packaging provenance' { Assert-Cano
 Reject 'Unapproved URL aliases remain refused' { Assert-CanonicalSourceOrigin 'https://github.com/roryprimrose/Kora/' }
 New-SourceToolArchive $repositoryPath $revision $version $archivePath $tree
 $manifest = Test-SourceToolArchive $archivePath $revision $version $tree
-Check (@($manifest.files).Count -eq 8 -and $manifest.unsigned -and !$manifest.productionAccepted) `
-    'Complete eight-tool inventory, exact Git blobs/digests and truthful unsigned provenance'
+Check (@($manifest.files).Count -eq 9 -and $manifest.unsigned -and !$manifest.productionAccepted) `
+    'Complete nine-tool inventory, exact Git blobs/digests and truthful unsigned provenance'
 foreach ($record in $tree) {
     $text = [Text.Encoding]::UTF8.GetString((Read-SourceCommandBytes 'git' @('-C', $repositoryPath, 'cat-file', 'blob', $record.sha)))
     foreach ($match in [regex]::Matches($text, 'Join-Path \$PSScriptRoot ''([^'']+\.ps1)''')) {

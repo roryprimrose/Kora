@@ -38,6 +38,8 @@ internal sealed partial class SessionsViewModel
     internal void BindDetailPresentation(DetailPresentationConfigurationService service)
     {
         ObjectDisposedException.ThrowIf(closed, this);
+        automaticPreferenceBindingEpoch++;
+        Array.Clear(automaticDetails);
         if (detailPresentation is not null) { detailPresentation.Changed -= OnDetailPresentationChanged; }
         for (var index = 0; index < terminalDetailPublications.Length; index++)
         {
@@ -73,7 +75,31 @@ internal sealed partial class SessionsViewModel
 
     private void ClearTerminalDetailPublications()
     {
+        Array.Clear(automaticDetails);
         Array.Clear(terminalDetailPublications);
         completedDetailPublication = null;
     }
+
+    internal Task OpenOfferedDetailAsync(Kora.Application.Presentation.DetailsOfferRequest request,
+        Kora.Application.Presentation.DetailsOfferService offers, Func<bool> admitted) =>
+        RunConversationAsync(async (target, live) =>
+        {
+            if (target != request.Target || !ObservedConversationMessages.Any(message => ReferenceEquals(message, request.Receipt.Message)))
+            { throw new InvalidOperationException("The exact offered answer is no longer presented in its original conversation."); }
+            bool Current() => live() && admitted();
+            var content = await offers.ReadDetailAsync(request, service, Current, lifetime.Token);
+            var continuation = Kora.Core.Diagnostics.HostActivity.CaptureContinuation(
+                Kora.Core.Diagnostics.HostActivityLayer.Desktop, Kora.Core.Diagnostics.HostOperation.Storage);
+            async Task<Kora.Core.Presentation.AdmittedDetailContent> Resolve(CancellationToken token)
+            {
+                using var activity = continuation();
+                var resolved = await offers.ReadDetailAsync(request, service, Current, token);
+                activity.Complete(Kora.Core.Diagnostics.HostOperationOutcome.Completed);
+                return resolved;
+            }
+            conversationStatus = await (openConversationDetail
+                ?? throw new InvalidOperationException("The native exact Details pane is unavailable."))(content, Current, Resolve, lifetime.Token);
+            if (!Current()) { throw new OperationCanceledException("The exact offered Details publication was withdrawn."); }
+            RememberSelectedDetail(DetailPart.Assistant, request.Receipt.Message.Request.RequestId.Value);
+        }, sourceRead: true, detailsOffer: request);
 }

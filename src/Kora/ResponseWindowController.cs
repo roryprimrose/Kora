@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora;
 
-public sealed class ResponseWindowController : IDisposable, ICurrentResponsePresentation
+public sealed partial class ResponseWindowController : IDisposable, ICurrentResponsePresentation
 {
     private readonly MainViewModel viewModel;
     private readonly ILogger<ResponseWindowController> logger;
@@ -24,6 +24,7 @@ public sealed class ResponseWindowController : IDisposable, ICurrentResponsePres
         { current.AttachSessions(model, owner, management, newConversation); }
         else if (!ReferenceEquals(current.SessionView.DataContext, model))
         { throw new InvalidOperationException("The response window belongs to another session presentation."); }
+        model.BindAutomaticDetails(this);
         return current;
     }
 
@@ -31,6 +32,7 @@ public sealed class ResponseWindowController : IDisposable, ICurrentResponsePres
     {
         if (window is not null) { return window; }
         var opened = new ResponseWindow(viewModel, details);
+        ObserveAutomaticDetailsWindow(opened);
         opened.Closed += (_, _) =>
         {
             if (ReferenceEquals(window, opened)) { window = null; }
@@ -49,6 +51,7 @@ public sealed class ResponseWindowController : IDisposable, ICurrentResponsePres
         details = detailController;
         viewModel.WindowActionRequested += OnWindowActionRequested;
         viewModel.CurrentResponseChanged += OnCurrentResponseChanged;
+        viewModel.PrivacyClosureRequested += OnPrivacyClosureRequested;
         viewModel.BindCurrentResponsePresentation(this);
         viewModel.BindModelActionReviewPresentation(PresentModelActionReview);
     }
@@ -83,6 +86,12 @@ public sealed class ResponseWindowController : IDisposable, ICurrentResponsePres
     private void OnCurrentResponseChanged(object? sender, EventArgs eventArgs) =>
         details?.RetireUnavailableCurrentResponses();
 
+    private void OnPrivacyClosureRequested(object? sender, EventArgs eventArgs)
+    {
+        window?.Close();
+        details?.ClearForPrivacy();
+    }
+
     public void Dispose()
     {
         if (disposed)
@@ -93,6 +102,7 @@ public sealed class ResponseWindowController : IDisposable, ICurrentResponsePres
         disposed = true;
         viewModel.WindowActionRequested -= OnWindowActionRequested;
         viewModel.CurrentResponseChanged -= OnCurrentResponseChanged;
+        viewModel.PrivacyClosureRequested -= OnPrivacyClosureRequested;
         if (window is not null)
         {
             window.Close();

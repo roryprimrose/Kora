@@ -206,8 +206,17 @@ public sealed class WindowsSqliteSessionWorkspaceTests
         checkpoint.Commit = null;
         var done = await act();
         done.Generation.Value.Should().Be(2);
+        var beforeStale = await fixture.Store.ReadMetadataAsync(fixture.Request.SessionId, fixture.Token);
+        var questionsBeforeStale = await fixture.Store.ReadQuestionsAsync(fixture.Request.SessionId, fixture.Token);
+        var auditsBeforeStale = fixture.Count("security_audit_events");
+        var tasksBeforeStale = fixture.Count("host_tasks");
         var stale = () => service.ChangeLifecycleAsync(fixture.Request.SessionId, new(1), true, RequestOrigin.LocalUi, fixture.Token);
-        await stale.Should().ThrowAsync<InvalidOperationException>().WithMessage("*conflicts*");
+        await stale.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("The exact session generation changed before presentation withdrawal.");
+        (await fixture.Store.ReadMetadataAsync(fixture.Request.SessionId, fixture.Token)).Should().Be(beforeStale);
+        (await fixture.Store.ReadQuestionsAsync(fixture.Request.SessionId, fixture.Token)).Should().Equal(questionsBeforeStale);
+        fixture.Count("security_audit_events").Should().Be(auditsBeforeStale);
+        fixture.Count("host_tasks").Should().Be(tasksBeforeStale + 1, "only the denied user-control intent may be recorded");
         (await service.ChangeLifecycleAsync(fixture.Request.SessionId, new(2), true, RequestOrigin.ActivatedVoice, fixture.Token)).Generation.Value.Should().Be(3);
         var unknown = () => service.ChangeLifecycleAsync(new(Guid.NewGuid()), new(1), false, RequestOrigin.LocalUi, fixture.Token);
         await unknown.Should().ThrowAsync<InvalidDataException>();

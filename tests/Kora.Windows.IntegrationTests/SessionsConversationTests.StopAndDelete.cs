@@ -113,6 +113,7 @@ public sealed partial class SessionsConversationTests
                 model.ComposerBody.Should().BeEmpty();
                 (await f.Store.ReadHistoryAsync(original, null, 50, f.Token)).Disposed.Should().BeTrue();
                 (await f.Store.ReadMetadataAsync(other, f.Token)).Authority.IsActive.Should().BeTrue();
+                f.Count("session_model_usage").Should().Be(0, "the explicitly inventoried terminal sample is removed with this session");
                 f.Count("security_audit_events").Should().BeGreaterThan(0);
                 await model.RefreshAsync();
                 await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId == other));
@@ -213,6 +214,7 @@ public sealed partial class SessionsConversationTests
     [InlineData("buffer")]
     [InlineData("metadata")]
     [InlineData("new-task")]
+    [InlineData("usage")]
     [InlineData("voice")]
     public async Task StopAndDeletePreviewAndInvalidConfirmationNeverStopWorkOrDiscardInput(string change)
     {
@@ -257,6 +259,12 @@ public sealed partial class SessionsConversationTests
                             Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request);
                         var intent = await f.Store.RecordControlIntentAsync(added, f.Token);
                         await f.Tasks.CommitAsync(intent.Next(HostTaskState.Succeeded), intent.Revision.Value, f.Token);
+                    }
+                    if (change is "usage")
+                    {
+                        using var activity = Kora.Core.Diagnostics.HostActivity.BeginRoot(provenance.Request,
+                            Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request);
+                        await f.Store.RecordModelUsageAsync(new(provenance, "Selected model", null, TimeSpan.Zero, f.Time.Now), f.Token);
                     }
                     await model.ConfirmStopAndDeleteAsync();
                 }

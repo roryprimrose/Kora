@@ -5,6 +5,8 @@ using Kora.Application.Hosting;
 using Kora.Application.Communication;
 using Kora.Core.Communication;
 using Kora.Core.Diagnostics;
+using Kora.Core.Dependencies;
+using Kora.Core.Conversation;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Storage;
@@ -17,6 +19,77 @@ namespace Kora.Windows.IntegrationTests.Storage;
 
 public sealed class WindowsSqliteSessionDispositionTests
 {
+    [Theory]
+    [InlineData("terminal")]
+    [InlineData("existing")]
+    [InlineData("other-turn")]
+    [InlineData("wrong-selection")]
+    [InlineData("audit")]
+    public async Task Stopped_disposition_accepts_only_inventoried_original_terminal_usage_and_preserves_failure_state(string change)
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        await WindowsSqliteSessionWorkspaceTests.FinishAsync(f, HostTaskState.Succeeded);
+        var checkpoint = new InteractionTransactionCheckpoint();
+        f.Reopen(checkpoint);
+        await f.Store.InitializeAsync(f.Token);
+        var session = f.Request.SessionId;
+        var request = WindowsSqliteConversationTests.Fresh(session);
+        var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), request, ModelProviderSelection.OllamaCandidate);
+        var usage = new SessionModelUsage(provenance, "Selected model", null, TimeSpan.Zero, f.Time.Now);
+        var target = await f.Store.ReadMetadataAsync(session, f.Token);
+        Kora.Core.Storage.SessionDispositionPreview preview;
+        using (var root = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request))
+        {
+            await f.Store.RetainConversationMessageAsync(request, new(1), 0, "reviewed original", static () => true, f.Token);
+            var dispatched = await f.Store.BeginConversationExecutionAsync(request, provenance, 0, static () => true, f.Token);
+            if (change is "existing") { await f.Store.RecordModelUsageAsync(usage, f.Token); }
+            var running = new ConversationCancellationTarget(Guid.NewGuid(), request, new(1),
+                dispatched.Task.Revision, f.Time.Now, f.Time.Now.AddMinutes(1));
+            preview = await f.Store.PreviewStopAndDeleteAsync(target, running, f.Token);
+            preview.StoppedWork!.ModelUsage.Should().Be(change is "existing" ? usage : null);
+            await f.Store.CompleteConversationExecutionAsync(request,
+                new(ModelTurnOutcome.Cancelled, ModelTurnReason.CallerCancelled, provenance), static () => true, f.Token);
+            var observed = change switch
+            {
+                "other-turn" => usage with { Provenance = provenance with { Turn = new(Guid.NewGuid()) } },
+                "wrong-selection" => usage with { Provenance = provenance with
+                    { Selection = new(ModelProviderIdentity.Ollama, new(Guid.NewGuid()), new(1)) } },
+                _ => usage,
+            };
+            await f.Store.RecordModelUsageAsync(observed, f.Token);
+        }
+        var control = WindowsSqliteConversationTests.Fresh(session);
+        using var controlRoot = HostActivity.BeginRoot(control, HostActivityLayer.Application, HostOperation.Request);
+        await f.Store.RecordControlIntentAsync(control, f.Token);
+        var audits = f.Count("security_audit_events");
+        if (change is "audit")
+        {
+            checkpoint.Audit = (_, _) => throw new IOException("required disposition audit failed");
+        }
+        var dispose = () => f.Store.DisposeSessionAsync(control, preview, static () => true, f.Token).AsTask();
+        if (change is "terminal" or "existing")
+        {
+            var receipt = await dispose();
+            receipt.Removed.Should().Be(preview);
+            f.Count("session_model_usage").Should().Be(0);
+            (await f.Store.ReadHistoryAsync(session, null, 50, f.Token)).Disposed.Should().BeTrue();
+            using var lateRoot = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
+            await f.Store.Invoking(store => store.RecordModelUsageAsync(usage, f.Token).AsTask())
+                .Should().ThrowAsync<InvalidDataException>();
+        }
+        else
+        {
+            if (change is "audit") { await dispose.Should().ThrowAsync<IOException>(); }
+            else { await dispose.Should().ThrowAsync<InvalidOperationException>(); }
+            f.Count("security_audit_events").Should().Be(audits);
+            f.Count("session_model_usage").Should().Be(1);
+            (await f.Store.ReadMetadataAsync(session, f.Token)).Should().Be(target);
+            (await f.Store.ReadConversationMessageAsync(session, request.RequestId, f.Token)).Body.Should().Be("reviewed original");
+            (await f.Tasks.ReadTaskAsync(control.TaskId, f.Token))!.State.Should().Be(HostTaskState.IntentRecorded);
+        }
+    }
+
     [Theory]
     [InlineData("locked")]
     [InlineData("short")]

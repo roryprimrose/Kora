@@ -152,6 +152,10 @@ including human review and subsequent tool-result reviews, has a two-minute
 deadline; local turns keep their existing deadline. Successful bounded answers
 are committed to that same request as distinct ASSISTANT data in the existing
 private conversation store. Failed/denied turns retain no assistant answer.
+The host cancellation token also owns the SDK completion wait: its independent
+60-second default is disabled so that a still-current transmission review can
+finish within the original two-minute deadline. This does not extend that
+deadline or remove cancellation, stop/join or late-answer suppression.
 Ordinary submission and all local-only reviewed-source flows remain separate
 and cannot select hosted execution implicitly. Composition preserves the
 existing local resolver/factory and uses the same shared host admission gate.

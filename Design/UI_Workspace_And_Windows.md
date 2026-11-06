@@ -129,7 +129,12 @@ primary window, not another top-level window:
   separated by a pointer- and keyboard-resizable divider. Enforce a minimum expanded
   window width and minimum pane widths so neither collapses into an unreadable strip.
   Do not replace conversation with a Details tab or stack the panes on narrow windows.
-  **Expand details**, if offered, adjusts the split only within those minimums;
+  Native **Expand details** allocates surplus width to Details while keeping the
+  conversation at its existing minimum. **Restore split** restores the prior
+  column lengths; the divider stays usable in either state. Hide, replacement
+  and session/private retirement discard this temporary expansion, preserving
+  the ordinary split. Neither action rereads content, recreates the reader,
+  changes selection/Find or resizes the window. Both remain within those minimums;
   **Back to conversation** focuses the originating message without hiding either pane.
   If the available work area cannot fit the minimum layout, report the limitation
   explicitly rather than placing controls off screen or silently using a different
@@ -159,6 +164,9 @@ primary window, not another top-level window:
   hides required native interaction controls without a reachable route, or acts as
   an answer/approval. Keyboard and accessible UI support the same operations.
 - Keep a bounded, memory-only item binding and reading position per session.
+  The exact-reference position includes projection and wrapping; restore them before
+  layout and scroll offsets on an explicitly re-admitted reader. No remembered
+  presentation state grants source access or retains the hidden body/Find state.
   Switching sessions hides the previous session's content and shows only the newly
   selected session's own still-admitted in-memory view, or an empty/reopen state.
   Selection alone performs no source read; restoration needing fresh resolution
@@ -168,6 +176,12 @@ primary window, not another top-level window:
   hidden browser views must stop renderer-owned activity or be disposed, not continue
   invisible browsing. Privacy, ownership/source loss, deletion and lock revoke content
   and fence delayed publication under the existing viewer contract.
+
+### Explicit private workspace recovery
+
+Lock, unknown desktop state and owner loss retire the composed session, compact, response and Details presentations. Successful joined retirement is required before a new explicit **Show Kora**, **Settings** or **Sessions** gesture can release the private presentation hold under current host ownership and authoritative unlocked-session checks ([recovery](../src/Kora.Application/ViewModels/MainViewModel.PrivatePresentation.cs), [native regression](../tests/Kora.Windows.IntegrationTests/DesktopLockRecoveryTests.cs)).
+
+Unlock may restore only independently eligible voice-mode readiness; it does not reopen private windows or replay a denied earlier gesture. Reopened Sessions starts without a selected conversation, private page or unsent input. Select the exact conversation and explicitly Read/Open again to resolve retained content; recovery does not submit input, dispatch a provider or change grants or independent retention ([voice transition](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs), [recovery regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.PrivatePresentation.cs)).
 
 ### Session-command log and audit details
 

@@ -197,7 +197,8 @@ internal sealed partial class EvidenceViewModel
     private void RetireEvidenceAnswer()
     {
         answerRevision++;
-        answerCancellation?.Cancel();
+        var cancellation = answerCancellation;
+        answerCancellation = null;
         answerReview = null;
         answerAdmitted = null;
         answerConfirmed = false;
@@ -206,6 +207,13 @@ internal sealed partial class EvidenceViewModel
         answerText = string.Empty;
         answerCitationText = string.Empty;
         NotifyEvidenceAnswer();
+        try { cancellation?.Cancel(); }
+        catch (AggregateException exception)
+        {
+            Failure(logger, exception.GetType().Name);
+            answerStatus = "Cancellation notification failed. The review was retired; resource ownership remains until actual join.";
+            NotifyEvidenceAnswer();
+        }
     }
 
     private void NotifyEvidenceAnswer()

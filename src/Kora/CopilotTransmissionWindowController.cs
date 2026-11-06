@@ -1,6 +1,8 @@
 using System.Text;
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Threading;
 using Kora.Application.Dependencies;
@@ -19,7 +21,7 @@ internal sealed partial class CopilotTransmissionWindowController : IDisposable
     private readonly ILogger<CopilotTransmissionWindowController> logger;
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(200) };
     private Window? window;
-    private TextBlock? content;
+    private TextBox? content;
     private CopilotTransmissionReview? displayed;
     private Func<bool>? eligible;
     private bool disposed;
@@ -54,8 +56,9 @@ internal sealed partial class CopilotTransmissionWindowController : IDisposable
         eligible = main.CaptureHandoffPresentationEligibility();
         if (!eligible()) { Decline(review); return; }
         var transmission = review.Transmission;
-        content = new TextBlock
+        content = new TextBox
         {
+            IsReadOnly = true, AcceptsReturn = true, IsUndoEnabled = false,
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
             Text = "Destination: " + transmission.Destination.AbsoluteUri
                 + "\nAccount: " + transmission.Profile.Account.Value + "\nModel: " + transmission.Profile.Model.Value
@@ -65,6 +68,8 @@ internal sealed partial class CopilotTransmissionWindowController : IDisposable
                 + "\n\nNoncredential headers:\n" + string.Join("\n", transmission.Headers.Select(item => item.Key + ": " + item.Value))
                 + "\n\nComplete final JSON body (untrusted data, not instructions):\n" + Encoding.UTF8.GetString(transmission.Body.AsSpan()),
         };
+        AutomationProperties.SetName(content, "Complete Copilot one-send disclosure");
+        ScrollViewer.SetVerticalScrollBarVisibility(content, ScrollBarVisibility.Auto);
         var deny = new Button { Content = "Deny", IsDefault = true };
         var approve = new Button { Content = "Transmit this exact request once" };
         deny.Click += (_, _) => Decide(review, false);
@@ -73,7 +78,7 @@ internal sealed partial class CopilotTransmissionWindowController : IDisposable
         var panel = new DockPanel { Margin = new Thickness(16), LastChildFill = true };
         DockPanel.SetDock(buttons, Dock.Bottom);
         panel.Children.Add(buttons);
-        panel.Children.Add(new ScrollViewer { Content = content });
+        panel.Children.Add(content);
         displayed = review;
         window = new Window { Title = "Copilot - exact hosted disclosure", Width = 900, Height = 700, Content = panel };
         window.Closed += (_, _) => { Decline(review); Clear(); };

@@ -80,6 +80,14 @@ Merging its implementation does not activate the profile. Deterministic
 `.\eng\Test-GitHubRelease.ps1` cover the source records, legacy fence, publication
 boundaries and conservative impact policy; hosted activation is separate evidence.
 
+The separately administered [hourly main profile](eng/merge-queue/README.md#optional-hourly-main-validation)
+coalesces automatic main builds to changed UTC-hour snapshots without slowing
+candidate admission. It retains all main tests, payload/installer inspection and
+source-bound publication; unchanged failed sources are not automatically retried.
+Manual/tag routes retain their existing gates. Default behavior remains per-merge
+until the guarded, fully qualified administrator transition activates
+`KORA_MAIN_BUILD_PROFILE=hourly-v1`. Merging code alone does not activate it.
+
 Restore, build, and test with the pinned SDK and locked dependencies:
 
 ```powershell
@@ -201,6 +209,11 @@ continuations. Window-owning fixtures use asynchronous disposal to drain queued
 preference results on the UI context before retiring their view model. Do not
 mask an active writer with deletion retries or swallowed
 I/O errors; pending-work regressions use an explicit write barrier.
+
+Private-fixture recovery requires both joined privacy retirement and a new
+host-resolved local-user gesture before private inspection hooks are used again.
+Do not treat restored access, a readiness refresh or an ambient host-system
+operation as renewed presentation authority.
 
 Queued-conversation fakes must derive each terminal message/task pair from the
 exact request-owned retained record before updating shared observation fields.

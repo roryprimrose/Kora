@@ -96,14 +96,13 @@ public static class McpProtocol
         var content = result.GetProperty("content");
         if (content.ValueKind != JsonValueKind.Array || content.GetArrayLength() is < 1 or > 4)
         { throw new InvalidDataException("MCP returned an unsupported content collection."); }
-        var text = new StringBuilder();
+        var text = new List<string>();
         foreach (var item in content.EnumerateArray())
         {
             RequireFields(item, ["type", "text"], []);
             if (!TextEquals(item.GetProperty("type"), "text") || item.GetProperty("text").ValueKind != JsonValueKind.String)
             { throw new InvalidDataException("The first MCP profile accepts inert text only, without embedded resources."); }
-            if (text.Length > 0) { text.Append('\n'); }
-            text.Append(item.GetProperty("text").GetString());
+            text.Add(item.GetProperty("text").GetString()!);
         }
         string? structured = null;
         if (result.TryGetProperty("structuredContent", out var value))
@@ -112,7 +111,7 @@ public static class McpProtocol
             { throw new InvalidDataException("MCP structured content must be an inert object."); }
             structured = value.GetRawText();
         }
-        return new(error.ValueKind == JsonValueKind.True, text.ToString(), structured);
+        return new(error.ValueKind == JsonValueKind.True, string.Join('\n', text), structured);
     }
 
     private static JsonElement ReadResult(JsonElement root, int id)

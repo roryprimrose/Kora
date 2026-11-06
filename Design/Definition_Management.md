@@ -219,6 +219,12 @@ Cancellation and withdrawal suppress late output; reads and model work remain
 owned until actual quiescence, even if they ignore cancellation. Local model
 unavailability remains explicit, not fallback or qualification.
 
+The bounded agent workflow also joins its serialized source operation and model
+work when a cancellation subscriber throws during shutdown. Cancellation failure
+does not bypass the join or permit a late review/invocation. Single failures keep
+their original exception type; independent shutdown failures are reported
+together after cleanup. This does not change source admission or runtime readiness.
+
 Composition is confined to `App.Agents.cs`; catalogue/store/revision and
 conversation contracts are consumed unchanged. Skills, arbitrary file/resource
 references, personal-profile instruction originals, recursive agents, scripts,

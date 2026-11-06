@@ -21,6 +21,13 @@ Apply [product admission](MVP_Scope.md#product-admission-and-realignment) to dis
 The native conversation row's **Export exact answer...** action reviews one currently admitted retained final ASSISTANT body, never a session-wide latest result or rendered projection. Destination selection and passive Details grant no write authority.
 The [separate review](../src/Kora/ExactAnswerExportWindow.cs) shows complete original text, conversation/result identity, exact destination, UTF-8/no-BOM format and the retention disclosure before a separate original local-UI confirmation.
 
+The destination/retention review and complete answer have independent bounded
+scrolling areas, including at the minimum 480-by-400 native size. Long paths
+remain complete, not abbreviated. Confirmation and cancellation captions wrap
+inside their available width, and long terminal outcomes scroll separately.
+Reading, resizing and scrolling do not confirm a write. Keyboard activation
+uses the same single-use confirmation and cancellation controls.
+
 The [single-use review owner](../src/Kora.Application/Presentation/ExactAnswerExportReview.cs) revalidates the exact source and private/control/presenter lifetime across selection, review and staging.
 The [dedicated Windows writer](../src/Kora.Windows/Presentation/WindowsExactAnswerExportWriter.cs) admits canonical fixed-drive text/Markdown destinations outside protected storage, holds ancestor identities, creates without replacement, flushes durably and verifies exact saved bytes. Existing destinations require a fresh new-file selection.
 
@@ -1608,6 +1615,11 @@ Downloads and exports require separate scoped host actions; no automatic opening
 Opening a page does not automatically scrape/read/summarise it. User-selected extraction requires context provenance, size checks, and normal egress consent.
 
 For the external browser, validate/show the exact destination and launch only the registered browser with a URL, not a shell command.
+The native external-browser review bounds and independently scrolls the original
+source, complete unchanged destination and privacy disclosure. Its resizable
+window keeps separate one-shot confirmation and cancellation reachable at its
+minimum size; scrolling grants no launch authority. Deterministic native layout
+and complete-operation regressions do not qualify installed accessibility.
 Disclose that external browser identity/cookies/permissions/networking are user/browser-managed and not subject to Kora's embedded sandbox.
 Once launched, Kora does not control its lifetime, close it on lock, or claim that its background requests stopped.
 

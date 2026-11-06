@@ -106,6 +106,42 @@ test('workflow inventories separate unit and parallel candidates from full main 
   }
 });
 
+test('hourly workflow capability is explicit, versioned and does not change candidate or full main inventories', async () => {
+  const source = PARALLEL_PR_SOURCE + '# main-validation-schema: hourly-v1\n';
+  const content = workflowContent(source);
+  const value = fixture({ getContent: () => content });
+  assert.equal(await value.api.supportsHourlyMain(BASE), true);
+  assert.deepEqual((await value.api.workflowInventory(BASE)).jobs, PARALLEL_MAIN_JOBS);
+  assert.deepEqual((await value.api.trustedInventory(BASE)).jobs, PARALLEL_PR_JOBS);
+  for (const invalid of [source.replace('hourly-v1', 'unknown'),
+    source + '# main-validation-schema: hourly-v1\n', PARALLEL_PR_SOURCE]) {
+    value.responses.getContent = () => workflowContent(invalid);
+    assert.equal(await value.api.supportsHourlyMain(BASE), false);
+  }
+});
+
+test('scheduled main qualification requires reviewed hourly source and every full execution gate', async () => {
+  const run = { id: 9, run_attempt: 1, head_sha: BASE, status: 'completed', conclusion: 'success',
+    event: 'schedule', head_branch: 'main', display_title: 'CI main' };
+  const jobs = [...PARALLEL_MAIN_JOBS, 'Qualify completed batch tip'].map((name, index) => ({
+    id: index + 1, name, status: 'completed', conclusion: 'success', run_id: 9, run_attempt: 1, head_sha: BASE }));
+  const value = fixture({ getContent: () => workflowContent(PARALLEL_PR_SOURCE + '# main-validation-schema: hourly-v1\n'),
+    listWorkflowRuns: () => ({ total_count: 1, workflow_runs: [run] }),
+    listJobsForWorkflowRunAttempt: () => ({ total_count: jobs.length, jobs }) });
+  assert.equal(await value.api.tipQualification({ sha: BASE }), null);
+  assert.deepEqual((await value.api.tipQualification({ sha: BASE }, { allowScheduled: true })).qualification,
+    { run: 9, source: BASE, job: jobs.length });
+  value.api.mainBuildProfile = 'hourly-v1';
+  assert.deepEqual((await value.api.tipQualification({ sha: BASE })).qualification,
+    { run: 9, source: BASE, job: jobs.length });
+  const partition = jobs.find(job => job.name.startsWith('Windows test partition ('));
+  partition.conclusion = 'skipped';
+  assert.equal((await value.api.tipQualification({ sha: BASE })).qualification, null);
+  partition.conclusion = 'success';
+  value.responses.getContent = () => workflowContent(PARALLEL_PR_SOURCE);
+  assert.equal(await value.api.tipQualification({ sha: BASE }), null);
+});
+
 for (const [source, main, candidate] of [
   [UNIT_PR_SOURCE, DELIVERY_JOBS, UNIT_PR_JOBS],
   [PARALLEL_PR_SOURCE, PARALLEL_MAIN_JOBS, PARALLEL_PR_JOBS],

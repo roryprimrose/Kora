@@ -160,7 +160,7 @@ public sealed class NativeTableAccessibilityTests
             .Render(Source, format: NativeDetailFormat.PipeTablesV2);
         result.IsFallback.Should().BeFalse();
         state.CompleteRender(state.Generation, result.SemanticText, result.Status, false).Should().BeTrue();
-        var window = new DetailWindow(state, result, (_, _, _) => throw new InvalidOperationException("No clipboard authority."))
+        var window = new DetailWindow(state, result, (_, _, _, _) => throw new InvalidOperationException("No clipboard authority."))
         { Width = 900, Height = 1100 };
         window.Show();
         window.UpdateLayout();

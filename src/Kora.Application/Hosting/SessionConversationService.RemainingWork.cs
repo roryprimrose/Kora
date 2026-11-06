@@ -65,7 +65,10 @@ public sealed partial class SessionConversationService
             task.Task.Revision, task.Task.State, task.CurrentSource))];
 
     private static bool MatchesRemainingWorkSource(SessionRemainingWorkAnswer answer, SessionWorkSnapshot snapshot) =>
-        snapshot.AuthorityRevision == answer.AuthorityRevision && snapshot.Session == answer.Session
+        snapshot.AuthorityRevision == answer.AuthorityRevision && MatchesRemainingWorkRecords(answer, snapshot);
+
+    private static bool MatchesRemainingWorkRecords(SessionRemainingWorkAnswer answer, SessionWorkSnapshot snapshot) =>
+        snapshot.Session == answer.Session
         && ProjectRemainingWorkTasks(snapshot).SequenceEqual(answer.SourceTasks)
         && snapshot.PendingQuestions.SequenceEqual(answer.Questions) && snapshot.OmittedTasks == answer.OmittedTasks
         && snapshot.OmittedQuestions == answer.OmittedQuestions && snapshot.QueueRecords.Length == answer.OtherQueueRecords

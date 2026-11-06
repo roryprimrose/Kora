@@ -4,6 +4,11 @@ Type a command without the assistant name. For voice, hold **Push to talk** and
 use your configured name, for example **Kora, open settings**. Phrases below are
 exact: a similar sentence may not match.
 
+If a previous voice input is still closing, Push to talk waits for its cleanup.
+Releasing before that completes cancels this gesture without opening the
+microphone later. Press again after cleanup to start a new command; listening
+permission and preferences are unchanged.
+
 The global command box runs commands; a session's message composer submits
 conversation text. Words inside a message do not become commands.
 **AI answers are unavailable in this build**, even after model setup.
@@ -23,6 +28,11 @@ use native lists or readable-name routes elsewhere.
 In the response window, choose **Review one spoken command**, speak one general command using the current assistant name, then choose **Finish capture**. The microphone closes before the exact final transcript appears. Correct the text if needed, then separately choose **Dispatch this exact voice command once**, or **Cancel reviewed command**. Editing never runs the command ([capture and review](../src/Kora.Application/Voice/ReviewedVoiceCommandCapture.cs)).
 
 This one-shot action does not change ordinary push-to-talk or any listening preference. It requires existing voice consent, local command readiness and unchanged private ownership. Capture and review expire after 60 seconds; changing the original target, input, device, call or private context discards the candidate instead of sending it elsewhere. Hiding, deactivating or closing the window cancels it ([host admission](../src/Kora.Application/ViewModels/MainViewModel.ReviewedVoiceCommand.cs), [window lifetime](../src/Kora/ResponseWindow.ReviewedVoiceCommand.cs)).
+
+Finishing capture, editing or confirming does not restart that deadline.
+Late confirmation or delayed dispatch is refused even if the expiry notice has
+not appeared yet. Start a fresh **Review one spoken command** after cleanup;
+the expired transcript is not replayed.
 
 Ordinary response auto-hide is suspended during capture, transcript review and the original confirmed dispatch. Completed ordinary feedback resumes the configured response timeout. This does not extend the command's independent expiry or prevent explicit dismissal or privacy closure.
 
@@ -956,6 +966,10 @@ Late preparation cannot open a new review or enable confirmation after cancellat
 If the exact review is already open, it becomes ineligible and cannot play.
 Wait for preparation to finish before starting a fresh review; status is passive
 and does not cancel or extend preparation.
+Type `cancel call speech` even while the original typed review or confirmation
+is still running. Other call-speech commands cannot interrupt that typed operation.
+Cancellation waits for owned playback to finish, including playback that ignores
+the stop request; it does not make the original command idle early or queue replay.
 
 ## Read-only host discovery
 
@@ -1084,6 +1098,19 @@ You are responsible for sensitive text you place in the clipboard; Kora does not
 classify or scan it. A reusable tool grant never replaces each snapshot's separate
 model confirmation. Session grants apply to the active clipboard explanation
 session; Always grants can be revoked through the existing grant controls.
+
+To ask a new question about the same capture, expand **Ask a question about this
+same snapshot** in the preview. Type your original question, choose **Review
+question and same snapshot**, read the complete question/source and LocalOnly
+destination, then separately confirm and choose **Ask locally using this same
+snapshot**. The first explanation's confirmation is not reused. Only this
+question and the exact capture are sent to the qualified local model, with no
+tools, previous answer or history. Editing or cancellation retires the review;
+**Cancel clipboard question** waits for owned work to finish. Nothing is
+recaptured, saved or spoken, and the original 15-minute source expiry is unchanged.
+Original questions are rejected whole if empty, malformed, credential-like or
+over 4096 UTF-16 characters / 16384 UTF-8 bytes. The full model-envelope limit
+below still applies; source evidence is not scanned or truncated.
 
 A qualified local runtime is required. The exact complete envelope must fit
 32768 UTF-8 bytes without truncation; review expires 15 minutes after capture,
@@ -1551,14 +1578,18 @@ get responses.detail-presentation
 status responses.detail-presentation
 set responses.detail-presentation to Offer
 set responses.detail-presentation to LinkOnly
+set responses.detail-presentation to OpenAutomatically
 stop asking about details
 offer detailed results
+always open detailed results
 reset responses.detail-presentation
 confirm detail presentation change
 cancel detail presentation change
 ```
 
-Only existing proactive cues on future publications are affected. **Open details**, `open current response details` and selected-session detail commands retain their existing source/privacy admission. Accepting/declining an individual offer never saves a preference. Protected-call voice writes remain denied; no new question, reply turn, model tool, automatic opening or historical replay is introduced ([shared policy](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs), [manual route](../src/Kora.Application/ViewModels/MainViewModel.CurrentResponse.cs)).
+Offer remains the default; reset saves Offer. LinkOnly suppresses cues on future publications. OpenAutomatically opts into nonactivating foreground automatic opening, with no new question or background/history replay ([shared policy](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs), [bounded native admission](../src/Kora/ResponseWindowController.AutomaticDetails.cs)).
+
+**Open details**, `open current response details` and selected-session detail commands retain their existing source/privacy admission. One-off acceptance or decline never saves a preference; protected-call voice writes remain denied ([manual route](../src/Kora.Application/ViewModels/MainViewModel.CurrentResponse.cs), [detailed boundaries](settings.md#detailed-result-offers)).
 
 ### Inspect or change the device-default response mode
 

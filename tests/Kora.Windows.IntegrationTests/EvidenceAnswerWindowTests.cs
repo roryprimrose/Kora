@@ -137,6 +137,104 @@ public sealed class EvidenceAnswerWindowTests
     }
 
     [Theory]
+    [InlineData("cancel")]
+    [InlineData("question")]
+    [InlineData("filter")]
+    [InlineData("source")]
+    [InlineData("page")]
+    [InlineData("owner")]
+    [InlineData("privacy")]
+    [InlineData("control")]
+    [InlineData("deadline")]
+    [InlineData("close")]
+    public async Task RetirementClearsDisclosureBeforeFailingCancellationCallbacksAndRetainsJoinOwnership(string change)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new Fixture();
+            await f.Model.SearchAsync();
+            f.Model.AnswerQuestion = "What happened?";
+            f.Model.ReviewEvidenceAnswer();
+            f.Model.ShowEvidenceAnswerCitation(f.Record.Reference.Citation);
+            f.Model.AnswerReviewText.Should().NotBeEmpty();
+            f.Model.AnswerCitationText.Should().NotBeEmpty();
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var join = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            f.Hold = () => release.Task;
+            f.Join = () => join.Task;
+            var operation = f.Model.ConfirmEvidenceAnswerAsync();
+            var callbackSawRetiredDisclosure = false;
+            using var registration = f.Token.Register(() =>
+            {
+                callbackSawRetiredDisclosure = f.Model.AnswerReviewText.Length == 0
+                    && f.Model.AnswerCitations.Count == 0 && f.Model.AnswerCitationText.Length == 0
+                    && !f.Model.CanConfirmEvidenceAnswer;
+                f.Model.CancelEvidenceAnswer();
+                throw new InvalidOperationException("Private cancellation subscriber failure.");
+            });
+            try
+            {
+                Func<Task> retire = async () =>
+                {
+                    switch (change)
+                    {
+                        case "cancel": f.Model.CancelEvidenceAnswer(); break;
+                        case "question": f.Model.AnswerQuestion = "Changed"; break;
+                        case "filter": f.Model.SafeText = "changed"; break;
+                        case "source": f.Model.Source = EvidenceSource.Audit; break;
+                        case "page": await f.Model.SearchAsync(); break;
+                        case "owner": f.Host = false; f.Model.RefreshEvidenceAnswerAdmission(); break;
+                        case "privacy": f.CanInspect = false; f.Model.RefreshEvidenceAnswerAdmission(); break;
+                        case "control": f.ControlRevision++; f.Model.RefreshEvidenceAnswerAdmission(); break;
+                        case "deadline": f.Time.Now = f.Time.Now.AddMinutes(3); f.Model.RefreshEvidenceAnswerAdmission(); break;
+                        case "close": f.Model.Close(); break;
+                    }
+                };
+                await retire.Should().NotThrowAsync();
+                callbackSawRetiredDisclosure.Should().BeTrue();
+                f.Token.IsCancellationRequested.Should().BeTrue();
+                f.Model.AnswerReviewText.Should().BeEmpty();
+                f.Model.AnswerCitations.Should().BeEmpty();
+                f.Model.AnswerCitationText.Should().BeEmpty();
+                f.Model.AnswerText.Should().BeEmpty();
+                f.Model.CanConfirmEvidenceAnswer.Should().BeFalse();
+                f.Model.CanReviewEvidenceAnswer.Should().BeFalse();
+                if (change is "filter" or "source" or "privacy" or "close")
+                {
+                    f.Model.ResultText.Should().BeEmpty();
+                    f.Model.Records.Should().BeEmpty();
+                }
+                await f.Model.ConfirmEvidenceAnswerAsync();
+                f.Calls.Should().Be(1);
+                f.Reads.Should().Be(change is "page" ? 2 : 1);
+                f.Model.IsAnswering.Should().BeTrue();
+                operation.IsCompleted.Should().BeFalse();
+                release.SetResult();
+                await f.JoinEntered.Task;
+                f.Model.IsAnswering.Should().BeTrue();
+                operation.IsCompleted.Should().BeFalse();
+                f.AuditEvents.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested);
+                join.SetResult();
+                await operation;
+                f.Model.IsAnswering.Should().BeFalse();
+                f.Model.AnswerText.Should().BeEmpty();
+                f.Model.AnswerReviewText.Should().BeEmpty();
+                f.Model.AnswerCitationText.Should().BeEmpty();
+                f.Calls.Should().Be(1);
+                f.Reads.Should().Be(change is "page" ? 2 : 1);
+                f.AuditEvents.Select(item => item.Outcome).Should().Equal(
+                    SecurityAuditOutcome.Requested, SecurityAuditOutcome.Cancelled);
+            }
+            finally
+            {
+                release.TrySetResult();
+                join.TrySetResult();
+                await operation;
+            }
+        });
+    }
+
+    [Theory]
     [InlineData("empty", "NoEvidence")]
     [InlineData("partial", "Unavailable")]
     [InlineData("omitted", "Unavailable")]
@@ -261,6 +359,7 @@ public sealed class EvidenceAnswerWindowTests
         internal Func<Task>? Hold { get; set; }
         internal Func<Task>? Join { get; set; }
         internal TaskCompletionSource JoinEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal List<SecurityAuditEvent> AuditEvents { get; } = [];
         public ValueTask<EvidenceReadBatch> ReadAsync(EvidenceQuery query, EvidenceReadCheckpoint? checkpoint,
             HostRequest request, DateTimeOffset now, CancellationToken cancellationToken)
         {
@@ -297,7 +396,7 @@ public sealed class EvidenceAnswerWindowTests
             JoinEntered.TrySetResult();
             if (Join is not null) { await Join(); }
         }
-        public void Write(SecurityAuditEvent auditEvent) { }
+        public void Write(SecurityAuditEvent auditEvent) => AuditEvents.Add(auditEvent);
         public void Dispose() { Model.Close(); listener.Dispose(); }
     }
 }

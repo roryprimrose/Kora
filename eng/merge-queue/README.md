@@ -11,6 +11,128 @@ It needs no local agent, workstation, external queue service or always-on runner
 An unknown mode fails CI admission rather than silently enabling another policy.
 Do not enable the queue merely by merging its implementation PR.
 
+## Optional hourly main validation
+
+`KORA_MAIN_BUILD_PROFILE=hourly-v1` is a separate administrator opt-in. It
+requires enabled `batch-v1` admission and `independent-v1` delivery. Absent/empty
+retains per-merge main validation; unknown values fail closed. Merging this
+implementation does not activate the profile.
+
+Automatic main pushes then run admission feedback only, explicitly reporting
+coalescing rather than claiming skipped validation passed. The existing
+serialized App controller owns automatic main dispatch; CI has no separate cron.
+Repository events and the separate five-minute timer wakeup check whether
+the current completed main source differs from the qualified activation baseline,
+last actual full attempt and last dispatch. The controller reserves at most one
+automatic dispatch per UTC hourly slot, with at least 60 minutes since activation,
+the preceding request, actual run creation and observed full attempt.
+An unchanged source is not automatically retried after failure. Explicit
+manual/tag validation remains available under its existing source and release
+rules. GitHub controller wakeups remain best-effort, not a promise of exact
+wall-clock launch time. Live automatic dispatch and same-source/hour suppression
+require observation rather than a manual-run proxy.
+
+The [timer workflow](../../.github/workflows/merge-queue-timer.yml) runs separately
+from the serialized controller, on the off-peak `2-57/5 * * * *` schedule. With
+queue mode enabled it uses an Actions-only token to request ordinary protected
+reconciliation on main. A main push that changes the timer file also
+requests reconciliation, providing automatic runtime validation of timer edits
+without treating that push as evidence of cron delivery. It never checks out source, changes queue state, reserves
+candidates or dispatches CI. Duplicate or delayed wakeups still pass the same
+durable source/hour guards. Separating timer requests from controller execution
+does not make GitHub cron a guaranteed clock; delayed or dropped schedules can
+still postpone an otherwise eligible build on a quiet repository.
+
+The controller's CI lifecycle trigger accepts only main-branch runs; a second
+job guard excludes ordinary `pull_request` feedback, including fork branches
+named main. PR lifecycle, review/enrollment changes, main pushes,
+candidate/main CI lifecycle, explicit continuation and timer requests remain
+wakeups. Lightweight waiting-PR feedback is not an admission dependency, and
+selected candidate CI still executes its own complete policy/unit/coverage gates.
+
+The eight candidate gates and all 27 main identities remain unchanged. Candidate
+admission advances from the App's exact persisted completed-source record; it
+does not wait for each main build to start. Full main qualification, fresh
+payload/installer bytes and protected source-bound beta publication are still
+required for the selected hourly source. Intermediate sources are not published
+by relabeling another run's artifacts.
+
+Only the serialized controller records dispatch intent and observed attempt/cursor metadata.
+First-attempt same-repository CI runs and their exact-source version job identify
+an actual full attempt, including a failed one; skipped jobs and missing evidence
+do not. The scheduled admission path also reconciles earlier runs before granting
+work for historical native schedules. The attempt ledger is scheduling evidence,
+never successful qualification or new authority. Automatic dispatch uses ordinary
+main CI, separate from the candidate lane, and waits while a candidate is active.
+
+The controller persists source/hour intent before requesting dispatch, then saves
+the exact returned run ID using the response-bearing GitHub API version
+`2026-03-10`. It verifies first-attempt repository/source metadata and actual
+creation time before another automatic dispatch. An ambiguous response or missing
+run metadata retains the receipt and reports the unresolved outcome; it never
+replays the request or guesses a run. PR admission remains independent of that
+pending scheduler outcome. Operator reconciliation or the guarded profile
+recovery protocol is required for an intent with no verifiable returned run ID;
+do not edit queue state or manually replay it. A prepared administrator transition
+remains immutable and cannot dispatch work.
+
+### Guarded main scheduling switch
+
+All four operations use the existing protected controller, administrator check,
+exact state checkpoint and `acknowledge_batch_change=true`. They never change
+configuration, withdraw Auto-merge, cancel candidates/publishers or bypass proof.
+The same administrator and generated hold token own the complete transition.
+
+1. Follow the [account-safe client protocol](#copilot-and-other-pr-clients).
+   Obtain separate authority for the repository variable write and guarded
+   transition. Read current main, queue state, profiles, protection and physical
+   CI ownership. Do not start a second delivery/main-scheduling transition.
+2. Dispatch `hold-main-builds` on trusted main with `main_build_profile=hourly-v1`
+   and the exact `recovery_checkpoint`. Read back
+   `mainSchedulingTransition.phase=draining` and its token. Existing owned work
+   continues; only new reservations are held.
+3. After the active candidate drains, dispatch `prepare-main-builds` with a fresh
+   checkpoint and the same `recovery_ticket`/target. It requires the current
+   completed-source record, reviewed main scheduling schema, successful complete
+   first-attempt qualification, exact tree and physically quiescent CI/publication.
+   Failed/skipped main is not readiness. Use `abort-main-builds` and repair the
+   source instead of changing the profile to escape a failure.
+4. Read the ready checkpoint, source, full qualification, live profiles and
+   physical ownership again. Only under separately verified administrator
+   authority set the repository variable `KORA_MAIN_BUILD_PROFILE` to `hourly-v1`.
+   Dispatch `resume-main-builds` using that exact ready checkpoint/token/target.
+   It revalidates the full boundary and atomically records the qualified baseline
+   and durable adoption. Ambiguous writes require readback, not blind repetition.
+
+For example, the separately authorized hold is:
+
+```powershell
+gh workflow run merge-queue.yml --repo github.com/roryprimrose/Kora --ref main `
+  -f operation=hold-main-builds -f main_build_profile=hourly-v1 `
+  -f recovery_checkpoint=<reviewed-state-commit> -F acknowledge_batch_change=true
+```
+
+The profile write is a separate administrator action, not part of PR delivery:
+
+```powershell
+gh variable set KORA_MAIN_BUILD_PROFILE --repo github.com/roryprimrose/Kora --body hourly-v1
+```
+
+Rollback uses the same drained/qualified protocol with target `per-merge` and a
+separately authorized restoration/removal of that one variable. Configuration
+must remain at the old value until ready and match the target only for resume.
+Unexpected source/configuration/authority changes retain the hold and fail
+explicitly. A ready hold does not observe new attempts or reserve work, preserving
+its exact checkpoint while the operator switches configuration.
+
+Run `node .\eng\run-policy-tests.cjs`, `.\eng\Test-CiPreflight.ps1`,
+`.\eng\Test-BuildVersion.ps1` and `.\eng\Test-GitHubRelease.ps1`. Deterministic
+fixtures cover no-change/changed/same-slot and rolling-hour decisions, durable
+intent/run identity, ambiguous-response non-replay, earlier unobserved attempts,
+failed attempts, API/identity failures, guarded activation/rollback and complete
+scheduled-source publication. These tests do not claim a live profile switch or
+observed hourly cadence.
+
 ## Opt-in independent beta delivery
 
 `KORA_MERGE_QUEUE_DELIVERY_PROFILE=independent-v1` is a separate administrator
@@ -164,6 +286,12 @@ The App creates ticket-owned `automation/merge-queue-batch/<ticket>/<prefix>`
 refs through GitHub's normal ref/merge APIs. Candidate code never executes with
 the App token. Construction reconciles exact parents after interruption rather
 than forcing refs or blindly repeating a merge with an ambiguous outcome.
+After a successful merge returns a commit SHA, construction verifies that
+immutable commit's exact identity, tree and expected parents instead of
+immediately rereading the mutable ref, which can still report its pre-merge tip.
+A malformed returned SHA fails explicitly. A response without a commit identity
+still requires observed ref ancestry; ambiguous requests retain the existing
+restart checks. No response alone seals a prefix without commit verification.
 
 Construction stops at the first conflict instead of discarding a compatible
 prefix. Before any digest or dispatch exists, the controller seals a **new
@@ -356,6 +484,13 @@ The follow-up still joins owned work before releasing the lane. An uncertain ret
 - After partial integration, preserve actual PR Merged states and the recorded
   prefix. A changed/withdrawn/review-blocked suffix, unexpected main, or
   uncertain merge holds `recovery-required` and the publication block.
+  Native Auto-merge can complete between the post-attestation/pending PR read
+  and subsequent authority/main reads. Before withdrawing an attested gate or
+  entering recovery for that change, the controller reobserves the PR's merged
+  outcome. An observed merge wakes ordinary reconciliation without replaying
+  the merge request or withdrawing the gate; the next pass still verifies the
+  exact parent, prefix tree and main reachability before recording progress.
+  A changed fence without an observed merge still requires recovery.
   A late observed merge may record its verified actual prefix, but does not
   silently clear reviewed recovery.
 - `resume-batch` requires separately authorized administrator review, exact
@@ -374,7 +509,11 @@ The follow-up still joins owned work before releasing the lane. An uncertain ret
   before a fully validated repair/revert.
 - Recovery calls are checkpoint-specific; repeating one after its successful
   write fails rather than replaying effects. Inspect checkpoint readback after
-  transport uncertainty. The legacy `recover-unobservable-dispatch` operation
+  transport uncertainty. After verified checkpoint readback, `resume-batch` and
+  `repair-batch` request one ordinary controller reconciliation so a quiet
+  repository does not depend on another PR event or delayed timer. A failed
+  continuation is explicit and retains the written checkpoint; do not replay
+  the old recovery inputs. The legacy `recover-unobservable-dispatch` operation
   cannot clear a batch.
 - Roll back only at an idle, qualified completed tip with quiescent CI. Run the
   separately authorized `rollback-batch-v1` operation with the exact checkpoint

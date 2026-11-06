@@ -106,6 +106,68 @@ test('workflow inventories separate unit and parallel candidates from full main 
   }
 });
 
+test('hourly dispatch pins the response-bearing API version and verifies the exact returned run URLs', async () => {
+  const value = fixture();
+  const data = { workflow_run_id: 123, run_url: 'https://api.github.com/repos/owner/repo/actions/runs/123',
+    html_url: 'https://github.com/owner/repo/actions/runs/123' };
+  let response = { status: 200, data };
+  let requests = 0;
+  value.github.rest.actions.createWorkflowDispatch = async params => {
+    requests++;
+    assert.deepEqual(params, { owner: 'owner', repo: 'repo', workflow_id: 'ci.yml', ref: 'main', inputs: {},
+      headers: { 'X-GitHub-Api-Version': '2026-03-10' } });
+    return response;
+  };
+  assert.equal(await value.api.dispatchHourlyMain({ sha: BASE }), 123);
+  for (const invalid of [
+    { status: 204 }, { status: 200, data: {} }, { status: 200, data: { ...data, workflow_run_id: 0 } },
+    { status: 200, data: { ...data, run_url: 'https://api.github.com/repos/foreign/repo/actions/runs/123' } },
+    { status: 200, data: { ...data, html_url: 'https://github.com/owner/repo/actions/runs/124' } },
+  ]) {
+    response = invalid;
+    await assert.rejects(value.api.dispatchHourlyMain({ sha: BASE }), /ambiguous/);
+  }
+  const before = requests;
+  await assert.rejects(value.api.dispatchHourlyMain({ sha: HEAD }), /source changed/);
+  assert.equal(requests, before);
+});
+
+test('hourly workflow capability is explicit, versioned and does not change candidate or full main inventories', async () => {
+  const source = PARALLEL_PR_SOURCE + '# main-validation-schema: hourly-v1\n';
+  const content = workflowContent(source);
+  const value = fixture({ getContent: () => content });
+  assert.equal(await value.api.supportsHourlyMain(BASE), true);
+  assert.deepEqual((await value.api.workflowInventory(BASE)).jobs, PARALLEL_MAIN_JOBS);
+  assert.deepEqual((await value.api.trustedInventory(BASE)).jobs, PARALLEL_PR_JOBS);
+  for (const invalid of [source.replace('hourly-v1', 'unknown'),
+    source + '# main-validation-schema: hourly-v1\n', PARALLEL_PR_SOURCE]) {
+    value.responses.getContent = () => workflowContent(invalid);
+    assert.equal(await value.api.supportsHourlyMain(BASE), false);
+  }
+});
+
+test('scheduled main qualification requires reviewed hourly source and every full execution gate', async () => {
+  const run = { id: 9, run_attempt: 1, head_sha: BASE, status: 'completed', conclusion: 'success',
+    event: 'schedule', head_branch: 'main', display_title: 'CI main' };
+  const jobs = [...PARALLEL_MAIN_JOBS, 'Qualify completed batch tip'].map((name, index) => ({
+    id: index + 1, name, status: 'completed', conclusion: 'success', run_id: 9, run_attempt: 1, head_sha: BASE }));
+  const value = fixture({ getContent: () => workflowContent(PARALLEL_PR_SOURCE + '# main-validation-schema: hourly-v1\n'),
+    listWorkflowRuns: () => ({ total_count: 1, workflow_runs: [run] }),
+    listJobsForWorkflowRunAttempt: () => ({ total_count: jobs.length, jobs }) });
+  assert.equal(await value.api.tipQualification({ sha: BASE }), null);
+  assert.deepEqual((await value.api.tipQualification({ sha: BASE }, { allowScheduled: true })).qualification,
+    { run: 9, source: BASE, job: jobs.length });
+  value.api.mainBuildProfile = 'hourly-v1';
+  assert.deepEqual((await value.api.tipQualification({ sha: BASE })).qualification,
+    { run: 9, source: BASE, job: jobs.length });
+  const partition = jobs.find(job => job.name.startsWith('Windows test partition ('));
+  partition.conclusion = 'skipped';
+  assert.equal((await value.api.tipQualification({ sha: BASE })).qualification, null);
+  partition.conclusion = 'success';
+  value.responses.getContent = () => workflowContent(PARALLEL_PR_SOURCE);
+  assert.equal(await value.api.tipQualification({ sha: BASE }), null);
+});
+
 for (const [source, main, candidate] of [
   [UNIT_PR_SOURCE, DELIVERY_JOBS, UNIT_PR_JOBS],
   [PARALLEL_PR_SOURCE, PARALLEL_MAIN_JOBS, PARALLEL_PR_JOBS],
@@ -272,6 +334,55 @@ test('independent main early failure is negative terminal evidence, not successf
       value.responses.getCommit = ({ ref: source }) => ({ sha: source, commit: { tree: { sha: HEAD } },
         parents: [{ sha: HEAD }, { sha: BASE }] });
       await assert.rejects(value.api.syntheticPrefix(active, 0), /parent identities/);
+    }
+  });
+
+  test('synthetic merge response identifies the immutable prefix even while the ref still reports its old tip', async () => {
+    const value = fixture({
+      getRef: () => ({ object: { sha: BASE } }),
+      merge: () => ({ sha: OTHER }),
+      getCommit: ({ ref }) => ({ sha: ref, commit: { tree: { sha: HEAD } },
+        parents: ref === OTHER ? [{ sha: BASE }, { sha: HEAD }] : [{ sha: 'e'.repeat(40) }] }),
+      compareCommits: () => ({ status: 'diverged' }),
+    });
+    assert.deepEqual(await value.api.syntheticPrefix(batchState().active, 0), { sha: OTHER, tree: HEAD });
+    assert.equal(value.calls.filter(call => call[0] === 'merge').length, 1);
+    assert.equal(value.calls.filter(call => call[0] === 'getRef').length, 1);
+    assert.deepEqual(value.calls.filter(call => call[0] === 'getCommit').map(call => call[1].ref), [OTHER]);
+  });
+
+  test('synthetic merge response cannot replace exact parent or commit identity validation', async () => {
+    for (const kind of ['malformed-sha', 'array-sha', 'wrong-identity', 'wrong-parents', 'old-tip', 'unrelated-head']) {
+      const value = fixture({
+        getRef: () => ({ object: { sha: BASE } }),
+        merge: () => ({ sha: kind === 'array-sha' ? [OTHER] : kind === 'malformed-sha' ? null
+          : kind === 'old-tip' ? BASE : kind === 'unrelated-head' ? HEAD : OTHER }),
+        getCommit: ({ ref }) => ({ sha: kind === 'wrong-identity' ? BASE : ref,
+          commit: { tree: { sha: HEAD } }, parents: ref !== OTHER ? [{ sha: 'e'.repeat(40) }]
+            : kind === 'wrong-parents' ? [{ sha: HEAD }, { sha: BASE }] : [{ sha: BASE }, { sha: HEAD }] }),
+        compareCommits: () => ({ status: 'diverged' }),
+      });
+      await assert.rejects(value.api.syntheticPrefix(batchState().active, 0),
+        ['malformed-sha', 'array-sha'].includes(kind) ? /synthetic merge identity/ : kind === 'wrong-identity'
+          ? /Incomplete commit/ : /parent identities/);
+      assert.equal(value.calls.filter(call => call[0] === 'merge').length, 1, kind);
+    }
+  });
+
+  test('synthetic response without a commit identity still requires observed ref ancestry', async () => {
+    for (const contained of [false, true]) {
+      const value = fixture({
+        getRef: () => ({ object: { sha: BASE } }),
+        merge: () => undefined,
+        getCommit: ({ ref }) => ({ sha: ref, commit: { tree: { sha: HEAD } },
+          parents: [{ sha: OTHER }] }),
+        compareCommits: () => ({ status: contained ? 'ahead' : 'diverged' }),
+      });
+      if (contained)
+        assert.deepEqual(await value.api.syntheticPrefix(batchState().active, 0), { sha: BASE, tree: HEAD });
+      else await assert.rejects(value.api.syntheticPrefix(batchState().active, 0), /parent identities/);
+      assert.equal(value.calls.filter(call => call[0] === 'getRef').length, 2);
+      assert.equal(value.calls.filter(call => call[0] === 'merge').length, 1);
     }
   });
 

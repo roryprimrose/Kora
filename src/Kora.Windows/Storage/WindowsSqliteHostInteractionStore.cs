@@ -83,8 +83,10 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
                 HostInteractionSchema.LegacyConversationTables, MigrateConversationExecution),
             sessionPermissionMigration: new(12, 13,
                 HostInteractionSchema.ConversationTables, MigrateSessionPermission),
-            answerReviewMigration: new(13, HostInteractionSchema.Version,
-                HostInteractionSchema.SessionPermissionTables, MigrateAnswerReviews));
+            answerReviewMigration: new(13, 14,
+                HostInteractionSchema.SessionPermissionTables, MigrateAnswerReviews),
+            auditRetentionMigration: new(14, HostInteractionSchema.Version,
+                HostInteractionSchema.AnswerReviewTables, MigrateAuditRetention));
     }
 
     public ValueTask InitializeAsync(CancellationToken cancellationToken) =>
@@ -515,6 +517,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
                 using var transaction = connection.BeginTransaction();
                 tasks.ImportAuthority(connection, transaction, cancellationToken);
                 Execute(connection, transaction, "INSERT INTO authority_head VALUES(1,0,$hash);", ("$hash", EmptyHash));
+                SeedAuditAnchor(connection, transaction);
                 SeedMemoryProfile(connection, transaction);
                 transaction.Commit();
             }
@@ -677,8 +680,9 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
     {
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT sequence,correlation_id,previous_hash,hash,envelope FROM security_audit_events ORDER BY sequence;";
-        long sequence = 0;
-        var hash = EmptyHash;
+        var anchor = ReadAuditAnchor(connection);
+        var sequence = anchor.Sequence;
+        var hash = anchor.Hash;
         using (var reader = command.ExecuteReader())
         {
             while (reader.Read())

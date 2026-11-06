@@ -201,9 +201,12 @@ public sealed partial class SessionsConversationTests
                 cancelSelection.Should().BeFalse("dismissed tool selection must not request arguments");
                 tool.Id.Should().Be("mcp.search");
                 tool.InputSchema.Should().Be(NativeMcpSchema);
+                var prompt = "Enter JSON arguments for " + tool.Id
+                    + ". Every required field must match this schema. Submitting input is NOT approval to send it.\n"
+                    + tool.InputSchema;
                 var receipt = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                     native.AskConversationAsync(request, generation,
-                        new("Enter the reviewed schema-bound JSON", QuestionKind.Text, [],
+                        new(prompt, QuestionKind.Text, [],
                             maximumTextLength: McpToolSchema.MaximumArgumentsUtf8Bytes, sourceId: "mcp-tool-arguments"),
                         expiresAt, admitted, async state =>
                         {
@@ -211,7 +214,9 @@ public sealed partial class SessionsConversationTests
                             try
                             {
                                 window.Show(owner);
-                                state.Edit(new([], """{"query":"reference"}"""));
+                                window.FindControl<TextBox>("ExactReview")!.Text.Should().Be(prompt);
+                                state.ReviewText.Should().BeEmpty("schema presentation is not an explicit review or approval");
+                                window.FindControl<TextBox>("AnswerInput")!.Text = """{"query":"reference"}""";
                                 state.CanSubmit.Should().BeTrue(state.Status);
                                 await state.SubmitAsync();
                                 state.Completion.IsCompleted.Should().BeTrue(state.Status);

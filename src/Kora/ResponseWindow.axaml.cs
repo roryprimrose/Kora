@@ -511,6 +511,7 @@ public sealed partial class ResponseWindow : Window
             PositionNearPresence();
         }
 
+        KeepOnScreen();
         positionInitialized = true;
     }
 

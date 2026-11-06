@@ -1,6 +1,32 @@
 # Read-only MCP HTTPS transport
 
-**MCP (Model Context Protocol)** connects tools offered by another service.
+## Built-in Kora capabilities
+
+Kora has a private built-in MCP server. Its catalogue and capability-manager projection are host metadata:
+listing them does not open a network endpoint, launch a process or require a delegated account
+([catalogue](../src/Kora.Core/Mcp/KoraMcpCatalog.cs), [private server](../src/Kora.Application/Mcp/KoraMcpServer.cs)).
+
+Server, category and individual-tool consideration choices use the same device-local MCP preferences as external servers.
+Disabling a server preserves its category/item choices, including after restart. A category-wide change replaces its individual
+exceptions. Enabling consideration is not execution, consent or approval
+([shared policy](../src/Kora.Core/Mcp/McpCapabilitySelection.cs), [host adapter](../src/Kora.Application/Configuration/McpCapabilityPreferences.cs)).
+
+The metadata inventory includes the original observations, reviewed settings/session/customization discovery, the scoped webpage
+tool and conversational `ask_user`. It does not create one tool per setting or enable an unavailable model. Source-bound entries
+are labelled as requiring their existing review; `ask_user` cannot confirm a protected operation
+([inventory](../src/Kora.Core/Mcp/KoraMcpCatalog.cs), [host dispatch](../src/Kora.Application/Dependencies/ModelTurnHost.cs)).
+
+Disabled tools are removed from supported model context selections and rejected again at dispatch, including cached calls.
+Changes retire turns using the built-in catalogue; re-enabling cannot revive them. Unrelated tool-free answers and external-only
+turns retain their own authority checks. Native controls remain recovery paths, and mandatory approvals are not disabled with `ask_user`
+([selection](../src/Kora.Application/Configuration/McpCapabilityPreferences.cs), [revalidation](../src/Kora.Application/Dependencies/ModelTurnHost.Capabilities.cs)).
+
+The private MCP observation interface and provider adapters use the existing typed actions and shared input schemas. Reviewed source-bound operations use the same server's host-bound dispatch, not an unrestricted settings/file/session reader. The external HTTPS workflow below retains its independent account, destination, effect mapping and approval requirements
+([schemas](../src/Kora.Core/Tools/CapabilityInputSchema.cs), [server](../src/Kora.Application/Mcp/KoraMcpServer.cs)).
+
+## External read-only HTTPS servers
+
+**MCP (Model Context Protocol)** connects tools, resources and prompt templates offered by another service.
 Kora's first supported connection is read-only and uses HTTPS. It is not a
 general remote-command runner.
 
@@ -15,6 +41,13 @@ and separately approve its exact schema and arguments. The result is inert
 lower-trust evidence for the local model, not instructions or permission.
 Discovery annotations never establish a read-only mapping.
 
+When a result contains several text blocks, Kora combines them in server order
+with exactly one newline between blocks, including empty blocks. Leading,
+consecutive and trailing empty blocks are preserved in both the displayed result
+and any separately consented local continuation. Text inside each block and
+optional structured JSON are unchanged; the existing four-block and complete
+1,536-byte response limits still apply.
+
 If a configuration refresh observes changed source bytes, exclusion, removal or
 unavailable configuration while discovery or review is pending, the old review
 cannot continue. Restoring the previous file or inclusion does not revive it.
@@ -23,6 +56,47 @@ included source, refresh the options, then explicitly start a new request and
 repeat discovery and native approvals. Kora does not reconnect or retry for you.
 This does not detect changes the host never observed or enable the unavailable
 connector.
+
+## Choose which capabilities Kora may consider
+
+The Customizations MCP Servers page shows built-in Kora tools and any external capability metadata admitted during an explicit Session discovery.
+Its existing Search field also filters those rows by name, exact item identity, source or group; category filtering changes visibility only ([row projection](../src/Kora/McpCapabilityRows.cs), [native catalogue](../src/Kora/CustomizationWindow.Tools.cs)).
+
+Select an admitted capability row and choose **Review selected server capabilities** to edit that server's saved parent/category/item choices through the shared manager. The built-in catalogue needs no delegated account or invented HTTPS endpoint.
+External editing still requires its original current discovery receipt; expired or retired metadata cannot authorize a save ([native workflow](../src/Kora/CustomizationWindowController.Tools.cs)).
+
+After **Review HTTPS MCP options**, select an included server and delegated account, then choose **Manage MCP capabilities**. Approve connection and bounded metadata discovery; this does not read resource bodies, retrieve prompt messages or invoke tools ([workflow](../src/Kora.Application/Hosting/SessionConversationService.McpCapabilities.cs)).
+
+The private manager groups **Tools**, **Resources** (including resource templates), and **Prompts**. Capability preferences default enabled. A server's master enabled choice suppresses all categories without discarding child selections.
+**Enable all / Disable all** within a category replaces its individual exceptions and sets the default for newly discovered entries. Individual checkboxes produce a mixed selection ([selection rules](../src/Kora.Core/Mcp/McpCapabilitySelection.cs)).
+
+Category-wide actions apply to the entire category, including items hidden by a live filter. Clearing a filter changes visibility only; it does not discard individual draft choices or change the category's default ([native regression](../tests/Kora.Windows.IntegrationTests/McpCapabilityManagerTests.cs)).
+
+Choose **Review changes**, inspect the server/category/item changes, then separately confirm Save. Closing or cancelling writes nothing. These device-local preferences do not change another application's MCP configuration.
+Excluded and unsupported items are not offered for use; enabled does not mean connected, authorized, automatically read or inserted into every model request ([manager](../src/Kora/McpCapabilityManagerWindow.cs)).
+
+Capability changes retire pending source reviews, including disable/re-enable cycles. Missing effect mappings and unavailable account/runtime readiness remain unavailable regardless of checkbox state.
+Discovery is explicit, private and volatile; saved choices contain hashed item identities, not resource bodies or raw resource identifiers ([preference store](../src/Kora.Application/Configuration/LocalArtifactDirectoryPreferences.cs)).
+
+## Read resources and use prompts
+
+With an exact server/account selected in Sessions:
+
+- **Read MCP resource** selects and reviews one enabled text resource, retrieves it and displays the actual text without a model ([resource workflow](../src/Kora.Application/Mcp/McpInvocation.Capabilities.cs)).
+- **Read MCP resource template** additionally accepts a JSON object of string parameters and reviews the expanded resource URI before reading. Scalar URI-template expansion is supported; compound parameter values are rejected ([expansion](../src/Kora.Core/Mcp/McpResourceTemplate.cs)).
+- **Preview MCP prompt** accepts the declared string arguments, reviews their transmission and displays the complete returned text messages, preserving their declared template roles ([prompt parser](../src/Kora.Core/Mcp/McpCapabilityProtocol.cs)).
+- **Read resource and answer locally**, **Read template and answer locally**, and **Use MCP prompt locally** use the unchanged composer request. After retrieval, separately review the complete source and consent to one local model use.
+  Only the original request and genuine answer or truthful HOST terminal are retained ([local answer workflow](../src/Kora.Application/Hosting/SessionConversationService.McpCapabilities.cs)).
+
+These are complete source/read/answer operations, not automatic context attachment. Resource URIs stay identifiers sent to the selected MCP server: they never authorize Kora to open a local file or fetch another destination.
+Embedded resources and expanded template URIs cannot bypass resource exclusions ([read owner](../src/Kora.Application/Mcp/McpInvocation.Capabilities.cs), [local answer](../src/Kora.Application/Hosting/SessionConversationService.McpCapabilities.cs)).
+
+After disabling all Resources, enabling one template permits that template's reviewed expansion without enabling every resource. An explicit exclusion of its resolved resource still blocks the read. Prompt-embedded resources independently require Resources consideration to be enabled ([individual choices](../src/Kora.Core/Mcp/McpCapabilitySelection.cs)).
+
+This profile accepts text and embedded text resources only. Binary resources, image/audio blocks, unsupported roles and mixed unsupported replies reject the whole operation without partial application. Prompt roles are untrusted template data, not genuine previous conversation messages or host instructions ([content parser](../src/Kora.Core/Mcp/McpCapabilityProtocol.cs)).
+
+The equivalent foreground typed/activated commands are `manage selected mcp capabilities`, `read selected mcp resource`, `read selected mcp resource template`, `preview selected mcp prompt`, and `use selected mcp resource|resource template|prompt <task>`.
+These require exact prior server/account selection and the same native reviews; they do not choose a default target ([command parser](../src/Kora.Application/Mcp/McpCommand.cs)).
 
 ## Separately review the result before model continuation
 
@@ -44,6 +118,10 @@ select one admitted read-only tool and review
 its schema. Enter JSON containing its required bounded inputs. This input step
 does not send the tool call: separately approve the final exact destination,
 account, tool, schema and arguments.
+
+The [native argument window](../src/Kora/QuestionWindow.axaml.cs) puts the complete unchanged schema in its read-only keyboard reader, not an oversized static heading. Tab to the reader and use Ctrl+Home/Ctrl+End or the arrow keys to inspect it. Multiline JSON entry scrolls within a bounded editor so **Review exact record**, **Submit** and **Cancel** remain reachable.
+
+Reading the schema does not review the record, save arguments, grant permission or send a call. **Review exact record** and final outgoing approval are separate. The reader blocks clipboard/context-menu export and clears when closed or private presentation ends ([regressions](../tests/Kora.Windows.IntegrationTests/NativeQuestionWindowContractTests.McpArguments.cs)).
 
 The original session shows the actual inert tool result or a truthful failure.
 No model runs, no assistant answer is invented, and your unsent conversation
@@ -210,11 +288,13 @@ response bytes. Malformed, duplicate, empty or other charset values are refused,
 not decoded using a fallback.
 
 The supported protocol version is `2025-06-18`, with one HTTPS request at a
-time and complete JSON responses. Server-managed sessions, streaming,
-additional result pages, redirects, compressed responses, sign-in retries and
-other transports are unsupported. Connection setup and tool discovery accept
-at most 16,384 UTF-8 bytes; a tool result accepts at most 1,536. Oversized or
-unsupported replies fail rather than being presented as complete results.
+time and complete JSON responses. Server-managed sessions, streaming, subscriptions, push refresh, redirects, compressed responses, sign-in retries and other transports remain unsupported ([transport](../src/Kora.Windows/Mcp/McpHttpConnection.cs)).
+
+Discovery supports opaque cursor pagination, bounded to 32 pages, 256 total items and 256 KiB across one inventory. Each complete page/initialization response is at most 16,384 UTF-8 bytes.
+Tool results retain their 1,536-byte limit; complete resource/prompt responses and parsed text documents are bounded to 16,384 bytes. Exceeding a bound fails explicitly rather than presenting a partial inventory or source as complete ([bounds](../src/Kora.Core/Mcp/McpCapabilityProtocol.cs)).
+
+Only a selected reviewed tool schema reaches its tool-capable model request. Resource/prompt answers are local, tool-free turns containing only the selected reviewed text; enabling an entire category does not preload its payloads.
+Complete model-input bounds are checked after serialization, not treated as token counts ([context owner](../src/Kora.Application/Hosting/SessionConversationService.McpCapabilities.cs)).
 
 All DNS answers must be public. The connection pins the admitted addresses
 and connects only to the first one, retaining normal HTTPS hostname/certificate

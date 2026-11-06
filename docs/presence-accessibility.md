@@ -47,6 +47,21 @@ is separate; this behavior applies when opening or explicitly changing layout.
 Deterministic native tests do not qualify physical monitors, Windows DPI or
 installed assistive technology.
 
+## Response position recovery
+
+When a compact response opens, Kora keeps its saved position if the window fits
+inside the connected display's working area. If the origin is still on-screen
+but the response extends beyond an edge, Kora moves it back into that area so
+the response and command input remain reachable. A disconnected saved display
+continues to use the normal placement near presence.
+
+This reuses the same working-area layout as expanding or collapsing Sessions.
+Recovery does not activate the window, submit unsent input, replace its response,
+start listening or speech, or save a new position by itself. Compact responses
+use the small-working-area layout above; expanded Sessions and side-by-side
+Details retain their existing minimum sizes. This does not qualify physical
+multi-display or installed accessibility behavior.
+
 ## Reading the compact response
 
 The separate readable response does not automatically hide while the pointer

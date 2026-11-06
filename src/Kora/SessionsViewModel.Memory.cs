@@ -263,6 +263,22 @@ internal sealed partial class SessionsViewModel
     public Task DisableMemoryAsync() => RunMemoryAsync(MemoryCommandOperation.Disable);
     public Task ForgetMemoryAsync() => RunMemoryAsync(MemoryCommandOperation.Forget);
 
+    internal Func<bool> CaptureMemoryPresentation()
+    {
+        var epoch = memoryEpoch;
+        var source = CaptureDraftPresentationEligibility();
+        return () => source() && MemorySourceCurrent && memoryEpoch == epoch;
+    }
+
+    internal void ReportMemoryPresentationFailure(Exception exception)
+    {
+        Failure(logger, exception.GetType().Name);
+        if (closed || !access.CanInspect) { return; }
+        status += " Native memory result focus is unavailable. Read the exact memory result and inspect retained state; "
+            + "no rollback, retry or renewed authority is inferred.";
+        OnPropertyChanged(nameof(Status));
+    }
+
     private Task RunMemoryAsync(MemoryCommandOperation operation, bool accept = false) => RunAsync(async () =>
     {
         RetireMemoryBatch();

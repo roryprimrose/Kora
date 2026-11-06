@@ -26,6 +26,7 @@ do not require you to remember these names.
 | `speech.summary-sentences` | Integer 1-3 | Native or existing exact typed/activated-voice review |
 | `speech.playback-volume` | Integer 0-100 | Native or existing exact typed/activated-voice review |
 | `responses.default-mode` | Exact `Hybrid`, `VoiceOnly`, `VisualOnly` | Native or exact typed/activated-voice review |
+| `responses.detail-presentation` | Exact `Offer`, `LinkOnly`, `OpenAutomatically` | Separate current native review and confirmation |
 | `speech.windows-rate` | Canonical integer -10 through 10, normal 0 | Native or exact typed/activated-voice review |
 | `notices.quiet-hours` | `Off` or one complete explicit weekly days/start/end/zone schedule | Separate current native review and confirmation |
 | `speech.voice` | Exact installed `provider / voice ID` supplied in your request | Native or exact typed/activated-voice review |
@@ -49,6 +50,21 @@ Presence suggestions likewise require the exact lowercase syntax and IDs above,
 canonical decimal integers or lowercase `true`/`false`, with no surrounding text.
 Response-timeout suggestions use the same canonical lowercase syntax, for example `set appearance.response-timeout to 15`. This is the response-window inactivity hide delay, not a provider/request deadline ([existing preference](settings.md#independent-visibility-timeouts)).
 Native renderer selection is not an admitted model suggestion.
+For detail presentation, the entire retained answer must be exactly `set responses.detail-presentation to Offer`, `set responses.detail-presentation to LinkOnly`, `set responses.detail-presentation to OpenAutomatically`, or `reset responses.detail-presentation`.
+Aliases, different case, numeric values, surrounding text and batches are rejected ([parser](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestions.cs)).
+Choose **Review setting suggestion...** on that exact successful answer in the original Active conversation.
+Review shows the actual saved value (or unsaved Offer default), exact proposed choice and future-only shared device-local scope; it changes nothing.
+Separately confirm in the same current native surface within 60 seconds. The existing Details owner performs validation, audited atomic persistence and confirmed readback.
+Reset explicitly saves the owner's Offer default, not file deletion ([review adapter](../src/Kora.Application/Configuration/DetailPresentationSuggestionReview.cs), [native owner](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs)).
+No answer opens, replays or gains publication authority from the suggestion, Review or retained history.
+Source/page replacement, hide/reopen, changed preference revision, privacy, ownership or call admission requires a fresh review; uncertain saves require explicit Settings/audit inspection, not retry or rollback.
+The existing native/exact typed/current-name activated Details commands retain their independent channel policy; the model suggestion route adds no typed/voice confirmation or confirmed-value inspection ([native route](../src/Kora.Application/ViewModels/MainViewModel.DetailPresentation.cs)).
+During a protected call, a fresh native appearance review and separate local
+confirmation remain available under the table's existing channel restrictions.
+They never clear call protection or enable speech. A changed call observation,
+private host or source requires a fresh review; a later click cannot relabel a
+voice-originated suggestion as an original local source.
+
 For quiet hours, the complete retained answer may be
 `set notices.quiet-hours to weekly Mon,Tue,Wed,Thu,Fri 09:00 17:00 UTC`,
 `set notices.quiet-hours to Off`, or `reset notices.quiet-hours`.
@@ -93,6 +109,7 @@ Use the same separate review and confirmation below. Review resolves the default
 - A capture timing Reset saves the complete timing tuple with only that field restored to its default and both known companions unchanged; it does not remove the saved tuple ([owner](../src/Kora.Application/Configuration/VoiceCaptureTimingConfigurationService.cs)).
 - Volume and Windows rate remove their saved preference and use the authoritative **unsaved default** ([volume](../src/Kora.Application/Configuration/PlaybackVolumeConfigurationService.cs), [rate](../src/Kora.Application/Configuration/WindowsSpeechRateConfigurationService.cs)).
 - Response mode saves **Hybrid**, matching native Reset; it does not remove the preference or change session/task/call overrides ([native route](../src/Kora.Application/ViewModels/MainViewModel.ResponseModeConfiguration.cs)).
+- Detail presentation explicitly saves **Offer**, matching native Reset, after separate native confirmation. It does not open or replay any retained answer ([review owner](../src/Kora.Application/Configuration/DetailPresentationSuggestionReview.cs)).
 
 Cancel requests no write. Reset grants no model undo authority and adds no settings, provider/device, consent, grant, retention or speech operation.
 Existing review-channel restrictions and uncertain-write recovery remain unchanged ([review owners](../src/Kora.Application/Configuration/AppearanceSuggestionReview.cs), [volume review](../src/Kora.Application/Configuration/PlaybackVolumeSuggestionReview.cs)).

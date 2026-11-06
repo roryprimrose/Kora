@@ -16,6 +16,7 @@ public sealed partial class MainViewModel
     private CallSpeechLease? activeCallSpeechLease;
     private CancellationTokenRegistration callSpeechReviewExpiration;
     private bool callSpeechReviewOpening;
+    private long callSpeechReviewRevision;
     private string callSpeechStatus = "No call speech exception is pending. Call protection is unchanged.";
 
     public AsyncCommand ReviewCallSpeechCommand { get; }
@@ -55,6 +56,7 @@ public sealed partial class MainViewModel
 
     private void RetireCallSpeechReview()
     {
+        Interlocked.Increment(ref callSpeechReviewRevision);
         var review = callSpeechReview;
         callSpeechReview = null;
         callSpeechReviewExpiration.Dispose();
@@ -97,6 +99,8 @@ public sealed partial class MainViewModel
         {
             if (activeCallSpeechLease is not null)
             { ReportCallSpeech("One reviewed response is in progress or awaiting resource release. No second exception is available."); }
+            else if (callSpeechReviewOpening)
+            { ReportCallSpeech("An exact call speech review is being prepared. Separate confirmation remains unavailable until preparation completes; status does not authorize or renew it."); }
             else if (callSpeechReview?.Available == true)
             { ReportCallSpeech("One exact response and destination are awaiting separate local confirmation. The review expires after two minutes; call protection is unchanged."); }
             else
@@ -189,6 +193,7 @@ public sealed partial class MainViewModel
         if (!CanReviewCallSpeech)
         { throw new InvalidOperationException("The exact current response, native review or ordinary speech gates are unavailable."); }
         RetireCallSpeechReview();
+        var preparation = Interlocked.Read(ref callSpeechReviewRevision);
         callSpeechReviewOpening = true;
         var source = Volatile.Read(ref ordinaryResponse)!;
         var presenter = currentResponsePresentation!;
@@ -211,7 +216,8 @@ public sealed partial class MainViewModel
         var feedbackRevision = inCallFeedbackConfiguration?.Get().Revision;
         var volume = audioPlaybackSettings.VolumeState;
         var rate = audioPlaybackSettings.RateState;
-        bool Eligible() => IsCallSpeechOtherwiseEligible && IsProtectedCall && lifetime()
+        bool Eligible() => preparation == Interlocked.Read(ref callSpeechReviewRevision)
+            && IsCallSpeechOtherwiseEligible && IsProtectedCall && lifetime()
             && ReferenceEquals(source, Volatile.Read(ref ordinaryResponse))
             && ReferenceEquals(presenter, currentResponsePresentation)
             && presentation == Interlocked.Read(ref currentResponseBindingRevision)

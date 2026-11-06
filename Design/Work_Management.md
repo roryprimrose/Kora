@@ -195,6 +195,28 @@ Manual ordinary dispatch, failure/cancellation recovery and application lifecycl
 The sources are not a fictitious globally atomic plan. Omitted records, accepting originals, absent workers and unavailable steps remain explicit; missing volatile ownership never proves durable completion.
 Changed sources refuse publication rather than inferring absence. Execution, queue state, source activity, retention and grants are unchanged; no provider/model/tool/resource dispatch is part of this query ([query](../src/Kora.Application/Hosting/SessionConversationService.RemainingWork.cs)).
 
+### Reviewed local remaining-work answer
+
+The optional native model operation selects one source conversation and a different existing Active idle answer conversation.
+Its [ledger-specific review](../src/Kora.Application/Hosting/RemainingWorkManagementReview.cs) discloses the unchanged question, complete body-free evidence, model policy, exact local catalogue selection, destination and answer retention before separate one-use confirmation.
+
+The [owner](../src/Kora.Application/Hosting/RemainingWorkManagement.cs) admits one local tools-none attempt with a 32 KiB complete input, 4 KiB complete output and independent fifteen-second caller deadline. Unfinished inference and cancellation callbacks retain ownership until physical join. There is no remote route, automatic retry, provider fallback, history assembly or management mutation.
+
+The original source observation expires after ten seconds and is never renewed by review or confirmation. Changed source facts, private authority or expiry refuse publication even if the provider returns.
+Longer inference may therefore finish without a publishable answer; the fifteen-second deadline is an upper bound, not a promise of source validity ([source owner](../src/Kora.Application/Hosting/SessionConversationService.RemainingWork.cs)).
+
+Only complete bounded ordinary task/question observations without diagnostic queue records qualify. Every exact task identity/revision, question and volatile lane/source/private fence is revalidated.
+The separate answer's canonical writes can advance the global authority head, so this operation compares the complete addressed source records instead; the deterministic global-head validator remains unchanged ([scoped validation](../src/Kora.Application/Hosting/SessionConversationService.ManagementAnswer.cs)).
+
+The answer destination retains the original question and genuine ASSISTANT answer through [canonical reviewed-source submission](../src/Kora.Application/Hosting/SessionConversationService.cs), with actual terminal readback or truthful unavailable/unconfirmed output.
+Evidence itself remains volatile; answer text may repeat disclosed metadata. This does not change the no-save local-context contract or permit cross-session history/attachment reuse.
+
+The [dedicated composition](../src/Kora/RemainingWorkManagementComposition.cs) has no qualified adapter by default and cannot borrow ordinary execution qualification. Qualified fakes exercise implementation only. MG1/PV1 capacity/account/SDK/native/billed-cost evidence remains independent E/Q, not blanket implementation prerequisites. No profile or `work.clear` authority is enabled.
+
+The [native opt-in](../src/Kora/SessionsViewModel.ManagementAnswer.cs) starts disabled for each new private view. Disabling it revokes outstanding review/answer presentation; asynchronous physical joins remain owned. No device preference or management-mode permission is created.
+
+See the [native interaction](../docs/windows-and-tray.md#optional-local-model-answer-about-remaining-work). Exact manual status/stop and typed/current-name activated remaining-work answers remain independent; this model-disclosure increment is native-only.
+
 The proposed bundled session-lock skill has a narrowly host-admitted priority
 control path; this does not grant management inference executable-tool access
 or waive the future action-specific approval gate. Today direct exact lock

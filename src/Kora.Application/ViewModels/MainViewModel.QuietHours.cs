@@ -22,7 +22,7 @@ public sealed partial class MainViewModel
     public string QuietHoursZone { get => quietHoursZone; set { if (SetProperty(ref quietHoursZone, value)) { CancelQuietHoursReview(); } } }
     public string QuietHoursStatus => quietHours?.Get().Description ?? "Scheduled quiet hours are unavailable; no schedule was changed.";
     public string QuietHoursReviewText => quietHoursReview is { } current ? current.Description : "No quiet-hours change awaiting confirmation.";
-    public bool CanChangeQuietHours => quietHours is not null && !disposed && !quietHoursActive
+    public bool CanChangeQuietHours => quietHours is not null && !disposed && !quietHoursActive && quietHoursSuggestionWork.IsCompleted
         && IsCallMutationHostEligible && !IsResponseInteractionPending;
     public bool CanChangeQuietHoursNative => CanChangeQuietHours && quietHoursNativeLifetime();
     public bool CanConfirmQuietHoursNative => CanChangeQuietHoursNative && quietHoursReview is { Initiator: SecurityAuditInitiator.LocalUser } review

@@ -98,7 +98,9 @@ public sealed class SubmittedAnswerContextTests
     [Theory]
     [InlineData(32768)]
     [InlineData(32769)]
-    public void CompleteSerializedCellWithSubmittedContextAcceptsExactlyTheStorageLimitAndRejectsOneMoreByte(int bytes)
+    [InlineData(32768, true)]
+    [InlineData(32769, true)]
+    public void CompleteSerializedCellWithSubmittedContextAcceptsExactlyTheStorageLimitAndRejectsOneMoreByte(int bytes, bool deviceProfile = false)
     {
         var answer = Answer();
         var option = new string('<', 128);
@@ -114,6 +116,16 @@ public sealed class SubmittedAnswerContextTests
                     new SubmittedHistorySource(new(Guid.NewGuid()), new(1), sequence, 2, ConversationHistoryRole.User))],
             },
         };
+        if (deviceProfile)
+        {
+            var profile = new HostId<Kora.Core.Memory.DeviceProfileIdentity>(Guid.NewGuid());
+            answer = answer with { SubmittedContext = answer.SubmittedContext! with
+            {
+                Version = 3, Sources = [],
+                ProfileMemorySources = [.. Enumerable.Range(1, 8).Select(_ =>
+                    new SubmittedProfileMemorySource(new(Guid.NewGuid()), new(3), profile))],
+            } };
+        }
         var framing = JsonSerializer.SerializeToUtf8Bytes(answer).Length - 1;
         answer = answer with { AssistantResponse = new(answer.Execution!, new string('a', bytes - framing)) };
         ConversationText.Validate(answer.Body, submission: true);

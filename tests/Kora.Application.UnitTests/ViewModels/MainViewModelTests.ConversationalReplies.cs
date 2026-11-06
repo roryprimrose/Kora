@@ -104,7 +104,7 @@ public sealed partial class MainViewModelTests
             NullLogger<HostQuestionVoiceReplyService>.Instance)!;
         await replies.OpenConversationalAsync(question, static () => true, _ => { }, TestContext.Current.CancellationToken);
         f.Voice.IsListening.Should().BeTrue();
-        f.TextToSpeech.SpokenText.Should().Be(question.Spec.Text);
+        f.TextToSpeech.SpokenText.Should().Be("Choose Option 1: First. Option 2: Second. Choose one option.");
         f.ConversationalConfiguration!.Observe();
         f.Voice.IsListening.Should().BeFalse();
         await replies.Quiescence;

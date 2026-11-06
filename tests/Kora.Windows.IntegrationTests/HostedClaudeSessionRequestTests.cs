@@ -214,9 +214,16 @@ public sealed partial class HostedClaudeSessionRequestTests
         }
         public async ValueTask DisposeAsync()
         {
-            if (Conversation is not null) { await Conversation.DisposeAsync(); }
-            if (Turns is not null) { await Turns.DisposeAsync(); }
-            await Runtime.DisposeAsync(); await Accounts.DisposeAsync(); await admission.DisposeAsync();
+            try
+            {
+                if (Conversation is not null) { await Conversation.DisposeAsync(); }
+                if (Turns is not null) { await Turns.DisposeAsync(); }
+            }
+            finally
+            {
+                try { await Runtime.DisposeAsync(); }
+                finally { await Accounts.DisposeAsync(); await admission.DisposeAsync(); }
+            }
         }
     }
     private sealed class Catalogue(ClaudeAccountBroker account, TimeProvider time) : IProviderCapabilityCatalogue

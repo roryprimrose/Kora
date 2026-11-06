@@ -10,6 +10,93 @@ namespace Kora.Core.UnitTests.Context;
 
 public sealed class KnowledgeSourceAnswerTests
 {
+    [Theory]
+    [InlineData(2, false)]
+    [InlineData(12, true)]
+    public void DeliberateSelectionKeepsOriginalAuthorityDeadlineAndOnlyChosenCitationBindings(int files, bool retrievalTruncated)
+    {
+        var f = new Fixture(files);
+        var retrieved = f.Review();
+        var input = new[] { retrieved.Search.Citations[1] };
+        var chosen = retrieved.SelectEvidence(input);
+        input[0] = retrieved.Search.Citations[0];
+        chosen.Search.Citations.Should().Equal(retrieved.Search.Citations[1]);
+        chosen.RetrievedSearch.Should().BeSameAs(retrieved.Search);
+        chosen.Source.Should().BeSameAs(retrieved.Source);
+        chosen.Revision.Should().BeSameAs(retrieved.Revision);
+        chosen.Target.Should().BeSameAs(retrieved.Target);
+        chosen.Question.Should().Be(retrieved.Question);
+        chosen.ExpiresAt.Should().Be(retrieved.ExpiresAt);
+        chosen.ExcerptUtf8Bytes.Should().Be(Encoding.UTF8.GetByteCount(chosen.Search.Citations[0].Excerpt));
+        chosen.IsFromSameRetrieval(retrieved).Should().BeTrue();
+        chosen.IsFromSameRetrieval(f.Review()).Should().BeFalse();
+        chosen.IsCurrent(DateTimeOffset.UnixEpoch.AddTicks(-1)).Should().BeFalse();
+        chosen.IsCurrent(chosen.ExpiresAt).Should().BeFalse();
+        retrieved.IsCurrent(DateTimeOffset.UnixEpoch).Should().BeFalse();
+        retrieved.TryConsume().Should().BeFalse();
+        var context = new KnowledgeSourceAnswerContext(chosen, chosen.Target.Request, new(1), DateTimeOffset.UnixEpoch);
+        context.Envelope.Evidence.Should().ContainSingle();
+        var result = context.Resolve(Success(context));
+        result.Claims.Single().Citations.Should().Equal(chosen.Search.Citations);
+        result.RetrievalTruncated.Should().Be(retrievalTruncated);
+        chosen.TryConsume().Should().BeTrue();
+        chosen.TryConsume().Should().BeFalse();
+        chosen.Revoke();
+        retrieved.IsRevoked.Should().BeTrue();
+        context.Resolve(Success(context)).Outcome.Should().Be(LocalFileAnswerOutcome.Stale);
+    }
+
+    [Theory]
+    [InlineData("empty")]
+    [InlineData("over-limit")]
+    [InlineData("foreign")]
+    [InlineData("cloned")]
+    [InlineData("modified")]
+    [InlineData("duplicate")]
+    [InlineData("revoked")]
+    [InlineData("consumed")]
+    public void InvalidSelectionRetiresEarlierReviewWithoutSubstitutionOrPartialSelection(string defect)
+    {
+        var f = new Fixture();
+        var retrieved = f.Review();
+        var chosen = retrieved.SelectEvidence([retrieved.Search.Citations[0]]);
+        if (defect is "revoked") { retrieved.Revoke(); }
+        if (defect is "consumed") { chosen.TryConsume().Should().BeTrue(); }
+        LocalFileCitation[] selection = defect switch
+        {
+            "empty" => [],
+            "over-limit" => Enumerable.Repeat(retrieved.Search.Citations[0], 9).ToArray(),
+            "foreign" => [new Fixture().Search.Citations[0]],
+            "cloned" => [retrieved.Search.Citations[0] with { }],
+            "modified" => [retrieved.Search.Citations[0] with { Excerpt = "changed" }],
+            "duplicate" => [retrieved.Search.Citations[0], retrieved.Search.Citations[0]],
+            _ => [retrieved.Search.Citations[0]],
+        };
+        var select = () => retrieved.SelectEvidence(selection);
+        select.Should().Throw<InvalidDataException>();
+        chosen.IsCurrent(DateTimeOffset.UnixEpoch).Should().BeFalse();
+        chosen.TryConsume().Should().BeFalse();
+    }
+
+    [Fact]
+    public void SelectionChangeRetiresContextAndReplacementUsesOriginalRetrievalWithoutRenewal()
+    {
+        var retrieved = new Fixture().Review();
+        var first = retrieved.SelectEvidence([retrieved.Search.Citations[0]]);
+        var context = new KnowledgeSourceAnswerContext(first, first.Target.Request, new(1), DateTimeOffset.UnixEpoch);
+        retrieved.InvalidateSelection();
+        context.Resolve(Success(context)).Outcome.Should().Be(LocalFileAnswerOutcome.Stale);
+        var second = first.SelectEvidence([retrieved.Search.Citations[1]]);
+        second.Search.Citations.Should().Equal(retrieved.Search.Citations[1]);
+        second.ExpiresAt.Should().Be(first.ExpiresAt);
+        second.IsCurrent(DateTimeOffset.UnixEpoch).Should().BeTrue();
+        retrieved.Revoke();
+        second.IsRevoked.Should().BeTrue();
+        second.IsCurrent(DateTimeOffset.UnixEpoch).Should().BeFalse();
+        var select = () => retrieved.SelectEvidence(null!);
+        select.Should().Throw<ArgumentNullException>();
+    }
+
     [Fact]
     public void NamedContextBindsOnlyRetainedRootRelativeSpansToFreshHostTargetWithoutRewritingLineage()
     {

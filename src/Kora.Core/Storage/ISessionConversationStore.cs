@@ -12,7 +12,7 @@ public interface ISessionConversationStore
     /// <summary>Observes the complete ordered historical source metadata, without source-body access.</summary>
     ValueTask<System.Collections.Immutable.ImmutableArray<SubmittedHistoryAvailability>> ReadSubmittedContextAvailabilityAsync(
         ConversationMessage answer, CancellationToken token) =>
-        answer.SubmittedContext is { MemorySources.IsDefaultOrEmpty: true }
+        answer.SubmittedContext is { MemorySources.IsDefaultOrEmpty: true, ProfileMemorySources.IsDefaultOrEmpty: true }
             ? ReadSubmittedHistoryAvailabilityAsync(answer, token)
             : throw new InvalidOperationException("The conversation store does not support submitted memory metadata observation.");
     /// <summary>Observes source-row metadata only, without hydrating source bodies or renewing activity.</summary>

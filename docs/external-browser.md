@@ -9,6 +9,9 @@ Kora opens a separate native review showing the exact validated HTTPS destinatio
 browser's privacy limitations. Choose **Open this exact destination once**, or
 **Cancel**. Preparing, dismissing or cancelling a review never opens anything.
 Confirmation is native-only because it is a separate privacy/disclosure decision.
+The resizable review keeps confirmation and cancellation visible. Scroll the
+original-source review, exact destination and privacy disclosure independently
+to read their complete text; the destination is never shortened for display.
 
 Only the current admitted, volatile web-result snapshot can supply the destination.
 Source replacement, response closure, host/privacy changes, network-mode changes

@@ -60,6 +60,7 @@ public sealed partial class SessionsConversationTests
             };
             window.Show();
             Task operation = Task.CompletedTask;
+            Task physicalJoin = Task.CompletedTask;
             try
             {
                 await model.RefreshAsync();
@@ -87,6 +88,7 @@ public sealed partial class SessionsConversationTests
                     provenance.Request.RequestId, f.Token);
                 stored.AssistantResponse.Should().BeNull();
                 stored.Outcome.Should().BeNull();
+                var originalRetained = stored;
                 if (terminal is "cancel")
                 {
                     if (view is not null)
@@ -103,10 +105,19 @@ public sealed partial class SessionsConversationTests
                 }
                 if (terminal is "privacy")
                 {
+                    var displayed = controls.GetVisualDescendants().OfType<TextBlock>()
+                        .Single(value => string.Equals(value.Text, "provisional answer", StringComparison.Ordinal));
                     composed.Access.CanInspect = false;
                     composed.Access.CanControl = false;
                     owner.Revoke();
                     model.ProvisionalAnswer.Should().BeEmpty();
+                    model.HasProvisionalAnswer.Should().BeFalse();
+                    displayed.Text.Should().BeEmpty("privacy retirement must withdraw the actual bound text immediately");
+                    await adapter.CancellationObserved.Task.WaitAsync(f.Token);
+                    await operation;
+                    composed.Turns.IsQuiescent.Should().BeFalse("the retired presentation waiter is not the provider join");
+                    physicalJoin = composed.Conversation.DisposeAsync().AsTask();
+                    physicalJoin.IsCompleted.Should().BeFalse("the host still owns the noncooperative provider and submitted worker");
                 }
                 if (terminal is "control")
                 {
@@ -131,6 +142,8 @@ public sealed partial class SessionsConversationTests
                 }
                 adapter.Release.TrySetResult();
                 await operation;
+                await physicalJoin;
+                await composed.Turns.WaitForQuiescenceAsync(f.Token);
                 if (terminal is "complete" or "cancel") { await terminalPresented.Task.WaitAsync(f.Token); }
                 stored = await f.Store.ReadConversationMessageAsync(provenance.Request.SessionId, provenance.Request.RequestId, f.Token);
                 model.ProvisionalAnswer.Should().BeEmpty();
@@ -155,6 +168,22 @@ public sealed partial class SessionsConversationTests
                 f.Count("scoped_grants").Should().Be(0);
                 adapter.BufferedCalls.Should().Be(0);
                 if (terminal is "revocation") { stored.Outcome.Should().Be(ModelTurnOutcome.Denied); }
+                if (terminal is "privacy")
+                {
+                    stored.Should().Be(originalRetained, "privacy loss cannot authorize a terminal answer or source rewrite");
+                    adapter.LatePublicationRejected.Should().BeTrue();
+                    composed.Access.CanInspect = true;
+                    composed.Access.CanControl = true;
+                    await model.SubmitLocalAnswerAsync();
+                    model.ProvisionalAnswer.Should().BeEmpty("restored access cannot revive a closed presentation or its original answer");
+                    model.ConversationMessages.Should().BeEmpty();
+                    model.CanSubmitConversation.Should().BeFalse();
+                    (await f.Store.ReadConversationMessageAsync(provenance.Request.SessionId,
+                        provenance.Request.RequestId, f.Token)).Should().Be(stored);
+                    f.Count("conversation_messages").Should().Be(1);
+                    f.Count("reviewed_memory").Should().Be(0);
+                    adapter.BufferedCalls.Should().Be(0);
+                }
             }
             finally
             {
@@ -162,6 +191,7 @@ public sealed partial class SessionsConversationTests
                 adapter.Probe.TrySetResult();
                 adapter.Release.TrySetResult();
                 await operation;
+                await physicalJoin;
                 model.PropertyChanged -= ObserveTerminal;
                 owner.Revoke();
                 window.Close();
@@ -175,7 +205,9 @@ public sealed partial class SessionsConversationTests
         internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Probe { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Rejected { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource CancellationObserved { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal bool ProbeRevocation { get; init; }
+        internal bool LatePublicationRejected { get; private set; }
         internal int BufferedCalls { get; private set; }
         internal string? BufferedAnswer { get; init; }
         internal byte[]? Wire { get; private set; }
@@ -195,6 +227,7 @@ public sealed partial class SessionsConversationTests
             Func<CancellationToken, ValueTask<ModelTurnReason>> validateContinuation,
             Func<ModelAnswerUpdate, CancellationToken, ValueTask> publish, CancellationToken cancellationToken)
         {
+            using var cancellation = cancellationToken.Register(() => CancellationObserved.TrySetResult());
             ModelToolProtocol.ReadContext(context.Span, provenance).ToolMode.Should().Be(ModelToolMode.None);
             Wire = context.ToArray();
             await publish(new(provenance, "provisional answer"), cancellationToken);
@@ -207,7 +240,12 @@ public sealed partial class SessionsConversationTests
             }
             await Release.Task;
             try { await publish(new(provenance, "provisional answer completed"), CancellationToken.None); }
-            catch (InvalidDataException) when (ProbeRevocation) { }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                LatePublicationRejected = true;
+                throw;
+            }
+            catch (InvalidDataException) when (ProbeRevocation) { LatePublicationRejected = true; }
             return new(ModelTurnOutcome.Succeeded, provenance.Selection, new("provisional answer completed", null));
         }
     }

@@ -222,6 +222,14 @@ host-resolved local-user gesture before private inspection hooks are used again.
 Do not treat restored access, a readiness refresh or an ambient host-system
 operation as renewed presentation authority.
 
+Streaming privacy fixtures distinguish the native presentation waiter from the
+submitted worker's physical join. After immediate bound-text withdrawal and
+observed provider cancellation, keep the noncooperative provider held while the
+presentation waiter ends. Join the conversation service's owned workers and the
+model host's quiescence after releasing the provider, before asserting retained
+content and forbidden effects. Restored access must not revive the closed
+presentation or replay its original answer.
+
 Queued-conversation fakes must derive each terminal message/task pair from the
 exact request-owned retained record before updating shared observation fields.
 Concurrent expiry must preserve both originals' identity, body, generation,

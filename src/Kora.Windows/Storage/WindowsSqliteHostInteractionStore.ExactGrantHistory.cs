@@ -71,6 +71,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
         var continuation = cursor is null ? null : DecodeExactHistoryCursor(cursor, inspected, viewer,
             query, controlRevision, admissionId, identity, now);
         var snapshot = ReadAuditSnapshot(connection, identity, continuation?.Snapshot);
+        var anchor = ReadAuditAnchor(connection);
         var current = ReadExactGrant(connection, inspected.Grant.Id, identity);
         if (current is null)
         {
@@ -96,7 +97,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             predecessor.Parameters.AddWithValue("$sequence", after.CommittedTicks);
             using var row = predecessor.ExecuteReader();
             if (!row.Read() || row.IsDBNull(3) || !Same(row.GetString(0), after.Id) || !Same(row.GetString(1), after.CommitDigest!)
-                || !Same(row.GetString(2), after.CommittedTicks == 1 ? EmptyHash : row.IsDBNull(4) ? string.Empty : row.GetString(4)))
+                || !Same(row.GetString(2), after.CommittedTicks == anchor.Sequence + 1 ? anchor.Hash : row.IsDBNull(4) ? string.Empty : row.GetString(4)))
             {
                 throw new InvalidDataException("The exact history continuation predecessor is missing or changed.");
             }
@@ -109,13 +110,13 @@ public sealed partial class WindowsSqliteHostInteractionStore
             FROM security_audit_events a LEFT JOIN security_audit_events p ON p.sequence=a.sequence-1
             WHERE a.sequence>$after AND a.sequence<=$ceiling ORDER BY a.sequence LIMIT $limit;
             """;
-        command.Parameters.AddWithValue("$after", after?.CommittedTicks ?? 0);
+        command.Parameters.AddWithValue("$after", after?.CommittedTicks ?? anchor.Sequence);
         command.Parameters.AddWithValue("$ceiling", snapshot.AuthorityCeiling!.Value);
         command.Parameters.AddWithValue("$limit", ExactGrantHistoryPage.MaximumScannedRows);
         using var rows = command.ExecuteReader();
         var records = ImmutableArray.CreateBuilder<ExactGrantHistoryEntry>();
         var scannedThrough = after;
-        var validatedThrough = after?.CommittedTicks ?? 0;
+        var validatedThrough = after?.CommittedTicks ?? anchor.Sequence;
         var scanned = 0;
         var nonmatching = 0;
         var outputBound = false;
@@ -123,14 +124,14 @@ public sealed partial class WindowsSqliteHostInteractionStore
         ExactGrantHistoryPage Page(bool more, bool limited) => new(current, records.ToImmutable(),
             more ? EncodeExactHistoryCursor(new(inspected.Grant.Id, GrantChange(inspected.Grant).Digest, viewer,
                 controlRevision, admissionId, query.Digest, identity, expires, snapshot, scannedThrough!)) : null,
-            now, snapshot.AuthorityCeiling.Value, snapshot.AuthorityCeilingDigest!, scannedThrough?.CommittedTicks ?? 0, scanned, limited, nonmatching);
+            now, snapshot.AuthorityCeiling.Value, snapshot.AuthorityCeilingDigest!, scannedThrough?.CommittedTicks ?? anchor.Sequence, scanned, limited, nonmatching);
         while (rows.Read())
         {
             token.ThrowIfCancellationRequested();
             if (!admitted()) { throw new InvalidOperationException("Exact history read admission changed during scanning."); }
             var sequence = rows.GetInt64(0);
             if (sequence != validatedThrough + 1 || rows.IsDBNull(4)
-                || !Same(rows.GetString(2), sequence == 1 ? EmptyHash : rows.IsDBNull(5) ? string.Empty : rows.GetString(5)))
+                || !Same(rows.GetString(2), sequence == anchor.Sequence + 1 ? anchor.Hash : rows.IsDBNull(5) ? string.Empty : rows.GetString(5)))
             {
                 throw new InvalidDataException("The exact history prefix is oversized, missing or has an inconsistent predecessor.");
             }
@@ -171,7 +172,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             scannedThrough = position;
             if (records.Count == ExactGrantHistoryPage.MaximumRecords) { outputBound = true; }
         }
-        var more = (scannedThrough?.CommittedTicks ?? 0) < snapshot.AuthorityCeiling;
+        var more = (scannedThrough?.CommittedTicks ?? anchor.Sequence) < snapshot.AuthorityCeiling;
         var limited = scanned == ExactGrantHistoryPage.MaximumScannedRows && more;
         if (validatedThrough < snapshot.AuthorityCeiling && scanned < ExactGrantHistoryPage.MaximumScannedRows)
         {

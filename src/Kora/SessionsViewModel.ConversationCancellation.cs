@@ -12,6 +12,7 @@ internal sealed partial class SessionsViewModel
     private ConversationExecutionStatus? runningConversation;
     private bool observingConversationCancellation;
     private bool cancellingConversation;
+    private long runningInspectionEpoch;
     private string runningConversationStatus = "No running conversation observed. Refresh running work to inspect this exact session.";
     private ConversationAnswerPresentation? provisionalAnswer;
     private long provisionalEpoch;
@@ -75,6 +76,10 @@ internal sealed partial class SessionsViewModel
                 || selectionEpoch != epoch || selected != target
                 || observation.Target.Request.SessionId != selected?.Authority.SessionId
                 || observation.Target.Generation != selected.Authority.Generation) { return; }
+            // Provisional publication can overtake a previous turn's posted terminal notification.
+            if (provisionalAnswer is { } answer
+                && (answer.Target.LeaseId != observation.Target.LeaseId || answer.Target.Request != observation.Target.Request)
+                && answer.IsCurrent()) { return; }
             if (observation.Phase is ConversationExecutionPhase.Waiting or ConversationExecutionPhase.Running
                 && conversation?.IsExecutionProgressCurrent(observation) != true)
             {
@@ -85,6 +90,7 @@ internal sealed partial class SessionsViewModel
             if (runningConversation is { } current && current.Target.LeaseId == observation.Target.LeaseId
                 && current.Target.Request == observation.Target.Request
                 && current.Phase > observation.Phase) { return; }
+            runningInspectionEpoch++;
             runningConversation = observation;
             if (observation.Phase != ConversationExecutionPhase.Running) { provisionalAnswer = null; }
             runningConversationStatus = "Task " + observation.Target.Request.TaskId.Value.ToString("D") + ": " + (observation.Phase switch
@@ -118,7 +124,10 @@ internal sealed partial class SessionsViewModel
         if (!CanRefreshRunningConversation) { return; }
         var target = RequireSelected();
         var epoch = selectionEpoch;
-        bool Live() => !closed && access.CanInspect && selectionEpoch == epoch && selected == target;
+        var control = access.ControlRevision;
+        var inspection = ++runningInspectionEpoch;
+        bool Live() => !closed && access.CanInspect && access.ControlRevision == control
+            && selectionEpoch == epoch && selected == target && inspection == runningInspectionEpoch;
         try
         {
             var observed = await conversation!.ReadRunningConversationAsync(target, Live, lifetime.Token);
@@ -127,9 +136,6 @@ internal sealed partial class SessionsViewModel
             else
             {
                 runningConversation = null;
-                pendingConversation = null;
-                pendingConversationTurns = [];
-                selectedPendingConversation = null;
                 provisionalAnswer = null;
                 runningConversationStatus = "No active admitted conversation lease in this exact session. Retained task receipts remain authoritative.";
                 NotifyConversationCancellation();
@@ -138,9 +144,12 @@ internal sealed partial class SessionsViewModel
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             Failure(logger, exception.GetType().Name);
-            runningConversation = null;
-            runningConversationStatus = "Running-work inspection unconfirmed: " + exception.Message;
-            NotifyConversationCancellation();
+            if (Live())
+            {
+                runningConversation = null;
+                runningConversationStatus = "Running-work inspection unconfirmed: " + exception.Message;
+                NotifyConversationCancellation();
+            }
         }
     }
 
@@ -149,7 +158,10 @@ internal sealed partial class SessionsViewModel
         if (!CanCancelRunningConversation || runningConversation is not { } observed) { return; }
         var target = RequireSelected();
         var epoch = selectionEpoch;
-        bool Live() => !closed && access.CanControl && selectionEpoch == epoch && selected == target;
+        var control = access.ControlRevision;
+        bool Live() => !closed && access.CanInspect && access.CanControl && access.ControlRevision == control
+            && selectionEpoch == epoch && selected == target;
+        runningInspectionEpoch++;
         cancellingConversation = true;
         NotifyConversationCancellation();
         try
@@ -176,6 +188,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversationCancellation()
     {
+        runningInspectionEpoch++;
         DiscardPendingClear();
         runningConversation = null;
         runningConversationStatus = "No running conversation observed. Refresh running work to inspect this exact session.";

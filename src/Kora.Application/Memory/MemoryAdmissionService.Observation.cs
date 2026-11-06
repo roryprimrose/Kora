@@ -59,16 +59,7 @@ internal sealed partial class MemoryAdmissionService
                 {
                     token.ThrowIfCancellationRequested();
                     if (!Eligible()) { throw new InvalidOperationException("Memory inspection admission changed."); }
-                    if (storage is not null)
-                    {
-                        // A vanished durable row is not an inspectable cached-body fallback.
-                        foreach (var id in records.Values.Where(row => MatchesObservationScope(row, boundary!)
-                            && !volatileIdentities.Contains(row.Id) && !rows.Any(saved => saved.Id == row.Id))
-                            .Select(row => row.Id).ToArray())
-                        {
-                            records.Remove(id);
-                        }
-                    }
+                    if (storage is not null) { RemoveMissingDurableRecords(rows, boundary!); }
                     foreach (var row in rows)
                     {
                         if (!MatchesObservationScope(row, boundary!))
@@ -125,4 +116,17 @@ internal sealed partial class MemoryAdmissionService
     private bool MatchesObservationScope(MemoryRecord row, MemoryBoundary boundary) =>
         row.Scope == (scopeKind == MemoryScopeKind.DeviceProfile
             ? MemoryScope.DeviceProfile(boundary.Profile) : MemoryScope.Session(boundary.Session));
+
+    private void RemoveMissingDurableRecords(ImmutableArray<MemoryRecord> rows, MemoryBoundary boundary)
+    {
+        // Only never-persisted proposals may survive absence from the authoritative snapshot.
+        foreach (var row in records.Values.ToArray())
+        {
+            if (MatchesObservationScope(row, boundary) && !volatileIdentities.Contains(row.Id)
+                && !rows.Any(saved => saved.Id == row.Id))
+            {
+                records.Remove(row.Id);
+            }
+        }
+    }
 }

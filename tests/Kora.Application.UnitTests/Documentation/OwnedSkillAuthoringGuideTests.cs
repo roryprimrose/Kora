@@ -83,6 +83,9 @@ public sealed class OwnedSkillAuthoringGuideTests
             .And.Contain("does not undo the native rename");
         guide.Markdown.Should().Contain("owned skill delete daily-review 1.0.0")
             .And.Contain("Delete only this exact owned source")
+            .And.Contain("select one native v1/v2/v3/v4 saved version")
+            .And.Contain("complete JSON definition")
+            .And.Contain("Deletion never runs their observation steps")
             .And.Contain("Native v5 Markdown packages are rejected")
             .And.Contain("before reading reference bodies")
             .And.Contain("does not physically cancel immutable admitted tasks")

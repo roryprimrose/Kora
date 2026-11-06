@@ -16,13 +16,17 @@ public sealed partial class SessionsConversationTests
     private const string MemoryProposal = """{"version":1,"class":"responsePreference","value":"Prefer short answers."}""";
 
     [Theory]
-    [InlineData(0, false)]
-    [InlineData(1, false)]
-    [InlineData(2, false)]
-    [InlineData(0, true)]
-    [InlineData(1, true)]
-    [InlineData(2, true)]
-    public async Task ModelMemoryNativeExplicitReviewAcceptAndSeparateAdmitUsesActualSessionTransaction(int surface, bool profileMode)
+    [InlineData(0, false, false)]
+    [InlineData(1, false, false)]
+    [InlineData(2, false, false)]
+    [InlineData(0, true, false)]
+    [InlineData(1, true, false)]
+    [InlineData(2, true, false)]
+    [InlineData(0, false, true)]
+    [InlineData(1, false, true)]
+    [InlineData(2, true, true)]
+    public async Task ModelMemoryNativeExplicitReviewAcceptAndSeparateDecisionUsesActualSessionTransaction(
+        int surface, bool profileMode, bool rejectAfterAcceptance)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -71,7 +75,27 @@ public sealed partial class SessionsConversationTests
                 await Click("AcceptModelMemoryProposal");
                 model.CanAdmitModelMemoryProposal.Should().BeTrue();
                 model.CanAcceptModelMemoryProposal.Should().BeFalse();
+                model.CanRejectModelMemoryProposal.Should().BeTrue();
                 f.Count("reviewed_memory").Should().Be(0, "acceptance does not persist the candidate");
+                if (rejectAfterAcceptance)
+                {
+                    window.GetVisualDescendants().OfType<Button>()
+                        .Single(item => string.Equals(item.Name, "RejectModelMemoryProposal", StringComparison.Ordinal))
+                        .IsEnabled.Should().BeTrue();
+                    await Click("RejectModelMemoryProposal");
+                    model.ConversationStatus.Should().Contain("proposal rejected");
+                    model.ModelMemoryProposalDescription.Should().BeEmpty();
+                    model.CanRejectModelMemoryProposal.Should().BeFalse();
+                    model.CanAdmitModelMemoryProposal.Should().BeFalse();
+                    f.Count("reviewed_memory").Should().Be(0);
+                    (await composed.Memories.ExecuteAsync(new(MemoryCommandOperation.List, answer.Request.SessionId.Value),
+                        RequestOrigin.LocalUi, () => true, f.Token)).Memories.Should().BeEmpty();
+                    adapter.Calls.Should().Be(1);
+                    f.Count("scoped_grants").Should().Be(0);
+                    (await f.Store.ReadConversationMessageAsync(answer.Request.SessionId, answer.Request.RequestId, f.Token))
+                        .Should().Be(answer);
+                    return;
+                }
                 await Click("AdmitModelMemoryProposal");
                 model.ConversationStatus.Should().Contain("SESSION memory admitted");
                 model.ModelMemoryProposalDescription.Should().BeEmpty();
@@ -146,5 +170,6 @@ public sealed partial class SessionsConversationTests
         await model.AdmitModelMemoryProposalAsync();
         f.Count("reviewed_memory").Should().Be(0);
         model.CanAdmitModelMemoryProposal.Should().BeFalse();
+        model.CanRejectModelMemoryProposal.Should().BeFalse();
     }
 }

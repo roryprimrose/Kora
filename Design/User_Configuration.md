@@ -896,6 +896,28 @@ Typed input and current-name-activated voice carry their original provenance ([p
 
 ### Delivered bounded installed speech choices (R10)
 
+The separate [confirmed-settings inspection](../docs/setting-inspection.md) now
+includes one typed `speech.voice` observation: the exact confirmed provider and
+optional voice IDs from the existing atomic/legacy selection reader, matching
+the already-observed service selection, provenance and revision. Native review
+shows the complete immutable original question and source before separate
+one-use LocalOnly answer confirmation. Tool-free and explicitly selected
+`settings.list`/`settings.get` modes share this source and currentness boundary
+([observation](../src/Kora.Core/Configuration/SettingInspection/SettingObservation.cs),
+[reader](../src/Kora.Application/Configuration/SettingInspection/SpeechConfigurationService.SettingInspection.cs)).
+
+Confirmed absent storage means `SpeechSelection.Default`: Windows with its
+advertised default-voice policy, not a guessed concrete voice. The read never
+enumerates OS/catalogue metadata, reloads or activates a preference, writes,
+captures, plays, grants permission or enables a profile. Saved intent remains
+inspectable when runtime assets are unavailable; it does not establish installed
+availability, resolved default voice, effective output or qualification.
+Malformed/unconfirmed/changed sources refuse review rather than defaulting.
+Value, provenance and observed service revision changes retire previous reviews;
+privacy/session/original-channel/expiry and exact local disclosure gates remain
+unchanged. Production model qualification remains unavailable; deterministic
+qualified-fake local-answer/native tests prove implementation, not E/Q enablement.
+
 The [retained model-answer bridge](../src/Kora.Application/Configuration/InstalledSpeechVoiceSuggestionReview.cs) also accepts one exact `speech.voice` Set with a user-supplied installed `provider / voice ID`.
 Both conversation sizes and exact typed/activated-voice Review/Confirm/Cancel routes bind the successful source, current catalogue and configuration; fresh original-user confirmation uses the existing atomic pair writer and exact persisted/current readback.
 
@@ -977,7 +999,8 @@ completes the read-only question "Why does Kora disappear so quickly, and what
 presence size and movement settings am I using?" through the host-owned
 [confirmed appearance reader](../src/Kora.Application/Configuration/SettingInspection/AppearanceConfigurationService.SettingInspection.cs)
 and [closed review](../src/Kora.Core/Configuration/SettingInspection/SettingInspectionReview.cs).
-The prior seven observations now include eight additional existing registered
+The [complete sixteen-observation source](../src/Kora.Core/Configuration/SettingInspection/SettingInspectionReview.cs)
+includes the typed speech selection alongside eight additional existing registered
 presence preferences: inactivity timeout, size, dot size/density, movement speed,
 speech scaling/amount and reduced motion. Existing domain defaults, units and
 bounds are unchanged; no setting or persistence format is added.

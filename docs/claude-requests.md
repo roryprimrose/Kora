@@ -93,6 +93,9 @@ the complete actual UTF-8 JSON body, without truncation. Credentials are not
 displayed, logged or audited. There is no affirmative default; closing, Deny,
 missing presentation, expiry, privacy or changed authority denies.
 
+Use Tab to focus the [read-only disclosure](../src/Kora/ClaudeTransmissionWindowController.cs), then arrow keys, Page Up/Down or Ctrl+Home/End to read through the complete request. Tab moves to the separate transmit-once or Deny action; reading and typing never approve or edit the outgoing bytes.
+The reader is cleared when its review closes, is cancelled or loses private presentation ([native regression coverage](../tests/Kora.Windows.IntegrationTests/HostedTransmissionDisclosureTests.cs)). Installed screen-reader qualification is separate from these deterministic checks.
+
 Only private native input can approve physical sends. Voice/model text cannot
 approve a send or enter a credential. Request review, saved profile, account
 setup and earlier consent never authorize another POST. No hidden preflight,

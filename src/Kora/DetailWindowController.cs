@@ -27,7 +27,7 @@ public sealed partial class DetailWindowController : IDisposable
     private readonly Func<DetailViewerState, NativeDocumentResult, DetailCopy, IDetailView> createView;
     private readonly ILogger<DetailWindowController> logger;
     private readonly DetailViewerRegistry registry = new();
-    private readonly Dictionary<DetailContentReference, (DetailViewerState State, IDetailView View, string? ClipboardHtml)> windows = [];
+    private readonly Dictionary<DetailContentReference, (DetailViewerState State, IDetailView View, NativeDocumentResult Document)> windows = [];
     private readonly Dictionary<string, (HostId<EvidenceIdentity> Id, long Revision, string Digest, string Title)> pages =
         new(StringComparer.Ordinal);
     private bool disposed;
@@ -372,8 +372,8 @@ public sealed partial class DetailWindowController : IDisposable
             windows.Remove(reference);
             registry.Close(reference);
         };
-        windows.Add(reference, (state, view, result.ClipboardHtml));
-        return deferPublication ? result.Status : PublishContent(content, owner, (state, view, result.ClipboardHtml), result.Status,
+        windows.Add(reference, (state, view, result));
+        return deferPublication ? result.Status : PublishContent(content, owner, (state, view, result), result.Status,
             activateOnly: false, acknowledge, automatic);
     }
 
@@ -390,7 +390,7 @@ public sealed partial class DetailWindowController : IDisposable
             : NativeDetailFormat.PipeTablesV2;
 
     private string PublishContent(AdmittedDetailContent content, Window? owner,
-        (DetailViewerState State, IDetailView View, string? ClipboardHtml) entry, string status, bool activateOnly,
+        (DetailViewerState State, IDetailView View, NativeDocumentResult Document) entry, string status, bool activateOnly,
         Action? acknowledge = null, AutomaticDetailIntent? automatic = null)
     {
         var reference = content.Reference;
@@ -491,11 +491,20 @@ public sealed partial class DetailWindowController : IDisposable
                 && !state.IsSource && state.RenderState == DetailRenderState.Rendered
                 && state.Content?.Kind == DetailContentKind.Markdown;
             if (selectionStart is null && rendered) { source = state.ActiveText; }
-            var html = rendered
-                && state.Content?.Kind == DetailContentKind.Markdown && entry.ClipboardHtml is not null
-                ? selectionStart is null ? entry.ClipboardHtml
-                    : "<pre>" + System.Net.WebUtility.HtmlEncode(source) + "</pre>"
-                : null;
+            string? html = null;
+            if (rendered)
+            {
+                if (selectionStart is { } selectedStart)
+                {
+                    var selection = entry.Document.ClipboardSelection;
+                    if (selection is null || !string.Equals(selection.SemanticText, state.ActiveText, StringComparison.Ordinal))
+                    {
+                        throw new InvalidOperationException("The selected clipboard representation is unavailable.");
+                    }
+                    html = selection.Serialize(selectedStart, selectionLength);
+                }
+                else { html = entry.Document.ClipboardHtml; }
+            }
             // Revalidate the exact live state immediately before invoking the platform write.
             if (disposed || state.Content is null || !CanAccess(state.Content) || state.Generation != generation
                 || !windows.TryGetValue(reference, out var current) || !ReferenceEquals(current.State, state))
@@ -512,7 +521,7 @@ public sealed partial class DetailWindowController : IDisposable
                         : "Exact source copied as Unicode plain text outside Kora.")
                         + (html is null ? string.Empty : " Supported Markdown formatting included as sanitized HTML.")
                     : "Selected text copied as Unicode plain text outside Kora."
-                        + (html is null ? string.Empty : " Exact selected text also included as inert HTML."));
+                        + (html is null ? string.Empty : " Supported selected Markdown formatting included as sanitized HTML."));
             }
         }
         catch (Exception exception) when (exception is InvalidOperationException or NotSupportedException

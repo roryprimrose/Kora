@@ -388,6 +388,8 @@ Saving, listing and reopening never invoke a model. To use one saved package:
    provider stays unavailable; there is no hosted fallback or automatic retry.
 
 The native v1 operation admits no tools, MCP, scripts, hooks, references or nested agents ([instruction-only consumer](../src/Kora.Application/Skills/OwnedSkillInvocationWorkflow.cs)).
+Every owned package requires the current host use-exclusion policy, even when it declares no references. Excluding either primary file blocks direct exact-ID/version review and subsequent use; Markdown packages also check every declared component.
+A pending review cannot override an exclusion or recover merely because it is removed: independently allow use, then begin a fresh exact-source review and separate enablement ([shared owned-use guard](../src/Kora.Application/Skills/OwnedSkillInvocationWorkflow.cs)).
 A valid saved 64 KiB package may exceed the **32768-byte complete serialized
 input** limit. Invocation then fails visibly before submission; no content is
 truncated. The exact private non-reparse package directory, both file identities

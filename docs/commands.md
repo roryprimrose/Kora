@@ -966,6 +966,10 @@ Late preparation cannot open a new review or enable confirmation after cancellat
 If the exact review is already open, it becomes ineligible and cannot play.
 Wait for preparation to finish before starting a fresh review; status is passive
 and does not cancel or extend preparation.
+Type `cancel call speech` even while the original typed review or confirmation
+is still running. Other call-speech commands cannot interrupt that typed operation.
+Cancellation waits for owned playback to finish, including playback that ignores
+the stop request; it does not make the original command idle early or queue replay.
 
 ## Read-only host discovery
 
@@ -1094,6 +1098,19 @@ You are responsible for sensitive text you place in the clipboard; Kora does not
 classify or scan it. A reusable tool grant never replaces each snapshot's separate
 model confirmation. Session grants apply to the active clipboard explanation
 session; Always grants can be revoked through the existing grant controls.
+
+To ask a new question about the same capture, expand **Ask a question about this
+same snapshot** in the preview. Type your original question, choose **Review
+question and same snapshot**, read the complete question/source and LocalOnly
+destination, then separately confirm and choose **Ask locally using this same
+snapshot**. The first explanation's confirmation is not reused. Only this
+question and the exact capture are sent to the qualified local model, with no
+tools, previous answer or history. Editing or cancellation retires the review;
+**Cancel clipboard question** waits for owned work to finish. Nothing is
+recaptured, saved or spoken, and the original 15-minute source expiry is unchanged.
+Original questions are rejected whole if empty, malformed, credential-like or
+over 4096 UTF-16 characters / 16384 UTF-8 bytes. The full model-envelope limit
+below still applies; source evidence is not scanned or truncated.
 
 A qualified local runtime is required. The exact complete envelope must fit
 32768 UTF-8 bytes without truncation; review expires 15 minutes after capture,

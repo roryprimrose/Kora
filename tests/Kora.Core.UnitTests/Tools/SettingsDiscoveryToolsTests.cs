@@ -35,6 +35,7 @@ public sealed class SettingsDiscoveryToolsTests
             new(RegisteredSetting.ReplyStartWait, VoiceCaptureTiming.Default, false, 7),
             new(RegisteredSetting.TrailingSilence, VoiceCaptureTiming.Default, false, 7),
             new(SpeechSelection.Default, false, 3),
+            new(RegisteredSetting.DetailPresentation, 0, false, 8),
         ], "Which registered settings control spoken summaries?", HostRequest.Create(RequestOrigin.LocalUi),
         DateTimeOffset.UnixEpoch, mode);
 
@@ -65,7 +66,7 @@ public sealed class SettingsDiscoveryToolsTests
                 .Should().Be(SettingsDiscoveryTools.HasConfirmedReader(descriptor.Setting));
         }
         review.Observations.Should().OnlyContain(item => review.Source.Contains(item.Text, StringComparison.Ordinal));
-        review.Observations.Should().HaveCount(19).And.OnlyHaveUniqueItems(item => item.Setting);
+        review.Observations.Should().HaveCount(20).And.OnlyHaveUniqueItems(item => item.Setting);
         review.Observations.Single(item => item.Setting == RegisteredSetting.SpeechVoice)
             .Selection.Should().Be(SpeechSelection.Default);
         SettingsDiscoveryTools.HasConfirmedReader(RegisteredSetting.SpeechVoice).Should().BeTrue();
@@ -114,10 +115,11 @@ public sealed class SettingsDiscoveryToolsTests
                 new CapabilityReply(CapabilityOutcome.Unavailable, "setting-value-unavailable"));
         SettingsDiscoveryTools.Read(review.Observations, "settings.reset", "{}").Outcome.Should().Be(CapabilityOutcome.Denied);
         SettingsDiscoveryTools.HasConfirmedReader(RegisteredSetting.QuietHours).Should().BeFalse();
-        SettingsDiscoveryTools.HasConfirmedReader(RegisteredSetting.DetailPresentation).Should().BeFalse();
-        SettingsDiscoveryTools.Read(review.Observations, SettingsDiscoveryTools.Get,
-            """{"id":"responses.detail-presentation"}""").Should().Be(
-                new CapabilityReply(CapabilityOutcome.Unavailable, "setting-value-unavailable"));
+        SettingsDiscoveryTools.HasConfirmedReader(RegisteredSetting.DetailPresentation).Should().BeTrue();
+        var details = SettingsDiscoveryTools.Read(review.Observations, SettingsDiscoveryTools.Get,
+            """{"id":"responses.detail-presentation"}""");
+        details.Outcome.Should().Be(CapabilityOutcome.Succeeded);
+        details.Settings!.Observation!.Text.Should().Contain("Offer").And.Contain("confirmed absent");
         SettingsDiscoveryTools.Read(review.Observations, SettingsDiscoveryTools.Get,
             """{"id":"notices.quiet-hours"}""").Should().Be(
                 new CapabilityReply(CapabilityOutcome.Unavailable, "setting-value-unavailable"));

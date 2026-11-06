@@ -88,7 +88,8 @@ public sealed class SettingInspectionWorkflowTests
         private readonly AudioControlAdmission audio;
         private readonly BoundedModelTurnAdapter? loop;
         internal Fixture(string mode = "success", IModelToolTransport? transport = null,
-            VoiceCaptureTiming? savedTiming = null, SpeechSelection? speechSelection = null)
+            VoiceCaptureTiming? savedTiming = null, SpeechSelection? speechSelection = null,
+            Kora.Core.Presentation.DetailPresentationMode? detailMode = null)
         {
             if (speechSelection is not null)
             { Preferences.Lines["speech-selection.txt"] = ["1", speechSelection.ProviderId, speechSelection.VoiceId ?? string.Empty]; }
@@ -122,13 +123,17 @@ public sealed class SettingInspectionWorkflowTests
             if (savedTiming is not null) { Preferences.Text["voice-capture-timing.txt"] = savedTiming.Serialize(); }
             Timing = new(new LocalVoiceCaptureTimingPreferences(Preferences), audio, Controls,
                 NullLogger<VoiceCaptureTimingConfigurationService>.Instance);
+            if (detailMode.HasValue)
+            { Preferences.Text["detail-presentation.txt"] = Kora.Core.Presentation.DetailPresentationPreference.Format(detailMode.Value); }
+            Details = new(new LocalDetailPresentationPreferences(Preferences), audio, Controls, Storage.Time);
+            Details.Observe();
             appearance.Reload();
             speech.Reload();
             volume.Observe();
             response.Observe();
             Playback.Effects = 0;
             Preferences.Reads = 0;
-            Workflow = new(new(appearance, speech, volume, response, Timing), new SettingInspectionConversation(sessions, Conversation, Host),
+            Workflow = new(new(appearance, speech, volume, response, Timing, Details), new SettingInspectionConversation(sessions, Conversation, Host),
                 Controls, Controls, Storage.Time, NullLogger<SettingInspectionWorkflow>.Instance);
         }
 
@@ -142,6 +147,7 @@ public sealed class SettingInspectionWorkflowTests
         internal SessionConversationService Conversation { get; }
         internal SettingInspectionWorkflow Workflow { get; }
         internal VoiceCaptureTimingConfigurationService Timing { get; }
+        internal DetailPresentationConfigurationService Details { get; }
         internal async Task InitializeAsync()
         {
             await Storage.Tasks.InitializeAsync(Token);

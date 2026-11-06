@@ -114,9 +114,9 @@ public sealed class ConversationalReplyConfigurationService(
                     var denied = policy.CommitVoiceSetting(originalOrigin, callRevision, eligible, () =>
                     {
                         RequireReadback();
-                        preferences.ConfirmWrite();
                         try
                         {
+                            preferences.ConfirmWrite();
                             if (preferences.Load() != enabled) { throw new InvalidDataException("Confirmed conversational reply preference does not match."); }
                             cancellationToken.ThrowIfCancellationRequested();
                             if (policy.CheckMutation(originalOrigin, callRevision, eligible) is not null)

@@ -169,6 +169,8 @@ public sealed class ConversationalReplyConfigurationServiceTests : IDisposable
     [InlineData(false, "terminal-call")]
     [InlineData(true, "cancel")]
     [InlineData(false, "cancel")]
+    [InlineData(true, "confirm-after-remove")]
+    [InlineData(false, "confirm-after-remove")]
     public async Task Final_admission_loss_preserves_committed_bytes_but_holds_confirmation_and_restart(
         bool enabled, string boundary)
     {
@@ -182,6 +184,7 @@ public sealed class ConversationalReplyConfigurationServiceTests : IDisposable
             if (boundary is "call" or "call-aba") { f.Call.State = CallState.Active; }
             if (boundary is "call-aba") { f.Call.State = CallState.Clear; }
             if (boundary is "cancel") { cancellation.Cancel(); }
+            if (boundary is "confirm-after-remove") { throw new IOException("Confirmation outcome unavailable."); }
         };
         f.Store.BeforeCommit = task =>
         {
@@ -192,6 +195,7 @@ public sealed class ConversationalReplyConfigurationServiceTests : IDisposable
             RequestOrigin.LocalUi, SecurityAuditInitiator.LocalUser, f.Policy, () => f.Eligible, cancellation.Token);
 
         if (boundary is "cancel") { await apply.Should().ThrowAsync<OperationCanceledException>(); }
+        else if (boundary is "confirm-after-remove") { await apply.Should().ThrowAsync<IOException>(); }
         else { await apply.Should().ThrowAsync<InvalidOperationException>(); }
 
         f.Preferences.Value.Should().Be(enabled);

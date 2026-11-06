@@ -19,13 +19,18 @@ retains per-merge main validation; unknown values fail closed. Merging this
 implementation does not activate the profile.
 
 Automatic main pushes then run admission feedback only, explicitly reporting
-coalescing rather than claiming skipped validation passed. The hourly UTC cron
-(`0 * * * *`) builds the main snapshot captured by that run only when its source
-differs from the qualified activation baseline or the last actual full attempt.
+coalescing rather than claiming skipped validation passed. The existing
+serialized App controller owns automatic main dispatch; CI has no separate cron.
+Repository events and the controller's existing five-minute wakeup check whether
+the current completed main source differs from the qualified activation baseline,
+last actual full attempt and last dispatch. The controller reserves at most one
+automatic dispatch per UTC hourly slot, with at least 60 minutes since activation,
+the preceding request, actual run creation and observed full attempt.
 An unchanged source is not automatically retried after failure. Explicit
 manual/tag validation remains available under its existing source and release
-rules. GitHub may delay a cron; this is one automatic attempt per UTC hourly
-slot, not a promise of exact wall-clock launch time.
+rules. GitHub controller wakeups remain best-effort, not a promise of exact
+wall-clock launch time. Live automatic dispatch and same-source/hour suppression
+require observation rather than a manual-run proxy.
 
 The eight candidate gates and all 27 main identities remain unchanged. Candidate
 admission advances from the App's exact persisted completed-source record; it
@@ -34,13 +39,24 @@ payload/installer bytes and protected source-bound beta publication are still
 required for the selected hourly source. Intermediate sources are not published
 by relabeling another run's artifacts.
 
-Only the serialized controller records observed attempt/cursor metadata.
+Only the serialized controller records dispatch intent and observed attempt/cursor metadata.
 First-attempt same-repository CI runs and their exact-source version job identify
 an actual full attempt, including a failed one; skipped jobs and missing evidence
 do not. The scheduled admission path also reconciles earlier runs before granting
-work. The attempt ledger is scheduling evidence, never successful qualification
-or new authority. The hourly workflow uses a non-cancelling FIFO group separate
-from the candidate lane.
+work for historical native schedules. The attempt ledger is scheduling evidence,
+never successful qualification or new authority. Automatic dispatch uses ordinary
+main CI, separate from the candidate lane, and waits while a candidate is active.
+
+The controller persists source/hour intent before requesting dispatch, then saves
+the exact returned run ID using the response-bearing GitHub API version
+`2026-03-10`. It verifies first-attempt repository/source metadata and actual
+creation time before another automatic dispatch. An ambiguous response or missing
+run metadata retains the receipt and reports the unresolved outcome; it never
+replays the request or guesses a run. PR admission remains independent of that
+pending scheduler outcome. Operator reconciliation or the guarded profile
+recovery protocol is required for an intent with no verifiable returned run ID;
+do not edit queue state or manually replay it. A prepared administrator transition
+remains immutable and cannot dispatch work.
 
 ### Guarded main scheduling switch
 
@@ -93,7 +109,8 @@ its exact checkpoint while the operator switches configuration.
 
 Run `node .\eng\run-policy-tests.cjs`, `.\eng\Test-CiPreflight.ps1`,
 `.\eng\Test-BuildVersion.ps1` and `.\eng\Test-GitHubRelease.ps1`. Deterministic
-fixtures cover no-change/changed/same-slot decisions, earlier unobserved attempts,
+fixtures cover no-change/changed/same-slot and rolling-hour decisions, durable
+intent/run identity, ambiguous-response non-replay, earlier unobserved attempts,
 failed attempts, API/identity failures, guarded activation/rollback and complete
 scheduled-source publication. These tests do not claim a live profile switch or
 observed hourly cadence.

@@ -118,6 +118,14 @@ Failed audit, terminal readback or uncertain resource release blocks clean succe
 with a visible recovery message. Stopped requests are never retried or resurrected;
 retained history and grants are not deleted.
 
+The [desktop lifetime owner](../src/Kora/DesktopLifetimeController.cs), bound by
+desktop composition, consumes the admitted Close independently of the replaceable
+presence window. If animation replacement retires the old window and the new
+renderer fails, native tray Exit still reaches the same desktop Shutdown after
+the existing reviews and physical joins; no fallback renderer or forced exit is
+created. [Deterministic regressions](../tests/Kora.Windows.IntegrationTests/ApplicationLifecycle/DesktopLifetimeControllerTests.cs)
+cover that recovery route and blocked or unfinished shutdown preparation.
+
 Mandatory lock/privacy/ownership retirement and OS-required shutdown remain
 prompt-free. This does not add computer power actions, input autosave or provider
 qualification. [Host regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ApplicationLifecycle.cs)
@@ -165,6 +173,13 @@ required after retirement
 The [approved product decision](MVP_Scope.md#approved-retirement-and-simplification) replaces first-class saved-conversation-draft management with unsent composer text. A session is an ongoing conversation/work stream, not a draft document; Active/Done lifecycle is independent of whether text is waiting in its input box.
 
 Keep unsent input per exact conversation in memory across view/session switching, share it consistently between Sessions and compact views, and never submit or merge it implicitly. Do not add disk autosave. Protect deliberate discard/exit and apply privacy/ownership retirement without cross-session leakage.
+
+Confirmed discard also retires that input's captured native Review gestures and
+request review. Recovering identical legacy text into the empty composer cannot
+renew them: a fresh Review and separate confirmation are required. Declining
+discard preserves the input and current review. Exact-session discard leaves other
+conversations' unsent input intact; voluntary all-input discard retains its existing
+explicit scope ([discard/recovery regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.UnsentDiscard.cs)).
 
 The explicit native **Review unsent message once** action freezes the complete current composer input and exact Active conversation for a separate one-use Confirm or Cancel through the [existing request service](../src/Kora.Application/Hosting/SessionRequestCommandService.cs).
 It is available in Sessions, compact and the primary conversation; direct Send is unchanged. Review alone retains nothing, and Cancel keeps the unsent input.
@@ -1114,6 +1129,21 @@ after successful playback of that same question. Existing consent, listening hol
 unlocked interactive Windows session, ownership/private-control revision,
 exact device/readiness, local recognizer and call-policy gates remain required;
 unknown state denies capture.
+
+For the already-admitted host clarification/local-version and model clarification
+questions, playback includes the canonical ordered choice labels and single- or
+multiple-selection bounds, not only the prompt. For example, the native
+local-version question reads **Option 1: Show local version. Choose one option.**
+before opening its reply; saying **Show local version** then completes that
+original question. Explicit playback and opt-in conversational playback use the
+same reviewed record, never caller-supplied replacement labels. Other question
+purposes retain their existing readback; form-field entry and exact approvals
+are unchanged. Text questions do not acquire a choice list.
+The original native local-version wait accepts its existing native or activated-
+voice answer channel through dispatch, without relabelling the original LocalUi
+request. Both the continuation and the SQLite transaction revalidate that same
+ordinary answer; stale/private/session/source failures still prevent dispatch.
+This adds no spoken approval, authentication, consent or protected-call exception.
 
 One application-wide turn binds the original question key/revision,
 session/generation and unique visible presenter. Its accessible countdown allows

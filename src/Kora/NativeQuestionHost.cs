@@ -203,7 +203,7 @@ internal sealed partial class NativeQuestionHost : IDisposable
         }
         if (result.Outcome != HostInteractionOutcome.Answered || result.Question is not { } answered
             || answered.Key.Request != request || answered.Key.QuestionId != state.Key.QuestionId
-            || answered.Status != QuestionStatus.Answered || answered.AnswerChannel != RequestOrigin.LocalUi
+            || answered.Status != QuestionStatus.Answered || answered.AnswerChannel is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
             || state.IsWithdrawn || !Eligible())
         {
             throw new InvalidOperationException("The exact native question did not produce an eligible committed answer.");

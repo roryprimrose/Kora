@@ -26,6 +26,7 @@ namespace Kora;
 public sealed partial class App : Avalonia.Application
 {
     private SystemTrayController? systemTray;
+    private DesktopLifetimeController? desktopLifetime;
     private SettingsWindowController? settingsWindow;
     private MicrophoneRecoveryWindowController? microphoneRecovery;
     private DocumentationWindowController? documentationWindow;
@@ -194,7 +195,10 @@ public sealed partial class App : Avalonia.Application
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
                     && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired,
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision,
-                Services.GetRequiredService<ILogger<CustomizationWindowController>>(), agentAuthoring!.Add);
+                Services.GetRequiredService<ILogger<CustomizationWindowController>>(), agentAuthoring!.Add,
+                Services.GetRequiredService<McpServerConfigurationService>(),
+                Services.GetRequiredService<ArtifactDirectoryConfigurationService>(),
+                Services.GetRequiredService<SessionConversationService>());
             customizations.Bind();
             BindInstructionUse(viewModel);
             promptParameters = new(viewModel, Services.GetRequiredService<Kora.Core.Artifacts.ArtifactCatalogue>(),
@@ -288,6 +292,7 @@ public sealed partial class App : Avalonia.Application
                     ExactAnswerExportWindowController.SelectDestinationAsync),
                 Services.GetRequiredService<Kora.Application.Configuration.DetailPresentationConfigurationService>());
             sessionsWindow.Bind();
+            sessionsWindow.McpCapabilityObserved = inventory => customizations?.ObserveMcpCapabilities(inventory);
             sessionsWindow.CreateInteraction = (state, owner) =>
                 responseWindow.PrepareSessions(state, owner, sessionsWindow.Open,
                     () => sessionsWindow.OpenNewRequest?.Invoke());
@@ -424,6 +429,8 @@ public sealed partial class App : Avalonia.Application
                     host.AbandonHandoffPreparation();
                     return Task.CompletedTask;
                 }));
+            desktopLifetime = new(viewModel, () => desktop.Shutdown(),
+                Services.GetRequiredService<ILogger<DesktopLifetimeController>>());
             desktop.Exit += OnDesktopExit;
         }
 
@@ -451,6 +458,8 @@ public sealed partial class App : Avalonia.Application
 
     private void DisposeDesktopControllers()
     {
+        desktopLifetime?.Dispose();
+        desktopLifetime = null;
         presenceRendererTimer.Stop();
         presenceRendererTimer.Tick -= OnPresenceRendererTick;
         presenceWindows?.Stop();

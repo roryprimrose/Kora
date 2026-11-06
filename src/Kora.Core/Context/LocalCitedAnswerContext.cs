@@ -25,7 +25,8 @@ internal sealed class LocalCitedAnswerContext
 
     internal LocalCitedAnswerContext(string question, LocalFileSearchResult search, HostRequest request,
         HostRevision generation, DateTimeOffset now, DateTimeOffset expires,
-        Func<DateTimeOffset, bool> current, Func<LocalFileCitation, LocalFileCitationSpan> resolve)
+        Func<DateTimeOffset, bool> current, Func<LocalFileCitation, LocalFileCitationSpan> resolve,
+        Func<LocalFileCitation, string>? evidenceContent = null)
     {
         this.current = current;
         this.resolve = resolve;
@@ -36,7 +37,8 @@ internal sealed class LocalCitedAnswerContext
         {
             var id = Guid.NewGuid();
             bindings.Add(id, citation);
-            evidence.Add(new(new(id), request, generation, citation.Excerpt, ModelEvidenceDisclosure.LocalOnly));
+            evidence.Add(new(new(id), request, generation, evidenceContent is null ? citation.Excerpt : evidenceContent(citation),
+                ModelEvidenceDisclosure.LocalOnly));
         }
         citations = bindings.ToImmutable();
         Envelope = new(request, Policy, question, evidence, now, expires, ModelToolMode.None);

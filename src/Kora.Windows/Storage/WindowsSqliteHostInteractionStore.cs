@@ -85,8 +85,10 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
                 HostInteractionSchema.ConversationTables, MigrateSessionPermission),
             answerReviewMigration: new(13, 14,
                 HostInteractionSchema.SessionPermissionTables, MigrateAnswerReviews),
-            modelUsageMigration: new(14, HostInteractionSchema.Version,
-                HostInteractionSchema.AnswerReviewTables, MigrateModelUsage));
+            auditRetentionMigration: new(14, 15,
+                HostInteractionSchema.AnswerReviewTables, MigrateAuditRetention),
+            modelUsageMigration: new(15, HostInteractionSchema.Version,
+                HostInteractionSchema.AuditRetentionTables, MigrateModelUsage));
     }
 
     public ValueTask InitializeAsync(CancellationToken cancellationToken) =>
@@ -518,6 +520,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
                 using var transaction = connection.BeginTransaction();
                 tasks.ImportAuthority(connection, transaction, cancellationToken);
                 Execute(connection, transaction, "INSERT INTO authority_head VALUES(1,0,$hash);", ("$hash", EmptyHash));
+                SeedAuditAnchor(connection, transaction);
                 SeedMemoryProfile(connection, transaction);
                 transaction.Commit();
             }
@@ -551,7 +554,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         { ValidateSessionPermissions(connection); }
         if (Convert.ToInt32(version.ExecuteScalar(), CultureInfo.InvariantCulture) >= 14)
         { ValidateAnswerReviews(connection); }
-        if (Convert.ToInt32(version.ExecuteScalar(), CultureInfo.InvariantCulture) >= 15)
+        if (Convert.ToInt32(version.ExecuteScalar(), CultureInfo.InvariantCulture) >= 16)
         { ValidateModelUsage(connection); }
     }
 
@@ -682,8 +685,9 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
     {
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT sequence,correlation_id,previous_hash,hash,envelope FROM security_audit_events ORDER BY sequence;";
-        long sequence = 0;
-        var hash = EmptyHash;
+        var anchor = ReadAuditAnchor(connection);
+        var sequence = anchor.Sequence;
+        var hash = anchor.Hash;
         using (var reader = command.ExecuteReader())
         {
             while (reader.Read())

@@ -18,10 +18,10 @@ internal sealed class CopilotSdkClient(CopilotClientOptions options) : ICopilotS
     {
         private readonly Usage usage = new(model);
         public string SessionId => session.SessionId;
-        public async Task<string?> SendAsync(string prompt, CancellationToken token)
+        public async Task<string?> SendAsync(string prompt, TimeSpan timeout, CancellationToken token)
         {
             using var subscription = session.On<AssistantUsageEvent>(usage.Observe);
-            return (await session.SendAndWaitAsync(prompt, cancellationToken: token).ConfigureAwait(false))?.Data.Content;
+            return (await session.SendAndWaitAsync(prompt, timeout, token).ConfigureAwait(false))?.Data.Content;
         }
         public ModelTokenUsage? GetTokenUsage(int modelCalls) => usage.Snapshot(modelCalls);
     }

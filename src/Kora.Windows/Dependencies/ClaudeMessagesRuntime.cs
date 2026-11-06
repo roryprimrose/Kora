@@ -36,6 +36,7 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, ICla
         token = linked.Token;
         await operation.WaitAsync(token).ConfigureAwait(false);
         ModelTokenUsage? tokenUsage = null;
+        void Quarantine() => quarantined = true;
         try
         {
             if (disposed || quarantined || profile.Service != ProviderService.Claude
@@ -58,32 +59,36 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, ICla
             var messageBody = Serialize(context, profile, outputLimit);
             if (checked(countBody.Length + messageBody.Length) > ModelContextEnvelope.MaximumInputUtf8Bytes)
             { return new(ModelTurnOutcome.DeniedEgress); }
-            using var http = create();
-            var sender = new ClaudeFinalRequestHandler(http, accounts);
-            async ValueTask<bool> Live(CancellationToken ct) => !disposed && !ct.IsCancellationRequested
-                && context.ExpiresAt > time.GetUtcNow() && await accounts.CurrentAsync(account, ct).ConfigureAwait(false)
-                && await current(ct).ConfigureAwait(false)
-                && !disposed && !ct.IsCancellationRequested && context.ExpiresAt > time.GetUtcNow();
-            var counted = await sender.SendAsync(ClaudeFinalRequestHandler.Prepare(provenance, profile, account,
-                "/v1/messages/count_tokens", countBody), account, admit, Live, token,
-                ModelContextEnvelope.MaximumOutputUtf8Bytes).ConfigureAwait(false);
-            if (counted is null) { return new(ModelTurnOutcome.DeniedEgress); }
-            using var count = Parse(counted);
-            if (count.RootElement.EnumerateObject().Count() != 1
-                || !count.RootElement.GetProperty("input_tokens").TryGetInt32(out var inputTokens)
-                || inputTokens <= 0 || inputTokens > inputLimit
-                || counted.Length >= ModelContextEnvelope.MaximumOutputUtf8Bytes)
-            { return new(ModelTurnOutcome.DeniedEgress); }
-            var response = await sender.SendAsync(ClaudeFinalRequestHandler.Prepare(provenance, profile, account,
-                "/v1/messages", messageBody), account, admit, Live, token,
-                ModelContextEnvelope.MaximumOutputUtf8Bytes - counted.Length).ConfigureAwait(false);
-            if (response is null) { return new(ModelTurnOutcome.DeniedEgress); }
-            tokenUsage = ReadTokenUsage(response, outputLimit, inputLimit.Value);
-            var answer = ParseAnswer(response, profile, outputLimit, inputLimit.Value);
-            token.ThrowIfCancellationRequested();
-            return await Live(token).ConfigureAwait(false)
-                ? new(ModelTurnOutcome.Succeeded, answer) { TokenUsage = tokenUsage }
-                : new(ModelTurnOutcome.DeniedEgress) { TokenUsage = tokenUsage };
+            var http = create();
+            try
+            {
+                var sender = new ClaudeFinalRequestHandler(http, accounts);
+                async ValueTask<bool> Live(CancellationToken ct) => !disposed && !quarantined && !ct.IsCancellationRequested
+                    && context.ExpiresAt > time.GetUtcNow() && await accounts.CurrentAsync(account, ct).ConfigureAwait(false)
+                    && await current(ct).ConfigureAwait(false)
+                    && !disposed && !quarantined && !ct.IsCancellationRequested && context.ExpiresAt > time.GetUtcNow();
+                var counted = await sender.SendAsync(ClaudeFinalRequestHandler.Prepare(provenance, profile, account,
+                    "/v1/messages/count_tokens", countBody), account, admit, Live, token,
+                    ModelContextEnvelope.MaximumOutputUtf8Bytes, quarantine: Quarantine).ConfigureAwait(false);
+                if (counted is null) { return new(ModelTurnOutcome.DeniedEgress); }
+                using var count = Parse(counted);
+                if (count.RootElement.EnumerateObject().Count() != 1
+                    || !count.RootElement.GetProperty("input_tokens").TryGetInt32(out var inputTokens)
+                    || inputTokens <= 0 || inputTokens > inputLimit
+                    || counted.Length >= ModelContextEnvelope.MaximumOutputUtf8Bytes)
+                { return new(ModelTurnOutcome.DeniedEgress); }
+                var response = await sender.SendAsync(ClaudeFinalRequestHandler.Prepare(provenance, profile, account,
+                    "/v1/messages", messageBody), account, admit, Live, token,
+                    ModelContextEnvelope.MaximumOutputUtf8Bytes - counted.Length, quarantine: Quarantine).ConfigureAwait(false);
+                if (response is null) { return new(ModelTurnOutcome.DeniedEgress); }
+                tokenUsage = ReadTokenUsage(response, outputLimit, inputLimit.Value);
+                var answer = ParseAnswer(response, profile, outputLimit, inputLimit.Value);
+                token.ThrowIfCancellationRequested();
+                return await Live(token).ConfigureAwait(false)
+                    ? new(ModelTurnOutcome.Succeeded, answer) { TokenUsage = tokenUsage }
+                    : new(ModelTurnOutcome.DeniedEgress) { TokenUsage = tokenUsage };
+            }
+            finally { ClaudeAnswerStream.DisposeOwned(http, Quarantine); }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         { return new(ModelTurnOutcome.Cancelled) { TokenUsage = tokenUsage }; }

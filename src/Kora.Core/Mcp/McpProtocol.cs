@@ -1,6 +1,7 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Text;
 using System.Text.Json;
+
 using Kora.Core.Dependencies;
 
 namespace Kora.Core.Mcp;
@@ -64,17 +65,18 @@ public static class McpProtocol
         return discovered.ToImmutable();
     }
 
-    public static byte[] InvocationRequest(string toolName, McpToolSchema schema, string arguments)
+    public static byte[] InvocationRequest(string toolName, McpToolSchema schema, string arguments, int requestId = 3)
     {
         McpToolSchema.ValidateName(toolName);
         ArgumentNullException.ThrowIfNull(schema);
+        ArgumentOutOfRangeException.ThrowIfLessThan(requestId, 3);
         schema.ValidateArguments(arguments);
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream))
         {
             writer.WriteStartObject();
             writer.WriteString("jsonrpc", "2.0");
-            writer.WriteNumber("id", 3);
+            writer.WriteNumber("id", requestId);
             writer.WriteString("method", "tools/call");
             writer.WriteStartObject("params");
             writer.WriteString("name", toolName);
@@ -86,24 +88,23 @@ public static class McpProtocol
         return stream.ToArray();
     }
 
-    public static McpRemoteResult ReadInvocationResult(ReadOnlySpan<byte> bytes)
+    public static McpRemoteResult ReadInvocationResult(ReadOnlySpan<byte> bytes, int requestId = 3)
     {
         using var document = ModelToolProtocol.ReadJson(bytes, MaximumResultUtf8Bytes);
-        var result = ReadResult(document.RootElement, 3);
+        var result = ReadResult(document.RootElement, requestId);
         RequireFields(result, ["content"], ["isError", "structuredContent"]);
         if (result.TryGetProperty("isError", out var error) && error.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
         { throw new InvalidDataException("MCP error status must be an explicit Boolean."); }
         var content = result.GetProperty("content");
         if (content.ValueKind != JsonValueKind.Array || content.GetArrayLength() is < 1 or > 4)
         { throw new InvalidDataException("MCP returned an unsupported content collection."); }
-        var text = new StringBuilder();
+        var text = new List<string>();
         foreach (var item in content.EnumerateArray())
         {
             RequireFields(item, ["type", "text"], []);
             if (!TextEquals(item.GetProperty("type"), "text") || item.GetProperty("text").ValueKind != JsonValueKind.String)
             { throw new InvalidDataException("The first MCP profile accepts inert text only, without embedded resources."); }
-            if (text.Length > 0) { text.Append('\n'); }
-            text.Append(item.GetProperty("text").GetString());
+            text.Add(item.GetProperty("text").GetString()!);
         }
         string? structured = null;
         if (result.TryGetProperty("structuredContent", out var value))
@@ -112,7 +113,7 @@ public static class McpProtocol
             { throw new InvalidDataException("MCP structured content must be an inert object."); }
             structured = value.GetRawText();
         }
-        return new(error.ValueKind == JsonValueKind.True, text.ToString(), structured);
+        return new(error.ValueKind == JsonValueKind.True, string.Join('\n', text), structured);
     }
 
     private static JsonElement ReadResult(JsonElement root, int id)

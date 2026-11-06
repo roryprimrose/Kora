@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using Kora.Core.Dependencies;
@@ -149,67 +149,9 @@ internal static partial class OllamaToolWire
         writer.WriteString("type", "function");
         writer.WriteStartObject("function");
         writer.WriteString("name", descriptor.Id);
-        writer.WriteStartObject("parameters");
-        writer.WriteString("type", "object");
-        writer.WriteBoolean("additionalProperties", false);
-        writer.WriteStartObject("properties");
-        if (descriptor.Input == CapabilityInputShape.Page)
-        {
-            WriteInteger(writer, "offset", 0, null);
-            WriteInteger(writer, "count", 1, descriptor.Limits.MaximumRecords);
-        }
-        else if (descriptor.Input is CapabilityInputShape.Id or CapabilityInputShape.RegisteredSettingId)
-        {
-            writer.WriteStartObject("id");
-            writer.WriteString("type", "string");
-            writer.WriteStartArray("enum");
-            if (descriptor.Input == CapabilityInputShape.RegisteredSettingId)
-            {
-                foreach (var item in Kora.Core.Configuration.RegisteredSettings.RegisteredSettingRegistry.Settings)
-                { writer.WriteStringValue(item.Id); }
-            }
-            else if (string.Equals(descriptor.Id, ReadOnlyCapabilityCatalog.Get, StringComparison.Ordinal))
-            {
-                foreach (var item in ReadOnlyCapabilityCatalog.Descriptors) { writer.WriteStringValue(item.Id); }
-            }
-            else { writer.WriteStringValue(ReadOnlyCapabilityCatalog.LocalRuntimeId); }
-            writer.WriteEndArray();
-            writer.WriteEndObject();
-        }
-        else if (descriptor.Input == CapabilityInputShape.WebPageAddress)
-        {
-            writer.WriteStartObject("address");
-            writer.WriteString("type", "string");
-            writer.WriteEndObject();
-        }
-        else if (descriptor.Input == CapabilityInputShape.MetadataReference)
-        {
-            writer.WriteStartObject("ref");
-            writer.WriteString("type", "string");
-            writer.WriteNumber("minLength", 32);
-            writer.WriteNumber("maxLength", 32);
-            writer.WriteEndObject();
-        }
+        writer.WritePropertyName("parameters");
+        CapabilityInputSchema.Write(writer, descriptor);
         writer.WriteEndObject();
-        if (descriptor.Input is CapabilityInputShape.Id or CapabilityInputShape.RegisteredSettingId
-            or CapabilityInputShape.WebPageAddress or CapabilityInputShape.MetadataReference)
-        {
-            writer.WriteStartArray("required");
-            writer.WriteStringValue(descriptor.Input is CapabilityInputShape.Id or CapabilityInputShape.RegisteredSettingId ? "id"
-                : descriptor.Input == CapabilityInputShape.MetadataReference ? "ref" : "address");
-            writer.WriteEndArray();
-        }
-        writer.WriteEndObject();
-        writer.WriteEndObject();
-        writer.WriteEndObject();
-    }
-
-    private static void WriteInteger(Utf8JsonWriter writer, string name, int minimum, int? maximum)
-    {
-        writer.WriteStartObject(name);
-        writer.WriteString("type", "integer");
-        writer.WriteNumber("minimum", minimum);
-        if (maximum is { } value) { writer.WriteNumber("maximum", value); }
         writer.WriteEndObject();
     }
 

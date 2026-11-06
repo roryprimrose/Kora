@@ -7,7 +7,7 @@ const FILE = 'queue.json';
 const WORKFLOW = 'ci.yml';
 
 class GitHubQueue {
-  constructor(github, context, core, appId, deliveryProfile = '') {
+  constructor(github, context, core, appId, deliveryProfile = '', mainBuildProfile = '') {
     this.github = github;
     this.context = context;
     this.core = core;
@@ -15,6 +15,9 @@ class GitHubQueue {
     this.repository = `${this.repo.owner}/${this.repo.repo}`;
     this.appId = Number(appId);
     this.independent = require('./delivery.cjs').independent(deliveryProfile);
+    this.mainBuildProfile = require('./main-scheduling.cjs').mainBuildProfile(mainBuildProfile);
+    invariant(this.mainBuildProfile !== 'hourly-v1' || this.independent,
+      'Hourly main builds require independent delivery.');
     invariant(Number.isSafeInteger(this.appId) && this.appId > 0, 'Missing queue App ID.');
     this.commit = null;
     this.serialized = null;
@@ -23,6 +26,8 @@ class GitHubQueue {
 
   async verifyProtection(profile = 'singleton-v1') {
     profile = require('./batch-policy.cjs').profile(profile);
+    invariant(this.mainBuildProfile !== 'hourly-v1' || profile === 'batch-v1',
+      'Hourly main builds require batch admission.');
     const { data } = await this.github.rest.repos.getBranchProtection({ ...this.repo, branch: 'main' });
     invariant(data.required_status_checks?.strict === true && data.enforce_admins?.enabled === true,
       'Queue requires strict up-to-date checks enforced for administrators.');
@@ -191,6 +196,21 @@ class GitHubQueue {
   async expectedJobs(source) {
     return (await this.workflowInventory(source, true))?.jobs ?? null;
   }
+  async observeHourlyMain(state) {
+    return require('./main-scheduling.cjs').observeAttempts(this, state);
+  }
+  async admitScheduledMain(state, runAttempt) {
+    return require('./main-scheduling.cjs').admitScheduled(this, {
+      eventName: this.context.eventName, ref: this.context.ref, sha: this.context.sha,
+      runId: this.context.runId, runAttempt,
+    }, state);
+  }
+  async scheduleHourlyMain(state, now, save) {
+    return require('./main-scheduling.cjs').dispatchHourly(this, state, now, save);
+  }
+  async supportsHourlyMain(source) {
+    return (await this.workflowInventory(source))?.mainBuildSchema === 'hourly-v1';
+  }
   async rejectedAdmission(source, run, jobs) {
     if (run.head_sha !== source) return false;
     const inventory = await this.workflowInventory(source);
@@ -228,6 +248,7 @@ class GitHubQueue {
     if (expected === null)
       this.notice('Candidate workflow job schema is unknown; physical quiescence is unknown.');
     return expected === null ? null : { blob: data.sha, jobs: expected,
+      ...(lines.includes('# main-validation-schema: hourly-v1') ? { mainBuildSchema: 'hourly-v1' } : {}),
       schema: lines.includes('# merge-queue-job-schema: parallel-pr-v1') ? 'parallel-pr-v1'
         : lines.includes('# merge-queue-job-schema: unit-pr-v1') ? 'unit-pr-v1'
           : lines.includes('# merge-queue-delivery-schema: independent-v1') ? 'windows-12-delivery-v1'
@@ -312,14 +333,20 @@ class GitHubQueue {
       current = previous;
     }
     if (current === previous) {
+      let merged;
       try {
-        await this.github.rest.repos.merge({ ...this.repo, base: ref.slice('heads/'.length), head,
-          commit_message: `Merge queue synthetic ${active.ticket} prefix ${index + 1}` });
+        merged = (await this.github.rest.repos.merge({ ...this.repo, base: ref.slice('heads/'.length), head,
+          commit_message: `Merge queue synthetic ${active.ticket} prefix ${index + 1}` })).data;
       } catch (error) {
         if (error.status === 409) return null;
         throw error;
       }
-      current = (await this.github.rest.git.getRef({ ...this.repo, ref })).data.object.sha;
+      if (merged?.sha !== undefined) {
+        invariant(typeof merged.sha === 'string' && SHA.test(merged.sha), 'Incomplete synthetic merge identity.');
+        current = merged.sha;
+      } else {
+        current = (await this.github.rest.git.getRef({ ...this.repo, ref })).data.object.sha;
+      }
     }
     const commit = await this.commitInfo(current);
     invariant(current === head && await this.containsBase(previous, head)
@@ -328,13 +355,15 @@ class GitHubQueue {
     'Synthetic prefix moved outside its expected parent identities.');
     return { sha: current, tree: commit.tree };
   }
-  async tipQualification(tip) {
+  async tipQualification(tip, { allowScheduled = false } = {}) {
     const runs = await this.completePages(this.github.rest.actions.listWorkflowRuns,
       { workflow_id: WORKFLOW, branch: 'main', head_sha: tip.sha }, 'tip qualification run');
     invariant(runs.every(run => Number.isSafeInteger(run.id) && run.id > 0)
       && new Set(runs.map(run => run.id)).size === runs.length, 'Invalid or duplicate qualification run identities.');
     const eligible = run => run.head_sha === tip.sha && run.head_branch === 'main'
-      && run.run_attempt === 1 && ['push', 'workflow_dispatch'].includes(run.event)
+      && run.run_attempt === 1 && (['push', 'workflow_dispatch'].includes(run.event)
+        || (this.mainBuildProfile === 'hourly-v1' || allowScheduled)
+          && inventory?.mainBuildSchema === 'hourly-v1' && run.event === 'schedule')
       && run.display_title === 'CI main';
     const inventory = await this.workflowInventory(tip.sha);
     invariant(inventory, 'Completed-tip workflow inventory is unavailable.');
@@ -399,6 +428,18 @@ class GitHubQueue {
     invariant(await this.main() === tip.sha, 'Completed-tip source changed before qualification dispatch.');
     await this.github.rest.actions.createWorkflowDispatch({ ...this.repo, workflow_id: WORKFLOW,
       ref: 'main', inputs: {} });
+  }
+  async dispatchHourlyMain(tip) {
+    invariant(await this.main() === tip.sha, 'Hourly main source changed before dispatch.');
+    const { status, data } = await this.github.rest.actions.createWorkflowDispatch({
+      ...this.repo, workflow_id: WORKFLOW, ref: 'main', inputs: {},
+      headers: { 'X-GitHub-Api-Version': '2026-03-10' },
+    });
+    invariant(status === 200 && Number.isSafeInteger(data?.workflow_run_id) && data.workflow_run_id > 0
+      && data.html_url === `https://github.com/${this.repository}/actions/runs/${data.workflow_run_id}`
+      && data.run_url === `https://api.github.com/repos/${this.repository}/actions/runs/${data.workflow_run_id}`,
+    'Hourly main dispatch response is ambiguous; no replay is authorized.');
+    return data.workflow_run_id;
   }
   async ciQuiescent() {
     for (const status of ['queued', 'in_progress', 'waiting', 'pending', 'requested']) {
@@ -491,8 +532,8 @@ async function admit({ github, context, inputs }) {
   return active.head;
 }
 
-async function admitBatchTip({ github, context, appId, deliveryProfile = '' }) {
-  const api = new GitHubQueue(github, context, null, appId, deliveryProfile);
+async function admitBatchTip({ github, context, appId, deliveryProfile = '', mainBuildProfile = '' }) {
+  const api = new GitHubQueue(github, context, null, appId, deliveryProfile, mainBuildProfile);
   const state = await api.load();
   invariant(state.version === 2, 'Batch main qualification requires migrated state.');
   if (api.independent) {

@@ -224,9 +224,11 @@ public sealed class WindowsSqliteSessionModelMetricsTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task SchemaFourteenMigrationPreservesHistoryAuditAndRetentionWithoutFabricatedUsage(bool interrupted)
+    [InlineData(14, false)]
+    [InlineData(14, true)]
+    [InlineData(15, false)]
+    [InlineData(15, true)]
+    public async Task LegacyMigrationPreservesHistoryAuditAndRetentionWithoutFabricatedUsage(int version, bool interrupted)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
@@ -234,7 +236,8 @@ public sealed class WindowsSqliteSessionModelMetricsTests
         var history = await f.Store.ReadHistoryAsync(f.Request.SessionId, null, 50, f.Token);
         var retention = await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token);
         f.DropEmptyModelUsageSchemaForLegacy();
-        f.Mutate("PRAGMA user_version=14;");
+        if (version == 14) { f.DropEmptyAuditAnchorForLegacy(); }
+        f.Mutate($"PRAGMA user_version={version};");
         if (interrupted)
         {
             var checkpoint = new InteractionTransactionCheckpoint
@@ -244,7 +247,7 @@ public sealed class WindowsSqliteSessionModelMetricsTests
             using var connection = f.OpenRaw();
             using var read = connection.CreateCommand();
             read.CommandText = "PRAGMA user_version;";
-            read.ExecuteScalar().Should().Be(14L);
+            read.ExecuteScalar().Should().Be((long)version);
         }
         f.Reopen();
         await f.Store.InitializeAsync(f.Token);
@@ -252,6 +255,12 @@ public sealed class WindowsSqliteSessionModelMetricsTests
         WindowsSqliteConversationTests.AuditText(f).Should().Be(audits);
         (await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token)).Should().Be(retention);
         (await f.Store.ReadHistoryAsync(f.Request.SessionId, null, 50, f.Token)).Should().BeEquivalentTo(history);
+        using var migrated = f.OpenRaw();
+        using var schema = migrated.CreateCommand();
+        schema.CommandText = "PRAGMA user_version;";
+        schema.ExecuteScalar().Should().Be(16L);
+        schema.CommandText = "SELECT sequence FROM authority_retention_anchor WHERE singleton=1;";
+        schema.ExecuteScalar().Should().Be(0L);
     }
 
     [Theory]

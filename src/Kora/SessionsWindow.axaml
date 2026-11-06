@@ -156,8 +156,9 @@
         <controls:NamedTextBlock Text="{Binding ConversationSearchStatus}" TextWrapping="Wrap"
             AutomationProperties.Name="Conversation search counters, exact snapshot continuation and explicit failures; no model context" />
         <controls:ScrollableListBox x:Name="ConversationSearchResults" ItemsSource="{Binding ConversationSearchMessages}" MaxHeight="160"
+            KeyboardNavigation.TabNavigation="Continue"
             ItemTemplate="{StaticResource ConversationMessageTemplate}"
-            AutomationProperties.Name="Exact immutable USER messages matching lexical words or typed HOST status; inert native text, chronological, no export or actions" />
+            AutomationProperties.Name="Exact retained conversation matches for the selected USER, HOST or ASSISTANT fields; complete inert text with separately admitted record actions" />
         <TextBox x:Name="ConversationComposer" Text="{Binding ComposerBody, Mode=TwoWay}" AcceptsReturn="True"
             Height="90" TextWrapping="Wrap" IsEnabled="{Binding CanCompose}"
             PlaceholderText="Original message: up to 4096 UTF-16 characters and 16384 UTF-8 bytes; invalid or oversized text is rejected, not truncated"
@@ -205,6 +206,14 @@
           <Button x:Name="SubmitMcp" Content="Use reviewed MCP tool locally" IsEnabled="{Binding CanSubmitConversation}" />
           <Button x:Name="InvokeMcp" Content="Invoke reviewed MCP tool without a model" IsEnabled="{Binding CanCompose}"
               AutomationProperties.HelpText="Select one admitted read-only tool, enter required schema-bound arguments, then separately approve the exact destination and arguments. Conversation input is unchanged." />
+          <Button x:Name="ManageMcpCapabilities" Content="Manage MCP capabilities" IsEnabled="{Binding CanCompose}"
+              AutomationProperties.HelpText="Explicitly discover private metadata, then review server, category and individual consideration preferences. No resource or prompt content is fetched." />
+          <Button x:Name="ReadMcpResource" Content="Read MCP resource" IsEnabled="{Binding CanCompose}" />
+          <Button x:Name="ReadMcpTemplate" Content="Read MCP resource template" IsEnabled="{Binding CanCompose}" />
+          <Button x:Name="PreviewMcpPrompt" Content="Preview MCP prompt" IsEnabled="{Binding CanCompose}" />
+          <Button x:Name="AnswerMcpResource" Content="Read resource and answer locally" IsEnabled="{Binding CanSubmitConversation}" />
+          <Button x:Name="AnswerMcpTemplate" Content="Read template and answer locally" IsEnabled="{Binding CanSubmitConversation}" />
+          <Button x:Name="UseMcpPrompt" Content="Use MCP prompt locally" IsEnabled="{Binding CanSubmitConversation}" />
           <Button x:Name="CancelMcp" Content="Stop MCP operation" IsEnabled="{Binding IsMcpActive}"
               AutomationProperties.HelpText="Closes new work and publication; resources stay owned until the authenticated transport actually terminates." />
           <Button x:Name="RefreshRunningConversation" Content="Refresh running work" IsEnabled="{Binding CanRefreshRunningConversation}" />
@@ -220,10 +229,13 @@
             AutomationProperties.Name="Explicit delegated MCP account; never inherits a model account or ambient credentials" />
         <TextBox Text="{Binding McpResultText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
             IsUndoEnabled="False" MaxHeight="180" AutomationProperties.Name="Actual bounded inert MCP result with tool and observation provenance; no executable content" />
+        <TextBox Text="{Binding McpContentText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+            IsUndoEnabled="False" MaxHeight="240" AutomationProperties.Name="Complete observed MCP text resource or prompt; declared template roles are not conversation history" />
         <local:McpResultFollowUpControls x:Name="McpResultFollowUp" />
         <controls:NamedTextBlock Text="{Binding RunningConversationStatus}" TextWrapping="Wrap"
             AutomationProperties.Name="Exact running conversation task and cancellation resource-join status" />
         <local:PendingConversationPanel />
+        <local:ManagementAnswerPanel />
         <Button x:Name="SubmitLocalAnswer" Content="Answer locally (no tools)" IsEnabled="{Binding CanSubmitConversation}" />
         <StackPanel IsVisible="{Binding HasProvisionalAnswer}" Spacing="4">
           <TextBlock Text="Provisional answer — not retained" TextWrapping="Wrap" />
@@ -773,8 +785,9 @@
                 <Button x:Name="ForgetMemory" Content="Forget exact memory" IsEnabled="{Binding CanEditMemory}"
                         AutomationProperties.Name="Explicitly forget this exact revision; clear body and review, retain non-reusable tombstone; not forensic erasure" />
               </WrapPanel>
-              <controls:NamedTextBlock Text="{Binding MemoryDetail}" TextWrapping="Wrap"
-                                       AutomationProperties.Name="Explicitly inspected exact memory content, classification, lineage and review receipt or content-free mutation outcome" />
+              <TextBox x:Name="MemoryDetailReader" Text="{Binding MemoryDetail, Mode=OneWay}" IsReadOnly="True"
+                       IsUndoEnabled="False" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="320"
+                       AutomationProperties.Name="Exact memory inspection or retained mutation result; complete content, classification, source scope, lineage and review; reading grants nothing" />
               <ComboBox ItemsSource="{Binding MemoryClasses}" SelectedItem="{Binding MemoryClass, Mode=TwoWay}"
                         IsEnabled="{Binding CanProposeMemory}" AutomationProperties.Name="User proposal or replacement classification; not sensitivity proof" />
               <TextBox Text="{Binding MemoryDraft, Mode=TwoWay}" IsEnabled="{Binding CanProposeMemory}"

@@ -21,6 +21,10 @@ internal sealed partial class ModelHistoryContextWindow : Window
         };
         Sources.SelectionChanged += (_, _) => model.SelectHistoryContext(
             Sources.SelectedItems?.OfType<SessionsViewModel.HistoryContextCandidate>() ?? []);
+        CompleteReview.CopyingToClipboard += BlockReviewTransfer;
+        CompleteReview.CuttingToClipboard += BlockReviewTransfer;
+        CompleteReview.PastingFromClipboard += BlockReviewTransfer;
+        CompleteReview.AddHandler(ContextRequestedEvent, (_, args) => args.Handled = true, RoutingStrategies.Tunnel);
         Review.Click += ReviewClicked;
         Confirm.Click += ConfirmClicked;
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
@@ -50,4 +54,6 @@ internal sealed partial class ModelHistoryContextWindow : Window
             Sources.ItemsSource = null;
         };
     }
+
+    private static void BlockReviewTransfer(object? sender, RoutedEventArgs args) => args.Handled = true;
 }

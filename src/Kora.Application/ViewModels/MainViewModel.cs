@@ -441,12 +441,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (clipboardExplanation is not null) { clipboardExplanation.Changed += OnClipboardPreviewChanged; }
         clipboardPreview.Changed += OnClipboardPreviewChanged;
 
-        AsyncCommand CreateCommand(Func<Task> execute, Func<bool>? canExecute = null) =>
+        AsyncCommand CreateCommand(Func<Task> execute, Func<bool>? canExecute = null, Func<bool>? canExecuteWhileExecuting = null) =>
             new(() => Kora.Application.Hosting.HostRequestRunner.RunAsync(
                     HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi, execute),
                 exception => Kora.Application.Hosting.HostRequestRunner.Run(
                     HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi,
-                    () => HandleCommandException(exception)), canExecute);
+                    () => HandleCommandException(exception)), canExecute, canExecuteWhileExecuting);
 
         InitializeSpeechInputConfiguration(speechInputConfiguration, execute => CreateCommand(execute));
         InitializeVoiceCaptureTiming(voiceCaptureTimingConfiguration, execute => CreateCommand(execute));
@@ -645,7 +645,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || Kora.Application.KnowledgeSources.KnowledgeSourceAnswerCommand.Parse(CommandText, AssistantName) is not null
                       || NewRequestOpenCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Core.Interaction.LocalEventCommand.Parse(CommandText, AssistantName) is not null
-                      || ManualCallCommand.Parse(CommandText, AssistantName) is not null));
+                      || ManualCallCommand.Parse(CommandText, AssistantName) is not null),
+            () => Kora.Application.Skills.OwnedSkillAuthoringCommand.Parse(CommandText, AssistantName)?.Operation is "close-use"
+                  || CallSpeechCommand.Parse(CommandText, AssistantName)?.Operation == CallSpeechOperation.Cancel);
         PreviewVoiceCommand = CreateCommand(
             PreviewVoiceAsync,
             () => SelectedVoice is not null && SelectedOutputDevice is not null
@@ -2084,7 +2086,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     public bool IsPushToTalkVisible => !IsVoiceEnabled;
 
     public bool CanPushToTalk =>
-        IsReviewedVoiceCaptureReleased && Volatile.Read(ref listeningStopRequests) == 0 && (listeningStop.CanRecover || CanRetireWakeForManualInput)
+        captureOpenCancellation is null
+        && IsReviewedVoiceCaptureReleased && Volatile.Read(ref listeningStopRequests) == 0 && (listeningStop.CanRecover || CanRetireWakeForManualInput)
         && IsVoiceReadinessEligible(privacyObservation.Current)
         && IsHostInputEligible
         && microphoneCatalogCurrent
@@ -5329,6 +5332,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         using var activity = continuation();
         var outcome = HostOperationOutcome.Completed;
         var speechRevision = Interlocked.Read(ref manualCallSpeechRevision);
+        var automaticDetails = CaptureAutomaticResponse();
         BuiltInAction? automaticAction = null;
         var announceApproval = false;
         var lockHostCurrent = CaptureModelActionReviewHost();
@@ -5474,7 +5478,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 var presentation = AnswerPresentation.From(decision.Answer!);
                 PresentResponse(AssistantState.Information, "Local model response",
                     $"Generated locally; verify important details.\n\n{presentation.Brief}",
-                    modelAnswer: new(decision.Answer!));
+                    requestWindow: automaticDetails is null,
+                    modelAnswer: new(decision.Answer!, HostActivity.RequireCurrent().Request));
+                PresentAutomaticResponse(automaticDetails);
                 await SpeakCurrentResponseAsync(cancellationToken: cancellation.Token, expectedSpeechRevision: speechRevision);
             }
         }

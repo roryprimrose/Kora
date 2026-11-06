@@ -193,6 +193,7 @@ internal sealed class InteractionStorageFixture : IDisposable
         if (Count("conversation_answer_reviews") != 0)
         { throw new InvalidOperationException("A legacy fixture must not discard current answer-review authority."); }
         DropEmptyModelUsageSchemaForLegacy();
+        DropEmptyAuditAnchorForLegacy();
         Mutate("DROP TABLE conversation_answer_reviews;");
     }
 
@@ -201,6 +202,17 @@ internal sealed class InteractionStorageFixture : IDisposable
         if (Count("session_model_usage") != 0)
         { throw new InvalidOperationException("A legacy fixture must not discard retained model usage."); }
         Mutate("DROP TABLE session_model_usage;");
+    }
+
+    internal void DropEmptyAuditAnchorForLegacy()
+    {
+        using var connection = OpenRaw();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT sequence FROM authority_retention_anchor WHERE singleton=1;";
+        if (command.ExecuteScalar() is not long sequence || sequence != 0)
+        { throw new InvalidOperationException("A legacy fixture must not discard an audit retention boundary."); }
+        command.CommandText = "DROP TABLE authority_retention_anchor;";
+        command.ExecuteNonQuery();
     }
 
     internal static HostRequest NewRequest(HostId<SessionIdentity>? session = null,

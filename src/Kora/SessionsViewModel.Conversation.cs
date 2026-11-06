@@ -166,6 +166,7 @@ internal sealed partial class SessionsViewModel
     {
         if (next && !ConversationReadingAvailable)
         { throw new InvalidOperationException("The original private conversation page is retired. Read again explicitly."); }
+        var observedCompletion = completedConversationMessage;
         var page = await conversation!.ReadPageAsync(target.Authority.SessionId,
             next ? conversationPage?.Next ?? throw new InvalidOperationException("No conversation continuation; refresh the exact source.") : null,
             25, lifetime.Token);
@@ -175,8 +176,7 @@ internal sealed partial class SessionsViewModel
         conversationReadingControl = access.ControlRevision;
         if (!next)
         {
-            completedConversationMessage = null;
-            conversationUpdates = false;
+            RetireReadCompletion(observedCompletion, page);
         }
         conversationSourceHeld = false;
         composerAuthority = target.Authority;
@@ -370,6 +370,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversation(bool preserveUnsent = true)
     {
+        RetireMcpContent();
         RetireComposerRequest();
         ClearClarificationExchange();
         ClearAnswerReviews();
@@ -440,7 +441,7 @@ internal sealed partial class SessionsViewModel
             nameof(HasEvidenceDetails), nameof(EvidenceDetails), nameof(ObservationChoices),
             nameof(DetailsOfferMessage), nameof(HasDetailsOffer),
             nameof(CanRecoverConversationDraft), nameof(ComposerDraftSizeFeedback), nameof(CanSubmitConversationWithClarification),
-            nameof(McpServers), nameof(McpAccounts), nameof(SelectedMcpServer), nameof(SelectedMcpAccount), nameof(IsMcpActive), nameof(McpResultText) })
+            nameof(McpServers), nameof(McpAccounts), nameof(SelectedMcpServer), nameof(SelectedMcpAccount), nameof(IsMcpActive), nameof(McpResultText), nameof(McpContentText) })
         { OnPropertyChanged(name); }
     }
 }

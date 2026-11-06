@@ -135,6 +135,73 @@ async function until(api, target, limit = 40) {
   assert.fail(`Did not reach ${target}`);
 }
 
+function hourlyApi() {
+  const api = new BatchFake();
+  api.independent = true;
+  api.mainBuildProfile = 'hourly-v1';
+  api.state.deliveryProfile = 'independent-v1';
+  api.state.mainBuildProfile = 'hourly-v1';
+  api.state.completedTip = { sha: BASE, tree: sha(200), ticket: TICKET,
+    delivery: 'independent-v1', base: sha(99), combined: sha(98),
+    validation: { run: 42, attempt: 1, source: sha(98), workflow: sha(99),
+      inventory: sha(999), schema: 'parallel-pr-v1' } };
+  api.state.hourlyMain = { baseline: { source: BASE, tree: sha(200),
+    qualification: { run: 10, job: 11, source: BASE } }, activated: NOW.toISOString() };
+  api.observeHourlyMain = async () => false;
+  api.scheduleHourlyMain = async () => false;
+  api.releaseSource = async source => ({ source, tree: sha(200) });
+  api.tipQualification = async () => assert.fail('Hourly PR admission must not wait for main to start or pass.');
+  api.dispatchQualification = async () => assert.fail('Hourly admission must not dispatch per-merge main CI.');
+  api.prs = [];
+  return api;
+}
+
+test('hourly admission advances from exact persisted source proof without a per-merge main run', async () => {
+  const api = hourlyApi();
+  assert.equal(await step(api), 'idle');
+  assert.equal(count(api, 'qualification'), 0);
+  for (const change of [
+    value => { value.releaseSource = async () => { throw Object.assign(new Error('Missing source'), { status: 404 }); }; },
+    value => { value.releaseSource = async () => ({ source: sha(101), tree: sha(200) }); },
+    value => { value.releaseSource = async source => ({ source, tree: sha(201) }); },
+    value => { value.base = sha(101); },
+    value => { value.mainBuildProfile = 'per-merge'; },
+  ]) {
+    const changed = hourlyApi();
+    change(changed);
+    await assert.rejects(step(changed));
+    assert.equal(count(changed, 'dispatch'), 0);
+  }
+});
+
+test('main scheduling ready checkpoints cannot change from observation or reserve a candidate', async () => {
+  const api = hourlyApi();
+  api.state.mainSchedulingTransition = { ticket: TICKET, actor: 'operator', run: 4, checkpoint: sha(800),
+    created: NOW.toISOString(), phase: 'ready', target: 'per-merge', source: BASE, tree: sha(200),
+    qualification: { run: 10, job: 11, source: BASE }, prepared: NOW.toISOString(), prepareRun: 5 };
+  api.mainBuildProfile = 'per-merge';
+  api.observeHourlyMain = async () => assert.fail('Ready profile changes must retain their exact checkpoint.');
+  api.scheduleHourlyMain = async () => assert.fail('Ready profile changes must not dispatch main.');
+  api.pulls = async () => assert.fail('Ready profile changes must not inspect new enrollment.');
+  assert.equal(await step(api), 'main-builds-ready');
+});
+
+test('unresolved hourly dispatch does not prevent independent PR reservation', async () => {
+  const api = hourlyApi();
+  api.prs = new BatchFake().prs;
+  api.state.hourlyMain.lastDispatch = { slot: NOW.toISOString().slice(0, 13),
+    source: BASE, requested: NOW.toISOString() };
+  api.scheduleHourlyMain = async (state, now, save) => {
+    assert.equal(now.toISOString(), NOW.toISOString());
+    assert.equal(typeof save, 'function');
+    return require('./main-scheduling.cjs').dispatchHourly(api, state, now, save);
+  };
+  await step(api);
+  assert.ok(api.state.active);
+  assert.equal(count(api, 'qualification'), 0);
+  assert.ok(api.calls.some(call => call[0] === 'notice' && call[1].includes('unresolved')));
+});
+
 test('delivery hold precedes pulls and prevents both batch and singleton reservation without withdrawing intent', async () => {
   for (const singleton of [false, true]) {
     const api = new BatchFake();
@@ -1144,6 +1211,60 @@ test('native Auto-merge after attestation is observed without duplicating the pr
   assert.equal(count(api, 'dispatch'), 1);
 });
 
+test('native Auto-merge during final authority reads does not withdraw the successful gate or require recovery', async () => {
+  for (const boundary of ['pull', 'enrollment', 'reviewState', 'main']) {
+    const api = new BatchFake();
+    const merge = api.merge.bind(api);
+    const finish = api.finishCheck.bind(api);
+    let attested = false;
+    let pulls = 0;
+    let raced = false;
+    api.finishCheck = async (...args) => {
+      await finish(...args);
+      if (args[1] === 'success') attested = true;
+    };
+    const read = api[boundary].bind(api);
+    api[boundary] = async (...args) => {
+      if (attested && !raced && (boundary !== 'pull' || ++pulls === 2)) {
+        raced = true;
+        const member = api.state.active.members[0];
+        await merge({ number: member.number, head: member.mergeIntent.head });
+      }
+      return read(...args);
+    };
+    await until(api, 'batch-completed');
+    assert.equal(raced, true, boundary);
+    assert.equal(api.calls.some(call => call[0] === 'finish' && call[2] === 'failure'), false, boundary);
+    assert.equal(count(api, 'merge'), 5, boundary);
+    assert.equal(count(api, 'dispatch'), 1, boundary);
+  }
+});
+
+test('native Auto-merge between a pending snapshot and authority reads is confirmed without recovery or replay', async () => {
+  const api = new BatchFake();
+  const merge = api.merge.bind(api);
+  api.merge = async () => ({ merged: false });
+  await until(api, 'merge-pending');
+  api.merge = merge;
+  const pull = api.pull.bind(api);
+  let raced = false;
+  api.pull = async number => {
+    const snapshot = await pull(number);
+    if (!raced) {
+      raced = true;
+      const member = api.state.active.members[0];
+      await merge({ number, head: member.mergeIntent.head });
+    }
+    return snapshot;
+  };
+  assert.equal(await step(api), 'merge-pending');
+  assert.equal(api.state.active.phase, 'merging');
+  assert.equal(await step(api), 'prefix-confirmed');
+  await until(api, 'batch-completed');
+  assert.equal(count(api, 'merge'), 5);
+  assert.equal(count(api, 'dispatch'), 1);
+});
+
 test('affirmative merge response alone, wrong parent/tree and unexpected main never establish completion', async () => {
   for (const kind of ['unobserved', 'parent', 'tree', 'main']) {
     const api = new BatchFake();
@@ -1329,11 +1450,15 @@ test('reviewed resume preserves only unchanged authorized suffix and cannot eras
   const options = () => ({ context: { eventName: 'workflow_dispatch', ref: 'refs/heads/main',
     runId: 123, actor: 'operator' }, inputs: { operation: 'resume-batch', recovery_checkpoint: api.commit,
     recovery_ticket: TICKET, acknowledge_batch_change: true }, attempt: 1, now: NOW });
+  const wakes = count(api, 'wake');
   await assert.rejects(changeBatchState(api, options()), /still-authorized/);
+  assert.equal(count(api, 'wake'), wakes);
   api.prs[1].review = null;
   assert.equal(await changeBatchState(api, options()), 'resume-batch');
   assert.equal(api.state.active.members[0].merged, api.base);
   assert.equal(count(api, 'dispatch'), 1);
+  assert.equal(api.calls.at(-1)[0], 'wake');
+  assert.equal(count(api, 'wake'), wakes + 1);
   await until(api, 'batch-completed');
   assert.equal(count(api, 'dispatch'), 1);
   assert.equal(count(api, 'merge'), 5);
@@ -1345,6 +1470,40 @@ test('reviewed resume preserves only unchanged authorized suffix and cannot eras
   const blocked = options();
   blocked.inputs.recovery_checkpoint = pending.commit;
   await assert.rejects(changeBatchState(pending, blocked), /unresolved merge/);
+});
+
+test('batch recovery wakes only after verified readback and reports continuation failure without replay', async () => {
+  for (const operation of ['resume-batch', 'repair-batch']) {
+    for (const fault of ['readback', 'wake']) {
+      const api = new BatchFake();
+      await until(api, 'prefix-confirmed');
+      api.prs[1].review = 'CHANGES_REQUESTED';
+      assert.equal(await step(api), 'recovery-required');
+      api.prs[1].review = null;
+      const checkpoint = api.commit;
+      const options = { context: { eventName: 'workflow_dispatch', ref: 'refs/heads/main',
+        runId: 123, actor: 'operator' }, inputs: { operation, recovery_checkpoint: checkpoint,
+        recovery_ticket: TICKET, acknowledge_batch_change: true }, attempt: 1, now: NOW };
+      const load = api.load.bind(api);
+      api.load = async () => {
+        const state = await load();
+        if (fault === 'readback' && api.commit !== checkpoint) state.blocked.push({ changed: true });
+        return state;
+      };
+      const wakes = count(api, 'wake');
+      api.wake = async () => {
+        api.calls.push(['wake']);
+        throw new Error('Continuation unavailable');
+      };
+      await assert.rejects(changeBatchState(api, options),
+        fault === 'readback' ? /Batch state readback changed/ : /Continuation unavailable/);
+      assert.notEqual(api.commit, checkpoint);
+      assert.equal(count(api, 'wake'), wakes + (fault === 'wake' ? 1 : 0));
+      assert.equal(count(api, 'dispatch'), 1);
+      await assert.rejects(changeBatchState(api, options), /checkpoint changed/);
+      assert.equal(count(api, 'wake'), wakes + (fault === 'wake' ? 1 : 0));
+    }
+  }
 });
 
 test('explicit exact-main repair preserves unrelated advances and requires new complete validation', async () => {
@@ -1366,6 +1525,7 @@ test('explicit exact-main repair preserves unrelated advances and requires new c
   assert.equal(api.state.history[0].actualMain, sha(900));
   assert.equal(api.state.history[0].batch.members[0].merged, recorded);
   assert.equal(api.base, sha(900));
+  assert.equal(api.calls.at(-1)[0], 'wake');
   await step(api);
   assert.equal(api.state.active.base, sha(900));
   assert.equal(count(api, 'dispatch'), 2);

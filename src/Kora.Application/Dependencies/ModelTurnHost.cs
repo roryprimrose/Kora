@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 using Kora.Application.Configuration;
 using Kora.Application.Tools;
@@ -35,6 +35,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
     private readonly SessionModelMetricsLedger metrics;
     internal Task<SessionModelMetrics> ReadMetricsAsync(HostId<SessionIdentity> session, CancellationToken token) => metrics.ReadAsync(session, token);
     internal void ForgetMetrics(HostId<SessionIdentity> session) => metrics.Forget(session);
+    private readonly McpCapabilityPreferences? capabilities;
+    private readonly Kora.Application.Mcp.KoraMcpServer? builtInMcp;
     private static readonly TimeSpan Deadline = ModelToolProtocol.Deadline;
     private readonly Lock dispatchGate = new();
     private readonly CancellationTokenSource lifetime = new();
@@ -72,7 +74,9 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         ISessionProviderProfileStore? sessionProfiles = null, IModelProviderRegistrationSource? registrationSource = null,
         HostedTransmissionReviewService? hostedReviews = null,
         IRuntimeCapacityQualification? runtimeCapacity = null,
-        ConversationExecutionConfigurationService? conversationExecution = null)
+        ConversationExecutionConfigurationService? conversationExecution = null,
+        McpCapabilityPreferences? capabilities = null,
+        Kora.Application.Mcp.KoraMcpServer? builtInMcp = null)
     {
         this.workspace = workspace;
         this.access = access;
@@ -89,6 +93,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         this.hostedReviews = hostedReviews;
         this.conversationExecution = conversationExecution;
         metrics = new(time, workspace as ISessionModelMetricsStore);
+        this.capabilities = capabilities;
+        this.builtInMcp = builtInMcp;
         resources = new(owner, time, audit, runtimeCapacity, conversationExecution);
         if (conversationExecution is not null) { conversationExecution.Changed += resources.PreferenceChanged; }
     }
@@ -180,6 +186,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
                     {
                         turn = new(owner, issuer, provenance, context, wire, session.Authority.Generation, task!.Task.Revision,
                             revision, registration);
+                        CaptureCapabilityUse(turn);
                         if (hostedAuthorization is not null)
                         {
                             var boundTurn = turn;
@@ -371,26 +378,39 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             ToolDenied(logger);
             return new(CapabilityOutcome.Denied, "tool-call-budget-exhausted");
         }
+        if (turn.Context.ToolMode != ModelToolMode.McpReadOnly
+            && capabilities?.IsToolEnabled(Kora.Core.Mcp.KoraMcpCatalog.ServerId, id) == false)
+        {
+            turn.RejectToolAttempt();
+            ToolDenied(logger);
+            return new(CapabilityOutcome.Denied, "mcp-capability-disabled");
+        }
+        var useRevision = capabilities?.Revision;
         turn.PublishExecutionStep?.Invoke(Kora.Core.Conversation.ConversationExecutionStep.ReadingObservation);
-        var reply = settingDiscoveries.TryGetValue(turn, out var settings)
+        async ValueTask<CapabilityReply> Invoke(CancellationToken toolToken) =>
+            settingDiscoveries.TryGetValue(turn, out var settings)
             ? SettingsDiscoveryTools.Read(settings.Observations, id, input)
             : customizationDiscoveries.TryGetValue(turn, out var customizations)
-            ? await customizations.Invoke(id, input, linked.Token).ConfigureAwait(false)
+            ? await customizations.Invoke(id, input, toolToken).ConfigureAwait(false)
             : sessionDiscoveries.TryGetValue(turn, out var discovery)
-            ? await discovery.InvokeAsync(id, input, linked.Token).ConfigureAwait(false)
+            ? await discovery.InvokeAsync(id, input, toolToken).ConfigureAwait(false)
             : turn.Context.ToolMode == ModelToolMode.McpReadOnly
             ? mcpInvocations.TryGetValue(turn, out var mcp)
-                ? await mcp.InvokeAsync(turn.Provenance, id, input, linked.Token).ConfigureAwait(false)
+                ? await mcp.InvokeAsync(turn.Provenance, id, input, toolToken).ConfigureAwait(false)
                 : new(CapabilityOutcome.Denied, "mcp-reviewed-workflow-unavailable")
             : turn.Context.ToolMode == ModelToolMode.LocalWebPage
             ? webPages.TryGetValue(turn, out var webPage)
-                ? await webPage.InvokeAsync(turn.Provenance, id, input, linked.Token).ConfigureAwait(false)
+                ? await webPage.InvokeAsync(turn.Provenance, id, input, toolToken).ConfigureAwait(false)
                 : new(CapabilityOutcome.Denied, "web-page-approval-workflow-unavailable")
             : string.Equals(id, SessionMetricsTool.Id, StringComparison.Ordinal)
             ? Kora.Tools.Sessions.SessionMetricsGet.Execute(
-                await metrics.ReadAsync(turn.Provenance.Request.SessionId, linked.Token).ConfigureAwait(false), input)
-            : tools.Invoke(tools.Admit(CapabilityLane.Execution), id, input, linked.Token);
-        if (await RevalidateAdapterContinuationAsync(turn, linked.Token).ConfigureAwait(false) != ModelTurnReason.None)
+                await metrics.ReadAsync(turn.Provenance.Request.SessionId, toolToken).ConfigureAwait(false), input)
+            : tools.Invoke(tools.Admit(CapabilityLane.Execution), id, input, toolToken);
+        var reply = builtInMcp is not null && turn.Context.ToolMode != ModelToolMode.McpReadOnly
+            ? await builtInMcp.InvokeAsync(turn.Context.ToolMode, id, input, Invoke, linked.Token).ConfigureAwait(false)
+            : await Invoke(linked.Token).ConfigureAwait(false);
+        if (await RevalidateAdapterContinuationAsync(turn, linked.Token).ConfigureAwait(false) != ModelTurnReason.None
+            || !string.Equals(capabilities?.Revision, useRevision, StringComparison.Ordinal))
         {
             ToolDenied(logger);
             return new(CapabilityOutcome.Denied, "model-turn-admission-changed");
@@ -446,18 +466,20 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         if (turn.RetirementReason is var retired && retired != ModelTurnReason.None) { return retired; }
         if (turn.ResourceLease is { } resource && !resources.IsCurrent(resource))
         { return ModelTurnReason.QualificationPending; }
-        if (!ConsumerAdmissionCurrent(turn)) { return ModelTurnReason.HostAdmissionClosed; }
+        if (!ConsumerAdmissionCurrent(turn) || !CapabilityUseCurrent(turn)) { return ModelTurnReason.HostAdmissionClosed; }
         if (turn.Policy is { } policy && !IsCurrentPolicy(policy)) { return ModelTurnReason.PolicyChanged; }
         var reason = ContextReason(turn.Context, turn.Provenance.Request);
         if (reason != ModelTurnReason.None) { return reason; }
         if (turn.OrdinaryActiveBudget?.Expired == true) { return ModelTurnReason.DeadlineExceeded; }
-        if (!Eligible(turn.ControlRevision) || !ConsumerAdmissionCurrent(turn)) { return ModelTurnReason.HostAdmissionClosed; }
+        if (!Eligible(turn.ControlRevision) || !ConsumerAdmissionCurrent(turn) || !CapabilityUseCurrent(turn))
+        { return ModelTurnReason.HostAdmissionClosed; }
         var session = await workspace.ReadMetadataAsync(turn.Provenance.Request.SessionId, token).ConfigureAwait(false);
         var task = await workspace.ReadTaskAsync(turn.Provenance.Request.SessionId, turn.Provenance.Request.TaskId,
             token).ConfigureAwait(false);
         await ValidateConsumerSourceAsync(turn, token).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();
-        if (!Eligible(turn.ControlRevision) || !ConsumerAdmissionCurrent(turn)) { return ModelTurnReason.HostAdmissionClosed; }
+        if (!Eligible(turn.ControlRevision) || !ConsumerAdmissionCurrent(turn) || !CapabilityUseCurrent(turn))
+        { return ModelTurnReason.HostAdmissionClosed; }
         if (session.Authority.SessionId != turn.Provenance.Request.SessionId || !session.Authority.IsActive
             || turn.ConversationTarget is { } target && target != session
             || session.Authority.Generation != turn.SessionGeneration

@@ -90,6 +90,7 @@ public sealed partial class MainViewModel
         RetireResponseTimeoutSuggestions();
         RetirePlaybackVolumeSuggestions();
         RetireWindowsSpeechRateSuggestions();
+        RetireInstalledSpeechVoiceSuggestions();
         commandSpeechReview?.Dispose();
         commandSpeechReview = null;
         pinnedSpeechSuggestion = null;

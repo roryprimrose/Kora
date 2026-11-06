@@ -10,10 +10,10 @@ It accepts neither shared originals nor copied executable content; native result
 Related: [Extensibility](Extensibility.md), [Skill Authoring](Skill_Authoring.md), [Bundled Skills](Built_In_Skills.md), [Security and Data Flows](Security_Data_Flows.md).
 
 The [reviewed owned-source deletion](../docs/owned-skill-authoring.md#delete-one-saved-owned-source)
-supports only native v1/v2/v3's exact manifest/guidance pair and empty version
+supports only native v1/v2/v3/v4's exact manifest/guidance pair and empty version
 directory. It pins native root/parent/file identities and exact bytes, checks
 the current catalogue and permissions, and reads back absence. Shared originals,
-bundled sources, reference packages and native v4 are not deletion targets;
+bundled sources and reference packages are not deletion targets;
 independent grants/history/audit and immutable admitted tasks are unaffected
 ([store](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.Deletion.cs)).
 

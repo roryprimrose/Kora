@@ -94,6 +94,14 @@ In **Settings > Speech & audio > Speech capture timing**, select the timing opti
 
 These are reject-only bounds, with at most seven fractional digits; values are never clamped. Each reset restores only that option, preserving its companions ([timing contract](../src/Kora.Core/Voice/VoiceCaptureTiming.cs)).
 
+An admitted model may suggest one exact timing Set or Reset in its retained final answer.
+Use **Review setting suggestion...** on that answer in Sessions or the compact conversation.
+Review shows the full current/proposed tuple and saved/default state, then requires a separate **Confirm exact setting change** in the current native surface.
+For example, `set voice.trailing-silence to 2.5` proposes more pause without changing a current capture.
+The host verifies the exact retained source, current session, revisions, privacy, call policy and native lifetime again before the same audited timing save/readback.
+Review expires after 60 seconds. Cancel retires pending source checks; it does not promise rollback of a write already started.
+Unconfirmed persistence or audit remains unavailable until explicit inspection/recovery, with no automatic retry ([proposal workflow](setting-proposals.md)).
+
 Typed input and already activated voice share `get voice.timing`, `status voice.timing`, `list voice timing settings`, `set voice.command-start-wait to 7`, `set voice.reply-start-wait to 20`, or `set voice.trailing-silence to 2`. Complete review with `confirm voice.timing` or `cancel voice.timing`; use `reset` followed by one exact option for a reviewed reset ([command grammar](../src/Kora.Application/Configuration/VoiceCaptureTimingCommand.cs)).
 
 Confirmed timing is device-local and applies to the **next eligible capture**. An in-flight capture retains its snapshot until closure. Replies still address only the exact live question; speech-start expiry never answers or dismisses it. The 60-second hard utterance bound, transcript cap, open/cleanup deadlines and response-window timeout are unchanged ([activated consumer](../src/Kora.Windows/Audio/WindowsVoiceRecognitionService.cs), [capture limits](../src/Kora.Windows/Audio/VoiceCaptureLimits.cs)).
@@ -491,6 +499,16 @@ No different voice is used while recovery is pending.
 If the Windows provider has no voice, install a Windows text-to-speech voice
 through Windows Settings. If Kokoro is selected but absent, download it from
 Kora Settings. Typed commands and visual output continue to work.
+
+### Review an installed voice suggestion
+
+Supply an exact already installed `provider / voice ID` when asking an eligible model for a future speech choice. Its entire answer must be `set speech.voice to <provider / voice ID>`. In either Sessions conversation size, choose **Review setting suggestion...** on that exact successful answer ([shared review](../src/Kora/RegisteredSettings/SessionsViewModel.RegisteredSettings.cs)).
+
+Review both current/proposed provider and voice, saved/default provenance, shared device-local scope and next-operation timing. Separately choose **Confirm exact setting change** or **Cancel setting review**.
+Exact typed or current-name activated voice uses `review installed voice suggestion`, then `confirm installed voice change` or `cancel installed voice review` ([commands](../src/Kora.Application/Configuration/InstalledSpeechVoiceSuggestionCommand.cs)).
+
+Review expires after 60 seconds. Changed answers, settings, installed choices, private control or call admission require fresh review. Original voice-channel restrictions survive later native confirmation.
+Saving checks the exact persisted/current pair; only a separately requested next eligible ordinary speech operation uses it. Review/save never synthesize or replay the suggestion, install assets or qualify an unavailable adapter ([review and readback](../src/Kora.Application/Configuration/InstalledSpeechVoiceSuggestionReview.cs)).
 
 Select an installed voice and available output, then select **Preview** to test
 that explicit choice. Preview is disabled when no voice is selected and

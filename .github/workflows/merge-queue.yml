@@ -8,9 +8,8 @@ on:
     branches: [main]
   workflow_run:
     workflows: [CI]
+    branches: [main]
     types: [requested, completed]
-  schedule:
-    - cron: '*/5 * * * *'
   workflow_dispatch:
     inputs:
       operation:
@@ -50,7 +49,7 @@ concurrency:
 
 jobs:
   reconcile:
-    if: vars.KORA_MERGE_QUEUE_MODE == 'enabled'
+    if: vars.KORA_MERGE_QUEUE_MODE == 'enabled' && (github.event_name != 'workflow_run' || github.event.workflow_run.event != 'pull_request')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     environment: merge-queue

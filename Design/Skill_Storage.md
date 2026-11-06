@@ -10,10 +10,10 @@ It accepts neither shared originals nor copied executable content; native result
 Related: [Extensibility](Extensibility.md), [Skill Authoring](Skill_Authoring.md), [Bundled Skills](Built_In_Skills.md), [Security and Data Flows](Security_Data_Flows.md).
 
 The [reviewed owned-source deletion](../docs/owned-skill-authoring.md#delete-one-saved-owned-source)
-supports only native v1/v2/v3's exact manifest/guidance pair and empty version
+supports only native v1/v2/v3/v4's exact manifest/guidance pair and empty version
 directory. It pins native root/parent/file identities and exact bytes, checks
 the current catalogue and permissions, and reads back absence. Shared originals,
-bundled sources, reference packages and native v4 are not deletion targets;
+bundled sources and reference packages are not deletion targets;
 independent grants/history/audit and immutable admitted tasks are unaffected
 ([store](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.Deletion.cs)).
 
@@ -318,6 +318,8 @@ Typed commands use `review tool skill <exact name>` and the distinct `tool skill
 The immutable [finite page scope](../src/Kora.Core/Network/LocalWebPageScope.cs) admits at most two distinct destinations and one call per destination, with at most three serial model rounds, inclusive cumulative 32,768 input / 4,096 output UTF-8 bytes and the existing 15-second deadline. Each inert page reply retains its existing 2,048-byte limit; source text is not persisted beyond existing request/answer retention ([continuation](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs), [page sanitization](../src/Kora.Application/Network/LocalWebPageInvocation.cs)).
 
 Each physical call reuses its own exact canonical once-only page approval and host egress/privacy/session checks. All used approvals remain current through continuation and successful terminal retention. A missing/failed second source cannot produce a successful comparison; an expired/revoked terminal fence remains explicitly unconfirmed, without replay. The original one-source operation and tool-free route remain separate ([finite workflow](../src/Kora.Application/Network/LocalWebPageWorkflow.cs), [retained consumer](../src/Kora.Application/Hosting/SessionConversationService.ToolSkills.cs)).
+
+The shared [WebPageGet action](../src/Kora.Tools/Network/WebPageGet.cs) omits script/style raw text until that element's matching end tag, without treating comparisons or literal markup inside it as nested elements. Visible article text after that end tag remains available to the reviewed local continuation; an unterminated raw element remains omitted through the end of the response. This is bounded inert text extraction, not browser rendering, script execution or additional source authority.
 
 Input/address/target edits revoke both the invocation and tool revision review; source/privacy/ownership changes fence late results. **Stop and close reviewed use** cancels and joins the owned operation. Comparison methodology stays in the [declarative skill example](../docs/tools-and-built-in-skills.md#two-source-comparison-skill-example), not a native comparison action ([controller lifecycle](../src/Kora/SharedSkillInvocationController.cs)).
 

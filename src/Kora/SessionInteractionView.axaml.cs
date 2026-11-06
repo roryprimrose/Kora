@@ -122,6 +122,7 @@ internal sealed partial class SessionInteractionView : UserControl
             }
         };
         HideSessionDetails.Click += (_, _) => HideDetailsAndRestoreFocus();
+        ExpandSessionDetails.Click += (_, _) => ToggleDetailsExpansion();
         evidenceValidation.Tick += async (_, _) => await (EvidenceValidationOperation = RevalidateEvidenceAsync());
         DetachedFromVisualTree += (_, _) => HideDetails();
         DataContextChanged += (_, _) => ObserveModel();
@@ -276,12 +277,15 @@ internal sealed partial class SessionInteractionView : UserControl
         DetailsDivider.IsVisible = true;
         DetailsPane.IsVisible = true;
         ShowSessionDetails.IsVisible = false;
+        ExpandSessionDetails.IsEnabled = true;
         RefreshReturnNavigation();
     }
 
     private void RememberSplit()
     {
         if (!DetailsVisible) { return; }
+        RestoreDetailsSplit();
+        ExpandSessionDetails.IsEnabled = false;
         conversationWidth = ReadingPanes.ColumnDefinitions[0].Width;
         detailWidth = ReadingPanes.ColumnDefinitions[2].Width;
     }

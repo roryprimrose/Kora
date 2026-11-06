@@ -13,6 +13,7 @@ public sealed record EvidencePage(EvidencePageStatus Status, IReadOnlyList<Evide
         + "describe the recorded transition, not historical payload reconstruction, a file graph or executable authority. "
         + "Only recorded trace/span IDs are available; no diagnostic span metadata is invented. "
         + "Due audit rows are not pruned by inspection; expiry does not prove physical removal. "
+        + "Partial authority pages may follow a verified pruned expired prefix; retained state proofs can hold expired records. "
         + "Private-profile files are unencrypted and user-modifiable. Local hash consistency is not forensic "
         + "tamper resistance or an externally anchored checkpoint. Inspection grants no identity, approval or effect authority.";
     public const string StorageDisclosure =

@@ -4,6 +4,7 @@ using Avalonia.VisualTree;
 using System.Reflection;
 using AwesomeAssertions;
 using Kora.Application.Infrastructure;
+using Kora.Core.Configuration;
 using Kora.Core.Configuration.SettingInspection;
 using Kora.SettingInspection;
 using Kora.NativeUxFixture;
@@ -14,18 +15,109 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class SettingInspectionWindowTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NativeSpeechPairReviewAndSeparateConfirmationProduceExactLocalAnswer(bool discovery)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            const string question = "Which installed speech provider and voice are configured?";
+            const string answer = "The confirmed saved speech preference is kokoro / af_heart; runtime availability is not established.";
+            var transport = new SettingsDiscoveryWorkflowTests.Transport(
+                """{"kind":"toolCalls","calls":[{"callId":"voice_1","capabilityId":"settings.get","input":{"id":"speech.voice"}}]}""",
+                $$"""{"kind":"answer","answer":"{{answer}}"}""");
+            await using var f = new SettingInspectionWorkflowTests.Fixture(transport: discovery ? transport : null,
+                speechSelection: new SpeechSelection("kokoro", "af_heart"));
+            f.Adapter.Response = answer;
+            await f.InitializeAsync();
+            var presenter = new SettingInspectionPresenter(f.Workflow, () => () => true, () => () => true, f.Storage.Time)
+            { Question = question, DiscoverSettings = discovery };
+            var failures = new List<Exception>();
+            var window = new SettingInspectionWindow(presenter, failures.Add);
+            window.Show();
+            try
+            {
+                f.Preferences.Reads.Should().Be(0);
+                await ((AsyncCommand)Button(window, "Inspect confirmed settings and review").Command!).ExecuteAsync();
+                presenter.ReviewText.Should().Contain(question).And.Contain("speech.voice")
+                    .And.Contain("\"kokoro\" / \"af_heart\"").And.Contain("confirmed saved")
+                    .And.Contain("future-only").And.Contain("no runtime claim").And.NotContain("Private catalogue");
+                f.Adapter.Calls.Should().Be(0);
+                transport.Requests.Should().BeEmpty();
+                f.Storage.Count("work_sessions").Should().Be(0);
+                await ((AsyncCommand)Button(window, discovery
+                    ? "Confirm ONE settings-discovery LocalOnly request" : "Confirm ONE tool-free LocalOnly request").Command!).ExecuteAsync();
+                presenter.Answer.Should().Be(answer);
+                presenter.CanConfirm.Should().BeFalse();
+                f.Storage.Count("conversation_messages").Should().Be(1);
+                f.Storage.Count("scoped_grants").Should().Be(0);
+                f.Preferences.Writes.Should().Be(0);
+                f.Playback.Effects.Should().Be(0);
+                failures.Should().BeEmpty();
+            }
+            finally { window.Close(); await presenter.CloseAsync(); }
+        });
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task ReentrantCancellationOrCloseJoinsTheOperationBeforeStartupNotifications(bool confirm, bool close)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            await using var f = new SettingInspectionWorkflowTests.Fixture();
+            await f.InitializeAsync();
+            var presenter = new SettingInspectionPresenter(f.Workflow, () => () => true, () => () => true, f.Storage.Time)
+            { Question = "What is my reading text size?" };
+            if (confirm) { await presenter.ReviewAsync(); }
+            Task? retirement = null;
+            bool? prematurelyJoined = null;
+            presenter.PropertyChanged += (_, args) =>
+            {
+                if (!string.Equals(args.PropertyName, nameof(presenter.IsBusy), StringComparison.Ordinal)
+                    || !presenter.IsBusy || prematurelyJoined.HasValue)
+                { return; }
+                prematurelyJoined = false;
+                retirement = close ? presenter.CloseAsync() : presenter.CancelAsync();
+                prematurelyJoined = retirement.IsCompleted;
+            };
+
+            await (confirm ? presenter.ConfirmAsync() : presenter.ReviewAsync());
+            prematurelyJoined.Should().BeFalse("startup observers must join the newly owned operation, not its predecessor");
+            retirement.Should().NotBeNull();
+            await retirement!;
+            presenter.IsBusy.Should().BeFalse();
+            presenter.CanConfirm.Should().BeFalse();
+            presenter.CanReview.Should().Be(!close);
+            presenter.ReviewText.Should().BeEmpty();
+            presenter.Answer.Should().BeEmpty();
+            presenter.Status.Should().Contain("physically joined");
+            f.Adapter.Calls.Should().Be(0);
+            f.Storage.Count("work_sessions").Should().Be(0);
+            f.Storage.Count("conversation_messages").Should().Be(0);
+            f.Preferences.Writes.Should().Be(0);
+            f.Playback.Effects.Should().Be(0);
+            f.Host.IsQuiescent.Should().BeTrue();
+            await presenter.CloseAsync();
+        });
+    }
+
     [Fact]
     public async Task ExplicitNativeDiscoveryChoiceRequiresFreshReviewAndSeparateExactConfirmation()
     {
         await HeadlessSession.RunAsync(async () =>
         {
             var transport = new SettingsDiscoveryWorkflowTests.Transport(
-                """{"kind":"toolCalls","calls":[{"callId":"get_1","capabilityId":"settings.get","input":{"id":"speech.summary-words"}}]}""",
-                """{"kind":"answer","answer":"The confirmed default summary cap is 80 words."}""");
+                """{"kind":"toolCalls","calls":[{"callId":"get_1","capabilityId":"settings.get","input":{"id":"appearance.presence-timeout"}}]}""",
+                """{"kind":"answer","answer":"The confirmed default presence timeout is 10 seconds, size is 360 pixels and movement speed is 100 percent."}""");
             await using var f = new SettingInspectionWorkflowTests.Fixture(transport: transport);
             await f.InitializeAsync();
             var presenter = new SettingInspectionPresenter(f.Workflow, () => () => true, () => () => true, f.Storage.Time)
-            { Question = "What controls spoken summaries?" };
+            { Question = "Why does Kora disappear so quickly, and what presence size and movement settings am I using?" };
             var failures = new List<Exception>();
             var window = new SettingInspectionWindow(presenter, failures.Add);
             window.Show();
@@ -41,9 +133,18 @@ public sealed class SettingInspectionWindowTests
                 transport.Requests.Should().BeEmpty();
                 await ((AsyncCommand)Button(window, "Inspect confirmed settings and review").Command!).ExecuteAsync();
                 presenter.ReviewText.Should().Contain("ONLY settings.list/settings.get")
-                    .And.Contain("speech.summary-words").And.Contain("value-unavailable");
+                    .And.Contain("appearance.presence-timeout = 10 seconds")
+                    .And.Contain("appearance.presence-size = 360 pixels")
+                    .And.Contain("appearance.dot-size = 100 percent")
+                    .And.Contain("appearance.dot-density = 100 percent")
+                    .And.Contain("appearance.movement-speed = 100 percent")
+                    .And.Contain("appearance.speech-scaling = true boolean")
+                    .And.Contain("appearance.speech-scale-amount = 100 percent")
+                    .And.Contain("appearance.reduced-motion = false boolean")
+                    .And.Contain("value-unavailable").And.Contain(presenter.Question);
                 await ((AsyncCommand)Button(window, "Confirm ONE settings-discovery LocalOnly request").Command!).ExecuteAsync();
-                presenter.Answer.Should().Be("The confirmed default summary cap is 80 words.");
+                presenter.Answer.Should().Be(
+                    "The confirmed default presence timeout is 10 seconds, size is 360 pixels and movement speed is 100 percent.");
                 transport.Requests.Should().HaveCount(2);
                 f.Preferences.Writes.Should().Be(0);
                 f.Playback.Effects.Should().Be(0);

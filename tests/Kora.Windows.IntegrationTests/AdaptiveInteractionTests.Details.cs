@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 
@@ -18,6 +19,77 @@ public sealed partial class AdaptiveInteractionTests
 {
     private static readonly string[] ExactDetailBodies = ["first exact result source", "second exact result source"];
     private static readonly string[] EvidenceDetailCommands = ["show session logs", "show session audit"];
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ReopeningExactWideResultRestoresItsUnwrappedReadingPositionWithoutResubmission(bool exactSource)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new Fixture();
+            await f.Initialize();
+            await f.Run("show sessions");
+            await f.SelectConversation();
+            f.Admission.AllowUnavailable = true;
+            f.Model.ComposerBody = new string('x', 240) + "\n" + string.Join('\n', Enumerable.Range(0, 40)
+                .Select(index => $"Original line {index:D2}"));
+            await f.Model.SubmitConversationAsync();
+            await f.Model.ReadConversationAsync();
+            Dispatcher.UIThread.RunJobs();
+            var original = f.Model.ConversationMessages.Should().ContainSingle(f.Model.ConversationStatus).Which;
+            f.Model.ComposerBody = "independent unsent conversation";
+            await f.Model.OpenConversationDetailAsync(original);
+            f.Window!.UpdateLayout();
+            var view = f.Window.SessionView;
+            var first = view.GetVisualDescendants().OfType<DetailContentView>().Single();
+            first.FindControl<CheckBox>("SourceToggle")!.IsChecked = exactSource;
+            first.FindControl<CheckBox>("ReadingTextToggle")!.IsChecked = !exactSource;
+            first.FindControl<CheckBox>("WrapTextToggle")!.IsChecked = false;
+            var reader = first.FindControl<TextBox>("ContentReader")!;
+            reader.CaretIndex = 320;
+            f.Window.UpdateLayout();
+            var viewport = reader.GetVisualDescendants().OfType<ScrollViewer>().Single();
+            viewport.Offset = new(450, 180);
+            f.Window.UpdateLayout();
+            var offset = viewport.Offset;
+            offset.X.Should().BeGreaterThan(0);
+            offset.Y.Should().BeGreaterThan(0);
+            var calls = f.Admission.Calls;
+
+            view.FindControl<Button>("HideSessionDetails")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            reader.Text.Should().BeEmpty();
+            reader.SelectedText.Should().BeEmpty();
+            view.DetailsVisible.Should().BeFalse();
+            await f.Run("show me the detailed results");
+            Dispatcher.UIThread.RunJobs();
+            f.Window.UpdateLayout();
+            var restored = view.GetVisualDescendants().OfType<DetailContentView>().Single();
+            restored.Should().NotBeSameAs(first, "reopen re-admits the exact result instead of retaining hidden text");
+            restored.FindControl<CheckBox>("SourceToggle")!.IsChecked.Should().Be(exactSource);
+            restored.FindControl<CheckBox>("ReadingTextToggle")!.IsChecked.Should().Be(!exactSource);
+            restored.FindControl<CheckBox>("WrapTextToggle")!.IsChecked.Should().BeFalse();
+            var restoredReader = restored.FindControl<TextBox>("ContentReader")!;
+            restoredReader.TextWrapping.Should().Be(TextWrapping.NoWrap);
+            restoredReader.Text.Should().Be(original.Body);
+            restoredReader.CaretIndex.Should().Be(320);
+            var restoredViewport = restoredReader.GetVisualDescendants().OfType<ScrollViewer>().Single();
+            restoredViewport.Offset.X.Should().BeApproximately(offset.X, 1);
+            restoredViewport.Offset.Y.Should().BeApproximately(offset.Y, 1);
+            f.Model.ComposerBody.Should().Be("independent unsent conversation");
+            f.Model.ConversationMessages.Should().ContainSingle().Which.Should().Be(original);
+            f.Admission.Calls.Should().Be(calls, "reopening is not a new conversation submission or model operation");
+
+            f.Native.Main.CloseForObservedPrivacyEvent("Synthetic reader-position retirement", hidePresentation: true);
+            await f.Native.Main.PrivacyClosureTask;
+            restoredReader.Text.Should().BeEmpty();
+            reader.Text.Should().BeEmpty();
+            view.DetailsVisible.Should().BeFalse();
+            await view.ShowAvailableDetailsAsync(f.Model);
+            view.GetVisualDescendants().OfType<DetailContentView>().Should().BeEmpty();
+            f.Admission.Calls.Should().Be(calls);
+        });
+    }
 
     [Fact]
     public async Task ExactMessageLinksShareOneResizablePaneAndHidePreservesTheComposer()

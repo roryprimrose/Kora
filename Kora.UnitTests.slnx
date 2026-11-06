@@ -1,4 +1,10 @@
 <Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Kora.Application/Kora.Application.csproj" />
+    <Project Path="src/Kora.Core/Kora.Core.csproj" />
+    <Project Path="src/Kora.Definitions/Kora.Definitions.csproj" />
+    <Project Path="src/Kora.Tools/Kora.Tools.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Kora.Application.UnitTests/Kora.Application.UnitTests.csproj" />
     <Project Path="tests/Kora.Core.UnitTests/Kora.Core.UnitTests.csproj" />

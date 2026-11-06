@@ -43,7 +43,7 @@ public sealed partial class MainViewModelTests
             NullLogger<HostQuestionVoiceReplyService>.Instance)!;
         await replies.OpenConversationalAsync(question, static () => true, _ => { }, activity.Token);
         fixture.Voice.IsListening.Should().BeTrue();
-        fixture.TextToSpeech.SpokenText.Should().Be(question.Spec.Text);
+        fixture.TextToSpeech.SpokenText.Should().Be("Choose Option 1: First. Option 2: Second. Choose one option.");
         var captures = fixture.Voice.StartCalls;
         var spoken = fixture.TextToSpeech.SpokenText;
 

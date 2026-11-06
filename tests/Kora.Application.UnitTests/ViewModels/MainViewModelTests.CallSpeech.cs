@@ -145,6 +145,91 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
+    [InlineData("requested-audit", false)]
+    [InlineData("requested-audit", true)]
+    [InlineData("output", false)]
+    [InlineData("output", true)]
+    [InlineData("terminal-audit", false)]
+    [InlineData("terminal-audit", true)]
+    public async Task CallSpeechCancellationDuringPreparationCannotPublishLateReviewAndFreshReviewCompletes(
+        string phase, bool voiceCancel)
+    {
+        var f = await CreateCallSpeechResponse();
+        var native = new ResponsePresenter(f.ViewModel);
+        f.ViewModel.BindCurrentResponsePresentation(native);
+        var call = f.ViewModel.CallObservation;
+        Task? cancellation = null;
+        void Cancel()
+        {
+            f.ViewModel.CanConfirmCallSpeech.Should().BeFalse();
+            using var voice = voiceCancel
+                ? HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice),
+                    HostActivityLayer.Application, HostOperation.Request)
+                : null;
+            cancellation = f.ViewModel.CancelCallSpeechCommand.ExecuteAsync();
+            cancellation.IsCompletedSuccessfully.Should().BeTrue();
+            f.ViewModel.CallSpeechStatus.Should().Contain("cancelled");
+        }
+        if (phase is "output") { f.TextToSpeech.BeforeOutputEnumeration = Cancel; }
+        else
+        {
+            f.Audit.BeforeWrite = audit =>
+            {
+                if (audit.ActionId is not "speech.call-once.review"
+                    || audit.Outcome != (phase is "requested-audit"
+                        ? SecurityAuditOutcome.Requested : SecurityAuditOutcome.Succeeded)) { return; }
+                f.Audit.BeforeWrite = null;
+                Cancel();
+            };
+        }
+
+        await f.ViewModel.ReviewCallSpeechCommand.ExecuteAsync();
+        cancellation.Should().NotBeNull();
+        await cancellation!;
+        native.Calls.Should().Be(phase is "terminal-audit" ? 1 : 0);
+        f.ViewModel.CanConfirmCallSpeech.Should().BeFalse();
+        await f.ViewModel.ConfirmCallSpeechCommand.ExecuteAsync();
+        await f.RunAsync("confirm call speech");
+        f.TextToSpeech.SpeakCalls.Should().Be(0);
+        f.Audit.Events.Should().NotContain(item => string.Equals(item.ActionId, "speech.call-once", StringComparison.Ordinal));
+        f.ViewModel.CallObservation.Should().Be(call);
+        f.CallPreferences.SavedSettings.Should().BeNull();
+
+        await f.ViewModel.ReviewCallSpeechCommand.ExecuteAsync();
+        f.ViewModel.CanConfirmCallSpeech.Should().BeTrue();
+        await f.ViewModel.ConfirmCallSpeechCommand.ExecuteAsync();
+        f.TextToSpeech.SpeakCalls.Should().Be(1);
+        f.ViewModel.IsCurrentResponseReadActive.Should().BeFalse();
+        f.ViewModel.CallSpeechStatus.Should().Contain("completed once");
+        f.ViewModel.CallObservation.Should().Be(call);
+        f.Audit.Events.Where(item => string.Equals(item.ActionId, "speech.call-once", StringComparison.Ordinal)).Select(item => item.Outcome)
+            .Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task CallSpeechStatusDuringPreparationDoesNotCancelTheOriginalReview()
+    {
+        var f = await CreateCallSpeechResponse();
+        f.ViewModel.BindCurrentResponsePresentation(new ResponsePresenter(f.ViewModel));
+        Task? status = null;
+        f.Audit.BeforeWrite = audit =>
+        {
+            if (audit.ActionId is not "speech.call-once.review" || audit.Outcome != SecurityAuditOutcome.Requested) { return; }
+            f.Audit.BeforeWrite = null;
+            status = f.ViewModel.GetCallSpeechStatusCommand.ExecuteAsync();
+            status.IsCompletedSuccessfully.Should().BeTrue();
+            f.ViewModel.CallSpeechStatus.Should().Contain("being prepared");
+        };
+        await f.ViewModel.ReviewCallSpeechCommand.ExecuteAsync();
+        status.Should().NotBeNull();
+        await status!;
+        f.ViewModel.CanConfirmCallSpeech.Should().BeTrue();
+        await f.ViewModel.ConfirmCallSpeechCommand.ExecuteAsync();
+        f.TextToSpeech.SpeakCalls.Should().Be(1);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task CallSpeechCancellationOrCallRevisionJoinsIgnoredCancellationWithoutLateSuccess(bool callChange)

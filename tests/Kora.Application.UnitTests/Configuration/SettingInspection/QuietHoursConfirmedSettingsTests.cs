@@ -3,6 +3,7 @@ using Kora.Application.Configuration.SettingInspection;
 using Kora.Core.Authorization;
 using Kora.Core.Configuration;
 using Kora.Core.Configuration.RegisteredSettings;
+using Kora.Core.Configuration.SettingInspection;
 
 namespace Kora.Application.UnitTests.Configuration.SettingInspection;
 
@@ -21,6 +22,10 @@ public sealed class QuietHoursConfirmedSettingsTests
         var events = 0;
         f.QuietHours.SpeechAdmissionChanged += () => events++;
         var snapshot = await f.Source.CaptureAsync(f.Token);
+        snapshot.Observations.Select(item => item.Setting)
+            .Should().BeEquivalentTo(SettingInspectionReview.InspectedSettings);
+        snapshot.Observations.Single(item => item.Setting == RegisteredSetting.DetailPresentation)
+            .Text.Should().Contain("Offer").And.Contain("confirmed absent");
         var quiet = snapshot.Observations.Single(item => item.Setting == RegisteredSetting.QuietHours);
         quiet.QuietHours.Should().Be(state.Effective);
         quiet.IsSaved.Should().Be(saved is not null);

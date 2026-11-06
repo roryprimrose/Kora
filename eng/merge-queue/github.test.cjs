@@ -337,6 +337,55 @@ test('independent main early failure is negative terminal evidence, not successf
     }
   });
 
+  test('synthetic merge response identifies the immutable prefix even while the ref still reports its old tip', async () => {
+    const value = fixture({
+      getRef: () => ({ object: { sha: BASE } }),
+      merge: () => ({ sha: OTHER }),
+      getCommit: ({ ref }) => ({ sha: ref, commit: { tree: { sha: HEAD } },
+        parents: ref === OTHER ? [{ sha: BASE }, { sha: HEAD }] : [{ sha: 'e'.repeat(40) }] }),
+      compareCommits: () => ({ status: 'diverged' }),
+    });
+    assert.deepEqual(await value.api.syntheticPrefix(batchState().active, 0), { sha: OTHER, tree: HEAD });
+    assert.equal(value.calls.filter(call => call[0] === 'merge').length, 1);
+    assert.equal(value.calls.filter(call => call[0] === 'getRef').length, 1);
+    assert.deepEqual(value.calls.filter(call => call[0] === 'getCommit').map(call => call[1].ref), [OTHER]);
+  });
+
+  test('synthetic merge response cannot replace exact parent or commit identity validation', async () => {
+    for (const kind of ['malformed-sha', 'array-sha', 'wrong-identity', 'wrong-parents', 'old-tip', 'unrelated-head']) {
+      const value = fixture({
+        getRef: () => ({ object: { sha: BASE } }),
+        merge: () => ({ sha: kind === 'array-sha' ? [OTHER] : kind === 'malformed-sha' ? null
+          : kind === 'old-tip' ? BASE : kind === 'unrelated-head' ? HEAD : OTHER }),
+        getCommit: ({ ref }) => ({ sha: kind === 'wrong-identity' ? BASE : ref,
+          commit: { tree: { sha: HEAD } }, parents: ref !== OTHER ? [{ sha: 'e'.repeat(40) }]
+            : kind === 'wrong-parents' ? [{ sha: HEAD }, { sha: BASE }] : [{ sha: BASE }, { sha: HEAD }] }),
+        compareCommits: () => ({ status: 'diverged' }),
+      });
+      await assert.rejects(value.api.syntheticPrefix(batchState().active, 0),
+        ['malformed-sha', 'array-sha'].includes(kind) ? /synthetic merge identity/ : kind === 'wrong-identity'
+          ? /Incomplete commit/ : /parent identities/);
+      assert.equal(value.calls.filter(call => call[0] === 'merge').length, 1, kind);
+    }
+  });
+
+  test('synthetic response without a commit identity still requires observed ref ancestry', async () => {
+    for (const contained of [false, true]) {
+      const value = fixture({
+        getRef: () => ({ object: { sha: BASE } }),
+        merge: () => undefined,
+        getCommit: ({ ref }) => ({ sha: ref, commit: { tree: { sha: HEAD } },
+          parents: [{ sha: OTHER }] }),
+        compareCommits: () => ({ status: contained ? 'ahead' : 'diverged' }),
+      });
+      if (contained)
+        assert.deepEqual(await value.api.syntheticPrefix(batchState().active, 0), { sha: BASE, tree: HEAD });
+      else await assert.rejects(value.api.syntheticPrefix(batchState().active, 0), /parent identities/);
+      assert.equal(value.calls.filter(call => call[0] === 'getRef').length, 2);
+      assert.equal(value.calls.filter(call => call[0] === 'merge').length, 1);
+    }
+  });
+
   test('synthetic conflicts and unknown commit metadata cannot manufacture candidate trees', async () => {
     const value = fixture({ getRef: () => ({ object: { sha: BASE } }), merge: () => { throw error(409); } });
     assert.equal(await value.api.syntheticPrefix(batchState().active, 0), null);

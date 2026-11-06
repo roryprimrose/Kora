@@ -22,6 +22,7 @@ public sealed partial class McpServerConfigurationService
     private readonly McpCapabilityPreferences? capabilities;
     private readonly Lock sourceGate = new();
     private readonly Dictionary<string, SourceObservation> observedSources = new(StringComparer.Ordinal);
+    private McpCapabilitySelection? observedCapabilities;
     private long nextSourceRevision;
 
     public event EventHandler? Changed;
@@ -57,6 +58,13 @@ public sealed partial class McpServerConfigurationService
         KoraMcpCatalog.ToolIds.Select(DescribeBuiltInTool).ToArray();
 
     public McpCapabilitySelection ReadCapabilitySelection() => preferences.Load().McpCapabilities;
+
+    public bool IsServerSelected(string serverId)
+    {
+        if (capabilities is not null) { return capabilities.IsServerSelected(serverId); }
+        McpCapabilitySelection.ValidateServer(serverId);
+        return McpCapabilityPreferences.IsIncluded(preferences.Load(), serverId);
+    }
 
     private static McpCapability DescribeBuiltInTool(string id)
     {
@@ -106,6 +114,7 @@ public sealed partial class McpServerConfigurationService
                 or ArgumentException or NotSupportedException)
             {
                 observedSources.Clear();
+                observedCapabilities = null;
                 throw;
             }
         }
@@ -172,6 +181,7 @@ public sealed partial class McpServerConfigurationService
                 observedSources[id] = new(fingerprint, ++nextSourceRevision);
             }
         }
+        observedCapabilities = settings.McpCapabilities;
         return result;
     }
 
@@ -188,6 +198,24 @@ public sealed partial class McpServerConfigurationService
     }
 
     internal void NotifyChanged() => Changed?.Invoke(this, EventArgs.Empty);
+
+    internal bool IsCapabilityEnabled(string serverId, McpCapabilityKind kind, string identity)
+    {
+        lock (sourceGate) { return RequireObservedCapabilities().IsEnabled(serverId, kind, identity); }
+    }
+
+    internal bool IsCapabilityExplicitlyDisabled(string serverId, McpCapabilityKind kind, string identity)
+    {
+        lock (sourceGate) { return RequireObservedCapabilities().IsExplicitlyDisabled(serverId, kind, identity); }
+    }
+
+    internal bool MayConsiderCategory(string serverId, McpCapabilityCategory category)
+    {
+        lock (sourceGate) { return RequireObservedCapabilities().MayConsider(serverId, category); }
+    }
+
+    private McpCapabilitySelection RequireObservedCapabilities() => observedCapabilities
+        ?? throw new InvalidOperationException("MCP capability preferences require a successful current source observation.");
 
     private IEnumerable<string> DefaultFiles()
     {

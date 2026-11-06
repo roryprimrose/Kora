@@ -1,5 +1,6 @@
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Kora.Application.Hosting;
@@ -30,8 +31,28 @@ internal sealed partial class LocalFilePreviewWindow
         var reviewButton = new Button { Content = "Review exact evidence for this question" };
         var confirm = new Button { Content = "Consent once: answer locally and retain in this conversation", IsEnabled = false };
         var cancel = new Button { Content = "Cancel / clear attachment answer review" };
+        var retired = false;
+        var evidenceViewport = CreateReader(evidence, "Complete attachment question and evidence; scroll to review before separate consent");
+        var statusViewport = CreateReader(status, "Attachment source-use disclosure, answer and exact retained references");
         AutomationProperties.SetName(question, "Question using only this exact session's retained attachment; no automatic model disclosure");
         AutomationProperties.SetName(evidence, "Complete admitted evidence excerpts and question for separate one-turn model-use consent");
+        ScrollViewer CreateReader(NamedTextBlock text, string name)
+        {
+            var viewport = new ScrollViewer { Content = text, MaxHeight = 180, Focusable = true, IsTabStop = true };
+            AutomationProperties.SetName(viewport, name);
+            viewport.KeyDown += ReaderKeyDown;
+            return viewport;
+        }
+        void ReaderKeyDown(object? sender, KeyEventArgs args)
+        {
+            if (sender is not ScrollViewer { IsFocused: true } viewport || args.KeyModifiers != KeyModifiers.None
+                || !current() || retired || !ReferenceEquals(attachmentAnswerBody, body))
+            { return; }
+            if (args.Key == Key.Home) { viewport.ScrollToHome(); }
+            else if (args.Key == Key.End) { viewport.ScrollToEnd(); }
+            else { return; }
+            args.Handled = true;
+        }
         void Clear()
         {
             attachmentAnswerCancellation?.Cancel();
@@ -43,7 +64,19 @@ internal sealed partial class LocalFilePreviewWindow
             evidence.Text = null;
             status.Text = null;
         }
-        clearAttachmentAnswer = () => { Clear(); question.Text = null; };
+        clearAttachmentAnswer = () =>
+        {
+            retired = true;
+            foreach (var viewport in new[] { evidenceViewport, statusViewport })
+            {
+                viewport.KeyDown -= ReaderKeyDown;
+                viewport.IsEnabled = false;
+                viewport.Focusable = false;
+                viewport.IsTabStop = false;
+            }
+            Clear();
+            question.Text = null;
+        };
         question.TextChanged += (_, _) => Clear();
         cancel.Click += (_, _) => Clear();
         reviewButton.Command = new AsyncCommand(async () =>
@@ -111,10 +144,10 @@ internal sealed partial class LocalFilePreviewWindow
         });
         panel.Children.Add(question);
         panel.Children.Add(reviewButton);
-        panel.Children.Add(new ScrollViewer { Content = evidence, MaxHeight = 180 });
+        panel.Children.Add(evidenceViewport);
         panel.Children.Add(confirm);
         panel.Children.Add(cancel);
-        panel.Children.Add(new ScrollViewer { Content = status, MaxHeight = 180 });
+        panel.Children.Add(statusViewport);
         DockPanel.SetDock(panel, Dock.Bottom);
         body.Children.Insert(1, panel);
     }

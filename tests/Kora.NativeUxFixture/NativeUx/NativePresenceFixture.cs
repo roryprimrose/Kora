@@ -374,6 +374,7 @@ internal static partial class NativePresenceFixture
                 await Task.Delay(150);
                 Require(initial.IsVisible && ((IPresenceWindow)initial).CanReplace,
                     "The production presence window did not become replaceable.");
+                VerifyPresenceWindowClass(initial);
                 var settings = new SettingsWindow(fixture.Main);
                 var selector = settings.GetLogicalDescendants().OfType<ComboBox>()
                     .Single(control => ReferenceEquals(control.ItemsSource, fixture.Main.PresenceRenderers));
@@ -386,7 +387,7 @@ internal static partial class NativePresenceFixture
                     {
                         var previous = current ?? throw new InvalidOperationException("The current fixture window is unavailable.");
                         var previousHandle = previous.TryGetPlatformHandle()!.Handle;
-                        var previousPopup = (previous.Content as Grid)?.Children.OfType<NativePresenceHost>().SingleOrDefault()?.NativeHandle ?? 0;
+                        var previousPopup = previous.PresenceDrawingHandle;
                         var native = index % 2 != 0;
                         if (index == 0)
                         {
@@ -435,6 +436,7 @@ internal static partial class NativePresenceFixture
                         Require(!IsWindow(previousHandle) && (previousPopup == 0 || !IsWindow(previousPopup)),
                             "A retired shell or native popup handle survived replacement.");
                         var next = current ?? throw new InvalidOperationException("The replacement fixture window is unavailable.");
+                        VerifyPresenceWindowClass(next);
                         Require(ReferenceEquals(next.DataContext, fixture.Main) && next.Position == previousPosition,
                             "Replacement did not retain the exact host view model and position.");
                         Require(next.IsVisible == wasVisible && next.WindowState == previousState,
@@ -491,6 +493,18 @@ internal static partial class NativePresenceFixture
             }
         }
 
+        private static void VerifyPresenceWindowClass(MainWindow window)
+        {
+            var root = window.TryGetPlatformHandle()!.Handle;
+            Require((GetClassLong(root, -26) & 0x20) != 0,
+                "The production compatibility regression must exercise Avalonia's actual CS_OWNDC class.");
+            Require((GetWindowLong(root, -20) & 0x80000) == 0,
+                "The selected renderer forced layering onto its incompatible Avalonia host.");
+            Require(window.PresenceDrawingHandle != 0
+                && (GetClassLong(window.PresenceDrawingHandle, -26) & 0x60) == 0,
+                "The selected renderer did not create a compatible private drawing class.");
+        }
+
         private static void Require(bool value, string message)
         {
             if (!value)
@@ -534,6 +548,10 @@ internal static partial class NativePresenceFixture
         private static partial nint GetWindow(nint window, uint command);
         [LibraryImport("user32.dll")]
         private static partial nint GetAncestor(nint window, uint flags);
+        [LibraryImport("user32.dll", EntryPoint = "GetClassLongW")]
+        private static partial uint GetClassLong(nint window, int index);
+        [LibraryImport("user32.dll", EntryPoint = "GetWindowLongW")]
+        private static partial uint GetWindowLong(nint window, int index);
         [LibraryImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static partial bool SetWindowPos(nint window, nint after, int x, int y, int width, int height, uint flags);

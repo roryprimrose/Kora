@@ -105,10 +105,9 @@ public sealed partial class MainWindow : Window
             Win32Properties.AddWindowStylesCallback(this, ConfigurePresenceWindowStyles);
             var handle = TryGetPlatformHandle()?.Handle
                 ?? throw new InvalidOperationException("The presence window has no Windows handle.");
-            presenceInput = useNativePresence
-                ? WindowsPresenceWindowInput.CreateForNativeRenderer(handle)
-                : new WindowsPresenceWindowInput(handle);
+            presenceInput = WindowsPresenceWindowInput.CreateForNonLayeredHost(handle);
             InitializeNativePresence();
+            InitializeAvaloniaPresence();
             motionPreference = new PresenceMotionBinding(presence, motionSource ?? new WindowsMotionPreferenceSource(),
                 action => Dispatcher.UIThread.Post(action), ReportMotionPreferenceFailure);
             motionPreference.SetReducedMotion(viewModel.IsReducedMotionEnabled);
@@ -126,8 +125,7 @@ public sealed partial class MainWindow : Window
     }
 
     private (uint Style, uint ExtendedStyle) ConfigurePresenceWindowStyles(uint style, uint extendedStyle) =>
-        useNativePresence ? (style, extendedStyle | 0x08000000)
-            : (style, WindowsPresenceWindowInput.GetExtendedStyle(extendedStyle, presenceInput?.InterceptsMouse == true));
+        (style, extendedStyle | 0x08000000);
 
     private void OnPresenceInputTick(object? sender, EventArgs eventArgs) => RefreshPresenceInput();
 
@@ -143,7 +141,7 @@ public sealed partial class MainWindow : Window
             IsHitTestVisible = presenceInput.Refresh(
                 IsVisible && viewModel.CanRevealPrivatePresentation
                 && viewModel.State != Kora.Core.AssistantState.Hidden
-                && (nativePresence?.CanInteract ?? presence.CanInteract));
+                && (nativePresence?.CanInteract ?? avaloniaPresence?.CanInteract ?? false));
         }
         catch (Exception exception) when (exception is Win32Exception or InvalidOperationException)
         {
@@ -163,6 +161,7 @@ public sealed partial class MainWindow : Window
         {
             RefreshNativePresence();
         }
+        avaloniaPresence?.Refresh();
         if (change.Property == IsVisibleProperty && presenceInput is not null)
         {
             RefreshPresenceInput();
@@ -208,7 +207,7 @@ public sealed partial class MainWindow : Window
         finally
         {
             initializationCompleted = true;
-            if (!presenceInputFailed && !nativePresenceFailed && !windowActionFailed)
+            if (!presenceInputFailed && !nativePresenceFailed && !avaloniaPresenceFailed && !windowActionFailed)
             {
                 viewModel.ReportPresenceRendererStatus(useNativePresence
                     ? "Experimental animation mode is active." : "Standard animation mode is active.");
@@ -233,9 +232,11 @@ public sealed partial class MainWindow : Window
             return;
         }
         RestorePosition();
-        if (useNativePresence && ActualTransparencyLevel != WindowTransparencyLevel.Transparent)
+        if (ActualTransparencyLevel != WindowTransparencyLevel.Transparent)
         {
-            ReportNativePresenceFailure(new InvalidOperationException("A transparent non-layered native presence shell is unavailable."));
+            var failure = new InvalidOperationException("A transparent non-layered presence shell is unavailable.");
+            if (useNativePresence) { ReportNativePresenceFailure(failure); }
+            else { ReportAvaloniaPresenceFailure(failure); }
             return;
         }
         if (!viewModel.CanRevealPrivatePresentation)
@@ -374,6 +375,7 @@ public sealed partial class MainWindow : Window
         if (action is WindowAction.Show or WindowAction.ShowPresence
             && (presenceInputFailed
                 || nativePresenceFailed
+                || avaloniaPresenceFailed
                 || windowActionFailed
                 || !viewModel.CanRevealPrivatePresentation
                 || !viewModel.IsPresenceDisplayEnabled))
@@ -541,12 +543,13 @@ public sealed partial class MainWindow : Window
     {
         reviewGesture.Cancel();
         nativePresence?.Suspend();
+        avaloniaPresence?.Suspend();
         presenceInputTimer.Stop();
         IsHitTestVisible = false;
         presence.SetAnimationEnabled(false);
         try
         {
-            if (useNativePresence && !presenceInputFailed) { presenceInput?.Refresh(false); }
+            if (!presenceInputFailed) { presenceInput?.Refresh(false); }
         }
         finally
         {

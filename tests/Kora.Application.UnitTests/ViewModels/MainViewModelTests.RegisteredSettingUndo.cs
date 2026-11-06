@@ -13,6 +13,56 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Theory]
+    [InlineData("set speech.summary-words to 40", true)]
+    [InlineData("set speech.playback-volume to 30", true)]
+    [InlineData("set responses.default-mode to VisualOnly", true)]
+    [InlineData("set appearance.response-timeout to 15", true)]
+    [InlineData("set speech.summary-words to 40", false)]
+    [InlineData("set speech.playback-volume to 30", false)]
+    [InlineData("set responses.default-mode to VisualOnly", false)]
+    [InlineData("set appearance.response-timeout to 15", false)]
+    public async Task NativeAndActivatedVoiceUndoShareOneReviewAndAuthoritativeResult(string setter, bool voiceReview)
+    {
+        var f = new Fixture(enablePlaybackVolume: true, enableResponseModeConfiguration: true);
+        await using var admission = f.OutputAdmission;
+        await using var model = f.ViewModel;
+        await model.InitializeAsync();
+        await f.RunAsync(setter);
+        var count = f.Audit.Events.Count;
+        var selection = f.Preferences.LoadSelection();
+        var provider = model.SelectedSpeechProvider;
+        Task Native(RegisteredSettingSuggestionOperation operation) => HostRequestRunner.RunAsync(RequestOrigin.LocalUi,
+            () => model.ExecuteSettingsUndoAsync(operation, SecurityAuditInitiator.LocalUser,
+                TestContext.Current.CancellationToken, static () => true));
+        if (voiceReview) { await f.RaiseActivatedTranscriptAsync("Kora, undo the last settings change", 1); }
+        else { await Native(RegisteredSettingSuggestionOperation.Review); }
+        model.CanConfirmSettingsUndo.Should().BeTrue();
+        model.SettingsUndoDescription.Should().Contain("current").And.Contain("restore").And.Contain("shared device-local");
+        f.Audit.Events.Should().HaveCount(count);
+        f.TextToSpeech.ClearSpokenResponse();
+
+        if (voiceReview) { await Native(RegisteredSettingSuggestionOperation.Confirm); }
+        else { await f.RaiseActivatedTranscriptAsync("Kora, confirm settings undo", 1); }
+
+        model.SettingsUndoDescription.Should().Contain("undone by a new audited write");
+        model.ResponseBody.Should().Contain("restored").And.Contain("default").And.Contain("Undo consumed; no redo");
+        model.CanConfirmSettingsUndo.Should().BeFalse();
+        model.CanReviewSettingsUndo.Should().BeFalse();
+        f.Preferences.SummaryLimits.Should().BeNull();
+        f.VolumePreferences.Value.Should().BeNull();
+        f.OutputPreferences.Mode.Should().BeNull();
+        f.AppearancePreferences.LoadResponseTimeoutSeconds().Should().BeNull();
+        f.Audit.Events.Skip(count).Select(item => item.Outcome).Should()
+            .Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+        f.Audit.Events.Skip(count).Should().OnlyContain(item => item.Initiator == SecurityAuditInitiator.VoiceCommand);
+        f.Preferences.LoadSelection().Should().Be(selection);
+        model.SelectedSpeechProvider.Should().BeSameAs(provider);
+        f.TextToSpeech.SpokenText.Should().BeNull();
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.Session.LockCalls.Should().Be(0);
+    }
+
+    [Theory]
     [InlineData("set speech.summary-words to 40")]
     [InlineData("set speech.playback-volume to 30")]
     [InlineData("set responses.default-mode to VisualOnly")]

@@ -7,7 +7,7 @@ using Kora.Core.Presentation;
 
 namespace Kora.Application.Configuration;
 
-public sealed class DetailPresentationConfigurationService(
+public sealed partial class DetailPresentationConfigurationService(
     IDetailPresentationPreferences preferences, AudioControlAdmission admission, ISecurityAuditLog auditLog, TimeProvider time)
 {
     private readonly Lock gate = new();

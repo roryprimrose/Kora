@@ -45,6 +45,16 @@ public sealed class McpCapabilitySelection
         return saved?.Items.SingleOrDefault(item => string.Equals(item.Key, key, StringComparison.Ordinal))?.Enabled ?? saved?.Enabled ?? true;
     }
 
+    public bool IsExplicitlyDisabled(string serverId, McpCapabilityKind kind, string identity)
+    {
+        ValidateServer(serverId);
+        var category = Category(kind);
+        var key = ItemKey(kind, identity);
+        var saved = Categories.SingleOrDefault(item => string.Equals(item.ServerId, serverId, StringComparison.Ordinal)
+            && item.Category == category);
+        return saved?.Items.Any(item => string.Equals(item.Key, key, StringComparison.Ordinal) && !item.Enabled) == true;
+    }
+
     public McpCapabilitySelection SetCategory(string serverId, McpCapabilityCategory category, bool enabled)
     {
         ValidateServer(serverId);
@@ -63,9 +73,8 @@ public sealed class McpCapabilitySelection
         var key = ItemKey(kind, identity);
         var saved = Categories.SingleOrDefault(item => string.Equals(item.ServerId, serverId, StringComparison.Ordinal) && item.Category == category)
             ?? new McpCategorySelection(serverId, category, true, []);
-        var items = saved.Items.Where(item => !string.Equals(item.Key, key, StringComparison.Ordinal));
+        var items = saved.Items.Where(item => !string.Equals(item.Key, key, StringComparison.Ordinal)).Append(new McpItemSelection(key, enabled));
         if (saved.Revision == long.MaxValue) { throw new InvalidOperationException("The MCP category revision is exhausted."); }
-        if (enabled != saved.Enabled) { items = items.Append(new(key, enabled)); }
         return new(Categories.Where(item => !string.Equals(item.ServerId, serverId, StringComparison.Ordinal) || item.Category != category)
             .Append(new(serverId, category, saved.Enabled, items, saved.Revision + 1)));
     }

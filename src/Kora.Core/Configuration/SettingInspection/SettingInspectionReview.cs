@@ -50,6 +50,7 @@ public sealed class SettingInspectionReview
         RegisteredSetting.ReplyStartWait,
         RegisteredSetting.TrailingSilence,
         RegisteredSetting.SpeechVoice,
+        RegisteredSetting.DetailPresentation,
     ];
     private int consumed;
 

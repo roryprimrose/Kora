@@ -2,6 +2,7 @@
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.LogicalTree;
+
 using Kora.Application.ViewModels;
 using Kora.Core.Conversation;
 
@@ -58,6 +59,7 @@ internal sealed partial class SessionsPresentationOwner
     {
         this.model = model;
         model.CaptureQuietHoursNativeLifetime = CaptureForegroundSourceEligibility;
+        model.CaptureDetailPresentationNativeLifetime = CaptureForegroundSourceEligibility;
         this.requestCommands = requestCommands;
         if (requestCommands is not null)
         {
@@ -102,6 +104,7 @@ internal sealed partial class SessionsPresentationOwner
     {
         if (revoked) { return; }
         revoked = true;
+        Volatile.Write(ref uniqueForegroundWindow, 0);
         draftDialog?.Close();
         model.Close();
         foreach (var surface in surfaces.ToArray()) { surface.Close(); }
@@ -173,8 +176,11 @@ internal sealed partial class SessionsPresentationOwner
         if (revoked || args.Source is not Button { Name: "OpenConversationDetail" or "OpenAssistantConversationDetail", DataContext: ConversationMessage message } button
             || !model.CanOpenConversationDetails) { return; }
         args.Handled = true;
-        try { await (DetailOperation = model.OpenConversationDetailAsync(message,
-            assistant: string.Equals(button.Name, "OpenAssistantConversationDetail", StringComparison.Ordinal))); }
+        try
+        {
+            await (DetailOperation = model.OpenConversationDetailAsync(message,
+            assistant: string.Equals(button.Name, "OpenAssistantConversationDetail", StringComparison.Ordinal)));
+        }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         { model.ReportComposerCloseFailure(exception); }
     }

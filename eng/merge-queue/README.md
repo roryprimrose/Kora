@@ -286,6 +286,12 @@ The App creates ticket-owned `automation/merge-queue-batch/<ticket>/<prefix>`
 refs through GitHub's normal ref/merge APIs. Candidate code never executes with
 the App token. Construction reconciles exact parents after interruption rather
 than forcing refs or blindly repeating a merge with an ambiguous outcome.
+After a successful merge returns a commit SHA, construction verifies that
+immutable commit's exact identity, tree and expected parents instead of
+immediately rereading the mutable ref, which can still report its pre-merge tip.
+A malformed returned SHA fails explicitly. A response without a commit identity
+still requires observed ref ancestry; ambiguous requests retain the existing
+restart checks. No response alone seals a prefix without commit verification.
 
 Construction stops at the first conflict instead of discarding a compatible
 prefix. Before any digest or dispatch exists, the controller seals a **new
@@ -478,6 +484,13 @@ The follow-up still joins owned work before releasing the lane. An uncertain ret
 - After partial integration, preserve actual PR Merged states and the recorded
   prefix. A changed/withdrawn/review-blocked suffix, unexpected main, or
   uncertain merge holds `recovery-required` and the publication block.
+  Native Auto-merge can complete between the post-attestation/pending PR read
+  and subsequent authority/main reads. Before withdrawing an attested gate or
+  entering recovery for that change, the controller reobserves the PR's merged
+  outcome. An observed merge wakes ordinary reconciliation without replaying
+  the merge request or withdrawing the gate; the next pass still verifies the
+  exact parent, prefix tree and main reachability before recording progress.
+  A changed fence without an observed merge still requires recovery.
   A late observed merge may record its verified actual prefix, but does not
   silently clear reviewed recovery.
 - `resume-batch` requires separately authorized administrator review, exact
@@ -496,7 +509,11 @@ The follow-up still joins owned work before releasing the lane. An uncertain ret
   before a fully validated repair/revert.
 - Recovery calls are checkpoint-specific; repeating one after its successful
   write fails rather than replaying effects. Inspect checkpoint readback after
-  transport uncertainty. The legacy `recover-unobservable-dispatch` operation
+  transport uncertainty. After verified checkpoint readback, `resume-batch` and
+  `repair-batch` request one ordinary controller reconciliation so a quiet
+  repository does not depend on another PR event or delayed timer. A failed
+  continuation is explicit and retains the written checkpoint; do not replay
+  the old recovery inputs. The legacy `recover-unobservable-dispatch` operation
   cannot clear a batch.
 - Roll back only at an idle, qualified completed tip with quiescent CI. Run the
   separately authorized `rollback-batch-v1` operation with the exact checkpoint

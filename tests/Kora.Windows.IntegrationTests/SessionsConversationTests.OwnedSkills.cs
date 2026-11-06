@@ -6,6 +6,7 @@ using AwesomeAssertions;
 using Kora.Application.Skills;
 using Kora.Application.Dependencies;
 using Kora.Core.Dependencies;
+using Kora.Core.Artifacts;
 using Kora.Core.Hosting;
 using Kora.Core.Providers;
 using Kora.Core.Skills;
@@ -39,8 +40,9 @@ public sealed partial class SessionsConversationTests
             var document = OwnedDeclarativeSkillDocument.Create("example", "1.0.0", "Example", "Description", "Literal guidance\nowned skill invoke");
             await store.Publish(document, static () => true, commit => Task.FromResult(commit()), native.Token);
             await using var admission = new OwnedSkillControlAdmission(native.Interactions, native.Interactions, new(native.Tasks));
+            var usePolicy = new Kora.Application.Configuration.ArtifactUsePreferences(f.Paths);
             var useWorkflow = new OwnedSkillInvocationWorkflow(store, admission, composed.Access, f.Store, composed.Workspace,
-                composed.Conversation, native.Audit, f.Time);
+                composed.Conversation, native.Audit, f.Time, usePolicy);
             var use = new OwnedSkillInvocationController(native.Main, useWorkflow, static () => true, static () => 1,
                 NullLogger<OwnedSkillInvocationController>.Instance);
             use.Bind();
@@ -59,6 +61,15 @@ public sealed partial class SessionsConversationTests
             authoring.Guidance.Text.Should().Be(document.Guidance);
             adapter.Calls.Should().Be(0);
             f.Count("conversation_messages").Should().Be(0);
+            var excluded = ArtifactUseIdentity.File(Path.Combine(store.Destination(document),
+                editAfterPreview ? "manifest.yaml" : "instructions.md"));
+            usePolicy.SetDisabled(excluded, true);
+            new Kora.Application.Configuration.ArtifactUsePreferences(f.Paths).IsDisabled(excluded).Should().BeTrue();
+            await Command("owned skill use example 1.0.0");
+            invocation.Should().BeNull();
+            adapter.Calls.Should().Be(0);
+            f.Count("conversation_messages").Should().Be(0);
+            usePolicy.SetDisabled(excluded, false);
             await Command("owned skill use example 1.0.0");
             var opened = invocation ?? throw new InvalidOperationException("No owned use review.");
             opened.Instructions.Text.Should().Contain(document.ManifestText).And.Contain(document.Guidance);
@@ -134,7 +145,7 @@ public sealed partial class SessionsConversationTests
             await store.Publish(document, static () => true, commit => Task.FromResult(commit()), f.Token);
             await using var admission = new OwnedSkillControlAdmission(f.Store, f.Store, new(f.Tasks));
             var workflow = new OwnedSkillInvocationWorkflow(store, admission, composed.Access, f.Store,
-                composed.Workspace, composed.Conversation, composed.Audit, f.Time);
+                composed.Workspace, composed.Conversation, composed.Audit, f.Time, new MarkdownUsePolicy());
             var authority = new OwnedSkillAuthoringAuthority(RequestOrigin.LocalUi, static () => true);
             using var review = await workflow.ReviewAsync("example", "1.0.0", authority, static () => true, f.Token);
             var source = Path.Combine(store.Destination(document), "instructions.md");
@@ -176,7 +187,7 @@ public sealed partial class SessionsConversationTests
             await store.Publish(document, static () => true, commit => Task.FromResult(commit()), native.Token);
             await using var admission = new OwnedSkillControlAdmission(native.Interactions, native.Interactions, new(native.Tasks));
             var workflow = new OwnedSkillInvocationWorkflow(store, admission, composed.Access, f.Store, composed.Workspace,
-                composed.Conversation, native.Audit, f.Time);
+                composed.Conversation, native.Audit, f.Time, new MarkdownUsePolicy());
             await using var use = new OwnedSkillInvocationController(native.Main, workflow, static () => true, static () => 1,
                 NullLogger<OwnedSkillInvocationController>.Instance);
             use.Bind();
@@ -250,7 +261,7 @@ public sealed partial class SessionsConversationTests
             var saved = await store.Publish(document, static () => true, commit => Task.FromResult(commit()), native.Token);
             await using var admission = new OwnedSkillControlAdmission(native.Interactions, native.Interactions, new(native.Tasks));
             var workflow = new OwnedSkillInvocationWorkflow(store, admission, composed.Access, f.Store, composed.Workspace,
-                composed.Conversation, native.Audit, f.Time);
+                composed.Conversation, native.Audit, f.Time, new MarkdownUsePolicy());
             var use = new OwnedSkillInvocationController(native.Main, workflow, static () => true, static () => 1,
                 NullLogger<OwnedSkillInvocationController>.Instance);
             use.Bind();

@@ -46,10 +46,57 @@ public sealed partial class DetailWindowControllerTests
         var start = state.ActiveText.IndexOf("<img", StringComparison.Ordinal);
         await f.Controller.CopyAsync(state.Reference, state.Generation, false, start, 11);
         f.Clipboard.Writes.Should().ContainSingle().Which.Should().Be("<img src=x>");
-        f.Clipboard.HtmlWrites.Should().ContainSingle().Which.Should().Be("<pre>&lt;img src=x&gt;</pre>");
+        f.Clipboard.HtmlWrites.Should().ContainSingle().Which.Should().Be("<p><code>&lt;img src=x&gt;</code></p>");
         await f.Controller.CopyAsync(state.Reference, state.Generation, false, -1, 3);
         f.Clipboard.Writes.Should().ContainSingle();
         state.Status.Should().Contain("blocked");
+    }
+
+    [Fact]
+    public async Task SelectionClipsNestedFormattingAcrossBlocksWithoutIncludingUnselectedContent()
+    {
+        const string markdown = "# Hidden heading\n\nbefore **bold *nested é 😀* end** after\n\n"
+            + "> quote `code & text` tail\n\n3. third\n4. fourth\n\nunselected tail";
+        using var f = new Fixture();
+        f.Documents.Pages[0] = f.Documents.GetStartPage() with { Markdown = markdown };
+        f.Controller.OpenEmbeddedPage(f.Documents.GetStartPage(), null);
+        var state = f.Views.Single().State;
+        var start = state.ActiveText.IndexOf("nested", StringComparison.Ordinal);
+        var end = state.ActiveText.IndexOf("fourth", StringComparison.Ordinal) + "four".Length;
+        var selected = state.ActiveText[start..end];
+        var identity = (state.Reference, state.Generation, state.Content!.Source, state.ActiveText);
+        await f.Controller.CopyAsync(state.Reference, state.Generation, false, start, end - start);
+        f.Clipboard.Writes.Should().ContainSingle().Which.Should().Be(selected);
+        var html = f.Clipboard.HtmlWrites.Should().ContainSingle().Which;
+        html.Should().Contain("<strong><em>" + System.Net.WebUtility.HtmlEncode("nested é 😀") + "</em> end</strong> after")
+            .And.Contain("<blockquote>").And.Contain("<code>code &amp; text</code>")
+            .And.Contain("<ol start=\"3\">").And.Contain("four");
+        html.Should().NotContain("Hidden").And.NotContain("before").And.NotContain("bold")
+            .And.NotContain("fourth").And.NotContain("unselected").And.NotContain("href=")
+            .And.NotContain("style=").And.NotContain("data-");
+        state.Status.Should().Contain("Selected").And.Contain("sanitized HTML");
+        (state.Reference, state.Generation, state.Content!.Source, state.ActiveText).Should().Be(identity);
+    }
+
+    [Fact]
+    public async Task SelectedRichWriteFailureHasNoRetryAndRetirementPreventsAnyFurtherTransfer()
+    {
+        using var f = new Fixture();
+        f.Documents.Pages[0] = f.Documents.GetStartPage() with { Markdown = "**selected** unselected" };
+        f.Controller.OpenEmbeddedPage(f.Documents.GetStartPage(), null);
+        var state = f.Views.Single().State;
+        var generation = state.Generation;
+        await f.Controller.CopyAsync(state.Reference, generation, false, 0, 0);
+        await f.Controller.CopyAsync(state.Reference, generation + 1, false, 0, 8);
+        f.Clipboard.Writes.Should().BeEmpty();
+        f.Clipboard.Fail = true;
+        await f.Controller.CopyAsync(state.Reference, generation, false, 0, 8);
+        state.Status.Should().Contain("failed").And.NotContain("copied");
+        f.Clipboard.Writes.Should().BeEmpty();
+        f.Clipboard.HtmlWrites.Should().BeEmpty();
+        f.Controller.ClearForPrivacy();
+        await f.Controller.CopyAsync(state.Reference, generation, true, 0, 8);
+        f.Clipboard.Writes.Should().BeEmpty();
     }
 
     [Theory]

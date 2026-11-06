@@ -35,7 +35,7 @@ public sealed class DetailReaderLayoutTests
         var result = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance).Render(source, content.Kind);
         state.CompleteRender(state.Generation, result.SemanticText, result.Status, result.IsFallback);
         var writes = 0;
-        var window = new DetailWindow(state, result, (_, _, _) => { writes++; return Task.CompletedTask; })
+        var window = new DetailWindow(state, result, (_, _, _, _) => { writes++; return Task.CompletedTask; })
         { Width = 640, Height = 500 };
         window.Show();
         try
@@ -101,7 +101,7 @@ public sealed class DetailReaderLayoutTests
         var result = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance).Render(source, content.Kind);
         state.CompleteRender(state.Generation, result.SemanticText, result.Status, result.IsFallback);
         var writes = 0;
-        var window = new DetailWindow(state, result, (_, _, _) => { writes++; return Task.CompletedTask; }, fixture.Main)
+        var window = new DetailWindow(state, result, (_, _, _, _) => { writes++; return Task.CompletedTask; }, fixture.Main)
         { Width = width, Height = height };
         window.Show();
         try
@@ -195,7 +195,7 @@ public sealed class DetailReaderLayoutTests
         var result = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance).Render(content.Source, content.Kind);
         state.CompleteRender(state.Generation, result.SemanticText, result.Status, result.IsFallback);
         var writes = 0;
-        var window = new DetailWindow(state, result, (_, _, _) => { writes++; return Task.CompletedTask; });
+        var window = new DetailWindow(state, result, (_, _, _, _) => { writes++; return Task.CompletedTask; });
         window.Show();
         try
         {

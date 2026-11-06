@@ -122,6 +122,27 @@ the exact current revision before acting:
 - Exact individual actions are supported; existing session batch operations
   remain Session-only.
 
+### Disable one memory with the keyboard
+
+In **Sessions > Memories**, choose the Session or Device-profile scope and
+explicitly **List**. Tab into the content-free inventory and use the arrow
+keys to select one enabled memory. Select **Inspect exact memory** with Enter.
+Focus moves to the read-only **Exact memory inspection or retained mutation
+result** field, at the beginning of the complete value, classification, source
+scope and lineage. Use normal text navigation to read the entire result.
+Reading or pressing Enter in that field does not disable or admit anything.
+
+Shift+Tab passes **Forget exact memory** to **Disable admitted memory**.
+Deliberately press Enter on **Disable admitted memory**. Focus returns to the
+same read-only field with the authoritative result: check the exact memory
+identity, scope, new revision and **Disabled** retention state. Disabled keeps
+the admitted value but closes use; it does not renew retention, consent or
+permissions. Explicit List and Inspect after restart can read that retained
+state. Re-enabling still requires edit, inspect, review and separate admission.
+Changing selection, scope, private control or native surface during the
+operation retires the pending focus handoff, not the transaction's outcome.
+If an outcome is uncertain, inspect retained state rather than retrying.
+
 Done, deletion and retention of the originating session do not delete
 independently admitted Device-profile memories or transfer any session
 permission. A new Active conversation and fresh private control are still

@@ -51,6 +51,17 @@ No format/limit override, folder attachment, managed source, extra version, mode
 
 ## Configuration Contract
 
+### Shared device-local preference availability
+
+The [shared preference store](../src/Kora.Application/Configuration/LocalPreferenceStore.cs) resolves files beneath `IApplicationDataPaths.LocalRoot/Preferences`; domain adapters retain format and value validation.
+Missing files/directories retain each adapter's existing first-use/default behavior, but a directory at a preference filename, denied access or another I/O failure is unavailable, not an absent preference.
+
+Reads and deletes perform the file operation directly. An obstructed saved value or unconfirmed-write marker cannot silently default, confirm a write or complete a reset.
+Recovery requires explicit saved-state/evidence inspection and repair, followed by a fresh admitted operation; no automatic deletion, marker clearing or rollback is inferred ([behavioral regressions](../tests/Kora.Application.UnitTests/Configuration/LocalPreferenceStoreTests.cs)).
+
+Atomic writes still use a unique temporary file, durable flush, replacement and cleanup ([store](../src/Kora.Application/Configuration/LocalPreferenceStore.cs)).
+Setting values, formats, admission, requested/terminal audit and independent retention remain unchanged; this storage repair adds no setting, proposal, UI route or enablement ([retention contract](#r12-bounded-session-retention-delivered---2026-10-09)).
+
 ### Implemented existing detail-offer suppression
 
 The bounded `responses.detail-presentation` implementation has only Offer (unsaved legacy/default) and LinkOnly. Native Responses settings and exact original typed/current-name activated commands share inspect/review/confirm/cancel/reset. Set/reset require separate confirmation; reset explicitly saves Offer, not file deletion. This is not a new model setting observation/proposal catalogue ([workflow](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs), [parser](../src/Kora.Application/Configuration/DetailPresentationCommand.cs), [native controls](../src/Kora/SettingsWindow.axaml)).

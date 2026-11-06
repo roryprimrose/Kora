@@ -104,7 +104,7 @@
     </Grid>
     <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns" />
     <Grid x:Name="ReadingPanes" Grid.Column="2" ColumnDefinitions="*,0,0">
-    <Grid x:Name="ConversationPane" MinWidth="320" RowDefinitions="Auto,Auto,*,Auto,Auto,Auto" RowSpacing="8">
+    <Grid x:Name="ConversationPane" MinWidth="320" RowDefinitions="Auto,Auto,3*,Auto,Auto,*" RowSpacing="8">
       <Grid ColumnDefinitions="*,Auto">
       <TextBlock Text="{Binding InteractionTarget}" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap"
           AutomationProperties.Name="Selected conversation; context is not a lock for general voice requests" />
@@ -221,7 +221,10 @@
         <Button x:Name="StopLocalAnswer" Content="Stop this answer" IsEnabled="{Binding CanCancelRunningConversation}" />
         <Button x:Name="DiscardMessage" Content="Discard unsent..." IsEnabled="{Binding ComposerDirty}" />
       </WrapPanel>
-      <StackPanel Grid.Row="5" Spacing="4">
+      <ScrollViewer Grid.Row="5" x:Name="ConversationWorkScroll" VerticalScrollBarVisibility="Auto"
+          HorizontalScrollBarVisibility="Disabled"
+          AutomationProperties.Name="Selected conversation work, submission reviews and recovery controls">
+      <StackPanel Spacing="4">
       <local:ComposerRequestReviewPanel />
       <local:TaskResponseOutputPanel />
       <controls:NamedTextBlock x:Name="ConversationStatusMessage" Text="{Binding ConversationStatus}" TextWrapping="Wrap"
@@ -229,10 +232,11 @@
       <TextBlock Text="{Binding RunningConversationStatus}" TextWrapping="Wrap"
           AutomationProperties.Name="Exact conversation running, stopping or terminal outcome" />
       <local:PendingConversationPanel />
-      <TextBlock
+      <TextBlock x:Name="ConversationWorkGuidance"
           Text="General voice relatedness matching is not available yet. This composer explicitly targets the selected conversation. Questions and approvals retain their original controls."
           TextWrapping="Wrap" Classes="muted" FontSize="11" />
       </StackPanel>
+      </ScrollViewer>
     </Grid>
     <GridSplitter x:Name="DetailsDivider" Grid.Column="1" Width="6" IsVisible="False" ResizeDirection="Columns"
         ResizeBehavior="PreviousAndNext" Focusable="True"

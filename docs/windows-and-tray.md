@@ -554,6 +554,25 @@ Read/Next show bounded chronological **USER** messages and separate **HOST** sta
 
 Typing writes nothing. Switching topics preserves a separate memory-only unsent message per exact session, shared by Sessions and compact views. No ordinary Save/Reload/Clear or saved-draft management exists ([buffers](../src/Kora/SessionsViewModel.Unsent.cs)).
 
+#### Continue another conversation while answering an original question
+
+Submit using **Submit with one clarification**, **Ask locally with observations
+and one question**, or the explicit Claude clarification action. When the original
+dispatched task asks its question, its retained request leaves the input box and
+you may select another conversation and write independent unsent text.
+
+Use the still-open original question window to **Review exact record**, edit or
+**Save draft**, and separately **Submit** or **Cancel question**. Selecting another
+conversation changes neither the question's target nor its original expiry.
+Submitting an answer does not submit the active conversation's composer or grant
+approval; Claude still requires each separate native transmission consent.
+
+Return to the original conversation and choose **Read conversation** to inspect
+its genuine retained ASSISTANT answer or truthful HOST outcome. The other
+conversation's input and any newer original-conversation input remain unchanged.
+Privacy, source loss, expiry and exact-task cancellation still retire the original
+wait; no closed or terminal question is recreated ([question owner](../src/Kora/SessionsViewModel.QuestionContinuation.cs)).
+
 If work refresh observes a changed lifecycle or generation, all conversation
 views retain the unsent text but disable stale composer and Send controls.
 An Active observation alone does not restore eligibility. Use **Read conversation**

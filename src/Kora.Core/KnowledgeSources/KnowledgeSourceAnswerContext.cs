@@ -16,7 +16,12 @@ public sealed class KnowledgeSourceAnswerContext
         if (!ReferenceEquals(request, review.Target.Request) || generation.Value <= 0 || !review.IsCurrent(now))
         { throw new InvalidDataException("Named evidence requires the exact host-admitted target."); }
         context = new(review.Question, review.Search, request, generation, now, review.ExpiresAt,
-            review.IsCurrent, review.Revision.ResolveCitation);
+            review.IsCurrent, review.ResolveCitation, review.Sources.Count == 1 ? null
+                : citation => System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    Source = review.DescribeCitation(citation),
+                    Excerpt = citation.Excerpt,
+                }));
         retrievedTruncated = review.RetrievedSearch.Truncated;
     }
 

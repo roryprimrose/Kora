@@ -8,6 +8,8 @@ namespace Kora.Application.Voice;
 public sealed class SpeechSetupComparison(ISpeechSetupComparisonRuntime runtime, ISpeechInputProfileRuntime profiles)
     : IAsyncDisposable
 {
+    private const string CancellationFailureStatus =
+        "Comparison cancellation failed. No success is claimed; restart Kora before another comparison.";
     private readonly Lock gate = new();
     private CancellationTokenSource? cancellation;
     private Task work = Task.CompletedTask;
@@ -20,6 +22,8 @@ public sealed class SpeechSetupComparison(ISpeechSetupComparisonRuntime runtime,
     private string status = "Start a local setup comparison. No microphone is opened by review.";
     private bool ready;
     private bool running;
+    private bool retiring;
+    private bool cancellationFailed;
     private bool disposed;
     private long revision;
 
@@ -58,8 +62,8 @@ public sealed class SpeechSetupComparison(ISpeechSetupComparisonRuntime runtime,
         }
     }
     public IReadOnlyList<SpeechComparisonResult> Results { get { lock (gate) { return Array.AsReadOnly(results); } } }
-    public bool IsRunning { get { lock (gate) { return running; } } }
-    public bool CanTest { get { lock (gate) { return ready && !disposed && work.IsCompleted && IsCurrent(); } } }
+    public bool IsRunning { get { lock (gate) { return running || retiring; } } }
+    public bool CanTest { get { lock (gate) { return ready && !disposed && !cancellationFailed && work.IsCompleted && IsCurrent(); } } }
 
     public void Review(MicrophoneDevice device, Func<bool> admission)
     {
@@ -69,7 +73,8 @@ public sealed class SpeechSetupComparison(ISpeechSetupComparisonRuntime runtime,
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
-            if (!work.IsCompleted) { throw new InvalidOperationException("Cancel and join the previous attempt before review."); }
+            if (!work.IsCompleted || cancellationFailed)
+            { throw new InvalidOperationException("Cancel and join the previous attempt before review; restart Kora if cancellation failed."); }
             Retire("Review unavailable.");
             if (!admission() || !profiles.IsProfileAvailable)
             { throw new InvalidOperationException("Current microphone/owner/consent/privacy or profile admission is unavailable."); }
@@ -100,7 +105,7 @@ public sealed class SpeechSetupComparison(ISpeechSetupComparisonRuntime runtime,
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
-            if (!microphoneUseConfirmed || !ready || !work.IsCompleted || !IsCurrent())
+            if (!microphoneUseConfirmed || !ready || cancellationFailed || !work.IsCompleted || !IsCurrent())
             { throw new InvalidOperationException("Fresh exact review and explicit microphone-use confirmation are required."); }
             ready = false;
             running = true;
@@ -227,11 +232,39 @@ public sealed class SpeechSetupComparison(ISpeechSetupComparisonRuntime runtime,
     {
         revision++;
         ready = false;
-        cancellation?.Cancel();
         results = [];
         reviewed = [];
         eligible = null;
-        status = message;
+        status = cancellationFailed ? CancellationFailureStatus : message;
+        if (cancellation is { IsCancellationRequested: false } source)
+        {
+            retiring = true;
+            work = JoinRetirementAsync(work, source.CancelAsync());
+        }
+    }
+
+    private async Task JoinRetirementAsync(Task attempt, Task callbacks)
+    {
+        try
+        {
+#pragma warning disable VSTHRD003 // Retain both the original native attempt and every cancellation callback before replacement or disposal.
+            await Task.WhenAll(attempt, callbacks).ConfigureAwait(false);
+#pragma warning restore VSTHRD003
+        }
+        catch (Exception) when (callbacks.IsFaulted)
+        {
+            lock (gate)
+            {
+                cancellationFailed = true;
+                status = CancellationFailureStatus;
+            }
+            throw;
+        }
+        finally
+        {
+            lock (gate) { retiring = false; }
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
     }
 
     public async ValueTask DisposeAsync()

@@ -27,6 +27,7 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
     private Guid? next;
     private RequestOrigin origin;
     private RequestOrigin inputOrigin;
+    private Func<bool>? inputEligibility;
     private NamedAgentSelection? namedSelection;
     private Func<bool>? namedEligibility;
     private NamedAgentCommand? namedCommand;
@@ -90,7 +91,14 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
             if (namedCommand is not null && command.Action is "Source" or "Request")
             { throw new InvalidOperationException("Start a fresh named-agent command to change its exact source or original task."); }
             if (command.Action is "Source") { window!.Source.Text = command.Argument; Retire(); origin = requestOrigin; return; }
-            if (command.Action is "Request") { window!.Input.Text = command.Argument; Retire(); inputOrigin = requestOrigin; return; }
+            if (command.Action is "Request")
+            {
+                window!.Input.Text = command.Argument;
+                Retire();
+                inputOrigin = requestOrigin;
+                inputEligibility = eligible;
+                return;
+            }
             if (command.Action is "Target")
             {
                 if (modelProposal is not null)
@@ -126,6 +134,7 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
             opened.Input.Text = command.Input;
             namedContentRevision = contentRevision;
             inputOrigin = origin;
+            inputEligibility = eligible;
             await ReadTargetsAsync("Targets", opened, eligible, token);
             if (!Eligible() || !ReferenceEquals(window, opened)) { return; }
             opened.Status.Text = $"Agent: {selected.Definition.Name}. Select one existing Active conversation by readable name, "
@@ -159,7 +168,11 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
         {
             contentRevision++;
             Retire();
-            if (ReferenceEquals(sender, window?.Input)) { inputOrigin = RequestOrigin.LocalUi; }
+            if (ReferenceEquals(sender, window?.Input))
+            {
+                inputOrigin = RequestOrigin.LocalUi;
+                inputEligibility = main.CaptureAgentTaskEligibility();
+            }
         }
     }
     private void Retire()
@@ -193,7 +206,8 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
             var opened = window ?? throw new InvalidOperationException("Agent review is closed.");
             var token = cancellation!.Token;
             var revision = inputRevision;
-            bool Current() => Eligible() && eligible() && ReferenceEquals(window, opened) && inputRevision == revision
+            bool Current() => Eligible() && eligible() && (inputEligibility?.Invoke() ?? true)
+                && ReferenceEquals(window, opened) && inputRevision == revision
                 && (namedCommand is null || namedSelection is not null
                     && contentRevision == namedContentRevision);
             if (!Current()) { throw new InvalidOperationException("Private host admission changed."); }
@@ -320,6 +334,7 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
         review = null;
         namedSelection = null;
         namedEligibility = null;
+        inputEligibility = null;
         namedCommand = null;
         modelProposal = null;
         captured?.Dispose();

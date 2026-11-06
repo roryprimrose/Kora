@@ -24,4 +24,5 @@ public enum RegisteredSetting
     ReplyStartWait,
     TrailingSilence,
     QuietHours,
+    DetailPresentation,
 }

@@ -33,7 +33,7 @@ public sealed partial class SessionsConversationTests
             var store = new WindowsOwnedDeclarativeSkillStore(native);
             await using var admission = new OwnedSkillControlAdmission(native.Interactions, native.Interactions, new(native.Tasks));
             var workflow = new OwnedSkillInvocationWorkflow(store, admission, composed.Access, f.Store, composed.Workspace,
-                composed.Conversation, native.Audit, f.Time);
+                composed.Conversation, native.Audit, f.Time, new MarkdownUsePolicy());
             await using var use = new OwnedSkillInvocationController(native.Main, workflow, static () => true, static () => 1,
                 NullLogger<OwnedSkillInvocationController>.Instance);
             use.Bind();

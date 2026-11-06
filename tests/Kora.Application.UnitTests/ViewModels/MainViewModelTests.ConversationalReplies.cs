@@ -28,6 +28,38 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Native_preference_closure_during_confirmation_reports_unconfirmed_without_listening(bool enabled)
+    {
+        var f = new Fixture(enableConversationalReplies: true);
+        try
+        {
+            f.ViewModel.BindConversationalReplyNativeLifetime(static () => true);
+            if (!enabled) { await f.ViewModel.EnableConversationalRepliesCommand.ExecuteAsync(); }
+            f.ConversationalPreferences.AfterConfirm = () =>
+                f.ViewModel.BindConversationalReplyNativeLifetime(static () => false);
+
+            var command = enabled
+                ? f.ViewModel.EnableConversationalRepliesCommand
+                : f.ViewModel.DisableConversationalRepliesCommand;
+            await command.ExecuteAsync();
+
+            f.ConversationalPreferences.Value.Should().Be(enabled);
+            f.ConversationalPreferences.Pending.Should().BeTrue();
+            f.ConversationalConfiguration!.Get().Should().BeNull();
+            f.ViewModel.AreConversationalRepliesEnabled.Should().BeFalse();
+            f.ViewModel.ConversationalReplyStatus.Should().Contain("unavailable");
+            f.ViewModel.ResponseTitle.Should().Be("Conversational reply setting not confirmed.");
+            f.ViewModel.ResponseBody.Should().Be("Automatic replies remain unavailable. Inspect saved state and audit before recovery.");
+            f.ViewModel.CanChangeConversationalReplies.Should().BeFalse();
+            f.Voice.IsListening.Should().BeFalse();
+            f.TextToSpeech.SpokenText.Should().BeNull();
+        }
+        finally { f.ViewModel.Dispose(); }
+    }
+
+    [Theory]
     [InlineData("missing")]
     [InlineData("corrupt")]
     [InlineData("native")]

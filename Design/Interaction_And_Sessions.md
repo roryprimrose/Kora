@@ -166,6 +166,13 @@ The [approved product decision](MVP_Scope.md#approved-retirement-and-simplificat
 
 Keep unsent input per exact conversation in memory across view/session switching, share it consistently between Sessions and compact views, and never submit or merge it implicitly. Do not add disk autosave. Protect deliberate discard/exit and apply privacy/ownership retirement without cross-session leakage.
 
+Confirmed discard also retires that input's captured native Review gestures and
+request review. Recovering identical legacy text into the empty composer cannot
+renew them: a fresh Review and separate confirmation are required. Declining
+discard preserves the input and current review. Exact-session discard leaves other
+conversations' unsent input intact; voluntary all-input discard retains its existing
+explicit scope ([discard/recovery regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.UnsentDiscard.cs)).
+
 The explicit native **Review unsent message once** action freezes the complete current composer input and exact Active conversation for a separate one-use Confirm or Cancel through the [existing request service](../src/Kora.Application/Hosting/SessionRequestCommandService.cs).
 It is available in Sessions, compact and the primary conversation; direct Send is unchanged. Review alone retains nothing, and Cancel keeps the unsent input.
 Confirm clears only the unchanged original buffer after a real submission receipt and presents the original retained answer or truthful HOST failure.

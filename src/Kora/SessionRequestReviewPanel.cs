@@ -20,12 +20,21 @@ internal sealed class SessionRequestReviewPanel : StackPanel
         var heading = new TextBlock { Text = "Review original request - nothing sent yet" };
         heading.Bind(IsVisibleProperty, new Binding(nameof(MainViewModel.HasForegroundRequestReview)));
         Children.Add(heading);
-        var body = new TextBox { IsReadOnly = true, AcceptsReturn = true, TextWrapping = Avalonia.Media.TextWrapping.Wrap,
-            MaxHeight = 260 };
+        var body = new TextBox
+        {
+            IsReadOnly = true,
+            AcceptsReturn = true,
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+            MaxHeight = 260
+        };
         AutomationProperties.SetName(body, "Complete original request, readable conversation target, local provider, original channel and expiry");
         body.Bind(TextBox.TextProperty, new Binding(nameof(MainViewModel.ForegroundRequestReviewText)));
         body.Bind(IsVisibleProperty, new Binding(nameof(MainViewModel.HasForegroundRequestReview)));
         Children.Add(body);
+        var offer = new CheckBox { Name = "OfferDetailsOnce", Content = "Offer to open Details once for this request (no listening)" };
+        offer.Bind(IsVisibleProperty, new Binding(nameof(MainViewModel.HasForegroundRequestReview)));
+        offer.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(MainViewModel.OfferDetailsOnce)) { Mode = BindingMode.TwoWay });
+        Children.Add(offer);
         var buttons = new WrapPanel();
         var confirm = new Button { Name = "ConfirmOriginalRequest", Content = "_Confirm original request once" };
         var cancel = new Button { Name = "CancelOriginalRequest", Content = "_Cancel original request" };
@@ -37,8 +46,13 @@ internal sealed class SessionRequestReviewPanel : StackPanel
         Children.Add(buttons);
         var pending = new StackPanel { Spacing = 8 };
         pending.Bind(IsVisibleProperty, new Binding(nameof(MainViewModel.HasPendingClearReview)));
-        var pendingBody = new TextBox { IsReadOnly = true, AcceptsReturn = true,
-            TextWrapping = Avalonia.Media.TextWrapping.Wrap, MaxHeight = 320 };
+        var pendingBody = new TextBox
+        {
+            IsReadOnly = true,
+            AcceptsReturn = true,
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+            MaxHeight = 320
+        };
         AutomationProperties.SetName(pendingBody, "Complete ordinary pending-only clear identities, positions, count, impact, original channel and expiry");
         pendingBody.Bind(TextBox.TextProperty, new Binding(nameof(MainViewModel.PendingClearReviewText)));
         pending.Children.Add(pendingBody);
@@ -51,6 +65,33 @@ internal sealed class SessionRequestReviewPanel : StackPanel
         pendingButtons.Children.Add(discard);
         pending.Children.Add(pendingButtons);
         Children.Add(pending);
+        var detailQuestion = new StackPanel { Spacing = 8 };
+        detailQuestion.Bind(IsVisibleProperty, new Binding(nameof(MainViewModel.HasDetailsQuestion)));
+        var detailPrompt = new TextBlock { TextWrapping = Avalonia.Media.TextWrapping.Wrap };
+        detailPrompt.Bind(TextBlock.TextProperty, new Binding(nameof(MainViewModel.DetailsQuestionText)));
+        AutomationProperties.SetName(detailPrompt, "Exact completed answer Details question");
+        detailQuestion.Children.Add(detailPrompt);
+        var detailButtons = new WrapPanel();
+        foreach (var yes in new[] { true, false })
+        {
+            var button = new Button { Name = yes ? "AcceptExactDetailsOffer" : "DeclineExactDetailsOffer", Content = yes ? "Yes" : "Not now" };
+            Func<Task>? captured = null;
+            button.AddHandler(InputElement.PointerPressedEvent,
+                (_, _) => captured = main?.CaptureDetailsOfferAnswer(yes), RoutingStrategies.Tunnel);
+            button.AddHandler(InputElement.KeyDownEvent, (_, args) =>
+            {
+                if (args.Key is Key.Space or Key.Enter) { captured = main?.CaptureDetailsOfferAnswer(yes); }
+            }, RoutingStrategies.Tunnel);
+            button.Click += (_, _) =>
+            {
+                var decision = captured ?? (button.IsEffectivelyVisible ? main?.CaptureDetailsOfferAnswer(yes) : null);
+                captured = null;
+                Operation = Run(decision);
+            };
+            detailButtons.Children.Add(button);
+        }
+        detailQuestion.Children.Add(detailButtons);
+        Children.Add(detailQuestion);
     }
 
     internal void Bind(MainViewModel? value)
@@ -88,4 +129,5 @@ internal sealed class SessionRequestReviewPanel : StackPanel
         catch (Exception exception) when (exception is not OutOfMemoryException)
         { host.ReportHostInteractionFailure("Original request review failed. Inspect the exact session before retry. Failure type: " + exception.GetType().Name); }
     }
+
 }

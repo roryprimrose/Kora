@@ -1,7 +1,9 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 
 using Kora.Application.Hosting;
 using Kora.Application.ViewModels;
@@ -15,6 +17,7 @@ internal sealed partial class SessionsPresentationOwner
     private ForegroundConversationTarget? foregroundTarget;
     private Window? foregroundSurface;
     private long foregroundSourceRevision;
+    private int uniqueForegroundWindow;
     private SessionRoutingPresentationLease? routingPresentation;
 
     internal SessionRoutingPresentationLease? RetainRoutingPresentation()
@@ -29,7 +32,7 @@ internal sealed partial class SessionsPresentationOwner
         });
     }
 
-    internal bool HasUniqueForegroundWindow => UniqueForegroundSurface(conversationRequired: false) is not null;
+    internal bool HasUniqueForegroundWindow => Volatile.Read(ref uniqueForegroundWindow) != 0;
     internal Func<bool> CaptureForegroundSourceEligibility()
     {
         var source = UniqueForegroundSurface(conversationRequired: true);
@@ -52,6 +55,9 @@ internal sealed partial class SessionsPresentationOwner
     private void ObserveForegroundSurface(Window surface)
     {
         surface.PropertyChanged += OnForegroundSurfaceChanged;
+        surface.AddHandler(InputElement.PointerPressedEvent, OnDetailsSourceInteraction, RoutingStrategies.Tunnel, handledEventsToo: true);
+        surface.AddHandler(InputElement.KeyDownEvent, OnDetailsSourceInteraction, RoutingStrategies.Tunnel, handledEventsToo: true);
+        surface.AddHandler(InputElement.PointerWheelChangedEvent, OnDetailsSourceInteraction, RoutingStrategies.Tunnel, handledEventsToo: true);
         if (surface is ResponseWindow response) { response.SessionView.PropertyChanged += OnForegroundSurfaceChanged; }
         RequestPanel(surface)?.Bind(requestCommands);
         UpdateForegroundTarget();
@@ -59,8 +65,12 @@ internal sealed partial class SessionsPresentationOwner
 
     private void ForgetForegroundSurface(Window surface)
     {
+        Volatile.Write(ref uniqueForegroundWindow, 0);
         Interlocked.Increment(ref foregroundSourceRevision);
         surface.PropertyChanged -= OnForegroundSurfaceChanged;
+        surface.RemoveHandler(InputElement.PointerPressedEvent, OnDetailsSourceInteraction);
+        surface.RemoveHandler(InputElement.KeyDownEvent, OnDetailsSourceInteraction);
+        surface.RemoveHandler(InputElement.PointerWheelChangedEvent, OnDetailsSourceInteraction);
         if (surface is ResponseWindow response) { response.SessionView.PropertyChanged -= OnForegroundSurfaceChanged; }
         RequestPanel(surface)?.Bind(null);
         RetireForegroundTarget();
@@ -73,10 +83,11 @@ internal sealed partial class SessionsPresentationOwner
     private void OnForegroundSurfaceChanged(object? sender, AvaloniaPropertyChangedEventArgs args)
     {
         if (args.Property == Window.IsActiveProperty || args.Property == Visual.IsVisibleProperty)
-        { Interlocked.Increment(ref foregroundSourceRevision); UpdateForegroundTarget(); }
+        { Interlocked.Increment(ref foregroundSourceRevision); UpdateForegroundTarget(); requestCommands?.RevalidateDetailsOffer(); }
     }
 
-    private void OnForegroundModelChanged(object? sender, PropertyChangedEventArgs args) => UpdateForegroundTarget();
+    private void OnForegroundModelChanged(object? sender, PropertyChangedEventArgs args)
+    { UpdateForegroundTarget(); requestCommands?.RevalidateDetailsOffer(); }
 
     private void RetireForegroundTarget()
     {
@@ -87,6 +98,7 @@ internal sealed partial class SessionsPresentationOwner
 
     private void UpdateForegroundTarget()
     {
+        Volatile.Write(ref uniqueForegroundWindow, UniqueForegroundSurface(conversationRequired: false) is not null ? 1 : 0);
         var surface = UniqueForegroundSurface(conversationRequired: true);
         if (surface is null || !model.CanCompose || model.SelectedSessionRecord is not { } entry)
         {

@@ -16,6 +16,20 @@ The named owner is a role until an individual is assigned.
 A decision is not complete because an implementation was started; its evidence and affected documents must be updated together.
 An Accepted direction status records the agreed behavior, not completed contracts, tested enforcement, or release readiness. Remaining schema/integration/proof work stays open until its acceptance evidence passes.
 
+## Exact opted-in Details presentation question - 2026-11-06
+
+The product/security decision explicitly approved P1 and end-to-end implementation and protected PR delivery: a separate durable, host-owned, non-executing presentation control for one newly finalized exact foreground result.
+The original task stays sealed; ordinary interaction and conversation-question terminal gates are unchanged ([binding](../src/Kora.Core/Presentation/DetailsOfferBinding.cs), [specific admission](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.DetailsOffers.cs)).
+
+The four approved decisions are independent source-bound authority; explicit request-local opt-in rather than implied permission from old Offer settings; non-substantive bookkeeping without activity/retention renewal; and one offer application-wide, one attempt per opted original, with a nonrenewing maximum of 60 seconds clipped to existing source/session deadlines.
+No automatic microphone capture is authorized.
+
+The complete operation is original request review/confirmation, genuine retained foreground answer, fixed Yes/Not now question, then exact native Details reveal or retirement.
+Native and admitted typed/current-name-activated answers share one owner; original input origin and actual answer channel remain distinct ([operation owner](../src/Kora.Application/Presentation/DetailsOfferService.cs), [input binding](../src/Kora.Application/ViewModels/MainViewModel.DetailsOfferQuestion.cs)).
+
+This decision does not enable default unsolicited hands-free offers, prefix-free capture, new global preferences, provider/renderer profiles, background/history replay, task execution or source/egress consent.
+Durable question/decision history and content-free audit retain their existing independent domains; the exact presentation control is retired before due lifecycle processing rather than bypassing other live-work holds ([retention owner](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Retention.cs)).
+
 ## Bounded explicit Claude clarification - 2026-10-29
 
 The product owner answered "Approve" to the separate explicit Claude-only clarification operation and end-to-end implementation/ready-PR delivery. This supersedes the earlier hosted-question exclusion only for the [bounded interaction](Interaction_And_Sessions.md#explicit-hosted-conversational-clarification---2026-10-29), not ordinary text, observation or streaming requests.

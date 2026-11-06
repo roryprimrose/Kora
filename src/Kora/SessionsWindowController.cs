@@ -26,6 +26,7 @@ internal sealed partial class SessionsWindowController(
     SessionRetentionApplyService? retentionApply = null,
     ExactAnswerExportWindowController? answerExports = null,
     Kora.Application.Configuration.DetailPresentationConfigurationService? detailPresentation = null,
+    Kora.Application.Presentation.DetailsOfferService? detailsOffers = null,
     RemainingWorkManagement? workManagement = null) : IDisposable, ISessionDispositionReviewPresenter,
     ISessionQueueCancellationReviewPresenter
 {
@@ -43,6 +44,7 @@ internal sealed partial class SessionsWindowController(
     private SessionInstructionScopeController? instructionScopes;
     internal Func<SessionsViewModel, SessionsPresentationOwner, ResponseWindow>? CreateInteraction { get; set; }
     internal Task InteractionOperation { get; private set; } = Task.CompletedTask;
+    internal Action<Kora.Application.Mcp.McpCapabilityInventory>? McpCapabilityObserved { get; set; }
 
     internal async Task ShowInteractionAsync(bool expanded, Func<bool> admitted)
     {
@@ -200,9 +202,9 @@ internal sealed partial class SessionsWindowController(
         var state = model;
         var selected = state?.SelectedSessionRecord;
         var source = state?.CaptureNavigationEligibility();
+        var foreground = presentation?.CaptureForegroundSourceEligibility();
         var owner = interaction;
         var pane = owner?.SessionView;
-        var foreground = presentation?.CaptureForegroundSourceEligibility();
         var paneRevision = pane?.ConversationPresentationRevision;
         bool Current() => !disposed && state is not null && selected is not null && owner is not null
             && ReferenceEquals(model, state) && ReferenceEquals(interaction, owner)
@@ -256,7 +258,8 @@ internal sealed partial class SessionsWindowController(
             && ReferenceEquals(interaction, interactionView) && buffer();
     }
     internal Func<SessionWorkspaceEntry, Kora.Core.Conversation.ConversationMessage, Avalonia.Controls.Window?,
-        Func<bool>, CancellationToken, Task<string>>? ReviewOriginalMessageReuse { get; set; }
+        Func<bool>, CancellationToken, Task<string>>? ReviewOriginalMessageReuse
+    { get; set; }
 
     internal void Bind()
     {
@@ -281,10 +284,18 @@ internal sealed partial class SessionsWindowController(
             bool Live() => !disposed && access.CanControl && access.ControlRevision == revision
                 && ReferenceEquals(model, active) && target is not null && active?.SelectedSessionRecord == target
                 && (presentation?.HasUniqueForegroundWindow == true
-                    || active?.IsMcpActive == true && ConversationQuestions?.IsOwnerInUse == true);
+                    || active?.IsMcpActive == true && (ConversationQuestions?.IsOwnerInUse == true
+                        || active.IsMcpCapabilityManagerOpen));
             if (!Live()) { throw new InvalidOperationException("MCP commands require the exact foreground selected session and explicit native server/account choices."); }
             token.ThrowIfCancellationRequested();
             if (command.Stop) { await active!.CancelMcpConversationAsync(); return "Cancellation requested; owned work remains held until actual termination. No rollback or automatic retry."; }
+            if (command.Manage || command.ContentKind is not null)
+            {
+                if (command.Manage) { await active!.ManageMcpCapabilitiesAsync(origin, Live); }
+                else { await active!.UseMcpContentAsync(command.ContentKind!.Value, !command.Explicit, command.Body, origin, Live); }
+                if (!Live()) { throw new OperationCanceledException("The original MCP capability presentation changed."); }
+                return active.ConversationStatus;
+            }
             if (command.Explicit)
             {
                 await active!.InvokeSelectedMcpAsync(origin, Live);
@@ -451,6 +462,7 @@ internal sealed partial class SessionsWindowController(
             localHandoff: localHandoff, retentionApply: retentionApply, workManagement: workManagement);
         if (detailPresentation is not null) { model.BindDetailPresentation(detailPresentation); }
         model.BindDictation(main.ComposerDictation);
+        model.McpCapabilityObserved = inventory => McpCapabilityObserved?.Invoke(inventory);
         model.ExportExactAnswer = async (source, admitted, resolve, token) =>
         {
             var control = access.ControlRevision;
@@ -499,11 +511,19 @@ internal sealed partial class SessionsWindowController(
             model.McpPresenter = mcp.PresentAsync;
             model.McpSelector = mcp.SelectAsync;
             model.McpInput = mcp.InputAsync;
+            model.McpCapabilitySelector = mcp.SelectCapabilityAsync;
+            model.McpContentInput = mcp.ContentInputAsync;
+            model.McpCapabilityManager = (inventory, admitted, token) => McpCapabilityManagerWindow.ShowAsync(
+                window ?? (Avalonia.Controls.Window?)compact ?? interaction
+                    ?? throw new InvalidOperationException("The exact MCP manager owner is unavailable."),
+                model, inventory, admitted, token);
         }
         BindAdditionalRegisteredSettingSuggestions(model, main);
         model.RemainingWorkAnswer = main.AnswerRemainingWorkAsync;
         model.RemainingWorkAdmission = () => main.CanAnswerRemainingWork;
         presentation = new(model, main);
+        if (detailsOffers is not null && detailPresentation is not null)
+        { presentation.BindDetailsOffers(detailsOffers, detailPresentation); }
         model.OpenSessionInstructionScopes = () =>
         {
             try

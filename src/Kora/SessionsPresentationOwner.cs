@@ -2,6 +2,7 @@
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.LogicalTree;
+
 using Kora.Application.ViewModels;
 using Kora.Core.Conversation;
 
@@ -26,6 +27,13 @@ internal sealed partial class SessionsPresentationOwner
     {
         try
         {
+            if (requestCommands is not null)
+            {
+                requestCommands.RetireDetailsOffer();
+#pragma warning disable VSTHRD003 // Joins only the exact presentation operation owned by this native surface.
+                await requestCommands.DetailsOfferOperation;
+#pragma warning restore VSTHRD003
+            }
             foreach (var panel in surfaces.Select(RequestPanel).OfType<SessionRequestReviewPanel>().ToArray())
             {
 #pragma warning disable VSTHRD003 // Join this owner's exact native request operation before voluntary shutdown.
@@ -103,6 +111,8 @@ internal sealed partial class SessionsPresentationOwner
     {
         if (revoked) { return; }
         revoked = true;
+        requestCommands?.RetireDetailsOffer();
+        Volatile.Write(ref uniqueForegroundWindow, 0);
         draftDialog?.Close();
         model.Close();
         foreach (var surface in surfaces.ToArray()) { surface.Close(); }
@@ -174,8 +184,11 @@ internal sealed partial class SessionsPresentationOwner
         if (revoked || args.Source is not Button { Name: "OpenConversationDetail" or "OpenAssistantConversationDetail", DataContext: ConversationMessage message } button
             || !model.CanOpenConversationDetails) { return; }
         args.Handled = true;
-        try { await (DetailOperation = model.OpenConversationDetailAsync(message,
-            assistant: string.Equals(button.Name, "OpenAssistantConversationDetail", StringComparison.Ordinal))); }
+        try
+        {
+            await (DetailOperation = model.OpenConversationDetailAsync(message,
+            assistant: string.Equals(button.Name, "OpenAssistantConversationDetail", StringComparison.Ordinal)));
+        }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         { model.ReportComposerCloseFailure(exception); }
     }

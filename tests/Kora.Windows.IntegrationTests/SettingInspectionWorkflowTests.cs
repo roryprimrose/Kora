@@ -88,7 +88,8 @@ public sealed class SettingInspectionWorkflowTests
         private readonly AudioControlAdmission audio;
         private readonly BoundedModelTurnAdapter? loop;
         internal Fixture(string mode = "success", IModelToolTransport? transport = null,
-            VoiceCaptureTiming? savedTiming = null, SpeechSelection? speechSelection = null)
+            VoiceCaptureTiming? savedTiming = null, SpeechSelection? speechSelection = null,
+            Kora.Core.Presentation.DetailPresentationMode? detailMode = null, string? quietHours = null)
         {
             if (speechSelection is not null)
             { Preferences.Lines["speech-selection.txt"] = ["1", speechSelection.ProviderId, speechSelection.VoiceId ?? string.Empty]; }
@@ -119,20 +120,28 @@ public sealed class SettingInspectionWorkflowTests
             var volume = new PlaybackVolumeConfigurationService(new LocalPlaybackVolumePreferences(Preferences), Playback, audio, Controls);
             var response = new ResponseModeConfigurationService(
                 new LocalResponseOutputPreferences(Preferences, NullLogger<LocalResponseOutputPreferences>.Instance), audio, Controls, Playback);
+            if (quietHours is not null) { Preferences.Text["notices-quiet-hours.txt"] = quietHours; }
+            QuietHours = new(new LocalQuietHoursPreferences(Preferences), audio, Controls, Storage.Time,
+                NullLogger<QuietHoursConfigurationService>.Instance);
             if (savedTiming is not null) { Preferences.Text["voice-capture-timing.txt"] = savedTiming.Serialize(); }
             Timing = new(new LocalVoiceCaptureTimingPreferences(Preferences), audio, Controls,
                 NullLogger<VoiceCaptureTimingConfigurationService>.Instance);
+            if (detailMode.HasValue)
+            { Preferences.Text["detail-presentation.txt"] = Kora.Core.Presentation.DetailPresentationPreference.Format(detailMode.Value); }
+            Details = new(new LocalDetailPresentationPreferences(Preferences), audio, Controls, Storage.Time);
+            Details.Observe();
             appearance.Reload();
             speech.Reload();
             volume.Observe();
             response.Observe();
             Playback.Effects = 0;
             Preferences.Reads = 0;
-            Workflow = new(new(appearance, speech, volume, response, Timing), new SettingInspectionConversation(sessions, Conversation, Host),
+            Workflow = new(new(appearance, speech, volume, response, QuietHours, Timing, Details), new SettingInspectionConversation(sessions, Conversation, Host),
                 Controls, Controls, Storage.Time, NullLogger<SettingInspectionWorkflow>.Instance);
         }
 
         internal InteractionStorageFixture Storage { get; } = new();
+        internal QuietHoursConfigurationService QuietHours { get; }
         internal CancellationToken Token => TestContext.Current.CancellationToken;
         internal ControlsData Controls { get; }
         internal AdapterData Adapter { get; }
@@ -142,6 +151,7 @@ public sealed class SettingInspectionWorkflowTests
         internal SessionConversationService Conversation { get; }
         internal SettingInspectionWorkflow Workflow { get; }
         internal VoiceCaptureTimingConfigurationService Timing { get; }
+        internal DetailPresentationConfigurationService Details { get; }
         internal async Task InitializeAsync()
         {
             await Storage.Tasks.InitializeAsync(Token);
@@ -191,6 +201,7 @@ public sealed class SettingInspectionWorkflowTests
         internal string Mode { get; init; } = "success";
         internal int Calls { get; private set; }
         internal byte[]? Wire { get; private set; }
+        internal HostRequest? Request { get; private set; }
         internal Action? BeforeReturn { get; set; }
         internal Func<Task>? Hold { get; set; }
         internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -199,6 +210,7 @@ public sealed class SettingInspectionWorkflowTests
             CancellationToken cancellationToken)
         {
             Calls++;
+            Request = provenance.Request;
             Wire = context.ToArray();
             Entered.TrySetResult();
             if (Hold is not null) { await Hold(); }

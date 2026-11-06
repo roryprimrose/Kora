@@ -136,6 +136,7 @@ public sealed partial class App : Avalonia.Application
                 questions => viewModel.BindQuestionVoiceReplies(questions, Services.GetRequiredService<TimeProvider>(),
                     Services.GetRequiredService<ILogger<Kora.Application.Interaction.HostQuestionVoiceReplyService>>()));
             nativeQuestions.BindWorkspace(Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>());
+            viewModel.BindDetailsOfferPriority(() => !nativeQuestions.IsWaiting);
             nativeQuestions.BindPrivateRevision(() => Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>().ControlRevision);
             nativeQuestions.BindClipboardAnswers(model => new QuestionClipboardAnswer(model,
                 Services.GetRequiredService<Kora.Core.Context.IPlainTextClipboardReader>(),
@@ -195,7 +196,10 @@ public sealed partial class App : Avalonia.Application
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
                     && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired,
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision,
-                Services.GetRequiredService<ILogger<CustomizationWindowController>>(), agentAuthoring!.Add);
+                Services.GetRequiredService<ILogger<CustomizationWindowController>>(), agentAuthoring!.Add,
+                Services.GetRequiredService<McpServerConfigurationService>(),
+                Services.GetRequiredService<ArtifactDirectoryConfigurationService>(),
+                Services.GetRequiredService<SessionConversationService>());
             customizations.Bind();
             BindInstructionUse(viewModel);
             promptParameters = new(viewModel, Services.GetRequiredService<Kora.Core.Artifacts.ArtifactCatalogue>(),
@@ -287,8 +291,10 @@ public sealed partial class App : Avalonia.Application
                     Services.GetRequiredService<Kora.Core.Auditing.ISecurityAuditLog>(),
                     Services.GetRequiredService<ILogger<Kora.Application.Presentation.ExactAnswerExportReview>>(),
                     ExactAnswerExportWindowController.SelectDestinationAsync),
-                Services.GetRequiredService<Kora.Application.Configuration.DetailPresentationConfigurationService>());
+                Services.GetRequiredService<Kora.Application.Configuration.DetailPresentationConfigurationService>(),
+                Services.GetRequiredService<Kora.Application.Presentation.DetailsOfferService>());
             sessionsWindow.Bind();
+            sessionsWindow.McpCapabilityObserved = inventory => customizations?.ObserveMcpCapabilities(inventory);
             sessionsWindow.CreateInteraction = (state, owner) =>
                 responseWindow.PrepareSessions(state, owner, sessionsWindow.Open,
                     () => sessionsWindow.OpenNewRequest?.Invoke());

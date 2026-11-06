@@ -56,52 +56,64 @@ public sealed partial class SessionWorkspaceService
             if (request.Origin != RequestOrigin.LocalUi || request.InvocationId is not null
                 || request.SessionId != target.Authority.SessionId)
             { throw new InvalidOperationException("Conversation Details require host-resolved exact-session native presentation, not model authority."); }
-            expected.Validate();
-            if (!admitted() || expected.Request.SessionId != target.Authority.SessionId)
-            { throw new InvalidOperationException("Select an exact retained record from this session before opening Details."); }
-            var actualTarget = await store.ReadMetadataAsync(target.Authority.SessionId, token).ConfigureAwait(false);
-            var actual = await Conversations.ReadConversationMessageAsync(target.Authority.SessionId,
-                expected.Request.RequestId, token).ConfigureAwait(false);
-            if (actualTarget != target || actual != expected)
-            { throw new InvalidOperationException("The exact conversation record or session source changed. Refresh; no newer record was substituted."); }
-            var answer = assistant ? actual.AssistantResponse
-                ?? throw new InvalidOperationException("This exact message has no retained assistant answer.") : null;
-            var observation = observationId is { } id
-                ? actual.Observations?.Items.SingleOrDefault(item => item.Id == id)
-                    ?? throw new InvalidOperationException("This exact retained observation is unavailable; no replacement was queried.")
-                : null;
-            if (assistant && observation is not null || submittedContext && (assistant || observation is not null))
-            { throw new InvalidOperationException("Choose one exact retained source, not a combined source."); }
-            var availability = submittedContext && actual.SubmittedContext is not null
-                ? await Conversations.ReadSubmittedContextAvailabilityAsync(actual, token).ConfigureAwait(false)
-                : default;
-            var content = new AdmittedDetailContent(submittedContext ? AnswerContextInspection.Reference(actual, availability)
-                    : new(new(observation?.Id ?? answer?.Provenance.Turn.Value ?? actual.Request.RequestId.Value), actual.Revision),
-                assistant ? DetailContentKind.Markdown : DetailContentKind.PlainText,
-                submittedContext ? DetailContentOrigin.RetainedAnswerContext
-                    : observation is not null ? DetailContentOrigin.RetainedLocalObservation
-                    : assistant ? DetailContentOrigin.RetainedAssistant : DetailContentOrigin.RetainedConversation,
-                DetailSensitivity.DisclosureConfirmationRequired,
-                submittedContext ? "Context submitted for this answer"
-                    : observation is not null ? "Observed " + observation.CapabilityId
-                    : assistant ? "Retained complete ASSISTANT answer" : "Retained original USER message",
-                observation is not null ? "Original local host observation at " + observation.ObservedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture)
-                    + "; not current truth, execution, context, speech, export or clipboard authority."
-                    : "Historical private immutable conversation source; not current execution, an approval or clipboard authority.",
-                submittedContext ? AnswerContextInspection.Describe(actual, availability) : observation?.ResultJson ?? answer?.Body ?? actual.Body,
-                conversationMessage: actual, contextAvailability: availability);
-            var finalTarget = await store.ReadMetadataAsync(target.Authority.SessionId, token).ConfigureAwait(false);
-            var final = await Conversations.ReadConversationMessageAsync(target.Authority.SessionId,
-                expected.Request.RequestId, token).ConfigureAwait(false);
-            var finalAvailability = submittedContext && actual.SubmittedContext is not null
-                ? await Conversations.ReadSubmittedContextAvailabilityAsync(actual, token).ConfigureAwait(false)
-                : default;
-            token.ThrowIfCancellationRequested();
-            if (!admitted() || finalTarget != target || final != actual
-                || !availability.IsDefault && !availability.SequenceEqual(finalAvailability))
-            { throw new InvalidOperationException("Conversation detail source or private admission changed before publication."); }
-            return content;
+            return await ResolveConversationDetailAsync(target, expected, admitted, assistant, observationId, submittedContext, token).ConfigureAwait(false);
         }, token);
+
+    internal Task<AdmittedDetailContent> ReadOfferedDetailsAsync(Presentation.DetailsOfferRequest request,
+        Func<bool> admitted, CancellationToken token) =>
+        ReadAsync(() => ResolveConversationDetailAsync(request.Target, request.Receipt.Message, admitted,
+            assistant: true, observationId: null, submittedContext: false, token), token);
+
+    private async ValueTask<AdmittedDetailContent> ResolveConversationDetailAsync(SessionWorkspaceEntry target,
+        ConversationMessage expected, Func<bool> admitted, bool assistant,
+        Guid? observationId, bool submittedContext, CancellationToken token)
+    {
+        expected.Validate();
+        if (!admitted() || expected.Request.SessionId != target.Authority.SessionId)
+        { throw new InvalidOperationException("Select an exact retained record from this session before opening Details."); }
+        var actualTarget = await store.ReadMetadataAsync(target.Authority.SessionId, token).ConfigureAwait(false);
+        var actual = await Conversations.ReadConversationMessageAsync(target.Authority.SessionId,
+            expected.Request.RequestId, token).ConfigureAwait(false);
+        if (actualTarget != target || actual != expected)
+        { throw new InvalidOperationException("The exact conversation record or session source changed. Refresh; no newer record was substituted."); }
+        var answer = assistant ? actual.AssistantResponse
+            ?? throw new InvalidOperationException("This exact message has no retained assistant answer.") : null;
+        var observation = observationId is { } id
+            ? actual.Observations?.Items.SingleOrDefault(item => item.Id == id)
+                ?? throw new InvalidOperationException("This exact retained observation is unavailable; no replacement was queried.")
+            : null;
+        if (assistant && observation is not null || submittedContext && (assistant || observation is not null))
+        { throw new InvalidOperationException("Choose one exact retained source, not a combined source."); }
+        var availability = submittedContext && actual.SubmittedContext is not null
+            ? await Conversations.ReadSubmittedContextAvailabilityAsync(actual, token).ConfigureAwait(false)
+            : default;
+        var content = new AdmittedDetailContent(submittedContext ? AnswerContextInspection.Reference(actual, availability)
+                : new(new(observation?.Id ?? answer?.Provenance.Turn.Value ?? actual.Request.RequestId.Value), actual.Revision),
+            assistant ? DetailContentKind.Markdown : DetailContentKind.PlainText,
+            submittedContext ? DetailContentOrigin.RetainedAnswerContext
+                : observation is not null ? DetailContentOrigin.RetainedLocalObservation
+                : assistant ? DetailContentOrigin.RetainedAssistant : DetailContentOrigin.RetainedConversation,
+            DetailSensitivity.DisclosureConfirmationRequired,
+            submittedContext ? "Context submitted for this answer"
+                : observation is not null ? "Observed " + observation.CapabilityId
+                : assistant ? "Retained complete ASSISTANT answer" : "Retained original USER message",
+            observation is not null ? "Original local host observation at " + observation.ObservedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture)
+                + "; not current truth, execution, context, speech, export or clipboard authority."
+                : "Historical private immutable conversation source; not current execution, an approval or clipboard authority.",
+            submittedContext ? AnswerContextInspection.Describe(actual, availability) : observation?.ResultJson ?? answer?.Body ?? actual.Body,
+            conversationMessage: actual, contextAvailability: availability);
+        var finalTarget = await store.ReadMetadataAsync(target.Authority.SessionId, token).ConfigureAwait(false);
+        var final = await Conversations.ReadConversationMessageAsync(target.Authority.SessionId,
+            expected.Request.RequestId, token).ConfigureAwait(false);
+        var finalAvailability = submittedContext && actual.SubmittedContext is not null
+            ? await Conversations.ReadSubmittedContextAvailabilityAsync(actual, token).ConfigureAwait(false)
+            : default;
+        token.ThrowIfCancellationRequested();
+        if (!admitted() || finalTarget != target || final != actual
+            || !availability.IsDefault && !availability.SequenceEqual(finalAvailability))
+        { throw new InvalidOperationException("Conversation detail source or private admission changed before publication."); }
+        return content;
+    }
 
     public Task<ConversationMessage> ReadSpeechSummarySuggestionAsync(SessionWorkspaceEntry target,
         ConversationMessage expected, Func<bool> admitted, CancellationToken token) =>

@@ -29,7 +29,7 @@ public sealed class McpCapabilitySelectionTests
         var mixed = off.SetItem(Server, kind, "first", true);
         mixed.IsEnabled(Server, kind, "first").Should().BeTrue();
         mixed.IsEnabled(Server, kind, "new-item").Should().BeFalse();
-        mixed.SetItem(Server, kind, "first", false).Categories.Single().Items.Should().BeEmpty();
+        mixed.SetItem(Server, kind, "first", false).Categories.Single().Items.Should().ContainSingle(item => !item.Enabled);
         mixed.SetCategory(Server, category, true).IsEnabled(Server, kind, "new-item").Should().BeTrue();
         excluded.Fingerprint(Server).Should().NotBe(defaults.Fingerprint(Server));
         excluded.Fingerprint(Other).Should().Be(defaults.Fingerprint(Other));

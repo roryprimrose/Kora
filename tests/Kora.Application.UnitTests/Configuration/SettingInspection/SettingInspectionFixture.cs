@@ -25,7 +25,7 @@ internal sealed class SettingInspectionFixture : IAsyncDisposable, ISessionWorks
         Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
     };
 
-    internal SettingInspectionFixture()
+    internal SettingInspectionFixture(string? quietHours = null)
     {
         ActivitySource.AddActivityListener(listener);
         var controls = new AudioControlTestStore();
@@ -37,9 +37,13 @@ internal sealed class SettingInspectionFixture : IAsyncDisposable, ISessionWorks
         Volume = new(new LocalPlaybackVolumePreferences(Store), Playback, Admission, this);
         Response = new(new LocalResponseOutputPreferences(Store, NullLogger<LocalResponseOutputPreferences>.Instance),
             Admission, this, Playback);
+        if (quietHours is not null) { Store.Text["notices-quiet-hours.txt"] = quietHours; }
+        QuietHours = new(new LocalQuietHoursPreferences(Store), Admission, this, Time,
+            NullLogger<QuietHoursConfigurationService>.Instance);
         Timing = new(new LocalVoiceCaptureTimingPreferences(Store), Admission, this,
             NullLogger<VoiceCaptureTimingConfigurationService>.Instance);
-        Source = new(Appearance, Speech, Volume, Response, Timing);
+        Details = new(new LocalDetailPresentationPreferences(Store), Admission, this, Time);
+        Source = new(Appearance, Speech, Volume, Response, QuietHours, Timing, Details);
         Workflow = new(Source, this, this, this, Time, Logger);
     }
 
@@ -52,7 +56,9 @@ internal sealed class SettingInspectionFixture : IAsyncDisposable, ISessionWorks
     internal SpeechConfigurationService Speech { get; }
     internal PlaybackVolumeConfigurationService Volume { get; }
     internal ResponseModeConfigurationService Response { get; }
+    internal QuietHoursConfigurationService QuietHours { get; }
     internal VoiceCaptureTimingConfigurationService Timing { get; }
+    internal DetailPresentationConfigurationService Details { get; }
     internal ConfirmedSettingsSource Source { get; }
     internal SettingInspectionWorkflow Workflow { get; }
     internal Clock Time { get; } = new();
@@ -80,6 +86,7 @@ internal sealed class SettingInspectionFixture : IAsyncDisposable, ISessionWorks
         Volume.Observe();
         Response.Observe();
         Timing.Reload();
+        Details.Observe();
         Store.Reads.Clear();
         Catalog.Reads = 0;
         Playback.Effects = 0;

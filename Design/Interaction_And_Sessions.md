@@ -1324,6 +1324,24 @@ Switching sessions does not cancel background work. Content and delayed callback
 
 ## Structured Questions and Mixed-Channel Replies
 
+### Exact read-only Details presentation controls
+
+The [approved P1 operation](Decision_Register.md#exact-opted-in-details-presentation-question---2026-11-06) owns a new HostSystem request/task/question in the same existing Active session, not a continuation appended to the terminal original.
+Its typed binding retains the original request/channel, exact retained answer/revision/digest and current-run owner.
+A native answer does not relabel an original voice request ([binding](../src/Kora.Core/Presentation/DetailsOfferBinding.cs)).
+
+Only the live explicitly opted original-request owner may issue it after confirmed genuine final retention.
+Names, copied identities, persisted/history rows and model content cannot.
+Exact source, preference, native foreground, selected session, composer/reader/input and private/call/ownership currency remain checked through answer commit and disclosure ([original owner](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)).
+
+The fixed choice has no affirmative default, custom answer, saved draft, revision editing, grant, dispatch or provider continuation.
+A valid answer commits once; accepted Yes is distinct from confirmed reveal.
+No/Not now/expiry/withdrawal closes only this control.
+Restart retires it without restoring input authority or replaying a reveal ([private authority](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.DetailsOffers.cs)).
+
+This exact non-consequential presentation decision is an exception to the ordinary accepted-answer activity rule: every admission/answer/terminal/recovery path leaves meaningful activity and due dates unchanged.
+Lifecycle processing first retires this typed control; ordinary live/Unknown work and other question holds remain authoritative ([activity owner](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Retention.cs)).
+
 ### Delivered bounded local clarification forms - 2026-10-30
 
 Only the existing explicit **Submit with one clarification** local operation can receive one `ask_user` form. It contains one to four required fields: bounded text (declared 1–500 UTF-16 characters and 1–2000 strict UTF-8 bytes), or one choice from two to four unambiguous labels. The prompt is at most 500 characters; field/option labels are at most 80 ([typed field contract](../src/Kora.Core/Interaction/QuestionField.cs)).

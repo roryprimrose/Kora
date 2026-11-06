@@ -1602,6 +1602,11 @@ and the [staged roadmap](Implementation_Roadmap.md#r02-windows-containment-follo
 
 ## Retention Defaults
 
+The [explicit Details presentation decision](Decision_Register.md#exact-opted-in-details-presentation-question---2026-11-06) is non-substantive even when answered.
+Only its validated typed binding exempts question/task bookkeeping from meaningful-activity updates, never purpose/action strings or caller flags.
+Its fixed question/choice remains session-retained, without a second answer body.
+Independent content-free audit records original source and actual answer channel without renewing source access ([authority](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.DetailsOffers.cs)).
+
 The [shared device-local preference availability boundary](User_Configuration.md#shared-device-local-preference-availability) distinguishes missing files/directories from unavailable saved files or unconfirmed-write markers.
 An obstructing directory or denied read/delete must surface failure, not confer default or confirmed state ([store](../src/Kora.Application/Configuration/LocalPreferenceStore.cs)).
 Explicit repair never renews authority or clears another retention domain; fresh admitted save/reset, readback and required audit remain mandatory ([regressions](../tests/Kora.Application.UnitTests/Configuration/LocalPreferenceStoreTests.cs)).

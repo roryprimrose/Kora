@@ -72,7 +72,10 @@ A genuine retained successful model answer may supply only exact `set responses.
 In the original Active conversation, explicit native Review shows the exact saved/default value, proposed choice and future-only shared scope without changing anything.
 Separate fresh native confirmation consumes the existing service's reviewed candidate and original LocalUser channel; it persists/audits/readbacks through that owner, never a model initiator or second policy/persistence owner ([adapter](../src/Kora.Application/Configuration/DetailPresentationSuggestionReview.cs)).
 The exact retained source/page, native lifetime, current setting revision, original session, privacy, ownership and call admission remain bound.
-Cancelled, replaced, expired or changed sources cannot write; unknown persistence/readback/audit remains unconfirmed and requires explicit inspection. No model write tool, confirmed-value inspection, undo receipt, opening, capture, speech, replay or new publication authority is added ([complete interaction](../docs/setting-proposals.md), [native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.DetailPresentationSuggestions.cs)).
+Cancelled, replaced, expired or changed sources cannot write; unknown persistence/readback/audit remains unconfirmed and requires explicit inspection. The suggestion route adds no model write tool, undo receipt, opening, capture, speech, replay or new publication authority ([complete interaction](../docs/setting-proposals.md), [native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.DetailPresentationSuggestions.cs)).
+
+The separate confirmed-setting answer operation includes this existing Details identity. It reads the exact saved mode or confirmed absent Offer default only when persistence matches the already-observed service revision; changed, corrupt, held or unconfirmed state refuses review instead of reinterpreting a default ([confirmed reader](../src/Kora.Application/Configuration/SettingInspection/DetailPresentationConfigurationService.SettingInspection.cs)).
+The original question, complete source and new local destination require review and a separate one-use tool-free or settings.list/get confirmation. Only the original question and genuine final answer are retained; history never renews authority, changes the preference or opens Details. Runtime qualification remains unavailable independently ([user operation](../docs/setting-inspection.md), [native regressions](../tests/Kora.Windows.IntegrationTests/SettingInspectionWindowTests.cs)).
 
 The strict domain format and shared atomic preference store use application data paths with a pre-write unconfirmed marker, exact readback and trusted requested/terminal audit. Missing legacy state retains existing Offer behavior; malformed/current unknown state throws rather than silently defaulting. Failed audit/receipt/readback stays held for explicit saved-state/evidence recovery ([domain](../src/Kora.Core/Presentation/DetailPresentationPreference.cs), [store adapter](../src/Kora.Application/Configuration/LocalDetailPresentationPreferences.cs), [configuration owner](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs)).
 
@@ -1081,6 +1084,29 @@ a provider. Original channel, privacy, session, expiry, cancellation and
 physical-join boundaries remain authoritative.
 Deterministic implementation tests do not enable or qualify a provider/profile.
 
+### Delivered confirmed configured quiet-hours answer
+
+The same confirmed-source operation now includes the existing registered
+`notices.quiet-hours` as a closed strongly typed `QuietHoursSchedule`, alongside
+the other nineteen scalar observations and typed speech selection. The original question "Which
+quiet-hours schedule is configured, and why might completion speech be quiet?"
+receives full Off-or-weekly ordered days/start/end/explicit-zone review,
+confirmed saved/default provenance, unchanged question, new local conversation
+destination and separate one-use confirmation. Both tool-free and explicitly
+selected `settings.list`/`settings.get` local answers retain only the original
+question and genuine final answer for ordinary conversation readback
+([interaction](../docs/setting-inspection.md)).
+
+The [read-only quiet-hours reader](../src/Kora.Application/Configuration/SettingInspection/QuietHoursConfigurationService.SettingInspection.cs)
+uses the authoritative service gate, known saved/effective intent, revision and
+validated disk preference. It does not call state-mutating inspection, repair
+evidence, write preferences, evaluate the clock, advance speech high-watermarks
+or notify speech admission. Malformed, held, publishing, unconfirmed, changed
+and observed change-and-return sources fail closed before dispatch, get and final
+publication. This is configured intent only, not current quiet-now, output
+availability, speech consent, listening or runtime enablement. Existing private
+original-channel, expiry, cancellation and retention boundaries remain unchanged.
+
 ### Delivered bounded spoken summary limits (R10)
 
 The [closed registered-setting proposal registry](../src/Kora.Core/Configuration/RegisteredSettings/RegisteredSettingRegistry.cs)
@@ -1413,7 +1439,7 @@ observe the same live state: mouse and validated verbal mutations publish the
 same change notifications, so neither surface requires reopening or polling to
 show the new effective value.
 
-The existing compound `notices.quiet-hours` also accepts one exact inert retained-answer proposal: Off, a full weekly ordered days/start/end/explicit installed zone schedule, or Reset to unsaved Off. The host resolves the strong schedule type and reads actual current saved/effective intent for full old/new/default review. Separate current native confirmation calls the existing quiet-hours configuration service and requires committed audit and exact atomic preference readback. Model advice is not original UI input and never confirms itself; source/session/expiry, native lifetime, ownership/privacy/call/control and consent drift retire the review. No confirmed compound `settings.get` reader is added; discovery truthfully reports value unavailable. The change constrains future already-consented completion speech only, never listening, ordinary answers, consent or in-flight output ([owning contract](Proactive_Interaction.md#scheduled-proactive-speech-quiet-hours), [interaction](../docs/setting-proposals.md)).
+The existing compound `notices.quiet-hours` also accepts one exact inert retained-answer proposal: Off, a full weekly ordered days/start/end/explicit installed zone schedule, or Reset to unsaved Off. The host resolves the strong schedule type and reads actual current saved/effective intent for full old/new/default review. Separate current native confirmation calls the existing quiet-hours configuration service and requires committed audit and exact atomic preference readback. Model advice is not original UI input and never confirms itself; source/session/expiry, native lifetime, ownership/privacy/call/control and consent drift retire the review. The separate [confirmed configured quiet-hours answer](#delivered-confirmed-configured-quiet-hours-answer) supplies the bounded compound reader; this proposal route grants no read authority. The change constrains future already-consented completion speech only, never listening, ordinary answers, consent or in-flight output ([owning contract](Proactive_Interaction.md#scheduled-proactive-speech-quiet-hours), [interaction](../docs/setting-proposals.md)).
 
 Bounded R15 now supplies run-scoped manual call controls and truthful automatic
 availability in **Settings > Calls**, outside the future generic settings/tool

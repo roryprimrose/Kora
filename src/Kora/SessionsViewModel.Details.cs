@@ -11,6 +11,7 @@ internal sealed partial class SessionsViewModel
     private enum DetailPart { Original, Assistant, History, Evidence, Observation, Context }
     private sealed record DetailSelection(DetailPart Part, Guid Item, Guid? Observation);
     private readonly Dictionary<HostId<SessionIdentity>, DetailSelection> detailSelections = [];
+    internal long DetailSelectionRevision { get; private set; }
     private DetailSelection? CurrentDetailSelection => selected is { } entry
         ? detailSelections.GetValueOrDefault(entry.Authority.SessionId) : null;
     internal bool LastDetailAssistant => CurrentDetailSelection?.Part == DetailPart.Assistant;
@@ -25,6 +26,7 @@ internal sealed partial class SessionsViewModel
 
     private void RememberSelectedDetail(DetailPart part, Guid item, Guid? observation = null)
     {
+        DetailSelectionRevision++;
         var subject = RequireSelected().Authority.SessionId;
         if (!detailSelections.ContainsKey(subject) && detailSelections.Count == 8) { detailSelections.Remove(detailSelections.Keys.First()); }
         detailSelections[subject] = new(part, item, observation);

@@ -16,23 +16,26 @@ on:
       operation:
         description: Controller operation; recovery requires separate administrator authorization
         type: choice
-        options: [reconcile, recover-unobservable-dispatch, migrate-batch-v1, rollback-batch-v1, repair-batch, resume-batch]
+        options: [reconcile, recover-unobservable-dispatch, migrate-batch-v1, rollback-batch-v1, repair-batch, resume-batch, hold-independent-delivery, prepare-independent-delivery, resume-independent-delivery, abort-independent-delivery, hold-main-builds, prepare-main-builds, resume-main-builds, abort-main-builds]
         default: reconcile
       recovery_checkpoint:
         description: Exact automation/merge-queue-state commit reviewed for recovery
         type: string
       recovery_ticket:
-        description: Exact retiring ticket with no observable workflow run
+        description: Exact recovery ticket or independent delivery hold token
         type: string
       recovery_main:
         description: Explicit actual main SHA for a separately reviewed repair preserving unrelated advances
+        type: string
+      main_build_profile:
+        description: Explicit guarded main scheduling target, hourly-v1 or per-merge
         type: string
       acknowledge_uncertain_dispatch:
         description: I am authorized to recover this reviewed uncertain dispatch; absence of a run is not proof of quiescence
         type: boolean
         default: false
       acknowledge_batch_change:
-        description: Separately authorized reviewed batch rollout, rollback or repair; never activates settings
+        description: Separately authorized batch recovery or guarded delivery transition; never writes configuration
         type: boolean
         default: false
 
@@ -76,6 +79,7 @@ jobs:
           QUEUE_APP_ID: ${{ vars.KORA_MERGE_QUEUE_APP_ID }}
           QUEUE_PROFILE: ${{ vars.KORA_MERGE_QUEUE_PROFILE }}
           DELIVERY_PROFILE: ${{ vars.KORA_MERGE_QUEUE_DELIVERY_PROFILE }}
+          MAIN_BUILD_PROFILE: ${{ vars.KORA_MAIN_BUILD_PROFILE }}
           QUEUE_INPUTS: ${{ toJSON(inputs) }}
           QUEUE_RUN_ATTEMPT: ${{ github.run_attempt }}
         with:
@@ -84,7 +88,8 @@ jobs:
             const { GitHubQueue } = require('./eng/merge-queue/github.cjs');
             const { reconcile } = require('./eng/merge-queue/controller.cjs');
             const { controllerOperation } = require('./eng/merge-queue/policy.cjs');
-            const api = new GitHubQueue(github, context, core, process.env.QUEUE_APP_ID, process.env.DELIVERY_PROFILE);
+            const api = new GitHubQueue(github, context, core, process.env.QUEUE_APP_ID,
+              process.env.DELIVERY_PROFILE, process.env.MAIN_BUILD_PROFILE);
             let result = 'failed';
             try {
               const inputs = JSON.parse(process.env.QUEUE_INPUTS ?? '{}');
@@ -92,6 +97,12 @@ jobs:
               if (operation === 'recover-unobservable-dispatch') {
                 const { recover } = require('./eng/merge-queue/recovery.cjs');
                 result = await recover(api, { context, inputs, attempt: Number(process.env.QUEUE_RUN_ATTEMPT) });
+              } else if (operation.endsWith('-independent-delivery')) {
+                const { changeDeliveryState } = require('./eng/merge-queue/recovery.cjs');
+                result = await changeDeliveryState(api, { context, inputs, attempt: Number(process.env.QUEUE_RUN_ATTEMPT), profile: process.env.QUEUE_PROFILE });
+              } else if (operation.endsWith('-main-builds')) {
+                const { changeMainBuildState } = require('./eng/merge-queue/recovery.cjs');
+                result = await changeMainBuildState(api, { context, inputs, attempt: Number(process.env.QUEUE_RUN_ATTEMPT), profile: process.env.QUEUE_PROFILE });
               } else if (operation !== 'reconcile') {
                 const { changeBatchState } = require('./eng/merge-queue/recovery.cjs');
                 result = await changeBatchState(api, { context, inputs, attempt: Number(process.env.QUEUE_RUN_ATTEMPT) });

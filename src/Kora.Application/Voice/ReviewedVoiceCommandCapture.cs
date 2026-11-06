@@ -196,6 +196,7 @@ public sealed partial class ReviewedVoiceCommandCapture(
         lock (gate)
         {
             return !closed && ReferenceEquals(turn, current) && !current.Cancellation.IsCancellationRequested
+                && time.GetUtcNow() < current.ExpiresAt
                 && current.NativeLifetime() && current.Target.IsCurrent()
                 && (current.Generation < 0 || current.Finishing && current.ReleasedGeneration is null
                     || capture.CaptureGeneration == (current.ReleasedGeneration ?? current.Generation));
@@ -337,6 +338,7 @@ public sealed partial class ReviewedVoiceCommandCapture(
         public CancellationTokenSource Cancellation { get; } = new();
         public TaskCompletionSource Opened { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Finished { get; set; } = CompletedSource();
+        public DateTimeOffset ExpiresAt { get; } = time.GetUtcNow().Add(VoiceInputLimits.MaximumCommandDuration);
         public ITimer Deadline { get; } = time.CreateTimer(expired, null, VoiceInputLimits.MaximumCommandDuration, Timeout.InfiniteTimeSpan);
         public long Generation { get; set; } = -1;
         public long? ReleasedGeneration { get; set; }

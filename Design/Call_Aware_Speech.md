@@ -199,6 +199,14 @@ The [host interaction](../src/Kora.Application/ViewModels/MainViewModel.CallSpee
 
 Exact typed `review call speech`, `confirm call speech`, `cancel call speech` and `call speech status` share that operation. Review and confirmation require fresh original local UI input; original voice is denied even when a native control is later invoked inside that request. Activated voice may inspect status or cancel but cannot mint a review or lease. Unknown provenance, session/source identity, ownership, output or manual-control evidence remains closed ([grammar](../src/Kora.Application/Voice/CallSpeechCommand.cs), [review authority](../src/Kora.Application/Communication/CallSpeechReview.cs)).
 
+Cancellation also retires an in-progress review preparation, before a published
+review exists. Its original preparation revision fences output observation,
+native disclosure and publication after audit; delayed completion cannot restore
+confirmation authority. An already-open exact review loses eligibility rather
+than authorizing playback. Passive status during preparation does not cancel,
+renew or confirm it. A fresh explicit review is available only after the retired
+preparation finishes; playback cancellation retains its existing physical join.
+
 The host pins response/request identity and revision, pending-decision/input epochs, native presentation lifetime, owner/privacy/recovery, call revision, speech selection/limits, ordinary output and feedback modes, selected/effective endpoint, volume and rate. A review expires after two minutes from creation, including any subsequent playback. Confirmation consumes it before awaited audit/admission; the [typed lease](../src/Kora.Application/Communication/CallSpeechLease.cs) permits one start under the [shared call-policy lock](../src/Kora.Application/Communication/CallCommunicationPolicy.cs), for only the reviewed text and pinned concrete endpoint. Changes, cancellation, failure and late completion never authorize replay or a second start.
 
 This narrow exception overrides only call speech suppression and the call feedback output selection for that one response. Ordinary VisualOnly, both summary caps, lock/privacy/owner, mute/zero volume, active capture, selected consent/security protections and local speech availability remain mandatory. No preference, call state, listening consent, approval, grant or retained data is changed; neither ordinary read commands nor unrelated speech inherit the lease. Requested/terminal audits carry opaque response identity and outcomes, never the reviewed content ([shared read lifecycle](../src/Kora.Application/ViewModels/MainViewModel.ResponseRead.cs), [summary gate](../src/Kora.Application/Configuration/SpeechConfigurationService.cs)).

@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora;
 
-public sealed class ResponseWindowController : IDisposable, ICurrentResponsePresentation
+public sealed partial class ResponseWindowController : IDisposable, ICurrentResponsePresentation
 {
     private readonly MainViewModel viewModel;
     private readonly ILogger<ResponseWindowController> logger;
@@ -24,6 +24,7 @@ public sealed class ResponseWindowController : IDisposable, ICurrentResponsePres
         { current.AttachSessions(model, owner, management, newConversation); }
         else if (!ReferenceEquals(current.SessionView.DataContext, model))
         { throw new InvalidOperationException("The response window belongs to another session presentation."); }
+        model.BindAutomaticDetails(this);
         return current;
     }
 
@@ -31,6 +32,7 @@ public sealed class ResponseWindowController : IDisposable, ICurrentResponsePres
     {
         if (window is not null) { return window; }
         var opened = new ResponseWindow(viewModel, details);
+        ObserveAutomaticDetailsWindow(opened);
         opened.Closed += (_, _) =>
         {
             if (ReferenceEquals(window, opened)) { window = null; }

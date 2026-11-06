@@ -317,6 +317,15 @@ full clipboard answering and real native acceptance remain unavailable/open.
 
 #### Exact request outcomes and causal diagnostics
 
+An explicitly read conversation also offers **Read this request's audit** for one actual retained message.
+The [native operation](../src/Kora/SessionsViewModel.RequestEvidence.cs) freshly resolves that exact retained source, reads only its session/request/task's committed AuthorityAudit evidence and revalidates the original before publication in the existing integrated Details pane.
+Separate signed **Next request-audit snapshot page** controls preserve the exact query and snapshot; missing or incomplete terminal evidence is not current work state, success or effect proof.
+
+This is the original-message-to-audit interaction, not another renderer, a diagnostic-to-authority promotion or command preparation.
+[Source/page validation](../src/Kora/SessionsViewModel.Details.cs) preserves the retained message, private control, native presenter, selected session and audit-record identity across awaited reads and passive revalidation; retired controls cannot read a replacement.
+No replay, model/provider, clipboard/export, grant, activity renewal or retention write is added. Existing native-only evidence admission remains unchanged.
+[Deterministic native regressions](../tests/Kora.Windows.IntegrationTests/AdaptiveInteractionTests.RequestEvidence.cs) are Implementation evidence, not provider, installed accessibility or E/Q qualification.
+
 In the explicit Evidence window, select a typed **Audit** or **AuthorityAudit**
 record and choose **Read request outcomes**. The existing bounded reader freshly
 resolves its original session, host request and typed audit correlation within
@@ -723,6 +732,14 @@ Conversation, diagnostic and audit retention remain independent. Cancellation
 and privacy/control/window/source changes suppress late disclosure and retain
 resource ownership until joined. Deterministic fake qualification does not
 enable production source use or replace installed/provider/accessibility trials.
+
+Evidence-answer retirement clears review authority, citations and private answer
+presentation before invoking cancellation subscribers. A failing subscriber is
+reported through the existing content-free diagnostic and an explicit native
+status; it does not interrupt filter/page/privacy/close cleanup or release the
+in-flight answer before its physical join. Reentrant cancellation cannot reuse
+the retired review ([retirement](../src/Kora/EvidenceViewModel.EvidenceAnswers.cs),
+[deterministic regressions](../tests/Kora.Windows.IntegrationTests/EvidenceAnswerWindowTests.cs)).
 
 The [bounded question window](UI_Workspace_And_Windows.md#delivered-bounded-question-window)
 has an explicit **Review exact record** route through the audited
@@ -1178,11 +1195,11 @@ viewer/item and remain available in every preference mode.
 
 #### Implemented existing Offer versus Link only suppression
 
-The bounded implementation consumes only the existing Offer/Link only portion, not the full three-way contract or new post-finalization question authority. Offer preserves the existing passive cue exactly; LinkOnly suppresses that host cue on future current-response and session publications. The shared native conversation template hides its offer card when no admitted offer exists ([policy/workflow](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs), [current response](../src/Kora.Application/ViewModels/MainViewModel.CurrentResponse.cs), [session consumer](../src/Kora/SessionsViewModel.Conversation.cs)).
+Offer preserves the existing passive cue exactly; LinkOnly suppresses that cue on future current-response and session publications. The shared native conversation template hides its offer card when no admitted offer exists. Neither mode creates spoken questions; the bounded automatic mode is described below ([policy/workflow](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs), [session consumer](../src/Kora/SessionsViewModel.Conversation.cs)).
 
 Native Settings and exact original typed/current-name activated commands inspect, review, separately confirm, cancel or review reset of one device-local preference. Reset saves Offer. Original session/channel, call, privacy, ownership, input and revision checks remain required. Unconfirmed storage/audit/readback holds offers rather than inferring a default ([interaction](../src/Kora.Application/ViewModels/MainViewModel.DetailPresentation.cs), [format](../src/Kora.Core/Presentation/DetailPresentationPreference.cs), [persistence](../src/Kora.Application/Configuration/LocalDetailPresentationPreferences.cs)).
 
-This changes no retained content, manual Details/navigation/copy admission, existing window preferences or per-task output modes. One-off acceptance/decline writes no preference; restoring Offer allows only future new publications, with no historical offer/content/speech replay. Existing published text is not rewritten. Automatic opening, new questions, reply turns and presentation intents remain unavailable/out of scope ([current route](../src/Kora.Application/ViewModels/MainViewModel.cs), [session retirement](../src/Kora/SessionsViewModel.DetailOffers.cs)).
+This changes no retained content, manual Details/navigation/copy admission, existing window preferences or per-task output modes. One-off acceptance/decline writes no preference; restoring Offer allows only future new publications, with no historical offer/content/speech replay. Existing published text is not rewritten. New questions and reply turns remain out of scope ([current route](../src/Kora.Application/ViewModels/MainViewModel.cs), [session retirement](../src/Kora/SessionsViewModel.DetailOffers.cs)).
 
 All completed session-publication routes share one offer-epoch capture,
 including ordinary queued completions and original-request foreground
@@ -1225,7 +1242,17 @@ still recover after a busy readiness refresh without reopening Settings
 ([coexistence regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.DetailPresentation.cs),
 [native regression](../tests/Kora.Windows.IntegrationTests/DetailPresentationSettingsTests.cs)).
 
-Deterministic regressions cover reviewed persistence/readback, original channel and late admission, current-response routing, compact/expanded conversation controls and duplicate event/join/foreground delivery. Release analyzers and complete four-module 100% portable line/branch coverage remain required delivery gates. This does not qualify a provider/native profile, complete the three-way design or admit automatic detail questions ([workflow regressions](../tests/Kora.Application.UnitTests/Configuration/DetailPresentationConfigurationServiceTests.cs), [native/session regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.DetailOffers.cs)).
+Deterministic regressions cover reviewed persistence/readback, original channel and late admission, current-response routing, compact/expanded conversation controls and duplicate event/join/foreground delivery. Release analyzers and complete four-module 100% portable line/branch coverage remain required delivery gates. This does not qualify a provider/native profile or admit automatic detail questions ([workflow regressions](../tests/Kora.Application.UnitTests/Configuration/DetailPresentationConfigurationServiceTests.cs), [native/session regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.DetailOffers.cs)).
+
+#### Implemented opt-in nonactivating foreground expansion
+
+The separately reviewed OpenAutomatically value uses the same original native, typed or current-name activated review, confirmation, atomic save/readback and audit workflow. Offer remains the default and reset value; old Offer/LinkOnly files keep their exact meaning ([format](../src/Kora.Core/Presentation/DetailPresentationPreference.cs), [review](../src/Kora.Application/Configuration/DetailPresentationReview.cs)).
+
+Before a new original foreground request runs, the host captures the confirmed preference epoch and native workspace lease. Only its new finalized detailed answer can consume an immutable, two-minute, single-use intent bound to exact session/request/task, source revision and selection/reader/input epochs ([intent](../src/Kora.Application/Presentation/AutomaticDetailIntent.cs), [ordinary session producer](../src/Kora/SessionsViewModel.AutomaticDetails.cs), [current-response producer](../src/Kora.Application/ViewModels/MainViewModel.AutomaticDetails.cs)).
+
+The consumer requires the already visible, active primary conversation and no existing Details/evidence or explicit retained reader. It publishes only the current native-text-v1 CommonMark subset, through the actual primary pane without ShowSessions, Activate or Focus. Richer unqualified sources retain their existing explicit manual fallback; no renderer/provider gate changes ([native admission](../src/Kora/ResponseWindowController.AutomaticDetails.cs), [pane](../src/Kora/SessionDetailView.cs), [publication](../src/Kora/DetailWindowController.cs)).
+
+Queued/background results, unknown native state, late opt-in, expiry, changed preference/source/selection/input, privacy loss and manual dismissal never open or replay a result. Opening performs no new host request, model turn, question, capture, clipboard transfer, history read or activity renewal; it preserves the composer and retained reader. Manual access remains independently admitted in every mode ([session capture](../src/Kora/SessionsViewModel.PendingConversation.cs), [native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AutomaticDetails.cs)).
 
 ### Clipboard Copy
 
@@ -1235,11 +1262,13 @@ The existing native Copy action adds Windows HTML Clipboard Format only for an a
 
 The [serializer](../src/Kora/NativeDetailRenderer.Clipboard.cs) consumes the same bounded validated Markdig tree as native rendering, not another parse or renderer DOM. It preserves supported headings, emphasis, lists, quotations, code and independently available tables. Destinations remain encoded inert visible text, not active links or resource attributes. There are no images, styles, external assets or renderer-profile enablement.
 
-For compatibility, Copy all still includes the complete original admitted source as Unicode plain text, even in rendered view; it does not yet switch to the target semantic plain representation below. Rendered selections add only an escaped preformatted HTML representation of the exact selected text, without reparsing or expanding the selection. Source/plain-text views and unsupported/unavailable renderer fallbacks remain plain-text-only ([routing regressions](../tests/Kora.Windows.IntegrationTests/DetailWindowControllerTests.RichCopy.cs)).
+**Copy all** now follows the active view for independently copy-authorized native Markdown: the complete validated semantic text in reading order plus inert HTML from the same document. It includes headings, list markers, code, all header-labelled table cells and visible link destinations, independent of viewport, wrapping or Find ([routing regressions](../tests/Kora.Windows.IntegrationTests/DetailWindowControllerTests.RichCopy.cs)).
+
+The separate **Copy source** always copies every original admitted character, tab and line break as Unicode plain text only, without changing the active view. Copy all in source/plain-text mode or unsupported/unavailable renderer fallback also remains exact plain text. Rendered selections retain escaped preformatted HTML of only the exact selected range ([native embedded-document interaction](../tests/Kora.Windows.IntegrationTests/DetailCopyNativeTests.cs)).
 
 The [native adapter](../src/Kora/NativeDetailClipboard.cs) publishes plain text and optional UTF-8 HTML with byte-accurate fragment boundaries as one clipboard transfer. It never reads, clears, flushes or retries a failed rich write as a plain-only success. Existing explicit error notification and content-free logging remain; no persistence/schema/audit change is introduced ([adapter regressions](../tests/Kora.Windows.IntegrationTests/NativeDetailClipboardTests.cs)).
 
-This is bounded implementation evidence, not installed paste-consumer/accessibility or provider qualification. Registered Markdown, rich static HTML/source styling, fully styled rich selections and the broader target representation/interaction contract below remain undelivered; no new Copy entry point or content scope is enabled.
+This is bounded implementation evidence, not installed paste-consumer/accessibility or provider qualification. Registered Markdown, rich static HTML/source styling, fully styled rich selections and the broader target representation/interaction contract below remain undelivered; no new content scope or clipboard authority is enabled.
 
 #### Target clipboard contract
 

@@ -966,6 +966,10 @@ Late preparation cannot open a new review or enable confirmation after cancellat
 If the exact review is already open, it becomes ineligible and cannot play.
 Wait for preparation to finish before starting a fresh review; status is passive
 and does not cancel or extend preparation.
+Type `cancel call speech` even while the original typed review or confirmation
+is still running. Other call-speech commands cannot interrupt that typed operation.
+Cancellation waits for owned playback to finish, including playback that ignores
+the stop request; it does not make the original command idle early or queue replay.
 
 ## Read-only host discovery
 
@@ -1561,14 +1565,18 @@ get responses.detail-presentation
 status responses.detail-presentation
 set responses.detail-presentation to Offer
 set responses.detail-presentation to LinkOnly
+set responses.detail-presentation to OpenAutomatically
 stop asking about details
 offer detailed results
+always open detailed results
 reset responses.detail-presentation
 confirm detail presentation change
 cancel detail presentation change
 ```
 
-Only existing proactive cues on future publications are affected. **Open details**, `open current response details` and selected-session detail commands retain their existing source/privacy admission. Accepting/declining an individual offer never saves a preference. Protected-call voice writes remain denied; no new question, reply turn, model tool, automatic opening or historical replay is introduced ([shared policy](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs), [manual route](../src/Kora.Application/ViewModels/MainViewModel.CurrentResponse.cs)).
+Offer remains the default; reset saves Offer. LinkOnly suppresses cues on future publications. OpenAutomatically opts into nonactivating foreground automatic opening, with no new question or background/history replay ([shared policy](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs), [bounded native admission](../src/Kora/ResponseWindowController.AutomaticDetails.cs)).
+
+**Open details**, `open current response details` and selected-session detail commands retain their existing source/privacy admission. One-off acceptance or decline never saves a preference; protected-call voice writes remain denied ([manual route](../src/Kora.Application/ViewModels/MainViewModel.CurrentResponse.cs), [detailed boundaries](settings.md#detailed-result-offers)).
 
 ### Inspect or change the device-default response mode
 

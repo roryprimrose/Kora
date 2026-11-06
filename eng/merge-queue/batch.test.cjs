@@ -1450,11 +1450,15 @@ test('reviewed resume preserves only unchanged authorized suffix and cannot eras
   const options = () => ({ context: { eventName: 'workflow_dispatch', ref: 'refs/heads/main',
     runId: 123, actor: 'operator' }, inputs: { operation: 'resume-batch', recovery_checkpoint: api.commit,
     recovery_ticket: TICKET, acknowledge_batch_change: true }, attempt: 1, now: NOW });
+  const wakes = count(api, 'wake');
   await assert.rejects(changeBatchState(api, options()), /still-authorized/);
+  assert.equal(count(api, 'wake'), wakes);
   api.prs[1].review = null;
   assert.equal(await changeBatchState(api, options()), 'resume-batch');
   assert.equal(api.state.active.members[0].merged, api.base);
   assert.equal(count(api, 'dispatch'), 1);
+  assert.equal(api.calls.at(-1)[0], 'wake');
+  assert.equal(count(api, 'wake'), wakes + 1);
   await until(api, 'batch-completed');
   assert.equal(count(api, 'dispatch'), 1);
   assert.equal(count(api, 'merge'), 5);
@@ -1466,6 +1470,40 @@ test('reviewed resume preserves only unchanged authorized suffix and cannot eras
   const blocked = options();
   blocked.inputs.recovery_checkpoint = pending.commit;
   await assert.rejects(changeBatchState(pending, blocked), /unresolved merge/);
+});
+
+test('batch recovery wakes only after verified readback and reports continuation failure without replay', async () => {
+  for (const operation of ['resume-batch', 'repair-batch']) {
+    for (const fault of ['readback', 'wake']) {
+      const api = new BatchFake();
+      await until(api, 'prefix-confirmed');
+      api.prs[1].review = 'CHANGES_REQUESTED';
+      assert.equal(await step(api), 'recovery-required');
+      api.prs[1].review = null;
+      const checkpoint = api.commit;
+      const options = { context: { eventName: 'workflow_dispatch', ref: 'refs/heads/main',
+        runId: 123, actor: 'operator' }, inputs: { operation, recovery_checkpoint: checkpoint,
+        recovery_ticket: TICKET, acknowledge_batch_change: true }, attempt: 1, now: NOW };
+      const load = api.load.bind(api);
+      api.load = async () => {
+        const state = await load();
+        if (fault === 'readback' && api.commit !== checkpoint) state.blocked.push({ changed: true });
+        return state;
+      };
+      const wakes = count(api, 'wake');
+      api.wake = async () => {
+        api.calls.push(['wake']);
+        throw new Error('Continuation unavailable');
+      };
+      await assert.rejects(changeBatchState(api, options),
+        fault === 'readback' ? /Batch state readback changed/ : /Continuation unavailable/);
+      assert.notEqual(api.commit, checkpoint);
+      assert.equal(count(api, 'wake'), wakes + (fault === 'wake' ? 1 : 0));
+      assert.equal(count(api, 'dispatch'), 1);
+      await assert.rejects(changeBatchState(api, options), /checkpoint changed/);
+      assert.equal(count(api, 'wake'), wakes + (fault === 'wake' ? 1 : 0));
+    }
+  }
 });
 
 test('explicit exact-main repair preserves unrelated advances and requires new complete validation', async () => {
@@ -1487,6 +1525,7 @@ test('explicit exact-main repair preserves unrelated advances and requires new c
   assert.equal(api.state.history[0].actualMain, sha(900));
   assert.equal(api.state.history[0].batch.members[0].merged, recorded);
   assert.equal(api.base, sha(900));
+  assert.equal(api.calls.at(-1)[0], 'wake');
   await step(api);
   assert.equal(api.state.active.base, sha(900));
   assert.equal(count(api, 'dispatch'), 2);

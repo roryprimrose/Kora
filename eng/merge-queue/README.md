@@ -503,7 +503,11 @@ The follow-up still joins owned work before releasing the lane. An uncertain ret
   before a fully validated repair/revert.
 - Recovery calls are checkpoint-specific; repeating one after its successful
   write fails rather than replaying effects. Inspect checkpoint readback after
-  transport uncertainty. The legacy `recover-unobservable-dispatch` operation
+  transport uncertainty. After verified checkpoint readback, `resume-batch` and
+  `repair-batch` request one ordinary controller reconciliation so a quiet
+  repository does not depend on another PR event or delayed timer. A failed
+  continuation is explicit and retains the written checkpoint; do not replay
+  the old recovery inputs. The legacy `recover-unobservable-dispatch` operation
   cannot clear a batch.
 - Roll back only at an idle, qualified completed tip with quiescent CI. Run the
   separately authorized `rollback-batch-v1` operation with the exact checkpoint

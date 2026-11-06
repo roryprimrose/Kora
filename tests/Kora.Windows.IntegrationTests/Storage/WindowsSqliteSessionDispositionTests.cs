@@ -25,6 +25,9 @@ public sealed class WindowsSqliteSessionDispositionTests
     [InlineData("other-turn")]
     [InlineData("wrong-selection")]
     [InlineData("audit")]
+    [InlineData("absent")]
+    [InlineData("unmarked")]
+    [InlineData("contradictory")]
     public async Task Stopped_disposition_accepts_only_inventoried_original_terminal_usage_and_preserves_failure_state(string change)
     {
         using var f = new InteractionStorageFixture();
@@ -43,21 +46,29 @@ public sealed class WindowsSqliteSessionDispositionTests
         {
             await f.Store.RetainConversationMessageAsync(request, new(1), 0, "reviewed original", static () => true, f.Token);
             var dispatched = await f.Store.BeginConversationExecutionAsync(request, provenance, 0, static () => true, f.Token);
-            if (change is "existing") { await f.Store.RecordModelUsageAsync(usage, f.Token); }
+            if (change is "existing" or "contradictory") { await f.Store.RecordModelUsageAsync(usage, f.Token); }
             var running = new ConversationCancellationTarget(Guid.NewGuid(), request, new(1),
                 dispatched.Task.Revision, f.Time.Now, f.Time.Now.AddMinutes(1));
             preview = await f.Store.PreviewStopAndDeleteAsync(target, running, f.Token);
-            preview.StoppedWork!.ModelUsage.Should().Be(change is "existing" ? usage : null);
+            preview.StoppedWork!.ModelUsage.Should().Be(change is "existing" or "contradictory" ? usage : null);
+            preview.StoppedWork.PendingModelUsage.Should().Be(change is not ("existing" or "contradictory"));
+            if (change is "unmarked")
+            { preview = preview with { StoppedWork = preview.StoppedWork with { PendingModelUsage = false } }; }
+            if (change is "contradictory")
+            { preview = preview with { StoppedWork = preview.StoppedWork with { PendingModelUsage = true } }; }
             await f.Store.CompleteConversationExecutionAsync(request,
                 new(ModelTurnOutcome.Cancelled, ModelTurnReason.CallerCancelled, provenance), static () => true, f.Token);
             var observed = change switch
             {
                 "other-turn" => usage with { Provenance = provenance with { Turn = new(Guid.NewGuid()) } },
-                "wrong-selection" => usage with { Provenance = provenance with
-                    { Selection = new(ModelProviderIdentity.Ollama, new(Guid.NewGuid()), new(1)) } },
+                "wrong-selection" => usage with
+                {
+                    Provenance = provenance with
+                    { Selection = new(ModelProviderIdentity.Ollama, new(Guid.NewGuid()), new(1)) }
+                },
                 _ => usage,
             };
-            await f.Store.RecordModelUsageAsync(observed, f.Token);
+            if (change is not "absent") { await f.Store.RecordModelUsageAsync(observed, f.Token); }
         }
         var control = WindowsSqliteConversationTests.Fresh(session);
         using var controlRoot = HostActivity.BeginRoot(control, HostActivityLayer.Application, HostOperation.Request);
@@ -83,11 +94,72 @@ public sealed class WindowsSqliteSessionDispositionTests
             if (change is "audit") { await dispose.Should().ThrowAsync<IOException>(); }
             else { await dispose.Should().ThrowAsync<InvalidOperationException>(); }
             f.Count("security_audit_events").Should().Be(audits);
-            f.Count("session_model_usage").Should().Be(1);
+            f.Count("session_model_usage").Should().Be(change is "absent" ? 0 : 1);
             (await f.Store.ReadMetadataAsync(session, f.Token)).Should().Be(target);
             (await f.Store.ReadConversationMessageAsync(session, request.RequestId, f.Token)).Body.Should().Be("reviewed original");
             (await f.Tasks.ReadTaskAsync(control.TaskId, f.Token))!.State.Should().Be(HostTaskState.IntentRecorded);
         }
+    }
+
+    [Theory]
+    [InlineData("generation")]
+    [InlineData("audit")]
+    [InlineData("digest")]
+    [InlineData("payload")]
+    [InlineData("foreign")]
+    [InlineData("duplicate")]
+    public async Task Tampered_terminal_usage_cannot_mutate_disposition_or_create_success_audit(string fault)
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        await WindowsSqliteConversationTests.FinishInitial(f);
+        var session = f.Request.SessionId;
+        var request = WindowsSqliteConversationTests.Fresh(session);
+        var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), request, ModelProviderSelection.OllamaCandidate);
+        var target = await f.Store.ReadMetadataAsync(session, f.Token);
+        Kora.Core.Storage.SessionDispositionPreview preview;
+        using (var root = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request))
+        {
+            await f.Store.RetainConversationMessageAsync(request, new(1), 0, "retained original", static () => true, f.Token);
+            var dispatched = await f.Store.BeginConversationExecutionAsync(request, provenance, 0, static () => true, f.Token);
+            preview = await f.Store.PreviewStopAndDeleteAsync(target, new(Guid.NewGuid(), request, new(1),
+                dispatched.Task.Revision, f.Time.Now, f.Time.Now.AddMinutes(1)), f.Token);
+            await f.Store.CompleteConversationExecutionAsync(request,
+                new(ModelTurnOutcome.Cancelled, ModelTurnReason.CallerCancelled, provenance), static () => true, f.Token);
+            await f.Store.RecordModelUsageAsync(new(provenance, "Selected model", null, TimeSpan.Zero, f.Time.Now), f.Token);
+        }
+        var control = WindowsSqliteConversationTests.Fresh(session);
+        using var controlRoot = HostActivity.BeginRoot(control, HostActivityLayer.Application, HostOperation.Request);
+        await f.Store.RecordControlIntentAsync(control, f.Token);
+        f.Mutate(fault switch
+        {
+            "generation" => "UPDATE session_model_usage SET generation=generation+1;",
+            "audit" => "UPDATE session_model_usage SET audit_sequence=audit_sequence+1;",
+            "digest" => "UPDATE session_model_usage SET digest=replace(digest,substr(digest,1,1),'z');",
+            "payload" => "UPDATE session_model_usage SET payload=replace(payload,'Selected model','Tampered model');",
+            "foreign" => "UPDATE session_model_usage SET session_id='00000000-0000-0000-0000-000000000001';",
+            _ => """
+                    INSERT INTO session_model_usage
+                    SELECT '00000000-0000-0000-0000-000000000001',request_id,session_id,task_id,generation,audit_sequence,payload,digest
+                    FROM session_model_usage;
+                    """,
+        });
+        var audits = f.Count("security_audit_events");
+        var messages = f.Count("conversation_messages");
+        var usageRows = f.Count("session_model_usage");
+        await f.Store.Invoking(store => store.DisposeSessionAsync(control, preview, static () => true, f.Token).AsTask())
+            .Should().ThrowAsync<InvalidDataException>();
+        f.Count("security_audit_events").Should().Be(audits);
+        f.Count("conversation_messages").Should().Be(messages);
+        f.Count("session_model_usage").Should().Be(usageRows);
+        using var connection = f.OpenRaw();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT generation FROM work_sessions WHERE session_id=$id;";
+        command.Parameters.AddWithValue("$id", session.Value.ToString("D"));
+        ((long)command.ExecuteScalar()!).Should().Be(target.Authority.Generation.Value);
+        command.CommandText = "SELECT state FROM host_task_events WHERE task_id=$task ORDER BY revision DESC LIMIT 1;";
+        command.Parameters.AddWithValue("$task", control.TaskId.Value.ToString("D"));
+        ((long)command.ExecuteScalar()!).Should().Be((long)HostTaskState.IntentRecorded);
     }
 
     [Theory]

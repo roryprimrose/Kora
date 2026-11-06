@@ -205,6 +205,9 @@ class GitHubQueue {
       runId: this.context.runId, runAttempt,
     }, state);
   }
+  async scheduleHourlyMain(state, now, save) {
+    return require('./main-scheduling.cjs').dispatchHourly(this, state, now, save);
+  }
   async supportsHourlyMain(source) {
     return (await this.workflowInventory(source))?.mainBuildSchema === 'hourly-v1';
   }
@@ -419,6 +422,18 @@ class GitHubQueue {
     invariant(await this.main() === tip.sha, 'Completed-tip source changed before qualification dispatch.');
     await this.github.rest.actions.createWorkflowDispatch({ ...this.repo, workflow_id: WORKFLOW,
       ref: 'main', inputs: {} });
+  }
+  async dispatchHourlyMain(tip) {
+    invariant(await this.main() === tip.sha, 'Hourly main source changed before dispatch.');
+    const { status, data } = await this.github.rest.actions.createWorkflowDispatch({
+      ...this.repo, workflow_id: WORKFLOW, ref: 'main', inputs: {},
+      headers: { 'X-GitHub-Api-Version': '2026-03-10' },
+    });
+    invariant(status === 200 && Number.isSafeInteger(data?.workflow_run_id) && data.workflow_run_id > 0
+      && data.html_url === `https://github.com/${this.repository}/actions/runs/${data.workflow_run_id}`
+      && data.run_url === `https://api.github.com/repos/${this.repository}/actions/runs/${data.workflow_run_id}`,
+    'Hourly main dispatch response is ambiguous; no replay is authorized.');
+    return data.workflow_run_id;
   }
   async ciQuiescent() {
     for (const status of ['queued', 'in_progress', 'waiting', 'pending', 'requested']) {

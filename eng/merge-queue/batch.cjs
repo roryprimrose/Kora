@@ -29,6 +29,7 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
     return 'main-builds-ready';
   }
   if (mainProfile === 'hourly-v1' && await api.observeHourlyMain(state)) await save();
+  if (mainProfile === 'hourly-v1') await api.scheduleHourlyMain(state, now, save);
   if (state.active && state.active.kind !== 'batch')
     return reconcileSingleton(api, state, state.active.number, { now, ticket });
   if (!state.active) {

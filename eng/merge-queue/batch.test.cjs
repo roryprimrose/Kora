@@ -1211,6 +1211,60 @@ test('native Auto-merge after attestation is observed without duplicating the pr
   assert.equal(count(api, 'dispatch'), 1);
 });
 
+test('native Auto-merge during final authority reads does not withdraw the successful gate or require recovery', async () => {
+  for (const boundary of ['pull', 'enrollment', 'reviewState', 'main']) {
+    const api = new BatchFake();
+    const merge = api.merge.bind(api);
+    const finish = api.finishCheck.bind(api);
+    let attested = false;
+    let pulls = 0;
+    let raced = false;
+    api.finishCheck = async (...args) => {
+      await finish(...args);
+      if (args[1] === 'success') attested = true;
+    };
+    const read = api[boundary].bind(api);
+    api[boundary] = async (...args) => {
+      if (attested && !raced && (boundary !== 'pull' || ++pulls === 2)) {
+        raced = true;
+        const member = api.state.active.members[0];
+        await merge({ number: member.number, head: member.mergeIntent.head });
+      }
+      return read(...args);
+    };
+    await until(api, 'batch-completed');
+    assert.equal(raced, true, boundary);
+    assert.equal(api.calls.some(call => call[0] === 'finish' && call[2] === 'failure'), false, boundary);
+    assert.equal(count(api, 'merge'), 5, boundary);
+    assert.equal(count(api, 'dispatch'), 1, boundary);
+  }
+});
+
+test('native Auto-merge between a pending snapshot and authority reads is confirmed without recovery or replay', async () => {
+  const api = new BatchFake();
+  const merge = api.merge.bind(api);
+  api.merge = async () => ({ merged: false });
+  await until(api, 'merge-pending');
+  api.merge = merge;
+  const pull = api.pull.bind(api);
+  let raced = false;
+  api.pull = async number => {
+    const snapshot = await pull(number);
+    if (!raced) {
+      raced = true;
+      const member = api.state.active.members[0];
+      await merge({ number, head: member.mergeIntent.head });
+    }
+    return snapshot;
+  };
+  assert.equal(await step(api), 'merge-pending');
+  assert.equal(api.state.active.phase, 'merging');
+  assert.equal(await step(api), 'prefix-confirmed');
+  await until(api, 'batch-completed');
+  assert.equal(count(api, 'merge'), 5);
+  assert.equal(count(api, 'dispatch'), 1);
+});
+
 test('affirmative merge response alone, wrong parent/tree and unexpected main never establish completion', async () => {
   for (const kind of ['unobserved', 'parent', 'tree', 'main']) {
     const api = new BatchFake();

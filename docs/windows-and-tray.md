@@ -542,6 +542,14 @@ Select the exact retained Active or Done session. In the existing conversation r
 
 Use **Next conversation matches** for the original bounded snapshot. Each row displays the complete inert saved answer separately from USER and HOST; its existing **Details - exact original USER / separate HOST** action opens the complete record with the ASSISTANT answer shown separately. It does not run, speak or reuse the answer ([shared row](../src/Kora/ConversationPresentation.axaml), [detail action](../src/Kora/SessionsViewModel.Conversation.cs)).
 
+In Sessions and compact view, **Enter** in the query starts the existing search.
+**Tab** enters the matches, arrow keys select a row, and **Tab** continues through
+that row's controls to **Details - exact original USER / separate HOST**.
+Activate it with **Space** to read that exact kept record. The answer's accessible
+name includes its complete displayed text both in the match and in Details,
+separately from USER/HOST. **Escape** closes Details without changing the selected
+conversation or either conversation's unsent input.
+
 **Cancel conversation search** cancels an in-flight search; **Clear private conversation search** clears query, role, results and continuation. Query/role edits and Next retire match Details; source/privacy loss and close discard late results. Unsent input remains independent. Passive Done search never resumes work or renews retention, and search creates no new persisted content/index or model/provider call ([search lifetime](../src/Kora/SessionsViewModel.ConversationSearch.cs), [restart/native coverage](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AssistantSearch.cs)).
 
 The existing lexical query and complete-page byte bounds apply unchanged. Submitted-date and typed task-state predicates still AND-compose with the selected field role. [Typed/current-name activated voice](commands.md#search-retained-assistant-answers-explicitly) selects the same ASSISTANT role through the exact addressed host route, without implicit session navigation.

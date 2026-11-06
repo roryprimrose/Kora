@@ -155,8 +155,9 @@
         <controls:NamedTextBlock Text="{Binding ConversationSearchStatus}" TextWrapping="Wrap"
             AutomationProperties.Name="Conversation search counters, exact snapshot continuation and explicit failures; no model context" />
         <controls:ScrollableListBox x:Name="ConversationSearchResults" ItemsSource="{Binding ConversationSearchMessages}" MaxHeight="160"
+            KeyboardNavigation.TabNavigation="Continue"
             ItemTemplate="{StaticResource ConversationMessageTemplate}"
-            AutomationProperties.Name="Exact immutable USER messages matching lexical words or typed HOST status; inert native text, chronological, no export or actions" />
+            AutomationProperties.Name="Exact retained conversation matches for the selected USER, HOST or ASSISTANT fields; complete inert text with separately admitted record actions" />
         <TextBox x:Name="ConversationComposer" Text="{Binding ComposerBody, Mode=TwoWay}" AcceptsReturn="True"
             Height="90" TextWrapping="Wrap" IsEnabled="{Binding CanCompose}"
             PlaceholderText="Original message: up to 4096 UTF-16 characters and 16384 UTF-8 bytes; invalid or oversized text is rejected, not truncated"

@@ -773,8 +773,9 @@
                 <Button x:Name="ForgetMemory" Content="Forget exact memory" IsEnabled="{Binding CanEditMemory}"
                         AutomationProperties.Name="Explicitly forget this exact revision; clear body and review, retain non-reusable tombstone; not forensic erasure" />
               </WrapPanel>
-              <controls:NamedTextBlock Text="{Binding MemoryDetail}" TextWrapping="Wrap"
-                                       AutomationProperties.Name="Explicitly inspected exact memory content, classification, lineage and review receipt or content-free mutation outcome" />
+              <TextBox x:Name="MemoryDetailReader" Text="{Binding MemoryDetail, Mode=OneWay}" IsReadOnly="True"
+                       IsUndoEnabled="False" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="320"
+                       AutomationProperties.Name="Exact memory inspection or retained mutation result; complete content, classification, source scope, lineage and review; reading grants nothing" />
               <ComboBox ItemsSource="{Binding MemoryClasses}" SelectedItem="{Binding MemoryClass, Mode=TwoWay}"
                         IsEnabled="{Binding CanProposeMemory}" AutomationProperties.Name="User proposal or replacement classification; not sensitivity proof" />
               <TextBox Text="{Binding MemoryDraft, Mode=TwoWay}" IsEnabled="{Binding CanProposeMemory}"

@@ -58,7 +58,11 @@ public sealed partial class KoraMcpServerTests : IDisposable
         var caller = fixture.Registry.Admit(CapabilityLane.Execution);
         fixture.Preferences.SetToolEnabled(KoraMcpCatalog.ServerId, ReadOnlyCapabilityCatalog.Version, false);
         using var discovery = JsonDocument.Parse(fixture.Server.HandleRequest(caller, McpProtocol.DiscoveryRequest(), Token));
-        discovery.RootElement.GetProperty("result").GetProperty("tools").GetArrayLength().Should().Be(5);
+        discovery.RootElement.GetProperty("result").GetProperty("tools").EnumerateArray()
+            .Select(tool => tool.GetProperty("name").GetString()).Should()
+            .Equal(ReadOnlyCapabilityCatalog.Descriptors.Where(tool =>
+                !string.Equals(tool.Id, ReadOnlyCapabilityCatalog.Version, StringComparison.Ordinal))
+                .Select(tool => tool.Id));
         using var reply = Call(fixture, caller, ReadOnlyCapabilityCatalog.Version, "{}");
         reply.RootElement.GetProperty("result").GetProperty("isError").GetBoolean().Should().BeTrue();
         fixture.Info.Reads.Should().Be(0);

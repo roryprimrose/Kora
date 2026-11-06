@@ -33,7 +33,7 @@ public sealed partial class ModelToolProtocolTests
         bigger.Should().Throw<InvalidDataException>();
         var assistant = Calls(Tool("first", ReadOnlyCapabilityCatalog.List));
         var result = ModelToolProtocol.CreateToolResult(assistant.Calls[0], new(CapabilityOutcome.Succeeded,
-            "admitted-read-only", Capabilities: new(ReadOnlyCapabilityCatalog.Descriptors.ToArray(), 6, null)));
+            "admitted-read-only", Capabilities: new(ReadOnlyCapabilityCatalog.Descriptors.Take(6).ToArray(), 7, 6)));
         Action escalation = () => ModelToolProtocol.CreateRequest(provenance, null, context, [assistant, result], 2);
         escalation.Should().Throw<InvalidDataException>();
     }
@@ -111,7 +111,7 @@ public sealed partial class ModelToolProtocolTests
         Action excessiveRounds = () => ModelToolProtocol.CreateRequest(provenance, null, Context(oneRound), [assistant, result], 2);
         excessiveRounds.Should().Throw<InvalidDataException>();
         Action excessiveCatalogue = () => _ = new ModelTurnConstraints(1,
-            Enumerable.Repeat(ReadOnlyCapabilityCatalog.Version, 7).ToImmutableArray(), 1, 1, 16000, 2000, 1000);
+            Enumerable.Repeat(ReadOnlyCapabilityCatalog.Version, 8).ToImmutableArray(), 1, 1, 16000, 2000, 1000);
         excessiveCatalogue.Should().Throw<InvalidDataException>();
     }
 }

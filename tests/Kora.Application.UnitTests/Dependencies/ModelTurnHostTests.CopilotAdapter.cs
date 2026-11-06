@@ -80,7 +80,8 @@ public sealed partial class ModelTurnHostTests
             }
             if (fault is "after-answer") { live = false; }
             if (fault is "expired-answer") { f.Time.Now = context.ExpiresAt; }
-            return fault is "runtime-denied" ? new(ModelTurnOutcome.Denied) : new(ModelTurnOutcome.Succeeded, "must not escape");
+            return fault is "runtime-denied" ? new(ModelTurnOutcome.Denied) { TokenUsage = new(25, 5, 25) }
+                : new(ModelTurnOutcome.Succeeded, "must not escape") { TokenUsage = new(25, 5, 25) };
         };
         var result = await adapter.RunAsync(provenance, profile, context.Serialize(), (_, _, _) =>
         {
@@ -90,6 +91,7 @@ public sealed partial class ModelTurnHostTests
         }, Token);
         result.Outcome.Should().NotBe(ModelTurnOutcome.Succeeded);
         result.Response.Should().BeNull();
+        result.TokenUsage.Should().Be(fault.StartsWith("foreign", StringComparison.Ordinal) ? null : new ModelTokenUsage(25, 5, 25));
         tools.Should().Be(fault is "after-tool" ? 1 : 0);
     }
 

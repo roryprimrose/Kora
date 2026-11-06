@@ -18,6 +18,7 @@ public sealed class ClaudeObservationToolsTests
     [InlineData(ReadOnlyCapabilityCatalog.Readiness)]
     [InlineData(ReadOnlyCapabilityCatalog.RuntimeList)]
     [InlineData(ReadOnlyCapabilityCatalog.RuntimeStatus)]
+    [InlineData("session.get_metrics")]
     public void ExactSchemasMatchCanonicalInputPolicyAndAdvertiseNoExtraFields(string id)
     {
         using var schema = JsonDocument.Parse(ReadOnlyCapabilitySchema.Serialize(id));
@@ -29,10 +30,11 @@ public sealed class ClaudeObservationToolsTests
         if (descriptor.Input == CapabilityInputShape.Page)
         {
             properties.EnumerateObject().Select(item => item.Name).Should().Equal("offset", "count");
-            properties.GetProperty("count").GetProperty("maximum").GetInt32().Should().Be(6);
+            properties.GetProperty("count").GetProperty("maximum").GetInt32().Should().Be(ReadOnlyCapabilityCatalog.MaximumRecords);
             properties.GetProperty("offset").GetProperty("maximum").GetInt32().Should().Be(int.MaxValue);
             root.GetProperty("required").GetArrayLength().Should().Be(0);
-            CapabilityInputPolicy.Read(descriptor, """{"offset":0,"count":6}""").DenialReason.Should().BeNull();
+            CapabilityInputPolicy.Read(descriptor, JsonSerializer.Serialize(new { offset = 0, count = ReadOnlyCapabilityCatalog.MaximumRecords }))
+                .DenialReason.Should().BeNull();
         }
         else if (descriptor.Input == CapabilityInputShape.Id)
         {

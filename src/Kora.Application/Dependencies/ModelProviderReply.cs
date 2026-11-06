@@ -4,4 +4,7 @@ namespace Kora.Application.Dependencies;
 
 internal sealed record ModelProviderReply(
     ModelTurnOutcome Outcome, ModelProviderSelection ReportedSelection, LocalModelResponse? Response = null,
-    ModelTurnReason Reason = ModelTurnReason.ProviderOutcome);
+    ModelTurnReason Reason = ModelTurnReason.ProviderOutcome)
+{
+    public ModelTokenUsage? TokenUsage { get; init; }
+}

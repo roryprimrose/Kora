@@ -5,7 +5,7 @@ internal static class HostInteractionSchema
     internal const string Partition = "InteractionStorageV1";
     internal const string FileName = "interaction.db";
     internal const int ApplicationId = 1263489587;
-    internal const int Version = 15;
+    internal const int Version = 16;
     internal static readonly string[] Tables =
     [
         """
@@ -226,6 +226,17 @@ internal static class HostInteractionSchema
             audit_sequence INTEGER NOT NULL REFERENCES security_audit_events(sequence)) STRICT
         """;
     internal static readonly string[] AnswerReviewTables = [.. SessionPermissionTables, AnswerReviewTable];
+    internal const string ModelUsageTable = """
+        CREATE TABLE session_model_usage(
+            turn_id TEXT PRIMARY KEY NOT NULL,
+            request_id TEXT NOT NULL,
+            session_id TEXT NOT NULL REFERENCES work_sessions(session_id),
+            task_id TEXT NOT NULL REFERENCES host_tasks(task_id),
+            generation INTEGER NOT NULL CHECK(generation>0),
+            audit_sequence INTEGER NOT NULL REFERENCES security_audit_events(sequence),
+            payload TEXT NOT NULL CHECK(length(CAST(payload AS BLOB)) BETWEEN 1 AND 4096),
+            digest TEXT NOT NULL CHECK(length(digest)=64)) STRICT
+        """;
     internal const string AuditAnchorTable = """
         CREATE TABLE authority_retention_anchor(
             singleton INTEGER PRIMARY KEY NOT NULL CHECK(singleton=1),
@@ -234,5 +245,6 @@ internal static class HostInteractionSchema
             hash TEXT NOT NULL CHECK(length(hash)=64),
             cutoff_utc INTEGER NOT NULL CHECK(cutoff_utc>=0)) STRICT
         """;
-    internal static readonly string[] CurrentTables = [.. AnswerReviewTables, AuditAnchorTable];
+    internal static readonly string[] AuditRetentionTables = [.. AnswerReviewTables, AuditAnchorTable];
+    internal static readonly string[] CurrentTables = [.. AuditRetentionTables, ModelUsageTable];
 }

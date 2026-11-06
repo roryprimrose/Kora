@@ -61,7 +61,8 @@ public static class SettingsDiscoveryTools
             || reply.Settings is not { } result || result.Records.IsDefaultOrEmpty
             || reply.Capabilities is not null || reply.Descriptor is not null || reply.Version is not null
             || reply.Readiness is not null || reply.Runtimes is not null || reply.Runtime is not null
-            || reply.WebPage is not null || reply.Mcp is not null || reply.Sessions is not null || reply.Customizations is not null)
+            || reply.WebPage is not null || reply.Mcp is not null || reply.Sessions is not null || reply.Customizations is not null
+            || reply.SessionMetrics is not null)
         { return false; }
         if (string.Equals(id, Get, StringComparison.Ordinal))
         {

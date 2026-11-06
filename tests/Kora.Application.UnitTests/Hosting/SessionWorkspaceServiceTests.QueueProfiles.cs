@@ -149,7 +149,7 @@ public sealed partial class SessionWorkspaceServiceTests
     private static CapabilityReply FixedReply(SessionQueueReadProfile profile) => profile switch
     {
         SessionQueueReadProfile.Version => new(CapabilityOutcome.Succeeded, "observed", Version: new("1.0.0", "fixed")),
-        SessionQueueReadProfile.Capabilities => new(CapabilityOutcome.Succeeded, "catalogue", Capabilities: new(ReadOnlyCapabilityCatalog.Descriptors, 6, null)),
+        SessionQueueReadProfile.Capabilities => new(CapabilityOutcome.Succeeded, "catalogue", Capabilities: new(ReadOnlyCapabilityCatalog.Descriptors.Take(6).ToArray(), 7, 6)),
         SessionQueueReadProfile.Readiness => new(CapabilityOutcome.Succeeded, "recorded-observations", Readiness: new([], 0, null)),
         SessionQueueReadProfile.Capability => new(CapabilityOutcome.Succeeded, "admitted-read-only", Descriptor: FixedTarget(profile)!.Descriptor),
         SessionQueueReadProfile.RuntimeStatus => new(CapabilityOutcome.Succeeded, "recorded-observation",

@@ -63,13 +63,13 @@ public sealed partial class ModelToolProtocolTests
             wire.Length.Should().Be(ModelToolProtocol.MaximumInputUtf8Bytes);
             using var document = JsonDocument.Parse(wire);
             document.RootElement.GetProperty("context").GetProperty("Tools").GetArrayLength()
-                .Should().Be(mode == ModelToolMode.None ? 0 : 6);
+                .Should().Be(mode == ModelToolMode.None ? 0 : 7);
         }
         else { request.Should().Throw<InvalidDataException>(); }
     }
 
     [Theory]
-    [InlineData(ModelToolMode.ReadOnly, 6)]
+    [InlineData(ModelToolMode.ReadOnly, 7)]
     [InlineData(ModelToolMode.None, 0)]
     public void ImmutableHostToolModeSelectsTheExactCatalogueAndSurvivesTheCompleteRequest(
         ModelToolMode mode, int tools)

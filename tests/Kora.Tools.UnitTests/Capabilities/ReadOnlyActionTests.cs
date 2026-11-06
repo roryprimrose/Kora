@@ -32,13 +32,14 @@ public sealed class ReadOnlyActionTests
     {
         var list = new CapabilitiesList();
         var first = list.Execute(new(0, 2)).Capabilities!;
-        first.TotalRecords.Should().Be(6);
+        first.TotalRecords.Should().Be(7);
         first.NextOffset.Should().Be(2);
         first.Records.Should().Equal(ReadOnlyCapabilityCatalog.Descriptors.Take(2));
         var last = list.Execute(new(4, 6)).Capabilities!;
         last.NextOffset.Should().BeNull();
         last.Records.Should().Equal(ReadOnlyCapabilityCatalog.Descriptors.Skip(4));
-        list.Execute(new(6, 1)).Reason.Should().Be("page-out-of-range");
+        list.Execute(new(6, 1)).Capabilities!.Records.Single().Id.Should().Be(SessionMetricsTool.Id);
+        list.Execute(new(7, 1)).Reason.Should().Be("page-out-of-range");
         var get = new CapabilitiesGet();
         get.Execute(new(ReadOnlyCapabilityCatalog.Version)).Descriptor.Should().BeSameAs(
             ReadOnlyCapabilityCatalog.Descriptors.Single(item => string.Equals(item.Id, ReadOnlyCapabilityCatalog.Version, StringComparison.Ordinal)));

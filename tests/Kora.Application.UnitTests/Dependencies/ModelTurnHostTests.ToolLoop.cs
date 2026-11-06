@@ -45,7 +45,7 @@ public sealed partial class ModelTurnHostTests
         transport.Requests[2].Messages.Should().HaveCount(4);
         var catalogue = (ModelToolResultMessage)transport.Requests[2].Messages[3];
         catalogue.Result.Should().Equal(CapabilityReplyWire.Serialize(new(CapabilityOutcome.Succeeded, "admitted-read-only",
-            Capabilities: new(ReadOnlyCapabilityCatalog.Descriptors.ToArray(), 6, null))));
+            Capabilities: new(ReadOnlyCapabilityCatalog.Descriptors.Take(6).ToArray(), 7, 6))));
         (await host.RunAsync(turn, Token)).Reason.Should().Be(ModelTurnReason.TurnAlreadyUsed);
         transport.Requests.Should().HaveCount(3);
         transport.HostRequests.Should().OnlyContain(request => ReferenceEquals(request, fixture.Request));

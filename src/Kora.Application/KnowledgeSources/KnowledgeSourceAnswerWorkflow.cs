@@ -16,6 +16,10 @@ public sealed partial class KnowledgeSourceAnswerWorkflow(KnowledgeSourceManager
     private KnowledgeSourceAnswerUse? use;
 
     public async Task<KnowledgeSourceAnswerPreparation> PrepareAsync(KnowledgeSource exact, string question,
+        Func<bool> eligible, CancellationToken token) =>
+        await PrepareAsync([exact], question, eligible, token).ConfigureAwait(false);
+
+    public async Task<KnowledgeSourceAnswerPreparation> PrepareAsync(IReadOnlyList<KnowledgeSource> sources, string question,
         Func<bool> eligible, CancellationToken token)
     {
         var host = HostActivity.RequireCurrent();
@@ -27,17 +31,18 @@ public sealed partial class KnowledgeSourceAnswerWorkflow(KnowledgeSourceManager
         {
             if (!LocalFileRetrievalPolicy.TryQuery(question, out _))
             { return new KnowledgeSourceAnswerPreparation(LocalFileAnswerOutcome.InvalidQuestion); }
-            selectedUse = await manager.OpenAnswerUseAsync(exact, eligible, token).ConfigureAwait(false);
+            selectedUse = await manager.OpenAnswerUseAsync(sources, eligible, token).ConfigureAwait(false);
             return await selectedUse.RunAsync(async cancellation =>
             {
-                var snapshot = selectedUse.Revision;
-                var found = await Task.Run(() => retrieval.Search(snapshot, snapshot.Reference, question,
-                    time.GetUtcNow(), cancellation), cancellation).ConfigureAwait(false);
+                var snapshots = selectedUse.Sources.Select(item => item.Revision).ToArray();
+                var found = await Task.Run(() => snapshots.Length == 1
+                    ? retrieval.Search(snapshots[0], snapshots[0].Reference, question, time.GetUtcNow(), cancellation)
+                    : retrieval.Search(snapshots, question, time.GetUtcNow(), cancellation), cancellation).ConfigureAwait(false);
                 await selectedUse.ValidateAsync(cancellation).ConfigureAwait(false);
                 if (found.Outcome == LocalFileSearchOutcome.NoMatch)
                 { return new KnowledgeSourceAnswerPreparation(LocalFileAnswerOutcome.NoEvidence); }
                 var target = LocalContextSessionTarget.ReviewedFresh(host.Request, HostRequest.Create(host.Request.Origin));
-                var review = new KnowledgeSourceAnswerReview(exact, snapshot, question, found, target);
+                var review = new KnowledgeSourceAnswerReview(selectedUse.Sources, question, found, target);
                 selectedUse.Review = review;
                 return new KnowledgeSourceAnswerPreparation(LocalFileAnswerOutcome.Succeeded, review);
             }, token).ConfigureAwait(false);
@@ -54,22 +59,37 @@ public sealed partial class KnowledgeSourceAnswerWorkflow(KnowledgeSourceManager
         var input = HostActivity.RequireCurrent();
         if (input.Request.Origin != RequestOrigin.LocalUi || input.Request.InvocationId is not null
             || input.Outcome != HostOperationOutcome.Unknown || !eligible()
-            || use is not { } exact || !ReferenceEquals(exact.Review, review)
-            || !exact.IsCurrent || !review.TryConsume())
+            || use is not { Review: { } prepared } exact || !review.IsFromSameRetrieval(prepared)
+            || !review.IsCurrent(time.GetUtcNow()))
         { return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Denied); }
-        ActivityLink[] causes = review.Revision.Review.Cause == default
-            ? [new(input.Activity!.Context)] : [new(input.Activity!.Context), new(review.Revision.Review.Cause)];
+        exact.Review = review;
+        if (!exact.IsCurrent || !review.TryConsume())
+        { return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Denied); }
+        ActivityLink[] causes = [new(input.Activity!.Context), .. review.Sources
+            .Select(item => item.Revision.Review.Cause).Where(cause => cause != default).Distinct()
+            .Select(cause => new ActivityLink(cause))];
         using var activity = HostActivity.BeginRoot(review.Target.SourceRequest, HostActivityLayer.Application,
             HostOperation.Request, causes);
         var result = await Audited("local", () => exact.RunAsync(async cancellation =>
         {
             await exact.ValidateAsync(cancellation).ConfigureAwait(false);
-            using var expiry = new CancellationTokenSource(review.ExpiresAt - time.GetUtcNow(), time);
+            var remaining = review.ExpiresAt - time.GetUtcNow();
+            if (remaining <= TimeSpan.Zero) { return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Stale); }
+            using var expiry = new CancellationTokenSource(remaining, time);
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellation, expiry.Token);
             cancellation = linked.Token;
             bool Current() => eligible() && exact.IsCurrent;
             await exact.ValidateAsync(cancellation).ConfigureAwait(false);
-            foreach (var file in review.Revision.Files)
+            if (review.Sources.Count > 1)
+            {
+                var risk = LocalSourceRiskPolicy.Evaluate(review.Search.Citations.Select(review.DescribeCitation).ToArray(), cancellation);
+                if (risk != LocalSourceRiskOutcome.AdmittedPrivateLocalOnly)
+                {
+                    return LocalFileAnswerResult.Empty(risk == LocalSourceRiskOutcome.DetectedRisk
+                        ? LocalFileAnswerOutcome.Denied : LocalFileAnswerOutcome.SourceUseUnavailable);
+                }
+            }
+            foreach (var file in review.Sources.SelectMany(item => item.Revision.Files))
             {
                 var citations = review.Search.Citations.Where(item => item.Source == file.Reference).ToArray();
                 if (citations.Length == 0) { continue; }

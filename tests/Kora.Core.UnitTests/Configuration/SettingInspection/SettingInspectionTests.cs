@@ -6,11 +6,27 @@ using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Configuration.SettingInspection;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
+using Kora.Core.Voice;
 
 namespace Kora.Core.UnitTests.Configuration.SettingInspection;
 
 public sealed class SettingInspectionTests
 {
+    [Theory]
+    [InlineData(0, "Offer", false)]
+    [InlineData(0, "Offer", true)]
+    [InlineData(1, "LinkOnly", true)]
+    [InlineData(2, "OpenAutomatically", true)]
+    public void DetailsModeObservationUsesDomainValidationAndExactSavedProvenance(int value, string mode, bool saved)
+    {
+        var observation = new SettingObservation(RegisteredSetting.DetailPresentation, value, saved, 17);
+        observation.Value.Should().Be(value);
+        observation.Selection.Should().BeNull();
+        observation.Revision.Should().Be(17);
+        observation.Text.Should().Be("responses.detail-presentation = " + mode + " mode "
+            + (saved ? "(confirmed saved; matches live service)" : "(confirmed absent; live default)"));
+    }
+
     private static DateTimeOffset Now => DateTimeOffset.UnixEpoch;
     private static SettingObservation[] Values(bool saved = false, int presence = 1) =>
     [
@@ -18,6 +34,15 @@ public sealed class SettingInspectionTests
         new(RegisteredSetting.SummaryWords, 80, saved, 7), new(RegisteredSetting.SummarySentences, 3, saved, 7),
         new(RegisteredSetting.PlaybackVolume, 100, saved, 11), new(RegisteredSetting.ResponseMode, 0, saved, 19),
         new(RegisteredSetting.PresenceDisplay, presence, saved, 3),
+        new(RegisteredSetting.PresenceTimeout, 10, saved, 3), new(RegisteredSetting.PresenceSize, 360, saved, 3),
+        new(RegisteredSetting.DotSize, 100, saved, 3), new(RegisteredSetting.DotDensity, 100, saved, 3),
+        new(RegisteredSetting.MovementSpeed, 100, saved, 3), new(RegisteredSetting.SpeechScaling, 1, saved, 3),
+        new(RegisteredSetting.SpeechScaleAmount, 100, saved, 3), new(RegisteredSetting.ReducedMotion, 0, saved, 3),
+        new(RegisteredSetting.CommandStartWait, VoiceCaptureTiming.Default, saved, 5),
+        new(RegisteredSetting.ReplyStartWait, VoiceCaptureTiming.Default, saved, 5),
+        new(RegisteredSetting.TrailingSilence, VoiceCaptureTiming.Default, saved, 5),
+        new(SpeechSelection.Default, saved, 7),
+        new(RegisteredSetting.DetailPresentation, 0, saved, 23),
     ];
 
     [Theory]
@@ -32,15 +57,20 @@ public sealed class SettingInspectionTests
             HostRequest.Create(origin), Now);
         values[0] = new(RegisteredSetting.Theme, 2, !saved, 100);
         review.Observations[0].Value.Should().Be(0);
-        review.Observations.Should().HaveCount(7);
+        review.Observations.Should().HaveCount(20);
         review.Observations.Select(item => item.Setting).Should().Equal(
             RegisteredSetting.Theme, RegisteredSetting.ReaderTextScale,
             RegisteredSetting.SummaryWords, RegisteredSetting.SummarySentences,
-            RegisteredSetting.PlaybackVolume, RegisteredSetting.ResponseMode, RegisteredSetting.PresenceDisplay);
+            RegisteredSetting.PlaybackVolume, RegisteredSetting.ResponseMode, RegisteredSetting.PresenceDisplay,
+            RegisteredSetting.PresenceTimeout, RegisteredSetting.PresenceSize, RegisteredSetting.DotSize,
+            RegisteredSetting.DotDensity, RegisteredSetting.MovementSpeed, RegisteredSetting.SpeechScaling,
+            RegisteredSetting.SpeechScaleAmount, RegisteredSetting.ReducedMotion,
+            RegisteredSetting.CommandStartWait, RegisteredSetting.ReplyStartWait, RegisteredSetting.TrailingSilence,
+            RegisteredSetting.SpeechVoice, RegisteredSetting.DetailPresentation);
         review.Source.Should().Contain("System").And.Contain("100").And.Contain("Hybrid")
             .And.Contain(saved ? "confirmed saved" : "confirmed absent");
         review.Source.Should().Contain($"appearance.presence-display = {(presence == 1 ? "true" : "false")} boolean");
-        Encoding.UTF8.GetByteCount(review.Source).Should().BeLessThan(4096, "only seven closed scalar rows can enter the source");
+        Encoding.UTF8.GetByteCount(review.Source).Should().BeLessThan(4096, "the closed source includes presence and timing scalars and the typed speech selection");
         review.Text.Should().Contain(review.Source).And.Contain(review.Question)
             .And.Contain(SettingInspectionReview.Policy).And.Contain("NEW Local context conversation");
         review.Original.SessionId.Should().NotBe(review.Destination.SessionId);
@@ -71,13 +101,116 @@ public sealed class SettingInspectionTests
     [InlineData(RegisteredSetting.SummarySentences, 0)]
     [InlineData(RegisteredSetting.PlaybackVolume, 101)]
     [InlineData(RegisteredSetting.ResponseMode, 3)]
+    [InlineData(RegisteredSetting.DetailPresentation, -1)]
+    [InlineData(RegisteredSetting.DetailPresentation, 3)]
     [InlineData(RegisteredSetting.PresenceDisplay, -1)]
     [InlineData(RegisteredSetting.PresenceDisplay, 2)]
     [InlineData(RegisteredSetting.PresenceDisplay, int.MinValue)]
     [InlineData(RegisteredSetting.PresenceDisplay, int.MaxValue)]
+    [InlineData(RegisteredSetting.PresenceTimeout, 0)]
+    [InlineData(RegisteredSetting.PresenceTimeout, 61)]
+    [InlineData(RegisteredSetting.PresenceSize, 239)]
+    [InlineData(RegisteredSetting.PresenceSize, 601)]
+    [InlineData(RegisteredSetting.DotSize, 49)]
+    [InlineData(RegisteredSetting.DotSize, 201)]
+    [InlineData(RegisteredSetting.DotDensity, 24)]
+    [InlineData(RegisteredSetting.DotDensity, 201)]
+    [InlineData(RegisteredSetting.MovementSpeed, 24)]
+    [InlineData(RegisteredSetting.MovementSpeed, 201)]
+    [InlineData(RegisteredSetting.SpeechScaling, -1)]
+    [InlineData(RegisteredSetting.SpeechScaling, 2)]
+    [InlineData(RegisteredSetting.SpeechScaleAmount, -1)]
+    [InlineData(RegisteredSetting.SpeechScaleAmount, 201)]
+    [InlineData(RegisteredSetting.ReducedMotion, -1)]
+    [InlineData(RegisteredSetting.ReducedMotion, 2)]
+    [InlineData(RegisteredSetting.ResponseTimeout, 10)]
+    [InlineData(RegisteredSetting.WindowsSpeechRate, 0)]
+    [InlineData(RegisteredSetting.SpeechVoice, 0)]
     [InlineData((RegisteredSetting)99, 0)]
     public void ClassificationRejectsAnythingOutsideClosedValidatedScalars(RegisteredSetting setting, int value) =>
         FluentActions.Invoking(() => new SettingObservation(setting, value, false, 1)).Should().Throw<ArgumentOutOfRangeException>();
+
+    [Theory]
+    [InlineData("windows-sapi", null, false)]
+    [InlineData("windows-sapi", "Exact voice", true)]
+    [InlineData("kokoro", "af_heart", true)]
+    [InlineData("kokoro", "\"instructions\" / are data", true)]
+    public void CompoundSelectionPreservesExactValidatedFieldsAndDefaultSemantics(string provider, string? voice, bool saved)
+    {
+        var selection = new SpeechSelection(provider, voice);
+        var observation = new SettingObservation(selection, saved, 17);
+        observation.Setting.Should().Be(RegisteredSetting.SpeechVoice);
+        observation.Value.Should().BeNull();
+        observation.Selection.Should().Be(selection);
+        observation.IsSaved.Should().Be(saved);
+        observation.Revision.Should().Be(17);
+        observation.Text.Should().Contain(JsonSerializer.Serialize(provider))
+            .And.Contain("future-only")
+            .And.Contain("no runtime claim");
+        observation.Text.Should().Contain(voice is null ? "provider-advertised default (exact voice not resolved)" : JsonSerializer.Serialize(voice));
+        using var wire = JsonDocument.Parse(JsonSerializer.Serialize(observation));
+        wire.RootElement.GetProperty("Selection").GetProperty("ProviderId").GetString().Should().Be(provider);
+        wire.RootElement.GetProperty("Selection").GetProperty("VoiceId").GetString().Should().Be(voice);
+        wire.RootElement.GetProperty("Value").ValueKind.Should().Be(JsonValueKind.Null);
+        wire.RootElement.GetProperty("Text").GetString().Should().Be(observation.Text);
+    }
+
+    [Theory]
+    [InlineData("unknown", "voice", 1)]
+    [InlineData("windows-sapi", "", 1)]
+    [InlineData("windows-sapi", " padded ", 1)]
+    [InlineData("windows-sapi", "line\nbreak", 1)]
+    [InlineData("windows-sapi", "valid", -1)]
+    public void CompoundSelectionCannotBypassDomainValidationOrRevision(string provider, string voice, long revision) =>
+        FluentActions.Invoking(() => new SettingObservation(new SpeechSelection(provider, voice), true, revision))
+            .Should().Throw<ArgumentOutOfRangeException>();
+
+    [Fact]
+    public void CompoundSelectionRequiresTypedValueAndFullDomainVoiceBound()
+    {
+        FluentActions.Invoking(() => new SettingObservation(null!, false, 1)).Should().Throw<ArgumentNullException>();
+        var longest = new SpeechSelection("windows-sapi", new string('x', SpeechSelection.MaximumVoiceIdLength));
+        new SettingObservation(longest, true, 1).Selection.Should().Be(longest);
+        FluentActions.Invoking(() => new SettingObservation(longest with { VoiceId = longest.VoiceId + "x" }, true, 1))
+            .Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Theory]
+    [InlineData(RegisteredSetting.PresenceTimeout, 1, "seconds")]
+    [InlineData(RegisteredSetting.PresenceTimeout, 60, "seconds")]
+    [InlineData(RegisteredSetting.PresenceSize, 240, "pixels")]
+    [InlineData(RegisteredSetting.PresenceSize, 600, "pixels")]
+    [InlineData(RegisteredSetting.DotSize, 50, "percent")]
+    [InlineData(RegisteredSetting.DotSize, 200, "percent")]
+    [InlineData(RegisteredSetting.DotDensity, 25, "percent")]
+    [InlineData(RegisteredSetting.DotDensity, 200, "percent")]
+    [InlineData(RegisteredSetting.MovementSpeed, 25, "percent")]
+    [InlineData(RegisteredSetting.MovementSpeed, 200, "percent")]
+    [InlineData(RegisteredSetting.SpeechScaleAmount, 0, "percent")]
+    [InlineData(RegisteredSetting.SpeechScaleAmount, 200, "percent")]
+    public void PresenceBoundsRetainExactScalarAndUnits(RegisteredSetting setting, int value, string units)
+    {
+        var observation = new SettingObservation(setting, value, true, 42);
+        observation.Value.Should().Be(value);
+        observation.Revision.Should().Be(42);
+        observation.Text.Should().Be($"{RegisteredSettingRegistry.Get(setting).Id} = {value} {units} (confirmed saved; matches live service)");
+    }
+
+    [Theory]
+    [InlineData(RegisteredSetting.SpeechScaling, 0)]
+    [InlineData(RegisteredSetting.SpeechScaling, 1)]
+    [InlineData(RegisteredSetting.ReducedMotion, 0)]
+    [InlineData(RegisteredSetting.ReducedMotion, 1)]
+    public void PresenceBooleansAreExactAndReducedMotionNeverClaimsForcedMotion(RegisteredSetting setting, int value)
+    {
+        var observation = new SettingObservation(setting, value, false, 0);
+        observation.Text.Should().Contain($"= {(value == 1 ? "true" : "false")} boolean (confirmed absent; live default)");
+        if (setting == RegisteredSetting.ReducedMotion)
+        {
+            observation.Text.Should().EndWith(value == 0
+                ? "; follows Windows reduced-motion preference, not forced motion" : "; freezes presence particles");
+        }
+    }
 
     [Fact]
     public void NegativeRevisionAndIncompleteOrDuplicateSourcesAreRejected()

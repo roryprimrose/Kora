@@ -55,7 +55,27 @@ Each type has three source groups:
 - **User**: supported Copilot skill folders and VS Code/VS Code Insiders user
   profile sources. The source path distinguishes identical names and profiles.
 
-Search matches names and source paths, not artifact bodies. Built-in groups can
+Use **Filter artifacts** to narrow the selected category as you type. Matching is
+case-insensitive across names, source paths, source groups and the displayed
+**Disabled** label; surrounding whitespace is ignored. The count shows matching
+and total artifacts for that category. **Clear** restores its full list, and the
+filter stays in place when you switch categories without discarding editor text
+([native filter](../src/Kora/CustomizationWindow.cs)).
+
+Filtering uses already-listed metadata, not artifact bodies or MCP tool schemas;
+it never reads a definition, connects to a server or invokes a tool
+([filter regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.Filter.cs)).
+
+In **MCP Servers**, the same input additionally filters built-in Kora tools and external capabilities from an explicitly admitted discovery snapshot.
+**All capabilities / Tools / Resources / Prompts** narrows those rows; the count shows matching/total artifacts and capabilities separately. **Clear** restores the current category without discarding editor text or selected items ([shared catalogue](../src/Kora/CustomizationWindow.Tools.cs)).
+
+Capability matching uses names, exact item identities and displayed source/group labels, not schemas or content. Without an admitted capability snapshot, ordinary artifact filtering/counts remain unchanged.
+A hidden selected row is not silently replaced; private closure removes the snapshot and blocks late repopulation ([consumer regression](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.Tools.cs)).
+
+Select one capability and **Review selected server capabilities** to review server/category/item consideration choices. A category's **Enable all / Disable all** applies to every item, including filter-hidden rows, and sets the default for new entries.
+Saving requires separate confirmation; filtering never saves or supplies permission ([capability management](mcp-transport.md#choose-which-capabilities-kora-may-consider)).
+
+Built-in groups can
 be empty for a type. Selecting an artifact reads its complete bounded file set as
 plain source; it does not execute scripts, invoke agents or connect MCP servers.
 Binary, oversized, unsafe-path or unsupported packages report an error rather
@@ -223,6 +243,8 @@ Save checks the exact source again after staging, immediately before publication
 The [host validator](../src/Kora.Application/Definitions/PromptTemplateAuthoring.cs) uses the existing native parser: names start with a lowercase ASCII letter and contain only lowercase letters, digits or hyphens, at most 64 characters. Each value is nonblank and bounded to 512 UTF-16 units / 2,048 UTF-8 bytes; the expanded request is bounded to 4,096 / 16,384. Substitution visits original markers once: marker-looking input stays literal. No reads, secrets, defaults, expressions, recursive expansion, tools, automatic activation or submission are added.
 
 **Cancel prompt authoring**, edits to the description/declaration/draft, changed input/source/catalogue/provider, privacy/channel/call/ownership loss, close or the two-minute proposal lifetime retire pending work. Late output cannot replace the draft; cancellation retains model ownership until actual termination. Unknown capabilities and unavailable local models report refusal without hosted fallback. Production model qualification remains unavailable; deterministic implementation tests do not enable a provider ([lifecycle](../src/Kora/CustomizationWindowController.cs), [complete-operation regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.PromptAuthoring.cs)).
+
+This also applies while the final source check is pending after the model has finished. The host checks cancellation, the proposal lifetime, private input and the exact authoring session again before returning the proposal. A source check completing late cannot restore a retired review; start a fresh reviewed request.
 
 ### Refine other definitions
 

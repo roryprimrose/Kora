@@ -36,7 +36,7 @@ public sealed class AsyncEventBoundaryTests
                 { reported.TrySetResult(); }
             };
             var calls = 0;
-            var window = new DetailWindow(state, result, (_, _, _) =>
+            var window = new DetailWindow(state, result, (_, _, _, _) =>
             {
                 calls++;
                 return copy.Task;

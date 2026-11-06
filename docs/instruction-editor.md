@@ -49,6 +49,10 @@ Supported source files refresh automatically when changed outside Kora.
 This also works if a supported editor source tree is created after Kora starts,
 even when its parent folders were missing, or a supported profile folder is
 renamed or deleted (including folder names containing dots). Existing source
+directories registered outside the default locations also recover if the whole
+directory is renamed away and recreated at its registered path. Kora withdraws
+the missing source and watches the replacement, not the renamed sibling.
+Restoring the old bytes does not restore a previous use approval. Existing source
 and discovery-depth limits still apply; Kora does not scan unrelated profile
 content or create missing folders. No restart or configuration toggle is needed.
 A changed source retires stale requests, questions and approvals. Discovery
@@ -103,6 +107,13 @@ intermediate absence. Changed source/destination, replaced parents/aliases,
 withdrawn privacy/input admission and uncertain publication do not authorize
 overwrite, automatic retry or rollback
 ([writer](../src/Kora.Windows/ArtifactDiscovery/WindowsOwnedDefinitionFileAccess.Rename.cs)).
+
+A staging write/flush failure before private intent publication removes only
+that unpublished staging file and leaves the exact original untouched.
+The error does not confirm a rename. Explicitly inspect the original and start
+a fresh review; no retry happens automatically. If cleanup is also reported
+unconfirmed, inspect storage recovery rather than assume the staging file is gone
+([failure checks](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsOwnedInstructionStoreTests.Rename.cs)).
 
 After an interruption, choose **Recover rename** or
 `instructions recover-rename`. Inspect the original proposal and exact

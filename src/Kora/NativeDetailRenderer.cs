@@ -140,6 +140,12 @@ internal sealed partial class NativeDetailRenderer(
             return Fallback(source, "TableStructure", tableError, reference,
                 validation.Blocks, validation.Nodes, validation.Depth);
         }
+        if (document.Descendants<CodeBlock>().Any(code => !HasContiguousCodeSource(code, source)))
+        {
+            return Fallback(source, "CodeSource",
+                "Noncontiguous literal code source; exact source fallback (container markers are not code).", reference,
+                validation.Blocks, validation.Nodes, validation.Depth);
+        }
         List<NativeTextSection> sections;
         try { sections = Flatten(document, source, strikethrough); }
         catch (InvalidDataException)
@@ -163,6 +169,13 @@ internal sealed partial class NativeDetailRenderer(
         {
             return Fallback(source, "EmptyProjection", "No readable native projection; exact source fallback.", reference);
         }
+        NativeClipboardSelection selection;
+        try { selection = ClipboardSelection(document, sections, semantic, strikethrough); }
+        catch (InvalidOperationException)
+        {
+            return Fallback(source, "ClipboardMapping", "Native clipboard mapping failed; exact source fallback.", reference,
+                validation.Blocks, validation.Nodes, validation.Depth);
+        }
         render?.SetStatus(ActivityStatusCode.Ok);
         return new(source, semantic,
             $"Rendered {profile} CommonMark text subset. External links are inert; emphasis is plain text."
@@ -171,7 +184,7 @@ internal sealed partial class NativeDetailRenderer(
                 + (checklists ? " Checklist states are display-only text, not host tasks or checkbox controls." : string.Empty)
                 + (strikethrough ? " Strikethrough wording is labelled display-only text, not a diff, task status, action or permission." : string.Empty),
             false, sections, validation.Blocks, validation.Nodes, validation.Depth,
-            ClipboardHtml: ClipboardHtml(document));
+            ClipboardHtml: ClipboardHtml(document), ClipboardSelection: selection);
     }
 
     private static NativeDocumentResult Success(
@@ -329,6 +342,18 @@ internal sealed partial class NativeDetailRenderer(
             _ => "Unsupported Markdown node/extension; exact source fallback.",
         };
 
+    private static bool HasContiguousCodeSource(CodeBlock code, string source)
+    {
+        for (var index = 1; index < code.Lines.Count; index++)
+        {
+            var end = code.Lines.Lines[index - 1].Slice.End + 1;
+            if (end < source.Length && source[end] == '\r') { end++; }
+            if (end < source.Length && source[end] == '\n') { end++; }
+            if (end != code.Lines.Lines[index].Slice.Start) { return false; }
+        }
+        return true;
+    }
+
     private static List<NativeTextSection> Flatten(MarkdownDocument document, string source, bool strikethrough)
     {
         var sections = new List<NativeTextSection>();
@@ -420,6 +445,7 @@ internal sealed partial class NativeDetailRenderer(
                 Code = codeSource,
                 Strikethrough = strikeProjection?.Spans ?? [],
                 HeadingId = block is HeadingBlock ? block.GetAttributes().Id : null,
+                HeadingLevel = block is HeadingBlock heading ? heading.Level : 0,
                 Links = links.ToImmutable(),
                 ExternalLinks = externalLinks,
             });
@@ -429,16 +455,26 @@ internal sealed partial class NativeDetailRenderer(
 
     private static string InlineText(ContainerInline? root, InlineStrikethroughProjection? strikethrough = null,
         ImmutableArray<NativeDocumentLink>.Builder? links = null,
-        List<NativeExternalDocumentLink>? externalLinks = null)
+        List<NativeExternalDocumentLink>? externalLinks = null,
+        Action<Inline, int, int>? captureFormatting = null)
     {
         if (root is null) { return string.Empty; }
         var text = new BoundedNativeText();
         var linkStarts = new Dictionary<LinkInline, int>();
+        var formattingStarts = new Dictionary<EmphasisInline, int>();
         var pending = new Stack<(Inline Node, bool Exit)>();
         pending.Push((root, false));
         while (pending.TryPop(out var entry))
         {
-            if (entry.Exit && strikethrough?.Exit(entry.Node, text) == true) { continue; }
+            if (entry.Exit)
+            {
+                var strikeExit = strikethrough?.Exit(entry.Node, text) == true;
+                if (entry.Node is EmphasisInline emphasis && formattingStarts.Remove(emphasis, out var from))
+                {
+                    captureFormatting!(emphasis, from, text.Length - from);
+                }
+                if (strikeExit) { continue; }
+            }
             if (entry.Exit && entry.Node is LinkInline link)
             {
                 if (linkStarts.Remove(link, out var start) && link.Url is { } destination)
@@ -451,10 +487,15 @@ internal sealed partial class NativeDetailRenderer(
                 text.Append(")");
                 continue;
             }
+            if (entry.Exit) { continue; }
             switch (entry.Node)
             {
                 case LiteralInline literal: text.Append(literal.Content.ToString()); break;
-                case CodeInline code: text.Append(code.Content); break;
+                case CodeInline code:
+                    var codeStart = text.Length;
+                    text.Append(code.Content);
+                    captureFormatting?.Invoke(code, codeStart, text.Length - codeStart);
+                    break;
                 case TaskList task: text.Append(task.Checked ? "Checked:" : "Unchecked:"); break;
                 case LineBreakInline: text.Append(Environment.NewLine); break;
                 case AutolinkInline autolink:
@@ -463,12 +504,14 @@ internal sealed partial class NativeDetailRenderer(
                     text.Append(" (inert destination)");
                     break;
                 case ContainerInline container:
+                    var capture = captureFormatting is not null && container is EmphasisInline;
+                    if (capture) { formattingStarts.Add((EmphasisInline)container, text.Length); }
                     if (links is not null && container is LinkInline { Url: { } url } local
                         && url.StartsWith('#'))
                     {
                         linkStarts.Add(local, text.Length);
                     }
-                    if (strikethrough?.Enter(container, text) == true || container is LinkInline)
+                    if (strikethrough?.Enter(container, text) == true || container is LinkInline || capture)
                     { pending.Push((container, true)); }
                     for (var child = container.LastChild; child is not null; child = child.PreviousSibling)
                     {

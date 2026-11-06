@@ -13,6 +13,44 @@ namespace Kora.Application.UnitTests.Dependencies;
 
 public sealed partial class ModelTurnHostTests
 {
+    [Fact]
+    public async Task ConversationShutdownRetainsWorkerFailureAfterPhysicalProviderJoin()
+    {
+        using var f = new Fixture { TrackPendingRecords = true };
+        var host = ConfigureCancellation(f);
+        var failure = new IOException("private diagnostic sink failure");
+        var logger = new ConversationShutdownLogger { OnFailure = () => throw failure };
+        var workspace = new SessionWorkspaceService(f, new(f), f, NullLogger<SessionWorkspaceService>.Instance);
+        var service = new SessionConversationService(f, f, workspace, f, host, f.Time,
+            logger, host, f.CancelAudit);
+        var provider = new TaskCompletionSource<ModelProviderReply>(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.Adapter.Pending = provider.Task;
+        var target = new SessionWorkspaceEntry(f.Session, null);
+        var active = await service.SubmitQueuedAsync(target, "active private original", () => true, Token);
+        var disposal = service.DisposeAsync().AsTask();
+        Exception? disposalFailure;
+        try
+        {
+            disposal.IsCompleted.Should().BeFalse("the original provider is still physically held");
+            host.IsQuiescent.Should().BeFalse();
+            active.Completion.IsCompleted.Should().BeFalse();
+        }
+        finally
+        {
+            provider.TrySetResult(LateAnswer());
+            disposalFailure = await Record.ExceptionAsync(() => disposal);
+        }
+        disposalFailure.Should().BeSameAs(failure);
+        var repeatedFailure = await Record.ExceptionAsync(async () => await service.DisposeAsync());
+        repeatedFailure.Should().BeSameAs(failure);
+        host.IsQuiescent.Should().BeTrue();
+        f.Adapter.Calls.Should().Be(1);
+        f.PendingRecords.Values.Should().OnlyContain(item => item.Message.AssistantResponse == null);
+        active.Completion.IsCompleted.Should().BeFalse("a failed worker cannot invent a terminal receipt");
+        await service.Invoking(value => value.ReadPendingConversationAsync(target, () => true, Token))
+            .Should().ThrowAsync<ObjectDisposedException>();
+    }
+
     [Theory]
     [InlineData(1)]
     [InlineData(2)]
@@ -77,6 +115,7 @@ public sealed partial class ModelTurnHostTests
 
     private sealed class ConversationShutdownLogger : ILogger<SessionConversationService>
     {
+        internal Action? OnFailure { get; init; }
         internal TaskCompletionSource CancellationFailure { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal ConcurrentQueue<string> Failures { get; } = new();
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
@@ -88,6 +127,7 @@ public sealed partial class ModelTurnHostTests
             var failure = properties.Single(item => item.Key is "FailureType").Value as string;
             if (failure is null) { return; }
             Failures.Enqueue(failure);
+            OnFailure?.Invoke();
             if (failure is nameof(AggregateException)) { CancellationFailure.TrySetResult(); }
         }
     }

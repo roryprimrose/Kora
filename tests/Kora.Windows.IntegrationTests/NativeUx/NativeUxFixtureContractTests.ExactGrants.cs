@@ -9,6 +9,8 @@ using AwesomeAssertions;
 using Kora.Application.Interaction;
 using Kora.Core.Authorization;
 using Kora.Core.Interaction;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
 using Kora.NativeUxFixture;
 using Kora.Controls;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -73,16 +75,15 @@ public sealed partial class NativeUxFixtureContractTests
                 var list = window.GetLogicalDescendants().OfType<ListBox>().Single(item =>
                     string.Equals(Avalonia.Automation.AutomationProperties.GetName(item), "Permission grants: exact operation grants and URI rules", StringComparison.Ordinal));
                 list.Items.Count.Should().Be(records.Length);
-                foreach (var (label, displayed) in new[]
-                {
-                    ("Current exact grant inspection", inspection),
-                    ("Exact grant operation status", state.Message),
-                })
-                {
-                    var text = window.GetLogicalDescendants().OfType<NamedTextBlock>().Single(control =>
-                        string.Equals(AutomationProperties.GetName(control), label, StringComparison.Ordinal));
-                    ControlAutomationPeer.CreatePeerForElement(text)!.GetName().Should().Be(label + ": " + displayed);
-                }
+                var inspected = window.FindControl<TextBox>("ExactInspection")!;
+                var inspectionPeer = ControlAutomationPeer.CreatePeerForElement(inspected)!;
+                inspectionPeer.GetName().Should().Be("Current exact grant inspection");
+                var inspectionValue = inspectionPeer.GetProvider<IValueProvider>()!;
+                inspectionValue.IsReadOnly.Should().BeTrue();
+                inspectionValue.Value.Should().Be(inspection);
+                var status = window.GetLogicalDescendants().OfType<NamedTextBlock>().Single(control =>
+                    string.Equals(AutomationProperties.GetName(control), "Exact grant operation status", StringComparison.Ordinal));
+                ControlAutomationPeer.CreatePeerForElement(status)!.GetName().Should().Be("Exact grant operation status: " + state.Message);
                 window.UpdateLayout();
                 var provider = ControlAutomationPeer.CreatePeerForElement(list)!.GetProvider<IScrollProvider>()!;
                 if (provider.VerticallyScrollable)
@@ -135,11 +136,19 @@ public sealed partial class NativeUxFixtureContractTests
             state.Reviewed = true;
             fixture.Access.SetOpen(false);
             state.CanRevoke.Should().BeFalse();
+            fixture.Main.CanRevealPrivatePresentation.Should().BeFalse();
             var denied = () => state.RevokeAsync();
             await denied.Should().ThrowAsync<InvalidOperationException>();
+            await fixture.Main.PrivacyClosureTask.WaitAsync(TestContext.Current.CancellationToken);
             fixture.Access.SetOpen(true);
-            await fixture.Main.RefreshCommand.ExecuteAsync();
-            fixture.Main.ShowApplication();
+            using (var gesture = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+                HostActivityLayer.Desktop, HostOperation.Presentation))
+            {
+                await fixture.Main.RefreshCommand.ExecuteAsync();
+                fixture.Main.ShowApplication();
+                fixture.Main.CanRevealPrivatePresentation.Should().BeTrue();
+                gesture.Complete(HostOperationOutcome.Completed);
+            }
             state.CanRevoke.Should().BeFalse();
             await SelectAsync(fixture.ExactTarget);
             state.Reviewed = true;

@@ -83,6 +83,13 @@ public sealed partial class LocalEventBroker(
                 {
                     Require(Eligible);
                     token.ThrowIfCancellationRequested();
+                    now = time.GetUtcNow();
+                    if (now < state.HighWatermark)
+                    {
+                        held = [];
+                        return new LocalEventSnapshot([], 0, LocalEventReason.ClockRollback)
+                        { RoutineQuiet = routineQuiet, AdmissionRevision = revision, NoticeRevision = notices };
+                    }
                     var proposed = ObserveReceipts(session, observed, now, routineQuiet.Enabled);
                     var receipts = proposed.Receipts.ToList();
                     proposed = proposed with { Receipts = receipts };
@@ -133,7 +140,8 @@ public sealed partial class LocalEventBroker(
                 token.ThrowIfCancellationRequested();
                 Require(Eligible);
                 Observed(logger, snapshot.Events.Count, snapshot.Omitted);
-                activity.Complete(HostOperationOutcome.Completed);
+                activity.Complete(snapshot.Reason == LocalEventReason.ClockRollback
+                    ? HostOperationOutcome.Failed : HostOperationOutcome.Completed);
                 return snapshot;
             }
             catch (OperationCanceledException)
@@ -210,6 +218,11 @@ public sealed partial class LocalEventBroker(
                 {
                     Require(Eligible);
                     token.ThrowIfCancellationRequested();
+                    now = time.GetUtcNow();
+                    if (now < state.HighWatermark)
+                    { return new LocalEventView(target, LocalEventReason.ClockRollback, null); }
+                    if (now >= target.ExpiresAt)
+                    { return new LocalEventView(target, LocalEventReason.Expired, null); }
                     var receipt = state.Receipts.Single(item => item.Event.Id == target.Id);
                     if (receipt.Event.Revision != command.Revision || !receipt.Event.SameSource(target))
                     { throw new InvalidOperationException("The exact event revision changed during admission."); }
@@ -233,14 +246,17 @@ public sealed partial class LocalEventBroker(
                     };
                     var proposed = state with { HighWatermark = now,
                         Receipts = state.Receipts.Select(item => item.Event.Id == target.Id ? changed : item).ToArray() };
+                    bool ActionEligible() => Eligible() && time.GetUtcNow() >= state.HighWatermark
+                        && time.GetUtcNow() < target.ExpiresAt;
                     Commit(proposed, request, command.Operation == LocalEventOperation.Dismiss
-                        ? "local-event.dismiss" : "local-event.defer", Eligible, token);
+                        ? "local-event.dismiss" : "local-event.defer", ActionEligible, token);
                     held = held.Select(item => item.Id == target.Id ? changed.Event : item).ToArray();
                     return new LocalEventView(changed.Event, proposed.Reason(changed, now), until);
                 }, token).ConfigureAwait(false);
                 token.ThrowIfCancellationRequested();
                 Require(Eligible);
-                activity.Complete(HostOperationOutcome.Completed);
+                activity.Complete(result.Reason is LocalEventReason.ClockRollback or LocalEventReason.Expired
+                    ? HostOperationOutcome.Failed : HostOperationOutcome.Completed);
                 return result;
             }
             catch (OperationCanceledException) { activity.Complete(HostOperationOutcome.Cancelled); throw; }

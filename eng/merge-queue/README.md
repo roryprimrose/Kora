@@ -11,6 +11,128 @@ It needs no local agent, workstation, external queue service or always-on runner
 An unknown mode fails CI admission rather than silently enabling another policy.
 Do not enable the queue merely by merging its implementation PR.
 
+## Optional hourly main validation
+
+`KORA_MAIN_BUILD_PROFILE=hourly-v1` is a separate administrator opt-in. It
+requires enabled `batch-v1` admission and `independent-v1` delivery. Absent/empty
+retains per-merge main validation; unknown values fail closed. Merging this
+implementation does not activate the profile.
+
+Automatic main pushes then run admission feedback only, explicitly reporting
+coalescing rather than claiming skipped validation passed. The existing
+serialized App controller owns automatic main dispatch; CI has no separate cron.
+Repository events and the separate five-minute timer wakeup check whether
+the current completed main source differs from the qualified activation baseline,
+last actual full attempt and last dispatch. The controller reserves at most one
+automatic dispatch per UTC hourly slot, with at least 60 minutes since activation,
+the preceding request, actual run creation and observed full attempt.
+An unchanged source is not automatically retried after failure. Explicit
+manual/tag validation remains available under its existing source and release
+rules. GitHub controller wakeups remain best-effort, not a promise of exact
+wall-clock launch time. Live automatic dispatch and same-source/hour suppression
+require observation rather than a manual-run proxy.
+
+The [timer workflow](../../.github/workflows/merge-queue-timer.yml) runs separately
+from the serialized controller, on the off-peak `2-57/5 * * * *` schedule. With
+queue mode enabled it uses an Actions-only token to request ordinary protected
+reconciliation on main. A main push that changes the timer file also
+requests reconciliation, providing automatic runtime validation of timer edits
+without treating that push as evidence of cron delivery. It never checks out source, changes queue state, reserves
+candidates or dispatches CI. Duplicate or delayed wakeups still pass the same
+durable source/hour guards. Separating timer requests from controller execution
+does not make GitHub cron a guaranteed clock; delayed or dropped schedules can
+still postpone an otherwise eligible build on a quiet repository.
+
+The controller's CI lifecycle trigger accepts only main-branch runs; a second
+job guard excludes ordinary `pull_request` feedback, including fork branches
+named main. PR lifecycle, review/enrollment changes, main pushes,
+candidate/main CI lifecycle, explicit continuation and timer requests remain
+wakeups. Lightweight waiting-PR feedback is not an admission dependency, and
+selected candidate CI still executes its own complete policy/unit/coverage gates.
+
+The eight candidate gates and all 27 main identities remain unchanged. Candidate
+admission advances from the App's exact persisted completed-source record; it
+does not wait for each main build to start. Full main qualification, fresh
+payload/installer bytes and protected source-bound beta publication are still
+required for the selected hourly source. Intermediate sources are not published
+by relabeling another run's artifacts.
+
+Only the serialized controller records dispatch intent and observed attempt/cursor metadata.
+First-attempt same-repository CI runs and their exact-source version job identify
+an actual full attempt, including a failed one; skipped jobs and missing evidence
+do not. The scheduled admission path also reconciles earlier runs before granting
+work for historical native schedules. The attempt ledger is scheduling evidence,
+never successful qualification or new authority. Automatic dispatch uses ordinary
+main CI, separate from the candidate lane, and waits while a candidate is active.
+
+The controller persists source/hour intent before requesting dispatch, then saves
+the exact returned run ID using the response-bearing GitHub API version
+`2026-03-10`. It verifies first-attempt repository/source metadata and actual
+creation time before another automatic dispatch. An ambiguous response or missing
+run metadata retains the receipt and reports the unresolved outcome; it never
+replays the request or guesses a run. PR admission remains independent of that
+pending scheduler outcome. Operator reconciliation or the guarded profile
+recovery protocol is required for an intent with no verifiable returned run ID;
+do not edit queue state or manually replay it. A prepared administrator transition
+remains immutable and cannot dispatch work.
+
+### Guarded main scheduling switch
+
+All four operations use the existing protected controller, administrator check,
+exact state checkpoint and `acknowledge_batch_change=true`. They never change
+configuration, withdraw Auto-merge, cancel candidates/publishers or bypass proof.
+The same administrator and generated hold token own the complete transition.
+
+1. Follow the [account-safe client protocol](#copilot-and-other-pr-clients).
+   Obtain separate authority for the repository variable write and guarded
+   transition. Read current main, queue state, profiles, protection and physical
+   CI ownership. Do not start a second delivery/main-scheduling transition.
+2. Dispatch `hold-main-builds` on trusted main with `main_build_profile=hourly-v1`
+   and the exact `recovery_checkpoint`. Read back
+   `mainSchedulingTransition.phase=draining` and its token. Existing owned work
+   continues; only new reservations are held.
+3. After the active candidate drains, dispatch `prepare-main-builds` with a fresh
+   checkpoint and the same `recovery_ticket`/target. It requires the current
+   completed-source record, reviewed main scheduling schema, successful complete
+   first-attempt qualification, exact tree and physically quiescent CI/publication.
+   Failed/skipped main is not readiness. Use `abort-main-builds` and repair the
+   source instead of changing the profile to escape a failure.
+4. Read the ready checkpoint, source, full qualification, live profiles and
+   physical ownership again. Only under separately verified administrator
+   authority set the repository variable `KORA_MAIN_BUILD_PROFILE` to `hourly-v1`.
+   Dispatch `resume-main-builds` using that exact ready checkpoint/token/target.
+   It revalidates the full boundary and atomically records the qualified baseline
+   and durable adoption. Ambiguous writes require readback, not blind repetition.
+
+For example, the separately authorized hold is:
+
+```powershell
+gh workflow run merge-queue.yml --repo github.com/roryprimrose/Kora --ref main `
+  -f operation=hold-main-builds -f main_build_profile=hourly-v1 `
+  -f recovery_checkpoint=<reviewed-state-commit> -F acknowledge_batch_change=true
+```
+
+The profile write is a separate administrator action, not part of PR delivery:
+
+```powershell
+gh variable set KORA_MAIN_BUILD_PROFILE --repo github.com/roryprimrose/Kora --body hourly-v1
+```
+
+Rollback uses the same drained/qualified protocol with target `per-merge` and a
+separately authorized restoration/removal of that one variable. Configuration
+must remain at the old value until ready and match the target only for resume.
+Unexpected source/configuration/authority changes retain the hold and fail
+explicitly. A ready hold does not observe new attempts or reserve work, preserving
+its exact checkpoint while the operator switches configuration.
+
+Run `node .\eng\run-policy-tests.cjs`, `.\eng\Test-CiPreflight.ps1`,
+`.\eng\Test-BuildVersion.ps1` and `.\eng\Test-GitHubRelease.ps1`. Deterministic
+fixtures cover no-change/changed/same-slot and rolling-hour decisions, durable
+intent/run identity, ambiguous-response non-replay, earlier unobserved attempts,
+failed attempts, API/identity failures, guarded activation/rollback and complete
+scheduled-source publication. These tests do not claim a live profile switch or
+observed hourly cadence.
+
 ## Opt-in independent beta delivery
 
 `KORA_MERGE_QUEUE_DELIVERY_PROFILE=independent-v1` is a separate administrator
@@ -22,14 +144,23 @@ no active candidate, no outstanding main/publication jobs, and a successfully
 qualified current tip. Do not toggle profiles underneath queued publishers.
 
 The independent profile preserves one candidate lane, complete portable
-100% line/branch coverage, all twelve Windows partitions/five aggregates,
-managed setup compilation/tests, payload inspection and protected App admission.
-The reviewed `windows-12-delivery-v1` inventory has 25 identities; its installer
-identity is **Validate installer packaging**, not a claim that MSI/Burn ran.
-Historical `windows-12-v1` and exact negative-retirement contracts remain intact.
-The new workflow has its own exact-blob, twenty-identity failed-preflight
-no-fanout retirement proof; a marker, missing job or workflow failure alone is not
-physical quiescence. It authorizes retirement only, never successful admission.
+100% line/branch coverage, payload inspection and protected App admission.
+The reviewed `parallel-pr-v1` inventory requires eight candidate identities:
+admission, version, portable tests/coverage, portable policy contracts, portable
+aggregate, payload, managed setup/metadata validation and installer packaging
+validation. Integration/UI tests run in post-merge main/release validation only.
+Main qualification requires all 27 identities, including the shared Windows
+build, twelve partitions and five aggregates. **Validate installer packaging**
+is not a claim that unselected MSI/Burn ran. Managed setup compilation and
+installer metadata fixtures remain mandatory; setup integration tests move with
+the other integration tests. Metadata dependencies are restored
+even when MSI/Burn is not selected.
+Historical `unit-pr-v1` six-candidate/25-main inventories, `windows-12-v1`,
+`windows-12-delivery-v1` and their exact
+negative-retirement contracts remain intact. Historical exact-blob failed-preflight
+proof authorizes retirement only, never successful admission; the new marker does
+not confer a new negative-retirement exception. A marker, missing job or workflow
+failure alone is not physical quiescence.
 Single-candidate/control-path work continues to build physical installer packages.
 
 For combined candidates only, trusted admission compares the complete admitted
@@ -84,6 +215,38 @@ Implementation checks use deterministic fake GitHub/publication operations:
 `.\eng\Test-GitHubRelease.ps1`. They neither activate this profile nor qualify
 hosted concurrency, App permissions or actual release publication.
 
+### Guarded drain, switch and resume
+
+The [administrator transition](recovery.cjs) provides a durable reservation-only hold when normal queue continuation prevents a drained cutover. It does not change mode, withdraw enrollment, cancel candidates/publishers, grant variable permissions to the App, or replace candidate proof.
+The [batch controller](batch.cjs) continues already-owned batch/singleton work and actual-tip qualification, but checks the hold before listing or reserving new candidates.
+
+Use the [account-safe CLI preflight](../../.github/skills/kora-github-pr/SKILL.md#preflight-verify-before-mutating) and separately recorded authority for this entire operation. All four operations use the existing protected controller environment and concurrency group.
+They require a first-attempt manual invocation on main, live administrator authority, exact state checkpoint and `acknowledge_batch_change=true`; after hold creation they also require the same administrator and exact `recovery_ticket` hold token ([validation](recovery.cjs), [workflow](../../.github/workflows/merge-queue.yml)).
+
+1. Read current main, variables, protection, the state checkpoint and physical CI ownership. If delivery is already independent, do not create another transition. Dispatch `hold-independent-delivery` with the reviewed checkpoint. Read back `deliveryTransition.phase=draining` and its token; an ambiguous dispatch/save is reconciled, not blindly repeated.
+2. Let existing candidate merges, reconciliation and publishers complete normally. The hold is retained if qualification fails or owned work is unknown. Follow only identified existing work with a finite read-only join; do not cancel work, dispatch replacement CI or clear the hold to obtain readiness.
+3. Read the fresh checkpoint and dispatch `prepare-independent-delivery` with that checkpoint and token. It requires no active candidate, the actual current completed tip, its freshly reobserved successful first-attempt qualification, exact tree and physically quiescent CI/publication.
+   It rechecks administrator, main and physical quiescence before checkpointing `phase=ready`, the source/tree and qualification receipt.
+4. With the verified CLI principal, reread the ready checkpoint/token/source, live main, variables and physical inventory immediately before the single configuration write. Require unchanged owner and prepared source, no active candidate, no outstanding main/publication work and the exact durable qualification. Then set only the delivery variable and read it back:
+
+   ```powershell
+   gh variable set KORA_MERGE_QUEUE_DELIVERY_PROFILE --repo github.com/roryprimrose/Kora --body independent-v1
+   gh variable get KORA_MERGE_QUEUE_DELIVERY_PROFILE --repo github.com/roryprimrose/Kora
+   ```
+
+5. Dispatch `resume-independent-delivery` with the exact ready checkpoint/token. The newly started controller must observe independent configuration. It rechecks current source, exact qualification and physical quiescence, then atomically checkpoints `deliveryProfile=independent-v1` and transition `phase=completed`.
+   Normal events reopen reservations; do not dispatch a candidate to wake the queue. A stale serial controller fails closed against durable independent adoption ([controller](batch.cjs)).
+6. Verify actual normal-wake adoption, complete candidate proof, next-candidate/main-publication overlap, actual merged PRs and per-source publication. Configuration readback or a completed transition alone is not measured throughput.
+
+For each operator dispatch, substitute the operation and freshly reviewed values; the initial hold omits `recovery_ticket`:
+
+```powershell
+gh workflow run merge-queue.yml --repo github.com/roryprimrose/Kora --ref main -f operation=prepare-independent-delivery -f recovery_checkpoint=<checkpoint> -f recovery_ticket=<hold-token> -F acknowledge_batch_change=true
+```
+
+Before switching configuration, `abort-independent-delivery` with the same owner/checkpoint/token safely restores serial reservations without cancelling existing work or erasing qualification. After configuration switches, abort is rejected: preserve the hold and reconcile readback, rather than blindly clearing the variable or revoking source records.
+A changed source/checkpoint, failed qualification, pending work or failed API read retains the hold. Rollback after independent publication still requires the separately authorized drained transition above ([transition guards](recovery.cjs), [regressions](batch.test.cjs)).
+
 ## Dormant five-PR batch profile
 
 `KORA_MERGE_QUEUE_PROFILE` absent, empty, or `singleton-v1` retains the version-1
@@ -123,6 +286,12 @@ The App creates ticket-owned `automation/merge-queue-batch/<ticket>/<prefix>`
 refs through GitHub's normal ref/merge APIs. Candidate code never executes with
 the App token. Construction reconciles exact parents after interruption rather
 than forcing refs or blindly repeating a merge with an ambiguous outcome.
+After a successful merge returns a commit SHA, construction verifies that
+immutable commit's exact identity, tree and expected parents instead of
+immediately rereading the mutable ref, which can still report its pre-merge tip.
+A malformed returned SHA fails explicitly. A response without a commit identity
+still requires observed ref ancestry; ambiguous requests retain the existing
+restart checks. No response alone seals a prefix without commit verification.
 
 Construction stops at the first conflict instead of discarding a compatible
 prefix. Before any digest or dispatch exists, the controller seals a **new
@@ -136,9 +305,10 @@ merged during construction and no member is skipped to fill a batch
 
 CI is dispatched on trusted protected main and checks out the admitted combined
 SHA as unprivileged source. It retains complete portable module/100% line **and**
-branch coverage, all Windows producer/partition/catalog evidence, payload
-inspection, installer and aggregates. The `windows-12-v1` inventory is not a
-substitute for those maintained gates. Missing, duplicate, skipped, wrong-source
+branch coverage, payload inspection and installer validation. The reviewed
+`parallel-pr-v1` inventory deliberately excludes Windows integration work, which
+remains mandatory for post-merge main/release qualification. Historical
+inventories retain their original full requirements. Missing, duplicate, skipped, wrong-source
 or nonterminal required evidence cannot admit a batch. Observation deadlines
 never establish success or physical quiescence.
 
@@ -187,6 +357,10 @@ not an old tag workflow definition. The shared
 trusted serialized-caller contract as well as existing source/version/asset
 safeguards. It rechecks at irreversible publication boundaries, including late
 jobs. Missing or unknown state/provenance fails closed.
+Run authentication rejection names the failed predicates and a bounded lifecycle
+value, never raw API metadata. It retains every caller, workflow, source and
+active-job check. A historical composite rejection without the original API
+response does not establish which predicate failed or justify relaxing it.
 
 The [release snapshot reader](../GitHubRelease.Batch.ps1) pins queue commit,
 tree and blob bytes, then rechecks the queue ref. A valid ref move restarts that
@@ -202,6 +376,18 @@ exact run/job/source qualification receipt. This deliberately gives publication
 a turn under sustained arrivals; no throughput benchmark or fivefold speedup is
 claimed. Failed qualification or an unobservable dispatch holds the lane for
 repair rather than starving release behind further batches.
+An authenticated exact-source first attempt with a failed publication job is
+reported as `blocked-publication` / `BLOCKED_PUBLICATION` only after the complete
+expected inventory, publication and qualification jobs are physically terminal.
+The existing controller warning and Actions summary identify source, run,
+attempt, publication job, conclusion and last durable progress (completed tip,
+qualification owner and queue checkpoint), and state that authorized recovery is
+required. The checkpoint is a revision, not an invented progress timestamp.
+Successful reconciliation of this observation is not successful delivery.
+Missing, duplicate, nonterminal or unknown evidence remains held without a
+terminal-publication claim. Every reconciliation still observes fresh evidence;
+a separately authorized successful first attempt can qualify immediately.
+This reporting neither retries publication nor bypasses the qualification fence.
 
 The [qualification reader](github.cjs) observes queued/running runs as well as
 completed runs. An ordinary push with incomplete admission metadata delays
@@ -298,6 +484,13 @@ The follow-up still joins owned work before releasing the lane. An uncertain ret
 - After partial integration, preserve actual PR Merged states and the recorded
   prefix. A changed/withdrawn/review-blocked suffix, unexpected main, or
   uncertain merge holds `recovery-required` and the publication block.
+  Native Auto-merge can complete between the post-attestation/pending PR read
+  and subsequent authority/main reads. Before withdrawing an attested gate or
+  entering recovery for that change, the controller reobserves the PR's merged
+  outcome. An observed merge wakes ordinary reconciliation without replaying
+  the merge request or withdrawing the gate; the next pass still verifies the
+  exact parent, prefix tree and main reachability before recording progress.
+  A changed fence without an observed merge still requires recovery.
   A late observed merge may record its verified actual prefix, but does not
   silently clear reviewed recovery.
 - `resume-batch` requires separately authorized administrator review, exact
@@ -316,7 +509,11 @@ The follow-up still joins owned work before releasing the lane. An uncertain ret
   before a fully validated repair/revert.
 - Recovery calls are checkpoint-specific; repeating one after its successful
   write fails rather than replaying effects. Inspect checkpoint readback after
-  transport uncertainty. The legacy `recover-unobservable-dispatch` operation
+  transport uncertainty. After verified checkpoint readback, `resume-batch` and
+  `repair-batch` request one ordinary controller reconciliation so a quiet
+  repository does not depend on another PR event or delayed timer. A failed
+  continuation is explicit and retains the written checkpoint; do not replay
+  the old recovery inputs. The legacy `recover-unobservable-dispatch` operation
   cannot clear a batch.
 - Roll back only at an idle, qualified completed tip with quiescent CI. Run the
   separately authorized `rollback-batch-v1` operation with the exact checkpoint
@@ -344,8 +541,9 @@ noted otherwise.
    API with an expected head. It does not rebase/force-push every waiting branch.
    The update can add a merge commit on the topic branch; squash merging keeps
    main linear.
-5. The selected PR receives full portable/coverage/package, all five Windows
-   shards and installer validation. Other PRs get lightweight queue-policy and
+5. The selected PR receives portable units/coverage, parallel policy/architecture
+   and setup/metadata contracts, payload and installer validation. Windows
+   integration remains post-merge main/release work. Other PRs get lightweight queue-policy and
    scheduling feedback, not a duplicate full build.
 6. The controller attests the exact source and protected base, then requests a
    protected squash merge. GitHub's native auto-merge may perform the same
@@ -535,11 +733,13 @@ second candidate or automatic success.
 The expected inventory comes from `.github/workflows/ci.yml` at the reservation's
 immutable base, which must match the run's workflow `head_sha`, not current main,
 the candidate PR head, dispatch inputs or returned job names. The trusted workflow
-declares `# merge-queue-job-schema: windows-12-v1`; its inventory includes both
-portable/payload producers, the shared Windows build and all twelve Windows
-partitions, as well as the preserved required aggregates and five legacy gates.
-The maintained workflow contract compares every candidate job and expanded
-matrix identity with that inventory. A producer/matrix change must update the
+declares `# merge-queue-job-schema: parallel-pr-v1` with the independent delivery
+marker. Candidate admission uses its eight-job inventory; main qualification uses
+the complete 27-job inventory, including every Windows producer, partition and
+aggregate. Singleton Windows App checks are neutral and explicitly not selected,
+never asserted as integration passes. The maintained workflow contract compares
+the complete workflow and expanded matrix identities with the main inventory and
+tests candidate selection separately. A producer/matrix change must update the
 schema and inventory together; a new unsupported version cannot release a lane.
 Known unversioned predecessor workflow blobs have explicit inventories in
 [policy.cjs](policy.cjs), including the pre-split five-shard workflow and the
@@ -700,6 +900,31 @@ remains authoritative and later events or the schedule can recover it.
 
 ### Diagnosing throughput
 
+PR events intentionally run only cheap queue policy feedback until selected.
+With `unit-pr-v1` and later inventories, the selected candidate no longer consumes the Windows shared
+test build, twelve integration/UI execution jobs, five shard aggregates or their
+report aggregate. Main/release builds retain those jobs and their existing
+timeouts. This removes integration stalls from admission; it does not repair
+integration failures or guarantee that main will pass. The first PR installing
+the initial unit-only policy was still validated using the old full workflow from trusted main.
+Portable CI also builds only the unit solution and separate architecture guards,
+not the desktop/integration graph. Coverage exclusions and thresholds are unchanged.
+Measure new ticketed runs before claiming a hosted speedup.
+
+The first successful unit-only candidate
+[42012190867](https://github.com/roryprimrose/Kora/actions/runs/42012190867)
+took 8m47s, versus 19m34s for the preceding full-policy
+[candidate](https://github.com/roryprimrose/Kora/actions/runs/42009290060).
+It passed 24,837 unit cases with 100% line/branch coverage; main retained all
+twelve integration partitions and passed. This is an initial observation across
+different revisions/candidate shapes, not a controlled benchmark or guarantee.
+Its near-tied paths were 6m56s of portable validation and 3m45s payload production
+followed by 2m48s installer validation. Optimizing only one would save little.
+`parallel-pr-v1` moves policy/architecture fixtures alongside units and starts
+managed setup/metadata validation alongside payloads. Both remain required, and
+packaging still waits for payload plus setup validation. Measure the new exact
+ticket before attributing a further speedup.
+
 Compare ticketed **Merge queue PR #...** CI runs, not the short policy-only
 **CI .../merge** runs. Measure a candidate's creation-to-completion time,
 completion-to-next-candidate creation gap, and merge-to-next-candidate gap
@@ -734,13 +959,12 @@ The original five Windows job names are lightweight fail-closed aggregates,
 not additional test runners. They join the producer and all twelve consumers.
 The protected Windows aggregate validates twelve reports against complete
 unfiltered source discovery, including exact method and theory-case identities.
-The portable required check joins
-independent test/coverage and exact-source payload producers. The installer can
-start after payload verification while portable tests continue; release still
-requires every existing protected check. The portable aggregate requires both
-producers to succeed; admission job identities stay compatible with predecessor
-workflows so completed runs can still retire during rollout. No test category
-is deferred.
+The portable required check joins independent test/coverage, policy/architecture
+and exact-source payload producers. Setup/metadata validation starts alongside
+payload production; installer packaging joins both while portable work continues.
+Release still requires every applicable gate. Historical inventory identities
+remain supported so completed runs can still retire during rollout. The
+parallelization does not defer another test category or change coverage.
 See the [development checks](../../CONTRIBUTING.md#development-checks) for
 partition discovery, execution-evidence checks and measured timing projections;
 shared-runner timing is not guaranteed by those projections.

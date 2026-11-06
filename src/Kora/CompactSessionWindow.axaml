@@ -58,7 +58,7 @@
           AutomationProperties.Name="Shared private exact-session conversation lexical query; memory-only, not composer input, a model instruction or global search" />
       <ComboBox x:Name="ConversationRole" ItemsSource="{Binding ConversationRoles}"
           SelectedItem="{Binding ConversationRole, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
-          AutomationProperties.Name="Shared conversation search field filter: All original USER and typed HOST fields, USER original body only, HOST outcome reason and task state only; editing does not read" />
+          AutomationProperties.Name="Shared conversation search field filter: All original USER and typed HOST fields, USER original body only, HOST outcome reason and task state only, ASSISTANT retained answer body only; editing does not read" />
       <TextBlock Text="Submitted from UTC (inclusive)" />
       <TextBox x:Name="ConversationSubmittedFrom" Text="{Binding ConversationSubmittedFrom, Mode=TwoWay}"
           IsEnabled="{Binding CanReadConversation}" PlaceholderText="yyyy-MM-ddTHH:mm:ss.fffffff+00:00"
@@ -80,8 +80,9 @@
       <controls:NamedTextBlock Text="{Binding ConversationSearchStatus}" TextWrapping="Wrap"
           AutomationProperties.Name="Shared conversation search counters, exact snapshot continuation and explicit failures; no model context" />
       <controls:ScrollableListBox x:Name="ConversationSearchResults" ItemsSource="{Binding ConversationSearchMessages}" MaxHeight="160"
+          KeyboardNavigation.TabNavigation="Continue"
           ItemTemplate="{StaticResource ConversationMessageTemplate}"
-          AutomationProperties.Name="Shared exact immutable USER messages matching lexical words or typed HOST status; inert native text, chronological, no export or actions" />
+          AutomationProperties.Name="Shared exact retained conversation matches for the selected USER, HOST or ASSISTANT fields; complete inert text with separately admitted record actions" />
       <TextBlock Text="Submit privately retains the original USER body with the actual HOST outcome. Production generation is unavailable; no runtime fallback, history context, network or tools. Structural credential checks cannot guarantee secret-free text. Draft edits are memory-only; both windows edit the same buffer." TextWrapping="Wrap" />
       <TextBox x:Name="ConversationComposer" Text="{Binding ComposerBody, Mode=TwoWay}" AcceptsReturn="True"
           Height="110" TextWrapping="Wrap" IsEnabled="{Binding CanCompose}"
@@ -119,6 +120,7 @@
       <controls:NamedTextBlock Text="{Binding RunningConversationStatus}" TextWrapping="Wrap"
         AutomationProperties.Name="Exact running conversation task and cancellation state" />
       <local:PendingConversationPanel />
+      <local:ManagementAnswerPanel />
       <local:ComposerRequestReviewPanel />
       <Button x:Name="SubmitLocalAnswer" Content="Answer locally (no tools)" IsEnabled="{Binding CanSubmitConversation}" />
       <StackPanel IsVisible="{Binding HasProvisionalAnswer}" Spacing="4">
@@ -136,7 +138,7 @@
           AutomationProperties.Name="Exact current and proposed registered setting values, provenance, shared scope, timing and recovery; review is not approval" />
       <WrapPanel>
         <Button Name="ConfirmRegisteredSettingSuggestion" Content="Confirm exact setting change" IsEnabled="{Binding CanConfirmRegisteredSettingSuggestion}" />
-        <Button Name="CancelRegisteredSettingSuggestion" Content="Cancel setting review" IsEnabled="{Binding CanConfirmRegisteredSettingSuggestion}" />
+        <Button Name="CancelRegisteredSettingSuggestion" Content="Cancel setting review" IsEnabled="{Binding CanCancelRegisteredSettingSuggestion}" />
       </WrapPanel>
       <Button x:Name="CloseView" Content="_Close compact view (work unchanged)" HorizontalAlignment="Right" />
     </StackPanel>

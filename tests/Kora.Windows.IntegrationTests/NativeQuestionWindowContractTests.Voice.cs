@@ -19,6 +19,85 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class NativeQuestionWindowContractTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Native_version_original_voice_answer_dispatches_the_original_query_once(bool afterPlayback)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new InteractionStorageFixture();
+            await fixture.InitializeAsync();
+            using var privacy = new ActivatedVoiceRecognitionTests.FakePrivacy();
+            var factory = new ActivatedVoiceRecognitionTests.FakeFactory();
+            var native = new ActivatedVoiceRecognitionTests.FakeCapture();
+            factory.OpenResult.SetResult(native);
+            await using var capture = new WindowsVoiceRecognitionService(NullLogger<WindowsVoiceRecognitionService>.Instance,
+                privacy, factory, VoiceCaptureLimits.Default);
+            var time = new ReplyUiTime { Now = fixture.Time.Now };
+            var playback = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var spoken = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+            HostQuestionVoiceReplyService? replies = null;
+            using var host = new NativeQuestionHost(fixture.Store, time, NullLogger<NativeQuestionViewModel>.Instance,
+                questions => replies = new(questions, capture, time, new ReplyUiDispatcher(),
+                    () => new QuestionVoiceAdmission(new("mic", "Synthetic"), 1, 1, 1),
+                    async (text, eligible, token) =>
+                    {
+                        eligible().Should().BeTrue();
+                        spoken.SetResult(text);
+                        await playback.Task.WaitAsync(token);
+                    }, NullLogger<HostQuestionVoiceReplyService>.Instance));
+            await using var replyLifetime = replies!;
+            host.BindGate(static () => true);
+            host.BindAdmissionRevision(static () => 1);
+            host.BindPrivateRevision(static () => 1);
+            host.BindWorkspace(WindowsSqliteSessionWorkspaceTests.Service(fixture, new()));
+            var shown = new TaskCompletionSource<NativeQuestionViewModel>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var query = new DurableVersionQuery(new(fixture.Tasks), new Kora.Application.Auditing.LoggerSecurityAuditLog(
+                NullLogger<Kora.Application.Auditing.LoggerSecurityAuditLog>.Instance), NullLogger<DurableVersionQuery>.Instance);
+            var dispatched = 0;
+            var run = query.RunAsync(RequestOrigin.LocalUi, () =>
+            {
+                dispatched++;
+                return Task.CompletedTask;
+            }, fixture.Token, _ => host.AskVersionAsync(model =>
+            {
+                shown.SetResult(model);
+                return Task.CompletedTask;
+            }, fixture.Token));
+            var model = await shown.Task.WaitAsync(fixture.Token);
+            model.BindVisibleVoicePresenter(static () => true);
+            var opening = model.AnswerByVoiceAsync(afterPlayback);
+            try
+            {
+                if (afterPlayback)
+                {
+                    (await spoken.Task.WaitAsync(fixture.Token)).Should().Be("Show the local Kora version and private-storage disclosure? Option 1: Show local version. Choose one option.");
+                    factory.OpenCount.Should().Be(0);
+                }
+                else { spoken.Task.IsCompleted.Should().BeFalse(); }
+                dispatched.Should().Be(0);
+                model.Completion.IsCompleted.Should().BeFalse();
+            }
+            finally { playback.TrySetResult(); await opening; }
+            native.Transcript("Show local version");
+            var answer = await model.Completion.WaitAsync(fixture.Token);
+            await replyLifetime.Quiescence;
+            var receipt = await run.WaitAsync(fixture.Token);
+            answer.Outcome.Should().Be(HostInteractionOutcome.Answered);
+            answer.Question!.AnswerChannel.Should().Be(RequestOrigin.ActivatedVoice);
+            answer.Question.Draft!.Choices.Should().Equal("show");
+            answer.Question.Key.Request.Should().Be(receipt.Request);
+            receipt.Request.Origin.Should().Be(RequestOrigin.LocalUi);
+            receipt.State.Should().Be(HostTaskState.Succeeded);
+            dispatched.Should().Be(1);
+            factory.OpenCount.Should().Be(1);
+            capture.IsCaptureQuiescent.Should().BeTrue();
+            native.Transcript("Show local version");
+            dispatched.Should().Be(1);
+        });
+    }
+
     [Fact]
     public async Task Refused_clarification_voice_answer_exposes_accessible_recovery_and_native_input_still_completes()
     {

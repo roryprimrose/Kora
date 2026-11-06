@@ -21,10 +21,10 @@ public sealed partial class MainWindow : IPresenceWindow
         && !isOptionalSpeechOfferVisible && OwnedWindows.Count == 0
         && presenceInput?.IsGestureActive == false;
 
-    private double PresenceFrameOpacity => nativePresence?.PresentedOpacity ?? presence.CurrentFrame.Opacity;
+    internal double PresenceFrameOpacity => nativePresence?.PresentedOpacity ?? avaloniaPresence?.PresentedOpacity ?? 0;
 
     private bool CanFadePresence => IsVisible && Opacity > 0 && WindowState != WindowState.Minimized
-        && !shutdownRequested && !resourcesDisposed && !presenceInputFailed && !nativePresenceFailed
+        && !shutdownRequested && !resourcesDisposed && !presenceInputFailed && !nativePresenceFailed && !avaloniaPresenceFailed
         && !windowActionFailed && viewModel.CanRevealPrivatePresentation && viewModel.IsPresenceDisplayEnabled
         && viewModel.State != Kora.Core.AssistantState.Hidden;
 
@@ -63,7 +63,7 @@ public sealed partial class MainWindow : IPresenceWindow
 
     private PresenceWindowState CaptureReplacementState() => new(Position, WindowState,
         IsVisible && Opacity > 0 && presence.IsPresenceVisible
-            && !presenceInputFailed && !nativePresenceFailed && !windowActionFailed,
+            && !presenceInputFailed && !nativePresenceFailed && !avaloniaPresenceFailed && !windowActionFailed,
         presence.IsPresenceVisible, presenceInactivity.IsScheduled ? presenceInactivity.Remaining : null,
         Stopwatch.GetTimestamp());
 
@@ -111,8 +111,8 @@ public sealed partial class MainWindow : IPresenceWindow
         WindowState = state.WindowState;
         // Realize and validate the backend without revealing private presentation.
         Show();
-        if (presenceInputFailed || nativePresenceFailed || windowActionFailed
-            || useNativePresence && ActualTransparencyLevel != WindowTransparencyLevel.Transparent)
+        if (presenceInputFailed || nativePresenceFailed || avaloniaPresenceFailed || windowActionFailed
+            || ActualTransparencyLevel != WindowTransparencyLevel.Transparent)
         {
             throw new InvalidOperationException("The selected presence renderer or input backend is unavailable.");
         }
@@ -159,7 +159,11 @@ public sealed partial class MainWindow : IPresenceWindow
         try
         {
             try { motionPreference?.Dispose(); }
-            finally { CloseNativePresence(); }
+            finally
+            {
+                try { CloseNativePresence(); }
+                finally { CloseAvaloniaPresence(); }
+            }
         }
         finally
         {

@@ -18,7 +18,7 @@ uses bounded intent/native clarification, not speech/model-profile qualification
 ## Catalogue freshness
 
 The bounded [owned-skill source deletion](../docs/owned-skill-authoring.md#delete-one-saved-owned-source)
-completes separate full-source review and exact confirmation for native v1/v2/v3
+completes separate full-source review and exact confirmation for native v1/v2/v3/v4
 two-file packages through the authoritative owned store. It is not instruction
 Delete, skill Disable or source unregistration. Unknown inventory and other
 formats/sources are refused; partial effects/audit/readback uncertainty hold
@@ -27,12 +27,26 @@ mutation without rollback/retry or cancellation of immutable admitted work
 Retained owned-skill editor text preserves its deleted-source provenance.
 Text/version edits cannot downgrade it to source-free model input; explicit
 Create or a fresh exact Reopen establishes a new draft/source binding.
+Native v4 deletion displays the complete ordered observation definition and
+its actual tool declaration through those same reviews. It runs no steps,
+does not cancel immutable admitted work or erase independent records, and
+existing reviewed/enabled uses fail closed at their next source revalidation.
 
 The existing supported-source watcher observes the nearest existing ancestor
 when a recognized root has not yet been created, including when several parent
 directories are absent. External creation then refreshes the same catalogue
 without a restart or configuration toggle. Directory rename, move and deletion
 within discovery depth also refresh it, including dotted directory names.
+An already-existing registered directory also has a nonrecursive parent
+membership watch: renaming it away withdraws its sources, and recreation at
+the original registered path rebinds the content watches and refreshes the
+catalogue. The moved sibling is not followed or registered. Replacement
+definitions enter the same revision/review pipeline, including when their
+bytes match a previously withdrawn source; no old approval is restored.
+An observed root removal retires the aggregate file-backed snapshot before
+rediscovery, as source unregistration does, even if debounce coalesces the
+removal and recreation. File-backed definitions need fresh reviewed use;
+bundled definitions remain available.
 Notifications are filtered by exact source ancestry, file patterns and existing
 depth bounds before discovery; watching an ancestor grants no broader content
 read or source registration. Reparse exclusions, file budgets, debounce and
@@ -58,6 +72,16 @@ It adds no Ctrl+F binding and confines Enter/F3 to its own controls.
 See the [editor guide](../docs/instruction-editor.md#find-within-selected-displayed-metadata-details).
 
 ## Product Roles
+
+Session instruction scope controls pin the exact opening Active conversation
+and its selection lifetime. A later selection change, including away and back,
+retires the window's review/control admission rather than silently retargeting
+Review, Confirm, Stop or refresh. Native and original typed/activated-voice
+commands require closing and explicitly reopening for the intended selection.
+Rejection reads no source, changes no confirmed applicability and retains no
+message; closing alone still does not stop a confirmed scope. This is host-owned
+session isolation, not a new applicability mode, instruction precedence rule or
+runtime qualification ([current operation](../docs/session-instructions.md)).
 
 The [bounded owned skill editor](../src/Kora/OwnedSkillEditorWindow.cs) supports native v1 instruction-only packages and additive native v2 selection of exactly the existing host WebPageGet capability. This is immutable disabled publication followed by separate source/target review, enablement, exact request/URL confirmation, independent action approval and genuine retained model answer, not field preparation or automatic Customizations registration ([complete operation](../docs/owned-skill-authoring.md#author-and-use-one-host-webpageget-skill)). General package executors, arbitrary tools/effects and executable resources remain excluded.
 
@@ -131,6 +155,10 @@ not provider enablement or native/acoustic RC qualification
 
 ### Manual owned observation-only agent authoring (v1)
 
+An original request to create or describe a different owned agent does not retarget an unsaved draft before its Save/Discard/Cancel decision.
+The [shared editor owner](../src/Kora/AgentProfileEditorController.cs) keeps the current ID/source/description intact; Save still reviews and separately confirms the current exact destination.
+Cancelled Save, Cancel or revoked admission retains that draft and cannot start replacement authoring. Only successful disposition under the same current private owner stages the requested new ID, without saving, enabling or invoking it ([operation and regressions](../docs/agent-profile-authoring.md#manual-source-and-separate-save)).
+
 The existing native owned-agent editor accepts the canonical reference-free v1
 format with either no tools/zero calls or a distinct subset of the six original
 read-only observation IDs and a positive call budget. It reuses
@@ -147,6 +175,13 @@ register, enable, select or run an agent, grant tools, or relax protected-source
 inspection. Later compatible-source review and exact single-use invocation
 retain the canonical local permissioned tool loop, retained answer/unavailable
 terminal and joined cancellation. See the [complete manual operation](../docs/agent-profile-authoring.md#manual-source-and-separate-save).
+
+Selected-source invocation retains the original task's host eligibility across
+later source/reference review and separate confirmation, not only its channel
+label. Voice withdrawal and restoration cannot renew that task through native
+controls. Fresh native task entry or a deliberate new original request captures
+new eligibility and still requires a new complete exact invocation review.
+Source/target navigation alone is not new task authority.
 
 ### Bounded local agent owned-instruction references (v2)
 
@@ -176,12 +211,30 @@ authority. The original request and genuine answer or truthful terminal are
 retained through the existing conversation path with content-free correlated
 audit. No persistent applicability, history or durable consent is created.
 
+The shared bounded-agent invocation owner preserves original UI/typed versus
+activated-voice audit initiation even after cross-channel confirmation.
+Requested and terminal receipts bind the exact retained request; success,
+denial, cancellation and uncertainty remain distinct. Unavailable/authentication/
+quota/timeout terminals report failed invocation, while unconfirmed submission
+or terminal audit acknowledgement reports Unknown and cannot return success.
+Policy and invocation activities preserve cancellation/uncertainty too.
+Source/model resources still join before release; no profile, instruction,
+task or answer text enters these receipts
+([operation](../docs/agent-results.md#invocation-audit-outcomes),
+[regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.AgentAudit.cs)).
+
 Changed input, source, session, ownership, privacy, expiry, disable/hold or
 reload retires this bundle. This stricter bundle lifetime does not change
 independent instruction one-shot captured-answer semantics elsewhere.
 Cancellation and withdrawal suppress late output; reads and model work remain
 owned until actual quiescence, even if they ignore cancellation. Local model
 unavailability remains explicit, not fallback or qualification.
+
+The bounded agent workflow also joins its serialized source operation and model
+work when a cancellation subscriber throws during shutdown. Cancellation failure
+does not bypass the join or permit a late review/invocation. Single failures keep
+their original exception type; independent shutdown failures are reported
+together after cleanup. This does not change source admission or runtime readiness.
 
 Composition is confined to `App.Agents.cs`; catalogue/store/revision and
 conversation contracts are consumed unchanged. Skills, arbitrary file/resource
@@ -598,6 +651,9 @@ not approve changed bytes, resolve missing dependencies, grant tools, authentica
 an MCP account, start a process or qualify a runtime. Missing/corrupt/unconfirmed
 control state fails closed and is reported.
 
+MCP server exclusion is additionally a master gate over default-enabled Tools, Resources (including templates), and Prompts consideration choices. Category-wide Enable all/Disable all replaces individual exceptions and sets the inheritance default; server exclusion preserves those choices.
+The separate [capability management workflow](Commands_Tools_And_Skills.md#mcp-configuration-sources-and-future-request-use) never turns a preference into source, account, content or execution authority.
+
 ### Reviewed transactions for User package originals
 
 The product owner explicitly selected recoverable multi-file writes to User
@@ -941,7 +997,7 @@ or count as user activity/approval.
 
 The complete source, unchanged description, destination and host declaration precede independent local-only tool-free disclosure consent. Only a complete body proposal or explicit unsupported-capability refusal is admitted; the existing parser checks exact declared names/first occurrence, malformed placeholders and source bounds. Model output cannot choose metadata, files, destinations, defaults, tools or instruction authority ([local consumer](../src/Kora.Application/Definitions/CustomizationAuthoringService.cs)).
 
-Prompt and agent proposals share the admitted local-only runner, not their output schemas or authority. Prompt source freshness is revalidated at the actual model consumer and before publication; source-editing authoring retains the same freshness callback ([runner boundary](../src/Kora.Application/Dependencies/LocalContextTurnWorkflow.cs), [authoring owner](../src/Kora.Application/Definitions/CustomizationAuthoringService.cs)).
+Prompt and agent proposals share the admitted local-only runner, not their output schemas or authority. Prompt source freshness is revalidated at the actual model consumer and before publication; source-editing authoring retains the same freshness callback. After the final awaited source check, prompt proposal publication re-enters the existing exact authoring-session admission: cancellation, expiry, private-input retirement or a changed session generation cannot return a late proposal, even when the source read ignores cancellation. Source freshness is not renewed host authority ([runner boundary](../src/Kora.Application/Dependencies/LocalContextTurnWorkflow.cs), [authoring owner](../src/Kora.Application/Definitions/CustomizationAuthoringService.cs)).
 
 The source-freshness helper shared with declarative skill adaptation checks live admission and cancellation both before and after exact source reads or create-only destination checks. A captured authoring callback cannot borrow the adaptation's read consent or bypass its own original source/draft admission. Changing the editor kind and returning to Prompts does not revive a retired disclosure or proposal; presentation loss also retires prompt authoring while owned model work joins.
 
@@ -1012,6 +1068,13 @@ rewrite, replacement or silent rollback is admitted. Another writer, alias,
 reparse/hardlink, parent/root replacement, changed source, occupied destination
 case-sensitive/unknown native directory semantics or unconfirmed readback refuses or holds the operation
 ([native protocol](../src/Kora.Windows/ArtifactDiscovery/WindowsOwnedDefinitionFileAccess.Rename.cs)).
+
+Before intent publication, failed staging writes or flushes retire only the
+unpublished file through its still-open native handle. The exact original and
+unrelated definitions remain unchanged; cleanup failure is explicitly unconfirmed,
+not publication or a recovery receipt. After confirmed cleanup, a fresh explicit
+review can rename the retained original
+([staging failure regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsOwnedInstructionStoreTests.Rename.cs)).
 
 Cancellation after possible intent publication and interrupted/unconfirmed
 publication remain explicit recovery-required. Startup/list/reload never

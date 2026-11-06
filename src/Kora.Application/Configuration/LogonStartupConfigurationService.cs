@@ -13,12 +13,14 @@ public sealed class LogonStartupConfigurationService(ILogonStartupPreferences pr
     private LogonStartupState state = new(null, null, false, "Inspect startup from the owning unlocked host.");
     private LogonStartupReview? review;
     private bool busy;
+    private long cancellationRevision;
 
     public LogonStartupState Get() { lock (gate) { return state; } }
-    public void Cancel() { lock (gate) { review = null; } }
+    public void Cancel() { lock (gate) { review = null; Interlocked.Increment(ref cancellationRevision); } }
 
     public async Task<LogonStartupState> InspectAsync(RequestOrigin origin, Func<bool> eligible, CancellationToken token)
     {
+        eligible = CaptureCancellation(eligible);
         Enter();
         try
         {
@@ -43,6 +45,7 @@ public sealed class LogonStartupConfigurationService(ILogonStartupPreferences pr
     public async Task<LogonStartupReview> ReviewAsync(bool? value, RequestOrigin origin, long callRevision,
         CallCommunicationPolicy policy, Func<bool> eligible, CancellationToken token)
     {
+        eligible = CaptureCancellation(eligible);
         Enter();
         try
         {
@@ -143,6 +146,12 @@ public sealed class LogonStartupConfigurationService(ILogonStartupPreferences pr
             throw;
         }
         finally { Exit(); }
+    }
+
+    private Func<bool> CaptureCancellation(Func<bool> eligible)
+    {
+        var captured = Interlocked.Read(ref cancellationRevision);
+        return () => eligible() && captured == Interlocked.Read(ref cancellationRevision);
     }
 
     private void RequireReadback(LogonStartupReview candidate)

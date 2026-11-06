@@ -48,6 +48,7 @@ internal sealed partial class SessionsViewModel
 
     private void CancelWindowsSpeechRateSuggestion()
     {
+        registeredSettingReviewIdentity = null;
         windowsSpeechRateReview?.Dispose();
         windowsSpeechRateReview = null;
     }

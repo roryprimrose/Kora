@@ -2,11 +2,34 @@
 
 Status: immutable local previews/retrieval, retained single-file session
 attachments and the [named device-local folder lifecycle](#named-device-local-folder-lifecycle),
-including opt-in bounded descendants, are implemented. Reviewed file/folder
-answers use the [shared private-LocalOnly risk policy](Security_Data_Flows.md#reviewed-localonly-source-use-risk-admission),
-not a secret-free guarantee or provider approval. Unqualified runtimes remain
-unavailable. Named-source model use, multiple-version ingestion,
-persistent/vector indexes, multi-source reasoning and hosted grounding remain gated.
+including opt-in bounded descendants, are implemented. The
+[reviewed named-source local answer](../docs/knowledge-sources.md#one-reviewed-local-answer)
+is also implemented: one fresh question over one or two explicitly selected enabled
+retained revisions, exact excerpt review, separate one-shot private LocalOnly/no-tools
+confirmation and exact retained answer citations. Registration and inspection are
+not model consent ([named-source contract](#named-device-local-folder-lifecycle)).
+Reviewed file/folder and named-source answers use the
+[shared private-LocalOnly risk policy](Security_Data_Flows.md#reviewed-localonly-source-use-risk-admission),
+not a secret-free guarantee or provider approval. This is
+[implementation, not runtime enablement or RC qualification](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy):
+unqualified runtimes remain explicitly unavailable. Multiple-version ingestion,
+persistent/vector indexes, larger or automatic source sets, automatic source context and
+hosted grounding remain gated; this operation admits no hosted disclosure or fallback
+([answer workflow](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerWorkflow.cs)).
+
+The two-selected-source consumer shares the existing global eight-citation,
+16-KiB excerpt and 32-KiB complete-envelope ceilings. Host-owned review binds
+both source identities and immutable revisions, the unchanged original question,
+target and original deadline to one combined tool-free local turn. Complete
+evidence-bearing files and disclosed inert source labels pass shared risk screening;
+registration and selection confer no model consent. One unavailable or changed
+source revokes the whole use, without a single-source fallback. Both source
+leases remain owned until cancellation-ignoring model work physically joins.
+Native review labels unsupported selected sources; same-named files have
+source-qualified citation navigation to their exact retained spans. No new
+capture, all-source search, persistence, runtime enablement or hosted egress
+is admitted ([review](../src/Kora.Core/KnowledgeSources/KnowledgeSourceAnswerReview.cs),
+[use](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerUse.cs)).
 
 Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Data_Flows.md),
 [Interaction and Sessions](Interaction_And_Sessions.md),
@@ -290,6 +313,10 @@ loss or disposal cancel/suppress late work. Outstanding worker work remains
 nonquiescent even after clear; no current-path read, refresh, fallback copy,
 ambient watching or folder/source expansion occurs.
 
+The [preview broker](../src/Kora.Tools/Files/LocalFilePreview.cs) completes source retirement and notifies consumers even when a worker's cancellation callback throws.
+That failure records only its type through existing diagnostics and a failed recovery activity; it does not retain displayed content or confer new consent.
+The worker remains owned until physical completion, late excerpts receive no successful terminal audit, and reuse requires fresh selection/read confirmation ([regressions](../tests/Kora.Tools.UnitTests/Files/LocalFileSearchTests.cs)).
+
 `ILocalFileRetrieval` and Core's `LocalFileLexicalRetrieval` implement
 `lexical-lines-v1`: streaming chunks from the admitted exact Unicode projection,
 without content persistence or a cache. Chunks honor blank-paragraph and ATX
@@ -568,6 +595,10 @@ These fixtures qualify only this bounded native presentation path. No experiment
 
 R26.1c extends the volatile R26.1a/b foundation, not the durable R26.2 lifecycle. **Tray > Preview folder (immediate files, local lexical search)** and exact `preview folder` use the trusted native single-folder picker. Typed/voice paths do not authorize reads ([native selection](../src/Kora/LocalFilePreviewWindowController.cs), [commands](../src/Kora.Core/Context/LocalFileCommand.cs)).
 
+The [shared native consent viewport](../src/Kora/LocalFilePreviewWindow.cs) is keyboard-focusable before separate confirmation: Page Up / Page Down and Home / End expose the complete metadata and disclosure without reading content or granting consent. Metadata-only reviews use the full available window area.
+
+Replacement and closure clear old metadata/accessibility text and disable detached confirmation controls; file/folder refresh and retained attachment reviews share this presentation lifecycle ([behavioral regressions](../tests/Kora.Windows.IntegrationTests/LocalFileReviewWindowTests.cs)). This is deterministic implementation evidence, not installed accessibility qualification.
+
 Admission is all-or-nothing: **1–32 immediate files**, **1 MiB (1,048,576 bytes) combined original bytes**, and the unchanged **256 KiB (262,144 bytes) per file**, including any UTF-8 BOM. Empty individual files remain valid; empty folders are rejected. Files are ordered by ordinal canonical path, independent of enumeration order. Any subdirectory, including an empty, generated, hidden or text-named directory, rejects the whole selection; there is no recursion or silent partial admission ([folder policy](../src/Kora.Core/Context/LocalFolderPolicy.cs)).
 
 The Windows inspector applies the same fixed-drive absolute canonical path, verified-handle, sharing, ancestor, reparse, hard-link, hidden/system, protected/generated/source-control and unstable-source policy to the root and every immediate file. Unsupported extensions, including archives/binaries, reject the whole inventory before content reads. Strict UTF-8 and binary/control-text sniffing remain the single-file decoder's authority; renaming binary data does not bypass decoding ([inspector](../src/Kora.Windows/Context/WindowsLocalFileInspector.cs), [file policy](../src/Kora.Core/Context/LocalFilePolicy.cs)).
@@ -646,12 +677,32 @@ preferences. Publication binds complete metadata and encrypted original-byte
 snapshots atomically; removal revokes first and deletes only inventoried Kora
 copies, clearing the owned persistent journal before reporting success.
 
+Every retained inspection, refresh, replacement publication, disable and removal
+compares the complete observed source inventory at the authoritative store
+boundary, not just its ID/version. Name, lifecycle state, changed time, retained
+copy byte count and structural root/traversal/directory/file metadata must still
+match. Same-version inventory drift is rejected before content disclosure or
+mutation; reload and review the current inventory instead of silently targeting
+its replacement. Structurally identical observations remain valid after reopen.
+The [exact-inventory regressions](../tests/Kora.Windows.IntegrationTests/KnowledgeSources/WindowsKnowledgeSourceTests.ExactInventory.cs)
+cover all existing store operations and unchanged durable state on rejection.
+
 Inspection checks original access/identity/membership without rereading content.
 Old revisions become unavailable when refresh starts, including failed refresh.
 Adding, refreshing and enabling are not model consent. The
 [named answer owner](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerWorkflow.cs)
-now supports one fresh question over one explicitly selected enabled retained revision,
+now supports one fresh question over one or two explicitly selected enabled retained revisions,
 with exact excerpt review and separate one-shot private LocalOnly/no-tools consent.
+The [optional chosen-evidence review](../src/Kora.Core/KnowledgeSources/KnowledgeSourceAnswerReview.cs)
+narrows that same operation to a deliberate nonempty set of original whole retrieved
+citations. Native candidates start unselected; the existing complete-retrieval review
+remains supported. A changed choice invalidates prior confirmation and derived output.
+Only chosen excerpts enter the shared cited-answer envelope, while every chosen file
+still undergoes complete-file risk admission. Chosen-set review preserves the original
+question, source/revision, target, deadline and one-shot lifetime; omitted retrieved
+excerpts and bounded-search omissions are disclosed separately. Foreign, cloned,
+modified, duplicate, empty and excessive choices are rejected, never substituted or
+trimmed. This introduces no new source purpose, persistence, retrieval engine or recall.
 An unqualified local runtime remains unavailable; hosted disclosure and fallback are not admitted.
 The sibling volatile folder-answer route is independent. Source management remains native;
 the named answer entry additionally supports deliberate typed/current-name voice review.

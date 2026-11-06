@@ -301,7 +301,7 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
         Exception? failure = null;
         try
         {
-            await capture.StopAsync().ConfigureAwait(false);
+            await StopCaptureAsync().ConfigureAwait(false);
 #pragma warning disable VSTHRD003 // Event-driven native/open/delivery receipts are owned and awaited without a UI context.
             await earlier.ConfigureAwait(false);
 #pragma warning restore VSTHRD003
@@ -330,6 +330,15 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
         {
             activity.Complete(HostOperationOutcome.Failed);
             throw new InvalidOperationException("Reply capture closure is unconfirmed.", failure);
+        }
+    }
+
+    private async Task StopCaptureAsync()
+    {
+        await capture.StopAsync().ConfigureAwait(false);
+        if (!capture.IsCaptureQuiescent)
+        {
+            throw new InvalidOperationException("Reply capture release is unconfirmed.");
         }
     }
 
@@ -420,7 +429,7 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
                     Retire(current, "Reply did not match this question's schema. Nothing was routed or submitted. Microphone closed; use native controls or try again.");
                     return;
                 }
-                await capture.StopAsync();
+                await StopCaptureAsync();
                 if (current.Field is { } targetField)
                 {
                     var value = new QuestionFieldAnswer(targetField.Id, answer.Text, answer.Choices.SingleOrDefault());

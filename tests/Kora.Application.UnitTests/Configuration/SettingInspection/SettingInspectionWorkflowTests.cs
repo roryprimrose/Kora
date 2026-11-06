@@ -12,6 +12,47 @@ namespace Kora.Application.UnitTests.Configuration.SettingInspection;
 public sealed class SettingInspectionWorkflowTests
 {
     [Theory]
+    [InlineData("presence-inactivity-timeout-seconds.txt", "5")]
+    [InlineData("presence-size-pixels.txt", "480")]
+    [InlineData("presence-dot-size-percent.txt", "75")]
+    [InlineData("presence-dot-density-percent.txt", "50")]
+    [InlineData("presence-movement-speed-percent.txt", "125")]
+    [InlineData("presence-speech-scaling-enabled.txt", "False")]
+    [InlineData("presence-speech-scale-amount-percent.txt", "150")]
+    [InlineData("appearance-reduced-motion-enabled.txt", "True")]
+    public async Task EachPresenceChangeRetiresReviewedSourceBeforeConfirmationOrAcrossAnswerAwait(string file, string value)
+    {
+        foreach (var mode in new[] { ModelToolMode.None, ModelToolMode.SettingsDiscovery })
+        {
+            foreach (var late in new[] { false, true })
+            {
+                await using var f = new SettingInspectionFixture();
+                f.Observe();
+                using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice),
+                    HostActivityLayer.Application, HostOperation.Request);
+                var session = await f.Workflow.ReviewAsync(
+                    "Why does Kora disappear so quickly, and what presence size and movement settings am I using?",
+                    () => true, f.Token, mode);
+                void Change() => f.Store.Text[file] = value;
+                if (late) { f.BeforeReturn = Change; }
+                else { Change(); }
+                var result = await f.Workflow.AnswerAsync(session, () => true, f.Token);
+                result.Outcome.Should().Be(SettingInspectionOutcome.Unavailable);
+                result.Receipt.Should().BeNull();
+                f.Calls.Should().Be(late ? 1 : 0);
+                f.Events.Should().NotContain(item => item.Outcome == SecurityAuditOutcome.Succeeded);
+                f.Store.Writes.Should().Be(0);
+                f.Playback.Effects.Should().Be(0);
+                await FluentActions.Awaiting(() => f.Workflow.ReviewAsync("Why?", () => true, f.Token, mode))
+                    .Should().ThrowAsync<InvalidDataException>();
+                f.Appearance.Reload();
+                var fresh = await f.Workflow.ReviewAsync("Why?", () => true, f.Token, mode);
+                fresh.Review.Should().NotBeSameAs(session.Review);
+            }
+        }
+    }
+
+    [Theory]
     [InlineData(ModelTurnOutcome.Succeeded, SettingInspectionOutcome.Succeeded)]
     [InlineData(ModelTurnOutcome.Unavailable, SettingInspectionOutcome.Unavailable)]
     [InlineData(ModelTurnOutcome.Cancelled, SettingInspectionOutcome.Cancelled)]

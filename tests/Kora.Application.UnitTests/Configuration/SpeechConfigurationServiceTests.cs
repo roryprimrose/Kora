@@ -460,12 +460,14 @@ public sealed partial class SpeechConfigurationServiceTests(ITestOutputHelper ou
     {
         public List<SecurityAuditEvent> Events { get; } = [];
         public Action? BeforeRequested { get; set; }
+        public Action? AfterSucceeded { get; set; }
         public SecurityAuditOutcome? FailureOutcome { get; set; }
         public void Write(SecurityAuditEvent auditEvent)
         {
             if (auditEvent.Outcome == FailureOutcome) { throw new InvalidOperationException("audit evidence unavailable"); }
             Events.Add(auditEvent);
             if (auditEvent.Outcome == SecurityAuditOutcome.Requested) { BeforeRequested?.Invoke(); }
+            if (auditEvent.Outcome == SecurityAuditOutcome.Succeeded) { AfterSucceeded?.Invoke(); }
         }
     }
 

@@ -33,7 +33,7 @@ public sealed class AdaptiveSessionNameSearchTests
     {
         await HeadlessSession.RunAsync(async () =>
         {
-            using var f = new Fixture();
+            await using var f = new Fixture();
             await f.Initialize();
             var model = f.Model;
             var field = f.View.FindControl<TextBox>("SessionNameQuery")!;
@@ -107,7 +107,7 @@ public sealed class AdaptiveSessionNameSearchTests
     {
         await HeadlessSession.RunAsync(async () =>
         {
-            using var f = new Fixture();
+            await using var f = new Fixture();
             await f.Initialize();
             for (var index = 0; index < 27; index++)
             {
@@ -158,7 +158,7 @@ public sealed class AdaptiveSessionNameSearchTests
     {
         await HeadlessSession.RunAsync(async () =>
         {
-            using var f = new Fixture();
+            await using var f = new Fixture();
             await f.Initialize();
             f.Field.Text = "café";
             await f.Click("SearchSessionNames");
@@ -193,7 +193,7 @@ public sealed class AdaptiveSessionNameSearchTests
     {
         await HeadlessSession.RunAsync(async () =>
         {
-            using var f = new Fixture();
+            await using var f = new Fixture();
             await f.Initialize();
             f.Field.Text = "CAFÉ";
             await f.Click("SearchSessionNames");
@@ -222,7 +222,7 @@ public sealed class AdaptiveSessionNameSearchTests
     {
         await HeadlessSession.RunAsync(async () =>
         {
-            using var f = new Fixture();
+            await using var f = new Fixture();
             await f.Initialize();
             f.Field.Text = "café";
             await f.Click("SearchSessionNames");
@@ -262,7 +262,7 @@ public sealed class AdaptiveSessionNameSearchTests
     {
         await HeadlessSession.RunAsync(async () =>
         {
-            using var f = new Fixture();
+            await using var f = new Fixture();
             await f.Initialize();
             var probe = new ConversationProbe(f.Native.Interactions) { HoldMetadata = true };
             var service = new SessionWorkspaceService(probe, new(f.Native.Tasks), f.Native.Access,
@@ -317,7 +317,7 @@ public sealed class AdaptiveSessionNameSearchTests
     {
         await HeadlessSession.RunAsync(async () =>
         {
-            using var f = new Fixture();
+            await using var f = new Fixture();
             await f.Initialize();
             var nonmatch = new SessionWorkspaceEntry(new(new(new Guid("00000000-0000-0000-0000-000000000001")),
                 new(1), true), null);
@@ -356,7 +356,7 @@ public sealed class AdaptiveSessionNameSearchTests
         });
     }
 
-    private sealed class Fixture : IDisposable
+    private sealed class Fixture : IAsyncDisposable
     {
         internal NativeUxFixtureSession Native { get; } = new(Path.GetFullPath("."), silentCaption: true);
         internal Admission Admission { get; } = new();
@@ -429,13 +429,13 @@ public sealed class AdaptiveSessionNameSearchTests
             Dispatcher.UIThread.RunJobs();
         }
 
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
             commands?.Dispose();
             all?.Dispose();
             Sessions?.Dispose();
             responses?.Dispose();
-            Native.Dispose();
+            await Native.DisposeAsync();
         }
     }
 

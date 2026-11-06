@@ -665,6 +665,14 @@ It does not repair stale cursors or accumulate a transcript ([shared read/public
 Switching sessions never fetches conversation bodies. An explicit read can restore that session's memory-only anchor if the exact message/revision is still admitted; otherwise the reader reports unavailable/reopen state without selecting a replacement. Hide/compact changes retain volatile position; privacy/ownership retirement clears it.
 Unsent input remains independently owned and is never saved by reading ([viewport lifetime](../src/Kora/ConversationViewport.cs), [unsent owner](../src/Kora/SessionsViewModel.Unsent.cs)).
 
+The conversation reader and work/review region share the remaining vertical space
+in a 3:1 ratio after the heading, navigation, composer and Send controls. Work,
+submission reviews and recovery controls scroll independently rather than taking
+unbounded height when a narrower window wraps them. All controls remain mounted
+and reachable; scrolling this region neither fetches conversation content nor
+changes the exact historical anchor or the session's unsent input
+([native layout](../src/Kora/SessionInteractionView.axaml), [measured hide/resize regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ReadingPosition.cs)).
+
 Keep pending interactions reachable via a dedicated attention region even when their chronological entries are off screen.
 History approval/question entries show past outcome in read-only form, not live replayable buttons.
 The [per-turn clarification reader](../docs/reviewed-context.md#read-a-turns-retained-clarification-exchange) deliberately projects existing admitted history beneath one exact original session/request/task. Its bounded pages retain the original snapshot ceiling; partial/gap/redacted/metadata-only observations and pending/cancelled/expired outcomes remain explicit, with no replay or renewed authority ([owner](../src/Kora/SessionsViewModel.ClarificationExchange.cs)).

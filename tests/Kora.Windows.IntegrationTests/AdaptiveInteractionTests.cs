@@ -236,11 +236,12 @@ public sealed partial class AdaptiveInteractionTests
         private WorkspaceSurfaceCommandController? commands;
         private DetailWindowController? details;
         internal ResponseWindow? Window { get; private set; }
+        internal SessionsPresentationOwner? Owner { get; private set; }
         internal SessionsViewModel Model => (SessionsViewModel)Window!.SessionView.DataContext!;
         internal SessionWorkspaceEntry Conversation { get; private set; } = null!;
         internal SessionWorkspaceEntry? Done { get; private set; }
 
-        internal async Task Initialize()
+        internal async Task Initialize(Kora.Application.Diagnostics.DurableEvidenceQuery? evidence = null)
         {
             await Native.InitializeAsync();
             Conversation = await Native.Sessions.CreateAsync(new("First topic"), RequestOrigin.LocalUi, Native.Token);
@@ -255,10 +256,13 @@ public sealed partial class AdaptiveInteractionTests
                 NullLogger<NativeDetailRenderer>.Instance, NullLogger<StaticHtmlDetailRenderer>.Instance);
             details.BindHistoryAccess(() => Native.Access.CanInspect);
             responses = new(Native.Main, NullLogger<ResponseWindowController>.Instance, details);
-            Sessions = new(Native.Main, Native.Sessions, Native.Evidence, Native.Access,
+            Sessions = new(Native.Main, Native.Sessions, evidence ?? Native.Evidence, Native.Access,
                 NullLogger<SessionsViewModel>.Instance, details: details, conversation: conversation);
             Sessions.CreateInteraction = (model, owner) =>
-                Window = responses.PrepareSessions(model, owner, Sessions.Open, static () => { });
+            {
+                Owner = owner;
+                return Window = responses.PrepareSessions(model, owner, Sessions.Open, static () => { });
+            };
             Sessions.Bind();
             responses.PrepareDetailsHost = Sessions.PrepareDetailsHost;
             all = new(Native.Main, Native.Sessions, Native.Access, NullLogger<AllWorkViewModel>.Instance, Sessions);

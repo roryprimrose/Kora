@@ -13,6 +13,8 @@ public sealed class DetailPresentationCommandTests
     [InlineData("Nova, SET RESPONSES.DETAIL-PRESENTATION TO LINKONLY", DetailPresentationOperation.Review, DetailPresentationMode.LinkOnly)]
     [InlineData("stop asking about details", DetailPresentationOperation.Review, DetailPresentationMode.LinkOnly)]
     [InlineData("offer detailed results", DetailPresentationOperation.Review, DetailPresentationMode.Offer)]
+    [InlineData("always open detailed results", DetailPresentationOperation.Review, (DetailPresentationMode)2)]
+    [InlineData("set responses.detail-presentation to OpenAutomatically", DetailPresentationOperation.Review, (DetailPresentationMode)2)]
     [InlineData("reset responses.detail-presentation", DetailPresentationOperation.Reset, null)]
     [InlineData("confirm detail presentation change", DetailPresentationOperation.Confirm, null)]
     [InlineData("cancel detail presentation change", DetailPresentationOperation.Cancel, null)]
@@ -22,8 +24,6 @@ public sealed class DetailPresentationCommandTests
     }
 
     [Theory]
-    [InlineData("always open detailed results")]
-    [InlineData("set responses.detail-presentation to OpenAutomatically")]
     [InlineData("set responses.detail-presentation to 0")]
     [InlineData("confirm detail presentation change and yes")]
     [InlineData("stop asking about details please")]

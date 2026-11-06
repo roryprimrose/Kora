@@ -83,6 +83,13 @@ public sealed partial class LocalEventBroker(
                 {
                     Require(Eligible);
                     token.ThrowIfCancellationRequested();
+                    now = time.GetUtcNow();
+                    if (now < state.HighWatermark)
+                    {
+                        held = [];
+                        return new LocalEventSnapshot([], 0, LocalEventReason.ClockRollback)
+                        { RoutineQuiet = routineQuiet, AdmissionRevision = revision, NoticeRevision = notices };
+                    }
                     var proposed = ObserveReceipts(session, observed, now, routineQuiet.Enabled);
                     var receipts = proposed.Receipts.ToList();
                     proposed = proposed with { Receipts = receipts };
@@ -133,7 +140,8 @@ public sealed partial class LocalEventBroker(
                 token.ThrowIfCancellationRequested();
                 Require(Eligible);
                 Observed(logger, snapshot.Events.Count, snapshot.Omitted);
-                activity.Complete(HostOperationOutcome.Completed);
+                activity.Complete(snapshot.Reason == LocalEventReason.ClockRollback
+                    ? HostOperationOutcome.Failed : HostOperationOutcome.Completed);
                 return snapshot;
             }
             catch (OperationCanceledException)

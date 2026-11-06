@@ -20,6 +20,7 @@ public sealed partial class MainViewModel
     public AsyncCommand InspectDetailPresentationCommand { get; private set; } = null!;
     public AsyncCommand OfferDetailPresentationCommand { get; private set; } = null!;
     public AsyncCommand LinkOnlyDetailPresentationCommand { get; private set; } = null!;
+    public AsyncCommand AutomaticDetailPresentationCommand { get; private set; } = null!;
     public AsyncCommand ResetDetailPresentationCommand { get; private set; } = null!;
     public AsyncCommand ConfirmDetailPresentationCommand { get; private set; } = null!;
     public AsyncCommand CancelDetailPresentationCommand { get; private set; } = null!;
@@ -51,6 +52,7 @@ public sealed partial class MainViewModel
         InspectDetailPresentationCommand = create(() => NativeDetailPresentation(new(DetailPresentationOperation.Inspect)));
         OfferDetailPresentationCommand = create(() => NativeDetailPresentation(new(DetailPresentationOperation.Review, DetailPresentationMode.Offer)));
         LinkOnlyDetailPresentationCommand = create(() => NativeDetailPresentation(new(DetailPresentationOperation.Review, DetailPresentationMode.LinkOnly)));
+        AutomaticDetailPresentationCommand = create(() => NativeDetailPresentation(new(DetailPresentationOperation.Review, DetailPresentationMode.OpenAutomatically)));
         ResetDetailPresentationCommand = create(() => NativeDetailPresentation(new(DetailPresentationOperation.Reset)));
         ConfirmDetailPresentationCommand = create(() => NativeDetailPresentation(new(DetailPresentationOperation.Confirm)));
         CancelDetailPresentationCommand = create(() => NativeDetailPresentation(new(DetailPresentationOperation.Cancel)));

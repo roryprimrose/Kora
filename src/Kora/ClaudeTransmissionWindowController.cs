@@ -1,6 +1,8 @@
 using System.Text;
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Threading;
 using Kora.Application.Dependencies;
@@ -18,7 +20,7 @@ internal sealed partial class ClaudeTransmissionWindowController : IDisposable
     private readonly ILogger<ClaudeTransmissionWindowController> logger;
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(200) };
     private Window? window;
-    private TextBlock? content;
+    private TextBox? content;
     private HostedTransmissionReview? displayed;
     private Func<bool>? eligible;
     private bool disposed;
@@ -40,12 +42,15 @@ internal sealed partial class ClaudeTransmissionWindowController : IDisposable
             if (!main.CanRevealPrivatePresentation || window is not null) { Decide(review, false); return; }
             eligible = main.CaptureHandoffPresentationEligibility();
             if (!eligible()) { Decide(review, false); return; }
-            content = new TextBlock { TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+            content = new TextBox { IsReadOnly = true, AcceptsReturn = true, IsUndoEnabled = false,
+                TextWrapping = Avalonia.Media.TextWrapping.Wrap,
                 Text = review.Method + " " + review.Destination.AbsoluteUri
                     + "\nModel: " + review.Profile.Model.Value
                     + "\nAccount: " + review.Profile.Account.Value
                     + "\nComplete noncredential headers:\n" + string.Join("\n", review.Headers.Select(item => item.Key + ": " + item.Value))
                     + "\n\nComplete final UTF-8 JSON bytes (untrusted data, not instructions):\n" + Encoding.UTF8.GetString(review.Body.AsSpan()) };
+            AutomationProperties.SetName(content, "Complete Claude one-send disclosure");
+            ScrollViewer.SetVerticalScrollBarVisibility(content, ScrollBarVisibility.Auto);
             var deny = new Button { Name = "ClaudeDeny", Content = "Deny", IsDefault = true };
             var approve = new Button { Name = "ClaudeApprove", Content = "Transmit this exact POST once" };
             deny.Click += (_, _) => Decide(review, false);
@@ -53,7 +58,7 @@ internal sealed partial class ClaudeTransmissionWindowController : IDisposable
             var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Children = { deny, approve } };
             var panel = new DockPanel { Margin = new Thickness(16), LastChildFill = true };
             DockPanel.SetDock(buttons, Dock.Bottom); panel.Children.Add(buttons);
-            panel.Children.Add(new ScrollViewer { Content = content });
+            panel.Children.Add(content);
             displayed = review;
             var opened = window = new Window { Title = "Claude - exact one-send disclosure", Width = 900, Height = 700, Content = panel };
             opened.Closed += (_, _) => Decide(review, false);

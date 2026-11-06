@@ -25,6 +25,9 @@ USER/task lineage. Missing model/adapter qualification instead retains a
 truthful HOST Unavailable terminal and matching task receipt, never an answer.
 Complete host envelopes remain bounded to 32768 UTF-8 bytes.
 
+The [optional read-only remaining-work operation](Work_Management.md#reviewed-local-remaining-work-answer) adds an exact ledger-disclosure review and separate one-use confirmation for an independently qualified local host.
+Only its explicitly selected different idle answer conversation retains the question/answer; evidence remains volatile. It does not borrow ordinary qualification or enable a provider.
+
 Separately confirmed owned-v2 expanded prompts enter as exact USER bodies for
 one explicitly selected existing Active session, not system instructions,
 source authority or a second legacy prompt invocation. Optional reviewed
@@ -138,6 +141,8 @@ Claude authority. The default stateless text-only profile includes no tools,
 files, history, attachments, memory or other source instructions.
 Every content-bearing physical POST, including Count Tokens, requires a new
 private native complete-final-byte disclosure and affirmative one-send consent.
+The [Claude](../src/Kora/ClaudeTransmissionWindowController.cs) and [Copilot](../src/Kora/CopilotTransmissionWindowController.cs) disclosure readers are read-only keyboard tab stops: Ctrl+End reaches the complete body and Tab leaves reading for the separate one-send or Deny action.
+Reading or typing into the reader cannot edit the immutable transmission or grant consent. Deny remains the default; close, cancellation and privacy retirement clear the reader ([native regressions](../tests/Kora.Windows.IntegrationTests/HostedTransmissionDisclosureTests.cs)).
 A genuine bounded final answer is retained as ASSISTANT data; denial/failure
 retains a truthful terminal, never a substitute answer. Cancellation joins
 actual outstanding work and cannot retract transmitted bytes.

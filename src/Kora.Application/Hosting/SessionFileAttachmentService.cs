@@ -389,10 +389,13 @@ public sealed partial class SessionFileAttachmentService(
     public async ValueTask DisposeAsync()
     {
         disposed = true;
-        Revoke();
-        await Clear().ConfigureAwait(false);
-        await WaitForQuiescence().ConfigureAwait(false);
-        await action.DisposeAsync().ConfigureAwait(false);
+        try { Revoke(); }
+        finally
+        {
+            await Clear().ConfigureAwait(false);
+            await WaitForQuiescence().ConfigureAwait(false);
+            await action.DisposeAsync().ConfigureAwait(false);
+        }
     }
 
     private sealed record PendingAttachment(SessionWorkspaceEntry Target, HostRequest Request, Func<bool> Admitted,

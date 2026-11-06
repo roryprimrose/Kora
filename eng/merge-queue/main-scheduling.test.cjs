@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { mainBuildProfile, validateHourlyState, observeAttempts, admitScheduled } = require('./main-scheduling.cjs');
+const { mainBuildProfile, validateHourlyState, observeAttempts, admitScheduled, dispatchHourly } = require('./main-scheduling.cjs');
 
 const sha = n => n.toString(16).repeat(40);
 const BASE = sha(1);
@@ -510,4 +510,186 @@ test('complete observations have no arbitrary run cap and queries stay cursor-bo
   assert.equal(await observeAttempts(value.api, value.state), false);
   assert.equal(value.calls.jobs.length, 131);
   assert.equal(value.calls.pages[1].created, `>=${CREATED}`);
+});
+
+function controllerFixture() {
+  const value = fixture();
+  value.state.active = null;
+  value.state.completedTip = { sha: SOURCE, tree: TREE, delivery: 'independent-v1' };
+  value.saved = [];
+  value.dispatched = [];
+  value.createdRuns = new Map();
+  value.api.main = async () => value.state.completedTip.sha;
+  value.api.containsBase = async (source, main) => {
+    assert.equal(source, main);
+    return true;
+  };
+  value.api.notice = message => value.calls.messages.push(message);
+  value.save = async () => {
+    validateHourlyState(value.state);
+    value.saved.push(clone(value.state));
+  };
+  value.api.dispatchHourlyMain = async tip => {
+    assert.equal(value.saved.at(-1).hourlyMain.lastDispatch.run, undefined);
+    assert.equal(value.saved.at(-1).hourlyMain.lastDispatch.source, tip.sha);
+    const id = 500 + value.dispatched.length;
+    value.dispatched.push(clone(tip));
+    value.createdRuns.set(id, run(id, tip.sha, value.state.hourlyMain.lastDispatch.requested,
+      { event: 'workflow_dispatch' }));
+    return id;
+  };
+  value.api.github.rest.actions.getWorkflowRun = async ({ run_id }) => {
+    assert.ok(value.createdRuns.has(run_id));
+    return { data: clone(value.createdRuns.get(run_id)) };
+  };
+  return value;
+}
+
+test('controller dispatch persists source/hour intent before the API write and exact run identity after it', async () => {
+  const value = controllerFixture();
+  assert.equal(await dispatchHourly(value.api, value.state, new Date(CREATED), value.save), true);
+  assert.equal(value.saved.length, 2);
+  assert.equal(value.saved[0].hourlyMain.lastDispatch.run, undefined);
+  assert.equal(value.saved[1].hourlyMain.lastDispatch.run, 500);
+  assert.equal(value.dispatched.length, 1);
+  assert.equal(await dispatchHourly(value.api, value.state, new Date(CREATED), value.save), false);
+  assert.equal(value.state.hourlyMain.lastDispatch.created, CREATED);
+  assert.equal(value.dispatched.length, 1);
+});
+
+test('controller enforces rolling sixty minutes as well as hour slots and never repeats unchanged source', async () => {
+  const value = controllerFixture();
+  await dispatchHourly(value.api, value.state, new Date(CREATED), value.save);
+  value.state.completedTip.sha = NEXT;
+  assert.equal(await dispatchHourly(value.api, value.state, new Date('2026-11-05T02:04:59.999Z'), value.save), false);
+  assert.equal(value.dispatched.length, 1);
+  assert.equal(await dispatchHourly(value.api, value.state, new Date('2026-11-05T02:05:00.000Z'), value.save), true);
+  assert.equal(value.dispatched.length, 2);
+  assert.equal(await dispatchHourly(value.api, value.state, new Date('2026-11-05T04:05:00.000Z'), value.save), false);
+  assert.equal(value.dispatched.length, 2);
+});
+
+test('controller skips baseline, recent activation, active candidates and prepared administrator boundaries', async () => {
+  for (const change of [
+    value => { value.state.completedTip.sha = BASE; },
+    value => { value.state.hourlyMain.activated = '2026-11-05T01:00:00.000Z'; },
+    value => { value.state.active = { existingOwner: true }; },
+    value => { value.state.mainSchedulingTransition = { phase: 'ready' }; },
+  ]) {
+    const value = controllerFixture();
+    change(value);
+    assert.equal(await dispatchHourly(value.api, value.state, new Date(CREATED), value.save), false);
+    assert.equal(value.dispatched.length, 0);
+  }
+});
+
+test('failed or ambiguous controller dispatch retains its receipt and never replays even for a later source', async () => {
+  for (const failure of ['network', 'identity']) {
+    const value = controllerFixture();
+    let writes = 0;
+    value.api.dispatchHourlyMain = async () => {
+      writes++;
+      if (failure === 'network') throw new Error('Ambiguous dispatch transport failure');
+      return 0;
+    };
+    await assert.rejects(dispatchHourly(value.api, value.state, new Date(CREATED), value.save));
+    assert.equal(value.saved.length, 1);
+    assert.equal(value.state.hourlyMain.lastDispatch.run, undefined);
+    value.state.completedTip.sha = NEXT;
+    assert.equal(await dispatchHourly(value.api, value.state, new Date('2026-11-05T04:05:00.000Z'), value.save), false);
+    assert.equal(writes, 1);
+    assert.match(value.calls.messages.at(-1), /unresolved.*No dispatch is replayed/);
+  }
+});
+
+test('checkpoint failures cannot dispatch before intent or replay a request whose run ID was not saved', async () => {
+  for (const failedSave of [1, 2]) {
+    const value = controllerFixture();
+    const save = value.save;
+    let saves = 0;
+    value.save = async () => {
+      if (++saves === failedSave) throw new Error('Checkpoint write failed');
+      await save();
+    };
+    await assert.rejects(dispatchHourly(value.api, value.state, new Date(CREATED), value.save), /Checkpoint/);
+    assert.equal(value.dispatched.length, failedSave - 1);
+    if (failedSave === 2) {
+      value.state = clone(value.saved[0]);
+      assert.equal(await dispatchHourly(value.api, value.state, new Date('2026-11-05T04:05:00.000Z'), save), false);
+      assert.equal(value.dispatched.length, 1);
+    }
+  }
+});
+
+test('controller resolves rerun metadata to the exact first attempt and propagates non-404 read failures', async () => {
+  const value = controllerFixture();
+  await dispatchHourly(value.api, value.state, new Date(CREATED), value.save);
+  const first = clone(value.createdRuns.get(500));
+  value.createdRuns.get(500).run_attempt = 2;
+  value.api.github.rest.actions.getWorkflowRunAttempt = async params => {
+    assert.equal(params.run_id, 500);
+    assert.equal(params.attempt_number, 1);
+    return { data: first };
+  };
+  assert.equal(await dispatchHourly(value.api, value.state, new Date(CREATED), value.save), false);
+  assert.equal(value.state.hourlyMain.lastDispatch.created, CREATED);
+  const denied = controllerFixture();
+  await dispatchHourly(denied.api, denied.state, new Date(CREATED), denied.save);
+  denied.api.github.rest.actions.getWorkflowRun = async () => { throw Object.assign(new Error('Forbidden'), { status: 403 }); };
+  await assert.rejects(dispatchHourly(denied.api, denied.state, new Date(CREATED), denied.save), /Forbidden/);
+  assert.equal(denied.dispatched.length, 1);
+});
+
+test('unobservable controller run stays pending; wrong source and run identities fail explicitly', async () => {
+  for (const failure of ['missing', 'source', 'id', 'event', 'repository', 'old']) {
+    const value = controllerFixture();
+    await dispatchHourly(value.api, value.state, new Date(CREATED), value.save);
+    if (failure === 'missing') {
+      value.api.github.rest.actions.getWorkflowRun = async () => { throw Object.assign(new Error('Not yet visible'), { status: 404 }); };
+      assert.equal(await dispatchHourly(value.api, value.state, new Date(CREATED), value.save), false);
+    } else {
+      const actual = value.createdRuns.get(500);
+      if (failure === 'source') actual.head_sha = NEXT;
+      if (failure === 'id') actual.id++;
+      if (failure === 'event') actual.event = 'schedule';
+      if (failure === 'repository') actual.repository.full_name = 'foreign/repo';
+      if (failure === 'old') actual.created_at = ACTIVATED;
+      await assert.rejects(dispatchHourly(value.api, value.state, new Date(CREATED), value.save));
+    }
+    assert.equal(value.dispatched.length, 1);
+  }
+});
+
+test('controller rejects stale completed-tip and immutable source evidence before reserving dispatch', async () => {
+  for (const change of [
+    value => { value.api.main = async () => NEXT; },
+    value => { value.state.completedTip.tree = NEXT; },
+    value => { value.records.delete(SOURCE); },
+    value => { value.api.containsBase = async () => false; },
+  ]) {
+    const value = controllerFixture();
+    change(value);
+    await assert.rejects(dispatchHourly(value.api, value.state, new Date(CREATED), value.save));
+    assert.equal(value.saved.length, 0);
+    assert.equal(value.dispatched.length, 0);
+  }
+});
+
+test('delayed run creation consumes its actual hour and controller receipts reject malformed fields', async () => {
+  const value = controllerFixture();
+  await dispatchHourly(value.api, value.state, new Date('2026-11-05T01:59:59.500Z'), value.save);
+  value.createdRuns.get(500).created_at = '2026-11-05T02:00:00Z';
+  value.state.completedTip.sha = NEXT;
+  assert.equal(await dispatchHourly(value.api, value.state, new Date('2026-11-05T02:59:59.999Z'), value.save), false);
+  assert.equal(await dispatchHourly(value.api, value.state, new Date('2026-11-05T03:00:00.000Z'), value.save), true);
+  for (const mutate of [
+    receipt => { receipt.slot = 'wrong'; },
+    receipt => { receipt.run = 0; },
+    receipt => { receipt.source = 'unknown'; },
+    receipt => { receipt.created = 'bad-time'; },
+  ]) {
+    const invalid = clone(value.state);
+    mutate(invalid.hourlyMain.lastDispatch);
+    assert.throws(() => validateHourlyState(invalid));
+  }
 });

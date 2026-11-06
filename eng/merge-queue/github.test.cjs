@@ -106,6 +106,32 @@ test('workflow inventories separate unit and parallel candidates from full main 
   }
 });
 
+test('hourly dispatch pins the response-bearing API version and verifies the exact returned run URLs', async () => {
+  const value = fixture();
+  const data = { workflow_run_id: 123, run_url: 'https://api.github.com/repos/owner/repo/actions/runs/123',
+    html_url: 'https://github.com/owner/repo/actions/runs/123' };
+  let response = { status: 200, data };
+  let requests = 0;
+  value.github.rest.actions.createWorkflowDispatch = async params => {
+    requests++;
+    assert.deepEqual(params, { owner: 'owner', repo: 'repo', workflow_id: 'ci.yml', ref: 'main', inputs: {},
+      headers: { 'X-GitHub-Api-Version': '2026-03-10' } });
+    return response;
+  };
+  assert.equal(await value.api.dispatchHourlyMain({ sha: BASE }), 123);
+  for (const invalid of [
+    { status: 204 }, { status: 200, data: {} }, { status: 200, data: { ...data, workflow_run_id: 0 } },
+    { status: 200, data: { ...data, run_url: 'https://api.github.com/repos/foreign/repo/actions/runs/123' } },
+    { status: 200, data: { ...data, html_url: 'https://github.com/owner/repo/actions/runs/124' } },
+  ]) {
+    response = invalid;
+    await assert.rejects(value.api.dispatchHourlyMain({ sha: BASE }), /ambiguous/);
+  }
+  const before = requests;
+  await assert.rejects(value.api.dispatchHourlyMain({ sha: HEAD }), /source changed/);
+  assert.equal(requests, before);
+});
+
 test('hourly workflow capability is explicit, versioned and does not change candidate or full main inventories', async () => {
   const source = PARALLEL_PR_SOURCE + '# main-validation-schema: hourly-v1\n';
   const content = workflowContent(source);

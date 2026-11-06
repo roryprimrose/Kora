@@ -335,9 +335,10 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview, IO
     private static string DeletionDisclosure(OwnedSkillDeletionSnapshot source) =>
         "Delete owned " + source.Source.Document.Name + " (" + source.Source.Document.Id + " " + source.Source.Document.Version
         + ") at " + source.Destination + "?\nExactly manifest.yaml, instructions.md and their now-empty version directory; the ID/root and all other entries remain."
-        + "\nDeclared dependency: " + source.Source.Document.Tool + "; references: none. Future use that needs this exact source fails closed."
+        + "\nDeclared dependency: " + (source.Source.Document.ObservationWorkflow?.ToolDeclaration ?? source.Source.Document.Tool.ToString())
+        + "; references: none. Future use that needs this exact source fails closed."
         + " External dependents are not exhaustively inventoried. Immutable admitted tasks are not cancelled; independent grants, history and audit are not erased or renewed."
-        + "\nNo reference packages, shared/profile originals, bundled sources, arbitrary paths or tree deletion. No backup/rollback, model, tools or egress."
+        + "\nNo reference packages, shared/profile originals, bundled sources, arbitrary paths or tree deletion. No backup/rollback, model, tools or egress. No observation steps are run."
         + " Partial/unconfirmed deletion is held for explicit inspection, never retried automatically.";
 
     internal async Task<int> DirtyChoice(bool canSave, Func<bool> privateEligible, CancellationToken token)

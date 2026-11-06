@@ -15,6 +15,8 @@ internal sealed class SessionInstructionScopeController(Func<Func<bool>> capture
     SessionInstructionScopeBroker broker, Func<SessionsViewModel?> model, Func<Window?> owner)
 {
     private SessionInstructionScopeWindow? window;
+    private SessionWorkspaceEntry? windowTarget;
+    private Func<bool>? windowTargetEligible;
     private CancellationTokenSource? cancellation;
     private long epoch;
     private bool disposed;
@@ -25,11 +27,14 @@ internal sealed class SessionInstructionScopeController(Func<Func<bool>> capture
     internal void Open()
     {
         if (disposed || !canReveal()) { throw new InvalidOperationException("Private session scope presentation is unavailable."); }
-        _ = Target();
+        if (window is not null) { _ = RequireWindowTarget(); }
         if (window is null)
         {
+            var target = Target();
             var opened = new SessionInstructionScopeWindow();
             window = opened;
+            windowTarget = target;
+            windowTargetEligible = model()!.CaptureDraftPresentationEligibility();
             opened.Sources.SelectionChanged += (_, _) => { commands.Retire(); opened.Confirm.IsEnabled = false; opened.Preview.Text = "Selection changed. Review the complete source before confirming."; epoch++; };
             opened.Refresh.Click += (_, _) =>
             {
@@ -47,7 +52,7 @@ internal sealed class SessionInstructionScopeController(Func<Func<bool>> capture
             opened.Status.Click += async (_, _) => await RunNativeAsync(new(SessionCommandOperation.InstructionScopeStatus));
             opened.Closed += async (_, _) =>
             {
-                if (ReferenceEquals(window, opened)) { window = null; }
+                if (ReferenceEquals(window, opened)) { window = null; windowTarget = null; windowTargetEligible = null; }
                 RevokeReview();
                 await (CloseOperation = JoinAsync());
                 opened.Preview.Text = string.Empty;
@@ -63,12 +68,25 @@ internal sealed class SessionInstructionScopeController(Func<Func<bool>> capture
     private SessionWorkspaceEntry Target() => model()?.SelectedSessionRecord is { Authority.IsActive: true } target
         ? target : throw new InvalidOperationException("Select the exact Active session in Sessions first.");
 
+    private SessionWorkspaceEntry RequireWindowTarget()
+    {
+        if (windowTarget is not { Authority.IsActive: true } target
+            || model()?.SelectedSessionRecord != target || windowTargetEligible?.Invoke() != true)
+        {
+            RevokeReview();
+            throw new InvalidOperationException("The exact Active session selection changed. Close this scope window, "
+                + "select the intended Active session and reopen its instruction controls.");
+        }
+        return target;
+    }
+
     private void Refresh(SessionInstructionScopeWindow opened)
     {
+        var target = RequireWindowTarget();
         commands.Retire(); epoch++;
         opened.Sources.ItemsSource = commands.Choices;
         opened.Confirm.IsEnabled = false;
-        opened.Preview.Text = broker.Status(Target());
+        opened.Preview.Text = broker.Status(target);
     }
 
     internal Task<string> ExecuteAsync(SessionCommand command, RequestOrigin origin,
@@ -82,7 +100,7 @@ internal sealed class SessionInstructionScopeController(Func<Func<bool>> capture
         if (!Operation.IsCompleted) { throw new InvalidOperationException("Session instruction read is still owned; wait for completion."); }
         Open();
         var opened = window!;
-        var target = Target();
+        var target = RequireWindowTarget();
         var selection = model()!.CaptureDraftPresentationEligibility();
         var attempt = epoch;
         var host = captureHost();

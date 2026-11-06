@@ -51,6 +51,7 @@ public sealed partial class ResponseWindowController : IDisposable, ICurrentResp
         details = detailController;
         viewModel.WindowActionRequested += OnWindowActionRequested;
         viewModel.CurrentResponseChanged += OnCurrentResponseChanged;
+        viewModel.PrivacyClosureRequested += OnPrivacyClosureRequested;
         viewModel.BindCurrentResponsePresentation(this);
         viewModel.BindModelActionReviewPresentation(PresentModelActionReview);
     }
@@ -85,6 +86,12 @@ public sealed partial class ResponseWindowController : IDisposable, ICurrentResp
     private void OnCurrentResponseChanged(object? sender, EventArgs eventArgs) =>
         details?.RetireUnavailableCurrentResponses();
 
+    private void OnPrivacyClosureRequested(object? sender, EventArgs eventArgs)
+    {
+        window?.Close();
+        details?.ClearForPrivacy();
+    }
+
     public void Dispose()
     {
         if (disposed)
@@ -95,6 +102,7 @@ public sealed partial class ResponseWindowController : IDisposable, ICurrentResp
         disposed = true;
         viewModel.WindowActionRequested -= OnWindowActionRequested;
         viewModel.CurrentResponseChanged -= OnCurrentResponseChanged;
+        viewModel.PrivacyClosureRequested -= OnPrivacyClosureRequested;
         if (window is not null)
         {
             window.Close();

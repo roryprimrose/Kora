@@ -160,6 +160,8 @@ For summary caps, Kora volume, ordinary response mode and response timeout, type
 
 Only future eligible output changes. Undo does not replay speech, call an AI, restore microphone consent, listening, permissions or grants, change providers/devices/retention/security, or reverse external actions. If a save is unconfirmed, inspect the saved preference and audit before explicit recovery; Kora does not guess whether to retry or roll back ([scope and recovery](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
 
+Confirmation owns the write before audit or preference callbacks can run. Closing Kora waits for that write to finish; it does not promise rollback. If the original private host or native review closes during a failure, the late error does not replace the retired response or privacy-recovery panel. Inspect saved state and audit under fresh private admission ([operation lifetime](../src/Kora.Application/ViewModels/MainViewModel.RegisteredSettingUndo.cs)).
+
 Settings uses plain-language labels and short status summaries. For example,
 **Logging** describes diagnostic and security record storage without naming the
 database, and **Providers** shows AI service and model choices rather than raw

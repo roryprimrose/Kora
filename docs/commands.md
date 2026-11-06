@@ -4,6 +4,11 @@ Type a command without the assistant name. For voice, hold **Push to talk** and
 use your configured name, for example **Kora, open settings**. Phrases below are
 exact: a similar sentence may not match.
 
+If a previous voice input is still closing, Push to talk waits for its cleanup.
+Releasing before that completes cancels this gesture without opening the
+microphone later. Press again after cleanup to start a new command; listening
+permission and preferences are unchanged.
+
 The global command box runs commands; a session's message composer submits
 conversation text. Words inside a message do not become commands.
 **AI answers are unavailable in this build**, even after model setup.
@@ -23,6 +28,11 @@ use native lists or readable-name routes elsewhere.
 In the response window, choose **Review one spoken command**, speak one general command using the current assistant name, then choose **Finish capture**. The microphone closes before the exact final transcript appears. Correct the text if needed, then separately choose **Dispatch this exact voice command once**, or **Cancel reviewed command**. Editing never runs the command ([capture and review](../src/Kora.Application/Voice/ReviewedVoiceCommandCapture.cs)).
 
 This one-shot action does not change ordinary push-to-talk or any listening preference. It requires existing voice consent, local command readiness and unchanged private ownership. Capture and review expire after 60 seconds; changing the original target, input, device, call or private context discards the candidate instead of sending it elsewhere. Hiding, deactivating or closing the window cancels it ([host admission](../src/Kora.Application/ViewModels/MainViewModel.ReviewedVoiceCommand.cs), [window lifetime](../src/Kora/ResponseWindow.ReviewedVoiceCommand.cs)).
+
+Finishing capture, editing or confirming does not restart that deadline.
+Late confirmation or delayed dispatch is refused even if the expiry notice has
+not appeared yet. Start a fresh **Review one spoken command** after cleanup;
+the expired transcript is not replayed.
 
 Ordinary response auto-hide is suspended during capture, transcript review and the original confirmed dispatch. Completed ordinary feedback resumes the configured response timeout. This does not extend the command's independent expiry or prevent explicit dismissal or privacy closure.
 
@@ -950,6 +960,12 @@ Use these exact whole commands, optionally prefixed by the current assistant nam
 | `call speech status` | Inspect current review/playback status without starting speech. |
 
 Review/confirmation require fresh original local UI input, even during Active/Suspected/Unknown protection; voice cannot be relabelled through a later click. Voice status/cancel remain available. The review expires after two minutes; changed source, call, input, owner/privacy or output retires it. Ordinary VisualOnly, both summary caps, mute, capture and speech availability still win. No saved preference or general protection changes ([complete interaction](responses-and-calls.md#speak-one-current-response-during-call-protection), [host operation](../src/Kora.Application/ViewModels/MainViewModel.CallSpeech.cs)).
+
+**Cancel call speech** also withdraws a review that is still being prepared.
+Late preparation cannot open a new review or enable confirmation after cancellation.
+If the exact review is already open, it becomes ineligible and cannot play.
+Wait for preparation to finish before starting a fresh review; status is passive
+and does not cancel or extend preparation.
 
 ## Read-only host discovery
 

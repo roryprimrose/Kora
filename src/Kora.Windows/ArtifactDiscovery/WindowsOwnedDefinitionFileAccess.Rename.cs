@@ -22,6 +22,7 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess
     private sealed record RenameIntent(int Version, Guid Operation, string SourceName, string DestinationName,
         string DirectoryIdentity, string RootBindingIdentity, string SourceIdentity, string StagedIdentity, byte[] Original);
     internal Action<OwnedInstructionRenamePhase>? AfterRenamePhase { get; set; }
+    internal Action? BeforeRenameStagingFlush { get; set; }
     internal Func<SafeFileHandle, uint> RenameDirectoryFlags { get; set; } = ReadRenameDirectoryFlags;
     private static string RenameIntentDirectory(IApplicationDataPaths paths) => Path.Combine(paths.LocalRoot, "OwnedInstructionRename");
     private static string RenameIntentPath(IApplicationDataPaths paths) => Path.Combine(RenameIntentDirectory(paths), RenameIntentName);
@@ -64,10 +65,25 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess
         string stagedIdentity;
         using (var staged = CreatePrivateStaging(proposedPath))
         {
-            VerifyFile(staged, proposedPath);
-            stagedIdentity = WindowsFileIdentity.Read(staged);
-            RandomAccess.Write(staged, proposal.Proposed.CopyBytes(), 0);
-            RandomAccess.FlushToDisk(staged);
+            if (staged.IsInvalid) { throw NativeFailure("Private rename staging could not be created."); }
+            try
+            {
+                VerifyFile(staged, proposedPath);
+                stagedIdentity = WindowsFileIdentity.Read(staged);
+                RandomAccess.Write(staged, proposal.Proposed.CopyBytes(), 0);
+                BeforeRenameStagingFlush?.Invoke();
+                RandomAccess.FlushToDisk(staged);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+                or OperationCanceledException or InvalidOperationException)
+            {
+                if (!SetFileInformationByHandle(staged, 4, [1], 1))
+                {
+                    throw new IOException("Unpublished rename staging cleanup is unconfirmed.",
+                        new AggregateException(exception, new Win32Exception(Marshal.GetLastWin32Error())));
+                }
+                throw;
+            }
         }
         var intent = new RenameIntent(1, operation, proposal.Source.Name, proposal.DestinationName,
             proposal.Source.DirectoryIdentity, pinned.BindingIdentity, proposal.Source.FileIdentity, stagedIdentity, proposal.Source.Document.CopyBytes());

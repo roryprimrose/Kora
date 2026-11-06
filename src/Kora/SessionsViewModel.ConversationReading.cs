@@ -37,6 +37,14 @@ internal sealed partial class SessionsViewModel
         return true;
     }
 
+    private void RetireReadCompletion(ConversationMessage? observed, ConversationPage page)
+    {
+        if (!ReferenceEquals(completedConversationMessage, observed) && completedConversationMessage is { } current
+            && !page.Messages.Contains(current)) { return; }
+        completedConversationMessage = null;
+        conversationUpdates = false;
+    }
+
     public Task ReadLatestConversationAsync(Func<bool>? admitted = null) => RunConversationAsync(async (target, live) =>
     {
         void RequirePresentation()
@@ -45,6 +53,7 @@ internal sealed partial class SessionsViewModel
             { throw new OperationCanceledException("The original conversation reader was retired. Read again explicitly."); }
         }
         RequirePresentation();
+        var observedCompletion = completedConversationMessage;
         var page = await conversation!.ReadPageAsync(target.Authority.SessionId, null, 25, lifetime.Token);
         RequirePresentation();
         while (page.Next is { } cursor)
@@ -64,8 +73,7 @@ internal sealed partial class SessionsViewModel
         { throw new OperationCanceledException("The exact selected conversation generation changed."); }
         conversationPage = page;
         conversationReadingControl = access.ControlRevision;
-        completedConversationMessage = null;
-        conversationUpdates = false;
+        RetireReadCompletion(observedCompletion, page);
         conversationSourceHeld = false;
         composerAuthority = target.Authority;
         conversationTailRevision++;

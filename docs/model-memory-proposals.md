@@ -30,6 +30,12 @@ See the [native owner](../src/Kora/ModelMemoryProposals/SessionsViewModel.ModelM
 
 ## Boundaries and availability
 
+Changing the Memories **Device profile** selector discards any unadmitted
+model-memory review, including an accepted candidate, and disables its decisions.
+Explicitly review the retained answer again before separately accepting and
+admitting it; model proposals remain Session-only regardless of the selector.
+Existing admitted memories are not moved, forgotten or used by changing scope.
+
 The candidate remains lower-trust MODEL data. Its durable lineage points to the actual source request, task, original channel and session generation; inspection includes full retained model-turn provenance. Existing session memory policy, retention/deletion and manual memory management remain authoritative. No device-profile, project, source-scope promotion, background learning, automatic recall or hosted egress is added ([memory contract](../Design/Model_Providers_Memory_And_Knowledge.md#user-governed-durable-memory), [memory admission](../src/Kora.Application/Memory/MemoryAdmissionService.cs)).
 
 This review does not enable an unavailable provider. Without a genuinely admitted retained ASSISTANT answer the operation remains unavailable; deterministic platform fakes prove implementation, not provider qualification ([provider qualification](../Design/Runtime_Provider_Feasibility.md)).

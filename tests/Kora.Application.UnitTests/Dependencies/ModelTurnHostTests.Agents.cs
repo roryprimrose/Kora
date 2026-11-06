@@ -237,6 +237,9 @@ public sealed partial class ModelTurnHostTests
         host.IsQuiescent.Should().BeTrue();
         f.Retained!.AssistantResponse.Should().BeNull();
         f.Retained.Outcome.Should().NotBe(ModelTurnOutcome.Succeeded);
+        var terminal = f.Audits.Last(item => string.Equals(item.ActionId, "agents.revision.invoke", StringComparison.Ordinal));
+        terminal.Outcome.Should().Be(Kora.Core.Auditing.SecurityAuditOutcome.Unknown);
+        terminal.ReasonCode.Should().Be("run-unconfirmed");
     }
 
     [Fact]

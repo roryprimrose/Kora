@@ -44,6 +44,16 @@ public sealed class ConversationExecutionStoreTests
         };
         var memoryContext = () => store.ReadSubmittedContextAvailabilityAsync(unsupported, token).AsTask();
         await memoryContext.Should().ThrowAsync<InvalidOperationException>().WithMessage("*submitted memory metadata*");
+        unsupported = unsupported with
+        {
+            SubmittedContext = unsupported.SubmittedContext! with
+            {
+                Version = 3, MemorySources = default,
+                ProfileMemorySources = [new(new(Guid.NewGuid()), new(3), new(Guid.NewGuid()))],
+            },
+        };
+        var profileContext = () => store.ReadSubmittedContextAvailabilityAsync(unsupported, token).AsTask();
+        await profileContext.Should().ThrowAsync<InvalidOperationException>().WithMessage("*submitted memory metadata*");
         var predecessor = new HostRequest(new(Guid.NewGuid()), request.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi);
         var pending = () => store.RetainPendingConversationMessageAsync(request, new(1), 0, "original",
             [predecessor], () => true, token).AsTask();

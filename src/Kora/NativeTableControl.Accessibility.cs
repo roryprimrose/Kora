@@ -17,6 +17,8 @@ internal sealed partial class NativeTableControl
 
     private sealed class TableHeader(NativeTableControl table, int column) : Button
     {
+        protected override Type StyleKeyOverride => typeof(Button);
+
         protected override AutomationPeer OnCreateAutomationPeer() => new HeaderAutomationPeer(this, table, column);
 
         private sealed class HeaderAutomationPeer(TableHeader owner, NativeTableControl table, int column)
@@ -46,6 +48,7 @@ internal sealed partial class NativeTableControl
             protected override void SetFocusCore()
             {
                 if (position is not null) { table.FocusCell(position); }
+                else { table.FocusReader(owner); }
             }
         }
     }

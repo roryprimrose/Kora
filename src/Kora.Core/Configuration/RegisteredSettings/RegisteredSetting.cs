@@ -19,4 +19,9 @@ public enum RegisteredSetting
     WindowsSpeechRate,
     ResponseTimeout,
     ReducedMotion,
+    SpeechVoice,
+    CommandStartWait,
+    ReplyStartWait,
+    TrailingSilence,
+    QuietHours,
 }

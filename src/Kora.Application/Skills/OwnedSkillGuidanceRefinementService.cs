@@ -136,13 +136,14 @@ public sealed class OwnedSkillGuidanceRefinementService(IOwnedDeclarativeSkillSt
         catch { activity.Complete(HostOperationOutcome.Failed); throw; }
     }
 
-    public Task<OwnedDeclarativeSkillSnapshot?> Save(OwnedSkillGuidanceRefinement proposal, IOwnedSkillSaveReview review,
+    public Task<OwnedDeclarativeSkillSnapshot?> Save(OwnedSkillGuidanceRefinement proposal,
+        OwnedSkillAuthoringAuthority authority, IOwnedSkillSaveReview review,
         Func<bool> eligible, CancellationToken token)
     {
         if (!ReferenceEquals(proposal.Owner, this))
         { throw new InvalidOperationException("This reviewed guidance belongs to another authoring operation."); }
-        RequireCurrent(() => eligible() && proposal.IsCurrent(), token);
-        return save.Save(proposal.Proposed, proposal.Authority, () => eligible() && proposal.IsCurrent(), review, token,
+        RequireCurrent(() => authority.IsCurrent() && eligible() && proposal.IsCurrent(), token);
+        return save.Save(proposal.Proposed, authority, () => eligible() && proposal.IsCurrent(), review, token,
             async cancellation =>
             {
                 await RequireSource(proposal.Draft, proposal.Source, cancellation).ConfigureAwait(false);

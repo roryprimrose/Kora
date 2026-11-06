@@ -932,6 +932,7 @@
                 <WrapPanel ItemSpacing="8" LineSpacing="6">
                   <Button x:Name="OfferDetailPresentation" Content="Review Offer" Command="{Binding OfferDetailPresentationCommand}" IsEnabled="{Binding CanControlDetailPresentationNative}" />
                   <Button x:Name="LinkOnlyDetailPresentation" Content="Review Link only" Command="{Binding LinkOnlyDetailPresentationCommand}" IsEnabled="{Binding CanControlDetailPresentationNative}" />
+                  <Button x:Name="AutomaticDetailPresentation" Content="Review Open automatically" Command="{Binding AutomaticDetailPresentationCommand}" IsEnabled="{Binding CanControlDetailPresentationNative}" />
                 </WrapPanel>
                 <TextBlock Text="{Binding DetailPresentationReviewText}" TextWrapping="Wrap"
                     AutomationProperties.Name="Exact detail presentation preference review" />

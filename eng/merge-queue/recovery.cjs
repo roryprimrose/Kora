@@ -129,6 +129,7 @@ async function changeBatchState(api, { context, inputs, attempt, now = new Date(
   const expected = api.commit;
   invariant(JSON.stringify(await api.load()) === JSON.stringify(next) && api.commit === expected
     && api.commit !== inputs.recovery_checkpoint, 'Batch state readback changed.');
+  if (operation === 'resume-batch' || operation === 'repair-batch') await api.wake();
   return operation;
 }
 

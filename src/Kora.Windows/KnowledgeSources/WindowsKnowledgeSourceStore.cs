@@ -185,7 +185,11 @@ public sealed partial class WindowsKnowledgeSourceStore(IApplicationDataPaths pa
     private static KnowledgeSource Require(SqliteConnection connection, KnowledgeSource exact)
     {
         var current = List(connection).SingleOrDefault(item => item.Id == exact.Id);
-        if (current is null || current.Version != exact.Version)
+        if (current is null || current.Version != exact.Version
+            || !string.Equals(current.Name, exact.Name, StringComparison.Ordinal)
+            || current.State != exact.State || current.ChangedAt != exact.ChangedAt
+            || current.StoredBytes != exact.StoredBytes || exact.Folder is null
+            || !current.Folder.Matches(exact.Folder))
         { throw new InvalidOperationException("The exact source inventory changed; reload and review it again."); }
         return current;
     }

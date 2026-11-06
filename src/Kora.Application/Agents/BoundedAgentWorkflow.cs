@@ -238,13 +238,16 @@ public sealed class BoundedAgentWorkflow(IAgentProfileReader reader, ISessionWor
         SecurityAuditEvent? requested = null;
         HostRequest? admittedRequest = null;
         ActivityLink cause = default;
+        var terminalRetained = false;
+        var initiator = review.Origin == RequestOrigin.ActivatedVoice
+            ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.LocalUser;
         void TerminalAudit(SecurityAuditOutcome outcome, string reason)
         {
             if (requested is null || admittedRequest is null) { return; }
             using var terminal = HostActivity.BeginRoot(admittedRequest, HostActivityLayer.Application,
                 HostOperation.Policy, [cause]);
             audit.Write(requested.WithOutcome(outcome, reason));
-            terminal.Complete(outcome == SecurityAuditOutcome.Succeeded ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
+            terminal.Complete(InvocationActivityOutcome(outcome));
         }
         try
         {
@@ -258,31 +261,41 @@ public sealed class BoundedAgentWorkflow(IAgentProfileReader reader, ISessionWor
                     admittedRequest = provenance.Request;
                     cause = new(HostActivity.RequireCurrent().Activity!.Context);
                     requested = new(provenance.Request.RequestId.Value, SecurityAuditCategory.ProtectedOperation,
-                        "agents.revision.invoke", SecurityAuditOutcome.Requested, SecurityAuditInitiator.LocalUser,
+                        "agents.revision.invoke", SecurityAuditOutcome.Requested, initiator,
                         "agent-revision." + review.SourceRevision);
                     audit.Write(requested);
                 }, linked.Token).ConfigureAwait(false);
+            terminalRetained = true;
             if (requested is null)
             {
                 admittedRequest = receipt.Message.Request;
                 cause = new(activity.Activity!.Context);
                 using var unavailable = HostActivity.BeginRoot(admittedRequest, HostActivityLayer.Application, HostOperation.Policy, [cause]);
                 requested = new(admittedRequest.RequestId.Value, SecurityAuditCategory.ProtectedOperation,
-                    "agents.revision.invoke", SecurityAuditOutcome.Requested, SecurityAuditInitiator.LocalUser,
+                    "agents.revision.invoke", SecurityAuditOutcome.Requested, initiator,
                     "agent-revision." + review.SourceRevision);
                 audit.Write(requested);
                 unavailable.Complete(HostOperationOutcome.Completed);
             }
-            TerminalAudit(receipt.Message.Outcome == ModelTurnOutcome.Succeeded
-                ? SecurityAuditOutcome.Succeeded : SecurityAuditOutcome.Failed, "retained-terminal");
-            activity.Complete(receipt.Message.Outcome == ModelTurnOutcome.Succeeded
-                ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
+            var outcome = receipt.Message.Outcome switch
+            {
+                ModelTurnOutcome.Succeeded => SecurityAuditOutcome.Succeeded,
+                ModelTurnOutcome.Denied or ModelTurnOutcome.DeniedEgress => SecurityAuditOutcome.Denied,
+                ModelTurnOutcome.Cancelled => SecurityAuditOutcome.Cancelled,
+                ModelTurnOutcome.Unknown => SecurityAuditOutcome.Unknown,
+                _ => SecurityAuditOutcome.Failed,
+            };
+            TerminalAudit(outcome, "retained-terminal");
+            activity.Complete(InvocationActivityOutcome(outcome));
             return receipt;
         }
-        catch
+        catch (Exception exception)
         {
-            TerminalAudit(SecurityAuditOutcome.Failed, "run-unconfirmed");
-            activity.Complete(linked.IsCancellationRequested ? HostOperationOutcome.Cancelled : HostOperationOutcome.Failed);
+            var outcome = terminalRetained || exception is ConversationSubmissionUnconfirmedException
+                ? SecurityAuditOutcome.Unknown
+                : exception is OperationCanceledException ? SecurityAuditOutcome.Cancelled : SecurityAuditOutcome.Failed;
+            TerminalAudit(outcome, "run-unconfirmed");
+            activity.Complete(InvocationActivityOutcome(outcome));
             throw;
         }
         finally
@@ -292,6 +305,14 @@ public sealed class BoundedAgentWorkflow(IAgentProfileReader reader, ISessionWor
             await ReleaseReviewAsync().ConfigureAwait(false);
         }
     }
+
+    private static HostOperationOutcome InvocationActivityOutcome(SecurityAuditOutcome outcome) => outcome switch
+    {
+        SecurityAuditOutcome.Succeeded => HostOperationOutcome.Completed,
+        SecurityAuditOutcome.Cancelled => HostOperationOutcome.Cancelled,
+        SecurityAuditOutcome.Unknown => HostOperationOutcome.Unknown,
+        _ => HostOperationOutcome.Failed,
+    };
 
     private bool IsProfileCurrent(BoundedAgentReview review) => !review.IsRevoked && review.Current()
         && time.GetUtcNow() >= review.CreatedAt && time.GetUtcNow() < review.ExpiresAt
@@ -385,20 +406,25 @@ public sealed class BoundedAgentWorkflow(IAgentProfileReader reader, ISessionWor
 
     private async Task DisposeCoreAsync()
     {
+        List<Exception> failures = [];
         disposed = true;
         owned?.Dispose();
-        await lifetime.CancelAsync().ConfigureAwait(false);
+        try { await lifetime.CancelAsync().ConfigureAwait(false); }
+        catch (Exception exception) { failures.Add(exception); }
         await serial.WaitAsync().ConfigureAwait(false);
         try
         {
             await execution.WaitForQuiescenceAsync(CancellationToken.None).ConfigureAwait(false);
             await ReleaseReviewAsync().ConfigureAwait(false);
         }
+        catch (Exception exception) { failures.Add(exception); }
         finally
         {
             serial.Release();
             serial.Dispose();
             lifetime.Dispose();
         }
+        if (failures.Count == 1) { System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failures[0]).Throw(); }
+        if (failures.Count > 1) { throw new AggregateException("Agent shutdown was not successful.", failures); }
     }
 }

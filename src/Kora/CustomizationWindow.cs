@@ -22,7 +22,9 @@ internal sealed partial class CustomizationWindow : Window
         (CustomizationKind.Prompt, "Prompts"),
     ];
     internal readonly ListBox Kinds = new() { ItemsSource = kindOptions.Select(option => option.Label).ToArray(), SelectedIndex = 0 };
-    internal readonly TextBox Search = new() { PlaceholderText = "Search names or sources" };
+    internal readonly TextBox Search = new() { PlaceholderText = "Name, source or disabled state" };
+    internal readonly Button ClearFilter = new() { Content = "Clear", IsEnabled = false };
+    internal readonly TextBlock FilterSummary = new();
     internal readonly ComboBox Destination = new() { ItemsSource = new[] { CustomizationScope.Kora, CustomizationScope.User }, SelectedIndex = 0, MinWidth = 100 };
     internal readonly TextBox NewName = new() { PlaceholderText = "new-artifact-id", MinWidth = 150 };
     internal readonly ListBox Files = new() { MinHeight = 64, MaxHeight = 160 };
@@ -74,7 +76,15 @@ internal sealed partial class CustomizationWindow : Window
         var browse = new DockPanel();
         var browseTop = new StackPanel { Spacing = 8 };
         browseTop.Children.Add(new TextBlock { Text = "Customizations", FontSize = 22, FontWeight = FontWeight.SemiBold });
-        browseTop.Children.Add(Search);
+        var filterLabel = new TextBlock { Text = "Filter artifacts" };
+        browseTop.Children.Add(filterLabel);
+        var filter = new DockPanel { LastChildFill = true };
+        ClearFilter.Margin = new(8, 0, 0, 0);
+        DockPanel.SetDock(ClearFilter, Dock.Right);
+        filter.Children.Add(ClearFilter);
+        filter.Children.Add(Search);
+        browseTop.Children.Add(filter);
+        browseTop.Children.Add(FilterSummary);
         var add = new WrapPanel();
         add.Children.Add(Destination); add.Children.Add(NewName);
         AddButton(add, "Add", "Create", run);
@@ -114,9 +124,18 @@ internal sealed partial class CustomizationWindow : Window
         detail.Children.Add(Editor);
         Grid.SetColumn(detail, 2); root.Children.Add(detail);
         Content = root;
-        Search.TextChanged += (_, _) => run("Filter");
+        Search.PropertyChanged += (_, change) =>
+        {
+            if (change.Property != TextBox.TextProperty) { return; }
+            ClearFilter.IsEnabled = !string.IsNullOrEmpty(Search.Text);
+            run("Filter");
+        };
+        ClearFilter.Click += (_, _) => { Search.Text = string.Empty; Search.Focus(); };
         AutomationProperties.SetName(Kinds, "Customization type");
-        AutomationProperties.SetName(Search, "Search customization names and sources; no content reads");
+        AutomationProperties.SetLabeledBy(Search, filterLabel);
+        AutomationProperties.SetName(Search, "Filter artifacts by name, source or disabled state; no content reads");
+        AutomationProperties.SetName(ClearFilter, "Clear artifact filter");
+        AutomationProperties.SetName(FilterSummary, "Matching artifact count");
         AutomationProperties.SetName(Files, "Selected artifact components");
         AutomationProperties.SetName(Editor, "Selected artifact source; untrusted definition content");
         AutomationProperties.SetName(Request, "Definition authoring request");
@@ -181,16 +200,25 @@ internal sealed partial class CustomizationWindow : Window
     internal void ShowSources(IReadOnlyList<CustomizationSource> sources, Func<CustomizationSource, bool> disabled, Action<CustomizationSource> select)
     {
         catalogue.Children.Clear();
+        var filter = Search.Text?.Trim() ?? string.Empty;
+        var matchingCount = 0;
+        var totalCount = 0;
         foreach (var scope in Enum.GetValues<CustomizationScope>())
         {
-            var matches = sources.Where(source => source.Kind == Kind && source.Scope == scope
-                && (source.Name.Contains(Search.Text ?? string.Empty, StringComparison.OrdinalIgnoreCase)
-                    || source.Location.Contains(Search.Text ?? string.Empty, StringComparison.OrdinalIgnoreCase))).ToArray();
+            var scopeLabel = scope == CustomizationScope.BuiltIn ? "Built-in" : scope.ToString();
+            var candidates = sources.Where(source => source.Kind == Kind && source.Scope == scope).ToArray();
+            totalCount += candidates.Length;
+            var matches = candidates.Select(source => (Source: source,
+                Label: source.Name + (disabled(source) ? " (Disabled)" : string.Empty)))
+                .Where(item => item.Label.Contains(filter, StringComparison.OrdinalIgnoreCase)
+                    || item.Source.Location.Contains(filter, StringComparison.OrdinalIgnoreCase)
+                    || scopeLabel.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToArray();
+            matchingCount += matches.Length;
             var rows = new StackPanel { Spacing = 4 };
-            foreach (var source in matches)
+            foreach (var (source, labelText) in matches)
             {
                 var label = new StackPanel();
-                label.Children.Add(new TextBlock { Text = source.Name + (disabled(source) ? " (Disabled)" : string.Empty), TextWrapping = TextWrapping.Wrap });
+                label.Children.Add(new TextBlock { Text = labelText, TextWrapping = TextWrapping.Wrap });
                 label.Children.Add(new TextBlock { Text = source.Location, FontSize = 11, Opacity = 0.7, TextWrapping = TextWrapping.Wrap });
                 var button = new Button { Content = label, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left };
                 button.Click += (_, _) => { SelectedSource = source; select(source); };
@@ -199,12 +227,13 @@ internal sealed partial class CustomizationWindow : Window
             if (matches.Length == 0) { rows.Children.Add(new TextBlock { Text = "No matching artifacts", Opacity = 0.6 }); }
             catalogue.Children.Add(new Expander
             {
-                Header = (scope == CustomizationScope.BuiltIn ? "Built-in" : scope.ToString()) + " (" + matches.Length + ")",
+                Header = scopeLabel + " (" + matches.Length + ")",
                 IsExpanded = true,
                 Content = rows,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
             });
         }
+        FilterSummary.Text = matchingCount + " of " + totalCount + " artifacts";
     }
 
     internal async Task<string> Review(string title, string text, CancellationToken token, params string[] choices)
@@ -309,7 +338,7 @@ internal sealed partial class CustomizationWindow : Window
         Editor.Text = string.Empty; Request.Text = string.Empty; NewName.Text = string.Empty; RequiredPromptInputs.Text = string.Empty;
         McpUrl.Text = string.Empty; McpHttpType.IsChecked = false;
         FileName.Text = string.Empty; Search.Text = string.Empty;
-        Details.Text = string.Empty; Status.Text = string.Empty; VoiceContext.Text = string.Empty;
+        Details.Text = string.Empty; Status.Text = string.Empty; VoiceContext.Text = string.Empty; FilterSummary.Text = string.Empty;
         Files.ItemsSource = null; catalogue.Children.Clear(); SelectedSource = null;
     }
 }

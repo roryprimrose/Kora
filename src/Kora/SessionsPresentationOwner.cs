@@ -57,6 +57,7 @@ internal sealed partial class SessionsPresentationOwner
     internal SessionsPresentationOwner(SessionsViewModel model, MainViewModel? requestCommands = null)
     {
         this.model = model;
+        model.CaptureQuietHoursNativeLifetime = CaptureForegroundSourceEligibility;
         this.requestCommands = requestCommands;
         if (requestCommands is not null)
         {

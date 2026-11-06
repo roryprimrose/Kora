@@ -1,3 +1,5 @@
+using System.Text;
+using System.Text.Json;
 using AwesomeAssertions;
 using Kora.Core.Hosting;
 using Kora.Core.Mcp;
@@ -80,6 +82,59 @@ public sealed class McpPolicyTests
         schema.ValidateArguments("""{"query":"only required"}""");
         var empty = new McpToolSchema("""{"type":"object","additionalProperties":false,"properties":{},"required":[]}""");
         empty.ValidateArguments("{}");
+    }
+
+    [Theory]
+    [InlineData("\U0001f600", 1)]
+    [InlineData("\U00020000", 1)]
+    [InlineData("\U0001d11e", 1)]
+    [InlineData("A\U00020000", 2)]
+    [InlineData("e\u0301", 2)]
+    [InlineData("\U0001f469\u200d\U0001f4bb", 3)]
+    public void Mcp_string_limits_count_unicode_scalars_without_normalizing_or_rewriting(string text, int length)
+    {
+        var schema = new McpToolSchema(Schema.Replace("\"maxLength\":32",
+            "\"maxLength\":" + length, StringComparison.Ordinal));
+        foreach (var arguments in new[] { "{\"query\":\"" + text + "\"}", JsonSerializer.Serialize(new { query = text }) })
+        {
+            schema.ValidateArguments(arguments);
+            using var wire = JsonDocument.Parse(McpProtocol.InvocationRequest("search", schema, arguments));
+            var actual = wire.RootElement.GetProperty("params").GetProperty("arguments");
+            actual.GetRawText().Should().Be(arguments);
+            actual.GetProperty("query").GetString().Should().Be(text);
+        }
+        FluentActions.Invoking(() => schema.ValidateArguments(JsonSerializer.Serialize(new { query = text + "\U00020000" })))
+            .Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
+    public void Mcp_unicode_scalar_limits_do_not_replace_the_complete_utf8_argument_bound()
+    {
+        var schema = new McpToolSchema(Schema.Replace("\"maxLength\":32", "\"maxLength\":512", StringComparison.Ordinal));
+        var text = string.Concat(Enumerable.Repeat("\U00020000", 509));
+        var exact = "{\"query\":\"" + text + "\"}";
+        Encoding.UTF8.GetByteCount(exact).Should().Be(McpToolSchema.MaximumArgumentsUtf8Bytes);
+        schema.ValidateArguments(exact);
+        var oversize = "{\"query\":\"" + text + "a\"}";
+        Encoding.UTF8.GetByteCount(oversize).Should().Be(McpToolSchema.MaximumArgumentsUtf8Bytes + 1);
+        FluentActions.Invoking(() => schema.ValidateArguments(oversize)).Should().Throw<InvalidDataException>();
+        FluentActions.Invoking(() => McpProtocol.InvocationRequest("search", schema, oversize))
+            .Should().Throw<InvalidDataException>();
+        FluentActions.Invoking(() => schema.ValidateArguments(JsonSerializer.Serialize(new { query = text })))
+            .Should().Throw<InvalidDataException>();
+    }
+
+    [Theory]
+    [InlineData("""{"query":"\ud800"}""")]
+    [InlineData("""{"query":"\udc00"}""")]
+    [InlineData("""{"query":"\ud800a"}""")]
+    [InlineData("""{"query":"\udc00\ud800"}""")]
+    public void Mcp_unicode_scalar_measurement_does_not_substitute_malformed_surrogates(string arguments)
+    {
+        var schema = new McpToolSchema(Schema);
+        FluentActions.Invoking(() => schema.ValidateArguments(arguments)).Should().Throw<InvalidDataException>();
+        FluentActions.Invoking(() => McpProtocol.InvocationRequest("search", schema, arguments))
+            .Should().Throw<InvalidDataException>();
     }
 
     [Theory]

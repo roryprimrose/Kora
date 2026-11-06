@@ -11,6 +11,7 @@ internal sealed class SessionDetailView : IDetailView
     private readonly SessionInteractionView host;
     private readonly DetailViewerState state;
     private bool closed;
+    private bool automatic;
     internal DetailContentView Reader { get; }
     internal AdmittedDetailContent? Content => state.Content;
     public event EventHandler? Closed;
@@ -39,13 +40,23 @@ internal sealed class SessionDetailView : IDetailView
         Reader.FocusReader();
     }
 
+    internal bool ShowWithoutActivation(ResponseWindow owner, AutomaticDetailIntent intent)
+    {
+        if (closed || !owner.IsVisible || !owner.IsActive || !owner.IsSessionListPresented
+            || !ReferenceEquals(owner.SessionView, host) || Content != intent.Content || !intent.IsCurrent())
+        { return false; }
+        automatic = true;
+        return host.ShowAutomaticDetails(this, intent) && intent.IsCurrent();
+    }
+
     public void ClearAndClose()
     {
         if (closed) { return; }
         closed = true;
         if (Content is { } content) { host.RememberReadingPosition(content.Reference, Reader.CaptureReadingPosition()); }
         Reader.ClearPresentation();
-        host.RemoveDetails(this);
+        if (automatic) { host.RemoveAutomaticDetails(this); }
+        else { host.RemoveDetails(this); }
         Closed?.Invoke(this, EventArgs.Empty);
     }
 }

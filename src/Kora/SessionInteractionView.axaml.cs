@@ -47,6 +47,7 @@ internal sealed partial class SessionInteractionView : UserControl
     public SessionInteractionView()
     {
         InitializeComponent();
+        ObserveAutomaticDetailsInput();
         conversationReader = new(this, ConversationScroll, ConversationMessageItems, ConversationUpdateItems, ConversationReaderStatus);
         replyPresentation = new(this);
         ConversationTabs.SelectionChanged += (_, _) =>
@@ -251,6 +252,7 @@ internal sealed partial class SessionInteractionView : UserControl
 
     internal bool ShowDetails(SessionDetailView view, AdmittedDetailContent content)
     {
+        if (!publishingAutomaticDetails) { automaticReaderEpoch++; }
         var subject = content.ConversationMessage?.Request.SessionId ?? content.HistorySession ?? content.SessionSource?.SessionId;
         var selected = observedModel?.SelectedSessionRecord?.Authority.SessionId;
         if (subject is null || observedModel?.CanPresentDetails != true
@@ -308,11 +310,12 @@ internal sealed partial class SessionInteractionView : UserControl
         ReadingPanes.ColumnDefinitions[2].Width = new(0);
         ShowSessionDetails.IsVisible = true;
         RefreshReturnNavigation();
-        if (IsVisible && observedModel?.CanPresentDetails == true) { ShowSessionDetails.Focus(); }
+        if (!publishingAutomaticDetails && IsVisible && observedModel?.CanPresentDetails == true) { ShowSessionDetails.Focus(); }
     }
 
     internal void HideDetails()
     {
+        if (!publishingAutomaticDetails) { automaticReaderEpoch++; }
         RememberSplit();
         evidenceValidation.Stop();
         var retired = evidenceLifetime;

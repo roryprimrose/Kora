@@ -57,6 +57,21 @@ See [native editor commands, bounds and recovery](instruction-editor.md).
 
 ## Authoritative Sessions work
 
+### Optional local model answer about remaining work
+
+In the full or compact conversation, expand **Optional local model answer about this conversation's remaining work**. Enable the optional operation for this private view; it starts off in each new view. The selected conversation is the source. Enter your question and choose a different existing Active idle answer conversation ([native controls](../src/Kora/ManagementAnswerPanel.axaml)).
+
+Choose **Review exact local ledger disclosure**. Read the complete question, policy, body-free work facts, local catalogue selection, destination and retention disclosure. Review alone neither calls a model nor saves a message.
+Choose **Confirm one local answer and retention** once, or **Cancel / clear management review** ([review owner](../src/Kora.Application/Hosting/RemainingWorkManagement.cs)).
+
+Disabling the operation, editing the question/destination, changing the source, closing the view or losing private access retires the review. No submitted message bodies or unsent composer text are read. It cannot change work or approve effects. Source work continues; manual status and stop remain available ([presentation owner](../src/Kora/SessionsViewModel.ManagementAnswer.cs)).
+
+Production management inference is unqualified and unavailable. If a separately qualified local host is provided, the complete input/output are bounded to 32/4 KiB and one attempt has at most fifteen seconds.
+Source observations expire after ten seconds; changed or expired facts refuse an answer. Missing/omitted or diagnostic-queue records require manual status instead ([operation contract](../Design/Work_Management.md#reviewed-local-remaining-work-answer)).
+
+Inspect the reported HOST outcome and actual retained answer in the destination. An unavailable or unconfirmed result is not an answer; do not retry automatically. The evidence is not saved as history, although the retained answer may repeat its metadata.
+No remote fallback, work mutation or provider enablement is introduced ([retained-answer adapter](../src/Kora.Application/Hosting/SessionConversationService.ManagementAnswer.cs)).
+
 ### Stop all submitted work without exiting
 
 Open **All Work**, then deliberately choose **Stop all work…**. Opening,
@@ -313,6 +328,18 @@ labelled as separate from the selected conversation and do not retarget its inpu
 Supported Markdown renders natively. Mermaid remains labelled source fallback;
 this change does not enable HTML or browser capabilities.
 
+### Read the audit for one original message
+
+After explicitly reading a conversation, choose **Read this request's audit** beside one original message.
+Kora reads only committed **AuthorityAudit** records for that exact original session, request and task, then opens the existing Details pane. It does not read other requests, replay the operation or call a model ([native action](../src/Kora/SessionsViewModel.RequestEvidence.cs)).
+
+**Next request-audit snapshot page** continues the same bounded signed snapshot; it does not refresh or widen the query.
+Missing records or terminal evidence do not prove that work is running, succeeded or had an effect. The page labels its availability and whether more bounded evidence remains.
+This native-only inspection retains the existing local-UI evidence admission, not a new voice or model route ([shared reader](../src/Kora.Application/Diagnostics/DurableEvidenceQuery.cs)).
+
+The original retained message is revalidated before and after the read and during passive page revalidation. Message/source, selection, private-control or native-presenter retirement blocks late publication and old Next controls ([source fences](../src/Kora/SessionsViewModel.RequestEvidence.cs)).
+Reading leaves unsent input, session lifecycle, meaningful activity, grants and independent audit retention unchanged; no clipboard, export, speech or context-use authority is added ([page validation](../src/Kora/SessionsViewModel.Details.cs)).
+
 ### Workspace surface navigation
 
 Type `open all work` or `open compact conversation`, or use the current assistant-name activated prefix. These exact routes activate the existing tray/UI singleton controllers. `open sessions` now expands the primary interaction window, as do `show sessions`, `show me the current sessions` and `expand conversation`. No model window-focus route is available.
@@ -515,6 +542,14 @@ Select the exact retained Active or Done session. In the existing conversation r
 
 Use **Next conversation matches** for the original bounded snapshot. Each row displays the complete inert saved answer separately from USER and HOST; its existing **Details - exact original USER / separate HOST** action opens the complete record with the ASSISTANT answer shown separately. It does not run, speak or reuse the answer ([shared row](../src/Kora/ConversationPresentation.axaml), [detail action](../src/Kora/SessionsViewModel.Conversation.cs)).
 
+In Sessions and compact view, **Enter** in the query starts the existing search.
+**Tab** enters the matches, arrow keys select a row, and **Tab** continues through
+that row's controls to **Details - exact original USER / separate HOST**.
+Activate it with **Space** to read that exact kept record. The answer's accessible
+name includes its complete displayed text both in the match and in Details,
+separately from USER/HOST. **Escape** closes Details without changing the selected
+conversation or either conversation's unsent input.
+
 **Cancel conversation search** cancels an in-flight search; **Clear private conversation search** clears query, role, results and continuation. Query/role edits and Next retire match Details; source/privacy loss and close discard late results. Unsent input remains independent. Passive Done search never resumes work or renews retention, and search creates no new persisted content/index or model/provider call ([search lifetime](../src/Kora/SessionsViewModel.ConversationSearch.cs), [restart/native coverage](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AssistantSearch.cs)).
 
 The existing lexical query and complete-page byte bounds apply unchanged. Submitted-date and typed task-state predicates still AND-compose with the selected field role. [Typed/current-name activated voice](commands.md#search-retained-assistant-answers-explicitly) selects the same ASSISTANT role through the exact addressed host route, without implicit session navigation.
@@ -526,6 +561,25 @@ Open **Sessions**, select the exact session and use **Exact-session conversation
 Read/Next show bounded chronological **USER** messages and separate **HOST** statuses; no model answer is invented. Done history stays readable, but new work requires explicit Resume. Exact authority checks and target/effect disclosures for consequential reviews remain unchanged ([submission admission](../src/Kora.Application/Hosting/SessionConversationService.cs), [disposition review](../src/Kora/SessionsViewModel.cs)).
 
 Typing writes nothing. Switching topics preserves a separate memory-only unsent message per exact session, shared by Sessions and compact views. No ordinary Save/Reload/Clear or saved-draft management exists ([buffers](../src/Kora/SessionsViewModel.Unsent.cs)).
+
+#### Continue another conversation while answering an original question
+
+Submit using **Submit with one clarification**, **Ask locally with observations
+and one question**, or the explicit Claude clarification action. When the original
+dispatched task asks its question, its retained request leaves the input box and
+you may select another conversation and write independent unsent text.
+
+Use the still-open original question window to **Review exact record**, edit or
+**Save draft**, and separately **Submit** or **Cancel question**. Selecting another
+conversation changes neither the question's target nor its original expiry.
+Submitting an answer does not submit the active conversation's composer or grant
+approval; Claude still requires each separate native transmission consent.
+
+Return to the original conversation and choose **Read conversation** to inspect
+its genuine retained ASSISTANT answer or truthful HOST outcome. The other
+conversation's input and any newer original-conversation input remain unchanged.
+Privacy, source loss, expiry and exact-task cancellation still retire the original
+wait; no closed or terminal question is recreated ([question owner](../src/Kora/SessionsViewModel.QuestionContinuation.cs)).
 
 If work refresh observes a changed lifecycle or generation, all conversation
 views retain the unsent text but disable stale composer and Send controls.
@@ -1213,6 +1267,17 @@ classification or scanning. Each new explanation still needs exact-snapshot
 confirmation even with a reusable grant. A qualified local runtime is required;
 the answer appears only here, remains volatile and is never automatically spoken.
 There is no hosted/bootstrap fallback.
+
+For a new original question about that same capture, expand **Ask a question
+about this same snapshot**. Type the question, choose **Review question and same
+snapshot**, review the full unchanged question and source with its LocalOnly
+destination, and separately confirm **Ask locally using this same snapshot**.
+The existing clipboard explanation permission still applies. No previous answer
+or history is included; no clipboard read, lifetime renewal, saved question or
+speech is added. Editing retires review. **Cancel clipboard question** cancels
+disclosure and waits for actual owned work to join. Expired/replaced/revoked
+sources and lost original host admission require a fresh deliberate operation,
+never automatic recapture or replay.
 
 **Wrap snapshot text** soft-wraps only the original source body to the available
 width. It starts unchecked (the existing unwrapped view); uncheck it to scroll

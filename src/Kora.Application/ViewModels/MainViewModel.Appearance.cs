@@ -20,7 +20,7 @@ public sealed partial class MainViewModel
         await Task.WhenAll(comparisonDisposal, completionNoticeDisposal, appearancePersistence, preferencePersistence, consentPersistence,
             appearanceSuggestionPersistence, speechSummaryPersistence, volumeSuggestionPersistence, volumeSuggestionReviewWork,
             rateSuggestionPersistence, rateSuggestionReviewWork,
-            quietHoursSuggestionWork, timingSuggestionWork,
+            quietHoursSuggestionWork, timingSuggestionWork, detailPresentationSuggestionWork,
             installedVoicePersistence, installedVoiceReviewWork,
             responseModeSuggestionWork, settingsUndoWork,
             responseReadPlanQuiescence, responseReadQuiescence,
@@ -69,7 +69,7 @@ public sealed partial class MainViewModel
         var name = AssistantName;
         var voice = message.Request.Origin == RequestOrigin.ActivatedVoice
             || HostActivity.RequireCurrent().Request.Origin == RequestOrigin.ActivatedVoice;
-        bool Eligible() => !disposed && IsCallMutationHostEligible && !IsProtectedCall
+        bool Eligible() => !disposed && IsCallMutationHostEligible
             && !IsBusy && !IsResponseInteractionPending && !applyingAppearance
             && privacyObservation.Current.TopologyRevision == privacy && CallPolicyRevision == call
             && settingsOwnershipRevision() == ownership

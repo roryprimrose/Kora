@@ -252,6 +252,17 @@ conversation. PTT enters command capture without requiring a wake name.
 Host-opened replies remain bound to their exact question/revision and cannot
 become general commands or extend ambient transcription.
 
+Explicit PTT owns the original held gesture before awaiting prior prompt,
+dictation, editor-reply or wake cleanup. Releasing the control during that wait
+retires the gesture: cleanup remains joined, but its eventual completion cannot
+open command capture or accept a transcript. Concurrent activation cannot replace
+that pending owner. A fresh deliberate press after confirmed cleanup rechecks
+ordinary consent, device, ownership, privacy and call policy; early release does
+not change saved consent or listening preference. The existing five-second
+native-open deadline remains independent of joined prior-input cleanup.
+The [held-intent regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.PushToTalkPreparation.cs)
+use deterministic capture barriers, not hardware or acoustic qualification.
+
 Explicit command interruption of a retained-answer reading captures the
 foreground session and exact playback at PTT activation, not final recognition.
 The host revalidates that immutable binding and original generation, joins
@@ -559,6 +570,9 @@ visible memory-only text. No preference writer, command grammar, conversation,
 source-context or listening-consent publication receives comparison text.
 Comparison and profile preparation remain mutually exclusive; an unconfirmed
 profile-asset release keeps comparison unavailable without opening input.
+
+The [comparison owner](../src/Kora.Application/Voice/SpeechSetupComparison.cs) clears volatile results and review before requesting asynchronous cancellation. Cancel, close, admission withdrawal and disposal retain both the native attempt and its cancellation callbacks until they join; neither completion alone permits replacement capture.
+Callback failure is reported through the original retirement await and comparison status, without claiming successful cancellation or permitting another comparison until restart. The [retirement regressions](../tests/Kora.Application.UnitTests/Voice/SpeechSetupComparisonTests.cs) hold each join independently and exercise failing callbacks; they do not enable a speech profile.
 
 The [native seam](../src/Kora.Windows/Audio/WindowsVoiceRecognitionService.Comparison.cs)
 measures actual open-to-start elapsed time. First/repeat trials do not establish

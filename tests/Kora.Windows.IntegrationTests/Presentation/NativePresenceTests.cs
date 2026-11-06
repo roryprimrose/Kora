@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 using AwesomeAssertions;
 
 using Kora.Controls;
@@ -11,6 +13,25 @@ namespace Kora.Windows.IntegrationTests.Presentation;
 
 public sealed class NativePresenceTests
 {
+    [WindowsFact]
+    public void UiRenderedPixelsAreCopiedWithoutChangingPremultipliedBytes()
+    {
+        using var dib = new WindowsPresenceDib(3, 5);
+        var pixels = Enumerable.Range(0, 3 * 5 * 4).Select(value => (byte)value).ToArray();
+        dib.WritePixels((pointer, length, stride) =>
+        {
+            length.Should().Be(pixels.Length);
+            stride.Should().Be(12);
+            Marshal.Copy(pixels, 0, pointer, length);
+        });
+        dib.CopyPixels().Should().Equal(pixels);
+        var missing = () => dib.WritePixels(null!);
+        missing.Should().Throw<ArgumentNullException>();
+        dib.Dispose();
+        var disposed = () => dib.WritePixels((_, _, _) => throw new InvalidOperationException("must not write"));
+        disposed.Should().Throw<ObjectDisposedException>();
+    }
+
     [Theory]
     [InlineData(null, false)]
     [InlineData("avalonia", false)]

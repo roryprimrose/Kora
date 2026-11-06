@@ -319,6 +319,8 @@ The immutable [finite page scope](../src/Kora.Core/Network/LocalWebPageScope.cs)
 
 Each physical call reuses its own exact canonical once-only page approval and host egress/privacy/session checks. All used approvals remain current through continuation and successful terminal retention. A missing/failed second source cannot produce a successful comparison; an expired/revoked terminal fence remains explicitly unconfirmed, without replay. The original one-source operation and tool-free route remain separate ([finite workflow](../src/Kora.Application/Network/LocalWebPageWorkflow.cs), [retained consumer](../src/Kora.Application/Hosting/SessionConversationService.ToolSkills.cs)).
 
+The shared [WebPageGet action](../src/Kora.Tools/Network/WebPageGet.cs) omits script/style raw text until that element's matching end tag, without treating comparisons or literal markup inside it as nested elements. Visible article text after that end tag remains available to the reviewed local continuation; an unterminated raw element remains omitted through the end of the response. This is bounded inert text extraction, not browser rendering, script execution or additional source authority.
+
 Input/address/target edits revoke both the invocation and tool revision review; source/privacy/ownership changes fence late results. **Stop and close reviewed use** cancels and joins the owned operation. Comparison methodology stays in the [declarative skill example](../docs/tools-and-built-in-skills.md#two-source-comparison-skill-example), not a native comparison action ([controller lifecycle](../src/Kora/SharedSkillInvocationController.cs)).
 
 Activated voice uses the same commands with the current assistant-name prefix and existing call/privacy admission. Changing the reviewed channel or target requires fresh review. The original instruction-only `shared skill` commands remain distinct ([desktop consumer](../src/Kora/SharedSkillInvocationController.ToolSkills.cs)).
@@ -548,6 +550,9 @@ Until these checks and containment pass, packages requiring
 scripts remain disabled under the existing MVP policy.
 
 ## Identity and Revision Handling
+
+The [owned-package admission owner](../src/Kora.Application/Skills/OwnedSkillInvocationWorkflow.cs) checks the host exclusion policy for both primary files on every native format, plus each declared Markdown component. A missing policy or excluded primary blocks direct review and subsequent source-validation boundaries, not only named lookup.
+Exclusion retirement cannot be reversed by restoring eligibility; use needs a fresh exact revision review ([behavioral regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.OwnedSkillUsePolicy.cs)).
 
 Internal identity includes source partition, canonical source/package identity, declared skill ID, and content digest.
 Display names and IDs from a package do not override bundled or other-source skills.

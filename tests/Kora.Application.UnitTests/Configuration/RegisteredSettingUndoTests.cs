@@ -203,7 +203,7 @@ public sealed class RegisteredSettingUndoTests
     }
 
     [Fact]
-    public async Task ReviewAndConfirmationCannotShareARequestOrRelabelVoiceAsUi()
+    public async Task ReviewAndConfirmationCannotShareARequestAndNativeConfirmationRetainsVoiceLineage()
     {
         await using var f = new Fixture();
         await f.Set(RegisteredSetting.SummaryWords, true);
@@ -213,8 +213,105 @@ public sealed class RegisteredSettingUndoTests
             await FluentActions.Awaiting(() => f.Undo.ConfirmAsync(SecurityAuditInitiator.VoiceCommand, f.Token))
                 .Should().ThrowAsync<InvalidOperationException>();
         }
+        var audits = f.Audit.Events.Count;
+        (await f.Confirm()).Should().BeTrue();
+        f.Audit.Events.Skip(audits).Should().HaveCount(2)
+            .And.OnlyContain(item => item.Initiator == SecurityAuditInitiator.VoiceCommand);
+        await FluentActions.Awaiting(() => f.Confirm(SecurityAuditInitiator.VoiceCommand)).Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Theory]
+    [InlineData(RegisteredSetting.SummaryWords)]
+    [InlineData(RegisteredSetting.PlaybackVolume)]
+    [InlineData(RegisteredSetting.ResponseMode)]
+    [InlineData(RegisteredSetting.ResponseTimeout)]
+    public async Task VoiceReviewedUndoCanFinishNativelyWithVoiceAuditAndExactReadback(RegisteredSetting setting)
+    {
+        await using var f = new Fixture();
+        var before = f.PreferenceSnapshot();
+        await f.Set(setting, true);
+        var restoredValue = f.LastChange!.Before;
+        var writes = f.Store.Writes;
+        var audits = f.Audit.Events.Count;
+        using (Fixture.Input(RequestOrigin.ActivatedVoice))
+        { f.Undo.ReviewLast(SecurityAuditInitiator.VoiceCommand, () => f.Eligible); }
+        f.Undo.CanConfirm.Should().BeTrue();
+        f.Undo.Description.Should().Contain("current").And.Contain("restore");
+        f.Store.Writes.Should().Be(writes);
+        f.Audit.Events.Should().HaveCount(audits);
+
+        (await f.Confirm()).Should().BeTrue();
+
+        f.PreferenceSnapshot().Should().BeEquivalentTo(before);
+        f.Audit.Events.Skip(audits).Select(item => item.Outcome).Should()
+            .Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+        f.Audit.Events.Skip(audits).Should().OnlyContain(item => item.Initiator == SecurityAuditInitiator.VoiceCommand);
+        f.Undo.Description.Should().Contain("new audited write").And.Contain("no redo")
+            .And.Contain($"restored {restoredValue}.");
+        f.Undo.CanConfirm.Should().BeFalse();
+        f.Undo.CanReview.Should().BeFalse();
+        f.Playback.SpeechCalls.Should().Be(0);
+        if (setting is RegisteredSetting.PlaybackVolume or RegisteredSetting.ResponseMode)
+        { f.ControlStore.LastRequest!.Origin.Should().Be(RequestOrigin.ActivatedVoice); }
         await FluentActions.Awaiting(() => f.Confirm()).Should().ThrowAsync<InvalidOperationException>();
-        (await f.Confirm(SecurityAuditInitiator.VoiceCommand)).Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("call")]
+    [InlineData("privacy")]
+    [InlineData("expired")]
+    [InlineData("cancel")]
+    [InlineData("completed-confirmation")]
+    [InlineData("unavailable")]
+    [InlineData("call-at-commit")]
+    public async Task MixedChannelUndoCannotLoseOriginalOrConfirmationAdmission(string loss)
+    {
+        await using var f = new Fixture();
+        await f.Set(RegisteredSetting.PlaybackVolume, true);
+        using (Fixture.Input(RequestOrigin.ActivatedVoice))
+        { f.Undo.ReviewLast(SecurityAuditInitiator.VoiceCommand, () => f.Eligible); }
+        var before = f.PreferenceSnapshot();
+        var audits = f.Audit.Events.Count;
+        using var cancel = new CancellationTokenSource();
+        using var confirmation = Fixture.Input();
+        if (loss is "call") { f.Call.State = CallState.Active; }
+        if (loss is "privacy") { f.Eligible = false; }
+        if (loss is "expired") { f.Clock.Now = f.Clock.Now.AddSeconds(60); }
+        if (loss is "unavailable")
+        { f.ControlStore.BeforeOperation = () => throw new IOException("fixture admission unavailable"); }
+        if (loss is "cancel") { f.ControlStore.BeforeControlIntent = _ => cancel.Cancel(); }
+        if (loss is "completed-confirmation")
+        { f.ControlStore.BeforeControlIntent = _ => confirmation.Complete(HostOperationOutcome.Completed); }
+        if (loss is "call-at-commit")
+        {
+            f.Audit.Before = audit =>
+            {
+                if (audit.Outcome == SecurityAuditOutcome.Requested) { f.Call.State = CallState.Active; }
+            };
+        }
+
+        bool? accepted = null;
+        var failure = await Record.ExceptionAsync(async () =>
+        { accepted = await f.Undo.ConfirmAsync(SecurityAuditInitiator.LocalUser, cancel.Token); });
+
+        if (loss is "cancel") { failure.Should().BeAssignableTo<OperationCanceledException>(); }
+        else if (loss is "call-at-commit")
+        {
+            failure.Should().BeNull();
+            accepted.Should().BeFalse();
+            f.Undo.Description.Should().Contain("unconfirmed").And.Contain("No automatic retry");
+        }
+        else if (loss is "unavailable") { failure.Should().BeOfType<IOException>(); }
+        else { failure.Should().BeOfType<InvalidOperationException>(); }
+        f.PreferenceSnapshot().Should().BeEquivalentTo(before);
+        if (loss is "call-at-commit")
+        {
+            f.Audit.Events.Skip(audits).Select(item => item.Outcome).Should()
+                .Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Denied);
+            f.Audit.Events.Skip(audits).Should().OnlyContain(item => item.Initiator == SecurityAuditInitiator.VoiceCommand);
+        }
+        else { f.Audit.Events.Should().HaveCount(audits); }
+        f.Playback.SpeechCalls.Should().Be(0);
     }
 
     [Theory]

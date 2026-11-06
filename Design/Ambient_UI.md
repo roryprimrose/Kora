@@ -362,12 +362,12 @@ changed-history validation, transaction begin, insert, file verification and
 FULL commit. These remain fixed phase names with no store size or row contents.
 No audit is skipped, deferred, batched or reclassified by this observation.
 
-The native path retains the Avalonia window for position, size, DPI observation, click-through/Ctrl-drag routing, timeout, privacy and shutdown. A same-process, same-UI-thread native popup is owned by that window, not parented as a child. The `asInvoker`, `uiAccess=false` Windows manifest does not request elevation
+Both paths retain the Avalonia window for position, size, DPI observation, click-through/Ctrl-drag routing, timeout, privacy and shutdown. A same-process, same-UI-thread native popup is owned by that window, not parented as a child. The `asInvoker`, `uiAccess=false` Windows manifest does not request elevation
 ([host](../src/Kora/MainWindow.NativePresence.cs), [manifest](../src/Kora/app.manifest)).
 
 The popup has a private window class without `CS_OWNDC` or `CS_CLASSDC`, uses
 per-pixel `UpdateLayeredWindow` only, and always passes pointer input through.
-It never uses constant-alpha initialization. In native mode the Avalonia shell
+It never uses constant-alpha initialization. In either mode the Avalonia shell
 is not forced into `WS_EX_LAYERED`: Avalonia 12.1.3 uses `CS_OWNDC`, which
 [Windows documents as incompatible with that style](https://learn.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles).
 Instead the existing Ctrl/button/eligibility policy applies a real empty window
@@ -379,12 +379,14 @@ notifications cannot commit an input mode before the outer transfer succeeds
 ([input](../src/Kora.Windows/Presentation/WindowsPresenceWindowInput.cs),
 [regions](../src/Kora.Windows/Presentation/WindowsPresenceRegion.cs)).
 
-The default Avalonia input backend remains unchanged. Native selection happens
-before constructing either backend. Unknown/conflicting region ownership,
-foreign/thread-mismatched windows, forced layered shells and unavailable transparent
-backends fail explicitly, without native class-style resets or silent fallback.
-The inherited default backend's forced-layering contract is not claimed fixed by
-this opt-in native change.
+Both renderer selections keep the Avalonia shell non-layered and use the same region-based input routing. The standard renderer retains Avalonia particle drawing, but renders into a reusable premultiplied BGRA bitmap and copies each completed frame into a compatible owned native popup.
+It no longer forces `WS_EX_LAYERED` onto Avalonia's `CS_OWNDC` window class ([standard host](../src/Kora/MainWindow.AvaloniaPresence.cs), [drawing](../src/Kora/Controls/PresenceControl.cs)).
+
+The standard presenter's host visual draws no second cloud. It rechecks visibility, privacy admission and geometry after copying pixels and before presentation. Hidden or ineligible hosts hide the popup immediately.
+Disposal removes subscriptions and releases bitmap resources before destroying the popup. Copy or presentation failures explicitly retire Standard mode without switching modes ([presenter](../src/Kora/Controls/AvaloniaPresencePresenter.cs)).
+
+This standard-renderer repair is a software-bitmap presentation path, not a GPU optimization or a performance qualification. The experimental renderer continues to calculate and draw its own frames on its worker. Both retain their existing particle semantics, settings and explicit selection ([worker](../src/Kora.Application/Visuals/PresenceRenderWorker.cs)).
+Unknown/conflicting region ownership, foreign/thread-mismatched windows, forced layered shells and unavailable transparent backends fail explicitly without native class-style resets or silent fallback ([region validation](../src/Kora.Windows/Presentation/WindowsPresenceRegionNative.cs)).
 
 The layout control is only a host-owned geometry/lifetime adapter, not a native
 container. It resolves physical client coordinates to screen coordinates and

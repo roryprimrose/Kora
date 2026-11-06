@@ -1,12 +1,30 @@
 using System.Globalization;
+using System.Text.Json;
 using Kora.Core.Configuration.RegisteredSettings;
+using Kora.Core.Presentation;
 using Kora.Core.Voice;
 
 namespace Kora.Core.Configuration.SettingInspection;
 
-/// <summary>Closed, non-sensitive scalar metadata, never arbitrary preference text.</summary>
+/// <summary>Closed validated preference values, never arbitrary preference text or runtime qualification.</summary>
 public sealed record SettingObservation
 {
+    public SettingObservation(RegisteredSetting setting, VoiceCaptureTiming timing, bool saved, long revision)
+    {
+        timing.Validate();
+        Value = setting switch
+        {
+            RegisteredSetting.CommandStartWait => timing.CommandStartSeconds,
+            RegisteredSetting.ReplyStartWait => timing.ReplyStartSeconds,
+            RegisteredSetting.TrailingSilence => timing.TrailingSilenceSeconds,
+            _ => throw new ArgumentOutOfRangeException(nameof(setting)),
+        };
+        ArgumentOutOfRangeException.ThrowIfNegative(revision);
+        Setting = setting;
+        IsSaved = saved;
+        Revision = revision;
+    }
+
     public SettingObservation(RegisteredSetting setting, int value, bool saved, long revision)
     {
         switch (setting)
@@ -58,6 +76,9 @@ public sealed record SettingObservation
             case RegisteredSetting.ResponseMode:
                 _ = ResponseOutputModeResolver.Resolve((ResponseOutputMode)value, null, null);
                 break;
+            case RegisteredSetting.DetailPresentation:
+                _ = DetailPresentationPreference.Format((DetailPresentationMode)value);
+                break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(setting));
         }
@@ -68,20 +89,42 @@ public sealed record SettingObservation
         Revision = revision;
     }
 
+    public SettingObservation(SpeechSelection selection, bool saved, long revision)
+    {
+        ArgumentNullException.ThrowIfNull(selection);
+        selection.Validate();
+        ArgumentOutOfRangeException.ThrowIfNegative(revision);
+        Setting = RegisteredSetting.SpeechVoice;
+        Selection = selection;
+        IsSaved = saved;
+        Revision = revision;
+    }
+
     public RegisteredSetting Setting { get; }
-    public int Value { get; }
+    public decimal? Value { get; }
+    public SpeechSelection? Selection { get; }
     public bool IsSaved { get; }
     public long Revision { get; }
-    public string Text => RegisteredSettingRegistry.Get(Setting).Id + " = " + (Setting switch
-    {
-        RegisteredSetting.Theme => ((ApplicationThemeMode)Value).ToString(),
-        RegisteredSetting.ResponseMode => ((ResponseOutputMode)Value).ToString(),
-        RegisteredSetting.PresenceDisplay or RegisteredSetting.SpeechScaling or RegisteredSetting.ReducedMotion =>
-            Value == 1 ? "true" : "false",
-        _ => Value.ToString(CultureInfo.InvariantCulture),
-    }) + " " + RegisteredSettingRegistry.Get(Setting).Units
+    public string Text => RegisteredSettingRegistry.Get(Setting).Id + " = " + (Selection is { } selection
+        ? JsonSerializer.Serialize(selection.ProviderId) + " / "
+            + (selection.VoiceId is { } voice ? JsonSerializer.Serialize(voice) : "provider-advertised default (exact voice not resolved)")
+            + " (future-only; no runtime claim)"
+        : ScalarText)
+        + " " + RegisteredSettingRegistry.Get(Setting).Units
         + (IsSaved ? " (confirmed saved; matches live service)" : " (confirmed absent; live default)")
         + (Setting == RegisteredSetting.ReducedMotion
             ? Value == 0 ? "; follows Windows reduced-motion preference, not forced motion" : "; freezes presence particles"
             : "");
+
+    private string ScalarText => Setting switch
+    {
+        RegisteredSetting.Theme => ((ApplicationThemeMode)Value!.Value).ToString(),
+        RegisteredSetting.ResponseMode => ((ResponseOutputMode)Value!.Value).ToString(),
+        RegisteredSetting.DetailPresentation => DetailPresentationPreference.Format((DetailPresentationMode)Value!.Value),
+        RegisteredSetting.PresenceDisplay or RegisteredSetting.SpeechScaling or RegisteredSetting.ReducedMotion =>
+            Value == 1 ? "true" : "false",
+        RegisteredSetting.CommandStartWait or RegisteredSetting.ReplyStartWait or RegisteredSetting.TrailingSilence =>
+            VoiceCaptureTiming.Format(Value!.Value),
+        _ => Value!.Value.ToString(CultureInfo.InvariantCulture),
+    };
 }

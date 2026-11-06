@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 using Kora.Application.Dependencies;
+using Kora.Core.Configuration;
 using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Configuration.SettingInspection;
 using Kora.Core.Dependencies;
@@ -7,6 +8,7 @@ using Kora.Core.Hosting;
 using Kora.Core.Storage;
 using Kora.Core.Providers;
 using Kora.Core.Tools;
+using Kora.Core.Voice;
 
 namespace Kora.Application.UnitTests.Dependencies;
 
@@ -22,6 +24,7 @@ public sealed partial class ModelTurnHostTests
                 new(RegisteredSetting.SummarySentences, 3, false, 1),
                 new(RegisteredSetting.PlaybackVolume, 100, false, 1),
                 new(RegisteredSetting.ResponseMode, 0, false, 1),
+                new(RegisteredSetting.DetailPresentation, 0, false, 1),
                 new(RegisteredSetting.PresenceDisplay, 1, false, 1),
                 new(RegisteredSetting.PresenceTimeout, 10, false, 1),
                 new(RegisteredSetting.PresenceSize, 360, false, 1),
@@ -31,6 +34,10 @@ public sealed partial class ModelTurnHostTests
                 new(RegisteredSetting.SpeechScaling, 1, false, 1),
                 new(RegisteredSetting.SpeechScaleAmount, 100, false, 1),
                 new(RegisteredSetting.ReducedMotion, 0, false, 1),
+                new(RegisteredSetting.CommandStartWait, VoiceCaptureTiming.Default, false, 1),
+                new(RegisteredSetting.ReplyStartWait, VoiceCaptureTiming.Default, false, 1),
+                new(RegisteredSetting.TrailingSilence, VoiceCaptureTiming.Default, false, 1),
+                new(SpeechSelection.Default, false, 1),
             ], "What controls summaries?", f.Request, f.Time.Now, mode);
         f.Request = review.Destination;
         f.Session = new(f.Request.SessionId, new(1), true);

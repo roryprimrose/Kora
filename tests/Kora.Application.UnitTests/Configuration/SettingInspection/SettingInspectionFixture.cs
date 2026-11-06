@@ -37,7 +37,10 @@ internal sealed class SettingInspectionFixture : IAsyncDisposable, ISessionWorks
         Volume = new(new LocalPlaybackVolumePreferences(Store), Playback, Admission, this);
         Response = new(new LocalResponseOutputPreferences(Store, NullLogger<LocalResponseOutputPreferences>.Instance),
             Admission, this, Playback);
-        Source = new(Appearance, Speech, Volume, Response);
+        Timing = new(new LocalVoiceCaptureTimingPreferences(Store), Admission, this,
+            NullLogger<VoiceCaptureTimingConfigurationService>.Instance);
+        Details = new(new LocalDetailPresentationPreferences(Store), Admission, this, Time);
+        Source = new(Appearance, Speech, Volume, Response, Timing, Details);
         Workflow = new(Source, this, this, this, Time, Logger);
     }
 
@@ -50,6 +53,8 @@ internal sealed class SettingInspectionFixture : IAsyncDisposable, ISessionWorks
     internal SpeechConfigurationService Speech { get; }
     internal PlaybackVolumeConfigurationService Volume { get; }
     internal ResponseModeConfigurationService Response { get; }
+    internal VoiceCaptureTimingConfigurationService Timing { get; }
+    internal DetailPresentationConfigurationService Details { get; }
     internal ConfirmedSettingsSource Source { get; }
     internal SettingInspectionWorkflow Workflow { get; }
     internal Clock Time { get; } = new();
@@ -76,6 +81,8 @@ internal sealed class SettingInspectionFixture : IAsyncDisposable, ISessionWorks
         Speech.Reload();
         Volume.Observe();
         Response.Observe();
+        Timing.Reload();
+        Details.Observe();
         Store.Reads.Clear();
         Catalog.Reads = 0;
         Playback.Effects = 0;
@@ -163,8 +170,10 @@ internal sealed class SettingInspectionFixture : IAsyncDisposable, ISessionWorks
     internal sealed class CatalogData : ISpeechCatalog
     {
         internal int Reads { get; set; }
-        public IReadOnlyList<SpeechProvider> GetProviders() { Reads++; return []; }
-        public IReadOnlyList<SpeechVoice> GetVoices() { Reads++; return []; }
+        internal IReadOnlyList<SpeechProvider> Providers { get; set; } = [];
+        internal IReadOnlyList<SpeechVoice> Voices { get; set; } = [];
+        public IReadOnlyList<SpeechProvider> GetProviders() { Reads++; return Providers; }
+        public IReadOnlyList<SpeechVoice> GetVoices() { Reads++; return Voices; }
         public SpeechVoice? GetDefaultVoice() => throw new NotSupportedException();
     }
 

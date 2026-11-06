@@ -58,7 +58,7 @@ public sealed partial class SessionsConversationTests
             await store.Publish(document, static () => true, commit => Task.FromResult(commit()), native.Token);
             await using var admission = new OwnedSkillControlAdmission(native.Interactions, native.Interactions, new(native.Tasks));
             var owned = new OwnedSkillInvocationWorkflow(store, admission, composed.Access, f.Store, composed.Workspace,
-                composed.Conversation, native.Audit, f.Time);
+                composed.Conversation, native.Audit, f.Time, new NamedNativeUsePolicy());
             var reader = new InvocationReader();
             var discovery = new SharedSkillDiscoveryService(new LocalSharedSkillPreferences(native), reader, native.SharedAdmission,
                 native.Audit, NullLogger<SharedSkillDiscoveryService>.Instance);

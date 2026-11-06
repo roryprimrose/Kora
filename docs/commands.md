@@ -4,6 +4,11 @@ Type a command without the assistant name. For voice, hold **Push to talk** and
 use your configured name, for example **Kora, open settings**. Phrases below are
 exact: a similar sentence may not match.
 
+If a previous voice input is still closing, Push to talk waits for its cleanup.
+Releasing before that completes cancels this gesture without opening the
+microphone later. Press again after cleanup to start a new command; listening
+permission and preferences are unchanged.
+
 The global command box runs commands; a session's message composer submits
 conversation text. Words inside a message do not become commands.
 **AI answers are unavailable in this build**, even after model setup.

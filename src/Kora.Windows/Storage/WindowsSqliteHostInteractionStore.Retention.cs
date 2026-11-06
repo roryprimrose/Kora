@@ -63,6 +63,12 @@ public sealed partial class WindowsSqliteHostInteractionStore
     private void ObserveTaskActivity(SqliteConnection connection, SqliteTransaction transaction, HostTaskRecord record,
         bool substantiveIntent)
     {
+        if (DetailsOfferForTask(connection, record.Request) is not null)
+        {
+            if (substantiveIntent || record.State == HostTaskState.DispatchRecorded)
+            { throw new InvalidOperationException("A Details presentation control cannot become substantive or dispatched work."); }
+            return;
+        }
         ObserveConversationRecovery(connection, transaction, record);
         if (substantiveIntent)
         {
@@ -156,14 +162,14 @@ public sealed partial class WindowsSqliteHostInteractionStore
         }, token, admitted, requireIdle: false).AsTask());
 
     private static void ValidateRetention(SqliteConnection connection)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT session_id FROM work_sessions;";
+        using (var reader = command.ExecuteReader())
         {
-            using var command = connection.CreateCommand();
-            command.CommandText = "SELECT session_id FROM work_sessions;";
-            using (var reader = command.ExecuteReader())
-            {
-                while (reader.Read()) { _ = ReadRetention(connection, new(ParseId(reader.GetString(0)))); }
-            }
-            command.CommandText = """
+            while (reader.Read()) { _ = ReadRetention(connection, new(ParseId(reader.GetString(0)))); }
+        }
+        command.CommandText = """
                 SELECT 1 FROM (
                     SELECT json_extract(c.value,'$.Id') AS id,MAX(a.sequence) AS sequence
                     FROM security_audit_events a,json_each(a.envelope,'$.Changes') c
@@ -182,11 +188,11 @@ public sealed partial class WindowsSqliteHostInteractionStore
                     OR EXISTS(SELECT 1 FROM session_history WHERE session_id=r.session_id AND source<>'{}'))
                 LIMIT 1;
                 """;
-            if (command.ExecuteScalar() is not null)
-            {
-                throw new InvalidDataException("Session retention exemption or deletion acceptance disagrees with committed authority/content.");
-            }
+        if (command.ExecuteScalar() is not null)
+        {
+            throw new InvalidDataException("Session retention exemption or deletion acceptance disagrees with committed authority/content.");
         }
+    }
     public ValueTask<SessionRetentionBatch> ApplyRetentionAsync(Func<bool> admitted,
         Func<HostId<SessionIdentity>, CancellationToken, ValueTask> revokeSources, CancellationToken token)
     {
@@ -220,6 +226,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             {
                 token.ThrowIfCancellationRequested();
                 if (!Current()) { throw new InvalidOperationException("Host retention admission was revoked or UTC moved behind the batch cutoff."); }
+                RetireDetailsOffersBeforeLifecycle(connection, id);
                 if (HasRetentionHold(connection, id)) { held++; continue; }
                 var clock = ReadRetention(connection, id);
                 var deleting = clock.DeleteDue <= cutoff;

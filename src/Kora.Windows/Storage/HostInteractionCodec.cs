@@ -68,14 +68,15 @@ internal static class HostInteractionCodec
         QuestionOption[] Options, int Minimum, int Maximum, int MaximumTextLength, string Purpose,
         string SourceId, HostRevision SessionGeneration, DateTimeOffset ExpiresAt, QuestionStatus Status,
         AnswerData? Draft, RequestOrigin? AnswerChannel, HostOperationProposal? Proposal,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FieldData[]? Fields = null)
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FieldData[]? Fields = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Kora.Core.Presentation.DetailsOfferBinding? DetailsOffer = null)
     {
         internal static QuestionData From(HostQuestionRecord question) =>
             new(question.Key, question.Spec.Text, question.Spec.Kind, question.Spec.Options.ToArray(),
                 question.Spec.Minimum, question.Spec.Maximum, question.Spec.MaximumTextLength,
                 question.Spec.Purpose, question.Spec.SourceId, question.SessionGeneration, question.ExpiresAt,
                 question.Status, AnswerData.From(question.Draft), question.AnswerChannel, question.Proposal,
-                question.Spec.Fields.IsEmpty ? null : question.Spec.Fields.Select(FieldData.From).ToArray());
+                question.Spec.Fields.IsEmpty ? null : question.Spec.Fields.Select(FieldData.From).ToArray(), question.DetailsOffer);
 
         internal HostQuestionRecord ToQuestion()
         {
@@ -84,7 +85,8 @@ internal static class HostInteractionCodec
                 var spec = new QuestionSpec(Text, Kind, Options, Minimum, Maximum, MaximumTextLength, Purpose, SourceId,
                     Fields?.Select(field => field.ToField()));
                 var question = new HostQuestionRecord(Key, spec, SessionGeneration, ExpiresAt, Status,
-                    Draft?.ToAnswer(), AnswerChannel, Proposal);
+                    Draft?.ToAnswer(), AnswerChannel, Proposal)
+                { DetailsOffer = DetailsOffer };
                 Validate(question);
                 return question;
             }
@@ -97,6 +99,7 @@ internal static class HostInteractionCodec
 
     internal static void Validate(HostQuestionRecord question)
     {
+        question.DetailsOffer?.Validate(question);
         if (question.Key is null || question.Spec is null)
         {
             throw new InvalidDataException("The persisted typed question has no key or schema.");

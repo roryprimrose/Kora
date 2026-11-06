@@ -46,11 +46,12 @@ public sealed partial record SessionCommand
     public bool RequestActiveTarget { get; init; }
     public bool RequestUsesPendingReview { get; init; }
     public bool RequestForegroundTarget { get; init; }
+    public bool RequestDetailsOffer { get; init; }
     public bool RequestActivationPrefixed { get; init; }
     public ProviderProfileTuple? RequestLocalProfile { get; init; }
     public TaskResponseMode? RequestTaskResponseMode { get; init; }
     public const string ForegroundRequestSyntax =
-        "ask this conversation <original body>. Review the complete message and current foreground conversation, "
+        "ask this conversation [with details offer] <original body>. Review the complete message and current foreground conversation, "
         + "then separately use session request confirm or session request cancel. "
         + "One visible eligible Active conversation presenter is required. No new conversation or hosted fallback.";
 
@@ -64,10 +65,15 @@ public sealed partial record SessionCommand
             if (!text.StartsWith(foreground + " ", StringComparison.OrdinalIgnoreCase))
             { return new(SessionCommandOperation.Invalid, Error: ForegroundRequestSyntax); }
             var body = text[(foreground.Length + 1)..];
+            const string offer = "with details offer ";
+            if (body.Equals("with details offer", StringComparison.OrdinalIgnoreCase))
+            { return new(SessionCommandOperation.Invalid, Error: ForegroundRequestSyntax); }
+            var opted = body.StartsWith(offer, StringComparison.OrdinalIgnoreCase);
+            if (opted) { body = body[offer.Length..]; }
             try { ConversationText.Validate(body, submission: true); }
             catch (InvalidDataException) { return new(SessionCommandOperation.Invalid, Error: ForegroundRequestSyntax); }
             catch (ConversationCredentialException) { return new(SessionCommandOperation.Invalid, Error: ForegroundRequestSyntax); }
-            return new(SessionCommandOperation.RequestReview) { RequestBody = body, RequestForegroundTarget = true };
+            return new(SessionCommandOperation.RequestReview) { RequestBody = body, RequestForegroundTarget = true, RequestDetailsOffer = opted };
         }
         return null;
     }

@@ -46,9 +46,11 @@ public sealed partial class WindowsSqliteHostInteractionStore
             return preview;
         }, cancellationToken));
 
-    public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session,
-        HostRevision expectedGeneration, long expectedMetadataRevision, CancellationToken cancellationToken) =>
-        new(Task.Run(() =>
+    public async ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session,
+        HostRevision expectedGeneration, long expectedMetadataRevision, CancellationToken cancellationToken)
+    {
+        await WithdrawDetailsOffersAsync(session, expectedGeneration, cancellationToken).ConfigureAwait(false);
+        return await Task.Run(() =>
         {
             using var lease = database.AcquireReadLease(cancellationToken);
             using var connection = Open(created: false, cancellationToken);
@@ -58,7 +60,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
             database.VerifyFiles();
             cancellationToken.ThrowIfCancellationRequested();
             return preview;
-        }, cancellationToken));
+        }, cancellationToken).ConfigureAwait(false);
+    }
 
     public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview,
         Func<bool> canControl, CancellationToken cancellationToken) =>
@@ -161,7 +164,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
     private static SessionDispositionPreview DescribeDisposition(SqliteConnection connection,
         SessionWorkspaceEntry target, HostId<TaskIdentity>? control, Guid confirmation, SessionStoppedWorkReview? stopped = null)
         => DescribeDispositionInventory(connection, target, confirmation,
-            DispositionRevision(connection, target.Authority.SessionId, control, stopped)) with { StoppedWork = stopped };
+            DispositionRevision(connection, target.Authority.SessionId, control, stopped)) with
+        { StoppedWork = stopped };
 
     private static SessionDispositionPreview DescribeDispositionInventory(SqliteConnection connection,
         SessionWorkspaceEntry target, Guid confirmation, string revision)

@@ -507,7 +507,8 @@ internal static class Program
             UseCookies = false,
             UseDefaultCredentials = false,
             AutomaticDecompression = System.Net.DecompressionMethods.None,
-        }) { Timeout = Timeout.InfiniteTimeSpan });
+        })
+        { Timeout = Timeout.InfiniteTimeSpan });
         services.AddSingleton<IGitHubIssueLookup>(provider => new GitHubIssueLookup(
             provider.GetRequiredKeyedService<HttpClient>("github-issue-lookup")));
         services.AddSingleton<GitHubIssueReportWorkflow>();
@@ -599,6 +600,9 @@ internal static class Program
         services.AddSingleton<SessionInstructionScopeBroker>();
         services.AddSingleton<SessionInstructionScopeCommandService>();
         services.AddSingleton<SessionRequestCommandService>();
+        services.AddSingleton<Kora.Core.Presentation.IDetailsOfferStore>(provider =>
+            provider.GetRequiredService<Kora.Windows.Storage.WindowsSqliteHostInteractionStore>());
+        services.AddSingleton<Kora.Application.Presentation.DetailsOfferService>();
         services.AddSingleton<SessionRetentionCommandService>();
         services.AddSingleton<SessionPermissionCommandService>();
         services.AddSingleton<SessionRetentionApplyService>();

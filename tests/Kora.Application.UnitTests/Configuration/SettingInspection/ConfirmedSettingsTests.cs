@@ -148,11 +148,12 @@ public sealed class ConfirmedSettingsTests
             f.Store.Lines["speech-selection.txt"] = ["1", "kokoro", "af_heart"];
             f.Store.Lines["speech-playback-volume.txt"] = ["1", "60"];
             f.Store.Text["response-output-mode.txt"] = "VisualOnly";
+            f.Store.Text["voice-capture-timing.txt"] = "1\n7\n20\n0.75";
         }
         f.Observe();
         var before = f.Appearance.Get(AppearanceOption.Theme);
         var snapshot = await f.Source.CaptureAsync(f.Token);
-        snapshot.Observations.Should().HaveCount(17).And.OnlyHaveUniqueItems(item => item.Setting);
+        snapshot.Observations.Should().HaveCount(20).And.OnlyHaveUniqueItems(item => item.Setting);
         snapshot.Observations.Should().OnlyContain(item => item.IsSaved == saved);
         snapshot.Observations.Single(item => item.Setting == RegisteredSetting.ReaderTextScale).Value.Should().Be(saved ? 125 : 100);
         f.Source.IsCurrent(snapshot).Should().BeTrue();
@@ -169,7 +170,8 @@ public sealed class ConfirmedSettingsTests
              "presence-inactivity-timeout-seconds.txt", "presence-size-pixels.txt", "presence-dot-size-percent.txt",
              "presence-dot-density-percent.txt", "presence-movement-speed-percent.txt", "presence-speech-scaling-enabled.txt",
              "presence-speech-scale-amount-percent.txt", "appearance-reduced-motion-enabled.txt",
-             "notices-quiet-hours-unconfirmed.txt", "notices-quiet-hours.txt"];
+             "notices-quiet-hours-unconfirmed.txt", "notices-quiet-hours.txt",
+             "voice-capture-timing.txt", "voice-capture-timing-unconfirmed.txt"];
         if (!saved) { expectedReads.Add("speech-provider.txt"); expectedReads.Add("speech-voice.txt"); }
         f.Store.Reads.Distinct(StringComparer.Ordinal).Should().BeEquivalentTo(expectedReads);
         (RegisteredSetting Setting, AppearanceOption Option, int Default, int Saved)[] presence =

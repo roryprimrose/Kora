@@ -8,6 +8,7 @@ using Kora.Core.Configuration.SettingInspection;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Tools;
+using Kora.Core.Voice;
 
 namespace Kora.Core.UnitTests.Tools;
 
@@ -31,6 +32,9 @@ public sealed class SettingsDiscoveryToolsTests
             new(RegisteredSetting.SpeechScaleAmount, 100, false, 6),
             new(RegisteredSetting.ReducedMotion, 0, false, 6),
             new(QuietHoursSchedule.Off, false, 7),
+            new(RegisteredSetting.CommandStartWait, VoiceCaptureTiming.Default, false, 7),
+            new(RegisteredSetting.ReplyStartWait, VoiceCaptureTiming.Default, false, 7),
+            new(RegisteredSetting.TrailingSilence, VoiceCaptureTiming.Default, false, 7),
             new(SpeechSelection.Default, false, 3),
         ], "Which registered settings control spoken summaries?", HostRequest.Create(RequestOrigin.LocalUi),
         DateTimeOffset.UnixEpoch, mode);
@@ -62,7 +66,7 @@ public sealed class SettingsDiscoveryToolsTests
                 .Should().Be(SettingsDiscoveryTools.HasConfirmedReader(descriptor.Setting));
         }
         review.Observations.Should().OnlyContain(item => review.Source.Contains(item.Text, StringComparison.Ordinal));
-        review.Observations.Should().HaveCount(17).And.OnlyHaveUniqueItems(item => item.Setting);
+        review.Observations.Should().HaveCount(20).And.OnlyHaveUniqueItems(item => item.Setting);
         review.Observations.Single(item => item.Setting == RegisteredSetting.QuietHours)
             .QuietHours.Should().Be(QuietHoursSchedule.Off);
         SettingsDiscoveryTools.HasConfirmedReader(RegisteredSetting.QuietHours).Should().BeTrue();

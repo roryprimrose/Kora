@@ -46,6 +46,9 @@ public sealed class SettingInspectionReview
         RegisteredSetting.SpeechScaleAmount,
         RegisteredSetting.ReducedMotion,
         RegisteredSetting.QuietHours,
+        RegisteredSetting.CommandStartWait,
+        RegisteredSetting.ReplyStartWait,
+        RegisteredSetting.TrailingSilence,
         RegisteredSetting.SpeechVoice,
     ];
     private int consumed;

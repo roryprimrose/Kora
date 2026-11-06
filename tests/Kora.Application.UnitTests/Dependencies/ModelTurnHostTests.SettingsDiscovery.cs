@@ -8,6 +8,7 @@ using Kora.Core.Hosting;
 using Kora.Core.Storage;
 using Kora.Core.Providers;
 using Kora.Core.Tools;
+using Kora.Core.Voice;
 
 namespace Kora.Application.UnitTests.Dependencies;
 
@@ -33,6 +34,9 @@ public sealed partial class ModelTurnHostTests
                 new(RegisteredSetting.SpeechScaleAmount, 100, false, 1),
                 new(RegisteredSetting.ReducedMotion, 0, false, 1),
                 new(QuietHoursSchedule.Off, false, 1),
+                new(RegisteredSetting.CommandStartWait, VoiceCaptureTiming.Default, false, 1),
+                new(RegisteredSetting.ReplyStartWait, VoiceCaptureTiming.Default, false, 1),
+                new(RegisteredSetting.TrailingSilence, VoiceCaptureTiming.Default, false, 1),
                 new(SpeechSelection.Default, false, 1),
             ], "What controls summaries?", f.Request, f.Time.Now, mode);
         f.Request = review.Destination;

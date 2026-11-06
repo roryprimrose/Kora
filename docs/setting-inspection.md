@@ -29,7 +29,7 @@ discovery and the genuine final answer within the unchanged cumulative byte limi
 List accepts bounded `offset`/`count` fields and returns canonical registered
 metadata, scope, validation limits, suggested values, native-review classification
 and whether a confirmed value reader is composed. Get accepts only one exact
-registered `id`; only the seventeen reviewed observations below can return values.
+registered `id`; only the twenty reviewed observations below can return values.
 Other registered values are explicitly unavailable, not guessed or loaded from
 another source ([closed discovery contract](../src/Kora.Core/Tools/SettingsDiscoveryTools.cs)).
 
@@ -41,11 +41,11 @@ results are volatile lower-trust data, not approval or future read authority
 ([bounded loop](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs),
 [exact reviewed binding](../src/Kora.Application/Dependencies/ModelTurnHost.SettingsDiscovery.cs)).
 
-Exactly seventeen registered observations are included: theme, reading text scale,
+Exactly twenty registered observations are included: theme, reading text scale,
 ordinary spoken-summary word/sentence caps, Kora-only playback volume,
 device-default response mode, `appearance.presence-display`, the compound
 `speech.voice` preference, the configured quiet-hours schedule and the eight
-presence preferences below. Presence display
+presence and three capture-timing preferences below. Presence display
 is a reviewed Boolean (`true` or `false`), not a claim that the presence renderer
 is currently available or visible. Its saved/default provenance and source
 invalidation follow the same rules as the other observations
@@ -62,6 +62,19 @@ invalidation follow the same rules as the other observations
 | `appearance.speech-scale-amount` | 100 | percent |
 | `appearance.reduced-motion` | false | Boolean |
 | `notices.quiet-hours` | Off | Off or ordered weekly days/start/end/explicit zone |
+| `voice.command-start-wait` | 5 | seconds |
+| `voice.reply-start-wait` | 15 | seconds |
+| `voice.trailing-silence` | 1 | seconds |
+
+For capture, ask "Why does capture stop or wait, and which command-start,
+reply-start and trailing-silence timings are configured?" The complete review
+includes all three exact timing values, units and saved/default provenance.
+Fractional seconds retain domain precision (up to seven fractional digits),
+without rounding or converting to whole seconds. The authoritative timing
+service must already agree with the saved/default observation at its revision.
+These preferences describe future eligible captures, not current microphone
+state, measured acoustic behavior or permission to listen. Inspection never
+starts capture, changes timing or repairs an unconfirmed preference.
 
 For example: "Why does Kora disappear so quickly, and what presence size and
 movement settings am I using?" Both modes review the full source before a

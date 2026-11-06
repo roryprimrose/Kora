@@ -10,6 +10,22 @@ namespace Kora.Core.Configuration.SettingInspection;
 [JsonConverter(typeof(SettingObservationJsonConverter))]
 public sealed record SettingObservation
 {
+    public SettingObservation(RegisteredSetting setting, VoiceCaptureTiming timing, bool saved, long revision)
+    {
+        timing.Validate();
+        Value = setting switch
+        {
+            RegisteredSetting.CommandStartWait => timing.CommandStartSeconds,
+            RegisteredSetting.ReplyStartWait => timing.ReplyStartSeconds,
+            RegisteredSetting.TrailingSilence => timing.TrailingSilenceSeconds,
+            _ => throw new ArgumentOutOfRangeException(nameof(setting)),
+        };
+        ArgumentOutOfRangeException.ThrowIfNegative(revision);
+        Setting = setting;
+        IsSaved = saved;
+        Revision = revision;
+    }
+
     public SettingObservation(RegisteredSetting setting, int value, bool saved, long revision)
     {
         switch (setting)
@@ -93,7 +109,7 @@ public sealed record SettingObservation
     }
 
     public RegisteredSetting Setting { get; }
-    public int? Value { get; }
+    public decimal? Value { get; }
     public QuietHoursSchedule? QuietHours { get; }
     public SpeechSelection? Selection { get; }
     public bool IsSaved { get; }
@@ -116,6 +132,8 @@ public sealed record SettingObservation
         RegisteredSetting.ResponseMode => ((ResponseOutputMode)Value!.Value).ToString(),
         RegisteredSetting.PresenceDisplay or RegisteredSetting.SpeechScaling or RegisteredSetting.ReducedMotion =>
             Value == 1 ? "true" : "false",
+        RegisteredSetting.CommandStartWait or RegisteredSetting.ReplyStartWait or RegisteredSetting.TrailingSilence =>
+            VoiceCaptureTiming.Format(Value!.Value),
         _ => Value!.Value.ToString(CultureInfo.InvariantCulture),
     };
 }

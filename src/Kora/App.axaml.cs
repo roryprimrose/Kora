@@ -26,6 +26,7 @@ namespace Kora;
 public sealed partial class App : Avalonia.Application
 {
     private SystemTrayController? systemTray;
+    private DesktopLifetimeController? desktopLifetime;
     private SettingsWindowController? settingsWindow;
     private MicrophoneRecoveryWindowController? microphoneRecovery;
     private DocumentationWindowController? documentationWindow;
@@ -422,6 +423,8 @@ public sealed partial class App : Avalonia.Application
                     host.AbandonHandoffPreparation();
                     return Task.CompletedTask;
                 }));
+            desktopLifetime = new(viewModel, () => desktop.Shutdown(),
+                Services.GetRequiredService<ILogger<DesktopLifetimeController>>());
             desktop.Exit += OnDesktopExit;
         }
 
@@ -449,6 +452,8 @@ public sealed partial class App : Avalonia.Application
 
     private void DisposeDesktopControllers()
     {
+        desktopLifetime?.Dispose();
+        desktopLifetime = null;
         presenceRendererTimer.Stop();
         presenceRendererTimer.Tick -= OnPresenceRendererTick;
         presenceWindows?.Stop();

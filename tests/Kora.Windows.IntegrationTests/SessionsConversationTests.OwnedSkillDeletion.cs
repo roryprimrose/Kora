@@ -32,7 +32,7 @@ public sealed partial class SessionsConversationTests
             await store.Publish(document, static () => true, operation => Task.FromResult(operation()), f.Token);
             var authority = new OwnedSkillAuthoringAuthority(RequestOrigin.LocalUi, static () => true);
             var use = new OwnedSkillInvocationWorkflow(store, admission, composed.Access, f.Store, composed.Workspace,
-                composed.Conversation, composed.Audit, f.Time);
+                composed.Conversation, composed.Audit, f.Time, new MarkdownUsePolicy());
             using var review = await use.ReviewAsync("example", "1.0.0", authority, static () => true, f.Token);
             if (enabled) { await use.EnableAsync(review, authority, static () => true, f.Token); }
             var grants = f.Count("scoped_grants");

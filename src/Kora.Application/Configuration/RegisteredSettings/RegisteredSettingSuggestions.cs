@@ -2,6 +2,7 @@ using System.Globalization;
 
 using Kora.Core.Configuration;
 using Kora.Core.Configuration.RegisteredSettings;
+using Kora.Core.Presentation;
 using Kora.Core.Voice;
 
 namespace Kora.Application.Configuration.RegisteredSettings;
@@ -28,6 +29,10 @@ public static class RegisteredSettingSuggestions
         + "with explicit requested ordered distinct days, 24-hour times and installed zone ID; never infer a zone. "
         + "Native review shows current/proposed/default schedule and zone; separate native confirmation constrains only future already-consented "
         + "completion speech, never ordinary answers, listening, consent or this retained answer. Reset uses default Off. "
+        + "Detail presentation requires exact 'set responses.detail-presentation to Offer', LinkOnly or OpenAutomatically, "
+        + "or 'reset responses.detail-presentation'. Original native review shows exact saved/default and proposed values; "
+        + "separate native confirmation uses the existing owner and Reset explicitly saves Offer. Future eligible publications only; "
+        + "never open, focus, replay or change this retained answer. No model write or automatic-publication authority. "
         + "Undo is a separate host-owned original-user operation: 'undo the last settings change' opens review, "
         + "'confirm settings undo' or 'cancel settings undo' is separate. Only one known successful compatible registered "
         + "preference in this run can qualify; never infer previous values or undo effects, consent or grants. "
@@ -68,6 +73,13 @@ public static class RegisteredSettingSuggestions
         }
         if (answer.Length > 256)
         { throw new InvalidDataException("A setting suggestion must be one bounded Set or Reset, not a batch or commentary."); }
+
+        const string detailPrefix = "set responses.detail-presentation to ";
+        if (answer.StartsWith(detailPrefix, StringComparison.Ordinal))
+        {
+            return new RegisteredSettingProposal.DetailPresentation(
+                DetailPresentationPreference.Parse(answer[detailPrefix.Length..])!.Value);
+        }
 
         foreach (var descriptor in RegisteredSettingRegistry.Settings)
         {

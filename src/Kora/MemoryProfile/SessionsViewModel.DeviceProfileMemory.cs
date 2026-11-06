@@ -13,6 +13,7 @@ internal sealed partial class SessionsViewModel
             ClearMemories();
             memories?.ClearVolatile();
             deviceProfileMemory = value;
+            CancelModelMemoryProposal();
             OnPropertyChanged();
             NotifyMemories();
         }

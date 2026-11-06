@@ -1642,6 +1642,9 @@ programmatic TextBox clipboard routes are blocked. Retirement clears private
 text, selection and pending color projections; no editing, disk autosave,
 scripts, network or new grant is introduced.
 
+When parsed code lines are separated by quote/list markers or stripped indentation, the existing reader keeps the complete labelled exact-source fallback rather than presenting those intervening characters as literal code ([regressions](../tests/Kora.Windows.IntegrationTests/FinalDocumentInteractionTests.CodeSource.cs)).
+Contiguous code keeps original line endings and blank lines. Exact-source Find, private retirement and origin-specific clipboard policy are unchanged.
+
 ### Internet Pages
 
 Support a dedicated embedded viewer as the target UX, with an external-browser choice.

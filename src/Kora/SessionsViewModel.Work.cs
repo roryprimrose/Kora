@@ -61,7 +61,7 @@ internal sealed partial class SessionsViewModel
 
     private async Task RefreshSelectedWorkAsync(bool concurrent = false)
     {
-        ClearLocalEvents();
+        var choiceEpoch = ClearLocalEvents();
         var target = RequireSelected();
         var epoch = selectionEpoch;
         var observedAdmission = access.ControlRevision;
@@ -72,7 +72,7 @@ internal sealed partial class SessionsViewModel
             throw new OperationCanceledException("The selected session changed during observation.");
         }
         ApplyWork(snapshot, observedAdmission);
-        await RefreshLocalEventsAsync(target.Authority.SessionId, epoch);
+        await RefreshLocalEventsAsync(target.Authority.SessionId, epoch, choiceEpoch);
     }
 
     private void ApplyWork(SessionWorkSnapshot? snapshot, long observedAdmission)

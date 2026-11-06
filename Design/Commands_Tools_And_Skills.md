@@ -224,6 +224,11 @@ correlation, and rejects paginated/oversize discovery and unsupported schemas.
 The initial schema subset is a closed flat object with at most eight fields:
 bounded strings, bounded integers and Booleans. Results accept bounded inert
 text and optional structured-object data, not images or embedded resources.
+String `maxLength` uses decoded Unicode scalar count, including supplementary
+characters as one and combining marks/joiners separately, without normalization.
+The independent complete 2,048-byte UTF-8 argument bound includes JSON escaping.
+Malformed Unicode and either exceeded limit fail before invocation approval or
+dispatch in the shared direct/model validator ([argument guidance](../docs/mcp-transport.md)).
 Server instructions, descriptions and annotations, including `readOnlyHint`,
 are untrusted metadata; parsing them never establishes an effect mapping.
 Invocation will require a separate host-owned read-only mapping pinned to the
@@ -264,6 +269,14 @@ called, no assistant answer is fabricated, and unsent conversation input stays
 unchanged. Task/audit outcomes remain durable; the tool result is a volatile
 original-session presentation. Cancellation or an uncertain dispatched outcome
 does not claim remote rollback and never retries automatically.
+
+The shared invocation owner revalidates the exact delegated account reference
+after physical transport join, before any result-bearing native review or local
+continuation, and at terminal readback before publishing either route's result.
+Account removal or changes to its identity, revision, credential reference or
+destination suppress disclosure without rewriting an already committed terminal
+receipt. Disposing a credential lease does not end result-disclosure authority
+checks or grant a replacement account the original approval.
 
 An exchange disconnect, disposed transport, or transport-owned cancellation
 retires that invocation's connection without reconnecting, retrying or falling

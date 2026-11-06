@@ -19,7 +19,6 @@ internal sealed class LocalPreferenceStore(IApplicationDataPaths paths) : IPrefe
         var path = GetPath(fileName);
         try
         {
-            if (!File.Exists(path)) { return null; }
             using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
             if (stream.Length > maximumBytes)
             { throw new InvalidDataException("The saved preference exceeds its byte limit."); }
@@ -28,6 +27,8 @@ internal sealed class LocalPreferenceStore(IApplicationDataPaths paths) : IPrefe
             var prefix = bytes.AsSpan().StartsWith(Encoding.UTF8.Preamble) ? Encoding.UTF8.Preamble.Length : 0;
             return StrictUtf8.GetString(bytes.AsSpan(prefix));
         }
+        catch (FileNotFoundException) { return null; }
+        catch (DirectoryNotFoundException) { return null; }
         catch (DecoderFallbackException exception) { throw new InvalidDataException("Saved preference is not valid UTF-8.", exception); }
     }
 
@@ -60,10 +61,8 @@ internal sealed class LocalPreferenceStore(IApplicationDataPaths paths) : IPrefe
         var path = GetPath(fileName);
         lock (writeGate)
         {
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
+            try { File.Delete(path); }
+            catch (DirectoryNotFoundException) { return; }
         }
     }
 

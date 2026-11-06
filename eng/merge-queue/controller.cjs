@@ -1,5 +1,5 @@
 const { randomUUID } = require('node:crypto');
-const { CHECKS, GATE, MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS, DISPATCH_OBSERVATION_MS, invariant, validateState,
+const { CHECKS, GATE, UNIT_PR_JOBS, PARALLEL_PR_JOBS, MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS, DISPATCH_OBSERVATION_MS, invariant, validateState,
   ready, readinessIssue, priority, matchingRuns, requiredJobsState, terminalJobs } = require('./policy.cjs');
 
 const MAX_CANDIDATES = 10;
@@ -47,10 +47,17 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
   api.info(`Blocked revisions retained: ${state.blocked.length}; obsolete records removed: ${blockedCount - state.blocked.length}.`);
 
   async function persist() { validateState(state); await api.save(state); }
-  async function complete(active, conclusion, message, jobs = []) {
+  async function complete(active, conclusion, message, jobs = [], expected = null) {
     api.info(`PR #${active.number}: completing candidate checks (${conclusion}); ${message}`);
     for (const name of [...CHECKS, GATE]) {
       if (!active.checks[name]) active.checks[name] = await api.createCheck(active, name);
+      if (name === CHECKS[1] && Array.isArray(expected)
+        && [UNIT_PR_JOBS, PARALLEL_PR_JOBS].some(inventory => expected.length === inventory.length
+          && inventory.every(job => expected.includes(job)))) {
+        await api.finishCheck(active.checks[name], 'neutral',
+          'Windows integration tests were not selected for this candidate; full Windows validation runs on main.');
+        continue;
+      }
       await api.finishCheck(active.checks[name], name === GATE ? conclusion
         : jobs.find(job => job.name === name)?.conclusion === 'success' ? 'success' : conclusion, message);
     }
@@ -327,7 +334,7 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
     active.mergeStarted = now.toISOString();
     await persist();
     api.info(`PR #${active.number}: exact required jobs and final head/base/enrollment/review/ancestry checks passed; merge intent persisted.`);
-    await complete(active, 'success', `Validated head ${active.head} against main ${active.base}; run ${run.id}.`, jobs);
+    await complete(active, 'success', `Validated head ${active.head} against main ${active.base}; run ${run.id}.`, jobs, expected);
     // Strict branch protection and the expected head remain authoritative across the final API race.
     api.info(`PR #${active.number}: requesting protected squash merge with expected head ${active.head}.`);
     const result = await api.merge(active);

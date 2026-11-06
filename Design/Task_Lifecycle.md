@@ -358,6 +358,22 @@ Stopping all microphone listening is a separate explicit mute operation.
 Cancelling active work preserves the queue but pauses automatic dispatch; cancellation does not immediately start the next request.
 Replacement waits for execution quiescence and resolution or explicit acknowledgement of uncertain remote effects.
 
+Native **Refresh running work** observes only the running owner, not the
+independent submitted-work lane. Finding no running owner preserves the observed
+pending requests, exact pending selection, recovery Resume and manual-hold
+controls. The user can still deliberately cancel an exact held pending request
+without dispatching it or changing unsent input.
+
+An awaited running inspection may publish only into its original private
+revision, exact selection and current inspection attempt. A newer observation,
+Stop, navigation or source retirement fences both late results and late errors;
+an obsolete failure cannot erase a newer Stop or joined terminal receipt.
+A current failure explicitly withdraws its unconfirmed running target, and a
+fresh deliberate read recovers it. The shared Sessions/compact owner and
+[behavioral regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.RunningInspection.cs)
+preserve existing exact-task audit and physical-join rules; no provider,
+permission, retention or runtime enablement changes.
+
 Cancellation cannot undo a completed write or prove a remote operation never ran.
 If a remote service acknowledges only request cancellation, Kora reports that remote completion may still occur.
 Late receipts can refine the action record without turning a cancelled task into a successful one.

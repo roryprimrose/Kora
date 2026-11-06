@@ -18,6 +18,66 @@ public sealed class SettingsUndoTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task NativeSettingsCompletesOrCancelsTheExactActivatedVoiceUndoReview(bool cancel)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            await using var f = new NativeUxFixtureSession(Path.GetTempPath(), syntheticVoice: true);
+            await f.InitializeAsync();
+            var window = new SettingsWindow(f.Main);
+            window.Show();
+            try
+            {
+                f.Main.CommandText = "set speech.summary-words to 40";
+                await f.Main.RunTypedCommand.ExecuteAsync();
+                var preferences = new LocalTextToSpeechPreferences(f, NullLogger<LocalTextToSpeechPreferences>.Instance);
+                preferences.LoadSummaryLimits().Should().Be(new SpokenSummaryLimits(3, 40));
+                f.Main.BindVoiceOwnershipGate(static () => true);
+                await f.Main.SetVoiceConsentAsync(true);
+                var reviewed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                void Changed(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+                {
+                    if (string.Equals(args.PropertyName, nameof(f.Main.CanConfirmSettingsUndo), StringComparison.Ordinal)
+                        && f.Main.CanConfirmSettingsUndo)
+                    { reviewed.TrySetResult(); }
+                }
+                f.Main.PropertyChanged += Changed;
+                try
+                {
+                    await f.Main.BeginPushToTalkCommand.ExecuteAsync();
+                    await f.Main.EndPushToTalkCommand.ExecuteAsync();
+                    f.Voice.PublishTranscript(f.Main.AssistantName + ", undo the last settings change");
+                    await reviewed.Task.WaitAsync(TimeSpan.FromSeconds(20), f.Token);
+                }
+                finally { f.Main.PropertyChanged -= Changed; }
+                Dispatcher.UIThread.RunJobs();
+                window.UpdateLayout();
+                var confirm = window.FindControl<Button>("ConfirmSettingsUndo")!;
+                confirm.IsEffectivelyEnabled.Should().BeTrue();
+                confirm.IsEffectivelyVisible.Should().BeTrue();
+                f.Main.SettingsUndoDescription.Should().Contain("40 words").And.Contain("restore");
+                preferences.LoadSummaryLimits().Should().Be(new SpokenSummaryLimits(3, 40));
+                var consent = f.Main.HasVoiceConsent;
+                var captures = f.Voice.StartCalls;
+
+                await ((AsyncCommand)window.FindControl<Button>(cancel ? "CancelSettingsUndo" : "ConfirmSettingsUndo")!.Command!)
+                    .ExecuteAsync();
+
+                preferences.LoadSummaryLimits().Should().Be(cancel ? new SpokenSummaryLimits(3, 40) : null,
+                    f.Main.SettingsUndoDescription);
+                f.Main.SettingsUndoDescription.Should().Contain(cancel ? "cancelled" : "new audited write");
+                if (!cancel) { f.Main.SettingsUndoDescription.Should().Contain("restored").And.Contain("default"); }
+                f.Main.CanConfirmSettingsUndo.Should().BeFalse();
+                f.Main.HasVoiceConsent.Should().Be(consent);
+                f.Voice.StartCalls.Should().Be(captures);
+            }
+            finally { window.Close(); }
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task NativeUndoSeparatelyReviewsConfirmsOrCancelsAnExactDefaultRestoration(bool cancel)
     {
         await HeadlessSession.RunAsync(async () =>

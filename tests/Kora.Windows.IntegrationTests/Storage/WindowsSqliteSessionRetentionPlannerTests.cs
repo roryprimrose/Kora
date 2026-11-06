@@ -13,6 +13,75 @@ namespace Kora.Windows.IntegrationTests.Storage;
 public sealed class WindowsSqliteSessionRetentionPlannerTests
 {
     [WindowsFact]
+    public async Task VerifiedExpiredAuditPrefixPreservesReadOnlyRetentionPlanningAfterRestart()
+    {
+        using var fixture = new InteractionStorageFixture();
+        await ArchiveWithExpiredAuditAsync(fixture);
+        var id = fixture.Request.SessionId;
+        var clock = await fixture.Store.ReadRetentionAsync(id, fixture.Token);
+        var session = await fixture.Store.ReadSessionAsync(id, fixture.Token);
+        using var originalReader = new WindowsSqliteSessionRetentionPlannerReader(fixture.Store, fixture.Paths);
+        var before = await originalReader.ReadAsync(new(1, 3), fixture.Time.Now,
+            HostRequest.Create(RequestOrigin.LocalUi), fixture.Token);
+        before.Status.Should().Be(SessionRetentionPlanStatus.Complete);
+        before.Aggregate.Should().Be(new SessionRetentionPlanAggregate(1, 0, 0, 0, 1, 0, 0, 0, 0));
+        originalReader.IsCurrent(before).Should().BeTrue();
+        using (var owner = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem),
+            HostActivityLayer.Windows, HostOperation.Retention))
+        {
+            (await fixture.Store.PruneAuditPrefixAsync(static () => true, fixture.Token)).Removed.Should().Be(2);
+        }
+        fixture.Reopen();
+        await fixture.Store.InitializeAsync(fixture.Token);
+        originalReader.IsCurrent(before).Should().BeFalse();
+        var bytes = File.ReadAllBytes(fixture.DatabasePath);
+        var journal = File.ReadAllBytes(fixture.DatabasePath + "-journal");
+        var audits = fixture.Count("security_audit_events");
+        using var reader = new WindowsSqliteSessionRetentionPlannerReader(fixture.Store, fixture.Paths);
+
+        var result = await reader.ReadAsync(new(1, 3), fixture.Time.Now,
+            HostRequest.Create(RequestOrigin.LocalUi), fixture.Token);
+
+        result.Status.Should().Be(SessionRetentionPlanStatus.Complete);
+        result.Aggregate.Should().Be(before.Aggregate);
+        result.Snapshot.Should().NotBeNullOrWhiteSpace();
+        reader.IsCurrent(result).Should().BeTrue();
+        File.ReadAllBytes(fixture.DatabasePath).Should().Equal(bytes);
+        File.ReadAllBytes(fixture.DatabasePath + "-journal").Should().Equal(journal);
+        fixture.Count("security_audit_events").Should().Be(audits);
+        (await fixture.Store.ReadRetentionAsync(id, fixture.Token)).Should().Be(clock);
+        (await fixture.Store.ReadSessionAsync(id, fixture.Token)).Should().Be(session);
+    }
+
+    [Theory]
+    [InlineData("DELETE FROM authority_retention_anchor;")]
+    [InlineData("UPDATE authority_retention_anchor SET hash=replace(printf('%064d',0),'0','Z');")]
+    [InlineData("UPDATE authority_retention_anchor SET hash=printf('%064d',1);")]
+    [InlineData("UPDATE authority_retention_anchor SET sequence=0,hash=printf('%064d',0),cutoff_utc=0;")]
+    [InlineData("DELETE FROM security_audit_events WHERE sequence=3;")]
+    public async Task CorruptPostexpiryAnchorOrSuffixCannotPublishRetentionCounts(string mutation)
+    {
+        using var fixture = new InteractionStorageFixture();
+        await ArchiveWithExpiredAuditAsync(fixture);
+        using (var owner = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem),
+            HostActivityLayer.Windows, HostOperation.Retention))
+        {
+            (await fixture.Store.PruneAuditPrefixAsync(static () => true, fixture.Token)).Removed.Should().Be(2);
+        }
+        fixture.Mutate(mutation);
+        var bytes = File.ReadAllBytes(fixture.DatabasePath);
+        var journal = File.ReadAllBytes(fixture.DatabasePath + "-journal");
+        using var reader = new WindowsSqliteSessionRetentionPlannerReader(fixture.Store, fixture.Paths);
+
+        var result = await reader.ReadAsync(new(1, 3), fixture.Time.Now,
+            HostRequest.Create(RequestOrigin.LocalUi), fixture.Token);
+
+        result.Should().Be(new SessionRetentionPlanResult(SessionRetentionPlanStatus.Unavailable, null, null));
+        File.ReadAllBytes(fixture.DatabasePath).Should().Equal(bytes);
+        File.ReadAllBytes(fixture.DatabasePath + "-journal").Should().Equal(journal);
+    }
+
+    [WindowsFact]
     public async Task ZeroAndKnownWorkHeldAndNewlyDueAreReadOnlyWithoutPrivateContentOrIdentity()
     {
         using var fixture = new InteractionStorageFixture();
@@ -242,6 +311,15 @@ public sealed class WindowsSqliteSessionRetentionPlannerTests
             var action = () => store.ReadRetentionPlan(new(1, 3), clock.GetUtcNow(), fixture.Token);
             action.Should().Throw<TimeoutException>();
         }
+    }
+
+    private static async Task ArchiveWithExpiredAuditAsync(InteractionStorageFixture fixture)
+    {
+        await fixture.InitializeAsync();
+        await fixture.RunAsync(() => fixture.Store.SetSessionLifecycleAsync(
+            fixture.Request, new(1), active: false, remove: false, fixture.Token));
+        await WindowsSqliteSessionWorkspaceTests.FinishAsync(fixture, HostTaskState.Succeeded);
+        fixture.Time.Now = fixture.Time.Now.AddDays(90);
     }
 
     private sealed class StepTime(DateTimeOffset now, int elapsedSeconds) : TimeProvider

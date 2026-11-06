@@ -551,6 +551,9 @@ scripts remain disabled under the existing MVP policy.
 
 ## Identity and Revision Handling
 
+The [owned-package admission owner](../src/Kora.Application/Skills/OwnedSkillInvocationWorkflow.cs) checks the host exclusion policy for both primary files on every native format, plus each declared Markdown component. A missing policy or excluded primary blocks direct review and subsequent source-validation boundaries, not only named lookup.
+Exclusion retirement cannot be reversed by restoring eligibility; use needs a fresh exact revision review ([behavioral regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.OwnedSkillUsePolicy.cs)).
+
 Internal identity includes source partition, canonical source/package identity, declared skill ID, and content digest.
 Display names and IDs from a package do not override bundled or other-source skills.
 For duplicates, show source-qualified choices or use a previously explicit user binding; never silently shadow.

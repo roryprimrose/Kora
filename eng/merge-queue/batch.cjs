@@ -157,6 +157,12 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
     api.notice(reason);
     return 'recovery-required';
   }
+  async function observeConcurrentMerge(member) {
+    if ((await api.pull(member.number)).merged !== true) return false;
+    // Reconcile the actual prefix on the next pass; this read alone is not merge proof.
+    await api.wake();
+    return true;
+  }
   const recovering = active.phase === 'recovery-required';
   if (recovering) {
     const pending = active.members[merged()];
@@ -339,8 +345,10 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
       await api.wake();
       return 'prefix-confirmed';
     }
-    if (!await authorized(member) || await api.main() !== member.mergeIntent.base)
+    if (!await authorized(member) || await api.main() !== member.mergeIntent.base) {
+      if (await observeConcurrentMerge(member)) return 'merge-pending';
       return recoverRequired('Pending merge authority or actual main changed; ambiguous merge will not be retried.');
+    }
     if (now - Date.parse(member.mergeIntent.created) >= MERGE_CONFIRMATION_MS)
       return recoverRequired('Merge outcome remains ambiguous; no automatic retry.');
     return 'merge-pending';
@@ -387,6 +395,7 @@ async function reconcileBatch(api, { now = new Date(), ticket = randomUUID() } =
     return 'merge-pending';
   }
   if (!await authorized(member) || await api.main() !== member.mergeIntent.base) {
+    if (await observeConcurrentMerge(member)) return 'merge-pending';
     await api.finishCheck(member.check, 'failure', 'Authority changed after attestation; protected merge request withheld.');
     return recoverRequired('Final authority changed after attestation; native merge outcome must be reconciled.');
   }

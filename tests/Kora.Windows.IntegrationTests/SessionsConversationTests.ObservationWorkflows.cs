@@ -50,7 +50,7 @@ public sealed partial class SessionsConversationTests
             await using var admission = new OwnedSkillControlAdmission(native.Interactions, native.Interactions, new(native.Tasks));
             var save = new OwnedSkillSaveWorkflow(store, admission, native.Audit);
             var sources = new OwnedSkillInvocationWorkflow(store, admission, composed.Access, f.Store, composed.Workspace,
-                composed.Conversation, native.Audit, f.Time);
+                composed.Conversation, native.Audit, f.Time, new ObservationUsePolicy());
             using var dependencies = new DependencyBootstrapper([], NullLogger<DependencyBootstrapper>.Instance);
             var boundary = new ObservationBoundary();
             var runtime = new Kora.Tools.Runtime.RecordedRuntimeObservation(dependencies);

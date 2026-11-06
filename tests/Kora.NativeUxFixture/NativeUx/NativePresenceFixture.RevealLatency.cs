@@ -34,7 +34,9 @@ internal static partial class NativePresenceFixture
                     $"First tray click did not reveal an opaque shell under one second: {shown.TotalMilliseconds:F1} ms, opacity {window.Opacity:F1}.");
                 var cloud = window.GetLogicalDescendants().OfType<PresenceControl>().Single();
                 var nativeHost = window.GetLogicalDescendants().OfType<NativePresenceHost>().SingleOrDefault();
-                while (!(native ? nativeHost?.CanInteract == true : cloud.CanInteract))
+                while (!(native ? nativeHost?.CanInteract == true
+                    : cloud.CanInteract && window.PresenceFrameOpacity > 0
+                        && IsWindowVisible(window.PresenceDrawingHandle)))
                 {
                     Require(Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(1),
                         "The first positive-opacity presence frame missed its one-second deadline.");

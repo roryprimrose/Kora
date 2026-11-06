@@ -424,6 +424,8 @@ Current-run pending-question recovery uses only the host's original live wait/ke
 
 Normal loaded-event browsing retains category/reason only. It clears stale selection/review on edits, source/private retirement and refresh; internal source/correlation/profile validation remains. Event text cannot retarget questions, authorize work or establish a global all-clear ([local event contract](Proactive_Interaction.md#native-content-free-loaded-event-filters)).
 
+Selected-work refresh binds its original native notice-surface lifetime before reading or publishing work. Hiding/reopening cannot lend a retired refresh a new lifetime or consume an undisplayed completion; fresh observation remains separate ([publication owner](../src/Kora/SessionsViewModel.Work.cs), [native regression](../tests/Kora.Windows.IntegrationTests/ConversationNoticeTests.NativePublication.cs)).
+
 The remaining sections distinguish implemented session metadata/history/retention and original-task controls from proposed general execution. Neither retained diagnostics infrastructure nor deterministic test evidence qualifies production providers, arbitrary workers, effects or model routing.
 
 ### R12 Bounded Session Retention Delivered - 2026-10-09
@@ -1020,6 +1022,20 @@ work; a local hash chain is not same-user/admin tamper prevention.
 The approved outcome is governed model/tool conversation with equivalent native and admitted activated-voice replies, not a new diagnostic utility. An ambiguous observation request selects **Ask locally with observations and one question** in Sessions/compact; the model may call the existing observation tools, ask one bounded question, consume the exact host-accepted answer, call another admitted observation, and return a genuine retained ASSISTANT answer ([native consumer](../src/Kora/SessionsViewModel.QuestionContinuation.cs), [submission](../src/Kora.Application/Hosting/SessionConversationService.Questions.cs)).
 
 The host owns original request/origin, unique task/session/generation, question identity/revision, exact schema and selection bounds, input channels, expiry and live source/privacy/permission checks. Existing native Submit/draft/cancel and exact activated-voice/readback controls remain authoritative; selecting another conversation cannot retarget this wait. No automatic microphone opening or relaxation of OS/provider authentication is added ([question continuation](../src/Kora.Application/Hosting/ConversationQuestionContinuation.cs), [native owner](../src/Kora/NativeQuestionHost.Conversation.cs)).
+
+Once that original task requests its question, Sessions and compact release their
+submission-only UI hold. The original request's unchanged input clears only after
+the canonical task has been retained and dispatched. Switching conversations and
+editing independent unsent input do not withdraw or retarget that live question.
+Review, Save draft, Submit and Cancel remain on the same native question and
+original task; only a genuine admitted completion is retained in its conversation.
+Late completion never clears another or newer composer. Returning and explicitly
+reading the original conversation reveals its retained ASSISTANT or truthful HOST
+outcome ([native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.IndependentQuestions.cs)).
+The same presentation lifetime applies to explicit Claude clarification; each
+physical-send consent remains separate. Private/control/source loss, cancellation,
+expiry and actual resource joins remain authoritative. No question is reopened,
+recreated or admitted after a terminal task.
 
 The implementation is restricted to local Ollama admission and the original six `ReadOnlyCapabilityCatalog` IDs, or an already constrained subset. The native `ask_user` tool is advertised only in the two explicit clarification paths, once per original turn, separately from observation tool batches. It accepts `prompt`, `options`, `minimum` and `maximum`: no options with bounds 1..1 requests bounded text; two-to-four unambiguous labels with bounds 1..1 requests radio buttons; other valid selection bounds request checkboxes. Text is bounded to 500 characters. The session-owned native question window and exact voice reply share the same validation, including multi-answer selection. Spoken readback includes labels/bounds; spoken lists use comma or "and" separators, with whole-label matching taking precedence. A reply is returned as a correlated `ask_user` tool result, never as a fresh conversation or instruction. Repeated/mixed calls are refused. Legacy structured questions and ordinary read-only tools keep their separate paths and wire versions. Web, MCP, session discovery, hosted questions and effectful/setting operations remain excluded ([protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Questions.cs), [catalogue](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs)).
 

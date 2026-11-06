@@ -73,6 +73,13 @@ internal sealed partial class WindowsPresenceDib : IDisposable
         return bytes;
     }
 
+    internal void WritePixels(Action<nint, int, int> write)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        ArgumentNullException.ThrowIfNull(write);
+        write(pixels, checked(Stride * Height), Stride);
+    }
+
     public void Dispose()
     {
         if (disposed)

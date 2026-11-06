@@ -42,6 +42,9 @@ write is not a confirmed dismissal or deferral.
 
 Kora spaces and limits routine notices to reduce interruptions. **Defer** hides
 the current notice for up to fifteen minutes, never beyond its original expiry.
+The one-minute category spacing starts from fresh authoritative delivery time,
+including when refresh waited for the source. A clock rollback during that wait
+holds delivery without spending its notice budget; refresh after the clock recovers.
 Quiet hides routine completion notices, not Failure or Attention. Omitted work
 is reported in the work panel's gap counts. Unknown is never inferred success.
 

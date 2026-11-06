@@ -209,7 +209,11 @@ profiles retain their labelled source fallback without active links.
 
 ### Copy already-authorized Markdown
 
-Where **Copy** is already available for an admitted Markdown item, copying from rendered view also includes supported rich formatting for applications that accept HTML. The existing plain-text copy remains the complete original source; an exact selected range remains only that selected text. Rendered selections add escaped preformatted text, not reconstructed Markdown formatting ([copy route](../src/Kora/DetailWindowController.cs)).
+Where copying is already authorized, **Copy all** copies the complete active view. Rendered Markdown supplies semantic plain text and inert HTML together, including all list items, code, table cells and visible link destinations, not just the visible or searched portion ([copy route](../src/Kora/DetailWindowController.cs)).
+
+**Show match in reader** only reveals the current literal Find occurrence. It does not copy; a subsequent **Copy all** still copies the complete active view, not that selected occurrence.
+
+Choose **Copy source** for the complete original Markdown with unchanged tabs and line breaks, without changing your view. Copy all in **Exact source**, plain-text content or source fallback also copies unchanged source only. **Copy selection** still copies only the exact selected text, with escaped preformatted HTML for rendered Markdown ([native interaction](../tests/Kora.Windows.IntegrationTests/DetailCopyNativeTests.cs)).
 
 Headings, emphasis, lists, quotes, code and already-available tables can retain formatting. Link destinations stay visible inert text; images and remote resources are never fetched or included. **Exact source**, plain-text content and unavailable/unsupported renderers keep plain-text-only copying ([serializer](../src/Kora/NativeDetailRenderer.Clipboard.cs)).
 
@@ -431,6 +435,13 @@ No caption content is saved, logged or sent to a model.
 If the native caption surface fails, captions stop until restart; the complete
 answer and required recovery remain visual. Diagnostics record only the failure
 type, never caption content.
+
+Caption display changes also invalidate an in-progress native layout. Kora keeps
+that layout hidden rather than showing text at the previous display coordinates.
+If the selected screen disappears, even pinned text is retired; reconnecting it
+does not restore that text. Use the native display controls to select a connected
+screen for future eligible speech. A working-area or scale change on the same
+connected screen uses a fresh layout without replaying speech.
 
 Drag the response title area to reposition the window. Its last position is
 stored on this device and restored when that position remains on a connected

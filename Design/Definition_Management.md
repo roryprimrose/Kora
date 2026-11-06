@@ -155,6 +155,10 @@ not provider enablement or native/acoustic RC qualification
 
 ### Manual owned observation-only agent authoring (v1)
 
+An original request to create or describe a different owned agent does not retarget an unsaved draft before its Save/Discard/Cancel decision.
+The [shared editor owner](../src/Kora/AgentProfileEditorController.cs) keeps the current ID/source/description intact; Save still reviews and separately confirms the current exact destination.
+Cancelled Save, Cancel or revoked admission retains that draft and cannot start replacement authoring. Only successful disposition under the same current private owner stages the requested new ID, without saving, enabling or invoking it ([operation and regressions](../docs/agent-profile-authoring.md#manual-source-and-separate-save)).
+
 The existing native owned-agent editor accepts the canonical reference-free v1
 format with either no tools/zero calls or a distinct subset of the six original
 read-only observation IDs and a positive call budget. It reuses
@@ -1054,6 +1058,13 @@ rewrite, replacement or silent rollback is admitted. Another writer, alias,
 reparse/hardlink, parent/root replacement, changed source, occupied destination
 case-sensitive/unknown native directory semantics or unconfirmed readback refuses or holds the operation
 ([native protocol](../src/Kora.Windows/ArtifactDiscovery/WindowsOwnedDefinitionFileAccess.Rename.cs)).
+
+Before intent publication, failed staging writes or flushes retire only the
+unpublished file through its still-open native handle. The exact original and
+unrelated definitions remain unchanged; cleanup failure is explicitly unconfirmed,
+not publication or a recovery receipt. After confirmed cleanup, a fresh explicit
+review can rename the retained original
+([staging failure regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsOwnedInstructionStoreTests.Rename.cs)).
 
 Cancellation after possible intent publication and interrupted/unconfirmed
 publication remain explicit recovery-required. Startup/list/reload never

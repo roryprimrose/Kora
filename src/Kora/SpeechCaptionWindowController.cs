@@ -28,6 +28,7 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
     private bool failed;
     private bool canSelect;
     private bool refreshing;
+    private long displayRevision;
     private IReadOnlyList<CaptionDisplayChoice> choices = [];
     private CaptionDisplayChoice? selectedChoice;
     private string displayStatus = "Main screen (default until Kora restarts).";
@@ -71,8 +72,21 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
     private void OnDisplaysChanged(object? sender, EventArgs args)
     {
         if (disposed || failed) { return; }
-        window.Hide();
-        Refresh();
+        try
+        {
+            displayRevision = checked(displayRevision + 1);
+            ClearAndHide();
+            if (refreshing)
+            {
+                // A departed target retires text even if it returns before the outer layout finishes.
+                ObserveTarget(displays.Capture());
+            }
+            else { Refresh(); }
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            FailPresentation(exception);
+        }
     }
 
     public void Refresh()
@@ -81,27 +95,10 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
         refreshing = true;
         try
         {
+            var admittedDisplayRevision = displayRevision;
             var snapshot = displays.Capture();
-            UpdateChoices(snapshot);
-            var target = ResolveTarget(snapshot);
-            if (target is null)
-            {
-                ClearAndHide();
-                if (!targetUnavailable)
-                {
-                    targetUnavailable = true;
-                    SetProperty(ref displayStatus, "Caption screen unavailable. Choose a connected screen or Use main screen. Previous captions will not return.", nameof(DisplayStatus));
-                    presentation.ReportSpeechCaptionDisplayUnavailable();
-                }
-                else { presentation.ReportSpeechCaptionDisplayUnavailable(reportRecovery: false); }
-                return;
-            }
-            if (targetUnavailable)
-            {
-                ClearAndHide();
-                presentation.ReportSpeechCaptionDisplayUnavailable(reportRecovery: false);
-                return;
-            }
+            var target = ObserveTarget(snapshot);
+            if (target is null) { return; }
             presentation.RefreshSpeechPlaybackFrame();
             if (!presentation.IsSpeechCaptionVisible)
             {
@@ -114,7 +111,8 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
                 return;
             }
             presentation.EnsureReaderTypographyAvailable();
-            if (!presentation.IsSpeechCaptionVisible || presentation.SpeechCaptionText is not { } text)
+            if (!IsDisplayCurrent(snapshot, admittedDisplayRevision)
+                || !presentation.IsSpeechCaptionVisible || presentation.SpeechCaptionText is not { } text)
             {
                 ClearAndHide();
                 return;
@@ -122,7 +120,12 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
             window.ApplyCaption(text, presentation.ReaderTextScalePercent, presentation.SpeechCaptionEmphasis);
             Place(target);
             // Recheck source privacy after layout and before exposing the native text surface.
-            if (presentation.IsSpeechCaptionVisible) { if (!window.IsVisible) { window.Show(); } }
+            if (IsDisplayCurrent(snapshot, admittedDisplayRevision) && presentation.IsSpeechCaptionVisible)
+            {
+                if (!window.IsVisible) { window.Show(); }
+                if (!IsDisplayCurrent(snapshot, admittedDisplayRevision) || !presentation.IsSpeechCaptionVisible)
+                { ClearAndHide(); }
+            }
             else { ClearAndHide(); }
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -130,6 +133,41 @@ public sealed class SpeechCaptionWindowController : ObservableObject, IDisposabl
             FailPresentation(exception);
         }
         finally { refreshing = false; }
+    }
+
+    private CaptionDisplayObservation? ObserveTarget(CaptionDisplaySnapshot snapshot)
+    {
+        UpdateChoices(snapshot);
+        var target = ResolveTarget(snapshot);
+        if (target is null)
+        {
+            ClearAndHide();
+            if (!targetUnavailable)
+            {
+                targetUnavailable = true;
+                SetProperty(ref displayStatus, "Caption screen unavailable. Choose a connected screen or Use main screen. Previous captions will not return.", nameof(DisplayStatus));
+                presentation.ReportSpeechCaptionDisplayUnavailable();
+            }
+            else { presentation.ReportSpeechCaptionDisplayUnavailable(reportRecovery: false); }
+            return null;
+        }
+        if (targetUnavailable)
+        {
+            ClearAndHide();
+            presentation.ReportSpeechCaptionDisplayUnavailable(reportRecovery: false);
+            return null;
+        }
+        return target;
+    }
+
+    private bool IsDisplayCurrent(CaptionDisplaySnapshot admitted, long admittedRevision)
+    {
+        if (disposed || failed) { return false; }
+        var current = displays.Capture();
+        if (admittedRevision == displayRevision && admitted.Revision == current.Revision) { return true; }
+        ObserveTarget(current);
+        ClearAndHide();
+        return false;
     }
 
     private void UpdateChoices(CaptionDisplaySnapshot snapshot)

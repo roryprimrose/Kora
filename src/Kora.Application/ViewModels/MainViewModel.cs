@@ -2085,7 +2085,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     public bool IsPushToTalkVisible => !IsVoiceEnabled;
 
     public bool CanPushToTalk =>
-        IsReviewedVoiceCaptureReleased && Volatile.Read(ref listeningStopRequests) == 0 && (listeningStop.CanRecover || CanRetireWakeForManualInput)
+        captureOpenCancellation is null
+        && IsReviewedVoiceCaptureReleased && Volatile.Read(ref listeningStopRequests) == 0 && (listeningStop.CanRecover || CanRetireWakeForManualInput)
         && IsVoiceReadinessEligible(privacyObservation.Current)
         && IsHostInputEligible
         && microphoneCatalogCurrent
@@ -5323,6 +5324,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         using var activity = continuation();
         var outcome = HostOperationOutcome.Completed;
         var speechRevision = Interlocked.Read(ref manualCallSpeechRevision);
+        var automaticDetails = CaptureAutomaticResponse();
         BuiltInAction? automaticAction = null;
         var announceApproval = false;
         var lockHostCurrent = CaptureModelActionReviewHost();
@@ -5468,7 +5470,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 var presentation = AnswerPresentation.From(decision.Answer!);
                 PresentResponse(AssistantState.Information, "Local model response",
                     $"Generated locally; verify important details.\n\n{presentation.Brief}",
-                    modelAnswer: new(decision.Answer!));
+                    requestWindow: automaticDetails is null,
+                    modelAnswer: new(decision.Answer!, HostActivity.RequireCurrent().Request));
+                PresentAutomaticResponse(automaticDetails);
                 await SpeakCurrentResponseAsync(cancellationToken: cancellation.Token, expectedSpeechRevision: speechRevision);
             }
         }

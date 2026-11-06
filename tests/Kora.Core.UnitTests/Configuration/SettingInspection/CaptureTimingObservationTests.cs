@@ -17,6 +17,7 @@ public sealed class CaptureTimingObservationTests
     {
         var timing = new VoiceCaptureTiming(7.1234567m, 20.7654321m, 0.5000001m);
         var observation = new SettingObservation(setting, timing, true, long.MaxValue);
+        observation.Selection.Should().BeNull();
         observation.Text.Should().Be($"{RegisteredSettingRegistry.Get(setting).Id} = {seconds} seconds (confirmed saved; matches live service)");
         var input = JsonSerializer.Serialize(new { id = RegisteredSettingRegistry.Get(setting).Id });
         var reply = SettingsDiscoveryTools.Read([observation], SettingsDiscoveryTools.Get, input);
@@ -27,6 +28,7 @@ public sealed class CaptureTimingObservationTests
         value.GetProperty("revision").GetInt64().Should().Be(long.MaxValue);
         value.GetProperty("isSaved").GetBoolean().Should().BeTrue();
         value.GetProperty("text").GetString().Should().Be(observation.Text);
+        value.TryGetProperty("selection", out _).Should().BeFalse();
     }
 
     [Fact]

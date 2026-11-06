@@ -148,6 +148,7 @@ function hourlyApi() {
   api.state.hourlyMain = { baseline: { source: BASE, tree: sha(200),
     qualification: { run: 10, job: 11, source: BASE } }, activated: NOW.toISOString() };
   api.observeHourlyMain = async () => false;
+  api.scheduleHourlyMain = async () => false;
   api.releaseSource = async source => ({ source, tree: sha(200) });
   api.tipQualification = async () => assert.fail('Hourly PR admission must not wait for main to start or pass.');
   api.dispatchQualification = async () => assert.fail('Hourly admission must not dispatch per-merge main CI.');
@@ -180,8 +181,25 @@ test('main scheduling ready checkpoints cannot change from observation or reserv
     qualification: { run: 10, job: 11, source: BASE }, prepared: NOW.toISOString(), prepareRun: 5 };
   api.mainBuildProfile = 'per-merge';
   api.observeHourlyMain = async () => assert.fail('Ready profile changes must retain their exact checkpoint.');
+  api.scheduleHourlyMain = async () => assert.fail('Ready profile changes must not dispatch main.');
   api.pulls = async () => assert.fail('Ready profile changes must not inspect new enrollment.');
   assert.equal(await step(api), 'main-builds-ready');
+});
+
+test('unresolved hourly dispatch does not prevent independent PR reservation', async () => {
+  const api = hourlyApi();
+  api.prs = new BatchFake().prs;
+  api.state.hourlyMain.lastDispatch = { slot: NOW.toISOString().slice(0, 13),
+    source: BASE, requested: NOW.toISOString() };
+  api.scheduleHourlyMain = async (state, now, save) => {
+    assert.equal(now.toISOString(), NOW.toISOString());
+    assert.equal(typeof save, 'function');
+    return require('./main-scheduling.cjs').dispatchHourly(api, state, now, save);
+  };
+  await step(api);
+  assert.ok(api.state.active);
+  assert.equal(count(api, 'qualification'), 0);
+  assert.ok(api.calls.some(call => call[0] === 'notice' && call[1].includes('unresolved')));
 });
 
 test('delivery hold precedes pulls and prevents both batch and singleton reservation without withdrawing intent', async () => {

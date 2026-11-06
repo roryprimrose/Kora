@@ -2,6 +2,7 @@ using System.Text.Json;
 using AwesomeAssertions;
 using Kora.Application.Configuration.SettingInspection;
 using Kora.Core.Auditing;
+using Kora.Core.Configuration;
 using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
@@ -17,28 +18,41 @@ public sealed class CaptureTimingSettingInspectionTests
     internal const string Answer = "The confirmed capture timing preferences are supplied in exact seconds; they do not prove active capture or authorize changes.";
 
     [Theory]
-    [InlineData(RegisteredSetting.CommandStartWait, false)]
-    [InlineData(RegisteredSetting.CommandStartWait, true)]
-    [InlineData(RegisteredSetting.ReplyStartWait, false)]
-    [InlineData(RegisteredSetting.ReplyStartWait, true)]
-    [InlineData(RegisteredSetting.TrailingSilence, false)]
-    [InlineData(RegisteredSetting.TrailingSilence, true)]
-    public async Task OriginalVoiceReviewGetAndRetainedAnswerUseExactConfirmedTimingWithoutEffects(RegisteredSetting setting, bool saved)
+    [InlineData(RegisteredSetting.CommandStartWait, false, false)]
+    [InlineData(RegisteredSetting.CommandStartWait, true, false)]
+    [InlineData(RegisteredSetting.ReplyStartWait, false, false)]
+    [InlineData(RegisteredSetting.ReplyStartWait, true, false)]
+    [InlineData(RegisteredSetting.TrailingSilence, false, false)]
+    [InlineData(RegisteredSetting.TrailingSilence, true, false)]
+    [InlineData(RegisteredSetting.CommandStartWait, false, true)]
+    [InlineData(RegisteredSetting.CommandStartWait, true, true)]
+    [InlineData(RegisteredSetting.ReplyStartWait, false, true)]
+    [InlineData(RegisteredSetting.ReplyStartWait, true, true)]
+    [InlineData(RegisteredSetting.TrailingSilence, false, true)]
+    [InlineData(RegisteredSetting.TrailingSilence, true, true)]
+    public async Task OriginalVoiceReviewGetAndRetainedAnswerUseExactConfirmedTimingWithoutEffects(
+        RegisteredSetting setting, bool saved, bool savedSpeech)
     {
         var id = RegisteredSettingRegistry.Get(setting).Id;
         var transport = new SettingsDiscoveryWorkflowTests.Transport(
             $$$"""{"kind":"toolCalls","calls":[{"callId":"get_1","capabilityId":"settings.get","input":{"id":"{{{id}}}"}}]}""",
             JsonSerializer.Serialize(new { kind = "answer", answer = Answer }));
         await using var f = new SettingInspectionWorkflowTests.Fixture(transport: transport,
-            savedTiming: saved ? new(7.1234567m, 20.7654321m, 0.5000001m) : null);
+            savedTiming: saved ? new(7.1234567m, 20.7654321m, 0.5000001m) : null,
+            speechSelection: savedSpeech ? new("kokoro", "af_heart") : null);
         await f.InitializeAsync();
         using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice),
             HostActivityLayer.Desktop, HostOperation.Request);
         var session = await f.Workflow.ReviewAsync(Question, () => true, f.Token, ModelToolMode.SettingsDiscovery);
         session.Review.Question.Should().Be(Question);
-        session.Review.Observations.Should().HaveCount(18);
+        session.Review.Observations.Should().HaveCount(19).And.OnlyHaveUniqueItems(item => item.Setting);
+        var speech = session.Review.Observations.Single(item => item.Setting == RegisteredSetting.SpeechVoice);
+        speech.Selection.Should().Be(savedSpeech ? new("kokoro", "af_heart") : SpeechSelection.Default);
+        speech.Value.Should().BeNull();
+        speech.IsSaved.Should().Be(savedSpeech);
         var observation = session.Review.Observations.Single(item => item.Setting == setting);
         observation.IsSaved.Should().Be(saved);
+        observation.Selection.Should().BeNull();
         observation.Revision.Should().Be(f.Timing.Get().Revision);
         session.Review.Text.Should().Contain(observation.Text).And.Contain("NEW Local context conversation");
         transport.Requests.Should().BeEmpty();

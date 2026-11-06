@@ -15,6 +15,20 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task NativeAgentTaskEligibilityRetainsItsOriginalHostBinding()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var original = f.ViewModel.CaptureAgentTaskEligibility();
+        original().Should().BeTrue();
+        f.ViewModel.BindSkillReviewNavigation(null, () => 1);
+        original().Should().BeFalse();
+        var fresh = f.ViewModel.CaptureAgentTaskEligibility();
+        fresh().Should().BeTrue();
+        await f.ViewModel.ExitAsync();
+        fresh().Should().BeFalse();
+    }
+
     [Theory]
     [InlineData("success")]
     [InlineData("no-resolver")]

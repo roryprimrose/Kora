@@ -154,6 +154,115 @@ public sealed partial class SessionsConversationTests
     }
 
     [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(true, false, false)]
+    [InlineData(true, true, false)]
+    [InlineData(true, false, true)]
+    [InlineData(true, true, true)]
+    public async Task SelectedAgentOriginalVoiceTaskCannotBeRenewedByNativeReviewOrConfirmation(
+        bool reviewed, bool restoreVoice, bool sameTextCommand)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            var adapter = new HistoryAdapter();
+            await using var composed = new Composition(f, adapter: adapter);
+            using var native = new NativeUxFixtureSession(NamedAgentScratch(), syntheticVoice: true);
+            await native.InitializeAsync();
+            native.Main.BindVoiceOwnershipGate(static () => true);
+            await native.Main.SetVoiceConsentAsync(true);
+            await native.Main.BeginPushToTalkAsync();
+            await native.Main.EndPushToTalkAsync();
+            var reader = new NativeAgentReader();
+            await using var workflow = new BoundedAgentWorkflow(reader, f.Store, composed.Access,
+                composed.Conversation, composed.Turns, composed.Audit, f.Time);
+            var controller = new AgentRunController(native.Main, workflow, composed.Workspace,
+                () => true, () => 1, NullLogger<AgentRunController>.Instance);
+            controller.Bind();
+            AgentRunWindow? opened = null;
+            using var observation = Window.WindowOpenedEvent.AddClassHandler<AgentRunWindow>((window, _) => opened = window);
+            var taskCaptured = new TaskCompletionSource<Func<bool>>(TaskCreationOptions.RunContinuationsAsynchronously);
+            native.Main.AgentRunRequested += (command, origin, eligible) =>
+            {
+                if (command.Action is "Request" && !taskCaptured.Task.IsCompleted)
+                {
+                    origin.Should().Be(RequestOrigin.ActivatedVoice);
+                    taskCaptured.TrySetResult(eligible);
+                }
+                return Task.CompletedTask;
+            };
+            try
+            {
+                native.Main.CommandText = "review agent";
+                await native.Main.RunTypedCommand.ExecuteAsync();
+                var window = opened ?? throw new InvalidOperationException("No selected-source agent window.");
+                NamedAgentButton(window, "Refresh existing Active conversations").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await controller.ActiveOperation;
+                window.Targets.SelectedIndex = 0;
+                window.Source.Text = reader.Metadata.CanonicalPath;
+                native.Voice.PublishTranscript(native.Main.AssistantName + ", agent request Original voice task.");
+                var original = await taskCaptured.Task.WaitAsync(TimeSpan.FromSeconds(20), native.Token);
+                original().Should().BeTrue();
+                window.Input.Text.Should().Be("Original voice task.");
+                if (reviewed)
+                {
+                    NamedAgentButton(window, "Read source and review exact invocation").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    await controller.ActiveOperation;
+                    window.Confirm.IsEnabled.Should().BeTrue(window.Status.Text);
+                    window.Review.Text.Should().Contain("ORIGINAL CHANNEL ActivatedVoice");
+                }
+                await native.Main.SetVoiceConsentAsync(false);
+                if (restoreVoice)
+                {
+                    await native.Main.SetVoiceConsentAsync(true);
+                    await native.Main.BeginPushToTalkAsync();
+                    await native.Main.EndPushToTalkAsync();
+                }
+                original().Should().BeFalse("a later input cannot renew the captured voice request");
+                window.IsVisible.Should().BeTrue("the independent native editor remains available for a genuinely new task");
+                if (!reviewed)
+                {
+                    NamedAgentButton(window, "Read source and review exact invocation").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    await controller.ActiveOperation;
+                    window.Confirm.IsEnabled.Should().BeFalse(window.Status.Text);
+                }
+                window.Confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await controller.ActiveOperation;
+                adapter.Calls.Should().Be(0);
+                f.Count("conversation_messages").Should().Be(0);
+                f.Count("scoped_grants").Should().Be(0);
+                window.Result.Text.Should().BeEmpty();
+                composed.Audit.Events.Should().NotContain(item => item.ActionId == "agents.revision.invoke"
+                    && item.Outcome == Kora.Core.Auditing.SecurityAuditOutcome.Succeeded);
+
+                var freshText = sameTextCommand ? "Original voice task." : "A genuinely new native task.";
+                if (sameTextCommand)
+                {
+                    native.Main.CommandText = "agent request " + freshText;
+                    await native.Main.RunTypedCommand.ExecuteAsync();
+                }
+                else { window.Input.Text = freshText; }
+                NamedAgentButton(window, "Read source and review exact invocation").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await controller.ActiveOperation;
+                window.Confirm.IsEnabled.Should().BeTrue(window.Status.Text);
+                window.Review.Text.Should().Contain("ORIGINAL CHANNEL LocalUi");
+                if (!sameTextCommand) { window.Review.Text.Should().NotContain("Original voice task."); }
+                window.Confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await controller.ActiveOperation;
+                adapter.Calls.Should().Be(1);
+                var message = (await f.Store.ReadConversationPageAsync(f.Request.SessionId, null, 25, f.Token)).Messages.Single();
+                message.Body.Should().Be(freshText);
+                message.Request.Origin.Should().Be(RequestOrigin.LocalUi);
+                message.AssistantResponse!.Body.Should().Be("earlier ASSISTANT");
+            }
+            finally { await native.Main.ExitAsync(); }
+        });
+    }
+
+    [Theory]
     [InlineData("disable")]
     [InlineData("hold")]
     [InlineData("epoch")]

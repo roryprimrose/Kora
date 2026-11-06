@@ -1595,6 +1595,10 @@ and the [staged roadmap](Implementation_Roadmap.md#r02-windows-containment-follo
 
 ## Retention Defaults
 
+The [shared device-local preference availability boundary](User_Configuration.md#shared-device-local-preference-availability) distinguishes missing files/directories from unavailable saved files or unconfirmed-write markers.
+An obstructing directory or denied read/delete must surface failure, not confer default or confirmed state ([store](../src/Kora.Application/Configuration/LocalPreferenceStore.cs)).
+Explicit repair never renews authority or clears another retention domain; fresh admitted save/reset, readback and required audit remain mandatory ([regressions](../tests/Kora.Application.UnitTests/Configuration/LocalPreferenceStoreTests.cs)).
+
 Exact-answer review acknowledgements are metadata owned by the retained conversation, not an independent retention domain or a read-receipt claim. Source deletion removes them; acknowledgement does not renew activity, deadlines, grants, model/source consent or execution authority. Details still needs fresh canonical native admission; unknown or malformed acknowledgement state fails unavailable ([contract and storage](Interaction_And_Sessions.md#explicit-retained-answer-review-acknowledgement)).
 
 | Data | Default |
@@ -1645,8 +1649,9 @@ ordinary SQLite rows use the policy; existing deadlines never change and
 apply-now is unavailable. Audit90/domain, files30/30 and every grant retain
 their independent rules. Unavailable ordinary policy reports explicit
 independent delivery gaps without waiving mandatory trusted audit. This is logical
-row pruning, not recoverable-copy disposal or forensic erasure. Audit expiry
-and its continuation/checkpoint requirements remain independently unimplemented.
+row pruning, not recoverable-copy disposal or forensic erasure. Authoritative
+audit-prefix expiry uses its [independent bounded operation](Architecture.md#bounded-authoritative-audit-prefix-retention);
+diagnostic audit-projection expiry remains unavailable.
 The independent [ordinary diagnostic impact preview](User_Configuration.md#read-only-ordinary-diagnostic-shortening-impact-preview)
 only observes hypothetically newly-due ordinary logs/spans/owned links at one
 fixed cutoff. It never counts security audit; bounded protected-prefix and
@@ -1832,8 +1837,19 @@ under the selected tamper-evidence scheme so expiry is distinguishable from
 removal inside the retained window. Preserve the latest minimal chain anchor
 outside ordinary audit-event expiry; it contains no action/content payload and
 cannot reconstruct expired records.
-Audit pruning and its continuation/anchor mechanism are not implemented.
-Ordinary diagnostic pruning never removes audit rows; expired audits may
+The approved conservative implementation increment prunes only a contiguous
+verified expired prefix of the authoritative interaction audit, in a bounded
+owning-host startup transaction. State-referenced audit proofs, retained audit
+dependencies and unresolved work hold the boundary; expired backlog may remain.
+Removal and a versioned payload-free sequence/hash/cutoff anchor commit together.
+Readers verify the retained suffix from that anchor, never reconstruct expired
+payloads or reinterpret the independent diagnostic/file copies as authority.
+This uses the existing private-store/local SHA-256 consistency boundary, not
+checkpoint authentication against an attacker able to coherently rewrite both
+the database and anchor. Malformed/inconsistent state fails closed; independent
+anchoring, hostile-writer resistance, rollback detection and forensic erasure
+remain unavailable. See the [implementation contract](Architecture.md#bounded-authoritative-audit-prefix-retention).
+Ordinary diagnostic pruning never removes audit rows; expired diagnostic audit projections may
 therefore remain present beyond their due dates. The independent daily JSON
 stream contains secondary `TypedAuditCopy` records, not committed authority
 receipts. Its existing 30-day/30-calendar-file policy is separate from the

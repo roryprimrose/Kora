@@ -21,6 +21,13 @@ Apply [product admission](MVP_Scope.md#product-admission-and-realignment) to dis
 The native conversation row's **Export exact answer...** action reviews one currently admitted retained final ASSISTANT body, never a session-wide latest result or rendered projection. Destination selection and passive Details grant no write authority.
 The [separate review](../src/Kora/ExactAnswerExportWindow.cs) shows complete original text, conversation/result identity, exact destination, UTF-8/no-BOM format and the retention disclosure before a separate original local-UI confirmation.
 
+The destination/retention review and complete answer have independent bounded
+scrolling areas, including at the minimum 480-by-400 native size. Long paths
+remain complete, not abbreviated. Confirmation and cancellation captions wrap
+inside their available width, and long terminal outcomes scroll separately.
+Reading, resizing and scrolling do not confirm a write. Keyboard activation
+uses the same single-use confirmation and cancellation controls.
+
 The [single-use review owner](../src/Kora.Application/Presentation/ExactAnswerExportReview.cs) revalidates the exact source and private/control/presenter lifetime across selection, review and staging.
 The [dedicated Windows writer](../src/Kora.Windows/Presentation/WindowsExactAnswerExportWriter.cs) admits canonical fixed-drive text/Markdown destinations outside protected storage, holds ancestor identities, creates without replacement, flushes durably and verifies exact saved bytes. Existing destinations require a fresh new-file selection.
 
@@ -35,6 +42,12 @@ Deterministic [native transaction tests](../tests/Kora.Windows.IntegrationTests/
 Only decoded assistant-content snapshots from the bounded native Ollama NDJSON decoder enter this presentation. Every envelope, model identity, field, Unicode string and cumulative wire-byte charge is validated; normal terminal framing and EOF are required. The reconstructed complete answer still passes existing whole-response validation. JSON envelopes, tool calls and nonempty thinking fields cannot become provisional answer text ([decoder](../src/Kora.Windows/Dependencies/OllamaToolWire.Streaming.cs), [whole validation](../src/Kora.Windows/Dependencies/OllamaToolWire.cs), [transport regressions](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsOllamaToolTransportTests.Streaming.cs)).
 
 Snapshots remain volatile, inert plain text, without Markdown detail routing, automatic speech, persistence or content logging. Publication awaits the receiving view and revalidates exact host turn, source, session/task generation, private control and native view lifetime. Stop targets that conversation's displayed running task independently of the busy composer; cancellation retires provisional text but does not claim rollback or resource termination ([host fences](../src/Kora.Application/Dependencies/ModelTurnHost.Questions.cs), [native lifetime](../src/Kora/SessionsViewModel.ConversationCancellation.cs), [native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Streaming.cs)).
+
+An earlier request's deferred execution notifications cannot clear a subsequent
+request's current provisional pane or replace its displayed Stop target in the
+same session. Retirement remains bound to the exact host request and lease;
+the subsequent request still clears on its own completion, cancellation or
+authority loss ([cross-turn native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.StreamingRetirement.cs)).
 
 The original USER remains retained under existing rules. Only a fully validated successful final answer can enter the existing ASSISTANT/HOST/task/audit transaction; malformed, oversized, cancelled or truncated streams cannot retain partial answers. Owned work remains joined before a confirmed terminal outcome. This increment does not enable rejected/unqualified local profiles or qualify hardware, installed accessibility, hosted streaming or provider availability ([retention owner](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs), [host regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Streaming.cs), [I/E/Q policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
 
@@ -303,6 +316,15 @@ full clipboard answering and real native acceptance remain unavailable/open.
 ### Delivered Bounded Native Evidence Inspection
 
 #### Exact request outcomes and causal diagnostics
+
+An explicitly read conversation also offers **Read this request's audit** for one actual retained message.
+The [native operation](../src/Kora/SessionsViewModel.RequestEvidence.cs) freshly resolves that exact retained source, reads only its session/request/task's committed AuthorityAudit evidence and revalidates the original before publication in the existing integrated Details pane.
+Separate signed **Next request-audit snapshot page** controls preserve the exact query and snapshot; missing or incomplete terminal evidence is not current work state, success or effect proof.
+
+This is the original-message-to-audit interaction, not another renderer, a diagnostic-to-authority promotion or command preparation.
+[Source/page validation](../src/Kora/SessionsViewModel.Details.cs) preserves the retained message, private control, native presenter, selected session and audit-record identity across awaited reads and passive revalidation; retired controls cannot read a replacement.
+No replay, model/provider, clipboard/export, grant, activity renewal or retention write is added. Existing native-only evidence admission remains unchanged.
+[Deterministic native regressions](../tests/Kora.Windows.IntegrationTests/AdaptiveInteractionTests.RequestEvidence.cs) are Implementation evidence, not provider, installed accessibility or E/Q qualification.
 
 In the explicit Evidence window, select a typed **Audit** or **AuthorityAudit**
 record and choose **Read request outcomes**. The existing bounded reader freshly
@@ -748,6 +770,21 @@ digest, title, provenance and sensitivity. Embedded pages explicitly have
 Reopening the same reference activates its viewer. A different revision opens
 separately, and conflicting source or chrome under the same reference is
 rejected instead of replacing what the user was reading.
+
+The [shared native reader](../src/Kora/DetailContentView.axaml) allocates height
+proportionally between provenance, actions and the result body. Complete native
+chrome remains in its named, keyboard-focusable bounded scroll regions instead of consuming the reading
+area at the supported minimum window size. Rendered, Continuous text and Exact
+source retain the same admitted text and existing disclosure/closure rules.
+Up/Down scroll only the focused native chrome region, rechecking the original
+source admission; keys in its child controls keep their existing behavior.
+Chrome keyboard input also retires any pending exact-reference reading-position
+restore, so a deferred reopen callback cannot overwrite subsequent reader input.
+[Headless layout regressions](../tests/Kora.Windows.IntegrationTests/DetailReaderLayoutTests.cs)
+require at least 160 device-independent units of body height at 640 by 500
+with long provenance and active maximum-length Find at 75%, 100% and 200% reader
+scale, and verify complete provenance/action reachability. This is native
+implementation evidence, not installed accessibility or renderer enablement.
 
 The owner approved these initial bounds after finding that #44 specified
 measured native bounds but numeric limits only for the still-gated Mermaid
@@ -1610,6 +1647,11 @@ Downloads and exports require separate scoped host actions; no automatic opening
 Opening a page does not automatically scrape/read/summarise it. User-selected extraction requires context provenance, size checks, and normal egress consent.
 
 For the external browser, validate/show the exact destination and launch only the registered browser with a URL, not a shell command.
+The native external-browser review bounds and independently scrolls the original
+source, complete unchanged destination and privacy disclosure. Its resizable
+window keeps separate one-shot confirmation and cancellation reachable at its
+minimum size; scrolling grants no launch authority. Deterministic native layout
+and complete-operation regressions do not qualify installed accessibility.
 Disclose that external browser identity/cookies/permissions/networking are user/browser-managed and not subject to Kora's embedded sandbox.
 Once launched, Kora does not control its lifetime, close it on lock, or claim that its background requests stopped.
 

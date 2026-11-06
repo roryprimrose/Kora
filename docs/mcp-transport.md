@@ -1,5 +1,31 @@
 # Read-only MCP HTTPS transport
 
+## Built-in Kora capabilities
+
+Kora has a private built-in MCP server. Its catalogue and capability-manager projection are host metadata:
+listing them does not open a network endpoint, launch a process or require a delegated account
+([catalogue](../src/Kora.Core/Mcp/KoraMcpCatalog.cs), [private server](../src/Kora.Application/Mcp/KoraMcpServer.cs)).
+
+Server, category and individual-tool consideration choices use the same device-local MCP preferences as external servers.
+Disabling a server preserves its category/item choices, including after restart. A category-wide change replaces its individual
+exceptions. Enabling consideration is not execution, consent or approval
+([shared policy](../src/Kora.Core/Mcp/McpCapabilitySelection.cs), [host adapter](../src/Kora.Application/Configuration/McpCapabilityPreferences.cs)).
+
+The metadata inventory includes the original observations, reviewed settings/session/customization discovery, the scoped webpage
+tool and conversational `ask_user`. It does not create one tool per setting or enable an unavailable model. Source-bound entries
+are labelled as requiring their existing review; `ask_user` cannot confirm a protected operation
+([inventory](../src/Kora.Core/Mcp/KoraMcpCatalog.cs), [host dispatch](../src/Kora.Application/Dependencies/ModelTurnHost.cs)).
+
+Disabled tools are removed from supported model context selections and rejected again at dispatch, including cached calls.
+Changes retire turns using the built-in catalogue; re-enabling cannot revive them. Unrelated tool-free answers and external-only
+turns retain their own authority checks. Native controls remain recovery paths, and mandatory approvals are not disabled with `ask_user`
+([selection](../src/Kora.Application/Configuration/McpCapabilityPreferences.cs), [revalidation](../src/Kora.Application/Dependencies/ModelTurnHost.Capabilities.cs)).
+
+The private MCP observation interface and provider adapters use the existing typed actions and shared input schemas. Reviewed source-bound operations use the same server's host-bound dispatch, not an unrestricted settings/file/session reader. The external HTTPS workflow below retains its independent account, destination, effect mapping and approval requirements
+([schemas](../src/Kora.Core/Tools/CapabilityInputSchema.cs), [server](../src/Kora.Application/Mcp/KoraMcpServer.cs)).
+
+## External read-only HTTPS servers
+
 **MCP (Model Context Protocol)** connects tools offered by another service.
 Kora's first supported connection is read-only and uses HTTPS. It is not a
 general remote-command runner.
@@ -14,6 +40,13 @@ account, review the exact connection in native UI, select a host-mapped tool,
 and separately approve its exact schema and arguments. The result is inert
 lower-trust evidence for the local model, not instructions or permission.
 Discovery annotations never establish a read-only mapping.
+
+When a result contains several text blocks, Kora combines them in server order
+with exactly one newline between blocks, including empty blocks. Leading,
+consecutive and trailing empty blocks are preserved in both the displayed result
+and any separately consented local continuation. Text inside each block and
+optional structured JSON are unchanged; the existing four-block and complete
+1,536-byte response limits still apply.
 
 If a configuration refresh observes changed source bytes, exclusion, removal or
 unavailable configuration while discovery or review is pending, the old review
@@ -45,6 +78,10 @@ its schema. Enter JSON containing its required bounded inputs. This input step
 does not send the tool call: separately approve the final exact destination,
 account, tool, schema and arguments.
 
+The [native argument window](../src/Kora/QuestionWindow.axaml.cs) puts the complete unchanged schema in its read-only keyboard reader, not an oversized static heading. Tab to the reader and use Ctrl+Home/Ctrl+End or the arrow keys to inspect it. Multiline JSON entry scrolls within a bounded editor so **Review exact record**, **Submit** and **Cancel** remain reachable.
+
+Reading the schema does not review the record, save arguments, grant permission or send a call. **Review exact record** and final outgoing approval are separate. The reader blocks clipboard/context-menu export and clears when closed or private presentation ends ([regressions](../tests/Kora.Windows.IntegrationTests/NativeQuestionWindowContractTests.McpArguments.cs)).
+
 The original session shows the actual inert tool result or a truthful failure.
 No model runs, no assistant answer is invented, and your unsent conversation
 text is unchanged. The result remains in memory, not conversation history.
@@ -52,6 +89,14 @@ text is unchanged. The result remains in memory, not conversation history.
 If remote processing is uncertain, the task remains **Unknown**; stopping is
 not rollback and does not automatically retry. The availability restriction
 below also applies to this route.
+
+After transport disposal and again at terminal readback, Kora checks that the
+exact delegated account, revision, protected credential reference and destination
+remain available. Withdrawal or replacement suppresses the result, including
+the native result review and local-model continuation. A terminal receipt already
+committed before withdrawal is not rewritten or treated as fresh disclosure
+authority. Review the original operation before explicitly starting another;
+Kora does not reconnect or retry automatically.
 
 A disconnected or failed exchange also joins the original transport without
 reconnecting or retrying. Neither route publishes a tool result or assistant

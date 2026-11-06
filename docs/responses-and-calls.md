@@ -60,6 +60,11 @@ In the conversation, choose **Export exact answer...** on the particular retaine
 This action is separate from **Context submitted for this answer** in the primary conversation pane, compact view and Sessions: inspecting historical metadata does not select export content or confirm a write.
 Review the complete original answer, conversation/result identity, exact destination, UTF-8/no-BOM format and retention warning. Separately choose **Confirm this one new-file export** ([native review](../src/Kora/ExactAnswerExportWindow.cs)).
 
+In a small window or with enlarged text, scroll the destination/retention area
+and original answer separately. Long paths remain complete. The confirmation
+and **Cancel / Close** controls remain below the reading areas; scrolling or
+resizing never confirms an export. Long outcome messages also scroll.
+
 Opening Details, choosing a destination or cancelling does not authorize a write. Existing files are refused, not overwritten. Confirmed success means the complete original text was saved unchanged and its exact bytes read back after durable flush. The file is not opened automatically.
 On an uncertain result, inspect the chosen destination before any fresh review; Kora does not retry automatically
 ([export owner](../src/Kora.Application/Presentation/ExactAnswerExportReview.cs), [native writer](../src/Kora.Windows/Presentation/WindowsExactAnswerExportWriter.cs)).
@@ -430,6 +435,13 @@ No caption content is saved, logged or sent to a model.
 If the native caption surface fails, captions stop until restart; the complete
 answer and required recovery remain visual. Diagnostics record only the failure
 type, never caption content.
+
+Caption display changes also invalidate an in-progress native layout. Kora keeps
+that layout hidden rather than showing text at the previous display coordinates.
+If the selected screen disappears, even pinned text is retired; reconnecting it
+does not restore that text. Use the native display controls to select a connected
+screen for future eligible speech. A working-area or scale change on the same
+connected screen uses a fresh layout without replaying speech.
 
 Drag the response title area to reposition the window. Its last position is
 stored on this device and restored when that position remains on a connected

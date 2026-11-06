@@ -65,6 +65,13 @@ Conversation retention, reviewed memory, definitions, grants and logs have
 separate lifetimes. Deleting a conversation does not remove your definition
 files or independently retained device-profile memories.
 
+After confirmed session deletion commits, Kora finishes removing that session's
+saved notice-suppression receipts even if the initiating operation is cancelled.
+Other sessions' receipts and shared notice-rate budgets are unchanged. Privacy,
+storage or audit failure still reports incomplete cleanup; cancellation is not
+evidence that committed deletion was rolled back. Do not retry deletion
+automatically; inspect the retained state and reported recovery first.
+
 Deleting or editing a roaming definition can affect your other computers when
 Windows next synchronises. It does not erase backups or guarantee removal of
 offline copies.

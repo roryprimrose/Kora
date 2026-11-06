@@ -362,6 +362,18 @@ Stopping all microphone listening is a separate explicit mute operation.
 Cancelling active work preserves the queue but pauses automatic dispatch; cancellation does not immediately start the next request.
 Replacement waits for execution quiescence and resolution or explicit acknowledgement of uncertain remote effects.
 
+Closing the ordinary submitted-conversation owner closes new admission before
+requesting cancellation. A failing cancellation callback does not release that
+owner: shutdown still joins every captured submitted worker and its physical
+provider/resource completion before disposing lane admission and the lifetime
+source. The callback failure is diagnosed without its content and propagated
+after cleanup; repeat disposal observes the same failed terminal operation,
+not a retry or successful shutdown. Pending requests cannot dispatch and late
+answers cannot become retained success during that join
+([regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.PendingShutdown.cs)).
+If a submitted worker itself faults, shutdown still joins physical work and
+retains that failure; it cannot invent a terminal receipt for the failed worker.
+
 Native **Refresh running work** observes only the running owner, not the
 independent submitted-work lane. Finding no running owner preserves the observed
 pending requests, exact pending selection, recovery Resume and manual-hold

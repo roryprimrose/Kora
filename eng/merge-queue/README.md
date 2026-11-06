@@ -773,16 +773,23 @@ cancelled, stale, already-merged and already-retiring tickets, without changing
 state version, observation deadlines, pagination, attempt/ticket or App trust.
 
 The [coverage-comment workflow](../../.github/workflows/coverage-comment.yml)
-checks the source run's latest-attempt jobs before downloading its report.
+checks the source run's latest-attempt jobs before resolving a PR destination
+or downloading its report.
 A skipped portable job with successful queue-policy feedback identifies a
-policy-only PR run: reporting stops with an explicit notice, without downloading
-an artifact or changing the existing coverage comment. Full ordinary PR runs and
-validated queue candidates require exactly one completed, successful portable
-job. A missing report from those runs still fails; unknown, duplicate or
+policy-only PR run: reporting stops with an explicit notice, without resolving
+a destination, downloading an artifact or changing the existing coverage comment.
+This remains not applicable when GitHub returns an empty `pull_requests`
+association after the PR has merged; no destination is guessed or recovered.
+Full ordinary PR runs and validated queue candidates require exactly one
+completed, successful portable job. A missing report from those runs still fails; unknown, duplicate or
 unsuccessful producers are not treated as policy-only skips. This decision uses
 the source run's evidence rather than the current queue-mode variable, which may
 have changed since that run. Candidate ticket and current-head checks remain
-required, and the 100% line/branch coverage gates are unchanged.
+required. Coverage-producing runs still fail explicitly on missing or invalid
+required PR identity; both producer readiness and a validated destination gate
+artifact download and comment publication. The 100% line/branch coverage gates
+are unchanged. Run `node --test .\eng\merge-queue\workflows.test.cjs` for the
+deterministic workflow-order and forbidden-effect routing regressions.
 
 Before attestation, the controller rechecks head, base, queue intent, reviews
 and ancestry. Its merge request includes the expected head. Strict up-to-date

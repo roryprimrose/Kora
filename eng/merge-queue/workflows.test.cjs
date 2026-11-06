@@ -678,7 +678,7 @@ test('ordinary PR coverage keeps its associated destination and rejects missing 
   await value.execute();
   assert.equal(value.outputs.number, 12);
   assert.deepEqual(value.calls, []);
-  await assert.rejects(coverageFixture({ event: 'pull_request', pull_requests: [] }).execute(), /no associated pull request/);
+  await assert.rejects(coverageFixture({ event: 'pull_request', pull_requests: [] }).execute(), /no valid associated pull request/);
 });
 
 test('candidate coverage requires the queue App ticket on the current head', async () => {
@@ -700,15 +700,16 @@ test('stale-head, unrelated ticket and wrong-App coverage is not posted as curre
     assert.equal(value.outputs.number, undefined);
     assert.equal(value.calls.at(-1)[0], 'notice');
   }
-  assert.equal((coverage.match(/if: steps\.destination\.outputs\.number != ''/g) || []).length, 1);
+  assert.equal((coverage.match(/if: steps\.producer\.outputs\.ready == 'true' && steps\.destination\.outputs\.number != ''/g) || []).length, 2);
 });
 
 test('malformed candidate coverage titles and untrusted workflow branches fail explicitly', async () => {
   for (const overrides of [{ display_title: 'Merge queue PR #17 [not-a-ticket]' },
     { display_title: 'Merge queue PR #0 [01234567-89ab-cdef-0123-456789abcdef]' },
-    { head_branch: 'topic' }]) {
+    { head_branch: 'topic' },
+    { display_title: 'Merge queue PR #9007199254740992 [01234567-89ab-cdef-0123-456789abcdef]' }]) {
     const value = coverageFixture(overrides);
-    await assert.rejects(value.execute(), /Invalid candidate coverage source/);
+    await assert.rejects(value.execute(), /Invalid candidate coverage/);
     assert.equal(value.outputs.number, undefined);
     assert.deepEqual(value.calls, []);
   }
@@ -805,9 +806,130 @@ test('coverage job lookup failures remain explicit and cannot authorize reportin
   assert.deepEqual(value.notices, []);
 });
 
+function coverageRouteFixture({ run = {}, jobs, checks, lookupFailure, artifactFailure, reportFailure, comments = [] } = {}) {
+  const destination = coverageFixture({ id: 123, event: 'pull_request', pull_requests: [{ number: 12 }], ...run });
+  const producer = coverageProducerFixture({ event: destination.run.event, jobs });
+  if (checks) destination.github.paginate = async () => checks;
+  if (lookupFailure) producer.github.paginate = async () => { throw lookupFailure; };
+  const effects = [];
+  return { destination, producer, effects, execute: async () => {
+    for (const match of coverage.matchAll(/      - name: ([^\n]+)\n([\s\S]*?)(?=\n      - name: |$)/g)) {
+      const [, name, body] = match;
+      const condition = body.match(/^        if: (.+)$/m)?.[1];
+      const steps = { producer: { outputs: { ready: '', ...producer.outputs } },
+        destination: { outputs: { number: '', ...destination.outputs } } };
+      if (condition && !new Function('steps', `return ${condition};`)(steps)) continue;
+      if (name === 'Verify coverage producer') await producer.execute();
+      else if (name === 'Resolve validated coverage destination') await destination.execute();
+      else if (name === 'Download coverage report') {
+        effects.push('artifact');
+        if (artifactFailure) throw artifactFailure;
+      }
+      else if (name === 'Post or update coverage comment') {
+        const publish = new AsyncFunction('require', 'context', 'github',
+          coverageScript(name).replace('${{ steps.destination.outputs.number }}', String(destination.outputs.number)));
+        await publish(name => {
+          assert.equal(name, 'fs');
+          return { readFileSync: () => {
+            effects.push('report');
+            if (reportFailure) throw reportFailure;
+            return 'coverage summary';
+          } };
+        }, { repo: { owner: 'owner', repo: 'repo' } }, {
+          rest: { issues: {
+            listComments: 'comments',
+            createComment: async args => { effects.push(['create', args]); },
+            updateComment: async args => { effects.push(['update', args]); },
+          } },
+          paginate: async (method, args) => {
+            assert.equal(method, 'comments');
+            effects.push(['comments', args]);
+            return comments;
+          },
+        });
+      } else assert.fail(`Unexpected coverage step ${name}`);
+    }
+  } };
+}
+
+test('merged policy-only PR with an empty association never resolves a destination or reads or publishes coverage', async () => {
+  const value = coverageRouteFixture({ run: { pull_requests: [] }, jobs: [
+    { name: CHECKS[0], status: 'completed', conclusion: 'skipped' },
+    { name: 'Queue policy feedback', status: 'completed', conclusion: 'success' },
+  ] });
+  await value.execute();
+  assert.deepEqual(value.producer.outputs, {});
+  assert.match(value.producer.notices[0], /policy-only.*coverage was not produced/i);
+  assert.deepEqual(value.destination.outputs, {});
+  assert.deepEqual(value.destination.calls, []);
+  assert.deepEqual(value.effects, []);
+});
+
+test('real coverage without a valid associated PR fails closed before artifact, report or GitHub comment effects', async () => {
+  for (const pull_requests of [undefined, null, [], [{}], [{ number: 0 }], [{ number: -1 }],
+    [{ number: '12' }], [{ number: 1.5 }], [{ number: Number.MAX_SAFE_INTEGER + 1 }]]) {
+    const value = coverageRouteFixture({ run: { pull_requests } });
+    await assert.rejects(value.execute(), /associated pull request/);
+    assert.deepEqual(value.destination.outputs, {});
+    assert.deepEqual(value.effects, []);
+  }
+});
+
+test('valid ordinary and candidate coverage routes retain artifact, report and exact-destination publication', async () => {
+  for (const run of [{}, { event: 'workflow_dispatch', pull_requests: [] }]) {
+    for (const comments of [[], [
+      { id: 21, user: { login: 'other-user' }, body: '<!-- portable-code-coverage -->' },
+      { id: 22, user: { login: 'github-actions[bot]' }, body: '<!-- portable-code-coverage -->' },
+    ]]) {
+      const value = coverageRouteFixture({ run, comments });
+      await value.execute();
+      assert.equal(value.producer.outputs.ready, 'true');
+      assert.equal(value.destination.outputs.number, run.event ? 17 : 12);
+      assert.deepEqual(value.effects.slice(0, 2), ['artifact', 'report']);
+      assert.equal(value.effects[2][0], 'comments');
+      assert.equal(value.effects[2][1].issue_number, value.destination.outputs.number);
+      assert.equal(value.effects[3][0], comments.length ? 'update' : 'create');
+      if (comments.length) assert.equal(value.effects[3][1].comment_id, 22);
+      else assert.equal(value.effects[3][1].issue_number, value.destination.outputs.number);
+      assert.equal(value.effects[3][1].body, '<!-- portable-code-coverage -->\ncoverage summary');
+      assert.equal(value.effects.length, 4);
+    }
+  }
+});
+
+test('denied candidate destinations and unknown producer states have no artifact, report or comment effects', async () => {
+  for (const options of [
+    { run: { event: 'workflow_dispatch', pull_requests: [] }, checks: [] },
+    { run: { event: 'workflow_dispatch' }, checks: [{ app: { id: 42 }, external_id: 'other-ticket' }] },
+    { run: { event: 'workflow_dispatch' }, checks: [{ app: { id: 7 }, external_id: '01234567-89ab-cdef-0123-456789abcdef' }] },
+    { run: { event: 'workflow_dispatch', head_branch: 'topic' }, failure: /Invalid candidate/ },
+    { jobs: [], failure: /exactly one completed/ },
+    { jobs: [{ name: CHECKS[0], status: 'completed', conclusion: 'failure' }], failure: /did not succeed/ },
+    { lookupFailure: new Error('Job lookup unavailable'), failure: /Job lookup unavailable/ },
+  ]) {
+    const value = coverageRouteFixture(options);
+    if (options.failure) await assert.rejects(value.execute(), options.failure);
+    else await value.execute();
+    assert.deepEqual(value.effects, []);
+  }
+});
+
+test('real coverage artifact and report failures propagate without publishing substitute coverage', async () => {
+  for (const stage of ['artifact', 'report']) {
+    const failure = new Error(`Missing coverage ${stage}`);
+    const value = coverageRouteFixture({ [`${stage}Failure`]: failure });
+    await assert.rejects(value.execute(), error => error === failure);
+    assert.deepEqual(value.effects, stage === 'artifact' ? ['artifact'] : ['artifact', 'report']);
+  }
+});
+
 test('coverage download and publication require producer readiness without hiding missing artifacts', () => {
-  assert.equal((coverage.match(/if: steps\.producer\.outputs\.ready == 'true'/g) || []).length, 2);
-  assert.match(coverage, /name: Verify coverage producer\n        if: steps\.destination\.outputs\.number != ''\n        id: producer/);
+  assert.ok(coverage.indexOf('- name: Verify coverage producer') < coverage.indexOf('- name: Resolve validated coverage destination'));
+  assert.match(coverage, /name: Verify coverage producer\n        id: producer/);
+  assert.match(coverage, /name: Resolve validated coverage destination\n        if: steps\.producer\.outputs\.ready == 'true'/);
+  for (const name of ['Download coverage report', 'Post or update coverage comment']) {
+    assert.ok(coverage.includes(`name: ${name}\n        if: steps.producer.outputs.ready == 'true' && steps.destination.outputs.number != ''`));
+  }
   assert.match(coverage, /run-id: \$\{\{ github\.event\.workflow_run\.id \}\}/);
   assert.match(coverage, /name: coverage-report/);
   assert.match(coverage, /fs\.readFileSync\('coverage-report\/SummaryGithub\.md', 'utf8'\)/);

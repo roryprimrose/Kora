@@ -69,7 +69,7 @@ public sealed partial class MainViewModel
         var name = AssistantName;
         var voice = message.Request.Origin == RequestOrigin.ActivatedVoice
             || HostActivity.RequireCurrent().Request.Origin == RequestOrigin.ActivatedVoice;
-        bool Eligible() => !disposed && IsCallMutationHostEligible && !IsProtectedCall
+        bool Eligible() => !disposed && IsCallMutationHostEligible
             && !IsBusy && !IsResponseInteractionPending && !applyingAppearance
             && privacyObservation.Current.TopologyRevision == privacy && CallPolicyRevision == call
             && settingsOwnershipRevision() == ownership

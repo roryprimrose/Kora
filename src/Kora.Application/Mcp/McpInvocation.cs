@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
@@ -20,7 +20,7 @@ using Kora.Core.Tools;
 namespace Kora.Application.Mcp;
 
 /// <summary>One session/origin/task-bound connection, exact selected tool, single call and joined transport lifetime.</summary>
-internal sealed class McpInvocation(
+internal sealed partial class McpInvocation(
     McpServerConfigurationService configuration, IMcpConnectionBroker broker, McpReadOnlyPolicy effects,
     IHostInteractionStore interactions, ISessionWorkspaceStore workspace, ISessionWorkspaceAccess access,
     ISecurityAuditLog audit, TimeProvider time, HostRequest original, HostRevision generation,
@@ -30,6 +30,7 @@ internal sealed class McpInvocation(
 {
     private readonly long control = access.ControlRevision;
     private readonly long useRevision = configuration.UseControlRevision;
+    private readonly string? capabilityRevision = configuration.CaptureCapabilityRevision(serverId);
     private readonly DateTimeOffset expiresAt = time.GetUtcNow().AddMinutes(2);
     private readonly HostRequest interactionRequest = new(original.RequestId, original.SessionId,
         original.TaskId, original.Origin, new(Guid.NewGuid()));
@@ -111,7 +112,8 @@ internal sealed class McpInvocation(
         await ValidateAsync(token).ConfigureAwait(false);
         var discovery = await ExchangeAsync(McpProtocol.DiscoveryRequest(), McpProtocol.MaximumDiscoveryUtf8Bytes, token).ConfigureAwait(false);
         var tools = McpProtocol.ReadDiscovery(discovery.AsSpan());
-        var eligible = tools.Where(tool => effects.Find(descriptor, tool) is not null).ToArray();
+        var eligible = tools.Where(tool => effects.Find(descriptor, tool) is not null
+            && configuration.IsToolEnabled(serverId, tool.Name)).ToArray();
         if (eligible.Length == 0)
         { throw new InvalidOperationException("No discovered MCP tool has an exact current host-owned read-only effect mapping."); }
         var choice = await SelectToolAsync(eligible, token).ConfigureAwait(false);
@@ -236,6 +238,8 @@ internal sealed class McpInvocation(
     {
         token.ThrowIfCancellationRequested();
         if (!Live(token)) { throw new InvalidOperationException("The exact MCP session, source or permission admission is closed."); }
+        if (selected is not null && !configuration.IsToolEnabled(serverId, selected.Name))
+        { throw new InvalidOperationException("The selected MCP tool is disabled."); }
         var session = await workspace.ReadMetadataAsync(original.SessionId, token).ConfigureAwait(false);
         var task = await workspace.ReadTaskAsync(original.SessionId, original.TaskId, token).ConfigureAwait(false);
         if (!Live(token) || !session.Authority.IsActive || session.Authority.SessionId != original.SessionId
@@ -261,6 +265,7 @@ internal sealed class McpInvocation(
 
     private bool Admitted(CancellationToken token) => !disposed && !token.IsCancellationRequested
         && access.CanControl && access.ControlRevision == control && configuration.UseControlRevision == useRevision
+        && string.Equals(configuration.CaptureCapabilityRevision(serverId), capabilityRevision, StringComparison.Ordinal)
         && (descriptor is null || configuration.SourceControlRevision(serverId) == descriptor.SourceControlRevision)
         && admitted() && time.GetUtcNow() < expiresAt
         && (skill is null || time.GetUtcNow() < skill.ExpiresAt);

@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Net;
 using System.Text;
 using AwesomeAssertions;
@@ -555,18 +555,24 @@ public sealed partial class ModelTurnHostTests
         private readonly string directory = Path.Combine(Directory.GetCurrentDirectory(), "artifacts", "mcp-" + Guid.NewGuid().ToString("N"));
         internal string File { get; }
         internal McpServerConfigurationService Configuration { get; }
+        internal McpCapabilityPreferences? Capabilities { get; }
         private readonly McpPreferences preferences;
         internal ArtifactDirectorySettings Settings { get => preferences.Value; set => preferences.Value = value; }
         internal Action? BeforeLoad { set => preferences.BeforeLoad = value; }
         internal string ServerId { get; }
         internal McpAccountReference Account { get; } = new(Guid.NewGuid(), new(1), Guid.NewGuid(), new(new("https://example.com/mcp")));
-        internal McpSource(IArtifactUsePolicy? usePolicy = null)
+        internal McpSource(IArtifactUsePolicy? usePolicy = null, Kora.Core.Auditing.ISecurityAuditLog? audit = null)
         {
             Directory.CreateDirectory(directory);
             File = Path.Combine(directory, "source.json");
             System.IO.File.WriteAllText(File, """{"servers":{"reference":{"url":"https://example.com/mcp"}}}""");
             preferences = new McpPreferences(new([], [], [], [], [File], []));
-            Configuration = new(new McpPaths(directory), preferences, Path.Combine(directory, "profile"), usePolicy);
+            if (audit is not null)
+            {
+                Capabilities = new(new ArtifactUsePreferences(new Tools.KoraMcpServerTests.MemoryStore()),
+                    preferences, new ArtifactDirectoryConfigurationService(preferences, audit));
+            }
+            Configuration = new(new McpPaths(directory), preferences, Path.Combine(directory, "profile"), usePolicy, Capabilities);
             ServerId = Configuration.Load().Single().Id;
             preferences.Value = new([], [], [], [], [File], [ServerId]);
         }

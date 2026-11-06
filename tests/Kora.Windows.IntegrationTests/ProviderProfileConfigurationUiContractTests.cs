@@ -43,8 +43,17 @@ public sealed class ProviderProfileConfigurationUiContractTests
         })
         {
             var matches = controls.Where(control => string.Equals(control.Attribute("Command")?.Value, "{Binding " + command + "}", StringComparison.Ordinal)).ToArray();
-            matches.Should().HaveCount(command is "RefreshProviderProfileCommand" ? 2 : 1);
+            matches.Should().ContainSingle();
             matches.Should().OnlyContain(control => string.Equals(control.Attribute("IsEnabled")!.Value, "{Binding " + enabled + "}", StringComparison.Ordinal));
+            if (command is "RefreshProviderProfileCommand")
+            {
+                var refresh = matches.Single();
+                refresh.Name.LocalName.Should().Be("MenuItem");
+                refresh.Parent!.Name.LocalName.Should().Be("MenuFlyout");
+                refresh.Parent.Elements().First().Should().BeSameAs(refresh);
+                refresh.Ancestors().Single(control => control.Name.LocalName is "SettingActionsButton")
+                    .Attribute("SettingName")!.Value.Should().Be("Default service and model");
+            }
         }
         controls.Any(control => string.Equals(control.Attribute("Text")?.Value, "{Binding ProviderProfileConfigurationStatus}", StringComparison.Ordinal)).Should().BeTrue();
         File.ReadAllText(Path.Combine(root, "src", "Kora", "Program.cs")).Should().Contain("ProviderProfileComposition.Configure(services);");

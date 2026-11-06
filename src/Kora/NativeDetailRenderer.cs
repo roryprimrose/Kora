@@ -420,6 +420,7 @@ internal sealed partial class NativeDetailRenderer(
                 Code = codeSource,
                 Strikethrough = strikeProjection?.Spans ?? [],
                 HeadingId = block is HeadingBlock ? block.GetAttributes().Id : null,
+                HeadingLevel = block is HeadingBlock heading ? heading.Level : 0,
                 Links = links.ToImmutable(),
                 ExternalLinks = externalLinks,
             });

@@ -166,6 +166,36 @@ public sealed class SessionRetentionServiceTests : IDisposable
         fixture.Store.Calls.Should().Be(0);
     }
 
+    [Fact]
+    public async Task Timer_retries_after_reported_storage_failure_and_joins_cleanly_without_false_success()
+    {
+        await using var fixture = new Fixture();
+        fixture.Store.Failure = new IOException("Storage is unavailable.");
+        var revoked = new List<HostId<SessionIdentity>>();
+        fixture.Service.Revoking += revoked.Add;
+        var reported = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Service.Failed += message => reported.TrySetResult(message);
+        fixture.Service.Start();
+        fixture.Time.Timer!.Fire();
+
+        (await reported.Task.WaitAsync(fixture.Token)).Should().StartWith("Session retention held:");
+        fixture.Store.Calls.Should().Be(1);
+        fixture.Logger.Failures.Should().Be(1);
+        fixture.Logger.Completed.Should().Be(0);
+        revoked.Should().BeEmpty();
+
+        fixture.Store.Failure = null;
+        fixture.Time.Timer.Fire();
+        await fixture.Logger.Completion.Task.WaitAsync(fixture.Token);
+
+        fixture.Store.Calls.Should().Be(2);
+        fixture.Logger.Failures.Should().Be(1);
+        fixture.Logger.Completed.Should().Be(1);
+        revoked.Should().Equal(fixture.Store.Id);
+        await fixture.Service.DisposeAsync();
+        fixture.Time.Timer.Disposed.Should().BeTrue();
+    }
+
     private sealed class Fixture : IAsyncDisposable
     {
         private readonly Preferences preferences = new();
@@ -253,13 +283,14 @@ public sealed class SessionRetentionServiceTests : IDisposable
     {
         internal int Completed { get; private set; }
         internal int Failures { get; private set; }
+        internal TaskCompletionSource Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Held { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
         public bool IsEnabled(LogLevel logLevel) => true;
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
             Func<TState, Exception?, string> formatter)
         {
-            if (eventId.Id == 1) { Completed++; }
+            if (eventId.Id == 1) { Completed++; Completion.TrySetResult(); }
             if (eventId.Id == 2) { Failures++; }
             if (eventId.Id == 3) { Held.TrySetResult(); }
         }

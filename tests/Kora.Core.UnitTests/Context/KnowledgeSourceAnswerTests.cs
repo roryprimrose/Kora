@@ -10,6 +10,123 @@ namespace Kora.Core.UnitTests.Context;
 
 public sealed class KnowledgeSourceAnswerTests
 {
+    [Fact]
+    public void TwoSelectedRevisionsShareOneBudgetAndKeepSourceBoundCitationsAndUnchangedQuestion()
+    {
+        var first = new Fixture(6);
+        var second = new Fixture(6, root: @"C:\Other", name: "Other");
+        var retrieval = new LocalFileLexicalRetrieval();
+        var found = retrieval.Search([first.Revision, second.Revision], "alpha", DateTimeOffset.UnixEpoch, CancellationToken.None);
+        found.Citations.Should().HaveCount(8);
+        found.MatchingChunks.Should().Be(12);
+        found.Truncated.Should().BeTrue();
+        var inputs = new[] { new KnowledgeSourceAnswerSource(first.Source, first.Revision),
+            new KnowledgeSourceAnswerSource(second.Source, second.Revision) };
+        var review = new KnowledgeSourceAnswerReview(inputs, "alpha?", found, first.Target);
+        inputs[0] = inputs[1];
+        review.Sources[0].Source.Should().BeSameAs(first.Source);
+        review.ExcerptUtf8Bytes.Should().BeLessThanOrEqualTo(LocalFileRetrievalPolicy.MaximumExcerptUtf8Bytes);
+        var context = new KnowledgeSourceAnswerContext(review, review.Target.Request, new(1), DateTimeOffset.UnixEpoch);
+        context.Envelope.UserRequest.Should().Be("alpha?");
+        context.Envelope.Tools.Should().BeEmpty();
+        foreach (var pair in context.Envelope.Evidence.Zip(review.Search.Citations))
+        {
+            using var json = JsonDocument.Parse(pair.First.Content);
+            json.RootElement.GetProperty("Source").GetString().Should().Be(review.DescribeCitation(pair.Second));
+            json.RootElement.GetProperty("Excerpt").GetString().Should().Be(pair.Second.Excerpt);
+            review.ResolveCitation(pair.Second).Text.Should().Be(pair.Second.Excerpt);
+        }
+        var result = context.Resolve(Success(context));
+        result.Claims.Single().Citations.Should().Equal(found.Citations);
+        review.SourceFor(found.Citations[^1]).Source.Should().BeSameAs(second.Source);
+        var selected = review.SelectEvidence([found.Citations[0], found.Citations[^1]]);
+        selected.Sources.Should().Equal(review.Sources);
+        selected.ExpiresAt.Should().Be(review.ExpiresAt);
+        review.IsCurrent(DateTimeOffset.UnixEpoch).Should().BeFalse();
+        selected.TryConsume().Should().BeTrue();
+        selected.TryConsume().Should().BeFalse();
+        FluentActions.Invoking(() => review.SourceFor(null!)).Should().Throw<ArgumentNullException>();
+    }
+
+    [Theory]
+    [InlineData("null")]
+    [InlineData("empty")]
+    [InlineData("too-many")]
+    [InlineData("null-item")]
+    [InlineData("duplicate")]
+    [InlineData("disabled-second")]
+    [InlineData("historical-second")]
+    [InlineData("foreign-citation")]
+    public void CombinedReviewRejectsInvalidSourceSetsBeforeContext(string defect)
+    {
+        var first = new Fixture();
+        var second = new Fixture(root: @"C:\Other");
+        var a = new KnowledgeSourceAnswerSource(first.Source, first.Revision);
+        var b = new KnowledgeSourceAnswerSource(second.Source, second.Revision);
+        IReadOnlyList<KnowledgeSourceAnswerSource> sources = defect switch
+        {
+            "null" => null!,
+            "empty" => [],
+            "too-many" => [a, b, a],
+            "null-item" => [a, null!],
+            "duplicate" => [a, a],
+            "disabled-second" => [a, b with { Source = b.Source with { State = KnowledgeSourceState.Disabled } }],
+            _ => [a, b],
+        };
+        var target = defect is "historical-second"
+            ? LocalContextSessionTarget.ReviewedFresh(second.Revision.Review.Request, HostRequest.Create(RequestOrigin.LocalUi))
+            : first.Target;
+        var found = defect is "foreign-citation" ? new Fixture().Search
+            : new LocalFileLexicalRetrieval().Search([first.Revision, second.Revision], "alpha", DateTimeOffset.UnixEpoch, CancellationToken.None);
+        var create = () => new KnowledgeSourceAnswerReview(sources, "alpha", found, target);
+        if (defect is "null") { create.Should().Throw<ArgumentNullException>(); }
+        else { create.Should().Throw<InvalidDataException>(); }
+    }
+
+    [Theory]
+    [InlineData("null")]
+    [InlineData("empty")]
+    [InlineData("too-many")]
+    [InlineData("duplicate")]
+    [InlineData("null-item")]
+    [InlineData("cancelled")]
+    [InlineData("unavailable")]
+    public void CombinedRetrievalRejectsInvalidSetsWithoutFallback(string defect)
+    {
+        var first = new Fixture();
+        IReadOnlyList<KnowledgeSourceRevision> revisions = defect switch
+        {
+            "null" => null!,
+            "empty" => [],
+            "too-many" => [first.Revision, first.Revision, first.Revision],
+            "null-item" => [null!],
+            "duplicate" => [first.Revision, first.Revision],
+            _ => [first.Revision],
+        };
+        using var cancellation = new CancellationTokenSource();
+        if (defect is "cancelled") { cancellation.Cancel(); }
+        ILocalFileRetrieval retrieval = defect is "unavailable" ? new MissingRetrieval() : new LocalFileLexicalRetrieval();
+        var search = () => retrieval.Search(revisions, "alpha", DateTimeOffset.UnixEpoch, cancellation.Token);
+        if (defect is "null") { search.Should().Throw<ArgumentNullException>(); }
+        else if (defect is "cancelled") { search.Should().Throw<OperationCanceledException>(); }
+        else if (defect is "unavailable") { search.Should().Throw<InvalidOperationException>(); }
+        else { search.Should().Throw<InvalidDataException>(); }
+    }
+
+    [Fact]
+    public void CombinedRetrievalRetainsGlobalExcerptByteCeilingAndSingleSetSupport()
+    {
+        var first = new Fixture(8, "alpha " + new string('x', 2042));
+        var second = new Fixture(8, "alpha " + new string('x', 2042), @"C:\Other");
+        var retrieval = new LocalFileLexicalRetrieval();
+        var found = retrieval.Search([first.Revision, second.Revision], "alpha", DateTimeOffset.UnixEpoch, CancellationToken.None);
+        found.Citations.Sum(item => Encoding.UTF8.GetByteCount(item.Excerpt)).Should().Be(16 * 1024);
+        found.Citations.Should().HaveCount(8);
+        found.MatchingChunks.Should().Be(16);
+        var single = retrieval.Search([first.Revision], "alpha", DateTimeOffset.UnixEpoch, CancellationToken.None);
+        single.Citations.Should().Equal(first.Search.Citations);
+    }
+
     [Theory]
     [InlineData(2, false)]
     [InlineData(12, true)]
@@ -267,14 +384,13 @@ public sealed class KnowledgeSourceAnswerTests
         internal LocalFileSearchResult Search { get; }
         internal LocalContextSessionTarget Target { get; } =
             LocalContextSessionTarget.ReviewedFresh(HostRequest.Create(RequestOrigin.LocalUi), HostRequest.Create(RequestOrigin.LocalUi));
-        internal Fixture(int files = 2, string text = "alpha marker")
+        internal Fixture(int files = 2, string text = "alpha marker", string root = @"C:\Team", string name = "Team")
         {
-            const string root = @"C:\Team";
             var bytes = Encoding.UTF8.GetBytes(text);
             var metadata = new KnowledgeSourceMetadata(root, "root", KnowledgeSourceScope.ImmediateFiles,
                 [new(root, "root")], Enumerable.Range(0, files)
                 .Select(index => new LocalFileMetadata($@"{root}\{index:D2}.md", $"file-{index}", bytes.Length, DateTimeOffset.UnixEpoch)));
-            Source = new(Guid.NewGuid(), 3, "Team", metadata, KnowledgeSourceState.Enabled, DateTimeOffset.UnixEpoch, 100);
+            Source = new(Guid.NewGuid(), 3, name, metadata, KnowledgeSourceState.Enabled, DateTimeOffset.UnixEpoch, 100);
             var historical = new KnowledgeSourceReview(Guid.NewGuid(), Source.Id, HostRequest.Create(RequestOrigin.LocalUi), metadata);
             Revision = new(historical, metadata.Files.Select(item => new LocalFileRevision(
                 new(historical.ReviewId, historical.SourceId, historical.Request, item), bytes, DateTimeOffset.UnixEpoch)));

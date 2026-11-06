@@ -155,8 +155,9 @@
         <controls:NamedTextBlock Text="{Binding ConversationSearchStatus}" TextWrapping="Wrap"
             AutomationProperties.Name="Conversation search counters, exact snapshot continuation and explicit failures; no model context" />
         <controls:ScrollableListBox x:Name="ConversationSearchResults" ItemsSource="{Binding ConversationSearchMessages}" MaxHeight="160"
+            KeyboardNavigation.TabNavigation="Continue"
             ItemTemplate="{StaticResource ConversationMessageTemplate}"
-            AutomationProperties.Name="Exact immutable USER messages matching lexical words or typed HOST status; inert native text, chronological, no export or actions" />
+            AutomationProperties.Name="Exact retained conversation matches for the selected USER, HOST or ASSISTANT fields; complete inert text with separately admitted record actions" />
         <TextBox x:Name="ConversationComposer" Text="{Binding ComposerBody, Mode=TwoWay}" AcceptsReturn="True"
             Height="90" TextWrapping="Wrap" IsEnabled="{Binding CanCompose}"
             PlaceholderText="Original message: up to 4096 UTF-16 characters and 16384 UTF-8 bytes; invalid or oversized text is rejected, not truncated"
@@ -773,8 +774,9 @@
                 <Button x:Name="ForgetMemory" Content="Forget exact memory" IsEnabled="{Binding CanEditMemory}"
                         AutomationProperties.Name="Explicitly forget this exact revision; clear body and review, retain non-reusable tombstone; not forensic erasure" />
               </WrapPanel>
-              <controls:NamedTextBlock Text="{Binding MemoryDetail}" TextWrapping="Wrap"
-                                       AutomationProperties.Name="Explicitly inspected exact memory content, classification, lineage and review receipt or content-free mutation outcome" />
+              <TextBox x:Name="MemoryDetailReader" Text="{Binding MemoryDetail, Mode=OneWay}" IsReadOnly="True"
+                       IsUndoEnabled="False" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="320"
+                       AutomationProperties.Name="Exact memory inspection or retained mutation result; complete content, classification, source scope, lineage and review; reading grants nothing" />
               <ComboBox ItemsSource="{Binding MemoryClasses}" SelectedItem="{Binding MemoryClass, Mode=TwoWay}"
                         IsEnabled="{Binding CanProposeMemory}" AutomationProperties.Name="User proposal or replacement classification; not sensitivity proof" />
               <TextBox Text="{Binding MemoryDraft, Mode=TwoWay}" IsEnabled="{Binding CanProposeMemory}"

@@ -11,9 +11,7 @@ internal static partial class NativePresenceFixture
 {
     private sealed partial class FixtureWindow
     {
-        private static double PresenceOpacity(MainWindow window) =>
-            window.GetLogicalDescendants().OfType<NativePresenceHost>().SingleOrDefault()?.PresentedOpacity
-                ?? window.GetLogicalDescendants().OfType<PresenceControl>().Single().CurrentFrame.Opacity;
+        private static double PresenceOpacity(MainWindow window) => window.PresenceFrameOpacity;
 
         private static async Task WaitForFullOpacityAsync(MainWindow window, CancellationToken token)
         {
@@ -110,6 +108,7 @@ internal static partial class NativePresenceFixture
                     "Synthetic privacy closure was not observed.");
                 await Task.Delay(10, fixture.Token);
             }
+            await fixture.Main.PrivacyClosureTask.WaitAsync(TimeSpan.FromSeconds(1), fixture.Token);
             controller.Request(active);
             Require(controller.TryApply() && !controller.HasPendingChange && IsWindow(handle),
                 "Privacy-time cancellation retired or replaced the current owner.");
@@ -117,6 +116,7 @@ internal static partial class NativePresenceFixture
                 && window.GetLogicalDescendants().OfType<NativePresenceHost>().All(control => !control.CanInteract),
                 "Cancelling a fade revived private presentation or input.");
             fixture.Access.SetOpen(true);
+            await fixture.Main.PrivacyClosureTask.WaitAsync(TimeSpan.FromSeconds(1), fixture.Token);
             fixture.Main.ShowApplication();
             await WaitForFullOpacityAsync(window, fixture.Token);
             controller.Request(!active);

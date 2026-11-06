@@ -14,7 +14,7 @@ public sealed class WindowsPresenceWindowInput
     {
     }
 
-    public static WindowsPresenceWindowInput CreateForNativeRenderer(nint window) =>
+    public static WindowsPresenceWindowInput CreateForNonLayeredHost(nint window) =>
         new(window, new WindowsPresenceInputNative(), new WindowsPresenceRegionNative());
 
     internal WindowsPresenceWindowInput(nint window, IWindowsPresenceInputNative native,

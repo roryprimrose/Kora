@@ -68,6 +68,7 @@ public sealed class PresenceControl : Control, IDisposable
     private bool attached;
     private bool isAnimationEnabled = true;
     private bool disposed;
+    private bool externalPresentation;
     private bool transitioning;
     private Func<bool>? authoritativeEligibility;
     private PresenceStateAutomationPeer? automationPeer;
@@ -107,6 +108,15 @@ public sealed class PresenceControl : Control, IDisposable
     internal ReadOnlySpan<IBrush> Brushes => brushes;
     internal bool CanInteract => CanRender() && IsPresenceVisible
         && State != AssistantState.Hidden && animation.Current.Opacity > 0;
+    internal bool HasVisibleFrame => CanRender() && animation.Current.Opacity > 0;
+    internal event EventHandler? FrameReady;
+
+    internal void UseExternalPresentation()
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        externalPresentation = true;
+        InvalidateVisual();
+    }
 
     internal PresenceRenderInputs CaptureRenderInputs(bool isLightTheme, double width, double height, double scaling) =>
         new(State, IsSpeaking, SpeechOutputLevel, IsSpeechScalingEnabled, SpeechScaleAmountPercent,
@@ -204,7 +214,14 @@ public sealed class PresenceControl : Control, IDisposable
     public override void Render(DrawingContext context)
     {
         base.Render(context);
+        if (!externalPresentation)
+        {
+            DrawFrame(context);
+        }
+    }
 
+    internal void DrawFrame(DrawingContext context)
+    {
         var frame = animation.Current;
         if (!CanRender() || frame.Opacity <= 0)
         {
@@ -309,6 +326,7 @@ public sealed class PresenceControl : Control, IDisposable
         UnsubscribeAncestors();
         authoritativeEligibility = null;
         FrameUpdating = null;
+        FrameReady = null;
     }
 
     private void UnsubscribeAncestors()
@@ -398,7 +416,8 @@ public sealed class PresenceControl : Control, IDisposable
         if (isWake || inputsChanged || visualChanged || activity > 0 && elapsed > TimeSpan.Zero)
         {
             InvalidationCount++;
-            InvalidateVisual();
+            if (externalPresentation) { FrameReady?.Invoke(this, EventArgs.Empty); }
+            else { InvalidateVisual(); }
         }
     }
 

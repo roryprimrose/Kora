@@ -8,6 +8,9 @@ namespace Kora.Application.ViewModels;
 public sealed partial class MainViewModel
 {
     public event Func<AgentRunCommand, RequestOrigin, Func<bool>, Task>? AgentRunRequested;
+    public Func<bool> CaptureAgentTaskEligibility() =>
+        CaptureSkillReviewEligibility(CaptureManualCallInput(RequestOrigin.LocalUi, CallPolicyRevision));
+
     private Func<Task>? agentShutdown;
     public void BindAgentShutdown(Func<Task>? close) => agentShutdown = close;
     private async Task CloseAgentRun()

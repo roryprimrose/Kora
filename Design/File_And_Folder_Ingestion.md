@@ -3,9 +3,9 @@
 Status: immutable local previews/retrieval, retained single-file session
 attachments and the [named device-local folder lifecycle](#named-device-local-folder-lifecycle),
 including opt-in bounded descendants, are implemented. The
-[reviewed single named-source local answer](../docs/knowledge-sources.md#one-reviewed-local-answer)
-is also implemented: one fresh question over one explicitly selected enabled
-retained revision, exact excerpt review, separate one-shot private LocalOnly/no-tools
+[reviewed named-source local answer](../docs/knowledge-sources.md#one-reviewed-local-answer)
+is also implemented: one fresh question over one or two explicitly selected enabled
+retained revisions, exact excerpt review, separate one-shot private LocalOnly/no-tools
 confirmation and exact retained answer citations. Registration and inspection are
 not model consent ([named-source contract](#named-device-local-folder-lifecycle)).
 Reviewed file/folder and named-source answers use the
@@ -13,9 +13,23 @@ Reviewed file/folder and named-source answers use the
 not a secret-free guarantee or provider approval. This is
 [implementation, not runtime enablement or RC qualification](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy):
 unqualified runtimes remain explicitly unavailable. Multiple-version ingestion,
-persistent/vector indexes, multi-source reasoning, automatic source context and
+persistent/vector indexes, larger or automatic source sets, automatic source context and
 hosted grounding remain gated; this operation admits no hosted disclosure or fallback
 ([answer workflow](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerWorkflow.cs)).
+
+The two-selected-source consumer shares the existing global eight-citation,
+16-KiB excerpt and 32-KiB complete-envelope ceilings. Host-owned review binds
+both source identities and immutable revisions, the unchanged original question,
+target and original deadline to one combined tool-free local turn. Complete
+evidence-bearing files and disclosed inert source labels pass shared risk screening;
+registration and selection confer no model consent. One unavailable or changed
+source revokes the whole use, without a single-source fallback. Both source
+leases remain owned until cancellation-ignoring model work physically joins.
+Native review labels unsupported selected sources; same-named files have
+source-qualified citation navigation to their exact retained spans. No new
+capture, all-source search, persistence, runtime enablement or hosted egress
+is admitted ([review](../src/Kora.Core/KnowledgeSources/KnowledgeSourceAnswerReview.cs),
+[use](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerUse.cs)).
 
 Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Data_Flows.md),
 [Interaction and Sessions](Interaction_And_Sessions.md),
@@ -677,7 +691,7 @@ Inspection checks original access/identity/membership without rereading content.
 Old revisions become unavailable when refresh starts, including failed refresh.
 Adding, refreshing and enabling are not model consent. The
 [named answer owner](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerWorkflow.cs)
-now supports one fresh question over one explicitly selected enabled retained revision,
+now supports one fresh question over one or two explicitly selected enabled retained revisions,
 with exact excerpt review and separate one-shot private LocalOnly/no-tools consent.
 The [optional chosen-evidence review](../src/Kora.Core/KnowledgeSources/KnowledgeSourceAnswerReview.cs)
 narrows that same operation to a deliberate nonempty set of original whole retrieved

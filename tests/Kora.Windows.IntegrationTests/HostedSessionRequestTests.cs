@@ -135,8 +135,10 @@ public sealed class HostedSessionRequestTests
         composed.Turns.IsQuiescent.Should().BeTrue();
     }
 
-    [Fact]
-    public async Task Hosted_each_physical_send_requires_fresh_disclosure_and_second_denial_cannot_become_answer()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Hosted_each_physical_send_requires_fresh_disclosure_and_second_denial_cannot_become_answer(bool requestProfile)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
@@ -145,7 +147,10 @@ public sealed class HostedSessionRequestTests
         await using var composed = new Composition(f, copilot: runtime);
         var commands = new SessionRequestCommandService(composed.Workspace, composed.Conversation, composed.Access, f.Time);
         var target = await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token);
-        var review = (await commands.ExecuteAsync(HostedReview(target, "original hosted request"),
+        var command = HostedReview(target, "original hosted request");
+        if (requestProfile)
+        { command = command with { RequestProvider = SessionRequestReview.ProviderChoice.Default, RequestLocalProfile = CopilotCatalogue.Profile }; }
+        var review = (await commands.ExecuteAsync(command,
             RequestOrigin.ActivatedVoice, () => true, f.Token)).RequestReview!;
         var offers = 0;
         composed.Reviews.Offered += disclosure =>
@@ -164,8 +169,10 @@ public sealed class HostedSessionRequestTests
         composed.Turns.IsQuiescent.Should().BeTrue();
     }
 
-    [Fact]
-    public async Task Hosted_running_cancellation_owns_runtime_join_and_suppresses_late_success()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Hosted_running_cancellation_owns_runtime_join_and_suppresses_late_success(bool requestProfile)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
@@ -174,7 +181,10 @@ public sealed class HostedSessionRequestTests
         await using var composed = new Composition(f, copilot: runtime);
         var commands = new SessionRequestCommandService(composed.Workspace, composed.Conversation, composed.Access, f.Time);
         var target = await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token);
-        var review = (await commands.ExecuteAsync(HostedReview(target, "original hosted request"),
+        var command = HostedReview(target, "original hosted request");
+        if (requestProfile)
+        { command = command with { RequestProvider = SessionRequestReview.ProviderChoice.Default, RequestLocalProfile = CopilotCatalogue.Profile }; }
+        var review = (await commands.ExecuteAsync(command,
             RequestOrigin.ActivatedVoice, () => true, f.Token)).RequestReview!;
         composed.Reviews.Offered += disclosure =>
         {

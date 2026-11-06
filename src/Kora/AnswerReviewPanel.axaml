@@ -1,0 +1,33 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    x:Class="Kora.AnswerReviewPanel">
+  <Expander Header="Answers not marked reviewed">
+    <StackPanel Spacing="6">
+      <TextBlock Text="A deliberate flag for one answer, not proof it was read or understood. Opening, rendering and background refresh never mark anything."
+          TextWrapping="Wrap" />
+      <WrapPanel>
+        <Button x:Name="ReadNotMarked" Content="Read answers not marked reviewed" IsEnabled="{Binding CanReadConversation}" />
+        <Button x:Name="ReadAll" Content="Read all answer review flags (including undo)" IsEnabled="{Binding CanReadConversation}" />
+        <Button x:Name="Next" Content="Next answer-review page" IsEnabled="{Binding CanNextAnswerReviews}" />
+      </WrapPanel>
+      <ListBox ItemsSource="{Binding AnswerReviewRows}" SelectedItem="{Binding SelectedAnswerReview, Mode=TwoWay}" MaxHeight="220"
+          AutomationProperties.Name="Exact retained answer metadata; no answer is marked by selection">
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <StackPanel>
+              <TextBlock Text="{Binding Sequence, StringFormat='Answer for message {0}'}" />
+              <TextBlock Text="{Binding SubmittedAt, StringFormat='Original submission UTC {0:O}'}" />
+              <TextBlock Text="{Binding MarkedReviewed, StringFormat='Explicitly marked reviewed: {0}'}" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+      <WrapPanel>
+        <Button x:Name="OpenAnswer" Content="Open this exact answer Details" IsEnabled="{Binding CanOpenAnswerReview}" />
+        <Button x:Name="Mark" Content="Mark this answer reviewed" IsEnabled="{Binding CanMarkAnswerReviewed}" />
+        <Button x:Name="Unmark" Content="Unmark this answer reviewed" IsEnabled="{Binding CanUnmarkAnswerReviewed}" />
+      </WrapPanel>
+      <TextBlock Text="{Binding AnswerReviewStatus}" TextWrapping="Wrap" AutomationProperties.Name="Answer-review availability and exact observed remaining count" />
+    </StackPanel>
+  </Expander>
+</UserControl>

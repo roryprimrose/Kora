@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using Kora.Core.Dependencies;
@@ -97,7 +97,7 @@ internal static partial class OllamaToolWire
             {
                 writer.WriteStartArray("tools");
                 if (request.ClarificationAllowed && !request.Messages.OfType<ModelClarificationQuestion>().Any())
-                { WriteAskUserTool(writer); }
+                { WriteAskUserTool(writer, request.FormsAllowed); }
                 foreach (var descriptor in request.Context.Tools) { WriteTool(writer, descriptor); }
                 if (request.Context.McpTool is { } external)
                 {
@@ -149,61 +149,9 @@ internal static partial class OllamaToolWire
         writer.WriteString("type", "function");
         writer.WriteStartObject("function");
         writer.WriteString("name", descriptor.Id);
-        writer.WriteStartObject("parameters");
-        writer.WriteString("type", "object");
-        writer.WriteBoolean("additionalProperties", false);
-        writer.WriteStartObject("properties");
-        if (descriptor.Input == CapabilityInputShape.Page)
-        {
-            WriteInteger(writer, "offset", 0, null);
-            WriteInteger(writer, "count", 1, descriptor.Limits.MaximumRecords);
-        }
-        else if (descriptor.Input == CapabilityInputShape.Id)
-        {
-            writer.WriteStartObject("id");
-            writer.WriteString("type", "string");
-            writer.WriteStartArray("enum");
-            if (string.Equals(descriptor.Id, ReadOnlyCapabilityCatalog.Get, StringComparison.Ordinal))
-            {
-                foreach (var item in ReadOnlyCapabilityCatalog.Descriptors) { writer.WriteStringValue(item.Id); }
-            }
-            else { writer.WriteStringValue(ReadOnlyCapabilityCatalog.LocalRuntimeId); }
-            writer.WriteEndArray();
-            writer.WriteEndObject();
-        }
-        else if (descriptor.Input == CapabilityInputShape.WebPageAddress)
-        {
-            writer.WriteStartObject("address");
-            writer.WriteString("type", "string");
-            writer.WriteEndObject();
-        }
-        else if (descriptor.Input == CapabilityInputShape.MetadataReference)
-        {
-            writer.WriteStartObject("ref");
-            writer.WriteString("type", "string");
-            writer.WriteNumber("minLength", 32);
-            writer.WriteNumber("maxLength", 32);
-            writer.WriteEndObject();
-        }
+        writer.WritePropertyName("parameters");
+        CapabilityInputSchema.Write(writer, descriptor);
         writer.WriteEndObject();
-        if (descriptor.Input is CapabilityInputShape.Id or CapabilityInputShape.WebPageAddress or CapabilityInputShape.MetadataReference)
-        {
-            writer.WriteStartArray("required");
-            writer.WriteStringValue(descriptor.Input == CapabilityInputShape.Id ? "id"
-                : descriptor.Input == CapabilityInputShape.MetadataReference ? "ref" : "address");
-            writer.WriteEndArray();
-        }
-        writer.WriteEndObject();
-        writer.WriteEndObject();
-        writer.WriteEndObject();
-    }
-
-    private static void WriteInteger(Utf8JsonWriter writer, string name, int minimum, int? maximum)
-    {
-        writer.WriteStartObject(name);
-        writer.WriteString("type", "integer");
-        writer.WriteNumber("minimum", minimum);
-        if (maximum is { } value) { writer.WriteNumber("maximum", value); }
         writer.WriteEndObject();
     }
 
@@ -222,7 +170,8 @@ internal static partial class OllamaToolWire
         var content = Text(message, "content");
         if (clarificationAllowed && !message.TryGetProperty("tool_calls", out _))
         {
-            var structured = ModelToolProtocol.ParseAssistant(StrictUtf8.GetBytes(content), clarificationAllowed: true);
+            var structured = ModelToolProtocol.ParseAssistant(StrictUtf8.GetBytes(content), clarificationAllowed: true,
+                formsAllowed: false);
             if (structured is ModelClarificationQuestion { CallId: not null })
             { throw new InvalidDataException("Only a native ask_user call can establish tool correlation."); }
             return new(structured, JsonSerializer.SerializeToUtf8Bytes(message));
@@ -255,7 +204,8 @@ internal static partial class OllamaToolWire
                         { throw new InvalidDataException("An ask_user wait cannot share a batch with another tool call."); }
                         var questionId = call.TryGetProperty("id", out _)
                             ? Text(call, "id") : $"ollama_r{round.ToString(CultureInfo.InvariantCulture)}_c0";
-                        return new(ModelToolProtocol.ParseAskUser(StrictUtf8.GetBytes(function.GetProperty("arguments").GetRawText()), questionId),
+                        return new(ModelToolProtocol.ParseAskUser(StrictUtf8.GetBytes(function.GetProperty("arguments").GetRawText()), questionId,
+                                formsAllowed: toolMode == ModelToolMode.None),
                             JsonSerializer.SerializeToUtf8Bytes(message));
                     }
                     if (clarificationAllowed && toolMode != ModelToolMode.ReadOnly)

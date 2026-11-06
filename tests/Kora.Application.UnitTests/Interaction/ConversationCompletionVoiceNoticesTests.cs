@@ -1,6 +1,8 @@
 using AwesomeAssertions;
 
 using Kora.Application.Communication;
+using Kora.Application.UnitTests.Configuration;
+using Kora.Core.Configuration;
 using Kora.Application.Interaction;
 using Kora.Core.Auditing;
 using Kora.Core.Communication;
@@ -16,6 +18,104 @@ namespace Kora.Application.UnitTests.Interaction;
 [Collection("Host tracing")]
 public sealed class ConversationCompletionVoiceNoticesTests
 {
+    [Fact]
+    public async Task ScheduledQuietBurnsSpeechWhileKeepingFirstVisualPresentationAndFatigueTruth()
+    {
+        await using var f = new Fixture(scheduled: true);
+        await f.Enable();
+        await f.SetSchedule();
+        f.Source.Time.Now = f.Source.Time.Now.AddMinutes(1);
+        var quiet = await f.Observe();
+        quiet.Events.Single().Reason.Should().Be(LocalEventReason.Eligible);
+        f.Source.Saved!.Receipts.Single().Disposition.Should().Be(LocalEventDisposition.Presented);
+        var saved = LocalEventBrokerState.Serialize(f.Source.Saved);
+        await f.Deliver(quiet);
+        f.Speech.Requests.Should().Be(0);
+        LocalEventBrokerState.Serialize(f.Source.Saved).Should().Be(saved);
+        f.Broker.RoutineQuiet.Enabled.Should().BeFalse();
+        f.Source.Time.Now = f.Source.Time.Now.AddHours(8);
+        await f.Deliver(quiet);
+        await f.Deliver(await f.Observe());
+        f.Speech.Requests.Should().Be(0);
+        f.Source.Events = [f.Completion()];
+        await f.Deliver(await f.Observe());
+        f.Speech.Played.Should().Equal(ConversationCompletionVoiceNotices.Statement);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task QuietEntryIsReevaluatedAtBothSynthesisAndPlaybackBoundaries(bool playback)
+    {
+        await using var f = new Fixture(scheduled: true);
+        await f.Enable();
+        await f.SetSchedule();
+        f.Speech.SplitBoundaries = true;
+        void EnterQuiet() => f.Source.Time.Now = f.Source.Time.Now.AddMinutes(1);
+        if (playback) { f.Speech.BeforePlayback = EnterQuiet; }
+        else { f.Speech.BeforeAdmission = EnterQuiet; }
+        var snapshot = await f.Observe();
+        await f.Deliver(snapshot);
+        f.Speech.Syntheses.Should().Be(playback ? 1 : 0);
+        f.Speech.Played.Should().BeEmpty();
+        f.Notices.Enabled.Should().BeTrue();
+        f.Notices.Outcome.Should().NotBe(ConversationCompletionVoiceNotices.DeliveryOutcome.Completed);
+        f.Source.Audits.Should().NotContain(item => item.Event.ActionId == "completion-notice.voice"
+            && item.Event.Outcome == SecurityAuditOutcome.Succeeded);
+        f.Source.Time.Now = f.Source.Time.Now.AddHours(8);
+        await f.Deliver(snapshot);
+        f.Speech.Requests.Should().Be(1);
+        f.Speech.BeforeAdmission = f.Speech.BeforePlayback = null;
+        f.Source.Events = [f.Completion()];
+        await f.Deliver(await f.Observe());
+        f.Speech.Played.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task ScheduleChangeCancelsButDoesNotClaimOutputReleaseUntilItsActualPhysicalJoin()
+    {
+        await using var f = new Fixture(scheduled: true);
+        await f.Enable();
+        f.Speech.HoldPhysical = true;
+        var snapshot = await f.Observe();
+        var delivery = f.Deliver(snapshot);
+        await f.Speech.Started.Task;
+        await f.SetSchedule();
+        f.Speech.Invalidations.Should().BeGreaterThan(0);
+        delivery.IsCompleted.Should().BeFalse();
+        f.Notices.Outcome.Should().Be(ConversationCompletionVoiceNotices.DeliveryOutcome.QueuedNotDelivered);
+        var disposing = f.Notices.DisposeAsync().AsTask();
+        disposing.IsCompleted.Should().BeFalse();
+        f.Speech.Release.SetResult();
+        await Task.WhenAll(delivery, disposing);
+        f.Notices.Outcome.Should().Be(ConversationCompletionVoiceNotices.DeliveryOutcome.CancelledJoined);
+        f.Speech.IsSpeaking.Should().BeFalse();
+        await f.Deliver(snapshot);
+        f.Speech.Played.Should().ContainSingle();
+    }
+
+    [Theory]
+    [InlineData("schedule")]
+    [InlineData("rollback")]
+    [InlineData("quiet")]
+    public async Task QueuedSpeechCannotSurviveScheduleGenerationClockRollbackOrQuietEntry(string change)
+    {
+        await using var f = new Fixture(scheduled: true);
+        await f.Enable();
+        await f.SetSchedule();
+        f.Speech.HoldQueue = true;
+        var snapshot = await f.Observe();
+        var delivery = f.Deliver(snapshot);
+        await f.Speech.Queued.Task;
+        if (change is "schedule") { await f.SetSchedule(QuietHoursSchedule.Off); }
+        if (change is "rollback") { f.Source.Time.Now = f.Source.Time.Now.AddSeconds(-1); }
+        if (change is "quiet") { f.Source.Time.Now = f.Source.Time.Now.AddMinutes(1); }
+        f.Speech.QueueRelease.SetResult();
+        await delivery;
+        f.Speech.Played.Should().BeEmpty();
+        f.Notices.Outcome.Should().NotBe(ConversationCompletionVoiceNotices.DeliveryOutcome.Completed);
+    }
+
     [Theory]
     [InlineData(CallState.Active, false)]
     [InlineData(CallState.Active, true)]
@@ -438,6 +538,10 @@ public sealed class ConversationCompletionVoiceNoticesTests
         internal bool ReturnUnjoined { get; set; }
         internal bool CancelAfterStart { get; set; }
         internal Action? BeforeReturn { get; set; }
+        internal Action? BeforeAdmission { get; set; }
+        internal Action? BeforePlayback { get; set; }
+        internal bool SplitBoundaries { get; set; }
+        internal int Syntheses { get; private set; }
         internal List<string> Played { get; } = [];
         internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Queued { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -457,7 +561,19 @@ public sealed class ConversationCompletionVoiceNoticesTests
             if (SkipAdmission) { return; }
             try
             {
-                await admission(() => { IsSpeaking = true; Played.Add(text); Started.TrySetResult(); }, cancellationToken);
+                BeforeAdmission?.Invoke();
+                await admission(() =>
+                {
+                    Syntheses++;
+                    IsSpeaking = true;
+                    if (!SplitBoundaries) { Played.Add(text); }
+                    Started.TrySetResult();
+                }, cancellationToken);
+                if (SplitBoundaries)
+                {
+                    BeforePlayback?.Invoke();
+                    await admission(() => Played.Add(text), cancellationToken);
+                }
                 if (CancelAfterStart) { throw new OperationCanceledException("Cancellation is not a physical join."); }
                 if (HoldPhysical) { await Release.Task; }
                 cancellationToken.ThrowIfCancellationRequested();
@@ -498,17 +614,28 @@ public sealed class ConversationCompletionVoiceNoticesTests
         internal CallCommunicationPolicy Calls { get; }
         internal LocalEventBroker Broker { get; }
         internal ConversationCompletionVoiceNotices Notices { get; }
+        internal QuietHoursConfigurationServiceTests.Fixture? Quiet { get; }
         internal SpeechVoice Voice { get; } = new("voice", "Voice", "en-US", SpeechVoiceGender.Neutral);
         internal AudioOutputDevice Output { get; } = new("output", "Output");
         internal bool VoiceCurrent { get; set; } = true;
         internal bool HostCurrent { get; set; } = true;
         internal CancellationToken Token => TestContext.Current.CancellationToken;
-        internal Fixture(Microsoft.Extensions.Logging.ILogger? logger = null)
+        internal Fixture(Microsoft.Extensions.Logging.ILogger? logger = null, bool scheduled = false)
         {
+            if (scheduled)
+            {
+                Source.Time.Now = new(2026, 11, 2, 8, 59, 0, TimeSpan.Zero);
+                Quiet = new(Source.Time);
+            }
             Source.Events = [Completion()];
             Broker = Source.Create();
             Calls = new(Automatic);
-            Notices = new(Broker, Calls, Speech, Source, logger ?? NullLogger.Instance);
+            Notices = new(Broker, Calls, Speech, Source, logger ?? NullLogger.Instance, Quiet?.Service);
+        }
+        internal async Task SetSchedule(QuietHoursSchedule? value = null)
+        {
+            var candidate = await Quiet!.Review(value);
+            (await Quiet.Confirm(candidate)).Should().BeTrue();
         }
         internal LocalEvent Completion()
         {
@@ -543,6 +670,7 @@ public sealed class ConversationCompletionVoiceNoticesTests
             Speech.QueueRelease.TrySetResult();
             await Notices.DisposeAsync();
             await Broker.DisposeAsync();
+            if (Quiet is not null) { await Quiet.DisposeAsync(); }
             Calls.Dispose();
             Source.Dispose();
         }

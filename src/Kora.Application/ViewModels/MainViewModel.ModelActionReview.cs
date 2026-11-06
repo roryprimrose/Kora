@@ -132,7 +132,7 @@ public sealed partial class MainViewModel
             || input.Origin != origin || !input.Eligible()
             || input.Revision != CallPolicyRevision
             || input.AssistantNameRevision != assistantNameConfiguration.Get().Revision
-            || origin == RequestOrigin.ActivatedVoice && !commandRouter.IsActivationPrefixed(text, AssistantName))
+            || origin == RequestOrigin.ActivatedVoice && !HasCurrentNameActivation(text))
         {
             ReportModelActionReviewUnavailable();
             return true;

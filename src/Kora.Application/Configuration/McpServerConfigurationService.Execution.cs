@@ -14,7 +14,13 @@ public sealed partial class McpServerConfigurationService
         ArgumentNullException.ThrowIfNull(account);
         token.ThrowIfCancellationRequested();
         var useRevision = UseControlRevision;
-        var selected = Load().SingleOrDefault(server => string.Equals(server.Id, serverId, StringComparison.Ordinal));
+        McpServerConfigurationSummary? selected;
+        long sourceControlRevision;
+        lock (sourceGate)
+        {
+            selected = Load().SingleOrDefault(server => string.Equals(server.Id, serverId, StringComparison.Ordinal));
+            sourceControlRevision = SourceControlRevision(serverId);
+        }
         if (selected is not { IsIncluded: true })
         { throw new InvalidOperationException("The exact configured MCP server is not included."); }
         foreach (var path in SourceFiles)
@@ -41,13 +47,14 @@ public sealed partial class McpServerConfigurationService
             if (!preferences.Load().IncludedMcpServerIds.Contains(serverId, StringComparer.Ordinal)
                 || !SourceFiles.Contains(path, StringComparer.OrdinalIgnoreCase)
                 || usePolicy?.IsDisabled(Kora.Core.Artifacts.ArtifactUseIdentity.Mcp(serverId)) == true
-                || UseControlRevision != useRevision)
+                || UseControlRevision != useRevision
+                || SourceControlRevision(serverId) != sourceControlRevision)
             { throw new InvalidOperationException("The selected MCP source or inclusion changed during resolution."); }
             var scope = string.Equals(Path.GetFullPath(path),
                 Path.GetFullPath(Path.Combine(paths.RoamingRoot, "Mcp", "mcp.json")), StringComparison.OrdinalIgnoreCase)
                 ? CustomizationScope.Kora : CustomizationScope.User;
             return new(serverId, selected.Name, path, Convert.ToHexStringLower(SHA256.HashData(bytes)),
-                endpoint, account, useRevision, scope);
+                endpoint, account, useRevision, scope, sourceControlRevision);
         }
         throw new InvalidOperationException("The selected MCP source is no longer configured.");
     }
@@ -58,6 +65,7 @@ public sealed partial class McpServerConfigurationService
         if (!string.Equals(current.SourceRevision, descriptor.SourceRevision, StringComparison.Ordinal)
             || !string.Equals(current.SourcePath, descriptor.SourcePath, StringComparison.OrdinalIgnoreCase)
             || current.UseControlRevision != descriptor.UseControlRevision
+            || current.SourceControlRevision != descriptor.SourceControlRevision
             || current.Endpoint != descriptor.Endpoint)
         { throw new InvalidOperationException("The exact MCP source revision changed; review and discovery must be repeated."); }
     }

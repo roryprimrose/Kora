@@ -4,4 +4,12 @@ namespace Kora.Core.Dependencies;
 
 public sealed record ModelContextEvidence(
     HostId<EvidenceIdentity> Id, HostRequest Request, HostRevision Revision,
-    string Content, ModelEvidenceDisclosure Disclosure);
+    string Content, ModelEvidenceDisclosure Disclosure)
+{
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Conversation.SubmittedHistorySource? HistorySource { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Conversation.SubmittedMemorySource? MemorySource { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Conversation.SubmittedProfileMemorySource? ProfileMemorySource { get; init; }
+}

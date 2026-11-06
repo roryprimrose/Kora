@@ -26,6 +26,7 @@ namespace Kora;
 public sealed partial class App : Avalonia.Application
 {
     private SystemTrayController? systemTray;
+    private DesktopLifetimeController? desktopLifetime;
     private SettingsWindowController? settingsWindow;
     private MicrophoneRecoveryWindowController? microphoneRecovery;
     private DocumentationWindowController? documentationWindow;
@@ -57,6 +58,8 @@ public sealed partial class App : Avalonia.Application
     private Func<HostActivity>? rendererSwitchContext;
 
     internal static ServiceProvider Services { get; set; } = null!;
+    internal static bool IsManualStartup { get; set; }
+    private ManualStartupPresentationController? manualStartupPresentation;
     internal DetailWindowController? Details => detailWindow;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
@@ -88,6 +91,7 @@ public sealed partial class App : Avalonia.Application
                 var replacement = new MainWindow(hostViewModel,
                     Services.GetRequiredService<ILogger<MainWindow>>(), native, startup,
                     Services.GetRequiredService<ILogger<Kora.Application.Visuals.PresenceRenderWorker>>());
+                replacement.ApplyStartupPresentation = ApplyStartupPresentationAsync;
                 desktop.MainWindow = replacement;
                 return replacement;
             }, () => fileWindow?.IsOwnerInUse != true && questionWindow?.IsOwnerInUse != true);
@@ -244,7 +248,9 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Core.Diagnostics.IEvidenceQueryAccess>(),
                 Services.GetRequiredService<ILogger<EvidenceViewModel>>(),
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
-                CreateEvidenceAnswers(), Services.GetRequiredService<TimeProvider>());
+                CreateEvidenceAnswers(), Services.GetRequiredService<TimeProvider>(),
+                Services.GetRequiredService<Kora.Application.Diagnostics.GitHubIssueReportWorkflow>(),
+                Services.GetRequiredService<Kora.Core.Hosting.IApplicationInfo>());
             evidenceWindow.Bind();
             BindSettingInspection(settingsWindow);
             fileWindow = new LocalFilePreviewWindowController(viewModel, GetPresenceOwner);
@@ -273,7 +279,15 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<SessionInstructionScopeCommandService>(),
                 Services.GetRequiredService<SessionInstructionScopeBroker>(),
                 Services.GetRequiredService<Kora.Application.Dependencies.VerifiedLocalHandoffOperation>(),
-                Services.GetRequiredService<SessionRetentionApplyService>());
+                Services.GetRequiredService<SessionRetentionApplyService>(),
+                new ExactAnswerExportWindowController(
+                    new Kora.Windows.Presentation.WindowsExactAnswerExportWriter(
+                        Services.GetRequiredService<Kora.Core.Dependencies.IApplicationDataPaths>(),
+                        Services.GetRequiredService<ILogger<Kora.Windows.Presentation.WindowsExactAnswerExportWriter>>()),
+                    Services.GetRequiredService<Kora.Core.Auditing.ISecurityAuditLog>(),
+                    Services.GetRequiredService<ILogger<Kora.Application.Presentation.ExactAnswerExportReview>>(),
+                    ExactAnswerExportWindowController.SelectDestinationAsync),
+                Services.GetRequiredService<Kora.Application.Configuration.DetailPresentationConfigurationService>());
             sessionsWindow.Bind();
             sessionsWindow.CreateInteraction = (state, owner) =>
                 responseWindow.PrepareSessions(state, owner, sessionsWindow.Open,
@@ -324,10 +338,13 @@ public sealed partial class App : Avalonia.Application
             sessionRetention.Start();
             viewModel.BindSessionCommands(Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>(),
                 Services.GetRequiredService<SessionRequestCommandService>(),
-                Services.GetRequiredService<ConversationSearchCommandService>());
+                Services.GetRequiredService<ConversationSearchCommandService>(),
+                Services.GetRequiredService<SessionPermissionCommandService>());
             viewModel.BindRemainingWork(Services.GetRequiredService<SessionRemainingWorkCommandService>(),
                 Services.GetRequiredService<SessionConversationService>());
             viewModel.BindSpeechSummarySuggestions(Services.GetRequiredService<SessionConversationService>(),
+                Services.GetRequiredService<TimeProvider>());
+            viewModel.BindResponseReadPlanner(Services.GetRequiredService<Kora.Core.Dependencies.IModelContextRunner>(),
                 Services.GetRequiredService<TimeProvider>());
             viewModel.BindSessionProviderProfiles(Services.GetRequiredService<Kora.Application.Configuration.SessionProviderProfileConfigurationService>());
             viewModel.BindMemoryCommands(memories);
@@ -406,10 +423,27 @@ public sealed partial class App : Avalonia.Application
                     host.AbandonHandoffPreparation();
                     return Task.CompletedTask;
                 }));
+            desktopLifetime = new(viewModel, () => desktop.Shutdown(),
+                Services.GetRequiredService<ILogger<DesktopLifetimeController>>());
             desktop.Exit += OnDesktopExit;
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private async Task ApplyStartupPresentationAsync()
+    {
+        var host = viewModel ?? throw new InvalidOperationException("The startup presentation host is unavailable.");
+        manualStartupPresentation ??= new(Services.GetRequiredService<StartupPresentationConfigurationService>(),
+            host, admitted => (sessionsWindow ?? throw new InvalidOperationException("The startup workspace is unavailable."))
+                .ShowStartupWorkspace(admitted));
+        try { await manualStartupPresentation.ApplyAsync(IsManualStartup, CancellationToken.None); }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException
+            or InvalidOperationException or OperationCanceledException)
+        {
+            DesktopLog.Error(logger!, exception, "Applying confirmed manual startup presentation");
+            host.ReportHostInteractionFailure("Manual startup presentation unavailable. Inspect saved intent and audit before manual recovery. " + exception.Message);
+        }
     }
 
     private void OnDesktopExit(object? sender, ControlledApplicationLifetimeExitEventArgs eventArgs)
@@ -418,6 +452,8 @@ public sealed partial class App : Avalonia.Application
 
     private void DisposeDesktopControllers()
     {
+        desktopLifetime?.Dispose();
+        desktopLifetime = null;
         presenceRendererTimer.Stop();
         presenceRendererTimer.Tick -= OnPresenceRendererTick;
         presenceWindows?.Stop();

@@ -294,8 +294,10 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore, ICu
         }
     }
 
-    private static DiskState Capture(Target target, CancellationToken token)
+    private DiskState Capture(Target target, CancellationToken token)
     {
+        if (target.Source.Scope == CustomizationScope.Kora && target.Source.Kind == CustomizationKind.Instruction)
+        { WindowsOwnedDefinitionFileAccess.RequireNoInstructionRename(paths, ArtifactKind.Instruction, token); }
         using var pinned = WindowsOwnedDefinitionFileAccess.PinDefinitionDirectory(target.Directory, false, token);
         var files = new List<DiskFile>();
         if (target.Source.Kind == CustomizationKind.Skill)

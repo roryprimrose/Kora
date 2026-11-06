@@ -12,6 +12,52 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData(SecurityAuditOutcome.Requested)]
+    [InlineData(SecurityAuditOutcome.Succeeded)]
+    public async Task ReducedMotionAuditFailureNeverPromisesNoSavedEffectOrOffersUndo(SecurityAuditOutcome boundary)
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.Audit.BeforeWrite = audit =>
+        {
+            if (string.Equals(audit.ActionId, "configuration.reduced-motion", StringComparison.Ordinal) && audit.Outcome == boundary)
+            { throw new IOException("Reduced motion audit unavailable."); }
+        };
+        fixture.ViewModel.IsReducedMotionEnabled = true;
+        await fixture.ViewModel.AppearanceUpdate;
+        fixture.ViewModel.State.Should().Be(AssistantState.Failure);
+        fixture.ViewModel.ResponseTitle.Should().Be("Reduced motion preference is not confirmed.");
+        fixture.ViewModel.AppearanceSettingStatus.Should().Contain("not confirmed");
+        fixture.AppearancePreferences.ReducedMotionEnabled.Should()
+            .Be(boundary == SecurityAuditOutcome.Succeeded ? true : null);
+        fixture.ViewModel.CanReviewSettingsUndo.Should().BeFalse();
+        fixture.ViewModel.CanConfirmSettingsUndo.Should().BeFalse();
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        await fixture.ViewModel.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ReducedMotionReloadAndFailedDirectSaveKeepConfirmedChoiceAndTruthfulFailure()
+    {
+        var fixture = new Fixture();
+        fixture.AppearancePreferences.SaveReducedMotionEnabled(true);
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.IsReducedMotionEnabled.Should().BeTrue();
+        fixture.AppearancePreferences.SaveException = new IOException("Reduced motion save denied.");
+        fixture.ViewModel.IsReducedMotionEnabled = false;
+        await fixture.ViewModel.AppearanceUpdate;
+        fixture.ViewModel.IsReducedMotionEnabled.Should().BeTrue();
+        fixture.AppearancePreferences.ReducedMotionEnabled.Should().BeTrue();
+        fixture.ViewModel.State.Should().Be(AssistantState.Failure);
+        fixture.ViewModel.AppearanceSettingStatus.Should().Contain("Reduced motion save denied.");
+        fixture.Audit.Events.Should().Contain(item => item.ActionId == "configuration.reduced-motion"
+            && item.Outcome == SecurityAuditOutcome.Failed);
+        fixture.Audit.Events.Should().NotContain(item => item.ActionId == "configuration.reduced-motion"
+            && item.Outcome == SecurityAuditOutcome.Succeeded);
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        await fixture.ViewModel.DisposeAsync();
+    }
+
     [Fact]
     public async Task Renderer_get_distinguishes_unsaved_startup_choice_from_a_domain_default()
     {
@@ -82,6 +128,7 @@ public sealed partial class MainViewModelTests
         var resets = new Dictionary<AppearanceOption, AsyncCommand>
         {
             [AppearanceOption.Theme] = fixture.ViewModel.ResetThemeCommand,
+            [AppearanceOption.ReducedMotion] = fixture.ViewModel.ResetReducedMotionCommand,
             [AppearanceOption.ReaderTextScale] = fixture.ViewModel.ResetReaderTextScaleCommand,
             [AppearanceOption.ResponseTimeout] = fixture.ViewModel.ResetResponseTimeoutCommand,
             [AppearanceOption.PresenceDisplay] = fixture.ViewModel.ResetPresenceDisplayCommand,
@@ -109,6 +156,7 @@ public sealed partial class MainViewModelTests
             fixture.ViewModel.ResponseBody.Should().Contain($"{descriptor.Id} = {AppearanceCommand.Format(descriptor.Default)}");
         }
         notified.Should().Contain(nameof(fixture.ViewModel.ThemeMode))
+            .And.Contain(nameof(fixture.ViewModel.IsReducedMotionEnabled))
             .And.Contain(nameof(fixture.ViewModel.IsPresenceDisplayEnabled))
             .And.Contain(nameof(fixture.ViewModel.IsNativePresenceRenderer))
             .And.Contain(nameof(fixture.ViewModel.PresenceTimeoutSeconds))

@@ -1371,9 +1371,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.AppearancePreferences.SavedResponseTimeoutSeconds.Should().Be(8);
         fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(PresenceSettings.DefaultTimeoutSeconds);
         fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().BeNull();
-        changedProperties.Should().Equal(
-            nameof(MainViewModel.SettingsUndoDescription), nameof(MainViewModel.CanReviewSettingsUndo),
-            nameof(MainViewModel.CanConfirmSettingsUndo), nameof(MainViewModel.ResponseTimeoutSeconds));
+        changedProperties.Should().Equal(WithUndoNotifications(nameof(MainViewModel.ResponseTimeoutSeconds)));
         AssertAuditPair(
             fixture,
             SecurityAuditCategory.ConfigurationWrite,
@@ -1428,26 +1426,105 @@ public sealed partial class MainViewModelTests : IDisposable
         changedProperties.Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task Presence_and_response_timeout_property_setters_persist_independently()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Presence_and_response_timeout_property_setters_persist_independently(bool queueDuringFirstWrite)
     {
         var fixture = await Fixture.CreateInitializedAsync();
-
-        fixture.ViewModel.PresenceTimeoutSeconds = 15;
-        fixture.ViewModel.ResponseTimeoutSeconds = 8;
-        fixture.ViewModel.PresenceTimeoutSeconds = 20;
-        await fixture.ViewModel.AppearanceUpdate;
+        var token = TestContext.Current.CancellationToken;
+        using var releasePresence = new ManualResetEventSlim();
+        using var releaseResponse = new ManualResetEventSlim();
+        var presenceEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var responseEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var presenceWrites = 0;
+        fixture.AppearancePreferences.BeforePresencePreferenceSave = () =>
+        {
+            if (Interlocked.Increment(ref presenceWrites) != 1) { return; }
+            presenceEntered.SetResult();
+            releasePresence.Wait(token);
+        };
+        fixture.AppearancePreferences.BeforeResponseTimeoutPreferenceSave = () =>
+        {
+            responseEntered.SetResult();
+            releaseResponse.Wait(token);
+        };
+        try
+        {
+            fixture.ViewModel.PresenceTimeoutSeconds = 15;
+            await presenceEntered.Task.WaitAsync(token);
+            var firstWrite = fixture.ViewModel.AppearanceUpdate;
+            firstWrite.IsCompleted.Should().BeFalse();
+            fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(PresenceSettings.DefaultTimeoutSeconds);
+            fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(ResponseWindowSettings.DefaultTimeoutSeconds);
+            fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().BeNull();
+            fixture.AppearancePreferences.SavedResponseTimeoutSeconds.Should().BeNull();
+            var requested = fixture.Audit.Events.ToArray();
+            requested.Should().ContainSingle().Which.Outcome.Should().Be(SecurityAuditOutcome.Requested);
+            requested[0].ActionId.Should().Be("configuration.presence-timeout");
+            if (queueDuringFirstWrite)
+            {
+                // The immediate dispatcher has no UI context: hold the worker while native inputs enqueue.
+                fixture.ViewModel.ResponseTimeoutSeconds = 8;
+                fixture.ViewModel.PresenceTimeoutSeconds = 20;
+                fixture.ViewModel.AppearanceUpdate.Should().BeSameAs(firstWrite);
+            }
+            else
+            {
+                releasePresence.Set();
+                await firstWrite;
+                fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(15);
+                fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(ResponseWindowSettings.DefaultTimeoutSeconds);
+                fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().Be(15);
+                fixture.AppearancePreferences.SavedResponseTimeoutSeconds.Should().BeNull();
+                fixture.ViewModel.ResponseTimeoutSeconds = 8;
+            }
+            releasePresence.Set();
+            await responseEntered.Task.WaitAsync(token);
+            fixture.ViewModel.AppearanceUpdate.IsCompleted.Should().BeFalse();
+            fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().Be(15);
+            fixture.AppearancePreferences.SavedResponseTimeoutSeconds.Should().BeNull();
+            fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(queueDuringFirstWrite ? PresenceSettings.DefaultTimeoutSeconds : 15);
+            fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(ResponseWindowSettings.DefaultTimeoutSeconds);
+            if (!queueDuringFirstWrite) { fixture.ViewModel.PresenceTimeoutSeconds = 20; }
+        }
+        finally
+        {
+            releasePresence.Set();
+            releaseResponse.Set();
+            await fixture.ViewModel.AppearanceUpdate;
+        }
 
         fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(20);
         fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(8);
         fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().Be(20);
         fixture.AppearancePreferences.SavedResponseTimeoutSeconds.Should().Be(8);
+        presenceWrites.Should().Be(2);
+        var audits = fixture.Audit.Events.ToArray();
+        audits.Select(item => item.ActionId).Should().Equal(
+            "configuration.presence-timeout", "configuration.presence-timeout",
+            "configuration.response-timeout", "configuration.response-timeout",
+            "configuration.presence-timeout", "configuration.presence-timeout");
+        audits.Select(item => item.Outcome).Should().Equal(
+            SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded,
+            SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded,
+            SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+        audits.Should().OnlyContain(item => item.Category == SecurityAuditCategory.ConfigurationWrite
+            && item.Initiator == SecurityAuditInitiator.LocalUser && item.ReasonCode == null);
+        audits[0].CorrelationId.Should().NotBeEmpty();
+        audits[1].CorrelationId.Should().Be(audits[0].CorrelationId);
+        audits[4].CorrelationId.Should().NotBeEmpty().And.NotBe(audits[0].CorrelationId);
+        audits[5].CorrelationId.Should().Be(audits[4].CorrelationId);
         AssertAuditPair(
             fixture,
             SecurityAuditCategory.ConfigurationWrite,
             "configuration.response-timeout",
             SecurityAuditInitiator.LocalUser,
             SecurityAuditOutcome.Succeeded);
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        fixture.Preferences.SummaryLimits.Should().BeNull();
+        fixture.AppearancePreferences.SavedResponseWindowSettings.Should().BeNull();
+        await fixture.ViewModel.DisposeAsync();
     }
 
     [Fact]
@@ -4604,10 +4681,15 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(WindowsSpeechRateCommand.FixedPhrases)
             .Concat(SpeechInputCommand.FixedPhrases)
+            .Concat(QuietHoursCommand.FixedPhrases)
+            .Concat(VoiceCaptureTimingCommand.FixedPhrases)
+            .Concat(SpeechComparisonCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
+            .Concat(OrdinaryTurnDeadlineCommand.FixedPhrases)
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(Kora.Application.Communication.ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
+            .Concat(ForegroundPttCommand.FixedPhrases)
             .Concat(ResponseWindowCommand.FixedPhrases)
             .Concat(ProviderModeCommand.FixedPhrases)
             .Concat(ProviderProfileCommand.FixedPhrases)
@@ -4624,13 +4706,17 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(SpeechCommand.FixedPhrases)
             .Concat(["review speech limit suggestion", "confirm speech limit change", "cancel speech limit review"])
             .Concat(PlaybackVolumeSuggestionCommand.FixedPhrases)
+            .Concat(WindowsSpeechRateSuggestionCommand.FixedPhrases)
+            .Concat(InstalledSpeechVoiceSuggestionCommand.FixedPhrases)
             .Concat(Kora.Application.Configuration.RegisteredSettings.RegisteredSettingSuggestionCommand.FixedPhrases)
+            .Concat(Kora.Application.Configuration.RegisteredSettings.RegisteredSettingSuggestionCommand.ResponseTimeoutPhrases)
             .Concat(Kora.Application.Configuration.RegisteredSettings.RegisteredSettingUndoCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.OwnedSkillAuthoringCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
             .Concat(SettingsSectionCommand.FixedPhrases)
             .Concat(ConversationExecutionCommand.FixedPhrases)
             .Concat(LogonStartupCommand.FixedPhrases)
+            .Concat(DetailPresentationCommand.FixedPhrases)
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases);
         fixture.Voice.StartedPhrases.Should().BeEquivalentTo(
@@ -6983,7 +7069,7 @@ public sealed partial class MainViewModelTests : IDisposable
         await fixture.RaiseActivatedTranscriptAsync("Kora, show the task queue", 0.9f);
         fixture.Voice.StartedPhrases.Should().Contain("Kora show the task queue");
 
-        fixture.ViewModel.ResponseTitle.Should().Be("Waiting for your command.");
+        fixture.ViewModel.ResponseTitle.Should().Be("Assistant status.");
         fixture.Reasoner.Requests.Should().BeEmpty();
     }
 
@@ -7471,7 +7557,7 @@ public sealed partial class MainViewModelTests : IDisposable
     [InlineData("Kora, open settings", "Settings")]
     [InlineData("Kora, what can you do", "Built-in commands are ready.")]
     [InlineData("Kora, what version are you running", "Kora version")]
-    [InlineData("Kora, what are you currently working on", "Voice is not active.")]
+    [InlineData("Kora, what are you currently working on", "Assistant status.")]
     [InlineData("Kora, cancel task", "Cancelled.")]
     [InlineData("Kora, stop speaking", "Speech is stopped.")]
     [InlineData("Kora, what power action is pending", "No power action is pending.")]
@@ -7494,7 +7580,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         await fixture.RunAsync("Kora, what are you currently working on");
 
-        fixture.ViewModel.ResponseTitle.Should().Be("Waiting for your command.");
+        fixture.ViewModel.ResponseTitle.Should().Be("Assistant status.");
         fixture.ViewModel.ResponseBody.Should().Contain("System");
     }
 
@@ -7518,7 +7604,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.Probe.Status = fixture.Probe.Status with { Readiness = DependencyReadiness.Ready };
         await fixture.ViewModel.RefreshCommand.ExecuteAsync();
         await fixture.RunAsync("Kora, what do you have left to do");
-        fixture.ViewModel.ResponseTitle.Should().Be("Voice is not active.");
+        fixture.ViewModel.ResponseTitle.Should().Be("Assistant status.");
     }
 
     [Fact]
@@ -7570,7 +7656,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         await fixture.RunAsync("show task progress");
 
-        fixture.ViewModel.ResponseTitle.Should().Be("No task is running.");
+        fixture.ViewModel.ResponseTitle.Should().Be("No setup task is running.");
         fixture.ViewModel.ResponseBody.Should().Contain("Local model inference (Ollama): NeedsAction.");
         fixture.ViewModel.ResponseBody.Should().Contain("Approval is required.");
     }
@@ -7582,8 +7668,9 @@ public sealed partial class MainViewModelTests : IDisposable
 
         await fixture.RunAsync("what is the current task status");
 
-        fixture.ViewModel.ResponseTitle.Should().Be("No task is running.");
-        fixture.ViewModel.ResponseBody.Should().Be("There is no active or pending setup task.");
+        fixture.ViewModel.ResponseTitle.Should().Be("No setup task is running.");
+        fixture.ViewModel.ResponseBody.Should().Be("There is no active or pending setup task."
+            + Environment.NewLine + Environment.NewLine + fixture.ViewModel.SubmittedWorkActivityStatus);
     }
 
     [Fact]
@@ -8644,8 +8731,15 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableConversationalReplies = false, Exception? conversationalReadFailure = null,
             Kora.Application.Communication.CommunicationActivityCallStateService? communicationActivity = null,
             CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
+            OrdinaryTurnDeadlineConfigurationService? ordinaryDeadlineConfiguration = null,
+            Kora.Application.Voice.SpeechSetupComparison? speechSetupComparison = null,
             bool enableConversationExecution = false,
-            LogonStartupConfigurationService? logonStartupConfiguration = null)
+            LogonStartupConfigurationService? logonStartupConfiguration = null,
+            StartupPresentationConfigurationService? startupPresentationConfiguration = null,
+            ForegroundPttConfigurationService? foregroundPtt = null,
+            bool enableCaptureTiming = false,
+            DetailPresentationConfigurationService? detailPresentationConfiguration = null,
+            QuietHoursConfigurationService? quietHoursConfiguration = null)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8663,6 +8757,8 @@ public sealed partial class MainViewModelTests : IDisposable
             var audioStore = new Kora.Application.UnitTests.Configuration.AudioControlTestStore();
             ManualCallStore = audioStore;
             OutputAdmission = new(audioStore, audioStore, new HostTaskCoordinator(audioStore));
+            CaptureTimingConfiguration = enableCaptureTiming ? new(CaptureTimingPreferences, OutputAdmission,
+                Audit ??= new FakeSecurityAuditLog(), NullLogger<VoiceCaptureTimingConfigurationService>.Instance) : null;
             QueuePreferences.ReadFailure = queueReadFailure;
             QueueConfiguration = enableQueueConfiguration ? new(QueuePreferences, OutputAdmission, Audit ??= new FakeSecurityAuditLog()) : null;
             var outputCatalog = new Kora.Application.Voice.BoundedAudioOutputCatalog(
@@ -8707,7 +8803,9 @@ public sealed partial class MainViewModelTests : IDisposable
             RateConfiguration = enableWindowsSpeechRate ? new(RatePreferences, TextToSpeech, SpeechConfiguration, OutputAdmission, Audit,
                 NullLogger<WindowsSpeechRateConfigurationService>.Instance) : null;
             InputRuntime = new(Voice);
-            InputConfiguration = enableSpeechInput ? new(InputPreferences, InputRuntime, OutputAdmission, Audit,
+            var effectiveVoice = voiceDecorator is null ? (IActivatedVoiceRecognitionService?)ReplyVoice ?? Voice
+                : voiceDecorator(ReplyVoice ?? new QuestionVoiceAdapter(Voice));
+            InputConfiguration = enableSpeechInput ? new(InputPreferences, effectiveVoice as ISpeechInputProfileRuntime ?? InputRuntime, OutputAdmission, Audit,
                 NullLogger<SpeechInputConfigurationService>.Instance) : null;
             var diagnosticStore = new Kora.Application.UnitTests.Configuration.AudioControlTestStore();
             DiagnosticAdmission = new(diagnosticStore, diagnosticStore, new HostTaskCoordinator(diagnosticStore));
@@ -8777,8 +8875,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 ApprovalPreferences,
                 ModelExecutionPreferences,
                 MicrophoneAccess,
-                voiceDecorator is null ? (IActivatedVoiceRecognitionService?)ReplyVoice ?? Voice
-                    : voiceDecorator(ReplyVoice ?? new QuestionVoiceAdapter(Voice)),
+                effectiveVoice,
                 TextToSpeech,
                 new AssistantNameConfigurationService(NamePreferences, Catalog, Audit,
                     NullLogger<AssistantNameConfigurationService>.Instance),
@@ -8844,12 +8941,20 @@ public sealed partial class MainViewModelTests : IDisposable
                 speechComponentSetup: speechComponentSetup,
                 conversationalReplies: ConversationalConfiguration,
                 communicationActivityConfiguration: communicationActivityConfiguration,
+                ordinaryDeadlineConfiguration: ordinaryDeadlineConfiguration,
+                speechSetupComparison: speechSetupComparison,
                 conversationExecution: ConversationExecutionConfiguration,
-                logonStartupConfiguration: logonStartupConfiguration);
+                logonStartupConfiguration: logonStartupConfiguration,
+                startupPresentationConfiguration: startupPresentationConfiguration,
+                foregroundPtt: foregroundPtt,
+                voiceCaptureTimingConfiguration: CaptureTimingConfiguration,
+                detailPresentationConfiguration: detailPresentationConfiguration,
+                quietHoursConfiguration: quietHoursConfiguration);
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
             if (enableWindowsSpeechRate) { ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }
+            if (enablePlaybackVolume) { ViewModel.BindPlaybackVolumeNativeLifetime(static () => true); }
             if (enableSpeechInput) { ViewModel.BindSpeechInputNativeLifetime(static () => true); }
             if (enableInCallFeedback) { ViewModel.BindInCallFeedbackNativeLifetime(static () => true); }
             ViewModel.BindVoiceOwnershipGate(static () => true);
@@ -8895,6 +9000,8 @@ public sealed partial class MainViewModelTests : IDisposable
         public FakeSpeechInputPreferences InputPreferences { get; } = new();
         public SpeechInputTestRuntime InputRuntime { get; }
         public SpeechInputConfigurationService? InputConfiguration { get; }
+        public Kora.Application.UnitTests.Configuration.VoiceCaptureTimingConfigurationServiceTests.Preferences CaptureTimingPreferences { get; } = new();
+        public VoiceCaptureTimingConfigurationService? CaptureTimingConfiguration { get; }
         public FakeInCallFeedbackPreferences FeedbackPreferences { get; } = new();
         public InCallFeedbackConfigurationService? FeedbackConfiguration { get; }
         public DiagnosticRetentionAdmission DiagnosticAdmission { get; }
@@ -9086,7 +9193,8 @@ public sealed partial class MainViewModelTests : IDisposable
             }
         }
 
-        public async Task RaiseActivatedTranscriptAsync(string transcript, float confidence)
+        public async Task RaiseActivatedTranscriptAsync(string transcript, float confidence,
+            IVoiceActivationEvidence? activationEvidence = null)
         {
             if (Voice.Microphones.Count == 0)
             {
@@ -9106,7 +9214,7 @@ public sealed partial class MainViewModelTests : IDisposable
             await ViewModel.BeginPushToTalkAsync();
             await ViewModel.EndPushToTalkAsync();
             WindowActions.Clear();
-            await Voice.RaiseTranscriptAsync(transcript, confidence);
+            await Voice.RaiseTranscriptAsync(transcript, confidence, activationEvidence);
         }
 
         public sealed class FakeVoiceConsentPreferences : IVoiceConsentPreferences
@@ -9633,9 +9741,10 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
-        public async Task RaiseTranscriptAsync(string transcript, float confidence)
+        public async Task RaiseTranscriptAsync(string transcript, float confidence,
+            IVoiceActivationEvidence? activationEvidence = null)
         {
-            TranscriptRecognized?.Invoke(this, new VoiceTranscriptEventArgs(transcript, confidence, Generation));
+            TranscriptRecognized?.Invoke(this, new VoiceTranscriptEventArgs(transcript, confidence, Generation, activationEvidence));
             await dispatcher.LastInvocation;
         }
 
@@ -9691,12 +9800,13 @@ public sealed partial class MainViewModelTests : IDisposable
         {
             Interlocked.Increment(ref outputGeneration);
             events.Add("speech.invalidate");
-            IsSpeaking = false;
+            if (!IgnoreOutputInvalidation) { IsSpeaking = false; }
             PlaybackFrame = SpeechPlaybackFrame.Inactive;
             PlaybackFrameException = null;
         }
 
         public bool IsSpeaking { get; private set; }
+        public bool IgnoreOutputInvalidation { get; set; }
 
         private SpeechPlaybackFrame playbackFrame = SpeechPlaybackFrame.Inactive;
 
@@ -9739,6 +9849,8 @@ public sealed partial class MainViewModelTests : IDisposable
         public AudioOutputDevice? SpokenOutputDevice { get; private set; }
 
         public Exception? SpeakException { get; set; }
+
+        public Exception? SpeakCompletionException { get; set; }
 
         public Action? BeforeSpeak { get; set; }
 
@@ -9821,6 +9933,7 @@ public sealed partial class MainViewModelTests : IDisposable
             {
                 await SpeakGate.Task.WaitAsync(IgnoreSpeakCancellation ? CancellationToken.None : cancellationToken);
             }
+            if (SpeakCompletionException is { } completionException) { throw completionException; }
             if (generation != Interlocked.Read(ref outputGeneration)) { throw new OperationCanceledException(); }
 
             IsSpeaking = false;
@@ -9962,9 +10075,11 @@ public sealed partial class MainViewModelTests : IDisposable
             switch (setting)
             {
                 case AppearanceOption.Theme: Mode = null; break;
+                case AppearanceOption.ReducedMotion: ReducedMotionEnabled = null; break;
                 case AppearanceOption.ReaderTextScale: ReaderTextScalePercent = null; break;
                 case AppearanceOption.PresenceDisplay: PresenceDisplayEnabled = null; break;
                 case AppearanceOption.PresenceTimeout: PresenceTimeoutSeconds = null; break;
+                case AppearanceOption.ResponseTimeout: ResponseTimeoutSeconds = null; break;
                 case AppearanceOption.PresenceSize: PresenceSizePixels = null; break;
                 case AppearanceOption.DotSize: PresenceDotSizePercent = null; break;
                 case AppearanceOption.DotDensity: PresenceDotDensityPercent = null; break;
@@ -9975,6 +10090,14 @@ public sealed partial class MainViewModelTests : IDisposable
             }
         }
         public bool? NativePresenceRendererEnabled { get; private set; }
+        public bool? ReducedMotionEnabled { get; private set; }
+        public bool? LoadReducedMotionEnabled() => ReducedMotionEnabled;
+        public void SaveReducedMotionEnabled(bool enabled)
+        {
+            ThrowIfSaveFails();
+            ReducedMotionEnabled = enabled;
+        }
+
         public bool? LoadNativePresenceRendererEnabled() => NativePresenceRendererEnabled;
         public void SaveNativePresenceRendererEnabled(bool value)
         {
@@ -10514,10 +10637,15 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public Exception? SaveException { get; set; }
 
-        public CallAwareSettings? Load() => Settings;
+        public Func<CallAwareSettings?>? Read { get; set; }
+        public Action? BeforeSave { get; set; }
+        public int SaveCalls { get; private set; }
+        public CallAwareSettings? Load() => Read is null ? Settings : Read();
 
         public void Save(CallAwareSettings settings)
         {
+            SaveCalls++;
+            BeforeSave?.Invoke();
             if (SaveException is not null)
             {
                 throw SaveException;

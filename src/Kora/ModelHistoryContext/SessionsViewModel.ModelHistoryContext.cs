@@ -21,7 +21,7 @@ internal sealed partial class SessionsViewModel
             var message = SelectedAnswerRecord;
             if (assistantReply || !access.CanControl || conversationSourceHeld
                 || message?.AssistantResponse is null
-                || !ConversationMessages.Any(row => ReferenceEquals(row, message)))
+                || !ObservedConversationMessages.Any(row => ReferenceEquals(row, message)))
             { throw new InvalidOperationException("Select the exact retained model history advisory in this Active conversation."); }
             var page = conversationPage;
             var completed = completedConversationMessage;

@@ -15,6 +15,10 @@ public sealed partial class SessionConversationService
         + "Return a bounded final answer or call ask_user alone once with a prompt (at most 500 characters), "
         + "zero options and minimum=maximum=1 for bounded free text or two-to-four unambiguous labels (at most 80 characters each). "
         + "Use minimum=maximum=1 for single choice; otherwise declare the minimum and maximum selections for checkboxes. "
+        + "Alternatively ask_user may declare one to four required fields: text with explicit maximumLength (1..500) "
+        + "and maximumUtf8Bytes (1..2000), or singleChoice with two-to-four labels. Use prompt and fields only for a form. "
+        + "Field IDs are field-0, field-1, etc.; choice IDs are option-0, option-1, etc. "
+        + "Edits and voice entry are not submission; only the complete explicitly submitted typed answer resumes the task. "
         + "No other tools, history, memory, attachments, approvals, credentials, permissions, effects or hosted egress. "
         + "Only the host-validated exact original-user answer may resume this same task once. Then return a final answer.";
 

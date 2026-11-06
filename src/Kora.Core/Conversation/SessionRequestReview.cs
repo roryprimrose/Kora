@@ -13,6 +13,8 @@ public sealed record SessionRequestReview(Guid Id, SessionWorkspaceEntry Target,
 {
     public ImmutableArray<string> ClaudeTools { get; init; } = [];
     public FailedRequestRetrySource? FailedSource { get; init; }
+    public ExpiredOrdinaryRequestSource? ExpiredSource { get; init; }
+    public Kora.Core.Dependencies.ModelProviderSelection? CurrentLocalProvider { get; init; }
     public Kora.Core.Providers.ProviderProfileTuple? RetryProviderProfile { get; init; }
     public Kora.Core.Providers.ProviderProfileTuple? LocalRequestProfile { get; init; }
     public Kora.Core.Voice.TaskResponseMode? TaskResponseMode { get; init; }

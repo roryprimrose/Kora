@@ -45,7 +45,8 @@ public sealed partial class AuthorityLocalEventSource
             if (notice.Question is { } key && !snapshot.PendingQuestions.Any(question =>
                 question.Key == key && question.Generation == notice.Generation
                 && question.Status == QuestionStatus.Pending && question.AnswerChannel is null
-                && question.Kind is QuestionKind.Text or QuestionKind.SingleChoice && question.ExpiresAt == expiry))
+                && question.Kind is QuestionKind.Text or QuestionKind.SingleChoice or QuestionKind.MultipleChoice
+                && question.ExpiresAt == expiry))
             { continue; }
             var source = notice.Question is null ? LocalEventSource.ConversationTask : LocalEventSource.ConversationQuestion;
             var subject = notice.Question?.QuestionId.Value ?? notice.Request.TaskId.Value;

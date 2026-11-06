@@ -1,4 +1,7 @@
+using System.Collections.Concurrent;
+using System.ComponentModel;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 using AwesomeAssertions;
 using Kora.Application.Configuration;
@@ -18,6 +21,11 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    private static readonly JsonSerializerOptions SpeechReceiptJson = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() },
+    };
+
     [Theory]
     [InlineData("Kora")]
     [InlineData("Nova")]
@@ -58,7 +66,7 @@ public sealed partial class MainViewModelTests
         return (store, model);
     }
 
-    private static async Task SubmitSpeechSuggestion(Fixture fixture, SessionCommandStore store, bool voice, bool expectRetained = true)
+    private static async Task<string> ReviewSpeechSuggestion(Fixture fixture, SessionCommandStore store, bool voice)
     {
         var id = store.Session.Authority.SessionId.Value.ToString("D");
         var review = "session request review " + id + " 1 " + (store.Session.Metadata?.Revision.Value ?? 0)
@@ -68,7 +76,12 @@ public sealed partial class MainViewModelTests
         else { await fixture.RunAsync(review); }
         fixture.ViewModel.ResponseTitle.Should().Be("Session command review.");
         using var json = JsonDocument.Parse(fixture.ViewModel.ResponseBody);
-        var confirmation = "session request confirm " + id + " " + json.RootElement.GetProperty("requestReview").GetProperty("id").GetString();
+        return "session request confirm " + id + " " + json.RootElement.GetProperty("requestReview").GetProperty("id").GetString();
+    }
+
+    private static async Task SubmitSpeechSuggestion(Fixture fixture, SessionCommandStore store, bool voice, bool expectRetained = true)
+    {
+        var confirmation = await ReviewSpeechSuggestion(fixture, store, voice);
         await fixture.RunAsync(confirmation);
         fixture.ViewModel.ResponseTitle.Should().Be(expectRetained ? "Session command retained." : "Session command not confirmed.",
             fixture.ViewModel.ResponseBody);
@@ -316,27 +329,117 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.DisposeAsync();
     }
 
-    [Fact]
-    public async Task SpeechSuggestionVoiceConsentLossDuringReceiptPinCannotAuthorizeReviewOrConfirmation()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SpeechSuggestionVoiceConsentLossDuringReceiptPinCannotAuthorizeReviewOrConfirmation(bool withdrawalCompletesFirst)
     {
         var f = await Fixture.CreateInitializedAsync();
         var (store, model) = BindSpeechSuggestions(f);
-        Task? withdrawal = null;
-        store.BeforeSpeechReceiptMetadataRead = () =>
+        var target = store.Session;
+        var confirmation = await ReviewSpeechSuggestion(f, store, voice: true);
+        var token = TestContext.Current.CancellationToken;
+        var releaseCapture = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.Voice.StopGate = releaseCapture;
+        var starts = f.Voice.StartCalls;
+        var stops = f.Voice.StopCalls;
+        var notifications = new ConcurrentQueue<(string Title, string Body)>();
+        PropertyChangedEventHandler observeResponse = (_, change) =>
         {
-            withdrawal = f.ViewModel.SetVoiceConsentAsync(false);
+            if (string.Equals(change.PropertyName, nameof(f.ViewModel.ResponseBody), StringComparison.Ordinal)
+                && f.ViewModel.ResponseTitle is "Session command retained." or "Voice consent declined or withdrawn.")
+            { notifications.Enqueue((f.ViewModel.ResponseTitle, f.ViewModel.ResponseBody)); }
         };
-        await SubmitSpeechSuggestion(f, store, voice: true);
-        withdrawal.Should().NotBeNull("withdrawal must occur during receipt pinning, not before submission");
-        await withdrawal!;
+        f.ViewModel.PropertyChanged += observeResponse;
+        ConversationSubmissionReceipt? pinnedReceipt = null;
+        Task? withdrawal = null;
+        store.BeforeSpeechReceiptMetadataReadAsync = async () =>
+        {
+            pinnedReceipt = new(store.RequestMessage!, store.TaskResult!.Task);
+            pinnedReceipt.Message.Validate();
+            store.SpeechTerminalPublished.Should().BeTrue();
+            withdrawal = f.ViewModel.SetVoiceConsentAsync(false);
+            f.ViewModel.HasVoiceConsent.Should().BeFalse();
+            withdrawal.IsCompleted.Should().BeFalse("capture closure has not been released");
+            if (withdrawalCompletesFirst)
+            {
+                releaseCapture.SetResult();
+                await withdrawal.WaitAsync(token);
+            }
+        };
+        try
+        {
+            await f.RunAsync(confirmation);
+            if (!withdrawalCompletesFirst)
+            {
+                withdrawal.Should().NotBeNull();
+                withdrawal!.IsCompleted.Should().BeFalse("the command must finish before capture closure");
+                f.ViewModel.ResponseTitle.Should().Be("Session command retained.");
+                releaseCapture.SetResult();
+            }
+            withdrawal.Should().NotBeNull("withdrawal must occur during receipt pinning, not before submission");
+            await withdrawal!.WaitAsync(token);
+        }
+        finally
+        {
+            releaseCapture.TrySetResult();
+            f.ViewModel.PropertyChanged -= observeResponse;
+        }
+
+        string[] expectedTitles = withdrawalCompletesFirst
+            ? ["Voice consent declined or withdrawn.", "Session command retained."]
+            : ["Session command retained.", "Voice consent declined or withdrawn."];
+        notifications.Select(item => item.Title).Should().Equal(expectedTitles);
+        var commandResponse = notifications.Single(item => string.Equals(item.Title, "Session command retained.", StringComparison.Ordinal));
+        using var result = JsonDocument.Parse(commandResponse.Body);
+        result.RootElement.GetProperty("outcome").GetString().Should().Be("retained");
+        var receipt = result.RootElement.GetProperty("requestSubmission").Deserialize<ConversationSubmissionReceipt>(SpeechReceiptJson);
+        receipt.Should().Be(pinnedReceipt);
+        pinnedReceipt.Should().NotBeNull();
+        pinnedReceipt!.Message.Request.Origin.Should().Be(RequestOrigin.ActivatedVoice);
+        pinnedReceipt.Message.Request.SessionId.Should().Be(target.Authority.SessionId);
+        pinnedReceipt.Message.Generation.Should().Be(target.Authority.Generation);
+        pinnedReceipt.Message.ExecutionMetadataRevision.Should().Be(target.Metadata?.Revision.Value ?? 0);
+        pinnedReceipt.Message.Body.Should().Be("Suggest a word limit of forty for future ordinary spoken responses.");
+        pinnedReceipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        pinnedReceipt.Message.Reason.Should().Be(ModelTurnReason.None);
+        pinnedReceipt.Message.HasAssistantResponse.Should().BeTrue();
+        pinnedReceipt.Message.AssistantResponse!.Body.Should().Be(model.Answer);
+        pinnedReceipt.Message.Execution!.Request.Should().Be(pinnedReceipt.Message.Request);
+        pinnedReceipt.Task.Request.Should().Be(pinnedReceipt.Message.Request);
+        pinnedReceipt.Task.State.Should().Be(HostTaskState.Succeeded);
+        pinnedReceipt.Task.Revision.Should().Be(new HostRevision(3));
+        f.ViewModel.ResponseTitle.Should().Be(expectedTitles[^1]);
+        f.ViewModel.ResponseBody.Should().Be(notifications.Last().Body);
+        notifications.Single(item => string.Equals(item.Title, "Voice consent declined or withdrawn.", StringComparison.Ordinal)).Body.Should()
+            .Be("The microphone remains closed across restart. Native and typed controls remain available.");
         f.ViewModel.HasVoiceConsent.Should().BeFalse();
-        store.RequestMessage!.Request.Origin.Should().Be(RequestOrigin.ActivatedVoice);
+        f.VoiceConsent.Consent.Should().BeFalse();
+        f.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        f.ViewModel.IsListening.Should().BeFalse();
+        f.Voice.IsCaptureQuiescent.Should().BeTrue();
+        f.ViewModel.TrayInputStatus.Should().Be("Microphone closed - voice consent not granted");
+        var audits = f.Audit.Events.ToArray();
         await f.RunAsync("review speech limit suggestion");
         f.ViewModel.ResponseTitle.Should().Be("Speech limit change unconfirmed.");
         await f.RunAsync("confirm speech limit change");
         f.ViewModel.ResponseTitle.Should().Be("Speech limit source unavailable.");
         f.Preferences.SummaryLimits.Should().BeNull();
+        f.ViewModel.SelectedSummaryWords.Should().Be(80);
+        f.ViewModel.SelectedSummarySentences.Should().Be(3);
+        f.Audit.Events.Should().Equal(audits);
+        store.Session.Should().Be(target);
+        store.RequestMessage.Should().Be(pinnedReceipt.Message);
+        store.TaskResult!.Task.Should().Be(pinnedReceipt.Task);
+        store.RequestRetentions.Should().Be(1);
         model.Calls.Should().Be(1);
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.TextToSpeech.SpokenText.Should().BeNull();
+        f.Voice.StartCalls.Should().Be(starts);
+        f.Voice.StopCalls.Should().Be(stops + 1);
+        f.ViewModel.HasVoiceConsent.Should().BeFalse();
+        f.VoiceConsent.Consent.Should().BeFalse();
+        f.Voice.IsCaptureQuiescent.Should().BeTrue();
         await f.ViewModel.DisposeAsync();
     }
 
@@ -425,6 +528,7 @@ public sealed partial class MainViewModelTests
     private sealed partial class SessionCommandStore
     {
         internal Action? BeforeSpeechReceiptMetadataRead { get; set; }
+        internal Func<Task>? BeforeSpeechReceiptMetadataReadAsync { get; set; }
         internal bool SpeechTerminalPublished { get; set; }
         internal Action? BeforeSpeechExactRead { get; set; }
         internal string? SpeechTerminalReceiptFault { get; set; }

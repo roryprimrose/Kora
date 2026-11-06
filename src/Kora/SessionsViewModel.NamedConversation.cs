@@ -53,6 +53,7 @@ internal sealed partial class SessionsViewModel
             sessionFilter = SessionListFilter.All;
             sessions = new([target], null);
             conversationPage = page;
+            conversationReadingControl = access.ControlRevision;
             composerAuthority = target.Authority;
             conversationStatus = "Opened the acknowledged exact conversation and its real retained history. Nothing was submitted.";
             status = conversationStatus;

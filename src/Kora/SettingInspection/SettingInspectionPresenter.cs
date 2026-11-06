@@ -4,6 +4,7 @@ using Kora.Application.Configuration.SettingInspection;
 using Kora.Application.Hosting;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Dependencies;
 
 namespace Kora.SettingInspection;
 
@@ -21,6 +22,7 @@ internal sealed class SettingInspectionPresenter(SettingInspectionWorkflow workf
     private bool closed;
     private bool busy;
     private bool confirmed;
+    private bool discoverSettings;
 
     public event PropertyChangedEventHandler? PropertyChanged;
     public string Question
@@ -35,6 +37,19 @@ internal sealed class SettingInspectionPresenter(SettingInspectionWorkflow workf
         }
     }
     public string Status => status;
+    public bool DiscoverSettings
+    {
+        get => discoverSettings;
+        set
+        {
+            if (discoverSettings == value) { return; }
+            Retire();
+            discoverSettings = value;
+            Notify();
+        }
+    }
+    public string ConfirmLabel => discoverSettings ? "Confirm ONE settings-discovery LocalOnly request"
+        : "Confirm ONE tool-free LocalOnly request";
     public string Answer => answer;
     public string ReviewText => session?.Review.Text ?? string.Empty;
     public bool IsBusy => busy;
@@ -46,7 +61,7 @@ internal sealed class SettingInspectionPresenter(SettingInspectionWorkflow workf
         if (!CanReview) { throw new InvalidOperationException("The previous inspection still owns work."); }
         RequireOriginalInput(HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi);
         Retire();
-        return active = ReviewCoreAsync();
+        return StartOperation(ReviewCoreAsync);
     }
 
     private async Task ReviewCoreAsync()
@@ -61,10 +76,12 @@ internal sealed class SettingInspectionPresenter(SettingInspectionWorkflow workf
             HostActivityLayer.Desktop, HostOperation.Request);
         try
         {
+            operation.Token.ThrowIfCancellationRequested();
             var host = captureAdmission();
             var lifetime = captureLifetime();
             bool Current() => !closed && revision == version && host() && lifetime();
-            var reviewed = await workflow.ReviewAsync(question, Current, operation.Token);
+            var reviewed = await workflow.ReviewAsync(question, Current, operation.Token,
+                discoverSettings ? ModelToolMode.SettingsDiscovery : ModelToolMode.None);
             if (!Current() || operation.IsCancellationRequested)
             { throw new OperationCanceledException("The native source review was retired."); }
             admitted = Current;
@@ -93,7 +110,26 @@ internal sealed class SettingInspectionPresenter(SettingInspectionWorkflow workf
         if (!CanConfirm || session is not { } review || admitted is not { } current)
         { throw new InvalidOperationException("Review this exact original question and confirmed source first."); }
         RequireOriginalInput(review.Review.Original.Origin);
-        return active = ConfirmCoreAsync(review, current);
+        return StartOperation(() => ConfirmCoreAsync(review, current));
+    }
+
+    private Task StartOperation(Func<Task> operation)
+    {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        active = completion.Task;
+        _ = RunAsync();
+        return completion.Task;
+
+        async Task RunAsync()
+        {
+            try
+            {
+                await operation();
+                completion.SetResult();
+            }
+            catch (OperationCanceledException exception) { completion.SetCanceled(exception.CancellationToken); }
+            catch (Exception exception) { completion.SetException(exception); }
+        }
     }
 
     private async Task ConfirmCoreAsync(SettingInspectionSession review, Func<bool> current)
@@ -108,6 +144,8 @@ internal sealed class SettingInspectionPresenter(SettingInspectionWorkflow workf
         using var root = HostActivity.BeginRoot(review.Review.Original, HostActivityLayer.Desktop, HostOperation.Request);
         try
         {
+            if (operation.IsCancellationRequested)
+            { root.Complete(HostOperationOutcome.Cancelled); return; }
             bool Current() => version == revision && current();
             var result = await workflow.AnswerAsync(review, Current, operation.Token);
             if (!Current() || operation.IsCancellationRequested)
@@ -186,7 +224,7 @@ internal sealed class SettingInspectionPresenter(SettingInspectionWorkflow workf
     private void Notify()
     {
         foreach (var name in new[] { nameof(Question), nameof(Status), nameof(Answer), nameof(ReviewText),
-            nameof(IsBusy), nameof(CanReview), nameof(CanConfirm) })
+            nameof(IsBusy), nameof(CanReview), nameof(CanConfirm), nameof(DiscoverSettings), nameof(ConfirmLabel) })
         { OnPropertyChanged(name); }
     }
     private void OnPropertyChanged([CallerMemberName] string? name = null) =>

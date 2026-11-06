@@ -129,7 +129,12 @@ primary window, not another top-level window:
   separated by a pointer- and keyboard-resizable divider. Enforce a minimum expanded
   window width and minimum pane widths so neither collapses into an unreadable strip.
   Do not replace conversation with a Details tab or stack the panes on narrow windows.
-  **Expand details**, if offered, adjusts the split only within those minimums;
+  Native **Expand details** allocates surplus width to Details while keeping the
+  conversation at its existing minimum. **Restore split** restores the prior
+  column lengths; the divider stays usable in either state. Hide, replacement
+  and session/private retirement discard this temporary expansion, preserving
+  the ordinary split. Neither action rereads content, recreates the reader,
+  changes selection/Find or resizes the window. Both remain within those minimums;
   **Back to conversation** focuses the originating message without hiding either pane.
   If the available work area cannot fit the minimum layout, report the limitation
   explicitly rather than placing controls off screen or silently using a different
@@ -159,6 +164,9 @@ primary window, not another top-level window:
   hides required native interaction controls without a reachable route, or acts as
   an answer/approval. Keyboard and accessible UI support the same operations.
 - Keep a bounded, memory-only item binding and reading position per session.
+  The exact-reference position includes projection and wrapping; restore them before
+  layout and scroll offsets on an explicitly re-admitted reader. No remembered
+  presentation state grants source access or retains the hidden body/Find state.
   Switching sessions hides the previous session's content and shows only the newly
   selected session's own still-admitted in-memory view, or an empty/reopen state.
   Selection alone performs no source read; restoration needing fresh resolution
@@ -168,6 +176,12 @@ primary window, not another top-level window:
   hidden browser views must stop renderer-owned activity or be disposed, not continue
   invisible browsing. Privacy, ownership/source loss, deletion and lock revoke content
   and fence delayed publication under the existing viewer contract.
+
+### Explicit private workspace recovery
+
+Lock, unknown desktop state and owner loss retire the composed session, compact, response and Details presentations. Successful joined retirement is required before a new explicit **Show Kora**, **Settings** or **Sessions** gesture can release the private presentation hold under current host ownership and authoritative unlocked-session checks ([recovery](../src/Kora.Application/ViewModels/MainViewModel.PrivatePresentation.cs), [native regression](../tests/Kora.Windows.IntegrationTests/DesktopLockRecoveryTests.cs)).
+
+Unlock may restore only independently eligible voice-mode readiness; it does not reopen private windows or replay a denied earlier gesture. Reopened Sessions starts without a selected conversation, private page or unsent input. Select the exact conversation and explicitly Read/Open again to resolve retained content; recovery does not submit input, dispatch a provider or change grants or independent retention ([voice transition](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs), [recovery regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.PrivatePresentation.cs)).
 
 ### Session-command log and audit details
 
@@ -267,6 +281,10 @@ Retained USER, optional ASSISTANT and typed HOST outcomes remain distinct inert 
 ## Delivered exact-session native composer — 2026-10-12
 
 The [conversation owner](Interaction_And_Sessions.md#delivered-exact-session-conversationcomposer-foundation--2026-10-12) uses one in-memory unsent buffer per conversation, shared by Sessions and compact views. Switching topics preserves the independent buffers without Save/Discard prompts.
+
+Done/Resume and exact-session retirement clear only the target's unsent input and invalidate its content/controls, not the shared native views or unrelated buffers. Returning to another conversation restores its exact unsent text in both views; the integrated interaction uses that same owner. Privacy/ownership closure still closes the shared presentation and clears all buffers.
+
+Worker-thread lifecycle notifications complete exact-source retirement on the native dispatcher before the mutation call returns. The shared window remains available for fresh admitted inspection; stale selected controls cannot execute ([native regression](../tests/Kora.Windows.IntegrationTests/SessionsWorkWindowTests.cs)).
 
 Explicit discard or voluntary last-view/application close protects unsent content with Discard/Cancel. Ordinary Save/Reload/Clear, catalogue, comparison and rebase/recovery windows are gone; only legacy exact-session read-only recovery into empty input remains ([buffers](../src/Kora/SessionsViewModel.Unsent.cs), [shutdown guard](../src/Kora/ConversationShutdownGuard.cs)).
 
@@ -637,8 +655,19 @@ Show ordered user/assistant exchanges, structured questions, accepted answers, p
 Collapsible task/event groups reduce noise but cannot replace or discard full evidence.
 Streaming responses are visibly provisional until finalized; failed/interrupted streams are retained with honest status.
 New events follow the tail only while the user is already following it; historical browsing preserves position and shows a New updates indicator.
+
+The delivered main conversation reader follows within **24 device-independent pixels** of its admitted tail. Otherwise it keeps the exact request/task/sequence/revision anchor and relative vertical offset through completions and layout changes, without moving keyboard focus
+([viewport owner](../src/Kora/ConversationViewport.cs), [measured regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ReadingPosition.cs)).
+
+A confirmed submission/completion is shown separately while the admitted page and its original ceiling remain unchanged. **New updates - read latest** deliberately traverses bounded pages of one fresh exact-session snapshot, retains only its final page, and moves to its tail.
+It does not repair stale cursors or accumulate a transcript ([shared read/publication owner](../src/Kora/SessionsViewModel.ConversationReading.cs)).
+
+Switching sessions never fetches conversation bodies. An explicit read can restore that session's memory-only anchor if the exact message/revision is still admitted; otherwise the reader reports unavailable/reopen state without selecting a replacement. Hide/compact changes retain volatile position; privacy/ownership retirement clears it.
+Unsent input remains independently owned and is never saved by reading ([viewport lifetime](../src/Kora/ConversationViewport.cs), [unsent owner](../src/Kora/SessionsViewModel.Unsent.cs)).
+
 Keep pending interactions reachable via a dedicated attention region even when their chronological entries are off screen.
 History approval/question entries show past outcome in read-only form, not live replayable buttons.
+The [per-turn clarification reader](../docs/reviewed-context.md#read-a-turns-retained-clarification-exchange) deliberately projects existing admitted history beneath one exact original session/request/task. Its bounded pages retain the original snapshot ceiling; partial/gap/redacted/metadata-only observations and pending/cancelled/expired outcomes remain explicit, with no replay or renewed authority ([owner](../src/Kora/SessionsViewModel.ClarificationExchange.cs)).
 A current native card uses the host's current ID/revision; historical copies link to that current item only if it still exists and remains actionable.
 Done-session conversation is readable without resume. Sending new work requires explicit Resume or New session; no silent lifecycle transition.
 

@@ -98,6 +98,12 @@ reresolves every redirect. It accepts only unencoded UTF-8 `text/plain` or
 `text/html`, strips HTML active/non-text content, reads at most 256 KiB and
 returns at most 60 KiB of normalized text within a 64 KiB complete-result
 budget. Network outcomes are audited without logging addresses or content.
+Terminal audit follows response release, including error responses. Cancellation
+is rechecked after asynchronous authorization, DNS, send and body-read boundaries;
+successful text additionally requires current address authority after release.
+No late success receipt or returned text survives cancellation/revocation.
+Response cleanup attempts the HTTP owner even if stream disposal fails; a
+release exception propagates with failed audit rather than claiming success.
 
 The host authorization foundation now accepts destination-bound web-page access
 requests through its normal interaction transaction. A matching preapproved

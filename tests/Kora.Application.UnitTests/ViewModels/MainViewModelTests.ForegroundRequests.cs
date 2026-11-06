@@ -28,6 +28,7 @@ public sealed partial class MainViewModelTests
         if (voice) { await f.RaiseActivatedTranscriptAsync("Nova, ask this conversation " + body, 1); }
         else { await f.RunAsync("ask this conversation " + body); }
         f.ViewModel.HasForegroundRequestReview.Should().BeTrue();
+        f.ViewModel.HasSessionOperationReview.Should().BeTrue();
         f.ViewModel.ForegroundRequestReviewText.Should().Contain(body).And.Contain("Default / local only");
         store.RequestRetentions.Should().Be(0);
         Kora.Core.Conversation.ConversationSubmissionReceipt? submitted = null;

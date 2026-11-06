@@ -2,6 +2,7 @@ using Kora.Core.Auditing;
 using Kora.Core.Configuration;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Application.Communication;
 
 using Microsoft.Extensions.Logging;
 
@@ -17,6 +18,7 @@ public sealed partial class AppearanceConfigurationService(
     private readonly Dictionary<AppearanceOption, Action<AppearanceValue>> save = new()
     {
         [AppearanceOption.NativePresenceRenderer] = value => preferences.SaveNativePresenceRendererEnabled(value.GetToggle()),
+        [AppearanceOption.ReducedMotion] = value => preferences.SaveReducedMotionEnabled(value.GetToggle()),
         [AppearanceOption.Theme] = value => preferences.SaveThemeMode(value.GetTheme()),
         [AppearanceOption.PresenceDisplay] = value => preferences.SavePresenceDisplayEnabled(value.GetToggle()),
         [AppearanceOption.PresenceTimeout] = value => preferences.SavePresenceTimeoutSeconds(value.GetNumber()),
@@ -74,6 +76,8 @@ public sealed partial class AppearanceConfigurationService(
                 [AppearanceOption.NativePresenceRenderer] = preferences.LoadNativePresenceRendererEnabled() is { } native
                     ? new AppearanceValue.Toggle(native) : null,
                 [AppearanceOption.Theme] = preferences.LoadThemeMode() is { } theme ? new AppearanceValue.Theme(theme) : null,
+                [AppearanceOption.ReducedMotion] = preferences.LoadReducedMotionEnabled() is { } reducedMotion
+                    ? new AppearanceValue.Toggle(reducedMotion) : null,
                 [AppearanceOption.ReaderTextScale] = preferences.LoadReaderTextScalePercent() is { } scale ? new AppearanceValue.Number(scale) : null,
                 [AppearanceOption.PresenceDisplay] = preferences.LoadPresenceDisplayEnabled() is { } display ? new AppearanceValue.Toggle(display) : null,
                 [AppearanceOption.PresenceTimeout] = preferences.LoadPresenceTimeoutSeconds() is { } presenceTimeout ? new AppearanceValue.Number(presenceTimeout) : null,
@@ -143,10 +147,18 @@ public sealed partial class AppearanceConfigurationService(
     public Task<AppearanceApplyResult> ApplyAsync(AppearanceProposal proposal, CancellationToken cancellationToken) =>
         Task.Run(() => Apply(proposal, cancellationToken), cancellationToken);
 
+    internal Task<AppearanceApplyResult> ApplyAsync(AppearanceProposal proposal, CallCommunicationPolicy policy,
+        long callRevision, CancellationToken token) =>
+        Task.Run(() => Apply(proposal, policy, callRevision, token), token);
+
     // Cancellation is admitted before the atomic write, never after commit.
     public AppearanceApplyResult Apply(AppearanceProposal proposal) => Apply(proposal, CancellationToken.None);
 
-    public AppearanceApplyResult Apply(AppearanceProposal proposal, CancellationToken cancellationToken)
+    public AppearanceApplyResult Apply(AppearanceProposal proposal, CancellationToken cancellationToken) =>
+        Apply(proposal, null, 0, cancellationToken);
+
+    private AppearanceApplyResult Apply(AppearanceProposal proposal, CallCommunicationPolicy? policy,
+        long callRevision, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(proposal);
         var timeRenderer = proposal.Option == AppearanceOption.NativePresenceRenderer;
@@ -207,10 +219,20 @@ public sealed partial class AppearanceConfigurationService(
                 cancellationToken.ThrowIfCancellationRequested();
                 RequireEligibility(proposal);
                 if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.PreferenceWriteStarted); }
-                if (proposal.RestoreDefault) { preferences.ResetRegisteredOption(proposal.Option); }
-                else { save[proposal.Option](proposal.Value); }
-                if (registered && ReadRegistered(proposal.Option) != (proposal.RestoreDefault ? null : proposal.Value))
-                { throw new InvalidDataException("Appearance readback does not match the exact preference."); }
+                void Persist()
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    RequireEligibility(proposal);
+                    if (proposal.RestoreDefault) { preferences.ResetRegisteredOption(proposal.Option); }
+                    else { save[proposal.Option](proposal.Value); }
+                    if (registered && ReadRegistered(proposal.Option) != (proposal.RestoreDefault ? null : proposal.Value))
+                    { throw new InvalidDataException("Appearance readback does not match the exact preference."); }
+                }
+                if (policy is null) { Persist(); }
+                else if (policy.CommitVoiceSetting(proposal.OriginalOrigin
+                    ?? throw new InvalidOperationException("The original settings channel is required."),
+                    callRevision, () => proposal.RemainsEligible?.Invoke() == true, Persist) is not null)
+                { throw new InvalidOperationException("The original settings channel or call policy changed before commit."); }
                 if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.PreferenceWriteReturned); }
             }
             catch (OperationCanceledException)

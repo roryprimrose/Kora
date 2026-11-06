@@ -9,6 +9,57 @@ const JOBS = Object.freeze([
   ...['storage-heavy', 'storage-other', 'ui-definitions', 'native-ux', 'ui-platform']
     .map(shard => `Windows integration shard (${shard})`),
 ]);
+const SPLIT_JOBS = Object.freeze([...JOBS,
+  'Portable build, tests, and coverage', 'Publish and inspect exact-source payloads',
+]);
+const WINDOWS_12_JOBS = Object.freeze([...SPLIT_JOBS, 'Build exact-source Windows test modules',
+  ...['storage-heavy', 'storage-other', 'ui-definitions', 'ui-definition-dialogs', 'ui-conversations',
+    'ui-conversation-core', 'ui-conversation-actions', 'native-ux', 'ui-platform', 'ui-editors',
+    'ui-workflows', 'ui-presentation'].map(partition => `Windows test partition (${partition})`),
+]);
+const DELIVERY_JOBS = Object.freeze(WINDOWS_12_JOBS.map(name =>
+  name === CHECKS[2] ? 'Validate installer packaging' : name));
+const UNIT_PR_JOBS = Object.freeze(DELIVERY_JOBS.filter(name =>
+  name !== CHECKS[1] && !name.startsWith('Windows integration shard (')
+  && name !== 'Build exact-source Windows test modules' && !name.startsWith('Windows test partition (')));
+const PARALLEL_PR_JOBS = Object.freeze([...UNIT_PR_JOBS,
+  'Portable policy contracts', 'Validate managed setup and installer metadata',
+]);
+const PARALLEL_MAIN_JOBS = Object.freeze([...DELIVERY_JOBS,
+  'Portable policy contracts', 'Validate managed setup and installer metadata',
+]);
+const CANDIDATE_JOBS = Object.freeze({
+  'windows-12-v1': WINDOWS_12_JOBS,
+  'windows-12-delivery-v1': DELIVERY_JOBS,
+  'unit-pr-v1': UNIT_PR_JOBS,
+  'parallel-pr-v1': PARALLEL_PR_JOBS,
+});
+// Only reviewed immutable execution gates can establish that an unexpanded matrix did no work.
+const REJECTED_ADMISSION_BLOBS = Object.freeze(['97e22a8f88bcdc9bbaef32cf9e7200dd6e5c43cd']);
+const REJECTED_PREFLIGHT_BLOBS = Object.freeze(['c75173721c4131cf29d45482ea2edb92934070f1']);
+const REJECTED_DELIVERY_BLOB = '3ed51a1bdc4a92fda0bd476ff259b0f3d9e13a31';
+const REJECTED_ADMISSION_JOBS = Object.freeze([
+  ...WINDOWS_12_JOBS.filter(name => !name.startsWith('Windows test partition (')),
+  'Windows test partition (${{ matrix.partition }})', 'Queue policy feedback',
+  'Compare native fixture evidence', 'Compare portable test scheduling',
+  'Publish GitHub release', 'Publish completed batch release', 'Qualify completed batch tip',
+]);
+const REJECTED_DELIVERY_JOBS = Object.freeze(REJECTED_ADMISSION_JOBS.map(name =>
+  name === CHECKS[2] ? 'Validate installer packaging' : name));
+const REJECTION_AGGREGATES = Object.freeze([CHECKS[0], CHECKS[1],
+  ...JOBS.filter(name => name.startsWith('Windows integration shard ('))]);
+// Unversioned workflows are recognized only by their exact trusted Contents API blob identity.
+const PREDECESSOR_WORKFLOWS = Object.freeze({
+  '854e26b112e57ff003daedb0c6a2183e7355ff54': JOBS,
+  'd7d28f15a59261722b8a87e57a41966aff87fd29': JOBS,
+  'a9c7e87106cdef9398fb508a1181927d95819e72': JOBS,
+  '65f091f1585b5a25c9c6e325f3a97e025e24bafb': JOBS,
+  '033686e2be70445f8801b93ad034efda176edc8f': JOBS,
+  '9f19d4298cde21e313481cec9042138d6378b7ba': JOBS,
+  'd8bfcc6eceeb3b68bf993c94ee0139d58cf15a8c': SPLIT_JOBS,
+  '86656bbb4151eac2f50bb4cd532f83d5667e3bba': WINDOWS_12_JOBS,
+  'd3db4c610d08468c508f09e63b10f7c6568b82ea': WINDOWS_12_JOBS,
+});
 const STATE_BRANCH = 'automation/merge-queue-state';
 const SHA = /^[0-9a-f]{40}$/;
 const TICKET = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -16,6 +67,7 @@ const PRIORITY_LABELS = Object.freeze(['queue:priority-high', 'queue:priority-no
 const MERGE_PHASES = Object.freeze(['merging', 'merge-refused', 'merge-unconfirmed']);
 const MERGE_CONFIRMATION_MS = 10 * 60_000;
 const JOB_OBSERVATION_MS = MERGE_CONFIRMATION_MS;
+const DISPATCH_OBSERVATION_MS = 10 * 60_000;
 const JOB_CONCLUSIONS = Object.freeze([
   'success', 'failure', 'cancelled', 'timed_out', 'neutral', 'skipped', 'action_required', 'stale',
 ]);
@@ -29,20 +81,46 @@ function mode(value) {
   return value === 'enabled';
 }
 
-function execution({ modeValue, eventName, ref, sha, inputs }) {
+function controllerOperation(inputs) {
+  invariant(inputs && typeof inputs === 'object' && !Array.isArray(inputs), 'Invalid controller inputs.');
+  const operation = inputs.operation ?? 'reconcile';
+  invariant(['reconcile', 'recover-unobservable-dispatch', 'migrate-batch-v1', 'rollback-batch-v1',
+    'repair-batch', 'resume-batch', 'hold-independent-delivery', 'prepare-independent-delivery',
+    'resume-independent-delivery', 'abort-independent-delivery', 'hold-main-builds', 'prepare-main-builds',
+    'resume-main-builds', 'abort-main-builds'].includes(operation), 'Unknown controller operation.');
+  invariant(operation.endsWith('-main-builds') || !inputs.main_build_profile,
+    'Main build profile inputs require the explicit main scheduling operation.');
+  invariant(inputs.acknowledge_uncertain_dispatch === undefined
+    || typeof inputs.acknowledge_uncertain_dispatch === 'boolean', 'Invalid recovery acknowledgement.');
+  if (operation === 'reconcile') {
+    invariant(!inputs.recovery_checkpoint && !inputs.recovery_ticket && !inputs.recovery_main
+      && inputs.acknowledge_uncertain_dispatch !== true
+      && inputs.acknowledge_batch_change !== true,
+      'Recovery inputs require the explicit recovery operation.');
+  }
+  return operation;
+}
+
+function execution({ modeValue, eventName, ref, sha, inputs, mainBuildProfile = '' }) {
   const enabled = mode(modeValue);
-  const candidate = ['queue_pr', 'queue_head', 'queue_base', 'queue_ticket'].some(key => inputs[key]);
+  invariant(['', 'hourly-v1'].includes(mainBuildProfile), 'Unknown main build profile.');
+  invariant(!mainBuildProfile || enabled, 'Hourly main validation requires the enabled queue.');
+  const candidate = ['queue_pr', 'queue_head', 'queue_base', 'queue_ticket', 'queue_batch'].some(key => inputs[key]);
   if (candidate) invariant(enabled && eventName === 'workflow_dispatch' && ref === 'refs/heads/main',
     'Candidate dispatch requires the enabled queue on trusted main.');
   const comparison = eventName === 'workflow_dispatch'
     && (inputs.compare_portable_tests === true || inputs.compare_native_evidence === true);
   invariant(!(candidate && comparison), 'Candidate validation cannot also be a timing comparison.');
-  return { candidate, source: sha, full: !enabled || candidate
-    || eventName !== 'pull_request' && (ref === 'refs/heads/main' || ref.startsWith('refs/tags/') || comparison) };
+  const scheduled = eventName === 'schedule';
+  invariant(!scheduled || !mainBuildProfile || ref === 'refs/heads/main', 'Scheduled main validation requires trusted main.');
+  const coalesced = mainBuildProfile === 'hourly-v1' && eventName === 'push' && ref === 'refs/heads/main';
+  return { candidate, source: sha, full: !coalesced && (!scheduled || mainBuildProfile === 'hourly-v1')
+    && (!enabled || candidate
+      || eventName !== 'pull_request' && (ref === 'refs/heads/main' || ref.startsWith('refs/tags/') || comparison)) };
 }
 
 function validateState(state) {
-  invariant(state?.version === 1 && Array.isArray(state.blocked), 'Invalid merge queue state version.');
+  invariant([1, 2].includes(state?.version) && Array.isArray(state.blocked), 'Invalid merge queue state version.');
   invariant(state.blocked.length <= 1000, 'Merge queue blocked revision limit exceeded.');
   for (const item of state.blocked) {
     invariant(Number.isSafeInteger(item.number) && item.number > 0 && SHA.test(item.head)
@@ -50,6 +128,11 @@ function validateState(state) {
       && typeof item.reason === 'string', 'Invalid blocked revision.');
   }
   const active = state.active;
+  if (state.version === 2) {
+    require('./batch-policy.cjs').validateBatchState(state);
+    return state;
+  }
+  invariant(state.profile === undefined || state.profile === 'singleton-v1', 'Unknown legacy queue state profile.');
   if (active !== null) {
     invariant(active && Number.isSafeInteger(active.number) && active.number > 0
       && SHA.test(active.head) && SHA.test(active.base) && TICKET.test(active.ticket)
@@ -111,6 +194,7 @@ function priority(pr) {
 }
 
 function title(active) {
+  if (active.kind === 'batch') return `Merge queue batch [${active.ticket}]`;
   return `Merge queue PR #${active.number} [${active.ticket}]`;
 }
 
@@ -124,8 +208,32 @@ function jobOutcome(job) {
   return job.conclusion === 'success' ? 'success' : 'failure';
 }
 
-function requiredJobsState(jobs) {
-  const outcomes = JOBS.map(name => {
+function candidateJobs(schema) {
+  return Object.hasOwn(CANDIDATE_JOBS, schema) ? CANDIDATE_JOBS[schema] : null;
+}
+
+function workflowJobs(source, blob, candidate = false) {
+  const lines = source.replaceAll('\r\n', '\n').split('\n');
+  const main = lines.filter(line => line.includes('main-validation-schema:'));
+  if (main.length && (main.length !== 1 || main[0] !== '# main-validation-schema: hourly-v1')) return null;
+  const delivery = lines.filter(line => line.includes('merge-queue-delivery-schema:'));
+  if (delivery.length && (delivery.length !== 1 || delivery[0] !== '# merge-queue-delivery-schema: independent-v1')) return null;
+  const markers = lines.filter(line => line.includes('merge-queue-job-schema:'));
+  if (markers.length !== 0) {
+    if (markers.length !== 1) return null;
+    if (markers[0] === '# merge-queue-job-schema: parallel-pr-v1')
+      return delivery.length === 1 ? candidate ? PARALLEL_PR_JOBS : PARALLEL_MAIN_JOBS : null;
+    if (markers[0] === '# merge-queue-job-schema: unit-pr-v1')
+      return delivery.length === 1 ? candidate ? UNIT_PR_JOBS : DELIVERY_JOBS : null;
+    return markers[0] === '# merge-queue-job-schema: windows-12-v1'
+      ? delivery.length === 1 ? DELIVERY_JOBS : WINDOWS_12_JOBS : null;
+  }
+  return Object.hasOwn(PREDECESSOR_WORKFLOWS, blob) ? PREDECESSOR_WORKFLOWS[blob] : null;
+}
+
+function requiredJobsState(jobs, expected = JOBS) {
+  if (!Array.isArray(expected) || expected.length === 0) return 'pending';
+  const outcomes = expected.map(name => {
     const matches = jobs.filter(job => job.name === name);
     if (matches.length > 1) return 'failure';
     return matches.length === 0 ? 'pending' : jobOutcome(matches[0]);
@@ -133,15 +241,67 @@ function requiredJobsState(jobs) {
   return outcomes.includes('failure') ? 'failure' : outcomes.includes('pending') ? 'pending' : 'success';
 }
 
-function terminalJobs(jobs) {
-  return JOBS.every(name => jobs.filter(job => job.name === name).length === 1)
+function terminalJobs(jobs, expected = JOBS) {
+  return Array.isArray(expected) && expected.length > 0
+    && expected.every(name => jobs.filter(job => job.name === name).length === 1)
     && jobs.every(job => jobOutcome(job) !== 'pending');
 }
 
-function successfulJobs(jobs) {
-  return requiredJobsState(jobs) === 'success';
+function terminalRejectedJobPlan(run, jobs, conclusions, expected = REJECTED_ADMISSION_JOBS,
+  events = ['workflow_dispatch']) {
+  if (!run || !Number.isSafeInteger(run.id) || run.id <= 0
+    || run.status !== 'completed' || !conclusions.includes(run.conclusion)
+    || !events.includes(run.event) || run.head_branch !== 'main'
+    || run.run_attempt !== 1 || typeof run.head_sha !== 'string' || !SHA.test(run.head_sha) || !Array.isArray(jobs)
+    || !jobs.every(job => job && typeof job === 'object')
+    || jobs.length !== expected.length
+    || !expected.every(name => jobs.filter(job => job.name === name).length === 1)
+    || new Set(jobs.map(job => job.id)).size !== jobs.length) return false;
+  return jobs.every(job => Number.isSafeInteger(job.id) && job.id > 0 && job.run_id === run.id
+    && job.run_attempt === 1 && job.head_sha === run.head_sha && jobOutcome(job) !== 'pending');
 }
 
-module.exports = { CHECKS, GATE, JOBS, STATE_BRANCH, SHA, TICKET, MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS,
-  invariant, mode, execution,
+function terminalRejectedAdmission(run, jobs, blob) {
+  if (!REJECTED_ADMISSION_BLOBS.includes(blob) || !terminalRejectedJobPlan(run, jobs, ['failure'])) return false;
+  return rejectedAdmissionOutcomes(jobs);
+}
+
+function rejectedAdmissionOutcomes(jobs) {
+  return jobs.every(job => jobOutcome(job) === 'failure'
+    && (job.name === 'Admit CI execution' ? job.conclusion === 'failure'
+      : REJECTION_AGGREGATES.includes(job.name)
+        ? ['failure', 'cancelled', 'skipped'].includes(job.conclusion) : job.conclusion === 'skipped'));
+}
+
+function terminalRejectedPreflight(run, jobs, blob) {
+  const failures = ['failure', 'cancelled', 'timed_out'];
+  if (!REJECTED_PREFLIGHT_BLOBS.includes(blob) || !terminalRejectedJobPlan(run, jobs, failures)) return false;
+  return rejectedPreflightOutcomes(jobs);
+}
+
+function rejectedPreflightOutcomes(jobs) {
+  const failures = ['failure', 'cancelled', 'timed_out'];
+  return jobs.every(job => job.name === 'Admit CI execution' ? job.conclusion === 'success'
+    : job.name === 'Resolve build version' ? failures.includes(job.conclusion)
+      : REJECTION_AGGREGATES.includes(job.name) ? ['failure', 'cancelled', 'skipped'].includes(job.conclusion)
+        : job.conclusion === 'skipped');
+}
+
+function terminalRejectedDelivery(run, jobs, blob) {
+  return blob === REJECTED_DELIVERY_BLOB
+    && terminalRejectedJobPlan(run, jobs, ['failure', 'cancelled', 'timed_out'],
+      REJECTED_DELIVERY_JOBS, ['push', 'workflow_dispatch'])
+    && rejectedPreflightOutcomes(jobs);
+}
+
+function successfulJobs(jobs, expected = JOBS) {
+  return requiredJobsState(jobs, expected) === 'success';
+}
+
+module.exports = { CHECKS, GATE, JOBS, SPLIT_JOBS, WINDOWS_12_JOBS, DELIVERY_JOBS, UNIT_PR_JOBS,
+  PARALLEL_PR_JOBS, PARALLEL_MAIN_JOBS, PREDECESSOR_WORKFLOWS, candidateJobs, workflowJobs,
+  REJECTED_ADMISSION_JOBS, terminalRejectedAdmission, terminalRejectedPreflight,
+  REJECTED_DELIVERY_BLOB, REJECTED_DELIVERY_JOBS, terminalRejectedDelivery,
+  STATE_BRANCH, SHA, TICKET, MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS,
+  DISPATCH_OBSERVATION_MS, invariant, mode, controllerOperation, execution,
   validateState, ready, readinessIssue, priority, title, matchingRuns, requiredJobsState, terminalJobs, successfulJobs };

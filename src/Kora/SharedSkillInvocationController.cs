@@ -73,7 +73,7 @@ internal sealed partial class SharedSkillInvocationController(
             else { review = await workflow.ReviewAsync(source, snapshot, () => Eligible(), origin, lifetime.Token); }
             if (!eligible() || !Eligible()) { Close(); return; }
             requestOrigin = origin;
-            window = new(action => Start(action, RequestOrigin.LocalUi), toolCapable);
+            window = new(action => Start(action, RequestOrigin.LocalUi), toolCapable, snapshot.McpReference is not null);
             window.Instructions.Text = $"{snapshot.Name} | {snapshot.Version} | source {source.Id:D} | SHA256 {snapshot.RevisionDigest}\n\n"
                 + (toolCapable ? snapshot.Text : referenceConsent?.DeclarationText ?? review!.Text);
             window.SetReferenceConsent(referenceConsent is not null);
@@ -84,6 +84,12 @@ internal sealed partial class SharedSkillInvocationController(
             { if (args.Property == Avalonia.Controls.TextBox.TextProperty) { InputChanged(); } };
             window.SecondAddress.PropertyChanged += (_, args) =>
             { if (args.Property == Avalonia.Controls.TextBox.TextProperty) { InputChanged(); } };
+            window.McpArguments.PropertyChanged += (_, args) =>
+            { if (args.Property == Avalonia.Controls.TextBox.TextProperty) { InputChanged(); } };
+            window.McpQuestion.PropertyChanged += (_, args) =>
+            { if (args.Property == Avalonia.Controls.TextBox.TextProperty) { McpQuestionChanged(); } };
+            window.McpServers.SelectionChanged += (_, _) => InputChanged();
+            window.McpAccounts.SelectionChanged += (_, _) => InputChanged();
             window.Targets.SelectionChanged += (_, _) =>
             { Interlocked.Increment(ref toolInputRevision); RetireConfirmation(); RetireToolReview(); };
             showing = true;
@@ -105,11 +111,16 @@ internal sealed partial class SharedSkillInvocationController(
         finally { opening = false; }
     }
 
-    private async Task Route(SharedSkillInvocationCommand command, RequestOrigin origin, Func<bool> eligible)
+    internal async Task Route(SharedSkillInvocationCommand command, RequestOrigin origin, Func<bool> eligible)
     {
         try
         {
-            if (!eligible()) { throw new InvalidOperationException("Original command admission expired."); }
+            if (!eligible())
+            {
+                RetireMcpAnswer();
+                await JoinMcpAnswer();
+                throw new InvalidOperationException("Original command admission expired.");
+            }
             if (string.Equals(command.Action, "Review", StringComparison.Ordinal))
             {
                 var selection = sources.ResolveInvocation(command.Argument)
@@ -118,10 +129,20 @@ internal sealed partial class SharedSkillInvocationController(
                 return;
             }
             if (string.Equals(command.Action, "Close", StringComparison.Ordinal)) { await CloseAndWait(); return; }
-            if (window is null || !Eligible() || !active.IsCompleted)
+            if (command.ToolCapable && command.Action is "McpCancelAnswer" && window is not null)
+            { RetireMcpAnswer(); await JoinMcpAnswer(); return; }
+            if (!Eligible())
+            {
+                RetireMcpAnswer();
+                await JoinMcpAnswer();
+                throw new InvalidOperationException("The exact result owner admission was retired.");
+            }
+            if (window is null || !active.IsCompleted)
             { throw new InvalidOperationException("Open a current exact-source review and wait for its owned operation first."); }
             if (command.ToolCapable != toolMode)
             { throw new InvalidOperationException("Instruction-only and tool-capable invocation commands are separate."); }
+            if (toolMode && command.Action is "McpQuestion")
+            { SetMcpQuestion(command.Argument, origin); return; }
             if (string.Equals(command.Action, "Request", StringComparison.Ordinal))
             {
                 window.Request.Text = command.Argument;
@@ -133,6 +154,28 @@ internal sealed partial class SharedSkillInvocationController(
             {
                 if (command.Action is "Address") { window.Address.Text = command.Argument; }
                 else { window.SecondAddress.Text = command.Argument; }
+                requestOrigin = origin;
+                RetireConfirmation();
+                return;
+            }
+            if (toolMode && command.Action is "McpServer" or "McpAccount" or "McpArguments")
+            {
+                if (toolSnapshot?.McpReference is null)
+                { throw new InvalidOperationException("Open a skill with the exact declarative MCP reference first."); }
+                if (command.Action is "McpArguments") { window.McpArguments.Text = command.Argument; }
+                else if (command.Action is "McpServer")
+                {
+                    window.McpServers.SelectedItem = (window.McpServers.ItemsSource as IReadOnlyList<Kora.Application.Configuration.McpServerConfigurationSummary>)?
+                        .SingleOrDefault(item => string.Equals(item.Id, command.Argument, StringComparison.Ordinal))
+                        ?? throw new InvalidOperationException("Refresh MCP options and independently select the exact included server ID.");
+                }
+                else
+                {
+                    var matches = (window.McpAccounts.ItemsSource as IReadOnlyList<Kora.Core.Mcp.McpAccountChoice>)?
+                        .Where(item => string.Equals(item.DisplayName, command.Argument, StringComparison.Ordinal)).ToArray();
+                    window.McpAccounts.SelectedItem = matches is { Length: 1 } ? matches[0]
+                        : throw new InvalidOperationException("Select one current delegated account natively, or use its unique exact displayed name.");
+                }
                 requestOrigin = origin;
                 RetireConfirmation();
                 return;
@@ -171,6 +214,16 @@ internal sealed partial class SharedSkillInvocationController(
             }
             return;
         }
+        if (action is "McpCancelAnswer")
+        {
+            try { RetireMcpAnswer(); await JoinMcpAnswer(); }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                UseFailed(logger, exception.GetType().Name);
+                main.ReportHostInteractionFailure("MCP result answer cancellation is unconfirmed; no retry or resource release claimed.");
+            }
+            return;
+        }
         if (!active.IsCompleted) { return; }
         active = RunReported(action, origin, Eligible);
         await active;
@@ -186,6 +239,10 @@ internal sealed partial class SharedSkillInvocationController(
             review?.Dispose();
             referenceConsent?.Dispose();
             toolReview?.Dispose();
+            RetireMcpAnswer();
+            try { await JoinMcpAnswer(); }
+            catch (Exception joinFailure) when (joinFailure is not OutOfMemoryException)
+            { UseFailed(logger, joinFailure.GetType().Name); }
             if (window is { } opened)
             { opened.Clear(); opened.Status.Text = "Unavailable, cancelled or unconfirmed. Inspect the target conversation before any fresh review; no automatic retry."; }
         }
@@ -269,10 +326,14 @@ internal sealed partial class SharedSkillInvocationController(
 
     private void RetireConfirmation()
     {
+        RetireMcpAnswer();
         Interlocked.Increment(ref inputRevision);
         if (invocation is not null) { invocation.Dispose(); invocation = null; }
         toolInvocation?.Dispose();
         toolInvocation = null;
+        mcpInvocation?.Dispose();
+        mcpInvocation = null;
+        if (window is not null) { window.McpResult.Text = string.Empty; }
         if (window is not null) { window.Confirm.IsEnabled = false; window.Confirmation.Text = string.Empty; }
     }
 
@@ -300,6 +361,7 @@ internal sealed partial class SharedSkillInvocationController(
             return;
         }
         var opened = window;
+        RetireMcpAnswer();
         window = null;
         lifetime?.Cancel();
         review?.Dispose();
@@ -321,6 +383,7 @@ internal sealed partial class SharedSkillInvocationController(
 #pragma warning disable VSTHRD003 // Join this controller's owned submission before disposing its cancellation source.
         await active;
 #pragma warning restore VSTHRD003
+        await JoinMcpAnswer();
         lifetime?.Dispose();
         lifetime = null;
     }

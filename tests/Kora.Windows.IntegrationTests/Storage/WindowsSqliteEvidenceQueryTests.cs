@@ -22,6 +22,44 @@ namespace Kora.Windows.IntegrationTests.Storage;
 public sealed class WindowsSqliteEvidenceQueryTests
 {
     [WindowsFact]
+    public async Task Exception_signature_survives_durable_restart_and_reader_projection()
+    {
+        using var fixture = new OwnedStorageFixture();
+        using var listener = Listen();
+        var clock = new Clock();
+        var sink = new WindowsSqliteEvidenceSink(fixture, timeProvider: clock);
+        const string type = "System.IO.IOException";
+        const string stack = "Fixture.Worker::Run(System.Int32)";
+        var signature = ExceptionReportSignature.Create(type, stack);
+        using (var producer = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+            HostActivityLayer.Application, HostOperation.Request))
+        {
+            sink.WriteDiagnostic(Diagnostic(producer, 1) with { ExceptionType = type, ExceptionReport = signature });
+            sink.WriteDiagnostic(Diagnostic(producer, 2));
+        }
+        using (var connection = WindowsSqliteEvidenceSinkTests.Open(fixture))
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = "UPDATE application_log_events SET envelope=json_remove(envelope,'$.ExceptionReport') WHERE event_id=2;";
+            command.ExecuteNonQuery();
+        }
+        var restarted = new WindowsSqliteEvidenceSink(fixture, timeProvider: clock);
+        restarted.Initialize();
+        using var inspection = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+            HostActivityLayer.Desktop, HostOperation.Evidence);
+        var page = await Service(restarted, clock).QueryAsync(new() { Source = EvidenceSource.Log }, null,
+            TestContext.Current.CancellationToken);
+        page.Status.Should().Be(EvidencePageStatus.Available);
+        page.Records.Should().HaveCount(2);
+        var record = page.Records.Single(item => item.EventId == 1);
+        record.ExceptionType.Should().Be(type);
+        record.ExceptionReport.Should().Be(signature);
+        var legacy = page.Records.Single(item => item.EventId == 2);
+        legacy.ExceptionReport.Should().BeNull();
+        legacy.ExceptionType.Should().BeNull();
+    }
+
+    [WindowsFact]
     public async Task Composed_real_store_returns_cited_sources_filters_pages_and_due_records_without_writes()
     {
         using var fixture = new OwnedStorageFixture();

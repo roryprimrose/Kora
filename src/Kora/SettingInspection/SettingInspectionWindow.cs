@@ -28,16 +28,20 @@ internal sealed class SettingInspectionWindow : Window
         question.Bind(TextBox.TextProperty, new Binding(nameof(presenter.Question)) { Mode = BindingMode.TwoWay });
         if (typography is not null) { NativeReaderTypography.Bind(question, typography); }
         AutomationProperties.SetName(question, "Original question about confirmed Kora settings");
+        var discovery = new CheckBox { Content = "Use read-only registered-setting discovery tools" };
+        discovery.Bind(CheckBox.IsCheckedProperty, new Binding(nameof(presenter.DiscoverSettings)) { Mode = BindingMode.TwoWay });
+        AutomationProperties.SetName(discovery, "Use read-only registered-setting discovery tools");
         var review = new Button { Content = "Inspect confirmed settings and review" };
         review.Command = new AsyncCommand(presenter.ReviewAsync, failure);
         review.Bind(IsEnabledProperty, new Binding(nameof(presenter.CanReview)));
-        var confirm = new Button { Content = "Confirm ONE tool-free LocalOnly request" };
+        var confirm = new Button();
+        confirm.Bind(ContentControl.ContentProperty, new Binding(nameof(presenter.ConfirmLabel)));
         confirm.Command = new AsyncCommand(presenter.ConfirmAsync, failure);
         confirm.Bind(IsEnabledProperty, new Binding(nameof(presenter.CanConfirm)));
         var cancel = new Button { Content = "Cancel and clear inspection" };
         cancel.Command = new AsyncCommand(presenter.CancelAsync, failure);
         var panel = new StackPanel { Margin = new(20), Spacing = 12 };
-        foreach (var control in new Control[] { question, review,
+        foreach (var control in new Control[] { question, discovery, review,
             Text(nameof(presenter.ReviewText), "Complete confirmed source provenance question and local target"),
             confirm, cancel, Text(nameof(presenter.Status), "Setting inspection outcome"),
             Text(nameof(presenter.Answer), "Genuine local setting inspection answer") })

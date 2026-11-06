@@ -15,5 +15,8 @@ public sealed class ConversationNoticesGuideTests
             .And.Contain("cannot answer, approve, retry, dispatch, speak, open a window or take focus")
             .And.Contain("thirty minutes after the original submission").And.Contain("Unknown is never inferred success")
             .And.Contain("Refresh never renews activity or authority").And.Contain("general reminder scheduler");
+        guide.Should().Contain("**Read exact result**").And.Contain("**Back to notice**")
+            .And.Contain("**Historical**").And.Contain("explicit **Unavailable**")
+            .And.Contain("reading history does not Resume").And.Contain("freshly resolved");
     }
 }

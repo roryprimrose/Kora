@@ -10,9 +10,13 @@ namespace Kora.Application.ViewModels;
 
 public sealed partial class MainViewModel
 {
-    private sealed record FinalizedModelAnswer(string Body);
+    private sealed record FinalizedModelAnswer(string Body, HostRequest Request)
+    {
+        internal long? OfferEpoch { get; init; }
+    }
     private Guid? dismissedDetailsOffer;
     public bool IsDetailsOfferPending => Volatile.Read(ref ordinaryResponse) is { ModelAnswer: { } answer } source
+        && (detailPresentation is null || detailPresentation.IsOfferCurrent(answer.OfferEpoch))
         && source.Id != dismissedDetailsOffer && AnswerPresentation.From(answer.Body).HasDetails
         && !IsResponseInteractionPending && !IsGrantEditorVisible && !HasResponseActions;
 
@@ -76,7 +80,7 @@ public sealed partial class MainViewModel
             || initiator is not (SecurityAuditInitiator.TypedCommand or SecurityAuditInitiator.VoiceCommand)
             || origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
             || (origin == RequestOrigin.ActivatedVoice) != (initiator == SecurityAuditInitiator.VoiceCommand)
-            || origin == RequestOrigin.ActivatedVoice && !commandRouter.IsActivationPrefixed(original, AssistantName))
+            || origin == RequestOrigin.ActivatedVoice && !HasCurrentNameActivation(original))
         {
             Transcript = "Current response command was not accepted. " + CurrentResponseCommand.Syntax;
             return;

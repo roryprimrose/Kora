@@ -4,6 +4,7 @@ using Kora.Application.Configuration;
 using Kora.Application.Configuration.RegisteredSettings;
 using Kora.Core.Configuration;
 using Kora.Core.Configuration.RegisteredSettings;
+using Kora.Core.Presentation;
 using Kora.Core.Voice;
 
 namespace Kora.Application.UnitTests.Configuration;
@@ -11,10 +12,25 @@ namespace Kora.Application.UnitTests.Configuration;
 public sealed class RegisteredSettingsTests
 {
     [Fact]
+    public void CaptureTimingAppendsToShippedRegisteredSettingIdentities()
+    {
+        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().Equal(
+            "appearance.theme", "appearance.reader-text-scale", "speech.summary-words",
+            "speech.summary-sentences", "speech.playback-volume", "responses.default-mode",
+            "appearance.presence-display", "appearance.presence-timeout", "appearance.presence-size",
+            "appearance.dot-size", "appearance.dot-density", "appearance.movement-speed",
+            "appearance.speech-scaling", "appearance.speech-scale-amount", "speech.windows-rate",
+            "appearance.response-timeout", "appearance.reduced-motion", "speech.voice",
+            "voice.command-start-wait", "voice.reply-start-wait", "voice.trailing-silence",
+            "notices.quiet-hours", "responses.detail-presentation");
+        RegisteredSettingRegistry.Settings.Select(item => (int)item.Setting).Should().Equal(Enumerable.Range(0, 23));
+    }
+
+    [Fact]
     public void ClosedRegistryInspectionAndPolicyDeclareOnlyTheExistingAdmittedSubset()
     {
         RegisteredSettingRegistry.Settings.Select(item => item.Setting).Should().Equal(Enum.GetValues<RegisteredSetting>());
-        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().OnlyHaveUniqueItems().And.HaveCount(14);
+        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().OnlyHaveUniqueItems().And.HaveCount(23);
         foreach (var descriptor in RegisteredSettingRegistry.Settings)
         {
             RegisteredSettingRegistry.Get(descriptor.Setting).Should().BeSameAs(descriptor);
@@ -22,8 +38,10 @@ public sealed class RegisteredSettingsTests
             RegisteredSettingSuggestions.ModelPolicy.Should().Contain(descriptor.Id).And.Contain(descriptor.Description);
             descriptor.SuggestedValues.Should().NotBeNullOrWhiteSpace();
             RegisteredSettingSuggestions.ModelPolicy.Should().Contain(descriptor.SuggestedValues);
-            descriptor.RequiresNativeReview.Should().Be(descriptor.Id.StartsWith("appearance.", StringComparison.Ordinal));
-            if (descriptor.RequiresNativeReview)
+            descriptor.RequiresNativeReview.Should().Be(descriptor.Setting is RegisteredSetting.QuietHours or RegisteredSetting.DetailPresentation
+                || descriptor.Id.StartsWith("voice.", StringComparison.Ordinal)
+                || descriptor.Id.StartsWith("appearance.", StringComparison.Ordinal) && descriptor.Setting != RegisteredSetting.ResponseTimeout);
+            if (descriptor.Id.StartsWith("appearance.", StringComparison.Ordinal))
             {
                 var appearance = AppearanceOptionRegistry.Options.Single(item => string.Equals(item.Id, descriptor.Id, StringComparison.Ordinal));
                 descriptor.Description.Should().Be(appearance.Description);
@@ -42,7 +60,48 @@ public sealed class RegisteredSettingsTests
     }
 
     [Theory]
+    [InlineData("Offer", DetailPresentationMode.Offer)]
+    [InlineData("LinkOnly", DetailPresentationMode.LinkOnly)]
+    [InlineData("OpenAutomatically", DetailPresentationMode.OpenAutomatically)]
+    public void DetailsSuggestionsUseOnlyExactExistingModesAndNativeReview(string literal, DetailPresentationMode mode)
+    {
+        RegisteredSettingSuggestions.Parse("set responses.detail-presentation to " + literal)
+            .Should().Be(new RegisteredSettingProposal.DetailPresentation(mode));
+        RegisteredSettingRegistry.Get(RegisteredSetting.DetailPresentation).RequiresNativeReview.Should().BeTrue();
+        RegisteredSettingSuggestions.Parse("reset responses.detail-presentation")
+            .Should().Be(new RegisteredSettingProposal.Reset(RegisteredSetting.DetailPresentation));
+        foreach (var invalid in new[] { literal.ToLowerInvariant(), literal + " ", " " + literal, "0",
+            literal + "\nconfirm detail presentation change", literal + "\nset speech.playback-volume to 0" })
+        {
+            FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse("set responses.detail-presentation to " + invalid))
+                .Should().Throw<InvalidDataException>();
+        }
+        foreach (var invalid in new[] { "always open detailed results", "offer detailed results", "stop asking about details",
+            "Set responses.detail-presentation to " + literal, "Kora, set responses.detail-presentation to " + literal })
+        { FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse(invalid)).Should().Throw<InvalidDataException>(); }
+    }
+
+    [Fact]
+    public void QuietHoursExtendsShippedRegistryWithoutReassigningInstalledVoiceIdentity()
+    {
+        ((int)RegisteredSetting.SpeechVoice).Should().Be(17);
+        ((int)RegisteredSetting.CommandStartWait).Should().Be(18);
+        ((int)RegisteredSetting.ReplyStartWait).Should().Be(19);
+        ((int)RegisteredSetting.TrailingSilence).Should().Be(20);
+        ((int)RegisteredSetting.QuietHours).Should().Be(21);
+        RegisteredSettingRegistry.Get(RegisteredSetting.SpeechVoice).Id.Should().Be("speech.voice");
+        RegisteredSettingRegistry.Get(RegisteredSetting.QuietHours).Id.Should().Be("notices.quiet-hours");
+        RegisteredSettingSuggestions.Parse("set speech.voice to windows-sapi / installed")
+            .Should().BeOfType<RegisteredSettingProposal.InstalledVoice>();
+        RegisteredSettingSuggestions.Parse("set notices.quiet-hours to weekly Mon,Fri 22:00 06:00 UTC")
+            .Should().BeOfType<RegisteredSettingProposal.QuietHours>().Which.Value.ToString()
+            .Should().Be("weekly Mon,Fri 22:00 06:00 UTC");
+    }
+
+    [Theory]
     [InlineData("set appearance.theme to system", RegisteredSetting.Theme)]
+    [InlineData("set appearance.reduced-motion to true", RegisteredSetting.ReducedMotion)]
+    [InlineData("set appearance.reduced-motion to false", RegisteredSetting.ReducedMotion)]
     [InlineData("set appearance.theme to light", RegisteredSetting.Theme)]
     [InlineData("set appearance.theme to dark", RegisteredSetting.Theme)]
     [InlineData("set appearance.reader-text-scale to 75", RegisteredSetting.ReaderTextScale)]
@@ -51,6 +110,10 @@ public sealed class RegisteredSettingsTests
     [InlineData("set appearance.presence-display to true", RegisteredSetting.PresenceDisplay)]
     [InlineData("set appearance.presence-timeout to 1", RegisteredSetting.PresenceTimeout)]
     [InlineData("set appearance.presence-timeout to 60", RegisteredSetting.PresenceTimeout)]
+    [InlineData("set appearance.response-timeout to 1", RegisteredSetting.ResponseTimeout)]
+    [InlineData("set appearance.response-timeout to 5", RegisteredSetting.ResponseTimeout)]
+    [InlineData("set appearance.response-timeout to 10", RegisteredSetting.ResponseTimeout)]
+    [InlineData("set appearance.response-timeout to 60", RegisteredSetting.ResponseTimeout)]
     [InlineData("set appearance.presence-size to 240", RegisteredSetting.PresenceSize)]
     [InlineData("set appearance.presence-size to 600", RegisteredSetting.PresenceSize)]
     [InlineData("set appearance.dot-size to 50", RegisteredSetting.DotSize)]
@@ -72,6 +135,20 @@ public sealed class RegisteredSettingsTests
     [InlineData("set responses.default-mode to Hybrid", RegisteredSetting.ResponseMode)]
     [InlineData("set responses.default-mode to VoiceOnly", RegisteredSetting.ResponseMode)]
     [InlineData("set responses.default-mode to VisualOnly", RegisteredSetting.ResponseMode)]
+    [InlineData("set speech.windows-rate to -10", RegisteredSetting.WindowsSpeechRate)]
+    [InlineData("set speech.windows-rate to -1", RegisteredSetting.WindowsSpeechRate)]
+    [InlineData("set speech.windows-rate to 0", RegisteredSetting.WindowsSpeechRate)]
+    [InlineData("set speech.windows-rate to 10", RegisteredSetting.WindowsSpeechRate)]
+    [InlineData("set notices.quiet-hours to Off", RegisteredSetting.QuietHours)]
+    [InlineData("set notices.quiet-hours to weekly Mon,Fri 22:00 06:00 UTC", RegisteredSetting.QuietHours)]
+    [InlineData("set notices.quiet-hours to weekly Mon,Tue,Wed,Thu,Fri,Sat,Sun 00:00 23:59 AUS Eastern Standard Time", RegisteredSetting.QuietHours)]
+    [InlineData("set voice.command-start-wait to 2", RegisteredSetting.CommandStartWait)]
+    [InlineData("set voice.command-start-wait to 10", RegisteredSetting.CommandStartWait)]
+    [InlineData("set voice.reply-start-wait to 5", RegisteredSetting.ReplyStartWait)]
+    [InlineData("set voice.reply-start-wait to 60", RegisteredSetting.ReplyStartWait)]
+    [InlineData("set voice.trailing-silence to 0.5", RegisteredSetting.TrailingSilence)]
+    [InlineData("set voice.trailing-silence to 3", RegisteredSetting.TrailingSilence)]
+    [InlineData("set voice.trailing-silence to 0.5000001", RegisteredSetting.TrailingSilence)]
     public void SharedParserReturnsTypedInertProposalAndExactDescriptor(string text, RegisteredSetting setting)
     {
         var proposal = RegisteredSettingSuggestions.Parse(text);
@@ -79,6 +156,11 @@ public sealed class RegisteredSettingsTests
         proposal.Descriptor.Should().BeSameAs(RegisteredSettingRegistry.Get(setting));
         switch (proposal)
         {
+            case RegisteredSettingProposal.CaptureTiming timing:
+                VoiceCaptureTiming.Default.With(timing.Descriptor.Id, VoiceCaptureTiming.Format(timing.Seconds)).Validate();
+                timing.Descriptor.RequiresNativeReview.Should().BeTrue();
+                timing.Descriptor.Units.Should().Be("seconds");
+                break;
             case RegisteredSettingProposal.Appearance appearance:
                 AppearanceOptionRegistry.Validate(appearance.Option, appearance.Value);
                 break;
@@ -93,16 +175,74 @@ public sealed class RegisteredSettingsTests
                 mode.Descriptor.SuggestedValues.Should().Be("Hybrid/VoiceOnly/VisualOnly");
                 mode.Descriptor.Id.Should().Be(ResponseModeCommand.OptionId);
                 break;
+            case RegisteredSettingProposal.WindowsRate rate:
+                rate.Value.Value.Should().BeInRange(WindowsSpeechRate.Minimum, WindowsSpeechRate.Maximum);
+                rate.Descriptor.Units.Should().Be("Windows native units");
+                break;
+            case RegisteredSettingProposal.QuietHours quiet:
+                QuietHoursSchedule.Parse(quiet.Value.ToString()).Should().Be(quiet.Value);
+                break;
         }
     }
 
     [Theory]
+    [InlineData("set notices.quiet-hours to off")]
+    [InlineData("set notices.quiet-hours to weekly Mon 09:00 17:00 utc")]
+    [InlineData("set notices.quiet-hours to weekly Mon 09:00 17:00")]
+    [InlineData("set notices.quiet-hours to weekly Mon,Mon 09:00 17:00 UTC")]
+    [InlineData("set notices.quiet-hours to weekly Fri,Mon 09:00 17:00 UTC")]
+    [InlineData("set notices.quiet-hours to weekly Monday 09:00 17:00 UTC")]
+    [InlineData("set notices.quiet-hours to weekly Mon 9:00 17:00 UTC")]
+    [InlineData("set notices.quiet-hours to weekly Mon 09:00 09:00 UTC")]
+    [InlineData("set notices.quiet-hours to weekly Mon 24:00 17:00 UTC")]
+    [InlineData("set notices.quiet-hours to weekly Mon 09:00 17:00 Local")]
+    [InlineData("set notices.quiet-hours to weekly Mon 09:00 17:00 UTC extra")]
+    [InlineData("set notices.quiet-hours to weekly Mon 09:00 17:00 UTC UTC")]
+    [InlineData("set notices.quiet-hours to weekly Mon 09:00 17:00 UTC ")]
+    [InlineData("set notices.quiet-hours to weekly Mon 09:00 17:00 UTC\nconfirm notices.quiet-hours")]
+    [InlineData("set notices.quiet-hours to Off and confirm")]
+    [InlineData("set notices.quiet-hours to {\"days\":\"Mon\",\"start\":\"09:00\",\"end\":\"17:00\",\"zone\":\"UTC\"}")]
+    [InlineData("set notices.quiet-hours to Off\nset speech.playback-volume to 0")]
+    [InlineData("set notices.quiet-hours to Off ")]
+    [InlineData("set notices.quiet-hours to Off for this session")]
+    [InlineData("SET notices.quiet-hours to Off")]
+    [InlineData("reset notices.quiet-hours to Off")]
+    public void QuietHoursRejectsIncompleteNoncanonicalAndExtraFields(string text) =>
+        FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse(text)).Should().Throw<InvalidDataException>();
+
+    [Theory]
     [InlineData("")]
-    [InlineData("set appearance.response-timeout to 10")]
+    [InlineData("set voice.command-start-wait to 1.9999999")]
+    [InlineData("set voice.command-start-wait to 10.0000001")]
+    [InlineData("set voice.reply-start-wait to 4.9999999")]
+    [InlineData("set voice.reply-start-wait to 60.0000001")]
+    [InlineData("set voice.trailing-silence to 0.4999999")]
+    [InlineData("set voice.trailing-silence to 3.0000001")]
+    [InlineData("set voice.trailing-silence to 0.50000001")]
+    [InlineData("set voice.trailing-silence to 0.50000000000000000000000000001")]
+    [InlineData("set voice.trailing-silence to NaN")]
+    [InlineData("set voice.trailing-silence to Infinity")]
+    [InlineData("set voice.trailing-silence to 1.0")]
+    [InlineData("set voice.trailing-silence to .5")]
+    [InlineData("set voice.trailing-silence to 01")]
+    [InlineData("set voice.trailing-silence to 1e0")]
+    [InlineData("set voice.trailing-silence to +1")]
+    [InlineData("set voice.trailing-silence to 1 s")]
+    [InlineData(" set voice.trailing-silence to 1")]
+    [InlineData("set voice.trailing-silence to 1\nreset voice.reply-start-wait")]
+    [InlineData("reset voice.trailing-silence to 1")]
+    [InlineData("reset voice.timing")]
+    [InlineData("set appearance.reduced-motion to system")]
+    [InlineData("set appearance.reduced-motion to 1")]
+    [InlineData("set appearance reduced motion to true")]
+    [InlineData("set appearance.reduced-motion to True")]
+    [InlineData("use reduced motion")]
+    [InlineData("set appearance.response-timeout to 0")]
+    [InlineData("set appearance.reduced-motion to true\nset appearance.response-timeout to 10")]
     [InlineData("set appearance.native-presence-renderer to true")]
     [InlineData("set appearance.theme to ultraviolet")]
     [InlineData("set appearance.reader-text-scale to 999")]
-    [InlineData("reset appearance.theme")]
+    [InlineData("reset appearance.theme to system")]
     [InlineData("set speech.provider to windows-sapi")]
     [InlineData("get speech.summary-words")]
     [InlineData("set speech.summary-words to 0")]
@@ -129,7 +269,22 @@ public sealed class RegisteredSettingsTests
     [InlineData("set responses.default-mode to VoiceOnly\nconfirm")]
     [InlineData("set responses.session-mode to VoiceOnly")]
     [InlineData("set responses.default-mode to VoiceOnly\nset speech.playback-volume to 30")]
-    [InlineData("reset responses.default-mode")]
+    [InlineData("reset responses.default-mode to Hybrid")]
+    [InlineData("set speech.windows-rate to -11")]
+    [InlineData("set speech.windows-rate to 11")]
+    [InlineData("set speech.windows-rate to +1")]
+    [InlineData("set speech.windows-rate to -0")]
+    [InlineData("set speech.windows-rate to -01")]
+    [InlineData("set speech.windows-rate to 01")]
+    [InlineData("set speech.windows-rate to 1.0")]
+    [InlineData("set speech.windows-rate to 1 percent")]
+    [InlineData(" set speech.windows-rate to -1")]
+    [InlineData("SET speech.windows-rate to -1")]
+    [InlineData("set speech.windows-rate to -1 ")]
+    [InlineData("set speech.windows-rate to -1\nconfirm rate change")]
+    [InlineData("set speech.windows-rate to -1\nset speech.playback-volume to 30")]
+    [InlineData("reset speech.windows-rate to 0")]
+    [InlineData("speak slower")]
     public void SharedParserRejectsUnregisteredMixedOrNoncanonicalSuggestionData(string text)
     {
         FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse(text)).Should().Throw<Exception>();
@@ -143,6 +298,31 @@ public sealed class RegisteredSettingsTests
         FluentActions.Invoking(() => RegisteredSettingRegistry.Get((RegisteredSetting)999)).Should().Throw<InvalidOperationException>();
     }
 
+    [Fact]
+    public void ResetAcceptsExactlyOneCanonicalRegisteredIdWithoutModelSuppliedDefault()
+    {
+        foreach (var descriptor in RegisteredSettingRegistry.Settings)
+        {
+            var text = $"reset {descriptor.Id}";
+            if (descriptor.Setting == RegisteredSetting.SpeechVoice)
+            {
+                FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse(text)).Should().Throw<InvalidDataException>();
+                continue;
+            }
+            var proposal = RegisteredSettingSuggestions.Parse(text).Should().BeOfType<RegisteredSettingProposal.Reset>().Subject;
+            proposal.Descriptor.Should().BeSameAs(descriptor);
+            foreach (var invalid in new[] { text + " to default", text + " to 0", text + " ", " " + text,
+                text.ToUpperInvariant(), text + "\nconfirm", text + "\n" + text, "Kora, " + text, "I suggest " + text })
+            {
+                FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse(invalid)).Should().Throw<InvalidDataException>();
+            }
+        }
+        foreach (var invalid in new[] { "reset speech.provider", "reset all",
+            "reset appearance", "reset security.retention", "reset unknown", "undo appearance.theme" })
+        { FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse(invalid)).Should().Throw<InvalidDataException>(); }
+        RegisteredSettingSuggestions.ModelPolicy.Should().Contain("reset <exact ID>").And.Contain("never supply a default value");
+    }
+
     [Theory]
     [InlineData("set appearance.presence-display to 0")]
     [InlineData("set appearance.presence-display to on")]
@@ -151,6 +331,17 @@ public sealed class RegisteredSettingsTests
     [InlineData("set appearance.speech-scaling to system")]
     [InlineData("set appearance.presence-timeout to 0")]
     [InlineData("set appearance.presence-timeout to 61")]
+    [InlineData("set appearance.response-timeout to 61")]
+    [InlineData("set appearance.response-timeout to -1")]
+    [InlineData("set appearance.response-timeout to +5")]
+    [InlineData("set appearance.response-timeout to 05")]
+    [InlineData("set appearance.response-timeout to 5.0")]
+    [InlineData("set appearance.response-timeout to 5 seconds")]
+    [InlineData("set appearance.response-timeout to false")]
+    [InlineData("set appearance.response-timeout to 5 ")]
+    [InlineData(" SET appearance.response-timeout to 5")]
+    [InlineData("reset appearance.response-timeout to 5")]
+    [InlineData("set appearance.response-timeout to 5\nconfirm response timeout change")]
     [InlineData("set appearance.presence-size to 239")]
     [InlineData("set appearance.presence-size to 601")]
     [InlineData("set appearance.dot-size to 49")]
@@ -196,5 +387,94 @@ public sealed class RegisteredSettingsTests
         RegisteredSettingSuggestions.ModelPolicy.Should().Contain("including VoiceOnly").And.Contain("future eligible output only");
         RegisteredSettingRegistry.Get(RegisteredSetting.ResponseMode).SuggestedValues.Should()
             .Be(string.Join("/", Enum.GetValues<ResponseOutputMode>()));
+    }
+
+    [Theory]
+    [InlineData("review rate suggestion", RegisteredSettingSuggestionOperation.Review)]
+    [InlineData("Nova, confirm rate change", RegisteredSettingSuggestionOperation.Confirm)]
+    [InlineData("Nova cancel rate review", RegisteredSettingSuggestionOperation.Cancel)]
+    [InlineData("Nova\t REVIEW RATE SUGGESTION", RegisteredSettingSuggestionOperation.Review)]
+    [InlineData("Novax review rate suggestion", null)]
+    [InlineData("review rate suggestion now", null)]
+    [InlineData("yes", null)]
+    [InlineData("Nova", null)]
+    public void WindowsRateReviewCommandsAreExactAndCurrentNameAware(string input, RegisteredSettingSuggestionOperation? expected) =>
+        WindowsSpeechRateSuggestionCommand.Parse(input, "Nova").Should().Be(expected);
+
+    [Theory]
+    [InlineData("review response timeout suggestion", RegisteredSettingSuggestionOperation.Review)]
+    [InlineData("Nova, confirm response timeout change", RegisteredSettingSuggestionOperation.Confirm)]
+    [InlineData("Nova cancel response timeout review", RegisteredSettingSuggestionOperation.Cancel)]
+    [InlineData("Nova\t REVIEW RESPONSE TIMEOUT SUGGESTION", RegisteredSettingSuggestionOperation.Review)]
+    [InlineData("Novax review response timeout suggestion", null)]
+    [InlineData("review response timeout suggestion now", null)]
+    [InlineData("yes", null)]
+    [InlineData("Nova", null)]
+    public void ResponseTimeoutReviewCommandsAreExactAndCurrentNameAware(string input, RegisteredSettingSuggestionOperation? expected) =>
+        RegisteredSettingSuggestionCommand.ParseResponseTimeout(input, "Nova").Should().Be(expected);
+
+    [Theory]
+    [InlineData(SpeechProviderIds.Windows)]
+    [InlineData(SpeechProviderIds.Kokoro)]
+    public void InstalledVoiceParserAcceptsFullDomainIdWithoutRelaxingOtherFamilyBounds(string provider)
+    {
+        var id = new string('v', SpeechSelection.MaximumVoiceIdLength);
+        var proposal = RegisteredSettingSuggestions.Parse($"set speech.voice to {provider} / {id}")
+            .Should().BeOfType<RegisteredSettingProposal.InstalledVoice>().Subject;
+        proposal.Value.Should().Be(new SpeechSelection(provider, id));
+        proposal.Descriptor.Setting.Should().Be(RegisteredSetting.SpeechVoice);
+        RegisteredSettingSuggestions.ModelPolicy.Should().Contain("supplied by the user").And.Contain("no invented IDs, catalogue discovery");
+        FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse($"set speech.voice to {provider} / {id}x"))
+            .Should().Throw<Exception>();
+        FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse("set appearance.theme to dark" + new string(' ', 256)))
+            .Should().Throw<InvalidDataException>();
+    }
+
+    [Theory]
+    [InlineData("set speech.voice to default")]
+    [InlineData("set speech.voice to kokoro / ")]
+    [InlineData("set speech.voice to kokoro /  second")]
+    [InlineData("set speech.voice to kokoro / second ")]
+    [InlineData("set speech.voice to Kokoro / second")]
+    [InlineData("set speech.voice to unknown / second")]
+    [InlineData("set speech.voice to kokoro/second")]
+    [InlineData("set speech.voice to kokoro / second\nset speech.voice to windows-sapi / default")]
+    [InlineData("set speech.voice to kokoro / sec\tond")]
+    [InlineData("set speech.voice to kokoro / sec\0ond")]
+    [InlineData(" SET speech.voice to kokoro / second")]
+    [InlineData("I suggest set speech.voice to kokoro / second")]
+    [InlineData("reset speech.voice")]
+    public void InstalledVoiceParserRejectsUnqualifiedNoncanonicalAndMixedAnswers(string text) =>
+        FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse(text)).Should().Throw<Exception>();
+
+    [Theory]
+    [InlineData("review installed voice suggestion", RegisteredSettingSuggestionOperation.Review)]
+    [InlineData("Nova, confirm installed voice change", RegisteredSettingSuggestionOperation.Confirm)]
+    [InlineData("Nova cancel installed voice review", RegisteredSettingSuggestionOperation.Cancel)]
+    [InlineData("Nova\t REVIEW INSTALLED VOICE SUGGESTION", RegisteredSettingSuggestionOperation.Review)]
+    [InlineData("Novax review installed voice suggestion", null)]
+    [InlineData("review installed voice suggestion now", null)]
+    [InlineData("yes", null)]
+    [InlineData("Nova", null)]
+    public void InstalledVoiceCommandsRequireExactDistinctCurrentNameAwareInput(string input, RegisteredSettingSuggestionOperation? expected) =>
+        InstalledSpeechVoiceSuggestionCommand.Parse(input, "Nova").Should().Be(expected);
+
+    [Fact]
+    public void InstalledVoiceAndResponseTimeoutSuggestionsKeepDistinctReviewFamilies()
+    {
+        var voice = RegisteredSettingSuggestions.Parse("set speech.voice to windows-sapi / installed")
+            .Should().BeOfType<RegisteredSettingProposal.InstalledVoice>().Subject;
+        voice.Value.Should().Be(new SpeechSelection(SpeechProviderIds.Windows, "installed"));
+        voice.Descriptor.Setting.Should().Be(RegisteredSetting.SpeechVoice);
+        voice.Descriptor.RequiresNativeReview.Should().BeFalse();
+
+        var timeout = RegisteredSettingSuggestions.Parse("set appearance.response-timeout to 15")
+            .Should().BeOfType<RegisteredSettingProposal.Appearance>().Subject;
+        timeout.Option.Should().Be(AppearanceOption.ResponseTimeout);
+        timeout.Descriptor.Setting.Should().Be(RegisteredSetting.ResponseTimeout);
+        timeout.Descriptor.RequiresNativeReview.Should().BeFalse();
+
+        InstalledSpeechVoiceSuggestionCommand.Parse("review response timeout suggestion", "Nova").Should().BeNull();
+        RegisteredSettingSuggestionCommand.ParseResponseTimeout("review installed voice suggestion", "Nova").Should().BeNull();
     }
 }

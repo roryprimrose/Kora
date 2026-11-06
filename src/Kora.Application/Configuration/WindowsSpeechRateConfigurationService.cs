@@ -74,7 +74,8 @@ public sealed partial class WindowsSpeechRateConfigurationService(
         }
     }
 
-    public async Task RefreshAsync(RequestOrigin originalOrigin, Func<bool> remainsEligible, CancellationToken token)
+    public async Task RefreshAsync(RequestOrigin originalOrigin, Func<bool> remainsEligible, CancellationToken token,
+        long? expectedRevision = null)
     {
         try
         {
@@ -83,6 +84,8 @@ public sealed partial class WindowsSpeechRateConfigurationService(
                 lock (gate)
                 {
                     if (applying || publishing) { throw new InvalidOperationException("Rate is committing or notifying."); }
+                    if (expectedRevision is { } revision && state.Revision != revision)
+                    { throw new InvalidOperationException("The reviewed rate revision changed before fresh admission."); }
                     speech.Reload();
                     var saved = preferences.Load();
                     if (input is not { } current || current.Session != authority || current.Origin != request.Origin || !current.Eligible())
@@ -91,12 +94,13 @@ public sealed partial class WindowsSpeechRateConfigurationService(
                         state = state with { Revision = checked(state.Revision + 1) };
                     }
                     input = (authority, request.Origin, remainsEligible);
-                    return saved;
+                    return (Saved: saved, Revision: state.Revision);
                 }
             }, token).ConfigureAwait(false);
             lock (gate)
             {
-                if (!remainsEligible() || preferences.Load() != observed) { throw new InvalidOperationException("Rate discovery admission or saved state changed before its receipt."); }
+                if (!remainsEligible() || state.Revision != observed.Revision || preferences.Load() != observed.Saved)
+                { throw new InvalidOperationException("Rate discovery admission or saved state changed before its receipt."); }
                 Observe();
             }
         }

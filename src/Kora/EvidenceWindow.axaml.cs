@@ -79,6 +79,21 @@ internal sealed partial class EvidenceWindow : Window
         Next.Click += async (_, _) => await model.NextAsync();
         ClearAdvanced.Click += (_, _) => model.ClearAdvancedFilters();
         Trace.Click += async (_, _) => await model.ReadTraceAsync();
+        ExceptionReportWindow? reportWindow = null;
+        ReportException.Click += (_, _) =>
+        {
+            try
+            {
+                reportWindow?.Close();
+                reportWindow = new ExceptionReportWindow(model.PrepareExceptionReport(), typographyHost);
+                reportWindow.Show(this);
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                typographyHost?.ReportHostInteractionFailure("Problem report unavailable: select an available retained exception stack and review again. Nothing was sent.");
+            }
+        };
+        Closed += (_, _) => reportWindow?.Close();
         ReadRequest.Click += async (_, _) => await model.ReadRequestAsync();
         ReadActivity.Click += async (_, _) => await model.ReadActivityAsync();
         OpenSegment.Click += async (_, _) =>

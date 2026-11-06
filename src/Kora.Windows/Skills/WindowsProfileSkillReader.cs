@@ -175,6 +175,7 @@ public sealed partial class WindowsProfileSkillReader : ISharedSkillSourceReader
     {
         private readonly List<SafeFileHandle> handles = [];
         internal SafeFileHandle Last => handles[^1];
+        internal SafeFileHandle Previous => handles[^2];
         internal void Add(SafeFileHandle handle) => handles.Add(handle);
         public void Dispose() { foreach (var handle in handles) { handle.Dispose(); } }
     }

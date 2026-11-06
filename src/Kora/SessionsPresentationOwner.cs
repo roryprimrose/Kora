@@ -38,6 +38,12 @@ internal sealed partial class SessionsPresentationOwner
                 await panel.Operation;
 #pragma warning restore VSTHRD003
             }
+            foreach (var panel in surfaces.SelectMany(surface => surface.GetLogicalDescendants()).OfType<ComposerRequestReviewPanel>().ToArray())
+            {
+#pragma warning disable VSTHRD003 // Join this owner's exact reviewed composer operation before voluntary shutdown.
+                await panel.Operation;
+#pragma warning restore VSTHRD003
+            }
             if (!model.CanRead) { throw new InvalidOperationException("Finish the current native operation before voluntary shutdown."); }
             return await model.ConfirmUnsentDiscardAsync(all: true);
         }
@@ -51,7 +57,18 @@ internal sealed partial class SessionsPresentationOwner
     internal SessionsPresentationOwner(SessionsViewModel model, MainViewModel? requestCommands = null)
     {
         this.model = model;
+        model.CaptureQuietHoursNativeLifetime = CaptureForegroundSourceEligibility;
+        model.CaptureDetailPresentationNativeLifetime = CaptureForegroundSourceEligibility;
         this.requestCommands = requestCommands;
+        if (requestCommands is not null)
+        {
+            model.CaptureFreshOrdinaryInput = () =>
+            {
+                var input = requestCommands.CaptureFreshOrdinaryRequestEligibility();
+                var native = CaptureForegroundSourceEligibility();
+                return () => input() && native();
+            };
+        }
         model.PropertyChanged += OnForegroundModelChanged;
         if (requestCommands is not null) { requestCommands.ForegroundRequestSubmitted += OnForegroundRequestSubmitted; }
 #pragma warning disable MA0147 // Avalonia routed-event boundary; the model operation handles and reports failures.
@@ -77,6 +94,7 @@ internal sealed partial class SessionsPresentationOwner
         surface.AddHandler(Button.ClickEvent, OnSpeechSummarySuggestion);
         surface.AddHandler(Button.ClickEvent, OnPlaybackVolumeSuggestion);
         surface.AddHandler(Button.ClickEvent, OnRegisteredSettingSuggestion);
+        surface.AddHandler(Avalonia.Input.InputElement.KeyDownEvent, OnRegisteredSettingReviewKeyDown);
         surface.AddHandler(Button.ClickEvent, OnModelMemoryProposal);
         refresh.Start();
     }
@@ -106,6 +124,34 @@ internal sealed partial class SessionsPresentationOwner
         Justification = "Avalonia routed Click requires void; failures route to the session model's logged recovery status.")]
     private async void OpenConversationDetail(object? sender, RoutedEventArgs args)
     {
+        if (!revoked && !args.Handled && sender is Window auditPresenter
+            && args.Source is Button { Name: "ReadRequestAudit", DataContext: ConversationMessage auditMessage })
+        {
+            args.Handled = true;
+            try { await (DetailOperation = model.ReadRequestEvidenceAsync(auditMessage, replyPresenters[auditPresenter].Capture())); }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            { model.ReportDetailPresentationFailure(exception); }
+            return;
+        }
+        if (!revoked && !args.Handled && sender is Window exportPresenter
+            && args.Source is Button { Name: "ExportExactAssistantAnswer", DataContext: ConversationMessage exportSource })
+        {
+            args.Handled = true;
+            try { await (DetailOperation = model.ExportExactAnswerAsync(exportSource, replyPresenters[exportPresenter].Capture())); }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            { model.ReportDetailPresentationFailure(exception); }
+            return;
+        }
+        if (!revoked && !args.Handled
+            && args.Source is Button { Name: "OpenSubmittedAnswerContext", DataContext: ConversationMessage answer }
+            && model.CanOpenConversationDetails)
+        {
+            args.Handled = true;
+            try { await (DetailOperation = model.OpenConversationDetailAsync(answer, submittedContext: true)); }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            { model.ReportDetailPresentationFailure(exception); }
+            return;
+        }
         if (!revoked && !args.Handled
             && args.Source is Button { Name: "OpenObservedResult", DataContext: ObservationDetailChoice choice }
             && model.CanOpenConversationDetails)
@@ -176,6 +222,7 @@ internal sealed partial class SessionsPresentationOwner
         surface.RemoveHandler(Button.ClickEvent, OnSpeechSummarySuggestion);
         surface.RemoveHandler(Button.ClickEvent, OnPlaybackVolumeSuggestion);
         surface.RemoveHandler(Button.ClickEvent, OnRegisteredSettingSuggestion);
+        surface.RemoveHandler(Avalonia.Input.InputElement.KeyDownEvent, OnRegisteredSettingReviewKeyDown);
         surface.RemoveHandler(Button.ClickEvent, OnModelMemoryProposal);
         ForgetForegroundSurface(surface);
         surfaces.Remove(surface);
@@ -189,6 +236,7 @@ internal sealed partial class SessionsPresentationOwner
 
     private void Release()
     {
+        registeredSettingReviewSource = null;
         refresh.Stop();
         refresh.Tick -= Refresh;
         model.DecideComposerDraft = null;

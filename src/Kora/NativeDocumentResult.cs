@@ -11,4 +11,5 @@ internal sealed record NativeDocumentResult(
     int BlockCount = 0,
     int NodeCount = 0,
     int Depth = 0,
-    StaticHtmlDocument? StaticHtml = null);
+    StaticHtmlDocument? StaticHtml = null,
+    string? ClipboardHtml = null);

@@ -246,22 +246,47 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
 
     private sealed class Stage : IHandsFreeAudioStage
     {
+        public bool SupportsNative { get; set; }
+        public Exception? PrepareFailure { get; set; }
+        public ProfileAssets Assets { get; } = new();
+        public bool SupportsProfile(string assistantName, SpeechInputSelection selection) =>
+            SupportsNative && string.Equals(assistantName, "Nova", StringComparison.Ordinal)
+            && selection == SpeechInputProfileCatalogue.NativeWakeSelection;
+        public Task<IAsyncDisposable> PrepareProfileAsync(string assistantName, SpeechInputSelection selection, CancellationToken cancellationToken)
+        {
+            if (PrepareFailure is { } failure) { throw failure; }
+            return Task.FromResult<IAsyncDisposable>(Assets);
+        }
         private readonly Channel<AudioSession> openings = Channel.CreateUnbounded<AudioSession>();
         public bool IsAvailable { get; init; } = true;
         public int Opens { get; private set; }
         public Exception? OpenFailure { get; init; }
         public bool HoldOpen { get; init; }
+        public Action<AudioSession>? OnOpened { get; init; }
         public TaskCompletionSource ReleaseOpen { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public async Task<IHandsFreeAudioSession> OpenAsync(HandsFreeAudioBinding binding, CancellationToken cancellationToken)
         {
             Opens++;
             if (OpenFailure is not null) { throw OpenFailure; }
             var session = new AudioSession(binding);
+            OnOpened?.Invoke(session);
             openings.Writer.TryWrite(session).Should().BeTrue();
             if (HoldOpen) { await ReleaseOpen.Task.WaitAsync(TestContext.Current.CancellationToken); }
             return session;
         }
         public async Task<AudioSession> NextAsync() => await openings.Reader.ReadAsync(TestContext.Current.CancellationToken);
+    }
+
+    private sealed class ProfileAssets : IAsyncDisposable
+    {
+        public bool FailRelease { get; set; }
+        public int Releases { get; private set; }
+        public ValueTask DisposeAsync()
+        {
+            Releases++;
+            if (FailRelease) { throw new InvalidOperationException("Test profile release is unconfirmed."); }
+            return ValueTask.CompletedTask;
+        }
     }
 
     private sealed class AudioSession(HandsFreeAudioBinding binding) : IHandsFreeAudioSession
@@ -275,6 +300,7 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
         public bool HoldClose { get; set; }
         public bool ConfirmQuiescence { get; set; } = true;
         public bool FailClose { get; set; }
+        public Action? OnClosed { get; set; }
         public bool IsQuiescent { get; private set; }
         public bool Invalidated { get; private set; }
         public int CaptureCalls { get; private set; }
@@ -292,6 +318,7 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
             if (HoldClose) { await ReleaseClose.Task.WaitAsync(TestContext.Current.CancellationToken); }
             if (FailClose) { throw new InvalidOperationException("Capture release failed."); }
             IsQuiescent = ConfirmQuiescence;
+            OnClosed?.Invoke();
         }
     }
 

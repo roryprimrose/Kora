@@ -158,8 +158,8 @@ internal sealed class ApplicationLifecycleController : IDisposable
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         if (activeReview is not null) { throw new InvalidOperationException("Another submitted-work review is active."); }
-        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
-        deadline.CancelAfter(TimeSpan.FromMinutes(1));
+        using var budget = new CancellationTokenSource(TimeSpan.FromMinutes(1), time);
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token, budget.Token);
         activeReview = deadline;
         ApplicationLifecycleReview? review = null;
         SessionQueueLifecycleReview? finite = null;

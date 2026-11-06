@@ -237,6 +237,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
             "SELECT * FROM session_file WHERE session_id=$id ORDER BY session_id;",
             "SELECT * FROM session_provider_profile WHERE session_id=$id ORDER BY session_id;",
             "SELECT * FROM conversation_drafts WHERE session_id=$id ORDER BY session_id;",
+            "SELECT * FROM conversation_answer_reviews WHERE session_id=$id ORDER BY request_id;",
             "SELECT * FROM conversation_messages WHERE session_id=$id AND request_id<>$stoppedRequest ORDER BY sequence;",
             "SELECT * FROM session_queue WHERE session_id=$id ORDER BY task_id;",
             "SELECT * FROM session_queue_order WHERE session_id=$id ORDER BY order_id;",

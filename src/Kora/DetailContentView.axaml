@@ -5,9 +5,10 @@
     xmlns:controls="using:Kora.Controls"
     Background="{DynamicResource KoraWindowBackgroundBrush}"
     Foreground="{DynamicResource KoraForegroundBrush}">
-  <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="12" RowSpacing="8">
+  <Grid RowDefinitions="*,2*,Auto,4*,Auto" Margin="12" RowSpacing="8">
     <!-- Trusted native chrome never enters the content viewport. -->
-    <ScrollViewer Grid.Row="0" MaxHeight="180" VerticalScrollBarVisibility="Auto">
+    <ScrollViewer x:Name="ProvenanceViewport" Grid.Row="0" MaxHeight="180" VerticalScrollBarVisibility="Auto" Focusable="True"
+                  AutomationProperties.Name="Scrollable detail provenance">
     <StackPanel Spacing="4">
       <TextBlock x:Name="DetailTitle" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" />
       <TextBlock x:Name="ProvenanceLabel" TextWrapping="Wrap" />
@@ -22,31 +23,39 @@
                  FontSize="11" TextWrapping="Wrap" />
     </StackPanel>
     </ScrollViewer>
-    <ScrollViewer Grid.Row="1" MaxHeight="220" VerticalScrollBarVisibility="Auto">
+    <ScrollViewer x:Name="ActionsViewport" Grid.Row="1" MaxHeight="220" VerticalScrollBarVisibility="Auto" Focusable="True"
+                  AutomationProperties.Name="Scrollable detail actions and literal Find">
     <StackPanel Spacing="8">
       <WrapPanel>
         <CheckBox x:Name="SourceToggle" Content="Exact source (Ctrl+U)" TabIndex="0"
                   AutomationProperties.Name="Show exact immutable source" Margin="0,0,12,0" />
         <CheckBox x:Name="ReadingTextToggle" Content="Continuous text (selection/search)" TabIndex="1"
                   AutomationProperties.Name="Read and select continuous semantic text" Margin="0,0,12,0" />
+        <CheckBox x:Name="WrapTextToggle" Content="Wrap reader text" IsChecked="True" TabIndex="2"
+                  AutomationProperties.Name="Wrap reader text"
+                  AutomationProperties.HelpText="Presentation only for this Details reader. Uncheck for horizontal scrolling without changing text, selection or literal Find. Not a saved preference."
+                  Margin="0,0,12,0" />
         <TextBlock Text="Find:" VerticalAlignment="Center" Margin="0,0,6,0" />
-        <TextBox x:Name="SearchInput" Width="220" TabIndex="2" IsUndoEnabled="False"
+        <TextBox x:Name="SearchInput" Width="220" TabIndex="3" IsUndoEnabled="False"
                  ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
                  PlaceholderText="Literal Find (Ctrl+F)" AutomationProperties.Name="Case-sensitive literal Find in current admitted text only" />
-        <Button x:Name="PreviousMatch" Content="Previous (Shift+F3)" TabIndex="5"
+        <Button x:Name="PreviousMatch" Content="Previous (Shift+F3)" TabIndex="6"
                 AutomationProperties.Name="Previous literal match; no wrap" Margin="6,0" />
-        <Button x:Name="NextMatch" Content="Next (F3)" TabIndex="6"
+        <Button x:Name="NextMatch" Content="Next (F3)" TabIndex="7"
                 AutomationProperties.Name="Next literal match; no wrap" />
       </WrapPanel>
       <WrapPanel>
-        <CheckBox x:Name="FindHostToggle" Content="Find separate typed HOST observation" IsVisible="False" TabIndex="3"
+        <CheckBox x:Name="FindHostToggle" Content="Find separate typed HOST observation" IsVisible="False" TabIndex="4"
                   AutomationProperties.Name="Find only the separate admitted typed HOST observation" />
-        <Button x:Name="FirstMatch" Content="Find first (Enter)" Margin="8,0" TabIndex="4"
+        <Button x:Name="FirstMatch" Content="Find first (Enter)" Margin="8,0" TabIndex="5"
                 AutomationProperties.Name="Find first literal match; no wrap" />
-        <Button x:Name="CancelFind" Content="Cancel Find" Margin="8,0" TabIndex="7"
+        <Button x:Name="CancelFind" Content="Cancel Find" Margin="8,0" TabIndex="8"
                 AutomationProperties.Name="Cancel literal Find and release match; retain query" />
-        <Button x:Name="ClearFind" Content="Clear literal Find" TabIndex="8"
+        <Button x:Name="ClearFind" Content="Clear literal Find" TabIndex="9"
                 AutomationProperties.Name="Clear literal Find query and match" />
+        <Button x:Name="RevealMatch" Content="Show match in reader" Margin="8,0" TabIndex="10"
+                AutomationProperties.Name="Show the exact selected literal match in its admitted reader text"
+                AutomationProperties.HelpText="Selects and reveals this occurrence with its surrounding text. Rendered results switch to Continuous text. Separate HOST matches remain in their own observation." />
       </WrapPanel>
       <TextBlock Text="Literal Find: exact case and spaces; one line, 256 UTF-16 characters / 512 UTF-8 bytes maximum; nonoverlapping, no wrap. Searches only current admitted text, never reads a source." TextWrapping="Wrap" />
       <controls:NamedTextBlock x:Name="FindSummary" TextWrapping="Wrap"
@@ -54,20 +63,22 @@
                               AutomationProperties.LiveSetting="Off" />
       <ScrollViewer MaxHeight="100" VerticalScrollBarVisibility="Auto"
                     AutomationProperties.Name="Bounded inert literal match viewport">
-        <controls:NamedTextBlock x:Name="FindSpan" Focusable="True" IsVisible="False" TextWrapping="Wrap" TabIndex="14"
+        <controls:NamedTextBlock x:Name="FindSpan" Focusable="True" IsVisible="False" TextWrapping="Wrap" TabIndex="17"
                                 AutomationProperties.Name="Exact inert admitted detail literal match" />
       </ScrollViewer>
-      <TextBlock x:Name="CopyPolicyLabel" Text="Copy exact source as Unicode plain text only. Clipboard content leaves Kora's boundary and may be read by other apps. Rich HTML copy is not supported."
+      <TextBlock x:Name="CopyPolicyLabel" Text="Copy all copies the complete active view: rendered Markdown as semantic plain text with inert HTML, or unchanged source/plain text. Copy source always preserves the original text. Clipboard content leaves Kora's boundary and may be read by other apps or clipboard history/sync."
                  TextWrapping="Wrap" />
-      <CheckBox x:Name="DisclosureConfirmation" TabIndex="9"
+      <CheckBox x:Name="DisclosureConfirmation" TabIndex="11"
                 Content="I confirm disclosure of this private source outside Kora."
                 AutomationProperties.Name="Confirm private source disclosure outside Kora" />
       <WrapPanel>
-        <Button x:Name="CopySelection" Content="Copy selection (Ctrl+C)" TabIndex="10"
+        <Button x:Name="CopySelection" Content="Copy selection (Ctrl+C)" TabIndex="12"
                 AutomationProperties.Name="Copy selected text from the continuous reader" />
-        <Button x:Name="CopySource" Content="Copy exact source (plain text)" TabIndex="11" Margin="8,0,0,0"
-                AutomationProperties.Name="Copy exact source as plain text" />
-        <Button x:Name="CloseDetail" Content="Close (Escape)" TabIndex="12" Margin="8,0,0,0"
+        <Button x:Name="CopyAll" Content="Copy all" TabIndex="13" Margin="8,0,0,0"
+                AutomationProperties.Name="Copy complete active view; rendered Markdown as semantic plain text and inert HTML when authorized" />
+        <Button x:Name="CopySource" Content="Copy source" TabIndex="14" Margin="8,0,0,0"
+                AutomationProperties.Name="Copy complete exact original source as Unicode plain text without rich formats" />
+        <Button x:Name="CloseDetail" Content="Close (Escape)" TabIndex="15" Margin="8,0,0,0"
                 AutomationProperties.Name="Close passive details" />
       </WrapPanel>
     </StackPanel>
@@ -80,11 +91,12 @@
       <StackPanel x:Name="RenderedDocument" Spacing="4" Margin="12" />
     </ScrollViewer>
     <TextBox x:Name="ContentReader" Grid.Row="3" IsReadOnly="True" AcceptsReturn="True" IsUndoEnabled="False"
-             TextWrapping="Wrap" TabIndex="13" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+             TextWrapping="Wrap" TabIndex="16" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
              AutomationProperties.Name="Passive immutable detail text"
              Background="{DynamicResource KoraSurfaceAltBrush}"
              Foreground="{DynamicResource KoraForegroundBrush}"
-             ScrollViewer.VerticalScrollBarVisibility="Auto" />
+             ScrollViewer.VerticalScrollBarVisibility="Auto"
+             ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
     <controls:NamedTextBlock x:Name="RenderStatus" Grid.Row="4" TextWrapping="Wrap"
                AutomationProperties.Name="Detail rendering and clipboard status" />
   </Grid>

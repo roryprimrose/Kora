@@ -17,6 +17,9 @@ public sealed class ReviewOnlyConversationStoreTests
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
             await store.CommitVerifiedLocalHandoffAsync(null!, null!, null!, null!, null!, null!, null!,
                 static () => true, TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await store.CancelPendingConversationSubmissionAsync(null!, null!, static () => true,
+                TestContext.Current.CancellationToken));
     }
 
     private sealed class ReviewOnlyStore : ISessionConversationStore

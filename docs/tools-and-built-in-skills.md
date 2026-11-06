@@ -69,6 +69,11 @@ Type **review agent**, or say your current assistant name followed by **review a
 
 Equivalent typed/current-name activated voice controls are **agent source &lt;full path&gt;**, **agent request &lt;original text&gt;**, **agent targets**, **agent next targets**, **agent target &lt;displayed session ID&gt;**, **agent review invocation** (also **agent review references**), **agent consent resolution**, **agent confirm invocation**, and **agent stop**. Resolution consent is not invocation confirmation. Changing input, target or source requires a fresh review. Reviews expire after two minutes and cannot be replayed. Disabling, holding, replacing or losing access to a referenced instruction retires this bundle without changing unrelated captured-answer rules.
 
+If the selected conversation changes while its profile is being read, Kora
+refuses the stale review without running the agent. Refresh the Active
+conversations, select the current target and start a fresh review; Kora does not
+automatically retarget or invoke it.
+
 v1 can request only the six original recorded read-only observation IDs, and only the exact reviewed subset is advertised or dispatched. v2 requires `tools: none` and `maximum-calls: 0`; its comma-separated `references` are exact IDs such as `disk.kora-profile.instruction.example`, not paths or display labels. There are no arbitrary instruction/file imports, skills, personal-profile instruction originals, recursive agents, hooks, scripts, child agents, concurrent workers, scheduling, MCP, web/power tools, hosted transfer/fallback, automatic enablement or future applicability. All profile/instruction text remains inert guidance, not authority. Caption and skill-reference operations are separate and unchanged.
 
 **v4 combines instructions and tools in one actual run.** Declare `kora-agent-format: 4`, one to four exact owned instruction IDs, one to six distinct existing observation tool IDs and a positive call budget.
@@ -217,6 +222,9 @@ exact Save/Delete review, Reload/Overwrite/Cancel conflicts and separate reviewe
 explicit use of the saved revision. Profile originals and other kinds remain read-only.
 
 **Current bounded:** [reviewed instruction-only shared skill invocation](commands.md#reviewed-instruction-only-shared-skill-invocation) separately enables one exact compatible single-file revision for a volatile local-only, zero-tool request in one existing Active conversation. Registration/inspection alone grants no invocation authority ([workflow](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs)).
+
+**Current bounded:** [one model-selected registered skill](customizations.md#complete-a-task-with-one-model-selected-registered-skill) can complete the unchanged original task after an explicit bounded metadata-only local selector, separate native source-read/revision review, separate enablement and distinct invocation confirmation.
+It reuses that same shared-skill executor, not an agent runtime; required inputs, companions, references, scripts, tools and hosted transmission are unavailable in this route ([binding](../src/Kora.Application/Skills/ProposedSharedSkillUse.cs)).
 
 **Current bounded:** the separate [reviewed one-tool shared skill invocation](commands.md#reviewed-one-tool-shared-skill-invocation) supports one declarative revision and one or two distinct explicit page destinations, each requiring its own host-authorized WebPageGet call. Source-read consent, local model-context enablement and exact action permission stay separate; matching This session/Always action grants can be reused. Results remain in the original local session; unqualified local profiles remain unavailable. No bundled page skill or script execution is added.
 

@@ -117,8 +117,9 @@ public sealed partial class DetailWindowControllerTests
         }
         f.Views.Should().HaveCount(8);
         var overflow = ConversationContent();
-        (await f.Controller.OpenConversationDetailAsync(overflow, null, () => true,
-            _ => Task.FromResult(overflow), CancellationToken.None)).Should().Contain("close a viewer");
+        await f.Controller.Invoking(controller => controller.OpenConversationDetailAsync(overflow, null, () => true,
+            _ => Task.FromResult(overflow), CancellationToken.None))
+            .Should().ThrowAsync<InvalidOperationException>().WithMessage("*close a viewer*");
         (await f.Controller.OpenConversationDetailAsync(content, null, () => true, Resolve, CancellationToken.None))
             .Should().Contain("Activated");
         f.Controller.RevokeConversationSession(content.ConversationMessage!.Request.SessionId);
@@ -132,6 +133,30 @@ public sealed partial class DetailWindowControllerTests
         f.Controller.Dispose();
         f.Views.Should().OnlyContain(other => other.Cleared);
         f.Views.Should().OnlyContain(other => other.State.MatchCount == null && other.State.MatchOrdinal == null);
+    }
+
+    [Theory]
+    [InlineData("create")]
+    [InlineData("show")]
+    [InlineData("activate")]
+    public async Task ConversationNativeFailureIsNotSuccessfulOpeningAndRetiresPrivateState(string fault)
+    {
+        using var f = new Fixture();
+        var content = ConversationContent();
+        f.FailCreate = fault is "create";
+        f.OnViewCreated = view =>
+        {
+            if (fault is "show")
+            { view.OnShow = () => throw new InvalidOperationException("fake native window unavailable"); }
+            view.FailActivation = fault is "activate";
+        };
+        await f.Controller.Invoking(controller => controller.OpenConversationDetailAsync(content, null, () => true,
+            _ => Task.FromResult(content), CancellationToken.None))
+            .Should().ThrowAsync<InvalidOperationException>();
+        f.Views.Should().OnlyContain(view => view.Cleared && view.State.Content == null
+            && view.State.ActiveText.Length == 0);
+        await f.Controller.CopyAsync(content.Reference, f.Views.FirstOrDefault()?.State.Generation ?? 0, true);
+        f.Clipboard.Writes.Should().BeEmpty();
     }
 
     [Theory]

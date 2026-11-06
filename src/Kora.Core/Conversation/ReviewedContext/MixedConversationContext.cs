@@ -27,6 +27,22 @@ public static class MixedConversationContext
         IEnumerable<ConversationHistorySelection> history, string instructionName, string instructionText,
         MemoryBoundary boundary, IEnumerable<MemoryRecord> memories, DateTimeOffset now, DateTimeOffset expiresAt)
     {
+        var context = BuildEnvelope(request, body, history, instructionName, instructionText, boundary, memories, now, expiresAt);
+        context.RequireCompleteInputLimit();
+        return context;
+    }
+
+    /// <summary>Measures the actual complete wire shape without granting over-budget submission authority.</summary>
+    public static int MeasureInput(HostRequest request, string body,
+        IEnumerable<ConversationHistorySelection> history, string instructionName, string instructionText,
+        MemoryBoundary boundary, IEnumerable<MemoryRecord> memories, DateTimeOffset now, DateTimeOffset expiresAt) =>
+        BuildEnvelope(request, body, history, instructionName, instructionText, boundary, memories, now, expiresAt).Serialize().Length;
+
+    private static ModelContextEnvelope BuildEnvelope(HostRequest request, string body,
+        IEnumerable<ConversationHistorySelection> history, string instructionName, string instructionText,
+        MemoryBoundary boundary, IEnumerable<MemoryRecord> memories, DateTimeOffset now, DateTimeOffset expiresAt)
+    {
+        ConversationText.Validate(body, submission: true);
         if (string.IsNullOrWhiteSpace(instructionName) || string.IsNullOrWhiteSpace(instructionText))
         { throw new InvalidDataException("Select one complete enabled instruction; empty guidance is not substituted."); }
         ArgumentNullException.ThrowIfNull(memories);
@@ -37,16 +53,13 @@ public static class MixedConversationContext
             || MemoryPolicy.Eligible(record, boundary, MemoryDestination.Local) != MemoryReason.None
             || !ids.Add(record.Id)))
         { throw new InvalidDataException("Select distinct admitted enabled memories from this exact session only."); }
-        var earlier = ConversationHistoryContext.CreateEnvelope(request, body, history, now, expiresAt);
-        var evidence = earlier.Evidence.Concat(
+        var evidence = ConversationHistoryContext.CreateEvidence(request, history).Concat(
             [new ModelContextEvidence(new(Guid.NewGuid()), request, new(1),
                 JsonSerializer.Serialize(new { Source = "Instruction", Name = instructionName, Body = instructionText }),
                 ModelEvidenceDisclosure.LocalOnly)])
             .Concat(selected.Select(record => new ModelContextEvidence(new(record.Id.Value), request, record.Revision,
                 JsonSerializer.Serialize(new { Source = "SessionMemory", record.Scope,
                     record.Candidate!.ContentClass, record.Candidate.Value }), ModelEvidenceDisclosure.LocalOnly)));
-        var context = new ModelContextEnvelope(request, Policy, body, evidence, now, expiresAt, ModelToolMode.None);
-        context.RequireCompleteInputLimit();
-        return context;
+        return new ModelContextEnvelope(request, Policy, body, evidence, now, expiresAt, ModelToolMode.None);
     }
 }

@@ -9,6 +9,22 @@ namespace Kora.Core.UnitTests.Artifacts;
 public sealed class ArtifactFileDocumentTests
 {
     [Theory]
+    [InlineData(false, "\n")]
+    [InlineData(true, "\r\n")]
+    public void PromptBodyReplacementRetainsHeaderBomAndOriginalTemplate(bool bom, string newline)
+    {
+        var header = string.Join(newline, "---", "kora-format: 2", "name: example", "description: Request", "---", "");
+        var original = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(header + "Old ${input:topic}", bom),
+            ArtifactKind.Prompt, "kora-profile", "example");
+        var proposed = original.WithPromptBody("New ${input:topic}");
+        proposed.CopyBytes().Should().Equal(ArtifactFileDocument.Encode(header + "New ${input:topic}", bom));
+        original.Body.Should().Be("Old ${input:topic}");
+        var instruction = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(header.Replace("kora-format: 2", "kora-format: 1", StringComparison.Ordinal)
+            + "Body", false), ArtifactKind.Instruction, "kora-profile", "example");
+        ((Action)(() => instruction.WithPromptBody("Request"))).Should().Throw<InvalidDataException>();
+    }
+
+    [Theory]
     [InlineData("\n", false)]
     [InlineData("\r\n", true)]
     [InlineData("\r", true)]

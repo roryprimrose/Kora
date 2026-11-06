@@ -72,13 +72,30 @@ public sealed class LocalSpeechTextPreferencesTests : IDisposable
         preferences.ConfirmWrite();
         Create().LoadOptions().Should().Be(new SpeechCaptionOptions(SpeechCaptionPlacement.TopLeft, 30));
         preferences.Invoking(item => item.SaveOptions(null!)).Should().Throw<ArgumentNullException>();
-        File.ReadAllLines(Path.Combine(root, "Preferences", "speech-caption-options.txt")).Should().Equal("1", "TopLeft", "30");
+        File.ReadAllLines(Path.Combine(root, "Preferences", "speech-caption-options.txt")).Should().Equal("2", "TopLeft", "30", "false");
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Word_emphasis_roundtrips_and_legacy_options_remain_off(bool enabled)
+    {
+        var preferences = Create();
+        preferences.SaveOptions(new(SpeechCaptionPlacement.TopLeft, 30, enabled));
+        Create().LoadOptions().Should().Be(new SpeechCaptionOptions(SpeechCaptionPlacement.TopLeft, 30, enabled));
+        File.WriteAllLines(Path.Combine(root, "Preferences", "speech-caption-options.txt"), ["1", "TopLeft", "30"]);
+        Create().LoadOptions().Should().Be(new SpeechCaptionOptions(SpeechCaptionPlacement.TopLeft, 30, false));
     }
 
     [Theory]
     [InlineData("")]
     [InlineData("1\nBottomRight")]
     [InlineData("2\nBottomRight\n5")]
+    [InlineData("2\nBottomRight\n5\nTrue")]
+    [InlineData("2\nBottomRight\n5\n1")]
+    [InlineData("1\nBottomRight\n5\nfalse")]
+    [InlineData("3\nBottomRight\n5\nfalse")]
+    [InlineData("2\nBottomRight\n5\nfalse\nextra")]
     [InlineData("1\nbottomright\n5")]
     [InlineData("1\n0\n5")]
     [InlineData("1\nUnknown\n5")]

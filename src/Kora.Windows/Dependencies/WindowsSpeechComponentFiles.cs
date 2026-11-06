@@ -1,5 +1,7 @@
 using System.Security.AccessControl;
 using System.Security.Principal;
+using System.Security.Cryptography;
+
 using Kora.Core.Dependencies;
 using Kora.Windows.Storage;
 
@@ -8,6 +10,8 @@ namespace Kora.Windows.Dependencies;
 public sealed class WindowsSpeechComponentFiles(IApplicationDataPaths paths) : ISpeechComponentFiles
 {
     private readonly RestrictedStorageDirectory directory = new(paths, includeKeys: false, partitionName: "SpeechComponentsV1");
+    private readonly Dictionary<string, string> createdFiles = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Lock creation = new();
 
     public string Root => directory.Artifacts;
 
@@ -61,15 +65,66 @@ public sealed class WindowsSpeechComponentFiles(IApplicationDataPaths paths) : I
 
     public Stream Read(string path)
     {
+        using var pinned = PinDirectory(Path.GetDirectoryName(path)!);
+        var handle = SpeechComponentFileBinding.Open(path, directory: false);
+        try
+        {
+            VerifyEntry(path);
+            return new FileStream(handle, FileAccess.Read);
+        }
+        catch { handle.Dispose(); throw; }
+    }
+
+    public string Identity(string path)
+    {
+        var isDirectory = File.GetAttributes(path).HasFlag(FileAttributes.Directory);
+        using var pinned = PinDirectory(isDirectory ? path : Path.GetDirectoryName(path)!);
+        using var handle = SpeechComponentFileBinding.Open(path, isDirectory);
         VerifyEntry(path);
-        return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.Asynchronous);
+        return WindowsFileIdentity.Read(handle);
+    }
+
+    public IDisposable PinDirectory(string path)
+    {
+        ValidateContained(path);
+        var pinned = new SpeechComponentFileBinding();
+        try
+        {
+            pinned.PinAncestors(path);
+            VerifyEntry(path);
+            return pinned;
+        }
+        catch { pinned.Dispose(); throw; }
+    }
+
+    public async Task DeleteVerifiedFileAsync(string path, string identity, long bytes, string digest,
+        Func<bool> admitted, CancellationToken cancellationToken)
+    {
+        using var pinned = PinDirectory(Path.GetDirectoryName(path)!);
+        using var handle = SpeechComponentFileBinding.Open(path, directory: false, deleting: true);
+        VerifyEntry(path);
+        SpeechComponentFileBinding.RequireIdentity(handle, identity);
+        await using var stream = new FileStream(handle, FileAccess.Read);
+        if (stream.Length != bytes || !string.Equals(
+            Convert.ToHexString(await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false)), digest, StringComparison.Ordinal))
+        { throw new InvalidDataException("Speech-data bytes changed after review. No replacement was deleted."); }
+        cancellationToken.ThrowIfCancellationRequested();
+        VerifyEntry(path);
+        if (!admitted()) { throw new UnauthorizedAccessException("Speech-data removal authority changed."); }
+        SpeechComponentFileBinding.Delete(handle);
     }
 
     public Stream Create(string path)
     {
         ValidateContained(path);
         VerifyEntry(Path.GetDirectoryName(path)!);
-        return directory.CreateNewFile(path, FileOptions.Asynchronous);
+        var stream = directory.CreateNewFile(path, FileOptions.Asynchronous);
+        try
+        {
+            lock (creation) { createdFiles[path] = WindowsFileIdentity.Read(stream.SafeFileHandle); }
+            return stream;
+        }
+        catch { stream.Dispose(); throw; }
     }
 
     public void CreateDirectory(string path)
@@ -83,19 +138,39 @@ public sealed class WindowsSpeechComponentFiles(IApplicationDataPaths paths) : I
         VerifyEntry(path);
     }
 
-    public void MoveDirectory(string source, string destination)
+    public void MoveDirectory(string source, string destination, string? expectedIdentity = null)
     {
-        VerifyEntry(source);
         ValidateContained(destination);
+        using var pinned = new SpeechComponentFileBinding();
+        pinned.PinAncestors(Path.GetDirectoryName(destination)!);
+        using var handle = SpeechComponentFileBinding.Open(source, directory: true, deleting: true);
+        VerifyEntry(source);
         VerifyEntry(Path.GetDirectoryName(destination)!);
-        Directory.Move(source, destination);
+        if (expectedIdentity is not null) { SpeechComponentFileBinding.RequireIdentity(handle, expectedIdentity); }
+        SpeechComponentFileBinding.Rename(handle, pinned.Last, Path.GetFileName(destination));
         VerifyEntry(destination);
+        lock (creation)
+        {
+            foreach (var path in createdFiles.Keys.Where(path =>
+                path.StartsWith(source + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)).ToArray())
+            { createdFiles.Remove(path); }
+        }
     }
 
     public void DeleteFile(string path)
     {
+        string identity;
+        lock (creation)
+        {
+            if (!createdFiles.TryGetValue(path, out identity!))
+            { throw new UnauthorizedAccessException("Cleanup requires the exact file created by this storage owner."); }
+        }
+        using var pinned = PinDirectory(Path.GetDirectoryName(path)!);
+        using var handle = SpeechComponentFileBinding.Open(path, directory: false, deleting: true);
         VerifyEntry(path);
-        File.Delete(path);
+        SpeechComponentFileBinding.RequireIdentity(handle, identity);
+        SpeechComponentFileBinding.Delete(handle);
+        lock (creation) { createdFiles.Remove(path); }
     }
 
     public void MoveFile(string source, string destination)
@@ -105,12 +180,16 @@ public sealed class WindowsSpeechComponentFiles(IApplicationDataPaths paths) : I
         VerifyEntry(Path.GetDirectoryName(destination)!);
         File.Move(source, destination, overwrite: false);
         VerifyEntry(destination);
+        lock (creation) { createdFiles.Remove(source); }
     }
 
-    public void DeleteDirectory(string path)
+    public void DeleteDirectory(string path, string? expectedIdentity = null)
     {
+        using var pinned = PinDirectory(Path.GetDirectoryName(path)!);
+        using var handle = SpeechComponentFileBinding.Open(path, directory: true, deleting: true);
         VerifyEntry(path);
-        Directory.Delete(path, recursive: false);
+        if (expectedIdentity is not null) { SpeechComponentFileBinding.RequireIdentity(handle, expectedIdentity); }
+        SpeechComponentFileBinding.Delete(handle);
     }
 
     private void ValidateContained(string path)

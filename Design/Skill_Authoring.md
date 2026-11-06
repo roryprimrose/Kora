@@ -5,10 +5,18 @@ authoring, and reviewed Customizations source writes are implemented through
 [Definition Management](Definition_Management.md). Broader conversational/package
 authoring and executable skills remain gated.
 
+The bounded [conversational prompt operation](../docs/customizations.md#author-one-reusable-prompt-request) is now implemented in existing **Customizations > Prompts**: user-described reusable USER request, separately host-declared required literals, independent local disclosure, complete body-only proposal review, volatile adoption and separately confirmed disabled Save. Reopen and existing reviewed literal expansion/submission complete later use; instruction refinement and skill generation are distinct operations ([host validator](../src/Kora.Application/Definitions/PromptTemplateAuthoring.cs), [complete native regression](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.PromptAuthoring.cs)).
+
 Discovery, source-read consent, editing, enablement and invocation are separate
 operations. Registering or inspecting a root grants none of the later
 authorities; see the [source contract](Skill_Storage.md#delivered-bounded-r21-native-inspection)
 and [reviewed invocation](Skill_Storage.md).
+
+Native v1/v2/v3/v4 owned sources also support [explicit reviewed deletion](../docs/owned-skill-authoring.md#delete-one-saved-owned-source).
+Dirty drafts retain Save/Discard/Cancel. Full source/inventory/use-impact review
+precedes separate confirmation; deletion does not enable work or revoke
+independent grants, and an uncertain effect requires explicit recovery
+([admitted operation](../src/Kora.Application/Skills/OwnedSkillDeletionWorkflow.cs)).
 
 Related: [Extensibility](Extensibility.md), [Security and Data Flows](Security_Data_Flows.md), [Task Lifecycle](Task_Lifecycle.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
@@ -46,6 +54,17 @@ The [bounded initial-generation operation](../docs/owned-skill-authoring.md#crea
 Complete generated source/destination review, optional existing local refinement, Validate and both ordinary Save reviews produce one atomic immutable **disabled** package. Original request/channel, draft, critique, catalogue/name, source, privacy, ownership and destination checks remain bound through refinement and publication ([native lifecycle](../src/Kora/OwnedSkillEditorController.Refinement.cs), [save](../src/Kora.Application/Skills/OwnedSkillSaveWorkflow.cs)).
 This is implementation only: unqualified local runtime remains unavailable. It adds no general YAML, profile editing, arbitrary tools/effects, references, scripts, hooks, fixtures or agent execution. Tool-capable invocation retains independent per-action permission and actual tool/model joining ([action admission](../src/Kora.Application/Network/LocalWebPageInvocation.cs)).
 
+Owned-skill source save/deletion reviews, model-authoring disclosures/proposals, simulated
+examples/results and dirty-draft decisions use the same modal native handoff.
+The draft editor cannot reactivate behind its review; blocked owner input
+returns to that exact dialog. A choice completes only after native closure
+joins, with the exact native owner still visible and original eligibility and
+cancellation rechecked before returning. Hiding or closing the owner cannot
+complete an accepted choice.
+This is presentation ownership, not new consent or authority. Save still
+requires both separate native reviews and exact atomic publication/readback;
+Cancel retains the draft and expired authority remains expired.
+
 The additive [native v3 required literal guidance operation](../docs/owned-skill-authoring.md#required-literal-guidance-inputs)
 explicitly declares instruction-only inputs, reusing the owned prompt template
 parser/bounds and private controls, not Prompt artifact authority. Both direct
@@ -53,6 +72,11 @@ and named owned-skill use review original source, exact bindings and single-pass
 expansion through the same canonical local workflow. Old v1/v2 guidance bytes
 remain literal; tool parameters and shared/agent guidance-reference policy are
 not extended.
+
+Missing v3 invocation values now use [host-owned private questions](../src/Kora.Application/Skills/OwnedSkillInvocationWorkflow.InputQuestions.cs) after exact source, Active target and original-task selection.
+Original typed/native or eligible activated-voice replies supply only literal data through the shared question presenter, not Save/Enable/Use approval.
+The existing complete binding/expansion preview and separate native Use remain authoritative; [user steps and refusal boundaries](../docs/owned-skill-authoring.md#required-literal-guidance-inputs) describe the bounded operation. This changes neither authoring nor the v3 format.
+The separate native v4 observation workflow remains an ordered host-action declaration, not a template or a question consumer. Reference-bearing and MCP formats cannot inherit v3 input-question authority or enter this tool-free operation.
 
 1. Capture the voice request and admit an authoring task through normal work management.
 2. Clarify the skill's purpose, inputs, expected output, tool dependencies, and success conditions.
@@ -133,7 +157,14 @@ channel, source/target, draft, privacy and resource-joining checks remain
 authoritative; an unqualified provider is unavailable, not a fallback. This is
 not fixture generation or the full conversational Builder.
 The [explicit literal owned Instruction body increment](../docs/instruction-editor.md#dictate-literal-instruction-body-text) now binds one foreground canonical owned draft/body caret or range before shared local capture, reviews the complete insertion/replacement and accepts into volatile memory only. Normal exact Save, dirty-close and separate enablement remain independent; metadata, prompts, profile originals and other definition kinds are excluded ([target owner](../src/Kora/OwnedInstructionEditorController.Dictation.cs)).
-Broader conversational/package authoring, rename/restore and expanded applicability remain unavailable. The same native editor also supports immediate
+The same editor supports [one volatile last-confirmed-save restore](../docs/instruction-editor.md#restore-the-last-confirmed-save-in-this-editor) for an existing owned native-v1 Instruction: complete current/previous-source review, separate normal Save and readback as a NEW disabled revision.
+It is not general history or a profile-original restore and cannot revive a renamed source identity.
+The separate [bounded owned Instruction rename](Definition_Management.md#bounded-recoverable-owned-instruction-rename)
+now completes exact identity/source/reference review, separate confirmation,
+native no-replace recoverable publication, disabled reconciliation and reopening.
+It does not rename prompts, profile originals or packages, rewrite dependencies,
+transfer grants or enable content. Broader conversational/package authoring,
+general history and expanded applicability remain unavailable. The same native editor also supports immediate
 Kora-owned `.prompt.md` versioned saved requests: select Prompt, then use the same
 Save/Delete, conflict and separate exact-use reviews. Prompts are request content,
 not instructions, skill workflows or policy. Native v1 stays literal; owned native v2 supports required `${input:name}` text only, with a private native field form, complete expanded user-request preview and separately admitted Use. No defaults/expressions/reads/recursive substitution; profile prompt writing remains unavailable.
@@ -157,8 +188,49 @@ review of its exact revision and scope under the common lifecycle.
 
 ## Skill Package Boundary
 
+The bounded owned **native v5 Markdown component package** adds a complete
+[author/edit, whole-tree review, disabled Save, restart inspection and separate
+review/use operation](../docs/owned-skill-authoring.md#author-a-markdown-component-package).
+It is not the shared v2 format or a migration of v1/v3 literal text. The
+[central owned document](../src/Kora.Core/Skills/OwnedDeclarativeSkillDocument.cs)
+reuses the [finite reference declaration](../src/Kora.Core/Skills/SharedSkillReferenceDeclaration.cs)
+and inert Markdown validation: one to four explicit plain Markdown paths, depth
+four, 16 KiB per reference, 64 KiB for the entire manifest/instructions/reference
+tree. The complete serialized zero-tool context must also fit 32768 bytes,
+including escaped paths/content; the stricter bound wins at capture, validation,
+save/readback, preview and actual use. Unknown versions/directives, undeclared
+files and missing components fail closed, never truncate or become old literal
+formats ([canonical envelope](../src/Kora.Core/Skills/OwnedSkillGuidanceContext.cs)).
+
+Only the original user chooses the relative component paths and literal bodies
+in the component editor or equivalent bounded commands. No file import,
+automatic reference discovery, profile-original/shared-root write, script,
+hook, assembly, tool, runtime/plugin/code component or executable authority is
+added. Native v5 has literal primary guidance and tools none; v3 required
+inputs and v2 WebPageGet retain their independent contracts. The complete old
+and proposed trees, exact UTF-8 content, added/modified/removed paths, source,
+destination and bundle digest precede separate publication confirmation
+([editor](../src/Kora/OwnedSkillEditorWindow.cs)).
+
+New immutable versions use the existing no-replace whole-directory publication
+with complete identity/byte readback. A reopened base is pinned against
+replacement/writes through publication; uncertainty is explicit recovery, not
+rollback, retry or a usable mixed tree. List and initial use inspect only
+primary files and declared inventory. A separate exact original-user consent
+precedes reference-body reads, followed by complete bundle review, independent
+volatile enablement, exact Active target/request preview and invocation.
+Every component remains untrusted LocalOnly evidence. Source freshness,
+exclusions/revocation, privacy, ownership, channel, call, task/session, audit,
+cancellation and actual resource joins remain mandatory; Save grants none of
+them ([store](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.cs),
+[use](../src/Kora.Application/Skills/OwnedSkillInvocationWorkflow.cs),
+[complete deterministic operation](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.OwnedSkillMarkdown.cs)).
+
 The bounded [native v4 observation workflow](../docs/owned-skill-authoring.md#author-and-run-an-ordered-host-observation-workflow) now completes author/validate/save-disabled/reopen/review/enable/invoke/status/cancel for an explicit ordered sequence of the existing six host read-only observations.
 Its [separate native owner](../src/Kora/ObservationWorkflowController.cs) does not modify shared-source writers, interpret guidance as steps, or invoke a model.
+The [native confirmation lifetime](../src/Kora/ObservationWorkflowWindow.cs) is modal for package review, separate Save, each independent step and dirty-draft discard.
+It holds blocked owner input until native closure, starts keyboard focus on the complete review, declines on Cancel/Escape/native close, and retires on owner loss or cancellation.
+Approval and focus return are rechecked against the original visible eligible owner after closure; no remaining observation or partial-success result follows a declined step.
 
 The [closed declaration](../src/Kora.Core/Skills/ObservationWorkflowDefinition.cs) uses the existing immutable two-file owned store, exact registered input/result validation, host-assigned step numbers and strict count/byte/total-time budgets.
 The [host runner](../src/Kora.Application/Skills/ObservationSkillWorkflow.cs) revalidates exact source, original request/channel, Active target/profile, dependencies and independent action permission. It publishes only a complete native source-labelled result or explicit joined failure/cancellation, never partial success.
@@ -177,6 +249,7 @@ The MVP authoring writer accepts only a validated package:
 Use safe parsing with size/depth/step limits and reject unknown executable directives.
 No inline evaluation, shell commands, scripts, assemblies, native libraries, arbitrary executable paths, installer hooks, or custom validators are allowed.
 Registered tool references do not allow a skill to install or redefine the tool implementation.
+The separately reviewed [shared-skill MCP reference](Skill_Storage.md#reviewed-exact-read-only-mcp-skill) pins one existing host-admitted read-only dependency; it adds no MCP option to the owned skill writer and grants no account, connection or invocation permission.
 A skill needing a new executable capability can describe the missing dependency, but installing that implementation is an out-of-band developer/operator action.
 This restriction applies to user authoring. [Bundled skills](Built_In_Skills.md) may ship protected first-party scripts installed with the application.
 Neither bundled script execution nor user-authored executable skills ship in
@@ -193,6 +266,10 @@ skill wrapper, and a bundled script remains its own registered implementation.
 See [Commands, Tools, Skills, and Model Interaction](Commands_Tools_And_Skills.md).
 
 ## Storage and Versioning
+
+The [complete owned native package rename](Definition_Management.md#reviewed-owned-native-skill-package-rename) changes a selected supported package's canonical ID, not its readable name, version or unsaved editor text.
+Native and exact original typed/current-name activated entry share full old/new review and a separate native confirmation. New identity is disabled with no transferred review/grant authority; external references remain old.
+Uncertain effects require explicit retained-intent review/recovery, not Save retry ([user operation](../docs/owned-skill-authoring.md#rename-one-complete-owned-native-package)).
 
 Kora owns `%APPDATA%\Kora\Skills` as its dedicated user skill data store outside its installation and source trees, resolved through the Windows Roaming AppData known folder.
 The host chooses paths from validated skill IDs and package structure; the model never supplies an arbitrary destination.
@@ -238,6 +315,9 @@ Only its declarative behaviour can be copied/refined; a bundled script remains a
 User skill updates create validated, digest-pinned revisions.
 Active tasks retain the revision they started with; enable a new revision for future tasks only.
 Disable or restore a prior revision through the same reviewed data-only registry operations.
+The delivered bounded Instruction restore retains only the previous complete bytes from one known changed Save in the same open private editor.
+Fresh current-source authority, full current/previous review and separate normal Save create a new disabled revision; old activation, review and grants are never restored.
+No persistent version archive, restart recovery or general skill-package history is added ([exact contract and evidence](Definition_Management.md#bounded-owned-instruction-and-prompt-editor), [user operation](../docs/instruction-editor.md#restore-the-last-confirmed-save-in-this-editor)).
 The registry cannot select arbitrary executable code, modify trust roots, or change tool/security configuration.
 External changes use the common reconciliation pipeline. A dirty voice/UI draft
 keeps its base and reports a conflict; save cannot overwrite a changed source,
@@ -272,6 +352,7 @@ Passing these tests is evidence of structure/example behaviour, not proof that t
 The delivered [simulated example subset](../docs/owned-skill-authoring.md#simulate-one-tool-free-example) uses the current inspected owned native v1 literal draft/revision and an ephemeral closed fixture, leaving both saved files unchanged ([host workflow](../src/Kora.Application/Skills/OwnedSkillFixtureWorkflow.cs)).
 The [closed parser](../src/Kora.Core/Skills/OwnedSkillFixture.cs) admits one complete input and one to eight ordinal `equals`/`contains` assertions. No mocked tool responses are accepted in this tool-free subset; native v2/v3/v4, reference-bearing definitions, unknown fields/assertions, hooks and custom validators are explicitly denied. Input-looking text and workflow-looking JSON in native v1 guidance remain literal evidence, not bindings or steps.
 The [existing editor](../src/Kora/OwnedSkillEditorController.Fixtures.cs) separately reviews complete source/fixture/local input before **Start SIMULATED test**, then displays complete exact output and host assertions. The isolated local tools-none route cannot authorize actual tool/network/effect execution; unavailable qualification stays unavailable, with no hosted fallback.
+Native **Escape** rejects the pending simulation review without inference or dismisses its volatile result through the existing review close path; it never confirms a choice or changes the draft/fixture.
 Fixture/source/selection, original channel, privacy, ownership, provider configuration, generation and two-minute expiry fences suppress stale output; cancellation/disposal joins owned source reads and model work. Every terminal retires its review even if source bytes or eligibility later recover. Results remain volatile simulated examples, not retained facts, grants, trust or enablement. Save, Enable and an independently admitted real trial remain separate.
 
 An optional real trial is a separately admitted task with the exact skill revision and selected context.

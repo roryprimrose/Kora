@@ -28,7 +28,7 @@ public sealed class HandsFreeNativeReadinessTests
             AssistantName = denial is "unknown-name" ? "Kora" : "Nova",
             CanCapture = () => denial is not "missing-live-admission",
             Profile = new(1, denial is "unknown-profile"
-                ? SpeechInputSelection.Default with { ProfileId = "not-admitted" } : SpeechInputSelection.Default),
+                ? SpeechInputSelection.Default with { ProfileId = "not-admitted" } : SpeechInputProfileCatalogue.NativeWakeSelection),
         };
         var open = () => stage.OpenAsync(binding, denial is "cancelled"
             ? new CancellationToken(canceled: true) : TestContext.Current.CancellationToken);

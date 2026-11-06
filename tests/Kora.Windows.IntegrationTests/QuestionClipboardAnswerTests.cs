@@ -1,6 +1,11 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Headless;
+using Avalonia.Input;
+using Avalonia.Input.TextInput;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 
 using AwesomeAssertions;
 
@@ -21,6 +26,287 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class QuestionClipboardAnswerTests
 {
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(true, false, false)]
+    [InlineData(true, true, false)]
+    [InlineData(false, false, true)]
+    [InlineData(false, true, true)]
+    public async Task ReentrantNativeEditDuringClipboardPublicationKeepsLatestTextAndValidationStatus(bool accept, bool invalid, bool accepting)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            await using var f = await Fixture.Create();
+            f.Model.Edit(new([], "previous manual answer"));
+            var original = f.Model.Key;
+            await f.Capture(grant: true);
+            await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Background);
+            await WhenEditable(f.Model);
+            if (accept)
+            {
+                f.Window.FindControl<CheckBox>("ReplaceManualDraft")!.IsChecked = true;
+                await f.Answer.AcceptAsync();
+                await WhenEditable(f.Model);
+            }
+            var input = f.Window.FindControl<TextBox>("AnswerInput")!;
+            input.Focus().Should().BeTrue();
+            var clientRequest = new TextInputMethodClientRequestedEventArgs
+            {
+                RoutedEvent = InputElement.TextInputMethodClientRequestedEvent,
+            };
+            input.RaiseEvent(clientRequest);
+            clientRequest.Client.Should().NotBeNull();
+            var client = clientRequest.Client!;
+            client.SupportsPreedit.Should().BeTrue();
+            TopLevel.GetTopLevel(client.TextViewVisual).Should().BeSameAs(f.Window);
+            var latest = invalid ? new string('x', f.Model.Question.Spec.MaximumTextLength + 1) : "latest manual e\u0301\r\nanswer";
+            string? beforeEdit = null;
+            var reentered = false;
+            void EditDuringRetirement(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+            {
+                if (reentered || !string.Equals(args.PropertyName, nameof(NativeQuestionViewModel.Status), StringComparison.Ordinal)
+                    || (accepting ? !f.Answer.HasAccepted : f.Answer.ReviewText.Length != 0)) { return; }
+                reentered = true;
+                beforeEdit = input.Text;
+                input.SelectAll();
+                client.SetPreeditText(latest, latest.Length);
+                input.Text.Should().Be(beforeEdit, "IME composition is not a committed answer edit");
+                f.Model.Answer.Text.Should().Be(beforeEdit);
+                client.SetPreeditText(string.Empty);
+                f.Window.KeyTextInput(latest);
+                input.Text.Should().Be(latest);
+                f.Model.Answer.Text.Should().Be(latest);
+            }
+            f.Model.PropertyChanged += EditDuringRetirement;
+            try
+            {
+                if (accepting)
+                {
+                    f.Window.FindControl<CheckBox>("ReplaceManualDraft")!.IsChecked = true;
+                    await f.Answer.AcceptAsync();
+                }
+                else { f.Window.FindControl<Button>("CancelClipboardAnswer")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
+            }
+            finally { f.Model.PropertyChanged -= EditDuringRetirement; }
+            reentered.Should().BeTrue();
+            await f.Answer.Quiescence;
+            input.Text.Should().Be(latest);
+            f.Model.Answer.Text.Should().Be(latest);
+            f.Answer.ReviewText.Should().BeEmpty();
+            f.Answer.HasAccepted.Should().BeFalse();
+            f.Model.Key.Should().Be(original);
+            f.Model.Completion.IsCompleted.Should().BeFalse();
+            var canonical = (await f.Data.Store.ReadQuestionsAsync(original.Request.SessionId, f.Data.Token)).Single();
+            canonical.Key.Should().Be(original);
+            canonical.Status.Should().Be(QuestionStatus.Pending);
+            canonical.Draft.Should().BeNull();
+            f.Reader.Calls.Should().Be(1);
+            f.Reader.Released.Should().BeTrue();
+            f.Data.Count("conversation_messages").Should().Be(0);
+            f.Model.Status.Should().StartWith(invalid ? "Invalid answer:" : "Unsubmitted local edit.");
+            f.Window.FindControl<TextBlock>("QuestionStatus")!.Text.Should().Contain(f.Model.Status);
+            f.Model.CanSubmit.Should().Be(!invalid);
+            f.Model.CanSaveDraft.Should().Be(!invalid);
+            input.CaretIndex.Should().Be(latest.Length);
+            input.SelectionStart.Should().Be(input.CaretIndex);
+            input.SelectionEnd.Should().Be(input.CaretIndex);
+            input.CanUndo.Should().BeTrue();
+            input.Undo();
+            input.Text.Should().Be(beforeEdit);
+            f.Model.Answer.Text.Should().Be(beforeEdit);
+            input.CanRedo.Should().BeTrue();
+            input.Redo();
+            input.Text.Should().Be(latest);
+            f.Model.Answer.Text.Should().Be(latest);
+            if (!invalid)
+            {
+                await f.Model.SubmitAsync();
+                var submitted = (await f.Data.Store.ReadQuestionsAsync(original.Request.SessionId, f.Data.Token)).Single();
+                submitted.Key.Should().Be(original.Next());
+                submitted.Status.Should().Be(QuestionStatus.Answered);
+                submitted.AnswerChannel.Should().Be(RequestOrigin.LocalUi);
+                submitted.Draft!.Text.Should().Be(latest);
+                f.Reader.Calls.Should().Be(1);
+                f.Data.Count("conversation_messages").Should().Be(0);
+            }
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task InvalidNativeEditRetiresClipboardReviewButPreservesCompleteTextAndValidationFailure(bool accept)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            await using var f = await Fixture.Create();
+            var original = f.Model.Key;
+            await f.Capture(grant: true);
+            await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Background);
+            await WhenEditable(f.Model);
+            if (accept)
+            {
+                await f.Answer.AcceptAsync();
+                await WhenEditable(f.Model);
+            }
+            var input = f.Window.FindControl<TextBox>("AnswerInput")!;
+            var invalid = new string('x', f.Model.Question.Spec.MaximumTextLength + 1);
+            input.Focus().Should().BeTrue();
+            input.SelectAll();
+            f.Window.KeyTextInput(invalid);
+            await f.Answer.Quiescence;
+            input.Text.Should().Be(invalid);
+            f.Model.Answer.Text.Should().Be(invalid);
+            f.Model.Status.Should().StartWith("Invalid answer:");
+            f.Window.FindControl<TextBlock>("QuestionStatus")!.Text.Should().Contain("Invalid answer:");
+            f.Model.CanSubmit.Should().BeFalse();
+            f.Model.CanSaveDraft.Should().BeFalse();
+            f.Answer.ReviewText.Should().BeEmpty();
+            f.Answer.HasAccepted.Should().BeFalse();
+            f.Model.Key.Should().Be(original);
+            f.Model.Completion.IsCompleted.Should().BeFalse();
+            var canonical = (await f.Data.Store.ReadQuestionsAsync(original.Request.SessionId, f.Data.Token)).Single();
+            canonical.Status.Should().Be(QuestionStatus.Pending);
+            canonical.Draft.Should().BeNull();
+            f.Reader.Calls.Should().Be(1);
+            f.Reader.Released.Should().BeTrue();
+            f.Data.Count("conversation_messages").Should().Be(0);
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NativeEditingRetiresClipboardReviewWithoutRewritingTextOrLosingUndoBeforeExplicitSubmit(bool accept)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            await using var f = await Fixture.Create();
+            const string manual = "previous manual answer";
+            f.Model.Edit(new([], manual));
+            var original = f.Model.Key;
+            await f.Capture(grant: true);
+            await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Background);
+            await WhenEditable(f.Model);
+            if (accept)
+            {
+                f.Window.FindControl<CheckBox>("ReplaceManualDraft")!.IsChecked = true;
+                await f.Answer.AcceptAsync();
+                await WhenEditable(f.Model);
+            }
+            var input = f.Window.FindControl<TextBox>("AnswerInput")!;
+            var before = accept ? f.Reader.Text : manual;
+            const int start = 3;
+            const int end = 8;
+            const string replacement = "edited e\u0301\r\n";
+            var edited = before[..start] + replacement + before[end..];
+            var publications = new List<string?>();
+            void Observe(object? sender, AvaloniaPropertyChangedEventArgs args)
+            {
+                if (args.Property == TextBox.TextProperty) { publications.Add(input.Text); }
+            }
+            input.IsEffectivelyEnabled.Should().BeTrue();
+            input.Focus().Should().BeTrue();
+            f.Window.FocusManager!.GetFocusedElement().Should().BeSameAs(input);
+            input.CaretIndex = end;
+            input.SelectionStart = start;
+            input.SelectionEnd = end;
+            input.PropertyChanged += Observe;
+            try { f.Window.KeyTextInput(replacement); }
+            finally { input.PropertyChanged -= Observe; }
+            input.Text.Should().Be(edited);
+            f.Model.Answer.Text.Should().Be(edited);
+            publications.Should().ContainSingle("candidate retirement must not write an older answer into the native edit")
+                .Which.Should().Be(edited);
+            input.CaretIndex.Should().Be(start + replacement.Length);
+            input.SelectionStart.Should().Be(input.CaretIndex);
+            input.SelectionEnd.Should().Be(input.CaretIndex);
+            input.CanUndo.Should().BeTrue();
+            input.Undo();
+            input.Text.Should().Be(before);
+            f.Model.Answer.Text.Should().Be(before);
+            input.CanRedo.Should().BeTrue();
+            input.Redo();
+            input.Text.Should().Be(edited);
+            f.Model.Answer.Text.Should().Be(edited);
+            await f.Answer.Quiescence;
+            f.Answer.ReviewText.Should().BeEmpty();
+            f.Answer.HasAccepted.Should().BeFalse();
+            f.Window.FindControl<TextBox>("ClipboardAnswerReview")!.Text.Should().BeNullOrEmpty();
+            f.Model.Key.Should().Be(original);
+            f.Model.Completion.IsCompleted.Should().BeFalse();
+            var pending = (await f.Data.Store.ReadQuestionsAsync(original.Request.SessionId, f.Data.Token)).Single();
+            pending.Status.Should().Be(QuestionStatus.Pending);
+            pending.Draft.Should().BeNull();
+            f.Reader.Calls.Should().Be(1);
+            f.Reader.Released.Should().BeTrue();
+            f.Data.Count("conversation_messages").Should().Be(0);
+            await Task.WhenAll(f.Model.SubmitAsync(), f.Model.SubmitAsync());
+            var canonical = (await f.Data.Store.ReadQuestionsAsync(original.Request.SessionId, f.Data.Token)).Single();
+            canonical.Key.Should().Be(original.Next());
+            canonical.Status.Should().Be(QuestionStatus.Answered);
+            canonical.AnswerChannel.Should().Be(RequestOrigin.LocalUi);
+            canonical.Draft!.Text.Should().Be(edited);
+            f.Reader.Calls.Should().Be(1);
+            f.Data.Count("conversation_messages").Should().Be(0);
+        });
+    }
+
+    [Theory]
+    [InlineData(QuestionKind.SingleChoice)]
+    [InlineData(QuestionKind.MultipleChoice)]
+    [InlineData(QuestionKind.Form)]
+    public async Task NonTextClarificationsRefuseClipboardCaptureAndStillSubmitTheirCanonicalTypedAnswer(QuestionKind kind)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var spec = LocalModelQuestionPolicy.CreateSpec(kind == QuestionKind.Form
+                ? ModelToolProtocol.ParseAskUser(
+                    """{"prompt":"Describe the answer","fields":[{"label":"Audience","type":"text","maximumLength":40,"maximumUtf8Bytes":100},{"label":"Style","type":"singleChoice","options":["Compact","Detailed"]}]}"""u8,
+                    "ask_1", formsAllowed: true).Question
+                : new("Choose the format", ["Compact", "Detailed"], Maximum: kind == QuestionKind.MultipleChoice ? 2 : 1));
+            await using var f = await Fixture.Create(spec: spec);
+            var original = f.Model.Question;
+            var panel = f.Window.FindControl<StackPanel>("ChoicePanel")!;
+            if (kind == QuestionKind.Form) { panel.Children.OfType<TextBox>().Single().Text = "Readers"; }
+            var options = panel.Children.OfType<ToggleButton>().ToArray();
+            options[0].IsChecked = true;
+            if (kind == QuestionKind.MultipleChoice) { options[1].IsChecked = true; }
+            var expected = f.Model.Answer;
+            f.Model.CanSubmit.Should().BeTrue();
+            QuestionClipboardAnswer.Supports(original).Should().BeFalse();
+            f.Answer.CanCapture.Should().BeFalse();
+            await f.Answer.CaptureAsync();
+            f.Reader.Calls.Should().Be(0);
+            f.Answer.IsActive.Should().BeFalse();
+            f.Answer.ReviewText.Should().BeEmpty();
+            f.Model.Answer.Should().BeSameAs(expected);
+            f.Model.Key.Should().Be(original.Key);
+            f.Model.Completion.IsCompleted.Should().BeFalse();
+            f.Data.Count("scoped_grants").Should().Be(0);
+            (await f.Data.Store.ReadQuestionsAsync(original.Key.Request.SessionId, f.Data.Token)).Single().Draft.Should().BeNull();
+            if (kind == QuestionKind.Form)
+            {
+                f.Model.CanSaveDraft.Should().BeFalse();
+                f.Window.FindControl<Button>("SaveDraft")!.IsVisible.Should().BeFalse();
+            }
+            await f.Model.ReviewAsync();
+            await Task.WhenAll(f.Model.SubmitAsync(), f.Model.SubmitAsync());
+            await f.Model.OperationQuiescence;
+            var canonical = (await f.Data.Store.ReadQuestionsAsync(original.Key.Request.SessionId, f.Data.Token)).Single();
+            canonical.Spec.Matches(spec).Should().BeTrue();
+            canonical.Key.Should().Be(original.Key.Next());
+            canonical.Status.Should().Be(QuestionStatus.Answered);
+            canonical.AnswerChannel.Should().Be(RequestOrigin.LocalUi);
+            canonical.Draft!.Choices.Should().Equal(expected.Choices);
+            canonical.Draft.Fields.Should().Equal(expected.Fields);
+            f.Reader.Calls.Should().Be(0);
+            f.Data.Count("scoped_grants").Should().Be(0);
+            f.Data.Count("conversation_messages").Should().Be(0);
+        });
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("previous manual draft")]
@@ -383,12 +669,12 @@ public sealed class QuestionClipboardAnswerTests
         internal long PrivateRevision { get; set; } = 1;
         private ClipboardExplanationAdmission admission = null!;
 
-        internal static async Task<Fixture> Create(string purpose = LocalModelQuestionPolicy.Purpose)
+        internal static async Task<Fixture> Create(string purpose = LocalModelQuestionPolicy.Purpose, QuestionSpec? spec = null)
         {
             var f = new Fixture();
             await f.Data.InitializeAsync();
             f.Data.Time.UseFrozenTimers = true;
-            var spec = new QuestionSpec("Describe the required format", QuestionKind.Text, [],
+            spec ??= new QuestionSpec("Describe the required format", QuestionKind.Text, [],
                 maximumTextLength: LocalModelQuestion.MaximumFreeTextLength, purpose: purpose, sourceId: LocalModelQuestionPolicy.SourceId);
             var record = (await f.Data.RunAsync(() => f.Data.Questions.CreateAsync(f.Data.Request, spec,
                 f.Data.Time.Now.AddMinutes(2), f.Data.Token))).Question!;

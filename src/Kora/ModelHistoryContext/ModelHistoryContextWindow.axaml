@@ -25,10 +25,11 @@
     <controls:NamedTextBlock Grid.Row="2" Text="{Binding ModelHistoryContextQuestion}" TextWrapping="Wrap"
         AutomationProperties.Name="Complete unchanged original question and originating channel; unrelated unsent input is not used" />
     <Button Grid.Row="3" x:Name="Review" Content="_Review complete selection and original question" IsEnabled="{Binding CanReviewHistoryContext}" />
-    <ScrollViewer Grid.Row="4">
-      <controls:NamedTextBlock Text="{Binding HistoryContextReviewText}" TextWrapping="Wrap"
-          AutomationProperties.Name="Complete selected sources, unchanged original question and local-only no-tools destination" />
-    </ScrollViewer>
+    <TextBox Grid.Row="4" x:Name="CompleteReview" Text="{Binding HistoryContextReviewText, Mode=OneWay}"
+        IsReadOnly="True" IsUndoEnabled="False" AcceptsReturn="True" TextWrapping="Wrap"
+        ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+        AutomationProperties.Name="Complete selected sources, unchanged original question and local-only no-tools destination"
+        AutomationProperties.HelpText="Read-only source review. Use arrow keys or Ctrl+Home and Ctrl+End to read; Tab leaves the review. Selection stays local; clipboard transfer is unavailable. Reading never confirms." />
     <controls:NamedTextBlock Grid.Row="5" Text="{Binding ConversationStatus}" TextWrapping="Wrap"
         AutomationProperties.Name="Actual retained answer or truthful HOST outcome; opening and review do not submit" />
     <WrapPanel Grid.Row="6">

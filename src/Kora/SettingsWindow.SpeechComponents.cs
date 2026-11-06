@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Automation;
+
 using Kora.Application.Dependencies;
 using Kora.Application.Hosting;
 using Kora.Application.ViewModels;
@@ -52,37 +53,51 @@ public sealed partial class SettingsWindow
                 var button = new Button { Content = operation == SpeechComponentOperation.Prepare ? "Prepare / retry" : operation.ToString() };
                 AutomationProperties.SetName(button, component.Name + ": " + operation);
                 actions.Children.Add(button);
-                button.Click += async (_, _) => await RunSpeechComponentUiAsync(status, async token =>
+                button.Click += async (_, _) =>
                 {
-                    var plan = await viewModel.ReviewSpeechComponentAsync(component.Identity, operation, token);
-                    var approve = new Button { Content = "Approve " + operation };
-                    var decline = new Button { Content = "Decline" };
-                    var review = new Window
+                    SpeechComponentSetupPlan? plan = null;
+                    await RunSpeechComponentUiAsync(status, async token =>
                     {
-                        Title = "Review optional speech data operation", Width = 640, Height = 480,
-                        WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                        Content = new ScrollViewer
+                        plan = await viewModel.ReviewSpeechComponentAsync(component.Identity, operation, token);
+                        var approve = new Button { Content = operation == SpeechComponentOperation.Remove ? "Confirm exact model-data removal" : "Approve " + operation };
+                        var decline = new Button { Content = "Decline" };
+                        var review = new Window
                         {
-                            Content = new StackPanel
+                            Title = "Review optional speech data operation",
+                            Width = 640,
+                            Height = 480,
+                            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                            Content = new ScrollViewer
                             {
-                                Margin = new Avalonia.Thickness(20), Spacing = 12,
-                                Children =
+                                Content = new StackPanel
+                                {
+                                    Margin = new Avalonia.Thickness(20),
+                                    Spacing = 12,
+                                    Children =
                                 {
                                     new TextBlock { Text = plan.Disclosure, TextWrapping = TextWrapping.Wrap },
+                                    new TextBlock
+                                    {
+                                        Text = operation == SpeechComponentOperation.Remove
+                                            ? plan.RemovalDisclosure + "\nSaved / desired / effective input: " + viewModel.SpeechInputStatus
+                                            : string.Empty,
+                                        TextWrapping = TextWrapping.Wrap,
+                                    },
                                     new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Children = { approve, decline } },
                                 },
+                                },
                             },
-                        },
-                    };
-                    approve.Click += (_, _) => review.Close(true);
-                    decline.Click += (_, _) => review.Close(false);
-                    using var cancellation = token.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(() => review.Close(false)));
-                    status.Text = "Review the exact speech assets and approve or decline. Capture remains unchanged.";
-                    var consent = await review.ShowDialog<bool>(this);
-                    var result = await viewModel.ApplySpeechComponentAsync(plan, consent,
-                        new Progress<string>(message => status.Text = message), token);
-                    status.Text = DescribeSpeechComponent(result);
-                });
+                        };
+                        approve.Click += (_, _) => review.Close(true);
+                        decline.Click += (_, _) => review.Close(false);
+                        using var cancellation = token.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(() => review.Close(false)));
+                        status.Text = "Review the exact speech assets and approve or decline. Capture remains unchanged.";
+                        var consent = await review.ShowDialog<bool>(this);
+                        var result = await viewModel.ApplySpeechComponentAsync(plan, consent,
+                            new Progress<string>(message => status.Text = message), token);
+                        status.Text = DescribeSpeechComponent(result);
+                    }, () => plan?.RemovalRecovery);
+                };
             }
             panel.Children.Add(new TextBlock { Text = component.Name, FontWeight = Avalonia.Media.FontWeight.SemiBold });
             panel.Children.Add(status);
@@ -99,7 +114,7 @@ public sealed partial class SettingsWindow
     }
 
     private async Task RunSpeechComponentUiAsync(TextBlock status,
-        Func<CancellationToken, Task> operation)
+        Func<CancellationToken, Task> operation, Func<SpeechComponentReadiness?>? removalRecovery = null)
     {
         if (speechComponentCancellation is not null)
         {
@@ -123,6 +138,15 @@ public sealed partial class SettingsWindow
                 + " Inspect current state before reviewing a retry. Existing input choices and personal profiles are unchanged.";
         }
         finally { speechComponentCancellation = null; }
+        if (removalRecovery?.Invoke() is { } recovery)
+        {
+            status.Text += "\nRemoval held Unavailable; no rollback or physical-release guarantee. "
+                + DescribeSpeechComponent(recovery)
+                + (recovery.Storage is { } remaining
+                    ? $"\nExact remaining inventoried bytes: {remaining.ExactBytes?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "Unknown"}.\n{remaining.Inventory}"
+                    : "\nRemaining inventory is Unknown; no deletion confirmation is available.")
+                + "\nInspect and review a new explicit removal. No automatic retry or reacquisition.";
+        }
     }
 
     private static string DescribeSpeechComponent(SpeechComponentReadiness state) =>

@@ -2,7 +2,6 @@ using System.ComponentModel;
 
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -46,6 +45,7 @@ public sealed partial class MainWindow : Window
     private bool positionInitialized;
     private bool shutdownRequested;
     private readonly PresenceReviewGesture reviewGesture;
+    internal Func<Task>? ApplyStartupPresentation { get; set; }
 
     public MainWindow()
         : this(
@@ -110,6 +110,7 @@ public sealed partial class MainWindow : Window
             InitializeAvaloniaPresence();
             motionPreference = new PresenceMotionBinding(presence, motionSource ?? new WindowsMotionPreferenceSource(),
                 action => Dispatcher.UIThread.Post(action), ReportMotionPreferenceFailure);
+            motionPreference.SetReducedMotion(viewModel.IsReducedMotionEnabled);
             motionPreference.SetEligible(viewModel.CanRevealPrivatePresentation);
         }
         catch (Exception failure) when (failure is not OutOfMemoryException)
@@ -276,6 +277,7 @@ public sealed partial class MainWindow : Window
         }
 
         Opacity = 1;
+        if (ApplyStartupPresentation is { } apply) { await apply(); }
     }
 
     private void OnPresenceFrameUpdating(object? sender, EventArgs eventArgs) =>
@@ -402,20 +404,10 @@ public sealed partial class MainWindow : Window
                 await HidePresenceAfterTransitionAsync();
                 break;
             case WindowAction.Close:
-                DesktopLog.Information(logger, "Shutting down the desktop application");
                 CancelPendingHide();
                 presenceTimeoutTimer.Stop();
                 presenceInactivity.Stop();
                 shutdownRequested = true;
-                if (Avalonia.Application.Current?.ApplicationLifetime
-                    is IClassicDesktopStyleApplicationLifetime desktop)
-                {
-                    desktop.Shutdown();
-                }
-                else
-                {
-                    Close();
-                }
                 break;
             default:
                 throw new InvalidOperationException($"Unknown window action: {action}.");
@@ -486,6 +478,7 @@ public sealed partial class MainWindow : Window
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
     {
         presence.IsPresentationEligible = viewModel.CanRevealPrivatePresentation;
+        motionPreference?.SetReducedMotion(viewModel.IsReducedMotionEnabled);
         motionPreference?.SetEligible(viewModel.CanRevealPrivatePresentation);
         if (eventArgs.PropertyName is nameof(MainViewModel.IsSpeaking))
         {

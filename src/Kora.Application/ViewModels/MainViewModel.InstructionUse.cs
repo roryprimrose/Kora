@@ -31,7 +31,7 @@ public sealed partial class MainViewModel
         { ReportHostInteractionFailure(command.Error); return; }
         if (!eligible() || !CanRevealPrivatePresentation || IsProtectedCall
             || input.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
-            || input.Origin == RequestOrigin.ActivatedVoice && !commandRouter.IsActivationPrefixed(text, AssistantName))
+            || input.Origin == RequestOrigin.ActivatedVoice && !HasCurrentNameActivation(text))
         { ReportHostInteractionFailure("Instruction requests require original private typed input or current-name activated voice without a pending question or approval."); return; }
         if (command.Action is "Confirm" && (instructionUseReview is null
             || input.Origin == RequestOrigin.ActivatedVoice && input.InputRevision < instructionUseReviewRevision))

@@ -5,15 +5,17 @@ namespace Kora.Windows.Dependencies;
 
 internal static partial class OllamaToolWire
 {
-    private static void WriteAskUserTool(Utf8JsonWriter writer)
+    private static void WriteAskUserTool(Utf8JsonWriter writer, bool formsAllowed)
     {
         writer.WriteStartObject();
         writer.WriteString("type", "function");
         writer.WriteStartObject("function");
         writer.WriteString("name", ModelToolProtocol.AskUserToolName);
-        writer.WriteString("description", ModelToolProtocol.AskUserDescription);
+        writer.WriteString("description", ModelToolProtocol.AskUserDescription
+            + (formsAllowed ? " Alternatively supply prompt and one to four required fields, each bounded text or singleChoice. "
+                + "Do not combine fields with top-level options or selection bounds. No defaults or credentials." : string.Empty));
         writer.WritePropertyName("parameters");
-        writer.WriteRawValue(ModelToolProtocol.AskUserInputSchema);
+        writer.WriteRawValue(formsAllowed ? ModelToolProtocol.FormAskUserInputSchema : ModelToolProtocol.AskUserInputSchema);
         writer.WriteEndObject();
         writer.WriteEndObject();
     }
@@ -30,14 +32,8 @@ internal static partial class OllamaToolWire
         writer.WriteString("type", "function");
         writer.WriteStartObject("function");
         writer.WriteString("name", ModelToolProtocol.AskUserToolName);
-        writer.WriteStartObject("arguments");
-        writer.WriteString("prompt", question.Question.Prompt);
-        writer.WriteStartArray("options");
-        foreach (var label in question.Question.Options) { writer.WriteStringValue(label); }
-        writer.WriteEndArray();
-        writer.WriteNumber("minimum", question.Question.Minimum);
-        writer.WriteNumber("maximum", question.Question.Maximum);
-        writer.WriteEndObject();
+        writer.WritePropertyName("arguments");
+        writer.WriteRawValue(ModelToolProtocol.SerializeQuestionArguments(question.Question));
         writer.WriteEndObject();
         writer.WriteEndObject();
         writer.WriteEndArray();

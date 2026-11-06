@@ -186,6 +186,7 @@ internal sealed partial class SessionsViewModel
                 await conversation.ReadDetailAsync(target, match.Message, Admitted, cancellation.Token, match.Assistant);
                 if (!Admitted()) { throw new OperationCanceledException("Exact message presentation was retired."); }
                 conversationPage = page;
+                conversationReadingControl = access.ControlRevision;
                 locatedContentPage = page;
                 completedConversationMessage = null;
                 conversationSourceHeld = false;

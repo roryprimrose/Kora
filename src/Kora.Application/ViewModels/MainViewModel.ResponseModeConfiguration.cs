@@ -98,9 +98,10 @@ public sealed partial class MainViewModel
             var saved = false;
             if (command.Operation is AppearanceCommandOperation.Set or AppearanceCommandOperation.Reset)
             {
-                var mode = command.Operation == AppearanceCommandOperation.Reset ? ResponseOutputMode.Hybrid : command.Value;
-                var choice = nativeChoice ?? service.Choices.Single(item => item.Mode == mode);
-                saved = await service.SelectAsync(choice, callRevision, origin, initiator, communicationPolicy, Eligible, cancellationToken);
+                saved = command.Operation == AppearanceCommandOperation.Reset
+                    ? await service.ResetAsync(callRevision, origin, initiator, communicationPolicy, Eligible, cancellationToken)
+                    : await service.SelectAsync(nativeChoice ?? service.Choices.Single(item => item.Mode == command.Value),
+                        callRevision, origin, initiator, communicationPolicy, Eligible, cancellationToken);
             }
             if (!Eligible()) { throw new InvalidOperationException("Response-mode host admission changed before presentation."); }
             preserveResponse |= IsSpeaking;

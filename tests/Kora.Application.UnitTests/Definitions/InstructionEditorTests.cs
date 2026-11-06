@@ -62,6 +62,7 @@ public sealed partial class InstructionEditorTests : IDisposable
         else
         {
             outcome.Saved.Should().BeTrue();
+            outcome.Replaced!.Document.Definition.Content.Should().Be("External");
             f.Files.Current!.Document.Definition.Content.Should().Be("Kora draft");
             review.Confirmations.Should().Be(2);
         }
@@ -398,7 +399,7 @@ public sealed partial class InstructionEditorTests : IDisposable
         }
     }
 
-    private sealed class Files : IOwnedInstructionStore
+    private sealed partial class Files : IOwnedInstructionStore, IOwnedInstructionRenameStore
     {
         internal OwnedInstructionSnapshot? Current = Snapshot();
         internal readonly Dictionary<string, OwnedInstructionSnapshot> Copies = new(StringComparer.Ordinal);
@@ -408,6 +409,7 @@ public sealed partial class InstructionEditorTests : IDisposable
         internal bool Unconfirmed;
         internal Action? AfterWrite;
         internal Action? BeforeRead;
+        internal Action? BeforeNativeComparison;
         internal int Reads;
         public Task<IReadOnlyList<string>> List(CancellationToken token) => Task.FromResult<IReadOnlyList<string>>(["example"]);
         public Task<OwnedInstructionSnapshot?> Read(string name, CancellationToken token)
@@ -422,6 +424,7 @@ public sealed partial class InstructionEditorTests : IDisposable
             token.ThrowIfCancellationRequested();
             if (!eligible()) { throw new InvalidOperationException("Host closed."); }
             if (FailWrite) { throw new IOException("Failed native storage"); }
+            BeforeNativeComparison?.Invoke();
             var current = name is "example" ? Current : Copies.GetValueOrDefault(name);
             if (!string.Equals(expected?.Revision, current?.Revision, StringComparison.Ordinal))
             { return new InstructionWriteResult(false, false, true, current); }

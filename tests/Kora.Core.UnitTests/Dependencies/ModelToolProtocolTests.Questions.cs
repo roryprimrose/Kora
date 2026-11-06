@@ -143,7 +143,7 @@ public sealed partial class ModelToolProtocolTests
             original.UserRequest, [], original.CreatedAt, original.ExpiresAt, ModelToolMode.None).Serialize(), provenance);
         var request = ModelToolProtocol.CreateRequest(provenance, null, context, [], 1, clarificationAllowed: true);
         using var wire = JsonDocument.Parse(ModelToolProtocol.SerializeRequest(request));
-        wire.RootElement.GetProperty("schemaVersion").GetInt32().Should().Be(2);
+        wire.RootElement.GetProperty("schemaVersion").GetInt32().Should().Be(ModelToolProtocol.FormClarificationSchemaVersion);
         var defaultRequest = ModelToolProtocol.CreateRequest(provenance, null, context, [], 1);
         using var defaultWire = JsonDocument.Parse(ModelToolProtocol.SerializeRequest(defaultRequest));
         defaultWire.RootElement.GetProperty("schemaVersion").GetInt32().Should().Be(1);

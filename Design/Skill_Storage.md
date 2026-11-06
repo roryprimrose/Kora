@@ -9,12 +9,24 @@ It accepts neither shared originals nor copied executable content; native result
 
 Related: [Extensibility](Extensibility.md), [Skill Authoring](Skill_Authoring.md), [Bundled Skills](Built_In_Skills.md), [Security and Data Flows](Security_Data_Flows.md).
 
+The [reviewed owned-source deletion](../docs/owned-skill-authoring.md#delete-one-saved-owned-source)
+supports only native v1/v2/v3/v4's exact manifest/guidance pair and empty version
+directory. It pins native root/parent/file identities and exact bytes, checks
+the current catalogue and permissions, and reads back absence. Shared originals,
+bundled sources and reference packages are not deletion targets;
+independent grants/history/audit and immutable admitted tasks are unaffected
+([store](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.Deletion.cs)).
+
 [Definition Management](Definition_Management.md) owns the common
 source, UI/voice editing, activation, and external-reload contract for skills,
 prompts, instructions, and agent profiles. Dedicated reviewed writes do not
 expand source-read consent into generic profile editing or execution authority.
 
 ## Explicit local Markdown references v2
+
+Native owned package ID rename is a separate [reviewed multi-step writer operation](Definition_Management.md#reviewed-owned-native-skill-package-rename). Its current two-file v1/v2/v3/v4 subset retains complete guidance/declarations, verifies new publication and old-name absence, and reopens disabled.
+Private local intent holds affected identities unavailable until separately confirmed recovery; it does not extend the shared Markdown reference profile below or authorize primary-only `SKILL.md` rename ([native owner](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.Rename.cs)).
+Hidden affected identities still reserve one logical immutable version and the larger complete old/new byte size for publication/recovery quotas; hiding them is not freed storage capacity. Source retirement and destination readback retain exact non-movable file holds under the [rename contract](Definition_Management.md#reviewed-owned-native-skill-package-rename).
 
 The v1 single-file profile remains unchanged. A primary `SKILL.md` may opt into
 the finite local-only v2 profile with these exact additional flat fields:
@@ -84,6 +96,20 @@ single-file contract.
 
 ## Source Partitions
 
+Owned native v5 packages use the [bounded Markdown component authoring
+operation](Skill_Authoring.md#skill-package-boundary) under the existing
+`Skills\<id>\<version>` namespace. This is a distinct explicit version, not
+shared-source consent or reinterpretation of owned v1/v3 text. List and initial
+use read only manifest/instructions and exact declared inventory. Reference
+bodies require separate original-user consent before complete review and
+volatile enablement; the [owned reader and writer](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.cs)
+share the same central declaration, aggregate byte bounds, identities,
+no-replace publication and complete readback. No other roots are consulted.
+The owned catalogue admits at most 32 immutable versions and 1 MiB of complete
+stored package bytes, including declared references. List counts reference
+file sizes without reading their bodies and rejects an oversized catalogue
+without returning partial results.
+
 | Partition | Location | Kora access |
 |---|---|---|
 | Bundled | Embedded resources in the first-party `Kora.Definitions` binary | Current: immutable catalogue and read-only inspection only. Invocation unavailable; no user/agent editing, loose-file overrides, or writable extraction. Installed protection remains a separate admission gate. |
@@ -149,7 +175,10 @@ profile-relative root and pinned directory identity and binds the write to the
 complete observed registration revision. It removes only Kora's registration
 and owned catalogue/text/hex presentation snapshots; user-owned shared files are
 never written, deleted or repaired. Unrelated registrations retain their exact
-metadata and order. No enablement, execution, grant or model exposure changes.
+metadata and order. Withdrawal advances the host's shared-source consent revision
+before publication, retiring existing volatile shared-skill reviews, enablement
+and pending reference-read consent even if the write or terminal receipt is
+unconfirmed. It creates no execution, grant or model exposure authority.
 A missing original directory remains withdrawable using verified saved metadata
 without selecting or reading that directory again. Re-registering its path
 requires a fresh native folder selection and a **new host-issued source ID**;
@@ -259,6 +288,10 @@ recovery. The attempted source identity remains read-closed for the owning
 host lifetime even if an old registration is restored; refresh permits retrying
 withdrawal of saved metadata, not silently regranting that identity. A fresh
 native selection with a new source ID is required to read it again.
+New use also requires fresh declaration consent where applicable, complete
+review and separate enablement; neither restored metadata nor refresh revives
+an old review. An already-running reference capture remains owned until it
+joins and cannot publish a late review after withdrawal.
 Corrupt preferences cannot be reset, repaired or unregistered through
 this workflow. Privacy closure and window disposal cancel pending work and
 destroy native content views, including confirmation metadata.
@@ -272,7 +305,7 @@ from registration or Markdown ([source admission](../src/Kora.Application/Skills
 
 The [separately typed review and invocation](../src/Kora.Application/Skills/ReviewedToolSkillReview.cs) bind one registered source identity, exact revision bytes/digest, existing Active target/generation/metadata, original UI or activated-voice channel, two-minute expiry and single use. They cannot enter or widen the existing zero-tool workflow.
 
-The [consumer](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs) accepts one single-file declarative `SKILL.md` with only `allowed-tools: network.get_web_page`. Additional declarations, uninspected files, scripts, executable fences, unresolved resources and ambiguous source identities remain refused. No bundled definition, script runner, agent or MCP binding is added.
+The [page consumer](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs) accepts one single-file declarative `SKILL.md` with only `allowed-tools: network.get_web_page`. Additional declarations, uninspected files, scripts, executable fences, unresolved resources and ambiguous source identities remain refused. The separate exact MCP consumer below does not widen this page operation, bundled definitions, script runners or agents.
 
 Source-read consent, explicit enablement of the exact revision's local model context, confirmation of the original request/target, and the WebPageGet action's own permission are separate boundaries. Guidance is inert untrusted evidence, never system instructions or permission. A model cannot expand the host-owned tool subset or budgets ([workflow](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs)).
 
@@ -286,6 +319,8 @@ The immutable [finite page scope](../src/Kora.Core/Network/LocalWebPageScope.cs)
 
 Each physical call reuses its own exact canonical once-only page approval and host egress/privacy/session checks. All used approvals remain current through continuation and successful terminal retention. A missing/failed second source cannot produce a successful comparison; an expired/revoked terminal fence remains explicitly unconfirmed, without replay. The original one-source operation and tool-free route remain separate ([finite workflow](../src/Kora.Application/Network/LocalWebPageWorkflow.cs), [retained consumer](../src/Kora.Application/Hosting/SessionConversationService.ToolSkills.cs)).
 
+The shared [WebPageGet action](../src/Kora.Tools/Network/WebPageGet.cs) omits script/style raw text until that element's matching end tag, without treating comparisons or literal markup inside it as nested elements. Visible article text after that end tag remains available to the reviewed local continuation; an unterminated raw element remains omitted through the end of the response. This is bounded inert text extraction, not browser rendering, script execution or additional source authority.
+
 Input/address/target edits revoke both the invocation and tool revision review; source/privacy/ownership changes fence late results. **Stop and close reviewed use** cancels and joins the owned operation. Comparison methodology stays in the [declarative skill example](../docs/tools-and-built-in-skills.md#two-source-comparison-skill-example), not a native comparison action ([controller lifecycle](../src/Kora/SharedSkillInvocationController.cs)).
 
 Activated voice uses the same commands with the current assistant-name prefix and existing call/privacy admission. Changing the reviewed channel or target requires fresh review. The original instruction-only `shared skill` commands remain distinct ([desktop consumer](../src/Kora/SharedSkillInvocationController.ToolSkills.cs)).
@@ -294,12 +329,68 @@ The [canonical retained conversation consumer](../src/Kora.Application/Hosting/S
 
 This is an implementation path, not qualification of an installed model or approval of any existing external definition. An unqualified local profile remains explicitly unavailable; no live provider/network/hardware evidence is claimed, and lock/shutdown/restart resources are unchanged ([host admission](../src/Kora.Application/Dependencies/ModelTurnHost.cs), [bundled catalogue](../src/Kora.Definitions/Skills/EmbeddedSkillCatalogue.cs)).
 
+### Reviewed exact read-only MCP skill
+
+The separately admitted [MCP skill consumer](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.Mcp.cs) accepts one registered single-file declarative skill using the closed `kora-mcp-read-only-v1` format. Its [reference](../src/Kora.Core/Skills/DeclarativeMcpToolReference.cs) pins one exact source-qualified server ID, full configuration revision, case-sensitive tool name and schema digest under MCP `2025-06-18`. These fields are dependency data, not inclusion, endpoint, account or execution authority.
+
+The original user independently selects an existing Active target, an app-included server and a current delegated account, enters the unchanged request and exact bounded JSON arguments, reviews the complete skill revision and separately enables its local context. Confirmation preserves those exact choices; Save, revision review, enablement and preparation do not connect or approve an effect ([review](../src/Kora.Application/Skills/ReviewedToolSkillReview.cs), [invocation](../src/Kora.Application/Skills/ReviewedMcpSkillInvocation.cs)).
+
+Before enabling invocation confirmation, preparation rejects outer JSON
+whitespace that the model protocol cannot represent, preserving all admitted
+argument bytes without normalization. It checks complete known local context
+using the shared context builder and serialized-input codec, reserving worst-case
+JSON-string space for the bounded undiscovered schema. The inclusive 32768-byte
+budget includes all guidance, original request, argument/revision evidence,
+policy, context and initial model-request framing; the 64 KiB inspection bound is not an invocation budget.
+Preflight repeats at the conversation entry before retention or remote effects.
+Final context admission still checks the exact discovered schema; scaffolding
+and conservative reserved bytes confer no approval and are never sent.
+
+Invocation reuses the [canonical MCP route](../src/Kora.Application/Hosting/SessionConversationService.Mcp.cs): separate native connection/source/account review, independent selection from freshly discovered host-mapped read-only tools, exact schema review, then separate permission/egress approval of the outgoing arguments. The selected tool/schema must equal the declaration, and model-proposed arguments must equal the original reviewed JSON bytes. Skill text and server annotations cannot select substitutes or establish effect mappings ([exchange owner](../src/Kora.Application/Mcp/McpInvocation.cs)).
+
+The unchanged request and skill guidance enter structurally separate local-only evidence fields in the existing `McpReadOnly` turn. After one bound exchange is joined, the host screens the complete result and separately reviews its exact Text/StructuredJson, provenance, original task/channel and retention before one local continuation. Invocation grants do not supply that result-use consent. Source/privacy/channel/session/task/account/grant currentness remains mandatory across awaited work, dispatch, continuation and terminal readback ([context](../src/Kora.Core/Dependencies/ModelContextEnvelope.cs), [native binding](../src/Kora.Application/Mcp/McpReview.cs)).
+
+The single-use [exchange owner](../src/Kora.Application/Mcp/McpInvocation.cs) joins its authenticated connection before releasing a successful result to any consumer, then revalidates the original source/session/grants. A pending or failed disposal cannot enter local continuation, publish the result or retain a successful answer; revocation and cancellation during that join remain fail-closed without another call.
+
+The [native and typed/activated-voice interaction](../docs/mcp-transport.md#reviewed-declarative-mcp-skill) displays the actual result separately from the retained answer. Input/selection changes retire confirmation; Stop closes publication, cancels and joins the same provider/transport owner. No retry, rollback claim, new credential, source authority, hosted disclosure or follow-up-send consent comes from the result. Unqualified production accounts, connectors, effect mappings and local providers remain unavailable; deterministic fixtures do not enable them.
+
+After genuine successful terminal retention and the physical transport join, that same private skill window can hold the host-issued complete actual [observation](../src/Kora.Application/Hosting/McpResultFollowUp/McpResultObservation.cs). The [shared native capture](../src/Kora/McpResultFollowUp/McpResultCapture.cs) uses the actual approved Skill-bearing invocation proposal, mapping, generation and causal link; rendered text, skill guidance, provider JSON and unconfirmed receipts confer no authority.
+
+A deliberately entered **new unchanged question** uses the existing [MCP result follow-up](../src/Kora.Application/Hosting/McpResultFollowUp/McpResultFollowUpWorkflow.cs), with separate Review and fresh original-user Confirm. The review shows all actual Text/StructuredJson, provenance/schema, exact original Active target, independent source/question channels, residual private-local risk, complete serialized cost and retention. The [production risk policy](Security_Data_Flows.md#reviewed-localonly-source-use-risk-admission) screens every complete part: detected credentials deny without override; incomplete or unknown screening remains unavailable.
+
+Only one new LocalOnly `ModelToolMode.None` request/task is submitted in that same conversation. The original skill message/task, grants and expiry are unchanged, and no extra raw result is saved. Complete serialized input is accepted at 32768 UTF-8 bytes and rejected at 32769 before retention or model dispatch; no shortening, normalization or budget increase. The fresh envelope carries neither skill guidance nor old context, tools, instructions, agents, memory or consent.
+
+Native **Review one fresh local-only no-tools answer**, **Confirm one fresh local-only no-tools answer** and **Cancel current MCP result answer** share `tool skill mcp question <unchanged new question>`, `tool skill mcp review answer`, `tool skill mcp confirm answer` and `tool skill mcp cancel answer`. Eligible activated voice adds the current assistant-name prefix and preserves its fresh origin independently of the source origin; MCP authentication and invocation approvals remain native. Question edits retire their separate review, not the old request or an unrelated composer. Source/target/account/original-input/control changes retire the observation; its original skill/invocation expiry is never extended. Cancel/Stop/close suppress late output and join cancellation-ignoring owned work before release; uncertain retained work prohibits retry and is not rollback. This fail-closed implementation does not qualify or enable any account, connector, model or wake profile.
+
 ### Future discovery and enablement
 
 The [bounded delivered consumer](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs) covers explicit instruction-only single-file use and separately consented [v2 Markdown bundles](#explicit-local-markdown-references-v2) with empty capabilities, original UI/activated-voice provenance, exact unchanged request text and one existing Active target.
 Its [review](../src/Kora.Application/Skills/SharedSkillUseReview.cs) expires after two minutes, is single-use and never persists enablement.
 The [canonical conversation consumer](../src/Kora.Application/Hosting/SessionConversationService.SharedSkills.cs) retains actual host results under the unchanged source, cancellation and terminal-readback fences.
-Broader catalogue/model selection, tools outside the separately reviewed one-tool path, files outside the explicit v2 profile, executable requirements and hosted transmission below remain future work.
+Automatic/broader catalogue selection, tools outside the separately reviewed one-tool path, files outside the explicit v2 profile, executable requirements and hosted transmission below remain future work.
+
+### Model-selected registered single-file instruction-only use
+
+The [explicit native metadata review](../src/Kora.Application/Tools/CustomizationDiscoveryService.cs) binds one to six selected included skill files to existing registrations without loading their guidance.
+The host freezes the unchanged original task, existing Active target and original input channel. A separately opted-in local selector may return only one strict opaque `skillRef` actually served by the metadata snapshot; ordinary turns gain no catalogue
+([selection schema](../src/Kora.Core/Skills/ModelSkillUseProposal.cs), [served-ref fence](../src/Kora.Application/Tools/CustomizationDiscoverySnapshot.cs)).
+
+The [canonical reader](../src/Kora.Windows/Skills/WindowsProfileSkillReader.Selection.cs) binds the registered root's native identity, exact relative file, package/file identities and native revision.
+Separate native source-read consent reads only that file, not unrelated package bodies, and compares its exact bytes with the selected metadata digest.
+Only complete single-file, zero-tool, instruction-only guidance without required inputs or references is eligible; unsupported profiles fail explicitly rather than losing requirements
+([source validation](../src/Kora.Application/Skills/SharedSkillDiscoveryService.Selection.cs)).
+
+The selector must finish and physically join before the proposal can open source review.
+Separate exact-revision enablement, invocation preparation and original-user confirmation enter the existing [shared workflow](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs).
+The unchanged task and guidance enter separate fields of one LocalOnly tools-none context under existing complete-input/output/deadline limits.
+Actual skill-produced answers or truthful terminals are retained in the original conversation; recommendation text alone is not operation completion.
+No nested runtime, fabricated parent tool result, tool grants, path resolution from provider text or task substitution is permitted
+([retained selection and join](../src/Kora.Application/Hosting/SessionConversationService.CustomizationDiscovery.cs), [conversation consumer](../src/Kora.Application/Hosting/SessionConversationService.SharedSkills.cs)).
+
+The original two-minute selection lifetime is not renewed by later reviews.
+Input/subset/target edits, source replacement/restored bytes with changed native revision, withdrawn registration, inclusion/privacy/ownership/call/channel changes or target generation changes retire use.
+Exact source validation remains attached through preparation, dispatch and terminal retention; Stop/close suppresses late proposals/answers while retaining resources until joined
+([proposal lifetime](../src/Kora.Application/Skills/ProposedSharedSkillUse.cs), [native lifecycle](../src/Kora/CustomizationDiscoveryController.cs)).
 
 Offer user-approved source registrations, not a recursive scan of the entire profile.
 Recognisable candidate locations can be suggested if present, for example `%USERPROFILE%\.agents\skills` or `%USERPROFILE%\.copilot\skills`.
@@ -459,6 +550,9 @@ Until these checks and containment pass, packages requiring
 scripts remain disabled under the existing MVP policy.
 
 ## Identity and Revision Handling
+
+The [owned-package admission owner](../src/Kora.Application/Skills/OwnedSkillInvocationWorkflow.cs) checks the host exclusion policy for both primary files on every native format, plus each declared Markdown component. A missing policy or excluded primary blocks direct review and subsequent source-validation boundaries, not only named lookup.
+Exclusion retirement cannot be reversed by restoring eligibility; use needs a fresh exact revision review ([behavioral regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.OwnedSkillUsePolicy.cs)).
 
 Internal identity includes source partition, canonical source/package identity, declared skill ID, and content digest.
 Display names and IDs from a package do not override bundled or other-source skills.

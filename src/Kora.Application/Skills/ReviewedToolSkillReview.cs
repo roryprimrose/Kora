@@ -35,6 +35,10 @@ public sealed class ReviewedToolSkillReview : IDisposable
     internal ActivityLink Cause { get; }
     public SessionWorkspaceEntry Target { get; }
     public RequestOrigin Origin { get; }
+    public DeclarativeMcpToolReference? McpReference
+    {
+        get { lock (gate) { return IsCurrent && source is SharedToolSkillSource shared ? shared.Snapshot.McpReference : null; } }
+    }
     public DateTimeOffset ExpiresAt { get; }
     public string Text { get { lock (gate) { return IsCurrent ? source!.Text : string.Empty; } } }
     public string SourceDescription { get { lock (gate) { return IsCurrent

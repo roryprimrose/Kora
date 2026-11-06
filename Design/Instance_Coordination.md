@@ -28,10 +28,22 @@ They never request or accept ownership transfer. Debug launches activate the sam
 build and retain the explicit different-build handoff described below.
 The existing process reveals its status/questions window, subject to Windows foreground restrictions and lock privacy.
 The new process exits after acknowledgement; it does not replay startup/task arguments, enable listening, duplicate tray icons, or execute work.
+
+The separate [manual startup presentation preference](User_Configuration.md#delivered-normal-manual-startup-presentation) is consumed only by a new owned desktop lifetime launched through the supported `--manual-startup` route. It cannot clear private holds, establish a new input target, select/read a conversation or change the explicit existing-owner activation callback. Argument-free legacy/logon launches retain baseline behavior; held manual presentation never becomes an unlock/call-end backlog.
 If locked, acknowledge presence without displaying sensitive content; expose details only after unlock and user activation.
 Timeout is not proof the owner is dead: report an unreachable instance and exit without competing capture/execution.
 An older owner that does not support the explicit activation-only request reports
 an incompatibility; a Release candidate never falls back to a takeover request.
+
+The Windows listener bounds connected and waiting server pipes together to four
+instances. It waits for a connected handler to dispose its pipe and return
+capacity before creating another server pipe. Four overlapping activations must
+not permanently stop acceptance of later launches. Stopping acceptance or a
+native pipe-creation failure does not close a pipe already owned by a connected
+handler; existing identity, timeout, privacy and activation-only checks remain
+authoritative. The isolated [listener regressions](../tests/Kora.Windows.IntegrationTests/Coordination/InstanceListenerTests.cs)
+exercise saturation, subsequent activation acknowledgement, cancellation and
+creation failure without acquiring the live assistant's ownership namespace.
 
 ## Different Debug Build Launch
 

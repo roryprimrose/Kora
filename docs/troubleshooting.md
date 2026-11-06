@@ -8,6 +8,9 @@ or [diagnostic logs](#find-diagnostic-logs).
 For **Unknown** or **Unconfirmed** work, inspect its original conversation and
 status before trying again. Repeating an action is not a recovery check.
 
+To share a retained managed exception, use the separate
+[reviewed GitHub problem-report flow](problem-reports.md), not a raw log upload.
+
 ## Local storage or model setup needs attention
 
 Open Settings > Readiness or use **what do you have left to do** to see the

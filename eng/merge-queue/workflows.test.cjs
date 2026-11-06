@@ -3,13 +3,16 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { execution, CHECKS, GATE } = require('./policy.cjs');
+const { execution, controllerOperation, CHECKS, GATE, JOBS, WINDOWS_12_JOBS, DELIVERY_JOBS, UNIT_PR_JOBS,
+  PARALLEL_PR_JOBS, PARALLEL_MAIN_JOBS, PREDECESSOR_WORKFLOWS,
+  workflowJobs, requiredJobsState, terminalJobs } = require('./policy.cjs');
 const root = path.resolve(__dirname, '..', '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8').replaceAll('\r\n', '\n');
 const ci = process.env.KORA_QUEUE_WORKFLOW_TEST_PATH
   ? fs.readFileSync(process.env.KORA_QUEUE_WORKFLOW_TEST_PATH, 'utf8').replaceAll('\r\n', '\n')
   : read('.github/workflows/ci.yml');
 const controller = read('.github/workflows/merge-queue.yml');
+const timer = read('.github/workflows/merge-queue-timer.yml');
 const coverage = read('.github/workflows/coverage-comment.yml');
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 
@@ -18,6 +21,56 @@ function job(name) {
   assert.ok(match, `Missing job ${name}`);
   return match[1];
 }
+
+test('independent packaging selection is trusted combined-candidate-only; every main run builds fresh packages', async () => {
+  const script = job('admission').match(/          script: \|\n([\s\S]*)/)[1]
+    .split('\n').map(line => line.replace(/^            /, '')).join('\n');
+  const execute = new AsyncFunction('process', 'context', 'core', 'github', 'require', script);
+  for (const kind of ['batch', 'singleton', 'main']) {
+    for (const selected of [false, true]) {
+      const inputs = kind === 'main' ? {} : { queue_ticket: 'ticket', queue_base: 'base',
+        ...(kind === 'batch' ? { queue_batch: 'digest' } : {}) };
+      const outputs = {};
+      let comparisons = 0;
+      class Api {
+        async candidatePackaging(base, source) {
+          assert.equal(base, 'base');
+          assert.equal(source, 'source');
+          comparisons++;
+          return { build: selected, reason: 'tested' };
+        }
+      }
+      await execute({ env: { QUEUE_MODE: 'enabled', QUEUE_PROFILE: 'batch-v1',
+        DELIVERY_PROFILE: 'independent-v1', QUEUE_INPUTS: JSON.stringify(inputs), QUEUE_APP_ID: '42' } },
+      { eventName: kind === 'main' ? 'push' : 'workflow_dispatch', ref: 'refs/heads/main', sha: 'source' },
+      { setOutput: (key, value) => { outputs[key] = value; }, notice() {} }, {},
+      name => name.endsWith('policy.cjs') ? { execution }
+        : { admit: async () => 'source', admitBatchTip: async () => true, GitHubQueue: Api });
+      assert.equal(outputs.packaging, String(kind === 'batch' ? selected : true));
+      assert.equal(comparisons, kind === 'batch' ? 1 : 0);
+    }
+  }
+  for (const value of ['future', 'independent-v1']) {
+    await assert.rejects(execute({ env: { QUEUE_MODE: '', DELIVERY_PROFILE: value } }, {}, {}, {}, () => ({})));
+  }
+  const installer = job('installer');
+  for (const step of ['Install .NET SDK', 'Restore locked installer dependencies',
+    'Download exact Linux-published x64 application', 'Verify payload digests and build identity',
+    'Build MSI and Burn bundle without installing'])
+    assert.ok(installer.includes(`- name: ${step}\n        if: needs.version.outputs.packaging == 'true'`), step);
+  const setup = job('installer-validation');
+  for (const step of ['Install .NET SDK', 'Restore locked metadata and managed setup dependencies',
+    'Compile managed setup without running integration tests', 'Test installer metadata contracts without installing']) {
+    const body = setup.match(new RegExp(`      - name: ${step}\\n([\\s\\S]*?)(?=      - name:|$)`))[1];
+    assert.doesNotMatch(body, /^        if:/m, `${step} is required even when MSI/Burn is not selected`);
+  }
+  assert.ok(setup.indexOf('- name: Restore locked metadata and managed setup dependencies')
+    < setup.indexOf('- name: Test installer metadata contracts without installing'));
+  assert.match(setup, /dotnet restore \.\\installer\\Kora\.Setup\\Kora\.Setup\.csproj --locked-mode/);
+  assert.match(setup, /dotnet build installer\/Kora\.Setup\/Kora\.Setup\.csproj --configuration Release --no-restore/);
+  assert.match(setup, /Test installer metadata contracts without installing\n        shell: pwsh/);
+  assert.match(installer, /MSI\/Burn execution is not claimed/);
+});
 
 test('CI admission inline policy matches the deterministic ordinary and comparison routing contract', async () => {
   const script = job('admission').match(/          script: \|\n([\s\S]*)/)[1]
@@ -46,6 +99,56 @@ test('CI admission inline policy matches the deterministic ordinary and comparis
   }
 });
 
+test('hourly CI coalesces automatic main pushes and runs only admitted changed hourly snapshots', async () => {
+  const script = job('admission').match(/          script: \|\n([\s\S]*)/)[1]
+    .split('\n').map(line => line.replace(/^            /, '')).join('\n');
+  const execute = new AsyncFunction('process', 'context', 'core', 'github', 'require', script);
+  for (const mainBuildProfile of ['', 'hourly-v1']) {
+    for (const eventName of ['push', 'schedule', 'workflow_dispatch', 'pull_request']) {
+      for (const selected of [false, true]) {
+        const outputs = {};
+        let scheduled = 0;
+        class Api {
+          async load() { return { expected: true }; }
+          async admitScheduledMain(state, attempt) {
+            assert.equal(state.expected, true);
+            assert.equal(attempt, 1);
+            scheduled++;
+            return selected;
+          }
+        }
+        await execute({ env: { QUEUE_MODE: 'enabled', QUEUE_PROFILE: 'batch-v1',
+          DELIVERY_PROFILE: 'independent-v1', MAIN_BUILD_PROFILE: mainBuildProfile,
+          MAIN_RUN_ATTEMPT: '1',
+          QUEUE_INPUTS: '{}', QUEUE_APP_ID: '42' } },
+        { eventName, ref: 'refs/heads/main', sha: 'a'.repeat(40) },
+        { setOutput: (key, value) => { outputs[key] = value; }, notice() {} }, {},
+        name => name.endsWith('policy.cjs') ? { execution }
+          : { admitBatchTip: async () => true, GitHubQueue: Api });
+        const full = eventName !== 'pull_request' && (eventName === 'workflow_dispatch'
+          || eventName === 'push' && !mainBuildProfile
+          || eventName === 'schedule' && mainBuildProfile === 'hourly-v1' && selected);
+        assert.equal(outputs.full, String(full), JSON.stringify({ mainBuildProfile, eventName, selected }));
+        assert.equal(scheduled, eventName === 'schedule' && mainBuildProfile === 'hourly-v1' ? 1 : 0);
+      }
+    }
+  }
+  for (const values of [
+    { MAIN_BUILD_PROFILE: 'future' },
+    { MAIN_BUILD_PROFILE: 'hourly-v1', QUEUE_PROFILE: '' },
+    { MAIN_BUILD_PROFILE: 'hourly-v1', DELIVERY_PROFILE: '' },
+  ]) {
+    await assert.rejects(execute({ env: { QUEUE_MODE: 'enabled', QUEUE_PROFILE: 'batch-v1',
+      DELIVERY_PROFILE: 'independent-v1', QUEUE_INPUTS: '{}', ...values } }, {}, {}, {}, () => ({})));
+  }
+  assert.doesNotMatch(ci, /^  schedule:/m);
+  assert.doesNotMatch(controller, /^  schedule:/m);
+  assert.match(timer, /\n  schedule:\n    - cron: '2-57\/5 \* \* \* \*'/);
+  assert.match(job('admission'), /permissions:\n      contents: read\n      actions: read/);
+  assert.doesNotMatch(ci, /^      main_build_profile:/m);
+  assert.match(controller, /MAIN_BUILD_PROFILE: \$\{\{ vars.KORA_MAIN_BUILD_PROFILE \}\}/);
+});
+
 test('candidate routing rejects disabled mode and delegates source identity to trusted admission', async () => {
   const script = job('admission').match(/          script: \|\n([\s\S]*)/)[1]
     .split('\n').map(line => line.replace(/^            /, '')).join('\n');
@@ -61,6 +164,7 @@ test('candidate routing rejects disabled mode and delegates source identity to t
       assert.equal(name, './eng/merge-queue/github.cjs');
       return { admit: async ({ inputs }) => { assert.equal(inputs.app_id, '42'); return 'candidate'; } };
     });
+
   assert.equal(outputs.full, 'true');
   assert.equal(outputs.source, 'candidate');
   assert.equal(outputs.candidate, 'true');
@@ -70,41 +174,247 @@ test('candidate routing rejects disabled mode and delegates source identity to t
     () => ({ execution })), /timing comparison/);
 });
 
+test('batch workflow routing fails closed on unknown profiles and coalesces intermediate main/tag/manual work', async () => {
+      const script = job('admission').match(/          script: \|\n([\s\S]*)/)[1]
+        .split('\n').map(line => line.replace(/^            /, '')).join('\n');
+      const execute = new AsyncFunction('process', 'context', 'core', 'github', 'require', script);
+      for (const queueProfile of ['future', 'batch-v1']) {
+        await assert.rejects(execute({ env: { QUEUE_MODE: '', QUEUE_PROFILE: queueProfile, QUEUE_INPUTS: '{}' } },
+          {}, {}, {}, () => assert.fail()), /profile|requires enabled/);
+      }
+      for (const full of [false, true]) {
+        for (const eventName of ['push', 'workflow_dispatch']) {
+          for (const ref of ['refs/heads/main', 'refs/tags/v1.2.3']) {
+            const outputs = {};
+            await execute({ env: { QUEUE_MODE: 'enabled', QUEUE_PROFILE: 'batch-v1', QUEUE_INPUTS: '{}' } },
+              { eventName, ref, sha: 'a'.repeat(40) }, { setOutput: (key, value) => { outputs[key] = value; }, notice() {} }, {},
+              name => name.endsWith('policy.cjs') ? { execution } : { admitBatchTip: async () => full });
+            assert.equal(outputs.full, String(full));
+            assert.equal(outputs.candidate, 'false');
+            assert.equal(outputs.source, 'a'.repeat(40));
+          }
+        }
+      }
+      assert.match(ci, /group: ci-.*github\.sha/);
+      assert.match(job('release'), /group: release-\$\{\{ needs\.version\.outputs\.version \}\}/);
+      assert.match(job('release-batch'), /group: \$\{\{ vars.KORA_MERGE_QUEUE_DELIVERY_PROFILE == 'independent-v1' && format\('release-source-\{0\}', github.sha\) \|\| 'merge-queue-controller' \}\}\n      cancel-in-progress: false\n      queue: max/);
+      assert.match(controller, /queue: \$\{\{ vars\.KORA_MERGE_QUEUE_PROFILE == 'batch-v1' && 'max' \|\| 'single' \}\}/);
+      const qualification = job('batch-tip-qualified');
+      assert.match(qualification, /needs: \[admission, version, portable, windows-integration, installer, release, release-batch\]/);
+      for (const result of ['ADMISSION', 'VERSION', 'PORTABLE', 'WINDOWS', 'INSTALLER', 'RELEASE'])
+        assert.ok(qualification.includes(`test "$${result}" = success`));
+      assert.match(qualification, /inputs\.queue_ticket == ''/);
+      assert.match(job('version'), /already-published:.*KORA_MERGE_QUEUE_PROFILE == 'batch-v1' && 'false'/);
+      assert.match(coverage, /startsWith\(github\.event\.workflow_run\.display_title, 'Merge queue PR #'\)/);
+      assert.doesNotMatch(coverage, /startsWith\(github\.event\.workflow_run\.display_title, 'Merge queue batch/);
+});
+
 test('candidate jobs check out the admitted SHA, preserve all required identities and cannot publish', () => {
   assert.match(ci, /^run-name: "\$\{\{[^\n]*\}\}"$/m);
-  for (const name of CHECKS) assert.ok(ci.includes(`name: ${name}`));
+  for (const name of CHECKS.slice(0, 2)) assert.ok(ci.includes(`name: ${name}`));
+  assert.ok(ci.includes('name: Validate installer packaging'));
   assert.match(job('version'), /needs: admission\n    if: needs\.admission\.outputs\.full == 'true'/);
   assert.match(job('version'), /ref: \$\{\{ needs\.admission\.outputs\.source \}\}/);
   assert.match(job('version'), /publish: \$\{\{ needs\.admission\.outputs\.candidate != 'true'/);
   assert.match(job('version'), /if: steps\.version\.outputs\.publish == 'true' && needs\.admission\.outputs\.candidate != 'true'/);
-  for (const name of ['portable', 'windows-integration-shards', 'installer']) {
+  for (const name of ['portable-tests', 'portable-policy', 'payload', 'windows-test-build', 'windows-test-partitions',
+    'installer-validation', 'installer']) {
     assert.match(job(name), /ref: \$\{\{ needs\.version\.outputs\.source-revision \}\}/);
     assert.match(job(name), /persist-credentials: false/);
     assert.doesNotMatch(job(name), /permission[s]?:[\s\S]*write/);
   }
-  for (const name of ['portable', 'installer']) {
+  for (const name of ['portable-tests', 'payload', 'installer']) {
     assert.match(job(name), /SOURCE_REVISION: \$\{\{ needs\.version\.outputs\.source-revision \}\}/);
     assert.doesNotMatch(job(name), /SourceRevision "\$env:GITHUB_SHA"|Revision "\$env:GITHUB_SHA"/);
   }
   assert.match(job('release'), /inputs\.queue_ticket == ''/);
   assert.match(job('windows-integration'), /needs: \[admission, version, windows-integration-shards\]/);
-  assert.match(ci, /cancel-in-progress: \$\{\{ !inputs\.queue_ticket \}\}/);
+  assert.match(job('portable'), /needs: \[admission, version, portable-tests, portable-policy, payload\]/);
+  assert.match(job('installer'), /needs: \[version, payload, installer-validation\]/);
+  assert.match(job('payload'), /needs: version/);
+  assert.doesNotMatch(job('payload'), /needs:.*portable/);
+  assert.match(ci, /cancel-in-progress: \$\{\{ !inputs\.queue_ticket && vars\.KORA_MERGE_QUEUE_PROFILE != 'batch-v1' \}\}/);
+});
+
+test('independent producers are joined without preventing retirement of predecessor workflow runs', () => {
+  const predecessorJobs = JOBS.map(name => ({ name, status: 'completed', conclusion: 'success' }));
+  assert.equal(terminalJobs(predecessorJobs,
+    workflowJobs('name: CI\n', '9f19d4298cde21e313481cec9042138d6378b7ba')), true);
+  assert.equal(terminalJobs(predecessorJobs, workflowJobs(ci, 'current')), false);
+  assert.ok(!JOBS.includes('Portable build, tests, and coverage'));
+  assert.ok(!JOBS.includes('Publish and inspect exact-source payloads'));
+  assert.match(job('portable-tests'), /name: Portable build, tests, and coverage/);
+  assert.match(job('payload'), /name: Publish and inspect exact-source payloads/);
+  assert.match(job('release'), /needs: \[version, portable, windows-integration, installer\]/);
+  assert.match(job('portable'), /needs: \[admission, version, portable-tests, portable-policy, payload\]/);
+});
+
+test('trusted workflow schema keeps full main inventory and a separate unit-only candidate inventory', () => {
+  const expected = workflowJobs(ci, 'current');
+  assert.deepEqual(expected, PARALLEL_MAIN_JOBS);
+  assert.deepEqual(workflowJobs(ci, 'current', true), PARALLEL_PR_JOBS);
+  assert.equal(PARALLEL_PR_JOBS.length, 8);
+  assert.equal(PARALLEL_MAIN_JOBS.length, 27);
+  assert.ok(PARALLEL_PR_JOBS.every(name => PARALLEL_MAIN_JOBS.includes(name)));
+  assert.ok(!PARALLEL_PR_JOBS.some(name => name.includes('Windows')));
+  assert.deepEqual(workflowJobs('# merge-queue-job-schema: unit-pr-v1\n# merge-queue-delivery-schema: independent-v1\n',
+    'historical', true), UNIT_PR_JOBS);
+  const excluded = ['Compare portable test scheduling', 'Compare native fixture evidence',
+    'Queue policy feedback', 'Publish GitHub release', 'Publish completed batch release', 'Qualify completed batch tip'];
+  const actual = [...ci.matchAll(/^  ([a-z][\w-]*):\n    name: (.+)$/gm)].flatMap(([, id, name]) => {
+    if (excluded.includes(name)) return [];
+    if (!name.includes('${{')) return [name];
+    const matrix = job(id).match(/^        (\w+): \[([^\]]+)\]$/m);
+    assert.ok(matrix, `Missing bounded matrix for ${id}`);
+    return matrix[2].split(',').map(value => name.replace(`\${{ matrix.${matrix[1]} }}`, value.trim()));
+  });
+  assert.deepEqual(actual.sort(), [...expected].sort());
+  assert.equal(new Set(actual).size, actual.length);
+  for (const [blob, inventory] of Object.entries(PREDECESSOR_WORKFLOWS))
+    assert.equal(workflowJobs('name: CI\n', blob), inventory);
+  for (const source of ['name: CI\n', '# merge-queue-job-schema: unknown\n',
+    '# merge-queue-job-schema: windows-12-v1\n# merge-queue-job-schema: windows-12-v1\n',
+    '# merge-queue-job-schema: \n',
+    '# merge-queue-job-schema: windows-12-v1\n# merge-queue-delivery-schema: future\n',
+    '# merge-queue-job-schema: windows-12-v1\n# merge-queue-delivery-schema: independent-v1\n# merge-queue-delivery-schema: independent-v1\n']) {
+    const inventory = workflowJobs(source, 'unknown');
+    assert.equal(inventory, null);
+    assert.equal(terminalJobs(actual.map(name => ({ name, status: 'completed', conclusion: 'success' })), inventory), false);
+    assert.equal(requiredJobsState([], inventory), 'pending');
+  }
+  assert.equal(workflowJobs('name: CI\n', '__proto__'), null);
+  assert.deepEqual(workflowJobs('# merge-queue-job-schema: windows-12-v1\r\n', 'unknown'), WINDOWS_12_JOBS);
+});
+
+test('Windows tests scale out to twelve artifact-only jobs behind predecessor-compatible gates', () => {
+  const producer = job('windows-test-build');
+  const consumers = job('windows-test-partitions');
+  assert.match(producer, /runs-on: windows-latest/);
+  assert.equal((producer.match(/dotnet build tests\/Kora.Windows.IntegrationTests/g) || []).length, 1);
+  assert.match(producer, /Publish-WindowsTestArtifact\.ps1 -SourceRevision '\$\{\{ needs\.version\.outputs\.source-revision \}\}'/);
+  assert.match(consumers, /needs: \[version, windows-test-build\]/);
+  assert.match(consumers, /fail-fast: false/);
+  const partitions = consumers.match(/partition: \[([^\]]+)\]/)[1].split(',').map(value => value.trim());
+  assert.equal(partitions.length, 12);
+  assert.equal(new Set(partitions).size, 12);
+  assert.doesNotMatch(consumers, /dotnet (restore|build)|--project|max-threads|larger|xlarge/);
+  assert.match(consumers, /-Partition '\$\{\{ matrix\.partition \}\}' -TestModuleDirectory/);
+  assert.match(consumers, /-ExpectedSourceRevision '\$\{\{ needs\.version\.outputs\.source-revision \}\}'/);
+  assert.match(consumers, /KORA_TEST_NATIVE_EVIDENCE_MODE: \$\{\{ matrix\.partition == 'native-ux' && 'buffered' \|\| 'synchronous' \}\}/);
+  assert.match(consumers, /windows-test-build-\$\{\{ needs\.version\.outputs\.source-revision \}\}/);
+  assert.match(consumers, /windows-execution-results-\$\{\{ matrix\.partition \}\}/);
+  assert.match(job('windows-integration-shards'), /needs: \[admission, version, windows-test-build, windows-test-partitions\]/);
+  assert.ok(!JOBS.includes('Build exact-source Windows test modules'));
+  for (const partition of partitions) assert.ok(!JOBS.includes(`Windows test partition (${partition})`));
+  assert.match(job('windows-integration'), /Test-WindowsIntegrationScheduling\.ps1 -RetainedResultsDirectory/);
+  assert.match(job('windows-integration'), /-ExpectedCatalogPath.*-ExpectedSourceRevision/);
+});
+
+test('legacy Windows job identities fail closed unless the shared build and all twelve jobs succeed', () => {
+  const source = job('windows-integration-shards');
+  const guard = source.match(/        run: \|\n([\s\S]*)/)[1]
+    .split('\n').map(line => line.replace(/^          /, '')).join('\n');
+  assert.match(guard, /if \(\$env:BUILD_RESULT -cne 'success' -or \$env:PARTITION_RESULT -cne 'success'\)/);
+  assert.match(guard, /throw "Windows execution is incomplete/);
+  assert.match(source, /if: always\(\)/);
 });
 
 test('required aggregate skips only an explicitly waiting admission or an already-published release', () => {
-  const expression = job('windows-integration').match(/^    if: (.+)$/m)[1]
-    .replace('always()', 'true')
-    .replaceAll('needs.version.outputs.already-published', "needs.version.outputs['already-published']");
-  const evaluate = new Function('needs', `return ${expression};`);
-  for (const result of ['success', 'failure', 'cancelled', 'skipped']) {
-    for (const full of ['true', 'false', '']) {
-      for (const versionResult of ['success', 'failure', 'cancelled', 'skipped']) {
-        const needs = { admission: { result, outputs: { full } },
-          version: { result: versionResult, outputs: {} } };
-        assert.equal(evaluate(needs), !(result === 'success' && full === 'false'),
-          JSON.stringify(needs));
+  for (const name of ['portable', 'windows-integration']) {
+    const expression = job(name).match(/^    if: (.+)$/m)[1]
+      .replace('always()', 'true')
+      .replaceAll('needs.version.outputs.already-published', "needs.version.outputs['already-published']");
+    const evaluate = new Function('needs', 'github', `return ${expression};`);
+    for (const result of ['success', 'failure', 'cancelled', 'skipped']) {
+      for (const full of ['true', 'false', '']) {
+        for (const versionResult of ['success', 'failure', 'cancelled', 'skipped']) {
+          const needs = { admission: { result, outputs: { full, candidate: 'false' } },
+            version: { result: versionResult, outputs: {} } };
+          assert.equal(evaluate(needs, { event_name: 'push' }), !(result === 'success' && full === 'false'),
+            JSON.stringify(needs));
+          needs.version.outputs['already-published'] = 'true';
+          assert.equal(evaluate(needs, { event_name: 'push' }), false);
+        }
+      }
+    }
+  }
+});
+
+test('all Windows integration producers and aggregates are post-merge only, including fail-closed missing candidate flags', () => {
+  for (const name of ['windows-test-build', 'windows-test-partitions', 'windows-integration-shards', 'windows-integration']) {
+    const expression = job(name).match(/^    if: (.+)$/m)[1]
+      .replace('always()', 'true')
+      .replaceAll('needs.version.outputs.preflight-source', "needs.version.outputs['preflight-source']")
+      .replaceAll('needs.version.outputs.source-revision', "needs.version.outputs['source-revision']")
+      .replaceAll('needs.version.outputs.already-published', "needs.version.outputs['already-published']");
+    const evaluate = new Function('needs', 'github', `return ${expression};`);
+    for (const event_name of ['pull_request', 'push', 'workflow_dispatch']) {
+      for (const candidate of ['true', 'false', '', undefined, 'unknown']) {
+        const needs = { admission: { result: 'success', outputs: { full: 'true', candidate } },
+          version: { outputs: { candidate, 'preflight-source': 'source', 'source-revision': 'source' } } };
+        assert.equal(evaluate(needs, { event_name }), event_name !== 'pull_request' && candidate === 'false',
+          JSON.stringify({ name, event_name, candidate }));
         needs.version.outputs['already-published'] = 'true';
-        assert.equal(evaluate(needs), false);
+        assert.equal(evaluate(needs, { event_name }), false);
+      }
+    }
+  }
+});
+
+test('portable aggregate requires tests, policy and payload producers and fails closed for incomplete outcomes', () => {
+  const source = job('portable');
+  assert.match(source, /TEST_RESULT: \$\{\{ needs\.portable-tests\.result \}\}/);
+  assert.match(source, /POLICY_RESULT: \$\{\{ needs\.portable-policy\.result \}\}/);
+  assert.match(source, /PAYLOAD_RESULT: \$\{\{ needs\.payload\.result \}\}/);
+  const script = source.match(/        run: \|\n([\s\S]*)/)[1]
+    .split('\n').map(line => line.replace(/^          /, '')).join('\n');
+  const { spawnSync } = require('node:child_process');
+  const outcomes = ['success', 'failure', 'cancelled', 'skipped', '', 'unknown', 'SUCCESS'];
+  const values = outcomes.map(value => `'${value}'`).join(',');
+  const checks = `foreach ($tests in @(${values})) { foreach ($policy in @(${values})) { foreach ($payload in @(${values})) {
+    $env:TEST_RESULT = $tests; $env:POLICY_RESULT = $policy; $env:PAYLOAD_RESULT = $payload;
+    $failed = $false; try { & { ${script} } } catch { $failed = $true };
+    if ($failed -ne ($tests -cne 'success' -or $policy -cne 'success' -or $payload -cne 'success')) {
+      throw 'Incorrect aggregate outcome.'
+    }
+  } } }`;
+  const result = spawnSync('pwsh', ['-NoProfile', '-NonInteractive', '-Command', checks], { encoding: 'utf8' });
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+});
+
+test('independent policy and setup proof start after preflight, without unit or payload dependencies', () => {
+  for (const name of ['portable-policy', 'installer-validation']) {
+    const source = job(name);
+    assert.match(source, /^    needs: version$/m);
+    assert.doesNotMatch(source, /^    needs:.*(?:payload|portable-tests)/m);
+    assert.doesNotMatch(source, /continue-on-error|permissions:|GH_TOKEN|contents: write/);
+    assert.match(source, /needs\.version\.outputs\.preflight-source != '' && needs\.version\.outputs\.preflight-source == needs\.version\.outputs\.source-revision/);
+  }
+  for (const command of ['Test-BuildVersion.ps1', 'Test-GitHubRelease.ps1', 'Test-Run.ps1',
+    'Test-CodeCoverage.ps1', 'Test-Architecture.ps1', 'release-comments.test.cjs']) {
+    assert.ok(job('portable-policy').includes(command), command);
+    assert.ok(!job('portable-tests').includes(command), command);
+  }
+  const installer = job('installer');
+  assert.match(installer, /needs: \[version, payload, installer-validation\]/);
+  assert.doesNotMatch(installer, /^    if:.*(?:always|failure|cancelled)\(/m);
+  const dependencies = installer.match(/^    needs: \[([^\]]+)\]$/m)[1].split(',').map(value => value.trim());
+  const condition = installer.match(/^    if: (.+)$/m)[1]
+    .replaceAll('needs.version.outputs.preflight-source', "needs.version.outputs['preflight-source']")
+    .replaceAll('needs.version.outputs.source-revision', "needs.version.outputs['source-revision']");
+  const evaluate = new Function('needs', `return ${condition};`);
+  const packaging = installer.match(/- name: Build MSI and Burn bundle without installing\n        if: (.+)\n/)[1];
+  const buildSelected = new Function('needs', `return ${packaging};`);
+  for (const selected of [false, true]) {
+    for (const payload of ['success', 'failure', 'cancelled', 'skipped', '', 'unknown']) {
+      for (const setup of ['success', 'failure', 'cancelled', 'skipped', '', 'unknown']) {
+        const needs = { version: { result: 'success', outputs: {
+          'preflight-source': 'source', 'source-revision': 'source', packaging: String(selected) } },
+        payload: { result: payload }, 'installer-validation': { result: setup } };
+        const starts = dependencies.every(name => needs[name].result === 'success') && evaluate(needs);
+        assert.equal(starts, payload === 'success' && setup === 'success');
+        assert.equal(starts && buildSelected(needs), selected && payload === 'success' && setup === 'success');
       }
     }
   }
@@ -122,10 +432,58 @@ test('controller wakes on both priority label additions and removals without tru
 test('merge and CI events wake the serialized trusted controller without waiting for the recovery timer', () => {
   assert.match(controller, /pull_request_target:\n    branches: \[main\]\n    types: \[[^\]]*\bclosed\b[^\]]*\]/);
   assert.match(controller, /\n  push:\n    branches: \[main\]/);
-  assert.match(controller, /\n  workflow_run:\n    workflows: \[CI\]\n    types: \[requested, completed\]/);
-  assert.match(controller, /\n  schedule:\n    - cron: '\*\/5 \* \* \* \*'/);
+  assert.match(controller, /\n  workflow_run:\n    workflows: \[CI\]\n    branches: \[main\]\n    types: \[requested, completed\]/);
+  assert.doesNotMatch(controller, /^  schedule:/m);
+  assert.match(timer, /\n  schedule:\n    - cron: '2-57\/5 \* \* \* \*'/);
   assert.match(controller, /\n  workflow_dispatch:/);
   assert.match(controller, /concurrency:\n  group: merge-queue-controller\n  cancel-in-progress: false/);
+});
+
+test('waiting PR feedback cannot occupy a controller runner; candidate and main lifecycle events remain wakeups', () => {
+  const expression = controller.match(/^    if: (.+)$/m)[1];
+  const enabled = new Function('vars', 'github', `return ${expression};`);
+  for (const mode of ['enabled', '', 'disabled', 'future']) {
+    for (const event of ['pull_request_target', 'push', 'workflow_dispatch', 'workflow_run']) {
+      for (const runEvent of ['pull_request', 'workflow_dispatch', 'push', 'schedule']) {
+        assert.equal(enabled({ KORA_MERGE_QUEUE_MODE: mode },
+          { event_name: event, event: { workflow_run: { event: runEvent } } }),
+        mode === 'enabled' && !(event === 'workflow_run' && runEvent === 'pull_request'),
+        JSON.stringify({ mode, event, runEvent }));
+      }
+    }
+  }
+  assert.equal(enabled({ KORA_MERGE_QUEUE_MODE: 'enabled' },
+    { event_name: 'workflow_dispatch', event: {} }), true);
+  assert.match(controller, /types: \[requested, completed\]/);
+  assert.match(controller, /workflow_run:\n    workflows: \[CI\]\n    branches: \[main\]/);
+  assert.match(controller, /types: \[[^\]]*\bsynchronize\b[^\]]*\bauto_merge_enabled\b[^\]]*\bauto_merge_disabled\b[^\]]*\]/);
+});
+
+test('independent timer only requests protected reconciliation with a minimal Actions token', async () => {
+  assert.match(timer, /permissions: \{\}/);
+  assert.match(timer, /push:\n    branches: \[main\]\n    paths: \[\.github\/workflows\/merge-queue-timer.yml\]/);
+  assert.match(timer, /concurrency:\n  group: merge-queue-timer\n  cancel-in-progress: false/);
+  assert.match(timer, /timeout-minutes: 2\n    permissions:\n      actions: write/);
+  assert.match(timer, /^    if: vars.KORA_MERGE_QUEUE_MODE == 'enabled'$/m);
+  assert.doesNotMatch(timer, /pull_request|workflow_run|workflow_dispatch:\n|actions\/checkout|secrets\.|environment:|contents: write|checks: write|administration:|queue_ticket|queue\.json/);
+  const script = timer.match(/          script: \|\n([\s\S]*)/)[1]
+    .split('\n').map(line => line.replace(/^            /, '')).join('\n');
+  const execute = new AsyncFunction('github', 'context', 'core', script);
+  for (const failure of [null, 403, 503]) {
+    const calls = [];
+    const messages = [];
+    const operation = execute({ rest: { actions: {
+      async createWorkflowDispatch(parameters) {
+        calls.push(parameters);
+        if (failure) throw Object.assign(new Error('Dispatch denied'), { status: failure });
+      },
+    } } }, { repo: { owner: 'owner', repo: 'repo' } }, { notice: message => messages.push(message) });
+    if (failure) await assert.rejects(operation, /Dispatch denied/);
+    else await operation;
+    assert.deepEqual(calls, [{ owner: 'owner', repo: 'repo', workflow_id: 'merge-queue.yml',
+      ref: 'main', inputs: { operation: 'reconcile' } }]);
+    assert.equal(messages.length, failure ? 0 : 1);
+  }
 });
 
 test('controller workflow awaits its summary on success and preserves reconciliation failures', async () => {
@@ -145,6 +503,7 @@ test('controller workflow awaits its summary on success and preserves reconcilia
       if (name === './eng/merge-queue/github.cjs') return { GitHubQueue: class {
         constructor(github, context, core, appId) { assert.equal(appId, '42'); return api; }
       } };
+      if (name === './eng/merge-queue/policy.cjs') return { controllerOperation };
       assert.equal(name, './eng/merge-queue/controller.cjs');
       return { reconcile: async value => {
         assert.equal(value, api);
@@ -159,6 +518,113 @@ test('controller workflow awaits its summary on success and preserves reconcilia
   }
 });
 
+test('manual recovery uses the same trusted main checkout, App environment and serialized lane with explicit inputs', async () => {
+  assert.match(controller, /options: \[reconcile, recover-unobservable-dispatch, migrate-batch-v1, rollback-batch-v1, repair-batch, resume-batch, hold-independent-delivery, prepare-independent-delivery, resume-independent-delivery, abort-independent-delivery, hold-main-builds, prepare-main-builds, resume-main-builds, abort-main-builds\]/);
+  assert.match(controller, /acknowledge_uncertain_dispatch:[\s\S]*?type: boolean\n        default: false/);
+  assert.match(controller, /ref: refs\/heads\/main\n          persist-credentials: false/);
+  assert.match(controller, /environment: merge-queue/);
+  assert.match(controller, /concurrency:\n  group: merge-queue-controller\n  cancel-in-progress: false/);
+  assert.match(controller, /QUEUE_INPUTS: \$\{\{ toJSON\(inputs\) \}\}/);
+  assert.match(controller, /QUEUE_RUN_ATTEMPT: \$\{\{ github.run_attempt \}\}/);
+  const script = controller.match(/          script: \|\n([\s\S]*)/)[1]
+    .split('\n').map(line => line.replace(/^            /, '')).join('\n');
+  const execute = new AsyncFunction('process', 'context', 'core', 'github', 'require', script);
+  for (const scenario of ['recovered', 'failed', 'mixed', 'unknown']) {
+    const calls = [];
+    const context = { eventName: 'workflow_dispatch', ref: 'refs/heads/main', runId: 123, actor: 'operator' };
+    const inputs = { operation: 'recover-unobservable-dispatch', recovery_checkpoint: 'a'.repeat(40),
+      recovery_ticket: '01234567-89ab-cdef-0123-456789abcdef', acknowledge_uncertain_dispatch: true };
+    if (scenario === 'mixed') inputs.operation = 'reconcile';
+    if (scenario === 'unknown') inputs.operation = 'unknown';
+    const api = { summarize: async outcome => calls.push(['summary', outcome]) };
+    const operation = execute({ env: { QUEUE_APP_ID: '42', QUEUE_INPUTS: JSON.stringify(inputs), QUEUE_RUN_ATTEMPT: '1' } },
+      context, { notice: message => calls.push(['notice', message]) }, {}, name => {
+        if (name === './eng/merge-queue/github.cjs') return { GitHubQueue: class { constructor() { return api; } } };
+        if (name === './eng/merge-queue/policy.cjs') return { controllerOperation };
+        if (name === './eng/merge-queue/controller.cjs') return { reconcile: async () => assert.fail('Recovery must not select a candidate.') };
+        assert.equal(name, './eng/merge-queue/recovery.cjs');
+        return { recover: async (received, options) => {
+          assert.equal(received, api);
+          assert.deepEqual(options, { context, inputs, attempt: 1 });
+          calls.push(['recover']);
+          if (scenario === 'failed') throw new Error('Recovery denied');
+          return 'recovered';
+        } };
+      });
+    if (scenario === 'recovered') {
+      await operation;
+      assert.deepEqual(calls, [['recover'], ['notice', 'Merge queue: recovered.'], ['summary', 'recovered']]);
+    } else {
+      await assert.rejects(operation, /Recovery|Unknown/);
+      assert.deepEqual(calls.at(-1), ['summary', 'failed']);
+    }
+  }
+});
+
+test('main scheduling administrator operations use the existing protected serialized controller without variable permissions', async () => {
+  const script = controller.match(/          script: \|\n([\s\S]*)/)[1]
+    .split('\n').map(line => line.replace(/^            /, '')).join('\n');
+  const execute = new AsyncFunction('process', 'context', 'core', 'github', 'require', script);
+  for (const operation of ['hold-main-builds', 'prepare-main-builds', 'resume-main-builds', 'abort-main-builds']) {
+    let invoked = false;
+    const api = { summarize: async () => {} };
+    const inputs = { operation, main_build_profile: 'hourly-v1', acknowledge_batch_change: true,
+      recovery_checkpoint: 'a'.repeat(40) };
+    const context = { eventName: 'workflow_dispatch', ref: 'refs/heads/main', actor: 'operator', runId: 123 };
+    await execute({ env: { QUEUE_APP_ID: '42', QUEUE_PROFILE: 'batch-v1',
+      DELIVERY_PROFILE: 'independent-v1', MAIN_BUILD_PROFILE: 'hourly-v1',
+      QUEUE_INPUTS: JSON.stringify(inputs), QUEUE_RUN_ATTEMPT: '1' } }, context, { notice() {} }, {},
+    name => {
+      if (name.endsWith('github.cjs')) return { GitHubQueue: class { constructor(...args) {
+        assert.equal(args[5], 'hourly-v1'); return api;
+      } } };
+      if (name.endsWith('policy.cjs')) return { controllerOperation };
+      if (name.endsWith('controller.cjs')) return { reconcile: () => assert.fail('Administrator operations cannot reserve candidates.') };
+      assert.equal(name, './eng/merge-queue/recovery.cjs');
+      return { changeMainBuildState: async (actual, value) => {
+        invoked = true;
+        assert.equal(actual, api);
+        assert.equal(value.context, context);
+        assert.deepEqual(value.inputs, inputs);
+        assert.equal(value.attempt, 1);
+        assert.equal(value.profile, 'batch-v1');
+        return 'main-builds-ready';
+      } };
+    });
+    assert.equal(invoked, true);
+  }
+  assert.doesNotMatch(controller, /permission-administration: write|variables: write|updateRepoVariable|deleteRepoVariable/);
+});
+
+test('guarded delivery operations use the existing protected serialized administrator route without configuration permissions', async () => {
+  const script = controller.match(/          script: \|\n([\s\S]*)/)[1]
+    .split('\n').map(line => line.replace(/^            /, '')).join('\n');
+  const execute = new AsyncFunction('process', 'context', 'core', 'github', 'require', script);
+  const { controllerOperation } = require('./policy.cjs');
+  for (const operation of ['hold', 'prepare', 'resume', 'abort'].map(name => `${name}-independent-delivery`)) {
+    const calls = [];
+    const inputs = { operation, recovery_checkpoint: 'a'.repeat(40), acknowledge_batch_change: true };
+    const context = { eventName: 'workflow_dispatch', ref: 'refs/heads/main', actor: 'operator', runId: 123 };
+    const api = { summarize: async value => calls.push(['summary', value]) };
+    await execute({ env: { QUEUE_APP_ID: '42', QUEUE_INPUTS: JSON.stringify(inputs), QUEUE_RUN_ATTEMPT: '1',
+      QUEUE_PROFILE: 'batch-v1' } },
+      context, { notice: message => calls.push(['notice', message]) }, {}, name => {
+        if (name === './eng/merge-queue/policy.cjs') return { controllerOperation };
+        if (name === './eng/merge-queue/controller.cjs') return { reconcile: () => assert.fail() };
+        if (name === './eng/merge-queue/github.cjs') return { GitHubQueue: class { constructor() { return api; } } };
+        assert.equal(name, './eng/merge-queue/recovery.cjs');
+        return { changeDeliveryState: async (received, options) => {
+          assert.equal(received, api);
+          assert.deepEqual(options, { context, inputs, attempt: 1, profile: 'batch-v1' });
+          calls.push(['transition', operation]);
+          return operation;
+        } };
+      });
+    assert.deepEqual(calls, [['transition', operation], ['notice', `Merge queue: ${operation}.`], ['summary', operation]]);
+  }
+  assert.doesNotMatch(controller, /permission-variables|permission-administration: write|updateRepoVariable|createRepoVariable/);
+});
+
 test('privileged controller never checks out PR code, bypasses protection or waits for CI on a runner', () => {
   assert.match(controller, /environment: merge-queue/);
   assert.match(controller, /ref: refs\/heads\/main/);
@@ -168,7 +634,7 @@ test('privileged controller never checks out PR code, bypasses protection or wai
   assert.doesNotMatch(controller, /permission-administration: write|persist-credentials: true|pull_request\.head|sleep|while \(/);
   assert.match(controller, /if: vars\.KORA_MERGE_QUEUE_MODE == 'enabled'/);
   assert.ok(GATE);
-  for (const uses of (ci + controller).matchAll(/uses: ([^\s]+)/g)) {
+  for (const uses of (ci + controller + timer).matchAll(/uses: ([^\s]+)/g)) {
     assert.match(uses[1], /^[^@]+@[0-9a-f]{40}$/);
   }
   new vm.Script(`(async () => { ${controller.match(/          script: \|\n([\s\S]*)/)[1]

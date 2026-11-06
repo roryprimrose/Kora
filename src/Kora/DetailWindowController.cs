@@ -24,10 +24,10 @@ public sealed partial class DetailWindowController : IDisposable
     private readonly NativeDetailFormat finalizedMarkdownFormat;
     private readonly StaticHtmlDetailRenderer staticHtmlRenderer;
     private readonly IDetailClipboard clipboard;
-    private readonly Func<DetailViewerState, NativeDocumentResult, Func<bool, int?, int, Task>, IDetailView> createView;
+    private readonly Func<DetailViewerState, NativeDocumentResult, DetailCopy, IDetailView> createView;
     private readonly ILogger<DetailWindowController> logger;
     private readonly DetailViewerRegistry registry = new();
-    private readonly Dictionary<DetailContentReference, (DetailViewerState State, IDetailView View)> windows = [];
+    private readonly Dictionary<DetailContentReference, (DetailViewerState State, IDetailView View, string? ClipboardHtml)> windows = [];
     private readonly Dictionary<string, (HostId<EvidenceIdentity> Id, long Revision, string Digest, string Title)> pages =
         new(StringComparer.Ordinal);
     private bool disposed;
@@ -51,7 +51,8 @@ public sealed partial class DetailWindowController : IDisposable
                 && response.Content.IsSameSnapshot(content) && response.Admitted())
         && (content.Origin != DetailContentOrigin.RetrievedWebResult
             || ReferenceEquals(webResultSource(content.Reference), content))
-        && (content.Origin is not (DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant or DetailContentOrigin.RetainedLocalObservation)
+        && (content.Origin is not (DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant
+            or DetailContentOrigin.RetainedLocalObservation or DetailContentOrigin.RetainedAnswerContext)
             || conversationSources.TryGetValue(content.Reference, out var source)
                 && source.Content.IsSameSnapshot(content) && source.Admitted());
 
@@ -75,7 +76,7 @@ public sealed partial class DetailWindowController : IDisposable
 
     internal DetailWindowController(
         IUserDocumentationProvider documentation, Func<bool> canAccess, NativeDetailRenderer renderer,
-        IDetailClipboard clipboard, Func<DetailViewerState, NativeDocumentResult, Func<bool, int?, int, Task>, IDetailView> createView,
+        IDetailClipboard clipboard, Func<DetailViewerState, NativeDocumentResult, DetailCopy, IDetailView> createView,
         ILogger<DetailWindowController> logger, StaticHtmlDetailRenderer? staticHtmlRenderer = null,
         NativeDetailFormat finalizedMarkdownFormat = NativeDetailFormat.MarkdownChecklistsV3)
     {
@@ -120,7 +121,8 @@ public sealed partial class DetailWindowController : IDisposable
     internal async Task<string> OpenConversationDetailAsync(AdmittedDetailContent content, Window? owner,
         Func<bool> admitted, Func<CancellationToken, Task<AdmittedDetailContent>> resolve, CancellationToken token)
     {
-        if (content.Origin is not (DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant or DetailContentOrigin.RetainedLocalObservation) || content.ConversationMessage is null)
+        if (content.Origin is not (DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant
+            or DetailContentOrigin.RetainedLocalObservation or DetailContentOrigin.RetainedAnswerContext) || content.ConversationMessage is null)
         { throw new InvalidDataException("Only an exact retained original conversation record may enter this detail route."); }
         if (disposed) { throw new InvalidOperationException("The conversation detail owner is disposed."); }
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token, conversationLifetime.Token);
@@ -144,7 +146,7 @@ public sealed partial class DetailWindowController : IDisposable
             if (!windows.TryGetValue(content.Reference, out _))
             {
                 conversationSources.Remove(content.Reference);
-                return result;
+                throw new InvalidOperationException(result);
             }
             current = await resolve(token);
             token.ThrowIfCancellationRequested();
@@ -152,7 +154,9 @@ public sealed partial class DetailWindowController : IDisposable
                 || !windows.TryGetValue(content.Reference, out var prepared)
                 || !conversationSources.TryGetValue(content.Reference, out var finalSource) || finalSource.Lease != lease)
             { throw new InvalidOperationException("Exact conversation detail admission changed at final publication."); }
-            result = PublishContent(content, owner, prepared, result, activateOnly);
+            var acknowledged = false;
+            result = PublishContent(content, owner, prepared, result, activateOnly, () => acknowledged = true);
+            if (!acknowledged) { throw new InvalidOperationException(result); }
             conversationValidation?.Start();
             return result;
         }
@@ -252,6 +256,20 @@ public sealed partial class DetailWindowController : IDisposable
         return acknowledged;
     }
 
+    internal bool PublishAutomaticDetails(AutomaticDetailIntent intent, ResponseWindow owner)
+    {
+        var content = intent.Content;
+        if (disposed || !intent.IsCurrent() || !owner.IsVisible || !owner.IsActive
+            || !owner.IsSessionListPresented || windows.ContainsKey(content.Reference))
+        { return false; }
+        currentResponses[content.Reference] = (content, intent.IsSourceCurrent);
+        var acknowledged = false;
+        _ = OpenContent(content, owner, acknowledge: () => acknowledged = true, automatic: intent);
+        if (!acknowledged) { AutomaticPublicationUnavailable(logger); }
+        if (!acknowledged) { RevokeReference(content.Reference); }
+        return acknowledged;
+    }
+
     internal void RetireUnavailableCurrentResponses()
     {
         foreach (var source in currentResponses.Values.Where(source => !CanAccess(source.Content)).ToArray())
@@ -283,14 +301,15 @@ public sealed partial class DetailWindowController : IDisposable
     }
 
     private string OpenContent(AdmittedDetailContent content, Window? owner, bool deferPublication = false,
-        Action? acknowledge = null)
+        Action? acknowledge = null, AutomaticDetailIntent? automatic = null)
     {
         if (disposed || !CanAccess(content)) { return "Details unavailable: the privacy/input gate is closed."; }
         DetailViewerState state;
         try
         {
             state = registry.Open(content, CanAccess(content),
-                content.Origin is DetailContentOrigin.RetrievedWebResult or DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant or DetailContentOrigin.RetainedLocalObservation or DetailContentOrigin.FinalizedResponse
+                content.Origin is DetailContentOrigin.RetrievedWebResult or DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant
+                    or DetailContentOrigin.RetainedLocalObservation or DetailContentOrigin.RetainedAnswerContext or DetailContentOrigin.FinalizedResponse
                     ? () => CanAccess(content) : null,
                 () => !disposed && CanAccess(content),
                 content.Origin == DetailContentOrigin.RetainedAssistant ? token => ValidateFinalSourceAsync(content, token) : null);
@@ -311,7 +330,13 @@ public sealed partial class DetailWindowController : IDisposable
         // Each additive profile remains unavailable until its own qualification.
         var result = content.Kind == DetailContentKind.StaticHtml
             ? staticHtmlRenderer.Render(content)
-            : renderer.Render(ReaderSource(content), content.Kind, content.Reference, SelectNativeFormat(content));
+            : renderer.Render(ReaderSource(content), content.Kind, content.Reference,
+                automatic is null ? SelectNativeFormat(content) : NativeDetailFormat.TextV1);
+        if (automatic is not null && result.IsFallback)
+        {
+            registry.Close(content.Reference);
+            return "Automatic details unavailable: the native profile did not admit this source. Manual details remain available.";
+        }
         if (!state.CompleteRender(generation, result.SemanticText, result.Status, result.IsFallback) || !CanAccess(content))
         {
             registry.Close(content.Reference);
@@ -321,10 +346,11 @@ public sealed partial class DetailWindowController : IDisposable
         IDetailView view;
         try
         {
-            Task Copy(bool confirmed, int? selectionStart, int selectionLength) =>
-                CopyAsync(reference, generation, confirmed, selectionStart, selectionLength);
+            Task Copy(bool confirmed, int? selectionStart, int selectionLength, DetailCopyRepresentation representation) =>
+                CopyAsync(reference, generation, confirmed, selectionStart, selectionLength, representation);
             view = owner is ResponseWindow primary && viewModel is not null
-                && content.Origin is DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant or DetailContentOrigin.RetainedLocalObservation or DetailContentOrigin.SessionHistory or DetailContentOrigin.FinalizedResponse
+                && content.Origin is DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant
+                    or DetailContentOrigin.RetainedLocalObservation or DetailContentOrigin.RetainedAnswerContext or DetailContentOrigin.SessionHistory or DetailContentOrigin.FinalizedResponse
                 ? new SessionDetailView(primary.SessionView, state, result, Copy, viewModel)
                 : createView(state, result, Copy);
         }
@@ -346,8 +372,9 @@ public sealed partial class DetailWindowController : IDisposable
             windows.Remove(reference);
             registry.Close(reference);
         };
-        windows.Add(reference, (state, view));
-        return deferPublication ? result.Status : PublishContent(content, owner, (state, view), result.Status, activateOnly: false, acknowledge);
+        windows.Add(reference, (state, view, result.ClipboardHtml));
+        return deferPublication ? result.Status : PublishContent(content, owner, (state, view, result.ClipboardHtml), result.Status,
+            activateOnly: false, acknowledge, automatic);
     }
 
     private static string ReaderSource(AdmittedDetailContent content)
@@ -363,10 +390,11 @@ public sealed partial class DetailWindowController : IDisposable
             : NativeDetailFormat.PipeTablesV2;
 
     private string PublishContent(AdmittedDetailContent content, Window? owner,
-        (DetailViewerState State, IDetailView View) entry, string status, bool activateOnly, Action? acknowledge = null)
+        (DetailViewerState State, IDetailView View, string? ClipboardHtml) entry, string status, bool activateOnly,
+        Action? acknowledge = null, AutomaticDetailIntent? automatic = null)
     {
         var reference = content.Reference;
-        var (state, view) = entry;
+        var (state, view, _) = entry;
         var generation = state.Generation;
         if (disposed || !CanAccess(content) || state.Content is null)
         {
@@ -375,7 +403,16 @@ public sealed partial class DetailWindowController : IDisposable
         }
         try
         {
-            if (!activateOnly) { view.ShowOwned(owner); }
+            if (automatic is not null)
+            {
+                if (owner is not ResponseWindow primary || view is not SessionDetailView pane
+                    || !pane.ShowWithoutActivation(primary, automatic))
+                {
+                    RevokeReference(reference);
+                    return "Automatic details unavailable: the exact native foreground presentation changed. Manual details remain available.";
+                }
+            }
+            else if (!activateOnly) { view.ShowOwned(owner); }
             if (!CanAccess(content) || state.Generation != generation || state.Content is null)
             {
                 windows.Remove(reference);
@@ -383,7 +420,7 @@ public sealed partial class DetailWindowController : IDisposable
                 view.ClearAndClose();
                 return "Details unavailable: the exact source admission changed while opening.";
             }
-            view.Activate();
+            if (automatic is null) { view.Activate(); }
             if (!CanAccess(content) || state.Generation != generation || state.Content is null)
             {
                 RevokeReference(reference);
@@ -421,7 +458,8 @@ public sealed partial class DetailWindowController : IDisposable
     }
 
     internal async Task CopyAsync(DetailContentReference reference, long generation, bool confirmed,
-        int? selectionStart = null, int selectionLength = 0)
+        int? selectionStart = null, int selectionLength = 0,
+        DetailCopyRepresentation representation = DetailCopyRepresentation.ActiveView)
     {
         if (disposed || !windows.TryGetValue(reference, out var entry)) { return; }
         var state = entry.State;
@@ -435,6 +473,12 @@ public sealed partial class DetailWindowController : IDisposable
             state.ReportStatus("Copy blocked: the requested immutable revision or generation is stale.");
             return;
         }
+        if (!Enum.IsDefined(representation)
+            || representation == DetailCopyRepresentation.ExactSource && selectionStart is not null)
+        {
+            state.ReportStatus("Copy blocked: the requested representation is invalid.");
+            return;
+        }
         string? source;
         var accessible = state.Content is { } content && CanAccess(content);
         var allowed = selectionStart is { } start
@@ -443,6 +487,15 @@ public sealed partial class DetailWindowController : IDisposable
         if (!allowed) { return; }
         try
         {
+            var rendered = representation == DetailCopyRepresentation.ActiveView
+                && !state.IsSource && state.RenderState == DetailRenderState.Rendered
+                && state.Content?.Kind == DetailContentKind.Markdown;
+            if (selectionStart is null && rendered) { source = state.ActiveText; }
+            var html = rendered
+                && state.Content?.Kind == DetailContentKind.Markdown && entry.ClipboardHtml is not null
+                ? selectionStart is null ? entry.ClipboardHtml
+                    : "<pre>" + System.Net.WebUtility.HtmlEncode(source) + "</pre>"
+                : null;
             // Revalidate the exact live state immediately before invoking the platform write.
             if (disposed || state.Content is null || !CanAccess(state.Content) || state.Generation != generation
                 || !windows.TryGetValue(reference, out var current) || !ReferenceEquals(current.State, state))
@@ -450,12 +503,16 @@ public sealed partial class DetailWindowController : IDisposable
                 state.ReportStatus("Copy blocked: revision/access/privacy changed.");
                 return;
             }
-            await clipboard.WritePlainTextAsync(entry.View, source!);
+            await clipboard.WriteAsync(entry.View, source!, html);
             if (state.Generation == generation && state.Content is not null && CanAccess(state.Content))
             {
                 state.ReportStatus(selectionStart is null
-                    ? "Exact source copied as Unicode plain text outside Kora."
-                    : "Selected text copied as Unicode plain text outside Kora.");
+                    ? (rendered && state.Content.Kind == DetailContentKind.Markdown
+                        ? "Complete rendered Markdown copied as semantic Unicode plain text outside Kora."
+                        : "Exact source copied as Unicode plain text outside Kora.")
+                        + (html is null ? string.Empty : " Supported Markdown formatting included as sanitized HTML.")
+                    : "Selected text copied as Unicode plain text outside Kora."
+                        + (html is null ? string.Empty : " Exact selected text also included as inert HTML."));
             }
         }
         catch (Exception exception) when (exception is InvalidOperationException or NotSupportedException

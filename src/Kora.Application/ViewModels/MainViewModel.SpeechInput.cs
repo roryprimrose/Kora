@@ -21,18 +21,37 @@ public sealed partial class MainViewModel
     private PendingSpeechInputReview? pendingSpeechInputReview;
     private Task speechInputOperation = Task.CompletedTask;
 
-    public IReadOnlyList<SpeechInputProfile> SpeechInputProfiles => SpeechInputProfileCatalogue.Profiles;
-    public IReadOnlyList<SpeechInputResource> SpeechInputResources { get; } = [SpeechInputResource.WindowsManaged];
-    public IReadOnlyList<SpeechInputResidency> SpeechInputResidencies { get; } = [SpeechInputResidency.CaptureLifetime];
+    public IReadOnlyList<SpeechInputProfile> SpeechInputProfiles => speechInputConfiguration?.GetProfiles() ?? SpeechInputProfileCatalogue.Profiles;
+    public IReadOnlyList<SpeechInputResource> SpeechInputResources =>
+        SpeechInputProfiles.Any(profile => profile.Id is SpeechInputProfileCatalogue.NativeWakeProfileId)
+            ? [SpeechInputResource.WindowsManaged, SpeechInputResource.Cpu] : [SpeechInputResource.WindowsManaged];
+    public IReadOnlyList<SpeechInputResidency> SpeechInputResidencies =>
+        speechInputConfiguration is { } service && SelectedSpeechInputProfile is { } profile
+            ? service.GetResidencies(profile.Id, SelectedSpeechInputResource)
+            : [SpeechInputResidency.CaptureLifetime];
     public SpeechInputProfile? SelectedSpeechInputProfile
     {
         get => selectedSpeechInputProfile;
-        set { if (SetProperty(ref selectedSpeechInputProfile, value)) { Volatile.Read(ref pendingSpeechInputReview)?.Completion.TrySetResult(false); } }
+        set
+        {
+            if (SetProperty(ref selectedSpeechInputProfile, value))
+            {
+                Volatile.Read(ref pendingSpeechInputReview)?.Completion.TrySetResult(false);
+                OnPropertyChanged(nameof(SpeechInputResidencies));
+            }
+        }
     }
     public SpeechInputResource SelectedSpeechInputResource
     {
         get => selectedSpeechInputResource;
-        set { if (SetProperty(ref selectedSpeechInputResource, value)) { Volatile.Read(ref pendingSpeechInputReview)?.Completion.TrySetResult(false); } }
+        set
+        {
+            if (SetProperty(ref selectedSpeechInputResource, value))
+            {
+                Volatile.Read(ref pendingSpeechInputReview)?.Completion.TrySetResult(false);
+                OnPropertyChanged(nameof(SpeechInputResidencies));
+            }
+        }
     }
     public SpeechInputResidency SelectedSpeechInputResidency
     {
@@ -53,9 +72,11 @@ public sealed partial class MainViewModel
 
     public void BindSpeechInputNativeLifetime(Func<bool> lifetime)
     {
+        speechComparison?.Clear();
         Volatile.Read(ref pendingSpeechInputReview)?.Completion.TrySetResult(false);
         speechInputNativeLifetime = lifetime;
         OnPropertyChanged(nameof(CanChangeSpeechInputNative));
+        NotifyVoiceTiming();
     }
 
     private void InitializeSpeechInputConfiguration(SpeechInputConfigurationService? service, Func<Func<Task>, AsyncCommand> createCommand)
@@ -66,6 +87,7 @@ public sealed partial class MainViewModel
             selectedSpeechInputResource = desired.Resource;
             selectedSpeechInputResidency = desired.Residency;
         }
+        service?.BindAssistantName(assistantNameConfiguration);
         SaveSpeechInputCommand = createCommand(() => ExecuteSpeechInputCommandAsync(new(AppearanceCommandOperation.Set,
             new(SelectedSpeechInputProfile?.Id ?? throw new InvalidOperationException("Choose one exact known speech-input profile."),
                 SelectedSpeechInputResource, SelectedSpeechInputResidency)), SecurityAuditInitiator.LocalUser));

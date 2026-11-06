@@ -41,6 +41,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
     [InlineData("late-draft")]
     [InlineData("late-critique")]
     [InlineData("new-save")]
+    [InlineData("new-save-restore")]
     [InlineData("new-cancel-disclosure")]
     [InlineData("new-cancel-proposal")]
     [InlineData("new-cancel-save")]
@@ -253,12 +254,43 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                         .Single().IsUseEnabled.Should().BeFalse();
                     if (creating)
                     {
+                        owned.RestorePrevious.IsEnabled.Should().BeFalse("creating a generated file replaces no saved revision");
                         await Run("instructions inspect " + targetName);
                         owned.Source.Text.Should().Be(proposed);
                         var observedSource = catalogue.Candidates.Single(item => string.Equals(item.OwnedInstructionName, targetName, StringComparison.Ordinal));
                         observedSource.Id.Should().Be("disk.kora-profile.instruction." + targetName);
                         observedSource.OwnedInstructionRevision.Should().Be(readback.Revision);
                         observedSource.IsUseEnabled.Should().BeFalse();
+                        if (action is "save-restore")
+                        {
+                            var generated = readback;
+                            owned.Source.Text += "\r\nSeparate manual revision";
+                            var changedSave = Run("instructions save");
+                            Choose(await Review(changedSave), "Confirm save");
+                            await changedSave;
+                            owned.RestorePrevious.IsEnabled.Should().BeTrue();
+                            var changed = (await store.Read(targetName, f.Token))!;
+                            changed.Document.Text.Should().Be(proposed + "\r\nSeparate manual revision");
+                            var restoring = Run("instructions restore");
+                            var restorePreview = await Review(restoring);
+                            restorePreview.Title.Should().Be("Restore previous saved content");
+                            var restorePanes = restorePreview.GetVisualDescendants().OfType<TextBox>().Where(box => box.IsReadOnly).ToArray();
+                            restorePanes[0].Text.Should().Be(changed.Document.Text);
+                            restorePanes[1].Text.Should().Be(generated.Document.Text);
+                            Choose(restorePreview, "Review separate Save confirmation");
+                            var restoreSave = await Review(restoring);
+                            restoreSave.Title.Should().Be("Save exact owned Instruction");
+                            Choose(restoreSave, "Confirm save");
+                            await restoring;
+                            var restored = (await store.Read(targetName, f.Token))!;
+                            restored.Document.CopyBytes().Should().Equal(generated.Document.CopyBytes());
+                            restored.Revision.Should().NotBe(changed.Revision);
+                            owned.Source.Text.Should().Be(generated.Document.Text);
+                            catalogue.Candidates.Single(item => string.Equals(item.OwnedInstructionName, targetName, StringComparison.Ordinal))
+                                .IsUseEnabled.Should().BeFalse();
+                            catalogue.Artifacts.Should().NotContain(item => item.OwnedInstructionName == targetName);
+                            adapter.Calls.Should().Be(1, "manual Save and Restore must not invoke generation again");
+                        }
                     }
                 }
             }

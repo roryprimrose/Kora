@@ -1,4 +1,5 @@
 using Kora.Application.Communication;
+using Kora.Application.Configuration;
 using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -16,15 +17,18 @@ internal sealed partial class ConversationCompletionVoiceNotices : IAsyncDisposa
     private readonly ISpeechPlaybackService speech;
     private readonly ISecurityAuditLog audit;
     private readonly ILogger logger;
+    private readonly QuietHoursConfigurationService? quietHours;
     internal ConversationCompletionVoiceNotices(LocalEventBroker broker, CallCommunicationPolicy calls,
-        ISpeechPlaybackService speech, ISecurityAuditLog audit, ILogger logger)
+        ISpeechPlaybackService speech, ISecurityAuditLog audit, ILogger logger, QuietHoursConfigurationService? quietHours = null)
     {
         this.broker = broker;
         this.calls = calls;
         this.speech = speech;
         this.audit = audit;
         this.logger = logger;
+        this.quietHours = quietHours;
         broker.NoticeAdmissionChanged += InvalidateDelivery;
+        if (quietHours is not null) { quietHours.SpeechAdmissionChanged += InvalidateDelivery; }
     }
 
     internal enum DeliveryOutcome { NotRequested, CapacityHeld, Skipped, QueuedNotDelivered, Completed, CancelledJoined, Unconfirmed }
@@ -164,6 +168,7 @@ internal sealed partial class ConversationCompletionVoiceNotices : IAsyncDisposa
     internal async Task DeliverAsync(LocalEventSnapshot snapshot, Func<bool> hostCurrent,
         SpeechVoice? voice, AudioOutputDevice? output, CancellationToken token)
     {
+        var scheduleRevision = quietHours?.SpeechRevision ?? 0;
         LocalEvent? target = null;
         Consent? choice;
         CancellationTokenSource cancellation;
@@ -193,6 +198,7 @@ internal sealed partial class ConversationCompletionVoiceNotices : IAsyncDisposa
             deliveryEligible = () => !closed && !held && !cancellation.IsCancellationRequested
                 && revision == admittedRevision && ReferenceEquals(consent, choice) && choice.VoiceCurrent()
                 && !calls.Current.IsProtected && !calls.Current.SuppressSpeech && !broker.RoutineQuiet.Enabled
+                && (quietHours is null || quietHours.AllowsSpeech(scheduleRevision))
                 && broker.IsCurrent(snapshot) && hostCurrent();
         }
         var request = new HostRequest(new(Guid.NewGuid()), target.SessionId, target.TaskId!.Value, RequestOrigin.HostSystem);
@@ -213,17 +219,28 @@ internal sealed partial class ConversationCompletionVoiceNotices : IAsyncDisposa
             Outcome = DeliveryOutcome.QueuedNotDelivered;
             await speech.SpeakAdmittedAsync(Statement, voice, output, async (start, startToken) =>
             {
-                await broker.StartCompletionSpeechAsync(snapshot, target, Eligible, () =>
+                try
                 {
-                    // This is the ordinary central gate, never a protected-call one-shot exception.
-                    _ = calls.StartSpeech(() =>
+                    if (!Eligible()) { throw new OperationCanceledException("Completion speech admission changed before its boundary."); }
+                    await broker.StartCompletionSpeechAsync(snapshot, target, Eligible, () =>
                     {
-                        startToken.ThrowIfCancellationRequested();
-                        start();
-                        started = true;
-                        return Task.CompletedTask;
-                    }, Eligible);
-                }, startToken).ConfigureAwait(false);
+                        void Start()
+                        {
+                            // This is the ordinary central gate, never a protected-call one-shot exception.
+                            _ = calls.StartSpeech(() =>
+                            {
+                                startToken.ThrowIfCancellationRequested();
+                                start();
+                                started = true;
+                                return Task.CompletedTask;
+                            }, Eligible);
+                        }
+                        if (quietHours is null) { Start(); }
+                        else { quietHours.StartSpeech(scheduleRevision, Start); }
+                    }, startToken).ConfigureAwait(false);
+                }
+                catch (InvalidOperationException exception) when (!Eligible())
+                { throw new OperationCanceledException("Completion speech admission changed at its boundary.", exception, startToken); }
             }, cancellation.Token).ConfigureAwait(false);
             if (speech.IsSpeaking) { throw new InvalidOperationException("Owned completion output has not joined."); }
             Outcome = started && Eligible() ? DeliveryOutcome.Completed : started ? DeliveryOutcome.CancelledJoined : DeliveryOutcome.Skipped;
@@ -263,7 +280,14 @@ internal sealed partial class ConversationCompletionVoiceNotices : IAsyncDisposa
     public async ValueTask DisposeAsync()
     {
         Task join;
-        lock (sync) { closed = true; Retire(); broker.NoticeAdmissionChanged -= InvalidateDelivery; join = joined.Task; }
+        lock (sync)
+        {
+            closed = true;
+            Retire();
+            broker.NoticeAdmissionChanged -= InvalidateDelivery;
+            if (quietHours is not null) { quietHours.SpeechAdmissionChanged -= InvalidateDelivery; }
+            join = joined.Task;
+        }
 #pragma warning disable VSTHRD003 // Joins this owner's exact physical output operation; cancellation is not completion.
         await join.ConfigureAwait(false);
 #pragma warning restore VSTHRD003

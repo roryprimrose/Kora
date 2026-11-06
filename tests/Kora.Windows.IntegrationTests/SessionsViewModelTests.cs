@@ -20,8 +20,10 @@ namespace Kora.Windows.IntegrationTests;
 [Collection("Host tracing")]
 public sealed partial class SessionsViewModelTests
 {
-    [WindowsFact]
-    public async Task Closing_pending_passive_read_clears_late_records_and_never_changes_lifecycle_or_admits_work()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Closing_pending_passive_read_clears_late_records_and_never_changes_lifecycle_or_admits_work(bool next)
     {
         using var fixture = new InteractionStorageFixture();
         await fixture.InitializeAsync();
@@ -33,12 +35,21 @@ public sealed partial class SessionsViewModelTests
         var evidence = new DurableEvidenceQuery(new WindowsSqliteEvidenceReader(sink), access, fixture.Time,
             NullLogger<DurableEvidenceQuery>.Instance);
         var viewer = new SessionsViewModel(service, evidence, access, NullLogger<SessionsViewModel>.Instance);
-        var read = viewer.RefreshAsync();
+        if (next)
+        {
+            held.Completion.SetResult(new([], Guid.NewGuid()));
+            await viewer.RefreshAsync();
+            held.Completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+        var read = next ? viewer.NextAsync() : viewer.RefreshAsync();
         await viewer.RefreshAsync();
-        held.Reads.Should().Be(1);
+        held.Reads.Should().Be(next ? 2 : 1);
         viewer.Close();
+        var disclosedAfterClose = false;
+        viewer.PropertyChanged += (_, _) => disclosedAfterClose |= viewer.Sessions.Count != 0;
         held.Completion.SetResult(new([new(new(fixture.Request.SessionId, new(1), true), null)], null));
         await read;
+        disclosedAfterClose.Should().BeFalse();
         viewer.Sessions.Should().BeEmpty();
         viewer.Detail.Should().BeEmpty();
         viewer.CanRead.Should().BeFalse();
@@ -269,7 +280,7 @@ public sealed partial class SessionsViewModelTests
         public ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        internal TaskCompletionSource<SessionPage<SessionWorkspaceEntry>> Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource<SessionPage<SessionWorkspaceEntry>> Completion { get; set; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal int Reads { get; private set; }
         internal int ControlCalls { get; private set; }
 

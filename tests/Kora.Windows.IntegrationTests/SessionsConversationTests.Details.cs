@@ -4,6 +4,8 @@ using Avalonia.VisualTree;
 
 using AwesomeAssertions;
 
+using Kora.Application.Documentation;
+using Kora.Application.Presentation;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
@@ -11,10 +13,131 @@ using Kora.Core.Hosting;
 using Kora.Core.Presentation;
 using Kora.Windows.IntegrationTests.Storage;
 
+using Microsoft.Extensions.Logging.Abstractions;
+
 namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SessionsConversationTests
 {
+    [Theory]
+    [InlineData("unavailable")]
+    [InlineData("changed")]
+    [InlineData("unchanged")]
+    public Task ConversationRefreshRetiresUnconfirmedReaderAndFindBeforeReturningWithoutChangingRetainedData(string outcome) =>
+        HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            await WindowsSqliteConversationTests.Submit(f, f.Request.SessionId, "exact private reader marker");
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var refreshing = false;
+            var reader = new SearchReader(async (session, cursor, limit, token) =>
+            {
+                if (refreshing)
+                {
+                    entered.SetResult();
+                    await release.Task.WaitAsync(token);
+                    if (outcome is "unavailable") { throw new IOException("Synthetic conversation source unavailable."); }
+                    if (outcome is "changed") { throw new ConversationSnapshotChangedException(); }
+                }
+                return await f.Store.ReadConversationPageAsync(session, cursor, limit, token);
+            }, readMetadata: f.Store.ReadMetadataAsync, readMessage: f.Store.ReadConversationMessageAsync);
+            var clipboard = new ReaderRetirementClipboard();
+            var owner = new Window();
+            DetailWindow? window = null;
+            DetailViewerState? state = null;
+            using var details = new DetailWindowController(new EmbeddedUserDocumentationProvider(), () => true,
+                new(NullLogger<NativeDetailRenderer>.Instance), clipboard, (observed, result, copy) =>
+                {
+                    state = observed;
+                    return window = new DetailWindow(observed, result, copy);
+                }, NullLogger<DetailWindowController>.Instance);
+            await using var composed = new Composition(f,
+                (content, admitted, resolve, token) => details.OpenConversationDetailAsync(content, owner, admitted, resolve, token),
+                conversationReader: reader, revokeDetails: details.RevokeConversationSession);
+            var model = composed.Model;
+            owner.Show();
+            try
+            {
+                await model.RefreshAsync();
+                await model.SelectAsync(model.Sessions.Single());
+                await model.ReadConversationAsync();
+                var original = model.ConversationMessages.Single();
+                model.ComposerBody = "independent unsent input";
+                await model.OpenConversationDetailAsync(original);
+                window.Should().NotBeNull(model.ConversationStatus);
+                var text = window!.FindControl<TextBox>("ContentReader")!;
+                window.FindControl<CheckBox>("SourceToggle")!.IsChecked = true;
+                text.SelectionStart = 0;
+                text.SelectionEnd = 5;
+                var query = window.FindControl<TextBox>("SearchInput")!;
+                query.Text = "marker";
+                window.FindControl<Button>("FirstMatch")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                state!.MatchCount.Should().Be(1);
+                var generation = state.Generation;
+                var retention = await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token);
+                var audit = WindowsSqliteConversationTests.AuditText(f);
+                var tasks = f.Count("host_tasks");
+                refreshing = true;
+                var refresh = model.ReadConversationAsync();
+                await entered.Task.WaitAsync(f.Token);
+                text.Text.Should().Be(original.Body, "an outstanding refresh alone is not source loss");
+                release.SetResult();
+                await refresh;
+                if (outcome is "unchanged")
+                {
+                    window.IsVisible.Should().BeTrue();
+                    state.Content.Should().NotBeNull();
+                    query.Text.Should().Be("marker");
+                    state.MatchCount.Should().Be(1);
+                    text.SelectedText.Should().Be("exact");
+                    model.ConversationMessages.Should().ContainSingle();
+                }
+                else
+                {
+                    window.IsVisible.Should().BeFalse("known source loss must retire the reader before refresh completes, not on a later timer");
+                    state.Content.Should().BeNull();
+                    text.Text.Should().BeEmpty();
+                    text.SelectedText.Should().BeEmpty();
+                    query.Text.Should().BeEmpty();
+                    state.MatchCount.Should().BeNull();
+                    state.MatchOrdinal.Should().BeNull();
+                    state.CompleteRender(generation, "late private body", "Rendered", false).Should().BeFalse();
+                    window.FindControl<Button>("FirstMatch")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    await details.CopyAsync(state.Reference, generation, true, 0, 5);
+                    state.MatchStart.Should().Be(-1);
+                    model.ConversationMessages.Should().BeEmpty();
+                }
+                model.ComposerBody.Should().Be("independent unsent input");
+                model.SelectedSessionRecord!.Authority.SessionId.Should().Be(f.Request.SessionId);
+                (await f.Store.ReadConversationMessageAsync(f.Request.SessionId, original.Request.RequestId, f.Token)).Should().Be(original);
+                (await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token)).Should().Be(retention);
+                WindowsSqliteConversationTests.AuditText(f).Should().Be(audit);
+                f.Count("host_tasks").Should().Be(tasks);
+                f.Count("host_questions").Should().Be(0);
+                f.Count("scoped_grants").Should().Be(0);
+                clipboard.Writes.Should().Be(0);
+            }
+            finally
+            {
+                release.TrySetResult();
+                details.ClearForPrivacy();
+                owner.Close();
+            }
+        });
+
+    private sealed class ReaderRetirementClipboard : IDetailClipboard
+    {
+        internal int Writes { get; private set; }
+        public Task WriteAsync(IDetailView view, string source, string? htmlFragment)
+        {
+            Writes++;
+            return Task.CompletedTask;
+        }
+    }
+
     [Theory]
     [InlineData("query")]
     [InlineData("role")]

@@ -128,7 +128,23 @@ Known placeholders/references are inert; arbitrary secrets and undeclared
 formats may be missed. The general never-credentials-in-history requirement
 and broader product screening/redaction direction are unchanged.
 
+## Expired ordinary-text fresh-review boundary
+
+The separate [expired ordinary-text fresh-review operation](Work_Management.md#fresh-review-of-expired-ordinary-local-text)
+admits only host-classified local tool-free bare text with exact pre-dispatch expiry
+message/task evidence. It does not derive no-effect or resource-join claims from a
+terminal task status. A new native confirmation is a new intent/channel/context and
+normal FIFO transaction, with historical original-channel attribution retained
+separately. It cannot replay an identity, restore an old deadline, implicitly consume
+instructions/evidence/memory/grants or launder a retained voice operation as continued
+voice authority. Legacy/unclassified and specialized sources are unavailable, not
+reinterpreted. [Source validation](../src/Kora.Core/Conversation/ExpiredOrdinaryRequestSource.cs)
+and the [fresh transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Conversation.cs)
+preserve the original rows, typed audit, independent retention and unavailable
+qualification boundaries.
+
 ## Explicit expanded-prompt retention boundary
+
 An owned-v2 parameter preview may be retained only after a separate original native exact-session confirmation. Preview/nonpersisting Use are not retention consent. The whole current expansion enters the existing conversation screening/store/admission path once as USER text, without hidden template/value/source-path persistence, prompt-source task authority or double admission.
 Exact target/source/private/preview epochs remain eligible at physical COMMIT after repeated native source validation; this is not global filesystem/SQLite atomicity. Unknown completion is held for exact receipt inspection, with no replay or rollback claims. Existing reject-only credential limitations, independent saved drafts, retention/migration/copy gates and unavailable provider/egress boundaries remain unchanged.
 
@@ -702,6 +718,7 @@ The clipboard envelope performs identity, Unicode, lifetime and complete seriali
 Content-free task authority is separate from conversation retention, preserving original input origin; the exact capture object retains its original request/source identity while model evidence belongs to the newly admitted task ([clipboard admission](../src/Kora.Application/Context/ClipboardExplanationAdmission.cs), [workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs)).
 The production permission policy consumes an actual user grant and one invocation dispatch receipt before reaching `ModelTurnChoice.Local` and the existing model host. Permission is revalidated after asynchronous session/task reads at the adapter and response boundaries; revocation blocks subsequent dispatch/publication. No qualified runtime means explicit unavailability, never a hosted/bootstrap fallback. Deterministic fake-provider evidence is implementation proof, not production runtime qualification or enablement ([consumer tests](../tests/Kora.Application.UnitTests/Context/ClipboardExplanationWorkflowTests.Permissions.cs)).
 Only a successful admitted host response can become a volatile answer in that exact native preview, after terminal task evidence and current-source/eligibility checks; source/answer are not generic responses, transcripts, speech, saved clipboard history or conversation bodies ([workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs), [presentation](../src/Kora.Application/ViewModels/MainViewModel.Clipboard.cs)).
+The [native answer](../src/Kora/ClipboardPreviewWindow.cs) wraps at the current reading viewport width independently of the source-only wrapping preference. Resizing or wrapping the snapshot does not alter answer bytes, repeat inference or renew review/grant authority. [Complete-operation native tests](../tests/Kora.Windows.IntegrationTests/ClipboardExplanationPermissionTests.cs) measure rendered answer bounds after actual permission consumption and local fake-provider completion, including a wider unwrapped immutable source.
 Source revocation and cancellation suppress late output while actual adapter quiescence remains mandatory for exit/handoff; deterministic fake-provider tests cover these boundaries without clipboard/model/network calls ([workflow tests](../tests/Kora.Application.UnitTests/Context/ClipboardExplanationWorkflowTests.cs)).
 Invalid presentation reads retire volatile answer/source references, so restored eligibility cannot resurrect a retired answer; model-envelope expiry is checked again after terminal task evidence before publication ([workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs)).
 The [clipboard admission bridge](../src/Kora.Application/Context/ClipboardExplanationAdmission.cs) reuses the existing content-free local-context dispatch store and host task coordinator. Actual current-run source authority, not a generic control intent or fake-store assumption, is required. Terminal task evidence precedes answer publication; cancellation after durable dispatch is conservatively Unknown, not a claim that already-running work was rolled back.
@@ -712,7 +729,7 @@ These implementation checks do not qualify local answering quality, physical/nat
 
 The [2026-10-29 explicit product decision](Decision_Register.md#automatic-reviewed-local-source-use-admission---2026-10-29)
 authorizes one shared [host policy](../src/Kora.Application/Context/LocalSourceUsePolicy.cs)
-for the existing file/folder/retained-attachment, web-result, diagnostic-page
+for the existing file/folder/retained-attachment, explicitly selected retained named-source, web-result, diagnostic-page
 and MCP-observation grounded-answer routes. It replaces only their unspecified
 affirmative-classifier prerequisite. It is not derived from the clipboard
 permission exception, does not change clipboard behavior and grants no capture,
@@ -792,8 +809,14 @@ cannot fetch resources, access files or trigger navigation/host controls.
 There is no HTML/browser renderer, renderer acquisition, export, context
 capture or implicit clipboard operation in this profile.
 Only native explicit copy writes exact Unicode source/selection after current
-access/privacy and required disclosure checks. Rich clipboard formats remain
-gated; the multi-format contract below is not an implemented claim.
+access/privacy and required disclosure checks. Independently copy-authorized,
+already rendered Markdown additionally supplies host-serialized inert HTML in
+the same clipboard transfer, without changing its existing plain-text bytes or
+selection scope ([bounded delivered contract](Information_Display.md#delivered-authorized-markdown-copy-increment),
+[copy boundary](../src/Kora/DetailWindowController.cs)). Source views, unavailable
+profiles and unsupported content remain plain-text-only. Readable finalized
+responses and retained conversation Details still grant no copy authority.
+The broader multi-format contract below is not a full implementation claim.
 Privacy closure clears source, selection and pending render generation.
 Close/search/copy do not refresh meaningful session activity or mutate work,
 retained content, approvals or session lifecycle.
@@ -1572,6 +1595,12 @@ and the [staged roadmap](Implementation_Roadmap.md#r02-windows-containment-follo
 
 ## Retention Defaults
 
+The [shared device-local preference availability boundary](User_Configuration.md#shared-device-local-preference-availability) distinguishes missing files/directories from unavailable saved files or unconfirmed-write markers.
+An obstructing directory or denied read/delete must surface failure, not confer default or confirmed state ([store](../src/Kora.Application/Configuration/LocalPreferenceStore.cs)).
+Explicit repair never renews authority or clears another retention domain; fresh admitted save/reset, readback and required audit remain mandatory ([regressions](../tests/Kora.Application.UnitTests/Configuration/LocalPreferenceStoreTests.cs)).
+
+Exact-answer review acknowledgements are metadata owned by the retained conversation, not an independent retention domain or a read-receipt claim. Source deletion removes them; acknowledgement does not renew activity, deadlines, grants, model/source consent or execution authority. Details still needs fresh canonical native admission; unknown or malformed acknowledgement state fails unavailable ([contract and storage](Interaction_And_Sessions.md#explicit-retained-answer-review-acknowledgement)).
+
 | Data | Default |
 |---|---|
 | Ambient wake audio | Memory-only rolling buffer of at most 2 seconds; overwritten continuously and cleared when listening stops |
@@ -1587,6 +1616,14 @@ and the [staged roadmap](Implementation_Roadmap.md#r02-windows-containment-follo
 | Kora-owned definitions/revisions | Skills, prompts, instructions, and agent profiles persist in their kind-specific roaming data stores until explicitly removed; not cleared with conversation history; no credentials or grants in content |
 | Shared profile definition snapshots | Admitted immutable in-memory revisions, refreshed/revalidated under the common source lifecycle; no silent content cache persistence. Inspection, refresh, and unregister leave originals untouched; only separately confirmed dedicated editor mutations change supported originals |
 | Approved export | User-selected location with an explicit content preview |
+
+The bounded [exact retained-answer export](Information_Display.md#explicit-exact-retained-answer-file-export) requires separate original local-UI confirmation of one complete retained final ASSISTANT source, destination and strict UTF-8 format.
+Its dedicated native writer refuses protected/reparse/network/noncanonical destinations and existing files, revalidates source/private/control/destination identities before publication, and certifies success only after durable exact-byte readback.
+Read/Details, clipboard and definition-write authority are not export grants.
+
+Export audit carries only typed content-free operation/outcome and source identity, never answer content or destination paths. Failed/cancelled/uncertain outcomes do not renew authority or justify automatic retry.
+Saved files and external copies/sync are outside Kora retention; deleting a conversation or Kora data does not delete those files
+([review and audit owner](../src/Kora.Application/Presentation/ExactAnswerExportReview.cs), [native writer](../src/Kora.Windows/Presentation/WindowsExactAnswerExportWriter.cs)).
 
 Windows-managed definition roaming moves content, not local authority.
 The [definition reconciliation owner](Definition_Management.md#windows-managed-roaming-and-local-revision-admission)
@@ -1612,8 +1649,9 @@ ordinary SQLite rows use the policy; existing deadlines never change and
 apply-now is unavailable. Audit90/domain, files30/30 and every grant retain
 their independent rules. Unavailable ordinary policy reports explicit
 independent delivery gaps without waiving mandatory trusted audit. This is logical
-row pruning, not recoverable-copy disposal or forensic erasure. Audit expiry
-and its continuation/checkpoint requirements remain independently unimplemented.
+row pruning, not recoverable-copy disposal or forensic erasure. Authoritative
+audit-prefix expiry uses its [independent bounded operation](Architecture.md#bounded-authoritative-audit-prefix-retention);
+diagnostic audit-projection expiry remains unavailable.
 The independent [ordinary diagnostic impact preview](User_Configuration.md#read-only-ordinary-diagnostic-shortening-impact-preview)
 only observes hypothetically newly-due ordinary logs/spans/owned links at one
 fixed cutoff. It never counts security audit; bounded protected-prefix and
@@ -1699,6 +1737,37 @@ Ordinary hostless diagnostics carry capture-owned `MissingHostContext` and
 report the gap independently. They are not silently promoted to bootstrap,
 audit, span or receipt authority. Invalid host-bearing data is never downgraded.
 Log producers still own content minimisation; bounded strings are not a universal secret detector.
+
+### Reviewed GitHub exception reports
+
+Exception diagnostics may add a bounded structured `ExceptionReport` containing
+exception type, normalised managed method frames and the SHA-256 fingerprint of
+type plus newline plus stack. This projection excludes messages, source paths,
+line numbers, runtime argument values, `Exception.Data` and raw stack text.
+Absent legacy projections remain absent; missing/excessive managed stacks do
+not become empty or truncated signatures. New optional envelope data follows
+ordinary diagnostic/file retention, not session or audit retention.
+
+Original native input can separately review a selected complete retained
+diagnostic and approve a canonical GitHub fingerprint lookup. The transport is
+unauthenticated, bounded and redirect-free; failed/incomplete/ambiguous search
+never establishes a new issue. Only the fingerprint is sent during lookup.
+Current ownership/privacy, selected source and provider-mode/network admission
+are revalidated across awaits. Source change or closure retires review; retained
+diagnostics and issue text supply neither egress consent nor execution authority.
+
+An immutable report preview separately approves browser handoff, rechecking
+duplicates first. Only the canonical repository's new/existing issue pages can
+use this route, through the shared audited external-browser workflow. The new
+issue URL carries the reviewed type/stack, environment and fingerprint; the
+external browser may retain/sync it. Users authenticate and finally post on
+GitHub; Kora has no issue-write token, intake service or automatic publisher.
+Browser acceptance is not issue-submission proof. Existing-issue text/comments
+and closed/fix-version claims are untrusted observations, not proof of repair.
+Public copies cannot be recalled by local retention/deletion. Raw evidence
+exports, model disclosure, attachment upload and automatic crash submission are
+not admitted by this route.
+
 Persistence must verify supplied profile-local managed paths/copies and effective restrictive folder/file ACLs, without shared-path fallback or silent permission repair.
 Windows provides ordinary cross-profile isolation; a second-account trial is optional corroboration for this profile-local architecture, not a mandatory application gate.
 Follow [the profile-boundary contract](Architecture.md#profile-boundary-and-validation-responsibility) before changing storage/identity scope; any new cross-user protection claim needs actual identity evidence, not mock SIDs.
@@ -1768,8 +1837,19 @@ under the selected tamper-evidence scheme so expiry is distinguishable from
 removal inside the retained window. Preserve the latest minimal chain anchor
 outside ordinary audit-event expiry; it contains no action/content payload and
 cannot reconstruct expired records.
-Audit pruning and its continuation/anchor mechanism are not implemented.
-Ordinary diagnostic pruning never removes audit rows; expired audits may
+The approved conservative implementation increment prunes only a contiguous
+verified expired prefix of the authoritative interaction audit, in a bounded
+owning-host startup transaction. State-referenced audit proofs, retained audit
+dependencies and unresolved work hold the boundary; expired backlog may remain.
+Removal and a versioned payload-free sequence/hash/cutoff anchor commit together.
+Readers verify the retained suffix from that anchor, never reconstruct expired
+payloads or reinterpret the independent diagnostic/file copies as authority.
+This uses the existing private-store/local SHA-256 consistency boundary, not
+checkpoint authentication against an attacker able to coherently rewrite both
+the database and anchor. Malformed/inconsistent state fails closed; independent
+anchoring, hostile-writer resistance, rollback detection and forensic erasure
+remain unavailable. See the [implementation contract](Architecture.md#bounded-authoritative-audit-prefix-retention).
+Ordinary diagnostic pruning never removes audit rows; expired diagnostic audit projections may
 therefore remain present beyond their due dates. The independent daily JSON
 stream contains secondary `TypedAuditCopy` records, not committed authority
 receipts. Its existing 30-day/30-calendar-file policy is separate from the

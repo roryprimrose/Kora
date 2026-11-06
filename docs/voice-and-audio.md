@@ -17,6 +17,18 @@ The [optional conversational reply setting](settings.md#conversational-voice-rep
 is a different feature: only an eligible clarification can offer a short reply
 capture after Kora finishes speaking. It never approves work.
 
+A detected name is not permission to submit to a model. Destination review,
+model availability, original voice-channel restrictions, permissions and privacy
+still apply; the [source-only routing increment](../Design/Speech_Input.md#admitted-wake-utterance-routing-source-only)
+does not enable hands-free activation.
+
+In that source-only path, typing before a wake does not cancel idle readiness.
+The original utterance remains bound to the input observed at activation:
+later edits or source/session replacement cancel it. Only the routing-owned
+advice and destination windows can temporarily take focus without replacing
+that original source. Deterministic implementation tests do not qualify a
+production profile or change current hands-free availability.
+
 ## Prepare hands-free assets
 
 On Windows x64, **Settings > Speech & audio > Optional speech-input components**
@@ -58,6 +70,46 @@ generations or unconfirmed capture release refuse interruption without
 retargeting. Dictation, question replies and ambient audio never become stop
 commands. This does not enable hands-free or full-duplex listening.
 
+## Optional foreground push-to-talk shortcut
+
+In **Settings > Speech & audio > Foreground push-to-talk shortcut**, choose **Control Shift Space**, **Control Shift F9**, or **Unassigned**, then **Save shortcut**. **Cancel shortcut edit** restores the saved selection without changing it. The default is unassigned ([native controls](../src/Kora/SettingsWindow.axaml), [supported choices](../src/Kora.Core/Voice/ForegroundPttShortcut.cs)).
+
+Hold the selected chord while the Response window is foreground and its existing **Push to talk** control is available; release the main key to finish the same activated command. The microphone button still supports mouse, Space and Enter. Text editors, pending questions/approvals and other windows are not shortcut targets ([shared hold owner](../src/Kora/PushToTalkButtonBinding.cs)).
+
+Focus loss, hiding/closing the Response window and preference replacement release the hold. Release all keys before pressing again. Repeats cannot start another capture, and a new hold cannot reuse input while its previous opening/release is still joining ([lifecycle](../src/Kora/PushToTalkButtonBinding.cs)).
+
+Typed input and already activated voice use `get push-to-talk shortcut`, `set push-to-talk to Control Shift Space`, `set push-to-talk to Control Shift F9`, or `reset push-to-talk shortcut`. These use the same validated, audited preference path and original-channel call policy; model mutation is not registered ([commands](../src/Kora.Application/Configuration/ForegroundPttCommand.cs), [host route](../src/Kora.Application/ViewModels/MainViewModel.ForegroundPtt.cs)).
+
+Only the listed chords are supported; other editing, navigation and system combinations are reserved. Kora does not detect arbitrary third-party OS hotkey conflicts. Saving neither enables listening nor acquires the microphone, changes consent or clears a manual/recovery hold. An unconfirmed saved write leaves the shortcut unavailable, with the existing microphone recovery unchanged ([preference service](../src/Kora.Application/Configuration/ForegroundPttConfigurationService.cs)).
+
+## Speech capture timing
+
+In **Settings > Speech & audio > Speech capture timing**, select the timing option, enter decimal **seconds** using a dot, then select **Review capture timing**. Review the current/default and proposed values; choose **Confirm capture timing** or **Cancel capture timing**. No preference changes during review ([native controls](../src/Kora/SettingsWindow.axaml), [shared review](../src/Kora.Application/ViewModels/MainViewModel.VoiceCaptureTiming.cs)).
+
+| Exact option | Default | Supported bounds |
+| --- | --- | --- |
+| `voice.command-start-wait` | 5 seconds | 2-10 seconds |
+| `voice.reply-start-wait` | 15 seconds | 5-60 seconds |
+| `voice.trailing-silence` | 1 second | 0.5-3 seconds |
+
+These are reject-only bounds, with at most seven fractional digits; values are never clamped. Each reset restores only that option, preserving its companions ([timing contract](../src/Kora.Core/Voice/VoiceCaptureTiming.cs)).
+
+An admitted model may suggest one exact timing Set or Reset in its retained final answer.
+Use **Review setting suggestion...** on that answer in Sessions or the compact conversation.
+Review shows the full current/proposed tuple and saved/default state, then requires a separate **Confirm exact setting change** in the current native surface.
+For example, `set voice.trailing-silence to 2.5` proposes more pause without changing a current capture.
+The host verifies the exact retained source, current session, revisions, privacy, call policy and native lifetime again before the same audited timing save/readback.
+Review expires after 60 seconds. Cancel retires pending source checks; it does not promise rollback of a write already started.
+Unconfirmed persistence or audit remains unavailable until explicit inspection/recovery, with no automatic retry ([proposal workflow](setting-proposals.md)).
+
+Typed input and already activated voice share `get voice.timing`, `status voice.timing`, `list voice timing settings`, `set voice.command-start-wait to 7`, `set voice.reply-start-wait to 20`, or `set voice.trailing-silence to 2`. Complete review with `confirm voice.timing` or `cancel voice.timing`; use `reset` followed by one exact option for a reviewed reset ([command grammar](../src/Kora.Application/Configuration/VoiceCaptureTimingCommand.cs)).
+
+Confirmed timing is device-local and applies to the **next eligible capture**. An in-flight capture retains its snapshot until closure. Replies still address only the exact live question; speech-start expiry never answers or dismisses it. The 60-second hard utterance bound, transcript cap, open/cleanup deadlines and response-window timeout are unchanged ([activated consumer](../src/Kora.Windows/Audio/WindowsVoiceRecognitionService.cs), [capture limits](../src/Kora.Windows/Audio/VoiceCaptureLimits.cs)).
+
+Saving timing never opens a microphone, enables listening or grants consent. Unsupported profiles stay unavailable, and actual installed recognizer/device readiness is checked only at capture. Original voice requests remain subject to protected-call policy, even when later viewed natively. Invalid or unconfirmed saved timing refuses new capture rather than substituting defaults; inspect the saved preference and audit before repair/restart ([admitted persistence](../src/Kora.Application/Configuration/VoiceCaptureTimingConfigurationService.cs), [factory](../src/Kora.Windows/Audio/WindowsActivatedCaptureFactory.cs)).
+
+The deterministic timing and lifecycle tests prove propagation and fencing, not acoustic or wake-profile qualification ([capture regressions](../tests/Kora.Windows.IntegrationTests/Audio/ActivatedVoiceRecognitionTests.Timing.cs)).
+
 ## Speech input profile preference
 
 In **Settings > Speech & audio > Speech input profile**, choose the supported tuple and select **Review speech input switch**. Review the current saved, desired and effective selection, proposed tuple, required recognizer and runtime lifetime. Select **Confirm speech input switch** to apply, or **Cancel speech input switch** to leave the preference unchanged ([native controls](../src/Kora/SettingsWindow.axaml)).
@@ -70,7 +122,11 @@ The admitted operation retains one request through review, confirmation, runtime
 
 The profile setting `speech.input` and microphone setting `speech.input-device` remain separate exact options. Profile commands never intercept microphone inspection, selection or recovery ([profile parser](../src/Kora.Application/Configuration/SpeechInputCommand.cs), [microphone commands](../src/Kora.Application/ViewModels/MainViewModel.InputConfiguration.cs)).
 
-The only catalogued adapter is the existing Windows activated recognizer with `WindowsManaged` / `CaptureLifetime`. Actual installed English recognizer, microphone and permission availability is checked at explicit capture, not claimed by review. Additional exact local wake/ASR/resource profiles remain **unavailable** ([catalogue](../src/Kora.Core/Voice/SpeechInputProfileCatalogue.cs), [Windows factory](../src/Kora.Windows/Audio/WindowsActivatedCaptureFactory.cs)).
+The shipped catalogue offers the existing Windows activated recognizer with `WindowsManaged` / `CaptureLifetime`. Actual installed English recognizer, microphone and permission availability is checked at explicit capture, not claimed by review ([catalogue](../src/Kora.Core/Voice/SpeechInputProfileCatalogue.cs), [Windows factory](../src/Kora.Windows/Audio/WindowsActivatedCaptureFactory.cs)).
+
+The implemented local wake selection is `pocketsphinx-5-1-1-en-us-cpu-v1 Cpu CaptureLifetime`, but it is offered only for an exact configured name independently qualified by the host against the installed profile. **No production names are qualified**, so this choice remains unavailable in the shipped application. Preparing assets or entering that command does not qualify a name. Do not assume another display name, installed dictionary entry or a successful parser test makes wake listening usable ([name/profile boundary](../Design/Speech_Input.md#configuration-and-resource-profiles)).
+
+For a future independently qualified name, changing the assistant name turns listening off. Separately review and confirm the exact local wake profile, then explicitly enable listening under existing consent and host policy. Old capture and keyword resources must finish cleanup before replacement. A missing or changed name/profile remains unavailable without old-name or Kora fallback. Immediate post-name command audio reaches the existing local recognizer; the recognized text is not rewritten with a fabricated name prefix.
 
 Previously saved `Cpu`, `Gpu` or `KeepLoaded` intent remains visible and unavailable, without Windows/hosted fallback. These unsupported tuples cannot be confirmed as new selections. Recovery requires explicitly reviewing and confirming the compatible Windows tuple; inspection never silently replaces the prior desired choice ([selection service](../src/Kora.Application/Configuration/SpeechInputConfigurationService.cs)).
 
@@ -79,6 +135,26 @@ Saving retires active capture, clears its buffers and waits for owned resource c
 A failed or unconfirmed write does not advance the profile generation or enable capture. Pre-write cancellation retains saved/desired intent, even if capture was already retired; uncertain writes retain the prior desired intent but report saved evidence as unknown. Invalid saved state and unconfirmed audit/write markers remain unavailable ([selection action](../src/Kora.Application/Configuration/SpeechInputConfigurationService.cs)).
 
 Inspect preference and audit evidence before explicit repair/restart; do not remove an evidence hold merely to retry. Typed/native recovery remains available. Deterministic lifecycle tests do not qualify another provider, runtime/resource/residency profile or acoustic behaviour ([typed persistence](../src/Kora.Application/Configuration/LocalSpeechInputPreferences.cs), [qualification boundary](../Design/Speech_Input.md#delivery-and-open-decisions)).
+
+## Local speech setup comparison
+
+In **Settings > Speech & audio > Local speech setup comparison**, edit the expected phrase, select **Start / review local comparison**, and read the exact installed profiles and microphone-use disclosure. **Test with microphone** explicitly starts two short inert captures per reviewed profile, at most two profiles and ten seconds per capture ([native controls](../src/Kora/SettingsWindow.axaml), [bounded workflow](../src/Kora.Application/Voice/SpeechSetupComparison.cs)).
+
+Review names the microphone. Wait through **Opening** until **Speak now** identifies the current profile and first/repeat capture, then say the reviewed phrase. The ready indication comes from actual native recording start, not a startup estimate ([capture lifecycle](../src/Kora.Windows/Audio/WindowsVoiceRecognitionService.Comparison.cs)).
+
+The result shows expected and final text, case-insensitive exact correctness or mismatch, and measured open-to-start time. First/repeat trials are not proof of cold/warm caches; cold/warm startup, end-of-speech-to-final delay and resource use stay **unknown** when the native seam cannot measure them. This is setup support, not release qualification ([result semantics](../src/Kora.Application/Voice/SpeechComparisonResult.cs)).
+
+**Cancel and discard** cancels and joins owned capture cleanup. Closing Settings or a privacy change clears visible text; raw buffers are discarded after each joined capture. Edits and changed source/profile/device/owner/call admission invalidate the review. No phrase is executed, used as source context, sent to a model, archived or learned. Prior listening, consent, settings and selected profile remain unchanged ([isolated native capture](../src/Kora.Windows/Audio/WindowsVoiceRecognitionService.Comparison.cs), [host admission](../src/Kora.Application/ViewModels/MainViewModel.SpeechComparison.cs)).
+
+Test phrases cannot confirm a prepared [ordinary-conversation maximum change](settings.md#independent-ordinary-conversations). That setting still requires its own separate confirmation.
+
+Equivalent exact typed or already activated commands are `compare speech input`, `test speech comparison` and `cancel speech comparison`, with the current assistant-name prefix for activated voice. The first opens the same native review; the second explicitly confirms microphone use. During a comparison all other voice capture is excluded, so use native or typed cancellation, not a calibration phrase ([entry parser](../src/Kora.Application/Configuration/SpeechComparisonCommand.cs)).
+
+Shared appearance, speech, playback and response settings changes, including confirmed settings undo, discard the comparison and cancel active captures without reopening listening or replaying results. Capture ownership remains held until cleanup joins ([settings invalidation](../src/Kora.Application/ViewModels/MainViewModel.SpeechComparison.cs)).
+
+If native recorder release or disposal fails or is itself cancelled, the comparison reports failed/unconfirmed cleanup, not a joined cancellation. No results are retained and further capture remains unavailable; fresh review does not clear that resource hold ([native cleanup](../src/Kora.Windows/Audio/WindowsVoiceRecognitionService.Comparison.cs)).
+
+**Currently unavailable:** no production profile is qualified for this inert comparison operation. The review truthfully shows zero offers and does not open the microphone, download/install anything, select a fallback or change readiness. Installed Windows recognition and profile switching alone do not enable comparison. Fake-driven tests demonstrate implementation only ([capability gate](../src/Kora.Windows/Audio/IActivatedCaptureFactory.cs), [qualification contract](../Design/Speech_Input.md#comparison-and-qualification)).
 
 ## Microphone selection
 
@@ -423,6 +499,16 @@ No different voice is used while recovery is pending.
 If the Windows provider has no voice, install a Windows text-to-speech voice
 through Windows Settings. If Kokoro is selected but absent, download it from
 Kora Settings. Typed commands and visual output continue to work.
+
+### Review an installed voice suggestion
+
+Supply an exact already installed `provider / voice ID` when asking an eligible model for a future speech choice. Its entire answer must be `set speech.voice to <provider / voice ID>`. In either Sessions conversation size, choose **Review setting suggestion...** on that exact successful answer ([shared review](../src/Kora/RegisteredSettings/SessionsViewModel.RegisteredSettings.cs)).
+
+Review both current/proposed provider and voice, saved/default provenance, shared device-local scope and next-operation timing. Separately choose **Confirm exact setting change** or **Cancel setting review**.
+Exact typed or current-name activated voice uses `review installed voice suggestion`, then `confirm installed voice change` or `cancel installed voice review` ([commands](../src/Kora.Application/Configuration/InstalledSpeechVoiceSuggestionCommand.cs)).
+
+Review expires after 60 seconds. Changed answers, settings, installed choices, private control or call admission require fresh review. Original voice-channel restrictions survive later native confirmation.
+Saving checks the exact persisted/current pair; only a separately requested next eligible ordinary speech operation uses it. Review/save never synthesize or replay the suggestion, install assets or qualify an unavailable adapter ([review and readback](../src/Kora.Application/Configuration/InstalledSpeechVoiceSuggestionReview.cs)).
 
 Select an installed voice and available output, then select **Preview** to test
 that explicit choice. Preview is disabled when no voice is selected and

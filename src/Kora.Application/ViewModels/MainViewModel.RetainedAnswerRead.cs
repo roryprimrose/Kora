@@ -34,6 +34,7 @@ public sealed partial class MainViewModel : ISessionAnswerPlayback
     {
         if (retainedAnswerSpeech is not null) { RetireResponseReadPlayback(); }
         retainedAnswerDecisionsEligible = eligible;
+        NotifyResponseReadDecisionAvailability();
     }
 
     private bool CanEnterRetainedAnswerRead => composerDictation?.IsActive != true

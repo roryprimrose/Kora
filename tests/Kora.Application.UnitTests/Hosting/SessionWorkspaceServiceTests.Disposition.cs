@@ -1,8 +1,10 @@
 using AwesomeAssertions;
 
 using Kora.Application.UnitTests.Interaction;
+using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Interaction;
 using Kora.Core.Storage;
 
 namespace Kora.Application.UnitTests.Hosting;
@@ -104,6 +106,142 @@ public sealed partial class SessionWorkspaceServiceTests
         fixture.TaskWrites.Should().HaveCount(2);
         events.Saved!.Receipts.Should().BeEmpty();
         events.Audits.Should().Contain(item => item.Event.ActionId == "local-event.retire");
+    }
+
+    [Theory]
+    [InlineData("terminal")]
+    [InlineData("notification")]
+    [InlineData("save")]
+    public async Task CallerCancellationAfterDispositionCommitCannotInterruptExactNoticeCleanup(string boundary)
+    {
+        using var fixture = new Fixture();
+        using var events = new LocalEventBrokerTests.Fixture { Session = fixture.Session.SessionId };
+        var target = events.Event();
+        var other = events.Event() with { SessionId = new(Guid.NewGuid()) };
+        other = other with { Id = LocalEvent.Identity(other.Source, other.SessionId.Value, other.SubjectId) };
+        events.Saved = LocalEventBrokerState.Empty(events.Time.Now) with
+        {
+            Receipts = [new(target, LocalEventDisposition.Presented, null, events.Time.Now),
+                new(other, LocalEventDisposition.Dismissed, null, events.Time.Now)]
+        };
+        events.Events = [target];
+        await using var broker = events.Create();
+        await events.Observe(broker);
+        var otherReceipt = events.Saved.Receipts.Single(item => item.Event.SessionId == other.SessionId);
+        var budgets = events.Saved.Budgets;
+        var sourceReads = 0;
+        events.BeforeRead = _ => { sourceReads++; return Task.CompletedTask; };
+        fixture.Service.BindLocalEvents(broker);
+        using var cancellation = new CancellationTokenSource();
+        fixture.BeforeTaskWrite = record =>
+        {
+            if (boundary is "terminal" && record.State == HostTaskState.Succeeded) { cancellation.Cancel(); }
+        };
+        HostId<SessionIdentity>? retired = null;
+        fixture.Service.SessionRetired += session =>
+        {
+            retired = session;
+            if (boundary is "notification") { cancellation.Cancel(); }
+        };
+        events.OnSave = () =>
+        {
+            if (boundary is "save") { cancellation.Cancel(); }
+        };
+        using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
+        var preview = await fixture.Service.PreviewDispositionAsync(fixture.Session.SessionId, new(1), 0, fixture.Token);
+        var receipt = await fixture.Service.ConfirmDispositionAsync(preview, RequestOrigin.LocalUi, () => true, cancellation.Token);
+
+        cancellation.IsCancellationRequested.Should().BeTrue();
+        receipt.SessionId.Should().Be(target.SessionId);
+        receipt.Removed.Should().Be(preview);
+        retired.Should().Be(target.SessionId);
+        fixture.ControlCalls.Should().Be(1);
+        fixture.TaskWrites.Select(item => item.State).Should().Equal(HostTaskState.IntentRecorded, HostTaskState.Succeeded);
+        events.Saved!.Receipts.Should().ContainSingle().Which.Should().Be(otherReceipt);
+        events.Saved.Budgets.Should().Equal(budgets);
+        events.Pending.Should().BeFalse();
+        broker.IsAvailable.Should().BeTrue();
+        broker.IsHeld(target).Should().BeFalse();
+        sourceReads.Should().Be(0);
+        events.Audits.Where(item => string.Equals(item.Event.ActionId, "local-event.retire", StringComparison.Ordinal))
+            .Select(item => item.Event.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+        await fixture.Service.Invoking(service => service.ConfirmDispositionAsync(preview,
+            RequestOrigin.LocalUi, () => true, fixture.Token)).Should().ThrowAsync<InvalidOperationException>();
+        fixture.ControlCalls.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task PrecommitCancellationDoesNotDeleteOrRetireNoticeState()
+    {
+        using var fixture = new Fixture();
+        using var events = new LocalEventBrokerTests.Fixture { Session = fixture.Session.SessionId };
+        events.Events = [events.Event()];
+        await using var broker = events.Create();
+        await events.Observe(broker);
+        fixture.Service.BindLocalEvents(broker);
+        var saved = events.Saved;
+        var saves = events.Saves;
+        var audits = events.Audits.Count;
+        var retirements = 0;
+        fixture.Service.SessionRetired += _ => retirements++;
+        using var cancellation = new CancellationTokenSource();
+        using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
+        var preview = await fixture.Service.PreviewDispositionAsync(fixture.Session.SessionId, new(1), 0, fixture.Token);
+        cancellation.Cancel();
+        await fixture.Service.Invoking(service => service.ConfirmDispositionAsync(preview,
+            RequestOrigin.LocalUi, () => true, cancellation.Token)).Should().ThrowAsync<OperationCanceledException>();
+
+        fixture.ControlCalls.Should().Be(0);
+        fixture.TaskWrites.Should().BeEmpty();
+        retirements.Should().Be(0);
+        events.Saved.Should().BeSameAs(saved);
+        events.Saves.Should().Be(saves);
+        events.Audits.Should().HaveCount(audits);
+        broker.IsHeld(events.Events.Single()).Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("authority")]
+    [InlineData("storage")]
+    [InlineData("audit")]
+    public async Task CommittedDispositionStillSurfacesNoticeCleanupFailureWithoutReplay(string failure)
+    {
+        using var fixture = new Fixture();
+        using var events = new LocalEventBrokerTests.Fixture { Session = fixture.Session.SessionId };
+        events.Events = [events.Event()];
+        await using var broker = events.Create();
+        await events.Observe(broker);
+        fixture.Service.BindLocalEvents(broker);
+        using var cancellation = new CancellationTokenSource();
+        fixture.Service.SessionRetired += _ =>
+        {
+            cancellation.Cancel();
+            if (failure is "authority") { events.CanControl = false; }
+        };
+        events.OnSave = () =>
+        {
+            if (failure is "storage") { throw new IOException("Notice state write failed."); }
+        };
+        events.OnAudit = entry =>
+        {
+            if (failure is "audit" && string.Equals(entry.ActionId, "local-event.retire", StringComparison.Ordinal)
+                && entry.Outcome == SecurityAuditOutcome.Requested)
+            { throw new IOException("Notice retirement audit failed."); }
+        };
+        using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
+        var preview = await fixture.Service.PreviewDispositionAsync(fixture.Session.SessionId, new(1), 0, fixture.Token);
+        var confirm = () => fixture.Service.ConfirmDispositionAsync(preview, RequestOrigin.LocalUi, () => true, cancellation.Token);
+        if (failure is "authority") { await confirm.Should().ThrowAsync<InvalidOperationException>(); }
+        else { await confirm.Should().ThrowAsync<IOException>(); }
+
+        fixture.ControlCalls.Should().Be(1);
+        fixture.TaskWrites.Select(item => item.State).Should().Equal(HostTaskState.IntentRecorded, HostTaskState.Succeeded);
+        broker.IsHeld(events.Events.Single()).Should().BeFalse();
+        events.Audits.Should().NotContain(item => string.Equals(item.Event.ActionId, "local-event.retire", StringComparison.Ordinal)
+            && item.Event.Outcome == SecurityAuditOutcome.Succeeded);
+        await fixture.Service.Invoking(service => service.ConfirmDispositionAsync(preview,
+            RequestOrigin.LocalUi, () => true, fixture.Token)).Should().ThrowAsync<InvalidOperationException>();
+        fixture.ControlCalls.Should().Be(1);
     }
 
     [Fact]

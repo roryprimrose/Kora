@@ -12,9 +12,12 @@ param(
 )
 
 . (Join-Path $PSScriptRoot 'SourceTools.Common.ps1')
+. (Join-Path $PSScriptRoot 'GitHubRelease.Batch.ps1')
 $repository = $script:KoraRepository
+$scheduledMain = $env:GITHUB_EVENT_NAME -ceq 'schedule' -and
+    $env:KORA_MAIN_BUILD_PROFILE -ceq 'hourly-v1' -and $env:GITHUB_REF -ceq 'refs/heads/main'
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:GITHUB_REPOSITORY -ne $repository -or
-    $env:GITHUB_EVENT_NAME -notin @('push', 'workflow_dispatch')) {
+    ($env:GITHUB_EVENT_NAME -notin @('push', 'workflow_dispatch') -and -not $scheduledMain)) {
     throw 'Release operations require the canonical repository main/tag workflow, never a local, fork or PR run.'
 }
 if ($env:GITHUB_REF -ne 'refs/heads/main' -and $env:GITHUB_REF -ne "refs/tags/v$Version") {
@@ -23,10 +26,14 @@ if ($env:GITHUB_REF -ne 'refs/heads/main' -and $env:GITHUB_REF -ne "refs/tags/v$
 if ($env:GITHUB_SHA -ne $SourceRevision) { throw 'Release source revision does not match the workflow.' }
 $tag = "v$Version"
 $prerelease = $Version -like '*-beta*'
+if ($env:KORA_MERGE_QUEUE_DELIVERY_PROFILE -ceq 'independent-v1' -and -not $prerelease) {
+    throw 'Independent delivery publishes beta releases only; stable publication requires the serial profile.'
+}
 $names = @("Kora-$Version-win-x64.zip", "Kora-$Version-win-x86.zip",
     "Kora-$Version-win-x64.msi", "Kora-Setup-$Version-win-x64.exe",
     'installer-build.json', 'payload-manifest.json', 'SHA256SUMS.txt', 'release-manifest.json',
     "Kora-$Version-source-tools.zip")
+$releaseQueueProfile = Assert-ReleaseQueueSafety $SourceRevision -Publishing:($Action -eq 'Publish')
 
 function Get-ReleaseState {
     param([long] $KnownReleaseId = 0)
@@ -402,6 +409,7 @@ $($generated.body)
     if (-not $draft.draft) { return [pscustomobject] @{ AlreadyPublished = $true } }
     $reference = Get-GitHubRecord "repos/$repository/git/ref/tags/$tag"
     if ($null -eq $reference) {
+        Assert-ReleaseQueueSafety $SourceRevision $releaseQueueProfile -Publishing | Out-Null
         $createdReference = ((Invoke-Gh -Arguments @('api', '--method', 'POST', "repos/$repository/git/refs",
             '-f', "ref=refs/tags/$tag", '-f', "sha=$SourceRevision")) -join "`n") | ConvertFrom-Json
         if ($createdReference.ref -cne "refs/tags/$tag") {
@@ -419,6 +427,7 @@ $($generated.body)
     Assert-PublishedRelease $draft -AllowDraft
     if (-not $draft.draft) { return [pscustomobject] @{ AlreadyPublished = $true } }
     $latest = if ($prerelease) { 'false' } else { 'true' }
+    Assert-ReleaseQueueSafety $SourceRevision $releaseQueueProfile -Publishing | Out-Null
     Invoke-Gh -Arguments @('api', '--method', 'PATCH', "repos/$repository/releases/$draftId",
         '-F', 'draft=false', '-f', "target_commitish=$SourceRevision", '-f', "make_latest=$latest") | Out-Null
     $published = Get-ReleaseState -KnownReleaseId $draftId

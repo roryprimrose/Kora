@@ -109,7 +109,7 @@ public sealed partial class SessionConversationService
     {
         lock (cancellationGate)
         {
-            RequireConversationDispatchOpen(identity.Request.SessionId);
+            RequireConversationDispatchOpen(identity.Request.SessionId, alreadyDispatching: true);
             joinedForDisposition.Remove(identity.Request.SessionId);
             if (runningConversations.ContainsKey(identity.Request.SessionId))
             {

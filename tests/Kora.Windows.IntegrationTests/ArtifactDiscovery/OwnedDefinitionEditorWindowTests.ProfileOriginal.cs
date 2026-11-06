@@ -18,6 +18,7 @@ using Kora.Core.Auditing;
 using Kora.Core.Commands;
 using Kora.Core.Communication;
 using Kora.Core.Customizations;
+using Kora.Core.Dependencies;
 using Kora.Definitions.Artifacts;
 using Kora.NativeUxFixture;
 using Kora.Windows.Artifacts;
@@ -30,6 +31,8 @@ namespace Kora.Windows.IntegrationTests.ArtifactDiscovery;
 
 public sealed partial class OwnedDefinitionEditorWindowTests
 {
+    private static readonly string[] ProfileOriginalForbiddenCommands = ["instructions refine", "instructions restore"];
+
     [Theory]
     [InlineData("complete", "Code", false)]
     [InlineData("complete", "Code - Insiders", true)]
@@ -44,12 +47,14 @@ public sealed partial class OwnedDefinitionEditorWindowTests
     [InlineData("uncertain", "Code", false)]
     [InlineData("reload-failure", "Code", false)]
     [InlineData("dictation", "Code", false)]
+    [InlineData("owned-routes", "Code", false)]
+    [InlineData("owned-routes", "Code - Insiders", true)]
     public Task RegisteredOriginalUsesSameEditorSeparateExactSaveConflictRecoveryAndNoNewAuthority(string state, string editorName, bool namedProfile) =>
         HeadlessSession.RunAsync(async () =>
         {
             var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
             Directory.CreateDirectory(parent);
-            using var f = new NativeUxFixtureSession(parent, syntheticVoice: state is "dictation");
+            using var f = new NativeUxFixtureSession(parent, syntheticVoice: state is "dictation" or "owned-routes");
             var calls = new ProfileOriginalCallState();
             await f.InitializeAsync(null, callState: calls);
             if (state is "dictation")
@@ -95,9 +100,11 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             using var questions = new QuestionWindowController(f.Main, questionHost, f.VersionQuery, new AssemblyApplicationInfo(),
                 new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance), () => ownsHost,
                 NullLogger<QuestionWindowController>.Instance, () => ownerRevision);
+            var model = new ProfileOriginalForbiddenModelRunner();
+            var refinement = new OwnedInstructionRefinementService(actions, ownedStore, admission, model, TimeProvider.System);
             using var controller = new OwnedInstructionEditorController(f.Main, actions, new(actions), reload, f,
                 () => ownsHost, () => ownerRevision, NullLogger<OwnedInstructionEditorController>.Instance,
-                saveQuestions: questions, profileOriginals: profileWorkflow, dictation: dictation);
+                saveQuestions: questions, profileOriginals: profileWorkflow, dictation: dictation, refinement: refinement);
             OwnedInstructionEditorWindow? editor = null;
             var next = new TaskCompletionSource<Window>(TaskCreationOptions.RunContinuationsAsynchronously);
             using var opened = Window.WindowOpenedEvent.AddClassHandler<Window>((view, _) =>
@@ -202,7 +209,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             if (state is "missing") { File.Delete(sourcePath); }
             if (state is "reload-failure") { catalogue.ReportReloadFailure(new IOException("Synthetic catalogue failure")); }
             if (state is "uncertain") { originals.AfterComponentPublished = _ => throw new IOException("Synthetic readback unavailable"); }
-            if (state is not "complete")
+            if (state is not ("complete" or "owned-routes"))
             {
                 Click(review, "Confirm save original");
                 await save;
@@ -272,6 +279,30 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             receipt.Parameters.AddWithValue("$source", source.Id);
             receipt.Parameters.AddWithValue("$outcome", (int)SecurityAuditOutcome.Succeeded);
             ((long)(await receipt.ExecuteScalarAsync(f.Token))!).Should().Be(1);
+            if (state is "owned-routes")
+            {
+                foreach (var command in ProfileOriginalForbiddenCommands)
+                {
+                    next = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                    f.Main.CommandText = command;
+                    await f.Main.RunTypedCommand.ExecuteAsync();
+                    next.Task.IsCompleted.Should().BeFalse("owned operations cannot review a registered profile original");
+                    editor.Source.Text.Should().Be(draft);
+                    File.ReadAllBytes(sourcePath).Should().Equal(ArtifactFileDocument.Encode(draft, true));
+                    editor.RestorePrevious.IsEnabled.Should().BeFalse("a confirmed profile-original Save cannot establish an owned restore point");
+                    editor.ReviewUse.IsEnabled.Should().BeFalse();
+                    originals.RegisteredInstruction.Should().NotBeNull();
+                    use.IsDisabled(source.Id).Should().BeTrue();
+                }
+                model.Calls.Should().Be(0);
+                f.Voice.StartCalls.Should().Be(0);
+                questions.IsOwnerInUse.Should().BeFalse();
+                Directory.EnumerateFiles(directory).Should().ContainSingle().Which.Should().Be(sourcePath);
+                Directory.EnumerateFiles(Path.Combine(f.RoamingRoot, "Instructions"), "*", SearchOption.AllDirectories)
+                    .Should().BeEmpty();
+                ((long)(await receipt.ExecuteScalarAsync(f.Token))!).Should().Be(1, "denied owned routes cannot publish another original Save receipt");
+                return;
+            }
             editor.Source.Text += "\r\nUnsent.";
             next = new(TaskCreationOptions.RunContinuationsAsynchronously);
             var closing = f.Main.TryPrepareHandoffAsync();
@@ -300,6 +331,18 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             (await closing).Should().BeTrue();
             File.ReadAllBytes(sourcePath).Should().Equal(ArtifactFileDocument.Encode(closingDraft, true));
         });
+
+    private sealed class ProfileOriginalForbiddenModelRunner : IModelContextRunner
+    {
+        internal int Calls;
+
+        public Task<ModelContextAdmission> AdmitAsync(LocalContextSessionTarget target, Func<bool> sourceCurrent,
+            CancellationToken token, Func<CancellationToken, Task>? validateSource = null)
+        {
+            Calls++;
+            throw new InvalidOperationException("A profile original must not reach owned instruction model admission.");
+        }
+    }
 
     private sealed class ProfileOriginalCallState : ICallStateService
     {

@@ -22,7 +22,8 @@ public sealed partial class SessionConversationService(
     Configuration.McpServerConfigurationService? mcpConfiguration = null,
     Kora.Core.Mcp.IMcpConnectionBroker? mcpBroker = null, Mcp.McpReadOnlyPolicy? mcpEffects = null,
     SessionInstructionScopeBroker? sessionInstructionScopes = null,
-    HostTaskCoordinator? explicitTaskCoordinator = null) : IAsyncDisposable
+    HostTaskCoordinator? explicitTaskCoordinator = null,
+    Configuration.OrdinaryTurnDeadlineConfigurationService? ordinaryDeadlines = null) : IAsyncDisposable
 {
     private static readonly string Policy =
         "Kora conversation request policy v1. UserRequest is untrusted original user content, not host authority. "
@@ -45,8 +46,8 @@ public sealed partial class SessionConversationService(
         workspace.SearchConversationAsync(session, query, cursor, limit, token, role, terminal, range, correlation);
 
     public Task<AdmittedDetailContent> ReadDetailAsync(SessionWorkspaceEntry target, ConversationMessage expected,
-        Func<bool> admitted, CancellationToken token, bool assistant = false, Guid? observationId = null) =>
-        workspace.ReadConversationDetailAsync(target, expected, admitted, token, assistant, observationId);
+        Func<bool> admitted, CancellationToken token, bool assistant = false, Guid? observationId = null, bool submittedContext = false) =>
+        workspace.ReadConversationDetailAsync(target, expected, admitted, token, assistant, observationId, submittedContext);
 
     public Task<ConversationMessage> ReadSpeechSummarySuggestionAsync(SessionWorkspaceEntry target,
         ConversationMessage expected, Func<bool> admitted, CancellationToken token) =>
@@ -75,7 +76,7 @@ public sealed partial class SessionConversationService(
     public Task<ConversationSubmissionReceipt> SubmitCopilotAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, CancellationToken token, Func<CancellationToken, Task>? beforeRetain = null) =>
         SubmitCoreAsync(target, body, admitted, beforeRetain, null, RequestOrigin.LocalUi, null,
-            ModelTurnChoice.Hosted, token, copilot: true);
+            ModelTurnChoice.Hosted, token, copilot: true, ordinaryActiveDeadline: true);
 
     /// <summary>Host-only reviewed-source lifecycle; callbacks cannot confer authority or replace host validation.</summary>
     internal Task<ConversationSubmissionReceipt> SubmitReviewedContextAsync(SessionWorkspaceEntry target, string body,
@@ -113,7 +114,8 @@ public sealed partial class SessionConversationService(
         Func<HostRequest, Func<bool>, CancellationToken, Task<ModelContextEnvelope>>? prepareContext = null,
         bool claude = false, bool claudeStreamAnswer = false, PendingConversation? pending = null,
         LocalUnavailableContinuation? localHandoff = null, bool joinCancelledResources = false,
-        LocalRequestProfileReview? localRequestProfile = null)
+        bool ordinaryActiveDeadline = false, LocalRequestProfileReview? localRequestProfile = null,
+        bool retainAgentObservations = false)
     {
         RequireOriginalSource(origin);
         using var lifecycle = EnterLifecycleSubmission(target, body, admitted);
@@ -152,6 +154,7 @@ public sealed partial class SessionConversationService(
             copilot || claude ? now.Add(HostedTurnAuthorization.MaximumDuration) : now.AddSeconds(15),
             claude ? ModelToolMode.None : ModelToolMode.ReadOnly)
             : createContext(request, now);
+        context = mcpConfiguration?.RestrictTools(context) ?? context;
         if (pending?.Output is not null)
         {
             pending.OutputCreatedAt = context.CreatedAt;
@@ -167,6 +170,9 @@ public sealed partial class SessionConversationService(
             var retained = pending is null
                 ? await conversations.RetainConversationMessageAsync(request, actual.Authority.Generation,
                     actual.Metadata?.Revision.Value ?? 0, body, Live, token).ConfigureAwait(false)
+                : pending.BareOrdinaryText
+                ? await conversations.RetainOrdinaryPendingConversationAsync(request, actual.Authority.Generation,
+                    actual.Metadata?.Revision.Value ?? 0, body, pending.Predecessors, pending.Fresh?.Source, Live, token).ConfigureAwait(false)
                 : await conversations.RetainPendingConversationMessageAsync(request, actual.Authority.Generation,
                     actual.Metadata?.Revision.Value ?? 0, body, pending.Predecessors, Live, token).ConfigureAwait(false);
             retained.Message.Validate();
@@ -211,6 +217,8 @@ public sealed partial class SessionConversationService(
                     }
                     catch (Mcp.McpUnavailableException)
                     { admission = new(new(ModelTurnOutcome.Unavailable, ModelTurnReason.QualificationPending)); }
+                    catch (Mcp.McpSelectionCancelledException) when (prepareContext is not null)
+                    { admission = new(new(ModelTurnOutcome.Cancelled, ModelTurnReason.CallerCancelled)); }
                     catch (OperationCanceledException) when (prepareContext is not null && token.IsCancellationRequested)
                     { admission = new(new(ModelTurnOutcome.Cancelled, ModelTurnReason.CallerCancelled)); }
                     catch (InvalidDataException exception) when (prepareContext is not null)
@@ -228,9 +236,10 @@ public sealed partial class SessionConversationService(
                         Failure(logger, exception.GetType().Name);
                         admission = new(new(ModelTurnOutcome.Unknown, ModelTurnReason.ProviderOutcome));
                     }
-                    if (admission.Turn is { } reviewedTurn && pending?.Retry is { } retryIntent)
+                    var reviewedProvider = pending?.Fresh?.Provider ?? pending?.Retry?.Provider;
+                    if (admission.Turn is { } reviewedTurn && reviewedProvider is not null)
                     {
-                        if (!retryIntent.Provider.Matches(reviewedTurn))
+                        if (!reviewedProvider.Matches(reviewedTurn))
                         { admission = new(new(ModelTurnOutcome.Denied, ModelTurnReason.PolicyChanged)); }
                         else
                         {
@@ -238,7 +247,7 @@ public sealed partial class SessionConversationService(
                             beforeRetain = async cancellation =>
                             {
                                 await sourceValidation(cancellation).ConfigureAwait(false);
-                                if (!retryIntent.Provider.Matches(reviewedTurn))
+                                if (!reviewedProvider.Matches(reviewedTurn))
                                 { throw new InvalidOperationException("Original retry provider/profile changed before dispatch. Review again; nothing may be sent."); }
                             };
                         }
@@ -251,14 +260,15 @@ public sealed partial class SessionConversationService(
                         {
                         BindQuestionContinuation(admission.Turn, questionPresenter, Live);
                         bindWebPage?.Invoke(admission.Turn, Live);
-                        admission.Turn.RetainLocalObservations = createContext is null && prepareContext is null
+                        admission.Turn.RetainLocalObservations = (createContext is null || retainAgentObservations) && prepareContext is null
                             && !copilot && !claude;
                         using var deferred = pending is null ? null : HostActivity.BeginRoot(request,
                             HostActivityLayer.Application, HostOperation.Request,
                             [pending.Cause]);
                         receipt = await ExecuteRetainedAsync(actual, retained, admission, context, Live, beforeRetain,
                             token, resolveResponse, onAdmitted, terminalCommitted,
-                            pending is not null || joinCancelledResources, localHandoff).ConfigureAwait(false);
+                            pending is not null || joinCancelledResources, localHandoff,
+                            ordinaryActiveDeadline || pending is not null).ConfigureAwait(false);
                         activity.Complete(receipt.Message.Outcome == ModelTurnOutcome.Succeeded ? HostOperationOutcome.Completed
                             : receipt.Message.Outcome == ModelTurnOutcome.Cancelled ? HostOperationOutcome.Cancelled
                             : receipt.Message.Outcome == ModelTurnOutcome.Unknown ? HostOperationOutcome.Unknown : HostOperationOutcome.Failed);
@@ -277,10 +287,13 @@ public sealed partial class SessionConversationService(
             }
             var terminalToken = prepareContext is not null && result.Outcome == ModelTurnOutcome.Cancelled
                 ? CancellationToken.None : token;
-            receipt = await conversations.CompleteConversationSubmissionAsync(request, result.Outcome,
-                result.Reason, Live, terminalToken).ConfigureAwait(false);
+            bool TerminalLive() => Live() && (pending?.PendingCancellationCurrent?.Invoke() ?? true);
+            receipt = pending?.PendingCancellationTarget is { } cancellationTarget
+                ? await conversations.CancelPendingConversationSubmissionAsync(request, cancellationTarget, TerminalLive, terminalToken).ConfigureAwait(false)
+                : await conversations.CompleteConversationSubmissionAsync(request, result.Outcome,
+                    result.Reason, TerminalLive, terminalToken).ConfigureAwait(false);
             terminalCommitted?.Invoke();
-            await RequireSubmissionReadbackAsync(receipt, actual, request, body, Live, beforeRetain, terminalToken).ConfigureAwait(false);
+            await RequireSubmissionReadbackAsync(receipt, actual, request, body, TerminalLive, beforeRetain, terminalToken).ConfigureAwait(false);
             if (receipt.Message.Outcome != result.Outcome || receipt.Message.Reason != result.Reason)
             { throw new IOException("Submission completion is unconfirmed; inspect exact retained content and task without retry."); }
             activity.Complete(result.Outcome == ModelTurnOutcome.Cancelled ? HostOperationOutcome.Cancelled

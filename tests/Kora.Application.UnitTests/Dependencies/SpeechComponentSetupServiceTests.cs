@@ -1,11 +1,14 @@
 using System.Diagnostics;
+
 using AwesomeAssertions;
+
 using Kora.Application.Dependencies;
 using Kora.Core.Auditing;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Testing;
+
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Application.UnitTests.Dependencies;
@@ -36,15 +39,20 @@ public sealed class SpeechComponentSetupServiceTests : IDisposable
     public async Task AppliesExactReviewedOperationAndReleasesExclusiveLease(SpeechComponentOperation operation)
     {
         var fixture = new SpeechComponentSetupFixture();
-        if (operation == SpeechComponentOperation.Verify)
+        if (operation is SpeechComponentOperation.Verify or SpeechComponentOperation.Remove)
         {
-            fixture.Store.State = new(true, true, SpeechComponentOwnership.Managed, "verified");
+            fixture.Store.State = ManagedInventory();
         }
         using var host = Begin();
         var plan = await fixture.Review(operation);
         plan.Disclosure.Should().Contain(fixture.Component.ModelIdentity).And.Contain(fixture.Component.Licence)
             .And.Contain("staging: 16 bytes").And.Contain("No runtime selection");
         plan.Disclosure.Should().Contain(operation == SpeechComponentOperation.Prepare ? "Download: 8 bytes" : "Download: 0 bytes");
+        if (operation == SpeechComponentOperation.Remove)
+        {
+            plan.RemovalDisclosure.Should().Contain("Exact remaining inventoried bytes: 72")
+                .And.Contain("Independent privacy and consent").And.Contain("Unavailable").And.Contain("No other profile or process");
+        }
         var result = await fixture.Service.ApplyAsync(plan, true, fixture.Progress, CancellationToken.None);
         result.Identity.Should().Be(fixture.Component.Identity);
         result.Runtime.Compatibility.Should().Be(SpeechComponentCompatibility.Compatible);
@@ -53,6 +61,7 @@ public sealed class SpeechComponentSetupServiceTests : IDisposable
             ? SpeechComponentFunctionalEvidence.NotChecked : SpeechComponentFunctionalEvidence.Verified);
         fixture.Store.Prepares.Should().Be(operation == SpeechComponentOperation.Prepare ? 1 : 0);
         fixture.Store.Removals.Should().Be(operation == SpeechComponentOperation.Remove ? 1 : 0);
+        fixture.RuntimeAdapter.Holds.Should().Be(operation == SpeechComponentOperation.Remove ? 1 : 0);
         fixture.RuntimeAdapter.Releases.Should().Be(fixture.RuntimeAdapter.Leases).And.Be(1);
         fixture.AuditLog.Events.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
         fixture.AuditLog.Events.Select(item => item.CorrelationId).Distinct().Should().ContainSingle();
@@ -95,6 +104,7 @@ public sealed class SpeechComponentSetupServiceTests : IDisposable
         runtime.Observe(fixture.Component).Compatibility.Should().Be(SpeechComponentCompatibility.Unavailable);
         (await runtime.TryAcquireExclusiveAsync(fixture.Component, CancellationToken.None)).State.Should().Be(SpeechComponentMutationState.Unavailable);
         (await runtime.VerifyAsync(fixture.Component, CancellationToken.None)).Functional.Should().Be(SpeechComponentFunctionalEvidence.Unavailable);
+        FluentActions.Invoking(() => runtime.HoldUnavailable(fixture.Component)).Should().Throw<InvalidOperationException>();
         var service = new SpeechComponentSetupService(SpeechComponentCatalogue.Production, fixture.Store, runtime,
             fixture.AuditLog, NullLogger<SpeechComponentSetupService>.Instance, fixture.Time);
         service.Offers.Should().BeEmpty();
@@ -246,11 +256,141 @@ public sealed class SpeechComponentSetupServiceTests : IDisposable
         await FluentActions.Awaiting(() => fixture.Service.ApplyAsync(verify, true, fixture.Progress, CancellationToken.None))
             .Should().ThrowAsync<InvalidDataException>();
         fixture.Store.WrongRemoval = true;
+        fixture.Store.State = ManagedInventory();
         var remove = await fixture.Review(SpeechComponentOperation.Remove);
         await FluentActions.Awaiting(() => fixture.Service.ApplyAsync(remove, true, fixture.Progress, CancellationToken.None))
             .Should().ThrowAsync<InvalidDataException>();
         fixture.RuntimeAdapter.Checks.Should().Be(0);
         fixture.RuntimeAdapter.Releases.Should().Be(2);
+    }
+
+    private static SpeechComponentSnapshot ManagedInventory() =>
+        new(true, true, SpeechComponentOwnership.Managed, "verified")
+        { ExactBytes = 72, Inventory = "model.data: 4 bytes; tokens.data: 4 bytes; ownership receipt: 64 bytes" };
+
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("foreign")]
+    [InlineData("unknown-bytes")]
+    [InlineData("unknown-inventory")]
+    [InlineData("unknown-native")]
+    [InlineData("unknown-consumers")]
+    [InlineData("unknown-dependents")]
+    [InlineData("voice")]
+    public async Task RemovalCannotOfferConfirmationForUnknownInventoryOrNonNativeOrigin(string scenario)
+    {
+        var fixture = new SpeechComponentSetupFixture();
+        fixture.Store.State = scenario switch
+        {
+            "missing" => new(false, false, SpeechComponentOwnership.Missing, "missing"),
+            "foreign" => ManagedInventory() with { Ownership = SpeechComponentOwnership.Foreign },
+            "unknown-bytes" => ManagedInventory() with { ExactBytes = null },
+            "unknown-inventory" => ManagedInventory() with { Inventory = null },
+            _ => ManagedInventory(),
+        };
+        if (scenario is "unknown-native") { fixture.RuntimeAdapter.NativeIdentity = null; }
+        if (scenario is "unknown-consumers") { fixture.RuntimeAdapter.ConsumersKnown = false; }
+        if (scenario is "unknown-dependents") { fixture.RuntimeAdapter.Dependents = null; }
+        using var host = Begin(scenario is "voice" ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
+        await FluentActions.Awaiting(() => fixture.Review(SpeechComponentOperation.Remove))
+            .Should().ThrowAsync<InvalidOperationException>();
+        fixture.Store.Removals.Should().Be(0);
+        fixture.RuntimeAdapter.Leases.Should().Be(0);
+        fixture.AuditLog.Events.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ChangedConsumersOrNativeObjectInvalidatesReviewedRemoval(bool native)
+    {
+        var fixture = new SpeechComponentSetupFixture();
+        fixture.Store.State = ManagedInventory() with { Ownership = SpeechComponentOwnership.RemovalPending };
+        using var host = Begin();
+        var plan = await fixture.Review(SpeechComponentOperation.Remove);
+        if (native) { fixture.RuntimeAdapter.NativeIdentity = "replaced-native"; }
+        else { fixture.RuntimeAdapter.ConsumerRevision++; }
+        await FluentActions.Awaiting(() => fixture.Service.ApplyAsync(plan, true, fixture.Progress, TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<UnauthorizedAccessException>();
+        fixture.Store.Removals.Should().Be(0);
+        fixture.RuntimeAdapter.Leases.Should().Be(0);
+        fixture.AuditLog.Events.Last().Outcome.Should().Be(SecurityAuditOutcome.Denied);
+    }
+
+    [Fact]
+    public async Task ConsumerOwnershipBecomingUnknownAfterReviewCannotRetireOrRemoveAssets()
+    {
+        var fixture = new SpeechComponentSetupFixture();
+        fixture.Store.State = ManagedInventory();
+        using var host = Begin();
+        var plan = await fixture.Review(SpeechComponentOperation.Remove);
+        fixture.RuntimeAdapter.ConsumersKnown = false;
+        await FluentActions.Awaiting(() => fixture.Service.ApplyAsync(plan, true, fixture.Progress, TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<UnauthorizedAccessException>();
+        fixture.Store.Removals.Should().Be(0);
+        fixture.RuntimeAdapter.Leases.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("inspection")]
+    [InlineData("runtime")]
+    [InlineData("storage")]
+    public async Task StorageExceptionPathsNeverEnterDiagnosticsOrTrustedAudit(string failure)
+    {
+        var fixture = new SpeechComponentSetupFixture();
+        const string privatePath = @"Q:\fixture-only-private-owner\speech-data.model";
+        using var host = Begin();
+        if (failure is "storage")
+        {
+            var plan = await fixture.Review();
+            fixture.Store.WriteFailure = new IOException(privatePath);
+            await FluentActions.Awaiting(() => fixture.Service.ApplyAsync(plan, true, fixture.Progress, TestContext.Current.CancellationToken))
+                .Should().ThrowAsync<IOException>();
+        }
+        else
+        {
+            if (failure is "inspection") { fixture.Store.InspectionFailure = new IOException(privatePath); }
+            else { fixture.RuntimeAdapter.ObservationFailure = new IOException(privatePath); }
+            (await fixture.Service.InspectAsync(fixture.Component.Identity, TestContext.Current.CancellationToken))
+                .Runtime.Compatibility.Should().Be(SpeechComponentCompatibility.Unknown);
+        }
+        fixture.Logger.Messages.Should().NotBeEmpty().And.NotContain(message => message.Contains(privatePath, StringComparison.Ordinal));
+        fixture.Logger.Exceptions.Should().OnlyContain(exception => exception == null);
+        fixture.AuditLog.Events.Should().NotContain(item => item.ReasonCode != null && item.ReasonCode.Contains(privatePath, StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("io")]
+    [InlineData("cancel")]
+    [InlineData("release")]
+    [InlineData("revoked")]
+    [InlineData("recovery-revoked")]
+    public async Task IncompleteRemovalReportsExactObservedRemainderOnlyWhileOriginalHostStillAdmitsDisclosure(string failure)
+    {
+        var fixture = new SpeechComponentSetupFixture();
+        fixture.Store.State = ManagedInventory();
+        using var host = Begin();
+        var plan = await fixture.Review(SpeechComponentOperation.Remove);
+        if (failure is "release") { fixture.RuntimeAdapter.ReleaseFailure = new IOException("Fixture join uncertain."); }
+        else
+        {
+            fixture.Store.WriteFailure = failure is "cancel" ? new OperationCanceledException() : new IOException("Fixture partial I/O.");
+            if (failure is "revoked") { fixture.Store.BeforeWrite = () => fixture.Eligible = false; }
+            if (failure is "recovery-revoked")
+            {
+                fixture.Store.BeforeWrite = () => fixture.Store.AfterInspect = () => fixture.Eligible = false;
+            }
+        }
+        await FluentActions.Awaiting(() => fixture.Service.ApplyAsync(plan, true, fixture.Progress, TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<Exception>();
+        if (failure is "revoked" or "recovery-revoked") { plan.RemovalRecovery.Should().BeNull(); }
+        else
+        {
+            plan.RemovalRecovery.Should().NotBeNull();
+            plan.RemovalRecovery!.Storage.Should().Be(fixture.Store.State);
+        }
+        fixture.AuditLog.Events.Last().Outcome.Should().NotBe(SecurityAuditOutcome.Succeeded);
+        fixture.Store.Prepares.Should().Be(0);
     }
 
     [Theory]

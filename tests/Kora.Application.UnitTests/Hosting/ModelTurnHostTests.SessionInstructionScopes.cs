@@ -25,6 +25,43 @@ public sealed partial class ModelTurnHostTests
         private readonly ModelTurnHostTests tracing = new();
         public void Dispose() => tracing.Dispose();
 
+        [Fact]
+        public async Task FreshExpiredOrdinaryRefusesApplyingInstructionsAndRetiresBareReviewAcrossScopeChanges()
+        {
+            using var f = new Fixture { TrackPendingRecords = true };
+            var old = SeedExpiredOrdinary(f);
+            var (sources, catalogue, _) = InstructionBroker(f, new InstructionSource());
+            var workspace = Workspace(f);
+            using var scopes = new SessionInstructionScopeBroker(sources, workspace, new ScopeAudit(), f.Time);
+            var target = new SessionWorkspaceEntry(f.Session, null);
+            var host = ConfigureCancellation(f);
+            await using var conversation = Conversation(f, workspace, scopes, host);
+            var commands = conversation.CreateRequestCommands();
+            var bare = scopes.ReviewBareRequest(target);
+            bare().Should().BeTrue();
+            var review = (await commands.ExecuteAsync(ExpiredReview(old), RequestOrigin.LocalUi, () => true, Token)).RequestReview!;
+            await scopes.ConfirmAsync(await scopes.ReviewAsync(target, catalogue.Artifacts.Single(),
+                () => true, () => true, Token), () => true, Token);
+            bare().Should().BeFalse();
+            scopes.Invoking(value => value.ReviewBareRequest(target)).Should().Throw<InvalidOperationException>();
+            await commands.Invoking(value => value.ExecuteAsync(FailedConfirm(review), RequestOrigin.LocalUi, () => true, Token))
+                .Should().ThrowAsync<InvalidOperationException>();
+            await commands.Invoking(value => value.ExecuteAsync(ExpiredReview(old), RequestOrigin.LocalUi, () => true, Token))
+                .Should().ThrowAsync<InvalidOperationException>();
+            scopes.Stop(target, RequestOrigin.LocalUi, () => true);
+            bare().Should().BeFalse();
+            var fresh = scopes.ReviewBareRequest(target);
+            fresh().Should().BeTrue();
+            scopes.RetireReviews();
+            fresh().Should().BeFalse();
+            var last = scopes.ReviewBareRequest(target);
+            scopes.Dispose();
+            last().Should().BeFalse();
+            scopes.Invoking(value => value.ReviewBareRequest(target)).Should().Throw<ObjectDisposedException>();
+            f.RetainCalls.Should().Be(0);
+            f.Adapter.Calls.Should().Be(0);
+        }
+
         [Theory]
         [InlineData(false)]
         [InlineData(true)]

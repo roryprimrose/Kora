@@ -406,25 +406,26 @@ public sealed partial class ModelTurnHostTests
         internal SessionConversationService? Conversation { get; private set; }
         internal bool Open { get; set; } = true;
         internal bool Eligible() => Open;
-        internal SharedSkillHarness(Fixture model)
+        internal SharedSkillHarness(Fixture model, Kora.Core.Artifacts.IArtifactUsePolicy? usePolicy = null)
         {
             this.model = model;
             Preferences = new(new LocalSharedSkillPreferencesTests.Store());
             // Separate durable control domains, matching the production store's independent sessions.
             native = new(control, control, new(control));
             use = new(UseStore, UseStore, new(UseStore));
-            Discovery = new(Preferences, Reader, native, Audit, NullLogger<SharedSkillDiscoveryService>.Instance);
+            Discovery = new(Preferences, Reader, native, Audit, NullLogger<SharedSkillDiscoveryService>.Instance, usePolicy);
         }
         internal async Task Register()
         {
             await Discovery.LoadSourcesAsync(Eligible, Token);
             await Discovery.RegisterAsync("selected root", Eligible, Token);
         }
-        internal SharedSkillInvocationWorkflow Workflow(bool qualified = true, ISessionWorkspaceAccess? access = null)
+        internal SharedSkillInvocationWorkflow Workflow(bool qualified = true, ISessionWorkspaceAccess? access = null,
+            SessionConversationService? conversation = null)
         {
             var host = qualified ? QualifiedHistoryHost(model) : model.ConfiguredProfiles(production: true);
             var workspace = new SessionWorkspaceService(model, new(model), model, NullLogger<SessionWorkspaceService>.Instance);
-            Conversation = model.ConversationService(host, execution: host);
+            Conversation = conversation ?? model.ConversationService(host, execution: host);
             return new(Discovery, use, access ?? model, model, workspace, Conversation, Audit, model.Time);
         }
         internal ReviewedToolSkillInvocationWorkflow ToolWorkflow(bool qualified = true, IModelTurnAdapter? adapter = null,
@@ -437,6 +438,8 @@ public sealed partial class ModelTurnHostTests
             Conversation = PageService(model, host, approval ?? new PageApprovalStore(model), network ?? new());
             return new(Discovery, use, access ?? model, model, Conversation!, Audit, time ?? model.Time);
         }
+        internal ReviewedToolSkillInvocationWorkflow McpWorkflow(SessionConversationService service) =>
+            new(Discovery, use, model, model, service, Audit, model.Time);
         public async ValueTask DisposeAsync() { await use.DisposeAsync(); await native.DisposeAsync(); }
     }
 
@@ -449,6 +452,13 @@ public sealed partial class ModelTurnHostTests
         internal bool WrongSource { get; set; }
         internal Exception? Failure { get; set; }
         internal int Reads { get; private set; }
+        internal int ExactReads { get; private set; }
+        internal int Bindings { get; private set; }
+        internal Action? BeforeExactRead { get; set; }
+        internal Action? BeforeBind { get; set; }
+        internal Func<SharedSkillFileBinding, SharedSkillSnapshot>? ExactSnapshot { get; set; }
+        internal SharedSkillFileBinding Binding => new(Source, "concise-review\\SKILL.md", new string('b', 48), new string('c', 48), NativeRevision);
+        internal long NativeRevision { get; set; } = 1;
         internal SharedSkillSnapshot Snapshot() => SharedSkillSnapshot.Parse(Source.Id, "concise-review\\SKILL.md", Encoding.UTF8.GetBytes(Text), OtherFiles);
         public ValueTask<SharedSkillSource> SelectAsync(string selectedRoot, CancellationToken cancellationToken) => ValueTask.FromResult(Source);
         public ValueTask<SharedSkillCatalogue> DiscoverAsync(SharedSkillSource source, CancellationToken cancellationToken)
@@ -458,6 +468,28 @@ public sealed partial class ModelTurnHostTests
             return ValueTask.FromResult(WrongSource
                 ? new SharedSkillCatalogue(new(Guid.NewGuid(), ".other\\skills", new string('b', 48)), [])
                 : new SharedSkillCatalogue(Source, [Snapshot()]));
+        }
+        public ValueTask<SharedSkillFileBinding> BindFileAsync(IReadOnlyList<SharedSkillSource> registered,
+            string selectedFile, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Bindings++;
+            if (!registered.Contains(Source)) { throw new InvalidOperationException("Not registered."); }
+            BeforeBind?.Invoke();
+            return ValueTask.FromResult(Binding);
+        }
+        public ValueTask<SharedSkillSnapshot> ReadFileAsync(SharedSkillFileBinding binding, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ExactReads++;
+            BeforeExactRead?.Invoke();
+            if (binding != Binding) { throw new InvalidOperationException("Native revision changed."); }
+            if (Failure is not null) { throw Failure; }
+            if (ExactSnapshot is { } exact) { return ValueTask.FromResult(exact(binding)); }
+            var snapshot = WrongSource
+                ? SharedSkillSnapshot.Parse(Guid.NewGuid(), binding.RelativeFile, Encoding.UTF8.GetBytes(Text), OtherFiles)
+                : Snapshot();
+            return ValueTask.FromResult(snapshot.WithPackageDirectoryIdentity(binding.PackageIdentity));
         }
     }
 

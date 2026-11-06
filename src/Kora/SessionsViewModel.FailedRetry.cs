@@ -57,8 +57,7 @@ internal sealed partial class SessionsViewModel
         var receipt = result.RequestSubmission!;
         if (receipt.Message.Outcome is not null)
         {
-            conversationPage = null;
-            completedConversationMessage = receipt.Message;
+            PublishConversationCompletion(receipt.Message);
         }
         conversationStatus = "New retry attempt: HOST " + receipt.Message.Outcome + " / " + receipt.Message.Reason
             + " | task " + receipt.Task.State
@@ -83,6 +82,7 @@ internal sealed partial class SessionsViewModel
     private void NotifyFailedRetry()
     {
         OnPropertyChanged(nameof(CanReviewFailedRetry));
+        OnPropertyChanged(nameof(CanReviewFailedLocalProfile));
         OnPropertyChanged(nameof(CanConfirmFailedRetry));
         OnPropertyChanged(nameof(FailedRetryReviewText));
     }

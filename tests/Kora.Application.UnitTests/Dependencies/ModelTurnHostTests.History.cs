@@ -131,6 +131,7 @@ public sealed partial class ModelTurnHostTests
     [InlineData("cancel")]
     [InlineData("terminal")]
     [InlineData("readback")]
+    [InlineData("submitted-context")]
     public async Task LateHistoryClosureOrUncertainCommitNeverPublishesOrReplaysAnswer(string fault)
     {
         using var f = new Fixture();
@@ -152,10 +153,11 @@ public sealed partial class ModelTurnHostTests
         };
         if (fault is "terminal") { f.TerminalReceiptFault = "answer"; }
         if (fault is "readback") { f.BadExecutionReadback = true; }
+        if (fault is "submitted-context") { f.TerminalReceiptFault = "submitted-context"; }
         await service.Invoking(value => value.SubmitHistoryAsync(review, static () => true, cancellation.Token))
             .Should().ThrowAsync<ConversationSubmissionUnconfirmedException>();
         f.Adapter.Calls.Should().Be(1);
-        if (fault is not ("terminal" or "readback"))
+        if (fault is not ("terminal" or "readback" or "submitted-context"))
         {
             f.ExecutionCompletions.Should().Be(0);
             f.Retained!.AssistantResponse.Should().BeNull();

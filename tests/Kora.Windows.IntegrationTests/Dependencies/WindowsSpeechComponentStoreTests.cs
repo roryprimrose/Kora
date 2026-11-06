@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Text;
+
 using AwesomeAssertions;
+
 using Kora.Application.Dependencies;
 using Kora.Core.Auditing;
 using Kora.Core.Dependencies;
@@ -35,7 +37,11 @@ public sealed class WindowsSpeechComponentStoreTests : IDisposable
         fixture.Download.Calls.Should().Be(0);
         await fixture.Prepare(missing);
         var installed = await fixture.Store.InspectAsync(fixture.Component, CancellationToken.None);
-        installed.Should().BeEquivalentTo(new SpeechComponentSnapshot(true, true, SpeechComponentOwnership.Managed, installed.Stamp));
+        installed.Installed.Should().BeTrue();
+        installed.Verified.Should().BeTrue();
+        installed.Ownership.Should().Be(SpeechComponentOwnership.Managed);
+        installed.ExactBytes.Should().Be(72);
+        installed.Inventory.Should().Contain("model.data: 4 bytes").And.Contain("tokens.data: 4 bytes");
         fixture.Download.Calls.Should().Be(2);
         fixture.Files.Moves.Should().Be(1);
         fixture.Files.Files.Should().HaveCount(3);
@@ -122,6 +128,7 @@ public sealed class WindowsSpeechComponentStoreTests : IDisposable
     [InlineData("wrong-manifest")]
     [InlineData("no-manifest")]
     [InlineData("definition-changed")]
+    [InlineData("source-changed")]
     public async Task ForeignIdentityAndAdditionalFilesCannotBeOverwrittenOrRemoved(string scenario)
     {
         var fixture = new Fixture();
@@ -132,6 +139,12 @@ public sealed class WindowsSpeechComponentStoreTests : IDisposable
         if (scenario is "wrong-manifest") { fixture.Files.Files[fixture.Marker] = Encoding.ASCII.GetBytes(new string('A', 64)); }
         if (scenario is "no-manifest") { fixture.Files.Files.Remove(fixture.Marker); }
         if (scenario is "definition-changed") { definition = SpeechComponentFixture.Definition(ram: 33); }
+        if (scenario is "source-changed")
+        {
+            definition = SpeechComponentFixture.Definition(assets: fixture.Component.Assets.Select(asset =>
+                new SpeechComponentAsset(asset.Name, new Uri("https://speech.example.invalid/replaced/" + asset.Name),
+                    asset.SizeBytes, asset.Sha256)));
+        }
         var state = await fixture.Store.InspectAsync(definition, CancellationToken.None);
         state.Ownership.Should().Be(SpeechComponentOwnership.Foreign);
         var before = fixture.Files.Files.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);

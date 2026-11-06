@@ -11,7 +11,7 @@ using Kora.Core.Storage;
 namespace Kora.Application.Hosting;
 
 /// <summary>Bounded original-source review and one-shot confirmation for the canonical retained-submit action.</summary>
-public sealed class SessionRequestCommandService(
+public sealed partial class SessionRequestCommandService(
     SessionWorkspaceService workspace, SessionConversationService conversation,
     ISessionWorkspaceAccess access, TimeProvider time)
 {
@@ -25,12 +25,17 @@ public sealed class SessionRequestCommandService(
     public void Retire()
     {
         lock (gate) { pending = null; epoch++; }
+        RetirePendingClear();
     }
 
     public async Task<SessionCommandResult> ExecuteAsync(SessionCommand command, RequestOrigin origin,
-        Func<bool> admitted, CancellationToken token, ForegroundConversationTarget? foregroundTarget = null)
+        Func<bool> admitted, CancellationToken token, ForegroundConversationTarget? foregroundTarget = null,
+        Action? expiredOrdinaryAccepted = null)
     {
         SessionConversationService.RequireOriginalSource(origin);
+        if (command.IsPendingClear)
+        { return await ExecutePendingClearAsync(command, origin, admitted, token).ConfigureAwait(false); }
+        RetirePendingClear();
         if (command.IsConversationDispatch)
         { return await ExecuteDispatchAsync(command, origin, admitted, token).ConfigureAwait(false); }
         ActivityLink[] sourceLinks = HostActivity.Current?.Activity is { } source ? [new(source.Context)] : [];
@@ -38,7 +43,7 @@ public sealed class SessionRequestCommandService(
         long attempt;
         lock (gate) { previous = pending; pending = null; attempt = ++epoch; }
         var control = access.ControlRevision;
-        bool Live() => access.CanInspect && access.CanControl && access.ControlRevision == control && admitted()
+        bool Live() => !token.IsCancellationRequested && access.CanInspect && access.CanControl && access.ControlRevision == control && admitted()
             && (!command.RequestForegroundTarget || foregroundTarget?.IsCurrent == true);
         if (command.RequestForegroundTarget)
         {
@@ -85,6 +90,13 @@ public sealed class SessionRequestCommandService(
             if (!Live()) { throw new InvalidOperationException("Original private input admission changed; initiate a fresh review."); }
             if (command.Operation == SessionCommandOperation.RequestReview)
             {
+                if (command.RequestExpiredMessage is not null
+                    && (origin != RequestOrigin.LocalUi || command.RequestFailedMessage is not null
+                        || command.RequestBody is not null || command.RequestLocalProfile is not null
+                        || command.RequestTaskResponseMode is not null
+                        || command.RequestProvider != SessionRequestReview.ProviderChoice.Default
+                        || command.RequestForegroundTarget || !command.RequestClaudeTools.IsEmpty))
+                { throw new InvalidOperationException("Expired-text review requires a fresh native ordinary local request, not replay or another source route."); }
                 if (!Enum.IsDefined(command.RequestProvider))
                 { throw new InvalidOperationException("An exact supported request provider is required."); }
                 if (!command.RequestClaudeTools.IsEmpty)
@@ -93,7 +105,7 @@ public sealed class SessionRequestCommandService(
                     { throw new InvalidOperationException("Observation scope requires an explicit Claude request."); }
                     _ = ClaudeObservationTools.Constrain(command.RequestClaudeTools);
                 }
-                var body = command.RequestFailedMessage?.Body ?? command.RequestBody
+                var body = command.RequestExpiredMessage?.Body ?? command.RequestFailedMessage?.Body ?? command.RequestBody
                     ?? throw new InvalidOperationException("An original request body is required.");
                 ConversationText.Validate(body, submission: true);
                 var target = await workspace.ReadExactMetadataAsync(session, token).ConfigureAwait(false);
@@ -116,12 +128,24 @@ public sealed class SessionRequestCommandService(
                 LocalRequestProfileReview? localProfile = null;
                 if (command.RequestLocalProfile is { } profile)
                 {
-                    if (command.RequestProvider != SessionRequestReview.ProviderChoice.Default || command.RequestFailedMessage is not null
-                        || command.RequestForegroundTarget || !command.RequestClaudeTools.IsEmpty)
-                    { throw new InvalidOperationException("Request-only local selection cannot combine with another provider or retry route."); }
+                    if (command.RequestProvider != SessionRequestReview.ProviderChoice.Default
+                        || command.RequestForegroundTarget || !command.RequestClaudeTools.IsEmpty
+                        || command.RequestFailedMessage is not null && profile.Service != Kora.Core.Providers.ProviderService.Local)
+                    { throw new InvalidOperationException("Request-only selection cannot combine with another provider or source scope; selected failures require a LOCAL profile."); }
                     localProfile = await conversation.ReviewLocalRequestProfileAsync(target, body, origin, profile, Live, token).ConfigureAwait(false);
                 }
                 ModelTurnHost.RetryProviderReview? retryProvider = null;
+                Func<bool>? bareCurrent = null;
+                ConversationPendingSnapshot? queue = null;
+                if (command.RequestExpiredMessage is { } expired)
+                {
+                    bareCurrent = conversation.ReviewBareOrdinaryRequest(target);
+                    var expiredSource = await workspace.ReadExpiredOrdinarySourceAsync(target, expired, Live, token).ConfigureAwait(false);
+                    retryProvider = await conversation.ReviewCurrentLocalProviderAsync(target, Live, token).ConfigureAwait(false);
+                    queue = await conversation.ReadPendingConversationAsync(target, Live, token).ConfigureAwait(false);
+                    review = review with { ExpiredSource = expiredSource, CurrentLocalProvider = retryProvider.Selection,
+                        RetryProviderProfile = retryProvider.Profile };
+                }
                 if (command.RequestFailedMessage is { } failed)
                 {
                     if (origin != failed.Request.Origin)
@@ -131,19 +155,23 @@ public sealed class SessionRequestCommandService(
                     { throw new InvalidOperationException("Failed-request review cannot replace its exact original body, provider or scope."); }
                     var failedSource = await workspace.ReadFailedRetrySourceAsync(target, failed, Live, token).ConfigureAwait(false);
                     review = review with { FailedSource = failedSource, Origin = failed.Request.Origin };
-                    retryProvider = await conversation.ReviewRetryProviderAsync(review, Live, token).ConfigureAwait(false);
-                    review = review with { RetryProviderProfile = retryProvider.Profile };
+                    if (localProfile is null)
+                    {
+                        retryProvider = await conversation.ReviewRetryProviderAsync(review, Live, token).ConfigureAwait(false);
+                        review = review with { RetryProviderProfile = retryProvider.Profile };
+                    }
                 }
                 lock (gate)
                 {
                     if (epoch != attempt || !Live()) { throw new InvalidOperationException("Review admission changed."); }
-                    pending = new(review, Live, control, new(activity.Activity!.Context), command.RequestForegroundTarget, retryProvider, localProfile, output);
+                    pending = new(review, Live, control, new(activity.Activity!.Context), command.RequestForegroundTarget,
+                        retryProvider, localProfile, bareCurrent, queue, output);
                 }
                 activity.Complete(HostOperationOutcome.Completed);
                 return new("review", output is not null
                     ? "This task only. Review unchanged input, exact conversation, original channel and declared/configured output. Confirm separately once; mandatory call/privacy/output policy wins. No saved preference, speech or submission yet."
                     : localProfile is not null
-                    ? "This request only - LOCAL. Review the exact destination, complete profile and unchanged original input below. Confirm separately once with session request confirm, or cancel with session request cancel. No preference write, submission or dispatch yet. Subsequent requests inherit normally; no fallback."
+                    ? "This request only - " + localProfile.Profile.Service + ". Review the exact destination, complete profile, original channel, expiry and unchanged input below. Confirm separately once, or cancel. No preference write or submission yet. Subsequent requests inherit normally; no fallback. Hosted processing additionally requires separate native approval of every physical send; this review grants no egress or authentication."
                     : "Review the exact original body, target, provider, origin and expiry. Confirm separately; no content is retained or dispatched yet. Copilot and Claude additionally require separate native approval of each final physical send.")
                 { RequestReview = review };
             }
@@ -158,12 +186,15 @@ public sealed class SessionRequestCommandService(
             if (command.Operation != SessionCommandOperation.RequestConfirm)
             { throw new InvalidOperationException("Only explicit request review, confirm or cancel is supported."); }
             var accepted = false;
+            var confirmedAt = time.GetUtcNow();
             bool OriginalLive()
             {
                 lock (gate)
                 {
                     return (accepted || epoch == attempt) && Live() && previous.SourceAdmitted()
-                        && access.ControlRevision == previous.ControlRevision && time.GetUtcNow() < previous.Review.ExpiresAt;
+                        && access.ControlRevision == previous.ControlRevision && time.GetUtcNow() < previous.Review.ExpiresAt
+                        && (previous.Review.ExpiredSource is null || time.GetUtcNow() >= previous.Review.ExpiresAt.AddSeconds(-60))
+                        && (previous.BareCurrent?.Invoke() ?? true);
                 }
             }
             async Task Revalidate(CancellationToken cancellation)
@@ -172,12 +203,26 @@ public sealed class SessionRequestCommandService(
                 var actual = await workspace.ReadExactMetadataAsync(session, cancellation).ConfigureAwait(false);
                 if (actual != previous.Review.Target || !OriginalLive())
                 { throw new InvalidOperationException("The reviewed session generation, metadata or original admission changed."); }
-                if (previous.LocalProfile is { } local) { await local.ValidateAsync(cancellation).ConfigureAwait(false); }
+                if (previous.LocalProfile is { } local
+                    && (local.Profile.Service == Kora.Core.Providers.ProviderService.Local || !local.IsConsumed))
+                { await local.ValidateAsync(cancellation).ConfigureAwait(false); }
+                if (previous.Review.ExpiredSource is { } expired)
+                {
+                    if (await workspace.ReadExpiredOrdinarySourceAsync(actual, expired.Message, OriginalLive, cancellation).ConfigureAwait(false) != expired)
+                    { throw new InvalidOperationException("The exact expired original or no-dispatch evidence changed. Review again."); }
+                    await previous.RetryProvider!.ValidateAsync(cancellation).ConfigureAwait(false);
+                    if (!accepted && previous.Queue is { } queue)
+                    {
+                        var currentQueue = await conversation.ReadPendingConversationAsync(actual, OriginalLive, cancellation).ConfigureAwait(false);
+                        if (currentQueue.Revision != queue.Revision)
+                        { throw new InvalidOperationException("Submitted work or held dispatch changed. Review again; Resume remains an independent decision."); }
+                    }
+                }
                 if (previous.Review.FailedSource is { } failed)
                 {
                     if (await workspace.ReadFailedRetrySourceAsync(actual, failed.Message, OriginalLive, cancellation).ConfigureAwait(false) != failed)
                     { throw new InvalidOperationException("The original failed task or message revision changed. Review again."); }
-                    await previous.RetryProvider!.ValidateAsync(cancellation).ConfigureAwait(false);
+                    if (previous.RetryProvider is { } retry) { await retry.ValidateAsync(cancellation).ConfigureAwait(false); }
                 }
             }
             await Revalidate(token).ConfigureAwait(false);
@@ -187,10 +232,17 @@ public sealed class SessionRequestCommandService(
             ConversationSubmissionReceipt receipt;
             try
             {
-                receipt = previous.Output is { } output
+                receipt = previous.Review.ExpiredSource is not null
+                    ? await conversation.SubmitFreshOrdinaryAsync(previous.Review, previous.RetryProvider!, confirmedAt,
+                        OriginalLive, Revalidate, [previous.Cause],
+                        () => { lock (gate) { accepted = true; } expiredOrdinaryAccepted?.Invoke(); }, token).ConfigureAwait(false)
+                    : previous.Output is { } output
                     ? await conversation.SubmitAsync(previous.Review.Target, previous.Review.Body, OriginalLive, token,
                         Revalidate, [previous.Cause], previous.Review.Origin,
                         accepted: () => { lock (gate) { accepted = true; } }, taskOutput: output).ConfigureAwait(false)
+                    : previous.LocalProfile is { } alternate && previous.Review.FailedSource is not null
+                    ? await conversation.SubmitFailedLocalProfileAsync(previous.Review, alternate, OriginalLive, Revalidate,
+                        [previous.Cause], () => { lock (gate) { accepted = true; } }, token).ConfigureAwait(false)
                     : previous.LocalProfile is { } local
                     ? await conversation.SubmitLocalRequestProfileAsync(local, OriginalLive, Revalidate,
                         [previous.Cause], token).ConfigureAwait(false)
@@ -313,5 +365,5 @@ public sealed class SessionRequestCommandService(
 
     private sealed record Pending(SessionRequestReview Review, Func<bool> SourceAdmitted, long ControlRevision, ActivityLink Cause,
         bool Foreground, ModelTurnHost.RetryProviderReview? RetryProvider, LocalRequestProfileReview? LocalProfile,
-        TaskResponseOutputReview? Output);
+        Func<bool>? BareCurrent, ConversationPendingSnapshot? Queue, TaskResponseOutputReview? Output);
 }

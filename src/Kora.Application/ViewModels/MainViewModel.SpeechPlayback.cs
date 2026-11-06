@@ -19,6 +19,10 @@ public sealed partial class MainViewModel
             SetSpeechPlaybackFrame(SpeechPlaybackFrame.Inactive);
             return;
         }
+        if (IsSpeaking && activeSpokenText is null && !textToSpeech.IsSpeaking)
+        {
+            IsSpeaking = false;
+        }
         if (!IsSpeaking)
         {
             SetSpeechPlaybackFrame(SpeechPlaybackFrame.Inactive);

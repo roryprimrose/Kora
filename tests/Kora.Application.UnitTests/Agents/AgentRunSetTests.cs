@@ -319,7 +319,9 @@ public sealed partial class AgentRunSetTests
             HostRevision generation, long expectedMetadataRevision, string body, Func<bool> admitted, CancellationToken token)
         {
             Require(admitted, token);
-            Messages.TryAdd(request.RequestId, new(request, generation, 1, 1, Time.Now, body, null, null)).Should().BeTrue();
+            var sequence = Messages.Values.Where(message => message.Request.SessionId == request.SessionId)
+                .Select(message => message.Sequence).DefaultIfEmpty().Max() + 1;
+            Messages.TryAdd(request.RequestId, new(request, generation, sequence, 1, Time.Now, body, null, null)).Should().BeTrue();
             return ValueTask.FromResult(Publish(request, HostTaskState.IntentRecorded));
         }
         public ValueTask<ConversationSubmissionReceipt> RetainPendingConversationMessageAsync(HostRequest request,
@@ -352,6 +354,7 @@ public sealed partial class AgentRunSetTests
                 AssistantResponse = result.Outcome == ModelTurnOutcome.Succeeded
                     ? ConversationResponse.FromResult(result, before.Execution!) : null,
                 Observations = result.Observations,
+                SubmittedContext = result.SubmittedContext,
             };
             return ValueTask.FromResult(Publish(request, Messages[request.RequestId].ExpectedTaskState));
         }
@@ -361,6 +364,14 @@ public sealed partial class AgentRunSetTests
             Require(admitted, token);
             Messages[request.RequestId] = Messages[request.RequestId] with { Revision = 2, Outcome = outcome, Reason = reason };
             return ValueTask.FromResult(Publish(request, Messages[request.RequestId].ExpectedTaskState));
+        }
+        public ValueTask<ConversationSubmissionReceipt> CancelPendingConversationSubmissionAsync(HostRequest request,
+            SessionWorkspaceEntry expected, Func<bool> admitted, CancellationToken token)
+        {
+            if (expected != Sessions.Single(item => item.Authority.SessionId == request.SessionId)
+                || Tasks[request.TaskId].Task.State != HostTaskState.IntentRecorded)
+            { throw new InvalidOperationException("The exact pending cancellation source changed."); }
+            return CompleteConversationSubmissionAsync(request, ModelTurnOutcome.Cancelled, ModelTurnReason.CallerCancelled, admitted, token);
         }
         private ConversationSubmissionReceipt Publish(HostRequest request, HostTaskState state)
         {

@@ -5,4 +5,5 @@ public enum QuestionKind
     SingleChoice,
     MultipleChoice,
     Text,
+    Form,
 }

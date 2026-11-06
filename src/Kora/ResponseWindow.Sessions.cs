@@ -44,12 +44,12 @@ public sealed partial class ResponseWindow
         owner.Attach(this);
     }
 
-    internal void ShowSessions(bool expanded)
+    internal void ShowSessions(bool expanded, bool activate = true)
     {
         if (sessionWindowClosed || !viewModel.CanRevealPrivatePresentation) { return; }
         if (!IsVisible)
         {
-            try { Show(); }
+            try { ShowActivated = activate; Show(); }
             catch (InvalidOperationException) when (sessionWindowClosed)
             {
                 // Native opening can finish after a reentrant close has destroyed its backend.
@@ -63,7 +63,7 @@ public sealed partial class ResponseWindow
             return;
         }
         SetExpanded(expanded);
-        Activate();
+        if (activate) { Activate(); }
     }
 
     private void SetExpanded(bool expanded)

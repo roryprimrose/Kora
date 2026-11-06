@@ -98,6 +98,7 @@ public sealed partial class SharedSkillDiscoveryService(
                 // An attempted publication can be durable even when read-back/audit fails.
                 // Retain only the identity fence, never source content or a cached grant.
                 lock (consentGate) { withdrawnIdentities.Add(source.Id); }
+                Interlocked.Increment(ref consentRevision);
                 try
                 {
                     preferences.WithUnchangedSources(expected, () =>
@@ -166,6 +167,19 @@ public sealed partial class SharedSkillDiscoveryService(
             }, currentToken).ConfigureAwait(false);
             return true;
         }, token);
+
+    internal async Task ValidateCapturedRevisionAsync(SharedSkillSnapshot snapshot, SharedSkillSource source,
+        Func<bool> eligible, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        if (!eligible()) { throw new InvalidOperationException("The original skill result source was retired."); }
+        RequireRegistration(source);
+        var current = await reader.DiscoverAsync(source, token).ConfigureAwait(false);
+        token.ThrowIfCancellationRequested();
+        RequireRegistration(source);
+        if (!eligible() || current.Source != source || !Matches(current, snapshot))
+        { throw new InvalidOperationException("The original skill result source changed; no source refresh or authority renewal is admitted."); }
+    }
 
     internal Task<SharedSkillSnapshot> ReadReferencesAsync(SharedSkillSnapshot snapshot, SharedSkillSource source,
         SharedSkillUseAdmission useAdmission, Func<bool> eligible, Kora.Core.Hosting.RequestOrigin origin, CancellationToken token) =>

@@ -212,7 +212,12 @@ public sealed class SettingsTextTests
     public void Captions_distinguish_off_on_and_unavailable()
     {
         var state = new SpeechTextState("observed", 1, null, SpeechTextMode.Off, "default", true, null);
-        SettingsText.Describe(state).Should().Be("Captions are off. Using the default.");
+        SettingsText.Describe(state).Should().Be("Captions are off. Using the default."
+            + " Word emphasis saved: not saved; effective preference: off."
+            + " Actual emphasis requires qualified source alignment; unavailable profiles keep ordinary text.");
+        SettingsText.Describe(state with { SavedCaptionOptions = SpeechCaptionOptions.Default,
+            EffectiveCaptionOptions = SpeechCaptionOptions.Default }).Should().Contain("Word emphasis saved: off")
+            .And.Contain("effective preference: off");
         SettingsText.Describe(state with { Effective = SpeechTextMode.CurrentUtterance })
             .Should().Contain("Show the words Kora speaks");
         SettingsText.Describe(state with { Available = false }).Should().Contain("unavailable").And.NotContain("Captions are off");

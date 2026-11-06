@@ -4,6 +4,7 @@ using Kora.Application;
 using Kora.Application.Diagnostics;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
+using Kora.Core.Presentation;
 using Kora.Windows.IntegrationTests.Storage;
 using Kora.Windows.Storage;
 
@@ -259,14 +260,16 @@ public sealed partial class SessionsConversationTests
     }
 
     private static SessionsViewModel CreateDeferredPresentation(InteractionStorageFixture f,
-        Composition composed, IUiDispatcher dispatcher)
+        Composition composed, IUiDispatcher dispatcher,
+        Func<AdmittedDetailContent, Func<bool>, Func<CancellationToken, Task<AdmittedDetailContent>>,
+            CancellationToken, Task<string>>? openDetail = null)
     {
         var sink = new WindowsSqliteEvidenceSink(f.Paths);
         sink.Initialize();
         return new(composed.Workspace,
             new DurableEvidenceQuery(new WindowsSqliteEvidenceReader(sink), composed.Access, f.Time,
                 NullLogger<DurableEvidenceQuery>.Instance), composed.Access, NullLogger<SessionsViewModel>.Instance,
-            conversation: composed.Conversation, conversationPresentationDispatcher: dispatcher);
+            conversation: composed.Conversation, conversationPresentationDispatcher: dispatcher, openConversationDetail: openDetail);
     }
 
     private sealed class DeferredConversationDispatcher : IUiDispatcher

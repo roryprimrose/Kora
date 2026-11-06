@@ -84,12 +84,15 @@ public sealed class ModelTurn
     internal ModelProviderRegistration Registration { get; set; }
     internal ModelProviderPolicy? Policy { get; set; }
     internal ModelTurnResult? TerminalResult { get; set; }
+    internal OrdinaryTurnActiveBudget? OrdinaryActiveBudget { get; set; }
+    internal Kora.Core.Conversation.SubmittedAnswerContext? SubmittedContext { get; set; }
     internal LocalUnavailableObservation? LocalUnavailable { get; set; }
     internal RuntimeResourceAllocator.Lease? ResourceLease { get; set; }
     internal bool ResourceDispatched { get; set; }
     internal Kora.Application.Hosting.ConversationQuestionContinuation? QuestionContinuation { get; set; }
     internal Func<ModelAnswerUpdate, CancellationToken, ValueTask>? PublishAnswer { get; set; }
     internal Func<CancellationToken, ValueTask<ModelTurnReason>>? ValidateAnswerCommit { get; set; }
+    internal LocalRequestProfileReview? RequestProfileReview { get; set; }
     internal Action<Kora.Core.Conversation.ConversationExecutionStep>? PublishExecutionStep { get; set; }
     internal Action<Kora.Core.Conversation.ConversationResourceStatus>? PublishResourceStatus { get; set; }
     internal bool TryUse() => Interlocked.Exchange(ref used, 1) == 0;

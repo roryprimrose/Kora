@@ -25,6 +25,9 @@ USER/task lineage. Missing model/adapter qualification instead retains a
 truthful HOST Unavailable terminal and matching task receipt, never an answer.
 Complete host envelopes remain bounded to 32768 UTF-8 bytes.
 
+The [optional read-only remaining-work operation](Work_Management.md#reviewed-local-remaining-work-answer) adds an exact ledger-disclosure review and separate one-use confirmation for an independently qualified local host.
+Only its explicitly selected different idle answer conversation retains the question/answer; evidence remains volatile. It does not borrow ordinary qualification or enable a provider.
+
 Separately confirmed owned-v2 expanded prompts enter as exact USER bodies for
 one explicitly selected existing Active session, not system instructions,
 source authority or a second legacy prompt invocation. Optional reviewed
@@ -34,6 +37,22 @@ preferences are not inference or transmission consent. Shipped local
 attestations and hosted deployment approvals remain unavailable.
 
 ## Product Decision
+
+### Explicit failed-request recovery with one local profile
+
+For the approved explicit model interaction and recovery outcome, one exact
+confirmed terminal failure can be reviewed with a deliberately selected complete
+advertised LOCAL tuple, then separately confirmed as a new attempt in the original
+conversation/channel. The original provider need not resolve; its retained identity
+remains source evidence, not authority for a fallback
+([host review](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)).
+
+This host-owned operation joins the existing failed-source and request-only profile
+contracts. Source/task and profile/account/session authority are revalidated through
+dispatch; held queues, instruction review, expiry, physical cancellation joins and
+truthful Unavailable terminals remain authoritative. It changes no saved preference,
+original failure or unrelated composer text and enables no provider
+([complete native operation](../docs/windows-and-tray.md#review-a-confirmed-failure-with-an-alternate-local-profile)).
 
 ### Implemented model-advised review of same-conversation history
 
@@ -122,6 +141,8 @@ Claude authority. The default stateless text-only profile includes no tools,
 files, history, attachments, memory or other source instructions.
 Every content-bearing physical POST, including Count Tokens, requires a new
 private native complete-final-byte disclosure and affirmative one-send consent.
+The [Claude](../src/Kora/ClaudeTransmissionWindowController.cs) and [Copilot](../src/Kora/CopilotTransmissionWindowController.cs) disclosure readers are read-only keyboard tab stops: Ctrl+End reaches the complete body and Tab leaves reading for the separate one-send or Deny action.
+Reading or typing into the reader cannot edit the immutable transmission or grant consent. Deny remains the default; close, cancellation and privacy retirement clear the reader ([native regressions](../tests/Kora.Windows.IntegrationTests/HostedTransmissionDisclosureTests.cs)).
 A genuine bounded final answer is retained as ASSISTANT data; denial/failure
 retains a truthful terminal, never a substitute answer. Cancellation joins
 actual outstanding work and cannot retract transmitted bytes.
@@ -253,7 +274,8 @@ The [provider-neutral host consumer](../src/Kora.Application/Dependencies/ModelT
 Admitted turns capture immutable profiles and the original live issuing request, not a completed child activity. App edits do not reroute/cancel/retry them; account/catalogue/installation loss before dispatch fails closed without substitution.
 
 This does not reroute the existing buffered local bootstrap reasoner. No real provider-neutral adapter is composed; qualification and final-request egress gates stay closed, including with resolved fake hosted tuples.
-Durable exact-session inheritance/overrides and explicit local request-only tuples are delivered below. Generic unscoped model directives and hosted one-turn changes remain deferred, never app-scope aliases.
+Durable exact-session inheritance/overrides and explicit Local/Copilot/Claude request-only tuples are delivered below through the [shared request consumer](../src/Kora.Application/Dependencies/ModelTurnHost.LocalRequestProfile.cs).
+Generic unscoped model directives remain deferred, never app-scope aliases.
 
 - [Domain/persistence tests](../tests/Kora.Core.UnitTests/Providers/ProviderProfilePreferencesTests.cs) and [audit/failure/tuple matrix](../tests/Kora.Application.UnitTests/Configuration/ProviderProfileConfigurationServiceTests.cs) exercise exact state.
 - [Actual UI routing](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ProviderProfiles.cs) and [subsequent-turn consumer tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ProviderProfiles.cs) exercise admission and immutable capture.
@@ -294,17 +316,35 @@ Production catalogues still advertise **no models**; model-dependent native save
 
 [Single-field workflow tests](../tests/Kora.Application.UnitTests/Configuration/SessionProviderFieldConfigurationTests.cs) and actual native/private composition and typed/current-name activated routes retain the same schema, writer, audit/readback, preview bound and subsequent-turn consumer. Retained experiments are unchanged; these deterministic assertions do not establish RT1/RT2/PV1, offline CPU/inference, containment, hardware, installation or accessibility qualification.
 
-The following broader natural-language/hosted one-turn examples remain proposed, not interpreted commands. In particular, “Use Claude and summarize” does not execute a combined directive or silently change the app profile.
+Broader natural-language multi-action examples remain proposed, not interpreted commands. In particular, “Use Claude and summarize” does not execute a combined directive or silently change the app profile.
 
 #### Delivered local request-only profile
 
-**Sessions > Selected-session provider overrides > This request only - LOCAL** refreshes the existing bounded local catalogue, then requires explicit model/reasoning/context choices for the unchanged composer input. **Review this request only** discloses the exact Active destination, complete tuple, original channel, input and expiry; separate confirmation executes the request through the ordinary local conversation/instruction-scope owner. Cancel submits and writes nothing.
+**Sessions > Selected-session provider overrides > This request only**, with service **Local**, refreshes the existing bounded local catalogue, then requires explicit model/reasoning/context choices for the unchanged composer input.
+**Review this request only** discloses the exact Active destination, complete tuple, original channel, input and expiry; separate confirmation executes the request through the [ordinary local conversation/instruction-scope owner](../src/Kora.Application/Hosting/SessionConversationService.LocalRequestProfile.cs). Cancel submits and writes nothing.
 
 Exact typed/current-name activated `session request once <session-id> <generation> <metadata-revision> <local-account-id> <catalogue-revision> <model-id> <reasoning-id> <context-id> -- <original body>` uses the same original-user request review and separate `session request confirm`/`cancel`. The body is not rewritten or relabelled; native confirmation of voice input preserves its original admission.
 
 The host issues a reference-owned single-use ephemeral capability bound to the exact input, destination generation, session policy, local tuple, source/control and app observation. Confirmation freshly observes metadata, policy, account/catalogue/installation and preferences before retention. Normal host qualification, resource admission, pre-dispatch source validation, joined cancellation, genuine answer retention and truthful terminal receipts remain authoritative. No preference store or session policy is written; subsequent requests use ordinary inheritance.
 
 Unavailable production catalogues advertise no choices and no qualified adapter is enabled. This does not acquire models, qualify/enable a runtime, switch implicitly, add hosted fallback, broaden context/history, or introduce a global override system. Existing instruction-scope review is preserved.
+
+#### Delivered hosted request-only profile
+
+The same [request-only picker](../src/Kora/SessionsViewModel.LocalRequestProfile.cs) also accepts explicit **Copilot** and **Claude** service selection.
+Refresh providers, explicitly choose one advertised model/reasoning/context tuple for an existing account, and separately review and confirm the unchanged original request. Changing service clears all dependent choices and retires its review.
+
+The [exact command](../src/Kora.Core/Commands/SessionCommand.Request.cs) adds an optional `local|copilot|claude` before the account ID in `session request once`; omitting it preserves the delivered local syntax.
+Typed and current-name activated input share the same original-channel capability. Protected-call voice, privacy, authentication and provider-mode exceptions remain authoritative.
+
+The [host consumer](../src/Kora.Application/Dependencies/ModelTurnHost.LocalRequestProfile.cs) binds the one-use capability to the exact retained request and complete tuple.
+It reuses existing configured-profile admission, model approval, adapter authorization, tracing, cancellation/join and genuine answer retention. No app preference or sparse session policy is written; the next request resolves normal inheritance.
+
+The selected hosted tuple, account/catalogue revision, session policy, metadata, original source, expiry and app observation are freshly revalidated at consumption and each physical-send boundary.
+Request confirmation is never transmission consent: [each final byte disclosure](../src/Kora.Application/Dependencies/HostedTransmissionReviewService.cs) still needs independent native approval. LocalOnly and LocalFirst/handoff restrictions are not overridden.
+
+Denied, changed, deleted or unavailable profiles never substitute another model, enable credentials/runtime readiness, acquire context/history or retry. Hosted request-only execution is tool-free; local instruction-scope behavior and existing ordinary hosted operations are unchanged.
+[Deterministic host regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.HostedRequestProfile.cs) and [configured Claude transport regressions](../tests/Kora.Windows.IntegrationTests/HostedClaudeSessionRequestTests.RequestProfile.cs) establish implementation behavior, not production enablement.
 
 #### Exact sparse session-provider copy implementation - 2026-10-19
 
@@ -467,6 +507,21 @@ admits one local-only tool-free answer or cancellation. Source brokers and reten
 remain independent; device-profile/model-proposed memories and provider qualification
 are not implementation prerequisites or implicitly enabled capabilities.
 
+The [complete-input recovery interaction](../docs/reviewed-context.md#recover-when-the-complete-input-is-over-budget)
+keeps an over-budget original question and exact source selection private and
+inert. The host measures the complete serialized envelope, explains which whole
+optional messages or SESSION memories can be omitted, and requires an explicit
+omission followed by a fresh complete source/input/destination review and separate
+confirmation. The existing consumer still requires one whole history message,
+one enabled instruction and one SESSION memory; missing required input cannot be
+silently omitted. Removing a unit retires prior review/consent without renewing
+the original source-read deadline. Expiry/revocation, source/session/channel,
+privacy/owner/control and canonical model admission remain fail-closed. No
+automatic shortening, reordering, summarization, provider change, larger context
+window, new source purpose or persistence is introduced
+([workflow](../src/Kora.Application/Hosting/ReviewedContext/MixedContextWorkflow.cs),
+[behavioral evidence](../tests/Kora.Application.UnitTests/Hosting/ModelTurnHostTests.ContextBudgetRecovery.cs)).
+
 Its [exact-answer Reply subset](../docs/reviewed-context.md#reply-deliberately-to-one-exact-assistant-answer) consumes one deliberately selected retained ASSISTANT answer without requiring or reading an instruction or memory. It uses the same history resolver, canonical LocalOnly evidence envelope and original-input submission. Complete source/new-input review and separate one-use confirmation never authorize future recall or hosted routing ([workflow](../src/Kora.Application/Hosting/ReviewedContext/MixedContextWorkflow.cs), [execution evidence](../tests/Kora.Application.UnitTests/Hosting/ModelTurnHostTests.AssistantReply.cs)).
 
 ## User-Governed Durable Memory
@@ -487,6 +542,10 @@ below describe the earlier increments, not this explicit profile route.
 
 An original user can select and inspect ONE current enabled, admitted Session memory, choose **Keep for later sessions in this device profile**, inspect its full current value/class/source and independent lifetimes, choose a fresh classification, then propose a NEW unadmitted DeviceProfile candidate.
 Separate acceptance and admission use the [existing profile admission owner](../src/Kora.Application/Memory/DeviceProfile/MemoryManagementService.SessionCopy.cs) and canonical store; the [complete native journey](../docs/profile-memory.md#keep-one-reviewed-session-memory-for-later-sessions) includes reopening and inspecting the distinct record, not only preparing a copy button.
+
+The [native keyboard handoff](../src/Kora/MemoryProfile/SessionsWindow.SessionMemoryCopy.cs) focuses the complete current review after review transitions and the adjacent read-only outcome after admission, cancellation or a held failure. It never focuses an affirmative decision or creates readback authority. Original memory selection/control and native surface currentness fence late focus; a stale source yields the held/error outcome, not its old review. Explicit profile list/inspect remains separate.
+
+Native root activation and effective ancestor visibility are observed for the entire handoff. Returning to a deactivated or hidden presenter does not renew late focus; source/surface currentness is rechecked after synchronous scroll callbacks and before focus. This presentation retirement neither cancels the independent admitted transaction nor changes its truthful adjacent status. In-flight cancellation retains the operation handle until storage joins. A copy committed before terminal/readback failure remains independently inspectable after restart; uncertainty never claims rollback or renews copy/use authority.
 
 The [content-free copy lineage](../src/Kora.Core/Memory/MemorySessionCopySource.cs) records exact source identity/revision/session/generation, never copied authority. Live original input, current private owner/control/profile/session and expiry are checked across review; the [destination transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Memory.cs) compares the exact enabled source inside the same authoritative mutation.
 Source edits, disablement, forgetting, deletion or replacement retire pending copy authority. The new value remains volatile until fresh separate review/admission; ordinary profile CRUD cannot admit an unvalidated copied candidate.
@@ -521,6 +580,8 @@ Users can:
 - see when a memory was used for a request; and
 - prevent a local memory from being sent to a hosted provider.
 
+The [retained-answer context inspector](../docs/responses-and-calls.md#inspect-context-submitted-for-a-retained-answer) records canonical adapter-handoff visibility for explicitly reviewed same-session **history**, **Session memory** or the existing later-conversation **Device-profile memory** one-shot local answer. Memory references retain only ordered immutable IDs, revisions and the exact session or device-profile identity, bound to the successful original answer; no value, classification, source lineage or review body is copied. The terminal transaction revalidates exact enabled revisions and current profile. Inspection projects current metadata without resolving memory bodies, substituting newer revisions, renewing retention or granting use. Missing, disabled, forgotten, changed or foreign-profile revisions are unavailable; unresolved integrity/private-authority observations fail closed. Mixed context and other unsupported/legacy answers remain unknown/not recorded. Neither model prose nor review selection establishes submission ([capture boundary](../src/Kora.Application/Dependencies/ModelTurnHost.Questions.cs), [metadata observation](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.AnswerContext.cs)). Existing version-1 history and version-2 Session memory records remain readable; version-3 metadata adds profile-only references without a database migration or audit-content copy. Answer/session deletion and retention remove this metadata with its owning answer, without changing independent profile-memory retention.
+
 Memory scopes are explicit:
 
 - **Session**: remains part of that session and follows session deletion.
@@ -553,6 +614,13 @@ The [exact grammar](../src/Kora.Core/Commands/MemoryCommand.cs) provides `memory
   Edit clears review and returns to Proposed/Pending, immediately redacting the earlier durable body. Disable closes use; re-enabling requires edit, inspect, review and admit. Forget retains a content-free non-reusable tombstone, not a claim of forensic erasure.
 - [Session observation](../src/Kora.Application/Memory/MemoryAdmissionService.Observation.cs) and each mutation revalidate exact active session/generation, ownership, privacy/control revision, cancellation and lifecycle.
   Lifecycle, disposition, retention and privacy closure revoke cached inspection/presentation. Invalid persisted state propagates `InvalidDataException`, never an empty successful inventory or cached-body fallback.
+  Each authoritative action transaction also evicts missing durable cached records before
+  evaluating use or mutation, including a withdrawal after inspection. A missing record
+  returns `NotFound/Missing` without content, use or replacement; exact-record batch
+  actions retain their revision-conflict fence. Never-persisted proposals alone remain
+  volatile and can still complete separate review/admission. Session and Device-profile
+  routes share this rule; no lifetime, recall or disclosure authority is added
+  ([transaction regressions](../tests/Kora.Application.UnitTests/Memory/MemoryAdmissionServiceTests.MissingDurable.cs)).
 - [Typed/activated routing](../src/Kora.Application/ViewModels/MainViewModel.Memory.cs) is visual-only and precedes inference; inspected values are not spoken, attached to history or sent to a provider.
   Model/HostSystem and completed host callbacks cannot relabel themselves as fresh original input. Failed receipts explicitly require inspecting durable state; no rollback or automatic retry is claimed.
 
@@ -560,6 +628,7 @@ The [command-level transition matrix and mutation-boundary tests](../tests/Kora.
 [SQLite surface tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteMemoryTests.Management.cs) exercise the authoritative round-trip, redaction/tombstones and corrupt saved state without cached fallback.
 
 Provider ranking/prompt attachment, cross-session/global/device-profile/project/source recall, hosted disclosure, and model-facing admission remain separate, undelivered workstreams. The [explicit reviewed model-memory proposal](../docs/model-memory-proposals.md) adds only a strict inert candidate from an actual retained ASSISTANT answer: the original user inspects complete source/channel/turn lineage and exact value/classification, then separately accepts and admits it through the existing session-only admission/audit/store. No answer is automatically converted, used, promoted or learned; stale/private/source/lifecycle closure retires review.
+Before admission, a separate original-user **Reject candidate** action can also withdraw an accepted proposal. The existing authoritative review transition clears its receipt and records rejection, without saving a candidate body, using memory or changing the retained answer. The same source, revision, expiry, private-owner and input fences apply; acceptance does not force admission. Cancellation remains a distinct non-rejection withdrawal.
 The original 2026-10-09 surface had no create/propose route. The bounded original-user extension below supersedes that gap only; arbitrary conversation and model responses still cannot trigger creation.
 
 ### Bounded Selected-Subset Session Memory Disable - 2026-10-18

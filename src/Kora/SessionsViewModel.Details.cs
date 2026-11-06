@@ -8,15 +8,16 @@ namespace Kora;
 
 internal sealed partial class SessionsViewModel
 {
-    private enum DetailPart { Original, Assistant, History, Evidence, Observation }
+    private enum DetailPart { Original, Assistant, History, Evidence, Observation, Context }
     private sealed record DetailSelection(DetailPart Part, Guid Item, Guid? Observation);
     private readonly Dictionary<HostId<SessionIdentity>, DetailSelection> detailSelections = [];
     private DetailSelection? CurrentDetailSelection => selected is { } entry
         ? detailSelections.GetValueOrDefault(entry.Authority.SessionId) : null;
     internal bool LastDetailAssistant => CurrentDetailSelection?.Part == DetailPart.Assistant;
     internal Guid? LastDetailObservation => CurrentDetailSelection?.Observation;
-    internal ConversationMessage? LastDetailMessage => CurrentDetailSelection is { Part: DetailPart.Original or DetailPart.Assistant or DetailPart.Observation } choice
-        ? ConversationMessages.FirstOrDefault(message => message.Request.RequestId.Value == choice.Item) : null;
+    internal bool LastDetailContext => CurrentDetailSelection?.Part == DetailPart.Context;
+    internal ConversationMessage? LastDetailMessage => CurrentDetailSelection is { Part: DetailPart.Original or DetailPart.Assistant or DetailPart.Observation or DetailPart.Context } choice
+        ? ObservedConversationMessages.FirstOrDefault(message => message.Request.RequestId.Value == choice.Item) : null;
     internal bool CanRestoreHistoryDetail => CanOpenHistoryDetail && CurrentDetailSelection is { Part: DetailPart.History } choice
         && selectedHistory?.Id == choice.Item;
     internal SessionEvidenceDetail? LastEvidenceDetail => CurrentDetailSelection is { Part: DetailPart.Evidence } choice
@@ -38,8 +39,9 @@ internal sealed partial class SessionsViewModel
 
     internal Func<SessionEvidenceDetail, Func<bool>, Func<CancellationToken, Task<bool>>, string>? PresentEvidenceDetails { get; set; }
     private readonly List<SessionEvidenceDetail> evidenceDetails = [];
-    public IReadOnlyList<SessionEvidenceDetail> EvidenceDetails => CanPresentDetails ? evidenceDetails.ToArray() : [];
-    public bool HasEvidenceDetails => CanPresentDetails && selected is not null && evidenceDetails.Count != 0;
+    public IReadOnlyList<SessionEvidenceDetail> EvidenceDetails => !CanPresentDetails ? []
+        : evidenceDetails.Where(item => item.RequestMessage is null || item.RequestAdmission?.Invoke() == true).ToArray();
+    public bool HasEvidenceDetails => selected is not null && EvidenceDetails.Count != 0;
 
     public Task ReadEvidenceDetailsAsync(EvidenceSource source) => RunAsync(async () =>
     {
@@ -70,11 +72,12 @@ internal sealed partial class SessionsViewModel
         if (!await ValidateEvidencePageAsync(snapshot, Current, lifetime.Token))
         { throw new InvalidOperationException("The original evidence source changed or is unavailable. Explicitly read fresh session evidence."); }
         status = PresentEvidencePage(snapshot, target, epoch, control);
-    });
+    }, activitySession: (detail ?? LastEvidenceDetail)?.RequestMessage?.Request.SessionId);
 
     private bool EvidenceDetailCurrent(SessionEvidenceDetail detail, Kora.Core.Storage.SessionWorkspaceEntry target, long epoch, long control) =>
         !closed && access.CanInspect && access.ControlRevision == control && selectionEpoch == epoch
-        && selected == target && evidenceDetails.Any(item => ReferenceEquals(item, detail));
+        && selected == target && evidenceDetails.Any(item => ReferenceEquals(item, detail))
+        && (detail.RequestMessage is null || detail.RequestAdmission?.Invoke() == true);
 
     private string PresentEvidencePage(SessionEvidenceDetail detail, Kora.Core.Storage.SessionWorkspaceEntry target, long epoch, long control)
     {
@@ -121,21 +124,27 @@ internal sealed partial class SessionsViewModel
     private async Task<bool> ValidateEvidencePageAsync(SessionEvidenceDetail detail, Func<bool> current, CancellationToken token)
     {
         if (!current()) { return false; }
+        var target = RequireSelected();
+        if (detail.RequestMessage is { } message)
+        { await conversation!.ReadDetailAsync(target, message, current, token); }
+        var scope = detail.Query(target.Authority.SessionId);
         if (detail.Page.Records.Count == 0)
         {
-            var source = await evidence.QueryAsync(new()
-            { Source = detail.Source, SessionId = RequireSelected().Authority.SessionId, Limit = 1 }, null, token);
+            var source = await evidence.QueryAsync(scope with { Limit = 1 }, null, token);
+            if (detail.RequestMessage is { } exactEmpty)
+            { await conversation!.ReadDetailAsync(target, exactEmpty, current, token); }
             return current() && source.Status != EvidencePageStatus.Unavailable && source.UnavailableSources.Count == 0;
         }
         foreach (var original in detail.Page.Records)
         {
-            var page = await evidence.QueryAsync(new()
-            { Source = detail.Source, SessionId = RequireSelected().Authority.SessionId, Record = original.Reference, Limit = 1 }, null, token);
+            var page = await evidence.QueryAsync(scope with { Record = original.Reference, Limit = 1 }, null, token);
             if (!current() || page.UnavailableSources.Count != 0 || page.Records.Count != 1
                 || !JsonSerializer.SerializeToUtf8Bytes(original with { ObservedUtc = null }).AsSpan()
                     .SequenceEqual(JsonSerializer.SerializeToUtf8Bytes(page.Records[0] with { ObservedUtc = null })))
             { return false; }
         }
+        if (detail.RequestMessage is { } exact)
+        { await conversation!.ReadDetailAsync(target, exact, current, token); }
         return current();
     }
 

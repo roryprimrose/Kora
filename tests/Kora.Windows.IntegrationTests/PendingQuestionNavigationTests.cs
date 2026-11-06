@@ -128,6 +128,12 @@ public sealed class PendingQuestionNavigationTests
                     case "hide-reshow": window.Hide(); window.Show(owner); break;
                     case "activation-revoked":
                         owner.Activate();
+                        // Headless activation does not deactivate peers; the platform callback has an internal getter.
+                        var deactivate = typeof(Avalonia.Platform.IWindowBaseImpl).GetProperty("Deactivated")!
+                            .GetValue(window.PlatformImpl) as Action
+                            ?? throw new InvalidOperationException("The headless window has no platform deactivation callback.");
+                        deactivate();
+                        window.IsActive.Should().BeFalse("the captured target must regain activation before revocation is exercised");
                         window.Activated += (_, _) => controller.Dispose();
                         break;
                 }

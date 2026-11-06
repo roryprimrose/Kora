@@ -38,7 +38,8 @@ public sealed partial class MainViewModel
             return;
         }
         var origin = OriginalOrigin(initiator);
-        if (!isAssistantNameAvailable || origin == RequestOrigin.ActivatedVoice && !command.ActivationPrefixed)
+        if (!isAssistantNameAvailable || origin == RequestOrigin.ActivatedVoice
+            && !command.ActivationPrefixed && (wakeDispatch.Value is not { } wake || !IsWakeCommand(wake.Transcript.Transcript)))
         {
             Transcript = "New request opening unavailable: voice requires the available current assistant name prefix.";
             return;

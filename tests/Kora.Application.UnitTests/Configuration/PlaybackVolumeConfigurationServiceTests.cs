@@ -492,7 +492,7 @@ public sealed partial class PlaybackVolumeConfigurationServiceTests : IDisposabl
         public void BeginWrite() { if (BeginFailure is { } failure) { throw failure; } Pending = true; }
         public void ConfirmWrite() { if (ConfirmFailure is { } failure) { throw failure; } Pending = false; AfterConfirm?.Invoke(); }
         public void Save(PlaybackVolume volume) { if (WriteFailure is { } failure) { throw failure; } Value = volume; Writes++; AfterWrite?.Invoke(); }
-        public void Reset() { Value = null; Writes++; }
+        public void Reset() { if (WriteFailure is { } failure) { throw failure; } Value = null; Writes++; AfterWrite?.Invoke(); }
     }
 
     private sealed class Audit : ISecurityAuditLog

@@ -15,6 +15,12 @@ guidance under host policy, never approval or authority. Separately choose
 **Confirm apply to this session** within two minutes. Neither review nor
 confirmation calls a model or retains a conversation message.
 
+The native choice stays bound to the exact selected catalogue entry. If that
+entry changes or becomes unavailable before review, no same-name replacement
+is read or selected. Refresh enabled instructions, deliberately select the
+current entry, and review its complete source again. Refresh and selection
+alone do not read the instruction or apply guidance.
+
 When a local model is available, you can check the one-session scope like this:
 Send two ordinary requests using **Submit exact message**. Each request
 revalidates the exact source and session, uses local-only guidance with no tools,
@@ -27,6 +33,14 @@ context. Stop revokes new admission immediately; an already captured answer may
 finish under the existing mandatory privacy and ownership guards. Closing the
 unconfirmed review discards it. Closing a confirmed review window does not stop
 applicability: use **Stop applying**, or inspect **Refresh scope status**.
+
+The scope window belongs to the exact conversation selection that opened it.
+Changing the Sessions selection, even away and back, retires that window's
+controls. Review, confirmation, Stop and refresh cannot silently target the new
+selection. Close the scope window, select the intended Active conversation and
+reopen its instruction controls. Rejected controls do not read a source, apply
+guidance or stop either conversation's existing scope. Confirmed applicability
+stays with its original conversation until separately stopped or revoked.
 
 ## Typed and activated voice commands
 

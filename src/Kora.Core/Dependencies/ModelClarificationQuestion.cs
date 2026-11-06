@@ -10,7 +10,8 @@ public sealed class ModelClarificationQuestion : ModelAssistantMessage
         if (callId is not null && !ModelToolProtocol.ValidCallId(callId))
         { throw new InvalidDataException("Question tool correlation must be bounded ASCII, not host identity."); }
         var spec = LocalModelQuestionPolicy.CreateSpec(question);
-        Question = new(spec.Text, spec.Options.Select(option => option.Label).ToImmutableArray(), spec.Minimum, spec.Maximum);
+        Question = new(spec.Text, spec.Options.Select(option => option.Label).ToImmutableArray(), spec.Minimum, spec.Maximum,
+            spec.Kind == Interaction.QuestionKind.Form ? spec.Fields : null);
         CallId = callId;
     }
 

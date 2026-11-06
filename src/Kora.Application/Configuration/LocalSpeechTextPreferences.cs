@@ -50,7 +50,10 @@ public sealed class LocalSpeechTextPreferences : ISpeechTextPreferences
     {
         var content = store.ReadLines(OptionsFileName);
         if (content is null) { return null; }
-        if (content.Length != 3 || !string.Equals(content[0], "1", StringComparison.Ordinal)
+        var legacy = content.Length == 3 && string.Equals(content[0], "1", StringComparison.Ordinal);
+        var current = content.Length == 4 && string.Equals(content[0], "2", StringComparison.Ordinal)
+            && content[3] is "true" or "false";
+        if ((!legacy && !current)
             || !Enum.TryParse<SpeechCaptionPlacement>(content[1], out var placement)
             || !string.Equals(placement.ToString(), content[1], StringComparison.Ordinal)
             || !int.TryParse(content[2], NumberStyles.None, CultureInfo.InvariantCulture, out var seconds)
@@ -58,7 +61,7 @@ public sealed class LocalSpeechTextPreferences : ISpeechTextPreferences
         {
             throw new InvalidDataException("The saved caption options are invalid.");
         }
-        try { return new(placement, seconds); }
+        try { return new(placement, seconds, current && string.Equals(content[3], "true", StringComparison.Ordinal)); }
         catch (ArgumentOutOfRangeException exception)
         {
             throw new InvalidDataException("The saved caption options are invalid.", exception);
@@ -68,7 +71,7 @@ public sealed class LocalSpeechTextPreferences : ISpeechTextPreferences
     public void SaveOptions(SpeechCaptionOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        store.WriteLines(OptionsFileName, ["1", options.Placement.ToString(),
-            options.DismissalDelaySeconds.ToString(CultureInfo.InvariantCulture)]);
+        store.WriteLines(OptionsFileName, ["2", options.Placement.ToString(),
+            options.DismissalDelaySeconds.ToString(CultureInfo.InvariantCulture), options.WordEmphasis ? "true" : "false"]);
     }
 }

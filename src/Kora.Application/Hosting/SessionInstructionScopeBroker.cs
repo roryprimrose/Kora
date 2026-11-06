@@ -84,6 +84,7 @@ public sealed class SessionInstructionScopeBroker : IDisposable
                     { throw new InvalidOperationException("Scope admission changed during audit."); }
                     var binding = new Binding(review.Source);
                     bindings[review.Target.Authority.SessionId] = binding;
+                    reviewEpoch++;
                     audit.Write(entry.WithOutcome(SecurityAuditOutcome.Succeeded));
                 }
                 catch
@@ -141,6 +142,24 @@ public sealed class SessionInstructionScopeBroker : IDisposable
             }
             return "Applying " + binding.Source.Name + " to " + (target.Metadata?.Name.Value ?? "this Active session")
                 + ". " + Boundary;
+        }
+    }
+
+    internal Func<bool> ReviewBareRequest(SessionWorkspaceEntry target)
+    {
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (bindings.ContainsKey(target.Authority.SessionId))
+            { throw new InvalidOperationException("Fresh expired-text review supports no session instruction scope. Use its independent current source-review route."); }
+            var epoch = reviewEpoch;
+            return () =>
+            {
+                lock (gate)
+                {
+                    return !disposed && reviewEpoch == epoch && !bindings.ContainsKey(target.Authority.SessionId);
+                }
+            };
         }
     }
 

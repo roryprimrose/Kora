@@ -21,6 +21,7 @@ public sealed class LocalAppearancePreferencesTests : IDisposable
         var preferences = CreatePreferences();
 
         preferences.LoadThemeMode().Should().BeNull();
+        preferences.LoadReducedMotionEnabled().Should().BeNull();
         preferences.LoadNativePresenceRendererEnabled().Should().BeNull();
         preferences.LoadPresenceDisplayEnabled().Should().BeNull();
         preferences.LoadPresenceTimeoutSeconds().Should().BeNull();
@@ -33,6 +34,45 @@ public sealed class LocalAppearancePreferencesTests : IDisposable
         preferences.LoadPresenceSpeechScaleAmountPercent().Should().BeNull();
         preferences.LoadPresencePosition().Should().BeNull();
         preferences.LoadResponseWindowSettings().Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ReducedMotionUsesAtomicReplacementAndReloadWithoutChangingAppearance(bool value)
+    {
+        var preferences = CreatePreferences();
+        preferences.SaveThemeMode(ApplicationThemeMode.Dark);
+        preferences.SaveResponseTimeoutSeconds(15);
+        preferences.SaveReducedMotionEnabled(!value);
+        preferences.SaveReducedMotionEnabled(value);
+        CreatePreferences().LoadReducedMotionEnabled().Should().Be(value);
+        CreatePreferences().LoadThemeMode().Should().Be(ApplicationThemeMode.Dark);
+        CreatePreferences().LoadResponseTimeoutSeconds().Should().Be(15);
+        Directory.GetFiles(Path.Combine(root, "Preferences")).Should().HaveCount(3);
+        preferences.ResetRegisteredOption(AppearanceOption.ReducedMotion);
+        CreatePreferences().LoadReducedMotionEnabled().Should().BeNull();
+        CreatePreferences().LoadThemeMode().Should().Be(ApplicationThemeMode.Dark);
+        CreatePreferences().LoadResponseTimeoutSeconds().Should().Be(15);
+        preferences.SaveReducedMotionEnabled(value);
+        preferences.ResetRegisteredOption(AppearanceOption.ResponseTimeout);
+        CreatePreferences().LoadResponseTimeoutSeconds().Should().BeNull();
+        CreatePreferences().LoadReducedMotionEnabled().Should().Be(value);
+        CreatePreferences().LoadThemeMode().Should().Be(ApplicationThemeMode.Dark);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("system")]
+    [InlineData("1")]
+    [InlineData("true\nfalse")]
+    public void InvalidReducedMotionNeverBecomesAnUnsavedDefault(string value)
+    {
+        var directory = Path.Combine(root, "Preferences");
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(Path.Combine(directory, "appearance-reduced-motion-enabled.txt"), value);
+        var load = CreatePreferences().LoadReducedMotionEnabled;
+        load.Should().Throw<InvalidDataException>();
     }
 
     [Theory]

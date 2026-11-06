@@ -167,6 +167,16 @@ notifications alone do not extend an existing presence deadline. Response
 **Always show** does not pin presence. Legacy shared timeout values are
 retained for the response window, while the new presence setting defaults to 10.
 
+The compact native response suspends ordinary inactivity auto-hide while its
+pointer is over the window or it has active keyboard focus within. Leaving both
+starts a full fresh response timeout; moving focus between its controls remains
+engagement. Deactivation ends the keyboard hold without activating anything.
+Explicit hide and privacy retirement remain immediate; required attention and
+expanded Sessions remain exempt. This is presentation-only reading support, not
+retention activity, approval, speech or capture authority
+([guidance](../docs/presence-accessibility.md#reading-the-compact-response),
+[deterministic native regressions](../tests/Kora.Windows.IntegrationTests/ResponseEngagementTests.cs)).
+
 During Kora speech playback, the presence contracts and expands between 90%
 and 112% of its resting size at the default speech scale amount. A normalized
 20-ms RMS envelope from Kora's synthesized output follows the audio device's
@@ -425,8 +435,7 @@ UI thread, including while already visible. Privacy withdrawal and retirement
 unsubscribe; restoration takes a fresh read and ignores callbacks from the old
 subscription or queued generation. Read or notification-subscription failure
 hides the presence and reports Settings/restart recovery, never assumes motion
-is enabled. This does not change saved theme/renderer choices or add a new
-reduced-motion setting. Windows high-contrast versus explicit theme/renderer
+is enabled. The explicit [reduced-motion preference](User_Configuration.md#delivered-bounded-appearance-subset-r10) can additionally freeze particles, but false/reset still follows Windows. This does not change saved theme/renderer choices. Windows high-contrast versus explicit theme/renderer
 precedence remains outside this implementation.
 
 As in the default renderer, reduced motion freezes particle movement without disabling the independent speech-sizing setting; colour/visibility transitions still settle. The native buffer bounds each physical dimension to 4096 pixels; invalid geometry is explicitly unavailable

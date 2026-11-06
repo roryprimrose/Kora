@@ -204,7 +204,8 @@ public sealed class EvidenceLoggerProvider : ILoggerProvider, ISupportExternalSc
                 eventId.Id, eventId.Name, level.ToString(), category,
                 EvidenceProperties.Template(state), CaptureProperties(state, host is null),
                 capturedScopes.AsReadOnly(), TraceSnapshot.Capture(host?.Activity),
-                host?.Request, exception?.GetType().FullName, host?.CorrelationId, host?.ApprovalId);
+                host?.Request, exception?.GetType().FullName, host?.CorrelationId, host?.ApprovalId,
+                exception is null ? null : ExceptionReportSignature.Capture(exception));
             if (state is TrustedAuditState)
             {
                 HostActivity.RequireCurrent();

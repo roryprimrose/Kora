@@ -49,6 +49,7 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
         viewModel.ReadinessRequested += OnReadinessRequested;
         viewModel.VoiceRecoveryRequested += OnVoiceRecoveryRequested;
         viewModel.BindSettingsSectionNavigation(this);
+        viewModel.KnowledgeSourceAnswerRequested += OnKnowledgeSourceAnswer;
     }
 
     public void Dispose()
@@ -60,6 +61,7 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
 
         disposed = true;
         viewModel.BindSettingsSectionNavigation(null);
+        viewModel.KnowledgeSourceAnswerRequested -= OnKnowledgeSourceAnswer;
         BindNativeLifetime(false);
         DesktopLog.Debug(logger, "Disposing the settings window controller");
         viewModel.SettingsRequested -= OnSettingsRequested;
@@ -80,8 +82,12 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
         {
             return;
         }
+
         OpenWindow(() => !disposed && viewModel.CanRevealPrivatePresentation);
     }
+
+    private Task OnKnowledgeSourceAnswer(Kora.Application.KnowledgeSources.KnowledgeSourceAnswerCommand command,
+        Func<bool> eligible) => OpenWindow(eligible).OpenKnowledgeSourceAnswerAsync(command, eligible);
 
     public Func<bool> CaptureLifetime()
     {
@@ -170,17 +176,29 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
         Volatile.Write(ref nativeVisible, visible && !disposed ? 1 : 0);
         viewModel.BindLogonStartupNativeLifetime(() =>
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
+        viewModel.BindStartupPresentationNativeLifetime(() =>
+            Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
         viewModel.BindDiagnosticRetentionNativeLifetime(() =>
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
         viewModel.BindAuditRetentionNativeLifetime(() =>
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
         viewModel.BindSessionRetentionNativeLifetime(() =>
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
+        viewModel.BindOrdinaryDeadlineNativeLifetime(() =>
+            Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
         viewModel.BindWindowsSpeechRateNativeLifetime(() =>
+            Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
+        viewModel.BindPlaybackVolumeNativeLifetime(() =>
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
         viewModel.BindSpeechInputNativeLifetime(() =>
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
+        viewModel.BindQuietHoursNativeLifetime(() =>
+            Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
+        viewModel.BindForegroundPttNativeLifetime(() =>
+            Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
         viewModel.BindConversationalReplyNativeLifetime(() =>
+            Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
+        viewModel.BindDetailPresentationNativeLifetime(() =>
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
         viewModel.BindSpeechComponentNativeLifetime(() =>
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);

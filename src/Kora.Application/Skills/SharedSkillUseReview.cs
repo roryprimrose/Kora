@@ -16,7 +16,8 @@ public sealed class SharedSkillUseReview : IDisposable
     private bool consumed;
 
     internal SharedSkillUseReview(SharedSkillInvocationWorkflow owner, SharedSkillSource source,
-        SharedSkillSnapshot snapshot, Func<bool> current, TimeProvider time, ActivityLink cause)
+        SharedSkillSnapshot snapshot, Func<bool> current, TimeProvider time, ActivityLink cause,
+        SharedSkillFileBinding? selectedFile = null, Func<CancellationToken, Task>? validateSelection = null)
     {
         this.owner = owner;
         Source = source;
@@ -26,10 +27,14 @@ public sealed class SharedSkillUseReview : IDisposable
         created = time.GetUtcNow();
         ExpiresAt = created.AddMinutes(2);
         Cause = cause;
+        SelectedFile = selectedFile;
+        ValidateSelection = validateSelection;
     }
 
     internal SharedSkillSource Source { get; }
     internal ActivityLink Cause { get; }
+    internal SharedSkillFileBinding? SelectedFile { get; }
+    internal Func<CancellationToken, Task>? ValidateSelection { get; }
     public DateTimeOffset ExpiresAt { get; }
     public string Text
     {

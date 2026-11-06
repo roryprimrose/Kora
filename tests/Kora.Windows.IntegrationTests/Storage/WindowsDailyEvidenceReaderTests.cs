@@ -23,6 +23,23 @@ namespace Kora.Windows.IntegrationTests.Storage;
 public sealed class WindowsDailyEvidenceReaderTests
 {
     [WindowsFact]
+    public async Task Legacy_daily_envelope_without_exception_signature_remains_readable()
+    {
+        using var fixture = new OwnedStorageFixture();
+        using var listener = Listen();
+        var envelope = Produce(HostRequest.Create(RequestOrigin.LocalUi), 1)[0];
+        var payload = JsonNode.Parse(WindowsSqliteEvidenceSink.EncodeDailyDiagnostic(envelope))!.AsObject();
+        payload.Remove("ExceptionReport");
+        Write(fixture, "kora-20261007.log", []);
+        await File.WriteAllTextAsync(Log(fixture), Outer(payload.ToJsonString()), TestContext.Current.CancellationToken);
+        using var inspection = Root();
+        var page = await Service(new WindowsDailyEvidenceReader(fixture)).QueryAsync(
+            new() { Source = EvidenceSource.DailyLog }, null, TestContext.Current.CancellationToken);
+        page.Status.Should().Be(EvidencePageStatus.Available);
+        page.Records.Should().ContainSingle().Which.ExceptionReport.Should().BeNull();
+    }
+
+    [WindowsFact]
     public async Task Versioned_envelope_scope_and_optional_metadata_are_preserved_with_policy_redaction()
     {
         using var fixture = new OwnedStorageFixture();
@@ -36,6 +53,9 @@ public sealed class WindowsDailyEvidenceReaderTests
                 ["AccessToken"] = new(EvidenceValueKind.Text, "never present"),
             }],
         };
+        const string stack = "Fixture.Worker::Run(System.Int32)";
+        var signature = ExceptionReportSignature.Create(envelope.ExceptionType!, stack);
+        envelope = envelope with { ExceptionReport = signature };
         Write(fixture, "kora-20261007.log", [envelope]);
         using var inspection = Root();
         var result = await Service(new WindowsDailyEvidenceReader(fixture)).QueryAsync(
@@ -43,6 +63,7 @@ public sealed class WindowsDailyEvidenceReaderTests
         var record = result.Records.Single();
         record.EventName.Should().Be(envelope.EventName);
         record.ExceptionType.Should().Be(envelope.ExceptionType);
+        record.ExceptionReport.Should().Be(signature);
         var scope = record.Scopes!.Single();
         scope["ScopeCount"].Should().Be(envelope.Scopes[0]["ScopeCount"]);
         scope["AccessToken"].CanonicalValue.Should().Be("[redacted]");

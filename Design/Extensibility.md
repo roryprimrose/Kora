@@ -162,6 +162,7 @@ Suggested manifest fields:
 - Package origin and content digest.
 
 Declared capabilities are requirements, not grants. Missing dependencies disable the skill with an explanation.
+The [reviewed exact MCP reference](Skill_Storage.md#reviewed-exact-read-only-mcp-skill) is one closed declarative dependency, resolved only through independent current host MCP admission. It cannot install a server, select credentials, approve an account, redefine effects or widen the internal tool catalogue.
 The future user-provided executable-skill format derives an implicit manifest
 from a selected folder and parses supported script references to discover
 dependencies; it does not change the MVP declarative policy. See

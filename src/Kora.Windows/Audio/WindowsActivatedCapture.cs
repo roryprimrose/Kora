@@ -1,10 +1,6 @@
-using System.Speech.Recognition;
 using System.Diagnostics;
 
 using Kora.Core.Voice;
-
-using NAudio.CoreAudioApi;
-using NAudio.Wave;
 
 namespace Kora.Windows.Audio;
 
@@ -12,242 +8,214 @@ internal sealed class WindowsActivatedCapture : IActivatedCapture, IActivatedHyp
 {
     private readonly Lock sync = new();
     private readonly Lock releaseSync = new();
-    private readonly SpeechRecognitionEngine recognizer;
-    private readonly WasapiRecorder? recorder;
-    private readonly MMDevice? endpoint;
-    private readonly MicrophoneDevice microphone;
+    private readonly Lock callbackGate = new();
+    private readonly WindowsRecognizerResidency.Lease lease;
+    private readonly IWindowsActivatedRecognizer recognizer;
+    private readonly IWindowsActivatedMicrophone? recorder;
+    private readonly BlockingAudioStream stream;
+    private readonly Action requireEligible;
     private readonly Func<bool> canStart;
     private readonly TaskCompletionSource completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private Task? recorderRelease;
+    private Task? disposal;
     private bool started;
     private int releaseRequested;
+    private int callbacksRetired;
     private long recorderReleasedTimestamp;
-    private long hypothesisSequence;
 
-    public WindowsActivatedCapture(
-        SpeechRecognitionEngine recognizer,
-        WasapiRecorder? recorder,
-        MMDevice? endpoint,
-        MicrophoneDevice microphone,
-        Func<bool> canStart)
+    public WindowsActivatedCapture(WindowsRecognizerResidency.Lease lease, IWindowsActivatedMicrophone? recorder,
+        BlockingAudioStream stream, Action requireEligible, Func<bool> canStart)
     {
-        this.recognizer = recognizer;
+        this.lease = lease;
+        recognizer = lease.Recognizer;
         this.recorder = recorder;
-        this.endpoint = endpoint;
-        this.microphone = microphone;
+        this.stream = stream;
+        this.requireEligible = requireEligible;
         this.canStart = canStart;
         recognizer.SpeechDetected += OnSpeechDetected;
-        recognizer.SpeechRecognized += OnSpeechRecognized;
-        recognizer.SpeechHypothesized += OnSpeechHypothesized;
-        recognizer.SpeechRecognitionRejected += OnSpeechRejected;
-        recognizer.RecognizeCompleted += OnCompleted;
+        recognizer.TranscriptRecognized += OnSpeechRecognized;
+        recognizer.Hypothesized += OnSpeechHypothesized;
+        recognizer.RecognitionFailed += OnSpeechRejected;
+        recognizer.Completed += OnCompleted;
         if (recorder is not null)
         {
             recorder.DataAvailable += OnDataAvailable;
-            recorder.RecordingStopped += OnRecordingStopped;
+            recorder.RecordingFailed += OnRecordingFailed;
         }
     }
 
     public event ActivatedAudioAvailable? DataAvailable;
-
     public event EventHandler<VoiceTranscriptEventArgs>? TranscriptRecognized;
     public event EventHandler<ActivatedHypothesisEventArgs>? Hypothesized;
-
     public event EventHandler<VoiceRecognitionFailureEventArgs>? RecognitionFailed;
-
     public event EventHandler? SpeechDetected;
 
-#pragma warning disable VSTHRD003 // Native recognition callbacks complete this asynchronous receipt without a UI-dispatcher dependency.
+#pragma warning disable VSTHRD003 // Native callbacks complete this asynchronous receipt.
     public Task Completion => completion.Task;
 #pragma warning restore VSTHRD003
-
     public long? RecorderReleasedTimestamp => Volatile.Read(ref recorderReleasedTimestamp) is var timestamp
         && timestamp != 0 ? timestamp : null;
 
     public void Start()
     {
-        if (!canStart())
-        {
-            throw new OperationCanceledException("The native capture generation is no longer current.");
-        }
-
-        WindowsCapturePrivacyGate.RequireEligible(microphone);
+        if (!canStart()) { throw new OperationCanceledException("The native capture generation is no longer current."); }
+        requireEligible();
         lock (sync)
         {
             if (Volatile.Read(ref releaseRequested) != 0)
             {
                 throw new InvalidOperationException("Capture was invalidated before recording began.");
             }
-
-            recognizer.RecognizeAsync(RecognizeMode.Single);
             started = true;
-            recorder?.StartRecording();
+            try
+            {
+                recognizer.Start();
+                if (Volatile.Read(ref releaseRequested) != 0 || !canStart())
+                { throw new OperationCanceledException("Capture was retired during native start."); }
+                recorder?.Start();
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                lease.Quarantine(exception);
+                throw;
+            }
         }
     }
 
     public Task ReleaseRecorder()
     {
+        Interlocked.Exchange(ref releaseRequested, 1);
         lock (releaseSync)
         {
-            if (recorderRelease is not null)
-            {
-                return recorderRelease;
-            }
-
-            Interlocked.Exchange(ref releaseRequested, 1);
-            if (recorder is not null) { recorder.DataAvailable -= OnDataAvailable; }
-            var released = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            recorderRelease = released.Task;
-            _ = Task.Run(() => ReleaseRecorderCoreAsync(released), CancellationToken.None);
-
-            return recorderRelease;
+            return recorderRelease ??= Task.Run(ReleaseRecorderCoreAsync, CancellationToken.None);
         }
     }
 
-    private async Task ReleaseRecorderCoreAsync(TaskCompletionSource released)
+    private async Task ReleaseRecorderCoreAsync()
     {
-        try
+        // Join a synchronous native start before disposing its recorder, without blocking invalidation.
+        lock (sync) { Interlocked.Exchange(ref releaseRequested, 1); }
+        if (recorder is not null)
         {
-            try
-            {
-                if (recorder is not null && sync.TryEnter())
-                {
-                    try
-                    {
-                        recorder.StopRecording();
-                    }
-                    finally
-                    {
-                        sync.Exit();
-                    }
-                }
-                else if (recorder is not null)
-                {
-                    await Task.Run(() =>
-                    {
-                        lock (sync)
-                        {
-                            recorder.StopRecording();
-                        }
-                    }, CancellationToken.None);
-                }
-            }
-            finally
-            {
-                if (recorder is not null) { await recorder.DisposeAsync(); }
-                Volatile.Write(ref recorderReleasedTimestamp, Stopwatch.GetTimestamp());
-            }
-
-            released.TrySetResult();
+            recorder.DataAvailable -= OnDataAvailable;
+            recorder.RecordingFailed -= OnRecordingFailed;
+            await recorder.DisposeAsync().ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is not OutOfMemoryException)
-        {
-            released.TrySetException(exception);
-        }
+        Volatile.Write(ref recorderReleasedTimestamp, Stopwatch.GetTimestamp());
     }
 
     public void FinishRecognition(bool cancel)
     {
-        if (!started)
+        lock (sync)
         {
-            completion.TrySetResult();
-        }
-        else if (cancel)
-        {
-            recognizer.RecognizeAsyncCancel();
-        }
-        else
-        {
-            recognizer.RecognizeAsyncStop();
+            if (!started) { completion.TrySetResult(); }
+            else if (!completion.Task.IsCompleted)
+            {
+                try { recognizer.Finish(cancel); }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                {
+                    lease.Quarantine(exception);
+                    throw;
+                }
+            }
         }
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
+        lock (releaseSync) { return new(disposal ??= Task.Run(DisposeCoreAsync, CancellationToken.None)); }
+    }
+
+    private async Task DisposeCoreAsync()
+    {
+        Interlocked.Exchange(ref callbacksRetired, 1);
+        stream.ClearAndComplete();
         try
         {
-            await ReleaseRecorder();
+            await ReleaseRecorder().ConfigureAwait(false);
             FinishRecognition(cancel: true);
-#pragma warning disable VSTHRD003 // Native recognition completion is event-driven, not UI-bound.
-            if (recorder is null) { await Completion; }
-            else { await Completion.WaitAsync(TimeSpan.FromSeconds(2)); }
+#pragma warning disable VSTHRD003 // A missing native completion retains ownership; a timeout cannot authorize reuse.
+            await Completion.ConfigureAwait(false);
 #pragma warning restore VSTHRD003
-        }
-        catch (TimeoutException) when (recorder is not null)
-        {
-            // The recorder is already released; a broken recognizer cannot retain the microphone.
-        }
-        finally
-        {
-            if (recorder is not null) { recorder.RecordingStopped -= OnRecordingStopped; }
             recognizer.SpeechDetected -= OnSpeechDetected;
-            recognizer.SpeechRecognized -= OnSpeechRecognized;
-            recognizer.SpeechHypothesized -= OnSpeechHypothesized;
-            recognizer.SpeechRecognitionRejected -= OnSpeechRejected;
-            recognizer.RecognizeCompleted -= OnCompleted;
-            recognizer.Dispose();
-            endpoint?.Dispose();
+            recognizer.TranscriptRecognized -= OnSpeechRecognized;
+            recognizer.Hypothesized -= OnSpeechHypothesized;
+            recognizer.RecognitionFailed -= OnSpeechRejected;
+            recognizer.Completed -= OnCompleted;
+            lock (callbackGate) { Interlocked.Exchange(ref callbacksRetired, 1); }
+            await recognizer.ResetAsync().ConfigureAwait(false);
+            stream.ClearAndComplete();
+            await stream.DisposeAsync().ConfigureAwait(false);
+            await lease.ReturnAsync().ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            lease.Quarantine(exception);
+            throw;
         }
     }
 
-    private void OnDataAvailable(ReadOnlySpan<byte> buffer, AudioClientBufferFlags flags, long position, long timestamp) =>
-        DataAvailable?.Invoke(this, buffer);
-
-    private void OnSpeechDetected(object? sender, SpeechDetectedEventArgs eventArgs)
+    private void OnDataAvailable(ReadOnlySpan<byte> buffer)
     {
-        if (ReferenceEquals(sender, recognizer))
+        lock (callbackGate)
         {
-            SpeechDetected?.Invoke(this, EventArgs.Empty);
+            if (Volatile.Read(ref callbacksRetired) == 0 && Volatile.Read(ref releaseRequested) == 0)
+            { DataAvailable?.Invoke(this, buffer); }
         }
     }
 
-    private void OnSpeechRecognized(object? sender, SpeechRecognizedEventArgs eventArgs)
+    private void OnSpeechDetected(object? sender, EventArgs args)
     {
-        if (ReferenceEquals(sender, recognizer))
+        lock (callbackGate)
         {
-            TranscriptRecognized?.Invoke(this,
-                new VoiceTranscriptEventArgs(eventArgs.Result.Text, eventArgs.Result.Confidence));
-        }
-
-    }
-
-    private void OnSpeechHypothesized(object? sender, SpeechHypothesizedEventArgs eventArgs)
-    {
-        if (ReferenceEquals(sender, recognizer) && Volatile.Read(ref releaseRequested) == 0)
-        {
-            Hypothesized?.Invoke(this, new(eventArgs.Result.Text, Interlocked.Increment(ref hypothesisSequence)));
+            if (ReferenceEquals(sender, recognizer) && Volatile.Read(ref callbacksRetired) == 0)
+            { SpeechDetected?.Invoke(this, EventArgs.Empty); }
         }
     }
 
-    private void OnSpeechRejected(object? sender, SpeechRecognitionRejectedEventArgs eventArgs)
+    private void OnSpeechRecognized(object? sender, VoiceTranscriptEventArgs args)
     {
-        if (ReferenceEquals(sender, recognizer))
+        lock (callbackGate)
         {
-            RecognitionFailed?.Invoke(this,
-                new VoiceRecognitionFailureEventArgs("Speech did not match a supported command."));
+            if (ReferenceEquals(sender, recognizer) && Volatile.Read(ref callbacksRetired) == 0)
+            { TranscriptRecognized?.Invoke(this, args); }
         }
     }
 
-    private void OnCompleted(object? sender, RecognizeCompletedEventArgs eventArgs)
+    private void OnSpeechHypothesized(object? sender, ActivatedHypothesisEventArgs args)
     {
-        if (ReferenceEquals(sender, recognizer))
+        lock (callbackGate)
         {
-            if (eventArgs.Error is not null)
-            {
-                completion.TrySetException(eventArgs.Error);
-            }
-            else
-            {
-                completion.TrySetResult();
-            }
+            if (ReferenceEquals(sender, recognizer) && Volatile.Read(ref callbacksRetired) == 0
+                && Volatile.Read(ref releaseRequested) == 0)
+            { Hypothesized?.Invoke(this, args); }
         }
     }
 
-    private void OnRecordingStopped(object? sender, StoppedEventArgs eventArgs)
+    private void OnSpeechRejected(object? sender, VoiceRecognitionFailureEventArgs args)
     {
-        if (ReferenceEquals(sender, recorder) && eventArgs.Exception is not null)
+        lock (callbackGate)
         {
-            RecognitionFailed?.Invoke(this, new VoiceRecognitionFailureEventArgs("Microphone capture failed."));
+            if (ReferenceEquals(sender, recognizer) && Volatile.Read(ref callbacksRetired) == 0)
+            { RecognitionFailed?.Invoke(this, args); }
+        }
+    }
+
+    private void OnCompleted(object? sender, WindowsRecognitionCompletedEventArgs args)
+    {
+        lock (callbackGate)
+        {
+            if (!ReferenceEquals(sender, recognizer)) { return; }
+            if (args.Error is not null) { completion.TrySetException(args.Error); }
+            else { completion.TrySetResult(); }
+        }
+    }
+
+    private void OnRecordingFailed(object? sender, VoiceRecognitionFailureEventArgs args)
+    {
+        lock (callbackGate)
+        {
+            if (Volatile.Read(ref callbacksRetired) == 0) { RecognitionFailed?.Invoke(this, args); }
         }
     }
 }

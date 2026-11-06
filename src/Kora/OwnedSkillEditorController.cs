@@ -12,8 +12,9 @@ internal sealed partial class OwnedSkillEditorController(
     MainViewModel main, OwnedSkillSaveWorkflow workflow, OwnedSkillControlAdmission admission,
     Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<OwnedSkillEditorController> logger,
     OwnedSkillInvocationController? invocation = null, OwnedSkillGuidanceRefinementService? refinement = null,
-    OwnedSkillFixtureWorkflow? fixtures = null,
-    ObservationWorkflowController? observations = null) : IAsyncDisposable
+    ObservationWorkflowController? observations = null, OwnedSkillRenameWorkflow? renames = null,
+    OwnedSkillDeletionWorkflow? deletion = null,
+    OwnedSkillFixtureWorkflow? fixtures = null) : IAsyncDisposable
 {
     private OwnedSkillEditorWindow? window;
     private OwnedSkillAuthoringAuthority? original;
@@ -26,6 +27,10 @@ internal sealed partial class OwnedSkillEditorController(
     private bool uncertain;
     private bool busy;
     private OwnedDeclarativeSkillDocument? validated;
+
+#pragma warning disable VSTHRD003 // Retain the actual controller-owned operation through native cancellation and terminal completion.
+    internal Task ActiveOperation => work;
+#pragma warning restore VSTHRD003
 
     internal void Bind()
     {
@@ -86,6 +91,15 @@ internal sealed partial class OwnedSkillEditorController(
             if (invocation is not null) { await invocation.CloseAndWait(); }
             return;
         }
+        if (command.Operation is "close-use")
+        {
+            if (invocation is null) { throw new InvalidOperationException("Owned skill invocation is unavailable in this host."); }
+            await invocation.CloseAndWait();
+#pragma warning disable VSTHRD003 // Join the editor command as well as its underlying use without retiring the draft.
+            await work;
+#pragma warning restore VSTHRD003
+            return;
+        }
         if (busy) { main.ReportHostInteractionFailure("Skill authoring is busy; cancel or wait for its owned I/O to finish."); return; }
         if (window is null)
         {
@@ -94,6 +108,8 @@ internal sealed partial class OwnedSkillEditorController(
             lifetime = new();
             window = new(action => Start(action is "create"
                 ? new(action, window?.IdInput.Text, window?.VersionInput.Text)
+                : action is "apply-component" ? new("reference", Literal: window?.ComponentBody.Text, InputName: window?.ComponentPath.Text)
+                : action is "remove-component" ? new("remove-reference", InputName: window?.ComponentPath.Text)
                 : new(action), new(RequestOrigin.LocalUi, Eligible)), Eligible);
             window.DraftChanged += () =>
             {
@@ -106,6 +122,7 @@ internal sealed partial class OwnedSkillEditorController(
                 invocation?.Retire();
                 window?.RetireReview();
             };
+            window.RenameTargetChanged += () => Interlocked.Increment(ref generation);
             window.CritiqueChanged += () =>
             {
                 CancelRefinement();
@@ -115,6 +132,7 @@ internal sealed partial class OwnedSkillEditorController(
             };
             window.FixtureChanged += () =>
             {
+                Interlocked.Increment(ref fixtureInputGeneration);
                 CancelFixture();
                 var captured = main.CaptureOwnedSkillFixtureEligibility();
                 fixtureAuthority = new(RequestOrigin.LocalUi, () => Eligible() && captured());
@@ -159,9 +177,14 @@ internal sealed partial class OwnedSkillEditorController(
             if (!Eligible() || !authority.IsCurrent()) { throw new InvalidOperationException("Original authoring authority expired."); }
             switch (command.Operation)
             {
+                case "rename":
+                case "recover-rename":
+                    await Rename(command, authority);
+                    break;
                 case "editor": break;
                 case "create":
-                    if (!await DiscardOrSave()) { return; }
+                    if (!await DiscardOrSave(authority)) { return; }
+                    ResetDraft(opened);
                     opened.IdInput.Text = command.Id ?? "";
                     opened.VersionInput.Text = command.Version ?? "1.0.0";
                     opened.NameInput.Text = "";
@@ -170,21 +193,15 @@ internal sealed partial class OwnedSkillEditorController(
                     opened.Tool.SelectedIndex = 0;
                     opened.InputFormat.SelectedIndex = 0;
                     opened.Critique.Text = "";
-                    opened.Fixture.Text = "";
-                    fixtureAuthority = null;
-                    source = null;
-                    initialAuthority = null;
-                    generatedBase = null;
                     opened.Purpose.Text = "";
                     opened.ExpectedInput.Text = "";
                     opened.ExpectedOutput.Text = "";
-                    CancelRefinement();
                     dirty = false;
                     uncertain = false;
                     opened.Report("New volatile declarative draft. Supply metadata, exact host capability selection and literal guidance, then Validate.");
                     break;
                 case "generate-request":
-                    if (!await DiscardOrSave()) { return; }
+                    if (!await DiscardOrSave(authority)) { return; }
                     PrepareInitial(opened, command.Literal!, authority);
                     break;
                 case "expected-input": opened.ExpectedInput.Text = command.Literal; break;
@@ -193,6 +210,9 @@ internal sealed partial class OwnedSkillEditorController(
                 case "name": opened.NameInput.Text = command.Literal; break;
                 case "description": opened.DescriptionInput.Text = command.Literal; break;
                 case "guidance": opened.Guidance.Text = command.Literal; break;
+                case "reference": opened.ApplyComponent(command.InputName!, command.Literal!); break;
+                case "remove-reference": opened.RemoveComponent(command.InputName!); break;
+                case "package-format": opened.InputFormat.SelectedIndex = 2; break;
                 case "critique":
                     CancelRefinement();
                     opened.Critique.Text = command.Literal;
@@ -227,13 +247,45 @@ internal sealed partial class OwnedSkillEditorController(
                     validated = pendingRefinement is { } proposal
                         ? proposal.IsCurrent() ? proposal.Proposed : throw new InvalidOperationException("The refinement expired. Generate and review again.")
                         : opened.Document();
-                    opened.Report("Valid native TWO-file package" + (pendingRefinement is null ? "" : " from the reviewed guidance proposal")
+                    opened.Report("Valid native complete package" + (pendingRefinement is null ? "" : " from the reviewed guidance proposal")
                         + ". No publication, enablement, tool permission or invocation.");
                     break;
-                case "save": await Save(); break;
+                case "save": await Save(authority); break;
+                case "delete":
+                    if (deletion is null) { throw new InvalidOperationException("Owned skill source deletion is unavailable in this host."); }
+                    if (uncertain) { throw new InvalidOperationException("A source mutation is unconfirmed. Inspect/recover the exact inventory; do not retry deletion."); }
+                    var deletionSelection = opened.Saved.SelectedItem as OwnedDeclarativeSkillSnapshot;
+                    var deletionId = command.Id ?? deletionSelection?.Document.Id;
+                    var deletionVersion = command.Version ?? deletionSelection?.Document.Version;
+                    if (deletionId is null || deletionVersion is null)
+                    { throw new InvalidOperationException("Select one exact saved owned ID/version before Delete."); }
+                    if (!await DiscardOrSave(authority)) { return; }
+                    var deletionDraft = Interlocked.Read(ref generation);
+                    bool ExactDeletion() => Eligible() && authority.IsCurrent() && deletionDraft == Interlocked.Read(ref generation)
+                        && ReferenceEquals(opened.Saved.SelectedItem, deletionSelection);
+                    if (await deletion.Delete(deletionId, deletionVersion, authority, ExactDeletion, opened, lifetime.Token))
+                    {
+                        opened.Saved.ItemsSource = null;
+                        if (string.Equals(source?.Document.Id, deletionId, StringComparison.Ordinal)
+                            && string.Equals(source?.Document.Version, deletionVersion, StringComparison.Ordinal))
+                        {
+                            // Retained text must keep its deleted-source binding until explicit Create/Reopen.
+                            validated = null;
+                            CancelRefinement();
+                        }
+                        opened.Report("The exact two-file owned source was deleted and absence read back. List again. Retained text keeps its deleted-source binding; Create a new draft or explicitly Reopen before model use. Future source-dependent use requires a present exact source; admitted immutable tasks and independent grants/history are unchanged.");
+                    }
+                    break;
                 case "list":
                     var rows = await workflow.List(original!, lifetime.Token);
-                    if (Eligible()) { opened.Saved.ItemsSource = rows; opened.Report("Saved immutable inactive versions. Select one and Reopen or Use; nothing is enabled or invoked."); }
+                    var pendingRenames = renames is null ? [] : await renames.Pending(authority, lifetime.Token);
+                    if (Eligible())
+                    {
+                        opened.Saved.ItemsSource = rows;
+                        opened.PendingRenames.ItemsSource = pendingRenames;
+                        opened.Report("Saved immutable inactive versions. Select Reopen, Use or Rename; nothing is enabled or invoked. "
+                            + $"Pending renames requiring separate recovery review: {pendingRenames.Count}.");
+                    }
                     break;
                 case "use":
                     var selection = opened.Saved.SelectedItem as OwnedDeclarativeSkillSnapshot;
@@ -245,6 +297,7 @@ internal sealed partial class OwnedSkillEditorController(
                     await invocation.Handle(new("use", useId, useVersion), authority, Eligible);
                     break;
                 case "enable":
+                case "read-references":
                 case "targets":
                 case "next-targets":
                 case "target":
@@ -254,7 +307,6 @@ internal sealed partial class OwnedSkillEditorController(
                 case "review-tool":
                 case "review-use":
                 case "invoke":
-                case "close-use":
                     if (invocation is null) { throw new InvalidOperationException("Owned skill invocation is unavailable in this host."); }
                     await invocation.Handle(command, authority, Eligible);
                     break;
@@ -263,12 +315,31 @@ internal sealed partial class OwnedSkillEditorController(
                     var id = command.Id ?? selected?.Document.Id;
                     var version = command.Version ?? selected?.Document.Version;
                     if (id is null || version is null) { throw new InvalidOperationException("Select an exact saved version before reopening."); }
-                    if (!await DiscardOrSave()) { return; }
-                    var saved = await workflow.Read(id, version, original!, lifetime.Token)
+                    if (!await DiscardOrSave(authority)) { return; }
+                    var reopenGeneration = Interlocked.Read(ref generation);
+                    void RequireUnchangedReopenDraft()
+                    {
+                        if (reopenGeneration != Interlocked.Read(ref generation))
+                        { throw new InvalidOperationException("The draft changed while reopening. Your edits were kept; save or explicitly discard them before reopening again."); }
+                    }
+                    var saved = await workflow.Read(id, version, original!, lifetime.Token, OwnedSkillReadScope.PrimaryDeclaration)
                         ?? throw new InvalidDataException("The exact saved skill version is absent.");
+                    RequireUnchangedReopenDraft();
+                    if (!Eligible() || !authority.IsCurrent()) { return; }
                     if (saved.Document.ObservationWorkflow is not null)
                     { throw new InvalidOperationException("Use the separate owned skill workflow editor for this declarative observation source; its steps cannot become literal guidance."); }
-                    if (!Eligible()) { return; }
+                    if (!saved.Document.IsComplete)
+                    {
+                        var readComponents = await opened.ConfirmComponentRead(saved, lifetime.Token);
+                        RequireUnchangedReopenDraft();
+                        if (!readComponents || !Eligible() || !authority.IsCurrent()) { return; }
+                        var complete = await workflow.Read(id, version, original!, lifetime.Token, expectedPrimary: saved)
+                            ?? throw new InvalidDataException("The exact declared package is missing.");
+                        if (!saved.IsSamePrimary(complete)) { throw new InvalidDataException("The reviewed component declaration changed; reopen again."); }
+                        saved = complete;
+                    }
+                    RequireUnchangedReopenDraft();
+                    if (!Eligible() || !authority.IsCurrent()) { return; }
                     ShowSaved(opened, saved);
                     break;
                 default: throw new InvalidOperationException(OwnedSkillAuthoringCommand.Syntax);
@@ -276,9 +347,14 @@ internal sealed partial class OwnedSkillEditorController(
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            if (exception is OwnedSkillPublicationUnconfirmedException) { uncertain = true; }
+            if (exception is OwnedSkillPublicationUnconfirmedException or OwnedSkillRenameUnconfirmedException
+                or OwnedSkillDeletionUnconfirmedException) { uncertain = true; }
             AuthoringFailed(logger, exception.GetType().Name);
-            opened.Report(exception is OwnedSkillPublicationUnconfirmedException
+            opened.Report(exception is OwnedSkillRenameUnconfirmedException
+                ? exception.Message
+                : exception is OwnedSkillDeletionUnconfirmedException
+                ? "Deletion may have occurred. Mutation is held. Do not retry or recreate this source. Inspect the exact remaining inventory and audit; no rollback, task cancellation or confirmed deletion is claimed."
+                : exception is OwnedSkillPublicationUnconfirmedException
                 ? "Publication may have occurred. Do not retry Save. List/Reopen the exact ID/version to reconcile; no rollback or invocation is claimed."
                 : exception is OperationCanceledException ? "Cancelled. Owned I/O has joined; no saved result is claimed."
                 : "Skill authoring failed: " + exception.Message);
@@ -286,20 +362,41 @@ internal sealed partial class OwnedSkillEditorController(
         finally { busy = false; }
     }
 
-    private async Task<bool> Save()
+    private async Task<bool> Save(OwnedSkillAuthoringAuthority authority)
     {
         if (window is not { } opened || lifetime is null || original is null) { return false; }
         if (uncertain) { throw new InvalidOperationException("Publication is uncertain. Reopen the exact saved version; do not retry."); }
         var document = validated ?? throw new InvalidOperationException("Validate this exact draft before Save.");
         var exact = Interlocked.Read(ref generation);
-        bool Current() => Eligible() && exact == Interlocked.Read(ref generation) && ReferenceEquals(validated, document);
+        bool Current() => Eligible() && authority.IsCurrent() && exact == Interlocked.Read(ref generation)
+            && ReferenceEquals(validated, document);
+        var savedSource = source;
         var saved = pendingRefinement is { } proposal
-            ? await refinement!.Save(proposal, opened, Current, lifetime.Token)
-            : await workflow.Save(document, original, Current, opened, lifetime.Token);
-        if (saved is null || !Current()) { return false; }
+            ? await refinement!.Save(proposal, authority, opened, Current, lifetime.Token)
+            : await workflow.Save(document, authority, Current, opened, lifetime.Token, expectedSource: savedSource);
+        if (saved is null)
+        {
+            opened.Report("Save was not confirmed or its input/draft authority expired. Draft retained; nothing was saved or enabled.");
+            return false;
+        }
+        if (!Current())
+        { throw new OwnedSkillPublicationUnconfirmedException(new InvalidOperationException("Save authority expired before editor adoption.")); }
         ShowSaved(opened, saved);
-        opened.Report("Both exact files durably read back. Saved inactive/unselected; nothing invoked. List and select Use for separate exact-version review.");
+        opened.Report("Every exact declared file durably read back. Saved inactive/unselected; nothing invoked. List and select Use for separate exact-version review.");
         return true;
+    }
+
+    private void ResetDraft(OwnedSkillEditorWindow opened)
+    {
+        CancelRefinement();
+        CancelFixture();
+        opened.Fixture.Text = "";
+        fixtureAuthority = null;
+        source = null;
+        initialAuthority = null;
+        generatedBase = null;
+        validated = null;
+        opened.LoadComponents(null);
     }
 
     private void ShowSaved(OwnedSkillEditorWindow opened, OwnedDeclarativeSkillSnapshot saved)
@@ -314,7 +411,8 @@ internal sealed partial class OwnedSkillEditorController(
         opened.DescriptionInput.Text = saved.Document.Description;
         opened.Guidance.Text = saved.Document.Guidance;
         opened.Tool.SelectedIndex = saved.Document.Tool == OwnedSkillToolSelection.WebPageGet ? 1 : 0;
-        opened.InputFormat.SelectedIndex = saved.Document.InputTemplate is null ? 0 : 1;
+        opened.InputFormat.SelectedIndex = saved.Document.ReferenceDeclaration is not null ? 2 : saved.Document.InputTemplate is null ? 0 : 1;
+        opened.LoadComponents(saved);
         opened.Critique.Text = "";
         opened.Fixture.Text = "";
         fixtureAuthority = null;
@@ -324,17 +422,22 @@ internal sealed partial class OwnedSkillEditorController(
         opened.Report("Exact saved version reopened. It remains inactive; Use requires separate review and enablement. Existing versions cannot be changed; Create a fresh ID/version.");
     }
 
-    private async Task<bool> DiscardOrSave()
+    private async Task<bool> DiscardOrSave(OwnedSkillAuthoringAuthority authority)
     {
         if (!dirty || window is null || lifetime is null) { return true; }
         var capture = main.CaptureDefinitionObservationEligibility();
         var capturedOwner = ownershipRevision();
         bool PrivateEligible() => ownsHost() && capture() && ownershipRevision() == capturedOwner;
         if (!window.IsVisible && !window.ShowForPrivateRecovery(PrivateEligible)) { return false; }
-        var choice = await window.DirtyChoice(Eligible(),
+        var choice = await window.DirtyChoice(Eligible() && authority.IsCurrent(),
             PrivateEligible, CancellationToken.None);
+        if (!authority.IsCurrent())
+        {
+            window.Report("Original authoring input authority expired. Draft retained; no continuation was admitted.");
+            return false;
+        }
         if (choice == 1) { dirty = false; return true; }
-        return choice == 0 && await Save();
+        return choice == 0 && await Save(authority);
     }
 
     private void OnClosing(object? sender, WindowClosingEventArgs args)
@@ -354,6 +457,7 @@ internal sealed partial class OwnedSkillEditorController(
 
     internal async Task<bool> PrepareClose()
     {
+        var authority = new OwnedSkillAuthoringAuthority(RequestOrigin.LocalUi, main.CaptureInstructionEditorEligibility());
         if (observations is not null && !await observations.PrepareClose()) { return false; }
         if (invocation is not null) { await invocation.CloseAndWait(); }
         if (window is null) { return true; }
@@ -364,7 +468,7 @@ internal sealed partial class OwnedSkillEditorController(
             await work;
 #pragma warning restore VSTHRD003
         }
-        if (!await DiscardOrSave()) { return false; }
+        if (!await DiscardOrSave(authority)) { return false; }
         Retire();
         closing = true;
         window.Close();

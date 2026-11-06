@@ -21,6 +21,7 @@ public sealed partial class SessionConversationService
         internal long Revision;
         internal long ControlRevision = controlRevision;
         internal bool Paused;
+        internal bool PendingClearHeld;
         internal ConversationDispatchHoldReason ManualHoldReason;
         public void Dispose() => Admission.Dispose();
         internal void Pulse()
@@ -33,9 +34,11 @@ public sealed partial class SessionConversationService
     }
 
     internal sealed class PendingConversation(SessionWorkspaceEntry target, IReadOnlyList<HostRequest> predecessors, Action? accepted,
-        RetryIntent? retry)
+        RetryIntent? retry, FreshOrdinaryIntent? fresh)
     {
         internal RetryIntent? Retry { get; } = retry;
+        internal FreshOrdinaryIntent? Fresh { get; } = fresh;
+        internal bool BareOrdinaryText;
         internal SessionWorkspaceEntry Target { get; } = target;
         internal IReadOnlyList<HostRequest> Predecessors { get; } = predecessors;
         internal readonly TaskCompletionSource<ConversationQueuedSubmission> Accepted = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -44,6 +47,8 @@ public sealed partial class SessionConversationService
         internal DateTimeOffset ExpiresAt;
         internal ConversationPendingPhase Phase;
         internal bool CancelRequested;
+        internal Func<bool>? PendingCancellationCurrent;
+        internal SessionWorkspaceEntry? PendingCancellationTarget;
         internal ActivityLink Cause;
         internal Action? OnAccepted { get; } = accepted;
         internal Task Worker = Task.CompletedTask;
@@ -76,7 +81,7 @@ public sealed partial class SessionConversationService
     private async Task<ConversationQueuedSubmission> SubmitQueuedCoreAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, Func<CancellationToken, Task>? validateSource,
         IEnumerable<ActivityLink>? links, RequestOrigin origin, bool localAnswer, Action? accepted, RetryIntent? retry,
-        CancellationToken token, TaskResponseOutputReview? taskOutput = null)
+        CancellationToken token, TaskResponseOutputReview? taskOutput = null, FreshOrdinaryIntent? fresh = null)
     {
         RequireOriginalSource(origin);
         ConversationLane lane;
@@ -101,7 +106,7 @@ public sealed partial class SessionConversationService
                 if (lane.Entries.Count(item => item.Phase == ConversationPendingPhase.Pending) >= SessionQueueLimits.MaximumPendingPerSession)
                 { throw new InvalidOperationException("The conversation queue is full. Remove or defer pending work; nothing was evicted."); }
                 pending = new(target, lane.Entries.Where(item => item.Retained is not null)
-                    .Select(item => item.Retained!.Message.Request).ToArray(), accepted, retry) { Output = taskOutput };
+                    .Select(item => item.Retained!.Message.Request).ToArray(), accepted, retry, fresh) { Output = taskOutput };
                 lane.Entries.Add(pending);
                 // The worker owns the original source token, issuer and terminal join, not the acceptance caller.
                 pending.Worker = RunPendingConversationAsync(lane, pending, body, admitted,
@@ -144,21 +149,30 @@ public sealed partial class SessionConversationService
             Failure(logger, exception.GetType().Name);
             completion = new(null, exception);
         }
-        lock (cancellationGate)
+        try
         {
-            lane.Entries.Remove(pending);
-            lane.Paused |= pending.Retained is not null && completion.Receipt?.Message.Outcome != ModelTurnOutcome.Succeeded;
-            lane.Pulse();
-            pending.Completed.TrySetResult(completion);
-            if (!pending.Accepted.Task.IsCompleted)
+            lock (cancellationGate)
             {
-                if (completion.Failure is { } failure) { pending.Accepted.TrySetException(failure); }
-                else { pending.Accepted.TrySetResult(new(completion.Receipt!, 0, pending.Completed.Task)); }
+                lane.Entries.Remove(pending);
+                lane.Paused |= pending.Retained is not null && completion.Receipt?.Message.Outcome != ModelTurnOutcome.Succeeded;
+                lane.Pulse();
+                if (!pending.Accepted.Task.IsCompleted)
+                {
+                    if (completion.Failure is { } failure) { pending.Accepted.TrySetException(failure); }
+                    else { pending.Accepted.TrySetResult(new(completion.Receipt!, 0, pending.Completed.Task)); }
+                }
+                PendingConversationChanged?.Invoke(Snapshot(pending.Target.Authority.SessionId, lane));
             }
-            PendingConversationChanged?.Invoke(Snapshot(pending.Target.Authority.SessionId, lane));
+            if (completion.Receipt is not null || completion.Failure is ConversationSubmissionUnconfirmedException)
+            { SubmittedConversationCompleted?.Invoke(pending.Target, completion); }
         }
-        if (completion.Receipt is not null || completion.Failure is ConversationSubmissionUnconfirmedException)
-        { SubmittedConversationCompleted?.Invoke(pending.Target, completion); }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            Failure(logger, exception.GetType().Name);
+            completion = completion with { Failure = completion.Failure ?? exception };
+            lock (cancellationGate) { lane.Paused = true; lane.Pulse(); }
+        }
+        pending.Completed.TrySetResult(completion);
     }
 
     private async Task<ModelTurnReason> AwaitPendingDispatchAsync(PendingConversation pending,
@@ -173,7 +187,8 @@ public sealed partial class SessionConversationService
             pending.ExpiresAt = context.ExpiresAt;
             pending.Cause = new(HostActivity.RequireCurrent().Activity!.Context);
             pending.OnAccepted?.Invoke();
-            if (!lifecycleHeld && !lane.Paused && lane.ManualHoldReason == ConversationDispatchHoldReason.None
+            if (!lifecycleHeld && !lane.Paused && !lane.PendingClearHeld
+                && lane.ManualHoldReason == ConversationDispatchHoldReason.None
                 && ReferenceEquals(lane.Entries[0], pending))
             { pending.Phase = ConversationPendingPhase.Dispatching; }
             lane.Pulse();
@@ -192,7 +207,7 @@ public sealed partial class SessionConversationService
                 remaining = pending.ExpiresAt - time.GetUtcNow();
                 if (remaining <= TimeSpan.Zero || time.GetUtcNow() < context.CreatedAt) { return ModelTurnReason.ContextExpired; }
                 token.ThrowIfCancellationRequested();
-                if (!lifecycleHeld && !lane.Paused
+                if (!lifecycleHeld && !lane.Paused && !lane.PendingClearHeld
                     && (lane.ManualHoldReason == ConversationDispatchHoldReason.None || pending.Phase == ConversationPendingPhase.Dispatching)
                     && ReferenceEquals(lane.Entries[0], pending))
                 {
@@ -324,6 +339,8 @@ public sealed partial class SessionConversationService
                 expected.Submission.Task.Request.TaskId, origin), HostActivityLayer.Application, HostOperation.Request,
                 [pending.Cause]);
             AuditPendingControl("conversation.pending-cancel", Live, origin);
+            pending.PendingCancellationCurrent = Live;
+            pending.PendingCancellationTarget = target;
             pending.CancelRequested = true;
             lane.Paused = true;
             lane.Pulse();

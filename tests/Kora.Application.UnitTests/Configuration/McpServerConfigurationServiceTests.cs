@@ -315,6 +315,7 @@ public sealed class McpServerConfigurationServiceTests : IDisposable
     [InlineData("remove-after")]
     [InlineData("use-after")]
     [InlineData("use-cycle-after")]
+    [InlineData("source-cycle-after")]
     public async Task Source_and_inclusion_changes_across_resolution_awaits_are_not_reinterpreted_as_current(string fault)
     {
         Directory.CreateDirectory(root);
@@ -342,6 +343,15 @@ public sealed class McpServerConfigurationServiceTests : IDisposable
             {
                 use.SetDisabled(Kora.Core.Artifacts.ArtifactUseIdentity.Mcp(id), true);
                 use.SetDisabled(Kora.Core.Artifacts.ArtifactUseIdentity.Mcp(id), false);
+            }
+            if (calls == 3 && fault is "source-cycle-after")
+            {
+                preferences.BeforeLoad = null;
+                var original = File.ReadAllText(file);
+                File.AppendAllText(file, " ");
+                service.Load();
+                File.WriteAllText(file, original);
+                service.Load();
             }
             if (calls == 4 && fault is "remove-after") { preferences.Settings = new([], [], [], [], [], [id]); }
         };
@@ -377,6 +387,37 @@ public sealed class McpServerConfigurationServiceTests : IDisposable
         service.Load().Single().IsIncluded.Should().BeTrue();
         await FluentActions.Awaiting(() => service.ValidateCurrentAsync(descriptor, TestContext.Current.CancellationToken))
             .Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Source_retirement_is_bound_to_the_complete_selected_file_not_unrelated_files(bool sameFile)
+    {
+        Directory.CreateDirectory(root);
+        var selectedFile = Path.Combine(root, "selected.json");
+        var otherFile = Path.Combine(root, "other.json");
+        File.WriteAllText(selectedFile, """{"servers":{"search":{"url":"https://example.com/mcp"}}}""");
+        File.WriteAllText(otherFile, """{"servers":{"other":{"url":"https://other.example.com/mcp"}}}""");
+        var preferences = new Preferences(new([], [], [], [], [selectedFile, otherFile], []));
+        var service = new McpServerConfigurationService(new Paths(Path.Combine(root, "kora")),
+            preferences, Path.Combine(root, "empty-profile"));
+        var id = service.Load().Single(server => string.Equals(server.Name, "search", StringComparison.Ordinal)).Id;
+        preferences.Settings = new([], [], [], [], [selectedFile, otherFile], [id]);
+        var account = new McpAccountReference(Guid.NewGuid(), new(1), Guid.NewGuid(), new(new("https://example.com/mcp")));
+        var descriptor = await service.ResolveHttpsAsync(id, account, TestContext.Current.CancellationToken);
+        var changedFile = sameFile ? selectedFile : otherFile;
+        var original = File.ReadAllText(changedFile);
+        File.AppendAllText(changedFile, " ");
+        service.Load();
+        File.WriteAllText(changedFile, original);
+        service.Load();
+        if (sameFile)
+        {
+            await FluentActions.Awaiting(() => service.ValidateCurrentAsync(descriptor, TestContext.Current.CancellationToken))
+                .Should().ThrowAsync<InvalidOperationException>();
+        }
+        else { await service.ValidateCurrentAsync(descriptor, TestContext.Current.CancellationToken); }
     }
 
     private void Invalid(string content)

@@ -3,8 +3,10 @@ using System.Text.Json;
 using AwesomeAssertions;
 
 using Kora.Core.Conversation;
+using Kora.Core.Conversation.ReviewedContext;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
+using Kora.Core.Providers;
 
 namespace Kora.Core.UnitTests.Conversation;
 
@@ -36,6 +38,10 @@ public sealed class ConversationHistoryContextTests
         context.Evidence.Should().HaveCount(3).And.OnlyContain(item => item.Request == Request
             && item.Disclosure == ModelEvidenceDisclosure.LocalOnly);
         context.Evidence.Select(item => item.Id).Distinct().Should().HaveCount(3);
+        context.Evidence.Select(item => item.HistorySource).Should().Equal(
+            new SubmittedHistorySource(first.Request.RequestId, first.Generation, first.Sequence, first.Revision, ConversationHistoryRole.User),
+            new SubmittedHistorySource(first.Request.RequestId, first.Generation, first.Sequence, first.Revision, ConversationHistoryRole.Assistant),
+            new SubmittedHistorySource(last.Request.RequestId, last.Generation, last.Sequence, last.Revision, ConversationHistoryRole.User));
         using var user = JsonDocument.Parse(context.Evidence[0].Content);
         user.RootElement.GetProperty("Role").GetString().Should().Be("USER");
         user.RootElement.GetProperty("Body").GetString().Should().Be(first.Body);
@@ -44,6 +50,41 @@ public sealed class ConversationHistoryContextTests
         assistant.RootElement.GetProperty("Body").GetString().Should().Be(first.AssistantResponse!.Body);
         context.UserRequest.Should().Be("new question");
         context.SystemPolicy.Should().Contain("inert").And.Contain("never").And.Contain("No tools");
+        using var wire = JsonDocument.Parse(context.Serialize());
+        wire.RootElement.GetProperty("Evidence").EnumerateArray()
+            .Select(item => item.TryGetProperty("HistorySource", out _)).Should().OnlyContain(value => !value);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void HistoryAndExactReplyCaptureOnlyTheOriginalSubmittedAssistantSource(bool reply)
+    {
+        var source = Message(7, "unselected original user", "exact earlier answer");
+        var now = DateTimeOffset.UnixEpoch;
+        var context = reply
+            ? MixedConversationContext.CreateReplyEnvelope(Request, "new question", source, now, now.AddMinutes(1))
+            : ConversationHistoryContext.CreateEnvelope(Request, "new question",
+                [new(source, ConversationHistoryRole.Assistant)], now, now.AddMinutes(1));
+        var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), Request, ModelProviderSelection.OllamaCandidate);
+        var profile = new ProviderProfileTuple(ProviderService.Local, new("device"), new(1),
+            new("model"), new("default"), new("default"));
+        var canonical = context.Serialize();
+        var captured = SubmittedAnswerContext.Capture(provenance, new(1), profile, context, canonical, now)!;
+        captured.Should().NotBeNull();
+        captured.Provenance.Should().Be(provenance);
+        captured.Profile.Should().Be(profile);
+        captured.SubmittedAt.Should().Be(now);
+        captured.CanonicalUtf8Bytes.Should().Be(canonical.Length);
+        captured.Sources.Should().Equal(new SubmittedHistorySource(source.Request.RequestId,
+            source.Generation, source.Sequence, source.Revision, ConversationHistoryRole.Assistant));
+        using var wire = JsonDocument.Parse(canonical);
+        var evidence = wire.RootElement.GetProperty("Evidence").EnumerateArray().Should().ContainSingle().Subject;
+        evidence.TryGetProperty("HistorySource", out _).Should().BeFalse();
+        using var content = JsonDocument.Parse(evidence.GetProperty("Content").GetString()!);
+        content.RootElement.GetProperty("Role").GetString().Should().Be("ASSISTANT");
+        content.RootElement.GetProperty("Body").GetString().Should().Be(source.AssistantResponse!.Body);
+        JsonSerializer.Serialize(captured).Should().NotContain(source.Body).And.NotContain(source.AssistantResponse.Body);
     }
 
     [Theory]

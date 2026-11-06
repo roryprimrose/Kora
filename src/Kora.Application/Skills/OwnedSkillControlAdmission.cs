@@ -13,6 +13,9 @@ public sealed class OwnedSkillControlAdmission(
     ISessionWorkspaceStore workspace, IOwnedSkillControlSessionStore sessions, HostTaskCoordinator coordinator)
     : HostControlAdmission(workspace, coordinator)
 {
+    internal ValueTask<HostTaskObservation?> ReadIntent(HostRequest request, CancellationToken token) =>
+        Workspace.ReadTaskAsync(request.SessionId, request.TaskId, token);
+
     protected override ValueTask<WorkSessionAuthorization> CreateSessionAsync(
         HostRequest request, Func<bool> eligible, CancellationToken token) =>
         sessions.CreateOwnedSkillSession(request, eligible, token);
@@ -34,7 +37,8 @@ public sealed class OwnedSkillControlAdmission(
                 catch (Exception exception) when (exception is not OutOfMemoryException)
                 {
                     return new(default!, ExceptionDispatchInfo.Capture(exception),
-                        exception is OwnedSkillPublicationUnconfirmedException ? HostTaskState.Unknown
+                        exception is OwnedSkillPublicationUnconfirmedException or OwnedSkillRenameUnconfirmedException
+                            or OwnedSkillDeletionUnconfirmedException ? HostTaskState.Unknown
                         : exception is OperationCanceledException ? HostTaskState.Cancelled : HostTaskState.Failed);
                 }
             }, static outcome => outcome.State, token).ConfigureAwait(false);

@@ -81,8 +81,8 @@ public sealed partial class ModelTurnHostTests
             var proposal = snapshot.AgentProposal!;
             proposal.Definition.Should().Be(catalogue.Candidates[1]);
             proposal.Target.Authority.Should().Be(f.Session);
-            proposal.Input.Should().Be("Original request");
-            proposal.Origin.Should().Be(RequestOrigin.LocalUi);
+            proposal.DiscoveryQuestion.Should().Be("Original request");
+            proposal.DiscoveryOrigin.Should().Be(RequestOrigin.LocalUi);
             snapshot.Dispose();
             proposal.IsCurrent().Should().BeTrue("the parent has physically finished; the separate native review still requires current source and user admission");
             await proposal.ConsumeForReviewAsync(Token);
@@ -120,7 +120,7 @@ public sealed partial class ModelTurnHostTests
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
         if (scenario is "cancelled") { await cancellation.CancelAsync(); }
         await proposal.Invoking(item => item.ValidateAsync(cancellation.Token)).Should().ThrowAsync<Exception>();
-        proposal.Origin.Should().Be(RequestOrigin.ActivatedVoice);
+        proposal.DiscoveryOrigin.Should().Be(RequestOrigin.ActivatedVoice);
         f.ExecutionStarts.Should().Be(0);
         f.RetainCalls.Should().Be(0);
     }

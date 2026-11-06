@@ -31,6 +31,15 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ThemeMode.Should().Be(ApplicationThemeMode.Light);
         await Run("use system theme");
         fixture.ViewModel.ThemeMode.Should().Be(ApplicationThemeMode.System);
+        await Run("use reduced motion");
+        fixture.ViewModel.IsReducedMotionEnabled.Should().BeTrue();
+        fixture.AppearancePreferences.ReducedMotionEnabled.Should().BeTrue();
+        await Run("follow system motion");
+        fixture.ViewModel.IsReducedMotionEnabled.Should().BeFalse();
+        fixture.AppearancePreferences.ReducedMotionEnabled.Should().BeFalse();
+        fixture.Audit.Events.Where(item => string.Equals(item.ActionId, "configuration.reduced-motion", StringComparison.Ordinal))
+            .Should().HaveCount(4).And.OnlyContain(item =>
+                item.Initiator == (voice ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.TypedCommand));
         await Run("set reader text scale to 150 percent");
         await Run("increase reader text scale by 25 percentage points");
         fixture.ViewModel.ReaderTextScalePercent.Should().Be(175);
@@ -70,6 +79,8 @@ public sealed partial class MainViewModelTests
 
     [Theory]
     [InlineData("use dark mode")]
+    [InlineData("use reduced motion")]
+    [InlineData("Kora, use reduced motion")]
     [InlineData("Kora, use dark mode")]
     [InlineData("Novation, set reader text scale to 125 percent")]
     public async Task NaturalAppearanceVoiceWithoutCurrentNameHasNoPreferenceAuthority(string transcript)
@@ -80,6 +91,7 @@ public sealed partial class MainViewModelTests
         await fixture.RaiseActivatedTranscriptAsync(transcript, 1);
         fixture.ViewModel.ThemeMode.Should().Be(ApplicationThemeMode.System);
         fixture.AppearancePreferences.ReaderTextScalePercent.Should().BeNull();
+        fixture.AppearancePreferences.ReducedMotionEnabled.Should().BeNull();
         fixture.Reasoner.Requests.Should().BeEmpty();
         await fixture.ViewModel.DisposeAsync();
     }

@@ -43,13 +43,21 @@ public sealed partial class SessionsConversationTests
     }
 
     [Theory]
-    [InlineData(false, false, false)]
-    [InlineData(true, false, false)]
-    [InlineData(false, true, false)]
-    [InlineData(true, true, false)]
-    [InlineData(false, true, true)]
+    [InlineData(false, false, false, false, false)]
+    [InlineData(true, false, false, false, false)]
+    [InlineData(false, true, false, false, false)]
+    [InlineData(true, true, false, false, false)]
+    [InlineData(false, true, true, false, false)]
+    [InlineData(false, false, false, true, false)]
+    [InlineData(false, false, false, false, true)]
+    [InlineData(false, true, false, false, true)]
+    [InlineData(false, false, false, false, false, "application/json; charset=utf-8")]
+    [InlineData(false, true, false, false, false, "APPLICATION/JSON; CHARSET=UtF-8")]
+    [InlineData(false, false, false, false, false, "Application/Json; Charset=\"UtF-8\"")]
+    [InlineData(false, true, false, false, false, "Application/Json; Charset=\"UtF-8\"")]
     public async Task Native_mcp_reviews_connects_selects_invokes_and_retains_actual_result_without_live_account_or_network(
-        bool deny, bool explicitUser, bool cancelIgnored)
+        bool deny, bool explicitUser, bool cancelIgnored, bool denyResult, bool cancelSelection,
+        string contentType = "application/json; charset=\"utf-8\"")
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -65,7 +73,7 @@ public sealed partial class SessionsConversationTests
                 Path.Combine(f.Paths.RoamingRoot, "test-profile"));
             var server = configuration.Load().Single();
             preferences.Value = new([], [], [], [], [], [server.Id]);
-            using var broker = new McpTransportFixture();
+            using var broker = new McpTransportFixture { ResponseContentType = contentType };
             var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             var pending = new TaskCompletionSource<System.Net.Http.HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
             if (cancelIgnored)
@@ -126,7 +134,17 @@ public sealed partial class SessionsConversationTests
                                 }
                                 if (review.Stage == McpReviewStage.Invocation)
                                 { state.ReviewText.Should().Contain(NativeMcpSchema).And.Contain("""{"query":"reference"}"""); }
-                                if (deny) { await state.CancelAsync(); }
+                                if (review.Stage == McpReviewStage.ResultContinuation)
+                                {
+                                    transport.Calls.Should().Be(1);
+                                    broker.Disposed.Should().BeTrue();
+                                    review.Continuation.Should().NotBeNull();
+                                    state.ReviewText.Should().Contain(review.Continuation!.Result.Text)
+                                        .And.Contain("SEPARATE ONE-USE").And.Contain("Find the reviewed reference.");
+                                    state.Question!.Spec.Options.Should().ContainSingle().Which.Id.Should().Be("once");
+                                }
+                                if (deny || denyResult && review.Stage == McpReviewStage.ResultContinuation)
+                                { await state.CancelAsync(); }
                                 else
                                 {
                                     state.Edit(new(["once"]));
@@ -136,7 +154,7 @@ public sealed partial class SessionsConversationTests
                             }
                             finally { window.Close(); }
                         }, token, webProposal: proposal, mcpReview: review));
-                if (!deny)
+                if (!deny && !(denyResult && review.Stage == McpReviewStage.ResultContinuation))
                 {
                     receipt.Completed.Outcome.Should().Be(HostInteractionOutcome.Approved, receipt.Completed.Reason);
                     receipt.Completed.Question!.Draft!.Choices.Should().Equal("once");
@@ -158,6 +176,12 @@ public sealed partial class SessionsConversationTests
                             try
                             {
                                 window.Show(owner);
+                                if (cancelSelection)
+                                {
+                                    if (explicitUser) { window.Close(); }
+                                    else { await state.CancelAsync(); }
+                                    return;
+                                }
                                 state.Edit(new(["tool-0"]));
                                 state.CanSubmit.Should().BeTrue(state.Status);
                                 await state.SubmitAsync();
@@ -167,16 +191,22 @@ public sealed partial class SessionsConversationTests
                         }, token, mcpSelection: true));
                 }
                 catch (InvalidOperationException exception) { selectorFault = exception.Message; throw; }
-                receipt.Completed.Outcome.Should().Be(HostInteractionOutcome.Answered);
-                return "search";
+                receipt.Completed.Outcome.Should().Be(cancelSelection
+                    ? explicitUser ? HostInteractionOutcome.Denied : HostInteractionOutcome.Cancelled
+                    : HostInteractionOutcome.Answered);
+                return cancelSelection ? null : "search";
             };
             model.McpInput = async (request, generation, expiresAt, tool, admitted, token) =>
             {
+                cancelSelection.Should().BeFalse("dismissed tool selection must not request arguments");
                 tool.Id.Should().Be("mcp.search");
                 tool.InputSchema.Should().Be(NativeMcpSchema);
+                var prompt = "Enter JSON arguments for " + tool.Id
+                    + ". Every required field must match this schema. Submitting input is NOT approval to send it.\n"
+                    + tool.InputSchema;
                 var receipt = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                     native.AskConversationAsync(request, generation,
-                        new("Enter the reviewed schema-bound JSON", QuestionKind.Text, [],
+                        new(prompt, QuestionKind.Text, [],
                             maximumTextLength: McpToolSchema.MaximumArgumentsUtf8Bytes, sourceId: "mcp-tool-arguments"),
                         expiresAt, admitted, async state =>
                         {
@@ -184,7 +214,9 @@ public sealed partial class SessionsConversationTests
                             try
                             {
                                 window.Show(owner);
-                                state.Edit(new([], """{"query":"reference"}"""));
+                                window.FindControl<TextBox>("ExactReview")!.Text.Should().Be(prompt);
+                                state.ReviewText.Should().BeEmpty("schema presentation is not an explicit review or approval");
+                                window.FindControl<TextBox>("AnswerInput")!.Text = """{"query":"reference"}""";
                                 state.CanSubmit.Should().BeTrue(state.Status);
                                 await state.SubmitAsync();
                                 state.Completion.IsCompleted.Should().BeTrue(state.Status);
@@ -223,24 +255,25 @@ public sealed partial class SessionsConversationTests
                     model.ConversationMessages.Should().BeEmpty("explicit tools do not fabricate model turns or assistant answers");
                     model.ComposerBody.Should().Be("Find the reviewed reference.");
                     model.ConversationStatus.Should().Contain(deny ? "Explicit MCP Denied"
-                        : cancelIgnored ? "Explicit MCP Cancelled" : "Explicit MCP Succeeded");
+                        : cancelIgnored || cancelSelection ? "Explicit MCP Cancelled" : "Explicit MCP Succeeded");
                     if (cancelIgnored) { model.ConversationStatus.Should().Contain("Unknown").And.Contain("Remote processing may have occurred"); }
                     transport.Calls.Should().Be(0);
                 }
                 else
                 {
                     var retained = model.ConversationMessages.Should().ContainSingle(model.ConversationStatus).Subject;
-                    retained.Outcome.Should().Be(deny ? ModelTurnOutcome.Denied : ModelTurnOutcome.Succeeded,
+                    retained.Outcome.Should().Be(deny || denyResult ? ModelTurnOutcome.Denied
+                        : cancelSelection ? ModelTurnOutcome.Cancelled : ModelTurnOutcome.Succeeded,
                     model.ConversationStatus + " | reviews " + string.Join(", ", stages)
                     + " | connected " + broker.Connected + " | exchanges " + string.Join(", ", broker.Methods)
                     + " | calls " + broker.Calls + " | selector " + selectorFault);
-                    (retained.AssistantResponse?.Body).Should().Be(deny ? null : "Actual reviewed MCP reference: 42.");
+                    (retained.AssistantResponse?.Body).Should().Be(deny || denyResult || cancelSelection ? null : "Actual reviewed MCP reference: 42.");
                     (await f.Store.ReadConversationMessageAsync(retained.Request.SessionId, retained.Request.RequestId, f.Token))
                         .Should().Be(retained);
                 }
-                broker.Calls.Should().Be(deny ? 0 : 1);
-                transport.Calls.Should().Be(explicitUser || deny ? 0 : 2);
-                if (!deny)
+                broker.Calls.Should().Be(deny || cancelSelection ? 0 : 1);
+                transport.Calls.Should().Be(explicitUser || deny || cancelSelection ? 0 : denyResult ? 1 : 2);
+                if (!deny && !cancelSelection)
                 {
                     using var call = System.Text.Json.JsonDocument.Parse(broker.Requests[^1].Bytes);
                     call.RootElement.GetProperty("method").GetString().Should().Be("tools/call");
@@ -248,14 +281,20 @@ public sealed partial class SessionsConversationTests
                     parameters.GetProperty("name").GetString().Should().Be("search");
                     parameters.GetProperty("arguments").GetRawText().Should().Be("""{"query":"reference"}""");
                 }
-                if (deny || cancelIgnored) { model.McpResultText.Should().BeEmpty(); }
+                if (deny || denyResult || cancelIgnored || cancelSelection) { model.McpResultText.Should().BeEmpty(); }
                 else { model.McpResultText.Should().Contain("reference 42").And.Contain("mcp.search").And.Contain("Observed UTC:"); }
                 broker.Disposed.Should().Be(!deny);
-                stages.Should().Equal(deny ? [McpReviewStage.Connection]
-                    : [McpReviewStage.Connection, McpReviewStage.ToolSelection, McpReviewStage.Invocation]);
+                stages.Should().Equal(deny || cancelSelection ? [McpReviewStage.Connection]
+                    : explicitUser ? [McpReviewStage.Connection, McpReviewStage.ToolSelection, McpReviewStage.Invocation]
+                    : [McpReviewStage.Connection, McpReviewStage.ToolSelection, McpReviewStage.Invocation, McpReviewStage.ResultContinuation]);
+                if (cancelSelection) { broker.Methods.Should().Equal("initialize", "notifications/initialized", "tools/list"); }
                 var grants = await f.Store.ReadGrantsAsync(f.Token);
                 if (deny) { grants.Should().BeEmpty(); }
-                else { grants.Should().HaveCount(3).And.OnlyContain(grant => grant.Status == Kora.Core.Authorization.OperationGrantStatus.Consumed); }
+                else
+                {
+                    grants.Should().HaveCount(cancelSelection ? 1 : explicitUser || denyResult ? 3 : 4)
+                        .And.OnlyContain(grant => grant.Status == Kora.Core.Authorization.OperationGrantStatus.Consumed);
+                }
                 model.IsMcpActive.Should().BeFalse();
             }
             finally { presentation.Revoke(); }
@@ -272,15 +311,21 @@ public sealed partial class SessionsConversationTests
     private sealed class NativeMcpModel : IModelToolTransport
     {
         internal int Calls { get; private set; }
-        public Task<ModelToolTransportReply> CompleteAsync(ModelToolRequest request, CancellationToken cancellationToken)
+        internal List<ModelToolRequest> Requests { get; } = [];
+        internal Func<Task>? BeforeFreshAnswer { get; set; }
+        public async Task<ModelToolTransportReply> CompleteAsync(ModelToolRequest request, CancellationToken cancellationToken)
         {
             Calls++;
+            Requests.Add(request);
             request.Provenance.Selection.Provider.Should().Be(ModelProviderIdentity.Ollama);
-            var message = ModelToolProtocol.ParseAssistant(request.Round == 1
+            if (request.Context.ToolMode == ModelToolMode.None && BeforeFreshAnswer is { } before) { await before(); }
+            var message = ModelToolProtocol.ParseAssistant(request.Context.ToolMode == ModelToolMode.None
+                ? """{"kind":"answer","answer":"The unchanged observed reference is 42; no source was refreshed."}"""u8
+                : request.Round == 1
                 ? """{"kind":"toolCalls","calls":[{"callId":"reference_1","capabilityId":"mcp.search","input":{"query":"reference"}}]}"""u8
                 : """{"kind":"answer","answer":"Actual reviewed MCP reference: 42."}"""u8, mcpTool: request.Context.McpTool);
-            return Task.FromResult(new ModelToolTransportReply(ModelTurnOutcome.Succeeded, request.Provenance, message,
-                new(ModelToolProtocol.SerializeRequest(request).Length, ModelToolProtocol.SerializeMessage(message).Length)));
+            return new ModelToolTransportReply(ModelTurnOutcome.Succeeded, request.Provenance, message,
+                new(ModelToolProtocol.SerializeRequest(request).Length, ModelToolProtocol.SerializeMessage(message).Length));
         }
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }

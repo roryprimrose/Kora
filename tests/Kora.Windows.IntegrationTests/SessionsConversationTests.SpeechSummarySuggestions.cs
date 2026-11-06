@@ -28,6 +28,10 @@ public sealed partial class SessionsConversationTests
     [InlineData(true, "set speech.summary-words to 40", 3, 40)]
     [InlineData(false, "set speech.summary-sentences to 2", 2, 80)]
     [InlineData(true, "set speech.summary-sentences to 2", 2, 80)]
+    [InlineData(false, "reset speech.summary-words", 3, 80)]
+    [InlineData(true, "reset speech.summary-words", 3, 80)]
+    [InlineData(false, "reset speech.summary-sentences", 3, 80)]
+    [InlineData(true, "reset speech.summary-sentences", 3, 80)]
     public async Task SpeechSuggestionNativeAndCompactRoutesUseExactCanonicalAnswerAndOneAuditedWrite(
         bool compact, string answerText, int sentences, int words)
     {

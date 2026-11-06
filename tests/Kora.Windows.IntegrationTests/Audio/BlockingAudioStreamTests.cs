@@ -2,6 +2,7 @@ using AwesomeAssertions;
 
 using Kora.Windows.Audio;
 
+using System.Collections.Concurrent;
 using System.Speech.AudioFormat;
 using System.Speech.Recognition;
 
@@ -76,6 +77,32 @@ public sealed class BlockingAudioStreamTests
     [Fact]
     public async Task Installed_SAPI_recognizer_can_activate_against_the_live_stream()
     {
+        await RunInstalledRecognizer();
+    }
+
+    [Fact]
+    public async Task InstalledRecognizerCompletionDoesNotDependOnCallerSynchronizationContext()
+    {
+        var original = SynchronizationContext.Current;
+        var deferred = new DeferredCallbackContext();
+        Task completion;
+        try
+        {
+            SynchronizationContext.SetSynchronizationContext(deferred);
+            completion = RunInstalledRecognizer();
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(original);
+        }
+
+        await completion;
+        deferred.PendingCallbacks.Should().Be(0);
+    }
+
+    // System.Speech dispatches completion through the context captured during recognizer initialization.
+    private static Task RunInstalledRecognizer() => Task.Run(async () =>
+    {
         var recognizerInfo = SpeechRecognitionEngine.InstalledRecognizers().FirstOrDefault(candidate =>
             string.Equals(candidate.Culture.TwoLetterISOLanguageName, "en", StringComparison.Ordinal));
         if (recognizerInfo is null)
@@ -96,8 +123,20 @@ public sealed class BlockingAudioStreamTests
         recognizer.RecognizeAsync(RecognizeMode.Single);
         stream.Add(new byte[3200]);
         stream.Complete();
-        var result = await completed.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        var result = await completed.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken)
+            .ConfigureAwait(false);
 
         result.Error.Should().BeNull();
+        result.Cancelled.Should().BeFalse();
+        stream.Position.Should().Be(3200);
+    }, TestContext.Current.CancellationToken);
+
+    private sealed class DeferredCallbackContext : SynchronizationContext
+    {
+        private readonly ConcurrentQueue<(SendOrPostCallback Callback, object? State)> callbacks = new();
+
+        public int PendingCallbacks => callbacks.Count;
+
+        public override void Post(SendOrPostCallback d, object? state) => callbacks.Enqueue((d, state));
     }
 }

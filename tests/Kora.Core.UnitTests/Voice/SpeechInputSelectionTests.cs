@@ -6,6 +6,25 @@ namespace Kora.Core.UnitTests.Voice;
 public sealed class SpeechInputSelectionTests
 {
     [Fact]
+    public async Task KnownNativeTupleAndDefaultPlatformSeamsConferNoQualification()
+    {
+        var selection = SpeechInputProfileCatalogue.NativeWakeSelection;
+        selection.Validate();
+        selection.ProfileId.Should().Be(SpeechInputProfileCatalogue.NativeWakeProfile.Id);
+        SpeechInputProfileCatalogue.UnavailableReason(selection).Should().Contain("unavailable");
+        IHandsFreeAudioStage stage = new UnavailableStage();
+        stage.SupportsProfile("Nova", selection).Should().BeFalse();
+        await FluentActions.Awaiting(() => stage.PrepareProfileAsync("Nova", selection, TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    private sealed class UnavailableStage : IHandsFreeAudioStage
+    {
+        public bool IsAvailable => false;
+        public Task<IHandsFreeAudioSession> OpenAsync(HandsFreeAudioBinding binding, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Fixture capture unavailable.");
+    }
+    [Fact]
     public void CatalogueContainsOnlyTheExistingWindowsAdapter()
     {
         SpeechInputProfileCatalogue.Profiles.Should().ContainSingle().Which.Id.Should().Be(SpeechInputSelection.Default.ProfileId);

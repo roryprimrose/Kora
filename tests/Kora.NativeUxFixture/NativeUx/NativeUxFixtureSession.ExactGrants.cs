@@ -38,7 +38,7 @@ internal sealed partial class NativeUxFixtureSession
 
     private async Task InitializeExactGrantsAsync()
     {
-        var authorization = new HostAuthorizationService(Interactions, TimeProvider.System);
+        var authorization = new HostAuthorizationService(Interactions, Time);
         ExactGrantControl = new(Interactions, Interactions, new(Tasks), authorization);
         for (var index = 0; index < 51; index++)
         {
@@ -52,7 +52,7 @@ internal sealed partial class NativeUxFixtureSession
             var binding = new ExactOperationBinding($"fixture.inspect.{index:00}", "builtin", "synthetic",
                 digest, digest, digest, digest, digest, digest, digest, digest, digest, new(1));
             var proposal = new HostOperationProposal(request, new(Guid.NewGuid()), new(1), binding,
-                HostOperationEffect.BoundedRead, TimeProvider.System.GetUtcNow().AddHours(1));
+                HostOperationEffect.BoundedRead, Time.GetUtcNow().AddHours(1));
             await Interactions.PublishTrustedSnapshotAsync(request, new(true, true, false, true), proposal, 0, Token);
             var question = await authorization.PresentAsync(request, Token);
             if (question.Outcome != HostInteractionOutcome.Presented || question.Question is null)
@@ -80,7 +80,7 @@ internal sealed partial class NativeUxFixtureSession
         if (exactUseAttempted) { throw new InvalidOperationException("No automatic or repeated synthetic consume is admitted."); }
         exactUseAttempted = true;
         using var activity = HostActivity.BeginRoot(target.ApprovedProposal.Request, HostActivityLayer.Desktop, HostOperation.Request);
-        var result = await new HostAuthorizationService(Interactions, TimeProvider.System).ConsumeAsync(
+        var result = await new HostAuthorizationService(Interactions, Time).ConsumeAsync(
             target.ApprovedProposal.Request, target.Id, target.Revision, Token);
         if (result.Outcome != HostInteractionOutcome.Consumed || result.Grant?.UseCount != 1)
         {
@@ -108,7 +108,7 @@ internal sealed partial class NativeUxFixtureSession
         }
         exactDenialAttempted = true;
         using var activity = HostActivity.BeginRoot(target.ApprovedProposal.Request, HostActivityLayer.Desktop, HostOperation.Request);
-        var decision = await new HostAuthorizationService(Interactions, TimeProvider.System).ConsumeAsync(
+        var decision = await new HostAuthorizationService(Interactions, Time).ConsumeAsync(
             target.ApprovedProposal.Request, target.Id, current.Grant.Revision, Token);
         if (decision.Outcome != HostInteractionOutcome.Conflict || decision.Grant is not null)
         {

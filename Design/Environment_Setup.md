@@ -351,6 +351,24 @@ removal retains an exact recovery record. A failed/uncertain operation requires
 inspection and a new explicit review rather than automatic replay
 ([deterministic tests](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsSpeechComponentStoreTests.cs)).
 
+For the existing hands-free CPU offer, [removal review](../src/Kora.Application/Dependencies/SpeechComponentSetupPlan.cs)
+now requires an exact observed managed inventory before showing native destructive
+confirmation. Review includes remaining bytes and ownership/source receipts,
+current consumers, selected/saved intent, ongoing resource impact and independent
+consent exclusions. The [runtime](../src/Kora.Windows/Audio/HandsFreeSetupRuntime.cs)
+retires and joins only owned asset consumers while excluding new/late opens;
+unknown quiescence retains ownership and prevents deletion.
+The [Windows store](../src/Kora.Windows/Dependencies/WindowsSpeechComponentStore.cs)
+pins native objects and revalidates complete inventory/authority before finite
+same-handle deletion. Partial failure retains exact recovery state and reports
+the observed remainder without claiming rollback or physical disk release.
+Recovery-record cleanup stays bound to the reviewed or newly created object;
+an identical-byte replacement is preserved for fresh native inspection and
+confirmation, not adopted as the current operation's deletion target.
+No automatic retry, reacquisition, profile substitution or consent change occurs.
+Native adapters, OS/shared runtimes, other profiles and user originals are preserved
+([fixture coverage](../tests/Kora.Windows.IntegrationTests/Audio/HandsFreeModelRemovalTests.cs)).
+
 Extend one versioned host catalogue and existing setup seams, rather than
 implementing independent installer and application download policies. Each
 component records exact engine/runtime/model identities, supported

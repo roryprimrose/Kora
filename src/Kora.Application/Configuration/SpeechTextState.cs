@@ -27,16 +27,20 @@ public sealed record SpeechTextState(string Outcome, long Revision, SpeechTextMo
     public IReadOnlyList<SpeechCaptionOptionState> CaptionOptions =>
         Enum.GetValues<SpeechCaptionOption>().Select(GetCaptionOption).ToArray();
     public SpeechCaptionOptionState GetCaptionOption(SpeechCaptionOption option) => new(
-        option == SpeechCaptionOption.Placement ? SpeechTextCommand.PlacementId : SpeechTextCommand.DelayId,
-        option == SpeechCaptionOption.Placement ? "primary-screen-corner" : "integer",
-        option == SpeechCaptionOption.Placement ? "corner" : "seconds",
+        SpeechTextCommand.IdFor(option),
+        option == SpeechCaptionOption.WordEmphasis ? "boolean" : option == SpeechCaptionOption.Placement ? "primary-screen-corner" : "integer",
+        option == SpeechCaptionOption.WordEmphasis ? "enabled" : option == SpeechCaptionOption.Placement ? "corner" : "seconds",
         GetValue(SavedCaptionOptions, option), GetValue(EffectiveCaptionOptions, option),
         GetValue(SpeechCaptionOptions.Default, option)!, CaptionOptionsSource, Available,
-        option == SpeechCaptionOption.Placement ? PlacementChoices.Select(item => item.ToString()).ToArray() : [],
+        option == SpeechCaptionOption.Placement ? PlacementChoices.Select(item => item.ToString()).ToArray()
+            : option == SpeechCaptionOption.WordEmphasis ? ["false", "true"] : [],
         option == SpeechCaptionOption.DismissalDelay ? MinimumDismissalDelaySeconds : null,
         option == SpeechCaptionOption.DismissalDelay ? MaximumDismissalDelaySeconds : null,
-        Revision, Outcome, Recovery);
+        Revision, Outcome, option == SpeechCaptionOption.WordEmphasis && Available
+            ? "This is the saved/effective preference, not alignment readiness. Actual word emphasis is unavailable without an independently qualified exact voice/rate/output profile; ordinary caption text is unchanged."
+            : Recovery);
     private static string? GetValue(SpeechCaptionOptions? options, SpeechCaptionOption option) => options is null ? null
+        : option == SpeechCaptionOption.WordEmphasis ? new SpeechCaptionValue.WordEmphasis(options.WordEmphasis).Label
         : option == SpeechCaptionOption.Placement ? options.Placement.ToString()
         : new SpeechCaptionValue.Delay(options.DismissalDelaySeconds).Label;
     private static readonly JsonSerializerOptions Json = CreateJson();

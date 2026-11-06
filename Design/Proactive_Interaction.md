@@ -60,6 +60,12 @@ deferred, expired and category-limited rows are truthful **status**, not new
 notifications. Ordinary VoiceOnly output alone never requests speech; the separate
 [run-consented completion operation](#run-consented-conversation-completion-speech) is the only bounded extension.
 
+First visual delivery calculates spacing and hourly budget rollover using fresh
+UTC under the authoritative source lease, not the time before waiting for it.
+Presented receipts and fatigue charges share that delivery timestamp. A clock
+behind the confirmed watermark at lease acquisition returns ClockRollback with
+no rows, receipt write or fatigue charge; recovery never replays a prior delivery.
+
 Native review/dismiss/defer and [exact original typed/current-name activated
 commands](../docs/commands.md#trusted-local-events) share this broker. They
 require a host-held exact event ID/revision and fresh admission. Review/status
@@ -68,6 +74,14 @@ rejects that exact event revision. Defer is fifteen minutes capped at the
 original source expiry, never a work or approval deadline extension. Cached
 maintenance's existing Check/Open/release-specific snooze remain separate.
 Reserved event commands preserve any pending foreground question/approval.
+
+Exact actions recheck UTC against the original expiry and durable high watermark
+after awaited source validation, under the source lease. Dismiss/Defer use that
+fresh action time, not the time before waiting. Expiry or rollback cannot
+acknowledge a current notice or commit suppression; time revocation during
+the suppression audit/write boundary holds the broker unconfirmed rather than
+claiming success or rollback. Recovery requires fresh selected-work observation;
+it never renews the source deadline or replays a prior presentation.
 
 Schema-1 `local-events.json` and `local-events-unconfirmed.txt` use
 `IApplicationDataPaths` and the shared atomic preference store. At most 64
@@ -91,7 +105,7 @@ observation, under the same original expiry and category limits.
 There is no ambient observer, wake/listening change, unsolicited inference,
 network check/consent, browser/download/install or automatic execution route.
 Broader multi-session proactive conversation, detector-driven speech,
-configurable reminders/quiet hours and installed accessibility/release
+configurable reminders, broader quieting and installed accessibility/release
 acceptance remain gated. All R02 experiment evidence is retained unchanged.
 
 ## Actual conversation task notices
@@ -109,9 +123,36 @@ clarifications keep their original earlier expiry. Host-control/privacy/protecte
 epoch changes retire prior sources, without call-end replay or activity renewal.
 Existing fatigue, quiet, exact source revalidation, suppression, retirement and
 deferral bounds apply unchanged. Existing source enum values and stored receipts
-remain compatible. No ambient observation, question answering, approval, dispatch,
-focus/selection change or implicit speech consent is added. See the
+remain compatible. Observation, Review, Dismiss and Defer add no ambient observation,
+question answering, approval, dispatch, focus/selection change or implicit speech consent. See the
 [conversation notice guide](../docs/conversation-notices.md) for exact native inspection.
+
+After reviewing one exact ordinary conversation question notice, the deliberate native
+**Answer exact question** gesture activates only its existing canonical presenter.
+The host revalidates the held event revision, question/session/generation, audited source,
+original expiry, current run, original input and native lifetime before focus.
+Current-source validation uses the shared clarification policy and exact schema
+comparison, preserving original choice identities and optional/multiple-selection
+bounds without changing provider-gated form admission.
+It does not create a question, restore a closed presenter or start listening
+([native owner](../src/Kora/QuestionWindowController.Conversation.cs),
+[durable validation](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.QuestionFocus.cs)).
+
+Answer/Cancel remains in the existing Questions service; only its actual canonical accepted
+answer can continue the original task. Independent source/egress approvals remain independent.
+Busy editor/dictation/decision precedence and stale/withdrawn-source refusal are preserved;
+the waiting conversation does not block bounded work/notice refresh
+([complete-flow regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.NoticeResponse.cs)).
+
+### Explicit terminal-result reading
+
+The approved readable-conversation-results outcome includes a deliberate **Read exact result** gesture on one selected current terminal notice in the already-open Sessions window. The host resolves its canonical task/request to the exact retained ASSISTANT record, rather than treating notice metadata as a body or execution authority ([resolver](../src/Kora.Application/Hosting/SessionWorkspaceService.ConversationNoticeResult.cs)).
+
+The existing integrated Details reader shows the complete bounded immutable answer with Historical provenance; **Back to notice** returns to the exact existing origin. Missing answers are explicitly Unavailable, with ordinary typed HOST/history inspection as recovery. Done sources remain excluded by current notice policy; ordinary history remains passive ([native owner](../src/Kora/ConversationNotices/SessionsViewModel.ConversationNotices.cs), [origin return](../src/Kora/SessionInteractionView.axaml.cs)).
+
+The retained reader confirms successful native publication, not just source resolution or rendering. Unavailable controls/capacity and failed show/activation propagate through the originating operation's logged failure path and retire unconfirmed private state; they cannot produce a completed read receipt ([publication owner](../src/Kora/DetailWindowController.cs)).
+
+Fresh receipt/source/private/control/channel/expiry validation surrounds every body resolution and native disclosure. No cached-body recovery, latest-task substitution, model/provider operation, source capture, copy/export, question/approval change, execution continuation, listening, activity renewal or retention write is added. Reading a terminal result does not acknowledge review of a pending question. Existing fatigue, bounds and retirement remain authoritative ([broker](../src/Kora.Application/Interaction/LocalEventBroker.cs), [behavioral regressions](../tests/Kora.Windows.IntegrationTests/ConversationNoticeTests.ExactResult.cs)).
 
 ## Run-consented conversation completion speech
 
@@ -131,11 +172,32 @@ Requested/terminal configuration and execution audits carry only host correlatio
 
 This adds no scheduler, detector enablement, microphone acquisition, foreground switch, automatic question/listening or protected-call one-shot token. Other proactive speech remains unavailable; deterministic regressions do not qualify live providers, devices, acoustics or an enabled production profile ([I/E/Q policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
 
+## Scheduled proactive speech quiet hours
+
+One device-local Off-or-weekly schedule completes the documented quiet-hours operation for otherwise-consented completion speech. The host owns explicit zone interpretation, reviewed persistence and final output admission; no model timer, skill scheduler or external presence service is involved ([configuration owner](../src/Kora.Application/Configuration/QuietHoursConfigurationService.cs)).
+
+Native Settings and exact typed/current-name activated-voice requests share get, set, reset, review and separate same-channel confirmation. Days, start, end and installed zone are shown before confirmation. Reviews bind original host/session/control, call policy, assistant name, consent and native visibility where applicable; stale or expired reviews cannot commit ([interaction](../src/Kora.Application/ViewModels/MainViewModel.QuietHours.cs), [operation tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.QuietHours.cs)).
+
+One exact successful retained model answer may also supply an inert `notices.quiet-hours` Set or Reset suggestion. Its closed typed value is the existing schedule domain, never arbitrary preference text or model authority. The native Sessions/compact review revalidates the exact answer/session, reads actual saved/effective intent through the same configuration service, shows the full old/new/default schedule and explicit zone, and requires independent current native confirmation within 60 seconds. Reset restores unsaved Off. Changed source, host/privacy/call/control or native lifetime retires the review across awaits; uncertain persistence/audit/readback is not success. No timezone inference, listening/consent change, ordinary-answer suppression or automatic output is admitted ([review owner](../src/Kora.Application/Configuration/QuietHoursSuggestionReview.cs), [user steps](../docs/setting-proposals.md), [native/store regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.QuietHoursSuggestions.cs)).
+
+UTC from the injected clock is converted into the selected zone at every actual synthesis and playback boundary. Intervals include start and exclude end; overnight intervals belong to their starting day. Repeated local DST hours remain quiet inside the interval and skipped times create no deferred speech. Clock rollback holds speech until the observed high watermark is reached ([domain](../src/Kora.Core/Configuration/QuietHoursSchedule.cs), [platform admission](../src/Kora.Windows/Audio/WindowsTextToSpeechService.cs)).
+
+Scheduled quieting preserves visual Presented/fatigue truth and burns observed completion IDs before delivery admission. Schedule/control changes invalidate queued output; an already-started output retains its owner until the physical task joins. Leaving quiet, resetting Off or a late callback cannot replay a consumed source ([completion owner](../src/Kora.Application/Interaction/ConversationCompletionVoiceNotices.cs), [boundary regressions](../tests/Kora.Application.UnitTests/Interaction/ConversationCompletionVoiceNoticesTests.cs)).
+
+Schema-1 `notices-quiet-hours.txt` and an independent unconfirmed-write marker use the shared atomic preference store. Missing intent means Off; malformed data, unknown zones and uncertain writes mean unavailable, not Off. Exact readback and authoritative requested/terminal audit/control receipts precede publication; unsuccessful writes cannot advertise effective success ([preference owner](../src/Kora.Application/Configuration/LocalQuietHoursPreferences.cs), [failure regressions](../tests/Kora.Application.UnitTests/Configuration/QuietHoursConfigurationServiceTests.cs)).
+
+This never toggles run-only routine quiet, suppresses ordinary requested answers, hides questions/approvals, enables proactive consent/listening, relaxes calls/privacy, fetches data or schedules work. Existing speech qualification remains authoritative; deterministic tests are implementation evidence, not provider/hardware enablement ([user operation](../docs/conversation-notices.md#scheduled-proactive-speech-quiet-hours)).
+
 ## Native content-free loaded-event filters
 
 Normal Sessions event browsing retains category and reason choices only ([native event presentation](../src/Kora/SessionsViewModel.Events.cs)). Technical identity, profile, generation/revision, lifetime and correlation query widgets are removed.
 
 The internal broker's typed query/state contracts, source admission, finite pages, suppression and no-replay boundaries remain. Filtering an observed notice does not answer its question, change queue eligibility, dispatch work, grant consent or renew a deadline. Diagnostic Evidence retains its separate technical inspection role.
+
+Failure, cancellation or stale completion of an exact native notice action withdraws
+its loaded snapshot as well as selection and notice detail. Recovery requires a fresh
+selected-work observation and a new explicit selection; it does not replay delivery,
+answer a question or change suppression, history, audit or work authority.
 
 ## Delivered run-only routine notice quiet mode - 2026-10-10
 
@@ -159,7 +221,7 @@ Snapshots carry quiet and control generations; old render callbacks cannot publi
 An admitted quiet request revokes in-flight observations and exact actions before waiting for the broker/source lease, preventing late routine presentation or fatigue consumption by those callbacks.
 Status separately counts all omitted rows, routine rows hidden by quiet and current sources suppressed without presentation. Other sessions are not ambiently observed; this remains the bounded already-open native surface, not a reminder scheduler.
 
-Scheduled quiet hours, multi-session reminders, proactive speech beyond [run-consented conversation completion](#run-consented-conversation-completion-speech), broad model/typed quiet settings and installed accessibility/full R18/RC acceptance remain unavailable.
+Multi-session reminders, proactive speech beyond [run-consented conversation completion](#run-consented-conversation-completion-speech), broad model quiet settings and installed accessibility/full R18/RC acceptance remain unavailable. The independent [scheduled speech-only quiet-hours operation](#scheduled-proactive-speech-quiet-hours) does not change this run-only visual quiet mode.
 Existing exact event commands remain unchanged for Failure/Attention; exact routine defer cannot revive a quiet-suppressed source. All R02 runtime/native/containment/speech/evidence procedures remain unique historical evidence and are retained, not rerun or promoted by deterministic quiet tests.
 
 ## Product Behaviour

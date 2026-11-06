@@ -150,7 +150,7 @@ public sealed partial class ModelTurnHostTests
         var host = f.ConfiguredProfiles(missingSessionStore: fault is "missing-store");
         await using var conversation = f.ConversationService(fault is "missing-consumer" ? f.Host : host, execution: host);
         var commands = LocalProfileCommands(f, conversation);
-        var command = LocalProfileCommand(f, "original", fault is "service" ? Profile(ProviderService.Claude)
+        var command = LocalProfileCommand(f, "original", fault is "service" ? Profile(ProviderService.Codex)
             : fault is "missing-model" ? Profile() with { Model = new("missing") } : Profile());
         if (fault is "hosted") { command = command with { RequestProvider = SessionRequestReview.ProviderChoice.Copilot }; }
         if (fault is "retry") { command = command with { RequestFailedMessage = new(f.Request, new(1), 1, 2, f.Time.Now, "original", ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel) }; }
@@ -293,6 +293,29 @@ public sealed partial class ModelTurnHostTests
         f.ProfilePreferences.Writes.Should().Be(0);
     }
 
+    [Fact]
+    public async Task InitialLocalRequestReviewRejectsSessionDriftBeforeReturningAnySubmissionAuthority()
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        f.ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
+        var host = f.ConfiguredProfiles();
+        var target = new SessionWorkspaceEntry(f.Session, f.Metadata);
+        var reads = 0;
+        f.ProfileRead = () => new(f.Session, f.SessionProfileRevision, f.SessionOverrides, ++reads > 1);
+
+        await host.Invoking(value => value.ReviewLocalRequestProfileAsync(target, "original",
+            RequestOrigin.LocalUi, Profile(), static () => true, Token))
+            .Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("The exact session, source or catalogue changed; nothing may be submitted.");
+
+        reads.Should().Be(2);
+        f.RetainCalls.Should().Be(0);
+        f.Adapter.Calls.Should().Be(0);
+        f.ProfilePreferences.Writes.Should().Be(0);
+        host.IsQuiescent.Should().BeTrue();
+    }
+
     private static SessionRequestCommandService LocalProfileCommands(Fixture f, SessionConversationService conversation) =>
         new(new SessionWorkspaceService(f, new(f), f, NullLogger<SessionWorkspaceService>.Instance), conversation, f, f.Time);
 
@@ -304,7 +327,7 @@ public sealed partial class ModelTurnHostTests
         new(SessionCommandOperation.RequestConfirm, review.Target.Authority.SessionId.Value) { RequestReviewId = review.Id };
 
     [Fact]
-    public async Task MissingConsumerCannotReviewOrDispatchAnExplicitLocalProfileAndHostedTupleCannotResolveAsLocal()
+    public async Task MissingConsumerCannotReviewOrDispatchAnExplicitLocalProfileAndUnsupportedTupleCannotResolve()
     {
         using var f = new Fixture();
         f.ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
@@ -316,7 +339,7 @@ public sealed partial class ModelTurnHostTests
         await missing.Invoking(value => value.ReviewLocalRequestProfileAsync(target, "original", RequestOrigin.LocalUi,
             Profile(), static () => true, Token)).Should().ThrowAsync<InvalidOperationException>();
         await f.ProfileConfiguration.Invoking(value => value.ResolveTurnAsync(static () => true,
-            SessionProviderOverrides.Inherit, Token, localRequest: Profile(ProviderService.Claude)))
+            SessionProviderOverrides.Inherit, Token, localRequest: Profile(ProviderService.Codex)))
             .Should().ThrowAsync<InvalidOperationException>();
         var receipt = await missing.SubmitLocalRequestProfileAsync(review, static () => true,
             _ => Task.CompletedTask, [], Token);

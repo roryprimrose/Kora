@@ -5,4 +5,7 @@ public sealed record HandsFreeAudioBinding(
 {
     public Func<bool> CanCapture { get; init; } = static () => false;
     public IReadOnlyList<string> CommandPhrases { get; init; } = [];
+    /// <summary>Notifies the bound host at the validated native span, before releasing wake or processing later PCM.</summary>
+    public Action<WakeWordObservation> WakeActivated { get; init; } = static _ => { };
+    public VoiceCaptureTiming Timing { get; init; } = VoiceCaptureTiming.Default;
 }

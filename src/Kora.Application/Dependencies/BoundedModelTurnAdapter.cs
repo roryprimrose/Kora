@@ -181,6 +181,8 @@ internal sealed partial class BoundedModelTurnAdapter(
             if (message is ModelClarificationQuestion question)
             {
                 if (ask is null || questionAsked
+                    || question.Question.Fields is not null
+                        && (!ModelToolProtocol.AllowsForms(context.ToolMode, provenance.Selection.Provider) || question.CallId is null)
                     || question.CallId is { } questionId && !callIds.Add(questionId)
                     || context.ToolMode == ModelToolMode.ReadOnly && question.CallId is null && question.Question.Options.Count == 0)
                 { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.InvalidProviderResponse); }
@@ -240,8 +242,12 @@ internal sealed partial class BoundedModelTurnAdapter(
                 { return Finish(provenance, ModelTurnOutcome.Unknown, ModelTurnReason.ToolResultRejected); }
                 if (toolReply.Outcome != CapabilityOutcome.Succeeded)
                 {
-                    return Finish(provenance, toolReply.Outcome == CapabilityOutcome.Denied
-                        ? ModelTurnOutcome.Denied : ModelTurnOutcome.Unknown, ModelTurnReason.ToolResultRejected);
+                    return Finish(provenance, toolReply.Outcome switch
+                    {
+                        CapabilityOutcome.Denied => ModelTurnOutcome.Denied,
+                        CapabilityOutcome.Unavailable => ModelTurnOutcome.Unavailable,
+                        _ => ModelTurnOutcome.Unknown,
+                    }, ModelTurnReason.ToolResultRejected);
                 }
                 if (toolReply.WebPage is { } page && page.Request != provenance.Request)
                 { return Finish(provenance, ModelTurnOutcome.Unknown, ModelTurnReason.ToolResultRejected); }

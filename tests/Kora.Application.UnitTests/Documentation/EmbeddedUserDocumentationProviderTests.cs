@@ -14,6 +14,65 @@ namespace Kora.Application.UnitTests.Documentation;
 public sealed class EmbeddedUserDocumentationProviderTests
 {
     [Fact]
+    public void TrayGuideKeepsFreshExpiredRequestsAndExplicitAnswerAcknowledgementsSeparate()
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "windows-and-tray", StringComparison.Ordinal)).Markdown;
+        guide.Should().Contain("### Review expired local text as a new ordinary request")
+            .And.Contain("### Answers not marked reviewed")
+            .And.Contain("**Confirm one NEW ordinary LOCAL request**")
+            .And.Contain("**Mark this answer reviewed**")
+            .And.Contain("Opening, rendering, polling, browsing and paging never mark anything automatically")
+            .And.Contain("does not Resume a Done conversation, renew retention, send model input, change grants, dispatch work");
+    }
+
+    [Fact]
+    public void ExpiredOrdinaryGuideKeepsFreshConfirmationDeadlineIndependentHoldsAndSourceReviewSeparate()
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "windows-and-tray", StringComparison.Ordinal)).Markdown;
+        guide.Should().Contain("### Review expired local text as a new ordinary request")
+            .And.Contain("pre-dispatch **Denied / ContextExpired**")
+            .And.Contain("validation does not restart the clock")
+            .And.Contain("historical source attribution separate from its fresh native initiator")
+            .And.Contain("**Release manual dispatch hold**")
+            .And.Contain("**Resume held dispatch**")
+            .And.Contain("cannot clear either hold or renew old authority")
+            .And.Contain("cannot be combined with a one-task output choice")
+            .And.Contain("pending-only clear neither renews nor replays it");
+    }
+
+    [Fact]
+    public void ClarificationGuideSeparatesExactBoundedHistoricalReadingFromLiveAuthority()
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "reviewed-context", StringComparison.Ordinal)).Markdown;
+        guide.Should().Contain("Show clarification exchange").And.Contain("More exchange records")
+            .And.Contain("50 records / 65536 bytes").And.Contain("same fixed snapshot")
+            .And.Contain("Only exact session/request/task matches")
+            .And.Contain("metadata-only, redacted and unavailable")
+            .And.Contain("Pending, cancelled and expired")
+            .And.Contain("never live answer or approval controls")
+            .And.Contain("does not submit historical answers")
+            .And.Contain("Activity reader remains separate");
+    }
+
+    [Fact]
+    public void Caption_word_emphasis_guide_separates_saved_preference_from_qualification_and_independent_selection()
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "settings", StringComparison.Ordinal)).Markdown;
+        guide.Should().Contain("display.speech-text-word-emphasis")
+            .And.Contain("**Word emphasis is unavailable in this build:**")
+            .And.Contain("actual saved/effective preference")
+            .And.Contain("never estimates timings")
+            .And.Contain("never replaces your keyboard/pointer selection")
+            .And.Contain("**PREVIOUS SPEECH** has no active word");
+        SpeechTextCommand.Parse("set display.speech-text-word-emphasis to true", "Kora")!.CaptionValue
+            .Should().Be(new Kora.Core.Voice.SpeechCaptionValue.WordEmphasis(true));
+    }
+
+    [Fact]
     public void StorageGuideIsEmbeddedLinkedAndSeparatesRoamingContentFromLocalAuthorityAndHistory()
     {
         var pages = new EmbeddedUserDocumentationProvider().GetPages();
@@ -92,6 +151,12 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .And.Contain("Only one native setting review").And.Contain("original local UI request")
             .And.Contain("Unconfirmed").And.Contain("not success or rollback")
             .And.Contain("No new static setting aliases").And.Contain("Unqualified/unavailable models remain unavailable");
+        guide.Should().Contain("review response timeout suggestion").And.Contain("confirm response timeout change")
+            .And.Contain("cancel response timeout review").And.Contain("not a provider/request deadline")
+            .And.Contain("Other appearance settings stay");
+        guide.Should().Contain("reset <exact ID>").And.Contain("model-supplied default")
+            .And.Contain("companion unchanged").And.Contain("unsaved default").And.Contain("saves **Hybrid**")
+            .And.Contain("already equals the default").And.Contain("no model undo authority");
     }
 
     [Fact]
@@ -412,7 +477,20 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 26);
+        sections.Should().HaveCount(commands.Count + 28);
+        var timeoutSuggestion = sections.Single(section => section.StartsWith(
+            "Review one retained response-timeout suggestion", StringComparison.Ordinal));
+        foreach (var phrase in Kora.Application.Configuration.RegisteredSettings.RegisteredSettingSuggestionCommand.ResponseTimeoutPhrases)
+        { timeoutSuggestion.Should().Contain("`" + phrase + "`"); }
+        timeoutSuggestion.Should().Contain("not provider deadlines").And.Contain("Review saves nothing")
+            .And.Contain("Activated voice requires the current assistant-name prefix");
+        var detailPresentation = sections.Single(section => section.StartsWith(
+            "Detail presentation preference", StringComparison.Ordinal));
+        foreach (var phrase in Kora.Application.Configuration.DetailPresentationCommand.FixedPhrases)
+        { detailPresentation.Should().Contain(phrase); }
+        detailPresentation.Should().Contain("confirmation is separate")
+            .And.Contain("future publications").And.Contain("never saves a preference")
+            .And.Contain("no new question").And.Contain("automatic opening");
         var namedOpening = sections.Single(section => section.StartsWith(
             "Open a conversation by its readable name", StringComparison.Ordinal));
         namedOpening.Should().Contain("open conversation \"Exact readable name\"")
@@ -521,6 +599,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             RegexOptions.Multiline, TimeSpan.FromSeconds(1))
             .Select(match => match.Groups["phrase"].Value).ToArray();
         naturalPhrases.Should().Equal("use dark mode", "use light mode", "use system theme",
+            "use reduced motion", "follow system motion",
             "get reader text scale", "status reader text scale", "reset reader text scale",
             "set reader text scale to &lt;integer&gt; percent",
             "increase reader text scale by &lt;positive integer&gt; percentage points",
@@ -600,6 +679,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .And.Contain("session inspect").And.Contain("session create").And.Contain("session rename")
             .And.Contain("session done").And.Contain("session resume");
         sections = sections.Where(section => !ReferenceEquals(section, appearance)
+            && !ReferenceEquals(section, detailPresentation)
             && !ReferenceEquals(section, naturalAppearance)
             && !ReferenceEquals(section, disposition)
             && !ReferenceEquals(section, responseWindow)
@@ -610,6 +690,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             && !ReferenceEquals(section, sessions) && !ReferenceEquals(section, speech)
             && !ReferenceEquals(section, sessionCommands) && !ReferenceEquals(section, summaries)).ToArray();
         sections = sections.Where(section => !ReferenceEquals(section, sharedSkills)
+            && !ReferenceEquals(section, timeoutSuggestion)
             && !ReferenceEquals(section, namedOpening)
             && !ReferenceEquals(section, speechSuggestion)
             && !ReferenceEquals(section, volumeSuggestion)

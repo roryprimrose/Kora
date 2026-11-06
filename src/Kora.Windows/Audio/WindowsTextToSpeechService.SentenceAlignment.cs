@@ -28,13 +28,16 @@ public sealed partial class WindowsTextToSpeechService
     // No exact Windows voice/rate/output profile has enablement evidence yet.
     // Native word events are implementation evidence, not profile qualification.
     private static bool IsSentenceAlignmentProfileQualified() => false;
+    private static bool IsWordAlignmentProfileQualified() => false;
 
     internal sealed class SentenceAlignment(Prompt prompt, SpeechPlaybackToken playback, string source)
     {
+        internal const int MaximumWordRanges = 8192;
         private string sourceText = source;
         private SpeechSentenceMap? map = SpeechSentenceMap.Create(source);
         private readonly bool[] covered = new bool[Math.Min(source.Length, SpeechSentenceMap.MaximumCharacters)];
         private readonly Dictionary<int, SpeechSourceProgress> starts = [];
+        private readonly List<SpeechSourceProgress> words = [];
         private TimeSpan lastTime;
         private int lastStart = -1;
         private int lastEnd = -1;
@@ -42,8 +45,10 @@ public sealed partial class WindowsTextToSpeechService
         private bool invalid;
         private bool closed;
         private bool sealedTimeline;
+        private bool invalidWords;
         private TimeSpan duration;
         public bool Available { get; private set; }
+        public bool WordsAvailable { get; private set; }
 
         public void Observe(Prompt observedPrompt, SpeechSourceProgress progress)
         {
@@ -68,6 +73,16 @@ public sealed partial class WindowsTextToSpeechService
                 return;
             }
             starts.TryAdd(sentence.Index, progress);
+            if (start != lastStart && !invalidWords)
+            {
+                if (words.Count == MaximumWordRanges
+                    || words.Count > 0 && audioPosition <= words[^1].AudioPosition)
+                {
+                    invalidWords = true;
+                    words.Clear();
+                }
+                else { words.Add(progress); }
+            }
             Array.Fill(covered, true, start, count);
             lastStart = start;
             lastEnd = start + count;
@@ -80,13 +95,15 @@ public sealed partial class WindowsTextToSpeechService
         {
             closed = true;
             Available = false;
+            WordsAvailable = false;
             map = null;
             sourceText = string.Empty;
             starts.Clear();
+            words.Clear();
             Array.Clear(covered);
         }
 
-        public void Seal(TimeSpan audioDuration, bool profileQualified)
+        public void Seal(TimeSpan audioDuration, bool profileQualified, bool wordProfileQualified = false)
         {
             closed = true;
             if (sealedTimeline) { throw new InvalidOperationException("Sentence alignment is already sealed."); }
@@ -103,6 +120,7 @@ public sealed partial class WindowsTextToSpeechService
                 if (starts[index].AudioPosition <= starts[index - 1].AudioPosition) { return; }
             }
             Available = profileQualified;
+            WordsAvailable = wordProfileQualified && !invalidWords;
         }
 
         private static bool RequiresCoverage(char character) => !char.IsWhiteSpace(character) && !char.IsPunctuation(character);
@@ -115,6 +133,20 @@ public sealed partial class WindowsTextToSpeechService
                 if (starts[index].AudioPosition <= devicePosition)
                 {
                     return new(starts[index], devicePosition, duration);
+                }
+            }
+            return null;
+        }
+
+        public SpeechWordPosition? WordAt(TimeSpan devicePosition)
+        {
+            if (!WordsAvailable || devicePosition < TimeSpan.Zero || devicePosition >= duration) { return null; }
+            for (var index = words.Count - 1; index >= 0; index--)
+            {
+                if (words[index].AudioPosition <= devicePosition)
+                {
+                    return new(words[index], devicePosition,
+                        index + 1 < words.Count ? words[index + 1].AudioPosition : duration, duration);
                 }
             }
             return null;

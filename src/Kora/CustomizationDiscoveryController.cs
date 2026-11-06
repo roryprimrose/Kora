@@ -2,6 +2,7 @@ using System.ComponentModel;
 
 using Kora.Application.Hosting;
 using Kora.Application.Agents;
+using Kora.Application.Skills;
 using Kora.Application.Tools;
 using Kora.Application.ViewModels;
 using Kora.Core.Customizations;
@@ -16,7 +17,7 @@ namespace Kora;
 internal sealed partial class CustomizationDiscoveryController(MainViewModel main, CustomizationDiscoveryService metadata,
     SessionWorkspaceService workspace, SessionConversationService conversation, Func<bool> ownsHost,
     Func<long> ownerRevision, ILogger<CustomizationDiscoveryController> logger,
-    Func<ProposedBoundedAgentUse, Task>? reviewAgent = null) : IAsyncDisposable
+    Func<ProposedBoundedAgentUse, Task>? reviewAgent = null, SharedSkillInvocationWorkflow? skills = null) : IAsyncDisposable
 {
     private CustomizationDiscoveryWindow? window;
     private CustomizationDiscoverySnapshot? snapshot;
@@ -30,6 +31,10 @@ internal sealed partial class CustomizationDiscoveryController(MainViewModel mai
     private RequestOrigin inputOrigin;
     private bool closed;
     private ProposedBoundedAgentUse? agentProposal;
+    private ProposedSharedSkillUse? skillProposal;
+    private SharedSkillUseReview? skillReview;
+    private SharedSkillInvocation? skillInvocation;
+    private Func<bool>? originalAdmission;
 
     internal void Bind()
     {
@@ -49,6 +54,7 @@ internal sealed partial class CustomizationDiscoveryController(MainViewModel mai
         if (closed || !admitted()) { main.ReportHostInteractionFailure("Original discovery input expired. Nothing was read or shared."); return; }
         owner = ownerRevision();
         call = main.CallPolicyRevision;
+        originalAdmission = admitted;
         cancellation = new();
 #pragma warning disable MA0147 // Native buttons use the reported and joined async event boundary below.
         window = new(Start);
@@ -57,6 +63,10 @@ internal sealed partial class CustomizationDiscoveryController(MainViewModel mai
         inputOrigin = origin;
         window.Request.PropertyChanged += RequestChanged;
         window.ProposeAgent.PropertyChanged += (_, args) =>
+        {
+            if (args.Property == Avalonia.Controls.Primitives.ToggleButton.IsCheckedProperty) { Retire(); }
+        };
+        window.ProposeSkill.PropertyChanged += (_, args) =>
         {
             if (args.Property == Avalonia.Controls.Primitives.ToggleButton.IsCheckedProperty) { Retire(); }
         };
@@ -79,10 +89,22 @@ internal sealed partial class CustomizationDiscoveryController(MainViewModel mai
         inputRevision++;
         snapshot?.Retire();
         agentProposal = null;
+        RetireSkill();
         if (window is null) { return; }
         window.Preview.Text = window.Result.Text = string.Empty;
         window.Confirm.IsEnabled = false;
         window.ReviewAgent.IsEnabled = false;
+    }
+
+    private void RetireSkill()
+    {
+        skillProposal?.Dispose();
+        skillProposal = null;
+        skillReview?.Dispose();
+        skillReview = null;
+        skillInvocation?.Dispose();
+        skillInvocation = null;
+        window?.ClearSkill();
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
@@ -104,8 +126,11 @@ internal sealed partial class CustomizationDiscoveryController(MainViewModel mai
             if (opened is null || !Eligible()) { throw new InvalidOperationException("Private discovery is unavailable."); }
             var token = cancellation!.Token;
             var revision = inputRevision;
-            bool Current() => Eligible() && ReferenceEquals(window, opened) && inputRevision == revision;
-            activity = HostActivity.BeginRoot(HostRequest.Create(inputOrigin), HostActivityLayer.Desktop, HostOperation.Request);
+            bool Current() => Eligible() && ReferenceEquals(window, opened) && inputRevision == revision
+                && originalAdmission?.Invoke() == true;
+            activity = HostActivity.BeginRoot(HostRequest.Create(action is "ReadSkill"
+                || action is "Review" && opened.ProposeSkill.IsChecked == true ? RequestOrigin.LocalUi : inputOrigin),
+                HostActivityLayer.Desktop, HostOperation.Request);
             if (action is "Sources")
             {
                 Retire();
@@ -135,14 +160,21 @@ internal sealed partial class CustomizationDiscoveryController(MainViewModel mai
                 var selected = opened.Sources.SelectedItems!.Cast<SourceChoice>().Select(choice => choice.Source).ToArray();
                 var target = (opened.Targets.SelectedItem as TargetChoice)?.Entry
                     ?? throw new InvalidOperationException("Select one exact Active conversation.");
-                var reviewed = await metadata.Review(selected, target, opened.Request.Text ?? string.Empty, inputOrigin, Current, token,
-                    opened.ProposeAgent.IsChecked == true);
+                if (opened.ProposeSkill.IsChecked == true && opened.ProposeAgent.IsChecked == true)
+                { throw new InvalidOperationException("Choose skill selection or agent recommendation, not both."); }
+                var reviewed = opened.ProposeSkill.IsChecked == true
+                    ? await metadata.ReviewSkillSelection(selected, target, opened.Request.Text ?? string.Empty,
+                        new(inputOrigin, Current), Current, token)
+                    : await metadata.Review(selected, target, opened.Request.Text ?? string.Empty, inputOrigin, Current, token,
+                        opened.ProposeAgent.IsChecked == true);
                 if (!Current()) { reviewed.Dispose(); return; }
                 snapshot = reviewed;
                 opened.Preview.Text = CustomizationDiscoverySnapshot.Disclosure + "\n\nORIGINAL QUESTION\n"
                     + reviewed.OriginalRequest + (reviewed.ProposeAgent
                         ? "\n\nONE AGENT RECOMMENDATION ONLY. Separate complete source/input/original-conversation review and invocation confirmation remain mandatory."
-                        : string.Empty) + "\n\nEXACT SHARED METADATA\n" + reviewed.Preview;
+                        : reviewed.ProposeSkill
+                            ? "\n\nONE REGISTERED SKILL SELECTION ONLY. Source-read/revision review, enablement and invocation confirmation are three separate later actions."
+                            : string.Empty) + "\n\nEXACT SHARED METADATA\n" + reviewed.Preview;
                 opened.Confirm.IsEnabled = true;
                 opened.Status.Text = "Review is not sharing or execution. Confirmation authorizes only ONE local metadata answer; changed sources require a fresh choice.";
             }
@@ -158,6 +190,8 @@ internal sealed partial class CustomizationDiscoveryController(MainViewModel mai
                 opened.Status.Text = "Original request and genuine answer or terminal retained in the selected conversation. No customization was invoked.";
                 agentProposal = reviewed.AgentProposal;
                 opened.ReviewAgent.IsEnabled = agentProposal is not null && reviewAgent is not null;
+                skillProposal = receipt.Message.Outcome == Kora.Core.Dependencies.ModelTurnOutcome.Succeeded ? reviewed.SkillProposal : null;
+                opened.ReadSkill.IsEnabled = skillProposal?.IsCurrent == true && skills is not null;
             }
             else if (action is "ReviewAgent")
             {
@@ -168,6 +202,52 @@ internal sealed partial class CustomizationDiscoveryController(MainViewModel mai
                 if (!Current()) { return; }
                 opened.Status.Text = "The existing private agent review is open for the exact original conversation. "
                     + "No agent has run; review its complete source and separately confirm there.";
+            }
+            else if (action is "ReadSkill" or "EnableSkill" or "PrepareSkill" or "InvokeSkill")
+            {
+                var workflow = skills ?? throw new InvalidOperationException("The shared skill executor is unavailable.");
+                var proposed = skillProposal ?? throw new InvalidOperationException("Select one current registered skill first.");
+                bool Exact() => Current() && proposed.IsCurrent;
+                if (action is "ReadSkill")
+                {
+                    opened.ReadSkill.IsEnabled = false;
+                    skillReview = await workflow.ReviewSelectedAsync(proposed, Exact, token);
+                    if (!Exact()) { RetireSkill(); return; }
+                    opened.SkillReview.Text = proposed.Description + "\n\nCOMPLETE INERT GUIDANCE\n" + skillReview.Text;
+                    opened.EnableSkill.IsEnabled = true;
+                    opened.Status.Text = "Complete exact source read for review only. Separately enable this revision; no task has run.";
+                }
+                else if (action is "EnableSkill")
+                {
+                    opened.EnableSkill.IsEnabled = false;
+                    await workflow.EnableAsync(skillReview ?? throw new InvalidOperationException("Read and review the exact source first."),
+                        Exact, proposed.Origin, token);
+                    if (!Exact()) { RetireSkill(); return; }
+                    opened.PrepareSkill.IsEnabled = true;
+                    opened.Status.Text = "Exact revision enabled in memory only. Separately review and confirm the frozen original task.";
+                }
+                else if (action is "PrepareSkill")
+                {
+                    opened.PrepareSkill.IsEnabled = false;
+                    skillInvocation = await workflow.PrepareAsync(skillReview ?? throw new InvalidOperationException("Review and enable first."),
+                        proposed.Target, proposed.OriginalRequest, Exact, proposed.Origin, token);
+                    if (!Exact()) { RetireSkill(); return; }
+                    opened.SkillConfirmation.Text = opened.SkillReview.Text + "\n\nCONFIRM ONE INVOCATION\n" + proposed.Description;
+                    opened.InvokeSkill.IsEnabled = true;
+                    opened.Status.Text = "Only separate confirmation invokes this skill. No model-selected task, target, channel or tool is accepted.";
+                }
+                else
+                {
+                    opened.InvokeSkill.IsEnabled = false;
+                    var invocation = skillInvocation ?? throw new InvalidOperationException("Review the exact original task invocation first.");
+                    skillInvocation = null;
+                    var receipt = await workflow.InvokeAsync(invocation, Exact, token);
+                    if (!Current()) { return; }
+                    opened.Result.Text = receipt.Message.AssistantResponse?.Body
+                        ?? $"Retained skill terminal: {receipt.Message.Outcome} / {receipt.Message.Reason}. No answer was fabricated.";
+                    opened.Status.Text = "Actual shared-skill answer or terminal retained in the original conversation for the unchanged original task.";
+                    proposed.Dispose();
+                }
             }
             activity.Complete(HostOperationOutcome.Completed);
         }
@@ -180,6 +260,7 @@ internal sealed partial class CustomizationDiscoveryController(MainViewModel mai
         {
             activity?.Complete(HostOperationOutcome.Failed);
             Failure(logger, exception.GetType().Name);
+            RetireSkill();
             if (ReferenceEquals(window, opened) && opened is not null)
             {
                 opened.Confirm.IsEnabled = false;
@@ -204,6 +285,8 @@ internal sealed partial class CustomizationDiscoveryController(MainViewModel mai
         var retired = snapshot;
         snapshot = null;
         agentProposal = null;
+        RetireSkill();
+        originalAdmission = null;
         retired?.Retire();
         var lifetime = cancellation;
         cancellation = null;

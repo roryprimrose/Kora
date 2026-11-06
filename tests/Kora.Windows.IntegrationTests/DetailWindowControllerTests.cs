@@ -270,8 +270,8 @@ public sealed partial class DetailWindowControllerTests
         state.Status.Should().Contain("blocked");
         fixture.Accessible = true;
         await fixture.Controller.CopyAsync(state.Reference, state.Generation, confirmed: false);
-        fixture.Clipboard.Writes.Should().ContainSingle().Which.Should().Be(page.Markdown);
-        state.Status.Should().Contain("copied as Unicode plain text");
+        fixture.Clipboard.Writes.Should().ContainSingle().Which.Should().Be("Guide" + Environment.NewLine + Environment.NewLine + "An immutable source 😀 é.");
+        state.Status.Should().Contain("copied as semantic Unicode plain text");
         fixture.Clipboard.Fail = true;
         await fixture.Controller.CopyAsync(state.Reference, state.Generation, confirmed: false);
         state.Status.Should().Contain("failed").And.NotContain("copied");
@@ -430,11 +430,13 @@ public sealed partial class DetailWindowControllerTests
     private sealed class FakeClipboard : IDetailClipboard
     {
         public List<string> Writes { get; } = [];
+        public List<string?> HtmlWrites { get; } = [];
         public bool Fail { get; set; }
-        public Task WritePlainTextAsync(IDetailView view, string source)
+        public Task WriteAsync(IDetailView view, string source, string? htmlFragment)
         {
             if (Fail) { throw new InvalidOperationException("fake platform failure"); }
             Writes.Add(source);
+            HtmlWrites.Add(htmlFragment);
             return Task.CompletedTask;
         }
     }

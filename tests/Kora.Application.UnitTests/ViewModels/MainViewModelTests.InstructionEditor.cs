@@ -22,7 +22,8 @@ public sealed partial class MainViewModelTests
         f.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "ready");
         await f.ViewModel.InitializeAsync();
         var definition = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode("---\nname: example\ndescription: Test\n---\nBody", false),
-            ArtifactKind.Skill, "user-profile", "example").Definition with { UseControlId = "file.example" };
+            ArtifactKind.Skill, "user-profile", "example").Definition with
+        { UseControlId = "file.example" };
         f.ArtifactCatalogue.Publish([definition]);
         var checks = 0;
         if (change is not "missing")
@@ -59,7 +60,8 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.InitializeAsync();
         var definition = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(
             "---\nname: example\ndescription: Test\n---\nBody", false),
-            ArtifactKind.Skill, "user-profile", "example").Definition with { UseControlId = "file.example" };
+            ArtifactKind.Skill, "user-profile", "example").Definition with
+        { UseControlId = "file.example" };
         f.ArtifactCatalogue.Publish([definition]);
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var cancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -98,9 +100,15 @@ public sealed partial class MainViewModelTests
     [InlineData("Kora, instructions compare", "Compare", null)]
     [InlineData("instructions rebase", "Rebase", null)]
     [InlineData("Kora, instructions rebase", "Rebase", null)]
+    [InlineData("instructions restore", "Restore previous saved content", null)]
+    [InlineData("Kora, instructions restore", "Restore previous saved content", null)]
     [InlineData("instructions refine", "Refine", null)]
     [InlineData("Kora, instructions refine", "Refine", null)]
     [InlineData("instructions copy new-copy", "Save as new copy", "new-copy")]
+    [InlineData("instructions rename new-id", "Rename", "new-id")]
+    [InlineData("Kora, instructions rename new-id", "Rename", "new-id")]
+    [InlineData("instructions recover-rename", "Recover rename", null)]
+    [InlineData("Kora, instructions recover-rename", "Recover rename", null)]
     [InlineData("Kora, instructions copy new-copy", "Save as new copy", "new-copy")]
     [InlineData("instructions reload", "Reload", null)]
     [InlineData("instructions discard", "Reload", null)]
@@ -163,7 +171,12 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("instructions compare example");
         await f.RunAsync("instructions rebase example");
         await f.RunAsync("instructions refine example");
+        await f.RunAsync("instructions rename");
+        await f.RunAsync("instructions rename new-id extra");
+        await f.RunAsync("instructions recover-rename extra");
         await f.RunAsync("prompts refine");
+        await f.RunAsync("prompts rename new-id");
+        await f.RunAsync("prompts recover-rename");
         await f.RunAsync("instructions unknown");
         await f.RunAsync("instructions disable example");
         await f.RunAsync("instructions stop-use extra");
@@ -174,6 +187,8 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("prompts validate body");
         await f.RunAsync("prompts compare example");
         await f.RunAsync("prompts rebase example");
+        await f.RunAsync("prompts restore");
+        await f.RunAsync("instructions restore example");
         await f.RunAsync("prompts unknown");
         await f.RunAsync("prompts disable example");
         await f.RunAsync("prompts stop-use extra");
@@ -190,19 +205,21 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task RefinementCapturesOriginalEligibilityAndRetiresItOnCallChange(bool routed)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task RefinementCapturesOriginalEligibilityAndRetiresItOnCallChange(bool routed, bool restore)
     {
         var f = await Fixture.CreateInitializedAsync();
         Func<bool>? captured = null;
         if (routed)
         {
             f.ViewModel.OwnedInstructionEditorRequested += (_, _) =>
-            { captured = f.ViewModel.CaptureInstructionRefinementEligibility(); return Task.CompletedTask; };
-            await f.RunAsync("instructions refine");
+            { captured = restore ? f.ViewModel.CaptureInstructionRestoreEligibility() : f.ViewModel.CaptureInstructionRefinementEligibility(); return Task.CompletedTask; };
+            await f.RunAsync(restore ? "instructions restore" : "instructions refine");
         }
-        else { captured = f.ViewModel.CaptureInstructionRefinementEligibility(); }
+        else { captured = restore ? f.ViewModel.CaptureInstructionRestoreEligibility() : f.ViewModel.CaptureInstructionRefinementEligibility(); }
         captured!().Should().BeTrue();
         f.CallState.SetState(CallState.Active);
         captured().Should().BeFalse();
@@ -210,21 +227,46 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task RefinementVoiceEntryRequiresCurrentNameAndPreservesOriginalChannel(bool prefixed)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task RefinementVoiceEntryRequiresCurrentNameAndPreservesOriginalChannel(bool prefixed, bool restore)
     {
         var f = await Fixture.CreateInitializedAsync();
         var calls = 0;
         f.ViewModel.OwnedInstructionEditorRequested += (operation, _) =>
         {
-            operation.Should().Be("Refine");
+            operation.Should().Be(restore ? "Restore previous saved content" : "Refine");
+            Kora.Core.Diagnostics.HostActivity.RequireCurrent().Request.Origin.Should().Be(Kora.Core.Hosting.RequestOrigin.ActivatedVoice);
+            var eligible = restore ? f.ViewModel.CaptureInstructionRestoreEligibility() : f.ViewModel.CaptureInstructionRefinementEligibility();
+            eligible().Should().BeTrue();
+            calls++;
+            return Task.CompletedTask;
+        };
+        await f.RaiseActivatedTranscriptAsync((prefixed ? "Kora, " : "") + (restore ? "instructions restore" : "instructions refine"), 1);
+        calls.Should().Be(prefixed ? 1 : 0);
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("rename renamed", "Rename", false)]
+    [InlineData("rename renamed", "Rename", true)]
+    [InlineData("recover-rename", "Recover rename", false)]
+    [InlineData("recover-rename", "Recover rename", true)]
+    public async Task RenameVoiceEntryRequiresCurrentNameAndKeepsOriginalChannel(string input, string expected, bool prefixed)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var calls = 0;
+        f.ViewModel.OwnedInstructionEditorRequested += (operation, _) =>
+        {
+            operation.Should().Be(expected);
             Kora.Core.Diagnostics.HostActivity.RequireCurrent().Request.Origin.Should().Be(Kora.Core.Hosting.RequestOrigin.ActivatedVoice);
             f.ViewModel.CaptureInstructionRefinementEligibility()().Should().BeTrue();
             calls++;
             return Task.CompletedTask;
         };
-        await f.RaiseActivatedTranscriptAsync(prefixed ? "Kora, instructions refine" : "instructions refine", 1);
+        await f.RaiseActivatedTranscriptAsync((prefixed ? "Kora, " : "") + "instructions " + input, 1);
         calls.Should().Be(prefixed ? 1 : 0);
         f.Reasoner.Requests.Should().BeEmpty();
     }
@@ -345,35 +387,35 @@ public sealed partial class MainViewModelTests
 
     [Fact]
     public async Task EditorControlsAreNotModelQuestionAnswersAndDoNotExposeTargetNamesToTheModel()
-        {
-            var f = new Fixture();
-            f.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "ready");
-            f.Reasoner.Question = new("Which option?", ["One", "Two"]);
-            await f.ViewModel.InitializeAsync();
-            await f.RunAsync("please explain this");
-            await f.ViewModel.ActiveReasoningTask!;
-            var body = f.ViewModel.ResponseBody;
-            var requests = f.Reasoner.Requests.Count;
-            var calls = 0;
-            f.ViewModel.OwnedInstructionEditorRequested += (_, _) => { calls++; return Task.CompletedTask; };
-            await f.RunAsync("instructions edit private-name");
-            calls.Should().Be(1);
-            f.Reasoner.Requests.Should().HaveCount(requests);
-            f.ViewModel.ResponseBody.Should().Be(body);
-        }
+    {
+        var f = new Fixture();
+        f.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "ready");
+        f.Reasoner.Question = new("Which option?", ["One", "Two"]);
+        await f.ViewModel.InitializeAsync();
+        await f.RunAsync("please explain this");
+        await f.ViewModel.ActiveReasoningTask!;
+        var body = f.ViewModel.ResponseBody;
+        var requests = f.Reasoner.Requests.Count;
+        var calls = 0;
+        f.ViewModel.OwnedInstructionEditorRequested += (_, _) => { calls++; return Task.CompletedTask; };
+        await f.RunAsync("instructions edit private-name");
+        calls.Should().Be(1);
+        f.Reasoner.Requests.Should().HaveCount(requests);
+        f.ViewModel.ResponseBody.Should().Be(body);
+    }
 
     [Fact]
     public async Task UnknownAssistantPrefixDoesNotAdmitPrefixedInstructionCommands()
-        {
-            var f = new Fixture();
-            f.NamePreferences.Name = "Supported Commands";
-            await f.ViewModel.InitializeAsync();
-            var calls = 0;
-            f.ViewModel.OwnedInstructionEditorRequested += (_, _) => { calls++; return Task.CompletedTask; };
-            await f.RunAsync("Kora, instructions editor");
-            calls.Should().Be(0);
-            await f.RunAsync("instructions editor");
-            calls.Should().Be(1);
-            f.Reasoner.Requests.Should().BeEmpty();
-        }
+    {
+        var f = new Fixture();
+        f.NamePreferences.Name = "Supported Commands";
+        await f.ViewModel.InitializeAsync();
+        var calls = 0;
+        f.ViewModel.OwnedInstructionEditorRequested += (_, _) => { calls++; return Task.CompletedTask; };
+        await f.RunAsync("Kora, instructions editor");
+        calls.Should().Be(0);
+        await f.RunAsync("instructions editor");
+        calls.Should().Be(1);
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
 }

@@ -36,6 +36,13 @@ The advisory itself is not included as evidence. Your unrelated unsent composer
 is neither used nor changed. The complete envelope still has the shared
 16-item / 32768-UTF-8-byte limit; nothing is truncated.
 
+Use Tab to reach the complete read-only review between **Review** and
+**Confirm**. Arrow keys and Ctrl+Home / Ctrl+End navigate the full text, including
+sources longer than the viewport; native accessibility exposes its complete
+read-only value. Tab leaves the reader. Selection remains local: copy, cut,
+paste and context menus are unavailable. Reading or selecting text never
+confirms. Cancel or Escape closes the review without submitting.
+
 Separately choose **Confirm ONE local-only tool-free answer**. This consumes one
 source-bound confirmation and submits the host's byte-exact original question in
 the same Active conversation, preserving LocalUi or ActivatedVoice origin.
@@ -56,6 +63,29 @@ Manual history follow-ups, exact-answer replies and per-session unsent input
 remain separate ([strict advisory](../src/Kora.Core/Conversation/ModelHistoryContextProposal.cs),
 [host binding](../src/Kora.Application/Hosting/SessionConversationService.ModelHistoryContext.cs),
 [native interaction](../src/Kora/ModelHistoryContext/ModelHistoryContextWindow.axaml)).
+
+## Keep your reading position when answers arrive
+
+After explicitly reading a conversation, scroll back to keep an earlier message in view. New completions do not replace the admitted page. The main conversation follows new content only when you were already at its tail (within 24 device-independent pixels); otherwise it keeps your earlier position without moving keyboard focus
+([conversation reader](../src/Kora/ConversationViewport.cs)).
+
+Choose **New updates - read latest**, using Tab and Enter or Space if preferred, to admit the latest bounded page of that exact conversation and return to its tail. A separately confirmed completion is not an extension of the old page's snapshot; **More messages** continues only the old snapshot.
+Changed/unavailable sources require a new explicit read, not an automatic retry ([read operation](../src/Kora/SessionsViewModel.ConversationReading.cs)).
+
+Switching conversations preserves each session's unsent text and memory-only reading position, but does not read history automatically. Explicitly read the original page again to restore its matching message/revision. If that anchor is no longer admitted, the reader says so instead of choosing another message.
+Reading does not submit work, mark answers reviewed or save a draft; privacy/ownership retirement clears volatile state ([reading regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ReadingPosition.cs), [unsent state](../src/Kora/SessionsViewModel.Unsent.cs)).
+
+The separately confirmed completion retains its own **Show clarification exchange** and **Context submitted for this answer** actions. These inspect only that exact retained turn without replacing the earlier page or changing unsent input. Reopening its context Details remains metadata-only; it does not substitute the answer body.
+
+## Read a turn's retained clarification exchange
+
+In the conversation pane, Sessions or compact conversation, choose **Show clarification exchange** under the exact original turn. Read its retained structured questions/options, accepted text or choices, original answer channel and observed terminal outcomes inline. These are historical observations, never live answer or approval controls ([native reader](../src/Kora/ClarificationExchangeView.cs)).
+
+Each explicit read scans at most **50 records / 65536 bytes** of admitted session history. Only exact session/request/task matches appear under the turn; similar wording does not link records. **More exchange records** advances the same fixed snapshot, even after a page with no matches, and replaces the displayed page rather than accumulating content ([bounded projection](../src/Kora/ClarificationExchange.cs)).
+
+Partial pages, gaps, baseline observations, metadata-only, redacted and unavailable content stay labelled. Pending, cancelled and expired questions do not acquire an accepted answer. Reaching the snapshot's end is not a guarantee of a complete exchange. Changed sources or private admission require a fresh explicit read; no newer snapshot is silently substituted ([source-bound read](../src/Kora/SessionsViewModel.ClarificationExchange.cs)).
+
+**Hide exchange** clears this volatile read. Reading does not submit historical answers, renew authority or session activity, alter unsent input, call a provider/tool, export content or save another copy. Use the separate current question surface for any still-actionable question; the session-level Activity reader remains separate ([read-only regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ClarificationExchange.cs)).
 
 ## Reply deliberately to one exact assistant answer
 
@@ -90,6 +120,55 @@ The complete envelope admits at most **16 evidence items** and **32768 UTF-8
 bytes** across all sources together. Nothing is silently dropped or shortened.
 History keeps its original chronological USER/ASSISTANT order, followed by the
 instruction and explicitly selected memories.
+
+## Recover when the complete input is over budget
+
+If these individually valid sources exceed the complete **32768 UTF-8 bytes**,
+the private review says **OVER BUDGET** and disables confirmation. Your exact
+question and selected sources remain unchanged; no model is called and no new
+request is retained. The host measures the actual serialized envelope, including
+policy, fields, escaping, evidence provenance and the empty tool list, not raw
+text length or an estimated model-token count
+([measurement](../src/Kora.Core/Conversation/ReviewedContext/MixedConversationContext.cs)).
+
+1. Inspect the complete sources and question. Each whole contribution is labelled
+   required or optional; optional rows show the exact serialized bytes saved by
+   removing that contribution.
+2. Choose **Omit this whole contribution and review again** on the particular
+   earlier USER/ASSISTANT message or SESSION memory you want to exclude. Nothing
+   is automatically selected, truncated, summarized, reordered or replaced.
+3. Inspect the **fresh complete review** of every remaining source, the unchanged
+   question, the LOCAL ONLY / NO TOOLS destination and the new measured total.
+   The previous review and any confirmation authority are retired. If still over
+   budget, explicitly omit another optional whole contribution and review again.
+4. Once it fits, separately choose **Confirm ONE local-only tool-free answer**.
+   Only this action admits the canonical local turn and retains its genuine
+   ASSISTANT answer or explicit HOST unavailable/failure outcome. Removing a
+   contribution is not confirmation
+   ([native recovery](../src/Kora/ReviewedContext/ReviewedContextWindow.cs),
+   [complete operation regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ContextBudgetRecovery.cs)).
+
+This consumer requires at least one whole history message, one complete enabled
+owned instruction and one admitted SESSION memory, plus your unchanged question.
+Required contributions cannot be omitted. If that minimum cannot fit, Kora cannot
+complete this request without fresh source input; cancel and obtain suitable
+sources rather than silently dropping required input. The existing per-source,
+memory, conversation/page, credential, strict-Unicode and **16 evidence items**
+limits still apply; malformed, unavailable or over-limit individual sources are
+not assigned a fictitious zero cost
+([context contract](../src/Kora.Core/Conversation/ReviewedContext/MixedConversationContext.cs)).
+
+Recovery preserves only still-current read permission, never old consent, and
+does **not** restart the original two-minute source deadline. Expired, disabled,
+changed, revoked or inaccessible sources require fresh explicit reads/review;
+they cannot be revived from the previous private preview. Input/source selection
+changes, cancel, close, privacy/ownership loss or session changes retire the
+review and clear its private contents. Existing history is not edited, removed
+sources are not copied elsewhere, and unsent question text remains memory-only.
+There is no draft autosave, context journal, hosted fallback, provider/default
+change or context-window increase
+([source lifetime](../src/Kora.Application/Memory/SessionMemoryContextReview.cs),
+ [recovery guards](../tests/Kora.Application.UnitTests/Hosting/ModelTurnHostTests.ContextBudgetRecovery.cs)).
 
 ## Confirm one answer or cancel
 

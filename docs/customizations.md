@@ -5,15 +5,34 @@ assistant-name prefix with activated voice, such as `Kora, show skills`.
 The same native window serves all these routes.
 
 **Choose a task:** [browse](#browse-by-type-and-source), [edit or add](#edit-or-add),
-[disable or enable use](#disable-or-enable-kora-use), or open the dedicated
+[disable or enable use](#disable-or-enable-kora-use), [delete one owned definition](#delete-one-owned-single-file-definition), or open the dedicated
 [instruction](instruction-editor.md), [skill](owned-skill-authoring.md) or
 [agent](agent-profile-authoring.md) editor.
+
+## Delete one owned single-file definition
+
+1. In **Instructions**, **Prompts** or **Agents**, inspect one supported saved entry from the **Kora** group. The exact source path distinguishes it from personal originals and same-name entries.
+2. Choose **Delete owned definition**. Review the complete saved source, kind, exact path and consequences, then choose **Continue deletion**.
+3. Separately choose **Delete exact owned file**. Only the unchanged reviewed file is deleted; its directory and unrelated definitions are not removed. There is no cascade, archive, grant deletion or automatic rollback.
+
+The [shared deletion owner](../src/Kora.Application/Definitions/CustomizationManagementService.Deletion.cs) holds the exact source against future use before mutation and reloads the catalogue afterward. Old reviews cannot authorize restored or replacement bytes. Already admitted captured work is not physically cancelled; independent history, grants and audit retain their own lifetimes.
+
+Unsaved editor text and its frozen baseline remain visible after deletion, even when that raw text is too large or invalid to save. Deletion reviews only the valid saved source. Save cannot silently recreate that missing baseline. To recover the draft, explicitly choose a distinct **New artifact ID**, then **Create Kora copy**, and complete the normal separate Save review. The deleted ID and its case aliases are refused before any discard/rebase review, including after a recovery copy. Copying and Disable retain the raw text, including before the recovery copy's separate Save; separate Save still requires strict UTF-8 text without NUL and at most 64 KiB including any BOM. Closing a dirty editor still requires Save/Discard/Cancel ([controller](../src/Kora/CustomizationWindowController.Deletion.cs)).
+
+After inspecting the source, typed `delete selected owned definition` or the current assistant-name activated equivalent opens the same two native reviews. The command itself is never confirmation; destructive source-write confirmation remains native, as with the dedicated editor's Delete exception. No model is called ([exact routing](../src/Kora.Application/Definitions/CustomizationCommand.cs)).
+
+The [native owner](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.Deletion.cs) revalidates the host-owned kind root, canonical filename, native file/directory identity, complete reviewed revision/bytes, ownership and current admission. Changed/missing/replaced files, aliases, links, withdrawn roots, unavailable catalogues and pending recovery fail closed. Reviews expire after two minutes; edits, selection attempts, privacy, ownership or control changes invalidate them.
+
+If deletion committed but readback, audit, admission or presentation is unconfirmed, the result explicitly requires inspection, not retry or an assumption of rollback. A failed catalogue reload is disclosed separately from the completed deletion. Personal originals, bundled sources, skills/packages, MCP entries, directories and arbitrary paths are excluded ([deterministic regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.Deletion.cs)).
+
+## Definition roles
 
 Instructions guide an answer; prompts are reusable requests; skills provide
 reusable task guidance; agents add a role and limits. MCP servers describe
 external tool connections. Reading or saving any of these never runs it.
-Manual editing works without AI; **model-generated proposals and recommendations
-are unavailable in this build**.
+Manual editing works without AI; model-generated proposals and recommendations
+require an independently qualified local runtime, not merely an installed provider
+([host admission](../src/Kora.Application/Dependencies/ModelTurnHost.cs)).
 
 The dedicated [agent authoring operation](agent-profile-authoring.md#describe-and-review-a-new-tool-free-agent)
 also supports reviewed description-to-v1-source proposals when an admitted local model is available.
@@ -36,7 +55,17 @@ Each type has three source groups:
 - **User**: supported Copilot skill folders and VS Code/VS Code Insiders user
   profile sources. The source path distinguishes identical names and profiles.
 
-Search matches names and source paths, not artifact bodies. Built-in groups can
+Use **Filter artifacts** to narrow the selected category as you type. Matching is
+case-insensitive across names, source paths, source groups and the displayed
+**Disabled** label; surrounding whitespace is ignored. The count shows matching
+and total artifacts for that category. **Clear** restores its full list, and the
+filter stays in place when you switch categories without discarding editor text
+([native filter](../src/Kora/CustomizationWindow.cs)).
+
+Filtering uses already-listed metadata, not artifact bodies or MCP tool schemas;
+it never reads a definition, connects to a server or invokes a tool
+([filter regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.Filter.cs)).
+Built-in groups can
 be empty for a type. Selecting an artifact reads its complete bounded file set as
 plain source; it does not execute scripts, invoke agents or connect MCP servers.
 Binary, oversized, unsafe-path or unsupported packages report an error rather
@@ -83,33 +112,54 @@ The limits are six selected entries, 128 UTF-8 bytes per readable name, 256 UTF-
 
 The operation is **LocalOnly** and requires the existing qualified local model profile; unavailable readiness remains unavailable, without a service fallback. Ordinary turns do not automatically share this metadata. Built-in definitions, additional registered roots outside the supported chooser, prompts, MCP configuration/accounts, source bodies, scripts/hooks, commands/environment, unsaved buffers, history/memory, automatic instruction loading and hosted disclosure are excluded ([model policy](../src/Kora.Application/Hosting/SessionConversationService.CustomizationDiscovery.cs)).
 
+### Complete a task with one model-selected registered skill
+
+Use the same `discover customizations <original task>` typed or current-name activated-voice route.
+Select only one to six explicitly registered, included single-file skill sources, choose one existing Active conversation,
+and select **Select one registered single-file zero-tool skill for this unchanged task (not use consent)**.
+Do not also select agent recommendation ([native owner](../src/Kora/CustomizationDiscoveryController.cs)).
+
+1. **Read selected primary metadata and preview exact shared fields** separately consents to native metadata and file-identity inspection. Review the unchanged original task, exact target and bounded metadata subset. No skill guidance enters the selector.
+2. **Share only this reviewed metadata for ONE local answer** authorizes the local selection phase only. The model may return one strict opaque `skillRef` actually served from that subset. Its retained proposal is not a skill-produced answer, enablement or use consent.
+3. After the selector has terminated and joined, choose **Authorize exact selected skill source read and revision review**. Review the complete inert guidance, unchanged task, original channel, exact original Active target, LocalOnly destination and budgets. Unsupported tool/input/reference/script profiles are refused, never downgraded.
+4. Separately choose **Enable only this reviewed skill revision once**, then **Review frozen original task invocation**.
+5. Separately choose **Confirm exact selected skill for the unchanged original task**. The existing shared-skill executor runs one local zero-tool turn and retains its actual answer or truthful terminal in that original conversation. Inspect the result in this window or Sessions ([selection](../src/Kora.Application/Tools/CustomizationDiscoverySnapshot.cs), [shared executor](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs)).
+
+Changing the task, selected subset or target retires the selection and every later review. The two-minute original selection expiry is not renewed by reading or enabling.
+Registration, native file/package identity, exact bytes, inclusion, original channel, privacy, ownership and target generation are revalidated across use and terminal retention.
+Cancel/close retires authority immediately and joins owned work; late selector or executor output cannot become success.
+No automatic catalogue, task rewrite, model path/command/grant, hosted disclosure or unrelated composer update is added
+([source binding](../src/Kora.Windows/Skills/WindowsProfileSkillReader.Selection.cs), [proposal fence](../src/Kora.Application/Skills/ProposedSharedSkillUse.cs)).
+
 ### Review and run one model-recommended local agent
 
 Before reviewing metadata, select **Ask for one agent recommendation (never invocation consent)**.
 The same bounded local metadata request may recommend exactly one enabled registered
 Agent from the entries actually returned to it. A recommendation runs nothing and
 is labelled as a proposal, not an answer from that agent.
+Eligible User agents from VS Code, VS Code Insiders and configured agent roots
+use the same exact file-and-bytes binding as Kora agents. Different catalogue
+category labels do not make the same reviewed source unavailable.
 
-1. Select **Review proposed agent in its original conversation**. This opens the
-   existing private agent review with the exact source, unchanged original question,
-   original channel and original conversation fixed. It cannot redirect to another
-   conversation or substitute model-generated input.
-2. Select **Read source and review exact invocation**. Review the complete inert
-   profile, source, original question, conversation, local destination, tools and
+1. Select **Review customization recommendation**. This opens the existing private agent review in the exact original conversation. The strict whole-answer opaque `agentRef` is only an inert hint into the current registered catalogue; rendered prose, paths and claimed approvals are not accepted ([proposal resolution](../src/Kora.Application/Tools/CustomizationDiscoverySnapshot.cs)).
+2. Deliberately choose one **current source-qualified Agent**. Nothing is selected automatically, including when names collide. Readable name, actual host-owned source binding and current use state are shown; executable availability is not inferred. A missing, changed, disabled or unbound source refuses without latest/by-name fallback ([source resolver](../src/Kora.Application/Agents/NamedAgentResolver.cs)).
+3. Enter a **NEW original task** in the empty request field. The metadata question is shown separately as historical context, never copied into invocation input. Native entry is a new local-UI request even when discovery began by voice; exact `agent request <new task>` preserves that new request's actual typed/activated channel. Existing protected-call exceptions remain unchanged ([native owner](../src/Kora/AgentRunController.ModelProposal.cs)).
+4. Select **Read source and review exact invocation**. Only this separate source-read consent reads the chosen profile. Review the complete inert
+   profile, source, fresh unchanged task, conversation, local destination, tools and
    cumulative budgets. Only local v1 instruction-only profiles with `tools: none`
    and `references: none` are eligible for this route.
-3. Separately confirm that exact invocation. The existing bounded agent workflow
+5. Separately confirm that exact invocation. The existing bounded agent workflow
    runs once and retains its genuine answer or truthful terminal in the original
    conversation. The native agent review displays that actual result. Stop/close
    joins owned execution; cancellation-ignoring work cannot publish a late answer.
 
 The recommendation expires with its two-minute metadata review. Source, use control,
-input, session, privacy or ownership changes require a fresh request and review;
-neither a retained recommendation nor profile guidance grants authority.
+catalogue, session, privacy, ownership or call changes retire it; task/source-choice edits retire any in-flight read or invocation review. A new complete review is required before confirmation.
+Neither a retained recommendation nor profile guidance grants authority.
 The parent recommendation has finished before the agent review opens: no fabricated
 tool reply or parent continuation is sent, and no private profile or child answer
 is transmitted to a hosted model. Hosted parents, tools, referenced profiles,
-automatic invocation, nested agent chains and provider fallback remain unavailable.
+automatic invocation, nested agent chains and provider fallback remain unavailable. Arbitrary ordinary or retained prose answers do not gain review buttons or executable meaning. No extra model tool, source activation, grant, source writer, context/egress consent or retained authorization token is introduced ([canonical bounded consumer](../src/Kora.Application/Agents/BoundedAgentWorkflow.cs)).
 
 ## Edit or add
 
@@ -167,6 +217,26 @@ offers **Save / Discard / Cancel**. Privacy/ownership withdrawal closes private
 presentation and suppresses late results, without autosaving draft text.
 
 ## Discuss or generate a proposal
+
+### Author one reusable prompt request
+
+In **Customizations > Prompts**, choose **Kora**, enter a new ID and select **Add**, or reopen one existing Kora prompt. New prompt templates use native v2; generation never upgrades existing metadata or edits profile originals ([template](../src/Kora.Core/Customizations/CustomizationLayout.cs), [validation](../src/Kora.Application/Definitions/PromptTemplateAuthoring.cs)).
+
+Save checks the exact source again after staging, immediately before publication. An edit or replacement during staging keeps your draft and withholds the write. If an attempt requires recovery, inspect the exact source and **Review recovery** before another Save; cancellation is not a promise of rollback. The final comparison remains optimistic, not a lock against concurrent content edits.
+
+1. Describe the repeatable **request**, not a skill workflow or system instruction, in the request field. Enter the required literal names in the separate host-owned field, for example `topic,audience`, in their intended first-use order. Empty means no inputs; otherwise declare at most eight distinct native names without spaces, defaults or expressions.
+2. Select **Ask Kora (review local disclosure)**. Review the exact description, complete current source, destination and declared literals. Only **Send for local authoring** authorizes this local, tool-free model disclosure. The existing typed or activated-voice refinement route reaches the same draft and independent native reviews.
+3. Inspect **Review proposed draft**: the exact complete template/source and required literals. Model output may replace only the request body; metadata, format, attribution, filename and BOM stay host-owned. Missing, additional, malformed or oversized literals/proposals are rejected without stripping or truncation.
+4. **Use proposed draft** changes memory only. Separately select **Review and save**, inspect the complete original/proposed source and destination, then **Save disabled**. Cancellation retains the draft; changed sources and occupied new destinations require explicit recovery, not an automatic overwrite.
+5. Reopen the saved prompt. **Enable** removes the Customizations exclusion only; the existing owned prompt review is still independent: `prompts inspect <id>`, then `prompts activate` and its native exact-template review. Select `/prompt <id>`, enter every required literal, inspect **Preview complete expanded USER REQUEST**, and separately review/confirm submission to one explicitly chosen Active session ([existing use operation](instruction-editor.md#prepare-required-native-prompt-inputs)).
+
+The [host validator](../src/Kora.Application/Definitions/PromptTemplateAuthoring.cs) uses the existing native parser: names start with a lowercase ASCII letter and contain only lowercase letters, digits or hyphens, at most 64 characters. Each value is nonblank and bounded to 512 UTF-16 units / 2,048 UTF-8 bytes; the expanded request is bounded to 4,096 / 16,384. Substitution visits original markers once: marker-looking input stays literal. No reads, secrets, defaults, expressions, recursive expansion, tools, automatic activation or submission are added.
+
+**Cancel prompt authoring**, edits to the description/declaration/draft, changed input/source/catalogue/provider, privacy/channel/call/ownership loss, close or the two-minute proposal lifetime retire pending work. Late output cannot replace the draft; cancellation retains model ownership until actual termination. Unknown capabilities and unavailable local models report refusal without hosted fallback. Production model qualification remains unavailable; deterministic implementation tests do not enable a provider ([lifecycle](../src/Kora/CustomizationWindowController.cs), [complete-operation regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.PromptAuthoring.cs)).
+
+This also applies while the final source check is pending after the model has finished. The host checks cancellation, the proposal lifetime, private input and the exact authoring session again before returning the proposal. A source check completing late cannot restore a retired review; start a fresh reviewed request.
+
+### Refine other definitions
 
 Enter a request in **Describe or discuss a change with Kora**, then choose
 **Ask Kora (review local disclosure)**. The typed or activated-voice equivalent is

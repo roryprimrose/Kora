@@ -17,16 +17,23 @@ public interface ISpeechComponentFiles
     IReadOnlyList<string> Names(string directoryPath);
     /// <summary>Opens a private file for asynchronous reading.</summary>
     Stream Read(string path);
+    /// <summary>Reads the exact non-aliased, single-link file or directory identity.</summary>
+    string Identity(string path);
+    /// <summary>Pins the exact directory and its ancestors against replacement until disposal.</summary>
+    IDisposable PinDirectory(string path);
+    /// <summary>Deletes the same file object only after rechecking its exact reviewed identity, bytes, digest and authority.</summary>
+    Task DeleteVerifiedFileAsync(string path, string identity, long bytes, string digest,
+        Func<bool> admitted, CancellationToken cancellationToken);
     /// <summary>Creates a new private file without replacement.</summary>
     Stream Create(string path);
     /// <summary>Creates a new private directory without replacement.</summary>
     void CreateDirectory(string path);
     /// <summary>Atomically moves a private directory without replacement.</summary>
-    void MoveDirectory(string source, string destination);
+    void MoveDirectory(string source, string destination, string? expectedIdentity = null);
     /// <summary>Publishes a closed private file atomically without replacement.</summary>
     void MoveFile(string source, string destination);
     /// <summary>Deletes one validated private file.</summary>
     void DeleteFile(string path);
     /// <summary>Deletes one empty validated private directory, never recursively.</summary>
-    void DeleteDirectory(string path);
+    void DeleteDirectory(string path, string? expectedIdentity = null);
 }

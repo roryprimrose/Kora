@@ -48,16 +48,23 @@ public static class ConversationHistoryContext
         IEnumerable<ConversationHistorySelection> selections, DateTimeOffset now, DateTimeOffset expiresAt)
     {
         ConversationText.Validate(body, submission: true);
-        var ordered = ValidateAndOrder(request.SessionId, selections);
-        var evidence = ordered.Select(item => new ModelContextEvidence(new(Guid.NewGuid()), request,
+        var context = new ModelContextEnvelope(request, Policy, body, CreateEvidence(request, selections),
+            now, expiresAt, ModelToolMode.None);
+        context.RequireCompleteInputLimit();
+        return context;
+    }
+
+    internal static IEnumerable<ModelContextEvidence> CreateEvidence(HostRequest request,
+        IEnumerable<ConversationHistorySelection> selections) =>
+        ValidateAndOrder(request.SessionId, selections).Select(item => new ModelContextEvidence(new(Guid.NewGuid()), request,
             new(item.Message.Revision), JsonSerializer.Serialize(new
             {
                 Role = item.Role == ConversationHistoryRole.User ? "USER" : "ASSISTANT",
                 item.Message.Sequence,
                 Body = item.Role == ConversationHistoryRole.User ? item.Message.Body : item.Message.AssistantResponse!.Body,
-            }), ModelEvidenceDisclosure.LocalOnly));
-        var context = new ModelContextEnvelope(request, Policy, body, evidence, now, expiresAt, ModelToolMode.None);
-        context.RequireCompleteInputLimit();
-        return context;
-    }
+            }), ModelEvidenceDisclosure.LocalOnly)
+        {
+            HistorySource = new(item.Message.Request.RequestId, item.Message.Generation,
+                item.Message.Sequence, item.Message.Revision, item.Role),
+        });
 }

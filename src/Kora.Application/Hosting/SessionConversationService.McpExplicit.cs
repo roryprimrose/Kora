@@ -127,8 +127,11 @@ public sealed partial class SessionConversationService
         {
             var transportDisposal = invocation?.DisposeAsync().AsTask() ?? Task.CompletedTask;
             var cancellationDisposal = running?.DisposeAsync().AsTask() ?? Task.CompletedTask;
-            await Task.WhenAll(transportDisposal, cancellationDisposal).ConfigureAwait(false);
-            if (running is not null) { ReleaseRunningConversation(running, confirmed); }
+            try { await Task.WhenAll(transportDisposal, cancellationDisposal).ConfigureAwait(false); }
+            finally
+            {
+                if (running is not null) { ReleaseRunningConversation(running, confirmed); }
+            }
         }
     }
 }

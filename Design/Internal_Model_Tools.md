@@ -9,13 +9,56 @@ Internal means implemented/mediated by Kora, not every method or UI command in t
 External MCP tools, provider-native tools, and skill-defined workflows are separately admitted capabilities, not automatically internal tools.
 Being listed here does not enable a capability before its delivery, adapter, containment, and authorization gates pass.
 
+### Private built-in MCP server and shared capability controls
+
+Kora is a reserved built-in MCP server, `builtin.kora`, alongside source-qualified external server identities in the [capability inventory](../src/Kora.Application/Configuration/McpServerConfigurationService.cs). The raw external configuration loader remains separate from the composed inventory; the built-in server is not a synthetic file, delegated account or HTTPS endpoint.
+
+The [private server](../src/Kora.Application/Mcp/KoraMcpServer.cs) projects the original six observations through bounded in-process MCP initialization, discovery and invocation. Reviewed settings, customization, session and webpage operations use its host-bound dispatch only inside their separately admitted modes. Conversational `ask_user` retains its dedicated question route. No
+external listener, automatic connection, wider source reader or new tool effect is introduced.
+
+The [shared controls](../src/Kora.Application/Configuration/McpCapabilityPreferences.cs) consume the common
+[category/item selection](../src/Kora.Core/Mcp/McpCapabilitySelection.cs) and version-four artifact-directory preferences.
+There is no second built-in item store. Audited shared configuration writes persist server inclusion and category/item changes.
+The historical artifact-use veto remains an additional source-use boundary, never another item-selection authority.
+
+The [metadata backend](../src/Kora.Application/Configuration/McpServerConfigurationService.cs) composes the built-in Kora server
+and projects its tools as the common `McpCapability` records without preference, source or transport acquisition. The capability-manager
+owner integrates those records into its single list/filter UI; this implementation adds no competing list/filter controls.
+Common configuration actions never connect, discover, invoke or create effect authority.
+
+The reserved `builtin.kora` identity is accepted only as a known host-owned server identity. External identities remain derived hashes;
+item-selection keys remain strictly SHA-256 values, not symbolic server IDs. Built-in initially enabled behaviour is preserved until
+explicit shared preferences exist; the first item/category write preserves the parent, and an explicit parent change persists its
+inclusion and category revisions atomically ([validation](../src/Kora.Core/Mcp/McpCapabilitySelection.cs),
+[writer](../src/Kora.Application/Configuration/ArtifactDirectoryConfigurationService.cs)).
+
+Actual external parent inclusion changes use the same revisioned atomic path, so an off/on cycle cannot restore a pending
+approval's old fingerprint. Existing same-state external updates remain no-ops and parent changes preserve child selections
+([regression](../tests/Kora.Application.UnitTests/Configuration/ArtifactDirectoryConfigurationServiceTests.cs)).
+
+The reserved server has its own fixed slot without reducing the existing 128-external-server capacity. Only that known identity
+receives the additional inclusion/category allowance; external limits, item overrides and whole preference-byte bounds remain
+unchanged ([inclusion bound](../src/Kora.Core/Configuration/ArtifactDirectorySettings.cs),
+[category bound](../src/Kora.Core/Mcp/McpCapabilitySelection.cs)).
+
+Supported ordinary/reviewed context builders remove disabled tools before provider disclosure. Version-two [turn constraints](../src/Kora.Core/Dependencies/ModelTurnConstraints.cs) permit an explicitly empty or reduced catalogue within the same mode, preserving question capacity and existing byte/call/deadline limits. Version-one constraints retain their original validation. Scoped
+webpage and hosted clarification requests fail before disclosure when their required tool is disabled; external MCP retains exact reviewed selection.
+
+Provider adapters and the private server share [Core input schemas](../src/Kora.Core/Tools/CapabilityInputSchema.cs).
+The [Copilot wrapper](../src/Kora.Windows/Dependencies/CopilotSdkTurnRuntime.cs) constructs functions from the admitted context rather
+than reintroducing all six observations. Host dispatch rechecks enablement; a captured shared-policy fingerprint/revision fences
+built-in-catalogue continuation and final publication across disable/re-enable. Unrelated tool-free and external-only turns keep
+their existing checks. Native source/UI controls remain recovery paths, not model authority.
+
+These are deterministic implementation contracts, not production model or external-account qualification. The [user guide](../docs/mcp-transport.md#built-in-kora-capabilities) owns the interaction.
+
 ### Delivered bounded read-only host foundation
 
 The [authoritative production catalogue](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs)
 and [direct registry handlers](../src/Kora.Application/Tools/ReadOnlyCapabilityRegistry.cs)
 compose exactly `capabilities.list`, `capabilities.get`, `application.get_version`,
 `readiness.get`, `runtime.list`, and `runtime.get_status`. These canonical IDs
-are now host contracts, not a live model SDK/MCP catalogue. Exact local native
+are host contracts with the private MCP projection above, not a public SDK or external MCP endpoint. Exact local native
 commands are documented in [Commands](../docs/commands.md#read-only-host-discovery).
 The descriptor schema is version 1: None/Page/Id typed inputs, corresponding
 typed result shapes, ReadOnlyObservation effects, handler availability,
@@ -72,12 +115,13 @@ Callbacks expose only frozen reviewed metadata through opaque snapshot refs, wit
 An optional [one-agent recommendation](../docs/customizations.md#review-and-run-one-model-recommended-local-agent)
 uses the same metadata-only callbacks and a strict final `{"agentRef":"<returned opaque ref>"}`
 proposal, never an executable model tool. The host labels it as a recommendation
-and binds it to the exact original question/conversation/source. Separate native
-complete review and confirmation may invoke the existing local tools-none agent
+and binds it to the exact discovery question/conversation/source as provenance, never task or source-use authority. The original user deliberately opens native review, chooses a current source-qualified candidate (same names remain explicit choices), and supplies a NEW original task under its actual channel. Separate source-read consent, complete review and confirmation may invoke the existing local tools-none agent
 workflow; discovery itself still invokes nothing. No new descriptor, parent
 continuation, hosted disclosure or runtime qualification is implied.
 
 ### Bounded provider-neutral continuation implementation - 2026-10-20
+
+The existing explicit local clarification-only operation additionally accepts a [bounded typed form](Interaction_And_Sessions.md#delivered-bounded-local-clarification-forms---2026-10-30) through `ask_user`, using request schema 4. No tool ID, provider or observation capability is added. Only `prompt` and a finite closed `fields` array are accepted for this variant; original-user answers remain lower-trust data. Claude, ordinary requests and read-only clarification retain their existing schemas ([form protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Forms.cs)).
 
 The separately approved [explicit hosted clarification](Interaction_And_Sessions.md#explicit-hosted-conversational-clarification---2026-10-29) reuses the question/answer protocol only in host-selected `HostedClarification` mode with Claude.
 It advertises `ask_user` alone, not the observation catalogue or a generic hosted tool. Both answer-bearing physical POSTs need fresh native consent; ordinary hosted text and local schema/mode behavior remain unchanged ([guard](../src/Kora.Core/Dependencies/ModelToolProtocol.Questions.cs), [translation](../src/Kora.Windows/Dependencies/ClaudeObservationWire.cs)).
@@ -385,11 +429,15 @@ The delivered [native exact-session retention status and Keep/ordinary review](I
 | `interaction.show_details` | Exact response/artifact ID and source/rendered preference; detail/history surface reference | M/E | Proposed A4; displaying content is not model retrieval or execution |
 | `presentation.navigate`, `presentation.pin`, `presentation.close` | Exact viewer/item and bounded next/back/zoom/pin state; presentation result | M/E | Proposed A4; no webpage form automation, workflow denial, or focus theft |
 | `speech.stop`, `speech.mute` | Current host-owned playback/input scope; actual stopped/muted status | M/E | Proposed A; mute releases capture; no hidden voice-unmute channel |
-| `speech.read_once` | Exact response/prompt ID and policy revision; eligible one-response playback or explicit blocker | M/E | Bounded current ordinary response native/exact command action delivered below; model lane unavailable, broader prompt readback and protected-call exception remain proposed; no arbitrary raw TTS |
+| `speech.read_once` | Closed host-issued current-response reference; eligible one-response playback or typed terminal | M/E | Bounded native/exact action and separate reviewed local tools-none proposal below; ordinary model tools, broader prompt readback and protected-call exception remain unavailable; no arbitrary raw TTS |
 | `calls.get_status`, `calls.set_manual_state` | Detector metadata or explicit manual Active/Clear request; current evidence/effective policy | M/E | Proposed A; manual preference cannot fabricate observations; manual-state mutation while protected requires UI initiation |
 
 The bounded [native and exact typed/current-name activated `speech.read_once` action](../src/Kora.Tools/Speech/SpeechReadOnce.cs) resolves only the current ordinary response through [existing host speech admission](../src/Kora.Application/ViewModels/MainViewModel.ResponseRead.cs).
-Its model lane is **Unavailable** with `current-response-model-tool-loop-not-qualified`: the bounded model lane has no admitted current-response speech descriptor, exact-target input/result shape or playback authority. No descriptor is added to the six read-only family, and this action does not change model transport.
+The [source-preserving local proposal owner](../src/Kora.Application/ViewModels/MainViewModel.ResponseReadProposal.cs) additionally captures the eligible current answer, original request/channel and speech admission before interpreting a natural-language read request.
+An explicit local planning review discloses a fresh Local context session retaining only content-free host lifecycle receipts. The canonical [tool-free local context lifecycle](../src/Kora.Application/Dependencies/LocalContextTurnWorkflow.cs) receives the unchanged request and one closed host-issued target reference, never answer content or execution authority.
+Only `{"target":"<actually-served-reference>"}` can propose the captured read; null, forged, extra-field or prose output cannot dispatch. Planner disposal physically joins before separate host playback review becomes available. The final original-user decision consumes that exact review once and invokes the same `SpeechReadOnce` action as native/exact input.
+Currentness binds source object/identity/revision (identical replacement still invalidates), original request/channel, owner/privacy/call/output/speech and provider-operation revisions plus two-minute expiry. Existing busy, pending-decision, VisualOnly and protected-call gates remain unchanged. The shared [terminal contract](../src/Kora.Core/Voice/SpeechReadOutcome.cs) reports actual Played, Denied, Cancelled, Failed or Unknown without retries; full visual content is retained.
+Ordinary/hosted model speech tools remain **Unavailable** with `current-response-model-tool-loop-not-qualified`. No effect callback or descriptor is added to the six read-only family, no ordinary tool mode is expanded and deterministic implementation does not qualify a production provider ([regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseReadProposal.cs)).
 
 This delivery does not admit prompt/question/approval or historical USER/HOST playback, raw source TTS, a VisualOnly override or a protected-call speak-once exception.
 [Current commands and blockers](../docs/commands.md#read-the-current-response-aloud-once) and [deterministic boundary tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseRead.cs) own its bounded implementation evidence.
@@ -434,7 +482,7 @@ and absent segments never imply a complete history or pruning.
 | `approvals.show` | Grant/proposal/filter ID; trusted inventory/editor reference | M/E | Proposed A3; opening editor creates no permission |
 | `approvals.request` | Typed exact invocation/resources/identity/digests/destination, grant scope/bound session ID and lineage; host-classified approval proposal | M/E | Proposed A3; M proposes management approval only, not task execution |
 | `approvals.propose_edit`, `approvals.revoke` | Exact grant IDs/revisions and scoped edit/remove preview; trusted decision-required/result | M/E | Proposed A3; user action required, no arbitrary expiry or bulk retention deletion |
-| `settings.list`, `settings.get` | Category/option ID and scope; registered choices, current/effective value and blockers | M/E | Proposed A3; includes session retention, concurrency, session permission level, feedback, and default-Off call spoken-approval eligibility |
+| `settings.list`, `settings.get` | Delivered explicit local settings-inspection mode: bounded metadata page or exact registered ID; eighteen reviewed confirmed saved/default scalars, including exact decimal capture-timing seconds, plus typed `speech.voice` provider/optional voice selection | Explicit reviewed local request | [Bounded discovery](../docs/setting-inspection.md) reuses the authoritative registry/source and requires separate source review and local-answer confirmation; other registered values are unavailable. Speech selection is future-only preference, not installed catalogue, resolved default voice or runtime qualification. Existing [shared capability filtering](#private-built-in-mcp-server-and-shared-capability-controls) remains authoritative without widening ordinary-mode tools or effects. General category/scope/effective/session/provider reads remain proposed A3 |
 | `settings.propose_change`, `settings.reset`, `settings.undo` | Typed option/value/scope/revision or identified prior change, trusted initiating-channel lineage; reviewed atomic proposal/result or rejected voice-origin request | M/E | Proposed A3; enforce protected-call option classification at request/apply; no file/JSON patch, consent bypass, restored grants or replayed side effects |
 | `evidence.list` | Required source kind (`log`, `audit`, `session`, `span`, or `all`), bounded time/trace/session/task/invocation/approval/correlation filters and cursor; ordered permitted summaries plus retention/source/gap status | E; M minimal status | Proposed A3; deterministic app capability, at most 50 records/64 KiB, no model required |
 | `evidence.get`, `evidence.get_receipt` | Stable evidence ID or exact trace/session/invocation/action identity; one permitted content-minimising log, audit, span, session or receipt record with typed structured fields/properties and related evidence references | E; M minimal status | Proposed A3; read-only, preserves source kind/authority/value kinds and never exposes secret parameters |
@@ -466,6 +514,21 @@ retry or authorize an evidenced operation.
 | `context.search`, `context.read_excerpt` | Exact admitted source/revision set, bounded query/budget or citation ID; ranked citations and exact bounded excerpts | E | Deferred R26; host-owned retrieval, prompt-injection separation, access/retention/egress revalidation and citation enforcement |
 | `artifacts.export` | Exact retained artifact/digest and user-selected destination; preview/write receipt | E | Proposed A4; show source/classification; no automatic opening/execution |
 | `context.capture_screen` | Explicit selected window/region and user intent; bounded snapshot/provenance | E | Deferred; no ambient screenshots or microphone/audio content |
+
+The existing native named-source removal is host-only, not an enabled
+`context.remove_source` descriptor. Its exact inventory review lasts strictly
+less than two minutes. Confirmation revokes and physically joins owned source
+work, including cancellation-ignoring model work, without renewing that review.
+The [source manager](../src/Kora.Application/KnowledgeSources/KnowledgeSourceManager.cs)
+rechecks the original private host authority, cancellation and review deadline
+after the join and requested audit, immediately before calling exact Kora-copy
+removal. Expired or withdrawn authority produces a failed/cancelled outcome
+without deleting copies; explicitly reload the inventory and start a fresh review.
+An admitted cleanup failure can still leave revoked or uncertain storage, never
+implied rollback. Original files remain untouched. Deterministic
+[removal regressions](../tests/Kora.Application.UnitTests/KnowledgeSources/KnowledgeSourceManagerTests.cs)
+cover retained ownership, late authority loss and valid pre-deadline completion;
+they do not enable a provider or model-facing source operation.
 
 ### Skills and Registered Execution
 

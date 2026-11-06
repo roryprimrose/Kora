@@ -195,6 +195,28 @@ Manual ordinary dispatch, failure/cancellation recovery and application lifecycl
 The sources are not a fictitious globally atomic plan. Omitted records, accepting originals, absent workers and unavailable steps remain explicit; missing volatile ownership never proves durable completion.
 Changed sources refuse publication rather than inferring absence. Execution, queue state, source activity, retention and grants are unchanged; no provider/model/tool/resource dispatch is part of this query ([query](../src/Kora.Application/Hosting/SessionConversationService.RemainingWork.cs)).
 
+### Reviewed local remaining-work answer
+
+The optional native model operation selects one source conversation and a different existing Active idle answer conversation.
+Its [ledger-specific review](../src/Kora.Application/Hosting/RemainingWorkManagementReview.cs) discloses the unchanged question, complete body-free evidence, model policy, exact local catalogue selection, destination and answer retention before separate one-use confirmation.
+
+The [owner](../src/Kora.Application/Hosting/RemainingWorkManagement.cs) admits one local tools-none attempt with a 32 KiB complete input, 4 KiB complete output and independent fifteen-second caller deadline. Unfinished inference and cancellation callbacks retain ownership until physical join. There is no remote route, automatic retry, provider fallback, history assembly or management mutation.
+
+The original source observation expires after ten seconds and is never renewed by review or confirmation. Changed source facts, private authority or expiry refuse publication even if the provider returns.
+Longer inference may therefore finish without a publishable answer; the fifteen-second deadline is an upper bound, not a promise of source validity ([source owner](../src/Kora.Application/Hosting/SessionConversationService.RemainingWork.cs)).
+
+Only complete bounded ordinary task/question observations without diagnostic queue records qualify. Every exact task identity/revision, question and volatile lane/source/private fence is revalidated.
+The separate answer's canonical writes can advance the global authority head, so this operation compares the complete addressed source records instead; the deterministic global-head validator remains unchanged ([scoped validation](../src/Kora.Application/Hosting/SessionConversationService.ManagementAnswer.cs)).
+
+The answer destination retains the original question and genuine ASSISTANT answer through [canonical reviewed-source submission](../src/Kora.Application/Hosting/SessionConversationService.cs), with actual terminal readback or truthful unavailable/unconfirmed output.
+Evidence itself remains volatile; answer text may repeat disclosed metadata. This does not change the no-save local-context contract or permit cross-session history/attachment reuse.
+
+The [dedicated composition](../src/Kora/RemainingWorkManagementComposition.cs) has no qualified adapter by default and cannot borrow ordinary execution qualification. Qualified fakes exercise implementation only. MG1/PV1 capacity/account/SDK/native/billed-cost evidence remains independent E/Q, not blanket implementation prerequisites. No profile or `work.clear` authority is enabled.
+
+The [native opt-in](../src/Kora/SessionsViewModel.ManagementAnswer.cs) starts disabled for each new private view. Disabling it revokes outstanding review/answer presentation; asynchronous physical joins remain owned. No device preference or management-mode permission is created.
+
+See the [native interaction](../docs/windows-and-tray.md#optional-local-model-answer-about-remaining-work). Exact manual status/stop and typed/current-name activated remaining-work answers remain independent; this model-disclosure increment is native-only.
+
 The proposed bundled session-lock skill has a narrowly host-admitted priority
 control path; this does not grant management inference executable-tool access
 or waive the future action-specific approval gate. Today direct exact lock
@@ -333,6 +355,57 @@ provider dispatch. A fresh explicit request/review is required, not automatic
 deadline extension. The active provider budget remains owned by the runtime
 and begins at dispatch.
 
+#### Fresh review of expired ordinary local text
+
+The [fresh-review operation](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)
+supports one retained USER originally submitted through **Answer locally (no tools)**,
+with host-recorded bare ordinary text provenance and exact **Denied / ContextExpired**
+before any execution record. The [source contract](../src/Kora.Core/Conversation/ExpiredOrdinaryRequestSource.cs)
+requires both the immutable message and matching terminal task evidence. Task status
+alone never establishes no dispatch. Both sources must belong to the current Active
+session generation; history from before Done/Resume remains readable but cannot
+create this review. Legacy/unclassified rows, ordinary tool-capable
+Send, hosted, file, clipboard, MCP, reviewed context, instruction/evidence-bearing,
+interrupted, dispatched and uncertain sources are unavailable through this operation.
+
+In the expanded Sessions conversation, select one actual current original USER row,
+review its complete unchanged body, no-dispatch evidence, historical source channel,
+exact Active target and current local provider/profile, then separately confirm one
+genuinely NEW native ordinary request. The [native review](../src/Kora/SessionsViewModel.ExpiredOrdinary.cs)
+does not prepare a composer or retry the old identity. Historical model/account/profile
+values absent from the source remain explicitly unknown, never inferred from current
+defaults. The new record attributes the original request/channel separately from its
+fresh LocalUi initiator; a voice source cannot acquire renewed voice authority by click.
+
+Review/decline performs no retention, activity renewal, task admission, provider call
+or resource acquisition. Confirmation uses the [ordinary FIFO transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Conversation.cs),
+new host request/task IDs, unchanged body and normal limits. The new fifteen-second
+context starts at the NEW confirmation, not review or historical submission. The old
+request/task, expiry, HOST outcome and history remain unchanged. An expired new request
+also cannot renew itself or dispatch automatically. Time spent revalidating confirmation
+consumes this same new context lifetime; validation does not reset its deadline.
+
+The bounded subset consumes no old context, memory, instructions, evidence, consent
+or grants. An applying session instruction requires its independent current source-use
+route, not silent omission or implicit reapproval. Source/task/session generation/
+metadata, selected original, unsent input revision, native input/capture, privacy,
+ownership, call, current provider/profile/policy and held-lane revisions remain frozen
+until acceptance. Once physically accepted, receipt presentation may retire the
+selected historical row without revoking the accepted worker. Its exact stored
+source/task/session, input revisions, privacy, ownership, provider and original
+deadlines still revalidate through dispatch and terminal retention. Genuine input
+edits remain revocation, not presentation changes or renewed authority.
+Changes, cancellation, review expiry or replay require fresh review. One-task output
+selection cannot be combined with this source-review route; its independent ordinary
+request review remains unchanged. Manual and recovery dispatch holds remain independent:
+confirmation may join their held FIFO but clears neither. **Release manual dispatch hold**
+and **Resume held dispatch** each invalidate an older fresh review; release applicable
+holds first, then review again. [Portable regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ExpiredOrdinary.cs)
+and [native/private-store regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ExpiredOrdinary.cs)
+exercise actual expiry through new admission and a genuine fake-runtime answer without
+enabling production providers, recreating diagnostic queue commands or claiming a
+historical resource join.
+
 Only successful, confirmed terminal retention after the preceding physical
 resource join permits automatic next dispatch. Failure, pending/active
 cancellation or uncertainty holds the addressed lane; **Resume held dispatch**
@@ -371,6 +444,23 @@ expiry fences. An expired/invalid head cannot be skipped to dispatch a later
 request. Expiry is denied without acquiring resources; fresh input/review is
 required, never renewal or replay. Manual start decisions are not action approval.
 
+Independent pending expirations may finish concurrently, but each terminal
+receipt and readback remains bound to its exact original request, task, session
+and channel. Another request's terminal state cannot confirm or replace it.
+The fixture captures the exact request-local receipt before awaiting its typed
+terminal-completion hook; concurrent completions cannot retarget that capture.
+The fixture serializes capture and terminal publication separately, with the
+original admission callback checked by the pre-terminal hook after the await.
+Revocation there leaves the original message/task pair unchanged, even when
+another request has already completed.
+Both terminal rows derive from that one immutable receipt through the shared
+request-local helpers, preserving the original generation, sequence and UTC
+timestamp as well as identity and body. Awaited concurrent-expiry regressions
+check exact terminal revisions and both retained message and task readbacks.
+The request-local fixture regressions cover both [interleaved expirations](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ManualDispatch.cs)
+and [pending/executing terminal interleavings](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Pending.cs)
+for UI and activated-voice origins, without provider execution or retained answers.
+
 The [exact typed/activated-voice adapter](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)
 uses `session dispatch status|pause|resume <session-id>` and the same admitted
 manual-control action as native Sessions/compact. Current input, channel,
@@ -391,6 +481,15 @@ and [behavioral regressions](../tests/Kora.Application.UnitTests/Dependencies/Mo
 Cancellation wins atomically against dispatch, preserves submitted history and
 unrelated requests, and has zero provider/egress/resource effects for that
 pending turn. Active cancellation stays with the existing running-turn owner.
+The [exact pending cancellation owner](../src/Kora.Application/Hosting/SessionConversationService.Pending.cs)
+retains its initiating original-user admission through terminal commit and readback,
+using the existing canonical pending-only session/metadata guard rather than
+borrowing the original submission's independent source. Source retirement or a
+changed target before commit leaves the original intent unconfirmed, without a
+cancelled receipt. Source retirement after commit leaves the durable Cancelled
+record intact but refuses confirmed readback; it is not rollback or retry.
+Both cases retain the recovery hold and leave running/unrelated work untouched
+([UI/voice boundary regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Pending.cs)).
 Logical cancellation and caller observation retirement do not release physical
 resources; the service retains and joins its workers, quarantining uncertain
 late output through the runtime. Restart uses existing Interrupted/Unknown
@@ -416,6 +515,24 @@ Results identify completed, partial-unconfirmed, stale, cancelled or truly empty
 reviews, never a persistent global pause or future cancellation grant.
 See [interaction contract](Interaction_And_Sessions.md#stop-all-submitted-work-while-staying-open).
 
+### Clear ordinary pending work only
+
+The [ordinary lane owner](../src/Kora.Application/Hosting/SessionConversationService.PendingClear.cs) completes a distinct **Clear queue** operation for one explicitly addressed Active conversation. It is not Stop All, active-turn cancellation, or the retired public fixed-read diagnostic scheduler.
+
+Review captures every current never-dispatched pending identity, FIFO position, count, original expiry, session generation/metadata and lane revision in a complete body-free snapshot. Original bodies remain separately inspectable through the existing conversation reader. Review/discard changes no dispatch hold, task, history, grant, retention or provider state ([native regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.PendingClear.cs)).
+
+Separate original-source confirmation closes admission/dispatch only for that lane's transaction. The canonical [terminal transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Conversation.cs) additionally requires the exact current session/metadata and an undispatched intent; the existing workers retain Cancelled USER/task/audit receipts and join their readback. Running or already-dispatching work and other conversations are not cancelled.
+
+New arrivals, dispatch, expiry, ownership/private/control/channel/call/input changes invalidate review rather than selecting replacements. Acceptance cannot renew any original request, acquire a provider/resource lease or clear an independent manual/recovery hold. Partial durable effects and unconfirmed readback are enumerated per original; no rollback, replay, physical-stop or durable all-clear is inferred ([boundary regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.PendingClear.cs)).
+
+Native Sessions/expanded conversation and [exact typed/activated commands](../docs/commands.md#clear-one-ordinary-conversations-pending-work) share this owner. An activated review can be separately confirmed natively without replacing its original voice source; a new capture that retires that source requires fresh review. Model/source prose confers no control authority ([routing regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.PendingClear.cs)).
+
+Clearing reviewed pending work retains an existing manual hold and the cancellation recovery hold independently; releasing either cannot release the other. Changing a manual hold invalidates the captured lane review ([composition regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.PendingClear.cs)).
+
+Terminal observer failures are logged and retained as unconfirmed completion, not faulted orphan workers or successful clearing. Confirmation joins the captured workers through terminal notification delivery. Failure of the final clear notification preserves every per-original outcome with a partial/unconfirmed operation result; durable originals remain inspectable and no replay is permitted ([observer regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.PendingClear.cs)).
+
+Passive remaining-work inspection does not consume or invalidate a pending-clear review. Confirmed clearing invalidates the earlier remaining-work observation; a fresh answer reports the remaining running owner and independent dispatch holds without cancelled FIFO entries, new writes or an inferred all-clear ([native composition regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.PendingClear.cs)).
+
 ### Broader proposed management policy
 
 - Proposed initial capacity: 10 pending entries, configurable. Full means ask the user to remove/defer work; never evict silently.
@@ -427,7 +544,7 @@ See [interaction contract](Interaction_And_Sessions.md#stop-all-submitted-work-w
 - Normal successful completion dispatches the next ready entry automatically by default, after policy/context revalidation; user-selected manual dispatch adds a start decision. Queuing or approving dispatch is not action approval.
 - Failure, cancellation, or unknown side effects pause automatic dispatch and explain why. The user can resume or explicitly choose a replacement.
 - A cancellation request immediately pauses the addressed dispatch; deliberate exact voice or UI confirmation completes cancellation while preserving unrelated pending entries.
-- "Clear the queue" pauses the addressed queue and requires explicit voice or UI confirmation before removing its displayed pending entries from dispatch, not history.
+- "Clear the queue" for ordinary conversation requests uses the delivered pending-only operation above; reviewed removal is from dispatch, not history.
 - "Stop all work" uses the delivered reversible full-set review above; it does not clear retained history.
 - "Pause the queue" blocks new dispatch without suspending/cancelling the active task; resume still revalidates dependencies/policy.
 - A replacement waits for host-side execution quiescence. If remote work may still be running, report the uncertainty and require an explicit decision before dispatching more work.

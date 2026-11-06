@@ -23,6 +23,7 @@ public sealed partial class ResponseModeConfigurationService(
 
     public event EventHandler? Changed;
     public IReadOnlyList<ResponseModeChoice> Choices { get { lock (gate) { return choices; } } }
+    public static ResponseOutputMode ResetMode => ResponseOutputMode.Hybrid;
 
     public ResponseModeCommandResult Get(long callRevision = 0, string outcome = "observed",
         ResponseOutputMode? queueOverride = null, ResponseOutputMode? taskOverride = null)
@@ -115,6 +116,10 @@ public sealed partial class ResponseModeConfigurationService(
     public Task<bool> SelectAsync(ResponseModeChoice choice, long callRevision, RequestOrigin origin,
         SecurityAuditInitiator initiator, CallCommunicationPolicy policy, Func<bool> eligible, CancellationToken cancellationToken)
         => SelectCoreAsync(choice, callRevision, origin, initiator, policy, eligible, restoreDefault: false, cancellationToken);
+
+    public Task<bool> ResetAsync(long callRevision, RequestOrigin origin, SecurityAuditInitiator initiator,
+        CallCommunicationPolicy policy, Func<bool> eligible, CancellationToken cancellationToken) =>
+        SelectAsync(Choices.Single(item => item.Mode == ResetMode), callRevision, origin, initiator, policy, eligible, cancellationToken);
 
     private async Task<bool> SelectCoreAsync(ResponseModeChoice choice, long callRevision, RequestOrigin origin,
         SecurityAuditInitiator initiator, CallCommunicationPolicy policy, Func<bool> eligible,

@@ -9,9 +9,7 @@ internal sealed partial class OwnedSkillEditorController
 
     private void PrepareInitial(OwnedSkillEditorWindow opened, string purpose, OwnedSkillAuthoringAuthority authority)
     {
-        CancelRefinement();
-        generatedBase = null;
-        source = null;
+        ResetDraft(opened);
         initialAuthority = authority;
         opened.IdInput.Text = "skill-" + Guid.NewGuid().ToString("N");
         opened.VersionInput.Text = "1.0.0";

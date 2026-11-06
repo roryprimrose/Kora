@@ -13,7 +13,8 @@ public sealed partial class SettingInspectionWorkflow(ConfirmedSettingsSource so
     ISettingInspectionConversation conversation, ISessionWorkspaceAccess access, ISecurityAuditLog audit,
     TimeProvider time, ILogger<SettingInspectionWorkflow> logger)
 {
-    public async Task<SettingInspectionSession> ReviewAsync(string question, Func<bool> admitted, CancellationToken token)
+    public async Task<SettingInspectionSession> ReviewAsync(string question, Func<bool> admitted, CancellationToken token,
+        ModelToolMode toolMode = ModelToolMode.None)
     {
         var original = HostActivity.RequireCurrent();
         Application.Hosting.SessionConversationService.RequireOriginalSource(original.Request.Origin);
@@ -25,7 +26,7 @@ public sealed partial class SettingInspectionWorkflow(ConfirmedSettingsSource so
         if (!Current()) { throw new InvalidOperationException("Original private host admission is unavailable."); }
         var snapshot = await source.CaptureAsync(token).ConfigureAwait(false);
         if (!Current()) { throw new OperationCanceledException("Original input changed during confirmed observation."); }
-        var review = new SettingInspectionReview(snapshot.Observations, question, original.Request, now);
+        var review = new SettingInspectionReview(snapshot.Observations, question, original.Request, now, toolMode);
         if (time.GetUtcNow() >= review.ExpiresAt)
         { throw new InvalidOperationException("The original confirmed observation expired before review."); }
         return new(review, snapshot, () => Current() && source.IsCurrent(snapshot) && time.GetUtcNow() < review.ExpiresAt);
@@ -42,7 +43,8 @@ public sealed partial class SettingInspectionWorkflow(ConfirmedSettingsSource so
             && !original.Activity!.IsStopped && original.Outcome == HostOperationOutcome.Unknown;
         using var activity = HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Request);
         var requested = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.ProtectedOperation,
-            "setting.inspection.local", SecurityAuditOutcome.Requested,
+            review.ToolMode == ModelToolMode.SettingsDiscovery ? "setting.discovery.local" : "setting.inspection.local",
+            SecurityAuditOutcome.Requested,
             review.Original.Origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.LocalUser,
             "settings.confirmed-scalars");
         using var auditActivity = HostActivity.BeginAudit(original.Request, requested);

@@ -123,6 +123,22 @@ listening consent and session policy permit it. Late results from a retired name
 cannot route commands. A missing or corrupt custom profile reports activation
 as unavailable and offers tray recovery; it never silently re-enables "Kora".
 
+The [configured-name/profile cutover](Speech_Input.md#configuration-and-resource-profiles)
+is implemented through the existing name preference, reviewed speech-input
+selection and joined voice lifecycle. A supported custom wake name requires the
+exact installed `pocketsphinx-5-1-1-en-us-cpu-v1 Cpu CaptureLifetime` tuple and
+independent host qualification for that name; it cannot reuse Kora's evidence.
+The shipped catalogue still qualifies no wake names, so production remains
+unavailable. Changing the name and confirming its profile never enable listening
+or clear a recovery hold.
+
+The native engine receives exact dictionary-derived literal words, not
+user-authored keyword syntax, generated pronunciations or modified assets.
+Verified wake lineage is separate from the unchanged final recognized command
+text. Fresh original request/channel and name/profile/capture generations remain
+required at dispatch. Existing Stop listening precedence is preserved even when
+the exact supported configured name is `Stop`.
+
 Distinct names can reduce office cross-activation but are not identity
 verification. A colleague, similar-sounding speech, or playback may still
 activate a detector. Speaker-confidence, private-output, call, approval,

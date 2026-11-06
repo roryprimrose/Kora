@@ -32,7 +32,8 @@ public sealed class SharedSkillWithdrawalWindowTests
                 var identity = dialog.GetVisualDescendants().OfType<TextBlock>().Single(block =>
                     block.Text?.Contains("Source ID:", StringComparison.Ordinal) == true);
                 identity.Text.Should().Contain(source.Id.ToString("N")).And.Contain(source.DirectoryIdentity)
-                    .And.Contain("shared skill files are untouched").And.Contain("No enablement, execution or grants change");
+                    .And.Contain("shared skill files are untouched").And.Contain("Existing volatile shared-skill reviews are retired")
+                    .And.Contain("pending reference-read consent").And.Contain("No execution or grants are created or transferred");
                 var confirm = dialog.GetVisualDescendants().OfType<Button>().Single(button =>
                     button.Content is string text && text.StartsWith("Unregister source:", StringComparison.Ordinal));
                 confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));

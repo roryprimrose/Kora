@@ -4,6 +4,7 @@ using AwesomeAssertions;
 using Kora.Application.Hosting;
 using Kora.Application.Mcp;
 using Kora.Core.Dependencies;
+using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Mcp;
 using Kora.Core.Storage;
@@ -138,6 +139,115 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
+    [InlineData(false, "removed")]
+    [InlineData(false, "identity")]
+    [InlineData(false, "revision")]
+    [InlineData(false, "secret")]
+    [InlineData(false, "destination")]
+    [InlineData(true, "removed")]
+    [InlineData(true, "identity")]
+    [InlineData(true, "revision")]
+    [InlineData(true, "secret")]
+    [InlineData(true, "destination")]
+    public async Task Explicit_mcp_account_withdrawal_after_join_or_terminal_readback_suppresses_result(bool terminalReadback, string change)
+    {
+        using var f = new Fixture();
+        using var source = new McpSource();
+        var broker = new McpBroker(source.Account);
+        void Withdraw()
+        {
+            broker.Disposed.Should().BeTrue();
+            var account = source.Account;
+            McpAccountReference? replacement = change switch
+            {
+                "removed" => null,
+                "identity" => new(Guid.NewGuid(), account.Revision, account.SecretReference, account.Destination),
+                "revision" => new(account.AccountId, new(account.Revision.Value + 1), account.SecretReference, account.Destination),
+                "secret" => new(account.AccountId, account.Revision, Guid.NewGuid(), account.Destination),
+                _ => new(account.AccountId, account.Revision, account.SecretReference, new(new("https://other.example/mcp"))),
+            };
+            broker.Accounts = replacement is null ? [] : [new(replacement, "Test delegated user")];
+        }
+        if (terminalReadback)
+        {
+            f.BeforeTaskRead = () =>
+            {
+                if (f.Task?.Task.IsTerminal == true) { Withdraw(); }
+                return Task.CompletedTask;
+            };
+        }
+        else { broker.AfterDispose = Withdraw; }
+        var approvals = new McpApprovals(f);
+        var service = McpService(f, f.Host, source, broker, approvals, await source.Policy());
+        var result = await service.InvokeMcpAsync(new(f.Session, null), source.ServerId, source.Account,
+            approvals.Present, McpSelect, ExplicitMcpInput, static () => true, Token);
+        result.Outcome.Should().Be(McpExplicitOutcome.Denied);
+        result.Result.Should().BeNull();
+        result.DurableState.Should().Be(terminalReadback ? HostTaskState.Succeeded : HostTaskState.Unknown,
+            "withdrawing disclosure authority does not roll back an already committed remote read or terminal receipt");
+        broker.Methods.Should().Equal("initialize", "tools/list", "tools/call");
+        broker.DisposeCalls.Should().Be(1);
+        approvals.Stages.Should().Equal(McpReviewStage.Connection, McpReviewStage.ToolSelection, McpReviewStage.Invocation);
+        f.Adapter.Calls.Should().Be(0);
+        f.Retained.Should().BeNull();
+        f.Messages.Should().NotContain(message => message.Contains("value 42", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("cancel")]
+    [InlineData("permission")]
+    [InlineData("withdrawn")]
+    [InlineData("read-failure")]
+    [InlineData("unavailable")]
+    public async Task Explicit_mcp_post_join_account_validation_joins_ignoring_reader_without_late_disclosure(string fault)
+    {
+        using var f = new Fixture();
+        using var source = new McpSource();
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pending = new TaskCompletionSource<IReadOnlyList<McpAccountChoice>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var broker = new McpBroker(source.Account) { EnteredAccounts = entered };
+        broker.AfterDispose = () => broker.PendingAccounts = pending;
+        var approvals = new McpApprovals(f);
+        var service = McpService(f, f.Host, source, broker, approvals, await source.Policy());
+        var operation = service.InvokeMcpAsync(new(f.Session, null), source.ServerId, source.Account,
+            approvals.Present, McpSelect, ExplicitMcpInput, static () => true, cancellation.Token);
+        try
+        {
+            await entered.Task.WaitAsync(Token);
+            if (fault is "cancel") { await cancellation.CancelAsync(); }
+            if (fault is "permission") { f.CanControl = false; }
+            operation.IsCompleted.Should().BeFalse("the account reader ignores cancellation and still belongs to the original operation");
+            broker.Disposed.Should().BeTrue("the account validation follows the physical transport join");
+            f.Task!.Task.State.Should().Be(HostTaskState.DispatchRecorded);
+            if (fault is "read-failure") { pending.SetException(new IOException("synthetic private account-read failure")); }
+            else if (fault is "unavailable") { pending.SetException(new McpUnavailableException()); }
+            else { pending.SetResult(fault is "withdrawn" ? [] : [new(source.Account, "Test delegated user")]); }
+        }
+        finally
+        {
+            pending.TrySetResult([]);
+            await operation;
+        }
+        var result = await operation;
+        result.Outcome.Should().Be(fault switch
+        {
+            "cancel" => McpExplicitOutcome.Cancelled,
+            "read-failure" => McpExplicitOutcome.Unknown,
+            "unavailable" => McpExplicitOutcome.Unavailable,
+            _ => McpExplicitOutcome.Denied,
+        });
+        result.Result.Should().BeNull();
+        result.DurableState.Should().Be(HostTaskState.Unknown);
+        broker.Methods.Should().Equal("initialize", "tools/list", "tools/call");
+        broker.DisposeCalls.Should().Be(1);
+        f.Adapter.Calls.Should().Be(0);
+        f.Retained.Should().BeNull();
+        f.Messages.Should().NotContain(message => message.Contains("synthetic private", StringComparison.Ordinal)
+            || message.Contains("value 42", StringComparison.Ordinal));
+    }
+
+    [Theory]
     [InlineData("missing")]
     [InlineData("wrong")]
     [InlineData("cancel")]
@@ -238,6 +348,38 @@ public sealed partial class ModelTurnHostTests
             Kora.Core.Conversation.ConversationExecutionPhase.Completing, Kora.Core.Conversation.ConversationExecutionPhase.Terminal);
     }
 
+    [Theory]
+    [InlineData(RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.ActivatedVoice)]
+    public async Task Explicit_mcp_dismissed_tool_selection_cancels_without_input_or_dispatch_and_joins_the_connection(RequestOrigin origin)
+    {
+        using var f = new Fixture(origin);
+        using var source = new McpSource();
+        var broker = new McpBroker(source.Account);
+        var approvals = new McpApprovals(f);
+        var service = McpService(f, f.Host, source, broker, approvals, await source.Policy());
+        var inputRequested = false;
+        Task<string?> Input(HostRequest request, HostRevision generation, DateTimeOffset expiresAt,
+            McpModelTool tool, Func<bool> admitted, CancellationToken token)
+        {
+            inputRequested = true;
+            return ExplicitMcpInput(request, generation, expiresAt, tool, admitted, token);
+        }
+        var result = await service.InvokeMcpAsync(new(f.Session, null), source.ServerId, source.Account,
+            approvals.Present, (_, _, _, _, _, _) => Task.FromResult<string?>(null), Input, static () => true, Token, origin);
+        result.Outcome.Should().Be(McpExplicitOutcome.Cancelled);
+        result.Request.Origin.Should().Be(origin);
+        result.DurableState.Should().Be(HostTaskState.Unknown, "the admitted dispatch record is not a remote rollback receipt");
+        result.Result.Should().BeNull();
+        inputRequested.Should().BeFalse();
+        broker.Methods.Should().Equal("initialize", "tools/list");
+        broker.Disposed.Should().BeTrue();
+        approvals.Stages.Should().Equal(McpReviewStage.Connection);
+        f.Retained.Should().BeNull();
+        f.Adapter.Calls.Should().Be(0);
+        (await service.ReadRunningConversationAsync(new(f.Session, null), static () => true, Token)).Should().BeNull();
+    }
+
     [Fact]
     public async Task Explicit_mcp_join_failure_never_releases_a_confirmed_terminal_or_discloses_content()
     {
@@ -310,6 +452,41 @@ public sealed partial class ModelTurnHostTests
         result.Result.Should().BeNull();
         broker.Methods.Should().Equal("initialize", "tools/list");
         broker.Disposed.Should().BeTrue();
+        f.Retained.Should().BeNull();
+        f.Adapter.Calls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Explicit_mcp_cancellation_during_post_join_validation_suppresses_the_completed_read(bool cancelledRead)
+    {
+        using var f = new Fixture();
+        using var source = new McpSource();
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        var originalPostJoinReads = 0;
+        var broker = new McpBroker(source.Account)
+        {
+            AfterDispose = () => f.OnRead = () =>
+            {
+                if (HostActivity.Current?.Request.InvocationId is null && ++originalPostJoinReads == 2)
+                {
+                    cancellation.Cancel();
+                    if (cancelledRead) { cancellation.Token.ThrowIfCancellationRequested(); }
+                }
+            },
+        };
+        var approvals = new McpApprovals(f);
+        var service = McpService(f, f.Host, source, broker, approvals, await source.Policy());
+        var result = await service.InvokeMcpAsync(new(f.Session, null), source.ServerId, source.Account,
+            approvals.Present, McpSelect, ExplicitMcpInput, static () => true, cancellation.Token);
+        cancellation.IsCancellationRequested.Should().BeTrue();
+        result.Outcome.Should().Be(McpExplicitOutcome.Cancelled);
+        result.DurableState.Should().Be(HostTaskState.Unknown);
+        result.Result.Should().BeNull();
+        broker.Disposed.Should().BeTrue();
+        broker.DisposeCalls.Should().Be(1);
+        broker.Methods.Should().Equal("initialize", "tools/list", "tools/call");
         f.Retained.Should().BeNull();
         f.Adapter.Calls.Should().Be(0);
     }

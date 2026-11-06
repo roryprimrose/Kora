@@ -232,7 +232,7 @@ public sealed class StaticHtmlDetailRendererTests
     private sealed class NoClipboard : IDetailClipboard
     {
         public int Writes { get; private set; }
-        public Task WritePlainTextAsync(IDetailView view, string source)
+        public Task WriteAsync(IDetailView view, string source, string? htmlFragment)
         {
             Writes++;
             throw new InvalidOperationException("A static result must not acquire clipboard authority.");

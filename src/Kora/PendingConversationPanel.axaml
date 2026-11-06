@@ -29,5 +29,15 @@
       <Button x:Name="ReleaseDispatch" Content="Release manual dispatch hold" IsEnabled="{Binding CanReleaseConversationDispatch}"
           AutomationProperties.HelpText="Clears only this conversation's deliberate manual hold. Recovery, source, permission, privacy and expiry fences remain required; no action approval or renewed authority." />
     </WrapPanel>
+    <Button x:Name="ReviewPendingClear" Content="Clear queue - review all pending" IsEnabled="{Binding CanReviewPendingClear}"
+        AutomationProperties.HelpText="Reviews only this Active ordinary conversation's complete current never-dispatched set. Running work continues. No cancellation until separate confirmation." />
+    <ScrollViewer MaxHeight="420" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+      <controls:NamedTextBlock Text="{Binding PendingClearText}" TextWrapping="Wrap"
+          AutomationProperties.Name="Complete pending-only clear review or actual per-entry outcomes; running work and history are preserved" />
+    </ScrollViewer>
+    <WrapPanel>
+      <Button x:Name="ConfirmPendingClear" Content="Confirm clear pending only" IsEnabled="{Binding CanConfirmPendingClear}" />
+      <Button x:Name="DiscardPendingClear" Content="Cancel pending-only review" IsEnabled="{Binding CanDiscardPendingClear}" />
+    </WrapPanel>
   </StackPanel>
 </UserControl>

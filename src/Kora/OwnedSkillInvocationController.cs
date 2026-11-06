@@ -94,7 +94,9 @@ internal sealed partial class OwnedSkillInvocationController(
                 opened.Closed += (_, _) => Retire();
                 opened.Show();
                 if (!Eligible()) { Retire(); return; }
-                opened.Status.Text = "Review both complete files, then separately Enable. Nothing invoked.";
+                opened.Status.Text = captured.RequiresReferenceConsent
+                    ? "Only primary files were read. Review the declaration, then separately authorize exact owned component reads. Nothing enabled or invoked."
+                    : "Review both complete files, then separately Enable. Nothing invoked.";
                 return;
             }
             var currentWindow = window ?? throw new InvalidOperationException("Review an exact saved ID/version with owned skill use first.");
@@ -105,6 +107,14 @@ internal sealed partial class OwnedSkillInvocationController(
             var token = lifetime!.Token;
             switch (command.Operation)
             {
+                case "read-references":
+                    await workflow.ReadReferencesAsync(currentReview, authority, Current, token);
+                    if (Current())
+                    {
+                        currentWindow.Instructions.Text = currentReview.Text;
+                        currentWindow.Status.Text = "Complete exact primary and every declared component captured. Review all files, then separately Enable.";
+                    }
+                    break;
                 case "enable":
                     if (currentReview.Tool == OwnedSkillToolSelection.WebPageGet)
                     {
@@ -162,9 +172,14 @@ internal sealed partial class OwnedSkillInvocationController(
                     RetireConfirmation(false);
                     var target = (currentWindow.Targets.SelectedItem as OwnedSkillConversationTarget)?.Entry
                         ?? throw new InvalidOperationException("Select exactly one current Active conversation.");
+                    var inputAuthority = requestAuthority ?? authority;
+                    if (currentReview.RequiredNames.Any(name =>
+                        string.IsNullOrWhiteSpace(currentWindow.LiteralInputs.Inputs[name].Text)))
+                    {
+                        await CollectMissingInputs(currentWindow, currentReview, target, inputAuthority, Current, token);
+                    }
                     var exact = inputRevision;
                     bool Exact() => Current() && inputRevision == exact;
-                    var inputAuthority = requestAuthority ?? authority;
                     using (var request = HostActivity.BeginRoot(HostRequest.Create(inputAuthority.Origin),
                         HostActivityLayer.Desktop, HostOperation.Request))
                     {
@@ -256,6 +271,7 @@ internal sealed partial class OwnedSkillInvocationController(
 
     private void RetireConfirmation(bool edited = true)
     {
+        inputQuestions?.Cancel();
         Interlocked.Increment(ref inputRevision);
         if (edited && (invocation is not null || toolInvocation is not null)) { review?.Dispose(); toolReview?.Dispose(); }
         invocation?.Dispose();

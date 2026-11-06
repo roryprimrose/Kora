@@ -5,4 +5,5 @@ public enum CapabilityOutcome
     Succeeded,
     Denied,
     Failed,
+    Unavailable,
 }

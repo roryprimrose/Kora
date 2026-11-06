@@ -484,7 +484,7 @@ internal sealed class NativeUxFixtureWindow : Window, IDisposable
 
     private sealed class DeniedDetailClipboard : IDetailClipboard
     {
-        public Task WritePlainTextAsync(IDetailView view, string source) =>
+        public Task WriteAsync(IDetailView view, string source, string? htmlFragment) =>
             throw new InvalidOperationException("Native UX fixture cannot copy to the shared clipboard.");
     }
 }

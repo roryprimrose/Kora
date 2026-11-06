@@ -510,6 +510,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
         internal bool Current { get; set; } = true;
         internal Action? OnRead { get; set; }
         internal Func<Task>? BeforeRead { get; set; }
+        internal Action<CancellationToken>? MetadataToken { get; set; }
         internal Func<Task>? BeforeTaskRead { get; set; }
         internal Action? OnVersion { get; set; }
         internal bool AuditFailure { get; set; }
@@ -518,7 +519,8 @@ public sealed partial class ModelTurnHostTests : IDisposable
         internal List<HostRequest> LogRequests { get; } = [];
         public bool IsCurrentHost => Current;
         internal bool Inspect { get; set; } = true;
-        public bool CanInspect => CanControl && Inspect;
+        internal bool? InspectOverride { get; set; }
+        public bool CanInspect => InspectOverride ?? (CanControl && Inspect);
         public bool CanControl { get; set; } = true;
         public long ControlRevision { get; set; }
         internal string ObservedVersion { get; set; } = "1.0";
@@ -569,7 +571,8 @@ public sealed partial class ModelTurnHostTests : IDisposable
             return host;
         }
         internal ModelTurnHost ConfiguredProfiles(bool production = false, bool missingSessionStore = false,
-            IModelTurnAdapter? adapter = null, IModelProviderRegistrationSource? registrationSource = null)
+            IModelTurnAdapter? adapter = null, IModelProviderRegistrationSource? registrationSource = null,
+            McpCapabilityPreferences? capabilities = null)
         {
             var host = production ? new ModelTurnHost(this, this, this, registry, this, this, Time, ProviderConfiguration, ProfileConfiguration, this)
                 : new ModelTurnHost(this, this, this, registry, this, this, Time,
@@ -584,16 +587,18 @@ public sealed partial class ModelTurnHostTests : IDisposable
                                 _ => ModelProviderIdentity.Codex,
                             } };
                             return new ModelProviderRegistration(selection, Gates(selection), Time.Now.AddMinutes(5), adapter ?? Adapter);
-                        }).ToArray(), ProviderConfiguration, ProfileConfiguration, missingSessionStore ? null : this, registrationSource);
+                        }).ToArray(), ProviderConfiguration, ProfileConfiguration, missingSessionStore ? null : this, registrationSource,
+                        capabilities: capabilities, builtInMcp: capabilities is null ? null : new(registry, capabilities));
             ownedHosts.Add(host);
             return host;
         }
         internal ModelTurnHost Qualified(ModelProviderSelection selection, ModelQualificationGate? evidence = null,
-            bool composeProfileStoreOnly = false)
+            bool composeProfileStoreOnly = false, McpCapabilityPreferences? capabilities = null)
         {
             var host = new ModelTurnHost(this, this, this, registry, this, this, Time,
                 [new(selection, evidence ?? Gates(selection), Time.Now.AddSeconds(30), Adapter)],
-                sessionProfiles: composeProfileStoreOnly ? this : null);
+                sessionProfiles: composeProfileStoreOnly ? this : null, capabilities: capabilities,
+                builtInMcp: capabilities is null ? null : new Kora.Application.Mcp.KoraMcpServer(registry, capabilities));
             ownedHosts.Add(host);
             return host;
         }
@@ -611,6 +616,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
         }
         public async ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken token)
         {
+            MetadataToken?.Invoke(token);
             OnRead?.Invoke();
             if (BeforeRead is { } before) { await before().ConfigureAwait(false); }
             if (DiscoveryEntries is { } entries && session != Request.SessionId)
@@ -729,15 +735,19 @@ public sealed partial class ModelTurnHostTests : IDisposable
     private sealed class ManualTime : TimeProvider
     {
         internal TimeSpan ExpectedDeadline { get; set; } = TimeSpan.FromSeconds(15);
+        internal TimeSpan? AdditionalExpectedDeadline { get; set; }
         internal DateTimeOffset Now { get; set; } = DateTimeOffset.UnixEpoch;
+        internal long? Timestamp { get; set; }
         private TimerCallback? callback;
         private object? state;
         public override DateTimeOffset GetUtcNow() => Now;
+        public override long GetTimestamp() => Timestamp ?? Now.UtcTicks;
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
         public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
         {
             this.callback = callback;
             this.state = state;
-            dueTime.Should().Be(ExpectedDeadline);
+            new[] { ExpectedDeadline, AdditionalExpectedDeadline ?? ExpectedDeadline }.Should().Contain(dueTime);
             return new FakeTimer();
         }
         internal void FireDeadline() => callback!(state);

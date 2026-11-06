@@ -112,6 +112,31 @@
               </Grid>
             </Border>
 
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                <StackPanel Spacing="8">
+                  <TextBlock Text="Normal manual startup presentation" Classes="settings-title" />
+                  <TextBlock Text="Native review and separate confirmation only. Applies to the supported Start Menu shortcut or --manual-startup launch. Logon and argument-free launches keep their existing behavior. Default/reset preserves current initialization, not a fixed workspace. No conversation is loaded, focus activated or microphone enabled by this choice."
+                             Classes="settings-description" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding StartupPresentationStatus}" TextWrapping="Wrap" />
+                  <WrapPanel IsEnabled="{Binding CanControlStartupPresentation}">
+                    <Button Name="InspectStartupPresentation" Content="Inspect" Command="{Binding InspectStartupPresentationCommand}" Margin="0,0,8,8" />
+                    <Button Name="ReviewTrayStartup" Content="Review tray/minimal" Command="{Binding ReviewTrayStartupCommand}" Margin="0,0,8,8" />
+                    <Button Name="ReviewWorkspaceStartup" Content="Review Main workspace" Command="{Binding ReviewWorkspaceStartupCommand}" Margin="0,0,8,8" />
+                  </WrapPanel>
+                  <TextBlock Text="{Binding StartupPresentationReviewText}" TextWrapping="Wrap" />
+                  <WrapPanel IsEnabled="{Binding CanControlStartupPresentation}">
+                    <Button Name="ConfirmStartupPresentation" Content="Confirm presentation change" Command="{Binding ConfirmStartupPresentationCommand}" Margin="0,0,8,8" />
+                    <Button Name="CancelStartupPresentation" Content="Cancel presentation review" Command="{Binding CancelStartupPresentationCommand}" Margin="0,0,8,8" />
+                  </WrapPanel>
+                </StackPanel>
+                <controls:SettingActionsButton x:Name="StartupPresentationActions" Grid.Column="1"
+                                               SettingName="Normal manual startup presentation"
+                                               ResetCommand="{Binding ResetStartupPresentationCommand}"
+                                               IsEnabled="{Binding CanControlStartupPresentation}" />
+              </Grid>
+            </Border>
+
             <StackPanel Spacing="5" Margin="0,8,0,0">
               <TextBlock Text="Appearance" FontSize="18" FontWeight="SemiBold" />
               <TextBlock
@@ -153,6 +178,20 @@
                 </StackPanel>
                 <controls:SettingActionsButton Grid.Column="1" SettingName="Reading text size"
                                                ResetCommand="{Binding ResetReaderTextScaleCommand}" />
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Reduced motion" Classes="settings-title" />
+                  <TextBlock Text="Freeze presence particle movement in both animation modes. When off, follow Windows animation settings; Kora never overrides Windows reduced motion. Speech sizing and brief colour and visibility transitions remain independent."
+                             Classes="settings-description" TextWrapping="Wrap" />
+                </StackPanel>
+                <CheckBox Grid.Column="1" Content="Reduce motion" IsChecked="{Binding IsReducedMotionEnabled}"
+                          VerticalAlignment="Center" AutomationProperties.Name="Reduced motion" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Reduced motion"
+                                               ResetCommand="{Binding ResetReducedMotionCommand}" />
               </Grid>
             </Border>
 
@@ -543,6 +582,22 @@
 
             <Border Classes="settings-card">
               <StackPanel Spacing="8">
+                <TextBlock Text="Foreground push-to-talk shortcut" Classes="settings-title" />
+                <TextBlock Text="{Binding ForegroundPttStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                <TextBlock Text="Optional and unassigned by default. Only the foreground Response window uses this chord, outside text editors and pending questions or approvals. These choices avoid Kora's editing, navigation and reserved system combinations; arbitrary third-party hotkey conflicts are not detected. No global hook or background listening. The microphone button, Space and Enter remain available."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <ComboBox x:Name="ForegroundPttShortcutChoice" ItemsSource="{Binding ForegroundPttChoices}"
+                          SelectedItem="{Binding SelectedForegroundPttShortcut}" DisplayMemberBinding="{Binding Label}"
+                          IsEnabled="{Binding CanChangeForegroundPtt}" AutomationProperties.Name="Foreground push-to-talk shortcut" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="Save shortcut" Command="{Binding SaveForegroundPttCommand}" IsEnabled="{Binding CanChangeForegroundPtt}" />
+                  <Button Content="Cancel shortcut edit" Command="{Binding CancelForegroundPttCommand}" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="settings-card">
+              <StackPanel Spacing="8">
                 <TextBlock Text="Conversational voice replies (off by default)" Classes="settings-title" />
                 <TextBlock Text="{Binding ConversationalReplyStatus}" Classes="settings-description" TextWrapping="Wrap"
                            AutomationProperties.Name="{Binding ConversationalReplyStatus}" />
@@ -553,6 +608,23 @@
                           IsEnabled="{Binding CanChangeConversationalReplies}" AutomationProperties.Name="Enable bounded conversational voice replies" />
                   <Button Content="Turn off" Command="{Binding DisableConversationalRepliesCommand}"
                           IsEnabled="{Binding CanChangeConversationalReplies}" AutomationProperties.Name="Turn conversational voice replies off" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Speech capture timing" Classes="settings-title" />
+                <TextBlock Text="{Binding VoiceTimingStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                <ComboBox ItemsSource="{Binding VoiceTimingOptions}" SelectedItem="{Binding SelectedVoiceTimingOption}"
+                          IsEnabled="{Binding CanReviewVoiceTiming}" AutomationProperties.Name="Capture timing option" />
+                <TextBox Text="{Binding VoiceTimingSeconds}" IsEnabled="{Binding CanReviewVoiceTiming}"
+                         AutomationProperties.Name="Capture timing in seconds" />
+                <Button Content="Review capture timing" Command="{Binding ReviewVoiceTimingCommand}" IsEnabled="{Binding CanReviewVoiceTiming}" />
+                <TextBlock Text="{Binding VoiceTimingReviewStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="Confirm capture timing" Command="{Binding ConfirmVoiceTimingCommand}" IsEnabled="{Binding CanConfirmVoiceTiming}" />
+                  <Button Content="Cancel capture timing" Command="{Binding CancelVoiceTimingCommand}" IsEnabled="{Binding HasVoiceTimingReview}" />
                 </StackPanel>
               </StackPanel>
             </Border>
@@ -579,6 +651,57 @@
                   <Button Content="Confirm speech input switch" Command="{Binding ConfirmSpeechInputCommand}" IsEnabled="{Binding CanConfirmSpeechInputReview}" />
                   <Button Content="Cancel speech input switch" Command="{Binding CancelSpeechInputCommand}" IsEnabled="{Binding HasSpeechInputReview}" />
                 </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                <StackPanel Spacing="8">
+                <TextBlock Text="Scheduled proactive speech quiet hours" Classes="settings-title" />
+                <TextBlock Text="{Binding QuietHoursStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                <TextBlock Text="One weekly interval in an explicit time zone. Off until confirmed. Use ordered days Mon,Tue,Wed,Thu,Fri,Sat,Sun and 24-hour HH:mm times. Overnight intervals belong to their starting day. Visual notices, ordinary requested answers, questions and approvals remain unchanged."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <TextBox Name="QuietHoursDays" Text="{Binding QuietHoursDays}" MaxLength="27" PlaceholderText="Mon,Tue,Wed,Thu,Fri"
+                         IsEnabled="{Binding CanChangeQuietHoursNative}" AutomationProperties.Name="Quiet hours days" />
+                <TextBox Name="QuietHoursStart" Text="{Binding QuietHoursStart}" MaxLength="5" PlaceholderText="09:00"
+                         IsEnabled="{Binding CanChangeQuietHoursNative}" AutomationProperties.Name="Quiet hours start time HH:mm" />
+                <TextBox Name="QuietHoursEnd" Text="{Binding QuietHoursEnd}" MaxLength="5" PlaceholderText="17:00"
+                         IsEnabled="{Binding CanChangeQuietHoursNative}" AutomationProperties.Name="Quiet hours end time HH:mm" />
+                <TextBox Name="QuietHoursZone" Text="{Binding QuietHoursZone}" MaxLength="128" PlaceholderText="UTC"
+                         IsEnabled="{Binding CanChangeQuietHoursNative}" AutomationProperties.Name="Quiet hours explicit time zone ID" />
+                <WrapPanel Orientation="Horizontal">
+                  <Button Content="Inspect quiet hours" Command="{Binding InspectQuietHoursCommand}" IsEnabled="{Binding CanChangeQuietHoursNative}" />
+                  <Button Name="ReviewQuietHours" Content="Review weekly quiet hours" Command="{Binding ReviewQuietHoursCommand}" IsEnabled="{Binding CanChangeQuietHoursNative}" />
+                </WrapPanel>
+                <TextBlock Text="{Binding QuietHoursReviewText}" Classes="settings-description" TextWrapping="Wrap" />
+                <WrapPanel Orientation="Horizontal">
+                  <Button Name="ConfirmQuietHours" Content="Confirm quiet hours" Command="{Binding ConfirmQuietHoursCommand}" IsEnabled="{Binding CanConfirmQuietHoursNative}" />
+                  <Button Content="Cancel quiet hours review" Command="{Binding CancelQuietHoursCommand}" IsEnabled="{Binding CanChangeQuietHoursNative}" />
+                </WrapPanel>
+                </StackPanel>
+                <controls:SettingActionsButton Name="QuietHoursActions" Grid.Column="1"
+                                               SettingName="Scheduled proactive speech quiet hours"
+                                               ResetCommand="{Binding ResetQuietHoursCommand}"
+                                               IsEnabled="{Binding CanChangeQuietHoursNative}" />
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Local speech setup comparison" Classes="settings-title" />
+                <TextBlock Text="{Binding SpeechComparisonDisclosure}" Classes="settings-description" TextWrapping="Wrap" />
+                <TextBox Text="{Binding SpeechComparisonPhrase}" MaxLength="256"
+                         AutomationProperties.Name="Inert expected comparison phrase" />
+                <Button Content="Start / review local comparison" Command="{Binding ReviewSpeechComparisonCommand}" />
+                <TextBlock Text="{Binding SpeechComparisonProfiles}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding SpeechComparisonStatus}" TextWrapping="Wrap"
+                           AutomationProperties.Name="{Binding SpeechComparisonStatus}" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="Test with microphone" Command="{Binding TestSpeechComparisonCommand}"
+                          IsEnabled="{Binding CanTestSpeechComparison}" />
+                  <Button Content="Cancel and discard" Command="{Binding CancelSpeechComparisonCommand}" />
+                </StackPanel>
+                <TextBlock Text="{Binding SpeechComparisonResults}" TextWrapping="Wrap" />
               </StackPanel>
             </Border>
 
@@ -731,15 +854,15 @@
                   <TextBlock Text="{Binding PlaybackVolumeStatus}" TextWrapping="Wrap" Classes="settings-description" />
                   <controls:SettingsNumberField Label="Volume" Unit="%" Value="{Binding SelectedPlaybackVolume}" SavedValue="{Binding SavedPlaybackVolume}"
                       Minimum="0" Maximum="{x:Static configuration:PlaybackVolume.MaximumPercent}"
-                      ActionCommand="{Binding SavePlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolume}" />
+                      ActionCommand="{Binding SavePlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolumeNative}" />
                 </StackPanel>
                 <controls:SettingActionsButton Grid.Column="1" SettingName="Kora playback volume"
-                                               IsEnabled="{Binding CanChangePlaybackVolume}">
+                                               IsEnabled="{Binding CanChangePlaybackVolumeNative}">
                   <controls:SettingActionsButton.Flyout>
                     <MenuFlyout>
-                      <MenuItem Header="Refresh" Command="{Binding RefreshPlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolume}" AutomationProperties.Name="Refresh volume" />
+                      <MenuItem Header="Refresh" Command="{Binding RefreshPlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolumeNative}" AutomationProperties.Name="Refresh volume" />
                       <Separator />
-                      <MenuItem Header="Reset volume to 100%" Command="{Binding ResetPlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolume}" />
+                      <MenuItem Header="Reset volume to 100%" Command="{Binding ResetPlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolumeNative}" />
                     </MenuFlyout>
                   </controls:SettingActionsButton.Flyout>
                 </controls:SettingActionsButton>
@@ -784,6 +907,43 @@
                   Classes="muted"
                   FontSize="13" />
             </StackPanel>
+
+            <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Text="Detailed result offers" Classes="settings-title" />
+                  <controls:SettingActionsButton Grid.Column="1" SettingName="Detailed result offers"
+                      IsEnabled="{Binding CanControlDetailPresentationNative}">
+                    <controls:SettingActionsButton.Flyout>
+                      <MenuFlyout>
+                        <MenuItem Header="Inspect" Command="{Binding InspectDetailPresentationCommand}"
+                            IsEnabled="{Binding CanControlDetailPresentationNative}" />
+                        <Separator />
+                        <MenuItem Header="Review reset to Offer" Command="{Binding ResetDetailPresentationCommand}"
+                            IsEnabled="{Binding CanControlDetailPresentationNative}" />
+                      </MenuFlyout>
+                    </controls:SettingActionsButton.Flyout>
+                  </controls:SettingActionsButton>
+                </Grid>
+                <TextBlock Text="Choose whether new results retain existing proactive offers or only manual details access. Automatic opening is unavailable."
+                    Classes="settings-description" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding DetailPresentationStatus}" TextWrapping="Wrap"
+                    AutomationProperties.Name="Detail presentation preference status" />
+                <WrapPanel ItemSpacing="8" LineSpacing="6">
+                  <Button x:Name="OfferDetailPresentation" Content="Review Offer" Command="{Binding OfferDetailPresentationCommand}" IsEnabled="{Binding CanControlDetailPresentationNative}" />
+                  <Button x:Name="LinkOnlyDetailPresentation" Content="Review Link only" Command="{Binding LinkOnlyDetailPresentationCommand}" IsEnabled="{Binding CanControlDetailPresentationNative}" />
+                  <Button x:Name="AutomaticDetailPresentation" Content="Review Open automatically" Command="{Binding AutomaticDetailPresentationCommand}" IsEnabled="{Binding CanControlDetailPresentationNative}" />
+                </WrapPanel>
+                <TextBlock Text="{Binding DetailPresentationReviewText}" TextWrapping="Wrap"
+                    AutomationProperties.Name="Exact detail presentation preference review" />
+                <WrapPanel ItemSpacing="8" LineSpacing="6">
+                  <Button x:Name="ConfirmDetailPresentation" Content="Confirm detail presentation change" Command="{Binding ConfirmDetailPresentationCommand}"
+                      IsEnabled="{Binding CanControlDetailPresentationNative}" />
+                  <Button x:Name="CancelDetailPresentation" Content="Cancel detail presentation change" Command="{Binding CancelDetailPresentationCommand}"
+                      IsEnabled="{Binding CanControlDetailPresentationNative}" />
+                </WrapPanel>
+              </StackPanel>
+            </Border>
 
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,260,Auto" ColumnSpacing="24">
@@ -847,7 +1007,7 @@
               <Grid ColumnDefinitions="*,300,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Speech captions (off by default)" Classes="settings-title" />
-                  <TextBlock Text="Show the words Kora speaks once playback starts. Current sentence can be saved as a request but is unavailable in this build; no Windows voice/rate/output profile has qualified alignment. Captions stay for 0-30 seconds afterward (default 5), or until you unpin them. Stopping speech, replacing a response or hiding private content clears them immediately. Captions do not highlight individual words."
+                  <TextBlock Text="Show the words Kora speaks once playback starts. Current sentence and optional word emphasis can be saved as requests but are unavailable in this build; no exact Windows voice/rate/output profile has qualified alignment. Word emphasis defaults off and never estimates timing; unavailable alignment leaves ordinary caption text unchanged. Captions stay for 0-30 seconds afterward (default 5), or until you unpin them. Stopping speech, replacing a response or hiding private content clears them immediately."
                       Classes="settings-description" TextWrapping="Wrap" />
                   <TextBlock Text="{Binding SpeechTextConfigurationStatus}" Classes="settings-description" TextWrapping="Wrap" />
                 </StackPanel>
@@ -954,6 +1114,41 @@
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <TextBlock Text="Sessions" FontSize="28" FontWeight="SemiBold" />
+            <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                  <TextBlock Text="Future ordinary task deadline" Classes="settings-title" TextWrapping="Wrap" />
+                  <controls:SettingActionsButton Grid.Column="1" SettingName="Ordinary task deadline"
+                                                 IsEnabled="{Binding CanChangeOrdinaryDeadlineNative}">
+                    <controls:SettingActionsButton.Flyout>
+                      <MenuFlyout>
+                        <MenuItem Header="Refresh" Command="{Binding RefreshOrdinaryDeadlineCommand}"
+                                  IsEnabled="{Binding CanChangeOrdinaryDeadlineNative}" AutomationProperties.Name="Refresh future ordinary task deadline" />
+                        <Separator />
+                        <MenuItem Header="Reset to 5 minutes" Command="{Binding ResetOrdinaryDeadlineCommand}"
+                                  IsEnabled="{Binding CanChangeOrdinaryDeadlineNative}" />
+                      </MenuFlyout>
+                    </controls:SettingActionsButton.Flyout>
+                  </controls:SettingActionsButton>
+                </Grid>
+                <TextBlock Text="Choose 1-60 minutes for newly dispatched ordinary model/tool turns without user waits. Running turns and pending-request expiry are unchanged. Earlier context expiry and fixed provider/tool safety limits always win; saving a longer deadline does not extend them. Clarification and approval turns keep their existing fixed limits."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding OrdinaryDeadlineStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                <controls:SettingsNumberField x:Name="OrdinaryDeadlineField" Label="Future task deadline" Unit="minutes"
+                    Value="{Binding SelectedOrdinaryDeadlineMinutes}" SavedValue="{Binding SavedOrdinaryDeadlineMinutes}"
+                    Minimum="{x:Static configuration:OrdinaryTurnDeadline.MinimumMinutes}" Maximum="{x:Static configuration:OrdinaryTurnDeadline.MaximumMinutes}"
+                    IsEnabled="{Binding CanChangeOrdinaryDeadlineNative}" />
+                <Button Content="Save" Command="{Binding SaveOrdinaryDeadlineCommand}" Classes.pending="{Binding IsOrdinaryDeadlineDraftChanged}"
+                        AutomationProperties.Name="Save future ordinary task deadline">
+                  <Button.IsEnabled>
+                    <MultiBinding Converter="{x:Static converters:BoolConverters.And}">
+                      <Binding Path="CanChangeOrdinaryDeadlineNative" />
+                      <Binding ElementName="OrdinaryDeadlineField" Path="IsInputValid" />
+                    </MultiBinding>
+                  </Button.IsEnabled>
+                </Button>
+              </StackPanel>
+            </Border>
             <Border Classes="settings-card">
               <StackPanel Spacing="8">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
@@ -1207,6 +1402,7 @@
             </Border>
 
             <Border Classes="settings-card">
+              <StackPanel Spacing="6">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Voice activation during calls" Classes="settings-title" />
@@ -1222,6 +1418,21 @@
                     IsEnabled="{Binding CanDisableCallVoiceActivation}"
                     VerticalAlignment="Center" />
               </Grid>
+              <controls:NamedTextBlock Text="{Binding CallVoiceActivationReviewStatus}" TextWrapping="Wrap"
+                  Classes="settings-description" AutomationProperties.LiveSetting="Polite"
+                  AutomationProperties.Name="Call-time activation exact review saved and effective status" />
+              <WrapPanel ItemSpacing="8" LineSpacing="6">
+                <Button Name="ReviewCallVoiceActivation" Content="Review enabling activation"
+                    Command="{Binding ReviewCallVoiceActivationCommand}" TabIndex="40"
+                    AutomationProperties.Name="Review enabling device-local voice activation during calls" />
+                <Button Name="ConfirmCallVoiceActivation" Content="Confirm reviewed activation"
+                    Command="{Binding ConfirmCallVoiceActivationCommand}" TabIndex="41"
+                    AutomationProperties.Name="Confirm the exact reviewed call-time activation preference only" />
+                <Button Name="CancelCallVoiceActivation" Content="Cancel activation review"
+                    Command="{Binding CancelCallVoiceActivationCommand}" TabIndex="42"
+                    AutomationProperties.Name="Cancel call-time activation review without saving" />
+              </WrapPanel>
+              </StackPanel>
             </Border>
             <Border Classes="settings-card">
               <StackPanel Spacing="6">

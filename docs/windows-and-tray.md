@@ -18,6 +18,16 @@ not a fabricated model reply.
 **Product realignment:** conversation input is moving from saved-draft document management to per-conversation in-memory unsent text. The saved-draft catalogue/comparison and engineering-heavy normal workspace controls below describe current implementations approved for retirement or simplification, not the target workflow.
 Existing saved content remains governed by retention and private recovery. See the [approved scope](../Design/MVP_Scope.md#approved-retirement-and-simplification).
 
+### Review an unsent message before sending
+
+In the primary conversation, Sessions or compact view, write your message and choose **Review unsent message once**.
+Inspect the complete unchanged message, conversation, local-only scope, original channel and expiry, then choose **Confirm and submit reviewed message once** or **Cancel review; keep unsent message**.
+Review and cancellation do not save or submit the input; ordinary direct Send remains available ([interaction contract](../Design/Interaction_And_Sessions.md#conversation-input-realignment)).
+
+Switching conversations preserves their independent unsent text but retires the review. Editing input, replacing a review, expiry or privacy/ownership loss requires a fresh review; returning to the same conversation does not restore approval.
+You can cancel while review preparation is waiting. After confirmation, inspect the reported original HOST outcome or actual retained answer; unavailability is not an answer, and uncertainty is not permission to retry automatically.
+No disk autosave or new retention is introduced ([source and review owner](../src/Kora/SessionsViewModel.ComposerRequest.cs)).
+
 ## Native app provider field review
 
 **Settings > Providers** retains the complete app tuple workflow and adds individual exact model/reasoning/context review. Inspect current catalogue, select the service, review one field, inspect the whole resulting tuple/account/revision/provenance, then confirm or cancel separately. Individual edits retain the app default, other service tuples and session overrides.
@@ -46,6 +56,21 @@ Prompt bodies are literal saved user requests, not parameters or system guidance
 See [native editor commands, bounds and recovery](instruction-editor.md).
 
 ## Authoritative Sessions work
+
+### Optional local model answer about remaining work
+
+In the full or compact conversation, expand **Optional local model answer about this conversation's remaining work**. Enable the optional operation for this private view; it starts off in each new view. The selected conversation is the source. Enter your question and choose a different existing Active idle answer conversation ([native controls](../src/Kora/ManagementAnswerPanel.axaml)).
+
+Choose **Review exact local ledger disclosure**. Read the complete question, policy, body-free work facts, local catalogue selection, destination and retention disclosure. Review alone neither calls a model nor saves a message.
+Choose **Confirm one local answer and retention** once, or **Cancel / clear management review** ([review owner](../src/Kora.Application/Hosting/RemainingWorkManagement.cs)).
+
+Disabling the operation, editing the question/destination, changing the source, closing the view or losing private access retires the review. No submitted message bodies or unsent composer text are read. It cannot change work or approve effects. Source work continues; manual status and stop remain available ([presentation owner](../src/Kora/SessionsViewModel.ManagementAnswer.cs)).
+
+Production management inference is unqualified and unavailable. If a separately qualified local host is provided, the complete input/output are bounded to 32/4 KiB and one attempt has at most fifteen seconds.
+Source observations expire after ten seconds; changed or expired facts refuse an answer. Missing/omitted or diagnostic-queue records require manual status instead ([operation contract](../Design/Work_Management.md#reviewed-local-remaining-work-answer)).
+
+Inspect the reported HOST outcome and actual retained answer in the destination. An unavailable or unconfirmed result is not an answer; do not retry automatically. The evidence is not saved as history, although the retained answer may repeat its metadata.
+No remote fallback, work mutation or provider enablement is introduced ([retained-answer adapter](../src/Kora.Application/Hosting/SessionConversationService.ManagementAnswer.cs)).
 
 ### Stop all submitted work without exiting
 
@@ -114,6 +139,11 @@ Activity contains the existing task/question/answer/decision records; it is not
 a complete tool trace or exact-grant-change feed. Historical records and their
 Details are read-only, never live answer or approval buttons.
 
+Returning to a conversation does not replay delayed submission notifications.
+Use **Read conversation** for its retained result or **Refresh submitted work**
+for current pending requests. Your unsent text stays in its original conversation;
+refreshing does not submit it or renew the original request's permission.
+
 The composer explicitly sends to the selected conversation. Switching topics
 preserves each topic's separate memory-only unsent text. **Collapse** (or
 `collapse conversation`) returns to the original compact interaction without
@@ -160,6 +190,96 @@ saves it to disk, and no tools/effects are replayed automatically.
 Retained voice content also cannot acquire fresh activated-voice authority from
 a native button: a retry review needs current admission of the original channel.
 
+### Review a confirmed failure with an alternate local profile
+
+After **Read conversation**, select one confirmed failed USER request.
+**Refresh providers**, choose **Local** in the **This request only** service picker,
+explicitly choose all three advertised local values, then choose
+**Review selected failure with this LOCAL profile**. Review the unchanged failed
+input, original provider/channel, exact conversation, complete new local tuple
+and expiry ([native review](../src/Kora/SessionsViewModel.LocalRequestProfile.cs)).
+
+Copilot and Claude selections remain available for ordinary request-only review,
+not selected-failure recovery. Changing the service retires the pending review
+([service fence](../src/Kora/SessionsViewModel.LocalRequestProfile.cs)).
+
+**Confirm this request only once** submits one fresh local attempt through ordinary
+queue and model admission; it does not replay or reset the old task.
+**Cancel this request-only review** submits nothing. Original failure and unrelated
+unsent input remain unchanged, even when the original provider is no longer
+available. Held queues still require their existing separate **Resume**
+([host route](../src/Kora.Application/Hosting/SessionConversationService.FailedRetry.cs)).
+
+The selected local tuple must remain advertised and admitted. Missing qualification
+returns a truthful HOST/task Unavailable without an answer or provider call.
+Source/task, selection, profile/account, session, expiry and private authority remain
+live fences; cancellation retains ownership until physical work joins. Existing
+instruction-scope review remains required. No preference write, acquisition, new
+hosted channel, fallback or renewed voice authority is added
+([admission](../src/Kora.Application/Dependencies/ModelTurnHost.LocalRequestProfile.cs)).
+
+### Review expired local text as a new ordinary request
+
+In expanded **Sessions**, choose **Read exact conversation**, select the original
+expired USER row, then **Review expired local text as a NEW ordinary request**.
+Read its complete unchanged body, host no-dispatch evidence, original channel,
+current Active destination and current local provider/profile. Separately choose
+**Confirm one NEW ordinary LOCAL request**, or **Decline fresh request review**.
+This completes a new ordinary request, not composer preparation or an old-task retry
+([operation](../src/Kora/SessionsViewModel.ExpiredOrdinary.cs)).
+
+Only newly recorded bare **Answer locally (no tools)** sources with confirmed
+pre-dispatch **Denied / ContextExpired** in the current Active session generation
+are supported. History from before Done/Resume remains readable but cannot supply
+this fresh review. Old records without this
+provenance, ordinary tool-capable Send, interrupted/uncertain/dispatched work,
+hosted, clipboard, files, MCP and reviewed evidence need their independent existing
+fresh routes. An applying session instruction is refused here rather than silently
+reused or omitted. No model/account/profile is guessed when the original never
+recorded it ([source boundary](../Design/Work_Management.md#fresh-review-of-expired-ordinary-local-text)).
+
+Confirmation retains a distinct USER/task at the normal FIFO tail with new IDs and
+a fifteen-second context from this new confirmation, including time spent validating
+it; validation does not restart the clock. The original task, denied
+outcome, history and unrelated unsent input remain unchanged. The new record keeps
+historical source attribution separate from its fresh native initiator; clicking
+cannot renew a voice operation. A qualified runtime can retain its actual answer;
+unqualified runtime admission remains unavailable, never fallback
+([admission](../src/Kora.Application/Hosting/SessionConversationService.ExpiredOrdinary.cs)).
+
+Review/decline writes nothing and invokes no provider. New work, source/input/capture,
+session, provider/default/profile, privacy, ownership or call changes require fresh
+review. Confirm once within sixty seconds; expired/consumed reviews cannot replay.
+If dispatch is held, use **Release manual dispatch hold** and/or the independent
+**Resume held dispatch** as applicable first, then review again. Confirmation may
+join a held FIFO but cannot clear either hold or renew old authority. The accepted
+request remains eligible after its acceptance receipt replaces the selected
+historical row. Actual input/capture, private authority, stored source, session,
+provider or deadline changes still prevent dispatch; receipt presentation does
+not renew any authority. This source
+review cannot be combined with a one-task output choice; use that separate new-request
+review for its own original input.
+If the new request is still pending, **Clear queue - review all pending** can
+cancel it after its separate confirmation. The historical expired source stays
+unchanged; pending-only clear neither renews nor replays it.
+Normal capacity, message, byte, budget and resource limits still apply
+([review fences](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)).
+
+### Answers not marked reviewed
+
+Return to the exact conversation in the expanded, Sessions or compact view. Expand **Answers not marked reviewed**, then:
+
+1. Choose **Read answers not marked reviewed**. The status shows how many retained answers have no explicit review flag at that read, with bounded rows and **Next answer-review page** when more matches are omitted.
+2. Select one metadata row and choose **Open this exact answer Details**. This opens the retained ASSISTANT answer through the existing private Details reader; selection and opening mark nothing.
+3. Deliberately choose **Mark this answer reviewed**. Only that exact answer changes. The list and count refresh after confirmed durable readback; other conversations, unseen pages and later answers are not marked.
+4. To undo, choose **Read all answer review flags (including undo)**, select the exact answer, open its Details, then choose **Unmark this answer reviewed**.
+
+**Not marked reviewed** does not mean unread: Kora cannot prove that a person read or understood an answer. Opening, rendering, polling, browsing and paging never mark anything automatically. Read again for new background answers. Flags survive restart only while the source history remains retained ([operation owner](../src/Kora/SessionsViewModel.AnswerReviews.cs)).
+
+Changed or removed sources, privacy/ownership loss, cancellation, malformed saved state or uncertain readback report **Unavailable**, not a zero remaining count or successful mark. Read again explicitly after recovery; no automatic retry or rollback is inferred. Confirmed older history with no acknowledgement starts as not marked ([authoritative store](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.AnswerReviews.cs)).
+
+This native-only metadata choice does not Resume a Done conversation, renew retention, send model input, change grants, dispatch work, copy an answer body or save unsent text. Deleting source history also removes its owned review metadata under the existing deletion policy ([lifecycle contract](../Design/Interaction_And_Sessions.md#explicit-retained-answer-review-acknowledgement)).
+
 ### Details beside the conversation
 
 After explicitly reading a conversation or selecting an activity receipt, use
@@ -168,7 +288,16 @@ The expanded window opens a Details pane beside the conversation and composer;
 it does not open another session-result window or repeat the task.
 Each message link opens that exact original or answer, including earlier results.
 
-Drag the divider to resize both panes. **Hide details** or the reader's Escape
+Drag the divider to resize both panes, or focus it and use the arrow keys.
+**Expand details** gives the result more reading width while keeping the
+conversation and composer visible. **Restore split** returns to the previous
+split, even after adjusting the divider while expanded. These native buttons
+also work with Enter/Space. They keep the same source, selection and Find
+without rereading or rerunning anything, and do not resize the window.
+Hiding, replacing the result or switching sessions discards the temporary
+expansion and keeps the ordinary split.
+
+**Hide details** or the reader's Escape
 closes the content, not the conversation or unsent text. **Show details** restores
 the last explicitly chosen available item after fresh admission, or offers a
 chooser. It is disabled until the selected session has observed available details;
@@ -199,6 +328,18 @@ labelled as separate from the selected conversation and do not retarget its inpu
 Supported Markdown renders natively. Mermaid remains labelled source fallback;
 this change does not enable HTML or browser capabilities.
 
+### Read the audit for one original message
+
+After explicitly reading a conversation, choose **Read this request's audit** beside one original message.
+Kora reads only committed **AuthorityAudit** records for that exact original session, request and task, then opens the existing Details pane. It does not read other requests, replay the operation or call a model ([native action](../src/Kora/SessionsViewModel.RequestEvidence.cs)).
+
+**Next request-audit snapshot page** continues the same bounded signed snapshot; it does not refresh or widen the query.
+Missing records or terminal evidence do not prove that work is running, succeeded or had an effect. The page labels its availability and whether more bounded evidence remains.
+This native-only inspection retains the existing local-UI evidence admission, not a new voice or model route ([shared reader](../src/Kora.Application/Diagnostics/DurableEvidenceQuery.cs)).
+
+The original retained message is revalidated before and after the read and during passive page revalidation. Message/source, selection, private-control or native-presenter retirement blocks late publication and old Next controls ([source fences](../src/Kora/SessionsViewModel.RequestEvidence.cs)).
+Reading leaves unsent input, session lifecycle, meaningful activity, grants and independent audit retention unchanged; no clipboard, export, speech or context-use authority is added ([page validation](../src/Kora/SessionsViewModel.Details.cs)).
+
 ### Workspace surface navigation
 
 Type `open all work` or `open compact conversation`, or use the current assistant-name activated prefix. These exact routes activate the existing tray/UI singleton controllers. `open sessions` now expands the primary interaction window, as do `show sessions`, `show me the current sessions` and `expand conversation`. No model window-focus route is available.
@@ -221,6 +362,13 @@ Use **Read exact conversation**, bounded Next, and **Refresh observed work** exp
 
 Unsent text is memory-only and separately retained per session while switching topics. Both windows display edits to the same buffer; only explicit Submit retains a new message ([buffer ownership](../src/Kora/SessionsViewModel.Unsent.cs)).
 New request remains a separate fresh-target workflow; opening it never transfers the shared text ([shared controller](../src/Kora/SessionsWindowController.cs)).
+
+In the Sessions management and legacy compact conversation composers, **Ctrl+Enter**
+invokes the same currently enabled **Submit exact message** action as the button.
+Plain **Enter** remains a newline; adding Shift, Alt or Windows to Ctrl+Enter does
+not submit. The shortcut is local to the focused composer, not a global hotkey
+or a shortcut for other fields. Existing reply review, admission and in-progress
+checks remain unchanged; refused or cancelled admission preserves unsent input.
 
 Closing one view leaves the other view and unsent text intact. Closing the last view protects nonempty input across all topics with Discard/Cancel, even if the selected input is empty. Application exit uses the same protection. No Save-as-document is offered.
 Privacy, ownership or session retirement revokes both views without saving or stopping unrelated work ([presentation owner](../src/Kora/SessionsPresentationOwner.cs)).
@@ -406,6 +554,13 @@ Read/Next show bounded chronological **USER** messages and separate **HOST** sta
 
 Typing writes nothing. Switching topics preserves a separate memory-only unsent message per exact session, shared by Sessions and compact views. No ordinary Save/Reload/Clear or saved-draft management exists ([buffers](../src/Kora/SessionsViewModel.Unsent.cs)).
 
+If work refresh observes a changed lifecycle or generation, all conversation
+views retain the unsent text but disable stale composer and Send controls.
+An Active observation alone does not restore eligibility. Use **Read conversation**
+for that exact session to recover its current source; other topics' unsent text
+remains independent. Submission uncertainty still requires exact receipt
+inspection and is not cleared by reading.
+
 **Recover existing legacy text into empty input** is a separate read-only action for the selected exact session. It verifies stable source/revision before importing, refuses nonempty input and never saves, deletes or submits. Missing/unavailable legacy text leaves history and unsent input unchanged. Retention and private authority checks remain; no migration or purge occurs ([recovery](../src/Kora/SessionsViewModel.Unsent.cs)).
 
 **Discard this unsent message...** requires confirmation and affects only that session's memory input. Last-view/application close protects all nonempty topic buffers with Discard/Cancel. Privacy/ownership/session retirement revokes affected private text without saving ([presentation owner](../src/Kora/SessionsPresentationOwner.cs)).
@@ -440,6 +595,10 @@ and their positions (at most ten pending). Select one and deliberately choose
 **Cancel selected pending request** to cancel only that request before any
 provider dispatch. Its submitted history remains; running work and your next
 unsent input are unchanged. Both conversation windows use the same controls.
+
+**Clear queue - review all pending** reviews every current never-dispatched request in this one Active conversation. Inspect the complete body-free identities, positions, count, expiry and impact, then independently choose **Confirm clear pending only** or **Cancel pending-only review**. Review/cancel has no execution effects; separate confirmation retains original USER/task/audit history while running work continues ([native operation](../src/Kora/SessionsViewModel.PendingConversation.cs)).
+
+New arrivals, dispatch or changed source/authority require fresh review. Results enumerate actual per-entry known/unconfirmed outcomes and remaining host-lane work; an unknown receipt is not a durable all-clear or rollback. Existing dispatch holds remain independent. [Exact typed/activated review](commands.md#clear-one-ordinary-conversations-pending-work) uses the same cancellation owner; the displayed native confirmation can preserve the original voice source without a new capture.
 
 Next dispatch requires the previous request's successful confirmed completion
 and physical resource closure, then current original session/source/provider/
@@ -1055,6 +1214,8 @@ Accepting never submits, approves an action or sends anything to a model; normal
 The source must wholly fit the displayed question bound (currently 500 characters for conversation clarification) and normal Unicode/credential rules. Invalid or overlong text is rejected, not shortened. Changing the system clipboard after capture cannot replace the reviewed text or trigger a reread ([regressions](../tests/Kora.Windows.IntegrationTests/QuestionClipboardAnswerTests.cs)).
 
 **Cancel clipboard answer** preserves the prior manual draft and leaves the question unanswered. Manual typing retires the capture without overwriting the new typing.
+You can select and replace text in the answer field before or after accepting the snapshot. The exact edit, caret and normal Undo/Redo remain intact; the clipboard review clears, leaving an ordinary unsubmitted manual answer. Over-limit edits remain fully visible with an **Invalid answer** warning and disabled Save/Submit controls. Separately choose **Submit answer** to record a valid edited answer.
+If a new edit arrives while clipboard acceptance or cancellation is updating the window, its own validation status remains visible; an older clipboard status cannot replace its **Invalid answer** warning.
 Permission loss, expiry, stale/replaced question or unavailable private presentation refuses the candidate; start a fresh deliberate review. Clipboard drafts cannot use **Save draft** before submission ([native answer state](../src/Kora/NativeQuestionViewModel.cs)).
 
 This shortcut is unavailable for choices, approvals, authentication, permission, consent and security questions. It is not clipboard explanation, source grounding, polling, automatic paste/answer or a new clipboard archive. Existing manual OS paste and source-copy restrictions are unchanged ([scope](../Design/Interaction_Fallback.md#delivered-ordinary-clarification-clipboard-answer)).

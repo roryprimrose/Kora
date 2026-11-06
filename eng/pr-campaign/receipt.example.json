@@ -1,0 +1,51 @@
+{
+  "schema": "kora-pr-campaign-v1",
+  "campaign": {
+    "repository": "example-owner/example-repository",
+    "owner": "documentation-example",
+    "targets": [12],
+    "expectedPrincipal": null
+  },
+  "observedAt": "2026-01-01T00:00:00.000Z",
+  "observer": {
+    "source": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  },
+  "principal": "example-owner",
+  "references": {
+    "queue": {
+      "branch": "automation/merge-queue-state",
+      "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "blob": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "main": {
+      "sha": "cccccccccccccccccccccccccccccccccccccccc",
+      "fetchedAt": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  "pulls": [
+    {
+      "number": 12,
+      "url": "https://github.com/example-owner/example-repository/pull/12",
+      "author": "example-owner",
+      "state": "MERGED",
+      "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "enrollment": null,
+      "merge": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "mergedAt": "2026-01-01T00:00:00.000Z",
+      "reachableFrom": "cccccccccccccccccccccccccccccccccccccccc",
+      "ticket": null,
+      "source": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "proofKind": "none",
+      "checks": [],
+      "outcome": "MERGED_VERIFIED"
+    }
+  ],
+  "queue": { "version": 2, "profile": "batch-v1", "active": null, "completedTip": null },
+  "runs": [],
+  "following": null,
+  "reconciliations": [],
+  "superseded": [],
+  "blockers": [],
+  "outcome": "MERGED_VERIFIED"
+}

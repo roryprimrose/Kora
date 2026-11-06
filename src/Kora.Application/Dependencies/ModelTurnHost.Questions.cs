@@ -6,7 +6,13 @@ public sealed partial class ModelTurnHost
 {
     private Task<ModelProviderReply> RunAdapterAsync(ModelTurn turn, CancellationToken token)
     {
-        if (turn.QuestionContinuation is not { } questions)
+        if (turn.ConversationTarget is not null)
+        {
+            turn.SubmittedContext = Kora.Core.Conversation.SubmittedAnswerContext.Capture(
+                turn.Provenance, turn.SessionGeneration, turn.Profile, turn.Context, turn.Wire, time.GetUtcNow());
+        }
+        if (turn.QuestionContinuation is not { } questions
+            || capabilities?.IsToolEnabled(Kora.Core.Mcp.KoraMcpCatalog.ServerId, ModelToolProtocol.AskUserToolName) == false)
         {
             if (turn.Context.ToolMode == ModelToolMode.HostedClarification)
             { return Task.FromResult(new ModelProviderReply(ModelTurnOutcome.Denied, turn.Provenance.Selection,
@@ -37,6 +43,7 @@ public sealed partial class ModelTurnHost
                         previous = update.Answer;
                     }, token);
             }
+
             return turn.Registration.Adapter!.RunAsync(turn.Provenance, turn.Profile, turn.Wire.AsMemory(),
                 (id, input, toolToken) => InvokeToolAsync(turn, id, input, token, toolToken),
                 continuationToken => RevalidateAdapterContinuationAsync(turn, continuationToken), token);
@@ -54,12 +61,17 @@ public sealed partial class ModelTurnHost
             {
                 questionToken.ThrowIfCancellationRequested();
                 token.ThrowIfCancellationRequested();
-                if (!turn.IsRunning || await RevalidateAdapterContinuationAsync(turn, token).ConfigureAwait(false) != ModelTurnReason.None)
+                if (capabilities?.IsToolEnabled(Kora.Core.Mcp.KoraMcpCatalog.ServerId, ModelToolProtocol.AskUserToolName) == false)
+                { throw new InvalidOperationException("The Kora clarification tool is disabled."); }
+                var useRevision = capabilities?.Revision;
+                if (!turn.IsRunning || await RevalidateAdapterContinuationAsync(turn, token).ConfigureAwait(false) != ModelTurnReason.None
+                    || !string.Equals(capabilities?.Revision, useRevision, StringComparison.Ordinal))
                 { throw new InvalidOperationException("Exact original conversation admission changed before clarification."); }
                 var reply = await questions.AskAsync(question.Question, token).ConfigureAwait(false);
                 questionToken.ThrowIfCancellationRequested();
                 token.ThrowIfCancellationRequested();
-                if (!turn.IsRunning || await RevalidateAdapterContinuationAsync(turn, token).ConfigureAwait(false) != ModelTurnReason.None)
+                if (!turn.IsRunning || await RevalidateAdapterContinuationAsync(turn, token).ConfigureAwait(false) != ModelTurnReason.None
+                    || !string.Equals(capabilities?.Revision, useRevision, StringComparison.Ordinal))
                 { throw new InvalidOperationException("Exact original conversation admission changed after clarification."); }
                 return new(question, reply.Question.Draft!, reply.Question.AnswerChannel!.Value);
             }, token);

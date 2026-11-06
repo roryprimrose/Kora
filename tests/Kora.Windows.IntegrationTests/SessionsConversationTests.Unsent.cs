@@ -10,6 +10,99 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SessionsConversationTests
 {
+    [Fact]
+    public async Task PassiveWorkLifecycleRefreshRetiresAllNativeComposerControlsWithoutLosingSessionInput()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            var original = f.Request.SessionId;
+            f.Request = InteractionStorageFixture.NewRequest();
+            await f.AdmitAsync(newSession: true);
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            await using var composed = new Composition(f);
+            var model = composed.Model;
+            var owner = new SessionsPresentationOwner(model);
+            var workspace = new SessionsWindow(model, owner);
+            var compact = new CompactSessionWindow(model, owner);
+            var interaction = new SessionInteractionView { DataContext = model };
+            var expanded = new Window { Content = interaction };
+            workspace.Show();
+            compact.Show();
+            expanded.Show();
+            try
+            {
+                await model.RefreshAsync();
+                await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId == original));
+                const string body = "  exact unsent e\u0301\r\noriginal topic  ";
+                workspace.FindControl<TextBox>("ConversationComposer")!.Text = body;
+                var composers = new[]
+                {
+                    workspace.FindControl<TextBox>("ConversationComposer")!,
+                    compact.FindControl<TextBox>("ConversationComposer")!,
+                    interaction.FindControl<TextBox>("SessionComposer")!
+                };
+                var submits = new[]
+                {
+                    workspace.FindControl<Button>("SubmitConversation")!,
+                    compact.FindControl<Button>("SubmitConversation")!,
+                    interaction.FindControl<Button>("SubmitMessage")!,
+                    interaction.FindControl<Button>("SubmitLocalAnswer")!
+                };
+                composers.Should().OnlyContain(field => field.IsEnabled && field.Text == body);
+                submits.Should().OnlyContain(button => button.IsEnabled);
+
+                await composed.Workspace.ChangeLifecycleAsync(original, new(1), false, Kora.Core.Hosting.RequestOrigin.LocalUi, f.Token);
+                var audit = WindowsSqliteConversationTests.AuditText(f);
+                var retention = await f.Store.ReadRetentionAsync(original, f.Token);
+                await model.RefreshWorkAsync();
+                model.SelectedSessionRecord!.Authority.IsActive.Should().BeFalse();
+                model.CanCompose.Should().BeFalse();
+                composers.Should().OnlyContain(field => !field.IsEnabled && field.Text == body);
+                submits.Should().OnlyContain(button => !button.IsEnabled);
+                model.ConversationStatus.Should().Contain("Unsent input retained for this exact session");
+                interaction.FindControl<TextBlock>("ConversationStatusMessage")!.Text.Should().Be(model.ConversationStatus);
+                WindowsSqliteConversationTests.AuditText(f).Should().Be(audit);
+                (await f.Store.ReadRetentionAsync(original, f.Token)).Should().Be(retention);
+                await model.SubmitConversationAsync();
+                f.Count("conversation_messages").Should().Be(0);
+
+                await composed.Workspace.ChangeLifecycleAsync(original, new(2), true, Kora.Core.Hosting.RequestOrigin.LocalUi, f.Token);
+                await model.RefreshWorkAsync();
+                model.SelectedSessionRecord!.Authority.IsActive.Should().BeTrue();
+                model.CanCompose.Should().BeFalse("an observed Active generation does not renew the original composer source");
+                composers.Should().OnlyContain(field => !field.IsEnabled && field.Text == body);
+                submits.Should().OnlyContain(button => !button.IsEnabled);
+                await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId != original));
+                compact.FindControl<TextBox>("ConversationComposer")!.Text = "independent other topic";
+                await model.RefreshAsync();
+                await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId == original));
+                model.ComposerBody.Should().Be(body);
+                model.CanCompose.Should().BeFalse();
+                await model.ReadConversationAsync();
+                composers.Should().OnlyContain(field => field.IsEnabled && field.Text == body);
+                submits.Should().OnlyContain(button => button.IsEnabled);
+
+                Click(compact, "SubmitConversation");
+                await compact.ConversationOperation;
+                model.ComposerBody.Should().BeEmpty();
+                model.ConversationStatus.Should().Contain("HOST Unavailable").And.Contain("UnregisteredModel");
+                interaction.FindControl<TextBlock>("ConversationStatusMessage")!.Text.Should().Be(model.ConversationStatus);
+                (await f.Store.ReadConversationPageAsync(original, null, 25, f.Token)).Messages.Single().Body.Should().Be(body);
+                await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId != original));
+                composers.Should().OnlyContain(field => field.Text == "independent other topic");
+                f.Count("conversation_drafts").Should().Be(0);
+                f.Count("host_questions").Should().Be(0);
+                f.Count("scoped_grants").Should().Be(0);
+                owner.Revoke();
+                composers.Should().OnlyContain(field => !field.IsEnabled && string.IsNullOrEmpty(field.Text));
+            }
+            finally { expanded.Close(); owner.Revoke(); }
+        });
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

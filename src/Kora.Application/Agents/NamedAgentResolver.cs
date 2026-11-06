@@ -5,7 +5,21 @@ namespace Kora.Application.Agents;
 public sealed class NamedAgentResolver(ArtifactCatalogue catalogue,
     Func<ArtifactDefinition, CancellationToken, Task<string>> resolvePath)
 {
-    public async Task<NamedAgentSelection> ResolveAsync(string name, Func<bool> eligible, CancellationToken token)
+    public IReadOnlyList<ArtifactDefinition> ReadCandidates(string name, Func<bool> eligible, CancellationToken token)
+    {
+        Require(() => eligible() && !catalogue.IsReloadUnavailable, token);
+        return catalogue.Candidates.Where(item => item.Kind == ArtifactKind.Agent
+            && string.Equals(item.Name, name, StringComparison.Ordinal)).ToArray();
+    }
+
+    public Task<NamedAgentSelection> ResolveAsync(string name, Func<bool> eligible, CancellationToken token) =>
+        ResolveAsync(name, null, eligible, token);
+
+    public Task<NamedAgentSelection> ResolveAsync(ArtifactDefinition selected, Func<bool> eligible, CancellationToken token) =>
+        ResolveAsync(selected.Name, selected, eligible, token);
+
+    private async Task<NamedAgentSelection> ResolveAsync(string name, ArtifactDefinition? choice,
+        Func<bool> eligible, CancellationToken token)
     {
         var candidates = catalogue.Candidates;
         var failureRevision = catalogue.ReloadFailureRevision;
@@ -15,7 +29,8 @@ public sealed class NamedAgentResolver(ArtifactCatalogue catalogue,
             && ReferenceEquals(catalogue.Candidates, candidates);
         Require(Current, token);
         var matches = candidates.Where(item => item.Kind == ArtifactKind.Agent
-            && string.Equals(item.Name, name, StringComparison.Ordinal)).ToArray();
+            && string.Equals(item.Name, name, StringComparison.Ordinal)
+            && (choice is null || item == choice)).ToArray();
         if (matches.Length != 1)
         { throw new InvalidOperationException("The exact readable agent name is missing or ambiguous. Review registered sources; no agent was selected."); }
         var selected = matches[0];

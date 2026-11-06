@@ -4,7 +4,7 @@ namespace Kora.Windows.Audio;
 
 internal sealed class PocketSphinxKeywordDetector : IHandsFreeKeywordDetector
 {
-    private readonly nint library;
+    private readonly IPocketSphinxLibrary library;
     private readonly nint config;
     private readonly nint decoder;
     private readonly string name;
@@ -18,15 +18,16 @@ internal sealed class PocketSphinxKeywordDetector : IHandsFreeKeywordDetector
     private readonly UnaryInt finish;
     private bool disposed;
 
-    public PocketSphinxKeywordDetector(HandsFreeNativeProfile profile, string name)
+    public PocketSphinxKeywordDetector(HandsFreeNativeProfile profile, PocketSphinxKeywordConfiguration configuration,
+        IPocketSphinxLibrary? nativeLibrary = null)
     {
-        if (!profile.Names.Contains(name))
+        if (!ReferenceEquals(profile, configuration.Profile) || !profile.CaptureQualified
+            || !profile.Names.Contains(configuration.AssistantName))
         {
             throw new InvalidOperationException("The exact configured name has no qualified English wake profile.");
         }
-        this.name = name;
-        library = NativeLibrary.Load(profile.NativeLibraryPath, typeof(PocketSphinxKeywordDetector).Assembly,
-            DllImportSearchPath.UseDllDirectoryForDependencies | DllImportSearchPath.System32);
+        name = configuration.Keyphrase;
+        library = nativeLibrary ?? new PocketSphinxLibrary(profile.NativeLibraryPath);
         try
         {
             Export<SetLog>("err_set_logfp")(nint.Zero);
@@ -57,7 +58,9 @@ internal sealed class PocketSphinxKeywordDetector : IHandsFreeKeywordDetector
             decoder = Export<UnaryPointer>("ps_init")(config);
             if (decoder == nint.Zero) { throw NativeFailure(); }
             var effective = Export<UnaryPointer>("ps_get_config")(decoder);
-            if (Export<GetFloat>("ps_config_float")(effective, "samprate") != 16000
+            if (!string.Equals(Marshal.PtrToStringUTF8(Export<GetString>("ps_config_str")(effective, "keyphrase")),
+                    configuration.Keyphrase, StringComparison.Ordinal)
+                || Export<GetFloat>("ps_config_float")(effective, "samprate") != 16000
                 || Export<GetInt>("ps_config_int")(effective, "frate") != 100
                 || Export<UnaryInt>("ps_start_utt")(decoder) < 0)
             {
@@ -68,7 +71,7 @@ internal sealed class PocketSphinxKeywordDetector : IHandsFreeKeywordDetector
         {
             if (decoder != nint.Zero) { (freeDecoder ?? throw NativeFailure())(decoder); }
             if (config != nint.Zero) { (freeConfig ?? throw NativeFailure())(config); }
-            NativeLibrary.Free(library);
+            library.Dispose();
             throw;
         }
     }
@@ -106,26 +109,27 @@ internal sealed class PocketSphinxKeywordDetector : IHandsFreeKeywordDetector
         {
             freeDecoder(decoder);
             freeConfig(config);
-            NativeLibrary.Free(library);
+            library.Dispose();
         }
     }
 
     private T Export<T>(string symbol) where T : Delegate =>
-        Marshal.GetDelegateForFunctionPointer<T>(NativeLibrary.GetExport(library, symbol));
+        library.Export<T>(symbol);
     private static void Require(nint result) { if (result == nint.Zero) { throw NativeFailure(); } }
     private static InvalidOperationException NativeFailure() => new("The admitted native keyword engine failed.");
 
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate nint CreateConfig(nint definition);
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int Free(nint handle);
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate nint UnaryPointer(nint handle);
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int UnaryInt(nint handle);
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate void SetLog(nint stream);
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate void SegmentFree(nint segment);
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate void SegmentFrames(nint segment, out int first, out int last);
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int ProcessRaw(nint decoder, nint samples, nuint count, int noSearch, int fullUtterance);
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate nint SetString(nint config, [MarshalAs(UnmanagedType.LPUTF8Str)] string key, [MarshalAs(UnmanagedType.LPUTF8Str)] string? value);
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate nint SetFloat(nint config, [MarshalAs(UnmanagedType.LPUTF8Str)] string key, double value);
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate nint SetInt(nint config, [MarshalAs(UnmanagedType.LPUTF8Str)] string key, int value);
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate double GetFloat(nint config, [MarshalAs(UnmanagedType.LPUTF8Str)] string key);
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int GetInt(nint config, [MarshalAs(UnmanagedType.LPUTF8Str)] string key);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] internal delegate nint CreateConfig(nint definition);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] internal delegate int Free(nint handle);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] internal delegate nint UnaryPointer(nint handle);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] internal delegate int UnaryInt(nint handle);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] internal delegate void SetLog(nint stream);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] internal delegate void SegmentFree(nint segment);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] internal delegate void SegmentFrames(nint segment, out int first, out int last);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] internal delegate int ProcessRaw(nint decoder, nint samples, nuint count, int noSearch, int fullUtterance);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] internal delegate nint SetString(nint config, [MarshalAs(UnmanagedType.LPUTF8Str)] string key, [MarshalAs(UnmanagedType.LPUTF8Str)] string? value);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] internal delegate nint SetFloat(nint config, [MarshalAs(UnmanagedType.LPUTF8Str)] string key, double value);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] internal delegate nint SetInt(nint config, [MarshalAs(UnmanagedType.LPUTF8Str)] string key, int value);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] internal delegate double GetFloat(nint config, [MarshalAs(UnmanagedType.LPUTF8Str)] string key);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] internal delegate int GetInt(nint config, [MarshalAs(UnmanagedType.LPUTF8Str)] string key);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] internal delegate nint GetString(nint config, [MarshalAs(UnmanagedType.LPUTF8Str)] string key);
 }

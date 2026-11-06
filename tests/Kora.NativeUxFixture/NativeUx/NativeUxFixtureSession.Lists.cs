@@ -44,8 +44,8 @@ internal sealed partial class NativeUxFixtureSession
             }
         }
         var notifyOnly = CreateMaintenance();
-        OverflowEvents = new(new AuthorityLocalEventSource(Interactions, Access, notifyOnly, new(), TimeProvider.System),
-            new LocalEventStateStore(this), Access, TimeProvider.System, Audit, NullLogger<LocalEventBroker>.Instance);
+        OverflowEvents = new(new AuthorityLocalEventSource(Interactions, Access, notifyOnly, new(), Time),
+            new LocalEventStateStore(this), Access, Time, Audit, NullLogger<LocalEventBroker>.Instance);
         var links = Enumerable.Range(0, 12).Select(_ =>
             new ActivityContext(ActivityTraceId.CreateRandom(), ActivitySpanId.CreateRandom(), ActivityTraceFlags.Recorded)).ToArray();
         using var linked = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem),

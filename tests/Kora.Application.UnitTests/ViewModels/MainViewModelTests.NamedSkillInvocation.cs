@@ -22,8 +22,8 @@ public sealed partial class MainViewModelTests
         {
             origin.Should().Be(expectedOrigin);
             HostActivity.RequireCurrent().Request.Origin.Should().Be(origin);
-            eligible().Should().BeTrue();
-            currentInputs.Add(eligible);
+            eligible.IsCurrent().Should().BeTrue();
+            currentInputs.Add(eligible.IsCurrent);
             calls.Add("skill:" + command.Action);
             if (command.Action is "Review") { command.Name.Should().Be("discover customizations"); }
             if (command.Action is "Choice") { command.Choice.Should().Be(1); }
@@ -107,7 +107,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.BindNamedSkillChoiceCapture(() => static () => true);
         f.ViewModel.NamedSkillInvocationRequested += (command, origin, eligible) =>
         {
-            eligible().Should().BeTrue();
+            eligible.IsCurrent().Should().BeTrue();
             origin.Should().Be(voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
             HostActivity.RequireCurrent().Request.Origin.Should().Be(origin);
             calls.Add(command);

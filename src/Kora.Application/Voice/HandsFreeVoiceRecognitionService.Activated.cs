@@ -57,31 +57,49 @@ public sealed partial class HandsFreeVoiceRecognitionService : IProvisionalVoice
         string? assistantName = null, CancellationToken cancellationToken = default)
     {
         EnsureNotDisposed();
-        await StopAsync(cancellationToken);
-        EnsureNotDisposed();
-        Task opening;
         lock (gate)
         {
-            if (profileSwitchActive || profileRetirementFailed) { throw new InvalidOperationException("Speech-input switching or unconfirmed retirement owns activated capture."); }
-            Interlocked.Exchange(ref ambientGeneration, 0);
-            opening = activated.BeginPushToTalkAsync(microphone, phrases, assistantName, cancellationToken);
+            if (comparisonActive) { throw new InvalidOperationException("Inert comparison owns capture."); }
+            activatedOpenRequests++;
         }
-        await opening;
+        try
+        {
+            await StopAsync(cancellationToken);
+            EnsureNotDisposed();
+            Task opening;
+            lock (gate)
+            {
+                if (profileSwitchActive || profileRetirementFailed) { throw new InvalidOperationException("Speech-input switching or unconfirmed retirement owns activated capture."); }
+                Interlocked.Exchange(ref ambientGeneration, 0);
+                opening = activated.BeginPushToTalkAsync(microphone, phrases, assistantName, cancellationToken);
+            }
+            await opening;
+        }
+        finally { lock (gate) { activatedOpenRequests--; } }
     }
 
     public async Task BeginReplyAsync(MicrophoneDevice microphone, IEnumerable<string> phrases,
         Func<bool> isAdmitted, CancellationToken cancellationToken)
     {
         EnsureNotDisposed();
-        await StopAsync(cancellationToken);
-        EnsureNotDisposed();
-        Task opening;
         lock (gate)
         {
-            if (profileSwitchActive || profileRetirementFailed) { throw new InvalidOperationException("Speech-input switching or unconfirmed retirement owns reply capture."); }
-            Interlocked.Exchange(ref ambientGeneration, 0);
-            opening = activated.BeginReplyAsync(microphone, phrases, isAdmitted, cancellationToken);
+            if (comparisonActive) { throw new InvalidOperationException("Inert comparison owns capture."); }
+            activatedOpenRequests++;
         }
-        await opening;
+        try
+        {
+            await StopAsync(cancellationToken);
+            EnsureNotDisposed();
+            Task opening;
+            lock (gate)
+            {
+                if (profileSwitchActive || profileRetirementFailed) { throw new InvalidOperationException("Speech-input switching or unconfirmed retirement owns reply capture."); }
+                Interlocked.Exchange(ref ambientGeneration, 0);
+                opening = activated.BeginReplyAsync(microphone, phrases, isAdmitted, cancellationToken);
+            }
+            await opening;
+        }
+        finally { lock (gate) { activatedOpenRequests--; } }
     }
 }

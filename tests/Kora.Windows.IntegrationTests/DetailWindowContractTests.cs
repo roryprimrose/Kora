@@ -48,8 +48,8 @@ public sealed class DetailWindowContractTests
         }
         var expectedOrder = new[]
         {
-            "SourceToggle", "ReadingTextToggle", "SearchInput", "FindHostToggle", "FirstMatch", "PreviousMatch", "NextMatch",
-            "CancelFind", "ClearFind", "DisclosureConfirmation", "CopySelection", "CopySource", "CloseDetail", "ContentReader", "FindSpan",
+            "SourceToggle", "ReadingTextToggle", "WrapTextToggle", "SearchInput", "FindHostToggle", "FirstMatch", "PreviousMatch", "NextMatch",
+            "CancelFind", "ClearFind", "RevealMatch", "DisclosureConfirmation", "CopySelection", "CopyAll", "CopySource", "CloseDetail", "ContentReader", "FindSpan",
         };
         for (var index = 0; index < expectedOrder.Length; index++)
         {
@@ -67,7 +67,7 @@ public sealed class DetailWindowContractTests
         Named(document, "FindSpan").Parent!.Attribute("MaxHeight")!.Value.Should().Be("100");
         Named(document, "FindSummary").Attribute("AutomationProperties.Name")!.Value.Should().Contain("current admitted text only");
         Named(document, "FindSummary").Attribute("AutomationProperties.LiveSetting")!.Value.Should().Be("Off");
-        Read("DetailContentView.axaml").Should().Contain("DynamicResource").And.Contain("Rich HTML copy is not supported")
+        Read("DetailContentView.axaml").Should().Contain("DynamicResource").And.Contain("rendered Markdown as semantic plain text with inert HTML")
             .And.Contain("Clipboard content leaves Kora").And.NotContain("Animation").And.NotContain("WebView");
     }
 
@@ -86,8 +86,9 @@ public sealed class DetailWindowContractTests
             .And.Contain("state.Close()")
             .And.NotContain("NotifyPresenceInteraction").And.NotContain("Clipboard.");
         Read("DetailWindow.axaml.cs").Should().Contain("Show(owner)").And.Contain("Reader.ClearPresentation()");
-        Read("NativeDetailClipboard.cs").Should().Contain("SetTextAsync(source)")
-            .And.NotContain("TryGet").And.NotContain("Html").And.NotContain("SetFile");
+        Read("NativeDetailClipboard.cs").Should().Contain("clipboard.SetDataAsync").And.Contain("item.SetText(source)")
+            .And.NotContain("TryGet").And.NotContain("SetFile")
+            .And.NotContain("FlushAsync").And.NotContain("ClearAsync");
     }
 
     [Theory]

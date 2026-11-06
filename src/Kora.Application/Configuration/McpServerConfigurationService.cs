@@ -1,10 +1,12 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
 using Kora.Core.Configuration;
 using Kora.Core.Dependencies;
 using Kora.Core.Artifacts;
+using Kora.Core.Mcp;
+using Kora.Core.Tools;
 
 namespace Kora.Application.Configuration;
 
@@ -17,29 +19,107 @@ public sealed partial class McpServerConfigurationService
     private readonly IArtifactDirectoryPreferences preferences;
     private readonly string profileRoamingRoot;
     private readonly IArtifactUsePolicy? usePolicy;
+    private readonly McpCapabilityPreferences? capabilities;
+    private readonly Lock sourceGate = new();
+    private readonly Dictionary<string, SourceObservation> observedSources = new(StringComparer.Ordinal);
+    private long nextSourceRevision;
 
     public event EventHandler? Changed;
-    internal long UseControlRevision => usePolicy?.Revision ?? 0;
+    internal long UseControlRevision => capabilities?.ServerUseRevision ?? usePolicy?.Revision ?? 0;
 
     public McpServerConfigurationService(
         IApplicationDataPaths paths,
-        IArtifactDirectoryPreferences preferences, IArtifactUsePolicy? usePolicy = null)
-        : this(paths, preferences, Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), usePolicy)
+        IArtifactDirectoryPreferences preferences, IArtifactUsePolicy? usePolicy = null,
+        McpCapabilityPreferences? capabilities = null)
+        : this(paths, preferences, Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            usePolicy, capabilities)
     {
     }
 
     internal McpServerConfigurationService(
         IApplicationDataPaths paths,
         IArtifactDirectoryPreferences preferences,
-        string profileRoamingRoot, IArtifactUsePolicy? usePolicy = null)
+        string profileRoamingRoot, IArtifactUsePolicy? usePolicy = null,
+        McpCapabilityPreferences? capabilities = null)
     {
         this.paths = paths;
         this.preferences = preferences;
         this.profileRoamingRoot = profileRoamingRoot;
         this.usePolicy = usePolicy;
+        this.capabilities = capabilities;
     }
 
+    public IReadOnlyList<McpServerConfigurationSummary> LoadCapabilities() =>
+        [new(Core.Mcp.KoraMcpCatalog.ServerId, "Kora", "in-process", "Built-in",
+            capabilities?.IsServerEnabled(Core.Mcp.KoraMcpCatalog.ServerId) == true, IsBuiltIn: true), .. Load()];
+
+    public IReadOnlyList<McpCapability> ReadBuiltInTools() =>
+        KoraMcpCatalog.ToolIds.Select(DescribeBuiltInTool).ToArray();
+
+    public McpCapabilitySelection ReadCapabilitySelection() => preferences.Load().McpCapabilities;
+
+    private static McpCapability DescribeBuiltInTool(string id)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            writer.WriteStartObject();
+            writer.WriteString("name", id);
+            writer.WriteString("description", "Host-owned Kora capability; enabling never supplies authority.");
+            writer.WritePropertyName("inputSchema");
+            if (KoraMcpCatalog.Descriptors.SingleOrDefault(tool => string.Equals(tool.Id, id, StringComparison.Ordinal)) is { } descriptor)
+            { CapabilityInputSchema.Write(writer, descriptor, includeEmptyRequired: true, boundedOffset: true); }
+            else { writer.WriteRawValue(ModelToolProtocol.AskUserInputSchema); }
+            writer.WriteEndObject();
+        }
+        return new(McpCapabilityKind.Tool, id, id, Encoding.UTF8.GetString(stream.ToArray()),
+            ReadOnlyCapabilityCatalog.FindExact(id) is not null ? null
+                : "Requires a separately admitted Kora source or clarification context; not a standalone invocation.");
+    }
+
+    public void SetCapabilityEnabled(string serverId, string? toolId, bool enabled)
+    {
+        var controls = capabilities ?? throw new InvalidOperationException("MCP capability controls are unavailable.");
+        if (!LoadCapabilities().Any(server => string.Equals(server.Id, serverId, StringComparison.Ordinal))
+            || toolId is not null && string.Equals(serverId, Core.Mcp.KoraMcpCatalog.ServerId, StringComparison.Ordinal)
+                && !Core.Mcp.KoraMcpCatalog.ToolIds.Contains(toolId, StringComparer.Ordinal))
+        { throw new InvalidOperationException("The selected MCP capability is not registered."); }
+        if (toolId is null) { controls.SetServerEnabled(serverId, enabled); }
+        else { controls.SetToolEnabled(serverId, toolId, enabled); }
+        NotifyChanged();
+    }
+
+    internal bool IsToolEnabled(string serverId, string toolId) =>
+        capabilities?.IsToolEnabled(serverId, toolId) != false;
+
+    internal string? CaptureCapabilityRevision(string serverId) => capabilities?.RevisionFor(serverId);
+
+    internal ModelContextEnvelope RestrictTools(ModelContextEnvelope context) =>
+        capabilities?.RestrictContext(context) ?? context;
+
     public IReadOnlyList<McpServerConfigurationSummary> Load()
+    {
+        lock (sourceGate)
+        {
+            try { return LoadCore(); }
+            catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException
+                or ArgumentException or NotSupportedException)
+            {
+                observedSources.Clear();
+                throw;
+            }
+        }
+    }
+
+    internal long SourceControlRevision(string serverId)
+    {
+        lock (sourceGate)
+        {
+            return observedSources.TryGetValue(serverId, out var observation) ? observation.Revision : -1;
+        }
+    }
+
+    private McpServerConfigurationSummary[] LoadCore()
     {
         var settings = preferences.Load();
         var sources = DefaultFiles()
@@ -48,6 +128,7 @@ public sealed partial class McpServerConfigurationService
             .GroupBy(source => source.Path, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.OrderByDescending(source => source.Required).First());
         var servers = new List<McpServerConfigurationSummary>();
+        var candidates = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var source in sources)
         {
             if (!File.Exists(source.Path))
@@ -60,18 +141,38 @@ public sealed partial class McpServerConfigurationService
                 }
                 continue;
             }
-            LoadFile(source.Path, settings.IncludedMcpServerIds, servers);
+            var start = servers.Count;
+            var digest = LoadFile(source.Path, settings.IncludedMcpServerIds, servers);
+            foreach (var server in servers.Skip(start))
+            {
+                candidates.Add(server.Id, digest + (server.IsIncluded ? ":included" : ":excluded")
+                    + settings.McpCapabilities.Fingerprint(server.Id));
+            }
             if (servers.Count > MaximumServers)
             {
                 throw new InvalidDataException($"MCP configuration exceeds the {MaximumServers}-server limit.");
             }
         }
-        return servers
+        var result = servers
             .Select(server => usePolicy?.IsDisabled(ArtifactUseIdentity.Mcp(server.Id)) == true
+                || capabilities?.IsServerEnabled(server.Id) == false
                 ? server with { IsIncluded = false } : server)
             .OrderBy(server => server.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(server => server.Source, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+        foreach (var id in observedSources.Keys.Except(candidates.Keys, StringComparer.Ordinal).ToArray())
+        {
+            observedSources.Remove(id);
+        }
+        foreach (var (id, fingerprint) in candidates)
+        {
+            if (!observedSources.TryGetValue(id, out var previous)
+                || !string.Equals(previous.Fingerprint, fingerprint, StringComparison.Ordinal))
+            {
+                observedSources[id] = new(fingerprint, ++nextSourceRevision);
+            }
+        }
+        return result;
     }
 
     public IReadOnlyList<string> SourceFiles
@@ -96,7 +197,7 @@ public sealed partial class McpServerConfigurationService
         yield return Path.Combine(profileRoamingRoot, "Claude", "claude_desktop_config.json");
     }
 
-    private static void LoadFile(
+    private static string LoadFile(
         string path,
         IReadOnlyList<string> includedServerIds,
         List<McpServerConfigurationSummary> servers)
@@ -106,7 +207,9 @@ public sealed partial class McpServerConfigurationService
         {
             throw new InvalidDataException($"MCP configuration file '{path}' is empty or exceeds its byte limit.");
         }
-        LoadBytes(File.ReadAllBytes(path), path, includedServerIds, servers);
+        var bytes = File.ReadAllBytes(path);
+        LoadBytes(bytes, path, includedServerIds, servers);
+        return Convert.ToHexStringLower(SHA256.HashData(bytes));
     }
 
     internal static void LoadBytes(byte[] bytes, string path, IReadOnlyList<string> includedServerIds,
@@ -208,4 +311,5 @@ public sealed partial class McpServerConfigurationService
     }
 
     private sealed record Source(string Path, bool Required);
+    private sealed record SourceObservation(string Fingerprint, long Revision);
 }

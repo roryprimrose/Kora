@@ -204,6 +204,8 @@ public sealed partial class LocalEventBrokerWindowTests
     [InlineData("close")]
     [InlineData("failure")]
     [InlineData("cancel")]
+    [InlineData("close-late-cancel")]
+    [InlineData("close-late-failure")]
     public async Task PendingExactActionCannotRestoreSelectionOrDetailAfterItsPresentationWasRetired(string change)
     {
         using var f = new Fixture();
@@ -222,9 +224,17 @@ public sealed partial class LocalEventBrokerWindowTests
         viewer.Detail.Should().NotBeEmpty();
         viewer.SelectLocalEvent(viewer.LocalEvents.Single());
         await viewer.ReviewLocalEventAsync();
+        var suppression = f.State.Load();
+        var questions = await f.Storage.Store.ReadQuestionPageAsync(f.Storage.Request.SessionId, null, 25, f.Token);
+        var retention = await f.Storage.Store.ReadRetentionAsync(f.Storage.Request.SessionId, f.Token);
+        var history = await f.Storage.Store.ReadHistoryAsync(f.Storage.Request.SessionId, null, 50, f.Token);
+        var tasks = f.Storage.Count("host_tasks");
+        var audits = f.Storage.Count("security_audit_events");
         source.Pause = true;
+        source.IgnoreCancellation = change is "close-late-cancel" or "close-late-failure";
         var pending = viewer.ReviewLocalEventAsync();
         await source.Entered.Task;
+        viewer.Detail.Should().BeEmpty("the admitted notice action owns its detail pane before awaiting the source");
         switch (change)
         {
             case "filter": viewer.LocalEventReasonFilter = LocalEventReason.Eligible; break;
@@ -238,16 +248,54 @@ public sealed partial class LocalEventBrokerWindowTests
             case "workspace": viewer.RevokeSessionList(); break;
             case "session": viewer.HistorySessionId = Guid.NewGuid().ToString("D"); break;
             case "close": viewer.Close(); break;
+            case "close-late-cancel":
+                viewer.Close();
+                source.Failure = new OperationCanceledException("test late cancellation");
+                break;
+            case "close-late-failure":
+                viewer.Close();
+                source.Failure = new IOException("test late source failure");
+                break;
             case "failure": source.Failure = new IOException("test source unavailable"); break;
             case "cancel": source.Failure = new OperationCanceledException("test cancellation"); break;
         }
         if (change is not ("failure" or "cancel")) { viewer.SelectedLocalEvent.Should().BeNull(); }
+        var closedStatus = change is "close" or "close-late-cancel" or "close-late-failure" ? viewer.Status : null;
+        if (closedStatus is not null)
+        {
+            closedStatus.Should().Be("Sessions closed; no late content or rollback of a possible committed lifecycle is claimed.");
+        }
         source.Release.TrySetResult();
         await pending;
         viewer.SelectedLocalEvent.Should().BeNull();
         viewer.LocalEvents.Should().BeEmpty();
         viewer.Detail.Should().BeEmpty();
         viewer.CanControlLocalEvent.Should().BeFalse();
+        viewer.CanAnswerConversationNotice.Should().BeFalse();
+        if (closedStatus is not null) { viewer.Status.Should().Be(closedStatus, "late notice completion cannot replace closed presentation"); }
+        else { viewer.Status.Should().Contain("unavailable"); }
+        f.State.Load().Should().BeEquivalentTo(suppression);
+        f.Storage.Count("host_tasks").Should().Be(tasks);
+        f.Storage.Count("security_audit_events").Should().Be(audits);
+        (await f.Storage.Store.ReadQuestionPageAsync(f.Storage.Request.SessionId, null, 25, f.Token))
+            .Should().BeEquivalentTo(questions);
+        (await f.Storage.Store.ReadRetentionAsync(f.Storage.Request.SessionId, f.Token)).Should().Be(retention);
+        (await f.Storage.Store.ReadHistoryAsync(f.Storage.Request.SessionId, null, 50, f.Token))
+            .Should().BeEquivalentTo(history);
+        if (change is "clear-filters" or "failure" or "cancel")
+        {
+            var reads = source.Reads;
+            await viewer.ReviewLocalEventAsync();
+            source.Reads.Should().Be(reads, "retired presentation cannot initiate another exact source read");
+            viewer.LocalEvents.Should().BeEmpty();
+            source.Pause = false;
+            source.Failure = null;
+            await viewer.RefreshWorkAsync();
+            viewer.LocalEvents.Should().ContainSingle().Which.Reason.Should().Be(LocalEventReason.PresentedNoReplay);
+            viewer.SelectedLocalEvent.Should().BeNull();
+            viewer.CanControlLocalEvent.Should().BeFalse();
+            viewer.Detail.Should().BeEmpty();
+        }
         viewer.Close();
     }
 

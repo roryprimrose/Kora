@@ -29,8 +29,14 @@ public static partial class ModelToolProtocol
         provider == ModelProviderIdentity.Ollama && mode is ModelToolMode.None or ModelToolMode.ReadOnly
         || provider == ModelProviderIdentity.Claude && mode == ModelToolMode.HostedClarification;
 
-    private static ModelClarificationQuestion ReadQuestion(JsonElement root)
+    private static ModelClarificationQuestion ReadQuestion(JsonElement root, bool formsAllowed)
     {
+        if (root.TryGetProperty("fields", out _))
+        {
+            if (!formsAllowed) { throw new InvalidDataException("Forms require explicit local clarification-only admission."); }
+            RequireFields(root, "kind", "prompt", "fields", "callId");
+            return ReadForm(root, ReadString(root, "callId"));
+        }
         var bounded = root.TryGetProperty("minimum", out _);
         var tool = root.TryGetProperty("callId", out _);
         if (tool) { RequireFields(root, "kind", "prompt", "options", "minimum", "maximum", "callId"); }
@@ -39,9 +45,15 @@ public static partial class ModelToolProtocol
         return ReadQuestionArguments(root, bounded, tool ? ReadString(root, "callId") : null);
     }
 
-    public static ModelClarificationQuestion ParseAskUser(ReadOnlySpan<byte> arguments, string callId)
+    public static ModelClarificationQuestion ParseAskUser(ReadOnlySpan<byte> arguments, string callId, bool formsAllowed = false)
     {
         using var document = ReadJson(arguments, MaximumOutputUtf8Bytes);
+        if (document.RootElement.TryGetProperty("fields", out _))
+        {
+            if (!formsAllowed) { throw new InvalidDataException("Forms require explicit local clarification-only admission."); }
+            RequireFields(document.RootElement, "prompt", "fields");
+            return ReadForm(document.RootElement, callId);
+        }
         RequireFields(document.RootElement, "prompt", "options", "minimum", "maximum");
         return ReadQuestionArguments(document.RootElement, bounded: true, callId);
     }

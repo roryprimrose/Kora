@@ -5,6 +5,8 @@ namespace Kora.Application.Dependencies;
 /// <summary>No optional input backend is selected by D-002 or registered in production.</summary>
 public sealed class UnavailableSpeechComponentRuntime : ISpeechComponentRuntime
 {
+    public void HoldUnavailable(SpeechComponentDefinition component) =>
+        throw new InvalidOperationException("The unavailable runtime cannot establish exclusive joined asset ownership.");
     public SpeechComponentRuntimeObservation Observe(SpeechComponentDefinition component) =>
         new(SpeechComponentCompatibility.Unavailable, SpeechComponentFunctionalEvidence.Unavailable,
             "No authoritative optional speech-input backend is registered in this Kora release.");

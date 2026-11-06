@@ -21,7 +21,19 @@ public sealed class SpeechCaptionCommandTests
         SpeechTextCommand.Parse("reset " + SpeechTextCommand.PinId, "Kora")!.PinValue.Should().BeFalse();
         SpeechTextCommand.Parse("get " + SpeechTextCommand.PinId, "Kora")!.IsPinControl.Should().BeTrue();
         SpeechTextCommand.Parse("set " + SpeechTextCommand.PinId + " to true", "Kora")!.PinValue.Should().BeTrue();
+        SpeechTextCommand.Parse("set " + SpeechTextCommand.WordEmphasisId + " to true", "Kora")!.CaptionValue
+            .Should().Be(new SpeechCaptionValue.WordEmphasis(true));
+        SpeechTextCommand.Parse("reset " + SpeechTextCommand.WordEmphasisId, "Kora")!.CaptionOption
+            .Should().Be(SpeechCaptionOption.WordEmphasis);
     }
+
+    [Theory]
+    [InlineData("1")]
+    [InlineData("yes")]
+    [InlineData("true now")]
+    public void Word_emphasis_rejects_noncanonical_values(string value) =>
+        SpeechTextCommand.Parse("set " + SpeechTextCommand.WordEmphasisId + " to " + value, "Kora")!.Operation
+            .Should().Be(AppearanceCommandOperation.Clarify);
 
     [Theory]
     [InlineData("-1")]

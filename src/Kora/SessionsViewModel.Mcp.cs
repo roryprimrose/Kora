@@ -22,8 +22,7 @@ internal sealed partial class SessionsViewModel
             RetireMcpResultFollowUp();
             if (value is null)
             {
-                mcpCompletedProposal = null;
-                mcpCompletedMapping = null;
+                mcpResultCapture.Retire();
             }
             observedMcpResult = value;
         }

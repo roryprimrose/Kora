@@ -4,6 +4,7 @@ using System.Globalization;
 using Kora.Application.Communication;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
+using Kora.Core.Configuration.RegisteredSettings;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
@@ -19,7 +20,7 @@ public sealed class PlaybackVolumeSuggestionReview : IDisposable
     private readonly CallCommunicationPolicy policy;
     private readonly TimeProvider time;
     private readonly PlaybackVolumeState current;
-    private readonly PlaybackVolume proposed;
+    private readonly PlaybackVolume? proposed;
     private readonly HostRequest reviewRequest;
     private readonly RequestOrigin sourceOrigin;
     private readonly long callRevision;
@@ -33,7 +34,7 @@ public sealed class PlaybackVolumeSuggestionReview : IDisposable
     private volatile bool retired;
 
     private PlaybackVolumeSuggestionReview(PlaybackVolumeConfigurationService configuration,
-        CallCommunicationPolicy policy, TimeProvider time, PlaybackVolumeState current, PlaybackVolume proposed,
+        CallCommunicationPolicy policy, TimeProvider time, PlaybackVolumeState current, PlaybackVolume? proposed,
         HostRequest reviewRequest, RequestOrigin sourceOrigin, long callRevision, Func<bool> eligible,
         Func<CancellationToken, Task> validateSource, ModelTurnProvenance source)
     {
@@ -56,7 +57,9 @@ public sealed class PlaybackVolumeSuggestionReview : IDisposable
     internal bool BelongsTo(PlaybackVolumeConfigurationService owner) => ReferenceEquals(configuration, owner);
     public string Description => Available
         ? $"Current desired: {current.Desired!.Value.Percent}%; effective: {current.Effective!.Value.Percent}% ({current.Source}). "
-            + $"Proposed: {proposed.Percent}%. Scope: shared device-local, Kora-owned speech only, not system/device/call volume. "
+            + $"Proposed: {(proposed ?? PlaybackVolume.Default).Percent}%. "
+            + (proposed is null ? "Reset removes the saved preference; the authoritative default is unsaved (default). " : string.Empty)
+            + "Scope: shared device-local, Kora-owned speech only, not system/device/call volume. "
             + "Nothing has changed. Applies to NEXT eligible speech only; this answer is never synthesized or replayed. "
             + "Zero blocks future synthesis and automatic playback; full output remains visual. "
             + "Confirm exact volume change separately, or Cancel. Review expires in 60 seconds. "
@@ -74,9 +77,12 @@ public sealed class PlaybackVolumeSuggestionReview : IDisposable
         if (request.RequestId == message.Request.RequestId || message.Outcome != ModelTurnOutcome.Succeeded)
         { throw new InvalidOperationException("Review requires an exact successful retained original-user answer, not model authority."); }
         var answer = message.AssistantResponse!;
-        if (RegisteredSettingSuggestions.Parse(answer.Body) is not RegisteredSettingProposal.Volume proposal)
-        { throw new InvalidDataException("Request one exact speech.playback-volume Set suggestion only."); }
-        var value = proposal.Value;
+        var value = RegisteredSettingSuggestions.Parse(answer.Body) switch
+        {
+            RegisteredSettingProposal.Volume proposal => (PlaybackVolume?)proposal.Value,
+            RegisteredSettingProposal.Reset { Setting: RegisteredSetting.PlaybackVolume } => null,
+            _ => throw new InvalidDataException("Request one exact speech.playback-volume Set or Reset suggestion only."),
+        };
         var state = configuration.Get();
         if (!state.Available)
         { throw new InvalidOperationException("Volume is unavailable. Inspect Settings recovery and explicitly refresh before a fresh review."); }
@@ -132,7 +138,7 @@ public sealed class PlaybackVolumeSuggestionReview : IDisposable
             token.ThrowIfCancellationRequested();
             if (!Eligible() || RequireInput(reviewRequest.SessionId) != request || configuration.Get() != refreshed)
             { throw new InvalidOperationException("The exact volume source, confirmation or refreshed settings changed before apply."); }
-            var proposal = configuration.Propose(proposed.Percent.ToString(CultureInfo.InvariantCulture), refreshed.Revision, callRevision);
+            var proposal = configuration.Propose(proposed?.Percent.ToString(CultureInfo.InvariantCulture), refreshed.Revision, callRevision);
             var saved = await configuration.ApplyAsync(proposal, origin,
                 origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : initiator,
                 policy, Eligible, token).ConfigureAwait(false);

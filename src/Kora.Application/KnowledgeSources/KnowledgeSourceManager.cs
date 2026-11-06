@@ -8,7 +8,7 @@ using Kora.Core.KnowledgeSources;
 
 namespace Kora.Application.KnowledgeSources;
 
-public sealed class KnowledgeSourceManager(
+public sealed partial class KnowledgeSourceManager(
     IKnowledgeSourceInspector inspector, IKnowledgeSourceStore store, ISecurityAuditLog audit, TimeProvider time) : IDisposable
 {
     private IKnowledgeSourceSelection? selection;
@@ -52,6 +52,7 @@ public sealed class KnowledgeSourceManager(
                     || scope != refresh.Folder.Scope)
                 { throw new InvalidDataException("Refresh cannot change the registered root or traversal policy; remove and add with a full fresh review."); }
                 // Once the exact native refresh is admitted, join revocation even if later work is cancelled.
+                await RevokeAnswerUsesAsync().ConfigureAwait(false);
                 expected = await Audited("refresh", () => store.BeginRefreshAsync(refresh, CancellationToken.None)).ConfigureAwait(false);
                 if (expected.Folder.Scope != scope
                     || !string.Equals(expected.Folder.CanonicalPath, refresh.Folder.CanonicalPath, StringComparison.Ordinal)
@@ -186,6 +187,7 @@ public sealed class KnowledgeSourceManager(
         Enter(eligible);
         try
         {
+            await RevokeAnswerUsesAsync().ConfigureAwait(false);
             await Audited("disable", async () =>
             {
                 await store.DisableAsync(exact, cancellationToken).ConfigureAwait(false);
@@ -201,16 +203,26 @@ public sealed class KnowledgeSourceManager(
         Enter(eligible);
         try
         {
-            var now = time.GetUtcNow();
-            if (reviewedAt > now || now - reviewedAt >= TimeSpan.FromMinutes(2))
-            { throw new InvalidOperationException("Removal inventory review expired; inspect the current inventory again."); }
+            var host = HostActivity.RequireCurrent();
+            bool Current() => eligible() && host.Outcome == HostOperationOutcome.Unknown;
+            CheckRemovalReview(reviewedAt, Current, cancellationToken);
+            await RevokeAnswerUsesAsync().ConfigureAwait(false);
             await Audited("remove", async () =>
             {
+                CheckRemovalReview(reviewedAt, Current, cancellationToken);
                 await store.RemoveAsync(exact, cancellationToken).ConfigureAwait(false);
                 return true;
             }).ConfigureAwait(false);
         }
         finally { Volatile.Write(ref busy, 0); }
+    }
+
+    private void CheckRemovalReview(DateTimeOffset reviewedAt, Func<bool> eligible, CancellationToken cancellationToken)
+    {
+        Check(eligible, cancellationToken);
+        var now = time.GetUtcNow();
+        if (reviewedAt > now || now - reviewedAt >= TimeSpan.FromMinutes(2))
+        { throw new InvalidOperationException("Removal inventory review expired; inspect the current inventory again."); }
     }
 
     private async Task<T> Audited<T>(string operation, Func<Task<T>> action)
@@ -280,6 +292,8 @@ public sealed class KnowledgeSourceManager(
     {
         if (Volatile.Read(ref busy) != 0)
         { throw new InvalidOperationException("Join the owned source operation before disposal."); }
+        answerUse?.Dispose();
+        answerUse = null;
         disposed = true;
         Clear();
     }

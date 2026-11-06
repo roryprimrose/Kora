@@ -15,7 +15,7 @@ public sealed partial class SessionConversationService
         Func<bool> live, Func<CancellationToken, Task>? validateSource, CancellationToken token,
         Func<ModelTurnResult, ModelTurnResult>? resolveResponse = null, Action<ModelTurnProvenance>? onAdmitted = null,
         Action? terminalCommitted = null, bool joinCancelledResources = false,
-        LocalUnavailableContinuation? localHandoff = null)
+        LocalUnavailableContinuation? localHandoff = null, bool ordinaryActiveDeadline = false)
     {
         var executor = execution
             ?? throw new InvalidOperationException("The admitted model host execution port is not composed.");
@@ -37,7 +37,8 @@ public sealed partial class SessionConversationService
         turn.PublishResourceStatus = running.PresentResources;
         turn.PublishAnswer = async (update, publicationToken) =>
         {
-            bool PresentCurrent() => Current() && running.CanContinue && turn.IsRunning
+            bool PresentCurrent() => Current() && turn.OrdinaryActiveBudget?.Expired != true
+                && running.CanContinue && turn.IsRunning
                 && !running.Token.IsCancellationRequested;
             publicationToken.ThrowIfCancellationRequested();
             if (!PresentCurrent())
@@ -100,11 +101,16 @@ public sealed partial class SessionConversationService
                 || dispatched.Task.Request != request || dispatched.Task.State != HostTaskState.DispatchRecorded
                 || dispatched.Task.Revision.Value != 2 || !live())
             { throw new IOException("Execution intent readback is unconfirmed; inspect without repeating the turn."); }
+            turn.TaskRevision = dispatched.Task.Revision;
+            turn.ConversationTarget = target;
+            if (ordinaryActiveDeadline && runtime is not null)
+            {
+                runtime.CaptureOrdinaryActiveBudget(turn,
+                    ordinaryDeadlines?.Capture() ?? Kora.Core.Configuration.OrdinaryTurnDeadline.Default);
+            }
             var dispatchReadback = await conversations.ReadConversationMessageAsync(request.SessionId, request.RequestId, token).ConfigureAwait(false);
             if (dispatchReadback != dispatched.Message || !Current())
             { throw new IOException("The original dispatch source readback is unconfirmed; no model turn was repeated."); }
-            turn.TaskRevision = dispatched.Task.Revision;
-            turn.ConversationTarget = target;
             running.Dispatched(dispatched.Task.Revision);
             RunningConversationChanged?.Invoke(running.Status);
             var result = await executor.RunAsync(turn, () => running.CanContinue, running.Token, validateSource).ConfigureAwait(false);
@@ -133,6 +139,7 @@ public sealed partial class SessionConversationService
                     || result.Outcome != ModelTurnOutcome.Succeeded && result.Response is not null)
                 { throw new InvalidDataException("A host source response projection cannot change turn authority or promote a failure."); }
             }
+            result = result with { SubmittedContext = result.Outcome == ModelTurnOutcome.Succeeded ? turn.SubmittedContext : null };
             ConversationResponse? answer = null;
             if (result.Outcome == ModelTurnOutcome.Succeeded)
             {
@@ -142,7 +149,7 @@ public sealed partial class SessionConversationService
                     (dispatched.Message with
                     {
                         Revision = 3, Outcome = result.Outcome, Reason = result.Reason,
-                        AssistantResponse = answer, Observations = result.Observations,
+                        AssistantResponse = answer, Observations = result.Observations, SubmittedContext = result.SubmittedContext,
                     }).Validate();
                 }
                 catch (Exception exception) when (exception is InvalidDataException or ConversationCredentialException)
@@ -153,8 +160,14 @@ public sealed partial class SessionConversationService
             }
             if (validateSource is not null) { await validateSource(token).ConfigureAwait(false); }
             token.ThrowIfCancellationRequested();
+            if (result.Outcome == ModelTurnOutcome.Succeeded && turn.OrdinaryActiveBudget?.Expired == true)
+            {
+                result = new(ModelTurnOutcome.TimedOut, ModelTurnReason.DeadlineExceeded, turn.Provenance);
+                answer = null;
+            }
             bool RetainCurrent() => live() && (result.Outcome != ModelTurnOutcome.Succeeded
-                || Current() && (runtime is not null ? runtime.IsTurnQuiescent(turn) : turns.IsQuiescent));
+                || Current() && turn.OrdinaryActiveBudget?.Expired != true
+                    && (runtime is not null ? runtime.IsTurnQuiescent(turn) : turns.IsQuiescent));
             if (!RetainCurrent() || await store.ReadMetadataAsync(request.SessionId, token).ConfigureAwait(false) != target)
             { throw new InvalidOperationException("The original source or session changed before terminal retention."); }
             if (result.Outcome == ModelTurnOutcome.Succeeded && turn.ValidateAnswerCommit is { } validateAnswer)
@@ -172,6 +185,7 @@ public sealed partial class SessionConversationService
                 ?? await conversations.CompleteConversationExecutionAsync(request, result, RetainCurrent, token).ConfigureAwait(false);
             if (completed.Message.Outcome != result.Outcome || completed.Message.Reason != result.Reason
                 || completed.Message.AssistantResponse != answer || completed.Message.Observations != result.Observations
+                || completed.Message.SubmittedContext != result.SubmittedContext
                 || completed.Message.Execution != turn.Provenance
                 || completed.Message.Generation != target.Authority.Generation || completed.Message.Sequence != retained.Message.Sequence
                 || completed.Message.Revision != 3 || completed.Task.Revision.Value != 3)

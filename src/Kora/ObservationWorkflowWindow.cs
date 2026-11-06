@@ -1,7 +1,9 @@
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
 using Kora.Application.Skills;
 using Kora.Core.Skills;
 
@@ -91,20 +93,21 @@ internal sealed class ObservationWorkflowWindow : Window, IOwnedSkillSaveReview
 
     internal async Task<bool> Confirm(string title, string text, string confirm, Func<bool> current, CancellationToken token)
     {
-        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-        { return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Confirm(title, text, confirm, current, token)); }
+        if (!Dispatcher.UIThread.CheckAccess())
+        { return await Dispatcher.UIThread.InvokeAsync(() => Confirm(title, text, confirm, current, token)); }
         token.ThrowIfCancellationRequested();
-        if (!current()) { throw new InvalidOperationException("The private exact review is no longer current."); }
+        if (!IsVisible || !current()) { throw new InvalidOperationException("The private exact review is no longer current."); }
         if (pending is not null) { throw new InvalidOperationException("Another exact native review is pending."); }
+        var returnFocus = FocusManager?.GetFocusedElement() as Control;
         var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         pending = completion;
-        pendingCurrent = current;
+        pendingCurrent = () => IsVisible && current();
         var opened = new Window { Title = title, Width = 780, Height = 650 };
         dialog = opened;
-        var content = new TextBox { Text = text, IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap };
+        var content = new TextBox { Text = text, IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, TabIndex = 0 };
         AutomationProperties.SetName(content, "Complete exact review");
-        var yes = new Button { Content = confirm };
-        var no = new Button { Content = "Cancel" };
+        var yes = new Button { Content = confirm, TabIndex = 1 };
+        var no = new Button { Content = "Cancel", TabIndex = 2 };
         yes.Click += (_, _) => CompleteApproval(true);
         no.Click += (_, _) => CompleteApproval(false);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { yes, no } };
@@ -113,21 +116,62 @@ internal sealed class ObservationWorkflowWindow : Window, IOwnedSkillSaveReview
         panel.Children.Add(buttons);
         panel.Children.Add(content);
         opened.Content = panel;
-        opened.Closed += (_, _) => completion.TrySetResult(false);
-        return await Wait();
-
-        async Task<bool> Wait()
+        var closed = false;
+        opened.Closed += (_, _) => { closed = true; completion.TrySetResult(false); };
+        opened.KeyDown += (_, args) =>
         {
-            using var registration = token.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-            { completion.TrySetCanceled(token); opened.Close(); }));
-            try
+            if (args.Key == Key.Escape) { args.Handled = true; CompleteApproval(false); }
+        };
+        PropertyChanged += OwnerChanged;
+        using var registration = token.Register(() => Dispatcher.UIThread.Post(() =>
+        {
+            if (!ReferenceEquals(dialog, opened)) { return; }
+            completion.TrySetCanceled(token);
+            pendingCurrent = null;
+            opened.Content = null;
+            CloseReview();
+        }));
+        try
+        {
+            var nativeClosure = opened.ShowDialog(this);
+            // Avalonia can finish making a window visible after a reentrant close in Opened.
+            if (closed) { opened.Hide(); }
+            if (!IsVisible || !current() || token.IsCancellationRequested)
             {
-                opened.Show(this);
-#pragma warning disable VSTHRD003 // The controller owns the native review until completion/cancellation joins it.
-                return await completion.Task && current() && !token.IsCancellationRequested;
-#pragma warning restore VSTHRD003
+                if (token.IsCancellationRequested) { completion.TrySetCanceled(token); }
+                else { completion.TrySetResult(false); }
+                opened.Content = null;
+                CloseReview();
             }
-            finally { opened.Close(); pending = null; pendingCurrent = null; dialog = null; }
+            else if (!completion.Task.IsCompleted) { opened.UpdateLayout(); content.Focus(); }
+#pragma warning disable VSTHRD003 // Hold the exact native modal lifetime, not merely the selected choice.
+            await nativeClosure;
+            var approved = await completion.Task;
+#pragma warning restore VSTHRD003
+            return approved && pendingCurrent?.Invoke() == true && !token.IsCancellationRequested;
+        }
+        finally
+        {
+            PropertyChanged -= OwnerChanged;
+            content.Text = "";
+            opened.Content = null;
+            opened.Close();
+            if (ReferenceEquals(dialog, opened)) { pending = null; pendingCurrent = null; dialog = null; }
+            if (IsVisible && current() && !token.IsCancellationRequested
+                && returnFocus is not null && ReferenceEquals(TopLevel.GetTopLevel(returnFocus), this)
+                && returnFocus.IsEffectivelyEnabled && returnFocus.IsEffectivelyVisible)
+            { returnFocus.Focus(); }
+        }
+
+        void OwnerChanged(object? sender, Avalonia.AvaloniaPropertyChangedEventArgs args)
+        {
+            if (args.Property == IsVisibleProperty && !IsVisible)
+            {
+                completion.TrySetResult(false);
+                pendingCurrent = null;
+                opened.Content = null;
+                CloseReview();
+            }
         }
     }
 
@@ -135,13 +179,24 @@ internal sealed class ObservationWorkflowWindow : Window, IOwnedSkillSaveReview
     {
         if (pending is null) { throw new InvalidOperationException("No exact native review is pending."); }
         pending.TrySetResult(approved && pendingCurrent?.Invoke() == true);
+        if (!approved) { pendingCurrent = null; }
+        CloseReview();
     }
 
     internal void ClearReview()
     {
         pending?.TrySetResult(false);
-        dialog?.Close();
+        pendingCurrent = null;
+        if (dialog is { } opened) { opened.Content = null; }
+        CloseReview();
         ReviewText.Text = "";
         Result.Text = "";
+    }
+
+    private void CloseReview()
+    {
+        if (dialog is not { } opened) { return; }
+        // Queue closure so retirement during native Show initialization cannot orphan the modal.
+        Dispatcher.UIThread.Post(() => { if (ReferenceEquals(dialog, opened)) { opened.Close(); } });
     }
 }

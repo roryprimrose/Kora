@@ -26,12 +26,13 @@ internal sealed class OwnedSkillInvocationWindow : Window
         {
             Text = "Kora-owned private package; complete inert guidance. LocalOnly; "
                 + (toolMode ? "at most ONE host WebPageGet call to ONE explicit URL with separate per-action approval; " : "tools none; ")
-                + "references none. No scripts, hooks, MCP, nested agents or hosted transfer. "
+                + "Only explicitly declared v5 Markdown components after separate read consent. No scripts, hooks, MCP, nested agents or hosted transfer. "
                 + "Saving never invokes. Enable this exact revision separately for one volatile use, expiring two minutes after review. "
                 + "Close, edits after preparation, source or admission changes retire use. No automatic retry.",
             TextWrapping = TextWrapping.Wrap,
         });
         panel.Children.Add(Instructions);
+        Add("Authorize only the exact declared owned Markdown reads", "read-references");
         panel.Children.Add(LiteralInputs);
         Add("Enable exact reviewed revision once", "enable");
         Add("Refresh existing Active conversations", "targets");
@@ -42,6 +43,13 @@ internal sealed class OwnedSkillInvocationWindow : Window
         panel.Children.Add(new TextBlock { Text = "Original request, retained unchanged in the selected conversation" });
         AutomationProperties.SetName(Request, "Unchanged original request");
         panel.Children.Add(Request);
+        panel.Children.Add(new TextBlock
+        {
+            Text = "For owned v3 guidance, Preview asks one private question per missing required literal input. "
+                + "Answers only fill data. Review the complete expansion before the separate exact invocation confirmation. "
+                + "Existing values are preserved; changing any field during questions retires the collection.",
+            TextWrapping = TextWrapping.Wrap,
+        });
         if (toolMode)
         {
             panel.Children.Add(new TextBlock { Text = "One explicit public HTTP or HTTPS URL; never model-selected" });
@@ -52,7 +60,7 @@ internal sealed class OwnedSkillInvocationWindow : Window
         panel.Children.Add(new TextBlock
         {
             Text = "The preview includes all serialized input. Host request/evidence correlation IDs are freshly stamped on admission; "
-                + "policy, original request and both complete evidence files are unchanged. Nothing is truncated.",
+                + "policy, original request and every complete evidence file are unchanged. Nothing is truncated.",
             TextWrapping = TextWrapping.Wrap,
         });
         panel.Children.Add(Confirmation);

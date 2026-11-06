@@ -14,7 +14,7 @@ using Kora.Core.KnowledgeSources;
 
 namespace Kora.KnowledgeSources;
 
-internal sealed class KnowledgeSourcesWindow : Window, IDisposable
+internal sealed partial class KnowledgeSourcesWindow : Window, IDisposable
 {
     private readonly MainViewModel host;
     private readonly KnowledgeSourceManager manager;
@@ -38,10 +38,12 @@ internal sealed class KnowledgeSourcesWindow : Window, IDisposable
     private TaskCompletionSource? joined;
     private bool disposed;
 
-    internal KnowledgeSourcesWindow(MainViewModel host, KnowledgeSourceManager manager, IUserFolderPicker? picker = null)
+    internal KnowledgeSourcesWindow(MainViewModel host, KnowledgeSourceManager manager, IUserFolderPicker? picker = null,
+        KnowledgeSourceAnswerWorkflow? answers = null)
     {
         this.host = host;
         this.manager = manager;
+        this.answers = answers;
         this.picker = picker ?? new KnowledgeSourceFolderPicker(this);
         Title = "Knowledge sources - device-local copies";
         Width = 840;
@@ -88,6 +90,7 @@ internal sealed class KnowledgeSourcesWindow : Window, IDisposable
         body.Children.Add(Button("Search this exact inspected source locally", SearchAsync));
         body.Children.Add(results);
         body.Children.Add(citationLinks);
+        BindAnswers();
         Content = new ScrollViewer { Content = body };
         host.PropertyChanged += OnHostChanged;
         Closing += OnClosing;
@@ -313,6 +316,7 @@ internal sealed class KnowledgeSourcesWindow : Window, IDisposable
 
     private void RetirePresentation()
     {
+        RetireAnswer();
         epoch++;
         opened = null;
         openedSource = null;
@@ -325,7 +329,7 @@ internal sealed class KnowledgeSourcesWindow : Window, IDisposable
 
     private void OnHostChanged(object? sender, PropertyChangedEventArgs args)
     {
-        if (!Eligible()) { Close(); }
+        if (!Eligible() || string.Equals(args.PropertyName, nameof(MainViewModel.KnowledgeSourceAnswerRevision), StringComparison.Ordinal)) { Close(); }
     }
 
     private void OnClosing(object? sender, WindowClosingEventArgs args)

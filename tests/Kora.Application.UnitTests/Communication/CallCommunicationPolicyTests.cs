@@ -7,6 +7,102 @@ namespace Kora.Application.UnitTests.Communication;
 
 public sealed class CallCommunicationPolicyTests
 {
+    [Theory]
+    [InlineData(CallState.Active)]
+    [InlineData(CallState.Suspected)]
+    [InlineData(CallState.Unknown)]
+    public void Reviewed_activation_changes_only_the_exact_preference_once(CallState state)
+    {
+        using var policy = new CallCommunicationPolicy(new Automatic(state));
+        var saved = new CallAwareSettings(true, false, true);
+        policy.LoadSettings(saved);
+        var review = policy.ReviewVoiceActivation(RequestOrigin.LocalUi, policy.Current.Revision, saved, Eligible);
+        var writes = 0;
+        bool Persist(CallAwareSettings settings)
+        {
+            writes++;
+            settings.Should().Be(saved with { AllowVoiceActivationDuringCalls = true });
+            return true;
+        }
+        policy.SetReviewedVoiceActivation(review, RequestOrigin.LocalUi, Persist).Should().Be(CallMutationOutcome.Applied);
+        policy.Current.AllowActivation.Should().BeTrue();
+        policy.Current.SuppressSpeech.Should().BeTrue();
+        policy.Current.AutomaticState.Should().Be(state);
+        policy.SetReviewedVoiceActivation(review, RequestOrigin.LocalUi, Persist).Should().Be(CallMutationOutcome.ExactReviewUnavailable);
+        writes.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    public void Activation_review_refuses_untrusted_unavailable_stale_or_changed_saved_state(int failure)
+    {
+        using var policy = new CallCommunicationPolicy(new Automatic(CallState.Active));
+        var saved = new CallAwareSettings(true, false);
+        policy.LoadSettings(saved);
+        var revision = policy.Current.Revision;
+        if (failure == 2) { policy.HoldManualControlEvidenceUnavailable(); revision = policy.Current.Revision; }
+        if (failure == 3) { policy.LoadSettings(CallAwareSettings.Default); revision = policy.Current.Revision; }
+        var review = () => policy.ReviewVoiceActivation(failure == 0 ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi,
+            failure == 4 ? revision - 1 : revision, failure == 5 ? null : saved,
+            () => failure != 1);
+        review.Should().Throw<InvalidOperationException>();
+        policy.Current.Settings.Should().Be(failure == 3 ? CallAwareSettings.Default : saved);
+    }
+
+    [Theory]
+    [InlineData(0, CallMutationOutcome.ExactReviewUnavailable)]
+    [InlineData(1, CallMutationOutcome.HostUnavailable)]
+    [InlineData(2, CallMutationOutcome.StaleObservation)]
+    [InlineData(3, CallMutationOutcome.ExactReviewUnavailable)]
+    [InlineData(4, CallMutationOutcome.PersistenceFailed)]
+    [InlineData(5, CallMutationOutcome.HostUnavailable)]
+    public void Reviewed_activation_revalidates_exact_authority_and_never_uses_another_policy(int change, CallMutationOutcome expected)
+    {
+        var automatic = new Automatic(CallState.Active);
+        using var policy = new CallCommunicationPolicy(automatic);
+        var saved = new CallAwareSettings(true, false);
+        policy.LoadSettings(saved);
+        var eligible = true;
+        var review = policy.ReviewVoiceActivation(RequestOrigin.LocalUi, policy.Current.Revision, saved, () => eligible);
+        using var other = new CallCommunicationPolicy(automatic);
+        other.LoadSettings(saved);
+        if (change == 0)
+        {
+            policy.SetReviewedVoiceActivation(review, RequestOrigin.ActivatedVoice, static _ => throw new InvalidOperationException())
+                .Should().Be(CallMutationOutcome.ExactReviewUnavailable);
+            policy.SetReviewedVoiceActivation(review, RequestOrigin.LocalUi, static _ => throw new InvalidOperationException())
+                .Should().Be(CallMutationOutcome.ExactReviewUnavailable);
+            policy.Current.Settings.Should().Be(saved);
+            return;
+        }
+        if (change == 1) { eligible = false; }
+        if (change == 2) { automatic.Set(CallState.Unknown); }
+        if (change == 5) { policy.HoldManualControlEvidenceUnavailable(); }
+        var writes = 0;
+        bool Persist(CallAwareSettings _) { writes++; return false; }
+        (change == 3 ? other : policy).SetReviewedVoiceActivation(review, RequestOrigin.LocalUi, Persist).Should().Be(expected);
+        writes.Should().Be(change == 4 ? 1 : 0);
+        policy.Current.Settings.Should().Be(saved);
+        other.Current.Settings.Should().Be(saved);
+    }
+
+    [Fact]
+    public void Review_token_cannot_change_companion_settings()
+    {
+        using var policy = new CallCommunicationPolicy(new Automatic(CallState.Clear));
+        policy.LoadSettings(new(true, false));
+        var review = policy.ReviewVoiceActivation(RequestOrigin.LocalUi, policy.Current.Revision, new(true, false), Eligible);
+        review.TryConsume(policy, new(false, true, true)).Should().BeFalse();
+        policy.SetReviewedVoiceActivation(review, RequestOrigin.LocalUi, static _ => throw new InvalidOperationException())
+            .Should().Be(CallMutationOutcome.ExactReviewUnavailable);
+        policy.Current.Settings.Should().Be(new CallAwareSettings(true, false));
+    }
+
     [Fact]
     public void Unknown_manual_control_evidence_is_a_mandatory_denial_not_grant_revocation()
     {

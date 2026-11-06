@@ -2,6 +2,7 @@ using AwesomeAssertions;
 
 using Kora.Application.Dependencies;
 using Kora.Application.Hosting;
+using Kora.Core.Auditing;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
@@ -254,12 +255,14 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
-    [InlineData("early-release")]
-    [InlineData("terminal-readback")]
-    [InlineData("notification")]
-    [InlineData("notification-and-readback")]
-    [InlineData("private-during-join")]
-    public async Task LifecycleRetainsThePhysicalJoinAcrossReleaseRevocationAndTerminalFailure(string fault)
+    [InlineData("early-release", false)]
+    [InlineData("terminal-readback", false)]
+    [InlineData("notification", false)]
+    [InlineData("notification", true)]
+    [InlineData("notification-and-readback", false)]
+    [InlineData("notification-and-readback", true)]
+    [InlineData("private-during-join", false)]
+    public async Task LifecycleRetainsThePhysicalJoinAcrossReleaseRevocationAndTerminalFailure(string fault, bool terminalAuditFirst)
     {
         using var f = new Fixture { TrackPendingRecords = true };
         var host = ConfigureCancellation(f);
@@ -272,42 +275,106 @@ public sealed partial class ModelTurnHostTests
         using var review = await service.ReviewApplicationLifecycleAsync(ApplicationLifecycleOperation.Exit,
             RequestOrigin.LocalUi, () => current, Token);
         if (fault is "terminal-readback" or "notification-and-readback") { f.TerminalReceiptFault = "revision"; }
-        var notificationFailed = false;
-        service.RunningConversationChanged += status =>
+        using var acceptancePublished = new ManualResetEventSlim();
+        using var terminalAuditEntered = new ManualResetEventSlim();
+        var failsNotification = fault is "notification" or "notification-and-readback";
+        if (failsNotification)
         {
-            if (!notificationFailed && status.Phase == ConversationExecutionPhase.Cancelling
-                && fault is "notification" or "notification-and-readback")
+            // Cancellation can resume execution before its acceptance publication. Keep this fault at acceptance, not terminal retention.
+            f.OnAudit = audit =>
             {
-                notificationFailed = true;
-                throw new IOException("Synthetic observer failure after accepted stop.");
-            }
-        };
-        var joining = service.ConfirmApplicationLifecycleAsync(review, Token);
-        joining.IsCompleted.Should().BeFalse();
-        if (fault is "early-release") { review.Dispose(); }
-        if (fault is "private-during-join") { current = false; }
-        await service.Invoking(value => value.SubmitQueuedAsync(target, "must not escape the join", () => true, Token))
-            .Should().ThrowAsync<InvalidOperationException>();
-        submission.Completion.IsCompleted.Should().BeFalse();
-        provider.SetResult(LateAnswer());
-        await this.Invoking(_ => joining).Should().ThrowAsync<Exception>();
-        await submission.Completion;
-        review.Joined.Should().BeFalse();
-        f.Adapter.Calls.Should().Be(1);
-        review.Dispose();
-        current = true;
-        if (fault is "terminal-readback" or "notification-and-readback")
-        {
-            await service.Invoking(value => value.ReviewApplicationLifecycleAsync(ApplicationLifecycleOperation.Exit,
-                RequestOrigin.LocalUi, () => true, Token)).Should().ThrowAsync<InvalidOperationException>();
+                if (string.Equals(audit.ActionId, "model.turn", StringComparison.Ordinal)
+                    && audit.Outcome != SecurityAuditOutcome.Requested)
+                {
+                    terminalAuditEntered.Set();
+                    acceptancePublished.Wait(TimeSpan.FromSeconds(20), Token).Should().BeTrue();
+                }
+            };
         }
-        else
+        var notificationFailures = 0;
+        var terminal = new TaskCompletionSource<ConversationExecutionStatus>(TaskCreationOptions.RunContinuationsAsynchronously);
+        void Observe(ConversationExecutionStatus status)
         {
-            using var fresh = await service.ReviewApplicationLifecycleAsync(ApplicationLifecycleOperation.Exit,
-                RequestOrigin.LocalUi, () => true, Token);
-            fresh.Work.Should().BeEmpty();
-            await service.ConfirmApplicationLifecycleAsync(fresh, Token);
-            fresh.Joined.Should().BeTrue();
+            status.Target.Request.Should().Be(submission.Receipt.Message.Request);
+            if (status.Phase == ConversationExecutionPhase.Terminal) { terminal.TrySetResult(status); }
+            if (failsNotification && status.Phase == ConversationExecutionPhase.Cancelling
+                && Interlocked.CompareExchange(ref notificationFailures, 1, 0) == 0)
+            {
+                try
+                {
+                    if (terminalAuditFirst)
+                    { terminalAuditEntered.Wait(TimeSpan.FromSeconds(20), Token).Should().BeTrue(); }
+                    throw new IOException("Synthetic observer failure after accepted stop.");
+                }
+                finally { acceptancePublished.Set(); }
+            }
+        }
+        service.RunningConversationChanged += Observe;
+        try
+        {
+            var joining = service.ConfirmApplicationLifecycleAsync(review, Token);
+            joining.IsCompleted.Should().BeFalse();
+            review.StopAccepted.Should().BeTrue();
+            if (fault is "early-release") { review.Dispose(); }
+            if (fault is "private-during-join") { current = false; }
+            await service.Invoking(value => value.SubmitQueuedAsync(target, "must not escape the join", () => true, Token))
+                .Should().ThrowAsync<InvalidOperationException>();
+            submission.Completion.IsCompleted.Should().BeFalse();
+            host.IsQuiescent.Should().BeFalse();
+            provider.SetResult(LateAnswer());
+            await this.Invoking(_ => joining).Should().ThrowAsync<Exception>();
+            var completed = await submission.Completion;
+            review.Joined.Should().BeFalse();
+            f.Adapter.Calls.Should().Be(1);
+            host.IsQuiescent.Should().BeTrue();
+            Volatile.Read(ref notificationFailures).Should().Be(failsNotification ? 1 : 0);
+            review.Dispose();
+            current = true;
+            if (fault is "terminal-readback" or "notification-and-readback")
+            {
+                completed.Failure.Should().BeOfType<ConversationSubmissionUnconfirmedException>();
+                terminal.Task.IsCompleted.Should().BeFalse();
+                review.Results.Should().ContainSingle().Which.Should().Be(
+                    new AllWorkStopResult.Original(submission.Receipt.Message.Request, true, false, null));
+                await service.Invoking(value => value.ReviewApplicationLifecycleAsync(ApplicationLifecycleOperation.Exit,
+                    RequestOrigin.LocalUi, () => true, Token)).Should().ThrowAsync<InvalidOperationException>();
+            }
+            else
+            {
+                var receipt = completed.RequireReceipt();
+                receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+                receipt.Message.Reason.Should().Be(ModelTurnReason.CallerCancelled);
+                receipt.Message.AssistantResponse.Should().BeNull();
+                receipt.Task.State.Should().Be(HostTaskState.Unknown);
+                if (fault is "notification")
+                {
+                    receipt.Message.Request.Should().Be(submission.Receipt.Message.Request);
+                    receipt.Message.Body.Should().Be(submission.Receipt.Message.Body);
+                    receipt.Message.Revision.Should().Be(3);
+                    receipt.Message.Execution.Should().NotBeNull();
+                    receipt.Task.Revision.Value.Should().Be(3);
+                    (await f.ReadTaskAsync(target.Authority.SessionId, receipt.Task.Request.TaskId, Token))!.Task.Should().Be(receipt.Task);
+                }
+                var notification = await terminal.Task.WaitAsync(TimeSpan.FromSeconds(20), Token);
+                notification.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+                notification.TaskState.Should().Be(HostTaskState.Unknown);
+                review.Results.Should().ContainSingle().Which.Should().Be(
+                    new AllWorkStopResult.Original(receipt.Message.Request, true, true, HostTaskState.Unknown));
+                using var fresh = await service.ReviewApplicationLifecycleAsync(ApplicationLifecycleOperation.Exit,
+                    RequestOrigin.LocalUi, () => true, Token);
+                fresh.Work.Should().BeEmpty();
+                await service.ConfirmApplicationLifecycleAsync(fresh, Token);
+                fresh.Joined.Should().BeTrue();
+            }
+        }
+        finally
+        {
+            acceptancePublished.Set();
+            provider.TrySetResult(LateAnswer());
+            await submission.Completion;
+            service.RunningConversationChanged -= Observe;
+            f.OnAudit = null;
+            review.Dispose();
         }
     }
 
@@ -414,9 +481,14 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
-    [InlineData(RequestOrigin.LocalUi)]
-    [InlineData(RequestOrigin.ActivatedVoice)]
-    public async Task LifecycleReviewDoesNotStopSubmittedWorkAndConfirmationJoinsThePhysicalOriginal(RequestOrigin origin)
+    [InlineData(RequestOrigin.LocalUi, false, false)]
+    [InlineData(RequestOrigin.ActivatedVoice, false, false)]
+    [InlineData(RequestOrigin.LocalUi, true, false)]
+    [InlineData(RequestOrigin.ActivatedVoice, true, false)]
+    [InlineData(RequestOrigin.LocalUi, true, true)]
+    [InlineData(RequestOrigin.ActivatedVoice, true, true)]
+    public async Task LifecycleReviewDoesNotStopSubmittedWorkAndConfirmationJoinsThePhysicalOriginal(
+        RequestOrigin origin, bool overlappingCompletions, bool terminalReadbackFault)
     {
         using var f = new Fixture(origin) { TrackPendingRecords = true };
         var host = ConfigureCancellation(f);
@@ -426,6 +498,26 @@ public sealed partial class ModelTurnHostTests
         var target = new SessionWorkspaceEntry(f.Session, null);
         var first = await service.SubmitQueuedAsync(target, "running original", () => true, Token, origin: origin);
         var second = await service.SubmitQueuedAsync(target, "queued original", () => true, Token, origin: origin);
+        var executionCompleting = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var pendingCompleted = new ManualResetEventSlim();
+        ConversationSubmissionReceipt? pendingTerminal = null;
+        if (overlappingCompletions)
+        {
+            f.BeforeSubmissionComplete = _ => executionCompleting.Task;
+            f.BeforeExecutionComplete = () =>
+            {
+                Kora.Core.Diagnostics.HostActivity.RequireCurrent().Request.Should().Be(first.Receipt.Message.Request);
+                executionCompleting.TrySetResult();
+                pendingCompleted.Wait(TimeSpan.FromSeconds(20), Token).Should().BeTrue();
+            };
+            service.SubmittedConversationCompleted += (workspace, completion) =>
+            {
+                if (completion.Receipt?.Message.Request != second.Receipt.Message.Request) { return; }
+                workspace.Should().Be(target);
+                pendingTerminal = completion.RequireReceipt();
+                pendingCompleted.Set();
+            };
+        }
         try
         {
             using (var cancelled = await service.ReviewApplicationLifecycleAsync(ApplicationLifecycleOperation.Exit,
@@ -442,18 +534,78 @@ public sealed partial class ModelTurnHostTests
             first.Completion.IsCompleted.Should().BeFalse();
             using var confirmed = await service.ReviewApplicationLifecycleAsync(ApplicationLifecycleOperation.Restart,
                 origin, () => true, Token);
+            confirmed.Work.Select(value => value.Request).Should().BeEquivalentTo(
+                [first.Receipt.Message.Request, second.Receipt.Message.Request]);
+            if (terminalReadbackFault) { f.TerminalReceiptFault = "revision"; }
             var stopped = service.ConfirmApplicationLifecycleAsync(confirmed, Token);
             stopped.IsCompleted.Should().BeFalse("cancellation is not a physical provider join");
             f.Adapter.Calls.Should().Be(1);
+            first.Completion.IsCompleted.Should().BeFalse();
+            host.IsQuiescent.Should().BeFalse();
             provider.SetResult(LateAnswer());
+            if (terminalReadbackFault)
+            {
+                await this.Invoking(_ => stopped).Should().ThrowAsync<InvalidOperationException>()
+                    .WithMessage("Submitted work release or terminal retention is unconfirmed. No application effect is permitted.");
+                (await first.Completion).Receipt.Should().BeNull();
+                (await first.Completion).Failure.Should().BeOfType<ConversationSubmissionUnconfirmedException>();
+                (await second.Completion).RequireReceipt().Should().Be(pendingTerminal);
+                confirmed.Joined.Should().BeFalse();
+                confirmed.Results.Single(value => value.Request == first.Receipt.Message.Request)
+                    .Should().Be(new AllWorkStopResult.Original(first.Receipt.Message.Request, true, false, null));
+                host.IsQuiescent.Should().BeTrue();
+                confirmed.Dispose();
+                await service.Invoking(value => value.ReviewApplicationLifecycleAsync(
+                    ApplicationLifecycleOperation.Restart, origin, () => true, Token))
+                    .Should().ThrowAsync<InvalidOperationException>();
+                f.PendingRecords.Values.Should().OnlyContain(value => value.Message.AssistantResponse == null);
+                return;
+            }
             await stopped;
             confirmed.Joined.Should().BeTrue();
-            (await first.Completion).RequireReceipt().Message.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
-            (await second.Completion).RequireReceipt().Message.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+            var firstTerminal = (await first.Completion).RequireReceipt();
+            var secondTerminal = (await second.Completion).RequireReceipt();
+            firstTerminal.Message.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+            secondTerminal.Message.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+            firstTerminal.Message.Request.Should().Be(first.Receipt.Message.Request);
+            secondTerminal.Message.Request.Should().Be(second.Receipt.Message.Request);
+            firstTerminal.Message.Body.Should().Be("running original");
+            secondTerminal.Message.Body.Should().Be("queued original");
+            firstTerminal.Message.Execution.Should().Be(f.Adapter.Provenance);
+            firstTerminal.Task.Should().Be(new HostTaskRecord(first.Receipt.Message.Request, new(3), HostTaskState.Unknown));
+            secondTerminal.Task.Should().Be(new HostTaskRecord(second.Receipt.Message.Request, new(2), HostTaskState.Cancelled));
+            confirmed.Results.Should().BeEquivalentTo(
+                [new AllWorkStopResult.Original(first.Receipt.Message.Request, true, true, HostTaskState.Unknown),
+                    new AllWorkStopResult.Original(second.Receipt.Message.Request, true, true, HostTaskState.Cancelled)]);
+            host.IsQuiescent.Should().BeTrue();
+            f.ExecutionStarts.Should().Be(1);
+            f.ExecutionCompletions.Should().Be(1);
+            f.CancelAudit.Events.Should().HaveCount(4);
+            for (var index = 0; index < f.CancelAudit.Events.Count; index += 2)
+            {
+                var requested = f.CancelAudit.Events[index];
+                requested.Outcome.Should().Be(SecurityAuditOutcome.Requested);
+                f.CancelAudit.Events[index + 1].Should().BeEquivalentTo(
+                    requested.WithOutcome(SecurityAuditOutcome.Succeeded));
+                f.CancelAudit.Contexts[index].Origin.Should().Be(origin);
+                f.CancelAudit.Contexts[index + 1].Should().Be(f.CancelAudit.Contexts[index]);
+            }
+            if (overlappingCompletions)
+            {
+                pendingTerminal.Should().Be((await second.Completion).RequireReceipt());
+                pendingTerminal!.Task.State.Should().Be(HostTaskState.Cancelled);
+                pendingTerminal.Task.Revision.Value.Should().Be(2);
+            }
             f.PendingRecords.Values.Should().OnlyContain(value => value.Message.AssistantResponse == null);
             await service.Invoking(value => value.ConfirmApplicationLifecycleAsync(confirmed, Token))
                 .Should().ThrowAsync<InvalidOperationException>();
         }
-        finally { provider.TrySetResult(LateAnswer()); }
+        finally
+        {
+            executionCompleting.TrySetResult();
+            pendingCompleted.Set();
+            provider.TrySetResult(LateAnswer());
+            await Task.WhenAll(first.Completion, second.Completion);
+        }
     }
 }

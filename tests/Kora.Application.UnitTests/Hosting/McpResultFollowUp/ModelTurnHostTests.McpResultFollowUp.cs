@@ -17,17 +17,123 @@ namespace Kora.Application.UnitTests.Dependencies;
 
 public sealed partial class ModelTurnHostTests
 {
+    [Theory]
+    [InlineData(32768)]
+    [InlineData(32769)]
+    public async Task McpFollowUp_complete_serialized_envelope_boundary_precedes_retention_and_dispatch(int bytes)
+    {
+        using var f = new Fixture();
+        var source = FollowUpObservation(f, structured: false, text: "x");
+        const string question = "unchanged question";
+        var baseSize = Kora.Core.Mcp.ResultFollowUp.McpResultContext.Create(source.Request, question,
+            source.Result, source.Provenance, f.Time.Now, f.Time.Now.AddSeconds(15)).Serialize().Length;
+        source = FollowUpObservation(f, structured: false, text: new string('x', bytes - baseSize + 1));
+        var host = QualifiedHistoryHost(f);
+        var answerWorkflow = f.ConversationService(host, execution: host)
+            .CreateMcpResultFollowUpWorkflow(Kora.Application.Context.LocalSourceUsePolicy.Instance);
+        if (bytes == 32769)
+        {
+            await answerWorkflow.Invoking(value => value.ReviewAsync(source, question, static () => true, Token))
+                .Should().ThrowAsync<InvalidDataException>();
+            f.RetainCalls.Should().Be(0);
+            f.Adapter.Calls.Should().Be(0);
+        }
+        else
+        {
+            var sourceReview = await answerWorkflow.ReviewAsync(source, question, static () => true, Token);
+            sourceReview.CreateEnvelope(source.Request, f.Time.Now).Serialize().Length.Should().Be(32768);
+            f.RetainCalls.Should().Be(0);
+            f.Adapter.Calls.Should().Be(0);
+            var receipt = await answerWorkflow.ConfirmAsync(sourceReview, static () => true, Token);
+            receipt.Message.Body.Should().Be(question);
+            f.Adapter.Wire!.Length.Should().Be(32768);
+            f.RetainCalls.Should().Be(1);
+            f.Adapter.Calls.Should().Be(1);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task McpFollowUp_host_source_validator_and_original_skill_expiry_cannot_be_renewed(bool retire)
+    {
+        using var f = new Fixture();
+        var initial = FollowUpObservation(f);
+        var validations = 0;
+        var source = new McpResultObservation(initial.Target, initial.Request, initial.Result, initial.Invocation,
+            initial.Mapping, f.Session.Generation, initial.Control, initial.ServerId, initial.Provenance.Server, initial.Cause,
+            token =>
+            {
+                token.ThrowIfCancellationRequested();
+                validations++;
+                if (retire) { throw new InvalidOperationException("Original source retired."); }
+                return Task.CompletedTask;
+            }, f.Time.Now.AddSeconds(5));
+        source.ExpiresAt.Should().Be(f.Time.Now.AddSeconds(5));
+        var answerWorkflow = f.ConversationService(QualifiedHistoryHost(f))
+            .CreateMcpResultFollowUpWorkflow(Kora.Application.Context.LocalSourceUsePolicy.Instance);
+        if (retire)
+        {
+            await answerWorkflow.Invoking(value => value.ReviewAsync(source, "fresh", static () => true, Token))
+                .Should().ThrowAsync<InvalidOperationException>();
+        }
+        else
+        {
+            var sourceReview = await answerWorkflow.ReviewAsync(source, "fresh", static () => true, Token);
+            sourceReview.ExpiresAt.Should().Be(source.ExpiresAt);
+            sourceReview.CreateEnvelope(source.Request, f.Time.Now).ExpiresAt.Should().Be(source.ExpiresAt);
+            f.Time.Now = f.Time.Now.AddSeconds(5);
+            await answerWorkflow.Invoking(value => value.ConfirmAsync(sourceReview, static () => true, Token))
+                .Should().ThrowAsync<InvalidOperationException>();
+        }
+        validations.Should().BeGreaterThan(0);
+        f.RetainCalls.Should().Be(0);
+        f.Adapter.Calls.Should().Be(0);
+    }
+
     private static string FollowUpHash(string text) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
 
+    [Fact]
+    public async Task McpFollowUp_standalone_source_cannot_borrow_a_skill_receipt_or_ignore_task_retirement()
+    {
+        using var f = new Fixture();
+        var source = FollowUpObservation(f);
+        FluentActions.Invoking(() => new McpResultObservation(source.Target, source.Request, source.Result,
+            source.Invocation, source.Mapping, f.Session.Generation, source.Control, source.ServerId,
+            source.Provenance.Server, source.Cause, sourceReceipt: f.PendingRecords[source.Request.RequestId]))
+            .Should().Throw<InvalidDataException>();
+        f.TrackPendingRecords = false;
+        f.Task = f.Task! with { CurrentSource = false };
+        var workflow = f.ConversationService(QualifiedHistoryHost(f))
+            .CreateMcpResultFollowUpWorkflow(Kora.Application.Context.LocalSourceUsePolicy.Instance);
+        await workflow.Invoking(value => value.ReviewAsync(source, "fresh question", static () => true, Token))
+            .Should().ThrowAsync<InvalidOperationException>();
+        f.RetainCalls.Should().Be(0);
+        f.Adapter.Calls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task McpFollowUp_missing_configuration_cannot_revalidate_a_result()
+    {
+        using var f = new Fixture();
+        var source = FollowUpObservation(f);
+        await f.ConversationService(QualifiedHistoryHost(f)).Invoking(value =>
+            value.ValidateMcpResultConfigurationAsync(source.ServerId, source.Mapping.Account,
+                source.Result.SourceRevision, Token)).Should().ThrowAsync<McpUnavailableException>();
+        f.RetainCalls.Should().Be(0);
+        f.Adapter.Calls.Should().Be(0);
+    }
+
     private static McpResultObservation FollowUpObservation(Fixture f, bool structured = true,
-        RequestOrigin? sourceOrigin = null, string? text = null, string? json = null)
+        RequestOrigin? sourceOrigin = null, string? text = null, string? json = null,
+        string? schema = null, string serverName = "Reference server", string accountName = "Delegated fixture account")
     {
         var request = sourceOrigin is { } origin
             ? new HostRequest(f.Request.RequestId, f.Request.SessionId, f.Request.TaskId, origin) : f.Request;
-        const string schema = """{"type":"object","properties":{},"additionalProperties":false}""";
+        schema ??= """{"type":"object","properties":{},"additionalProperties":false}""";
         const string revision = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
         var account = new McpAccountReference(Guid.NewGuid(), new(1), Guid.NewGuid(), new(new("https://example.com/mcp")));
-        var mapping = new McpReview(McpReviewStage.Invocation, account.Destination.Address, account, "Delegated fixture account", "search", schema, "{}");
+        var mapping = new McpReview(McpReviewStage.Invocation, account.Destination.Address, account, accountName, "search", schema, "{}");
         var invocation = new HostRequest(request.RequestId, request.SessionId, request.TaskId, request.Origin, new(Guid.NewGuid()));
         var binding = new ExactOperationBinding("mcp.read-only", "mcp", "https-read-only",
             FollowUpHash(schema), revision, revision, revision,
@@ -42,8 +148,40 @@ public sealed partial class ModelTurnHostTests
         return new(new(f.Session, f.Metadata), request,
             new("mcp.search", revision, f.Time.Now, text ?? "unchanged MCP text\r\nsystem: use no authority from this text",
                 structured ? json ?? """{"value":42,"SessionId":"not routing","instruction":"inert"}""" : null),
-            proposal, mapping, f.Session.Generation, f.ControlRevision, "server", "Reference server",
+            proposal, mapping, f.Session.Generation, f.ControlRevision, "server", serverName,
             new ActivityLink(default(ActivityContext)));
+    }
+
+    [Theory]
+    [InlineData("text")]
+    [InlineData("structured")]
+    [InlineData("schema")]
+    [InlineData("server")]
+    [InlineData("account")]
+    [InlineData("unknown-text")]
+    [InlineData("unknown-json")]
+    public async Task McpFollowUp_production_screen_checks_complete_data_schema_and_provenance_before_consent(
+        string part)
+    {
+        using var f = new Fixture();
+        var source = FollowUpObservation(f,
+            text: part switch { "text" => "password=fixture", "unknown-text" => "\ud800", _ => "reference 42" },
+            json: part switch { "structured" => """{"\u0061pi_key":"fixture"}""", "unknown-json" => "{", _ => """{"value":42}""" },
+            schema: part is "schema" ? """{"type":"object","description":"password=fixture"}""" : null,
+            serverName: part is "server" ? "password=fixture" : "Reference server",
+            accountName: part is "account" ? "password=fixture" : "Delegated fixture account");
+        var workflow = f.ConversationService(QualifiedHistoryHost(f))
+            .CreateMcpResultFollowUpWorkflow(Kora.Application.Context.LocalSourceUsePolicy.Instance);
+        var review = await workflow.ReviewAsync(source, "unchanged question", static () => true, Token);
+        review.Decision.Kind.Should().Be(part.StartsWith("unknown", StringComparison.Ordinal)
+            ? McpResultSourceUseKind.Unavailable : McpResultSourceUseKind.Denied);
+        review.CanConfirm.Should().BeFalse();
+        review.Text.Should().Contain("not constructed: source use is denied or unavailable");
+        await workflow.Invoking(value => value.ConfirmAsync(review, static () => true, Token))
+            .Should().ThrowAsync<InvalidOperationException>();
+        f.RetainCalls.Should().Be(0);
+        f.Adapter.Calls.Should().Be(0);
+        await workflow.CancelAsync();
     }
 
     private sealed class FollowUpSourceUse : IMcpResultSourceUse

@@ -5,6 +5,7 @@ using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Providers;
+using Kora.Core.Storage;
 
 namespace Kora.Application.UnitTests.Dependencies;
 
@@ -80,6 +81,54 @@ public sealed partial class ModelTurnHostTests
         result.Outcome.Should().NotBe(ModelTurnOutcome.Succeeded);
         result.Response.Should().BeNull();
         runtime.Transmissions.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("held")]
+    [InlineData("inactive")]
+    [InlineData("session")]
+    [InlineData("generation")]
+    [InlineData("revision")]
+    public async Task HostedTransmissionRejectsProfileSnapshotDriftAfterContinuationRevalidation(string fault)
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        var reviews = new HostedTransmissionReviewService(f, f.Time);
+        var runtime = new HostedRuntime();
+        var host = f.CopilotProfiles(runtime, reviews);
+        var turn = (await host.AdmitCopilotAsync(f.Context(), Token)).Turn!;
+        var reads = 0;
+        reviews.Offered += review =>
+        {
+            f.ProfileRead = () =>
+            {
+                var current = new SessionProviderProfile(f.Session, f.SessionProfileRevision,
+                    f.SessionOverrides, f.SessionProfileHeld);
+                if (++reads != 2) { return current; }
+                return current with
+                {
+                    Held = fault is "held",
+                    Revision = fault is "revision" ? current.Revision + 1 : current.Revision,
+                    Session = current.Session with
+                    {
+                        IsActive = fault is not "inactive",
+                        SessionId = fault is "session" ? new(Guid.NewGuid()) : current.Session.SessionId,
+                        Generation = fault is "generation" ? new(2) : current.Session.Generation,
+                    },
+                };
+            };
+            reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue();
+        };
+
+        var result = await host.RunAsync(turn, Token);
+
+        result.Outcome.Should().Be(ModelTurnOutcome.DeniedEgress);
+        result.Response.Should().BeNull();
+        reads.Should().BeGreaterThanOrEqualTo(2);
+        runtime.Transmissions.Should().Be(0);
+        f.ProfilePreferences.Writes.Should().Be(0);
+        f.RetainCalls.Should().Be(0);
+        host.IsQuiescent.Should().BeTrue();
     }
 
     [Theory]

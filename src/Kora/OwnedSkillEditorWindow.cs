@@ -4,10 +4,11 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Kora.Application.Skills;
 using Kora.Core.Skills;
+using System.Text;
 
 namespace Kora;
 
-internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
+internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview, IOwnedSkillRenameReview, IOwnedSkillDeletionReview
 {
     internal readonly TextBox IdInput = new() { PlaceholderText = "canonical-skill-id" };
     internal readonly TextBox VersionInput = new() { Text = "1.0.0" };
@@ -20,13 +21,23 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
     internal readonly TextBox ExpectedInput = new() { AcceptsReturn = true, MaxHeight = 80 };
     internal readonly TextBox ExpectedOutput = new() { AcceptsReturn = true, MaxHeight = 80 };
     internal readonly ComboBox Saved = new() { MinWidth = 400 };
+    internal readonly TextBox RenameId = new() { PlaceholderText = "new-canonical-skill-id" };
+    internal readonly ComboBox PendingRenames = new() { MinWidth = 400 };
     internal readonly ComboBox Tool = new() { ItemsSource = new[] { "No tools (native v1)", "Host WebPageGet only (native v2)" }, SelectedIndex = 0 };
     internal readonly ComboBox InputFormat = new() { ItemsSource = new[] { "Literal guidance (native v1/v2)", "Required literal guidance inputs (native v3; no tools)" }, SelectedIndex = 0 };
+    internal readonly TextBox ComponentPath = new() { PlaceholderText = @"references\notes.md" };
+    internal readonly TextBox ComponentBody = new() { AcceptsReturn = true, IsUndoEnabled = false, Height = 100 };
+    private readonly ComboBox components = new();
+    private readonly Dictionary<string, byte[]> referenceContents = new(StringComparer.Ordinal);
+    private bool loadingComponent;
+    private bool componentDirty;
+    internal OwnedDeclarativeSkillSnapshot? BasePackage { get; set; }
     private readonly TextBlock status = new() { TextWrapping = TextWrapping.Wrap };
     private Window? review;
     private readonly Func<bool> eligible;
     internal event Action? DraftChanged;
     internal event Action? CritiqueChanged;
+    internal event Action? RenameTargetChanged;
     internal event Action? FixtureChanged;
 
     internal OwnedSkillEditorWindow(Action<string> run, Func<bool> eligible)
@@ -53,16 +64,18 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
         fields.Children.Add(new TextBlock { Text = "Host capability declaration (not permission)" });
         fields.Children.Add(Tool);
         InputFormat.SelectionChanged += (_, _) => DraftChanged?.Invoke();
+        InputFormat.ItemsSource = new[] { "Literal guidance (native v1/v2)", "Required literal guidance inputs (native v3; no tools)",
+            "Declared Markdown component package (native v5; literal; no tools)" };
         AutomationProperties.SetName(InputFormat, "Explicit guidance input format");
         fields.Children.Add(InputFormat);
         AutomationProperties.SetName(Guidance, "Literal declarative workflow guidance");
         fields.Children.Add(new TextBlock
         {
-            Text = "Local only. Select no tools or exactly host WebPageGet. No references, scripts or imports. Explicit guidance refinement supports instruction-only drafts through one local tools-none proposal. Saving creates an immutable inactive version; it does not enable, approve web access or invoke anything.",
+            Text = "Local only. Native v5 adds one to four explicitly authored plain Markdown components; no file imports, scripts or tools. Native v1/v2/v3 retain their existing meaning. Saving the whole package remains disabled; it never invokes or proves harmlessness.",
             TextWrapping = TextWrapping.Wrap,
         });
         var buttons = new WrapPanel { Orientation = Orientation.Horizontal };
-        foreach (var action in new[] { "Create", "Refine", "Cancel refinement", "Validate", "Test", "Cancel test", "Save", "List", "Reopen", "Use", "Cancel" })
+        foreach (var action in new[] { "Create", "Refine", "Cancel refinement", "Validate", "Test", "Cancel test", "Save", "List", "Reopen", "Delete", "Use", "Cancel" })
         {
             var button = new Button { Content = action, Margin = new(3) };
             button.Click += (_, _) => run(action.ToLowerInvariant().Replace(' ', '-'));
@@ -81,6 +94,52 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
         generate.Click += (_, _) => run("generate");
         fields.Children.Add(generate);
         fields.Children.Add(Saved);
+        AutomationProperties.SetName(ComponentPath, "Exact declared package-relative Markdown component path");
+        AutomationProperties.SetName(ComponentBody, "Complete literal Markdown component body");
+        AutomationProperties.SetName(components, "Declared component tree paths");
+        fields.Children.Add(new TextBlock { Text = "Native v5 component tree: manifest.yaml, instructions.md, and exactly these declared Markdown paths" });
+        fields.Children.Add(components);
+        fields.Children.Add(ComponentPath);
+        fields.Children.Add(ComponentBody);
+        foreach (var action in new[] { "Apply component", "Remove component" })
+        {
+            var button = new Button { Content = action };
+            button.Click += (_, _) => run(action is "Apply component" ? "apply-component" : "remove-component");
+            fields.Children.Add(button);
+        }
+        components.SelectionChanged += (_, _) =>
+        {
+            if (components.SelectedItem is not string path) { return; }
+            if (componentDirty) { Report("Apply or explicitly remove the current component edit before selecting another component."); return; }
+            loadingComponent = true;
+            ComponentPath.Text = path;
+            ComponentBody.Text = new UTF8Encoding(false, true).GetString(referenceContents[path]);
+            loadingComponent = false;
+            componentDirty = false;
+        };
+        foreach (var box in new[] { ComponentPath, ComponentBody })
+        {
+            box.PropertyChanged += (_, args) =>
+            {
+                if (!loadingComponent && args.Property == TextBox.TextProperty)
+                { componentDirty = true; DraftChanged?.Invoke(); }
+            };
+        }
+        fields.Children.Add(new TextBlock { Text = "Rename selected saved package ID (version and readable name remain unchanged)" });
+        AutomationProperties.SetName(RenameId, "New owned package ID");
+        fields.Children.Add(RenameId);
+        RenameId.PropertyChanged += (_, args) =>
+        {
+            if (args.Property == TextBox.TextProperty) { RenameTargetChanged?.Invoke(); RetireReview(); }
+        };
+        var rename = new Button { Content = "Rename selected package", Margin = new(3) };
+        rename.Click += (_, _) => run("rename");
+        fields.Children.Add(rename);
+        AutomationProperties.SetName(PendingRenames, "Pending exact package renames");
+        fields.Children.Add(PendingRenames);
+        var recoverRename = new Button { Content = "Recover selected rename", Margin = new(3) };
+        recoverRename.Click += (_, _) => run("recover-rename");
+        fields.Children.Add(recoverRename);
         fields.Children.Add(new TextBlock { Text = "Original critique for explicit local guidance refinement" });
         AutomationProperties.SetName(Critique, "Original skill guidance critique");
         fields.Children.Add(Critique);
@@ -92,10 +151,13 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
         AutomationProperties.SetName(Fixture, "Volatile simulated skill fixture JSON");
         fields.Children.Add(Fixture);
         DockPanel.SetDock(fields, Dock.Top);
-        panel.Children.Add(fields);
+        var editorFields = new ScrollViewer { Content = fields, MaxHeight = 550 };
+        DockPanel.SetDock(editorFields, Dock.Top);
+        panel.Children.Add(editorFields);
         DockPanel.SetDock(status, Dock.Bottom);
         panel.Children.Add(status);
         panel.Children.Add(Guidance);
+        Guidance.MinHeight = 120;
         Content = new ScrollViewer { Content = panel };
     }
 
@@ -108,7 +170,20 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
         return true;
     }
     internal void RetireReview() => review?.Close();
-    internal OwnedDeclarativeSkillDocument Document() => OwnedDeclarativeSkillDocument.Create(
+    internal OwnedDeclarativeSkillDocument Document()
+    {
+        if (componentDirty) { throw new InvalidOperationException("Apply or explicitly remove the edited component before validating the complete tree."); }
+        return Build(referenceContents);
+    }
+
+    private OwnedDeclarativeSkillDocument Build(Dictionary<string, byte[]> references) =>
+        InputFormat.SelectedIndex == 2
+        ? Tool.SelectedIndex == 0
+            ? OwnedDeclarativeSkillDocument.CreatePackage(IdInput.Text ?? "", VersionInput.Text ?? "",
+                NameInput.Text ?? "", DescriptionInput.Text ?? "", Guidance.Text ?? "", references)
+            : throw new InvalidDataException("Owned Markdown packages declare tools none.")
+        : references.Count != 0 ? throw new InvalidDataException("Select native v5 explicitly or remove every component; old formats cannot silently drop components.")
+        : OwnedDeclarativeSkillDocument.Create(
         IdInput.Text ?? "", VersionInput.Text ?? "", NameInput.Text ?? "", DescriptionInput.Text ?? "", Guidance.Text ?? "",
         Tool.SelectedIndex switch
         {
@@ -122,18 +197,149 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
             _ => throw new InvalidOperationException("Select one supported guidance input format."),
         });
 
+    internal void ApplyComponent(string path, string body)
+    {
+        if (InputFormat.SelectedIndex != 2) { throw new InvalidOperationException("Select native v5 explicitly before adding components."); }
+        if (componentDirty && (!string.Equals(ComponentPath.Text, path, StringComparison.Ordinal)
+            || !string.Equals(ComponentBody.Text, body, StringComparison.Ordinal)))
+        { throw new InvalidOperationException("Apply or explicitly remove the current component edit before replacing another component."); }
+        var proposed = new Dictionary<string, byte[]>(referenceContents, StringComparer.Ordinal);
+        try { proposed[path] = new UTF8Encoding(false, true).GetBytes(body); }
+        catch (EncoderFallbackException exception) { throw new InvalidDataException("Component text must be well-formed Unicode.", exception); }
+        _ = Build(proposed);
+        referenceContents.Clear();
+        foreach (var pair in proposed) { referenceContents.Add(pair.Key, pair.Value); }
+        RefreshComponents();
+    }
+
+    internal void RemoveComponent(string path)
+    {
+        if (componentDirty && !string.Equals(ComponentPath.Text, path, StringComparison.Ordinal))
+        { throw new InvalidOperationException("Apply or explicitly remove the current component edit first."); }
+        if (!referenceContents.Remove(path) && !(componentDirty && string.Equals(ComponentPath.Text, path, StringComparison.Ordinal)))
+        { throw new InvalidOperationException("Select one exact currently declared component to remove."); }
+        RefreshComponents();
+    }
+
+    internal void LoadComponents(OwnedDeclarativeSkillSnapshot? snapshot)
+    {
+        BasePackage = snapshot;
+        referenceContents.Clear();
+        foreach (var reference in snapshot?.Document.References ?? [])
+        { referenceContents.Add(reference.RelativePath, reference.Bytes.ToArray()); }
+        RefreshComponents();
+    }
+
+    private void RefreshComponents()
+    {
+        loadingComponent = true;
+        components.ItemsSource = referenceContents.Keys.ToArray();
+        components.SelectedIndex = -1;
+        ComponentPath.Text = "";
+        ComponentBody.Text = "";
+        loadingComponent = false;
+        componentDirty = false;
+        DraftChanged?.Invoke();
+    }
+
+    private string DescribeTree(OwnedDeclarativeSkillDocument document)
+    {
+        var before = BasePackage?.Document;
+        var old = before is null ? new Dictionary<string, byte[]>(StringComparer.Ordinal)
+            : Files(before);
+        var current = Files(document);
+        var tree = string.Join("\n", old.Keys.Union(current.Keys, StringComparer.Ordinal).Order(StringComparer.Ordinal).Select(path =>
+            !current.TryGetValue(path, out var bytes) ? "REMOVED " + path + " (" + old[path].Length + " bytes)"
+                : !old.TryGetValue(path, out var previous) ? "ADDED " + path + " (" + bytes.Length + " bytes)"
+                : (previous.AsSpan().SequenceEqual(bytes) ? "UNCHANGED " : "MODIFIED ") + path + " (" + bytes.Length + " bytes)"));
+        return "Source: " + (before is null ? "original-user volatile draft" : before.Id + " " + before.Version + " / " + before.RevisionDigest)
+            + "\nWhole destination package digest: " + document.RevisionDigest + "\n" + tree
+            + "\nComplete proposed package:\n" + document.CompleteText;
+    }
+
+    private static Dictionary<string, byte[]> Files(OwnedDeclarativeSkillDocument document)
+    {
+        var files = document.References.ToDictionary(item => item.RelativePath, item => item.Bytes.ToArray(), StringComparer.Ordinal);
+        files.Add("manifest.yaml", document.ManifestBytes.ToArray());
+        files.Add("instructions.md", document.InstructionBytes.ToArray());
+        return files;
+    }
+
     public async Task<bool> Review(OwnedDeclarativeSkillDocument document, string destination, CancellationToken token) =>
-        await ChooseOnUi("Review complete skill package",
+        document.ReferenceDeclaration is null && BasePackage?.Document.ReferenceDeclaration is null
+        ? await ChooseOnUi("Review complete skill package",
             "Exact new version directory: " + destination
                 + "\nExactly TWO files: manifest.yaml and instructions.md. Local only; references none. Declared capability: " + document.Tool
                 + ". Saved inactive/unselected; use requires separate review and enablement. Tool actions still require independent permission.",
-            document.ManifestText, document.Guidance, ["Continue to separate native publication confirmation", "Cancel"], token) == 0;
+            document.ManifestText, document.Guidance, ["Continue to separate native publication confirmation", "Cancel"], token) == 0
+        : await ChooseOnUi("Review complete skill package",
+            "Exact new version directory: " + destination
+                + "\nExact complete declared tree. Local only. Declared capability: " + document.Tool
+                + ". Saved inactive/unselected; use requires separate review and enablement. Tool actions still require independent permission.",
+            BasePackage?.Document.CompleteText ?? "(no saved source)", DescribeTree(document),
+            ["Continue to separate native publication confirmation", "Cancel"], token,
+            firstLabel: "Complete original package", secondLabel: "Exact tree changes and complete proposed bytes") == 0;
 
     public async Task<bool> ConfirmPublication(OwnedDeclarativeSkillDocument document, string destination, CancellationToken token) =>
-        await ChooseOnUi("Confirm exact new skill publication",
+        document.ReferenceDeclaration is null && BasePackage?.Document.ReferenceDeclaration is null
+        ? await ChooseOnUi("Confirm exact new skill publication",
             "Publish this exact reviewed TWO-file package at " + destination
                 + "? Existing versions will never be replaced. The saved package remains inactive. Use requires a separate exact-version review and enablement.",
-            document.ManifestText, document.Guidance, ["Publish exact new version", "Cancel"], token) == 0;
+            document.ManifestText, document.Guidance, ["Publish exact new version", "Cancel"], token) == 0
+        : await ChooseOnUi("Confirm exact new skill publication",
+            "Publish this exact reviewed whole package at " + destination
+                + "? Existing versions will never be replaced. The saved package remains inactive. Use requires a separate exact-version review and enablement.",
+            BasePackage?.Document.CompleteText ?? "(no saved source)", DescribeTree(document), ["Publish exact new version", "Cancel"], token,
+            firstLabel: "Complete original package", secondLabel: "Exact tree changes and complete proposed bytes") == 0;
+
+    internal async Task<bool> ConfirmComponentRead(OwnedDeclarativeSkillSnapshot declaration, CancellationToken token) =>
+        await ChooseOnUi("Review exact owned component declaration",
+            "Only primary files have been read. Authorize only these declared owned-package Markdown reads; this neither enables nor invokes.",
+            declaration.Document.ManifestText, declaration.Document.Guidance,
+            ["Read only the exact declared owned Markdown components", "Cancel"], token) == 0;
+
+    public async Task<bool> ReviewRename(OwnedSkillRename proposal, string source, string destination, bool recovery, CancellationToken token) =>
+        await ChooseOnUi(recovery ? "Review retained package rename recovery" : "Review complete owned package rename",
+            RenameDisclosure(proposal, source, destination, recovery), Complete(proposal.Original.Document), Complete(proposal.Renamed),
+            ["Continue to separate rename confirmation", "Cancel"], token,
+            firstLabel: "Complete original package", secondLabel: "Complete proposed package") == 0;
+
+    public async Task<bool> ConfirmRename(OwnedSkillRename proposal, string source, string destination, bool recovery, CancellationToken token) =>
+        await ChooseOnUi(recovery ? "Confirm exact rename recovery" : "Confirm exact package rename",
+            RenameDisclosure(proposal, source, destination, recovery), Complete(proposal.Original.Document), Complete(proposal.Renamed),
+            [recovery ? "Resume only retained rename" : "Rename only this complete package", "Cancel"], token,
+            firstLabel: "Complete original package", secondLabel: "Complete proposed package") == 0;
+
+    private static string Complete(OwnedDeclarativeSkillDocument document) =>
+        "manifest.yaml\n" + document.ManifestText + "\ninstructions.md\n" + document.Guidance;
+
+    private static string RenameDisclosure(OwnedSkillRename proposal, string source, string destination, bool recovery) =>
+        (recovery ? "Resume this retained multi-step operation; effects may already exist.\n" : "Rename this exact saved package, not the editor draft.\n")
+        + $"Original: {source}\nNew: {destination}\nOriginal revision: {proposal.Original.Document.RevisionDigest}\nNew revision: {proposal.Renamed.RevisionDigest}\n"
+        + "Only the manifest ID changes; version, readable name, capability/input declarations and complete guidance stay unchanged. "
+        + "Exactly manifest.yaml and instructions.md; no reference packages, imports or external/profile writes. "
+        + "New publication and old retirement are recoverable steps, NOT an atomic transaction. No overwrite or automatic rollback/retry. "
+        + "Old reviews/use authority cannot follow the new ID. External references stay old, never silently retargeted. "
+        + "The new identity is disabled; fresh independent review/enablement/action permission is required. Nothing is invoked. "
+        + "Pending intent holds both identities unavailable until explicit recovery; unrelated packages and unsaved drafts are retained.";
+    public async Task<bool> ReviewDeletion(OwnedSkillDeletionSnapshot source, CancellationToken token) =>
+        await ChooseOnUi("Review exact owned skill source deletion", DeletionDisclosure(source),
+            source.Source.Document.ManifestText, source.Source.Document.Guidance,
+            ["Continue to separate deletion confirmation", "Cancel"], token) == 0;
+
+    public async Task<bool> ConfirmDeletion(OwnedSkillDeletionSnapshot source, CancellationToken token) =>
+        await ChooseOnUi("Confirm exact owned skill source deletion", DeletionDisclosure(source),
+            source.Source.Document.ManifestText, source.Source.Document.Guidance,
+            ["Delete only this exact owned source", "Cancel"], token) == 0;
+
+    private static string DeletionDisclosure(OwnedSkillDeletionSnapshot source) =>
+        "Delete owned " + source.Source.Document.Name + " (" + source.Source.Document.Id + " " + source.Source.Document.Version
+        + ") at " + source.Destination + "?\nExactly manifest.yaml, instructions.md and their now-empty version directory; the ID/root and all other entries remain."
+        + "\nDeclared dependency: " + (source.Source.Document.ObservationWorkflow?.ToolDeclaration ?? source.Source.Document.Tool.ToString())
+        + "; references: none. Future use that needs this exact source fails closed."
+        + " External dependents are not exhaustively inventoried. Immutable admitted tasks are not cancelled; independent grants, history and audit are not erased or renewed."
+        + "\nNo reference packages, shared/profile originals, bundled sources, arbitrary paths or tree deletion. No backup/rollback, model, tools or egress. No observation steps are run."
+        + " Partial/unconfirmed deletion is held for explicit inspection, never retried automatically.";
 
     internal async Task<int> DirtyChoice(bool canSave, Func<bool> privateEligible, CancellationToken token)
     {
@@ -212,9 +418,16 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
         panel.Children.Add(new ScrollViewer { Content = files });
         dialog.Content = panel;
         review = dialog;
+        dialog.KeyDown += (_, key) =>
+        {
+            if (key.Key == Avalonia.Input.Key.Escape) { key.Handled = true; dialog.Close(); }
+        };
         dialog.Closed += (_, _) => { if (ReferenceEquals(review, dialog)) { review = null; } result.TrySetResult(-1); };
         using var cancellation = token.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(dialog.Close));
-        dialog.Show(this);
-        return await result.Task;
+        await dialog.ShowDialog(this);
+        var choice = await result.Task;
+        // Owner Hide/Close can complete the dialog before updating the owner's own visibility.
+        return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(
+            () => IsVisible && current() && !token.IsCancellationRequested ? choice : -1);
     }
 }

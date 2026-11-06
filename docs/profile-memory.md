@@ -41,8 +41,21 @@ The [native copy review](../src/Kora/MemoryProfile/SessionsViewModel.SessionMemo
 5. Select **Accept complete copy review**, then separately **Admit NEW profile memory**, or **Cancel scope copy**. Acceptance alone saves no value.
 6. Check **Device profile**, explicitly **List**, select the new row and **Inspect**. The new record can be reopened after restart. Its later one-shot local use still requires the separate review and confirmation below.
 
+Keyboard activation of **Keep**, **Propose** or **Accept** returns focus to the
+beginning of the complete private review, never to an affirmative decision.
+Admission, cancellation and held/error outcomes focus the adjacent read-only
+scope-copy status. A stale source yields the held/error outcome, not its old
+review. Changed selection, lost private control or a hidden or inactive original
+surface prevents a late focus handoff. Returning after native deactivation or
+ancestor visibility loss does not renew that handoff; the actual outcome remains
+readable in the adjacent status without moving your current focus. Focus does not
+accept, save, list or inspect a different memory; readback still requires step 6.
+
 The [source-bound service](../src/Kora.Application/Memory/DeviceProfile/MemoryManagementService.SessionCopy.cs) re-reads the exact original before proposing, reviewing and admitting; the [canonical transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Memory.cs) compares it again at the actual destination operation.
 Changed, edited, disabled, forgotten, deleted or replaced sources cannot authorize the pending copy. Selection/scope changes, privacy/control loss, cancellation, restart and the sixty-second review expiry retire pending work. Start a fresh review rather than retrying a held result.
+
+Proposing, accepting, rejecting or admitting a copy retires open Session and Device-profile memory-use reviews. Replacement use reviews stay closed until the actual source and transaction work joins, including cancellation or failure.
+A new complete memory-use review and separate confirmation are required afterwards; inspecting the source alone does not change it or retire unrelated use consent ([shared boundary](../src/Kora.Application/Memory/ModelProposals/MemoryManagementService.ModelProposals.cs)).
 
 The original Session memory is unchanged. No grant, receipt, review or retention deadline is copied. Once independently admitted, the new Device-profile memory follows its own lifetime: forgetting the original or deleting its session does **not** delete the profile copy. Disable or forget the new record separately.
 Nothing automatically reads a model, recalls memory, sends content, starts speech or activates a tool. These copy controls require fresh native input; existing typed/activated Session commands and model Session proposals do not gain a copy/promotion command.
@@ -72,6 +85,29 @@ outcome, not a substitute answer. This implementation does not qualify or
 enable a provider. The original question and actual answer or terminal outcome
 follow conversation retention; selected memory bodies are not copied into
 conversation history.
+
+## Inspect context submitted for a retained answer
+
+Select the exact successful retained **ASSISTANT** answer and choose
+**Context submitted for this answer**. For this explicit profile-only operation,
+the native inspector shows the ordered content-free memory references actually
+included in the canonical envelope handed to the admitted local adapter.
+It does not prove provider delivery, processing or reasoning. Merely reviewing
+or selecting a memory does not create a submission record.
+
+Only immutable memory identity, revision and device-profile identity are retained;
+their bindings stay internal. No value, classification, source lineage or review
+body is copied. The inspector checks current exact enabled metadata, not memory
+values. Edited, disabled, forgotten, removed or foreign-profile references are
+unavailable; a newer revision is never substituted. Unresolved integrity or private
+authority checks close inspection instead of reconstructing a source.
+
+This passive no-copy view grants no recall, use, source opening or retention
+extension. Profile memory keeps its independent lifetime; deleting the answer's
+conversation deletes its submission metadata, not the profile memory.
+Older unsupported answers remain **Unknown / not recorded**. Mixed-context
+answers remain outside this recorder. Failed, denied, expired, stale or cancelled
+attempts cannot retain successful-answer submission metadata.
 
 ## Inspect, edit, disable and forget
 

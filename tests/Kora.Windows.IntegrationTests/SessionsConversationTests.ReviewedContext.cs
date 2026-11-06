@@ -73,7 +73,8 @@ public sealed partial class SessionsConversationTests
                 {
                     model.MixedOutcome.Should().Be("ASSISTANT\nAnswer from reviewed session fact.");
                     adapter.Calls.Should().Be(before + 1);
-                    var retained = model.ConversationMessages.Single();
+                    model.ConversationMessages.Should().ContainSingle().Which.Should().BeSameAs(previous);
+                    var retained = model.ConversationUpdates.Single();
                     retained.Body.Should().Be("  New unchanged mixed request.\r\n  ");
                     retained.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
                     using var wire = JsonDocument.Parse(adapter.Wire!);

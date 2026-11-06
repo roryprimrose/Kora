@@ -49,8 +49,10 @@ public sealed partial class WindowsOllamaToolTransportTests
         tools.GetArrayLength().Should().Be(readOnly ? 7 : 1);
         var tool = tools[0].GetProperty("function");
         tool.GetProperty("name").GetString().Should().Be("ask_user");
-        tool.GetProperty("parameters").GetProperty("additionalProperties").GetBoolean().Should().BeFalse();
-        tool.GetProperty("parameters").GetProperty("required").GetArrayLength().Should().Be(4);
+        var parameters = tool.GetProperty("parameters");
+        var legacy = readOnly ? parameters : parameters.GetProperty("oneOf")[0];
+        legacy.GetProperty("additionalProperties").GetBoolean().Should().BeFalse();
+        legacy.GetProperty("required").GetArrayLength().Should().Be(4);
         using var continuation = JsonDocument.Parse(f.Bodies[1]);
         var messages = continuation.RootElement.GetProperty("messages");
         var call = messages[2].GetProperty("tool_calls")[0];

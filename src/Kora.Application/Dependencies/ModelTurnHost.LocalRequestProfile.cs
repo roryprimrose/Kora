@@ -15,8 +15,9 @@ public sealed partial class ModelTurnHost
         SessionConversationService.RequireOriginalSource(origin);
         ConversationText.Validate(body, submission: true);
         ProviderProfileRules.ValidateTuple(profile);
-        if (profile.Service != ProviderService.Local || providerProfileConfiguration is null || sessionProfiles is null)
-        { throw new InvalidOperationException("A composed local request-profile consumer is required; no hosted route or fallback."); }
+        if (profile.Service is not (ProviderService.Local or ProviderService.Copilot or ProviderService.Claude)
+            || providerProfileConfiguration is null || sessionProfiles is null)
+        { throw new InvalidOperationException("A composed request-profile consumer for this service is required; no fallback."); }
         var control = access.ControlRevision;
         var expires = time.GetUtcNow().AddSeconds(60);
         bool Live() => Eligible(control) && access.CanInspect && admitted() && time.GetUtcNow() < expires;
@@ -27,23 +28,23 @@ public sealed partial class ModelTurnHost
         var resolved = await providerProfileConfiguration.ResolveTurnAsync(Live, session.Desired, token,
             localRequest: profile).ConfigureAwait(false);
         if (resolved.Tuple != profile || resolved.Selection is null || !resolved.Current())
-        { throw new InvalidOperationException("The complete local tuple is not currently advertised. No substitution or model acquisition."); }
-        async Task Validate(CancellationToken cancellation)
+        { throw new InvalidOperationException("The complete tuple is not currently advertised. No substitution, authentication or model acquisition."); }
+        async Task<bool> Validate(CancellationToken cancellation)
         {
             cancellation.ThrowIfCancellationRequested();
-            if (!resolved.Current())
-            { throw new InvalidOperationException("Request-only profile, preferences or original input changed; review again."); }
+            if (!resolved.Current()) { return false; }
             var actual = await sessionProfiles.ReadProviderProfile(target.Authority.SessionId, cancellation).ConfigureAwait(false);
             var metadata = await workspace.ReadMetadataAsync(target.Authority.SessionId, cancellation).ConfigureAwait(false);
+            if (!resolved.Current()) { return false; }
             var fresh = await providerProfileConfiguration.ResolveTurnAsync(Live, actual.Desired, cancellation,
                 localRequest: profile).ConfigureAwait(false);
-            if (actual.Session != session.Session || actual.Revision != session.Revision || actual.Held
-                || !string.Equals(actual.Desired.Serialize(), session.Desired.Serialize(), StringComparison.Ordinal)
-                || metadata != target || fresh.Tuple != profile || fresh.Selection != resolved.Selection
-                || !resolved.Current() || !fresh.Current())
-            { throw new InvalidOperationException("The exact session, source or local catalogue changed; nothing may be submitted."); }
+            return actual.Session == session.Session && actual.Revision == session.Revision && !actual.Held
+                && string.Equals(actual.Desired.Serialize(), session.Desired.Serialize(), StringComparison.Ordinal)
+                && metadata == target && fresh.Tuple == profile && fresh.Selection == resolved.Selection
+                && resolved.Current() && fresh.Current();
         }
-        await Validate(token).ConfigureAwait(false);
+        if (!await Validate(token).ConfigureAwait(false))
+        { throw new InvalidOperationException("The exact session, source or catalogue changed; nothing may be submitted."); }
         return new(owner, target, body, origin, profile, resolved.Current, Validate);
     }
 
@@ -55,7 +56,24 @@ public sealed partial class ModelTurnHost
             || !string.Equals(context.UserRequest, review.Body, StringComparison.Ordinal))
         { return new(new(ModelTurnOutcome.Denied, ModelTurnReason.HostAdmissionClosed)); }
         await review.ValidateAsync(token).ConfigureAwait(false);
-        return await AdmitConfiguredProfileAsync(ModelTurnChoice.Local, context, null, token,
-            localRequest: review.Profile).ConfigureAwait(false);
+        if (review.Profile.Service == ProviderService.Local)
+        {
+            return await AdmitConfiguredProfileAsync(ModelTurnChoice.Local, context, null, token,
+                localRequest: review.Profile).ConfigureAwait(false);
+        }
+        if (hostedReviews is null || context.ToolMode != ModelToolMode.None)
+        { return new(new(ModelTurnOutcome.Unavailable, ModelTurnReason.GenerationNotEnabled)); }
+        HostedTurnAuthorization authorization = review.Profile.Service == ProviderService.Claude
+            ? hostedReviews.PrepareClaudeTurn(context, review.Profile)
+            : hostedReviews.PrepareTurn(context, review.Profile);
+        Volatile.Write(ref authorization.Used, 1);
+        var admission = await AdmitConfiguredProfileAsync(ModelTurnChoice.Hosted, context, null, token,
+            authorization, localRequest: review.Profile).ConfigureAwait(false);
+        if (admission.Turn is { } turn)
+        {
+            turn.RequestProfileReview = review;
+            turn.ValidateAnswerCommit = ct => RevalidateContinuationAsync(turn, ct);
+        }
+        return admission;
     }
 }

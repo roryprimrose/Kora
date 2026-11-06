@@ -11,6 +11,38 @@ namespace Kora.Windows.IntegrationTests.Audio;
 
 public sealed class WindowsTextToSpeechOutputLifecycleTests
 {
+    [Fact]
+    public async Task EverySynthesisAndPlaybackBoundaryRequiresFreshAdmissionAndRetiresLateCallbacks()
+    {
+        var starts = 0;
+        var boundaries = 0;
+        var eligible = true;
+        Action? late = null;
+        Task Admit(Action start, CancellationToken _)
+        {
+            boundaries++;
+            late = start;
+            if (eligible) { start(); }
+            return Task.CompletedTask;
+        }
+        await WindowsTextToSpeechService.AdmitSpeechBoundaryAsync(() => starts++, Admit, TestContext.Current.CancellationToken);
+        starts.Should().Be(1);
+        FluentActions.Invoking(() => late!()).Should().Throw<OperationCanceledException>();
+        eligible = false;
+        await FluentActions.Awaiting(() => WindowsTextToSpeechService.AdmitSpeechBoundaryAsync(() => starts++,
+            Admit, TestContext.Current.CancellationToken)).Should().ThrowAsync<OperationCanceledException>();
+        boundaries.Should().Be(2);
+        starts.Should().Be(1);
+        FluentActions.Invoking(() => late!()).Should().Throw<OperationCanceledException>();
+        await WindowsTextToSpeechService.AdmitSpeechBoundaryAsync(() => starts++, null, TestContext.Current.CancellationToken);
+        starts.Should().Be(2);
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+        await FluentActions.Awaiting(() => WindowsTextToSpeechService.AdmitSpeechBoundaryAsync(() => starts++,
+            null, cancelled.Token)).Should().ThrowAsync<OperationCanceledException>();
+        starts.Should().Be(2);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

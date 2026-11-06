@@ -9,7 +9,8 @@ namespace Kora.Application.Hosting;
 public sealed partial class SessionConversationService
 {
     internal sealed record RetryIntent(FailedRequestRetrySource Source,
-        ModelTurnHost.RetryProviderReview Provider, Func<CancellationToken, Task> ValidateSource);
+        ModelTurnHost.RetryProviderReview? Provider, Func<CancellationToken, Task> ValidateSource,
+        LocalRequestProfileReview? LocalProfile = null);
 
     internal SessionRequestCommandService CreateRequestCommands() => new(workspace, this, access, time);
 
@@ -25,6 +26,19 @@ public sealed partial class SessionConversationService
         var retry = new RetryIntent(review.FailedSource!, provider, validateSource);
         var submitted = await SubmitQueuedCoreAsync(review.Target, review.Body, admitted, validateSource,
             links, review.Origin, false, accepted, retry, token).ConfigureAwait(false);
+        if (submitted.Position > 0) { return submitted.Receipt; }
+        try { return (await submitted.Completion.WaitAsync(token).ConfigureAwait(false)).RequireReceipt(); }
+        catch (OperationCanceledException exception) when (token.IsCancellationRequested)
+        { throw new ConversationSubmissionUnconfirmedException(submitted.Receipt.Message.Request, exception); }
+    }
+
+    internal async Task<ConversationSubmissionReceipt> SubmitFailedLocalProfileAsync(SessionRequestReview review,
+        LocalRequestProfileReview profile, Func<bool> admitted, Func<CancellationToken, Task> validateSource,
+        IEnumerable<ActivityLink> links, Action accepted, CancellationToken token)
+    {
+        var retry = new RetryIntent(review.FailedSource!, null, validateSource, profile);
+        var submitted = await SubmitQueuedCoreAsync(review.Target, review.Body, () => admitted() && profile.IsCurrent,
+            validateSource, links, review.Origin, true, accepted, retry, token).ConfigureAwait(false);
         if (submitted.Position > 0) { return submitted.Receipt; }
         try { return (await submitted.Completion.WaitAsync(token).ConfigureAwait(false)).RequireReceipt(); }
         catch (OperationCanceledException exception) when (token.IsCancellationRequested)

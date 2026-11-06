@@ -90,6 +90,7 @@ internal sealed partial class SessionsViewModel
 
     private void RetireLocalEventSelection()
     {
+        reviewedConversationNotice = null;
         selectedEvent = null;
         if (eventDetailPresented)
         {
@@ -127,7 +128,8 @@ internal sealed partial class SessionsViewModel
             + " current routine sources suppressed without presentation/budget consumption (RoutineSuppressedNoReplay). "
             + "Eligible is first visual delivery; PresentedNoReplay is passive status only. " + LocalEventSnapshot.Scope
         : eventSnapshot is not null ? "Local event snapshot withdrawn after source/admission change. Refresh selected work; no current source is inferred." : eventUnavailable;
-    public bool CanControlLocalEvent => CanRead && EventSourceCurrent && selectedEvent is not null
+    public bool CanControlLocalEvent => !changingConversationNotice && (!busy || conversationBusy)
+        && EventSourceCurrent && selectedEvent is not null
         && LocalEvents.Contains(selectedEvent);
 
     public void SelectLocalEvent(LocalEventView? record)
@@ -138,12 +140,14 @@ internal sealed partial class SessionsViewModel
         eventFilterEpoch++;
         OnPropertyChanged(nameof(SelectedLocalEvent));
         OnPropertyChanged(nameof(CanControlLocalEvent));
+        OnPropertyChanged(nameof(CanReadExactNoticeResult));
+        OnPropertyChanged(nameof(CanAnswerConversationNotice));
+        OnPropertyChanged(nameof(CanRefreshWork));
     }
 
-    private async Task RefreshLocalEventsAsync(HostId<SessionIdentity> session, long epoch)
+    private async Task RefreshLocalEventsAsync(HostId<SessionIdentity> session, long epoch, long choiceEpoch)
     {
-        if (localEvents is null) { return; }
-        var choiceEpoch = eventChoiceEpoch;
+        if (localEvents is null || closed || eventChoiceEpoch != choiceEpoch) { return; }
         var filterEpoch = eventFilterEpoch;
         var filterDigest = LocalEventFilterDigest;
         if (!access.CanControl)
@@ -214,16 +218,19 @@ internal sealed partial class SessionsViewModel
                 () => !closed && routineSurfaceOpen && Volatile.Read(ref routineSurfaceRevision) == surfaceRevision
                     && access.CanControl && selectionEpoch == epoch && eventChoiceEpoch == choiceEpoch
                     && selected?.Authority == target.Authority, lifetime.Token);
-            await RefreshLocalEventsAsync(target.Authority.SessionId, epoch);
+            await RefreshLocalEventsAsync(target.Authority.SessionId, epoch, choiceEpoch);
             status = "Run-only quiet choice admitted. Clear/reset permits future new notices only; no muted backlog, work, question or output policy changed.";
             NotifyLocalEvents();
         }, activitySession: session, routineNoticeControl: true);
     }
 
-    private Task RunLocalEventAsync(LocalEventOperation operation) => RunAsync(async () =>
+    private Task RunLocalEventAsync(LocalEventOperation operation) => RunConversationNoticeAsync(async () =>
     {
         var target = SelectedLocalEvent ?? throw new InvalidOperationException("Select an exact current host event.");
         if (!LocalEvents.Contains(target)) { throw new InvalidOperationException("Select an exact visible host event under the current filters."); }
+        Detail = string.Empty;
+        eventDetailPresented = true;
+        OnPropertyChanged(nameof(Detail));
         var epoch = selectionEpoch;
         var filterEpoch = eventFilterEpoch;
         var filterDigest = LocalEventFilterDigest;
@@ -248,18 +255,21 @@ internal sealed partial class SessionsViewModel
         eventDetailPresented = true;
         eventSnapshot = eventSnapshot! with { Events = eventSnapshot.Events.Select(item => item.Event.Id == result.Event.Id ? result : item).ToArray() };
         selectedEvent = eventFilter.Matches(result) ? result : null;
+        reviewedConversationNotice = operation == LocalEventOperation.Review
+            && result.Event.Source == LocalEventSource.ConversationQuestion ? result.Event : null;
         if (selectedEvent is null) { RetireLocalEventSelection(); }
         status = "Exact local event " + operation + ": " + result.Reason + ". No question, output policy, maintenance or work authority changed.";
         NotifyLocalEvents();
     });
 
-    private void ClearLocalEvents()
+    private long ClearLocalEvents()
     {
+        var epoch = ++eventChoiceEpoch;
         eventSnapshot = null;
         eventAuthority = null;
         RetireLocalEventSelection();
-        eventChoiceEpoch++;
         NotifyLocalEvents();
+        return epoch;
     }
 
     private void NotifyLocalEvents()
@@ -277,6 +287,8 @@ internal sealed partial class SessionsViewModel
             OnPropertyChanged(nameof(LocalEventFilterStatus));
             OnPropertyChanged(nameof(CanFilterLocalEvents));
             OnPropertyChanged(nameof(CanControlLocalEvent));
+            OnPropertyChanged(nameof(CanReadExactNoticeResult));
+            OnPropertyChanged(nameof(CanAnswerConversationNotice));
             OnPropertyChanged(nameof(RoutineQuietStatus));
             OnPropertyChanged(nameof(CanChangeRoutineQuiet));
             OnPropertyChanged(nameof(CompletionNoticeDisclosure));

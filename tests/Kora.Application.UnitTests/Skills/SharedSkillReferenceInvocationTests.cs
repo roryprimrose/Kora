@@ -59,6 +59,77 @@ public sealed class SharedSkillReferenceInvocationTests : IDisposable
         f.PreferenceStore.Writes.Should().Be(1);
     }
 
+    [Theory]
+    [InlineData("success")]
+    [InlineData("write")]
+    [InlineData("terminal-audit")]
+    [InlineData("cancel")]
+    public async Task WithdrawalRetiresEnabledReviewAndUnreadDeclarationAndRecoveryRequiresFreshConsent(string outcome)
+    {
+        await using var f = new Fixture();
+        await f.Register();
+        var source = f.Reader.Source;
+        using var declaration = await f.Workflow.ReviewReferenceDeclarationAsync(source, f.Reader.Snapshot(),
+            f.Eligible, RequestOrigin.LocalUi, Token);
+        using var review = await f.Workflow.ConsentToReferencesAsync(declaration, f.Eligible, RequestOrigin.LocalUi, Token);
+        await f.Workflow.EnableAsync(review, f.Eligible, RequestOrigin.LocalUi, Token);
+        using var unread = await f.Workflow.ReviewReferenceDeclarationAsync(source, f.Reader.Snapshot(),
+            f.Eligible, RequestOrigin.LocalUi, Token);
+        review.IsEnabled.Should().BeTrue();
+        unread.IsCurrent.Should().BeTrue();
+        var reads = f.Reader.ReferenceReads;
+        var revision = f.Discovery.ConsentRevision;
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        bool? retiredAtPublication = null;
+        f.PreferenceStore.FailWrite = outcome is "write";
+        f.Audit.Fail = outcome is "terminal-audit" ? SecurityAuditOutcome.Succeeded : null;
+        f.PreferenceStore.AfterWrite = () =>
+        {
+            retiredAtPublication = !review.IsCurrent && !unread.IsCurrent;
+            if (outcome is "cancel") { cancellation.Cancel(); }
+        };
+        var withdraw = () => f.Discovery.UnregisterAsync(source, [source], f.Eligible, cancellation.Token);
+        if (outcome is "success") { (await withdraw()).Should().BeEmpty(); }
+        else if (outcome is "cancel") { await withdraw.Should().ThrowAsync<OperationCanceledException>(); }
+        else { await withdraw.Should().ThrowAsync<IOException>(); }
+        review.IsCurrent.Should().BeFalse();
+        review.IsEnabled.Should().BeFalse();
+        review.Text.Should().BeEmpty();
+        unread.IsCurrent.Should().BeFalse();
+        unread.DeclarationText.Should().BeEmpty();
+        f.Discovery.ConsentRevision.Should().BeGreaterThan(revision);
+        if (outcome is not "write") { retiredAtPublication.Should().BeTrue(); }
+        f.Audit.Events.Where(item => string.Equals(item.ActionId, "skills.source.unregister", StringComparison.Ordinal))
+            .Select(item => item.Outcome)
+            .Should().Equal(SecurityAuditOutcome.Requested,
+                outcome is "success" ? SecurityAuditOutcome.Succeeded : SecurityAuditOutcome.Failed);
+
+        f.PreferenceStore.FailWrite = false;
+        f.PreferenceStore.AfterWrite = null;
+        f.Audit.Fail = null;
+        f.Preferences.Save([source]);
+        await f.Discovery.LoadSourcesAsync(f.Eligible, Token);
+        await f.Workflow.Invoking(value => value.ConsentToReferencesAsync(unread, f.Eligible, RequestOrigin.LocalUi, Token))
+            .Should().ThrowAsync<InvalidOperationException>();
+        await f.Workflow.Invoking(value => value.EnableAsync(review, f.Eligible, RequestOrigin.LocalUi, Token))
+            .Should().ThrowAsync<InvalidOperationException>();
+        f.Reader.ReferenceReads.Should().Be(reads);
+        await f.Discovery.Invoking(value => value.DiscoverAsync(source, f.Eligible, Token))
+            .Should().ThrowAsync<InvalidOperationException>();
+        await f.Discovery.UnregisterAsync(source, [source], f.Eligible, Token);
+        f.Reader.Source = new(Guid.NewGuid(), source.ProfileRelativeRoot, source.DirectoryIdentity);
+        await f.Register();
+        using var freshDeclaration = await f.Workflow.ReviewReferenceDeclarationAsync(f.Reader.Source, f.Reader.Snapshot(),
+            f.Eligible, RequestOrigin.LocalUi, Token);
+        using var fresh = await f.Workflow.ConsentToReferencesAsync(freshDeclaration, f.Eligible, RequestOrigin.LocalUi, Token);
+        fresh.IsEnabled.Should().BeFalse();
+        await f.Workflow.EnableAsync(fresh, f.Eligible, RequestOrigin.LocalUi, Token);
+        fresh.IsEnabled.Should().BeTrue();
+        fresh.Text.Should().Contain(f.Reader.Reference);
+        review.IsCurrent.Should().BeFalse();
+        unread.IsCurrent.Should().BeFalse();
+    }
+
     [Fact]
     public async Task CompleteEnvelopeLimitRefusesOversizedBundleInsteadOfDroppingEvidence()
     {
@@ -166,6 +237,7 @@ public sealed class SharedSkillReferenceInvocationTests : IDisposable
     [Theory]
     [InlineData("cancel")]
     [InlineData("withdraw")]
+    [InlineData("unregister")]
     [InlineData("dispose")]
     [InlineData("audit")]
     public async Task NonCooperativeReadRemainsOwnedUntilJoinedAndNeverReturnsStaleReview(string fault)
@@ -182,6 +254,11 @@ public sealed class SharedSkillReferenceInvocationTests : IDisposable
         await entered.Task;
         if (fault is "cancel") { await cancellation.CancelAsync(); }
         if (fault is "withdraw") { f.Preferences.Save([]); }
+        if (fault is "unregister")
+        {
+            await f.Discovery.UnregisterAsync(f.Reader.Source, [f.Reader.Source], f.Eligible, Token);
+            declaration.IsReadCurrent.Should().BeFalse();
+        }
         if (fault is "dispose") { declaration.Dispose(); }
         if (fault is "audit") { f.Audit.Fail = SecurityAuditOutcome.Succeeded; }
         pending.IsCompleted.Should().BeFalse();
@@ -229,7 +306,7 @@ public sealed class SharedSkillReferenceInvocationTests : IDisposable
 
     private sealed class Reader : ISharedSkillSourceReader
     {
-        internal SharedSkillSource Source { get; } = new(Guid.NewGuid(), ".agents\\skills", new string('a', 48));
+        internal SharedSkillSource Source { get; set; } = new(Guid.NewGuid(), ".agents\\skills", new string('a', 48));
         internal string Primary { get; set; } = "---\nname: example\nversion: 1.0.0\ndescription: Review\nformat: skill-md-instructions-v2\nreferences: notes.md\n---\nReview [notes](notes.md).";
         internal string Reference { get; set; } = "# Private notes\r\nExplain original prose.";
         internal int ReferenceReads { get; private set; }

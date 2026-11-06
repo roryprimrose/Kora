@@ -9,6 +9,8 @@ internal sealed partial class AgentRunWindow : Window
 {
     internal TextBox Source { get; } = new() { PlaceholderText = "Full path to an existing user-owned .agent.md file", IsUndoEnabled = false };
     internal TextBox Input { get; } = new() { AcceptsReturn = true, Height = 90, IsUndoEnabled = false };
+    internal TextBox Recommendation { get; } = new() { IsReadOnly = true, AcceptsReturn = true, Height = 110, IsUndoEnabled = false, IsVisible = false };
+    internal ComboBox RecommendedSources { get; } = new() { HorizontalAlignment = HorizontalAlignment.Stretch, IsVisible = false };
     internal ComboBox Targets { get; } = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     internal TextBox Review { get; } = new() { IsReadOnly = true, AcceptsReturn = true, Height = 260, IsUndoEnabled = false };
     internal TextBox Result { get; } = new() { IsReadOnly = true, AcceptsReturn = true, Height = 150, IsUndoEnabled = false };
@@ -32,11 +34,15 @@ internal sealed partial class AgentRunWindow : Window
         });
         AutomationProperties.SetName(Source, "Exact existing owned agent source path");
         AutomationProperties.SetName(Input, "Original agent request");
+        AutomationProperties.SetName(Recommendation, "Inert discovery recommendation, not invocation input or authority");
+        AutomationProperties.SetName(RecommendedSources, "Choose one current source-qualified agent; no automatic selection");
         AutomationProperties.SetName(Targets, "Exact Active conversation for this agent");
         AutomationProperties.SetName(Review, "Complete exact agent guidance, tools and cumulative budget review");
         AutomationProperties.SetName(Result, "Retained agent answer or terminal");
         AutomationProperties.SetName(Resolve, "Separate consent to resolve exact declared owned instructions");
         AutomationProperties.SetName(Confirm, "Separate confirmation of this exact bounded agent invocation");
+        panel.Children.Add(Recommendation);
+        panel.Children.Add(RecommendedSources);
         panel.Children.Add(Source);
         Add("Refresh existing Active conversations", "Targets");
         Add("Next conversation page", "NextTargets");
@@ -64,6 +70,8 @@ internal sealed partial class AgentRunWindow : Window
     internal void Clear()
     {
         Source.Text = Input.Text = Review.Text = Result.Text = string.Empty;
+        Recommendation.Text = string.Empty;
+        RecommendedSources.ItemsSource = null;
         Targets.ItemsSource = null;
         Status.Text = string.Empty;
         Confirm.IsEnabled = false;

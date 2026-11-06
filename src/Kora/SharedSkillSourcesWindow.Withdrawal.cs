@@ -22,7 +22,9 @@ public sealed partial class SharedSkillSourcesWindow
             Text = $"Source ID: {source.Id:N}\nProfile-relative root: {JsonSerializer.Serialize(source.ProfileRelativeRoot)}\n"
                 + $"Directory identity: {source.DirectoryIdentity}\n\n"
                 + "Remove only Kora's local registration and inspection snapshots. Your shared skill files are untouched. "
-                + "No enablement, execution or grants change. Re-registering requires a fresh native selection and a new source ID.",
+                + "Existing volatile shared-skill reviews are retired, including enablement and pending reference-read consent. "
+                + "No execution or grants are created or transferred. Re-registering requires a fresh native selection, "
+                + "a new source ID and separate review and enablement.",
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
         };
         AutomationProperties.SetName(identity, "Exact registered source and withdrawal effect");

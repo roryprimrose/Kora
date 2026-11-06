@@ -16,7 +16,7 @@ public sealed partial class SessionWorkspaceService
         {
             throw new InvalidOperationException(command.Error);
         }
-        if (command.Operation is SessionCommandOperation.QueueEnqueue or SessionCommandOperation.QueueDispatch
+        if (command.Operation is SessionCommandOperation.QueueEnqueue or SessionCommandOperation.QueueDispatch or SessionCommandOperation.QueueClear
             or SessionCommandOperation.QueuePause or SessionCommandOperation.QueueResume
             or SessionCommandOperation.QueueMoveUp or SessionCommandOperation.QueueMoveDown
             or SessionCommandOperation.QueueMoveConfirm or SessionCommandOperation.QueueMoveCancel

@@ -1,4 +1,5 @@
 using Kora.Core.Presentation;
+using Kora.Core.Configuration;
 
 namespace Kora.Controls;
 
@@ -13,6 +14,14 @@ internal sealed class PresenceMotionBinding(
     private bool eligible;
     private bool failed;
     private bool disposed;
+    private bool reducedMotion;
+
+    internal void SetReducedMotion(bool value)
+    {
+        if (reducedMotion == value) { return; }
+        reducedMotion = value;
+        Refresh();
+    }
 
     internal void SetEligible(bool value)
     {
@@ -62,12 +71,7 @@ internal sealed class PresenceMotionBinding(
             var preference = source.Read();
             if (IsCurrent(admittedGeneration, admittedRevision))
             {
-                presence.IsMotionEnabled = preference switch
-                {
-                    MotionPreference.AnimationsEnabled => true,
-                    MotionPreference.ReducedMotion => false,
-                    _ => throw new InvalidOperationException("The current motion preference is invalid."),
-                };
+                presence.IsMotionEnabled = ReducedMotionSettings.IsMotionEnabled(reducedMotion, preference);
             }
         }
         catch (InvalidOperationException exception)

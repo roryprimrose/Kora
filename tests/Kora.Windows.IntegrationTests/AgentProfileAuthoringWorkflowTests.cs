@@ -80,5 +80,8 @@ public sealed class AgentProfileAuthoringWorkflowTests
         public Task<AgentProfileWriteResult> Create(OwnedAgentProfileDestination destination, OwnedAgentProfileDocument document,
             Func<bool> eligible, Func<Func<AgentProfileWriteResult>, Task<AgentProfileWriteResult>> commit, CancellationToken token) =>
             inner.Create(destination, document, eligible, commit, token);
+        public Task<AgentProfileWriteResult> Update(OwnedAgentProfileSnapshot expected, OwnedAgentProfileDocument document,
+            Func<bool> eligible, Func<Func<AgentProfileWriteResult>, Task<AgentProfileWriteResult>> commit, CancellationToken token) =>
+            inner.Update(expected, document, eligible, commit, token);
     }
 }

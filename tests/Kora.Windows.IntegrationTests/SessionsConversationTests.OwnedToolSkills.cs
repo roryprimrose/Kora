@@ -47,7 +47,7 @@ public sealed partial class SessionsConversationTests
             await store.Publish(document, static () => true, commit => Task.FromResult(commit()), native.Token);
             await using var ownedAdmission = new OwnedSkillControlAdmission(native.Interactions, native.Interactions, new(native.Tasks));
             var owned = new OwnedSkillInvocationWorkflow(store, ownedAdmission, composed.Access, f.Store, composed.Workspace,
-                composed.Conversation, native.Audit, f.Time);
+                composed.Conversation, native.Audit, f.Time, new MarkdownUsePolicy());
             var authority = new OwnedSkillAuthoringAuthority(RequestOrigin.LocalUi, static () => true);
             var reader = new ToolInvocationReader();
             var discovery = new SharedSkillDiscoveryService(new LocalSharedSkillPreferences(native), reader, native.SharedAdmission,
@@ -163,12 +163,12 @@ public sealed partial class SessionsConversationTests
                 pageTransport: scenario is "unavailable" ? null : network);
             var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
             Directory.CreateDirectory(parent);
-            using var native = new NativeUxFixtureSession(parent);
+            using var native = new NativeUxFixtureSession(parent, timeProvider: f.Time);
             await native.InitializeAsync();
             var store = new WindowsOwnedDeclarativeSkillStore(native);
             await using var admission = new OwnedSkillControlAdmission(native.Interactions, native.Interactions, new(native.Tasks));
             var owned = new OwnedSkillInvocationWorkflow(store, admission, composed.Access, f.Store, composed.Workspace,
-                composed.Conversation, native.Audit, f.Time);
+                composed.Conversation, native.Audit, f.Time, new MarkdownUsePolicy());
             using var host = new NativeQuestionHost(f.Store, f.Time, NullLogger<NativeQuestionViewModel>.Instance);
             using var questions = new QuestionWindowController(native.Main, host, native.VersionQuery, new HostBoundary(),
                 new(NullLogger<NativeDetailRenderer>.Instance), static () => true,
@@ -291,6 +291,7 @@ public sealed partial class SessionsConversationTests
                         review.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                         await Task.WhenAny(reviewed.Task, use.ActiveOperation).WaitAsync(TimeSpan.FromSeconds(30), native.Token);
                         reviewed.Task.IsCompleted.Should().BeTrue(opened.Status.Text);
+                        await RequireEnabled(review);
                         approval.FindControl<StackPanel>("ChoicePanel")!.Children.OfType<RadioButton>()
                             .Single(choice => Equals(choice.Content, "Once")).IsChecked = true;
                         var submit = approval.FindControl<Button>("SubmitAnswer")!;

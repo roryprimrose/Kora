@@ -191,6 +191,28 @@ An optional microphone test opens only the chosen device after explicit consent,
 Show a live level indicator, not continuous transcription; do not save/transmit test audio or invoke a model.
 Stop/release on completion/cancel/lock/removal. Testing does not grant ongoing wake listening.
 
+## Confirmed Release Before Question Reply Acceptance
+
+The [question voice owner](../src/Kora.Application/Interaction/HostQuestionVoiceReplyService.cs)
+requires both completion of native stop and confirmed capture quiescence before
+submitting an exact ordinary question answer or editing one volatile form field.
+A completed stop task alone is not a resource-release receipt. Field entry still
+requires independent native review and Submit of the whole form.
+
+Unconfirmed release admits no answer or field edit, leaves the original question
+pending for typed/native recovery and reports microphone cleanup as unconfirmed.
+Cancellation, reply timeout, recognition failure and privacy withdrawal apply
+the same release check. The owned retirement receipt faults and prevents another
+voice reply, even if a later device observation appears quiescent; restart is
+required rather than silently clearing that failed lifetime. Late transcripts
+cannot retry or retarget the answer.
+
+[Deterministic regressions](../tests/Kora.Application.UnitTests/Interaction/HostQuestionVoiceReplyServiceTests.CaptureRelease.cs)
+cover single/multiple-choice, text and draft-only form fields, delayed successful
+release and failed retirement. These are implementation evidence, not microphone,
+ASR-provider, acoustic or installed-native accessibility qualification. No consent,
+call policy, question authority, grant, audio archive or diagnostic content changes.
+
 ## Failure and Device Changes
 
 Watch endpoint topology/default changes and capture errors; re-enumerate on refresh/open/recovery.
@@ -237,7 +259,7 @@ Passwords/tokens remain in secure authentication flows, never model-visible prom
 
 ### Delivered ordinary clarification clipboard answer
 
-The native [question window](../src/Kora/QuestionWindow.axaml) offers **Use clipboard as my answer** only for the existing ordinary conversation Text clarification purpose/source, without an operation proposal. Choice, action approval, authentication, permission, consent, security and unknown-purpose questions have no shortcut ([allowlist and owner](../src/Kora/QuestionClipboardAnswer.cs)).
+The native [question window](../src/Kora/QuestionWindow.axaml) offers **Use clipboard as my answer** only for the existing ordinary conversation Text clarification purpose/source, without an operation proposal. Single-choice, multiple-choice and Form questions retain their typed controls and explicit canonical submission, without clipboard capture or replacement of individual fields. Action approval, authentication, permission, consent, security and unknown-purpose questions also have no shortcut ([allowlist and owner](../src/Kora/QuestionClipboardAnswer.cs)).
 
 The deliberate gesture consumes the same built-in `clipboard.read` grant and immutable snapshot broker as native preview; opening the question grants nothing.
 Permission review is a separate native child, never a replacement of the original question. The read admission remains live through review, draft acceptance and independent Submit ([read workflow](../src/Kora.Application/Context/ClipboardReadWorkflow.cs)).
@@ -246,6 +268,8 @@ The complete bounded capture and provenance are inert native text. **Accept revi
 **Submit answer** independently records the canonical answer once through current question admission. Save draft is unavailable while this clipboard candidate is retained ([native state](../src/Kora/NativeQuestionViewModel.cs)).
 
 The whole source must satisfy strict Unicode, credential and question bounds; there is no truncation, silent reread, polling, automatic answer, command fallback or clipboard archive. Manual editing cancels review rather than overwriting typing.
+Native keyboard replacement records the new answer before publishing clipboard retirement, preserving exact text, caret and ordinary Undo/Redo while the original question remains unanswered. Editing an accepted snapshot becomes an ordinary manual draft; only a separate Submit records the edited answer.
+Clipboard acceptance and retirement publish status only for the exact draft they describe. A newer edit admitted by synchronous presentation callbacks retains its own validation status, including the complete over-limit text and Invalid answer warning.
 Cancellation, changed question/revision, expiry, revoked grant or private/owner/input/call loss retires the candidate and fences late callbacks ([behavioral tests](../tests/Kora.Windows.IntegrationTests/QuestionClipboardAnswerTests.cs)).
 
 Draft acceptance and submission convey no action approval, authentication, source-copy permission or hosted transmission consent. The original task resumes only through its existing independently revalidated continuation; physical-send review remains separate.

@@ -12,7 +12,7 @@ using Kora.Core.Storage;
 namespace Kora.Application.Skills;
 
 /// <summary>Explicitly reviewed declarative guidance for one host-authorized local tool workflow.</summary>
-public sealed class ReviewedToolSkillInvocationWorkflow(
+public sealed partial class ReviewedToolSkillInvocationWorkflow(
     SharedSkillDiscoveryService discovery, SharedSkillUseAdmission admission, ISessionWorkspaceAccess access,
     ISessionWorkspaceStore sessions, SessionConversationService conversation, ISecurityAuditLog audit, TimeProvider time)
 {
@@ -26,7 +26,8 @@ public sealed class ReviewedToolSkillInvocationWorkflow(
     {
         SessionConversationService.RequireOriginalSource(origin);
         if (source.Id != snapshot.SourceId || snapshot.Text is null || snapshot.UninspectedFiles.Count != 0
-            || !snapshot.DeclaredTools.SequenceEqual([WebPageCapability.Id], StringComparer.Ordinal)
+            || !snapshot.DeclaredTools.SequenceEqual(
+                [snapshot.McpReference is { } mcp ? "mcp." + mcp.ToolName : WebPageCapability.Id], StringComparer.Ordinal)
             || !snapshot.UnavailableReasons.SequenceEqual(["declared-tools-unavailable"], StringComparer.Ordinal))
         { throw new InvalidOperationException("Review requires one declarative file declaring only the exact supported host tool, with no scripts, unresolved references or uninspected resources."); }
         var control = access.ControlRevision;
@@ -119,6 +120,8 @@ public sealed class ReviewedToolSkillInvocationWorkflow(
         try
         {
             if (!review.IsEnabled) { throw new InvalidOperationException("Review and separately enable this exact tool-capable revision first."); }
+            if (review.McpReference is not null)
+            { throw new InvalidOperationException("An MCP reference requires the separate exact MCP invocation review, not a page destination."); }
             ConversationText.Validate(originalRequest, submission: true);
             ArgumentNullException.ThrowIfNull(scope);
             await ValidateAsync(review, eligible, origin, token).ConfigureAwait(false);

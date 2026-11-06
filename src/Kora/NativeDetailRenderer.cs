@@ -140,6 +140,12 @@ internal sealed partial class NativeDetailRenderer(
             return Fallback(source, "TableStructure", tableError, reference,
                 validation.Blocks, validation.Nodes, validation.Depth);
         }
+        if (document.Descendants<CodeBlock>().Any(code => !HasContiguousCodeSource(code, source)))
+        {
+            return Fallback(source, "CodeSource",
+                "Noncontiguous literal code source; exact source fallback (container markers are not code).", reference,
+                validation.Blocks, validation.Nodes, validation.Depth);
+        }
         List<NativeTextSection> sections;
         try { sections = Flatten(document, source, strikethrough); }
         catch (InvalidDataException)
@@ -170,7 +176,8 @@ internal sealed partial class NativeDetailRenderer(
                 + (tables ? " Tables retain complete header-labelled rows; scoped Details adds read-only cell navigation and ordinal text sorting." : string.Empty)
                 + (checklists ? " Checklist states are display-only text, not host tasks or checkbox controls." : string.Empty)
                 + (strikethrough ? " Strikethrough wording is labelled display-only text, not a diff, task status, action or permission." : string.Empty),
-            false, sections, validation.Blocks, validation.Nodes, validation.Depth);
+            false, sections, validation.Blocks, validation.Nodes, validation.Depth,
+            ClipboardHtml: ClipboardHtml(document));
     }
 
     private static NativeDocumentResult Success(
@@ -328,6 +335,18 @@ internal sealed partial class NativeDetailRenderer(
             _ => "Unsupported Markdown node/extension; exact source fallback.",
         };
 
+    private static bool HasContiguousCodeSource(CodeBlock code, string source)
+    {
+        for (var index = 1; index < code.Lines.Count; index++)
+        {
+            var end = code.Lines.Lines[index - 1].Slice.End + 1;
+            if (end < source.Length && source[end] == '\r') { end++; }
+            if (end < source.Length && source[end] == '\n') { end++; }
+            if (end != code.Lines.Lines[index].Slice.Start) { return false; }
+        }
+        return true;
+    }
+
     private static List<NativeTextSection> Flatten(MarkdownDocument document, string source, bool strikethrough)
     {
         var sections = new List<NativeTextSection>();
@@ -419,6 +438,7 @@ internal sealed partial class NativeDetailRenderer(
                 Code = codeSource,
                 Strikethrough = strikeProjection?.Spans ?? [],
                 HeadingId = block is HeadingBlock ? block.GetAttributes().Id : null,
+                HeadingLevel = block is HeadingBlock heading ? heading.Level : 0,
                 Links = links.ToImmutable(),
                 ExternalLinks = externalLinks,
             });

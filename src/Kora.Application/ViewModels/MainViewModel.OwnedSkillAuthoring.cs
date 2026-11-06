@@ -34,7 +34,7 @@ public sealed partial class MainViewModel
         { ReportHostInteractionFailure(OwnedSkillAuthoringCommand.Syntax); return; }
         if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(text, AssistantName)
             || input.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
-            || input.Origin == RequestOrigin.ActivatedVoice && !commandRouter.IsActivationPrefixed(text, AssistantName))
+            || input.Origin == RequestOrigin.ActivatedVoice && !HasCurrentNameActivation(text))
         { ReportHostInteractionFailure("Skill authoring requires original typed input or current-name activated voice."); return; }
         var captured = queuedEligibility ?? CaptureSkillReviewEligibility(input);
         var privacy = CaptureInstructionEditorEligibility();
@@ -42,9 +42,14 @@ public sealed partial class MainViewModel
         var binding = Interlocked.Read(ref ownedSkillAuthoringBindingRevision);
         await uiDispatcher.InvokeAsync(() => HostRequestRunner.RunAsync(input.Origin, async () =>
         {
+            if (!captured()) { ReportHostInteractionFailure("Original owned skill input expired."); return; }
+            var questions = command.Operation is "use" && input.Origin == RequestOrigin.ActivatedVoice
+                ? new OwnedSkillQuestionContinuation(input.Eligible, input.SkillQuestionEligible, () => voiceRecognition.Generation) : null;
+            var useEligibility = questions is null ? captured : CaptureSkillReviewEligibility(input, questions);
+            var usePrivacy = questions is null ? privacy : () => input.SkillQuestionEligible() && CanRevealPrivatePresentation;
             var authority = new OwnedSkillAuthoringAuthority(input.Origin,
-                () => captured() && privacy() && !IsProtectedCall && !IsResponseInteractionPending && ReferenceEquals(handler, ownedSkillAuthoring)
-                    && binding == Interlocked.Read(ref ownedSkillAuthoringBindingRevision));
+                () => useEligibility() && usePrivacy() && !IsProtectedCall && !IsResponseInteractionPending && ReferenceEquals(handler, ownedSkillAuthoring)
+                    && binding == Interlocked.Read(ref ownedSkillAuthoringBindingRevision)) { Questions = questions };
             if (handler is null || !authority.IsCurrent())
             { ReportHostInteractionFailure("Owned skill authoring is unavailable or its original authority expired."); return; }
             await handler(command, authority);

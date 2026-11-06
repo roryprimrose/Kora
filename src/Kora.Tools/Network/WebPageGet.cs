@@ -40,7 +40,7 @@ public sealed class WebPageGet(
             for (var redirects = 0; ; redirects++)
             {
                 timeout.Token.ThrowIfCancellationRequested();
-                if (!await authorize(current, timeout.Token).ConfigureAwait(false))
+                if (!await AuthorizedAsync().ConfigureAwait(false))
                 {
                     return Complete(
                         new(WebPageGetOutcome.Denied, "address-not-authorized", current, RedirectCount: redirects),
@@ -49,6 +49,7 @@ public sealed class WebPageGet(
                 }
 
                 var addresses = await transport.ResolveAsync(current.IdnHost, timeout.Token).ConfigureAwait(false);
+                timeout.Token.ThrowIfCancellationRequested();
                 if (addresses.Count == 0 || addresses.Any(address => !WebPageNetworkPolicy.IsPublic(address)))
                 {
                     return Complete(
@@ -61,7 +62,7 @@ public sealed class WebPageGet(
                     .OrderBy(address => address.AddressFamily)
                     .ThenBy(address => Convert.ToHexString(address.GetAddressBytes()), StringComparer.Ordinal)
                     .First();
-                if (!await authorize(current, timeout.Token).ConfigureAwait(false))
+                if (!await AuthorizedAsync().ConfigureAwait(false))
                 {
                     return Complete(
                         new(WebPageGetOutcome.Denied, "address-not-authorized", current, RedirectCount: redirects),
@@ -69,95 +70,46 @@ public sealed class WebPageGet(
                         activity);
                 }
                 var response = await transport.SendAsync(current, endpoint, timeout.Token).ConfigureAwait(false);
+                WebPageGetResult result;
                 try
                 {
+                    timeout.Token.ThrowIfCancellationRequested();
                     if (response.Address != current)
                     {
-                        return Complete(
-                            new(WebPageGetOutcome.Failed, "transport-address-mismatch", current, RedirectCount: redirects),
-                            auditEvent,
-                            activity);
+                        result = new(WebPageGetOutcome.Failed, "transport-address-mismatch", current, RedirectCount: redirects);
                     }
-                    if (response.StatusCode is >= 300 and <= 399)
+                    else if (response.StatusCode is >= 300 and <= 399)
                     {
                         if (response.RedirectAddress is null)
                         {
-                            return Complete(
-                                new(WebPageGetOutcome.Failed, "redirect-location-missing", current, RedirectCount: redirects),
-                                auditEvent,
-                                activity);
+                            result = new(WebPageGetOutcome.Failed, "redirect-location-missing", current, RedirectCount: redirects);
                         }
-                        if (redirects == WebPageCapability.MaximumRedirects)
+                        else if (redirects == WebPageCapability.MaximumRedirects)
                         {
-                            return Complete(
-                                new(WebPageGetOutcome.Failed, "redirect-limit-exceeded", current, RedirectCount: redirects),
-                                auditEvent,
-                                activity);
+                            result = new(WebPageGetOutcome.Failed, "redirect-limit-exceeded", current, RedirectCount: redirects);
                         }
-                        current = CanonicalRedirect(current, response.RedirectAddress);
-                        continue;
+                        else
+                        {
+                            current = CanonicalRedirect(current, response.RedirectAddress);
+                            continue;
+                        }
                     }
-                    if (response.StatusCode is < 200 or > 299)
+                    else
                     {
-                        return Complete(
-                            new(WebPageGetOutcome.Failed, "http-status-" + response.StatusCode, current, RedirectCount: redirects),
-                            auditEvent,
-                            activity);
+                        result = await ReadResponseAsync(response, current, redirects, timeout.Token).ConfigureAwait(false);
                     }
-                    if (response.ContentEncodings.Count != 0)
-                    {
-                        return Complete(
-                            new(WebPageGetOutcome.UnsupportedContent, "encoded-content-not-supported", current, RedirectCount: redirects),
-                            auditEvent,
-                            activity);
-                    }
-                    var mediaType = response.MediaType?.ToLowerInvariant();
-                    if (mediaType is not ("text/html" or "text/plain"))
-                    {
-                        return Complete(
-                            new(WebPageGetOutcome.UnsupportedContent, "unsupported-content-type", current, mediaType, RedirectCount: redirects),
-                            auditEvent,
-                            activity);
-                    }
-                    if (response.CharacterSet is not null
-                        && !string.Equals(response.CharacterSet, "utf-8", StringComparison.OrdinalIgnoreCase)
-                        && !string.Equals(response.CharacterSet, "utf8", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return Complete(
-                            new(WebPageGetOutcome.UnsupportedContent, "unsupported-character-set", current, mediaType, RedirectCount: redirects),
-                            auditEvent,
-                            activity);
-                    }
-                    if (response.ContentLength > WebPageCapability.MaximumContentBytes)
-                    {
-                        return Complete(
-                            new(WebPageGetOutcome.TooLarge, "content-length-exceeded", current, mediaType, RedirectCount: redirects),
-                            auditEvent,
-                            activity);
-                    }
-
-                    var bytes = await ReadBoundedAsync(response.Content, timeout.Token).ConfigureAwait(false);
-                    var source = new UTF8Encoding(false, true).GetString(bytes);
-                    var text = string.Equals(mediaType, "text/html", StringComparison.Ordinal)
-                        ? ExtractHtmlText(source)
-                        : NormalizeText(source);
-                    var bounded = BoundOutput(text);
-                    return Complete(
-                        new(
-                            WebPageGetOutcome.Succeeded,
-                            "retrieved",
-                            current,
-                            mediaType,
-                            bounded.Text,
-                            bounded.Truncated,
-                            redirects),
-                        auditEvent,
-                        activity);
                 }
                 finally
                 {
                     DisposeResponse(response);
                 }
+                timeout.Token.ThrowIfCancellationRequested();
+                if (result.Outcome == WebPageGetOutcome.Succeeded
+                    && !await AuthorizedAsync().ConfigureAwait(false))
+                {
+                    result = new(WebPageGetOutcome.Denied, "address-not-authorized", current, RedirectCount: redirects);
+                }
+                return Complete(result, auditEvent, activity);
             }
         }
         catch (DecoderFallbackException)
@@ -197,6 +149,50 @@ public sealed class WebPageGet(
             activity?.Complete(HostOperationOutcome.Failed);
             throw;
         }
+
+        async ValueTask<bool> AuthorizedAsync()
+        {
+            timeout.Token.ThrowIfCancellationRequested();
+            var authorized = await authorize(current, timeout.Token).ConfigureAwait(false);
+            timeout.Token.ThrowIfCancellationRequested();
+            return authorized;
+        }
+    }
+
+    private static async Task<WebPageGetResult> ReadResponseAsync(
+        WebPageResponse response, Uri current, int redirects, CancellationToken token)
+    {
+        if (response.StatusCode is < 200 or > 299)
+        {
+            return new(WebPageGetOutcome.Failed, "http-status-" + response.StatusCode, current, RedirectCount: redirects);
+        }
+        if (response.ContentEncodings.Count != 0)
+        {
+            return new(WebPageGetOutcome.UnsupportedContent, "encoded-content-not-supported", current, RedirectCount: redirects);
+        }
+        var mediaType = response.MediaType?.ToLowerInvariant();
+        if (mediaType is not ("text/html" or "text/plain"))
+        {
+            return new(WebPageGetOutcome.UnsupportedContent, "unsupported-content-type", current, mediaType, RedirectCount: redirects);
+        }
+        if (response.CharacterSet is not null
+            && !string.Equals(response.CharacterSet, "utf-8", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(response.CharacterSet, "utf8", StringComparison.OrdinalIgnoreCase))
+        {
+            return new(WebPageGetOutcome.UnsupportedContent, "unsupported-character-set", current, mediaType, RedirectCount: redirects);
+        }
+        if (response.ContentLength > WebPageCapability.MaximumContentBytes)
+        {
+            return new(WebPageGetOutcome.TooLarge, "content-length-exceeded", current, mediaType, RedirectCount: redirects);
+        }
+
+        var bytes = await ReadBoundedAsync(response.Content, token).ConfigureAwait(false);
+        var source = new UTF8Encoding(false, true).GetString(bytes);
+        var text = string.Equals(mediaType, "text/html", StringComparison.Ordinal)
+            ? ExtractHtmlText(source)
+            : NormalizeText(source);
+        var bounded = BoundOutput(text);
+        return new(WebPageGetOutcome.Succeeded, "retrieved", current, mediaType, bounded.Text, bounded.Truncated, redirects);
     }
 
     private WebPageGetResult Complete(
@@ -237,6 +233,7 @@ public sealed class WebPageGet(
         while (true)
         {
             var read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
             if (read == 0)
             {
                 return output.ToArray();
@@ -269,7 +266,6 @@ public sealed class WebPageGet(
         var output = new StringBuilder(html.Length);
         var tag = new StringBuilder();
         var inTag = false;
-        var suppressed = 0;
         for (var index = 0; index < html.Length; index++)
         {
             var character = html[index];
@@ -293,24 +289,37 @@ public sealed class WebPageGet(
                 var name = tag.ToString().TrimStart();
                 var closing = name.StartsWith('/');
                 name = name.TrimStart('/').Split([' ', '\t', '\r', '\n'], 2)[0].ToLowerInvariant();
-                if (string.Equals(name, "script", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(name, "style", StringComparison.OrdinalIgnoreCase))
+                if (!closing && name is "script" or "style")
                 {
-                    suppressed += closing ? -1 : 1;
-                    suppressed = Math.Max(0, suppressed);
+                    // Raw text can contain '<' and other element names; only its own end tag closes it.
+                    index = FindRawTextEnd(html, index + 1, name);
                 }
-                if (suppressed == 0 && name is "p" or "br" or "div" or "li" or "h1" or "h2" or "h3")
+                if (name is "p" or "br" or "div" or "li" or "h1" or "h2" or "h3")
                 {
                     output.Append('\n');
                 }
                 continue;
             }
-            if (suppressed == 0)
-            {
-                output.Append(character);
-            }
+            output.Append(character);
         }
         return NormalizeText(WebUtility.HtmlDecode(output.ToString()));
+    }
+
+    private static int FindRawTextEnd(string html, int start, string name)
+    {
+        var closing = "</" + name;
+        var candidate = html.IndexOf(closing, start, StringComparison.OrdinalIgnoreCase);
+        while (candidate >= 0)
+        {
+            var boundary = candidate + closing.Length;
+            if (boundary < html.Length && html[boundary] is '>' or '/' or ' ' or '\t' or '\r' or '\n' or '\f')
+            {
+                var end = html.IndexOf('>', boundary);
+                return end < 0 ? html.Length : end;
+            }
+            candidate = html.IndexOf(closing, boundary, StringComparison.OrdinalIgnoreCase);
+        }
+        return html.Length;
     }
 
     private static string NormalizeText(string text)

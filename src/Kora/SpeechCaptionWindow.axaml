@@ -22,11 +22,14 @@
             AutomationProperties.HelpText="Keeps only already-played text visible after normal completion. Privacy, stop and source retirement still clear it." />
       </Grid>
       <local:CaptionDisplaySelector x:Name="CaptionDisplaySelector" />
-      <TextBox x:Name="CaptionText"
-          IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
-          MaxHeight="220" FontSize="16"
-          AutomationProperties.Name="Current spoken utterance"
-          AutomationProperties.HelpText="Exact text of current playback. Not a question, approval or replay control." />
+      <Grid>
+        <TextBox x:Name="CaptionText"
+            IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" ClearSelectionOnLostFocus="False"
+            MaxHeight="220" FontSize="16"
+            AutomationProperties.Name="Current spoken utterance"
+            AutomationProperties.HelpText="Exact text of current playback. Optional verified source-word emphasis does not change selection. Not a question, approval or replay control." />
+        <local:SpeechCaptionEmphasisLayer x:Name="CaptionEmphasis" />
+      </Grid>
     </StackPanel>
   </Border>
 </Window>

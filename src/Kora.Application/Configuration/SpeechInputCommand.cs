@@ -10,10 +10,12 @@ public sealed record SpeechInputCommand(AppearanceCommandOperation Operation, Sp
     bool? ReviewDecision = null)
 {
     public const string Syntax = "get speech.input | set speech.input to windows-activated-v1 WindowsManaged CaptureLifetime. "
+        + "For an independently host-qualified configured name: set speech.input to pocketsphinx-5-1-1-en-us-cpu-v1 Cpu CaptureLifetime. "
         + "Review, then confirm speech.input or cancel speech.input. "
-        + "Only the compatible WindowsManaged / CaptureLifetime tuple can be confirmed. Existing unavailable desired preferences are retained until an explicit compatible switch. No download, capture, wake-name activation or fallback.";
+        + "Only exact supported, installed and independently qualified tuples can be confirmed. Existing unavailable desired preferences are retained until an explicit compatible switch. No download, listening enablement, capture or fallback.";
     public static IReadOnlyList<string> FixedPhrases { get; } =
         ["get speech.input", "status speech.input", "set speech.input to windows-activated-v1 WindowsManaged CaptureLifetime",
+            "set speech.input to pocketsphinx-5-1-1-en-us-cpu-v1 Cpu CaptureLifetime",
             "confirm speech.input", "cancel speech.input"];
 
     public static SpeechInputCommand? Parse(string input, string assistantName)
@@ -42,7 +44,7 @@ public sealed record SpeechInputCommand(AppearanceCommandOperation Operation, Sp
         if (text.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
         {
             var parts = text[prefix.Length..].Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length == 3 && string.Equals(parts[0], SpeechInputProfileCatalogue.WindowsProfileId, StringComparison.Ordinal)
+            if (parts.Length == 3 && parts[0] is (SpeechInputProfileCatalogue.WindowsProfileId or SpeechInputProfileCatalogue.NativeWakeProfileId)
                 && Enum.TryParse<SpeechInputResource>(parts[1], ignoreCase: true, out var resource) && Enum.IsDefined(resource)
                 && Enum.TryParse<SpeechInputResidency>(parts[2], ignoreCase: true, out var residency) && Enum.IsDefined(residency)
                 && string.Equals(parts[1], resource.ToString(), StringComparison.OrdinalIgnoreCase)

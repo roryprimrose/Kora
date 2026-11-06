@@ -81,8 +81,12 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             conversationMigration: new(10, 11, HostInteractionSchema.QueueOrderTables, MigrateConversation),
             conversationExecutionMigration: new(11, 12,
                 HostInteractionSchema.LegacyConversationTables, MigrateConversationExecution),
-            sessionPermissionMigration: new(12, HostInteractionSchema.Version,
-                HostInteractionSchema.ConversationTables, MigrateSessionPermission));
+            sessionPermissionMigration: new(12, 13,
+                HostInteractionSchema.ConversationTables, MigrateSessionPermission),
+            answerReviewMigration: new(13, 14,
+                HostInteractionSchema.SessionPermissionTables, MigrateAnswerReviews),
+            auditRetentionMigration: new(14, HostInteractionSchema.Version,
+                HostInteractionSchema.AnswerReviewTables, MigrateAuditRetention));
     }
 
     public ValueTask InitializeAsync(CancellationToken cancellationToken) =>
@@ -513,6 +517,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
                 using var transaction = connection.BeginTransaction();
                 tasks.ImportAuthority(connection, transaction, cancellationToken);
                 Execute(connection, transaction, "INSERT INTO authority_head VALUES(1,0,$hash);", ("$hash", EmptyHash));
+                SeedAuditAnchor(connection, transaction);
                 SeedMemoryProfile(connection, transaction);
                 transaction.Commit();
             }
@@ -544,6 +549,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         version.CommandText = "PRAGMA user_version;";
         if (Convert.ToInt32(version.ExecuteScalar(), CultureInfo.InvariantCulture) >= 13)
         { ValidateSessionPermissions(connection); }
+        if (Convert.ToInt32(version.ExecuteScalar(), CultureInfo.InvariantCulture) >= 14)
+        { ValidateAnswerReviews(connection); }
     }
 
     private static void ValidateConsolidatedAuthority(SqliteConnection connection)
@@ -673,8 +680,9 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
     {
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT sequence,correlation_id,previous_hash,hash,envelope FROM security_audit_events ORDER BY sequence;";
-        long sequence = 0;
-        var hash = EmptyHash;
+        var anchor = ReadAuditAnchor(connection);
+        var sequence = anchor.Sequence;
+        var hash = anchor.Hash;
         using (var reader = command.ExecuteReader())
         {
             while (reader.Read())
@@ -821,8 +829,9 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
                 throw new InvalidDataException("Queue move receipt crosses exact session authority or requested direction.");
             }
         }
-        if ((Same(audit.Audit.ActionId, "approval.revoke-exact") || batch || queueControl || conversationControl || permissionControl) != (audit.RequestedAudit is not null)
-            || !batch && !queueControl && !conversationControl && !permissionControl && (audit.RequestedAudit is null) != (audit.RequestedGrantRevision is null)
+        var answerReviewControl = Same(audit.Audit.ActionId, "session.answer-review.set");
+        if ((Same(audit.Audit.ActionId, "approval.revoke-exact") || batch || queueControl || conversationControl || permissionControl || answerReviewControl) != (audit.RequestedAudit is not null)
+            || !batch && !queueControl && !conversationControl && !permissionControl && !answerReviewControl && (audit.RequestedAudit is null) != (audit.RequestedGrantRevision is null)
             || audit.RequestedGrantRevision is { Value: <= 0 }
             || batch != (audit.RequestedGrants is not null)
             || batch && (audit.RequestedGrantRevision is not null || audit.Audit.ApprovalId is not null
@@ -864,18 +873,29 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
             || !Same(requested.TargetId, audit.Audit.TargetId) || requested.ApprovalId != audit.Audit.ApprovalId
             || audit.Audit.Outcome is not (SecurityAuditOutcome.Succeeded or SecurityAuditOutcome.Denied)
                 && !(conversationControl && audit.Audit.Outcome is SecurityAuditOutcome.Cancelled or SecurityAuditOutcome.Unknown)
-            || !(Same(requested.ActionId, "approval.revoke-exact") || batch || queueControl || conversationControl || permissionControl)
-            || !queueControl && !conversationControl && audit.Request.Origin != RequestOrigin.LocalUi))
+            || !(Same(requested.ActionId, "approval.revoke-exact") || batch || queueControl || conversationControl || permissionControl || answerReviewControl)
+            || !queueControl && !conversationControl && !permissionControl && audit.Request.Origin != RequestOrigin.LocalUi))
         {
             throw new InvalidDataException("The exact-revocation requested and terminal audit pair is invalid.");
         }
-        if (permissionControl && (audit.Request.Origin != RequestOrigin.LocalUi || audit.Request.InvocationId is not null
+        if (answerReviewControl && (audit.Request.Origin != RequestOrigin.LocalUi || audit.Request.InvocationId is not null
+            || audit.RequestedAudit is null || audit.RequestedGrantRevision is not null || audit.RequestedGrants is not null
+            || audit.Audit.ApprovalId is not null || audit.Outcome is not null || audit.QuestionId is not null || audit.ApprovalId is not null
+            || audit.Audit.Outcome != SecurityAuditOutcome.Succeeded || audit.Audit.Initiator != SecurityAuditInitiator.TypedCommand
+            || audit.Changes.Length != 2 || audit.Changes.Count(change => Same(change.Kind, "answer-review")) != 1
+            || audit.Changes.Count(change => Same(change.Kind, "task") && Same(change.Id, Id(audit.Request.TaskId))
+                && change.Revision == audit.IntentRevision.Value + 1) != 1))
+        { throw new InvalidDataException("Answer review requires exact native input, requested/terminal audit and a terminal control without grants."); }
+        if (permissionControl && (audit.Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
+            || audit.Request.InvocationId is not null
+            || audit.Audit.Initiator != (audit.Request.Origin == RequestOrigin.LocalUi
+                ? SecurityAuditInitiator.TypedCommand : SecurityAuditInitiator.VoiceCommand)
             || audit.RequestedGrantRevision is not null || audit.RequestedGrants is not null || audit.Audit.ApprovalId is not null
             || audit.Outcome is not null || audit.QuestionId is not null || audit.ApprovalId is not null
             || audit.Audit.Outcome != SecurityAuditOutcome.Succeeded
             || audit.Changes.Count(change => Same(change.Kind, "session-permission") && Same(change.Id, Id(audit.Request.SessionId))) != 1
             || audit.Changes.Any(change => change.Kind is not ("session-permission" or "question"))))
-        { throw new InvalidDataException("Session permission requires exact native input and separate requested/terminal authority without grants."); }
+        { throw new InvalidDataException("Session permission requires exact original input and separate requested/terminal authority without grants."); }
         if (conversationControl && (audit.Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
             || audit.Request.Origin == RequestOrigin.ActivatedVoice && audit.Audit.ActionId.StartsWith("conversation.draft.", StringComparison.Ordinal)
             || audit.Request.InvocationId is not null
@@ -1149,7 +1169,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
         change is not null && change.Digest is not null && IsHex(change.Digest, 64) && change.Revision > 0
         && change.Kind is ("session" or "observation" or "question" or "grant" or "metadata" or "task" or "wait"
             or "queue" or "queue-order" or "retention" or "memory" or "session-file" or "session-provider-profile"
-            or "conversation-draft" or "conversation-message" or "session-permission" or "session-admission")
+            or "conversation-draft" or "conversation-message" or "session-permission" or "session-admission" or "answer-review")
         && Guid.TryParseExact(change.Id, "D", out var id) && id != Guid.Empty && Same(change.Id, id.ToString("D"));
 
     private static AuthorityChange Change(string kind, string id, long revision, string payload) =>

@@ -65,8 +65,9 @@ approval readbacks and voice previews. Call entry invalidates pending synthesis/
 playback before asynchronous UI dispatch or cleanup. Clearance does not replay
 suppressed output, answer questions or reopen capture. Saved explicit visual/
 activation preferences retain their existing format and behavior; Unknown now
-uses the same conservative protection. New general speech/activation protection
-downgrades and call-wide temporary overrides remain unavailable. The separate
+uses the same conservative protection. New general speech protection
+downgrades and call-wide temporary overrides remain unavailable. Call-time activation has a
+[separate exact native preference review](#reviewed-call-time-activation-preference). The separate
 [exact local speak-once review](#delivered-exact-local-speak-once-review) composes
 only one current otherwise-eligible response; it does not disable protection.
 
@@ -198,11 +199,50 @@ The [host interaction](../src/Kora.Application/ViewModels/MainViewModel.CallSpee
 
 Exact typed `review call speech`, `confirm call speech`, `cancel call speech` and `call speech status` share that operation. Review and confirmation require fresh original local UI input; original voice is denied even when a native control is later invoked inside that request. Activated voice may inspect status or cancel but cannot mint a review or lease. Unknown provenance, session/source identity, ownership, output or manual-control evidence remains closed ([grammar](../src/Kora.Application/Voice/CallSpeechCommand.cs), [review authority](../src/Kora.Application/Communication/CallSpeechReview.cs)).
 
+Cancellation also retires an in-progress review preparation, before a published
+review exists. Its original preparation revision fences output observation,
+native disclosure and publication after audit; delayed completion cannot restore
+confirmation authority. An already-open exact review loses eligibility rather
+than authorizing playback. Passive status during preparation does not cancel,
+renew or confirm it. A fresh explicit review is available only after the retired
+preparation finishes; playback cancellation retains its existing physical join.
+Exact typed cancellation remains available through the busy typed-command wrapper
+while its original review preparation or confirmation/playback is pending. Other
+call-speech commands cannot reenter that wrapper. Cancellation does not release
+the original command before its continuation finishes, or report playback release
+before the owned playback actually joins.
+
 The host pins response/request identity and revision, pending-decision/input epochs, native presentation lifetime, owner/privacy/recovery, call revision, speech selection/limits, ordinary output and feedback modes, selected/effective endpoint, volume and rate. A review expires after two minutes from creation, including any subsequent playback. Confirmation consumes it before awaited audit/admission; the [typed lease](../src/Kora.Application/Communication/CallSpeechLease.cs) permits one start under the [shared call-policy lock](../src/Kora.Application/Communication/CallCommunicationPolicy.cs), for only the reviewed text and pinned concrete endpoint. Changes, cancellation, failure and late completion never authorize replay or a second start.
 
 This narrow exception overrides only call speech suppression and the call feedback output selection for that one response. Ordinary VisualOnly, both summary caps, lock/privacy/owner, mute/zero volume, active capture, selected consent/security protections and local speech availability remain mandatory. No preference, call state, listening consent, approval, grant or retained data is changed; neither ordinary read commands nor unrelated speech inherit the lease. Requested/terminal audits carry opaque response identity and outcomes, never the reviewed content ([shared read lifecycle](../src/Kora.Application/ViewModels/MainViewModel.ResponseRead.cs), [summary gate](../src/Kora.Application/Configuration/SpeechConfigurationService.cs)).
 
 The [service regressions](../tests/Kora.Application.UnitTests/Communication/CallSpeechReviewTests.cs) and [consumer regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.CallSpeech.cs) use deterministic fakes. This is bounded **I - Implementation**, not actual-call, acoustic, provider, physical-device, installed-native accessibility or full R15 **E/Q** qualification. Existing unavailable profiles remain unavailable; no experiment is removed or rerun. Arbitrary retained-answer selection, questions/approvals, call-wide relaxation and persistent downgrade remain outside this increment.
+
+## Ordinary Speech Stop and Recovery
+
+The [selected local voice preparation owner](../src/Kora.Application/Voice/SpeechPreparationCoordinator.cs) also retires readiness immediately on withdrawal or disposal. Cancellation callbacks run asynchronously; replacement preparation and shutdown quiescence wait for both those callbacks and the original native preparation. Callback failures are explicitly diagnosed after that join and cannot restore retired readiness.
+
+The [deterministic preparation regressions](../tests/Kora.Application.UnitTests/Voice/SpeechPreparationCoordinatorTests.cs) hold native work and cancellation callbacks independently and exercise throwing callbacks. This repairs existing voice-selection, call/privacy withdrawal and shutdown ownership; it adds no microphone, playback, consent, provider availability or E/Q qualification.
+
+Ordinary responses and voice previews retain **Stop speaking** and active output
+state while the provider reports playback active, even if its speech operation
+has returned, failed or been cancelled. Returning from Stop is not a silence
+receipt: native, exact typed/activated-voice and tray Stop share the host's
+physical-release check. Unconfirmed release reports failure and retains recovery;
+only observed release permits "No speech playback is active."
+
+New response/preview speech is withheld during that recovery, without automatic
+retry or replay. Full visual results remain available; captions still retire on
+Stop, invalidation or unsuccessful completion, and private presence stays hidden
+when the host is ineligible. Passive playback observation can clear active state
+after the provider actually releases output. Existing call leases, retained-read
+joins, consent/privacy and call suppression remain unchanged.
+
+The [ordinary recovery regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.OrdinarySpeechRecovery.cs)
+use deterministic providers for operation return, physical activity, Stop failure
+and cancellation. This is **I - Implementation** repair, not acoustic stop timing,
+real provider/device, installed-native accessibility or **E/Q** qualification;
+no wake/model/native profile is enabled.
 
 ## Delivered Bounded In-Call Feedback
 
@@ -282,6 +322,17 @@ capture. A visual question shown during that state cannot bypass disabled
 call-time activation merely because Kora asked it before the observation
 changed.
 Locked-session microphone and speech restrictions remain mandatory and cannot be overridden.
+
+### Reviewed call-time activation preference
+
+The [native Calls controls](../src/Kora/SettingsWindow.axaml) can restore a previously disabled device-local activation preference through **Review enabling activation**, then separate **Confirm reviewed activation** or **Cancel activation review**.
+The [review owner](../src/Kora.Application/ViewModels/MainViewModel.CallVoiceActivation.cs) shows Off -> On, device scope, current call observation and the independent consent/speech/approval boundaries. Original voice, model invocation and unknown origins cannot prepare or relabel this review.
+
+The single-use [policy review](../src/Kora.Application/Communication/CallCommunicationPolicy.cs) binds the exact settings, call/privacy/ownership/input/recovery revisions and original active Calls window lifetime. Hide, deactivation, tab change or close retires it. The shared audited writer revalidates after requested audit, checks unchanged saved state, saves atomically and verifies readback before publishing.
+Unconfirmed persistence, audit or invalidated authority is not success or a rollback guarantee; start a fresh review rather than retrying the old confirmation ([regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.CallVoiceActivation.cs)).
+
+Saving permits only otherwise eligible activation/question replies. It never opens capture, clears manual/recovery holds, grants listening consent, changes speech/spoken approval preferences or changes grants. Separate **Enable listening** still requires fresh existing gates. Unknown/manual-evidence-unavailable protection remains authoritative ([native regressions](../tests/Kora.Windows.IntegrationTests/CallVoiceActivationNativeTests.cs)).
+This is bounded implementation, not detector, provider, hardware, acoustic or installed accessibility qualification.
 
 The separate in-call feedback override defaults to UI-only, with Voice/UI/Both/Inherit choices through the shared settings registry.
 It takes precedence over ordinary task/queue/session/device response mode, subject to mandatory privacy/lock/mute/speech policy and an explicitly permitted single-response exception.

@@ -5,11 +5,12 @@ using Kora.Core.Storage;
 namespace Kora;
 
 // The live desktop gate can only narrow durable authority, including inside the serialized transition.
-internal sealed class NativeInteractionStore(IHostInteractionStore store, Func<bool> canInteract) : IHostInteractionStore
+internal sealed class NativeInteractionStore(IHostInteractionStore store, Func<bool> canInteract,
+    Func<IHostInteractionStore?>? volatileQuestionStore = null) : IHostInteractionStore
 {
     public ValueTask<HostInteractionDecision> TransactAsync(HostRequest request,
         Func<HostInteractionSnapshot, HostInteractionCommit> transition, CancellationToken cancellationToken) =>
-        store.TransactAsync(request, snapshot =>
+        (volatileQuestionStore?.Invoke() ?? store).TransactAsync(request, snapshot =>
         {
             var gated = canInteract() ? snapshot : snapshot with
             {

@@ -110,6 +110,32 @@ public sealed class AudioPlaybackSettings : IDisposable
         }
     }
 
+    public Task<WindowsSpeechRateSuggestionReview> ReviewRateSuggestionAsync(CallCommunicationPolicy policy,
+        TimeProvider time, ConversationMessage message, Func<bool> eligible,
+        Func<CancellationToken, Task> validateSource, CancellationToken token)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        if (rate is null || IsRateControlActive)
+        { throw new InvalidOperationException("Windows rate settings are unavailable or busy."); }
+        return WindowsSpeechRateSuggestionReview.ReviewAsync(rate, policy, time, message,
+            () => !disposed && eligible(), validateSource, token);
+    }
+
+    public async Task<bool> ConfirmRateSuggestionAsync(WindowsSpeechRateSuggestionReview review,
+        SecurityAuditInitiator initiator, CancellationToken token)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        if (rate is null || IsRateControlActive || !review.BelongsTo(rate))
+        { throw new InvalidOperationException("Windows rate settings are unavailable or busy."); }
+        IsRateControlActive = true;
+        try { return await review.ConfirmAsync(token, initiator); }
+        finally
+        {
+            IsRateControlActive = false;
+            Synchronize(AudioPlaybackSetting.WindowsSpeechRate);
+        }
+    }
+
     public async Task<(bool Saved, string Outcome, PlaybackVolume? PreviousDesired)> ExecuteVolumeAsync(
         PlaybackVolumeCommand command, RequestOrigin origin, SecurityAuditInitiator initiator,
         CallCommunicationPolicy policy, Func<bool> remainsEligible, CancellationToken token)

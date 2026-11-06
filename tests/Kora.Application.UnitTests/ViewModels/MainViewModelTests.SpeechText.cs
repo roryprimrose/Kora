@@ -150,7 +150,7 @@ public sealed partial class MainViewModelTests
         missing.ViewModel.SpeechCaptionPlacement.Should().BeNull();
         missing.ViewModel.SpeechCaptionOptionChoices.Should().BeEmpty();
         missing.ViewModel.SpeechCaptionOptionsList.Select(choice => choice.Option)
-            .Should().Equal(SpeechCaptionOption.Placement, SpeechCaptionOption.DismissalDelay);
+            .Should().Equal(SpeechCaptionOption.Placement, SpeechCaptionOption.DismissalDelay, SpeechCaptionOption.WordEmphasis);
         missing.ViewModel.SelectedSpeechCaptionOptionChoice = missing.ViewModel.SpeechCaptionOptionsList[1];
         missing.ViewModel.SelectedSpeechCaptionOption.Should().Be(SpeechCaptionOption.DismissalDelay);
         missing.ViewModel.SelectedSpeechCaptionOption = SpeechCaptionOption.Placement;
@@ -486,6 +486,7 @@ public sealed partial class MainViewModelTests
         await using var admission = fixture.OutputAdmission;
         await fixture.ViewModel.InitializeAsync();
         await fixture.RunAsync($"set display.speech-text to {mode}");
+        await fixture.RunAsync("set display.speech-text-word-emphasis to true");
         fixture.ViewModel.ReaderTextScalePercent = 200;
         await fixture.ViewModel.AppearanceUpdate;
         fixture.ViewModel.EnsureReaderTypographyAvailable();
@@ -493,10 +494,16 @@ public sealed partial class MainViewModelTests
         fixture.TextToSpeech.SpeakGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
         var response = fixture.RunAsync("show your window");
         await fixture.TextToSpeech.SpeakStarted.Task;
-        var frame = CaptionFrame(fixture, mode, 8);
+        var frame = CaptionFrame(fixture, mode, 8) with
+        {
+            WordAlignmentAvailable = true,
+            Word = new(new(new(fixture.TextToSpeech.CaptionPlaybackId!.Value, 8), 0, 1, TimeSpan.Zero),
+                TimeSpan.Zero, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(9)),
+        };
         fixture.TextToSpeech.PlaybackFrame = frame;
         fixture.ViewModel.RefreshSpeechPlaybackFrame();
         fixture.ViewModel.SpeechCaptionText.Should().NotBeNull();
+        fixture.ViewModel.SpeechCaptionEmphasis.Should().NotBeNull();
         switch (transition)
         {
             case "stop": await fixture.ViewModel.StopSpeechCommand.ExecuteAsync(); break;
@@ -550,6 +557,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.RefreshSpeechPlaybackFrame();
         fixture.ViewModel.SpeechCaptionText.Should().BeNull();
         fixture.ViewModel.IsSpeechCaptionVisible.Should().BeFalse();
+        fixture.ViewModel.SpeechCaptionEmphasis.Should().BeNull();
         fixture.TextToSpeech.PlaybackFrameException = null;
         fixture.ViewModel.BindCallOwnershipGate(static () => true);
         fixture.Session.IsUnlocked = true;
@@ -558,6 +566,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.SpeechCaptionText.Should().BeNull();
         fixture.TextToSpeech.SpeakGate.TrySetResult();
         await response;
+        fixture.ViewModel.SpeechCaptionEmphasis.Should().BeNull();
         log.Messages.Should().NotContain(message => message.Contains(fixture.TextToSpeech.SpokenText!, StringComparison.Ordinal));
     }
 

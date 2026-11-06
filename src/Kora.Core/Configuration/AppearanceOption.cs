@@ -14,4 +14,5 @@ public enum AppearanceOption
     SpeechScaleAmount,
     ReaderTextScale,
     NativePresenceRenderer,
+    ReducedMotion,
 }

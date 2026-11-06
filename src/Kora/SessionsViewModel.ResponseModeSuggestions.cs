@@ -48,6 +48,7 @@ internal sealed partial class SessionsViewModel
 
     private void CancelResponseModeSuggestion()
     {
+        registeredSettingReviewIdentity = null;
         responseModeReview?.Dispose();
         responseModeReview = null;
     }

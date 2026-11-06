@@ -100,6 +100,7 @@ internal sealed partial class EvidenceViewModel(
         {
             throw new InvalidOperationException("Select only an admitted record from the current page.");
         }
+        problemReportRevision++;
         selected = record;
         Notify();
     }
@@ -197,6 +198,7 @@ internal sealed partial class EvidenceViewModel(
 
     private void Clear(string message)
     {
+        problemReportRevision++;
         RetireEvidenceAnswer();
         page = null;
         selected = null;
@@ -218,6 +220,7 @@ internal sealed partial class EvidenceViewModel(
         OnPropertyChanged(nameof(CanReadTrace));
         OnPropertyChanged(nameof(CanReadRequest));
         OnPropertyChanged(nameof(CanReadActivity));
+        OnPropertyChanged(nameof(CanReportException));
         OnPropertyChanged(nameof(RequestSummary));
         NotifyFind();
         NotifyEvidenceAnswer();

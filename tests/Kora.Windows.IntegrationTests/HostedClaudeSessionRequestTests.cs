@@ -214,8 +214,16 @@ public sealed partial class HostedClaudeSessionRequestTests
         }
         public async ValueTask DisposeAsync()
         {
-            if (Turns is not null) { await Turns.DisposeAsync(); }
-            await Runtime.DisposeAsync(); await Accounts.DisposeAsync(); await admission.DisposeAsync();
+            try
+            {
+                if (Conversation is not null) { await Conversation.DisposeAsync(); }
+                if (Turns is not null) { await Turns.DisposeAsync(); }
+            }
+            finally
+            {
+                try { await Runtime.DisposeAsync(); }
+                finally { await Accounts.DisposeAsync(); await admission.DisposeAsync(); }
+            }
         }
     }
     private sealed class Catalogue(ClaudeAccountBroker account, TimeProvider time) : IProviderCapabilityCatalogue
@@ -240,6 +248,8 @@ public sealed partial class HostedClaudeSessionRequestTests
     {
         private readonly List<ObservationTimer> timers = [];
         public override DateTimeOffset GetUtcNow() => source.GetUtcNow();
+        public override long GetTimestamp() => source.GetTimestamp();
+        public override long TimestampFrequency => source.TimestampFrequency;
         public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
         {
             var timer = new ObservationTimer(callback, state, dueTime);
@@ -247,7 +257,9 @@ public sealed partial class HostedClaudeSessionRequestTests
         }
         internal void FireDeadline(TimeSpan? due = null)
         {
-            var timer = timers.Single(item => item.Due == (due ?? ModelToolProtocol.Deadline) && !item.Disposed);
+            var active = timers.Where(item => !item.Disposed).ToArray();
+            active.Select(item => item.Due).Should().Contain(due ?? ModelToolProtocol.Deadline);
+            var timer = active.Single(item => item.Due == (due ?? ModelToolProtocol.Deadline));
             timer.Fire();
         }
         private sealed class ObservationTimer(TimerCallback callback, object? state, TimeSpan due) : ITimer

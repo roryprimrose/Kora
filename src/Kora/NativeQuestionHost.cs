@@ -44,7 +44,7 @@ internal sealed partial class NativeQuestionHost : IDisposable
         this.time = time;
         this.logger = logger;
         var gated = new NativeInteractionStore(store, () => !disposed && canInteract()
-            && (currentAdmission?.Invoke() ?? true));
+            && (currentAdmission?.Invoke() ?? true), () => skillInputQuestions);
         questions = new(gated, time);
         authorization = new(gated, time);
         reviews = new(gated, time);
@@ -203,7 +203,7 @@ internal sealed partial class NativeQuestionHost : IDisposable
         }
         if (result.Outcome != HostInteractionOutcome.Answered || result.Question is not { } answered
             || answered.Key.Request != request || answered.Key.QuestionId != state.Key.QuestionId
-            || answered.Status != QuestionStatus.Answered || answered.AnswerChannel != RequestOrigin.LocalUi
+            || answered.Status != QuestionStatus.Answered || answered.AnswerChannel is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
             || state.IsWithdrawn || !Eligible())
         {
             throw new InvalidOperationException("The exact native question did not produce an eligible committed answer.");

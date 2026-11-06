@@ -15,15 +15,24 @@ internal static class FixtureBoundaries
         ISessionController, IMicrophoneAccessService, IWindowsPrivacyObservationService, ICurrentUserNameProvider
     {
         private bool disposed;
+        private WindowsSessionState closedSessionState = WindowsSessionState.Unknown;
         public bool Open { get; private set; } = true;
         public bool CanInspect => Open;
         public bool CanControl => Open;
         public bool IsCurrentHost => Open;
         public long ControlRevision { get; private set; }
-        public WindowsPrivacySnapshot Current => new(Open ? WindowsSessionState.Unlocked : WindowsSessionState.Unknown,
-            syntheticVoice ? MicrophoneAccessState.Allowed : MicrophoneAccessState.Denied, ControlRevision,
-            syntheticVoice ? [FixtureVoice.SyntheticMicrophone.Id] : [],
-            syntheticVoice ? FixtureVoice.SyntheticMicrophone.Id : null, null);
+        internal Action? BeforePrivacyObservation { get; set; }
+        public WindowsPrivacySnapshot Current
+        {
+            get
+            {
+                BeforePrivacyObservation?.Invoke();
+                return new(Open ? WindowsSessionState.Unlocked : closedSessionState,
+                    syntheticVoice ? MicrophoneAccessState.Allowed : MicrophoneAccessState.Denied, ControlRevision,
+                    syntheticVoice ? [FixtureVoice.SyntheticMicrophone.Id] : [],
+                    syntheticVoice ? FixtureVoice.SyntheticMicrophone.Id : null, null);
+            }
+        }
         public event EventHandler<WindowsPrivacyChangedEventArgs>? Changed;
         public WindowsPrivacySnapshot Refresh() => Current;
         public bool IsCurrentSessionUnlocked() => Open;
@@ -38,8 +47,19 @@ internal static class FixtureBoundaries
             ObjectDisposedException.ThrowIf(disposed, this);
             var previous = Current;
             Open = open;
+            closedSessionState = WindowsSessionState.Unknown;
             ControlRevision++;
             Changed?.Invoke(this, new(previous, Current));
+        }
+
+        internal void SetLocked()
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            var previous = Current;
+            Open = false;
+            closedSessionState = WindowsSessionState.Locked;
+            ControlRevision++;
+            Changed?.Invoke(this, new(previous, Current, WindowsPrivacyChangeReason.Session));
         }
 
         public void Dispose()
@@ -51,8 +71,31 @@ internal static class FixtureBoundaries
         }
     }
 
-    internal sealed class FixtureVoice(bool syntheticCapture = false) : IQuestionVoiceRecognitionService
+    internal sealed class FixtureVoice(bool syntheticCapture = false) : IQuestionVoiceRecognitionService, ISpeechInputProfileRuntime
     {
+        public SpeechInputGeneration ProfileGeneration { get; private set; } = new(0, SpeechInputSelection.Default);
+        public bool IsProfileAvailable { get; private set; } = true;
+        public void InitializeProfile(SpeechInputSelection? selection)
+        {
+            IsProfileAvailable = selection is not null && SpeechInputProfileCatalogue.UnavailableReason(selection) is null;
+            if (selection is not null) { ProfileGeneration = new(0, selection); }
+        }
+        public async Task<ISpeechInputProfileSwitch> RetireProfileAsync(CancellationToken cancellationToken)
+        {
+            await StopAsync(cancellationToken);
+            IsProfileAvailable = false;
+            return new ProfileSwitch(this);
+        }
+        private sealed class ProfileSwitch(FixtureVoice owner) : ISpeechInputProfileSwitch
+        {
+            public void Publish(SpeechInputGeneration generation)
+            {
+                owner.ProfileGeneration = generation;
+                owner.IsProfileAvailable = SpeechInputProfileCatalogue.UnavailableReason(generation.Selection) is null;
+            }
+            public void HoldUnavailable() => owner.IsProfileAvailable = false;
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
         internal static MicrophoneDevice SyntheticMicrophone { get; } = new("fixture-synthetic-microphone", "Synthetic fixture microphone");
         internal bool SyntheticCapture => syntheticCapture;
         internal int StartCalls { get; private set; }
@@ -62,6 +105,8 @@ internal static class FixtureBoundaries
         internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource? PendingLiteralOpen { get; set; }
         internal TaskCompletionSource? PendingLiteralStop { get; set; }
+        internal TaskCompletionSource? PendingCommandEnd { get; set; }
+        internal TaskCompletionSource CommandEndStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public event EventHandler<VoiceTranscriptEventArgs>? TranscriptRecognized;
         public event EventHandler<VoiceRecognitionFailureEventArgs>? RecognitionFailed { add { } remove { } }
         public event EventHandler<VoiceCaptureStateChangedEventArgs>? CaptureStateChanged;
@@ -107,10 +152,11 @@ internal static class FixtureBoundaries
             IsListening = false;
         }
         public Task EndCaptureAsync(CancellationToken cancellationToken = default) => EndPushToTalkAsync(cancellationToken);
-        public Task EndPushToTalkAsync(CancellationToken cancellationToken = default)
+        public async Task EndPushToTalkAsync(CancellationToken cancellationToken = default)
         {
+            CommandEndStarted.TrySetResult();
+            if (PendingCommandEnd is { } pending) { await pending.Task; }
             if (IsListening) { EndCalls++; IsListening = false; }
-            return Task.CompletedTask;
         }
         internal void PublishTranscript(string text)
         {

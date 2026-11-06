@@ -215,6 +215,8 @@ packaging option.
 
 ### Start after setup
 
+The advertised Start Menu shortcut is the supported normal manual-launch route and passes the sole `--manual-startup` argument. Kora's separately [reviewed manual presentation preference](../Design/User_Configuration.md#delivered-normal-manual-startup-presentation) can open the existing workspace on that route without activation, session selection or content loading. Argument-free direct/legacy/logon and setup-completion launches retain their existing behavior; this does not change the MSI Run entry or establish installed shortcut/upgrade acceptance.
+
 After successful install or repair, **Start Kora when setup closes** defaults
 on. Uncheck it to finish without starting Kora. The request occurs only after
 the UI actually closes and native/optional work is quiescent; failed/cancelled

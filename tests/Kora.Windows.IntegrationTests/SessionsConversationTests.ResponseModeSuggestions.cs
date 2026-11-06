@@ -70,7 +70,9 @@ public sealed partial class SessionsConversationTests
     [InlineData(true, ResponseOutputMode.VoiceOnly)]
     [InlineData(false, ResponseOutputMode.VisualOnly)]
     [InlineData(true, ResponseOutputMode.VisualOnly)]
-    public async Task ResponseModeSuggestionBothNativeSizesReviewConfirmAndReadBackExactMode(bool compact, ResponseOutputMode mode)
+    [InlineData(false, null)]
+    [InlineData(true, null)]
+    public async Task ResponseModeSuggestionBothNativeSizesReviewConfirmAndReadBackExactMode(bool compact, ResponseOutputMode? mode)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -84,7 +86,8 @@ public sealed partial class SessionsConversationTests
             var service = new ResponseModeConfigurationService(preferences, admission, audit, playback);
             service.Observe();
             using var policy = new CallCommunicationPolicy(new SummaryCallState());
-            var adapter = new SummaryAnswerAdapter($"set responses.default-mode to {mode}");
+            var expected = mode ?? ResponseModeConfigurationService.ResetMode;
+            var adapter = new SummaryAnswerAdapter(mode is null ? "reset responses.default-mode" : $"set responses.default-mode to {mode}");
             await using var composed = new Composition(f, adapter: adapter);
             var model = composed.Model;
             model.BindResponseModeSuggestions((message, live, validate, token) =>
@@ -109,7 +112,7 @@ public sealed partial class SessionsConversationTests
                 model.RegisteredSettingsDescription.Should().Contain("responses.default-mode: Hybrid/VoiceOnly/VisualOnly");
                 model.RegisteredSettingSuggestionDescription.Should().Be(model.ResponseModeSuggestionDescription)
                     .And.Contain("Current saved: unsaved (default)").And.Contain("configured effective: Hybrid")
-                    .And.Contain($"Proposed: {mode}").And.Contain("shared device-local").And.Contain("NEXT eligible response")
+                    .And.Contain($"Proposed: {expected}").And.Contain("shared device-local").And.Contain("NEXT eligible response")
                     .And.Contain("Mandatory full visual").And.Contain("even in VoiceOnly").And.Contain("Privacy and call");
                 model.CanConfirmRegisteredSettingSuggestion.Should().BeTrue();
                 preferences.LoadDefaultMode().Should().BeNull();
@@ -119,9 +122,9 @@ public sealed partial class SessionsConversationTests
                 model.ConversationStatus.Should().Contain("saved with committed preference and audit readback")
                     .And.Contain("mandatory full visual, privacy and call exceptions");
                 new LocalResponseOutputPreferences(f.Paths, NullLogger<LocalResponseOutputPreferences>.Instance)
-                    .LoadDefaultMode().Should().Be(mode);
-                service.Get().Saved.Should().Be(mode);
-                service.Get().Effective.Should().Be(mode);
+                    .LoadDefaultMode().Should().Be(expected);
+                service.Get().Saved.Should().Be(expected);
+                service.Get().Effective.Should().Be(expected);
                 audit.Events.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
                 model.RegisteredSettingSuggestionDescription.Should().BeEmpty();
                 model.CanConfirmRegisteredSettingSuggestion.Should().BeFalse();

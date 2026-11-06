@@ -9,6 +9,7 @@ internal sealed partial class OwnedSkillEditorController
     private CancellationTokenSource? fixtureLifetime;
     private OwnedSkillAuthoringAuthority? fixtureAuthority;
     private long fixtureEpoch;
+    private long fixtureInputGeneration;
 
     private void CancelFixture()
     {

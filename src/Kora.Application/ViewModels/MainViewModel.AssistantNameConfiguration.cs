@@ -42,6 +42,9 @@ public sealed partial class MainViewModel
         if (current.IsAvailable) { ApplyAssistantNameState(current.Name!); }
         else { AssistantNameSettingStatus = current.Recovery!; }
         OnPropertyChanged(nameof(AssistantNameConfigurationDescription));
+        OnPropertyChanged(nameof(SpeechInputProfiles));
+        OnPropertyChanged(nameof(SpeechInputResources));
+        OnPropertyChanged(nameof(SpeechInputStatus));
         OnPropertyChanged(nameof(IsVoiceActivationAvailable));
         NotifyVoiceEnablementChanged();
     }

@@ -37,6 +37,15 @@ public sealed partial class ArtifactFileDocument
             Definition.Kind, Definition.Source, Definition.OwnedInstructionName!);
     }
 
+    public ArtifactFileDocument WithPromptBody(string body)
+    {
+        RequireEditableInstruction();
+        if (Definition.Kind != ArtifactKind.Prompt)
+        { throw new InvalidDataException("Template authoring supports owned user-request prompts only."); }
+        return Parse(Encode(Text[..(Text.Length - Body.Length)] + body, HasBom),
+            Definition.Kind, Definition.Source, Definition.OwnedInstructionName!);
+    }
+
     public static ArtifactFileDocument PrepareOwnedSave(ArtifactKind kind, string name,
         OwnedInstructionSnapshot? original, string draft)
     {
@@ -173,6 +182,10 @@ public sealed partial class ArtifactFileDocument
                 OwnedInstructionName = kind is ArtifactKind.Instruction or ArtifactKind.Prompt && string.Equals(source, "kora-profile", StringComparison.Ordinal) ? fileCommand : null,
                 RequiresInstructionReview = kind is ArtifactKind.Instruction or ArtifactKind.Prompt && metadata.ContainsKey("kora-format"),
                 PromptTemplate = nativeParameters ? OwnedPromptTemplate.Parse(content) : null,
+                DeclaredInstructionReferences = kind == ArtifactKind.Agent
+                    && metadata.GetValueOrDefault("kora-agent-format") is "2" or "4"
+                    ? metadata.GetValueOrDefault("references", string.Empty).Split(',',
+                        StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) : [],
             };
             var document = new ArtifactFileDocument(original.ToArray(), text, bom, metadata, definition, bodyOffset);
             if (nativeParameters)

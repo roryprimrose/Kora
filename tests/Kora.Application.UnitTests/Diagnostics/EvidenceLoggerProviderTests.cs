@@ -17,6 +17,60 @@ namespace Kora.Application.UnitTests.Diagnostics;
 public sealed class EvidenceLoggerProviderTests
 {
     [Fact]
+    public void Thrown_exception_captures_safe_signature_without_rendering_private_content()
+    {
+        var sink = new RecordingSink();
+        using var provider = new EvidenceLoggerProvider([sink], sink);
+        using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem),
+            HostActivityLayer.Application, HostOperation.Request);
+        var exception = CaptureReportException(0);
+        exception.Data["private-key"] = "private-value";
+        provider.CreateLogger("fixture").Log(LogLevel.Error, new EventId(42), State(), exception,
+            static (_, _) => throw new InvalidOperationException("Formatter must not run."));
+        var row = sink.Diagnostics.Should().ContainSingle().Which;
+        row.ExceptionType.Should().Be(typeof(IOException).FullName);
+        row.ExceptionReport.Should().Be(ExceptionReportSignature.Capture(exception));
+        row.ExceptionReport!.Validate();
+        JsonSerializer.Serialize(row).Should().NotContain("private").And.NotContain(".cs")
+            .And.NotContain(":line").And.NotContain("Version=");
+        sink.Gaps.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Unavailable_exception_report_does_not_drop_or_fail_ordinary_diagnostics(bool oversized)
+    {
+        var sink = new RecordingSink();
+        using var provider = new EvidenceLoggerProvider([sink], sink);
+        using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem),
+            HostActivityLayer.Application, HostOperation.Request);
+        var exception = oversized ? CaptureReportException(80) : new IOException("private");
+        provider.CreateLogger("fixture").Log(LogLevel.Error, new EventId(42), State(), exception,
+            static (_, _) => throw new InvalidOperationException("Formatter must not run."));
+        var row = sink.Diagnostics.Should().ContainSingle().Which;
+        row.ExceptionType.Should().Be(typeof(IOException).FullName);
+        row.ExceptionReport.Should().BeNull();
+        row.MessageTemplate.Should().Be("Fixture {Count}.");
+        sink.Gaps.Should().BeEmpty();
+    }
+
+    private static Exception CaptureReportException(int depth)
+    {
+        try { ThrowReportException(depth); }
+        catch (IOException exception) { return exception; }
+        throw new UnreachableException();
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static void ThrowReportException(int depth)
+    {
+        if (depth == 0) { throw new IOException("private-message"); }
+        ThrowReportException(depth - 1);
+        GC.KeepAlive(depth);
+    }
+
+    [Fact]
     public void Activity_callback_captured_before_disposal_cannot_write_after_storage_is_released()
     {
         var sink = new RecordingSink();

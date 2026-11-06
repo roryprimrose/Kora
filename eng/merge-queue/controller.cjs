@@ -1,10 +1,14 @@
 const { randomUUID } = require('node:crypto');
-const { CHECKS, GATE, JOBS, MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS, invariant, validateState,
+const { CHECKS, GATE, UNIT_PR_JOBS, PARALLEL_PR_JOBS, MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS, DISPATCH_OBSERVATION_MS, invariant, validateState,
   ready, readinessIssue, priority, matchingRuns, requiredJobsState, terminalJobs } = require('./policy.cjs');
 
 const MAX_CANDIDATES = 10;
 
 async function reconcile(api, options = {}) {
+  const { profile } = require('./batch-policy.cjs');
+  invariant(!api.independent || profile(options.profile) === 'batch-v1',
+    'Independent delivery requires the batch profile.');
+  if (profile(options.profile) === 'batch-v1') return require('./batch.cjs').reconcileBatch(api, options);
   api.info(`Starting reconciliation for ${api.repository}; verifying required queue App checks and branch protection.`);
   const result = await reconcileOnce(api, options);
   let continuation = result;
@@ -26,6 +30,7 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
   await api.verifyProtection();
   api.info('Required queue App checks and strict administrator-enforced branch protection verified.');
   const state = validateState(await api.load());
+  invariant(state.version === 1, 'The legacy profile cannot consume v2 batch state; explicit idle rollback is required.');
   api.info(`Loaded queue state: ${state.active ? `active PR #${state.active.number} (${state.active.phase})` : 'no active candidate'}; ${state.blocked.length} blocked revision(s).`);
   const base = await api.main();
   api.info(`Current main: ${base}; listing open PRs targeting main.`);
@@ -42,10 +47,17 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
   api.info(`Blocked revisions retained: ${state.blocked.length}; obsolete records removed: ${blockedCount - state.blocked.length}.`);
 
   async function persist() { validateState(state); await api.save(state); }
-  async function complete(active, conclusion, message, jobs = []) {
+  async function complete(active, conclusion, message, jobs = [], expected = null) {
     api.info(`PR #${active.number}: completing candidate checks (${conclusion}); ${message}`);
     for (const name of [...CHECKS, GATE]) {
       if (!active.checks[name]) active.checks[name] = await api.createCheck(active, name);
+      if (name === CHECKS[1] && Array.isArray(expected)
+        && [UNIT_PR_JOBS, PARALLEL_PR_JOBS].some(inventory => expected.length === inventory.length
+          && inventory.every(job => expected.includes(job)))) {
+        await api.finishCheck(active.checks[name], 'neutral',
+          'Windows integration tests were not selected for this candidate; full Windows validation runs on main.');
+        continue;
+      }
       await api.finishCheck(active.checks[name], name === GATE ? conclusion
         : jobs.find(job => job.name === name)?.conclusion === 'success' ? 'success' : conclusion, message);
     }
@@ -106,7 +118,20 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
       'Duplicate candidate job identities; refusing partial or repeated pagination.');
     return jobs;
   }
-  async function quiescent(active, runs, observedJobs) {
+  const inventories = new Map();
+  async function expectedInventory(active, run) {
+    if (run.head_sha !== active.base) {
+      api.notice('Candidate workflow source differs from its reservation; physical quiescence is unknown.');
+      return null;
+    }
+    if (!inventories.has(active.base)) inventories.set(active.base, await api.expectedJobs(active.base));
+    return inventories.get(active.base);
+  }
+  async function quiescent(active, runs, observed) {
+    invariant(runs.every(run => Number.isSafeInteger(run.id) && run.id > 0
+      && run.head_sha === active.base && run.run_attempt === 1)
+      && new Set(runs.map(run => run.id)).size === runs.length,
+    'Candidate cancellation source, attempt or run identity changed; lane held.');
     for (const run of runs.filter(run => run.status !== 'completed')) {
       api.info(`PR #${active.number}: requesting cancellation of matching run ${run.id} (${run.status}).`);
       await api.cancel(run.id);
@@ -118,15 +143,19 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
     // An eventually consistent run listing cannot prove a recorded dispatch is quiescent.
     if (runs.length === 0 && active.dispatchRecorded) {
       api.info(`PR #${active.number}: recorded dispatch has no observable matching run; lane held, not assumed quiescent.`);
-      if (now - Date.parse(active.created) >= 10 * 60_000)
+      if (now - Date.parse(active.created) >= DISPATCH_OBSERVATION_MS)
         api.notice('Candidate dispatch has no observable run. The lane remains held pending cancellation or reviewed state repair.');
       return false;
     }
     let terminal = true;
     for (const run of runs) {
-      const jobs = observedJobs ?? await observeJobs(run);
-      if (!terminalJobs(jobs)) {
-        api.info(`PR #${active.number}: run ${run.id} is completed but job metadata is incomplete; requesting cancellation and retaining the lane.`);
+      const jobs = observed?.runId === run.id ? observed.jobs : await observeJobs(run);
+      const expected = observed?.runId === run.id ? observed.expected : await expectedInventory(active, run);
+      const rejected = Array.isArray(expected) && !terminalJobs(jobs, expected)
+        && await api.rejectedAdmission(active.base, run, jobs);
+      if (rejected) api.info(`PR #${active.number}: run ${run.id} rejected admission or preflight before producer fanout; exact terminal skipped-job plan verified.`);
+      if (!terminalJobs(jobs, expected) && !rejected) {
+        api.info(`PR #${active.number}: run ${run.id} is completed but workflow inventory or job metadata is incomplete; requesting cancellation and retaining the lane.`);
         await api.cancel(run.id);
         terminal = false;
       }
@@ -192,7 +221,7 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
         return unconfirmedMerge(active,
           'Merge outcome is unconfirmed and candidate validation is not observable. The lane remains held; no automatic merge retry.');
       }
-      if (now - Date.parse(active.created) > 10 * 60_000) {
+      if (now - Date.parse(active.created) > DISPATCH_OBSERVATION_MS) {
         const message = 'No candidate workflow appeared after dispatch. The lane remains held pending cancellation or reviewed state repair.';
         active.phase = 'retiring';
         state.blocked.push({ number: active.number, head: active.head, enrollment: active.enrollment, reason: message });
@@ -209,6 +238,17 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
     api.info(`PR #${active.number}: matching run ${run.id}; status ${run.status}; conclusion ${run.conclusion ?? 'pending'}; attempt ${run.run_attempt}.`);
     invariant(run.head_sha === active.base && run.run_attempt === 1,
       'Candidate workflow source or attempt changed; refusing merge authority.');
+    const jobs = await observeJobs(run);
+    const expected = await expectedInventory(active, run);
+    const observed = { runId: run.id, jobs, expected };
+    const jobState = requiredJobsState(jobs, expected);
+    if (run.status !== 'completed' && !MERGE_PHASES.includes(active.phase)
+      && (jobState === 'failure' || !await api.reviewReady(active.number))) {
+      const terminal = await quiescent(active, runs, observed);
+      await block(active, 'Candidate required-job evidence or review authority failed; cancelling remaining owned work.',
+        !terminal);
+      return terminal ? 'blocked' : 'retiring';
+    }
     if (run.status !== 'completed') {
       if (MERGE_PHASES.includes(active.phase)) {
         return unconfirmedMerge(active,
@@ -216,28 +256,28 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
       }
       return 'validating';
     }
-    const jobs = await observeJobs(run);
-    for (const name of JOBS) {
+    for (const name of expected ?? []) {
       const matches = jobs.filter(job => job.name === name);
       api.info(`Run ${run.id}: required job "${name}"; ${matches.length} match(es); conclusion(s): ${matches.map(job => job.conclusion ?? 'pending').join(', ') || 'missing'}.`);
     }
-    const jobState = requiredJobsState(jobs);
-    if (run.conclusion !== 'success' || jobState === 'failure') {
-      const terminal = await quiescent(active, runs, jobs);
-      await block(active, 'Candidate validation failed, was cancelled, or duplicated a required job.', !terminal);
+    if (expected === null || run.conclusion !== 'success' || jobState === 'failure') {
+      const terminal = await quiescent(active, runs, observed);
+      await block(active, expected === null
+        ? 'Candidate workflow inventory is unknown. Validation is not merge evidence; uncertain work retains the lane.'
+        : 'Candidate validation failed, was cancelled, or duplicated a required job.', !terminal);
       return terminal ? 'blocked' : 'retiring';
     }
     if (active.jobObservationStarted !== undefined) {
       const elapsed = now - Date.parse(active.jobObservationStarted);
       invariant(elapsed >= 0, 'Required-job observation clock moved before the recorded observation.');
       if (elapsed >= JOB_OBSERVATION_MS) {
-        const terminal = await quiescent(active, runs, jobs);
+        const terminal = await quiescent(active, runs, observed);
         await block(active,
           'Required-job metadata was not confirmed within ten minutes. Validation is not merge evidence; uncertain work retains the lane.', !terminal);
         return terminal ? 'blocked' : 'retiring';
       }
     }
-    if (jobState === 'pending' || !terminalJobs(jobs)) {
+    if (jobState === 'pending' || !terminalJobs(jobs, expected)) {
       if (MERGE_PHASES.includes(active.phase)) {
         return unconfirmedMerge(active,
           'Merge outcome is unconfirmed and required-job metadata is incomplete. The lane remains held; no automatic merge retry.');
@@ -294,7 +334,7 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
     active.mergeStarted = now.toISOString();
     await persist();
     api.info(`PR #${active.number}: exact required jobs and final head/base/enrollment/review/ancestry checks passed; merge intent persisted.`);
-    await complete(active, 'success', `Validated head ${active.head} against main ${active.base}; run ${run.id}.`, jobs);
+    await complete(active, 'success', `Validated head ${active.head} against main ${active.base}; run ${run.id}.`, jobs, expected);
     // Strict branch protection and the expected head remain authoritative across the final API race.
     api.info(`PR #${active.number}: requesting protected squash merge with expected head ${active.head}.`);
     const result = await api.merge(active);

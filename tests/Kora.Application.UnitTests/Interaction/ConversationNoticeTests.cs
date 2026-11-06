@@ -21,6 +21,52 @@ namespace Kora.Application.UnitTests.Interaction;
 [Collection("Host tracing")]
 public sealed class ConversationNoticeTests
 {
+    [Theory]
+    [InlineData(2)]
+    [InlineData(20)]
+    public async Task RealSourceDelayedDeferUsesFreshActionTimeWithoutChangingTaskAuthority(int delayMinutes)
+    {
+        using var f = new Fixture();
+        await using var broker = f.Broker();
+        var target = (await f.Observe(broker)).Events.Single().Event;
+        var work = f.Current;
+        f.OnCurrent = () => f.Time.Now = target.ObservedAt.AddMinutes(delayMinutes);
+
+        var result = await broker.ExecuteAsync(new(LocalEventOperation.Defer, target.Id, target.Revision),
+            RequestOrigin.LocalUi, () => true, f.Token);
+
+        result.Reason.Should().Be(LocalEventReason.Deferred);
+        result.DeferredUntil.Should().Be(delayMinutes == 2 ? f.Time.Now.AddMinutes(15) : target.ExpiresAt);
+        result.Event.ExpiresAt.Should().Be(target.ExpiresAt);
+        f.Saved!.Receipts.Single().ChangedAt.Should().Be(f.Time.Now);
+        f.Saved.Budgets.Single().Count.Should().Be(1);
+        f.Current.Should().Be(work);
+        f.Current.Tasks.Single().CurrentSource.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RealSourceRollbackDuringActionCannotCommitSuppressionAndRecoversWithoutReplay()
+    {
+        using var f = new Fixture();
+        f.Time.Now = f.Time.Now.AddMinutes(5);
+        await using var broker = f.Broker();
+        var target = (await f.Observe(broker)).Events.Single().Event;
+        var saved = LocalEventBrokerState.Serialize(f.Saved!);
+        var work = f.Current;
+        f.OnCurrent = () => f.Time.Now = target.ObservedAt.AddTicks(-1);
+
+        var result = await broker.ExecuteAsync(new(LocalEventOperation.Dismiss, target.Id, target.Revision),
+            RequestOrigin.LocalUi, () => true, f.Token);
+
+        result.Reason.Should().Be(LocalEventReason.ClockRollback);
+        LocalEventBrokerState.Serialize(f.Saved!).Should().Be(saved);
+        f.Current.Should().Be(work);
+        broker.IsAvailable.Should().BeTrue();
+        f.OnCurrent = null;
+        f.Time.Now = target.ObservedAt;
+        (await f.Observe(broker)).Events.Single().Reason.Should().Be(LocalEventReason.PresentedNoReplay);
+    }
+
     [Fact]
     public async Task RealAuthoritySuccessProjectionCompletesTheConsentedSpeechOperationAndKeepsPassiveVisualReceipt()
     {
@@ -79,6 +125,8 @@ public sealed class ConversationNoticeTests
 
     [Theory]
     [InlineData("valid", true)]
+    [InlineData("text", true)]
+    [InlineData("multiple-choice", true)]
     [InlineData("omitted", false)]
     [InlineData("generation", false)]
     [InlineData("request", false)]
@@ -91,7 +139,12 @@ public sealed class ConversationNoticeTests
     public void AttentionRequiresExactLiveClarificationNotModelText(string fault, bool admitted)
     {
         using var f = new Fixture();
-        f.Question();
+        f.Question(fault switch
+        {
+            "text" => QuestionKind.Text,
+            "multiple-choice" => QuestionKind.MultipleChoice,
+            _ => QuestionKind.SingleChoice,
+        });
         var question = f.Current.PendingQuestions.Single();
         var changed = fault switch
         {
@@ -100,7 +153,7 @@ public sealed class ConversationNoticeTests
             "revision" => question with { Key = question.Key.Next() },
             "status" => question with { Status = QuestionStatus.Answered },
             "channel" => question with { AnswerChannel = RequestOrigin.LocalUi },
-            "kind" => question with { Kind = QuestionKind.MultipleChoice },
+            "kind" => question with { Kind = (QuestionKind)(-1) },
             "expiry" => question with { ExpiresAt = question.ExpiresAt.AddTicks(1) },
             _ => question,
         };
@@ -232,6 +285,7 @@ public sealed class ConversationNoticeTests
         internal HostRequest Request { get; set; } = HostRequest.Create(RequestOrigin.LocalUi);
         internal SessionWorkSnapshot Current { get; set; } = null!;
         internal LocalEventBrokerState? Saved { get; private set; }
+        internal Action? OnCurrent { get; set; }
         internal CancellationToken Token => TestContext.Current.CancellationToken;
         public bool CanInspect => CanControl;
         public bool CanControl { get; set; } = true;
@@ -242,14 +296,14 @@ public sealed class ConversationNoticeTests
             { ConversationNotice = new(Request, new(1), 3, new(Guid.NewGuid()), Time.Now, outcome, ModelTurnReason.ProviderOutcome, null, null) };
             Current = Snapshot(task);
         }
-        internal void Question()
+        internal void Question(QuestionKind kind = QuestionKind.SingleChoice)
         {
             var key = new HostQuestionKey(Request, new(Guid.NewGuid()), new(1));
             var task = new HostTaskObservation(new(Request, new(2), HostTaskState.DispatchRecorded), new(1),
                 ConversationNoticeAuthority.Source, true, null)
             { ConversationNotice = new(Request, new(1), 2, new(Guid.NewGuid()), Time.Now, null, null, key, Time.Now.AddSeconds(15)) };
             Current = Snapshot(task) with { PendingQuestions = [new(key, new(1), QuestionStatus.Pending,
-                QuestionKind.SingleChoice, null, Time.Now.AddSeconds(15))] };
+                kind, null, Time.Now.AddSeconds(15))] };
         }
         private SessionWorkSnapshot Snapshot(HostTaskObservation task) =>
             new(new(new(Request.SessionId, new(1), true), null), 1, Time.Now, new(Request.SessionId, new(1), 0, []),
@@ -259,7 +313,11 @@ public sealed class ConversationNoticeTests
         public ValueTask<SessionWorkSnapshot> ReadWorkAsync(HostId<SessionIdentity> session, long revision, SessionQueueLimits limits, CancellationToken token) =>
             ValueTask.FromResult(Current);
         public ValueTask<T> WithCurrentWorkAsync<T>(HostId<SessionIdentity> session, long revision, SessionQueueLimits limits,
-            Func<SessionWorkSnapshot, T> observation, CancellationToken token) => ValueTask.FromResult(observation(Current));
+            Func<SessionWorkSnapshot, T> observation, CancellationToken token)
+        {
+            OnCurrent?.Invoke();
+            return ValueTask.FromResult(observation(Current));
+        }
         public LocalEventBrokerState? Load() => Saved;
         public void Save(LocalEventBrokerState state) { state.Validate(); Saved = state; }
         public void BeginWrite() { }

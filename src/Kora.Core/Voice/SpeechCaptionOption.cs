@@ -4,4 +4,5 @@ public enum SpeechCaptionOption
 {
     Placement,
     DismissalDelay,
+    WordEmphasis,
 }

@@ -64,5 +64,37 @@ public sealed class OwnedSkillAuthoringGuideTests
             .And.Contain("complete generated manifest and guidance")
             .And.Contain("no-overwrite")
             .And.Contain("unqualified");
+        guide.Markdown.Should().Contain("owned skill format markdown-package")
+            .And.Contain("owned skill reference references\\guide.md:")
+            .And.Contain("owned skill remove-reference rubric.md")
+            .And.Contain("owned skill read-references")
+            .And.Contain("added/modified/removed")
+            .And.Contain("native v5")
+            .And.Contain("entire")
+            .And.Contain("no hosted fallback");
+        guide.Markdown.Should().Contain("owned skill rename example 1.0.0 renamed")
+            .And.Contain("owned skill recover-rename example 1.0.0")
+            .And.Contain("your new text and its unsaved-draft prompt remain intact")
+            .And.Contain("New simulated-fixture input during that refresh is also retained")
+            .And.Contain("Pending renames still count")
+            .And.Contain("recovery refuses an already over-limit inventory")
+            .And.Contain("Delete** also refuses both affected identities")
+            .And.Contain("Escape** rejects either review without renaming")
+            .And.Contain("does not undo the native rename");
+        guide.Markdown.Should().Contain("owned skill delete daily-review 1.0.0")
+            .And.Contain("Delete only this exact owned source")
+            .And.Contain("select one native v1/v2/v3/v4 saved version")
+            .And.Contain("complete JSON definition")
+            .And.Contain("Deletion never runs their observation steps")
+            .And.Contain("Native v5 Markdown packages are rejected")
+            .And.Contain("before reading reference bodies")
+            .And.Contain("does not physically cancel immutable admitted tasks")
+            .And.Contain("absence readback")
+            .And.Contain("do not retry or recreate")
+            .And.Contain("Retained editor text keeps its deleted-source binding")
+            .And.Contain("before model use")
+            .And.Contain("Both reviews block editor input")
+            .And.Contain("completes only after native closure")
+            .And.Contain("none approves deletion or recovery");
     }
 }

@@ -2,6 +2,8 @@
 
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 
 using Kora.Application.Hosting;
 using Kora.Application.ViewModels;
@@ -53,6 +55,9 @@ internal sealed partial class SessionsPresentationOwner
     private void ObserveForegroundSurface(Window surface)
     {
         surface.PropertyChanged += OnForegroundSurfaceChanged;
+        surface.AddHandler(InputElement.PointerPressedEvent, OnDetailsSourceInteraction, RoutingStrategies.Tunnel, handledEventsToo: true);
+        surface.AddHandler(InputElement.KeyDownEvent, OnDetailsSourceInteraction, RoutingStrategies.Tunnel, handledEventsToo: true);
+        surface.AddHandler(InputElement.PointerWheelChangedEvent, OnDetailsSourceInteraction, RoutingStrategies.Tunnel, handledEventsToo: true);
         if (surface is ResponseWindow response) { response.SessionView.PropertyChanged += OnForegroundSurfaceChanged; }
         RequestPanel(surface)?.Bind(requestCommands);
         UpdateForegroundTarget();
@@ -63,6 +68,9 @@ internal sealed partial class SessionsPresentationOwner
         Volatile.Write(ref uniqueForegroundWindow, 0);
         Interlocked.Increment(ref foregroundSourceRevision);
         surface.PropertyChanged -= OnForegroundSurfaceChanged;
+        surface.RemoveHandler(InputElement.PointerPressedEvent, OnDetailsSourceInteraction);
+        surface.RemoveHandler(InputElement.KeyDownEvent, OnDetailsSourceInteraction);
+        surface.RemoveHandler(InputElement.PointerWheelChangedEvent, OnDetailsSourceInteraction);
         if (surface is ResponseWindow response) { response.SessionView.PropertyChanged -= OnForegroundSurfaceChanged; }
         RequestPanel(surface)?.Bind(null);
         RetireForegroundTarget();
@@ -75,10 +83,11 @@ internal sealed partial class SessionsPresentationOwner
     private void OnForegroundSurfaceChanged(object? sender, AvaloniaPropertyChangedEventArgs args)
     {
         if (args.Property == Window.IsActiveProperty || args.Property == Visual.IsVisibleProperty)
-        { Interlocked.Increment(ref foregroundSourceRevision); UpdateForegroundTarget(); }
+        { Interlocked.Increment(ref foregroundSourceRevision); UpdateForegroundTarget(); requestCommands?.RevalidateDetailsOffer(); }
     }
 
-    private void OnForegroundModelChanged(object? sender, PropertyChangedEventArgs args) => UpdateForegroundTarget();
+    private void OnForegroundModelChanged(object? sender, PropertyChangedEventArgs args)
+    { UpdateForegroundTarget(); requestCommands?.RevalidateDetailsOffer(); }
 
     private void RetireForegroundTarget()
     {

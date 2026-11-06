@@ -27,6 +27,13 @@ internal sealed partial class SessionsPresentationOwner
     {
         try
         {
+            if (requestCommands is not null)
+            {
+                requestCommands.RetireDetailsOffer();
+#pragma warning disable VSTHRD003 // Joins only the exact presentation operation owned by this native surface.
+                await requestCommands.DetailsOfferOperation;
+#pragma warning restore VSTHRD003
+            }
             foreach (var panel in surfaces.Select(RequestPanel).OfType<SessionRequestReviewPanel>().ToArray())
             {
 #pragma warning disable VSTHRD003 // Join this owner's exact native request operation before voluntary shutdown.
@@ -104,6 +111,7 @@ internal sealed partial class SessionsPresentationOwner
     {
         if (revoked) { return; }
         revoked = true;
+        requestCommands?.RetireDetailsOffer();
         Volatile.Write(ref uniqueForegroundWindow, 0);
         draftDialog?.Close();
         model.Close();

@@ -12,7 +12,7 @@ public sealed partial class MainViewModel
     private PendingClearInput? pendingClearInput;
     private ConversationPendingClearSnapshot? pendingClearSnapshot;
     public bool HasPendingClearReview => pendingClearSnapshot is not null;
-    public bool HasSessionOperationReview => HasPendingClearReview || HasForegroundRequestReview;
+    public bool HasSessionOperationReview => HasPendingClearReview || HasForegroundRequestReview || HasDetailsQuestion;
     public string PendingClearReviewText => pendingClearSnapshot is { } snapshot
         ? Encoding.UTF8.GetString(SessionCommandResult.Serialize(
             new("review", Kora.Application.Hosting.SessionConversationService.PendingClearImpact) { PendingClearReview = snapshot }))
@@ -42,7 +42,8 @@ public sealed partial class MainViewModel
             try
             {
                 var command = new SessionCommand(confirm ? SessionCommandOperation.PendingClearConfirm : SessionCommandOperation.PendingClearCancel,
-                    snapshot.Session.Value) { PendingClearReviewId = snapshot.Id };
+                    snapshot.Session.Value)
+                { PendingClearReviewId = snapshot.Id };
                 var result = await (sessionRequests ?? throw new InvalidOperationException("The canonical ordinary pending-clear service is unavailable."))
                     .ExecuteAsync(command, snapshot.Origin, Current, CancellationToken.None);
                 if (Current()) { ShowInformation("Pending-only clear " + result.Outcome + ".", Encoding.UTF8.GetString(SessionCommandResult.Serialize(result))); }

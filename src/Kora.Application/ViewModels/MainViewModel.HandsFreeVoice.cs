@@ -61,7 +61,11 @@ public sealed partial class MainViewModel
         }, () => IsReviewedVoiceCaptureReleased && !IsBusy && !IsSpeaking && !textToSpeech.IsSpeaking
             && promptInputVoice?.IsActive != true && composerDictation?.IsActive != true
             && questionVoiceReplies?.IsActive != true,
-            _ => CaptureCustomizationVoice(Volatile.Read(ref customizationVoiceTarget)), GetRecognitionPhrases);
+            _ =>
+            {
+                CaptureCustomizationVoice(Volatile.Read(ref customizationVoiceTarget));
+                CaptureDetailsReply(CurrentDetailsOffer?.Key);
+            }, GetRecognitionPhrases);
         handsFreeVoice = handsFree;
         handsFree.Changed += OnHandsFreeVoiceStateChanged;
     }

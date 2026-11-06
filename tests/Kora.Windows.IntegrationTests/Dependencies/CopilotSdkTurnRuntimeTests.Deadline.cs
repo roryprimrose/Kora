@@ -53,8 +53,7 @@ public sealed partial class CopilotSdkTurnRuntimeTests
         clock.Advance(TimeSpan.FromSeconds(61));
         if (cancel) { await cancellation.CancelAsync(); }
         approved.SetResult(false);
-        if (cancel) { await Assert.ThrowsAnyAsync<OperationCanceledException>(() => running); }
-        else { (await running).Should().Be(new CopilotTurnReply(ModelTurnOutcome.DeniedEgress)); }
+        (await running).Should().Be(new CopilotTurnReply(cancel ? ModelTurnOutcome.Cancelled : ModelTurnOutcome.DeniedEgress));
         fixture.Network.Sends.Should().Be(0);
         fixture.Client.Stops.Should().Be(1);
         fixture.Client.Disposals.Should().Be(1);

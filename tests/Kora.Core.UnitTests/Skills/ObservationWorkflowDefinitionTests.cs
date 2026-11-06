@@ -33,7 +33,7 @@ public sealed class ObservationWorkflowDefinitionTests
         reopened.Guidance.Should().Be(source);
         reopened.RevisionDigest.Should().Be(saved.RevisionDigest);
         reopened.ObservationWorkflow!.Steps.Select(step => step.Number).Should().Equal(1, 2, 3, 4, 5, 6);
-        reopened.ObservationWorkflow.Steps.Select(step => step.Tool).Should().Equal(ReadOnlyCapabilityCatalog.Descriptors.Select(item => item.Id));
+        reopened.ObservationWorkflow.Steps.Select(step => step.Tool).Should().Equal(ReadOnlyCapabilityCatalog.Descriptors.Take(6).Select(item => item.Id));
         reopened.ObservationWorkflow.ToolDeclaration.Should().Be("capabilities.list,capabilities.get,application.get_version,readiness.get,runtime.list,runtime.get_status");
         var changed = Encoding.UTF8.GetBytes(saved.ManifestText.Replace("tools: capabilities.list,", "tools: ", StringComparison.Ordinal));
         var parse = () => OwnedDeclarativeSkillDocument.Parse(changed, saved.InstructionBytes.Span);

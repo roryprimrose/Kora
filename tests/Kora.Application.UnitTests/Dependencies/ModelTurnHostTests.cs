@@ -408,9 +408,13 @@ public sealed partial class ModelTurnHostTests : IDisposable
         else { pending.SetResult(fixture.Adapter.Reply); }
         await close;
         fixture.Host.IsQuiescent.Should().BeTrue();
-        stopped.Should().ContainSingle();
-        stopped[0].ParentId.Should().BeNull();
-        stopped[0].Links.Should().ContainSingle(link => link.Context.TraceId == root.Activity!.TraceId);
+        stopped.Should().HaveCount(2);
+        stopped.Select(activity => activity.OperationName).Should().BeEquivalentTo("runtime.request", "storage.commit");
+        foreach (var late in stopped)
+        {
+            late.ParentId.Should().BeNull();
+            late.Links.Should().ContainSingle(link => link.Context.TraceId == root.Activity!.TraceId);
+        }
         (await fixture.Host.AdmitAsync(ModelProviderSelection.OllamaCandidate, fixture.Context(), Token))
             .Result.Reason.Should().Be(ModelTurnReason.HostAdmissionClosed);
         fixture.Messages.Should().NotContain(m => m.Contains("private late", StringComparison.Ordinal));

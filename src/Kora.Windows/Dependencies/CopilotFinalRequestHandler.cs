@@ -18,8 +18,10 @@ internal sealed class CopilotFinalRequestHandler : CopilotRequestHandler
     private readonly CancellationToken turnToken;
     private int denied;
     private int successfulTransmission;
+    private int modelCalls;
     internal bool Denied => Volatile.Read(ref denied) != 0;
     internal bool HasSuccessfulTransmission => Volatile.Read(ref successfulTransmission) != 0;
+    internal int ModelCalls => Volatile.Read(ref modelCalls);
 
     internal CopilotFinalRequestHandler(HttpClient http, ModelTurnProvenance provenance, ProviderProfileTuple profile,
         string sessionId, Func<bool> live, Func<CopilotTransmission, CancellationToken, ValueTask<bool>> admit,
@@ -85,6 +87,7 @@ internal sealed class CopilotFinalRequestHandler : CopilotRequestHandler
             throw Reject();
         }
         token.ThrowIfCancellationRequested();
+        Interlocked.Increment(ref modelCalls);
         var response = await http.SendAsync(outgoing, HttpCompletionOption.ResponseContentRead, token).ConfigureAwait(false);
         if (response.IsSuccessStatusCode) { Interlocked.Exchange(ref successfulTransmission, 1); }
         return response;

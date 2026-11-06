@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using Kora.Core.Dependencies;
 
 namespace Kora.Windows.Dependencies;
 
@@ -8,7 +9,7 @@ internal static partial class OllamaToolWire
     internal sealed record AnswerWire(byte[] Terminal, int Charge);
 
     internal static async Task<AnswerWire> ReadAnswerStreamAsync(HttpContent content, string model, int limit,
-        Func<string, ValueTask> publish, CancellationToken token)
+        Func<string, ValueTask> publish, CancellationToken token, Action<ModelTokenUsage?>? observeUsage = null)
     {
         if (content.Headers.ContentLength > limit)
         { throw new InvalidDataException("The complete native stream exceeds the output budget."); }
@@ -29,6 +30,7 @@ internal static partial class OllamaToolWire
             var completed = root.ValueKind == JsonValueKind.Object
                 && root.TryGetProperty("done", out var done) && done.ValueKind == JsonValueKind.True;
             ValidateReplyEnvelope(root, model, completed);
+            if (completed) { observeUsage?.Invoke(ReadTokenUsage(root)); }
             if (completed ? !root.TryGetProperty("done_reason", out _) : root.TryGetProperty("done_reason", out _))
             { throw new InvalidDataException("The native stream has no normal terminal or has premature terminal metadata."); }
             var message = root.GetProperty("message");

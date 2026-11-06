@@ -112,6 +112,7 @@ public sealed class WindowsSqliteAuditPrefixRetentionTests
         using var f = new InteractionStorageFixture();
         await Prepare(f);
         var original = Rows(f);
+        f.DropEmptyModelUsageSchemaForLegacy();
         f.DropEmptyAuditAnchorForLegacy();
         f.Mutate("PRAGMA user_version=14;");
         f.Time.Now = f.Time.Now.AddDays(400);

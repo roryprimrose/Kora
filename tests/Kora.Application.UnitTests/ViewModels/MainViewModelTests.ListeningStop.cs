@@ -520,7 +520,7 @@ public sealed partial class MainViewModelTests
         command.SupportsModelSuggestion.Should().BeFalse();
         f.ViewModel.GrantActions.Should().NotContain(item => item.Action == BuiltInAction.DisableListening);
         f.Voice.StopCalls.Should().Be(0);
-        Kora.Core.Tools.ReadOnlyCapabilityCatalog.Descriptors.Should().HaveCount(6)
+        Kora.Core.Tools.ReadOnlyCapabilityCatalog.Descriptors.Should().HaveCount(7)
             .And.OnlyContain(descriptor => descriptor.Effect == Kora.Core.Tools.CapabilityEffect.ReadOnlyObservation);
     }
 

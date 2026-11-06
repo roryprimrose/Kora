@@ -92,6 +92,7 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
             running = completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
         var completed = false;
+        ModelTokenUsage? tokenUsage = null;
         try
         {
             var current = HostActivity.Current;
@@ -100,7 +101,7 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
             { return Finish(request, ModelTurnOutcome.Denied); }
             using var activity = HostActivity.BeginChild(HostActivityLayer.Windows, HostOperation.Runtime);
             ModelToolTransportReply reply;
-            try { reply = await ExchangeAsync(request, publish, cancellationToken).ConfigureAwait(false); }
+            try { reply = await ExchangeAsync(request, publish, usage => tokenUsage = usage, cancellationToken).ConfigureAwait(false); }
             catch (InvalidDataException) { reply = Finish(request, ModelTurnOutcome.Denied); }
             catch (OperationCanceledException) { reply = Finish(request, ModelTurnOutcome.Unknown); }
             catch (Exception exception) when (exception is HttpRequestException or IOException)
@@ -108,7 +109,7 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
             activity.Complete(reply.Outcome == ModelTurnOutcome.Succeeded ? HostOperationOutcome.Completed
                 : reply.Outcome == ModelTurnOutcome.Cancelled ? HostOperationOutcome.Cancelled : HostOperationOutcome.Failed);
             completed = true;
-            return reply;
+            return reply with { TokenUsage = tokenUsage };
         }
         finally
         {
@@ -123,7 +124,8 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
     }
 
     private async Task<ModelToolTransportReply> ExchangeAsync(ModelToolRequest request,
-        Func<ModelAnswerUpdate, CancellationToken, ValueTask>? publish, CancellationToken callerToken)
+        Func<ModelAnswerUpdate, CancellationToken, ValueTask>? publish, Action<ModelTokenUsage?> observeUsage,
+        CancellationToken callerToken)
     {
         // Reuse the producer's complete history, provenance, catalogue and byte policy.
         ModelToolProtocol.CreateRequest(request.Provenance, request.Profile, request.Context, request.Messages,
@@ -195,8 +197,9 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
                     if (!await ObserveAsync(request, linked.Token).ConfigureAwait(false))
                     { throw new InvalidDataException("Native stream admission changed before publication."); }
                     await publish!(new(request.Provenance, answer), linked.Token).ConfigureAwait(false);
-                }, linked.Token).ConfigureAwait(false)
+                }, linked.Token, observeUsage).ConfigureAwait(false)
                 : new OllamaToolWire.AnswerWire(await ReadBoundedAsync(response.Content, outputLimit, linked.Token).ConfigureAwait(false), 0);
+            observeUsage(OllamaToolWire.ReadTokenUsage(wire.Terminal, selected.Model));
             var parsed = OllamaToolWire.ReadReply(wire.Terminal, selected.Model, request.Round, request.ClarificationAllowed,
                 request.Context.McpTool, request.Context.ToolMode);
             var outputCharge = Math.Max(Math.Max(wire.Terminal.Length, wire.Charge), ModelToolProtocol.SerializeMessage(parsed.Message).Length);

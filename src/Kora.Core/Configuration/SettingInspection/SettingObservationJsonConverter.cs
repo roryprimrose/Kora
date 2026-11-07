@@ -28,7 +28,7 @@ public sealed class SettingObservationJsonConverter : JsonConverter<SettingObser
         {
             if (scalar.ValueKind != JsonValueKind.Number)
             { throw new JsonException("A setting scalar must be a JSON number."); }
-            if (wire.Setting is RegisteredSetting.CommandStartWait or RegisteredSetting.ReplyStartWait or RegisteredSetting.TrailingSilence)
+            if (wire.Setting is RegisteredSetting.CommandStartWait or RegisteredSetting.ReplyStartWait or RegisteredSetting.TrailingSilence or RegisteredSetting.MaximumCapture)
             {
                 var timing = VoiceCaptureTiming.Default.With(RegisteredSettingRegistry.Get(wire.Setting).Id, scalar.GetRawText());
                 observation = new(wire.Setting, timing, wire.IsSaved, wire.Revision);

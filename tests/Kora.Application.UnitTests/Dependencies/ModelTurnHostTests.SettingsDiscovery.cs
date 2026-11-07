@@ -39,6 +39,7 @@ public sealed partial class ModelTurnHostTests
                 new(RegisteredSetting.ReplyStartWait, VoiceCaptureTiming.Default, false, 1),
                 new(RegisteredSetting.TrailingSilence, VoiceCaptureTiming.Default, false, 1),
                 new(SpeechSelection.Default, false, 1),
+                new(RegisteredSetting.MaximumCapture, VoiceCaptureTiming.Default, false, 1),
             ], "What controls summaries?", f.Request, f.Time.Now, mode);
         f.Request = review.Destination;
         f.Session = new(f.Request.SessionId, new(1), true);

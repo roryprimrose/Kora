@@ -46,10 +46,10 @@ public sealed class VoiceCaptureTimingUiTests
                     string.Equals(ControlAutomationPeer.CreatePeerForElement(control)!.GetName(), "Capture timing in seconds", StringComparison.Ordinal));
                 var selector = descendants.OfType<ComboBox>().Single(control =>
                     string.Equals(ControlAutomationPeer.CreatePeerForElement(control)!.GetName(), "Capture timing option", StringComparison.Ordinal));
-                selector.SelectedItem = VoiceCaptureTiming.TrailingSilenceId;
-                editor.Text = "2";
-                fixture.Main.SelectedVoiceTimingOption.Should().Be(VoiceCaptureTiming.TrailingSilenceId);
-                fixture.Main.VoiceTimingSeconds.Should().Be("2");
+                selector.SelectedItem = VoiceCaptureTiming.MaximumCaptureId;
+                editor.Text = "40";
+                fixture.Main.SelectedVoiceTimingOption.Should().Be(VoiceCaptureTiming.MaximumCaptureId);
+                fixture.Main.VoiceTimingSeconds.Should().Be("40");
                 var buttons = descendants.OfType<Button>().ToArray();
                 Button Find(string name) => buttons.Single(button => string.Equals(button.Content as string, name, StringComparison.Ordinal));
                 Find("Review capture timing").IsEnabled.Should().BeTrue();
@@ -63,8 +63,13 @@ public sealed class VoiceCaptureTimingUiTests
                 await ((AsyncCommand)Find("Confirm capture timing").Command!).ExecuteAsync();
                 Dispatcher.UIThread.RunJobs();
                 fixture.Main.ResponseTitle.Should().Be("Capture timing saved.", fixture.Main.ResponseBody);
-                preferences.Load().Should().Be(new VoiceCaptureTiming(5, 15, 2));
+                preferences.Load().Should().Be(new VoiceCaptureTiming(5, 15, 1, 40));
                 new LocalVoiceCaptureTimingPreferences(fixture).Load().Should().Be(preferences.Load());
+                await ((AsyncCommand)Find("Review reset capture timing").Command!).ExecuteAsync();
+                preferences.Load().Should().Be(new VoiceCaptureTiming(5, 15, 1, 40));
+                fixture.Main.VoiceTimingReviewStatus.Should().Contain("maximum capture 60 s");
+                await ((AsyncCommand)Find("Confirm capture timing").Command!).ExecuteAsync();
+                preferences.Load().Should().Be(VoiceCaptureTiming.Default);
                 fixture.Voice.StartCalls.Should().Be(0);
                 fixture.Main.HasVoiceConsent.Should().BeFalse();
             }

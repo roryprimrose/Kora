@@ -197,6 +197,7 @@ public sealed partial class WindowsVoiceRecognitionService : IQuestionVoiceRecog
         var commandPhrases = phrases.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         var timing = timingSource is null ? VoiceCaptureTiming.Default : timingSource.GetTiming();
         timing.Validate();
+        var maximumCapture = timing.MaximumCapture < limits.MaximumCapture ? timing.MaximumCapture : limits.MaximumCapture;
         var speechStartWindow = isAdmitted is not null ? timing.ReplyStart
             : timingSource is not null ? timing.CommandStart : limits.EmptySpeechDeadline;
         long requestedGeneration;
@@ -314,7 +315,7 @@ public sealed partial class WindowsVoiceRecognitionService : IQuestionVoiceRecog
                 recordingStarted = false;
                 transcriptDelivered = false;
                 maximumCaptureTimer = time.CreateTimer(_ => EndBoundedCapture(requestedGeneration), null,
-                    limits.MaximumCapture, Timeout.InfiniteTimeSpan);
+                    maximumCapture, Timeout.InfiniteTimeSpan);
                 emptySpeechTimer = time.CreateTimer(_ => AbandonEmptyCapture(requestedGeneration), null,
                     speechStartWindow, Timeout.InfiniteTimeSpan);
             }

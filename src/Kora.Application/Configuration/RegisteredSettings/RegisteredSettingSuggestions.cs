@@ -18,7 +18,7 @@ public static class RegisteredSettingSuggestions
             + item.SuggestedValues
             + (item.RequiresNativeReview ? "; original local UI and separate native confirmation only)" : ")")))
         + ". All have shared device-local scope. Use 'set <exact ID> to <value>', canonical decimal integers for numeric values except exact decimal capture seconds, and true/false for booleans, "
-        + "Capture timing uses one exact voice.command-start-wait, voice.reply-start-wait or voice.trailing-silence ID. "
+        + "Capture timing uses one exact voice.command-start-wait, voice.reply-start-wait, voice.trailing-silence or voice.maximum-capture ID. "
         + "Use canonical seconds without exponent, suffix, redundant leading or fractional trailing zeros, or rounding. Native review shows the full old/new timing tuple; "
         + "separate native confirmation changes future captures only, never an in-flight capture, microphone consent or provider readiness. "
         + "or exactly 'reset <exact ID>' with no value. Only the host resolves the owner's default and saved/default result, "
@@ -86,7 +86,7 @@ public static class RegisteredSettingSuggestions
             if (descriptor.Setting != RegisteredSetting.SpeechVoice
                 && string.Equals(answer, $"reset {descriptor.Id}", StringComparison.Ordinal))
             { return new RegisteredSettingProposal.Reset(descriptor.Setting); }
-            if (descriptor.Setting is RegisteredSetting.CommandStartWait or RegisteredSetting.ReplyStartWait or RegisteredSetting.TrailingSilence
+            if (descriptor.Setting is RegisteredSetting.CommandStartWait or RegisteredSetting.ReplyStartWait or RegisteredSetting.TrailingSilence or RegisteredSetting.MaximumCapture
                 && answer.StartsWith($"set {descriptor.Id} to ", StringComparison.Ordinal))
             {
                 var text = answer[($"set {descriptor.Id} to ").Length..];
@@ -95,6 +95,7 @@ public static class RegisteredSettingSuggestions
                 {
                     RegisteredSetting.CommandStartWait => timing.CommandStartSeconds,
                     RegisteredSetting.ReplyStartWait => timing.ReplyStartSeconds,
+                    RegisteredSetting.MaximumCapture => timing.MaximumCaptureSeconds,
                     _ => timing.TrailingSilenceSeconds,
                 };
                 if (!string.Equals(text, VoiceCaptureTiming.Format(seconds), StringComparison.Ordinal))

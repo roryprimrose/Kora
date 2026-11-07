@@ -10,12 +10,14 @@ public sealed record VoiceCaptureTimingCommand(AppearanceCommandOperation Operat
 {
     public const string Syntax = "get voice.timing | set voice.command-start-wait to <2-10 seconds> | "
         + "set voice.reply-start-wait to <5-60 seconds> | set voice.trailing-silence to <0.5-3 seconds> | "
+        + "set voice.maximum-capture to <10-60 seconds> | "
         + "reset <exact timing option>. Values are decimal seconds without a suffix. Review, then confirm voice.timing or cancel voice.timing.";
     public static IReadOnlyList<string> OptionIds { get; } =
-        [VoiceCaptureTiming.CommandStartId, VoiceCaptureTiming.ReplyStartId, VoiceCaptureTiming.TrailingSilenceId];
+        [VoiceCaptureTiming.CommandStartId, VoiceCaptureTiming.ReplyStartId, VoiceCaptureTiming.TrailingSilenceId, VoiceCaptureTiming.MaximumCaptureId];
     public static IReadOnlyList<string> FixedPhrases { get; } =
         ["get voice.timing", "status voice.timing", "list voice timing settings", "confirm voice.timing", "cancel voice.timing",
-            "reset " + VoiceCaptureTiming.CommandStartId, "reset " + VoiceCaptureTiming.ReplyStartId, "reset " + VoiceCaptureTiming.TrailingSilenceId];
+            "reset " + VoiceCaptureTiming.CommandStartId, "reset " + VoiceCaptureTiming.ReplyStartId, "reset " + VoiceCaptureTiming.TrailingSilenceId,
+            "reset " + VoiceCaptureTiming.MaximumCaptureId];
 
     public static VoiceCaptureTimingCommand? Parse(string input, string assistantName)
     {

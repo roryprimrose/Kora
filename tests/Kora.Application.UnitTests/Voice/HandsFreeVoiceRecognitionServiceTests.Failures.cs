@@ -5,6 +5,7 @@ using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Voice;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Application.UnitTests.Voice;
 
@@ -247,6 +248,74 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
         logs.Events.Should().Contain(1).And.Contain(2);
         voice.Changed -= changed;
         stage.Opens.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData(10)]
+    [InlineData(40)]
+    [InlineData(60)]
+    public async Task ShorterCaptureSnapshotSurvivesPreferenceChangeAndExpiryJoinsResources(int seconds)
+    {
+        var stage = new Stage();
+        var clock = new DeadlineTimeProvider();
+        var source = new CaptureTimingSource { Timing = new(7, 20, 2, seconds) };
+        await using var voice = new HandsFreeVoiceRecognitionService(new Activated(), stage,
+            NullLogger<HandsFreeVoiceRecognitionService>.Instance, clock, source);
+        voice.Bind(() => Admission, (_, _) => throw new InvalidOperationException("No dispatch allowed."), static () => true);
+        await voice.StartHandsFreeAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var opened = await stage.NextAsync();
+        opened.Binding.Timing.Should().Be(source.Timing);
+        source.Timing = source.Timing with { MaximumCaptureSeconds = seconds == 10 ? 60 : 10 };
+        opened.HoldClose = true;
+        opened.Wake.SetResult(new(opened.Binding.Generation, 3, true));
+        await opened.CaptureStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        clock.DueTime.Should().Be(TimeSpan.FromSeconds(seconds));
+        clock.Expire();
+        try
+        {
+            await opened.CloseStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+            voice.Completion.IsCompleted.Should().BeFalse();
+            voice.IsCaptureQuiescent.Should().BeFalse();
+            stage.Opens.Should().Be(1);
+        }
+        finally { opened.ReleaseClose.TrySetResult(); }
+        await voice.Completion;
+        opened.IsQuiescent.Should().BeTrue();
+        voice.State.Should().Be(HandsFreeVoiceState.RecoveryRequired);
+        await voice.StartHandsFreeAsync(explicitRecovery: true, TestContext.Current.CancellationToken);
+        var next = await stage.NextAsync();
+        next.Binding.Timing.Should().Be(source.Timing);
+        next.Wake.SetResult(new(next.Binding.Generation, 3, true));
+        await next.CaptureStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        clock.DueTime.Should().Be(source.Timing.MaximumCapture);
+        clock.Expire();
+        await voice.Completion;
+        VoiceInputLimits.MaximumCommandDuration.Should().Be(TimeSpan.FromSeconds(60));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UnavailableOrInvalidTimingCannotOpenHandsFreeResources(bool malformed)
+    {
+        var stage = new Stage();
+        var source = new CaptureTimingSource { Unavailable = !malformed, Timing = new(5, 15, 1, 61) };
+        await using var voice = new HandsFreeVoiceRecognitionService(new Activated(), stage,
+            NullLogger<HandsFreeVoiceRecognitionService>.Instance, timingSource: source);
+        voice.Bind(() => Admission, (_, _) => Task.CompletedTask, static () => true);
+        await FluentActions.Awaiting(() => voice.StartHandsFreeAsync(cancellationToken: TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<Exception>();
+        await voice.Completion;
+        stage.Opens.Should().Be(0);
+        voice.IsCaptureQuiescent.Should().BeTrue();
+        voice.State.Should().Be(HandsFreeVoiceState.RecoveryRequired);
+    }
+
+    private sealed class CaptureTimingSource : IVoiceCaptureTimingSource
+    {
+        public VoiceCaptureTiming Timing { get; set; } = VoiceCaptureTiming.Default;
+        public bool Unavailable { get; init; }
+        public VoiceCaptureTiming GetTiming() => Unavailable ? throw new InvalidOperationException("Unconfirmed timing") : Timing;
     }
 
     [Fact]

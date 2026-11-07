@@ -17,9 +17,10 @@ public sealed class CaptureTimingObservationTests
     [InlineData(RegisteredSetting.CommandStartWait, "7.1234567")]
     [InlineData(RegisteredSetting.ReplyStartWait, "20.7654321")]
     [InlineData(RegisteredSetting.TrailingSilence, "0.5000001")]
+    [InlineData(RegisteredSetting.MaximumCapture, "40.0000001")]
     public void ValidatedTimingKeepsExactDecimalSecondsThroughReviewedToolWire(RegisteredSetting setting, string seconds)
     {
-        var timing = new VoiceCaptureTiming(7.1234567m, 20.7654321m, 0.5000001m);
+        var timing = new VoiceCaptureTiming(7.1234567m, 20.7654321m, 0.5000001m, 40.0000001m);
         var observation = new SettingObservation(setting, timing, true, long.MaxValue);
         observation.Selection.Should().BeNull();
         observation.Text.Should().Be($"{RegisteredSettingRegistry.Get(setting).Id} = {seconds} seconds (confirmed saved; matches live service)");
@@ -54,6 +55,9 @@ public sealed class CaptureTimingObservationTests
     [InlineData("ReplyStartWait", "61")]
     [InlineData("TrailingSilence", "0.50000001")]
     [InlineData("TrailingSilence", "0.500000000000000000000000000001")]
+    [InlineData("MaximumCapture", "9.9999999")]
+    [InlineData("MaximumCapture", "60.0000001")]
+    [InlineData("MaximumCapture", "40.00000001")]
     public void TimingWireCannotRoundOrBypassDomainBounds(string setting, string value)
     {
         var json = $$"""{"setting":"{{setting}}","value":{{value}},"isSaved":false,"revision":0,"text":"forged"}""";

@@ -25,7 +25,8 @@ public sealed partial class VoiceCaptureTimingConfigurationService
                 return (SettingReadAvailability.Confirmed,
                     [new(RegisteredSetting.CommandStartWait, value, observed is not null, revision),
                      new(RegisteredSetting.ReplyStartWait, value, observed is not null, revision),
-                     new(RegisteredSetting.TrailingSilence, value, observed is not null, revision)]);
+                     new(RegisteredSetting.TrailingSilence, value, observed is not null, revision),
+                     new(RegisteredSetting.MaximumCapture, value, observed is not null, revision)]);
             });
         }
     }, token);

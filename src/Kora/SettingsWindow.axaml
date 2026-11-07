@@ -621,6 +621,7 @@
                 <TextBox Text="{Binding VoiceTimingSeconds}" IsEnabled="{Binding CanReviewVoiceTiming}"
                          AutomationProperties.Name="Capture timing in seconds" />
                 <Button Content="Review capture timing" Command="{Binding ReviewVoiceTimingCommand}" IsEnabled="{Binding CanReviewVoiceTiming}" />
+                <Button Content="Review reset capture timing" Command="{Binding ResetVoiceTimingCommand}" IsEnabled="{Binding CanReviewVoiceTiming}" />
                 <TextBlock Text="{Binding VoiceTimingReviewStatus}" Classes="settings-description" TextWrapping="Wrap" />
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <Button Content="Confirm capture timing" Command="{Binding ConfirmVoiceTimingCommand}" IsEnabled="{Binding CanConfirmVoiceTiming}" />

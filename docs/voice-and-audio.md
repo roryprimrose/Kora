@@ -84,13 +84,14 @@ Only the listed chords are supported; other editing, navigation and system combi
 
 ## Speech capture timing
 
-In **Settings > Speech & audio > Speech capture timing**, select the timing option, enter decimal **seconds** using a dot, then select **Review capture timing**. Review the current/default and proposed values; choose **Confirm capture timing** or **Cancel capture timing**. No preference changes during review ([native controls](../src/Kora/SettingsWindow.axaml), [shared review](../src/Kora.Application/ViewModels/MainViewModel.VoiceCaptureTiming.cs)).
+In **Settings > Speech & audio > Speech capture timing**, select the timing option, enter decimal **seconds** using a dot, then select **Review capture timing**. Use **Review reset capture timing** to propose that option's default without changing its companions. Review the current/default and proposed values; choose **Confirm capture timing** or **Cancel capture timing**. No preference changes during review ([native controls](../src/Kora/SettingsWindow.axaml), [shared review](../src/Kora.Application/ViewModels/MainViewModel.VoiceCaptureTiming.cs)).
 
 | Exact option | Default | Supported bounds |
 | --- | --- | --- |
 | `voice.command-start-wait` | 5 seconds | 2-10 seconds |
 | `voice.reply-start-wait` | 15 seconds | 5-60 seconds |
 | `voice.trailing-silence` | 1 second | 0.5-3 seconds |
+| `voice.maximum-capture` | 60 seconds | 10-60 seconds |
 
 These are reject-only bounds, with at most seven fractional digits; values are never clamped. Each reset restores only that option, preserving its companions ([timing contract](../src/Kora.Core/Voice/VoiceCaptureTiming.cs)).
 
@@ -102,9 +103,11 @@ The host verifies the exact retained source, current session, revisions, privacy
 Review expires after 60 seconds. Cancel retires pending source checks; it does not promise rollback of a write already started.
 Unconfirmed persistence or audit remains unavailable until explicit inspection/recovery, with no automatic retry ([proposal workflow](setting-proposals.md)).
 
-Typed input and already activated voice share `get voice.timing`, `status voice.timing`, `list voice timing settings`, `set voice.command-start-wait to 7`, `set voice.reply-start-wait to 20`, or `set voice.trailing-silence to 2`. Complete review with `confirm voice.timing` or `cancel voice.timing`; use `reset` followed by one exact option for a reviewed reset ([command grammar](../src/Kora.Application/Configuration/VoiceCaptureTimingCommand.cs)).
+Typed input and already activated voice share `get voice.timing`, `status voice.timing`, `list voice timing settings`, `set voice.command-start-wait to 7`, `set voice.reply-start-wait to 20`, `set voice.trailing-silence to 2`, or `set voice.maximum-capture to 40`. Complete review with `confirm voice.timing` or `cancel voice.timing`; `reset voice.maximum-capture` proposes 60 seconds while preserving the other timing fields ([command grammar](../src/Kora.Application/Configuration/VoiceCaptureTimingCommand.cs)).
 
 Confirmed timing is device-local and applies to the **next eligible capture**. An in-flight capture retains its snapshot until closure. Replies still address only the exact live question; speech-start expiry never answers or dismisses it. The 60-second hard utterance bound, transcript cap, open/cleanup deadlines and response-window timeout are unchanged ([activated consumer](../src/Kora.Windows/Audio/WindowsVoiceRecognitionService.cs), [capture limits](../src/Kora.Windows/Audio/VoiceCaptureLimits.cs)).
+
+The maximum preference can only shorten that hard envelope: 10-60 seconds is delivered; the broader 10-120-second design target is not supported. Activated command/reply timers and the hands-free command deadline consume the admitted capture snapshot; expiry retains ownership until resource retirement joins. Independent review/permission lifetimes remain unchanged. Legacy version-1 three-field preferences retain 60 seconds without rewriting; the next confirmed save writes the four-field version-2 format. Malformed versions, fields, bounds or precision fail explicitly, never recover as defaults ([hands-free owner](../src/Kora.Application/Voice/HandsFreeVoiceRecognitionService.cs), [format](../src/Kora.Core/Voice/VoiceCaptureTiming.cs)).
 
 Saving timing never opens a microphone, enables listening or grants consent. Unsupported profiles stay unavailable, and actual installed recognizer/device readiness is checked only at capture. Original voice requests remain subject to protected-call policy, even when later viewed natively. Invalid or unconfirmed saved timing refuses new capture rather than substituting defaults; inspect the saved preference and audit before repair/restart ([admitted persistence](../src/Kora.Application/Configuration/VoiceCaptureTimingConfigurationService.cs), [factory](../src/Kora.Windows/Audio/WindowsActivatedCaptureFactory.cs)).
 

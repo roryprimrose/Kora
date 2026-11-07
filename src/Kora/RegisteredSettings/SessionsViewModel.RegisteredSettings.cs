@@ -59,7 +59,7 @@ internal sealed partial class SessionsViewModel
                 RegisteredSettingProposal.QuietHours => SettingReviewFamily.QuietHours,
                 RegisteredSettingProposal.Reset { Setting: RegisteredSetting.QuietHours } => SettingReviewFamily.QuietHours,
                 RegisteredSettingProposal.CaptureTiming => SettingReviewFamily.CaptureTiming,
-                RegisteredSettingProposal.Reset { Setting: RegisteredSetting.CommandStartWait or RegisteredSetting.ReplyStartWait or RegisteredSetting.TrailingSilence } =>
+                RegisteredSettingProposal.Reset { Setting: RegisteredSetting.CommandStartWait or RegisteredSetting.ReplyStartWait or RegisteredSetting.TrailingSilence or RegisteredSetting.MaximumCapture } =>
                     SettingReviewFamily.CaptureTiming,
                 RegisteredSettingProposal.Reset reset when reset.Descriptor.RequiresNativeReview => SettingReviewFamily.Appearance,
                 RegisteredSettingProposal.Reset { Setting: RegisteredSetting.ResponseTimeout } => SettingReviewFamily.Appearance,

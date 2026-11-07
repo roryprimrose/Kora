@@ -20,27 +20,28 @@ public sealed partial class MainViewModelTests
         await model.InitializeAsync();
         var starts = f.Voice.StartCalls;
         model.VoiceTimingStatus.Should().Contain("Default (not saved)").And.Contain("5 s").And.Contain("15 s");
-        model.SelectedVoiceTimingOption = VoiceCaptureTiming.CommandStartId;
-        model.VoiceTimingSeconds = "7";
+        model.SelectedVoiceTimingOption = VoiceCaptureTiming.MaximumCaptureId;
+        model.VoiceTimingSeconds = "40";
         model.VoiceTimingOptions.Should().Contain(model.SelectedVoiceTimingOption);
         await model.ReviewVoiceTimingCommand.ExecuteAsync();
         model.CanConfirmVoiceTiming.Should().BeTrue();
-        model.VoiceTimingReviewStatus.Should().Contain("7 s");
+        model.VoiceTimingReviewStatus.Should().Contain("maximum capture 40 s");
+        model.VoiceTimingStatus.Should().Contain("maximum capture 60 s");
         f.CaptureTimingPreferences.Writes.Should().Be(0);
         await model.ConfirmVoiceTimingCommand.ExecuteAsync();
-        f.CaptureTimingPreferences.Value.Should().Be(new VoiceCaptureTiming(7, 15, 1));
+        f.CaptureTimingPreferences.Value.Should().Be(new VoiceCaptureTiming(5, 15, 1, 40));
         model.HasVoiceTimingReview.Should().BeFalse();
         await f.RunAsync("set voice.reply-start-wait to 20");
         await f.RunAsync("confirm voice.timing");
         await f.RunAsync("Kora, set voice.trailing-silence to 2");
         await f.RunAsync("confirm voice.timing");
-        f.CaptureTimingPreferences.Value.Should().Be(new VoiceCaptureTiming(7, 20, 2));
+        f.CaptureTimingPreferences.Value.Should().Be(new VoiceCaptureTiming(5, 20, 2, 40));
         await f.RunAsync("get voice.timing");
         model.ResponseBody.Should().Contain("Saved:").And.Contain("20 s");
-        await f.RunAsync("reset voice.command-start-wait");
+        await model.ResetVoiceTimingCommand.ExecuteAsync();
         await model.CancelVoiceTimingCommand.ExecuteAsync();
-        f.CaptureTimingPreferences.Value.Should().Be(new VoiceCaptureTiming(7, 20, 2));
-        await f.RunAsync("reset voice.command-start-wait");
+        f.CaptureTimingPreferences.Value.Should().Be(new VoiceCaptureTiming(5, 20, 2, 40));
+        await f.RunAsync("reset voice.maximum-capture");
         await f.RunAsync("confirm voice.timing");
         f.CaptureTimingPreferences.Value.Should().Be(new VoiceCaptureTiming(5, 20, 2));
         f.Voice.StartCalls.Should().Be(starts);
@@ -61,11 +62,11 @@ public sealed partial class MainViewModelTests
         await using var admission = f.OutputAdmission;
         using var model = f.ViewModel;
         await model.InitializeAsync();
-        await f.RunAsync("set voice.trailing-silence to 2");
+        await f.RunAsync("set voice.maximum-capture to 40");
         if (boundary is "cancel") { await f.RunAsync("cancel voice.timing"); }
         if (boundary is "owner") { model.BindCallOwnershipGate(static () => false); }
         if (boundary is "native") { model.BindSpeechInputNativeLifetime(static () => false); }
-        if (boundary is "invalid") { await f.RunAsync("set voice.trailing-silence to 4"); await f.RunAsync("cancel voice.timing"); }
+        if (boundary is "invalid") { await f.RunAsync("set voice.maximum-capture to 61"); await f.RunAsync("cancel voice.timing"); }
         if (boundary is "call") { f.CallState.SetState(Kora.Core.Communication.CallState.Active); }
         if (boundary is "failed") { f.CaptureTimingPreferences.SaveFailure = new IOException(); }
         await model.ConfirmVoiceTimingCommand.ExecuteAsync();

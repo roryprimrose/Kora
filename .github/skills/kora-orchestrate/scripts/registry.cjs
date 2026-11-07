@@ -25,6 +25,7 @@ function overlaps(left, right) {
 
 const REFINEMENT_MARKER = 'scope-refinement:v1:';
 const AMENDMENT_MARKER = 'scope-amendment:v1:';
+const READMISSION_MARKER = 'candidate-revalidation:v1:';
 const equal = (left, right) => JSON.stringify(left) === JSON.stringify(right);
 const covers = (scopes, value) => scopes.some(s => value === s || value.startsWith(`${s}\\`));
 
@@ -197,7 +198,7 @@ function validateRefinements(state) {
   const records = [];
   const acknowledgments = new Set();
   for (const item of state.items) {
-    const amendments = state.version === 3 ? item.scopeAmendments : [];
+    const amendments = state.version >= 3 ? item.scopeAmendments : [];
     requireValue(Array.isArray(amendments), 'Mutable amendment history missing.');
     requireValue(Number.isSafeInteger(item.scopeRevision) && item.scopeRevision >= 0 &&
       Array.isArray(item.scopeHistory) && item.scopeRevision === item.scopeHistory.length + amendments.length &&
@@ -224,7 +225,7 @@ function validateRefinements(state) {
 
 function validateAmendments(state) {
   const markers = state.seen.filter(id => id.startsWith(AMENDMENT_MARKER));
-  if (state.version !== 3) {
+  if (state.version < 3) {
     requireValue(!Object.hasOwn(state, 'amendments') && markers.length === 0 &&
       state.items.every(item => !Object.hasOwn(item, 'scopeAmendments')),
     'Mutable amendment schema downgrade or omission.');
@@ -255,8 +256,85 @@ function validateAmendments(state) {
   'Mutable amendment index/history/event binding missing or inconsistent.');
 }
 
+function unownedCandidate(item) {
+  return item.phase === 'candidate' && item.owner === null && item.publication === null &&
+    !Object.hasOwn(item, 'cleanup') && (item.scopeRevision ?? 0) === 0 &&
+    (item.sourceWritesRetired ?? false) === false &&
+    (item.scopeHistory ?? []).length === 0 && (item.scopeAmendments ?? []).length === 0;
+}
+
+function validateReadmissionEvent(event) {
+  fields(event, 'id type owner pass key expectedItemDigest head scopes evidence manifestComplete');
+  requireValue(text(event.id) && event.type === 'revalidate-candidate' && text(event.owner) &&
+    text(event.key) && Number.isSafeInteger(event.pass) && event.pass > 0 &&
+    /^[0-9a-f]{64}$/.test(event.expectedItemDigest) && head(event.head) &&
+    text(event.evidence) && event.manifestComplete === true,
+  'Complete current candidate revalidation evidence required.');
+  canonicalPaths(event.scopes, true);
+}
+
+function validateReadmissions(state) {
+  const markers = state.seen.filter(id => id.startsWith(READMISSION_MARKER));
+  if (state.version < 4) {
+    requireValue(!Object.hasOwn(state, 'readmissions') && markers.length === 0 &&
+      state.items.every(item => !Object.hasOwn(item, 'admissionHistory')),
+    'Candidate revalidation schema downgrade or omission.');
+    return;
+  }
+  requireValue(Array.isArray(state.readmissions), 'Candidate revalidation index missing.');
+  const records = [];
+  for (const item of state.items) {
+    requireValue(Array.isArray(item.admissionHistory), 'Candidate revalidation history missing.');
+    let previous = null;
+    for (const [index, record] of item.admissionHistory.entries()) {
+      fields(record, 'event before fromVersion');
+      const { event, before, fromVersion } = record;
+      validateReadmissionEvent(event);
+      requireValue([1, 2, 3, 4].includes(fromVersion) && (index === 0 || fromVersion === 4),
+        'Invalid candidate revalidation source schema.');
+      fields(before, `key outcome pool kind head scopes evidence pr owner phase blocker publication${
+        fromVersion >= 2 ? ' scopeRevision scopeHistory sourceWritesRetired' : ''}${
+        fromVersion >= 3 ? ' scopeAmendments' : ''}`);
+      requireValue(unownedCandidate(before) && before.key === item.key && event.key === item.key &&
+        ['outcome', 'pool', 'kind'].every(key => before[key] === item[key]) &&
+        (before.pr === item.pr || before.pr === null && !['candidate', 'reserved'].includes(item.phase)) &&
+        head(before.head) && text(before.evidence), 'Revalidation changed candidate identity or source authority.');
+      canonicalPaths(before.scopes, true);
+      requireValue(before.scopes.every(value => covers(event.scopes, value)),
+        'Complete candidate manifest must retain every original scope.');
+      const completeBefore = fromVersion === 4
+        ? { ...before, admissionHistory: item.admissionHistory.slice(0, index) } : before;
+      requireValue(event.expectedItemDigest === digest(completeBefore) &&
+        state.seen.includes(event.id), 'Candidate revalidation old-item digest/event mismatch.');
+      if (previous) {
+        requireValue(before.head === previous.event.head && before.evidence === previous.event.evidence &&
+          equal(before.scopes, previous.event.scopes) &&
+          before.blocker === previous.before.blocker && before.pr === previous.before.pr,
+        'Candidate revalidation history is inconsistent.');
+      }
+      requireValue(before.head !== event.head || before.evidence !== event.evidence ||
+        !equal(before.scopes, event.scopes), 'Candidate revalidation cannot be a no-op.');
+      records.push({ key: item.key, eventId: event.id, digest: digest(record) });
+      previous = record;
+    }
+    if (previous) {
+      const originalScopes = item.scopeAmendments[0]?.proof.fromScopes ??
+        item.scopeHistory[0]?.proof.fromScopes ?? item.scopes;
+      requireValue(item.head === previous.event.head && item.evidence === previous.event.evidence &&
+        equal(originalScopes, previous.event.scopes) &&
+        (item.phase !== 'candidate' || item.blocker === previous.before.blocker),
+      'Current candidate admission disagrees with revalidation history.');
+    }
+  }
+  requireValue(new Set(records.map(record => record.eventId)).size === records.length &&
+    equal([...records].sort((a, b) => a.eventId.localeCompare(b.eventId)),
+      [...state.readmissions].sort((a, b) => a.eventId.localeCompare(b.eventId))) &&
+    equal(markers.slice().sort(), records.map(record => `${READMISSION_MARKER}${record.digest}`).sort()),
+  'Candidate revalidation index/history/event binding missing or inconsistent.');
+}
+
 function validate(state) {
-  requireValue([1, 2, 3].includes(state?.version) && typeof state.enabled === 'boolean' &&
+  requireValue([1, 2, 3, 4].includes(state?.version) && typeof state.enabled === 'boolean' &&
     ['observe', 'delivery'].includes(state.mode) &&
     text(state.coordinator) && (state.head === null || head(state.head)) && Array.isArray(state.items) &&
     Array.isArray(state.seen), 'Malformed registry.');
@@ -323,6 +401,7 @@ function validate(state) {
     'PR already represented by an unfinished assignment.');
   validateRefinements(state);
   validateAmendments(state);
+  validateReadmissions(state);
 }
 
 function createState(coordinator, sourceHead, mode = 'observe') {
@@ -381,10 +460,18 @@ function dispatch(state, actions) {
 function applyEvent(current, event) {
   validate(current);
   requireValue(event && text(event.id) && text(event.type), 'Event identity/type missing.');
-  requireValue(![REFINEMENT_MARKER, AMENDMENT_MARKER].some(prefix => event.id.startsWith(prefix)),
+  requireValue(![REFINEMENT_MARKER, AMENDMENT_MARKER, READMISSION_MARKER].some(prefix => event.id.startsWith(prefix)),
     'Reserved scope event identity.');
   const state = structuredClone(current);
-  if (state.seen.includes(event.id)) return { state, actions: [], duplicate: true };
+  if (state.seen.includes(event.id)) {
+    if (event.type === 'revalidate-candidate') {
+      const record = state.items.flatMap(item => item.admissionHistory ?? [])
+        .find(value => value.event.id === event.id);
+      requireValue(record && equal(record.event, event),
+        'Candidate revalidation replay must match its original accepted event.');
+    }
+    return { state, actions: [], duplicate: true };
+  }
   const actions = [];
   const worker = () => {
     const item = state.items.find(value => value.key === event.key);
@@ -403,6 +490,48 @@ function applyEvent(current, event) {
       requireValue(head(state.head) && event.head === state.head, 'Candidate needs a source refresh.');
       state.items.push(candidate(event));
       break;
+    case 'revalidate-candidate': {
+      validateReadmissionEvent(event);
+      requireValue(state.enabled && state.mode === 'delivery' && state.planner.active &&
+        event.owner === state.planner.owner && event.pass === state.planner.pass,
+      'Candidate revalidation requires enabled delivery and the active assigned planner/pass.');
+      requireValue(head(state.head) && event.head === state.head,
+        'Candidate revalidation needs current verified source.');
+      const item = state.items.find(value => value.key === event.key);
+      requireValue(item && unownedCandidate(item), 'Only an unowned unreserved candidate can be revalidated.');
+      requireValue(digest(item) === event.expectedItemDigest, 'Stale complete candidate item digest.');
+      requireValue(!state.items.filter(holdsSlot).some(other => overlaps(event.scopes, other.scopes) ||
+        item.pr !== null && item.pr === other.pr),
+        'Candidate revalidation conflicts with held scopes; retain original candidate.');
+      const before = structuredClone(item);
+      delete before.admissionHistory;
+      const record = { event: structuredClone(event), before, fromVersion: state.version };
+      if (state.version < 2) {
+        state.refinements = [];
+        for (const other of state.items) {
+          other.scopeRevision = 0;
+          other.scopeHistory = [];
+          other.sourceWritesRetired = false;
+        }
+      }
+      if (state.version < 3) {
+        state.amendments = [];
+        for (const other of state.items) other.scopeAmendments = [];
+      }
+      if (state.version < 4) {
+        state.version = 4;
+        state.readmissions = [];
+        for (const other of state.items) other.admissionHistory = [];
+      }
+      item.admissionHistory.push(record);
+      item.head = event.head;
+      item.scopes = structuredClone(event.scopes);
+      item.evidence = event.evidence;
+      const hash = digest(record);
+      state.readmissions.push({ key: item.key, eventId: event.id, digest: hash });
+      state.seen.push(`${READMISSION_MARKER}${hash}`);
+      break;
+    }
     case 'adopt': {
       requireValue(state.enabled && text(event.owner), 'Adoption requires an enabled workflow and owner.');
       state.items.push({ ...candidate(event), owner: event.owner, phase: 'running' });
@@ -508,7 +637,7 @@ function applyEvent(current, event) {
           other.sourceWritesRetired = false;
         }
       }
-      if (state.version !== 3) {
+      if (state.version < 3) {
         state.version = 3;
         state.amendments = [];
         for (const other of state.items) other.scopeAmendments = [];
@@ -599,7 +728,8 @@ function applyEvent(current, event) {
         item.scopeHistory = [];
         item.sourceWritesRetired = false;
       }
-      if (state.version === 3 && !Object.hasOwn(item, 'scopeAmendments')) item.scopeAmendments = [];
+      if (state.version >= 3 && !Object.hasOwn(item, 'scopeAmendments')) item.scopeAmendments = [];
+      if (state.version === 4 && !Object.hasOwn(item, 'admissionHistory')) item.admissionHistory = [];
     }
   }
   validate(state);

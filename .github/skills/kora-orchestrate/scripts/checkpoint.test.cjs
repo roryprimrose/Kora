@@ -6,7 +6,8 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { checkpoint } = require('./checkpoint.cjs');
 const { applyEvent, digest, heldReservations } = require('./registry.cjs');
-const { refinementFixture, refinementEvent, tamperedStates } = require('./refinement-fixture.cjs');
+const { refinementFixture, refinementEvent, tamperedStates,
+  candidateFixture, candidateEvent } = require('./refinement-fixture.cjs');
 
 function fixture() {
   const files = new Map();
@@ -41,6 +42,78 @@ function fixture() {
     mode: 'delivery' });
   return { files, file, run, failReplacement: () => { failRename = true; } };
 }
+
+function candidateCheckpoint(released = true) {
+  const f = fixture();
+  const state = candidateFixture(released);
+  f.files.set(f.file, JSON.stringify({ version: 1, revision: 107, state, actions: [],
+    events: [...state.refinements.map(record => ({ id: record.eventId, type: 'refine-scopes' })),
+      ...state.amendments.map(record => ({ id: record.eventId, type: 'extend-scopes' }))] }));
+  return f;
+}
+
+test('atomic candidate readmission persists exact old-item/source binding and only normal launch actions', () => {
+  const f = candidateCheckpoint();
+  const old = f.run({ operation: 'read' });
+  const event = candidateEvent(old.state);
+  const result = f.run({ operation: 'apply', expectedRevision: 107, event });
+  assert.equal(result.revision, 108);
+  assert.equal(result.state.version, 4);
+  assert.deepEqual(result.state.refinements, old.state.refinements);
+  assert.deepEqual(result.state.amendments, old.state.amendments);
+  assert.equal(result.events.at(-1).id, event.id);
+  assert.deepEqual(result.actions.map(action => action.command),
+    [{ type: 'launch', key: event.key, pool: 'ready' }]);
+  const bytes = f.files.get(f.file);
+  const repeated = f.run({ operation: 'apply', expectedRevision: 108, event });
+  assert.equal(repeated.revision, 108);
+  assert.equal(f.files.get(f.file), bytes);
+  assert.throws(() => f.run({ operation: 'apply', expectedRevision: 108,
+    event: { ...event, id: 'new-id-replay' } }), /unowned unreserved/);
+  assert.equal(f.files.get(f.file), bytes);
+});
+
+test('readmission stale checkpoint/source/item, held guards, lock and replacement failures preserve exact bytes', () => {
+  for (const failure of ['revision', 'source', 'item', 'lock', 'replace', 'guard']) {
+    const f = candidateCheckpoint(failure !== 'guard');
+    const state = f.run({ operation: 'read' }).state;
+    const event = candidateEvent(state);
+    const before = f.files.get(f.file);
+    if (failure === 'source') event.head = '0'.repeat(40);
+    if (failure === 'item') event.expectedItemDigest = '0'.repeat(64);
+    if (failure === 'lock') f.files.set(`${f.file}.lock`, 'other writer');
+    if (failure === 'replace') f.failReplacement();
+    assert.throws(() => f.run({ operation: 'apply',
+      expectedRevision: failure === 'revision' ? 106 : 107, event }));
+    assert.equal(f.files.get(f.file), before);
+    assert.deepEqual([...f.files.keys()].sort(),
+      (failure === 'lock' ? [f.file, `${f.file}.lock`] : [f.file]).sort());
+  }
+});
+
+test('checkpoint read/apply reject omitted admission journal/history or saved schema downgrade', () => {
+  const changes = [
+    value => { value.events.pop(); },
+    value => { value.events.push({ id: 'forged-journal', type: 'revalidate-candidate' }); },
+    value => { value.events.at(-1).type = 'candidate'; },
+    value => { value.state.readmissions = []; },
+    value => { value.state.version = 3; },
+    value => { value.state.items.find(item => item.admissionHistory.length).admissionHistory = []; },
+    value => { value.state.items.find(item => item.admissionHistory.length).admissionHistory[0].event.head = '0'.repeat(40); }
+  ];
+  for (const change of changes) {
+    const f = candidateCheckpoint();
+    const event = candidateEvent(f.run({ operation: 'read' }).state);
+    const saved = f.run({ operation: 'apply', expectedRevision: 107, event });
+    change(saved);
+    f.files.set(f.file, JSON.stringify(saved));
+    const before = f.files.get(f.file);
+    assert.throws(() => f.run({ operation: 'read' }));
+    assert.throws(() => f.run({ operation: 'apply', expectedRevision: 108,
+      event: { id: 'refresh-invalid-admission', type: 'refresh', head: saved.state.head } }));
+    assert.equal(f.files.get(f.file), before);
+  }
+});
 
 test('checkpoint records actions before sending and requires evidence to acknowledge', () => {
   const f = fixture();

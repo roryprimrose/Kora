@@ -470,7 +470,7 @@ The delivered [native exact-session retention status and Keep/ordinary review](I
 | Tool IDs | Inputs and bounded results | Lanes | Availability / boundary |
 |---|---|---|---|
 | `sessions.list` | Offset/count inside one explicitly reviewed Active-session page; only IDs and optional names | E | Bounded implementation above; unqualified production runtime remains unavailable; no M authority |
-| `sessions.get` | Session ID; metadata, due dates, grounded status and permitted summary | M/E | Proposed A3; no broader metadata or summary authority from minimal list |
+| `sessions.get` | One canonical exact ID; separately frozen content-free lifecycle/coarse-work/observed pending-question expiry and omissions | E | Bounded separate local-only reviewed implementation; unqualified runtime unavailable; no list-consent widening, generic MCP, bodies/history/summary, M authority or global-earliest claim |
 | `sessions.search` | Query, lifecycle/date filter, cursor; permitted matches and evidence references | E; M metadata-only | Proposed A3; full-text content is not unrestricted routing context |
 | `sessions.read_history` | Session/event/task/time filter and cursor; ordered permitted messages, decisions, receipts and grant references | E | Proposed A3; no implicit resume or retention refresh |
 | `sessions.read_artifact` | Session/artifact ID, digest and bounded range; immutable source/provenance | E | Proposed A3/A4; never execute historic scripts |

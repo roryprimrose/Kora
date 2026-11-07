@@ -290,6 +290,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         { return Finish(ModelTurnOutcome.Denied, ModelTurnReason.ToolResultRejected, turn.Provenance); }
         if (!await SessionDiscoveryCurrentAsync(turn, token).ConfigureAwait(false))
         { return Finish(ModelTurnOutcome.Denied, ModelTurnReason.SessionNotAdmitted, turn.Provenance); }
+        if (!await SessionMetadataCurrentAsync(turn, token).ConfigureAwait(false))
+        { return Finish(ModelTurnOutcome.Denied, ModelTurnReason.SessionNotAdmitted, turn.Provenance); }
         var reason = await RevalidateAsync(turn, token).ConfigureAwait(false);
         if (reason != ModelTurnReason.None) { return Finish(ModelTurnOutcome.Denied, reason, turn.Provenance); }
         if (turn.Profile is not null)
@@ -402,6 +404,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             ? await customizations.Invoke(id, input, toolToken).ConfigureAwait(false)
             : sessionDiscoveries.TryGetValue(turn, out var discovery)
             ? await discovery.InvokeAsync(id, input, toolToken).ConfigureAwait(false)
+            : sessionMetadata.TryGetValue(turn, out var metadata)
+            ? await metadata.InvokeAsync(id, input, toolToken).ConfigureAwait(false)
             : turn.Context.ToolMode == ModelToolMode.McpReadOnly
             ? mcpInvocations.TryGetValue(turn, out var mcp)
                 ? await mcp.InvokeAsync(turn.Provenance, id, input, toolToken).ConfigureAwait(false)
@@ -414,7 +418,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             ? Kora.Tools.Sessions.SessionMetricsGet.Execute(
                 await metrics.ReadAsync(turn.Provenance.Request.SessionId, toolToken).ConfigureAwait(false), input)
             : tools.Invoke(tools.Admit(CapabilityLane.Execution), id, input, toolToken);
-        var reply = builtInMcp is not null && turn.Context.ToolMode != ModelToolMode.McpReadOnly
+        var reply = builtInMcp is not null && turn.Context.ToolMode is not (ModelToolMode.McpReadOnly or ModelToolMode.SessionMetadata)
             ? await builtInMcp.InvokeAsync(turn.Context.ToolMode, id, input, Invoke, linked.Token).ConfigureAwait(false)
             : await Invoke(linked.Token).ConfigureAwait(false);
         if (await RevalidateAdapterContinuationAsync(turn, linked.Token).ConfigureAwait(false) != ModelTurnReason.None
@@ -462,6 +466,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         if (!await CustomizationDiscoveryCurrent(turn, token).ConfigureAwait(false))
         { return ModelTurnReason.ToolResultRejected; }
         if (!await SessionDiscoveryCurrentAsync(turn, token).ConfigureAwait(false))
+        { return ModelTurnReason.SessionNotAdmitted; }
+        if (!await SessionMetadataCurrentAsync(turn, token).ConfigureAwait(false))
         { return ModelTurnReason.SessionNotAdmitted; }
         var reason = await RevalidateAsync(turn, token).ConfigureAwait(false);
         if (reason != ModelTurnReason.None) { return reason; }

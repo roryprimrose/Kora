@@ -29,4 +29,6 @@ public enum ModelToolMode
 
     /// <summary>Explicit original local AI-service settings request; observations, refresh and inert proposals only.</summary>
     ProviderSettings,
+
+    SessionMetadata,
 }

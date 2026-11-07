@@ -116,7 +116,8 @@ public sealed partial class SessionConversationService(
         bool claude = false, bool claudeStreamAnswer = false, PendingConversation? pending = null,
         LocalUnavailableContinuation? localHandoff = null, bool joinCancelledResources = false,
         bool ordinaryActiveDeadline = false, LocalRequestProfileReview? localRequestProfile = null,
-        bool retainAgentObservations = false)
+        bool retainAgentObservations = false,
+        Func<ModelTurn, Func<bool>, CancellationToken, Task<ModelTurnReason>>? prepareAdmitted = null)
     {
         RequireOriginalSource(origin);
         using var lifecycle = EnterLifecycleSubmission(target, body, admitted);
@@ -159,7 +160,7 @@ public sealed partial class SessionConversationService(
             copilot || claude ? now.Add(HostedTurnAuthorization.MaximumDuration) : now.AddSeconds(15),
             providerSettings ? ModelToolMode.ProviderSettings : claude ? ModelToolMode.None : ModelToolMode.ReadOnly)
             : createContext(request, now);
-        context = mcpConfiguration?.RestrictTools(context) ?? context;
+        context = context.ToolMode == ModelToolMode.SessionMetadata ? context : mcpConfiguration?.RestrictTools(context) ?? context;
         if (pending?.Output is not null)
         {
             pending.OutputCreatedAt = context.CreatedAt;
@@ -257,6 +258,23 @@ public sealed partial class SessionConversationService(
                             };
                         }
                     }
+                    if (admission.Turn is { } preparedTurn && prepareAdmitted is not null)
+                    {
+                        ModelTurnReason preparation;
+                        try { preparation = await prepareAdmitted(preparedTurn, Live, token).ConfigureAwait(false); }
+                        catch (OperationCanceledException) when (token.IsCancellationRequested)
+                        { preparation = ModelTurnReason.CallerCancelled; }
+                        catch (Exception exception) when (exception is IOException or InvalidOperationException or TimeoutException)
+                        {
+                            Failure(logger, exception.GetType().Name);
+                            preparation = ModelTurnReason.SessionNotAdmitted;
+                        }
+                        if (preparation != ModelTurnReason.None)
+                        {
+                            admission = new(new(preparation == ModelTurnReason.CallerCancelled
+                                ? ModelTurnOutcome.Cancelled : ModelTurnOutcome.Denied, preparation, preparedTurn.Provenance));
+                        }
+                    }
                     if (admission.Turn is not null)
                     {
                         var waitReason = pending is null ? ModelTurnReason.None
@@ -290,7 +308,7 @@ public sealed partial class SessionConversationService(
                     }
                 }
             }
-            var terminalToken = prepareContext is not null && result.Outcome == ModelTurnOutcome.Cancelled
+            var terminalToken = (prepareContext is not null || prepareAdmitted is not null) && result.Outcome == ModelTurnOutcome.Cancelled
                 ? CancellationToken.None : token;
             bool TerminalLive() => Live() && (pending?.PendingCancellationCurrent?.Invoke() ?? true);
             receipt = pending?.PendingCancellationTarget is { } cancellationTarget

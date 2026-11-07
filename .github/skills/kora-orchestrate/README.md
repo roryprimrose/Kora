@@ -197,11 +197,13 @@ Use exported `digest(proof)` from [registry.cjs](./scripts/registry.cjs):
 SHA-256 of UTF-8 JSON with recursively sorted object keys and unchanged array
 order. This is consistency binding, **not authentication**.
 
-To calculate the digest of an already prepared proof-only scratch JSON:
+From the repository root, calculate the digest of an already prepared proof-only
+scratch JSON. Module resolution uses the runtime's native filesystem paths;
+the proof's canonical Windows scope/path data is unchanged:
 
 ```powershell
 Get-Content -LiteralPath $ProofPath -Raw |
-    node -e 'const fs = require("node:fs"); const { digest } = require(".\\.github\\skills\\kora-orchestrate\\scripts\\registry.cjs"); console.log(digest(JSON.parse(fs.readFileSync(0, "utf8"))));'
+    node -e 'const fs = require("node:fs"); const path = require("node:path"); const { digest } = require(path.resolve(".github", "skills", "kora-orchestrate", "scripts", "registry.cjs")); console.log(digest(JSON.parse(fs.readFileSync(0, "utf8"))));'
 ```
 
 ### Client sequencing and durable compatibility

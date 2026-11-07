@@ -400,3 +400,106 @@ As before, deterministic hashes do not authenticate a coherently forged whole
 store or prove host quiescence. Use only verified immutable source modules and
 retain their source SHA/digest when a resumable coordinator loads this protocol;
 shipping, loading or shadow migration is not a live grant.
+
+## Same-key unowned candidate revalidation
+
+`refresh` changes verified source freshness, not cached candidate scopes or
+evidence. Do not replay `candidate`, invent a new key/outcome, amend an attached
+owner, or overwrite saved JSON to repair an incomplete old admission.
+`revalidate-candidate` instead replaces only the existing unowned candidate's
+head, complete scopes and evidence. Key/outcome/kind/pool/PR and all unrelated
+owners, writes, slots, blockers, cleanup/publication and scope histories remain.
+
+Only enabled delivery with the exact **active assigned planner owner/pass**
+can accept this event. The target must be `phase=candidate`, `owner=null`,
+unpublished, unreserved, nonretired and without any scope-write history or
+cleanup/source-write authority. Current source must equal the event head.
+Every original scope remains covered by the canonical nonempty unique final
+manifest. The coordinator freshly verifies the **whole** complete operation,
+required production/test wiring and evidence against that source; old cached
+evidence or a source refresh alone does not establish completeness.
+
+Any overlap with **any held owner**, including a permanently retired owner's
+passive guards, or the same held PR rejects without mutation or new action.
+Stopped source work, empty roots, failed cleanup and spare capacity do not
+release a guard. Only independently supported ordinary lifecycle completion
+can release it. No variant, renamed outcome, new worker or live event is
+authorized by a published protocol repair.
+
+### Exact atomic client input
+
+Read the current checkpoint using `{"operation":"read"}`. Pin its revision,
+verified source, exact active planner/pass and complete existing item.
+Compute `expectedItemDigest` using the documented native `node:path` digest
+program above on that **entire item**, including all saved metadata and any
+`admissionHistory`, not a key/scopes projection. Supply fresh full scopes and
+evidence. The event has exactly the fields in this synthetic example; replace
+the illustrative digest/source/identity/manifest with verified current inputs:
+
+```json
+{
+  "operation": "apply",
+  "expectedRevision": 107,
+  "event": {
+    "id": "revalidate-final-manifest-once",
+    "type": "revalidate-candidate",
+    "owner": "fixture-planner",
+    "pass": 1,
+    "key": "fixture-candidate",
+    "expectedItemDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+    "head": "1111111111111111111111111111111111111111",
+    "scopes": ["src\\fixture.cs", "tests\\fixture.test.cs"],
+    "evidence": "Fresh verified whole operation and complete production/test write manifest.",
+    "manifestComplete": true
+  }
+}
+```
+
+Pass the approved absolute scratch input/checkpoint paths through the existing
+PowerShell client, with no separate wrapper or direct checkpoint edits:
+
+```powershell
+Get-Content -LiteralPath $InputPath -Raw |
+    node .\.github\skills\kora-orchestrate\scripts\checkpoint.cjs $CheckpointPath
+```
+
+The exclusive lock and current `expectedRevision` bind source/item inspection
+to atomic replacement. Wrong/stale source/item/planner/pass, unknown fields,
+incomplete/noncanonical/duplicate/traversing/glob/empty scopes or no-op input
+reject. A failed write/rename preserves the previous bytes and guards.
+An exact accepted event replay is idempotent with no revision/history/action
+change, even after attachment. Changed payload under that ID, an old candidate
+event ID, or a new-ID replay with the old digest rejects. A genuine successive
+revalidation needs the new complete item digest and current planner/source.
+
+Successful replacement runs only existing guarded dispatch: a disjoint
+feature may reserve one available slot; maintenance still waits for pass end,
+and blockers/capacity still apply. Persist and reconcile the resulting pending
+launch action before ordinary worker attachment. Revalidation itself supplies
+no owner source authority, runtime qualification, effect grant, cleanup proof
+or retired-source resurrection; there is no unowned worker to acknowledge.
+
+### Versioned persistence and compatibility
+
+First acceptance atomically migrates valid **v1/v2/v3 to v4**. Untouched older
+stores remain readable without migration. Every v4 item requires
+`admissionHistory:[]`; top-level `readmissions` indexes `{key,eventId,digest}`.
+Each record is `{event,before,fromVersion}`: `before` is the exact old item
+without `admissionHistory`, whose prior prefix is reconstructed for v4
+complete-item digest validation. First-record legacy shape follows
+`fromVersion`; successive records require v4. No original shrink/amendment
+record, marker, acknowledgment, revision or retirement changes.
+
+`seen` binds the accepted ID and reserved
+`candidate-revalidation:v1:<digest(record)>` marker. Registry read/apply and
+worker launch reject missing/altered history, index, digests, markers, replay,
+schema downgrade or inconsistent current admission. Checkpoint read/apply also
+binds each event journal entry to the index. Later ordinary attachment,
+publication, scope transactions and cleanup retain admission history.
+
+These deterministic hashes establish shape/consistency, not fresh host/Git
+facts or authentication of a coherently forged whole store. The frozen seven
+final-manifest/v3-history fixtures are data-only shadow evidence. Their
+synthetic successful cleanup does **not** prove any live owner's physical
+closure. Load a pinned verified canonical module and obtain separately
+authorized fresh discovery/source/cleanup inputs before any future live apply.

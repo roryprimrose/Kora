@@ -39,6 +39,18 @@ A later CI failure requires a new coordinator allocation after current-head and
 ownership reconciliation. Do not silently start another repair after publication.
 Never claim merge without authoritative merged state and main reachability.
 
+## Revalidated candidate admission
+
+The coordinator can [atomically revalidate an unowned candidate](./README.md#same-key-unowned-candidate-revalidation)
+under the exact active planner/pass/current source and complete old-item digest.
+Fresh complete scope/evidence replacement is not a worker launch or source
+grant. Wait for the existing guarded reservation/action and ordinary attachment;
+verify the admitted current source and full scopes in that request. A published
+protocol, source refresh, spare slot, paused/retired owner or failed empty-root
+cleanup does not waive held guards. Do not replay an old candidate ID, create a
+replacement key/outcome, amend a running owner through this event or mutate the
+coordinator checkpoint. Keep original owners, PRs, scope histories and blockers.
+
 ## Stopped-owner scope acknowledgment
 
 For an explicitly requested [shrink-only refinement](./README.md#shrink-only-reservation-protocol),

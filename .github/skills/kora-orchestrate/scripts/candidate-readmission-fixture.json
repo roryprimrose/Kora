@@ -1,0 +1,1872 @@
+{
+  "provenance": {
+    "checkpointRevision": 107,
+    "source": "82a0de5274bbf62f0f0084b2f8ee01374ca4f900",
+    "dataOnly": true,
+    "liveMutations": false
+  },
+  "state": {
+    "version": 3,
+    "enabled": true,
+    "mode": "delivery",
+    "coordinator": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f",
+    "head": "82a0de5274bbf62f0f0084b2f8ee01374ca4f900",
+    "planner": {
+      "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=a0edda68-7040-4fcc-9162-bc827ff468dc",
+      "active": false,
+      "requested": false,
+      "notified": false,
+      "pass": 12
+    },
+    "items": [
+      {
+        "key": "reconcile-reviewed-evidence-answer-roadmap",
+        "outcome": "Current delivery inventory distinguishes implemented bounded diagnostic-page answers from unavailable general Ask Evidence and runtime enablement",
+        "pool": "ready",
+        "kind": "maintenance",
+        "head": "e4b5313a2d88af3a122c4bf82fcfe19acfdb0341",
+        "scopes": [
+          "design\\implementation_roadmap.md"
+        ],
+        "evidence": "Docs-only authoritative delivery-inventory reliability. Reconcile the current roadmap workspace/evidence row with the delivered bounded immutable Log-page Review/explicit LocalOnly confirmation/canonical retained-answer/citations/joined-cancellation interaction; preserve current Unavailable runtime, broader Ask Evidence/retrieval/export and enablement boundaries. Do not recreate production functionality. Source: Implementation_Roadmap.md:96; Information_Display.md:711-736; docs\\evidence-answers.md:1-32; existing workflow/native regressions listed in planner receipt. Both source freshness and exact planner pass verified against checkpoint revision 4. No open PRs or live workers; exclusive single-file scope. Check revised wording against owning contract and exact controls/availability, verify relative links/headings; no builds for docs-only changes. Full admission receipt: Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\maintenance-evidence-roadmap.json. Maintenance is lower priority and waits for the finite discovery pass to finish.",
+        "pr": 869,
+        "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=40ece6a6-064c-4f44-916d-313c507cd751",
+        "phase": "published",
+        "blocker": "Post-publication cleanup blocked: ordinary Git worktree removal failed Permission denied and removed registration but left an empty host-locked directory. Non-forced/non-recursive empty-directory removal failed in use by another process. Coordinator confirms exact empty directory still exists, Git registration absent, local refs/heads/agents/maintenance-reconcile-evidence-roadmap preserves published head 983bbe887cd4607522d3708022caeb9f719ec90d. Host workspace move needs explicit confirmation; child ask_user returned unavailable, NOT consent. No workspace move, forced cleanup, process killing, branch deletion, archival or slot release authorized from that response. Stopped_writing=true, no owned processes, exposed pending instruction IDs empty. Initial report evidence-roadmap-cleanup-blocked-40ece6a6 and final cleanup.json retained. Keep published ownership/reservation until actual cleanup proof.",
+        "publication": {
+          "pushedHead": "983bbe887cd4607522d3708022caeb9f719ec90d",
+          "remoteHead": "983bbe887cd4607522d3708022caeb9f719ec90d",
+          "pr": 869,
+          "ready": true,
+          "enrolled": true
+        },
+        "scopeRevision": 0,
+        "scopeHistory": [],
+        "sourceWritesRetired": false,
+        "scopeAmendments": []
+      },
+      {
+        "key": "generate-owned-required-literal-skill",
+        "outcome": "Create complete native-v3 guidance from original-user purpose and explicitly declared required literals; save disabled, then separately review/bind/invoke the exact saved revision",
+        "pool": "ready",
+        "kind": "feature",
+        "head": "e4b5313a2d88af3a122c4bf82fcfe19acfdb0341",
+        "scopes": [
+          "design\\skill_authoring.md",
+          "docs\\owned-skill-authoring.md",
+          "src\\kora.application\\skills\\ownedskillguidancerefinementservice.cs",
+          "src\\kora\\ownedskilleditorcontroller.refinement.cs",
+          "src\\kora\\ownedskilleditorwindow.cs",
+          "tests\\kora.application.unittests\\dependencies\\modelturnhosttests.ownedskillgeneration.cs",
+          "tests\\kora.windows.integrationtests\\artifactdiscovery\\ownedpromptrenametests.cs",
+          "tests\\kora.windows.integrationtests\\communication\\graphpresencesourcetests.cs",
+          "tests\\kora.windows.integrationtests\\knowledgesources\\reviewedsourcefollowuptests.cs",
+          "tests\\kora.windows.integrationtests\\knowledgesources\\sessionknowledgesourcebindingtests.cs",
+          "tests\\kora.windows.integrationtests\\ownedskillauthoringnativetests.refinement.cs",
+          "tests\\kora.windows.integrationtests\\sessionpermissionreviewertests.cs",
+          "tests\\kora.windows.integrationtests\\sessionsconversationtests.ownedskillinputs.cs",
+          "tests\\kora.windows.integrationtests\\sessionsconversationtests.statichtmldetails.cs",
+          "tests\\kora.windows.integrationtests\\storage\\windowssqlitesessionresponseoutputtests.cs"
+        ],
+        "evidence": "Approved R22 governed skill creation: MVP_Scope.md:19-38; Skill_Authoring.md:29-41,81-95; existing native-v3 literal declaration/binding/questions/preview/use format in docs\\owned-skill-authoring.md:473-493. Concrete gap at current main: OwnedSkillGuidanceRefinementService.ProposeInitial:31-36 rejects any InputTemplate; GenerationPolicy:23-25 fixes native-v1; editor initial disclosure captures purpose/input/output but not frozen user-declared required names. Complete operation: original user selects existing v3 and bounded required names; separate local/tools-none disclosure freezes purpose and exact names; generate body only, validate using existing owned document/prompt literal semantics; review/adopt volatile body preserving identity/schema/version/destination; existing exact Save reviews publish immutable disabled revision with readback; separately review/enable/bind or privately answer declared questions/preview/confirm canonical LocalOnly tools-none invocation. Never invent names/metadata, formats/tools or runtime enablement. Existing unavailable local provider stays explicitly unavailable, preserving draft and forbidding calls/saves/success fallback. Focused regressions cover exact name/first-use preservation, marker/schema/metadata rejection, every stale declaration/draft/source/privacy/channel/ownership boundary, disabled atomic save/readback and separately admitted complete retained-answer invocation via deterministic seam, plus unchanged v1/manual-v3/refinement behavior and portable gates. No tests run by read-only planner. Detailed parsed admission/check evidence: Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\feature-v3-initial-generation.json. Current checkpoint revision 9 confirms matching owner/pass/head and no scope overlap with roadmap maintenance. Do not edit Design\\Implementation_Roadmap.md or archived prior worktree. Request scope reconciliation before any expansion.",
+        "pr": 870,
+        "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=07f8172f-5fac-46c3-923d-7d27d0a5faac",
+        "phase": "published",
+        "blocker": "Published PR870 preserved, cleanup blocked by Permission denied on host-owned checkout root. Git removed contents/.git/registration but left empty directory; coordinator independently confirms empty root, absent registration and preserved local refs/heads/agents/generate-owned-literal-skill-v3 at published87efddb4a219751c9bb305420e1d8fb6478441b7; remote verified matching. All checks joined, clean/all commits published before attempt, source writes stopped, no known pending instructions. No force/retry/local-ref deletion/remote deletion/archive/slot release. Full cleanup.json retained.",
+        "publication": {
+          "pushedHead": "87efddb4a219751c9bb305420e1d8fb6478441b7",
+          "remoteHead": "87efddb4a219751c9bb305420e1d8fb6478441b7",
+          "pr": 870,
+          "ready": true,
+          "enrolled": true
+        },
+        "scopeRevision": 1,
+        "scopeHistory": [
+          {
+            "eventId": "apply-v3-guarded-refinement-pass8-7b669b75",
+            "proof": {
+              "version": 1,
+              "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=07f8172f-5fac-46c3-923d-7d27d0a5faac",
+              "key": "generate-owned-required-literal-skill",
+              "reservation": {
+                "outcome": "Create complete native-v3 guidance from original-user purpose and explicitly declared required literals; save disabled, then separately review/bind/invoke the exact saved revision",
+                "kind": "feature",
+                "pool": "ready",
+                "head": "e4b5313a2d88af3a122c4bf82fcfe19acfdb0341",
+                "pr": 870
+              },
+              "publication": {
+                "pushedHead": "87efddb4a219751c9bb305420e1d8fb6478441b7",
+                "remoteHead": "87efddb4a219751c9bb305420e1d8fb6478441b7",
+                "pr": 870,
+                "ready": true,
+                "enrolled": true
+              },
+              "scopeRevision": 0,
+              "fromScopes": [
+                "src\\kora.application\\skills",
+                "src\\kora\\ownedskilleditorcontroller.refinement.cs",
+                "src\\kora\\ownedskilleditorcontroller.cs",
+                "src\\kora\\ownedskilleditorwindow.cs",
+                "tests\\kora.application.unittests\\dependencies",
+                "tests\\kora.application.unittests\\documentation",
+                "tests\\kora.windows.integrationtests",
+                "design\\skill_authoring.md",
+                "docs\\owned-skill-authoring.md"
+              ],
+              "toScopes": [
+                "design\\skill_authoring.md",
+                "docs\\owned-skill-authoring.md",
+                "src\\kora.application\\skills\\ownedskillguidancerefinementservice.cs",
+                "src\\kora\\ownedskilleditorcontroller.refinement.cs",
+                "src\\kora\\ownedskilleditorwindow.cs",
+                "tests\\kora.application.unittests\\dependencies\\modelturnhosttests.ownedskillgeneration.cs",
+                "tests\\kora.windows.integrationtests\\artifactdiscovery\\ownedpromptrenametests.cs",
+                "tests\\kora.windows.integrationtests\\communication\\graphpresencesourcetests.cs",
+                "tests\\kora.windows.integrationtests\\knowledgesources\\reviewedsourcefollowuptests.cs",
+                "tests\\kora.windows.integrationtests\\knowledgesources\\sessionknowledgesourcebindingtests.cs",
+                "tests\\kora.windows.integrationtests\\ownedskillauthoringnativetests.refinement.cs",
+                "tests\\kora.windows.integrationtests\\sessionpermissionreviewertests.cs",
+                "tests\\kora.windows.integrationtests\\sessionsconversationtests.ownedskillinputs.cs",
+                "tests\\kora.windows.integrationtests\\sessionsconversationtests.statichtmldetails.cs",
+                "tests\\kora.windows.integrationtests\\storage\\windowssqlitesessionresponseoutputtests.cs"
+              ],
+              "phase": "published",
+              "publicationHead": "87efddb4a219751c9bb305420e1d8fb6478441b7",
+              "manifest": {
+                "complete": true,
+                "actual": [
+                  "design\\skill_authoring.md",
+                  "docs\\owned-skill-authoring.md",
+                  "src\\kora.application\\skills\\ownedskillguidancerefinementservice.cs",
+                  "src\\kora\\ownedskilleditorcontroller.refinement.cs",
+                  "src\\kora\\ownedskilleditorwindow.cs",
+                  "tests\\kora.application.unittests\\dependencies\\modelturnhosttests.ownedskillgeneration.cs",
+                  "tests\\kora.windows.integrationtests\\ownedskillauthoringnativetests.refinement.cs",
+                  "tests\\kora.windows.integrationtests\\sessionsconversationtests.ownedskillinputs.cs"
+                ],
+                "planned": []
+              },
+              "preservation": {
+                "complete": true,
+                "commits": [
+                  {
+                    "head": "87efddb4a219751c9bb305420e1d8fb6478441b7",
+                    "paths": [
+                      "design\\skill_authoring.md",
+                      "docs\\owned-skill-authoring.md",
+                      "src\\kora.application\\skills\\ownedskillguidancerefinementservice.cs",
+                      "src\\kora\\ownedskilleditorcontroller.refinement.cs",
+                      "src\\kora\\ownedskilleditorwindow.cs",
+                      "tests\\kora.application.unittests\\dependencies\\modelturnhosttests.ownedskillgeneration.cs",
+                      "tests\\kora.windows.integrationtests\\ownedskillauthoringnativetests.refinement.cs",
+                      "tests\\kora.windows.integrationtests\\sessionsconversationtests.ownedskillinputs.cs"
+                    ],
+                    "receipt": "Fresh read-only git -C Q:\\Repos\\Kora show --format=fuller --name-status --no-renames 87efddb4a219751c9bb305420e1d8fb6478441b7; rev-parse parent=e4b5313a2d88af3a122c4bf82fcfe19acfdb0341; show-ref --verify refs/heads/agents/generate-owned-literal-skill-v3=87efddb4a219751c9bb305420e1d8fb6478441b7. Historical publication.json binds original matching pushed/remote/PR head and SQUASH enrollment."
+                  }
+                ],
+                "retained": [],
+                "unpreserved": []
+              },
+              "stoppedWriting": true,
+              "expansionFrozen": true,
+              "pendingInstructions": 0,
+              "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\pass8-guarded-contraction.json"
+            },
+            "acknowledgment": {
+              "id": "v3-owner-ack-guarded-pass8-07f8172f-20261108",
+              "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\generate-owned-required-literal-skill\\owner-ack-guarded-pass8-receipt.json",
+              "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=07f8172f-5fac-46c3-923d-7d27d0a5faac",
+              "key": "generate-owned-required-literal-skill",
+              "scopeRevision": 0,
+              "proofDigest": "9d68a201a5b3235aa0ccfc801c9ce5e81a0155cdfa76f9caf465f444a67edd34"
+            }
+          }
+        ],
+        "sourceWritesRetired": true,
+        "scopeAmendments": []
+      },
+      {
+        "key": "verified-shrink-only-reservations",
+        "outcome": "Safely contract acknowledged stopped worker reservations while retaining all written files, ownership, PRs, slots and cleanup blockers; enable disjoint feature delivery",
+        "pool": "ready",
+        "kind": "maintenance",
+        "head": "1d5a471de21dd76c931cdcf52f48b7583ab20d45",
+        "scopes": [
+          ".github\\skills\\kora-orchestrate\\scripts",
+          ".github\\skills\\kora-orchestrate\\skill.md",
+          ".github\\skills\\kora-orchestrate\\readme.md",
+          ".github\\skills\\kora-orchestrate\\worker.md"
+        ],
+        "evidence": "Explicit requested parallel-delivery unblock: existing reducer has no refinement event, broad test reservations cannot be safely edited manually. Complete operation obtains coordinator-verified exact owner/key/old scope revision and full written/planned file manifest acknowledgment; verifies committed/retained/unpreserved file coverage, preservation, source-write quiescence, frozen expansion and zero pending broad instructions; applies one canonical nonempty proper-subset event through durable expected-revision checkpoint. Preserve owner/key/outcome/pool/PR/phase/publication/blocker/cleanup/slot state and every written file; no deletion, release, expansion or new source-write authority. Persist versioned self-consistent proof/history/ack identity; reject stale owner/revision, malformed/unknown proof, empty/expanded/traversal/duplicate/no-op scopes, uncovered written files, replay, pause/observe/unattached/complete phases, resumed proof omission/downgrade/inconsistency; untouched legacy state remains compatible. Truthfully support published cleanup-blocked stopped owners and original local preserved writes despite post-merge remote branch absence, without rewriting publication or claiming cleanup. Accepted refinement requests/coalesces genuine eligibility; independently admitted indexing then uses full native/store/answer tests. Minimal existing registry/checkpoint/worker-launch tests/docs only; coordinator verifies actual host/Git evidence, local hashes do not authenticate coherently forged whole stores. Full parsed admission: Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\reservation-refinement-pass5.json. Current source/owner/pass verified against checkpoint28; no overlap with held roadmap/native-v3 scopes; baseline3modules33tests pass. Project-only customization, no host/global/auth/queue changes or live checkpoint edits by worker.",
+        "pr": 871,
+        "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=60d3d55b-7892-4a5e-bf0f-94ffdcc7c072",
+        "phase": "published",
+        "blocker": "NEWrelatedactivityPR872 publisheded714d62f/SQUASH14:50:52Z and56focused/477policy/hostedpolicyPASS; original registeredPR871/pub0dda/history/old85eref untouched. Childverified canonical-source-ed714d62 all10Gitblobs/registrySHA40C7...D970/read77v2compatibility, sourcecode stopped. Newordinarycleanuprootempty/registrationabsent/newed14+old85erefsretained,255Permissiondenied; noforce/delete/archive/release, genericincomingUNKNOWN. Exact newevent/proof/heldsnapshot/ACK inimmutableactive-scope-extension-receipt; publication/sourceavailabilityNOT livegrant. Parent records/routes, no directGit/PR/code investigation.",
+        "publication": {
+          "pushedHead": "0dda42601332f87991925f828915cc3865b483f8",
+          "remoteHead": "0dda42601332f87991925f828915cc3865b483f8",
+          "pr": 871,
+          "ready": true,
+          "enrolled": true
+        },
+        "scopeRevision": 0,
+        "scopeHistory": [],
+        "sourceWritesRetired": false,
+        "scopeAmendments": []
+      },
+      {
+        "key": "indexed-exact-registered-source-retrieval",
+        "outcome": "Atomic reviewed source/index publication, reopen/query exact citations and separately retained grounded answer",
+        "pool": "ready",
+        "kind": "feature",
+        "head": "47f6ea7f9fc4ba4e2eedec48b51b3390b42b5509",
+        "scopes": [
+          "src\\kora.core\\context\\localfilelexicalretrieval.cs",
+          "src\\kora.core\\context\\localfilelexicalretrieval.citations.cs",
+          "src\\kora.core\\context\\localfilelexicalindex.cs",
+          "src\\kora.core\\knowledgesources\\iknowledgesourcestore.cs",
+          "src\\kora.core\\knowledgesources\\knowledgesourcerevision.cs",
+          "src\\kora.application\\knowledgesources\\knowledgesourcemanager.cs",
+          "src\\kora.application\\knowledgesources\\knowledgesourceanswerworkflow.cs",
+          "src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.cs",
+          "src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.snapshot.cs",
+          "src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.index.cs",
+          "src\\kora\\knowledgesources\\knowledgesourceswindow.cs",
+          "tests\\kora.core.unittests\\context\\localfileretrievaltests.cs",
+          "tests\\kora.core.unittests\\context\\localfilelexicalindextests.cs",
+          "tests\\kora.application.unittests\\knowledgesources\\knowledgesourcemanagertests.cs",
+          "tests\\kora.application.unittests\\knowledgesources\\knowledgesourceanswertests.cs",
+          "tests\\kora.windows.integrationtests\\knowledgesources\\windowsknowledgesourcetests.index.cs",
+          "tests\\kora.windows.integrationtests\\knowledgesources\\knowledgesourceswindowtests.cs",
+          "tests\\kora.windows.integrationtests\\knowledgesources\\knowledgesourceanswerwindowtests.cs",
+          "design\\model_providers_memory_and_knowledge.md",
+          "design\\file_and_folder_ingestion.md",
+          "docs\\knowledge-sources.md",
+          "src\\kora.core\\knowledgesources\\knowledgesourceanswercontext.cs",
+          "src\\kora\\knowledgesources\\knowledgesourceswindow.answers.cs",
+          "tests\\kora.core.unittests\\context\\knowledgesourceanswertests.cs"
+        ],
+        "evidence": "Discovery-owned admission and source proof: approved registered-source/index contract Model_Providers_Memory_And_Knowledge.md:863-899,950-964; current source47f6ea7f persists captured snapshots and re-chunks per query without maintained index. Full operation: reviewed bounded source/index atomic publication/readback/restart/reopen, explicit search/current-source checks/exact citations, independently reviewed canonical retained local answer, revoke-first refresh/remove and joined consumers. Existing source/file/byte/traversal/one-two answering bounds, lexical/citation semantics and valid legacy snapshots preserved; malformed index/digest rejects; unavailable provider stays unavailable. No embeddings/automatic scans/context/refresh/larger sources/hosted grounding. Tests must cover full actual Windows-store/native/answer behavior, measured unchanged digest/version reuse, tamper/version/source mismatch/cancel/interrupt/budgets/revocation/removal/legacy/unrelated state and mandatory portable gates. Full exact21-file manifest and prerequisite/validation evidence supplied by discovery in Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\pass8-index-candidate.json. Parent routes this evidence without redoing code/Git/PR analysis. Candidate backlog until valid actual v3 contraction makes exact native test paths disjoint; no dropping required tests or inferred release from publication.",
+        "pr": 873,
+        "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=86f5a92d-8e3b-4b92-a0c4-5a36d0416853",
+        "phase": "published",
+        "blocker": "Closure-only message d0928c32-f256-47df-bf84-6fe5bf118fce rev1 accepted started/processing, but actual recipient turn8 state error with no assistant reply. Exact full context and session metadata confirm error, expose no error detail/cause or fresh owner source/process quiescence attestation. No duplicate send/alternate owner/host change/Git API or denied-read retry. PhysicalV2 closure and pub873/825 anchor/history remain supported; current Appdba8e/main82 evidence separate. Narrow completed proof still NOT admitted; generic inbox UNKNOWN not0. Same exactowner/scope24rev1/publication/slot retained. Settings32 wholeproof current five-holder snapshot unaffected; no index release.",
+        "publication": {
+          "pushedHead": "8250631f5c64092636327901e7b5de21c97fc406",
+          "remoteHead": "8250631f5c64092636327901e7b5de21c97fc406",
+          "pr": 873,
+          "ready": true,
+          "enrolled": true
+        },
+        "scopeRevision": 1,
+        "scopeHistory": [],
+        "sourceWritesRetired": false,
+        "scopeAmendments": [
+          {
+            "eventId": "index-extend-scopes-pass10-7b669b75",
+            "proof": {
+              "version": 1,
+              "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=86f5a92d-8e3b-4b92-a0c4-5a36d0416853",
+              "key": "indexed-exact-registered-source-retrieval",
+              "reservation": {
+                "outcome": "Atomic reviewed source/index publication, reopen/query exact citations and separately retained grounded answer",
+                "kind": "feature",
+                "pool": "ready",
+                "head": "47f6ea7f9fc4ba4e2eedec48b51b3390b42b5509",
+                "pr": null
+              },
+              "scopeRevision": 0,
+              "fromScopes": [
+                "src\\kora.core\\context\\localfilelexicalretrieval.cs",
+                "src\\kora.core\\context\\localfilelexicalretrieval.citations.cs",
+                "src\\kora.core\\context\\localfilelexicalindex.cs",
+                "src\\kora.core\\knowledgesources\\iknowledgesourcestore.cs",
+                "src\\kora.core\\knowledgesources\\knowledgesourcerevision.cs",
+                "src\\kora.application\\knowledgesources\\knowledgesourcemanager.cs",
+                "src\\kora.application\\knowledgesources\\knowledgesourceanswerworkflow.cs",
+                "src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.cs",
+                "src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.snapshot.cs",
+                "src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.index.cs",
+                "src\\kora\\knowledgesources\\knowledgesourceswindow.cs",
+                "tests\\kora.core.unittests\\context\\localfileretrievaltests.cs",
+                "tests\\kora.core.unittests\\context\\localfilelexicalindextests.cs",
+                "tests\\kora.application.unittests\\knowledgesources\\knowledgesourcemanagertests.cs",
+                "tests\\kora.application.unittests\\knowledgesources\\knowledgesourceanswertests.cs",
+                "tests\\kora.windows.integrationtests\\knowledgesources\\windowsknowledgesourcetests.index.cs",
+                "tests\\kora.windows.integrationtests\\knowledgesources\\knowledgesourceswindowtests.cs",
+                "tests\\kora.windows.integrationtests\\knowledgesources\\knowledgesourceanswerwindowtests.cs",
+                "design\\model_providers_memory_and_knowledge.md",
+                "design\\file_and_folder_ingestion.md",
+                "docs\\knowledge-sources.md"
+              ],
+              "additionalScopes": [
+                "src\\kora.core\\knowledgesources\\knowledgesourceanswercontext.cs",
+                "src\\kora\\knowledgesources\\knowledgesourceswindow.answers.cs",
+                "tests\\kora.core.unittests\\context\\knowledgesourceanswertests.cs"
+              ],
+              "toScopes": [
+                "src\\kora.core\\context\\localfilelexicalretrieval.cs",
+                "src\\kora.core\\context\\localfilelexicalretrieval.citations.cs",
+                "src\\kora.core\\context\\localfilelexicalindex.cs",
+                "src\\kora.core\\knowledgesources\\iknowledgesourcestore.cs",
+                "src\\kora.core\\knowledgesources\\knowledgesourcerevision.cs",
+                "src\\kora.application\\knowledgesources\\knowledgesourcemanager.cs",
+                "src\\kora.application\\knowledgesources\\knowledgesourceanswerworkflow.cs",
+                "src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.cs",
+                "src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.snapshot.cs",
+                "src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.index.cs",
+                "src\\kora\\knowledgesources\\knowledgesourceswindow.cs",
+                "tests\\kora.core.unittests\\context\\localfileretrievaltests.cs",
+                "tests\\kora.core.unittests\\context\\localfilelexicalindextests.cs",
+                "tests\\kora.application.unittests\\knowledgesources\\knowledgesourcemanagertests.cs",
+                "tests\\kora.application.unittests\\knowledgesources\\knowledgesourceanswertests.cs",
+                "tests\\kora.windows.integrationtests\\knowledgesources\\windowsknowledgesourcetests.index.cs",
+                "tests\\kora.windows.integrationtests\\knowledgesources\\knowledgesourceswindowtests.cs",
+                "tests\\kora.windows.integrationtests\\knowledgesources\\knowledgesourceanswerwindowtests.cs",
+                "design\\model_providers_memory_and_knowledge.md",
+                "design\\file_and_folder_ingestion.md",
+                "docs\\knowledge-sources.md",
+                "src\\kora.core\\knowledgesources\\knowledgesourceanswercontext.cs",
+                "src\\kora\\knowledgesources\\knowledgesourceswindow.answers.cs",
+                "tests\\kora.core.unittests\\context\\knowledgesourceanswertests.cs"
+              ],
+              "phase": "running",
+              "sourceWritesRetired": false,
+              "manifest": {
+                "complete": true,
+                "actual": [
+                  "src\\kora.core\\context\\localfilelexicalretrieval.cs",
+                  "src\\kora.core\\context\\localfilelexicalretrieval.citations.cs",
+                  "src\\kora.core\\context\\localfilelexicalindex.cs",
+                  "src\\kora.core\\knowledgesources\\iknowledgesourcestore.cs",
+                  "src\\kora.core\\knowledgesources\\knowledgesourcerevision.cs",
+                  "src\\kora.application\\knowledgesources\\knowledgesourcemanager.cs",
+                  "src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.cs",
+                  "src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.snapshot.cs",
+                  "src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.index.cs",
+                  "src\\kora\\knowledgesources\\knowledgesourceswindow.cs",
+                  "tests\\kora.core.unittests\\context\\localfilelexicalindextests.cs",
+                  "tests\\kora.windows.integrationtests\\knowledgesources\\windowsknowledgesourcetests.index.cs",
+                  "tests\\kora.windows.integrationtests\\knowledgesources\\knowledgesourceswindowtests.cs",
+                  "design\\model_providers_memory_and_knowledge.md",
+                  "design\\file_and_folder_ingestion.md",
+                  "docs\\knowledge-sources.md"
+                ],
+                "planned": [
+                  "src\\kora.application\\knowledgesources\\knowledgesourceanswerworkflow.cs",
+                  "tests\\kora.application.unittests\\knowledgesources\\knowledgesourceanswertests.cs",
+                  "tests\\kora.windows.integrationtests\\knowledgesources\\knowledgesourceanswerwindowtests.cs",
+                  "design\\model_providers_memory_and_knowledge.md",
+                  "design\\file_and_folder_ingestion.md",
+                  "docs\\knowledge-sources.md",
+                  "src\\kora.core\\knowledgesources\\knowledgesourceanswercontext.cs",
+                  "src\\kora\\knowledgesources\\knowledgesourceswindow.answers.cs",
+                  "tests\\kora.core.unittests\\context\\knowledgesourceanswertests.cs"
+                ]
+              },
+              "preservation": {
+                "complete": true,
+                "commits": [],
+                "retained": [
+                  {
+                    "path": "src\\kora.core\\context\\localfilelexicalretrieval.cs",
+                    "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\indexed-exact-registered-source-retrieval\\owner-facts-pass10-86f5a92d-v1\\source-manifest.json#src\\kora.core\\context\\localfilelexicalretrieval.cs; source/copy SHA256=5bff243a62bfc7a60d0d4c94e9b387c548dd7580a80dd51f0b80f9f751e0a575; current byte count=15747"
+                  },
+                  {
+                    "path": "src\\kora.core\\context\\localfilelexicalretrieval.citations.cs",
+                    "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\indexed-exact-registered-source-retrieval\\owner-facts-pass10-86f5a92d-v1\\source-manifest.json#src\\kora.core\\context\\localfilelexicalretrieval.citations.cs; source/copy SHA256=7e50995a28e894b56f3f93e857cdd68669b11f99d0556c67d60e3248915133b3; current byte count=3198"
+                  },
+                  {
+                    "path": "src\\kora.core\\context\\localfilelexicalindex.cs",
+                    "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\indexed-exact-registered-source-retrieval\\owner-facts-pass10-86f5a92d-v1\\source-manifest.json#src\\kora.core\\context\\localfilelexicalindex.cs; source/copy SHA256=87b544a9e7c4697b97306211c20771c2693df08d8811ecb0fbc67fb50994917a; current byte count=3134"
+                  },
+                  {
+                    "path": "src\\kora.core\\knowledgesources\\iknowledgesourcestore.cs",
+                    "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\indexed-exact-registered-source-retrieval\\owner-facts-pass10-86f5a92d-v1\\source-manifest.json#src\\kora.core\\knowledgesources\\iknowledgesourcestore.cs; source/copy SHA256=f8c192399dfd466858cdac6496fb87eb7538c73b7a403e39791bf8dad961828a; current byte count=1498"
+                  },
+                  {
+                    "path": "src\\kora.core\\knowledgesources\\knowledgesourcerevision.cs",
+                    "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\indexed-exact-registered-source-retrieval\\owner-facts-pass10-86f5a92d-v1\\source-manifest.json#src\\kora.core\\knowledgesources\\knowledgesourcerevision.cs; source/copy SHA256=e0401444c3bbeb473196ac06d01bb5853bb3a16bff48caf3d52d75ccbfc23093; current byte count=2977"
+                  },
+                  {
+                    "path": "src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.cs",
+                    "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\indexed-exact-registered-source-retrieval\\owner-facts-pass10-86f5a92d-v1\\source-manifest.json#src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.cs; source/copy SHA256=9e9e01e75487ce42becca1130c02f5daf9f0b08c8ef85e3b3227c50785d1b24f; current byte count=15403"
+                  },
+                  {
+                    "path": "src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.snapshot.cs",
+                    "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\indexed-exact-registered-source-retrieval\\owner-facts-pass10-86f5a92d-v1\\source-manifest.json#src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.snapshot.cs; source/copy SHA256=c577f2b26ef1ab288eefa30935ea8e87dc4ef673f483ce76893d3c2a292300ff; current byte count=7331"
+                  },
+                  {
+                    "path": "src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.index.cs",
+                    "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\indexed-exact-registered-source-retrieval\\owner-facts-pass10-86f5a92d-v1\\source-manifest.json#src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.index.cs; source/copy SHA256=2287841ecdab6225924cfb764887823f5d504a9d5de3b6a60675ed37930297fe; current byte count=4562"
+                  },
+                  {
+                    "path": "src\\kora\\knowledgesources\\knowledgesourceswindow.cs",
+                    "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\indexed-exact-registered-source-retrieval\\owner-facts-pass10-86f5a92d-v1\\source-manifest.json#src\\kora\\knowledgesources\\knowledgesourceswindow.cs; source/copy SHA256=dbb6d758b24431a5419bbb62fefdc6a1e40db3c79f20baa2273004b3a16fc911; current byte count=19417"
+                  },
+                  {
+                    "path": "tests\\kora.core.unittests\\context\\localfilelexicalindextests.cs",
+                    "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\indexed-exact-registered-source-retrieval\\owner-facts-pass10-86f5a92d-v1\\source-manifest.json#tests\\kora.core.unittests\\context\\localfilelexicalindextests.cs; source/copy SHA256=3bc46836b72c593aec264bf4f5b6da0ca4eb02dfaa46ff44fb0b32294ef5a0c1; current byte count=9988"
+                  },
+                  {
+                    "path": "tests\\kora.windows.integrationtests\\knowledgesources\\windowsknowledgesourcetests.index.cs",
+                    "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\indexed-exact-registered-source-retrieval\\owner-facts-pass10-86f5a92d-v1\\source-manifest.json#tests\\kora.windows.integrationtests\\knowledgesources\\windowsknowledgesourcetests.index.cs; source/copy SHA256=2b01996e692e4f28ce3c3bc97eeec64a122ed61298e066b9fe264da5f2b18b37; current byte count=12539"
+                  },
+                  {
+                    "path": "tests\\kora.windows.integrationtests\\knowledgesources\\knowledgesourceswindowtests.cs",
+                    "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\indexed-exact-registered-source-retrieval\\owner-facts-pass10-86f5a92d-v1\\source-manifest.json#tests\\kora.windows.integrationtests\\knowledgesources\\knowledgesourceswindowtests.cs; source/copy SHA256=edcd5bb4c57262d674e6c1f1cf0fd7d201ebe82c647e30f9342aa991ebc20dd2; current byte count=13575"
+                  },
+                  {
+                    "path": "design\\model_providers_memory_and_knowledge.md",
+                    "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\indexed-exact-registered-source-retrieval\\owner-facts-pass10-86f5a92d-v1\\source-manifest.json#design\\model_providers_memory_and_knowledge.md; source/copy SHA256=92612d65925aa6d031bbdca663b868d04b8ce9e5307c0156355a6c47821d6abf; current byte count=122159"
+                  },
+                  {
+                    "path": "design\\file_and_folder_ingestion.md",
+                    "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\indexed-exact-registered-source-retrieval\\owner-facts-pass10-86f5a92d-v1\\source-manifest.json#design\\file_and_folder_ingestion.md; source/copy SHA256=3a938d0e6e1d79c6d008067e0f76f327f742bee7f54eb4d6068ae39c495123f9; current byte count=114996"
+                  },
+                  {
+                    "path": "docs\\knowledge-sources.md",
+                    "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\indexed-exact-registered-source-retrieval\\owner-facts-pass10-86f5a92d-v1\\source-manifest.json#docs\\knowledge-sources.md; source/copy SHA256=94dd5a67e06b589ef6aef8905728eec2ce9643bf02ba0f2cb5511c2f3d231277; current byte count=11602"
+                  }
+                ],
+                "unpreserved": [
+                  {
+                    "path": "src\\kora.application\\knowledgesources\\knowledgesourcemanager.cs",
+                    "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\indexed-exact-registered-source-retrieval\\owner-facts-pass10-86f5a92d-v1\\owner-facts-index-pass10-86f5a92d-v1.json#preservation.unpreserved; discarded temporary Manager edit NOT recoverable; retained current baseline SHA256=012914687bbc6defa972c99be764aaff486713d709f60178646d01da53fdcc6b; Git HEAD identity=8d4c9d2b152b2220106205add13de4a8316cfd27"
+                  }
+                ]
+              },
+              "quiescence": {
+                "paused": true,
+                "pendingInstructions": 0,
+                "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\indexed-exact-registered-source-retrieval\\owner-facts-pass10-86f5a92d-v1\\owner-facts-index-pass10-86f5a92d-v1.json#temporaryPause/instructionPopulation; corroborated original source action apply-v3-guarded-refinement-pass8-7b669b75:0 DONE and host turns1/2/3 completed; generic inbox UNKNOWN"
+              },
+              "unionFrozen": true,
+              "exclusivity": {
+                "complete": true,
+                "reservations": [
+                  {
+                    "key": "generate-owned-required-literal-skill",
+                    "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=07f8172f-5fac-46c3-923d-7d27d0a5faac",
+                    "scopes": [
+                      "design\\skill_authoring.md",
+                      "docs\\owned-skill-authoring.md",
+                      "src\\kora.application\\skills\\ownedskillguidancerefinementservice.cs",
+                      "src\\kora\\ownedskilleditorcontroller.refinement.cs",
+                      "src\\kora\\ownedskilleditorwindow.cs",
+                      "tests\\kora.application.unittests\\dependencies\\modelturnhosttests.ownedskillgeneration.cs",
+                      "tests\\kora.windows.integrationtests\\artifactdiscovery\\ownedpromptrenametests.cs",
+                      "tests\\kora.windows.integrationtests\\communication\\graphpresencesourcetests.cs",
+                      "tests\\kora.windows.integrationtests\\knowledgesources\\reviewedsourcefollowuptests.cs",
+                      "tests\\kora.windows.integrationtests\\knowledgesources\\sessionknowledgesourcebindingtests.cs",
+                      "tests\\kora.windows.integrationtests\\ownedskillauthoringnativetests.refinement.cs",
+                      "tests\\kora.windows.integrationtests\\sessionpermissionreviewertests.cs",
+                      "tests\\kora.windows.integrationtests\\sessionsconversationtests.ownedskillinputs.cs",
+                      "tests\\kora.windows.integrationtests\\sessionsconversationtests.statichtmldetails.cs",
+                      "tests\\kora.windows.integrationtests\\storage\\windowssqlitesessionresponseoutputtests.cs"
+                    ],
+                    "scopeRevision": 1,
+                    "sourceWritesRetired": true
+                  },
+                  {
+                    "key": "reconcile-reviewed-evidence-answer-roadmap",
+                    "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=40ece6a6-064c-4f44-916d-313c507cd751",
+                    "scopes": [
+                      "design\\implementation_roadmap.md"
+                    ],
+                    "scopeRevision": 0,
+                    "sourceWritesRetired": false
+                  },
+                  {
+                    "key": "refine-declared-agent-guidance",
+                    "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=05e5326f-b324-40cd-8945-940a53d17d0d",
+                    "scopes": [
+                      "src\\kora.core\\agents\\ownedagentprofiledocument.cs",
+                      "src\\kora.application\\definitions\\customizationauthoringservice.cs",
+                      "src\\kora\\agentprofileeditorcontroller.proposal.cs",
+                      "tests\\kora.core.unittests\\agents\\ownedagentprofileguidancetests.cs",
+                      "tests\\kora.application.unittests\\definitions\\customizationauthoringdeclaredagenttests.cs",
+                      "tests\\kora.windows.integrationtests\\agentprofiledeclaredguidancetests.cs",
+                      "design\\definition_management.md",
+                      "docs\\agent-profile-authoring.md"
+                    ],
+                    "scopeRevision": 0,
+                    "sourceWritesRetired": false
+                  },
+                  {
+                    "key": "review-compound-registered-setting-suggestions",
+                    "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=ad987d81-c079-4150-adf1-3138e2c42be5",
+                    "scopes": [
+                      "src\\kora.application\\configuration\\registeredsettings\\registeredsettingsuggestioncollection.cs",
+                      "src\\kora.application\\configuration\\registeredsettings\\registeredsettingsuggestions.cs",
+                      "src\\kora\\registeredsettings\\sessionsviewmodel.registeredsettings.cs",
+                      "src\\kora\\registeredsettings\\sessionsviewmodel.settingsuggestioncollection.cs",
+                      "src\\kora\\sessionswindowcontroller.registeredsettingbindings.cs",
+                      "tests\\kora.application.unittests\\configuration\\registeredsettingsuggestioncollectiontests.cs",
+                      "tests\\kora.windows.integrationtests\\sessionsconversationtests.settingsuggestioncollection.cs",
+                      "design\\user_configuration.md",
+                      "docs\\setting-proposals.md"
+                    ],
+                    "scopeRevision": 0,
+                    "sourceWritesRetired": false
+                  },
+                  {
+                    "key": "verified-shrink-only-reservations",
+                    "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=60d3d55b-7892-4a5e-bf0f-94ffdcc7c072",
+                    "scopes": [
+                      ".github\\skills\\kora-orchestrate\\scripts",
+                      ".github\\skills\\kora-orchestrate\\skill.md",
+                      ".github\\skills\\kora-orchestrate\\readme.md",
+                      ".github\\skills\\kora-orchestrate\\worker.md"
+                    ],
+                    "scopeRevision": 0,
+                    "sourceWritesRetired": false
+                  }
+                ],
+                "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\index-facts-corroboration-pass10.json#heldReservations; canonical checkpoint revision 84"
+              },
+              "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\index-facts-corroboration-pass10.json"
+            },
+            "acknowledgment": {
+              "id": "index-owner-ack-pass10-86f5a92d-whole-proof-361e5a4d-v1",
+              "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\indexed-exact-registered-source-retrieval\\owner-ack-pass10-86f5a92d-v1\\verification-receipt.json",
+              "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=86f5a92d-8e3b-4b92-a0c4-5a36d0416853",
+              "key": "indexed-exact-registered-source-retrieval",
+              "scopeRevision": 0,
+              "proofDigest": "361e5a4d0cd852dc5efd3a0ee441d488fd1f21599ce56e389da47169acf58896"
+            }
+          }
+        ]
+      },
+      {
+        "key": "refine-declared-agent-guidance",
+        "outcome": "Refine existing manually declared supported agent guidance with all tools/references/runtime/budgets preserved, save inert then independently review/invoke",
+        "pool": "ready",
+        "kind": "feature",
+        "head": "47f6ea7f9fc4ba4e2eedec48b51b3390b42b5509",
+        "scopes": [
+          "src\\kora.core\\agents\\ownedagentprofiledocument.cs",
+          "src\\kora.application\\definitions\\customizationauthoringservice.cs",
+          "src\\kora\\agentprofileeditorcontroller.proposal.cs",
+          "tests\\kora.core.unittests\\agents\\ownedagentprofileguidancetests.cs",
+          "tests\\kora.application.unittests\\definitions\\customizationauthoringdeclaredagenttests.cs",
+          "tests\\kora.windows.integrationtests\\agentprofiledeclaredguidancetests.cs",
+          "design\\definition_management.md",
+          "docs\\agent-profile-authoring.md",
+          "src\\kora\\agentprofileeditorcontroller.cs",
+          "tests\\kora.windows.integrationtests\\agentprofileconversationalauthoringtests.cs",
+          "tests\\kora.application.unittests\\documentation\\agentprofileauthoringguidetests.cs"
+        ],
+        "evidence": "Discovery-owned approved R22 governed authoring increment. Existing document/controller/service ProposeToolFree rejects manually declared supported tool-bearing/non-v1 profiles before disclosure, while manual parser/save/independent invocation already exists. Complete body/description-only local tools-none refinement of original user-declared supported profiles, separate complete declaration/source disclosure, preserve every name/version/tool/reference/runtime/budget/header field, parse/review/adopt volatile guidance, separately confirm exact disabled Save/readback and later exact source/tool/reference/target/request review reaching canonical retained invocation via deterministic seam. No initial capability generation/new format/extra tools/references/reference-body reads/auto-activation/grants/provider enablement/profile-original edits. Cover declaration equality, malformed/extra/duplicate/schema metadata, staleness/privacy/channel/catalogue/control/expiry/destination/source changes, forbidden reads/effects/resource joins, unsupported-before-disclosure and preserved v1/manual behavior with portable/native gates. Full eight-file manifest/admission supplied in planner\\pass8-agent-refinement-candidate.json under control scratch. Parent routes evidence, does not redo Git/PR/code analysis. Backlog until actual v3 contraction resolves whole native-test directory overlap; all required tests retained.",
+        "pr": null,
+        "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=05e5326f-b324-40cd-8945-940a53d17d0d",
+        "phase": "running",
+        "blocker": "Actualgranted11nativeReleasebuildclean/new+existing72tests70PASS2FAIL0skip: literalv4newretained-invocation adaptercount2vs1 andprivacyretirement source-not-cleared. Mandatorycanonicaldiagnosticreferenceconfirmedmissing/onequestionunavailable, no diagnosis/fixclaim/substitute/testwaiver. Sourcepaused/all11unpublished/receiptsTRXlogsheld/noPR/cleanup; originalscope24otherindex/oldretiredguards/owners/slotsunchanged. Parentrecordschildreportonly; missingresourceescalationunresolved, thirdsettingsproofcontinuesindependent.",
+        "publication": null,
+        "scopeRevision": 1,
+        "scopeHistory": [],
+        "sourceWritesRetired": false,
+        "scopeAmendments": [
+          {
+            "eventId": "agent-extend-scopes-pass10-7b669b75",
+            "proof": {
+              "version": 1,
+              "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=05e5326f-b324-40cd-8945-940a53d17d0d",
+              "key": "refine-declared-agent-guidance",
+              "reservation": {
+                "outcome": "Refine existing manually declared supported agent guidance with all tools/references/runtime/budgets preserved, save inert then independently review/invoke",
+                "kind": "feature",
+                "pool": "ready",
+                "head": "47f6ea7f9fc4ba4e2eedec48b51b3390b42b5509",
+                "pr": null
+              },
+              "scopeRevision": 0,
+              "fromScopes": [
+                "src\\kora.core\\agents\\ownedagentprofiledocument.cs",
+                "src\\kora.application\\definitions\\customizationauthoringservice.cs",
+                "src\\kora\\agentprofileeditorcontroller.proposal.cs",
+                "tests\\kora.core.unittests\\agents\\ownedagentprofileguidancetests.cs",
+                "tests\\kora.application.unittests\\definitions\\customizationauthoringdeclaredagenttests.cs",
+                "tests\\kora.windows.integrationtests\\agentprofiledeclaredguidancetests.cs",
+                "design\\definition_management.md",
+                "docs\\agent-profile-authoring.md"
+              ],
+              "additionalScopes": [
+                "src\\kora\\agentprofileeditorcontroller.cs",
+                "tests\\kora.windows.integrationtests\\agentprofileconversationalauthoringtests.cs",
+                "tests\\kora.application.unittests\\documentation\\agentprofileauthoringguidetests.cs"
+              ],
+              "toScopes": [
+                "src\\kora.core\\agents\\ownedagentprofiledocument.cs",
+                "src\\kora.application\\definitions\\customizationauthoringservice.cs",
+                "src\\kora\\agentprofileeditorcontroller.proposal.cs",
+                "tests\\kora.core.unittests\\agents\\ownedagentprofileguidancetests.cs",
+                "tests\\kora.application.unittests\\definitions\\customizationauthoringdeclaredagenttests.cs",
+                "tests\\kora.windows.integrationtests\\agentprofiledeclaredguidancetests.cs",
+                "design\\definition_management.md",
+                "docs\\agent-profile-authoring.md",
+                "src\\kora\\agentprofileeditorcontroller.cs",
+                "tests\\kora.windows.integrationtests\\agentprofileconversationalauthoringtests.cs",
+                "tests\\kora.application.unittests\\documentation\\agentprofileauthoringguidetests.cs"
+              ],
+              "phase": "running",
+              "sourceWritesRetired": false,
+              "manifest": {
+                "complete": true,
+                "actual": [
+                  "src\\kora.core\\agents\\ownedagentprofiledocument.cs",
+                  "src\\kora.application\\definitions\\customizationauthoringservice.cs",
+                  "tests\\kora.core.unittests\\agents\\ownedagentprofileguidancetests.cs",
+                  "tests\\kora.application.unittests\\definitions\\customizationauthoringdeclaredagenttests.cs"
+                ],
+                "planned": [
+                  "src\\kora.core\\agents\\ownedagentprofiledocument.cs",
+                  "src\\kora.application\\definitions\\customizationauthoringservice.cs",
+                  "src\\kora\\agentprofileeditorcontroller.proposal.cs",
+                  "tests\\kora.core.unittests\\agents\\ownedagentprofileguidancetests.cs",
+                  "tests\\kora.application.unittests\\definitions\\customizationauthoringdeclaredagenttests.cs",
+                  "tests\\kora.windows.integrationtests\\agentprofiledeclaredguidancetests.cs",
+                  "design\\definition_management.md",
+                  "docs\\agent-profile-authoring.md",
+                  "src\\kora\\agentprofileeditorcontroller.cs",
+                  "tests\\kora.windows.integrationtests\\agentprofileconversationalauthoringtests.cs",
+                  "tests\\kora.application.unittests\\documentation\\agentprofileauthoringguidetests.cs"
+                ]
+              },
+              "preservation": {
+                "complete": true,
+                "commits": [],
+                "retained": [],
+                "unpreserved": [
+                  {
+                    "path": "src\\kora.core\\agents\\ownedagentprofiledocument.cs",
+                    "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\refine-declared-agent-guidance\\owner-facts-pass10.json#preservation.unpreserved; Current dirty file retained in the exact owned worktree; SHA256 0224A7550EF9552714640E2F50F6F3A9D8A346852E4231CDC035270272F81768. No committed or independent backup of changed bytes."
+                  },
+                  {
+                    "path": "src\\kora.application\\definitions\\customizationauthoringservice.cs",
+                    "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\refine-declared-agent-guidance\\owner-facts-pass10.json#preservation.unpreserved; Current dirty file retained in the exact owned worktree; SHA256 E7082FDA2E76E5295BDBCA522C930F46CDF04E2407587450937ED1366DBFBC8D. No committed or independent backup of changed bytes."
+                  },
+                  {
+                    "path": "tests\\kora.core.unittests\\agents\\ownedagentprofileguidancetests.cs",
+                    "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\refine-declared-agent-guidance\\owner-facts-pass10.json#preservation.unpreserved; Current new file retained in the exact owned worktree; SHA256 F79CE0578E648E4AF563AADCC2F113D86FA79F10AFD82BDDDA63195061E4A7D1. No committed or independent backup."
+                  },
+                  {
+                    "path": "tests\\kora.application.unittests\\definitions\\customizationauthoringdeclaredagenttests.cs",
+                    "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\refine-declared-agent-guidance\\owner-facts-pass10.json#preservation.unpreserved; Current new file retained in the exact owned worktree; SHA256 5F718734D006EBF6DA9B7C03EBCD72B8C4B94263865EE0E0D8398A11461395D9. No committed or independent backup."
+                  }
+                ]
+              },
+              "quiescence": {
+                "paused": true,
+                "pendingInstructions": 0,
+                "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\refine-declared-agent-guidance\\owner-facts-pass10.json#temporaryPause/instructionPopulation; original source action apply-v3-guarded-refinement-pass8-7b669b75:1 DONE; generic inbox UNKNOWN"
+              },
+              "unionFrozen": true,
+              "exclusivity": {
+                "complete": true,
+                "reservations": [
+                  {
+                    "key": "generate-owned-required-literal-skill",
+                    "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=07f8172f-5fac-46c3-923d-7d27d0a5faac",
+                    "scopes": [
+                      "design\\skill_authoring.md",
+                      "docs\\owned-skill-authoring.md",
+                      "src\\kora.application\\skills\\ownedskillguidancerefinementservice.cs",
+                      "src\\kora\\ownedskilleditorcontroller.refinement.cs",
+                      "src\\kora\\ownedskilleditorwindow.cs",
+                      "tests\\kora.application.unittests\\dependencies\\modelturnhosttests.ownedskillgeneration.cs",
+                      "tests\\kora.windows.integrationtests\\artifactdiscovery\\ownedpromptrenametests.cs",
+                      "tests\\kora.windows.integrationtests\\communication\\graphpresencesourcetests.cs",
+                      "tests\\kora.windows.integrationtests\\knowledgesources\\reviewedsourcefollowuptests.cs",
+                      "tests\\kora.windows.integrationtests\\knowledgesources\\sessionknowledgesourcebindingtests.cs",
+                      "tests\\kora.windows.integrationtests\\ownedskillauthoringnativetests.refinement.cs",
+                      "tests\\kora.windows.integrationtests\\sessionpermissionreviewertests.cs",
+                      "tests\\kora.windows.integrationtests\\sessionsconversationtests.ownedskillinputs.cs",
+                      "tests\\kora.windows.integrationtests\\sessionsconversationtests.statichtmldetails.cs",
+                      "tests\\kora.windows.integrationtests\\storage\\windowssqlitesessionresponseoutputtests.cs"
+                    ],
+                    "scopeRevision": 1,
+                    "sourceWritesRetired": true
+                  },
+                  {
+                    "key": "indexed-exact-registered-source-retrieval",
+                    "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=86f5a92d-8e3b-4b92-a0c4-5a36d0416853",
+                    "scopes": [
+                      "src\\kora.core\\context\\localfilelexicalretrieval.cs",
+                      "src\\kora.core\\context\\localfilelexicalretrieval.citations.cs",
+                      "src\\kora.core\\context\\localfilelexicalindex.cs",
+                      "src\\kora.core\\knowledgesources\\iknowledgesourcestore.cs",
+                      "src\\kora.core\\knowledgesources\\knowledgesourcerevision.cs",
+                      "src\\kora.application\\knowledgesources\\knowledgesourcemanager.cs",
+                      "src\\kora.application\\knowledgesources\\knowledgesourceanswerworkflow.cs",
+                      "src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.cs",
+                      "src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.snapshot.cs",
+                      "src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.index.cs",
+                      "src\\kora\\knowledgesources\\knowledgesourceswindow.cs",
+                      "tests\\kora.core.unittests\\context\\localfileretrievaltests.cs",
+                      "tests\\kora.core.unittests\\context\\localfilelexicalindextests.cs",
+                      "tests\\kora.application.unittests\\knowledgesources\\knowledgesourcemanagertests.cs",
+                      "tests\\kora.application.unittests\\knowledgesources\\knowledgesourceanswertests.cs",
+                      "tests\\kora.windows.integrationtests\\knowledgesources\\windowsknowledgesourcetests.index.cs",
+                      "tests\\kora.windows.integrationtests\\knowledgesources\\knowledgesourceswindowtests.cs",
+                      "tests\\kora.windows.integrationtests\\knowledgesources\\knowledgesourceanswerwindowtests.cs",
+                      "design\\model_providers_memory_and_knowledge.md",
+                      "design\\file_and_folder_ingestion.md",
+                      "docs\\knowledge-sources.md",
+                      "src\\kora.core\\knowledgesources\\knowledgesourceanswercontext.cs",
+                      "src\\kora\\knowledgesources\\knowledgesourceswindow.answers.cs",
+                      "tests\\kora.core.unittests\\context\\knowledgesourceanswertests.cs"
+                    ],
+                    "scopeRevision": 1,
+                    "sourceWritesRetired": false
+                  },
+                  {
+                    "key": "reconcile-reviewed-evidence-answer-roadmap",
+                    "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=40ece6a6-064c-4f44-916d-313c507cd751",
+                    "scopes": [
+                      "design\\implementation_roadmap.md"
+                    ],
+                    "scopeRevision": 0,
+                    "sourceWritesRetired": false
+                  },
+                  {
+                    "key": "review-compound-registered-setting-suggestions",
+                    "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=ad987d81-c079-4150-adf1-3138e2c42be5",
+                    "scopes": [
+                      "src\\kora.application\\configuration\\registeredsettings\\registeredsettingsuggestioncollection.cs",
+                      "src\\kora.application\\configuration\\registeredsettings\\registeredsettingsuggestions.cs",
+                      "src\\kora\\registeredsettings\\sessionsviewmodel.registeredsettings.cs",
+                      "src\\kora\\registeredsettings\\sessionsviewmodel.settingsuggestioncollection.cs",
+                      "src\\kora\\sessionswindowcontroller.registeredsettingbindings.cs",
+                      "tests\\kora.application.unittests\\configuration\\registeredsettingsuggestioncollectiontests.cs",
+                      "tests\\kora.windows.integrationtests\\sessionsconversationtests.settingsuggestioncollection.cs",
+                      "design\\user_configuration.md",
+                      "docs\\setting-proposals.md"
+                    ],
+                    "scopeRevision": 0,
+                    "sourceWritesRetired": false
+                  },
+                  {
+                    "key": "verified-shrink-only-reservations",
+                    "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=60d3d55b-7892-4a5e-bf0f-94ffdcc7c072",
+                    "scopes": [
+                      ".github\\skills\\kora-orchestrate\\scripts",
+                      ".github\\skills\\kora-orchestrate\\skill.md",
+                      ".github\\skills\\kora-orchestrate\\readme.md",
+                      ".github\\skills\\kora-orchestrate\\worker.md"
+                    ],
+                    "scopeRevision": 0,
+                    "sourceWritesRetired": false
+                  }
+                ],
+                "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\agent-facts-corroboration-pass10.json#heldReservations/current canonical checkpoint 86; index24/revision1"
+              },
+              "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\agent-facts-corroboration-pass10.json"
+            },
+            "acknowledgment": {
+              "id": "agent-owner-ack-pass10-05e5326f-whole-proof-8d1af095-v1",
+              "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\refine-declared-agent-guidance\\owner-ack-verification-pass10.json",
+              "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=05e5326f-b324-40cd-8945-940a53d17d0d",
+              "key": "refine-declared-agent-guidance",
+              "scopeRevision": 0,
+              "proofDigest": "8d1af095e41dbcf5855fdf72a8228a9f5c7549a36a72ae90a694e3194a501d2b"
+            }
+          }
+        ]
+      },
+      {
+        "key": "recoverably-rename-owned-prompt",
+        "outcome": "Recoverably rename exact owned Prompt preserving source/literals, then independently reopen/review/bind/submit",
+        "pool": "ready",
+        "kind": "feature",
+        "head": "47f6ea7f9fc4ba4e2eedec48b51b3390b42b5509",
+        "scopes": [
+          "src\\kora.core\\artifactinvocation\\ownedinstructionrename.cs",
+          "src\\kora.core\\artifactinvocation\\ownedpromptrename.cs",
+          "src\\kora.core\\artifactinvocation\\iownedpromptrenamestore.cs",
+          "src\\kora.application\\definitions\\ownedinstructioneditoractions.rename.cs",
+          "src\\kora.application\\definitions\\ownedpromptrenamereview.cs",
+          "src\\kora.windows\\artifactdiscovery\\windowsowneddefinitionfileaccess.promptrename.cs",
+          "src\\kora.windows\\artifactdiscovery\\windowsownedinstructionstore.cs",
+          "src\\kora\\ownedinstructioneditorcontroller.rename.cs",
+          "tests\\kora.core.unittests\\artifactinvocation\\ownedpromptrenametests.cs",
+          "tests\\kora.application.unittests\\definitions\\ownedpromptrenametests.cs",
+          "tests\\kora.windows.integrationtests\\artifactdiscovery\\ownedpromptrenametests.cs",
+          "tests\\kora.windows.integrationtests\\sessionsconversationtests.renamedprompt.cs",
+          "design\\definition_management.md",
+          "docs\\instruction-editor.md"
+        ],
+        "evidence": "Discovery-owned admission: current source matrix permits Kora-owned supported declarative definition rename, while Definition_Management.md:1035-1038 and Instruction-only RenameStore/domain guards show supported Prompt identity rename absent. Complete native exact clean Prompt v1/v2 old/new identity/source/destination/use-impact review and separate confirmation, recoverable no-overwrite handle-bound intent/rename/readback, catalogue reconciliation disabled/review-required, explicit reopen and independent literal/source/target review reaching canonical expanded retained submission. Preserve BOM/raw formatting/attribution/body/literal names/order; change only name/filename, no profile-original/template/permission/history/auto-binding or inherited authority. Reuse existing closed owned names/root/bytes, Instruction durable rename/recovery and Prompt parser/catalogue; preserve Instruction/dependent-review behavior. Full native/store/canonical invocation regressions cover source preservation, occupied/foreign/case-only/reserved/private/channel/control/source changes, audit/crash/interruption/readback uncertain intent and explicit exact recovery. Exact14 production/test/docs files supplied in planner\\pass8-prompt-rename-candidate.json; parent routes evidence without Git/PR/code analysis. Backlog until old native-test reservation safely contracts; shared Definition_Management.md with agent-refinement candidate must serialize, never false disjointness.",
+        "pr": null,
+        "owner": null,
+        "phase": "candidate",
+        "blocker": null,
+        "publication": null,
+        "scopeRevision": 0,
+        "scopeHistory": [],
+        "sourceWritesRetired": false,
+        "scopeAmendments": []
+      },
+      {
+        "key": "reviewed-session-named-source",
+        "outcome": "Bind an explicitly reviewed registered named-source revision to one exact conversation, reopen it there and independently ask a cited retained question without copying authority or source data",
+        "pool": "ready",
+        "kind": "feature",
+        "head": "47f6ea7f9fc4ba4e2eedec48b51b3390b42b5509",
+        "scopes": [
+          "src\\kora.core\\knowledgesources\\sessionknowledgesourcebinding.cs",
+          "src\\kora.core\\storage\\isessionknowledgesourcebindingstore.cs",
+          "src\\kora.application\\knowledgesources\\sessionknowledgesourceworkflow.cs",
+          "src\\kora.windows\\storage\\windowssqlitehostinteractionstore.knowledgesourcebindings.cs",
+          "src\\kora.windows\\storage\\hostinteractionschema.cs",
+          "src\\kora.windows\\storage\\windowssqlitehostinteractionstore.cs",
+          "src\\kora\\knowledgesources\\sessionknowledgesourcecontroller.cs",
+          "src\\kora\\sessionsviewmodel.knowledgesources.cs",
+          "src\\kora\\sessionswindow.knowledgesources.cs",
+          "src\\kora\\app.knowledgesources.cs",
+          "tests\\kora.core.unittests\\knowledgesources\\sessionknowledgesourcebindingtests.cs",
+          "tests\\kora.application.unittests\\knowledgesources\\sessionknowledgesourceworkflowtests.cs",
+          "tests\\kora.windows.integrationtests\\knowledgesources\\sessionknowledgesourcebindingtests.cs",
+          "tests\\kora.windows.integrationtests\\knowledgesources\\sessionknowledgesourceanswertests.cs",
+          "design\\file_and_folder_ingestion.md",
+          "docs\\knowledge-sources.md"
+        ],
+        "evidence": "Discovery-owned complete admission/scope/checks receipt Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\pass8-session-source-candidate.json. Parent routes without repeating Git/PR/code validation. {\"id\":\"planner-candidate-pass8-session-named-source\",\"owner\":\"agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=a0edda68-7040-4fcc-9162-bc827ff468dc\",\"pass\":8,\"key\":\"reviewed-session-named-source\",\"outcome\":\"Bind an explicitly reviewed registered named-source revision to one exact conversation, reopen it there and independently ask a cited retained question without copying authority or source data\",\"pool\":\"ready\",\"kind\":\"feature\",\"head\":\"47f6ea7f9fc4ba4e2eedec48b51b3390b42b5509\",\"scenario\":\"Keep a documentation folder associated with one conversation while other conversations use different sources. Reopen/inspect that exact source revision and deliberately review a question from that conversation; refresh/revoke never silently swaps the bound revision.\",\"approval\":\"Model_Providers_Memory_And_Knowledge.md:863-869 explicitly configures named files/folders and attaches a source revision to one session. File_And_Folder_Ingestion.md:735-771 selects session attachment versus managed source through exact scope/read review. This is within retained approved conversation/knowledge-source scope, not automatic recall.\",\"gap\":[\"KnowledgeSourceManager/IKnowledgeSourceStore register, publish, inspect, refresh and remove global exact named revisions; KnowledgeSourceReference has SourceId/RevisionId but no session binding.\",\"Current session-store source search found no KnowledgeSourceReference binding consumer.\",\"SessionFileAttachmentService and ISessionAttachment* stores only deliver immutable single-file copies; File_And_Folder_Ingestion.md:130-149 explicitly limits that delivered increment to one file/exact session.\",\"Current KnowledgeSourceAnswerWorkflow opens explicitly selected global sources for a fresh context target, not a durable exact-session source binding.\"],\"minimumI\":\"Existing host-resolved SessionWorkspaceEntry authority, KnowledgeSourceReference immutable identity, registered source review/manager/access gates, exact private session store/audit transaction, canonical knowledge source answer/context retention. Store only explicit reference metadata under host-owned binding, not another captured-body/index copy.\",\"hostRationale\":\"Session identity, source revision, privacy/retention and effect admission are host-owned. A reference is not source read/model permission, and another conversation/model cannot bind or copy it.\",\"completeInteraction\":\"Choose exact Active conversation and registered enabled revision -> full binding/source retention/private review -> original-user separate confirmation -> durable exact revision association/audit/readback -> restart/reopen in same conversation -> explicit source integrity/access read -> question/excerpt/target review -> independent one-shot LocalOnly confirmation -> genuine answer retained in that original conversation -> explicitly detach removes binding only; refresh/revoke/source/session deletion retires use and reports unavailable without automatic newer-version substitution.\",\"bounds\":\"Start with one explicit association per conversation to an already registered source; no folder byte import, copied source body, automatic source read, context assembly, model call, source count expansion, hosted grounding, renewed retention or permission transfer. Existing single-file attachment format/count behavior unchanged. Binding does not extend independent global source retention.\",\"scopes\":[\"src\\\\Kora.Core\\\\KnowledgeSources\\\\SessionKnowledgeSourceBinding.cs\",\"src\\\\Kora.Core\\\\Storage\\\\ISessionKnowledgeSourceBindingStore.cs\",\"src\\\\Kora.Application\\\\KnowledgeSources\\\\SessionKnowledgeSourceWorkflow.cs\",\"src\\\\Kora.Windows\\\\Storage\\\\WindowsSqliteHostInteractionStore.KnowledgeSourceBindings.cs\",\"src\\\\Kora.Windows\\\\Storage\\\\HostInteractionSchema.cs\",\"src\\\\Kora.Windows\\\\Storage\\\\WindowsSqliteHostInteractionStore.cs\",\"src\\\\Kora\\\\KnowledgeSources\\\\SessionKnowledgeSourceController.cs\",\"src\\\\Kora\\\\SessionsViewModel.KnowledgeSources.cs\",\"src\\\\Kora\\\\SessionsWindow.KnowledgeSources.cs\",\"src\\\\Kora\\\\App.KnowledgeSources.cs\",\"tests\\\\Kora.Core.UnitTests\\\\KnowledgeSources\\\\SessionKnowledgeSourceBindingTests.cs\",\"tests\\\\Kora.Application.UnitTests\\\\KnowledgeSources\\\\SessionKnowledgeSourceWorkflowTests.cs\",\"tests\\\\Kora.Windows.IntegrationTests\\\\KnowledgeSources\\\\SessionKnowledgeSourceBindingTests.cs\",\"tests\\\\Kora.Windows.IntegrationTests\\\\KnowledgeSources\\\\SessionKnowledgeSourceAnswerTests.cs\",\"Design\\\\File_And_Folder_Ingestion.md\",\"docs\\\\knowledge-sources.md\"],\"newFiles\":\"Natural typed domain/interface/workflow/store/controller/native partial/regression files under existing modules; no fake-only relocated regressions or new test tooling.\",\"checks\":[\"Actual private SQL migration/bind/readback/restart/exact-conversation source opening and separately reviewed genuine retained answer.\",\"Wrong target/generation/session source, source refresh/revoke/unavailable/malformed binding and lost privacy/current admission refuse; no name/new-revision substitution or cross-session authority.\",\"Explicit detach removes association only; session deletion removes binding without deleting independent managed source, audit or grants; source removal retires old associations.\",\"Bind/inspect do not renew activity/retention, load source automatically, invoke model or silently convert to legacy single-file attachment.\",\"Independent source/runtime qualification unavailable behavior and all existing single-file attachment/knowledge answers stay unchanged; full Core/Application/Windows behavioral and coverage checks.\"],\"notDelivered\":\"Global named-source lifecycle and single-file session attachments do not implement durable session-scoped named-source revision association and same-conversation reviewed use.\",\"ownership\":\"No worker/candidate for this operation. Exact native tests conflict with original whole directory until accepted contraction. Shared docs File_And_Folder_Ingestion.md/docs knowledge-sources with indexed-source candidate serialize; common existing source consumer must be revalidated if index changed. Do not overlap concurrently or invent disjointness.\",\"productionWrites\":false}",
+        "pr": null,
+        "owner": null,
+        "phase": "candidate",
+        "blocker": null,
+        "publication": null,
+        "scopeRevision": 0,
+        "scopeHistory": [],
+        "sourceWritesRetired": false,
+        "scopeAmendments": []
+      },
+      {
+        "key": "review-compound-registered-setting-suggestions",
+        "outcome": "Review multiple supported registered setting suggestions from one exact retained answer and deliberately apply selected changes through their existing independent confirmation/writer paths",
+        "pool": "ready",
+        "kind": "feature",
+        "head": "47f6ea7f9fc4ba4e2eedec48b51b3390b42b5509",
+        "scopes": [
+          "src\\kora.application\\configuration\\registeredsettings\\registeredsettingsuggestioncollection.cs",
+          "src\\kora.application\\configuration\\registeredsettings\\registeredsettingsuggestions.cs",
+          "src\\kora\\registeredsettings\\sessionsviewmodel.registeredsettings.cs",
+          "src\\kora\\registeredsettings\\sessionsviewmodel.settingsuggestioncollection.cs",
+          "src\\kora\\sessionswindowcontroller.registeredsettingbindings.cs",
+          "tests\\kora.application.unittests\\configuration\\registeredsettingsuggestioncollectiontests.cs",
+          "tests\\kora.windows.integrationtests\\sessionsconversationtests.settingsuggestioncollection.cs",
+          "design\\user_configuration.md",
+          "docs\\setting-proposals.md",
+          "src\\kora.application\\configuration\\appearancesuggestionreview.cs",
+          "src\\kora.application\\configuration\\speechsummarysuggestionreview.cs",
+          "src\\kora.application\\configuration\\playbackvolumesuggestionreview.cs",
+          "src\\kora.application\\configuration\\responsemodesuggestionreview.cs",
+          "src\\kora.application\\configuration\\windowsspeechratesuggestionreview.cs",
+          "src\\kora.application\\configuration\\installedspeechvoicesuggestionreview.cs",
+          "src\\kora.application\\configuration\\voicecapturetimingsuggestionreview.cs",
+          "src\\kora.application\\configuration\\quiethourssuggestionreview.cs",
+          "src\\kora.application\\configuration\\detailpresentationsuggestionreview.cs",
+          "src\\kora.application\\viewmodels\\mainviewmodel.appearance.cs",
+          "src\\kora.application\\viewmodels\\mainviewmodel.speechsummarysuggestions.cs",
+          "src\\kora.application\\viewmodels\\mainviewmodel.playbackvolumesuggestions.cs",
+          "src\\kora.application\\viewmodels\\mainviewmodel.responsemodesuggestions.cs",
+          "src\\kora.application\\viewmodels\\mainviewmodel.windowsspeechratesuggestions.cs",
+          "src\\kora.application\\viewmodels\\mainviewmodel.installedspeechvoicesuggestions.cs",
+          "src\\kora.application\\viewmodels\\mainviewmodel.voicecapturetimingsuggestions.cs",
+          "src\\kora.application\\viewmodels\\mainviewmodel.quiethourssuggestions.cs",
+          "src\\kora.application\\viewmodels\\mainviewmodel.detailpresentationsuggestions.cs",
+          "src\\kora\\sessionswindowcontroller.cs",
+          "src\\kora\\registeredsettings\\sessionspresentationowner.registeredsettings.cs",
+          "src\\kora\\sessionswindow.axaml",
+          "src\\kora\\compactsessionwindow.axaml",
+          "src\\kora.application\\presentation\\audioplaybacksettings.cs"
+        ],
+        "evidence": "Discovery-supplied full admission/complete operation/exact files/checks at Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\pass8-settings-candidate.json. Parent routes without Git/PR/code reinspection. {\"id\":\"planner-candidate-pass8-compound-setting-suggestions\",\"owner\":\"agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=a0edda68-7040-4fcc-9162-bc827ff468dc\",\"pass\":8,\"key\":\"review-compound-registered-setting-suggestions\",\"outcome\":\"Review multiple supported registered setting suggestions from one exact retained answer and deliberately apply selected changes through their existing independent confirmation/writer paths\",\"pool\":\"ready\",\"kind\":\"feature\",\"head\":\"47f6ea7f9fc4ba4e2eedec48b51b3390b42b5509\",\"scenario\":\"A user asks for coordinated existing preference suggestions, such as a shorter spoken summary and lower volume. A model answer containing both valid suggestions currently cannot be reviewed or applied at all; the workflow accepts only a single entire-answer command.\",\"admission\":\"MVP_Scope explicitly admits model proposals for registered settings through the SAME native validation/approval paths. User_Configuration full configuration/shared original-user setting review and R10 consumed subset. No new preference, model-selected authority or cross-store atomicity is admitted.\",\"gap\":[\"src\\\\Kora.Application\\\\Configuration\\\\RegisteredSettings\\\\RegisteredSettingSuggestions.cs:14-27 ModelPolicy restricts entire final answer to one inert suggestion, explicitly no batch.\",\"RegisteredSettingSuggestions.cs:75 parser rejects a batch/commentary; RegisteredSettingProposal has typed per-setting values.\",\"docs\\\\setting-proposals.md and User_Configuration retained response-mode proposal explicitly document one exact suggestion. Native registered-setting consumers reuse that one-answer interpretation.\"],\"minimumI\":\"Existing closed RegisteredSettingRegistry, scalar validation/RegisteredSettingProposal, exact successful retained answer source/audit identity, native original-channel admission, per-setting review/choice/service/writer/readback and existing pending-review/undo lifecycle.\",\"hostRationale\":\"Model text supplies only inert values for existing IDs. The host binds full source lineage and independently admits every selected setting; preferences, model output or one applied change cannot approve another.\",\"completeInteraction\":\"Original user requests several existing setting suggestions -> admitted model emits bounded complete canonical Set/Reset commands in a separately identified compound-response grammar -> inspect entire exact successful retained source -> parse/validate complete finite unique registry membership, reject whole malformed recommendation -> select one member -> existing current/proposed/scope review -> separate original-user confirmation -> shared admitted writer/audit/readback -> truthful result for that member -> repeat fresh review/confirmation for another chosen member, with full source/policy/currentness revalidation. Never auto-apply the rest.\",\"boundaries\":\"This is NOT one confirmation authorizing a batch, not atomic multi-store mutation, and not a new settings API. Existing single-suggestion parser/grammar/compatibility remain unchanged; additive compound parsing preserves complete source bytes/lineage. One pending native review at a time; native-only kinds and original activated-voice restrictions remain. No settings inference/default values, automatic selection, continuation writes, commentary parsing, undisclosed installed-voice resolution, consent/grant/provider enablement, or success-shaped partial result.\",\"scopes\":[\"src\\\\Kora.Application\\\\Configuration\\\\RegisteredSettings\\\\RegisteredSettingSuggestionCollection.cs\",\"src\\\\Kora.Application\\\\Configuration\\\\RegisteredSettings\\\\RegisteredSettingSuggestions.cs\",\"src\\\\Kora\\\\RegisteredSettings\\\\SessionsViewModel.RegisteredSettings.cs\",\"src\\\\Kora\\\\RegisteredSettings\\\\SessionsViewModel.SettingSuggestionCollection.cs\",\"src\\\\Kora\\\\SessionsWindowController.RegisteredSettingBindings.cs\",\"tests\\\\Kora.Application.UnitTests\\\\Configuration\\\\RegisteredSettingSuggestionCollectionTests.cs\",\"tests\\\\Kora.Windows.IntegrationTests\\\\SessionsConversationTests.SettingSuggestionCollection.cs\",\"Design\\\\User_Configuration.md\",\"docs\\\\setting-proposals.md\"],\"newTests\":\"Natural owning collection/domain/native partials in current modules; unchanged per-setting writer tests may be run but new full source/selection/confirmation/effect assertions are required.\",\"checks\":[\"Actual retained multi-suggestion source, complete native review of chosen setting, independent per-setting confirmed atomic write/readback and second deliberate change; unchosen values never write.\",\"Malformed/duplicate/unknown ID/numeric/enumeration/extra commentary/Unicode/source bounds fail whole collection before any source selection or write.\",\"Native-only appearance/quiet/detail/capture timing retains original-channel restrictions; later UI click cannot launder a voice-origin source.\",\"Same-source edits/source/session/generation/private/control/expiry/policy retirement suppress selected/late reviews; no review retarget to another answer or member.\",\"Persistence/audit/readback failure reports exact applied/unconfirmed state without automatic retry/rollback/other-member writes.\",\"Existing scalar Set/Reset/Undo and every admitted registered preference's constraints remain; native complete-effect regression and portable coverage/analyzers retained.\"],\"notDelivered\":\"Existing one-item model suggestion review cannot interpret a complete multi-item successful answer. Manually retyping isolated commands is not this retained-source-bound multi-recommendation operation.\",\"ownership\":\"No duplicate setting-collection worker/key. Exact production/unit/doc files independent of index/agent/Prompt candidate files. Required exact new native test remains blocked by old whole-suite reservation until accepted contraction; it avoids every verified v3 written test file.\",\"productionWrites\":false}",
+        "pr": null,
+        "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=ad987d81-c079-4150-adf1-3138e2c42be5",
+        "phase": "running",
+        "blocker": "Actual focused WindowsCompound1543 EXIT2 total23/pass16/fail7/skip0. NewMAINCOMPACT retainedwholeSource/permembereffects passed;9retirement passed;5preexistingpassed. Sevennewwhole-rejection failures at SettingSuggestionCollection.cs263 literal Expected composed.Audit.Events empty found ActionId=model.policy/ProtectedOperation/System/Requested. No cause/fix/policy inference. Requiredcanonicaldiagnosticreference remains unavailable; priorblockinghumanquestionunavailable NOTconsent/no retry/waiver. Ownerpaused beforepostfailureassertion/sourceedit/rerun/PR/cleanup. Nativebuild1533PASS0warnings/errors, 30authoredpathswithin32 protected/docs2untouched/no rawbackup or featurecommit. Same32/rev2/nonretired/sourceissued3/currentcontinuationendswithchildturn/genericUNKNOWN/noactiveSourcecommands. Fullnative/portable100/architecture/analyzers/docs/publicationincomplete; exactowner/scopes/slotheld.",
+        "publication": null,
+        "scopeRevision": 2,
+        "scopeHistory": [],
+        "sourceWritesRetired": false,
+        "scopeAmendments": [
+          {
+            "eventId": "settings-extend-scopes-pass10-7b669b75",
+            "proof": {
+              "version": 1,
+              "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=ad987d81-c079-4150-adf1-3138e2c42be5",
+              "key": "review-compound-registered-setting-suggestions",
+              "reservation": {
+                "outcome": "Review multiple supported registered setting suggestions from one exact retained answer and deliberately apply selected changes through their existing independent confirmation/writer paths",
+                "kind": "feature",
+                "pool": "ready",
+                "head": "47f6ea7f9fc4ba4e2eedec48b51b3390b42b5509",
+                "pr": null
+              },
+              "scopeRevision": 0,
+              "fromScopes": [
+                "src\\kora.application\\configuration\\registeredsettings\\registeredsettingsuggestioncollection.cs",
+                "src\\kora.application\\configuration\\registeredsettings\\registeredsettingsuggestions.cs",
+                "src\\kora\\registeredsettings\\sessionsviewmodel.registeredsettings.cs",
+                "src\\kora\\registeredsettings\\sessionsviewmodel.settingsuggestioncollection.cs",
+                "src\\kora\\sessionswindowcontroller.registeredsettingbindings.cs",
+                "tests\\kora.application.unittests\\configuration\\registeredsettingsuggestioncollectiontests.cs",
+                "tests\\kora.windows.integrationtests\\sessionsconversationtests.settingsuggestioncollection.cs",
+                "design\\user_configuration.md",
+                "docs\\setting-proposals.md"
+              ],
+              "additionalScopes": [
+                "src\\kora.application\\configuration\\appearancesuggestionreview.cs",
+                "src\\kora.application\\configuration\\speechsummarysuggestionreview.cs",
+                "src\\kora.application\\configuration\\playbackvolumesuggestionreview.cs",
+                "src\\kora.application\\configuration\\responsemodesuggestionreview.cs",
+                "src\\kora.application\\configuration\\windowsspeechratesuggestionreview.cs",
+                "src\\kora.application\\configuration\\installedspeechvoicesuggestionreview.cs",
+                "src\\kora.application\\configuration\\voicecapturetimingsuggestionreview.cs",
+                "src\\kora.application\\configuration\\quiethourssuggestionreview.cs",
+                "src\\kora.application\\configuration\\detailpresentationsuggestionreview.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.appearance.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.speechsummarysuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.playbackvolumesuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.responsemodesuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.windowsspeechratesuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.installedspeechvoicesuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.voicecapturetimingsuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.quiethourssuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.detailpresentationsuggestions.cs",
+                "src\\kora\\sessionswindowcontroller.cs",
+                "src\\kora\\registeredsettings\\sessionspresentationowner.registeredsettings.cs",
+                "src\\kora\\sessionswindow.axaml",
+                "src\\kora\\compactsessionwindow.axaml"
+              ],
+              "toScopes": [
+                "src\\kora.application\\configuration\\registeredsettings\\registeredsettingsuggestioncollection.cs",
+                "src\\kora.application\\configuration\\registeredsettings\\registeredsettingsuggestions.cs",
+                "src\\kora\\registeredsettings\\sessionsviewmodel.registeredsettings.cs",
+                "src\\kora\\registeredsettings\\sessionsviewmodel.settingsuggestioncollection.cs",
+                "src\\kora\\sessionswindowcontroller.registeredsettingbindings.cs",
+                "tests\\kora.application.unittests\\configuration\\registeredsettingsuggestioncollectiontests.cs",
+                "tests\\kora.windows.integrationtests\\sessionsconversationtests.settingsuggestioncollection.cs",
+                "design\\user_configuration.md",
+                "docs\\setting-proposals.md",
+                "src\\kora.application\\configuration\\appearancesuggestionreview.cs",
+                "src\\kora.application\\configuration\\speechsummarysuggestionreview.cs",
+                "src\\kora.application\\configuration\\playbackvolumesuggestionreview.cs",
+                "src\\kora.application\\configuration\\responsemodesuggestionreview.cs",
+                "src\\kora.application\\configuration\\windowsspeechratesuggestionreview.cs",
+                "src\\kora.application\\configuration\\installedspeechvoicesuggestionreview.cs",
+                "src\\kora.application\\configuration\\voicecapturetimingsuggestionreview.cs",
+                "src\\kora.application\\configuration\\quiethourssuggestionreview.cs",
+                "src\\kora.application\\configuration\\detailpresentationsuggestionreview.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.appearance.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.speechsummarysuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.playbackvolumesuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.responsemodesuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.windowsspeechratesuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.installedspeechvoicesuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.voicecapturetimingsuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.quiethourssuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.detailpresentationsuggestions.cs",
+                "src\\kora\\sessionswindowcontroller.cs",
+                "src\\kora\\registeredsettings\\sessionspresentationowner.registeredsettings.cs",
+                "src\\kora\\sessionswindow.axaml",
+                "src\\kora\\compactsessionwindow.axaml"
+              ],
+              "phase": "running",
+              "sourceWritesRetired": false,
+              "manifest": {
+                "complete": true,
+                "actual": [
+                  "src\\kora.application\\configuration\\registeredsettings\\registeredsettingsuggestioncollection.cs",
+                  "tests\\kora.application.unittests\\configuration\\registeredsettingsuggestioncollectiontests.cs"
+                ],
+                "planned": [
+                  "src\\kora.application\\configuration\\registeredsettings\\registeredsettingsuggestioncollection.cs",
+                  "src\\kora.application\\configuration\\registeredsettings\\registeredsettingsuggestions.cs",
+                  "src\\kora\\registeredsettings\\sessionsviewmodel.registeredsettings.cs",
+                  "src\\kora\\registeredsettings\\sessionsviewmodel.settingsuggestioncollection.cs",
+                  "src\\kora\\sessionswindowcontroller.registeredsettingbindings.cs",
+                  "tests\\kora.application.unittests\\configuration\\registeredsettingsuggestioncollectiontests.cs",
+                  "tests\\kora.windows.integrationtests\\sessionsconversationtests.settingsuggestioncollection.cs",
+                  "design\\user_configuration.md",
+                  "docs\\setting-proposals.md",
+                  "src\\kora.application\\configuration\\appearancesuggestionreview.cs",
+                  "src\\kora.application\\configuration\\speechsummarysuggestionreview.cs",
+                  "src\\kora.application\\configuration\\playbackvolumesuggestionreview.cs",
+                  "src\\kora.application\\configuration\\responsemodesuggestionreview.cs",
+                  "src\\kora.application\\configuration\\windowsspeechratesuggestionreview.cs",
+                  "src\\kora.application\\configuration\\installedspeechvoicesuggestionreview.cs",
+                  "src\\kora.application\\configuration\\voicecapturetimingsuggestionreview.cs",
+                  "src\\kora.application\\configuration\\quiethourssuggestionreview.cs",
+                  "src\\kora.application\\configuration\\detailpresentationsuggestionreview.cs",
+                  "src\\kora.application\\viewmodels\\mainviewmodel.appearance.cs",
+                  "src\\kora.application\\viewmodels\\mainviewmodel.speechsummarysuggestions.cs",
+                  "src\\kora.application\\viewmodels\\mainviewmodel.playbackvolumesuggestions.cs",
+                  "src\\kora.application\\viewmodels\\mainviewmodel.responsemodesuggestions.cs",
+                  "src\\kora.application\\viewmodels\\mainviewmodel.windowsspeechratesuggestions.cs",
+                  "src\\kora.application\\viewmodels\\mainviewmodel.installedspeechvoicesuggestions.cs",
+                  "src\\kora.application\\viewmodels\\mainviewmodel.voicecapturetimingsuggestions.cs",
+                  "src\\kora.application\\viewmodels\\mainviewmodel.quiethourssuggestions.cs",
+                  "src\\kora.application\\viewmodels\\mainviewmodel.detailpresentationsuggestions.cs",
+                  "src\\kora\\sessionswindowcontroller.cs",
+                  "src\\kora\\registeredsettings\\sessionspresentationowner.registeredsettings.cs",
+                  "src\\kora\\sessionswindow.axaml",
+                  "src\\kora\\compactsessionwindow.axaml"
+                ]
+              },
+              "preservation": {
+                "complete": true,
+                "commits": [],
+                "retained": [],
+                "unpreserved": [
+                  {
+                    "path": "src\\kora.application\\configuration\\registeredsettings\\registeredsettingsuggestioncollection.cs",
+                    "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\review-compound-registered-setting-suggestions\\owner-facts-pass10.json#preservation.currentRawUnpreserved; Protected live5348-byte uncommitted file, raw SHA2564570F2C3A26AA7DF186885AD7CF284E051979014FB5C62CE4AC86780DE9DE9B0. Existing host e030900 normalized blob76651faf844e8c9ccb967ef570eacc47191b583e/5241bytes is NOT raw backup or feature commit; exact superseded historical raw bytes UNKNOWN, no deletion permission."
+                  },
+                  {
+                    "path": "tests\\kora.application.unittests\\configuration\\registeredsettingsuggestioncollectiontests.cs",
+                    "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\review-compound-registered-setting-suggestions\\owner-facts-pass10.json#preservation.currentRawUnpreserved; Protected live11851-byte uncommitted file, raw SHA256FFAF1073DF5C490EA0AC7C5D8C5BB3E5B40CCCB6D1A91F4BF321E1C200AAE90D. Existing host e030900 normalized blob31b5df58321fb016f8c569c0881aa4cf73092e26/11646bytes is NOT raw backup or feature commit; exact superseded historical raw bytes UNKNOWN, no deletion permission."
+                  }
+                ]
+              },
+              "quiescence": {
+                "paused": true,
+                "pendingInstructions": 0,
+                "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\settings-facts-corroboration-pass10.json#originalSourceClosure/temporaryQuiescence; pauseEpoch c22b016e-1f48-498e-821b-cf5a1639e041, no active own source command. Original authorized source allocation apply-v3-guarded-refinement-pass8-7b669b75:2 DONE, hostturn1 COMPLETE; turns2/3 NONWRITING and complete, parent original-only issuance corroborated. Narrow original-source queued/processing0 ONLY; generic/global inbox/unexposed IDs UNKNOWN and host inputs truncated. Temporary pause, not retirement/restart."
+              },
+              "unionFrozen": true,
+              "exclusivity": {
+                "complete": true,
+                "reservations": [
+                  {
+                    "key": "generate-owned-required-literal-skill",
+                    "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=07f8172f-5fac-46c3-923d-7d27d0a5faac",
+                    "scopes": [
+                      "design\\skill_authoring.md",
+                      "docs\\owned-skill-authoring.md",
+                      "src\\kora.application\\skills\\ownedskillguidancerefinementservice.cs",
+                      "src\\kora\\ownedskilleditorcontroller.refinement.cs",
+                      "src\\kora\\ownedskilleditorwindow.cs",
+                      "tests\\kora.application.unittests\\dependencies\\modelturnhosttests.ownedskillgeneration.cs",
+                      "tests\\kora.windows.integrationtests\\artifactdiscovery\\ownedpromptrenametests.cs",
+                      "tests\\kora.windows.integrationtests\\communication\\graphpresencesourcetests.cs",
+                      "tests\\kora.windows.integrationtests\\knowledgesources\\reviewedsourcefollowuptests.cs",
+                      "tests\\kora.windows.integrationtests\\knowledgesources\\sessionknowledgesourcebindingtests.cs",
+                      "tests\\kora.windows.integrationtests\\ownedskillauthoringnativetests.refinement.cs",
+                      "tests\\kora.windows.integrationtests\\sessionpermissionreviewertests.cs",
+                      "tests\\kora.windows.integrationtests\\sessionsconversationtests.ownedskillinputs.cs",
+                      "tests\\kora.windows.integrationtests\\sessionsconversationtests.statichtmldetails.cs",
+                      "tests\\kora.windows.integrationtests\\storage\\windowssqlitesessionresponseoutputtests.cs"
+                    ],
+                    "scopeRevision": 1,
+                    "sourceWritesRetired": true
+                  },
+                  {
+                    "key": "indexed-exact-registered-source-retrieval",
+                    "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=86f5a92d-8e3b-4b92-a0c4-5a36d0416853",
+                    "scopes": [
+                      "src\\kora.core\\context\\localfilelexicalretrieval.cs",
+                      "src\\kora.core\\context\\localfilelexicalretrieval.citations.cs",
+                      "src\\kora.core\\context\\localfilelexicalindex.cs",
+                      "src\\kora.core\\knowledgesources\\iknowledgesourcestore.cs",
+                      "src\\kora.core\\knowledgesources\\knowledgesourcerevision.cs",
+                      "src\\kora.application\\knowledgesources\\knowledgesourcemanager.cs",
+                      "src\\kora.application\\knowledgesources\\knowledgesourceanswerworkflow.cs",
+                      "src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.cs",
+                      "src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.snapshot.cs",
+                      "src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.index.cs",
+                      "src\\kora\\knowledgesources\\knowledgesourceswindow.cs",
+                      "tests\\kora.core.unittests\\context\\localfileretrievaltests.cs",
+                      "tests\\kora.core.unittests\\context\\localfilelexicalindextests.cs",
+                      "tests\\kora.application.unittests\\knowledgesources\\knowledgesourcemanagertests.cs",
+                      "tests\\kora.application.unittests\\knowledgesources\\knowledgesourceanswertests.cs",
+                      "tests\\kora.windows.integrationtests\\knowledgesources\\windowsknowledgesourcetests.index.cs",
+                      "tests\\kora.windows.integrationtests\\knowledgesources\\knowledgesourceswindowtests.cs",
+                      "tests\\kora.windows.integrationtests\\knowledgesources\\knowledgesourceanswerwindowtests.cs",
+                      "design\\model_providers_memory_and_knowledge.md",
+                      "design\\file_and_folder_ingestion.md",
+                      "docs\\knowledge-sources.md",
+                      "src\\kora.core\\knowledgesources\\knowledgesourceanswercontext.cs",
+                      "src\\kora\\knowledgesources\\knowledgesourceswindow.answers.cs",
+                      "tests\\kora.core.unittests\\context\\knowledgesourceanswertests.cs"
+                    ],
+                    "scopeRevision": 1,
+                    "sourceWritesRetired": false
+                  },
+                  {
+                    "key": "reconcile-reviewed-evidence-answer-roadmap",
+                    "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=40ece6a6-064c-4f44-916d-313c507cd751",
+                    "scopes": [
+                      "design\\implementation_roadmap.md"
+                    ],
+                    "scopeRevision": 0,
+                    "sourceWritesRetired": false
+                  },
+                  {
+                    "key": "refine-declared-agent-guidance",
+                    "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=05e5326f-b324-40cd-8945-940a53d17d0d",
+                    "scopes": [
+                      "src\\kora.core\\agents\\ownedagentprofiledocument.cs",
+                      "src\\kora.application\\definitions\\customizationauthoringservice.cs",
+                      "src\\kora\\agentprofileeditorcontroller.proposal.cs",
+                      "tests\\kora.core.unittests\\agents\\ownedagentprofileguidancetests.cs",
+                      "tests\\kora.application.unittests\\definitions\\customizationauthoringdeclaredagenttests.cs",
+                      "tests\\kora.windows.integrationtests\\agentprofiledeclaredguidancetests.cs",
+                      "design\\definition_management.md",
+                      "docs\\agent-profile-authoring.md",
+                      "src\\kora\\agentprofileeditorcontroller.cs",
+                      "tests\\kora.windows.integrationtests\\agentprofileconversationalauthoringtests.cs",
+                      "tests\\kora.application.unittests\\documentation\\agentprofileauthoringguidetests.cs"
+                    ],
+                    "scopeRevision": 1,
+                    "sourceWritesRetired": false
+                  },
+                  {
+                    "key": "verified-shrink-only-reservations",
+                    "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=60d3d55b-7892-4a5e-bf0f-94ffdcc7c072",
+                    "scopes": [
+                      ".github\\skills\\kora-orchestrate\\scripts",
+                      ".github\\skills\\kora-orchestrate\\skill.md",
+                      ".github\\skills\\kora-orchestrate\\readme.md",
+                      ".github\\skills\\kora-orchestrate\\worker.md"
+                    ],
+                    "scopeRevision": 0,
+                    "sourceWritesRetired": false
+                  }
+                ],
+                "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\settings-facts-corroboration-pass10.json#exclusivity; exact exported heldReservations(current89,key), five OTHER owners sorted by key, including accepted INDEX24/rev1 AND AGENT11/rev1, old retired-v3 15scopes/passive guards, publications/script/cleanup slots. Full31 conflictsnone; old history/retirement/PR/blocker/slot/cleanup unchanged."
+              },
+              "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\settings-facts-corroboration-pass10.json; actual owner facts1443317D...B445783/current raw2+8artifact identities/Git normalized host snapshot/complete original-source population/temporary pause/planned31/current89 holds corroborated. Whole exact retained SourceLineage/validated collection/member/per-family independent confirmation/shared writer/readback/main+compact native/full effects/scalar+Undo/docs/final portable obligations preserved. No ACK, scope grant, restart, diagnosis, partial feature completion or registry/source/test/PR/cleanup mutation by planner."
+            },
+            "acknowledgment": {
+              "id": "settings-owner-ack-pass10-ad987d81-4dc52577-98e0-41aa-9a39-5c6f678733a0",
+              "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=ad987d81-c079-4150-adf1-3138e2c42be5",
+              "key": "review-compound-registered-setting-suggestions",
+              "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\review-compound-registered-setting-suggestions\\owner-ack-verification-pass10-4dc52577-98e0-41aa-9a39-5c6f678733a0.json",
+              "proofDigest": "aa491e768f5efb5a8c0e92431e810912edcbf3fdd357f7bf3317180d456c904c",
+              "scopeRevision": 0
+            }
+          },
+          {
+            "eventId": "settings-audio-extend-scopes-pass11-7b669b75",
+            "proof": {
+              "version": 1,
+              "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=ad987d81-c079-4150-adf1-3138e2c42be5",
+              "key": "review-compound-registered-setting-suggestions",
+              "reservation": {
+                "outcome": "Review multiple supported registered setting suggestions from one exact retained answer and deliberately apply selected changes through their existing independent confirmation/writer paths",
+                "kind": "feature",
+                "pool": "ready",
+                "head": "47f6ea7f9fc4ba4e2eedec48b51b3390b42b5509",
+                "pr": null
+              },
+              "scopeRevision": 1,
+              "fromScopes": [
+                "src\\kora.application\\configuration\\registeredsettings\\registeredsettingsuggestioncollection.cs",
+                "src\\kora.application\\configuration\\registeredsettings\\registeredsettingsuggestions.cs",
+                "src\\kora\\registeredsettings\\sessionsviewmodel.registeredsettings.cs",
+                "src\\kora\\registeredsettings\\sessionsviewmodel.settingsuggestioncollection.cs",
+                "src\\kora\\sessionswindowcontroller.registeredsettingbindings.cs",
+                "tests\\kora.application.unittests\\configuration\\registeredsettingsuggestioncollectiontests.cs",
+                "tests\\kora.windows.integrationtests\\sessionsconversationtests.settingsuggestioncollection.cs",
+                "design\\user_configuration.md",
+                "docs\\setting-proposals.md",
+                "src\\kora.application\\configuration\\appearancesuggestionreview.cs",
+                "src\\kora.application\\configuration\\speechsummarysuggestionreview.cs",
+                "src\\kora.application\\configuration\\playbackvolumesuggestionreview.cs",
+                "src\\kora.application\\configuration\\responsemodesuggestionreview.cs",
+                "src\\kora.application\\configuration\\windowsspeechratesuggestionreview.cs",
+                "src\\kora.application\\configuration\\installedspeechvoicesuggestionreview.cs",
+                "src\\kora.application\\configuration\\voicecapturetimingsuggestionreview.cs",
+                "src\\kora.application\\configuration\\quiethourssuggestionreview.cs",
+                "src\\kora.application\\configuration\\detailpresentationsuggestionreview.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.appearance.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.speechsummarysuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.playbackvolumesuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.responsemodesuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.windowsspeechratesuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.installedspeechvoicesuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.voicecapturetimingsuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.quiethourssuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.detailpresentationsuggestions.cs",
+                "src\\kora\\sessionswindowcontroller.cs",
+                "src\\kora\\registeredsettings\\sessionspresentationowner.registeredsettings.cs",
+                "src\\kora\\sessionswindow.axaml",
+                "src\\kora\\compactsessionwindow.axaml"
+              ],
+              "additionalScopes": [
+                "src\\kora.application\\presentation\\audioplaybacksettings.cs"
+              ],
+              "toScopes": [
+                "src\\kora.application\\configuration\\registeredsettings\\registeredsettingsuggestioncollection.cs",
+                "src\\kora.application\\configuration\\registeredsettings\\registeredsettingsuggestions.cs",
+                "src\\kora\\registeredsettings\\sessionsviewmodel.registeredsettings.cs",
+                "src\\kora\\registeredsettings\\sessionsviewmodel.settingsuggestioncollection.cs",
+                "src\\kora\\sessionswindowcontroller.registeredsettingbindings.cs",
+                "tests\\kora.application.unittests\\configuration\\registeredsettingsuggestioncollectiontests.cs",
+                "tests\\kora.windows.integrationtests\\sessionsconversationtests.settingsuggestioncollection.cs",
+                "design\\user_configuration.md",
+                "docs\\setting-proposals.md",
+                "src\\kora.application\\configuration\\appearancesuggestionreview.cs",
+                "src\\kora.application\\configuration\\speechsummarysuggestionreview.cs",
+                "src\\kora.application\\configuration\\playbackvolumesuggestionreview.cs",
+                "src\\kora.application\\configuration\\responsemodesuggestionreview.cs",
+                "src\\kora.application\\configuration\\windowsspeechratesuggestionreview.cs",
+                "src\\kora.application\\configuration\\installedspeechvoicesuggestionreview.cs",
+                "src\\kora.application\\configuration\\voicecapturetimingsuggestionreview.cs",
+                "src\\kora.application\\configuration\\quiethourssuggestionreview.cs",
+                "src\\kora.application\\configuration\\detailpresentationsuggestionreview.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.appearance.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.speechsummarysuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.playbackvolumesuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.responsemodesuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.windowsspeechratesuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.installedspeechvoicesuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.voicecapturetimingsuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.quiethourssuggestions.cs",
+                "src\\kora.application\\viewmodels\\mainviewmodel.detailpresentationsuggestions.cs",
+                "src\\kora\\sessionswindowcontroller.cs",
+                "src\\kora\\registeredsettings\\sessionspresentationowner.registeredsettings.cs",
+                "src\\kora\\sessionswindow.axaml",
+                "src\\kora\\compactsessionwindow.axaml",
+                "src\\kora.application\\presentation\\audioplaybacksettings.cs"
+              ],
+              "phase": "running",
+              "sourceWritesRetired": false,
+              "manifest": {
+                "complete": true,
+                "actual": [
+                  "src\\kora.application\\configuration\\registeredsettings\\registeredsettingsuggestioncollection.cs",
+                  "tests\\kora.application.unittests\\configuration\\registeredsettingsuggestioncollectiontests.cs"
+                ],
+                "planned": [
+                  "src\\kora.application\\configuration\\registeredsettings\\registeredsettingsuggestioncollection.cs",
+                  "src\\kora.application\\configuration\\registeredsettings\\registeredsettingsuggestions.cs",
+                  "src\\kora\\registeredsettings\\sessionsviewmodel.registeredsettings.cs",
+                  "src\\kora\\registeredsettings\\sessionsviewmodel.settingsuggestioncollection.cs",
+                  "src\\kora\\sessionswindowcontroller.registeredsettingbindings.cs",
+                  "tests\\kora.application.unittests\\configuration\\registeredsettingsuggestioncollectiontests.cs",
+                  "tests\\kora.windows.integrationtests\\sessionsconversationtests.settingsuggestioncollection.cs",
+                  "design\\user_configuration.md",
+                  "docs\\setting-proposals.md",
+                  "src\\kora.application\\configuration\\appearancesuggestionreview.cs",
+                  "src\\kora.application\\configuration\\speechsummarysuggestionreview.cs",
+                  "src\\kora.application\\configuration\\playbackvolumesuggestionreview.cs",
+                  "src\\kora.application\\configuration\\responsemodesuggestionreview.cs",
+                  "src\\kora.application\\configuration\\windowsspeechratesuggestionreview.cs",
+                  "src\\kora.application\\configuration\\installedspeechvoicesuggestionreview.cs",
+                  "src\\kora.application\\configuration\\voicecapturetimingsuggestionreview.cs",
+                  "src\\kora.application\\configuration\\quiethourssuggestionreview.cs",
+                  "src\\kora.application\\configuration\\detailpresentationsuggestionreview.cs",
+                  "src\\kora.application\\viewmodels\\mainviewmodel.appearance.cs",
+                  "src\\kora.application\\viewmodels\\mainviewmodel.speechsummarysuggestions.cs",
+                  "src\\kora.application\\viewmodels\\mainviewmodel.playbackvolumesuggestions.cs",
+                  "src\\kora.application\\viewmodels\\mainviewmodel.responsemodesuggestions.cs",
+                  "src\\kora.application\\viewmodels\\mainviewmodel.windowsspeechratesuggestions.cs",
+                  "src\\kora.application\\viewmodels\\mainviewmodel.installedspeechvoicesuggestions.cs",
+                  "src\\kora.application\\viewmodels\\mainviewmodel.voicecapturetimingsuggestions.cs",
+                  "src\\kora.application\\viewmodels\\mainviewmodel.quiethourssuggestions.cs",
+                  "src\\kora.application\\viewmodels\\mainviewmodel.detailpresentationsuggestions.cs",
+                  "src\\kora\\sessionswindowcontroller.cs",
+                  "src\\kora\\registeredsettings\\sessionspresentationowner.registeredsettings.cs",
+                  "src\\kora\\sessionswindow.axaml",
+                  "src\\kora\\compactsessionwindow.axaml",
+                  "src\\kora.application\\presentation\\audioplaybacksettings.cs"
+                ]
+              },
+              "preservation": {
+                "complete": true,
+                "commits": [],
+                "retained": [],
+                "unpreserved": [
+                  {
+                    "path": "src\\kora.application\\configuration\\registeredsettings\\registeredsettingsuggestioncollection.cs",
+                    "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\review-compound-registered-setting-suggestions\\owner-facts-pass11-audio-bridge.json#preservation.currentRawUnpreserved; Protected live5348-byte raw file SHA2564570F2C3A26AA7DF186885AD7CF284E051979014FB5C62CE4AC86780DE9DE9B0, no feature commit or independent raw backup. e030900 normalized blob76651faf844e8c9ccb967ef570eacc47191b583e/5241bytes is NOT raw preservation. Superseded exact raw bytes UNKNOWN, not deletion permission."
+                  },
+                  {
+                    "path": "tests\\kora.application.unittests\\configuration\\registeredsettingsuggestioncollectiontests.cs",
+                    "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\review-compound-registered-setting-suggestions\\owner-facts-pass11-audio-bridge.json#preservation.currentRawUnpreserved; Protected live11851-byte raw file SHA256FFAF1073DF5C490EA0AC7C5D8C5BB3E5B40CCCB6D1A91F4BF321E1C200AAE90D, no feature commit or independent raw backup. e030900 normalized blob31b5df58321fb016f8c569c0881aa4cf73092e26/11646bytes is NOT raw preservation. Superseded exact raw bytes UNKNOWN, not deletion permission."
+                  }
+                ]
+              },
+              "quiescence": {
+                "paused": true,
+                "pendingInstructions": 0,
+                "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\settings-audio-facts-corroboration-pass11.json#sourceAuthority/temporaryQuiescence; fresh epoch4b22b47f-5b73-4aae-8798-85be2987d678 paused/no active source work/unionFrozen. BOTH original allocation action:2/recipientturn1 and explicit31 continuation40b7a07d-3e48-4d97-82a4-a2c5c4afdf73/recipientturn5 COMPLETE, actual authorized population2 queued0/processing0; facts6 NONWRITING now complete. Original journal DONE/exact9-scope created owner corroborated; parent full sender-journal recovery before finalACK/apply, no invented initial ID. Generic/global inbox/unexposed IDs UNKNOWN and truncated inputs disclosed. Not initial-only0, global0, retirement or restart."
+              },
+              "unionFrozen": true,
+              "exclusivity": {
+                "complete": true,
+                "reservations": [
+                  {
+                    "key": "generate-owned-required-literal-skill",
+                    "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=07f8172f-5fac-46c3-923d-7d27d0a5faac",
+                    "scopes": [
+                      "design\\skill_authoring.md",
+                      "docs\\owned-skill-authoring.md",
+                      "src\\kora.application\\skills\\ownedskillguidancerefinementservice.cs",
+                      "src\\kora\\ownedskilleditorcontroller.refinement.cs",
+                      "src\\kora\\ownedskilleditorwindow.cs",
+                      "tests\\kora.application.unittests\\dependencies\\modelturnhosttests.ownedskillgeneration.cs",
+                      "tests\\kora.windows.integrationtests\\artifactdiscovery\\ownedpromptrenametests.cs",
+                      "tests\\kora.windows.integrationtests\\communication\\graphpresencesourcetests.cs",
+                      "tests\\kora.windows.integrationtests\\knowledgesources\\reviewedsourcefollowuptests.cs",
+                      "tests\\kora.windows.integrationtests\\knowledgesources\\sessionknowledgesourcebindingtests.cs",
+                      "tests\\kora.windows.integrationtests\\ownedskillauthoringnativetests.refinement.cs",
+                      "tests\\kora.windows.integrationtests\\sessionpermissionreviewertests.cs",
+                      "tests\\kora.windows.integrationtests\\sessionsconversationtests.ownedskillinputs.cs",
+                      "tests\\kora.windows.integrationtests\\sessionsconversationtests.statichtmldetails.cs",
+                      "tests\\kora.windows.integrationtests\\storage\\windowssqlitesessionresponseoutputtests.cs"
+                    ],
+                    "scopeRevision": 1,
+                    "sourceWritesRetired": true
+                  },
+                  {
+                    "key": "indexed-exact-registered-source-retrieval",
+                    "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=86f5a92d-8e3b-4b92-a0c4-5a36d0416853",
+                    "scopes": [
+                      "src\\kora.core\\context\\localfilelexicalretrieval.cs",
+                      "src\\kora.core\\context\\localfilelexicalretrieval.citations.cs",
+                      "src\\kora.core\\context\\localfilelexicalindex.cs",
+                      "src\\kora.core\\knowledgesources\\iknowledgesourcestore.cs",
+                      "src\\kora.core\\knowledgesources\\knowledgesourcerevision.cs",
+                      "src\\kora.application\\knowledgesources\\knowledgesourcemanager.cs",
+                      "src\\kora.application\\knowledgesources\\knowledgesourceanswerworkflow.cs",
+                      "src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.cs",
+                      "src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.snapshot.cs",
+                      "src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.index.cs",
+                      "src\\kora\\knowledgesources\\knowledgesourceswindow.cs",
+                      "tests\\kora.core.unittests\\context\\localfileretrievaltests.cs",
+                      "tests\\kora.core.unittests\\context\\localfilelexicalindextests.cs",
+                      "tests\\kora.application.unittests\\knowledgesources\\knowledgesourcemanagertests.cs",
+                      "tests\\kora.application.unittests\\knowledgesources\\knowledgesourceanswertests.cs",
+                      "tests\\kora.windows.integrationtests\\knowledgesources\\windowsknowledgesourcetests.index.cs",
+                      "tests\\kora.windows.integrationtests\\knowledgesources\\knowledgesourceswindowtests.cs",
+                      "tests\\kora.windows.integrationtests\\knowledgesources\\knowledgesourceanswerwindowtests.cs",
+                      "design\\model_providers_memory_and_knowledge.md",
+                      "design\\file_and_folder_ingestion.md",
+                      "docs\\knowledge-sources.md",
+                      "src\\kora.core\\knowledgesources\\knowledgesourceanswercontext.cs",
+                      "src\\kora\\knowledgesources\\knowledgesourceswindow.answers.cs",
+                      "tests\\kora.core.unittests\\context\\knowledgesourceanswertests.cs"
+                    ],
+                    "scopeRevision": 1,
+                    "sourceWritesRetired": false
+                  },
+                  {
+                    "key": "reconcile-reviewed-evidence-answer-roadmap",
+                    "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=40ece6a6-064c-4f44-916d-313c507cd751",
+                    "scopes": [
+                      "design\\implementation_roadmap.md"
+                    ],
+                    "scopeRevision": 0,
+                    "sourceWritesRetired": false
+                  },
+                  {
+                    "key": "refine-declared-agent-guidance",
+                    "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=05e5326f-b324-40cd-8945-940a53d17d0d",
+                    "scopes": [
+                      "src\\kora.core\\agents\\ownedagentprofiledocument.cs",
+                      "src\\kora.application\\definitions\\customizationauthoringservice.cs",
+                      "src\\kora\\agentprofileeditorcontroller.proposal.cs",
+                      "tests\\kora.core.unittests\\agents\\ownedagentprofileguidancetests.cs",
+                      "tests\\kora.application.unittests\\definitions\\customizationauthoringdeclaredagenttests.cs",
+                      "tests\\kora.windows.integrationtests\\agentprofiledeclaredguidancetests.cs",
+                      "design\\definition_management.md",
+                      "docs\\agent-profile-authoring.md",
+                      "src\\kora\\agentprofileeditorcontroller.cs",
+                      "tests\\kora.windows.integrationtests\\agentprofileconversationalauthoringtests.cs",
+                      "tests\\kora.application.unittests\\documentation\\agentprofileauthoringguidetests.cs"
+                    ],
+                    "scopeRevision": 1,
+                    "sourceWritesRetired": false
+                  },
+                  {
+                    "key": "verified-shrink-only-reservations",
+                    "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=60d3d55b-7892-4a5e-bf0f-94ffdcc7c072",
+                    "scopes": [
+                      ".github\\skills\\kora-orchestrate\\scripts",
+                      ".github\\skills\\kora-orchestrate\\skill.md",
+                      ".github\\skills\\kora-orchestrate\\readme.md",
+                      ".github\\skills\\kora-orchestrate\\worker.md"
+                    ],
+                    "scopeRevision": 0,
+                    "sourceWritesRetired": false
+                  }
+                ],
+                "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\settings-audio-facts-corroboration-pass11.json#exclusivity; exact exported current101 heldReservations(settingsKey), five OTHER owners including index24/rev1 PUBLISHED873 still held, agent11/rev1, retired15guards and old roadmap/helper publication/cleanup. Complete32 conflict0. No release inferred from physical cleanup; if actual index completion changes snapshot, this proof requires reconciliation/new whole ACK."
+              },
+              "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\settings-audio-facts-corroboration-pass11.json; actual facts02910DA4...3C641512/current raw2/complete history/all old31 planned tasks+one bridge32/previous amendment85d2...f3f7e3b0/BOTHsource directives/pause4b22/current101 five-held conflict0 corroborated. Original SourceLineage/whole collection/member/per-family independent confirmations/writers/audio guards/main+compact/native effects/scalar/Undo/docs/final100% gates retained. New proof scopeRevision1, not oldaa491e/ACK replay; no source/PR/cleanup/new diagnostic read or live registry mutation."
+            },
+            "acknowledgment": {
+              "id": "settings-owner-ack-pass11-audio-ad987d81-4bd93366-ec1c-4d51-8cdc-e0048f0dcfca",
+              "receipt": "Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\review-compound-registered-setting-suggestions\\owner-ack-verification-pass11-audio-4bd93366-ec1c-4d51-8cdc-e0048f0dcfca.json",
+              "owner": "agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=ad987d81-c079-4150-adf1-3138e2c42be5",
+              "key": "review-compound-registered-setting-suggestions",
+              "scopeRevision": 1,
+              "proofDigest": "b582c19669dee051309143615c3b00ebf0f1160ab40075e8df86b4874e4ccb96"
+            }
+          }
+        ]
+      },
+      {
+        "key": "independent-local-action-reviewer",
+        "outcome": "Execute a separately admitted tools-disabled local action review and let only an exact valid Safe result satisfy missing ordinary invocation authority, with explicit user-approval recovery",
+        "pool": "ready",
+        "kind": "feature",
+        "head": "47f6ea7f9fc4ba4e2eedec48b51b3390b42b5509",
+        "scopes": [
+          "src\\kora.application\\interaction\\sessionpermission\\localsessionpermissionreviewer.cs",
+          "src\\kora.application\\interaction\\sessionpermission\\sessionpermissionrevieweradmission.cs",
+          "src\\kora.application\\interaction\\sessionpermission\\sessionpermissionreviewerprotocol.cs",
+          "src\\kora.application\\interaction\\hostauthorizationservice.cs",
+          "src\\kora.application\\interaction\\sessionpermission\\hostauthorizationservice.sessionpermission.cs",
+          "src\\kora\\sessionpermission\\sessionpermissionreviewercontroller.cs",
+          "src\\kora\\app.sessionpermissionreviewer.cs",
+          "tests\\kora.application.unittests\\interaction\\localsessionpermissionreviewertests.cs",
+          "tests\\kora.windows.integrationtests\\sessionpermissionreviewertests.cs",
+          "design\\session_permission_levels.md",
+          "docs\\session-permission-levels.md"
+        ],
+        "evidence": "Discovery-owned complete admission/host authority/actual native-effect checks at Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\pass8-reviewer-candidate.json. Parent routes without Git/PR/code inspection. {\"id\":\"planner-candidate-pass8-local-action-reviewer\",\"owner\":\"agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=a0edda68-7040-4fcc-9162-bc827ff468dc\",\"pass\":8,\"key\":\"independent-local-action-reviewer\",\"outcome\":\"Execute a separately admitted tools-disabled local action review and let only an exact valid Safe result satisfy missing ordinary invocation authority, with explicit user-approval recovery\",\"pool\":\"ready\",\"kind\":\"feature\",\"head\":\"47f6ea7f9fc4ba4e2eedec48b51b3390b42b5509\",\"scenario\":\"An exact session is set to Model review. For one supported ungranted action with mandatory host/privacy validation already satisfied, Kora obtains independent review disclosure consent, asks a separately admitted local reviewer, and either authorizes only that invocation or returns the existing user approval card with a truthful concern.\",\"admission\":\"Session_Permission_Levels.md:100-124 defines separate tools/MCP/shell/approval/history-disabled review, exact host-issued request, Safe/Concern/Uncertain, local-only budgets, new disclosure consent, no caching/retry and host revalidation. This is the owning approval contract, not an executing model's self-assessment.\",\"gap\":[\"ISessionPermissionReviewer provides typed IsQualified/ReviewAsync; SessionPermissionReviewRequest fixes protocol1 and tools/approval/conversation/hosted=false.\",\"HostAuthorizationService accepts an optional reviewer=null and its SessionPermission partial handles the returned typed result.\",\"Production source search found no concrete ISessionPermissionReviewer transport or DI registration; current design19 says no production reviewer qualified/selected and normal user approval is used.\",\"There are deterministic reviewer fakes/protocol tests, not a separately admitted runtime/evidence-consent integration.\"],\"minimumI\":\"Existing HostOperationProposal immutable evidence, SessionPermissionReviewRequest/Result validator, HostAuthorizationService transactional pre/post decision and exact action-grant policy, independently admitted local provider/context runner and required source-disclosure/private/native review. Implement a distinct reviewer admission/consent transport; it cannot be the executing adapter or recursive action authorization.\",\"hostRationale\":\"Only the host constructs the immutable review request, chooses independent qualified runtime, owns disclosure, validates result and rechecks actual invocation. Reviewer prose never lowers host risk or creates grants/requests.\",\"completeInteraction\":\"Exact original effect proposal/session policy -> mandatory validation/grant/consent checks -> separately admitted local reviewer profile and explicit complete evidence disclosure consent -> one tools-none bounded reviewer execution -> strict bounded verdict/reason parser with host-bound request/provider/protocol identity -> transactional source/policy/grant/control/generation revalidation -> valid Safe grants exact invocation only; Concern/Uncertain/unavailable/errors return existing actual user approval card -> original shared admitted action executes and records real outcome. Cancellation/retirement joins reviewer resources and does not open a late approval.\",\"boundaries\":\"Unqualified/unselected production reviewer remains unavailable and does not execute inference; fail-closed default is unchanged. No provider/account/profile enablement, recursive Model-review consent, hidden reasoning/history/credential content, retry-to-Safe, verdict caching, grant creation, new effects, native/UAC/lifecycle/privacy bypass or executor self-approval. Independently required confirmation always wins.\",\"scopes\":[\"src\\\\Kora.Application\\\\Interaction\\\\SessionPermission\\\\LocalSessionPermissionReviewer.cs\",\"src\\\\Kora.Application\\\\Interaction\\\\SessionPermission\\\\SessionPermissionReviewerAdmission.cs\",\"src\\\\Kora.Application\\\\Interaction\\\\SessionPermission\\\\SessionPermissionReviewerProtocol.cs\",\"src\\\\Kora.Application\\\\Interaction\\\\HostAuthorizationService.cs\",\"src\\\\Kora.Application\\\\Interaction\\\\SessionPermission\\\\HostAuthorizationService.SessionPermission.cs\",\"src\\\\Kora\\\\SessionPermission\\\\SessionPermissionReviewerController.cs\",\"src\\\\Kora\\\\App.SessionPermissionReviewer.cs\",\"tests\\\\Kora.Application.UnitTests\\\\Interaction\\\\LocalSessionPermissionReviewerTests.cs\",\"tests\\\\Kora.Windows.IntegrationTests\\\\SessionPermissionReviewerTests.cs\",\"Design\\\\Session_Permission_Levels.md\",\"docs\\\\session-permission-levels.md\"],\"newFiles\":\"Natural owning admission/protocol/transport/native composition/test files in existing modules, not new test infrastructure or relocated fake-only checks. Use existing DI creation hooks; request exact scope expansion reconciliation if common composition file needed.\",\"checks\":[\"Complete actual native evidence-consent/independent-local-review/transactional Safe/exact supported action dispatch/result path with independently qualified deterministic transport seam.\",\"Concern/Uncertain/malformed/unknown/verdict/request mismatch/extra fields/oversized/output labels/evidence-overbudget all return honest existing user approval, never Safe.\",\"Unqualified, no-consent, same-executor/self-review or denied source/profile cannot invoke the review runtime; no hosted/source fallback.\",\"Mandatory privacy/account/UAC/grant/lifecycle checks precede discretionary review; Safe neither creates grant nor satisfies independent disclosure/confirmation.\",\"Changed source/proposal/policy/permission/control during inference refuses exact admission; cancellation physically joins owned runtime and cannot publish late approval.\",\"Request/provider/protocol evidence is inspectable without raw request/review evidence in logs/audit; existing ReviewAll/ApproveAll/grant behavior and exact-call restrictions unchanged.\",\"Full application/native complete-effect regressions and portable analyzers/coverage; no live model/hardware trial used as implementation prerequisite.\"],\"notDelivered\":\"Typed protocol/gateway plus deterministic fake verdicts do not execute an independent admitted local reviewer with evidence consent and actual resource ownership.\",\"ownership\":\"No reviewer worker/candidate exists. Production/core files disjoint from previous new feature assignments; native exact test blocked now by original whole directory until valid shrink. Test file does not overlap the eight verified v3 writes. Preserve scope and slot gates.\",\"productionWrites\":false}",
+        "pr": null,
+        "owner": null,
+        "phase": "candidate",
+        "blocker": null,
+        "publication": null,
+        "scopeRevision": 0,
+        "scopeHistory": [],
+        "sourceWritesRetired": false,
+        "scopeAmendments": []
+      },
+      {
+        "key": "consented-graph-presence-call-protection",
+        "outcome": "Use explicitly consented own-account Graph presence observations to protect speech through the shared call gate, with truthful scope/freshness and joined disable/revocation",
+        "pool": "ready",
+        "kind": "feature",
+        "head": "47f6ea7f9fc4ba4e2eedec48b51b3390b42b5509",
+        "scopes": [
+          "src\\kora.core\\communication\\communicationactivityselection.cs",
+          "src\\kora.core\\communication\\graphpresenceobservation.cs",
+          "src\\kora.application\\communication\\communicationactivitycallstateservice.cs",
+          "src\\kora.application\\configuration\\communicationactivityconfigurationservice.cs",
+          "src\\kora.application\\configuration\\localcommunicationactivitypreferences.cs",
+          "src\\kora.application\\viewmodels\\mainviewmodel.communicationactivity.cs",
+          "src\\kora.windows\\communication\\windowsgraphpresencesource.cs",
+          "src\\kora.windows\\communication\\windowsgraphpresencesource.logging.cs",
+          "src\\kora.windows\\communication\\graphpresenceaccountbroker.cs",
+          "src\\kora.windows\\communication\\graphpresenceaccountlease.cs",
+          "src\\kora\\graphpresence\\graphpresencecontroller.cs",
+          "src\\kora\\app.graphpresence.cs",
+          "src\\kora\\program.cs",
+          "src\\kora\\settingswindow.axaml",
+          "src\\kora\\settingswindow.axaml.cs",
+          "tests\\kora.application.unittests\\communication\\graphpresencecallstatetests.cs",
+          "tests\\kora.windows.integrationtests\\communication\\graphpresencesourcetests.cs",
+          "tests\\kora.windows.integrationtests\\graphpresencecallprotectiontests.cs",
+          "design\\call_aware_speech.md",
+          "docs\\responses-and-calls.md"
+        ],
+        "evidence": "Discovery-supplied approved complete consented own-account/source/speech-gate operation and exact tests/scopes at Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\pass8-graph-call-candidate.json. Parent routes without Git/PR/code verification. {\"id\":\"planner-candidate-pass8-graph-call-observation\",\"owner\":\"agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=a0edda68-7040-4fcc-9162-bc827ff468dc\",\"pass\":8,\"key\":\"consented-graph-presence-call-protection\",\"outcome\":\"Use explicitly consented own-account Graph presence observations to protect speech through the shared call gate, with truthful scope/freshness and joined disable/revocation\",\"pool\":\"ready\",\"kind\":\"feature\",\"head\":\"47f6ea7f9fc4ba4e2eedec48b51b3390b42b5509\",\"scenario\":\"A user explicitly selects their work/school Teams account for call-aware speech. inACall/presenting suppresses speech, inAMeeting is conservatively Suspected, and stale/failed/offline/account-policy loss is Unknown. Existing manual and Windows communications sources remain separate.\",\"admission\":\"Call_Aware_Speech.md:413-436 explicitly defines optional Graph own-account delegated Presence.Read, work/school-only, inACall/presenting/inAMeeting semantics,15-second bounded cadence/backoff,60-second stale boundary, explicit account/network consent and LocalOnly denial. This is a selected documented adapter direction, not an invented provider, tenant-wide scope, new tool effect or account authority.\",\"gap\":[\"Current production Communication sources are WindowsCommunicationsActivitySource and UnavailableCallStateService; no Graph presence adapter/account source.\",\"ICommunicationActivitySource supplies qualified metadata observations and actual release ownership, while current CommunicationActivitySelection and configuration implement None/WindowsCommunications only.\",\"Existing narrow Windows activity source is not account-presence coverage; process/windows/audio alone cannot supply the documented Teams account observations.\"],\"hostRationale\":\"Secure sign-in, own delegated identity, explicit network/source consent and source-qualified health/freshness belong to host. Remote presence text cannot choose source, grant speech/capture/settings authority or classify a local call as clear.\",\"minimumI\":\"Existing call speech/capture gate and source observation/lifecycle/configuration services, actual native secure account/token acquisition and least-scope lease, host network policy/private ownership. Implement the real account/source flow with default unavailable qualification and deterministic platform/network seams, not just a fake mapper or provider-setting field.\",\"completeInteraction\":\"Fresh native source/account/network review -> mandatory native secure work/school sign-in for only Presence.Read -> explicit source-consent selection saved through shared audited settings -> exact positive source/account/network/profile admission -> bounded metadata requests -> source-qualified blocking observations enter shared speech gate before enqueue/start and during playback -> stale/revoked/local-only/account-source loss publishes Unknown and joins requests -> explicit disable/forget releases source/account lease with truthful recovery and no suppressed-speech replay. Actual qualification stays unavailable by default.\",\"boundaries\":\"No personal account, tenant-wide Graph permission, calendar/content access, credential dictation/logging, ambient identity, account substitution/Copilot fallback, automatic login, provider enablement, local-call clearance from negative/offline Graph data or revival of voice consent. Available/busy/DND absence is not proof of local call clearance. Preserve Windows source5-second freshness; Graph60-second profile is source-specific, not weakening the existing source.\",\"scopes\":[\"src\\\\Kora.Core\\\\Communication\\\\CommunicationActivitySelection.cs\",\"src\\\\Kora.Core\\\\Communication\\\\GraphPresenceObservation.cs\",\"src\\\\Kora.Application\\\\Communication\\\\CommunicationActivityCallStateService.cs\",\"src\\\\Kora.Application\\\\Configuration\\\\CommunicationActivityConfigurationService.cs\",\"src\\\\Kora.Application\\\\Configuration\\\\LocalCommunicationActivityPreferences.cs\",\"src\\\\Kora.Application\\\\ViewModels\\\\MainViewModel.CommunicationActivity.cs\",\"src\\\\Kora.Windows\\\\Communication\\\\WindowsGraphPresenceSource.cs\",\"src\\\\Kora.Windows\\\\Communication\\\\WindowsGraphPresenceSource.Logging.cs\",\"src\\\\Kora.Windows\\\\Communication\\\\GraphPresenceAccountBroker.cs\",\"src\\\\Kora.Windows\\\\Communication\\\\GraphPresenceAccountLease.cs\",\"src\\\\Kora\\\\GraphPresence\\\\GraphPresenceController.cs\",\"src\\\\Kora\\\\App.GraphPresence.cs\",\"src\\\\Kora\\\\Program.cs\",\"src\\\\Kora\\\\SettingsWindow.axaml\",\"src\\\\Kora\\\\SettingsWindow.axaml.cs\",\"tests\\\\Kora.Application.UnitTests\\\\Communication\\\\GraphPresenceCallStateTests.cs\",\"tests\\\\Kora.Windows.IntegrationTests\\\\Communication\\\\GraphPresenceSourceTests.cs\",\"tests\\\\Kora.Windows.IntegrationTests\\\\GraphPresenceCallProtectionTests.cs\",\"Design\\\\Call_Aware_Speech.md\",\"docs\\\\responses-and-calls.md\"],\"scopeCaveat\":\"Platform account/broker or package manifest dependencies must be selected through existing supported native authentication and repository dependency policy. Any required additional exact production/package files need reconciliation, not assumed permission or an unsafe token-storage helper.\",\"checks\":[\"Actual native own-account/source/network consent flow through shared saved source and metadata adapter to speech suppression, using deterministic supported-account/platform+transport seam.\",\"Exact inACall/presenting blocking and inAMeeting Suspected; stale>=60s/future/malformed/offline/denied/unknown account data remain Unknown, not Clear.\",\"Least Presence.Read only; native-only secure authentication, no credentials/body data in diagnostics/audit, no foreign/private unsupported account substitution.\",\"LocalOnly/privacy/ownership/source/account changes deny network and retire observations; cancellation/disposal joins requests/credentials/source resources without late publish or fake release.\",\"Source-qualified freshness preserves existing Windows5-second rules and manual mode; no capture reopening, grant/approval relaxation or speech replay.\",\"Missing qualification/account/network consent stays explicitly unavailable before network/sign-in calls; fake success never enables production.\",\"Full Core/Application/Windows source/native/speech-gate regression and portable analyzer/coverage evidence, not hardware/provider trials.\"],\"notDelivered\":\"Windows duck metadata and manual call mode cannot provide the approved own-account Graph operation.\",\"ownership\":\"No Graph source worker/key. Exact source/config/native tests do not overlap other new production feature files; original broad native suite still blocks dispatch until accepted shrink. Avoid conflicts with any live communication worker discovered before launch.\",\"priority\":\"After required indexed source and primary conversation/governance features; meaningful call-privacy supporting capability, not optional clipboard filler.\",\"productionWrites\":false}",
+        "pr": null,
+        "owner": null,
+        "phase": "candidate",
+        "blocker": null,
+        "publication": null,
+        "scopeRevision": 0,
+        "scopeHistory": [],
+        "sourceWritesRetired": false,
+        "scopeAmendments": []
+      },
+      {
+        "key": "reviewed-session-response-default",
+        "outcome": "Set and reset an exact conversation's response-output default for future requests, preserving existing per-task choices and mandatory visual/privacy/call rules",
+        "pool": "ready",
+        "kind": "feature",
+        "head": "47f6ea7f9fc4ba4e2eedec48b51b3390b42b5509",
+        "scopes": [
+          "src\\kora.core\\conversation\\sessionresponseoutputpolicy.cs",
+          "src\\kora.core\\storage\\isessionresponseoutputstore.cs",
+          "src\\kora.application\\configuration\\sessionresponseoutputservice.cs",
+          "src\\kora.application\\hosting\\sessionconversationservice.taskresponseoutput.cs",
+          "src\\kora.application\\viewmodels\\mainviewmodel.taskresponseoutput.cs",
+          "src\\kora.windows\\storage\\windowssqlitehostinteractionstore.sessionresponseoutput.cs",
+          "src\\kora.windows\\storage\\hostinteractionschema.cs",
+          "src\\kora.windows\\storage\\windowssqlitehostinteractionstore.cs",
+          "src\\kora\\sessionsviewmodel.sessionresponseoutput.cs",
+          "src\\kora\\sessionswindow.sessionresponseoutput.cs",
+          "src\\kora\\app.sessionresponseoutput.cs",
+          "tests\\kora.core.unittests\\conversation\\sessionresponseoutputpolicytests.cs",
+          "tests\\kora.application.unittests\\configuration\\sessionresponseoutputtests.cs",
+          "tests\\kora.windows.integrationtests\\storage\\windowssqlitesessionresponseoutputtests.cs",
+          "tests\\kora.windows.integrationtests\\sessionsconversationtests.sessionresponseoutput.cs",
+          "design\\user_configuration.md",
+          "docs\\responses-and-calls.md"
+        ],
+        "evidence": "Discovery supplied full exact-session future-request output operation/admission/shared-file conflicts and17-file behavioral scope at Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\pass8-session-output-candidate.json. Parent routes without code/Git/PR inspection. {\"id\":\"planner-candidate-pass8-session-output-default\",\"owner\":\"agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=a0edda68-7040-4fcc-9162-bc827ff468dc\",\"pass\":8,\"key\":\"reviewed-session-response-default\",\"outcome\":\"Set and reset an exact conversation's response-output default for future requests, preserving existing per-task choices and mandatory visual/privacy/call rules\",\"pool\":\"ready\",\"kind\":\"feature\",\"head\":\"47f6ea7f9fc4ba4e2eedec48b51b3390b42b5509\",\"scenario\":\"Keep one reading conversation VisualOnly while another uses Hybrid, without repeatedly selecting a per-task output choice or changing the global device default.\",\"admission\":\"User_Configuration full configuration contract explicitly admits device/conversation/task scopes; existing output precedence names task > queue > session > device. Delivered one-task output at1627-1640 explicitly does not implement a persisted session-mode consumer. This advances independent conversations and voice/UI interaction, not new mode values or provider permissions.\",\"gap\":[\"SessionConversationService.TaskResponseOutput.cs captures only explicit task output via a host delegate; there is no persisted session-mode consumer.\",\"MainViewModel.TaskResponseOutput.cs resolves existing ordinary task/queue/device preferences; current durable Session storage source search has no session ResponseOutputMode field/store.\",\"User_Configuration one-task contract explicitly leaves session-persistent output timing undecided by that delivered increment.\"],\"conservativeTiming\":\"Follow existing future-request preference pattern: resolve/freeze the session default in the new original request's output review; never retroactively change submitted/queued/running task choice or replay completed output. Require fresh review if session preference changes before submission. No scope/permission renewal.\",\"minimumI\":\"Existing ResponseOutputMode/TaskResponseMode validators, host-resolved exact session authority/generation/control, private transactional session/audit store, shared original-channel/call output configuration admission and actual TaskResponseOutputReview publication path.\",\"hostRationale\":\"Output selection is host UI/session state, not provider context or egress/grant authority. Session identity/currentness, saved preference provenance, approval and final output remain host-owned.\",\"completeInteraction\":\"Select exact Active conversation -> read/display saved/default desired/configured/effective output with mandatory exceptions -> original native/typed/eligible voice review -> separate exact confirmation -> audited transactional session-local write/readback -> restart/reopen -> future original requests inherit captured default unless a narrower task/queue choice applies -> genuine retained answer reaches existing output consumer with mandatory full visual fallback and capped eligible speech -> explicit Reset returns Inherit; session deletion removes only its output policy. No update to earlier task captures.\",\"bounds\":\"Only Inherit/Hybrid/VoiceOnly/VisualOnly semantics already admitted; no new renderer/speech/channel/voice consent, automatic output replay, provider selection, model egress or permissions. Preserve original-channel protected-call restrictions; unknown/malformed saved values reject. Kept/read-only sessions may inspect policy but do not gain output execution or policy-write authority.\",\"scopes\":[\"src\\\\Kora.Core\\\\Conversation\\\\SessionResponseOutputPolicy.cs\",\"src\\\\Kora.Core\\\\Storage\\\\ISessionResponseOutputStore.cs\",\"src\\\\Kora.Application\\\\Configuration\\\\SessionResponseOutputService.cs\",\"src\\\\Kora.Application\\\\Hosting\\\\SessionConversationService.TaskResponseOutput.cs\",\"src\\\\Kora.Application\\\\ViewModels\\\\MainViewModel.TaskResponseOutput.cs\",\"src\\\\Kora.Windows\\\\Storage\\\\WindowsSqliteHostInteractionStore.SessionResponseOutput.cs\",\"src\\\\Kora.Windows\\\\Storage\\\\HostInteractionSchema.cs\",\"src\\\\Kora.Windows\\\\Storage\\\\WindowsSqliteHostInteractionStore.cs\",\"src\\\\Kora\\\\SessionsViewModel.SessionResponseOutput.cs\",\"src\\\\Kora\\\\SessionsWindow.SessionResponseOutput.cs\",\"src\\\\Kora\\\\App.SessionResponseOutput.cs\",\"tests\\\\Kora.Core.UnitTests\\\\Conversation\\\\SessionResponseOutputPolicyTests.cs\",\"tests\\\\Kora.Application.UnitTests\\\\Configuration\\\\SessionResponseOutputTests.cs\",\"tests\\\\Kora.Windows.IntegrationTests\\\\Storage\\\\WindowsSqliteSessionResponseOutputTests.cs\",\"tests\\\\Kora.Windows.IntegrationTests\\\\SessionsConversationTests.SessionResponseOutput.cs\",\"Design\\\\User_Configuration.md\",\"docs\\\\responses-and-calls.md\"],\"newFiles\":\"Natural session-domain/configuration/SQL/native partials/tests in existing modules, not another test project, generic settings framework or fake-only output proxy.\",\"checks\":[\"Actual exact-session review/confirm/audit/store/readback/restart, future request and real retained output for each supported mode.\",\"One session's write does not change device/other-session output; narrower explicit task choices still win; already queued/running outputs remain frozen.\",\"Changed source/session generation/control/preference before submission invalidates original pending review; no cross-session retarget from selection changes.\",\"Malformed persistence, partial audit/readback, cancelled/stale policy writes are explicit denied/unconfirmed outcomes without rollback/silent Inherit.\",\"Voice/protected-call/private/source-loss gates and mandatory complete visual exceptions still win, including VoiceOnly.\",\"Reset/delete preserves unrelated sessions, device preferences, independent grants/audit; inspection neither renews retention nor replays output.\",\"Core/Application/realSQL/native end-to-end assertions and required coverage/analyzers; provider/acoustic qualification remains independent.\"],\"ownership\":\"No existing session-output-default worker/key. Exact new native tests conflict now with old broad reservation until valid contraction. Shared HostInteractionSchema/Store with named-source binding, User_Configuration with setting collection and responses-and-calls with Graph serialize; do not claim these candidates simultaneously disjoint.\",\"notDelivered\":\"Device default and one-task output selection do not persist/apply an independently selected future-request conversation default.\",\"productionWrites\":false}",
+        "pr": null,
+        "owner": null,
+        "phase": "candidate",
+        "blocker": null,
+        "publication": null,
+        "scopeRevision": 0,
+        "scopeHistory": [],
+        "sourceWritesRetired": false,
+        "scopeAmendments": []
+      },
+      {
+        "key": "explicit-retained-static-html-details",
+        "outcome": "Explicitly review one exact retained final response as the existing strict native static-HTML profile, render it when qualified or expose truthful whole-source fallback",
+        "pool": "ready",
+        "kind": "feature",
+        "head": "47f6ea7f9fc4ba4e2eedec48b51b3390b42b5509",
+        "scopes": [
+          "src\\kora.core\\presentation\\retainedstatichtmlrequest.cs",
+          "src\\kora.core\\presentation\\admitteddetailcontent.cs",
+          "src\\kora.application\\hosting\\sessionworkspaceservice.statichtmldetails.cs",
+          "src\\kora\\sessionsviewmodel.statichtmldetails.cs",
+          "src\\kora\\detailwindowcontroller.cs",
+          "tests\\kora.core.unittests\\presentation\\retainedstatichtmlrequesttests.cs",
+          "tests\\kora.application.unittests\\hosting\\sessionworkspaceservicetests.statichtmldetails.cs",
+          "tests\\kora.windows.integrationtests\\sessionsconversationtests.statichtmldetails.cs",
+          "design\\information_display.md",
+          "docs\\windows-and-tray.md"
+        ],
+        "evidence": "Discovery-owned existing strict-profile retained-source admission/full native presentation/fallback and ten-file scope receipt Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\pass8-html-candidate.json. Parent routes without Git/PR/code investigation. {\"id\":\"planner-candidate-pass8-retained-static-html\",\"owner\":\"agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=a0edda68-7040-4fcc-9162-bc827ff468dc\",\"pass\":8,\"key\":\"explicit-retained-static-html-details\",\"outcome\":\"Explicitly review one exact retained final response as the existing strict native static-HTML profile, render it when qualified or expose truthful whole-source fallback\",\"pool\":\"ready\",\"kind\":\"feature\",\"head\":\"47f6ea7f9fc4ba4e2eedec48b51b3390b42b5509\",\"scenario\":\"A model returns an inert static HTML fragment. The user explicitly asks to read that exact retained response as supported native static HTML, without a browser, scripts, file/network assets or external launch.\",\"admission\":\"MVP_Scope readable complex results and Information_Display.md:1705-1742 Generated/Local HTML and implemented static-html-v1 approved grammar/profile. This composes an existing explicitly defined profile with an exact retained source; it does not select a new renderer or infer profile enablement from source text.\",\"gap\":[\"StaticHtmlDetailRenderer/StaticHtmlParser/StaticHtmlProfile are implemented and DetailWindowController accepts a host-admitted StaticHtml snapshot.\",\"Information_Display strict boundary explicitly adds no default content producer/byte acquisition.\",\"AdmittedDetailContent currently hard-binds retained ASSISTANT origin to Markdown; SessionWorkspaceService.Conversation resolves only Markdown for ASSISTANT. No distinct original-user retained-source HTML presentation request/producer exists.\"],\"minimumI\":\"Exact retained conversation source/audit/generation/current-private read, AdmittedDetailContent trusted resolver, existing static-html-v1 grammar/bounds and native renderer, detail viewer ownership/retirement and independently supplied exact profile qualification.\",\"hostRationale\":\"Original user native request and host resolver bind exact original body/source identity to a distinct renderer selection. Model output cannot choose a trust origin, renderer or qualification. No new source acquisition or content authority.\",\"completeInteraction\":\"Inspect exact successful retained ASSISTANT response -> deliberate native strict-HTML presentation request with complete source/limitations review -> host constructs exact source-bound typed presentation admission (not generic kind override) -> validate existing strict profile/grammar -> actual native render if qualified, otherwise complete labelled source fallback -> readable original/correct historical context and origin return -> source/private/window retirement clears all render state and joins work. No auto-open or source reinterpretation on ordinary Details.\",\"boundaries\":\"Do not broaden the existing retained-assistant constructor check to accept arbitrary HTML labels. Add distinct exact-source original-user admission; ordinary Markdown/source/copy behavior stays unchanged. Reuse existing static-html-v1 only; zero attrs/scripts/forms/assets/network/browser/CSS/plugin/default producer. Production profile stays unqualified/disabled unless existing host qualification supplies it. No source body copy, clipboard/export authority or retained-format mutation.\",\"scopes\":[\"src\\\\Kora.Core\\\\Presentation\\\\RetainedStaticHtmlRequest.cs\",\"src\\\\Kora.Core\\\\Presentation\\\\AdmittedDetailContent.cs\",\"src\\\\Kora.Application\\\\Hosting\\\\SessionWorkspaceService.StaticHtmlDetails.cs\",\"src\\\\Kora\\\\SessionsViewModel.StaticHtmlDetails.cs\",\"src\\\\Kora\\\\DetailWindowController.cs\",\"tests\\\\Kora.Core.UnitTests\\\\Presentation\\\\RetainedStaticHtmlRequestTests.cs\",\"tests\\\\Kora.Application.UnitTests\\\\Hosting\\\\SessionWorkspaceServiceTests.StaticHtmlDetails.cs\",\"tests\\\\Kora.Windows.IntegrationTests\\\\SessionsConversationTests.StaticHtmlDetails.cs\",\"Design\\\\Information_Display.md\",\"docs\\\\windows-and-tray.md\"],\"checks\":[\"Actual retained-answer read/review/exact source admission/native supported HTML presentation and origin-aware return.\",\"Unqualified/malformed/unknown-profile/oversized/unsupported attribute/entity/Unicode render results retain complete labelled source and never partial semantics.\",\"Direct kind/origin forgery, stale answer revision/session/window/private/request admission cannot create source or render authority.\",\"Original Markdown Details, shared Find/source/copy restrictions and serialized conversation remain unchanged; no model call, clipboard/network/browser/asset acquisition.\",\"Actual source/render cancellation/lifetime joins and native private retirement; full domain/Application/native regressions, no E/Q trials claimed.\"],\"notDelivered\":\"Existing strict renderer and generic Details controller are not the complete source-admitted retained-answer HTML viewing operation.\",\"ownership\":\"No HTML producer worker/key. Exact native tests remain blocked by broad old native reservation until contraction. Core AdmittedDetailContent/DetailWindowController also are shared presentation files: inspect actual candidate overlap and serialize any same-file changes. Known v3 written files not touched.\",\"productionWrites\":false}",
+        "pr": null,
+        "owner": null,
+        "phase": "candidate",
+        "blocker": null,
+        "publication": null,
+        "scopeRevision": 0,
+        "scopeHistory": [],
+        "sourceWritesRetired": false,
+        "scopeAmendments": []
+      },
+      {
+        "key": "reviewed-bounded-source-followup",
+        "outcome": "Answer an explicitly reviewed registered-source question with at most one separately reviewed follow-up retrieval inside the same selected source revisions and final cited retention",
+        "pool": "ready",
+        "kind": "feature",
+        "head": "47f6ea7f9fc4ba4e2eedec48b51b3390b42b5509",
+        "scopes": [
+          "src\\kora.core\\knowledgesources\\knowledgesourcefollowupproposal.cs",
+          "src\\kora.application\\knowledgesources\\reviewedsourcefollowupworkflow.cs",
+          "src\\kora.application\\knowledgesources\\knowledgesourceanswerworkflow.cs",
+          "src\\kora\\knowledgesources\\knowledgesourcefollowupcontroller.cs",
+          "tests\\kora.core.unittests\\knowledgesources\\knowledgesourcefollowuptests.cs",
+          "tests\\kora.application.unittests\\knowledgesources\\reviewedsourcefollowuptests.cs",
+          "tests\\kora.windows.integrationtests\\knowledgesources\\reviewedsourcefollowuptests.cs",
+          "design\\model_providers_memory_and_knowledge.md",
+          "docs\\knowledge-sources.md"
+        ],
+        "evidence": "Discovery-supplied complete one separately reviewed followup/exact sources/original question/final retained answer and exact9-file tests at Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\pass8-iterative-source-candidate.json. Parent routes without code/Git/PR inspection. {\"id\":\"planner-candidate-pass8-reviewed-followup-retrieval\",\"owner\":\"agent-host-session://ahp-session/7b669b75-9d4e-4abc-b1cb-90411c90343f?chat=a0edda68-7040-4fcc-9162-bc827ff468dc\",\"pass\":8,\"key\":\"reviewed-bounded-source-followup\",\"outcome\":\"Answer an explicitly reviewed registered-source question with at most one separately reviewed follow-up retrieval inside the same selected source revisions and final cited retention\",\"pool\":\"ready\",\"kind\":\"feature\",\"head\":\"47f6ea7f9fc4ba4e2eedec48b51b3390b42b5509\",\"scenario\":\"The first bounded excerpts do not answer a broad documentation question. The local model can propose a bounded literal search query as inert data; the user reviews that query and new evidence before a final answer rather than silently getting unsupported or automatically expanding context.\",\"admission\":\"Model_Providers_Memory_And_Knowledge.md:900-921 expressly permits bounded iterative retrieval with a host-validated request for more evidence and constrained follow-up, without unrestricted filesystem/index handles. Approved explicit source/model interaction; not new provider/tool/evidence authority.\",\"gap\":[\"KnowledgeSourceAnswerWorkflow opens exact selected snapshots, performs one retrieval and prepares one one-shot model answer.\",\"Current LocalFileLexicalRetrieval.Search is bounded query-time retrieval; no typed reviewed follow-up-query proposal/second evidence review or joined two-stage answer workflow.\",\"Current named-source user guide explicitly delivers one reviewed one-shot no-tools answer.\"],\"minimumI\":\"Existing named-source exact-use/access/revocation lease, query/citation and complete input/output budgets, local tools-none proposal runner, native disclosure/source/excerpt review, canonical reviewed-context conversation service and actual resource joins. Indexing is not a monolithic prerequisite; this consumes existing lexical retrieval unless an accepted index is present.\",\"hostRationale\":\"Model suggests a literal query only. The host validates source scope/query/data bounds and original identity; the user separately approves new evidence/model disclosure. No model receives source handles or decides consent/targets.\",\"completeInteraction\":\"Explicit original question/one-two exact source revisions -> full initial evidence and local disclosure review -> one admitted tools-none assessment/query proposal with bounded whole-context consent -> either validated final response or explicit proposed follow-up query -> original user separately reviews/accepts query against original held sources -> exact source revalidation and one additional bounded retrieval -> complete new excerpt/original-question review plus independent model-use confirmation -> canonical final USER/ASSISTANT retention/readback and citations. Unsupported or denied follow-up is honest no-answer/cancel, not successful partial context.\",\"limits\":\"At most one follow-up to the exact original source set, no new source/path/format, no automatic iterative loop, no tools, embeddings, hosted fallback, recursive prompt/history assembly, inferred authority or source retention renewal. Original source-use lifetime remains nonrenewable; provider work joins before each review. Initial query suggestion is not retained as a final answer; final canonical answering uses the original unchanged question once.\",\"scopes\":[\"src\\\\Kora.Core\\\\KnowledgeSources\\\\KnowledgeSourceFollowupProposal.cs\",\"src\\\\Kora.Application\\\\KnowledgeSources\\\\ReviewedSourceFollowupWorkflow.cs\",\"src\\\\Kora.Application\\\\KnowledgeSources\\\\KnowledgeSourceAnswerWorkflow.cs\",\"src\\\\Kora\\\\KnowledgeSources\\\\KnowledgeSourceFollowupController.cs\",\"tests\\\\Kora.Core.UnitTests\\\\KnowledgeSources\\\\KnowledgeSourceFollowupTests.cs\",\"tests\\\\Kora.Application.UnitTests\\\\KnowledgeSources\\\\ReviewedSourceFollowupTests.cs\",\"tests\\\\Kora.Windows.IntegrationTests\\\\KnowledgeSources\\\\ReviewedSourceFollowupTests.cs\",\"Design\\\\Model_Providers_Memory_And_Knowledge.md\",\"docs\\\\knowledge-sources.md\"],\"checks\":[\"Actual exact-source first assessment/query proposal/review/second retrieval/new disclosure/final retained cited answer, not a query-preparation-only result.\",\"Source additions/paths/tool/schema/authority fields, query/byte/count oversize, malformed/unknown directives reject before new retrieval.\",\"Declined/cancelled/expired/private/source-removed or replaced proposal performs no follow-up; already joined model output cannot revive a source lease.\",\"At most one follow-up and unchanged original source identity/question; absent qualification unavailable before any model call, no fallback/retry-to-answer.\",\"Initial intermediate data never retains a successful ASSISTANT answer or duplicates original USER submission; final cell/citation/readback validation unchanged.\",\"Actual resources join, privacy/source revocation fenced across native reviews; existing one-shot named-source operation and bounds preserved.\"],\"notDelivered\":\"One-shot source answering and manual re-querying do not implement the source-bound original-question follow-up-and-final-answer operation.\",\"ownership\":\"No duplicate key/worker. Exact shared KnowledgeSourceAnswerWorkflow/docs/providers knowledge with indexed source/session-binding candidates serialize; native exact new test path conflicts now with old whole directory until valid contraction. No dropped store/native/final-answer tests.\",\"priority\":\"After required indexed-source/independent conversations; meaningful explicit broad-query workflow, not optional clipboard filler.\",\"productionWrites\":false}",
+        "pr": null,
+        "owner": null,
+        "phase": "candidate",
+        "blocker": null,
+        "publication": null,
+        "scopeRevision": 0,
+        "scopeHistory": [],
+        "sourceWritesRetired": false,
+        "scopeAmendments": []
+      }
+    ],
+    "seen": [
+      "planner-attached-7b669b75",
+      "planner-source-pass1-e4b5313a2",
+      "planner-candidate-pass1-evidence-roadmap",
+      "planner-pass-ended-1-a0edda68",
+      "worker-attached-evidence-roadmap-40ece6a6",
+      "planner-candidate-pass2-v3-initial-generation",
+      "evidence-roadmap-published-40ece6a6",
+      "worker-attached-v3-generation-07f8172f",
+      "planner-pass-ended-2-a0edda68",
+      "evidence-roadmap-cleanup-lock-confirmed-40ece6a6",
+      "depth-analysis-refresh-pass3-7b669b75",
+      "planner-source-pass3-de599c2a1",
+      "planner-pass-ended-3-a0edda68",
+      "planner-pass-ended-4-a0edda68",
+      "v3-published-07f8172f-20261107",
+      "v3-cleanup-blocked-07f8172f-20261107",
+      "explicit-parallel-unblock-refresh-pass5-7b669b75",
+      "planner-source-pass5-1d5a471de",
+      "planner-candidate-pass5-verified-scope-contraction",
+      "planner-pass-ended-5-a0edda68",
+      "worker-attached-refinement-60d3d55b",
+      "planner-pass-ended-6-a0edda68",
+      "shrink-published-60d3d55b-871",
+      "shrink-cleanup-60d3d55b-871",
+      "repair-pr871-doc-cli-7b669b75-cleanup",
+      "repaired-protocol-availability-refresh-pass7-7b669b75",
+      "planner-source-pass7-47f6ea7f9",
+      "planner-pass-ended-7-recovered-a0edda68",
+      "planner-candidate-pass8-indexed-sources",
+      "planner-candidate-pass8-declared-agent-guidance",
+      "planner-candidate-pass8-owned-prompt-rename",
+      "planner-candidate-pass8-session-named-source",
+      "planner-candidate-pass8-compound-setting-suggestions",
+      "planner-candidate-pass8-local-action-reviewer",
+      "planner-candidate-pass8-graph-call-observation",
+      "planner-candidate-pass8-session-output-default",
+      "planner-candidate-pass8-retained-static-html",
+      "planner-candidate-pass8-reviewed-followup-retrieval",
+      "scope-refinement:v1:d36b104b52d2831eb41a0beecd716fefae92908b3de94e6be577c143a7f75eb1",
+      "apply-v3-guarded-refinement-pass8-7b669b75",
+      "attached-index-feature-86f5a92d",
+      "attached-agent-feature-05e5326f",
+      "attached-settings-feature-ad987d81",
+      "planner-pass-ended-8-a0edda68",
+      "refine-guidance-scope-05e5326f",
+      "compound-wiring-scope-ad987d81-v2",
+      "refine-guidance-core-05e5326f",
+      "compound-parser-ad987d81",
+      "index-retained-answer-scope-86f5a92d-1",
+      "refine-guidance-portable-blocked-05e5326f",
+      "compound-blocked-ad987d81-20261108",
+      "allocate-active-scope-repair-60d3d55b",
+      "refine-guidance-full-portable-05e5326f",
+      "planner-pass-ended-9-a0edda68",
+      "index-blocked-86f5a92d-final",
+      "compound-lineage-validated-ad987d81",
+      "refine-guidance-native-compatibility-05e5326f",
+      "active-scope-started-60d3d55b",
+      "compound-portable-ad987d81",
+      "active-scope-cleanup-872-60d3d55b",
+      "compound-portable-architecture-ad987d81",
+      "scope-protocol-ready-proof-discovery-7b669b75",
+      "planner-source-pass10-3dd4b5d48",
+      "scope-amendment:v1:75a656b09061ac7dc527fe2e9d65451205287a0712a0661e812a74d694d2ec24",
+      "index-extend-scopes-pass10-7b669b75",
+      "index-scope-granted-continuation-recorded",
+      "scope-amendment:v1:ce714cf63057418b0dcefd8b126fbf723b4f04ef601b346f8013a164cb45ee72",
+      "agent-extend-scopes-pass10-7b669b75",
+      "agent-scope-granted-continuation-recorded",
+      "agent-native-failure-resource-scope1-7b669b75",
+      "index-retained-86f5a92d-v2",
+      "scope-amendment:v1:85d2b2c242fa376c53d86fb6dc50e09f9ac2ff905320ab18eca7de1af3f7e3b0",
+      "settings-extend-scopes-pass10-7b669b75",
+      "settings-scope-granted-continuation-recorded",
+      "index-retained-86f5a92d-v3",
+      "index-published-873-86f5a92d-v1",
+      "settings-extra-audio-bridge-scope1-ad987d81-e55b644b-2bd3-4c7b-8cbb-3401876d96e9",
+      "planner-pass-ended-10-a0edda68",
+      "index-cleanup-873-86f5a92d-v1",
+      "planner-source-pass11-82a0de527",
+      "index-cleanup-873-86f5a92d-v2",
+      "index-closure-host-error-pass11-d0928c32",
+      "scope-amendment:v1:ead2bd50768accd3287cbbd966ed0261c94e03fa79b07161d0f24dfeb9f6989c",
+      "settings-audio-extend-scopes-pass11-7b669b75",
+      "planner-pass-ended-11-a0edda68",
+      "planner-pass-ended-12-a0edda68",
+      "settings-native-validation-blocked-ad987d81-1543"
+    ],
+    "refinements": [
+      {
+        "key": "generate-owned-required-literal-skill",
+        "eventId": "apply-v3-guarded-refinement-pass8-7b669b75",
+        "digest": "d36b104b52d2831eb41a0beecd716fefae92908b3de94e6be577c143a7f75eb1"
+      }
+    ],
+    "amendments": [
+      {
+        "key": "indexed-exact-registered-source-retrieval",
+        "eventId": "index-extend-scopes-pass10-7b669b75",
+        "digest": "75a656b09061ac7dc527fe2e9d65451205287a0712a0661e812a74d694d2ec24"
+      },
+      {
+        "key": "refine-declared-agent-guidance",
+        "eventId": "agent-extend-scopes-pass10-7b669b75",
+        "digest": "ce714cf63057418b0dcefd8b126fbf723b4f04ef601b346f8013a164cb45ee72"
+      },
+      {
+        "key": "review-compound-registered-setting-suggestions",
+        "eventId": "settings-extend-scopes-pass10-7b669b75",
+        "digest": "85d2b2c242fa376c53d86fb6dc50e09f9ac2ff905320ab18eca7de1af3f7e3b0"
+      },
+      {
+        "key": "review-compound-registered-setting-suggestions",
+        "eventId": "settings-audio-extend-scopes-pass11-7b669b75",
+        "digest": "ead2bd50768accd3287cbbd966ed0261c94e03fa79b07161d0f24dfeb9f6989c"
+      }
+    ]
+  },
+  "finalCandidates": [
+    {
+      "key": "recoverably-rename-owned-prompt",
+      "scopes": [
+        "src\\kora.core\\artifactinvocation\\ownedinstructionrename.cs",
+        "src\\kora.core\\artifactinvocation\\ownedpromptrename.cs",
+        "src\\kora.core\\artifactinvocation\\iownedpromptrenamestore.cs",
+        "src\\kora.application\\definitions\\ownedinstructioneditoractions.rename.cs",
+        "src\\kora.application\\definitions\\ownedpromptrenamereview.cs",
+        "src\\kora.application\\viewmodels\\mainviewmodel.instructioneditor.cs",
+        "src\\kora.windows\\artifactdiscovery\\windowsowneddefinitionfileaccess.promptrename.cs",
+        "src\\kora.windows\\artifactdiscovery\\windowsownedinstructionstore.cs",
+        "src\\kora\\ownedinstructioneditorcontroller.rename.cs",
+        "src\\kora\\ownedinstructioneditorcontroller.cs",
+        "src\\kora\\ownedinstructioneditorwindow.cs",
+        "tests\\kora.core.unittests\\artifactinvocation\\ownedpromptrenametests.cs",
+        "tests\\kora.application.unittests\\definitions\\ownedpromptrenametests.cs",
+        "tests\\kora.windows.integrationtests\\artifactdiscovery\\ownedpromptrenametests.cs",
+        "tests\\kora.windows.integrationtests\\sessionsconversationtests.renamedprompt.cs",
+        "design\\definition_management.md",
+        "docs\\instruction-editor.md"
+      ],
+      "evidence": "Complete operation/admission/gap/host rationale/minimum I/full real behavioral tests and ownership in Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\pass8-prompt-rename-candidate.json. No provider/authority fallback. Use final verified scope manifest; existing cached scopes require reconciliation before dispatch."
+    },
+    {
+      "key": "reviewed-session-named-source",
+      "scopes": [
+        "src\\kora.core\\knowledgesources\\sessionknowledgesourcebinding.cs",
+        "src\\kora.core\\storage\\isessionknowledgesourcebindingstore.cs",
+        "src\\kora.core\\storage\\sessiondispositionpreview.cs",
+        "src\\kora.application\\knowledgesources\\sessionknowledgesourceworkflow.cs",
+        "src\\kora.application\\knowledgesources\\knowledgesourceanswerworkflow.cs",
+        "src\\kora.application\\viewmodels\\mainviewmodel.sessions.cs",
+        "src\\kora.core\\commands\\sessioncommand.namedsources.cs",
+        "src\\kora.core\\commands\\sessioncommand.cs",
+        "src\\kora.core\\commands\\sessioncommandoperation.cs",
+        "src\\kora.windows\\storage\\windowssqlitehostinteractionstore.knowledgesourcebindings.cs",
+        "src\\kora.windows\\storage\\hostinteractionschema.cs",
+        "src\\kora.windows\\storage\\windowssqlitehostinteractionstore.cs",
+        "src\\kora.windows\\storage\\windowssqlitehostinteractionstore.disposition.cs",
+        "src\\kora.windows\\storage\\windowssqlitehostinteractionstore.retention.cs",
+        "src\\kora\\knowledgesources\\sessionknowledgesourcecontroller.cs",
+        "src\\kora\\sessionsviewmodel.knowledgesources.cs",
+        "src\\kora\\sessionswindow.knowledgesources.cs",
+        "src\\kora\\app.knowledgesources.cs",
+        "src\\kora\\program.cs",
+        "src\\kora\\app.axaml.cs",
+        "src\\kora\\sessionswindow.axaml",
+        "src\\kora\\sessionswindow.axaml.cs",
+        "tests\\kora.core.unittests\\knowledgesources\\sessionknowledgesourcebindingtests.cs",
+        "tests\\kora.application.unittests\\knowledgesources\\sessionknowledgesourceworkflowtests.cs",
+        "tests\\kora.windows.integrationtests\\knowledgesources\\sessionknowledgesourcebindingtests.cs",
+        "tests\\kora.windows.integrationtests\\knowledgesources\\sessionknowledgesourceanswertests.cs",
+        "design\\file_and_folder_ingestion.md",
+        "docs\\knowledge-sources.md"
+      ],
+      "evidence": "Complete operation/admission/gap/host rationale/minimum I/full real behavioral tests and ownership in Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\pass8-session-source-candidate.json. No provider/authority fallback. Use final verified scope manifest; existing cached scopes require reconciliation before dispatch."
+    },
+    {
+      "key": "independent-local-action-reviewer",
+      "scopes": [
+        "src\\kora.application\\interaction\\sessionpermission\\localsessionpermissionreviewer.cs",
+        "src\\kora.application\\interaction\\sessionpermission\\sessionpermissionrevieweradmission.cs",
+        "src\\kora.application\\interaction\\sessionpermission\\sessionpermissionreviewerprotocol.cs",
+        "src\\kora.application\\interaction\\hostauthorizationservice.cs",
+        "src\\kora.application\\interaction\\sessionpermission\\hostauthorizationservice.sessionpermission.cs",
+        "src\\kora\\sessionpermission\\sessionpermissionreviewercontroller.cs",
+        "src\\kora\\app.sessionpermissionreviewer.cs",
+        "src\\kora\\program.cs",
+        "src\\kora\\app.axaml.cs",
+        "tests\\kora.application.unittests\\interaction\\localsessionpermissionreviewertests.cs",
+        "tests\\kora.windows.integrationtests\\sessionpermissionreviewertests.cs",
+        "design\\session_permission_levels.md",
+        "docs\\session-permission-levels.md"
+      ],
+      "evidence": "Complete operation/admission/gap/host rationale/minimum I/full real behavioral tests and ownership in Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\pass8-reviewer-candidate.json. No provider/authority fallback. Use final verified scope manifest; existing cached scopes require reconciliation before dispatch."
+    },
+    {
+      "key": "consented-graph-presence-call-protection",
+      "scopes": [
+        "src\\kora.core\\communication\\communicationactivityselection.cs",
+        "src\\kora.core\\communication\\graphpresenceobservation.cs",
+        "src\\kora.application\\communication\\communicationactivitycallstateservice.cs",
+        "src\\kora.application\\configuration\\communicationactivityconfigurationservice.cs",
+        "src\\kora.application\\configuration\\localcommunicationactivitypreferences.cs",
+        "src\\kora.application\\viewmodels\\mainviewmodel.communicationactivity.cs",
+        "src\\kora.windows\\communication\\windowsgraphpresencesource.cs",
+        "src\\kora.windows\\communication\\windowsgraphpresencesource.logging.cs",
+        "src\\kora.windows\\communication\\graphpresenceaccountbroker.cs",
+        "src\\kora.windows\\communication\\graphpresenceaccountlease.cs",
+        "src\\kora\\graphpresence\\graphpresencecontroller.cs",
+        "src\\kora\\app.graphpresence.cs",
+        "src\\kora\\app.axaml.cs",
+        "src\\kora\\program.cs",
+        "src\\kora\\settingswindow.axaml",
+        "src\\kora\\settingswindow.axaml.cs",
+        "tests\\kora.application.unittests\\communication\\graphpresencecallstatetests.cs",
+        "tests\\kora.windows.integrationtests\\communication\\graphpresencesourcetests.cs",
+        "tests\\kora.windows.integrationtests\\graphpresencecallprotectiontests.cs",
+        "design\\call_aware_speech.md",
+        "docs\\responses-and-calls.md"
+      ],
+      "evidence": "Complete operation/admission/gap/host rationale/minimum I/full real behavioral tests and ownership in Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\pass8-graph-call-candidate.json. No provider/authority fallback. Use final verified scope manifest; existing cached scopes require reconciliation before dispatch."
+    },
+    {
+      "key": "reviewed-session-response-default",
+      "scopes": [
+        "src\\kora.core\\conversation\\sessionresponseoutputpolicy.cs",
+        "src\\kora.core\\storage\\isessionresponseoutputstore.cs",
+        "src\\kora.core\\storage\\sessiondispositionpreview.cs",
+        "src\\kora.application\\configuration\\sessionresponseoutputservice.cs",
+        "src\\kora.application\\viewmodels\\mainviewmodel.sessions.cs",
+        "src\\kora.core\\commands\\sessioncommand.responseoutput.cs",
+        "src\\kora.core\\commands\\sessioncommand.cs",
+        "src\\kora.core\\commands\\sessioncommandoperation.cs",
+        "src\\kora.application\\hosting\\sessionconversationservice.taskresponseoutput.cs",
+        "src\\kora.application\\viewmodels\\mainviewmodel.taskresponseoutput.cs",
+        "src\\kora.windows\\storage\\windowssqlitehostinteractionstore.sessionresponseoutput.cs",
+        "src\\kora.windows\\storage\\hostinteractionschema.cs",
+        "src\\kora.windows\\storage\\windowssqlitehostinteractionstore.cs",
+        "src\\kora.windows\\storage\\windowssqlitehostinteractionstore.disposition.cs",
+        "src\\kora.windows\\storage\\windowssqlitehostinteractionstore.retention.cs",
+        "src\\kora\\sessionsviewmodel.sessionresponseoutput.cs",
+        "src\\kora\\sessionswindow.sessionresponseoutput.cs",
+        "src\\kora\\app.sessionresponseoutput.cs",
+        "src\\kora\\program.cs",
+        "src\\kora\\app.axaml.cs",
+        "src\\kora\\sessionswindow.axaml",
+        "src\\kora\\sessionswindow.axaml.cs",
+        "tests\\kora.core.unittests\\conversation\\sessionresponseoutputpolicytests.cs",
+        "tests\\kora.application.unittests\\configuration\\sessionresponseoutputtests.cs",
+        "tests\\kora.windows.integrationtests\\storage\\windowssqlitesessionresponseoutputtests.cs",
+        "tests\\kora.windows.integrationtests\\sessionsconversationtests.sessionresponseoutput.cs",
+        "design\\user_configuration.md",
+        "docs\\responses-and-calls.md"
+      ],
+      "evidence": "Complete operation/admission/gap/host rationale/minimum I/full real behavioral tests and ownership in Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\pass8-session-output-candidate.json. No provider/authority fallback. Use final verified scope manifest; existing cached scopes require reconciliation before dispatch."
+    },
+    {
+      "key": "explicit-retained-static-html-details",
+      "scopes": [
+        "src\\kora.core\\presentation\\retainedstatichtmlrequest.cs",
+        "src\\kora.core\\presentation\\admitteddetailcontent.cs",
+        "src\\kora.application\\hosting\\sessionworkspaceservice.statichtmldetails.cs",
+        "src\\kora\\sessionsviewmodel.statichtmldetails.cs",
+        "src\\kora\\sessionsviewmodel.conversation.cs",
+        "src\\kora\\sessionswindow.axaml",
+        "src\\kora\\sessionswindow.axaml.cs",
+        "src\\kora\\sessioninteractionview.axaml",
+        "src\\kora\\detailwindowcontroller.cs",
+        "tests\\kora.core.unittests\\presentation\\retainedstatichtmlrequesttests.cs",
+        "tests\\kora.application.unittests\\hosting\\sessionworkspaceservicetests.statichtmldetails.cs",
+        "tests\\kora.windows.integrationtests\\sessionsconversationtests.statichtmldetails.cs",
+        "design\\information_display.md",
+        "docs\\windows-and-tray.md"
+      ],
+      "evidence": "Complete operation/admission/gap/host rationale/minimum I/full real behavioral tests and ownership in Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\pass8-html-candidate.json. No provider/authority fallback. Use final verified scope manifest; existing cached scopes require reconciliation before dispatch."
+    },
+    {
+      "key": "reviewed-bounded-source-followup",
+      "scopes": [
+        "src\\kora.core\\knowledgesources\\knowledgesourcefollowupproposal.cs",
+        "src\\kora.application\\knowledgesources\\reviewedsourcefollowupworkflow.cs",
+        "src\\kora.application\\knowledgesources\\knowledgesourceanswerworkflow.cs",
+        "src\\kora\\knowledgesources\\knowledgesourcefollowupcontroller.cs",
+        "src\\kora\\knowledgesources\\knowledgesourceswindow.cs",
+        "tests\\kora.core.unittests\\knowledgesources\\knowledgesourcefollowuptests.cs",
+        "tests\\kora.application.unittests\\knowledgesources\\reviewedsourcefollowuptests.cs",
+        "tests\\kora.windows.integrationtests\\knowledgesources\\reviewedsourcefollowuptests.cs",
+        "design\\model_providers_memory_and_knowledge.md",
+        "docs\\knowledge-sources.md"
+      ],
+      "evidence": "Complete operation/admission/gap/host rationale/minimum I/full real behavioral tests and ownership in Q:\\Repos\\Kora\\.scratch\\orchestration\\7b669b75-9d4e-4abc-b1cb-90411c90343f\\planner\\pass8-iterative-source-candidate.json. No provider/authority fallback. Use final verified scope manifest; existing cached scopes require reconciliation before dispatch."
+    }
+  ]
+}

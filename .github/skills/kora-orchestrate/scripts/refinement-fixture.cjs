@@ -80,4 +80,35 @@ function tamperedStates(state) {
   });
 }
 
-module.exports = { refinementFixture, refinementEvent, rebind, tamperedStates, head, owner };
+function candidateFixture(released = false) {
+  let state = structuredClone(require('./candidate-readmission-fixture.json').state);
+  state.planner = { owner: 'fixture-readmission-planner', active: true, pass: 1,
+    requested: false, notified: true };
+  if (released) {
+    for (const [index, item] of state.items.filter(value =>
+      !['candidate', 'complete'].includes(value.phase)).entries()) {
+      if (!item.publication) {
+        state = applyEvent(state, { id: `fixture-publication-${index}`, type: 'published',
+          key: item.key, owner: item.owner, proof: { pushedHead: state.head, remoteHead: state.head,
+            pr: 9000 + index, ready: true, enrolled: true } }).state;
+      }
+      const published = state.items.find(value => value.key === item.key);
+      state = applyEvent(state, { id: `fixture-completion-${index}`, type: 'completed',
+        key: item.key, owner: item.owner, proof: { remoteHead: published.publication.remoteHead,
+          stoppedWriting: true, worktreeAbsent: true, branchAbsent: true, pendingInstructions: 0 } }).state;
+    }
+  }
+  return state;
+}
+
+function candidateEvent(state, key = 'independent-local-action-reviewer', id = `revalidate-${key}`) {
+  const item = state.items.find(value => value.key === key);
+  const final = require('./candidate-readmission-fixture.json').finalCandidates
+    .find(value => value.key === key);
+  return { id, type: 'revalidate-candidate', owner: state.planner.owner, pass: state.planner.pass,
+    key, expectedItemDigest: digest(item), head: state.head, scopes: [...final.scopes],
+    evidence: `Fresh current-source complete manifest: ${final.evidence}`, manifestComplete: true };
+}
+
+module.exports = { refinementFixture, refinementEvent, rebind, tamperedStates, head, owner,
+  candidateFixture, candidateEvent };

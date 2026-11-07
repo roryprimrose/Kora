@@ -49,7 +49,7 @@ public sealed partial class LocalFileLexicalRetrieval : ILocalFileRetrieval
         { return LocalFileSearchResult.Empty(LocalFileSearchOutcome.Stale, observedAt); }
         return SearchFiles(revision.Files, query, LocalFileRetrievalMode.LexicalLines, observedAt,
             cancellationToken, file => KnowledgeSourcePolicy.RelativePath(
-                revision.Review.Metadata.CanonicalPath, file.Review.Metadata.CanonicalPath));
+                revision.Review.Metadata.CanonicalPath, file.Review.Metadata.CanonicalPath), revision.Indexes);
     }
 
     public LocalFileSearchResult Search(IReadOnlyList<KnowledgeSourceRevision> revisions, string query,
@@ -64,12 +64,13 @@ public sealed partial class LocalFileLexicalRetrieval : ILocalFileRetrieval
             Location: KnowledgeSourcePolicy.RelativePath(revision.Review.Metadata.CanonicalPath, file.Review.Metadata.CanonicalPath))))
             .ToDictionary(item => item.Reference, item => item.Location);
         return SearchFiles(revisions.SelectMany(item => item.Files).ToArray(), query,
-            LocalFileRetrievalMode.LexicalLines, observedAt, cancellationToken, file => locations[file.Reference]);
+            LocalFileRetrievalMode.LexicalLines, observedAt, cancellationToken, file => locations[file.Reference],
+            revisions.SelectMany(item => item.Files.Select((_, position) => item.Indexes?[position])).ToArray());
     }
 
     private static LocalFileSearchResult SearchFiles(IReadOnlyList<LocalFileRevision> files,
         string query, LocalFileRetrievalMode mode, DateTimeOffset observedAt, CancellationToken cancellationToken,
-        Func<LocalFileRevision, string>? displayIdentity = null)
+        Func<LocalFileRevision, string>? displayIdentity = null, IReadOnlyList<LocalFileLexicalIndex?>? indexes = null)
     {
         if (!LocalFileRetrievalPolicy.TryQuery(query, out var terms))
         {
@@ -81,6 +82,21 @@ public sealed partial class LocalFileLexicalRetrieval : ILocalFileRetrieval
         {
             var revision = files[fileOrder];
             var text = revision.Text;
+            if (indexes?[fileOrder] is { } index)
+            {
+                foreach (var chunk in index.Chunks)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var frequencies = terms.Where(chunk.Frequencies.ContainsKey).Select(term => chunk.Frequencies[term]).ToArray();
+                    if (frequencies.Length == 0) { continue; }
+                    matchingChunks++;
+                    matches.Add(new(revision, fileOrder, new(chunk.Start, chunk.Length, chunk.Heading),
+                        frequencies.Length, frequencies.Sum()));
+                    matches.Sort(Compare);
+                    if (matches.Count > LocalFileRetrievalPolicy.MaximumCitations) { matches.RemoveAt(matches.Count - 1); }
+                }
+                continue;
+            }
             var chunks = mode == LocalFileRetrievalMode.MarkdownStructure
                 && LocalFileRetrievalPolicy.IsMarkdown(revision.Review.Metadata.CanonicalPath)
                 ? MarkdownChunks(text, cancellationToken) : Chunks(text, cancellationToken);
@@ -143,6 +159,23 @@ public sealed partial class LocalFileLexicalRetrieval : ILocalFileRetrieval
         if (frequency != 0) { return frequency; }
         var file = left.FileOrder.CompareTo(right.FileOrder);
         return file != 0 ? file : left.Chunk.Start.CompareTo(right.Chunk.Start);
+    }
+
+    internal static IReadOnlyList<LocalFileLexicalIndex.Chunk> IndexChunks(string text, CancellationToken token)
+    {
+        var indexed = new List<LocalFileLexicalIndex.Chunk>();
+        foreach (var chunk in Chunks(text, token))
+        {
+            var frequencies = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (var word in LocalFileRetrievalPolicy.Tokens(TokenText(text, chunk), token))
+            {
+                if (word.Length != 0)
+                { frequencies[word] = Math.Min(LocalFileRetrievalPolicy.MaximumTermFrequency, frequencies.GetValueOrDefault(word) + 1); }
+            }
+            if (frequencies.Count != 0) { indexed.Add(new(chunk.Start, chunk.Length, chunk.Heading, frequencies)); }
+        }
+        token.ThrowIfCancellationRequested();
+        return indexed.AsReadOnly();
     }
 
     private static string TokenText(string text, Chunk chunk)

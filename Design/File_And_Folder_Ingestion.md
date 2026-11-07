@@ -8,12 +8,17 @@ is also implemented: one fresh question over one or two explicitly selected enab
 retained revisions, exact excerpt review, separate one-shot private LocalOnly/no-tools
 confirmation and exact retained answer citations. Registration and inspection are
 not model consent ([named-source contract](#named-device-local-folder-lifecycle)).
+The separate native review includes retaining the unchanged original question and
+validated answer in the canonical private **Local context** conversation. Host-issued
+request binding, final response validation and durable readback are required before
+success; source-copy retirement and session-history retention remain independent
+([retained answer owner](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerWorkflow.cs)).
 Reviewed file/folder and named-source answers use the
 [shared private-LocalOnly risk policy](Security_Data_Flows.md#reviewed-localonly-source-use-risk-admission),
 not a secret-free guarantee or provider approval. This is
 [implementation, not runtime enablement or RC qualification](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy):
 unqualified runtimes remain explicitly unavailable. Multiple-version ingestion,
-persistent/vector indexes, larger or automatic source sets, automatic source context and
+vector indexes, larger or automatic source sets, automatic source context and
 hosted grounding remain gated; this operation admits no hosted disclosure or fallback
 ([answer workflow](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerWorkflow.cs)).
 
@@ -660,6 +665,19 @@ exact complete snapshot/save confirmations, explicit native inspection and
 `lexical-lines-v1` retrieval, reviewed refresh, disable and inventoried removal.
 The [user guide](../docs/knowledge-sources.md) describes current limits and recovery.
 
+Explicit save now publishes a versioned `lexical-index-v1` together with the complete original-byte snapshot in one encrypted SQLite transaction.
+The [index owner](../src/Kora.Core/Context/LocalFileLexicalIndex.cs) binds immutable canonical chunks and saturated token frequencies to each original-byte digest and `lexical-lines-v1`.
+An explicitly reviewed refresh reuses only unchanged digest/version entries; new or changed files are rebuilt, and deleted members are absent from the replacement.
+Reuse never retains an old item's citation identity or grants access to a revoked revision ([store publication](../src/Kora.Windows/KnowledgeSources/WindowsKnowledgeSourceStore.cs)).
+
+The [version-3 snapshot](../src/Kora.Windows/KnowledgeSources/WindowsKnowledgeSourceStore.Snapshot.cs) contains both inventories in the existing private partition.
+Bounded Brotli compression precedes authenticated encryption; the existing 2-MiB stored-snapshot limit remains enforced, with a 128-MiB expanded representation bound for repeated chunk metadata.
+Cold readback validates the complete index against the shared canonical chunk/token policy before indexed search or citation disclosure; malformed versions, digests, membership, spans or frequencies fail explicitly.
+The owning store retains at most two validated decoded revisions for repeated one/two-source use, checking current inventory and encrypted-body digest on every read; changed bytes trigger full validation, not cached disclosure.
+Disable/removal retire this bounded reuse state; unavailable refresh revisions cannot be read, even when retained entries are reused internally for replacement publication ([store-owned reuse](../src/Kora.Windows/KnowledgeSources/WindowsKnowledgeSourceStore.Index.cs)).
+Legacy version-1/2 snapshots retain query-time lexical behavior until a deliberate reviewed refresh publishes an index.
+No migration scan, separate cache, background watcher, embedding model or automatic refresh is introduced ([Windows regressions](../tests/Kora.Windows.IntegrationTests/KnowledgeSources/WindowsKnowledgeSourceTests.Index.cs)).
+
 Immediate-file capture remains the default and preserves the existing volatile
 folder policy. Named sources separately support explicit bounded descendant
 consent before discovery: 32 UTF-8 text/Markdown files across the whole tree,
@@ -712,10 +730,10 @@ The [named manager](../src/Kora.Application/KnowledgeSources/KnowledgeSourceMana
 pins refresh to the registered physical root and exact traversal policy.
 Revocation is joined before cancellable discovery; cancel/failure never revives
 old use. A scope change requires removal and a complete fresh add/read/save review.
-The [version-2 snapshot format](../src/Kora.Windows/KnowledgeSources/WindowsKnowledgeSourceStore.Snapshot.cs)
+The [snapshot format](../src/Kora.Windows/KnowledgeSources/WindowsKnowledgeSourceStore.Snapshot.cs)
 retains directory inventory, traversal consent and immutable revision/item
 identities in the same bounded private partition. Legacy version-1 immediate
-snapshots retain their existing meaning/identities/limits; unknown or malformed
+snapshots and version-2 directory-aware snapshots retain their existing meaning/identities/limits; unknown or malformed
 versions fail closed, never as a fresh empty store.
 
 The [native source surface](../src/Kora/KnowledgeSources/KnowledgeSourcesWindow.cs)

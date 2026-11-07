@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Kora.Application.Hosting;
 using Kora.Core.Auditing;
 using Kora.Core.Context;
 using Kora.Core.Dependencies;
@@ -11,9 +12,12 @@ namespace Kora.Application.KnowledgeSources;
 
 public sealed partial class KnowledgeSourceAnswerWorkflow(KnowledgeSourceManager manager,
     ILocalFileRetrieval retrieval, ILocalFileModelUsePolicy sourceUse, IModelContextRunner model,
-    ISecurityAuditLog audit, TimeProvider time, ILogger<KnowledgeSourceAnswerWorkflow> logger)
+    ISecurityAuditLog audit, TimeProvider time, ILogger<KnowledgeSourceAnswerWorkflow> logger,
+    SessionWorkspaceService? sessions = null, SessionConversationService? conversations = null)
 {
     private KnowledgeSourceAnswerUse? use;
+
+    public bool RetainsConversation => sessions is not null || conversations is not null;
 
     public async Task<KnowledgeSourceAnswerPreparation> PrepareAsync(KnowledgeSource exact, string question,
         Func<bool> eligible, CancellationToken token) =>
@@ -106,6 +110,10 @@ public sealed partial class KnowledgeSourceAnswerWorkflow(KnowledgeSourceManager
                             : LocalFileAnswerOutcome.Denied) with { SourceUseDecision = decision };
                 }
             }
+            if (RetainsConversation)
+            {
+                return await AnswerRetainedAsync(review, exact, Current, cancellation).ConfigureAwait(false);
+            }
             var admission = await model.AdmitAsync(review.Target, Current, cancellation, exact.ValidateAsync).ConfigureAwait(false);
             if (admission.Turn is not { } admitted)
             { return Receipt(review, null, admission.Rejection ?? throw new InvalidOperationException("Missing local admission result.")); }
@@ -123,6 +131,49 @@ public sealed partial class KnowledgeSourceAnswerWorkflow(KnowledgeSourceManager
         { result = LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Stale); }
         activity.Complete(ActivityOutcome(result.Outcome));
         return result;
+    }
+
+    private async Task<LocalFileAnswerResult> AnswerRetainedAsync(KnowledgeSourceAnswerReview review,
+        KnowledgeSourceAnswerUse exact, Func<bool> current, CancellationToken token)
+    {
+        var conversation = conversations
+            ?? throw new InvalidOperationException("Canonical retained source answering is not composed.");
+        var workspace = sessions
+            ?? throw new InvalidOperationException("Canonical retained source session creation is not composed.");
+        var target = await workspace.CreateLocalContextSessionAsync(review.Target.SourceRequest, current, token).ConfigureAwait(false);
+        var contexts = new Dictionary<HostRequest, KnowledgeSourceAnswerContext>(ReferenceEqualityComparer.Instance);
+        var answer = LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.InvalidResponse);
+        ModelContextEnvelope Create(HostRequest request, DateTimeOffset now)
+        {
+            var binding = LocalContextSessionTarget.Existing(review.Target.SourceRequest, request, target.Authority.Generation);
+            var context = new KnowledgeSourceAnswerContext(review, binding, request, target.Authority.Generation, now);
+            contexts.Add(request, context);
+            return context.Envelope;
+        }
+        ModelTurnResult Resolve(ModelTurnResult result)
+        {
+            var projected = contexts[result.Provenance!.Request].ResolveRetained(result);
+            answer = projected.Answer;
+            return projected.Result;
+        }
+        ActivityLink[] links = [new(HostActivity.RequireCurrent().Activity!.Context)];
+        var retained = await conversation.SubmitReviewedContextAsync(target, review.Question, Create, current,
+            exact.ValidateAsync, links, review.Target.SourceRequest.Origin, token, resolveResponse: Resolve,
+            joinCancelledResources: true).ConfigureAwait(false);
+        await exact.ValidateAsync(token).ConfigureAwait(false);
+        if (!current()) { return LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Stale); }
+        var outcome = retained.Message.Outcome;
+        if (outcome == ModelTurnOutcome.Succeeded)
+        {
+            return answer with { ExecutionReason = LocalContextTurnReason.Completed, ExecutionState = retained.Task.State };
+        }
+        return LocalFileAnswerResult.Empty(outcome switch
+        {
+            ModelTurnOutcome.Cancelled => LocalFileAnswerOutcome.Cancelled,
+            ModelTurnOutcome.Denied or ModelTurnOutcome.DeniedEgress => LocalFileAnswerOutcome.Denied,
+            ModelTurnOutcome.Unknown => LocalFileAnswerOutcome.InvalidResponse,
+            _ => LocalFileAnswerOutcome.Unavailable,
+        }) with { ModelReason = retained.Message.Reason, ExecutionState = retained.Task.State };
     }
 
     private async Task<T> Audited<T>(string operation, Func<Task<T>> action, Func<T, LocalFileAnswerOutcome> outcome,

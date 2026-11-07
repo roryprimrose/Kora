@@ -1,22 +1,35 @@
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.VisualTree;
+
 using AwesomeAssertions;
+
 using Kora.Application.Context;
+using Kora.Application.Configuration;
+using Kora.Application.Dependencies;
+using Kora.Application.Hosting;
+using Kora.Application.Tools;
 using Kora.Application.Infrastructure;
 using Kora.Application.KnowledgeSources;
+using Kora.Application.Voice;
 using Kora.Core.Auditing;
 using Kora.Core.Context;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.KnowledgeSources;
+using Kora.Core.Tools;
 using Kora.KnowledgeSources;
 using Kora.NativeUxFixture;
 using Kora.Windows.IntegrationTests.Storage;
+using Kora.Windows.Context;
+using Kora.Windows.KnowledgeSources;
+
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests.KnowledgeSources;
@@ -24,6 +37,214 @@ namespace Kora.Windows.IntegrationTests.KnowledgeSources;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class KnowledgeSourceAnswerWindowTests
 {
+    [Theory]
+    [InlineData("supported")]
+    [InlineData("unsupported")]
+    [InlineData("invalid")]
+    [InlineData("unqualified")]
+    [InlineData("cancelled")]
+    [InlineData("disabled")]
+    public Task ActualIndexedStoreRestartNativeConsentAndModelHostRetainOnlyTheCanonicalValidatedAnswer(string outcome) =>
+        HeadlessSession.RunAsync(async () =>
+        {
+            using var listener = Listen();
+            await HostRequestRunner.RunAsync(RequestOrigin.LocalUi, async () =>
+            {
+                using var native = new NativeUxFixtureSession(OwnedStorageFixture.ScratchParent());
+                await native.InitializeAsync();
+                native.Main.BindClipboardOwnershipGate(static () => true);
+                using var originals = new OwnedStorageFixture();
+                var root = originals.LocalRoot;
+                await File.WriteAllTextAsync(Path.Combine(root, "notes.md"), "alpha original source", native.Token);
+                var store = new WindowsKnowledgeSourceStore(native);
+                var manager = new KnowledgeSourceManager(new WindowsLocalFileInspector(native), store, native.Audit, TimeProvider.System);
+                var saving = new KnowledgeSourcesWindow(native.Main, manager, new SourcePicker(root));
+                saving.Show();
+                saving.UpdateLayout();
+                try
+                {
+                    saving.GetVisualDescendants().OfType<TextBox>().Single(item =>
+                        string.Equals(AutomationProperties.GetName(item), "Knowledge source name", StringComparison.Ordinal)).Text = "Indexed";
+                    await Press(saving, "Choose folder and review metadata");
+                    await Press(saving, "Confirm read of this exact reviewed membership");
+                    saving.GetVisualDescendants().OfType<Button>().Select(button => button.Content)
+                        .Should().Contain("Confirm save of this exact complete device-local snapshot",
+                            "capture must finish before saving");
+                    await Press(saving, "Confirm save of this exact complete device-local snapshot");
+                }
+                finally { await saving.StopAsync(); manager.Dispose(); }
+                store = new WindowsKnowledgeSourceStore(native);
+                var source = (await store.ListAsync(native.Token)).Single();
+                var revision = await store.ReadAsync(source, native.Token);
+                revision.Indexes.Should().ContainSingle();
+                using var bootstrapper = new DependencyBootstrapper([], NullLogger<DependencyBootstrapper>.Instance);
+                var runtime = new Kora.Tools.Runtime.RecordedRuntimeObservation(bootstrapper);
+                var registry = new ReadOnlyCapabilityRegistry(native.Access, new(), new(), new(new Kora.Application.AssemblyApplicationInfo()),
+                    new(bootstrapper), new(runtime), new(runtime), NullLogger<ReadOnlyCapabilityRegistry>.Instance);
+                var adapter = new RetainedAdapter(outcome);
+                await using var modes = new AudioControlAdmission(native.Interactions, native.Interactions, new(native.Tasks));
+                var policy = new ProviderModeConfigurationService(new LocalModelProviderModePreferences(native), modes, native.Audit);
+                await using var models = new ModelTurnHost(native.Interactions, native.Access, native.Access, registry, native.Audit,
+                    NullLogger<ModelTurnHost>.Instance, TimeProvider.System,
+                    [new(ModelProviderSelection.OllamaCandidate, outcome is "unqualified" ? ModelQualificationGate.None
+                    : ModelQualificationGate.LocalCandidateSelection | ModelQualificationGate.IntegratedHost,
+                    DateTimeOffset.UtcNow.AddMinutes(5), adapter)], policy);
+                await using var conversation = new SessionConversationService(native.Interactions, native.Interactions, native.Sessions,
+                    native.Access, models, TimeProvider.System, NullLogger<SessionConversationService>.Instance, execution: models);
+                var legacy = new Fixture();
+                using var services = new ServiceCollection()
+                    .AddSingleton<ILocalFileRetrieval>(new LocalFileLexicalRetrieval())
+                    .AddSingleton<ILocalFileModelUsePolicy>(LocalSourceUsePolicy.Instance)
+                    .AddSingleton<IModelContextRunner>(legacy)
+                    .AddSingleton<ISecurityAuditLog>(native.Audit)
+                    .AddSingleton(TimeProvider.System)
+                    .AddSingleton<Microsoft.Extensions.Logging.ILogger<KnowledgeSourceAnswerWorkflow>>(NullLogger<KnowledgeSourceAnswerWorkflow>.Instance)
+                    .AddSingleton(native.Sessions).AddSingleton(conversation).BuildServiceProvider();
+                manager = new(new WindowsLocalFileInspector(native), store, native.Audit, TimeProvider.System);
+                var workflow = ActivatorUtilities.CreateInstance<KnowledgeSourceAnswerWorkflow>(services, manager);
+                workflow.RetainsConversation.Should().BeTrue();
+                var window = new KnowledgeSourcesWindow(native.Main, manager, answers: workflow);
+                window.Show();
+                window.UpdateLayout();
+                try
+                {
+                    await Press(window, "Reload source inventory");
+                    window.GetVisualDescendants().OfType<ListBox>().Single().SelectedIndex = 0;
+                    Question(window).Text = "  What does alpha identify?  ";
+                    await Press(window, "Review selected named source excerpts for this question");
+                    Status(window).Text.Should().Contain("Retain this exact question").And.Contain("session-history retention");
+                    adapter.Calls.Should().Be(0);
+                    (await native.Sessions.ReadMetadataAsync(null, 50, native.Token)).Records
+                        .Should().NotContain(item => item.Metadata != null
+                            && string.Equals(item.Metadata.Name.Value, LocalContextSessionTarget.FreshSessionName, StringComparison.Ordinal));
+                    if (outcome is "cancelled" or "disabled")
+                    {
+                        var answering = Press(window, "Confirm one private local-only no-tools named-source answer");
+                        (await Task.WhenAny(adapter.Entered.Task, answering)).Should().BeSameAs(adapter.Entered.Task);
+                        var management = outcome is "disabled" ? new KnowledgeSourcesWindow(native.Main, manager) : null;
+                        try
+                        {
+                            Task retirement;
+                            if (management is not null)
+                            {
+                                management.Show();
+                                await Press(management, "Reload source inventory");
+                                management.GetVisualDescendants().OfType<ListBox>().Single().SelectedIndex = 0;
+                                retirement = Press(management, "Disable selected source");
+                            }
+                            else { retirement = window.StopAsync(); }
+                            (await Task.WhenAny(adapter.Cancelled.Task, retirement)).Should().BeSameAs(adapter.Cancelled.Task);
+                            retirement.IsCompleted.Should().BeFalse("the real cancellation-ignoring provider must physically join");
+                            models.IsQuiescent.Should().BeFalse();
+                            adapter.Release.SetResult();
+                            await retirement;
+                            await answering;
+                            using var exclusive = File.Open(Path.Combine(root, "notes.md"), FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                        }
+                        finally
+                        {
+                            adapter.Release.TrySetResult();
+                            if (management is not null) { await management.StopAsync(); }
+                        }
+                    }
+                    else { await Press(window, "Confirm one private local-only no-tools named-source answer"); }
+                    legacy.Context.Should().BeNull();
+                    var target = (await native.Sessions.ReadMetadataAsync(null, 50, native.Token)).Records
+                        .Single(item => item.Metadata != null
+                            && string.Equals(item.Metadata.Name.Value, LocalContextSessionTarget.FreshSessionName, StringComparison.Ordinal));
+                    var retained = (await conversation.ReadPageAsync(target.Authority.SessionId, null, 50, native.Token)).Messages.Single();
+                    retained.Body.Should().Be("  What does alpha identify?  ");
+                    retained.Request.SessionId.Should().Be(target.Authority.SessionId);
+                    if (outcome is "supported" or "unsupported")
+                    {
+                        retained.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+                        retained.AssistantResponse!.Body.Should().Contain(outcome is "supported"
+                            ? "alpha identifies the original source" : "The selected evidence does not support an answer.");
+                        Status(window).Text.Should().Contain("validated final answer are retained");
+                        if (outcome is "supported")
+                        {
+                            retained.AssistantResponse.Body.Should().Contain(revision.Reference.RevisionId.ToString("D"))
+                                .And.Contain(revision.Files[0].Digest).And.Contain("UTF-16");
+                            await Press(window, "Inspect exact answer citation: notes.md, line 1");
+                            window.GetVisualDescendants().OfType<TextBox>().Single(item =>
+                                string.Equals(AutomationProperties.GetName(item), "Exact admitted untrusted text, never executed",
+                                    StringComparison.Ordinal)).SelectedText.Should().Be("alpha original source");
+                        }
+                    }
+                    else
+                    {
+                        if (outcome is "cancelled" or "disabled") { retained.Outcome.Should().NotBe(ModelTurnOutcome.Succeeded); }
+                        else { retained.Outcome.Should().Be(outcome is "unqualified" ? ModelTurnOutcome.Unavailable : ModelTurnOutcome.Unknown); }
+                        retained.AssistantResponse.Should().BeNull();
+                        if (outcome is not ("cancelled" or "disabled"))
+                        { Status(window).Text.Should().Contain("No retained supported answer is claimed"); }
+                    }
+                    adapter.Calls.Should().Be(outcome is "unqualified" ? 0 : 1);
+                    models.IsQuiescent.Should().BeTrue();
+                    if (outcome is not ("cancelled" or "disabled"))
+                    {
+                        await Press(window, "Disable selected source");
+                        Status(window).Text.Should().BeNull();
+                        window.GetVisualDescendants().OfType<ListBox>().Single().SelectedIndex = 0;
+                        await Press(window, "Review removal of Kora copies");
+                        await Press(window, "Confirm remove this inventoried source and Kora copies");
+                        (await store.ListAsync(native.Token)).Should().BeEmpty();
+                        (await File.ReadAllTextAsync(Path.Combine(root, "notes.md"), native.Token)).Should().Be("alpha original source");
+                    }
+                    var readback = (await conversation.ReadPageAsync(target.Authority.SessionId, null, 50, native.Token)).Messages.Single();
+                    readback.Should().Be(retained);
+                    if (outcome is not "cancelled")
+                    {
+                        await FluentActions.Awaiting(() => store.ReadAsync(source, native.Token)).Should()
+                            .ThrowAsync<InvalidOperationException>()
+                            .WithMessage("The exact source inventory changed; reload and review it again.");
+                    }
+                }
+                finally { await window.StopAsync(); manager.Dispose(); legacy.Manager.Dispose(); }
+            });
+        });
+
+    private sealed class SourcePicker(string root) : IUserFolderPicker
+    {
+        public Task<string?> SelectFolderAsync(CancellationToken cancellationToken) => Task.FromResult<string?>(root);
+    }
+
+    private sealed class RetainedAdapter(string outcome) : IModelTurnAdapter
+    {
+        internal int Calls;
+        internal readonly TaskCompletionSource Entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal readonly TaskCompletionSource Cancelled = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal readonly TaskCompletionSource Release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public async Task<ModelProviderReply> RunAsync(ModelTurnProvenance provenance, Kora.Core.Providers.ProviderProfileTuple? profile,
+            ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool, CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            Calls++;
+            using var wire = JsonDocument.Parse(context);
+            wire.RootElement.GetProperty("UserRequest").GetString().Should().Be("  What does alpha identify?  ");
+            wire.RootElement.GetProperty("Tools").GetArrayLength().Should().Be(0);
+            var evidence = wire.RootElement.GetProperty("Evidence").EnumerateArray().ToArray();
+            evidence.Should().ContainSingle();
+            if (outcome is "cancelled" or "disabled")
+            {
+                using var cancellation = token.Register(() => Cancelled.TrySetResult());
+                Entered.SetResult();
+                await Release.Task.ConfigureAwait(false);
+            }
+            var answer = outcome is "invalid" ? "not JSON" : outcome is "unsupported" ? "{\"unsupported\":true,\"claims\":[]}"
+                : JsonSerializer.Serialize(new
+                {
+                    unsupported = false,
+                    claims = new[] { new
+                {
+                    text = "alpha identifies the original source",
+                    evidenceIds = evidence.Select(item => item.GetProperty("Id").GetProperty("Value").GetGuid()),
+                } }
+                });
+            return new ModelProviderReply(ModelTurnOutcome.Succeeded, provenance.Selection, new(answer, null));
+        }
+    }
+
     [Fact]
     public Task TwoExplicitRowsHaveOneReviewOneCombinedAnswerAndUnambiguousExactCitationNavigation() =>
         HeadlessSession.RunAsync(async () =>
@@ -265,8 +486,16 @@ public sealed class KnowledgeSourceAnswerWindowTests
         string.Equals(AutomationProperties.GetName(item), "New named-source answer question", StringComparison.Ordinal));
     private static TextBlock Status(Window window) => window.GetVisualDescendants().OfType<TextBlock>().Single(item =>
         string.Equals(AutomationProperties.GetName(item), "Named-source answer review and outcome", StringComparison.Ordinal));
-    private static Task Press(Window window, string caption) => ((AsyncCommand)window.GetVisualDescendants().OfType<Button>()
-        .Single(item => string.Equals(item.Content?.ToString(), caption, StringComparison.Ordinal)).Command!).ExecuteAsync();
+    private static async Task Press(Window window, string caption)
+    {
+        window.UpdateLayout();
+        var buttons = window.GetVisualDescendants().OfType<Button>().ToArray();
+        buttons.Should().ContainSingle(item => string.Equals(item.Content as string, caption, StringComparison.Ordinal),
+            "the exact operation must be available; presentation: {0}",
+            string.Join(" | ", window.GetVisualDescendants().OfType<TextBlock>().Select(item => item.Text)));
+        await ((AsyncCommand)buttons.Single(item => string.Equals(item.Content?.ToString(), caption, StringComparison.Ordinal)).Command!).ExecuteAsync();
+        window.UpdateLayout();
+    }
 
     private sealed class Fixture : IKnowledgeSourceInspector, IKnowledgeSourceStore, IModelContextRunner, ISecurityAuditLog
     {
@@ -355,8 +584,12 @@ public sealed class KnowledgeSourceAnswerWindowTests
             if (Delay) { await Release.Task; }
             var model = new ModelTurnResult(ModelTurnOutcome.Succeeded, ModelTurnReason.None,
                 new(new(Guid.NewGuid()), context.Request, ModelProviderSelection.OllamaCandidate),
-                new(JsonSerializer.Serialize(new { unsupported = false, claims = new[] { new { text = "synthetic supported claim",
-                    evidenceIds = context.Evidence.Select(item => item.Id.Value) } } }), null));
+                new(JsonSerializer.Serialize(new
+                {
+                    unsupported = false,
+                    claims = new[] { new { text = "synthetic supported claim",
+                    evidenceIds = context.Evidence.Select(item => item.Id.Value) } }
+                }), null));
             return new(context.Request, ModelTurnOutcome.Succeeded, LocalContextTurnReason.Completed, HostTaskState.Succeeded, model);
         }
         public void Write(SecurityAuditEvent auditEvent) { }

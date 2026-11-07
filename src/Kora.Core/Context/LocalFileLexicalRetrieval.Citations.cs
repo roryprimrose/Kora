@@ -3,7 +3,7 @@
 public sealed partial class LocalFileLexicalRetrieval
 {
     public static LocalFileCitationSpan ResolveCitation(LocalFileRevision file, LocalFileCitation citation,
-        LocalFileRetrievalMode mode)
+        LocalFileRetrievalMode mode, LocalFileLexicalIndex? index = null)
     {
         ArgumentNullException.ThrowIfNull(file);
         ArgumentNullException.ThrowIfNull(citation);
@@ -23,6 +23,15 @@ public sealed partial class LocalFileLexicalRetrieval
             throw new InvalidDataException("The citation excerpt or original UTF-16 location is invalid.");
         }
         // Use the same chunk/heading policy as retrieval, including v1 labels and v2 authored heading spans.
+        if (index is not null)
+        {
+            if (mode != LocalFileRetrievalMode.LexicalLines || !string.Equals(index.Digest, file.Reference.Digest, StringComparison.Ordinal)
+                || citation.IsStructuralFragment || citation.HeadingContext is not null
+                || !index.Chunks.Any(chunk => chunk.Start == citation.Start && chunk.Length == citation.Length
+                    && string.Equals(chunk.Heading, citation.Heading, StringComparison.Ordinal)))
+            { throw new InvalidDataException("The citation does not belong to this exact indexed source policy."); }
+            return new(file, citation, text.Substring(citation.Start, citation.Length));
+        }
         var chunks = mode == LocalFileRetrievalMode.MarkdownStructure
             && LocalFileRetrievalPolicy.IsMarkdown(file.Review.Metadata.CanonicalPath)
             ? MarkdownChunks(text, CancellationToken.None) : Chunks(text, CancellationToken.None);

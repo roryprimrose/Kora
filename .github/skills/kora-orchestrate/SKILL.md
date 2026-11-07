@@ -110,6 +110,7 @@ a second child.
 | `launch-blocked` | Unattached reserved `key` and explicit `reason`; retain slot, scope and unknown launch evidence. |
 | `published` | Worker `owner/key`; coordinator-verified `proof`: matching `pushedHead/remoteHead`, `pr`; ready also `ready=true`, `enrolled=true`. |
 | `blocked` | Worker `owner/key`, explicit `reason`; retain slot and scope. |
+| `refine-scopes` | Attached stopped running/published `owner/key`, `expectedScopeRevision`, complete versioned `proof` and fresh exact-owner `acknowledgment`; shrink only, retain ownership and cleanup. See [exact input and sequencing](./README.md#shrink-only-reservation-protocol). |
 | `completed` | Published worker `owner/key`; verified cleanup `proof`: matching `remoteHead`, `stoppedWriting`, `worktreeAbsent`, `branchAbsent`, `pendingInstructions=0`. |
 | `pass-ended` | Planner `owner`, assigned `pass`, `readyExamined=true`, `repairExamined=true`, boolean `remaining`; optional shortage receipt. |
 | `refresh` | Verified current `head`; invalidate stale undispatched candidates and coalesce discovery. |
@@ -130,6 +131,11 @@ insert them into the dispatchable backlog until their blockers are resolved.
 Canonical scopes are repository-relative Windows paths, with no globs or `..`.
 Name directories when exact file scope is not yet known; broad scopes deliberately
 exclude conflicting work. Scope expansion requires reconciliation before writes.
+After accepted refinement the original owner's source writes are permanently
+retired, including inside its retained scopes. Refinement is not reconciliation
+for expansion or permission to restart. It preserves slots, PRs, publication,
+blockers and cleanup obligations; only disjoint independently admitted work can
+gain eligibility. Never infer an acknowledgment or stopped state from idle.
 
 `launch` actions already hold reservations. Send the relevant worker contract,
 one bounded assignment, publisher/authority, exclusions, scratch, and return

@@ -55,6 +55,7 @@ internal sealed partial class EvidenceWindow : Window
         InitializeComponent();
         DataContext = model;
         BindEvidenceAnswers(model);
+        BindExport(model);
         var scaleBody = NativeReaderTypography.Capture(EvidenceBody);
         var scaleMatch = NativeReaderTypography.Capture(LiteralMatch);
         var retired = false;

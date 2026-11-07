@@ -15,11 +15,34 @@ internal sealed class EvidenceWindowController(
     MainViewModel main, DurableEvidenceQuery query, IEvidenceQueryAccess access,
     ILogger<EvidenceViewModel> logger, ISessionWorkspaceAccess workspaceAccess,
     EvidenceAnswerWorkflow? answers = null, TimeProvider? time = null,
-    GitHubIssueReportWorkflow? problemReports = null, Kora.Core.Hosting.IApplicationInfo? applicationInfo = null) : IDisposable
+    GitHubIssueReportWorkflow? problemReports = null, Kora.Core.Hosting.IApplicationInfo? applicationInfo = null,
+    EvidencePageExportWindowController? exports = null) : IDisposable
 {
     private EvidenceWindow? window;
     private bool disposed;
     private long windowRevision;
+    private readonly List<Task> exportOperations = [];
+
+    internal void BindExports(EvidenceViewModel model)
+    {
+        if (exports is not null)
+        {
+            model.BindExport(exports, exportOperations.Add, operation => exportOperations.Remove(operation));
+        }
+    }
+
+    internal async Task PrepareShutdownAsync()
+    {
+        window?.Close();
+        await Task.WhenAll(exportOperations);
+        exportOperations.RemoveAll(operation => operation.IsCompleted);
+    }
+
+    internal Func<bool> CaptureShutdownEligibility()
+    {
+        var revision = windowRevision;
+        return () => window is null && revision == windowRevision && exportOperations.All(operation => operation.IsCompleted);
+    }
 
     internal void Bind()
     {
@@ -42,6 +65,7 @@ internal sealed class EvidenceWindowController(
         {
             EvidenceWindow opened;
             var model = new EvidenceViewModel(query, () => !disposed && access.CanInspect, logger);
+            BindExports(model);
             if (problemReports is not null && applicationInfo is not null)
             {
                 model.BindProblemReporting(problemReports, signature => new(signature, applicationInfo.Version,

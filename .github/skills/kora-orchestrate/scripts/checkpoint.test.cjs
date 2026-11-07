@@ -3,7 +3,9 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const path = require('node:path');
+const fs = require('node:fs');
 const { checkpoint } = require('./checkpoint.cjs');
+const { applyEvent, digest, heldReservations } = require('./registry.cjs');
 const { refinementFixture, refinementEvent, tamperedStates } = require('./refinement-fixture.cjs');
 
 function fixture() {
@@ -140,4 +142,111 @@ test('failed refinement replacement retains original broad reservation with no e
   assert.equal(f.files.get(f.file), before);
   assert.deepEqual([...f.files.keys()], [f.file]);
   assert.deepEqual(f.run({ operation: 'read' }).state.items[0].scopes, ['src', 'tests']);
+});
+
+function amendmentCheckpointFixture(refined = false) {
+  const f = fixture();
+  const proof = JSON.parse([...fs.readFileSync(path.resolve(__dirname, '..', 'README.md'), 'utf8')
+    .matchAll(/```json\r?\n([\s\S]*?)\r?\n```/g)][1][1]);
+  let state = refinementFixture();
+  if (refined) state = applyEvent(state, refinementEvent(state)).state;
+  else state.items[0].scopes = ['unrelated\\owned.cs'];
+  state = applyEvent(state, { id: 'adopt-doc-owner', type: 'adopt', key: proof.key,
+    owner: proof.owner, ...proof.reservation, scopes: proof.fromScopes,
+    evidence: 'Synthetic mutable documentation input.' }).state;
+  proof.exclusivity.reservations = heldReservations(state, proof.key);
+  const event = { id: 'extend-doc-owner', type: 'extend-scopes', key: proof.key, owner: proof.owner,
+    expectedScopeRevision: proof.scopeRevision, proof,
+    acknowledgment: { id: 'ack-doc-owner', receipt: 'Synthetic fresh owner response', owner: proof.owner,
+      key: proof.key, scopeRevision: proof.scopeRevision, proofDigest: digest(proof) } };
+  const value = JSON.parse(f.files.get(f.file));
+  value.state = state;
+  value.events = (state.refinements ?? []).map(record => ({ id: record.eventId, type: 'refine-scopes' }));
+  f.files.set(f.file, JSON.stringify(value));
+  return { ...f, event };
+}
+
+for (const refined of [false, true]) {
+  test(`extension atomically migrates legacy v${refined ? 2 : 1}, preserves original shrink and requires current writer/lock`, () => {
+    const f = amendmentCheckpointFixture(refined);
+    const before = f.files.get(f.file);
+    const legacy = f.run({ operation: 'read' });
+    assert.equal(legacy.state.version, refined ? 2 : 1);
+    assert.throws(() => f.run({ operation: 'apply', expectedRevision: 0, event: f.event }), /Stale/);
+    f.files.set(`${f.file}.lock`, 'other writer');
+    assert.throws(() => f.run({ operation: 'apply', expectedRevision: 1, event: f.event }), /locked/);
+    assert.equal(f.files.get(`${f.file}.lock`), 'other writer');
+    f.files.delete(`${f.file}.lock`);
+    assert.equal(f.files.get(f.file), before);
+    const result = f.run({ operation: 'apply', expectedRevision: 1, event: f.event });
+    assert.equal(result.revision, 2);
+    assert.equal(result.state.version, 3);
+    const item = result.state.items.find(value => value.key === f.event.key);
+    assert.equal(item.scopeRevision, 1);
+    assert.equal(item.sourceWritesRetired, false);
+    assert.deepEqual(item.scopes, f.event.proof.toScopes);
+    assert.deepEqual(item.scopeHistory, []);
+    assert.deepEqual(result.state.items[0].scopeHistory, legacy.state.items[0].scopeHistory ?? []);
+    assert.deepEqual(result.state.refinements, legacy.state.refinements ?? []);
+    assert.deepEqual(result.state.seen.filter(id => !id.startsWith('scope-amendment:') && id !== f.event.id),
+      legacy.state.seen);
+    assert.deepEqual(result.actions, legacy.actions);
+    assert.deepEqual(f.run({ operation: 'read' }), result);
+    const saved = f.files.get(f.file);
+    assert.deepEqual(f.run({ operation: 'apply', expectedRevision: 2, event: f.event }), result);
+    assert.equal(f.files.get(f.file), saved);
+    assert.throws(() => f.run({ operation: 'apply', expectedRevision: 2,
+      event: { ...f.event, id: 'new-stale-id' } }), /Stale/);
+    assert.equal(f.files.get(f.file), saved);
+  });
+}
+
+test('amendment checkpoint read/apply reject omission, tamper, replay, downgrade and journal mismatch', () => {
+  const f = amendmentCheckpointFixture(true);
+  const result = f.run({ operation: 'apply', expectedRevision: 1, event: f.event });
+  const changes = [
+    v => { delete v.state.amendments; }, v => { v.state.amendments = []; },
+    v => { delete v.state.items[1].scopeAmendments; },
+    v => { v.state.items[1].scopeAmendments = []; },
+    v => { v.state.items[1].scopeAmendments[0].proof.quiescence.paused = false; },
+    v => { v.state.items[1].scopeAmendments[0].proof.manifest.actual = []; },
+    v => { v.state.items[1].scopeAmendments[0].proof.toScopes.pop(); },
+    v => { v.state.items[1].scopeAmendments[0].acknowledgment.id = 'altered'; },
+    v => { v.state.items[1].scopeRevision = 0; },
+    v => { v.state.items[1].sourceWritesRetired = true; },
+    v => { v.state.items[1].scopes.pop(); },
+    v => { v.state.version = 2; },
+    v => {
+      v.state.version = 2;
+      delete v.state.amendments;
+      for (const item of v.state.items) delete item.scopeAmendments;
+    },
+    v => { v.events = v.events.filter(event => event.type !== 'extend-scopes'); },
+    v => { v.state.seen = v.state.seen.filter(id => id !== f.event.id); },
+    v => { v.events.push(v.events.at(-1)); },
+    v => { v.state.items[1].scopeAmendments[0].acknowledgment.id =
+      v.state.items[0].scopeHistory[0].acknowledgment.id; }
+  ];
+  for (const change of changes) {
+    const invalid = structuredClone(result);
+    change(invalid);
+    f.files.set(f.file, JSON.stringify(invalid));
+    const saved = f.files.get(f.file);
+    assert.throws(() => f.run({ operation: 'read' }));
+    assert.throws(() => f.run({ operation: 'apply', expectedRevision: 2,
+      event: { id: 'pause', type: 'pause' } }));
+    assert.equal(f.files.get(f.file), saved);
+  }
+});
+
+test('failed extension replacement retains original scopes/dirty evidence and emits no continuation', () => {
+  const f = amendmentCheckpointFixture();
+  const before = f.files.get(f.file);
+  f.failReplacement();
+  assert.throws(() => f.run({ operation: 'apply', expectedRevision: 1, event: f.event }), /Replacement failed/);
+  assert.equal(f.files.get(f.file), before);
+  assert.deepEqual([...f.files.keys()], [f.file]);
+  const value = f.run({ operation: 'read' });
+  assert.equal(value.state.version, 1);
+  assert.deepEqual(value.state.items[1].scopes, f.event.proof.fromScopes);
 });

@@ -250,3 +250,153 @@ Deleting every binding and coherently forging the entire store is outside this
 deterministic guard: local hashes do not authenticate a checkpoint. The trusted
 coordinator must verify real host/owner/Git evidence. No real reservation is
 refined merely by shipping this implementation or running synthetic tests.
+
+## Active mutable-owner scope extension
+
+`extend-scopes` is separate from permanent shrink/retirement. It applies only
+to an attached **running, nonretired** owner in enabled delivery. Acceptance
+reserves the exact additional union; it does not resume the worker, clear a
+blocker, qualify runtime/effects, change any existing permission or authorize
+a new outcome. The coordinator issues continuation **separately** after
+reading the accepted grant. A retired owner can never use this transaction.
+See the implementation in [registry.cjs](./scripts/registry.cjs), persistence
+in [checkpoint.cjs](./scripts/checkpoint.cjs), and behavioral cases in
+[registry.test.cjs](./scripts/registry.test.cjs).
+
+### Exact extension input and acknowledgment
+
+The checkpoint envelope remains
+`{operation:"apply",expectedRevision:<current checkpoint revision>,event:<below>}`.
+The event has exactly `id`, `type="extend-scopes"`, `owner`, `key`,
+`expectedScopeRevision`, `proof`, `acknowledgment`. Every nested field is
+required; unknown fields reject. This is a synthetic proof example, not an
+actual host acknowledgment:
+
+```json
+{
+  "version": 1,
+  "owner": "exact-mutable-worker-chat",
+  "key": "mutable-outcome",
+  "reservation": {
+    "outcome": "Original admitted mutable outcome",
+    "kind": "feature",
+    "pool": "ready",
+    "head": "1111111111111111111111111111111111111111",
+    "pr": null
+  },
+  "scopeRevision": 0,
+  "fromScopes": ["src\\owned.cs"],
+  "additionalScopes": ["tests\\owned.test.cs"],
+  "toScopes": ["src\\owned.cs", "tests\\owned.test.cs"],
+  "phase": "running",
+  "sourceWritesRetired": false,
+  "manifest": {
+    "complete": true,
+    "actual": ["src\\owned.cs"],
+    "planned": ["tests\\owned.test.cs"]
+  },
+  "preservation": {
+    "complete": true,
+    "commits": [],
+    "retained": [],
+    "unpreserved": [{
+      "path": "src\\owned.cs",
+      "receipt": "Verified original dirty file retained in owned worktree"
+    }]
+  },
+  "quiescence": {
+    "paused": true,
+    "pendingInstructions": 0,
+    "receipt": "Fresh temporary source pause and instruction reconciliation"
+  },
+  "unionFrozen": true,
+  "exclusivity": {
+    "complete": true,
+    "reservations": [],
+    "receipt": "Verified exact current snapshot: no other holding owners"
+  },
+  "receipt": "Complete current owner/Git/host evidence, no permanent retirement"
+}
+```
+
+`reservation` copies original item outcome/kind/pool/head/pr; `fromScopes`
+copies the **live** scope list and revision. `additionalScopes` must be a
+nonempty canonical unique list, disjoint from every original scope and each
+other (no already-covered/ancestor/redundant additions). `toScopes` is exactly
+`[...fromScopes,...additionalScopes]`, retaining every original scope and order.
+Use the same Windows domain path validator and native digest CLI documented
+above; platform-native module loading does not change scope semantics.
+
+`manifest` and `preservation` use the shrink proof's exact nested shapes.
+Their complete actual-write union must match, including committed, retained,
+unpreserved and touched-then-restored paths. **Actual writes must already be
+covered by fromScopes**; extension cannot legalize unauthorized writes.
+All actual/planned paths must be covered by toScopes, and each additional scope
+must cover an explicit planned write. Subsequent amendments
+retain prior actual and planned manifests (planned paths may become actual).
+Unpreserved dirty files remain retained, not permission to delete.
+
+`quiescence` requires a concrete temporary paused-source receipt and verified
+zero queued/processing broad instructions. It is not `stoppedWriting` or
+permanent retirement. `unionFrozen=true` acknowledges no writes beyond the
+accepted union. The host/owner must prove those facts; unknown pending counts,
+idle status or a historical pause cannot substitute for a fresh acknowledgment.
+
+`exclusivity.reservations` must exactly equal exported
+`heldReservations(state,key)` from [registry.cjs](./scripts/registry.cjs):
+other slot-holding items, sorted by key, each
+`{key,owner,scopes,scopeRevision,sourceWritesRetired}`. Legacy revision/retirement
+are `0/false`; unattached owners have `owner:null`. Include published,
+cleanup-blocked, retired and passive guarded scopes. Every held scope remains
+conflict-protected. The reducer checks snapshot consistency and conflicts;
+coordinator receipts must establish actual exclusive ownership.
+
+`acknowledgment` has exactly `id`, `receipt`, `owner`, `key`, `scopeRevision`,
+`proofDigest`, with the same whole-proof `digest(proof)` and actual fresh
+owner-response requirements as shrink. IDs cannot replay across **either**
+protocol. A stale checkpoint writer, owner, revision, current scopes/PR or
+exclusivity snapshot rejects with no effects. Same event ID remains idempotent.
+
+### Mutable migration, sequencing and retained source
+
+1. Read checkpoint and exact owner/current scope revision, preserve original
+   publication/cleanup and all dirty files. Never edit checkpoint JSON manually.
+2. Obtain complete original actual/planned/preservation evidence and temporarily
+   pause source work; reconcile broad instructions. Derive the exact conflict-free
+   additional union and held-owner snapshot. Obtain a fresh acknowledgment bound
+   to the entire final proof, including union, identity, revision and digest.
+3. Apply through the atomic checkpoint with current expected checkpoint/scope
+   revisions. Preserve returned state before sends. Acceptance changes only
+   scopes, scope revision and amendment metadata; no new resume/discovery/archive
+   action is emitted by extension. Existing unrelated dispatch behavior remains.
+4. Read the accepted grant, then issue explicit continuation to the exact same
+   owner for the admitted outcome/union. Retain scope blockers until independently
+   resolved. Do not infer effect permissions, runtime qualification or permanent
+   retirement reversal. No additional feature writes happen in synthetic tests.
+
+First accepted extension migrates valid registry **v1 or v2 to v3** atomically,
+without changing existing shrink records, digests, markers, retirement or
+publication evidence. Each item additionally requires `scopeAmendments:[]`;
+top-level `amendments` indexes `{key,eventId,digest(record)}`. Each amendment
+record is `{eventId,proof,acknowledgment}` with proof version 1.
+`seen` retains its event and reserved `scope-amendment:v1:<digest(record)>`
+marker; normal event IDs cannot use either scope marker prefix.
+
+Live `scopeRevision` counts amendments **plus** shrink records. Amendments are
+consecutive from 0, followed only by any later permanent shrink records.
+`sourceWritesRetired` derives solely from nonempty shrink history, never from
+mutable revisions. Valid v1/v2 states remain readable/launchable unchanged.
+Later publication, cleanup, pause/resume and source refresh preserve amendments;
+later shrink must retain all their actual/planned writes and retires source
+permanently. No extension follows permanent retirement.
+
+Checkpoint read/apply binds extension journal to amendment index in addition
+to old shrink binding. Worker-launch validates the entire v3 store before
+producing arguments, preserves expanded exclusions and cannot relaunch an
+attached owner. Omitted/altered history, missing retirement/index/event markers,
+schema downgrade, stale revisions, replay and inconsistency reject. Existing
+exclusive locks and failed atomic replacement retain old coverage.
+As before, deterministic hashes do not authenticate a coherently forged whole
+store or prove host quiescence. Use only verified immutable source modules and
+retain their source SHA/digest when a resumable coordinator loads this protocol;
+shipping, loading or shadow migration is not a live grant.

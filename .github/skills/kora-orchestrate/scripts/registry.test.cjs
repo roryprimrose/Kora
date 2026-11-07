@@ -5,7 +5,7 @@ const { test } = require('node:test');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { createState, applyEvent, validate, digest } = require('./registry.cjs');
+const { createState, applyEvent, validate, digest, heldReservations } = require('./registry.cjs');
 const { refinementFixture, refinementEvent, rebind, tamperedStates } = require('./refinement-fixture.cjs');
 
 const sha = number => number.toString(16).padStart(40, '0');
@@ -589,3 +589,333 @@ test('documented proof JSON and digest CLI execute against the exact protocol; s
   assert.match(fs.readFileSync(path.join(directory, 'SKILL.md'), 'utf8'),
     /^---\r?\nname: kora-orchestrate\r?\ndescription: 'Use for Kora child-chat orchestration, delivery starvation, stalled owners, reservations, and finite message-driven coordinator turns\. No automation\.'\r?\n---/);
 });
+
+test('mutable extension rejects current snapshot staleness and cross-protocol acknowledgment reuse', () => {
+  let state = refinementFixture();
+  state = applyEvent(state, refinementEvent(state)).state;
+  state = applyEvent(state, { id: 'adopt-mutable', type: 'adopt', key: 'mutable', owner: 'mutable',
+    outcome: 'mutable', pool: 'ready', kind: 'feature', head: state.head,
+    scopes: ['other\\owned.cs'], evidence: 'Independent owner.' }).state;
+  const event = extensionEvent(state, 'mutable', ['other\\next.cs']);
+  event.acknowledgment.id = state.items[0].scopeHistory[0].acknowledgment.id;
+  assert.throws(() => applyEvent(state, event), /replay/);
+  event.acknowledgment.id = 'new-ack';
+  const changed = applyEvent(state, { id: 'adopt-third', type: 'adopt', key: 'third', owner: 'third',
+    outcome: 'third', pool: 'ready', kind: 'feature', head: state.head,
+    scopes: ['third\\owned.cs'], evidence: 'New holding owner.' }).state;
+  assert.throws(() => applyEvent(changed, event), /snapshot/);
+  const missingPlan = structuredClone(event);
+  missingPlan.proof.manifest.planned = [];
+  assert.throws(() => applyEvent(state, rebind(missingPlan)), /planned write/);
+  const result = applyEvent(state, event);
+  const old = state.items[0];
+  const migrated = result.state.items[0];
+  for (const key of Object.keys(old)) assert.deepEqual(migrated[key], old[key]);
+  assert.deepEqual(result.state.refinements, state.refinements);
+  assert.equal(migrated.sourceWritesRetired, true);
+});
+
+test('mutable amendments remain nonretired after publication, blocker, pause/resume and proven cleanup', () => {
+  let state = refinementFixture();
+  const publicationHead = state.head;
+  state = applyEvent(state, extensionEvent(state, 'holding', ['other\\planned.cs'])).state;
+  const amendments = structuredClone(state.items[0].scopeAmendments);
+  state = applyEvent(state, { id: 'mutable-publish', type: 'published', owner: 'stopped-owner',
+    key: 'holding', proof: { pushedHead: state.head, remoteHead: state.head, pr: 872,
+      ready: true, enrolled: true } }).state;
+  state = applyEvent(state, { id: 'mutable-blocked', type: 'blocked', owner: 'stopped-owner',
+    key: 'holding', reason: 'Host cleanup lock remains.' }).state;
+  state = applyEvent(state, { id: 'mutable-pause', type: 'pause' }).state;
+  state = applyEvent(state, { id: 'mutable-resume', type: 'resume', owner: 'coordinator',
+    authorityConfirmed: true, discover: false }).state;
+  assert.deepEqual(state.items[0].scopeAmendments, amendments);
+  assert.equal(state.items[0].sourceWritesRetired, false);
+  assert.equal(state.items[0].blocker, 'Host cleanup lock remains.');
+  assert.throws(() => applyEvent(state, { id: 'mutable-bad-complete', type: 'completed',
+    owner: 'stopped-owner', key: 'holding', proof: { remoteHead: publicationHead, stoppedWriting: true,
+      worktreeAbsent: false, branchAbsent: true, pendingInstructions: 0 } }), /cleanup/);
+  state = applyEvent(state, { id: 'mutable-complete', type: 'completed', owner: 'stopped-owner',
+    key: 'holding', proof: { remoteHead: publicationHead, stoppedWriting: true,
+      worktreeAbsent: true, branchAbsent: true, pendingInstructions: 0 } }).state;
+  assert.deepEqual(state.items[0].scopeAmendments, amendments);
+  assert.equal(state.items[0].sourceWritesRetired, false);
+  validate(state);
+});
+
+  function extensionEvent(state, key, additionalScopes, id = `extend-${key}`) {
+    const item = state.items.find(value => value.key === key);
+    const actual = [item.scopes[0]];
+    const proof = {
+      version: 1, owner: item.owner, key, phase: 'running', sourceWritesRetired: false,
+      reservation: Object.fromEntries(['outcome', 'kind', 'pool', 'head', 'pr'].map(name => [name, item[name]])),
+      scopeRevision: item.scopeRevision ?? 0, fromScopes: [...item.scopes], additionalScopes,
+      toScopes: [...item.scopes, ...additionalScopes],
+      manifest: { complete: true, actual, planned: [...additionalScopes] },
+      preservation: { complete: true, commits: [], retained: [],
+        unpreserved: actual.map(value => ({ path: value, receipt: 'Verified dirty file retained in original worktree.' })) },
+      quiescence: { paused: true, pendingInstructions: 0, receipt: 'Fresh temporary pause and broad instruction reconciliation.' },
+      unionFrozen: true, exclusivity: { complete: true, reservations: heldReservations(state, key),
+        receipt: 'Exact current held-owner snapshot corroborated by coordinator.' },
+      receipt: 'Fresh complete temporary-pause proof, not permanent retirement.'
+    };
+    return { id, type: 'extend-scopes', owner: item.owner, key,
+      expectedScopeRevision: proof.scopeRevision, proof,
+      acknowledgment: { id: `ack-${id}`, receipt: 'Exact owner response to whole proof/union.',
+        owner: item.owner, key, scopeRevision: proof.scopeRevision, proofDigest: digest(proof) } };
+  }
+
+  function activeRequests() {
+    const agent = {
+      key: 'agent', scopes: [
+        'src\\kora.core\\agents\\ownedagentprofiledocument.cs',
+        'src\\kora.application\\definitions\\customizationauthoringservice.cs',
+        'src\\kora\\agentprofileeditorcontroller.proposal.cs',
+        'tests\\kora.core.unittests\\agents\\ownedagentprofileguidancetests.cs',
+        'tests\\kora.application.unittests\\definitions\\customizationauthoringdeclaredagenttests.cs',
+        'tests\\kora.windows.integrationtests\\agentprofiledeclaredguidancetests.cs',
+        'design\\definition_management.md', 'docs\\agent-profile-authoring.md'
+      ], additional: [
+        'src\\kora\\agentprofileeditorcontroller.cs',
+        'tests\\kora.windows.integrationtests\\agentprofileconversationalauthoringtests.cs',
+        'tests\\kora.application.unittests\\documentation\\agentprofileauthoringguidetests.cs'
+      ]
+    };
+    const families = ['appearance', 'speechsummary', 'playbackvolume', 'responsemode',
+      'windowsspeechrate', 'installedspeechvoice', 'voicecapturetiming', 'quiethours', 'detailpresentation'];
+    const settings = {
+      key: 'settings', scopes: [
+        'src\\kora.application\\configuration\\registeredsettings\\registeredsettingsuggestioncollection.cs',
+        'src\\kora.application\\configuration\\registeredsettings\\registeredsettingsuggestions.cs',
+        'src\\kora\\registeredsettings\\sessionsviewmodel.registeredsettings.cs',
+        'src\\kora\\registeredsettings\\sessionsviewmodel.settingsuggestioncollection.cs',
+        'src\\kora\\sessionswindowcontroller.registeredsettingbindings.cs',
+        'tests\\kora.application.unittests\\configuration\\registeredsettingsuggestioncollectiontests.cs',
+        'tests\\kora.windows.integrationtests\\sessionsconversationtests.settingsuggestioncollection.cs',
+        'design\\user_configuration.md', 'docs\\setting-proposals.md'
+      ], additional: [
+        ...families.map(name => `src\\kora.application\\configuration\\${name}suggestionreview.cs`),
+        ...families.map(name => `src\\kora.application\\viewmodels\\mainviewmodel.${name === 'appearance' ? name : `${name}suggestions`}.cs`),
+        'src\\kora\\sessionswindowcontroller.cs',
+        'src\\kora\\registeredsettings\\sessionspresentationowner.registeredsettings.cs',
+        'src\\kora\\sessionswindow.axaml', 'src\\kora\\compactsessionwindow.axaml'
+      ]
+    };
+    const index = {
+      key: 'index', scopes: [
+        'src\\kora.core\\context\\localfilelexicalretrieval.cs',
+        'src\\kora.core\\context\\localfilelexicalretrieval.citations.cs',
+        'src\\kora.core\\context\\localfilelexicalindex.cs',
+        'src\\kora.core\\knowledgesources\\iknowledgesourcestore.cs',
+        'src\\kora.core\\knowledgesources\\knowledgesourcerevision.cs',
+        'src\\kora.application\\knowledgesources\\knowledgesourcemanager.cs',
+        'src\\kora.application\\knowledgesources\\knowledgesourceanswerworkflow.cs',
+        'src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.cs',
+        'src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.snapshot.cs',
+        'src\\kora.windows\\knowledgesources\\windowsknowledgesourcestore.index.cs',
+        'src\\kora\\knowledgesources\\knowledgesourceswindow.cs',
+        'tests\\kora.core.unittests\\context\\localfileretrievaltests.cs',
+        'tests\\kora.core.unittests\\context\\localfilelexicalindextests.cs',
+        'tests\\kora.application.unittests\\knowledgesources\\knowledgesourcemanagertests.cs',
+        'tests\\kora.application.unittests\\knowledgesources\\knowledgesourceanswertests.cs',
+        'tests\\kora.windows.integrationtests\\knowledgesources\\windowsknowledgesourcetests.index.cs',
+        'tests\\kora.windows.integrationtests\\knowledgesources\\knowledgesourceswindowtests.cs',
+        'tests\\kora.windows.integrationtests\\knowledgesources\\knowledgesourceanswerwindowtests.cs',
+        'design\\model_providers_memory_and_knowledge.md', 'design\\file_and_folder_ingestion.md',
+        'docs\\knowledge-sources.md'
+      ], additional: [
+        'src\\kora.core\\knowledgesources\\knowledgesourceanswercontext.cs',
+        'src\\kora\\knowledgesources\\knowledgesourceswindow.answers.cs',
+        'tests\\kora.core.unittests\\context\\knowledgesourceanswertests.cs'
+      ]
+    };
+    return [agent, settings, index];
+  }
+
+  test('mutable exact active requests 8+3=11, 9+22=31 and 21+3=24 retain every path, slot, owner and dirty write', () => {
+    let state = createState(coordinator, sha(1), 'delivery');
+    const requests = activeRequests();
+    for (const request of requests) {
+      state = applyEvent(state, { id: `adopt-${request.key}`, type: 'adopt', key: request.key,
+        owner: owner(request.key), outcome: request.key, pool: 'ready', kind: 'feature',
+        head: sha(1), scopes: request.scopes, evidence: 'Existing admitted real-request shape.' }).state;
+      state = applyEvent(state, { id: `blocked-${request.key}`, type: 'blocked', key: request.key,
+        owner: owner(request.key), reason: 'Additional wiring withheld until separate continuation.' }).state;
+    }
+    for (const [index, request] of requests.entries()) {
+      const before = structuredClone(state.items[index]);
+      const others = structuredClone(state.items.filter(item => item.key !== request.key));
+      const event = extensionEvent(state, request.key, request.additional);
+      const result = applyEvent(state, event);
+      const item = result.state.items[index];
+      assert.equal(item.scopes.length, [11, 31, 24][index]);
+      assert.deepEqual(item.scopes, [...request.scopes, ...request.additional]);
+      assert.deepEqual(item.scopeAmendments[0].proof.manifest.actual, [request.scopes[0]]);
+      for (const name of ['key', 'owner', 'outcome', 'pool', 'kind', 'head', 'pr', 'phase', 'publication', 'blocker']) {
+        assert.deepEqual(item[name], before[name]);
+      }
+      assert.equal(item.sourceWritesRetired, false);
+      assert.equal(item.scopeRevision, 1);
+      assert.deepEqual(item.scopeHistory, []);
+      assert.equal(result.state.items.filter(item => item.phase === 'running').length, 3);
+      assert.deepEqual(result.actions, []);
+      for (const other of others) {
+        const after = result.state.items.find(item => item.key === other.key);
+        assert.deepEqual(after.scopes, other.scopes);
+        assert.equal(after.owner, other.owner);
+      }
+      assert.deepEqual(applyEvent(result.state, event), { ...result, actions: [], duplicate: true });
+      state = result.state;
+    }
+    validate(state);
+  });
+
+  test('active extensions reject missing/unknown proof, invalid paths, stale owner/revision and uncovered actual/planned writes without mutation', () => {
+    const state = refinementFixture();
+    const invalid = [
+      e => { e.owner = 'wrong'; }, e => { e.key = 'wrong'; },
+      e => { e.expectedScopeRevision = 1; }, e => { e.proof.scopeRevision = 1; },
+      e => { e.proof.owner = 'wrong'; }, e => { e.proof.key = 'wrong'; },
+      e => { e.proof.reservation.outcome = 'wrong'; }, e => { e.proof.reservation.head = sha(99); },
+      e => { e.proof.reservation.pool = 'repair'; }, e => { e.proof.reservation.pr = 99; },
+      e => { e.proof.phase = 'published'; }, e => { e.proof.sourceWritesRetired = true; },
+      e => { e.proof.fromScopes = ['src']; }, e => { e.proof.toScopes.pop(); },
+      ...[[], ['src'], ['src\\already-covered.cs'], ['src\\..\\escape'],
+        ['new\\.. \\escape'], ['Q:\\new'], ['new/file'], ['new\\*'], ['new', 'NEW'],
+        ['new', 'new'], ['new.', 'another'], ['new ', 'another'], ['new', 'new\\file']]
+        .map(paths => e => { e.proof.additionalScopes = paths; e.proof.toScopes = [...e.proof.fromScopes, ...paths]; }),
+      ...[false, undefined, 'unknown'].map(value => e => { e.proof.quiescence.paused = value; }),
+      ...[1, undefined, '0'].map(value => e => { e.proof.quiescence.pendingInstructions = value; }),
+      e => { e.proof.quiescence.receipt = ''; }, e => { e.proof.unionFrozen = false; },
+      e => { e.proof.manifest.complete = false; }, e => { delete e.proof.manifest.actual; },
+      e => { delete e.proof.manifest.planned; }, e => { e.proof.manifest.planned.push('outside\\x'); },
+      e => { e.proof.manifest.actual.push('outside\\x'); },
+      e => { e.proof.manifest.actual = []; },
+      e => { e.proof.preservation.complete = false; }, e => { delete e.proof.preservation.retained; },
+      e => { e.proof.preservation.unpreserved[0].receipt = ''; },
+      e => {
+        e.proof.manifest.actual = ['new\\file'];
+        e.proof.preservation.unpreserved[0].path = 'new\\file';
+      },
+      e => { e.proof.exclusivity.complete = false; }, e => { e.proof.exclusivity.receipt = ''; },
+      e => { e.proof.exclusivity.reservations.push({ key: 'unknown', owner: null, scopes: ['elsewhere'],
+        scopeRevision: 0, sourceWritesRetired: false }); },
+      e => { e.proof.extra = true; }, e => { e.extra = true; },
+      e => { e.acknowledgment.owner = 'wrong'; }, e => { e.acknowledgment.key = 'wrong'; },
+      e => { e.acknowledgment.scopeRevision = 1; }, e => { e.acknowledgment.id = ''; },
+      e => { e.acknowledgment.receipt = ''; }, e => { e.acknowledgment.extra = true; }
+    ];
+    for (const [index, change] of invalid.entries()) {
+      const event = extensionEvent(state, 'holding', ['new\\file']);
+      change(event);
+      rebind(event);
+      const before = structuredClone(state);
+      assert.throws(() => applyEvent(state, event), undefined, `case ${index}`);
+      assert.deepEqual(state, before);
+    }
+    for (const field of ['proof', 'acknowledgment']) {
+      const event = extensionEvent(state, 'holding', ['new\\file']);
+      delete event[field];
+      assert.throws(() => applyEvent(state, event));
+    }
+    const event = extensionEvent(state, 'holding', ['new\\file']);
+    event.acknowledgment.proofDigest = '0'.repeat(64);
+    assert.throws(() => applyEvent(state, event), /acknowledgment/);
+  });
+
+  test('active extension excludes paused/observe/unattached/published/complete and permanently retired owners', () => {
+    const original = refinementFixture();
+    const event = extensionEvent(original, 'holding', ['new\\file']);
+    for (const mode of ['observe', 'delivery']) {
+      assert.throws(() => applyEvent({ ...original, mode, enabled: false }, event), /enabled delivery/);
+    }
+    assert.throws(() => applyEvent({ ...original, mode: 'observe' }, event), /enabled delivery/);
+    for (const phase of ['candidate', 'reserved']) {
+      const state = structuredClone(original);
+      state.items[0].phase = phase;
+      state.items[0].owner = null;
+      assert.throws(() => applyEvent(state, { ...event, owner: null }), /worker|running/);
+    }
+    const published = refinementFixture(true);
+    assert.throws(() => applyEvent(published, extensionEvent(published, 'holding', ['new\\file'])), /running/);
+    const retired = applyEvent(original, refinementEvent(original)).state;
+    assert.equal(retired.items[0].phase, 'running');
+    assert.throws(() => applyEvent(retired, extensionEvent(retired, 'holding', ['new\\file'])), /nonretired/);
+    const completed = applyEvent(published, { id: 'complete-extension-denial', type: 'completed',
+      owner: 'stopped-owner', key: 'holding', proof: { remoteHead: published.head,
+        stoppedWriting: true, worktreeAbsent: true, branchAbsent: true, pendingInstructions: 0 } }).state;
+    assert.throws(() => applyEvent(completed, extensionEvent(completed, 'holding', ['new\\file'])), /worker/);
+  });
+
+  test('every held scope including retired actual writes and all seven passive guards blocks extension', () => {
+    const originalWrites = [
+      'design\\skill_authoring.md', 'docs\\owned-skill-authoring.md',
+      'src\\kora.application\\skills\\ownedskillguidancerefinementservice.cs',
+      'src\\kora\\ownedskilleditorcontroller.refinement.cs', 'src\\kora\\ownedskilleditorwindow.cs',
+      'tests\\kora.application.unittests\\dependencies\\modelturnhosttests.ownedskillgeneration.cs',
+      'tests\\kora.windows.integrationtests\\ownedskillauthoringnativetests.refinement.cs',
+      'tests\\kora.windows.integrationtests\\sessionsconversationtests.ownedskillinputs.cs'
+    ];
+    const passive = [
+      'tests\\kora.windows.integrationtests\\artifactdiscovery\\ownedpromptrenametests.cs',
+      'tests\\kora.windows.integrationtests\\communication\\graphpresencesourcetests.cs',
+      'tests\\kora.windows.integrationtests\\knowledgesources\\reviewedsourcefollowuptests.cs',
+      'tests\\kora.windows.integrationtests\\knowledgesources\\sessionknowledgesourcebindingtests.cs',
+      'tests\\kora.windows.integrationtests\\sessionpermissionreviewertests.cs',
+      'tests\\kora.windows.integrationtests\\sessionsconversationtests.statichtmldetails.cs',
+      'tests\\kora.windows.integrationtests\\storage\\windowssqlitesessionresponseoutputtests.cs'
+    ];
+    let state = refinementFixture();
+    state.items[0].scopes.push('design', 'docs');
+    const retiredEvent = refinementEvent(state);
+    retiredEvent.proof.toScopes.push(...originalWrites, ...passive);
+    retiredEvent.proof.manifest.actual.push(...originalWrites);
+    retiredEvent.proof.preservation.commits[0].paths.push(...originalWrites);
+    retiredEvent.proof.manifest.planned.push(...passive);
+    state = applyEvent(state, rebind(retiredEvent)).state;
+    state = applyEvent(state, { id: 'other', type: 'adopt', owner: 'mutable-worker', key: 'mutable',
+      outcome: 'mutable', pool: 'ready', kind: 'feature', head: state.head,
+      scopes: ['other\\owned.cs'], evidence: 'Independent mutable owner.' }).state;
+    for (const path of [...state.items[0].scopes, 'tests\\kora.windows.integrationtests']) {
+      const event = extensionEvent(state, 'mutable', [path]);
+      assert.throws(() => applyEvent(state, event), /conflicts/);
+      event.proof.exclusivity.reservations = [];
+      assert.throws(() => applyEvent(state, rebind(event)), /snapshot/);
+    }
+  });
+
+  test('mutable revision/manifest/replay history persists through later extension, publication and independent legacy shrink', () => {
+    let state = refinementFixture();
+    const first = extensionEvent(state, 'holding', ['new\\one']);
+    state = applyEvent(state, first).state;
+    assert.equal(state.version, 3);
+    assert.throws(() => applyEvent(state, { ...first, id: 'stale-extension' }), /Stale/);
+    const second = extensionEvent(state, 'holding', ['new\\two'], 'extension-two');
+    second.proof.manifest.planned.push('new\\one');
+    rebind(second);
+    second.acknowledgment.id = first.acknowledgment.id;
+    assert.throws(() => applyEvent(state, second), /replay/);
+    second.acknowledgment.id = 'fresh-two';
+    const lost = structuredClone(second);
+    lost.proof.manifest.planned = ['new\\two'];
+    assert.throws(() => applyEvent(state, rebind(lost)), /history/);
+    state = applyEvent(state, second).state;
+    assert.equal(state.items[0].scopeRevision, 2);
+    assert.equal(state.items[0].sourceWritesRetired, false);
+    const shrink = refinementEvent(state, 'shrink-after-extensions');
+    shrink.proof.manifest.actual = ['src\\written.cs', 'tests\\written.test.cs', 'src'];
+    shrink.proof.preservation.unpreserved = [{ path: 'src', receipt: 'Original synthetic actual path retained.' }];
+    shrink.proof.toScopes = ['src', 'tests\\written.test.cs', 'new\\one', 'new\\two'];
+    shrink.proof.manifest.planned.push('new\\one', 'new\\two');
+    rebind(shrink);
+    state = applyEvent(state, shrink).state;
+    assert.equal(state.items[0].scopeRevision, 3);
+    assert.equal(state.items[0].sourceWritesRetired, true);
+    assert.deepEqual(state.items[0].scopeAmendments.map(record => record.eventId), [first.id, second.id]);
+    assert.deepEqual(state.items[0].scopeHistory.map(record => record.eventId), [shrink.id]);
+    assert.throws(() => applyEvent(state,
+      extensionEvent(state, 'holding', ['new\\three'], 'retired-new-request')), /nonretired/);
+    state = applyEvent(state, { id: 'publish-extension-owner', type: 'published', owner: 'stopped-owner',
+      key: 'holding', proof: { pushedHead: state.head, remoteHead: state.head, pr: 871,
+        ready: true, enrolled: true } }).state;
+    validate(state);
+  });

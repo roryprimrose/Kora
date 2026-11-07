@@ -19,6 +19,7 @@ public sealed record SettingObservation
             RegisteredSetting.CommandStartWait => timing.CommandStartSeconds,
             RegisteredSetting.ReplyStartWait => timing.ReplyStartSeconds,
             RegisteredSetting.TrailingSilence => timing.TrailingSilenceSeconds,
+            RegisteredSetting.MaximumCapture => timing.MaximumCaptureSeconds,
             _ => throw new ArgumentOutOfRangeException(nameof(setting)),
         };
         ArgumentOutOfRangeException.ThrowIfNegative(revision);
@@ -137,7 +138,7 @@ public sealed record SettingObservation
         RegisteredSetting.DetailPresentation => DetailPresentationPreference.Format((DetailPresentationMode)Value!.Value),
         RegisteredSetting.PresenceDisplay or RegisteredSetting.SpeechScaling or RegisteredSetting.ReducedMotion =>
             Value == 1 ? "true" : "false",
-        RegisteredSetting.CommandStartWait or RegisteredSetting.ReplyStartWait or RegisteredSetting.TrailingSilence =>
+        RegisteredSetting.CommandStartWait or RegisteredSetting.ReplyStartWait or RegisteredSetting.TrailingSilence or RegisteredSetting.MaximumCapture =>
             VoiceCaptureTiming.Format(Value!.Value),
         _ => Value!.Value.ToString(CultureInfo.InvariantCulture),
     };

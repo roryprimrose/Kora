@@ -25,4 +25,5 @@ public enum RegisteredSetting
     TrailingSilence,
     QuietHours,
     DetailPresentation,
+    MaximumCapture,
 }

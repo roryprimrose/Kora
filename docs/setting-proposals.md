@@ -33,6 +33,7 @@ do not require you to remember these names.
 | `voice.command-start-wait` | Exact decimal 2-10 seconds, default 5 | Separate current native review and confirmation |
 | `voice.reply-start-wait` | Exact decimal 5-60 seconds, default 15 | Separate current native review and confirmation |
 | `voice.trailing-silence` | Exact decimal 0.5-3 seconds, default 1 | Separate current native review and confirmation |
+| `voice.maximum-capture` | Exact decimal 10-60 seconds, default 60 | Separate current native review and confirmation |
 
 For example, the complete answer may be `set appearance.theme to dark`,
 `set appearance.reduced-motion to true`, `set appearance.movement-speed to 50`,
@@ -83,15 +84,13 @@ Hide/reopen, source replacement, cancellation, expiry or changed host authority
 requires a fresh review. Unconfirmed saves remain unavailable, not successful.
 Native Cancel remains available while quiet-hours source validation is awaiting completion; it retires that review or confirmation without requesting a new write. It does not undo an already persisted write ([review owner](../src/Kora/RegisteredSettings/SessionsViewModel.QuietHoursSuggestions.cs)).
 
-For capture timing, the complete retained answer may be `set voice.trailing-silence to 2.5000001` or `reset voice.reply-start-wait`.
+For capture timing, the complete retained answer may be `set voice.trailing-silence to 2.5000001`, `set voice.maximum-capture to 40`, or `reset voice.maximum-capture`.
 Seconds use a canonical dot decimal with at most seven fractional digits; no exponent, suffix, padding, redundant zeros, rounding or batch is accepted.
-Review reads the authoritative current timing service and shows all three old/new values and saved/default provenance.
+Review reads the authoritative current timing service and shows all four old/new/default values and saved/default provenance. Maximum capture supports only 10-60 seconds and reset restores 60, without changing independent review/permission lifetimes or the hard resource envelope.
 Separate native confirmation saves only the selected field's change, preserving companions.
 Timing and appearance use distinct review owners; an appearance review cannot accept a timing Reset.
 The save affects future eligible captures only; it never replaces an in-flight snapshot, opens a microphone, selects a provider or grants consent.
-An unavailable timing service blocks review. Timing values remain unavailable through `settings.get`; suggestion metadata is not confirmed-value read authority.
-This suggestion registry does not expand setting inspection: inspection remains
-limited to theme, reader text scale, both summary caps, playback volume and response mode.
+An unavailable timing service blocks review. The separate reviewed setting-inspection operation supplies confirmed timing scalars through `settings.get`; suggestion metadata alone is not confirmed-value read authority. No model result can confirm or apply a preference.
 
 For an [installed voice](voice-and-audio.md#review-an-installed-voice-suggestion), supply its exact qualified ID in your request. The complete answer must be `set speech.voice to <provider / voice ID>`.
 Kora validates that exact installed pair privately; the model cannot enumerate choices, select a provider alone, download assets or invent an available voice ([parser](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestions.cs)).

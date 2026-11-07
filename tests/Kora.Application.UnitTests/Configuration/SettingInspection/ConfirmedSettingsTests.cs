@@ -154,7 +154,7 @@ public sealed class ConfirmedSettingsTests
         f.Observe();
         var before = f.Appearance.Get(AppearanceOption.Theme);
         var snapshot = await f.Source.CaptureAsync(f.Token);
-        snapshot.Observations.Should().HaveCount(21).And.OnlyHaveUniqueItems(item => item.Setting);
+        snapshot.Observations.Should().HaveCount(22).And.OnlyHaveUniqueItems(item => item.Setting);
         snapshot.Observations.Should().OnlyContain(item => item.IsSaved == saved);
         snapshot.Observations.Single(item => item.Setting == RegisteredSetting.ReaderTextScale).Value.Should().Be(saved ? 125 : 100);
         f.Source.IsCurrent(snapshot).Should().BeTrue();

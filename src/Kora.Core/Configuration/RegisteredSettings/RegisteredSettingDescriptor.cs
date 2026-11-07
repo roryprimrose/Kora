@@ -15,6 +15,7 @@ public sealed record RegisteredSettingDescriptor(
         RegisteredSetting.CommandStartWait => "2-10 seconds, exact decimal (at most seven fractional digits)",
         RegisteredSetting.ReplyStartWait => "5-60 seconds, exact decimal (at most seven fractional digits)",
         RegisteredSetting.TrailingSilence => "0.5-3 seconds, exact decimal (at most seven fractional digits)",
+        RegisteredSetting.MaximumCapture => "10-60 seconds, exact decimal (at most seven fractional digits)",
         _ => Minimum is { } minimum ? $"{minimum}-{Maximum} {Units}" : "system/light/dark",
     };
 }

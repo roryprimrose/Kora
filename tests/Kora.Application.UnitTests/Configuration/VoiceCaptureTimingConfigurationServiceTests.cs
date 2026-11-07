@@ -29,7 +29,7 @@ public sealed class VoiceCaptureTimingConfigurationServiceTests(ITestOutputHelpe
         var service = Create(preferences, host);
         service.Get().IsSaved.Should().BeFalse();
         service.GetTiming().Should().Be(VoiceCaptureTiming.Default);
-        var proposed = new VoiceCaptureTiming(7, 20, 2);
+        var proposed = new VoiceCaptureTiming(7, 20, 2, 40);
         (await Set(service, host, proposed)).Should().BeTrue();
         service.GetTiming().Should().Be(proposed);
         service.Get().IsSaved.Should().BeTrue();
@@ -79,7 +79,7 @@ public sealed class VoiceCaptureTimingConfigurationServiceTests(ITestOutputHelpe
         if (boundary is "host") { host.Eligible = false; }
         using var cancellation = new CancellationTokenSource();
         if (boundary is "cancel") { cancellation.Cancel(); }
-        var apply = () => service.SetAsync(new(7, 20, 2), revision, host.Policy.Current.Revision, RequestOrigin.LocalUi,
+        var apply = () => service.SetAsync(new(7, 20, 2, 40), revision, host.Policy.Current.Revision, RequestOrigin.LocalUi,
             boundary is "model" ? SecurityAuditInitiator.ModelSuggestion : boundary is "voice-origin" ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.LocalUser,
             host.Policy, () => host.Eligible, cancellation.Token);
         await apply.Should().ThrowAsync<Exception>();
@@ -125,7 +125,7 @@ public sealed class VoiceCaptureTimingConfigurationServiceTests(ITestOutputHelpe
         };
         host.Store.FailTerminal = boundary is "receipt";
         host.Store.BeforeCommit = task => { if (boundary is "owner" && task.State == HostTaskState.Succeeded) { host.Eligible = false; } };
-        await FluentActions.Awaiting(() => Set(service, host, new(7, 20, 2))).Should().ThrowAsync<Exception>();
+        await FluentActions.Awaiting(() => Set(service, host, new(7, 20, 2, 40))).Should().ThrowAsync<Exception>();
         service.Invoking(item => item.GetTiming()).Should().Throw<InvalidOperationException>();
         var restarted = Create(preferences, host);
         restarted.Get().Timing.Should().BeNull();

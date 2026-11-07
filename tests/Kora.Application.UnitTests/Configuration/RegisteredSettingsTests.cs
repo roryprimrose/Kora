@@ -22,15 +22,15 @@ public sealed class RegisteredSettingsTests
             "appearance.speech-scaling", "appearance.speech-scale-amount", "speech.windows-rate",
             "appearance.response-timeout", "appearance.reduced-motion", "speech.voice",
             "voice.command-start-wait", "voice.reply-start-wait", "voice.trailing-silence",
-            "notices.quiet-hours", "responses.detail-presentation");
-        RegisteredSettingRegistry.Settings.Select(item => (int)item.Setting).Should().Equal(Enumerable.Range(0, 23));
+            "notices.quiet-hours", "responses.detail-presentation", "voice.maximum-capture");
+        RegisteredSettingRegistry.Settings.Select(item => (int)item.Setting).Should().Equal(Enumerable.Range(0, 24));
     }
 
     [Fact]
     public void ClosedRegistryInspectionAndPolicyDeclareOnlyTheExistingAdmittedSubset()
     {
         RegisteredSettingRegistry.Settings.Select(item => item.Setting).Should().Equal(Enum.GetValues<RegisteredSetting>());
-        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().OnlyHaveUniqueItems().And.HaveCount(23);
+        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().OnlyHaveUniqueItems().And.HaveCount(24);
         foreach (var descriptor in RegisteredSettingRegistry.Settings)
         {
             RegisteredSettingRegistry.Get(descriptor.Setting).Should().BeSameAs(descriptor);
@@ -149,6 +149,9 @@ public sealed class RegisteredSettingsTests
     [InlineData("set voice.trailing-silence to 0.5", RegisteredSetting.TrailingSilence)]
     [InlineData("set voice.trailing-silence to 3", RegisteredSetting.TrailingSilence)]
     [InlineData("set voice.trailing-silence to 0.5000001", RegisteredSetting.TrailingSilence)]
+    [InlineData("set voice.maximum-capture to 10", RegisteredSetting.MaximumCapture)]
+    [InlineData("set voice.maximum-capture to 60", RegisteredSetting.MaximumCapture)]
+    [InlineData("set voice.maximum-capture to 40.0000001", RegisteredSetting.MaximumCapture)]
     public void SharedParserReturnsTypedInertProposalAndExactDescriptor(string text, RegisteredSetting setting)
     {
         var proposal = RegisteredSettingSuggestions.Parse(text);
@@ -232,6 +235,11 @@ public sealed class RegisteredSettingsTests
     [InlineData("set voice.trailing-silence to 1\nreset voice.reply-start-wait")]
     [InlineData("reset voice.trailing-silence to 1")]
     [InlineData("reset voice.timing")]
+    [InlineData("set voice.maximum-capture to 9")]
+    [InlineData("set voice.maximum-capture to 61")]
+    [InlineData("set voice.maximum-capture to 40.00000001")]
+    [InlineData("set voice.maximum-capture to 40.0")]
+    [InlineData("set voice.maximum-capture to 040")]
     [InlineData("set appearance.reduced-motion to system")]
     [InlineData("set appearance.reduced-motion to 1")]
     [InlineData("set appearance reduced motion to true")]

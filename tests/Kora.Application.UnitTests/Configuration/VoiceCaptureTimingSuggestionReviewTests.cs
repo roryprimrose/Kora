@@ -26,12 +26,19 @@ public sealed class VoiceCaptureTimingSuggestionReviewTests : IDisposable
     [InlineData(VoiceCaptureTiming.CommandStartId, true)]
     [InlineData(VoiceCaptureTiming.ReplyStartId, true)]
     [InlineData(VoiceCaptureTiming.TrailingSilenceId, true)]
+    [InlineData(VoiceCaptureTiming.MaximumCaptureId, false)]
+    [InlineData(VoiceCaptureTiming.MaximumCaptureId, true)]
     public async Task OneFieldSetOrResetReviewsFullTupleAndUsesExistingAuditedWriter(string id, bool reset)
     {
         await using var host = new ConversationalReplyConfigurationServiceTests.Fixture();
-        var preferences = new VoiceCaptureTimingConfigurationServiceTests.Preferences { Value = new(7, 20, 2) };
+        var preferences = new VoiceCaptureTimingConfigurationServiceTests.Preferences { Value = new(7, 20, 2, 40) };
         var service = VoiceCaptureTimingConfigurationServiceTests.Create(preferences, host);
-        var value = string.Equals(id, VoiceCaptureTiming.ReplyStartId, StringComparison.Ordinal) ? "20.25" : "2.5";
+        var value = id switch
+        {
+            VoiceCaptureTiming.ReplyStartId => "20.25",
+            VoiceCaptureTiming.MaximumCaptureId => "45",
+            _ => "2.5",
+        };
         var message = Answer(reset ? $"reset {id}" : $"set {id} to {value}");
         var before = service.Get();
         var expected = before.Timing!.With(id, reset ? null : value);

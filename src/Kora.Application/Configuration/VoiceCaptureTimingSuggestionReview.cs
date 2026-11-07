@@ -61,7 +61,7 @@ public sealed class VoiceCaptureTimingSuggestionReview : IDisposable
         ? $"{settingId}: Current ({(current.IsSaved ? "saved" : "default, not saved")}): {current.Timing!.Describe()}. "
             + $"Proposed (saved tuple): {proposed.Describe()}. Defaults: {VoiceCaptureTiming.Default.Describe()}. "
             + (reset ? "Reset restores only the selected field's default and preserves companion fields. "
-                : "Set preserves both companion fields. ")
+                : "Set preserves all companion fields. ")
             + "Scope: shared device-local, future eligible captures only; an in-flight capture keeps its snapshot. "
             + "Saved intent is not profile readiness or microphone consent. Nothing has changed or opened the microphone. "
             + "Confirm exact setting change separately in the current native surface, or Cancel. Review expires in 60 seconds."
@@ -84,7 +84,7 @@ public sealed class VoiceCaptureTimingSuggestionReview : IDisposable
         var candidate = proposal switch
         {
             RegisteredSettingProposal.CaptureTiming timing => snapshot.Timing.With(timing.Descriptor.Id, VoiceCaptureTiming.Format(timing.Seconds)),
-            RegisteredSettingProposal.Reset { Setting: RegisteredSetting.CommandStartWait or RegisteredSetting.ReplyStartWait or RegisteredSetting.TrailingSilence } reset =>
+            RegisteredSettingProposal.Reset { Setting: RegisteredSetting.CommandStartWait or RegisteredSetting.ReplyStartWait or RegisteredSetting.TrailingSilence or RegisteredSetting.MaximumCapture } reset =>
                 snapshot.Timing.With(reset.Descriptor.Id, null),
             _ => throw new InvalidDataException("Review one exact capture timing Set or Reset only."),
         };

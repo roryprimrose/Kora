@@ -44,6 +44,7 @@ public sealed class SettingInspectionTests
         new(RegisteredSetting.TrailingSilence, VoiceCaptureTiming.Default, saved, 5),
         new(SpeechSelection.Default, saved, 7),
         new(RegisteredSetting.DetailPresentation, 0, saved, 23),
+        new(RegisteredSetting.MaximumCapture, VoiceCaptureTiming.Default, saved, 5),
     ];
 
     [Theory]
@@ -58,7 +59,7 @@ public sealed class SettingInspectionTests
             HostRequest.Create(origin), Now);
         values[0] = new(RegisteredSetting.Theme, 2, !saved, 100);
         review.Observations[0].Value.Should().Be(0);
-        review.Observations.Should().HaveCount(21);
+        review.Observations.Should().HaveCount(22);
         review.Observations.Select(item => item.Setting).Should().Equal(
             RegisteredSetting.Theme, RegisteredSetting.ReaderTextScale,
             RegisteredSetting.SummaryWords, RegisteredSetting.SummarySentences,
@@ -67,7 +68,7 @@ public sealed class SettingInspectionTests
             RegisteredSetting.DotDensity, RegisteredSetting.MovementSpeed, RegisteredSetting.SpeechScaling,
             RegisteredSetting.SpeechScaleAmount, RegisteredSetting.ReducedMotion, RegisteredSetting.QuietHours,
             RegisteredSetting.CommandStartWait, RegisteredSetting.ReplyStartWait, RegisteredSetting.TrailingSilence,
-            RegisteredSetting.SpeechVoice, RegisteredSetting.DetailPresentation);
+            RegisteredSetting.SpeechVoice, RegisteredSetting.DetailPresentation, RegisteredSetting.MaximumCapture);
         review.Source.Should().Contain("System").And.Contain("100").And.Contain("Hybrid")
             .And.Contain(saved ? "confirmed saved" : "confirmed absent");
         review.Source.Should().Contain($"appearance.presence-display = {(presence == 1 ? "true" : "false")} boolean");

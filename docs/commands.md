@@ -1055,7 +1055,7 @@ Existing help, version, setup/status, lock and power phrases retain their behavi
 
 ## Exact speech-input profile review
 
-For capture timing, use `get voice.timing`, `set voice.command-start-wait to 7`, `set voice.reply-start-wait to 20`, or `set voice.trailing-silence to 2`. Values are seconds without a suffix. Review, then `confirm voice.timing` or `cancel voice.timing`; `reset <exact timing option>` is also reviewed. Saving affects the next eligible capture, never listening authority ([bounds and complete operation](voice-and-audio.md#speech-capture-timing)).
+For capture timing, use `get voice.timing`, `set voice.command-start-wait to 7`, `set voice.reply-start-wait to 20`, `set voice.trailing-silence to 2`, or `set voice.maximum-capture to 40`. The maximum supports 10-60 exact decimal seconds, default 60; values have no suffix. Review, then `confirm voice.timing` or `cancel voice.timing`; `reset voice.maximum-capture` reviews restoration to 60 without changing companions. Saving affects the next eligible capture, never in-flight timing or listening/review authority ([bounds and complete operation](voice-and-audio.md#speech-capture-timing)).
 
 Use `get speech.input` or `status speech.input` to inspect saved, desired and effective selection. `set speech.input to windows-activated-v1 WindowsManaged CaptureLifetime` opens review, not an immediate save. Complete the same original-channel operation with `confirm speech.input` or `cancel speech.input` ([parser](../src/Kora.Application/Configuration/SpeechInputCommand.cs)).
 

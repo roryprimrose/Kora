@@ -37,6 +37,7 @@ public sealed class SettingsDiscoveryToolsTests
             new(RegisteredSetting.TrailingSilence, VoiceCaptureTiming.Default, false, 7),
             new(SpeechSelection.Default, false, 3),
             new(RegisteredSetting.DetailPresentation, 0, false, 8),
+            new(RegisteredSetting.MaximumCapture, VoiceCaptureTiming.Default, false, 7),
         ], "Which registered settings control spoken summaries?", HostRequest.Create(RequestOrigin.LocalUi),
         DateTimeOffset.UnixEpoch, mode);
 
@@ -67,7 +68,7 @@ public sealed class SettingsDiscoveryToolsTests
                 .Should().Be(SettingsDiscoveryTools.HasConfirmedReader(descriptor.Setting));
         }
         review.Observations.Should().OnlyContain(item => review.Source.Contains(item.Text, StringComparison.Ordinal));
-        review.Observations.Should().HaveCount(21).And.OnlyHaveUniqueItems(item => item.Setting);
+        review.Observations.Should().HaveCount(22).And.OnlyHaveUniqueItems(item => item.Setting);
         review.Observations.Single(item => item.Setting == RegisteredSetting.QuietHours)
             .QuietHours.Should().Be(QuietHoursSchedule.Off);
         SettingsDiscoveryTools.HasConfirmedReader(RegisteredSetting.QuietHours).Should().BeTrue();

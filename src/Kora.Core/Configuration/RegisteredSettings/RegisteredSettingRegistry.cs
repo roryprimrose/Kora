@@ -46,6 +46,8 @@ public static class RegisteredSettingRegistry
             "weekly schedule", null, null, true),
         new(RegisteredSetting.DetailPresentation, "responses.detail-presentation",
             "future eligible detail presentation only; no retained answer opening or replay", "mode", null, null, true),
+        new(RegisteredSetting.MaximumCapture, VoiceCaptureTiming.MaximumCaptureId,
+            "maximum duration for future eligible captures only, never listening or review authority", "seconds", null, null, true),
     ]);
 
     public static RegisteredSettingDescriptor Get(RegisteredSetting setting) =>

@@ -8,6 +8,60 @@ namespace Kora.Windows.IntegrationTests.Audio;
 public sealed partial class ActivatedVoiceRecognitionTests
 {
     [Theory]
+    [InlineData(false, 10)]
+    [InlineData(false, 40)]
+    [InlineData(false, 60)]
+    [InlineData(true, 40)]
+    public async Task MaximumCaptureExpiresAtFrozenBoundaryAndJoinsRetirementBeforeNextSnapshot(bool reply, int seconds)
+    {
+        using var privacy = new FakePrivacy();
+        var factory = new FakeFactory();
+        var native = new FakeCapture { DisposeGate = new(TaskCreationOptions.RunContinuationsAsynchronously) };
+        factory.OpenResult.SetResult(native);
+        var source = new TimingSource { Timing = new(7, 20, 2, seconds) };
+        var clock = new CaptureClock();
+        await using var service = new WindowsVoiceRecognitionService(Logger, privacy, factory, VoiceCaptureLimits.Default, clock, source);
+        var transcripts = new List<VoiceTranscriptEventArgs>();
+        service.TranscriptRecognized += (_, args) => transcripts.Add(args);
+        if (reply) { await service.BeginReplyAsync(Microphone, ["Yes"], static () => true, TestContext.Current.CancellationToken); }
+        else { await BeginCaptureAsync(service); }
+        service.AcceptCaptureGeneration(service.Generation).Should().BeTrue();
+        native.DetectSpeech();
+        var nextSeconds = seconds == 10 ? 60 : 10;
+        source.Timing = source.Timing with { MaximumCaptureSeconds = nextSeconds };
+        var late = native.QueueTranscript("late");
+        Task stopping;
+        try
+        {
+            clock.Advance(TimeSpan.FromSeconds(seconds) - TimeSpan.FromTicks(1));
+            service.IsListening.Should().BeTrue();
+            clock.Advance(TimeSpan.FromTicks(1));
+            await native.DisposeEntered.Task.WaitAsync(TestContext.Current.CancellationToken);
+            service.IsCaptureQuiescent.Should().BeFalse();
+            stopping = service.StopAsync(TestContext.Current.CancellationToken);
+            stopping.IsCompleted.Should().BeFalse();
+            await FluentActions.Awaiting(() => BeginCaptureAsync(service)).Should().ThrowAsync<InvalidOperationException>();
+            late();
+            transcripts.Should().BeEmpty();
+        }
+        finally { native.DisposeGate.TrySetResult(); }
+        await stopping;
+        service.IsCaptureQuiescent.Should().BeTrue();
+        factory.OpenResult = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var next = new FakeCapture();
+        factory.OpenResult.SetResult(next);
+        await BeginCaptureAsync(service);
+        next.DetectSpeech();
+        clock.Advance(TimeSpan.FromSeconds(nextSeconds) - TimeSpan.FromTicks(1));
+        service.IsListening.Should().BeTrue();
+        clock.Advance(TimeSpan.FromTicks(1));
+        await next.DisposeEntered.Task.WaitAsync(TestContext.Current.CancellationToken);
+        await service.StopAsync(TestContext.Current.CancellationToken);
+        service.IsCaptureQuiescent.Should().BeTrue();
+        VoiceInputLimits.MaximumCommandDuration.Should().Be(TimeSpan.FromSeconds(60));
+    }
+
+    [Theory]
     [InlineData(false, 7)]
     [InlineData(true, 20)]
     public async Task ConfirmedTimingReachesNativeFactoryAndExpiresAtExactFrozenBoundary(bool reply, int start)

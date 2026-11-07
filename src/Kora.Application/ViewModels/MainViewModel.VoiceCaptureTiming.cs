@@ -51,6 +51,7 @@ public sealed partial class MainViewModel
     public bool CanConfirmVoiceTiming => timingReview is { } review && !timingWriting && review.Eligible();
     public bool HasVoiceTimingReview => timingReview is not null;
     public AsyncCommand ReviewVoiceTimingCommand { get; private set; } = null!;
+    public AsyncCommand ResetVoiceTimingCommand { get; private set; } = null!;
     public AsyncCommand ConfirmVoiceTimingCommand { get; private set; } = null!;
     public AsyncCommand CancelVoiceTimingCommand { get; private set; } = null!;
 
@@ -59,6 +60,8 @@ public sealed partial class MainViewModel
         captureTiming = service;
         ReviewVoiceTimingCommand = createCommand(() => ExecuteVoiceCaptureTimingAsync(
             new(AppearanceCommandOperation.Set, SelectedVoiceTimingOption, VoiceTimingSeconds), SecurityAuditInitiator.LocalUser));
+        ResetVoiceTimingCommand = createCommand(() => ExecuteVoiceCaptureTimingAsync(
+            new(AppearanceCommandOperation.Reset, SelectedVoiceTimingOption), SecurityAuditInitiator.LocalUser));
         ConfirmVoiceTimingCommand = createCommand(() => ExecuteVoiceCaptureTimingAsync(
             new(AppearanceCommandOperation.Set, ReviewDecision: true), SecurityAuditInitiator.LocalUser));
         CancelVoiceTimingCommand = createCommand(() => ExecuteVoiceCaptureTimingAsync(

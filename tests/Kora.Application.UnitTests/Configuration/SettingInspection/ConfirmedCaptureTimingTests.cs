@@ -13,18 +13,19 @@ namespace Kora.Application.UnitTests.Configuration.SettingInspection;
 public sealed class ConfirmedCaptureTimingTests
 {
     [Fact]
-    public async Task ConfirmedSourceIncludesAllThreeExactDefaultTimingValuesWithoutEffects()
+    public async Task ConfirmedSourceIncludesAllFourExactDefaultTimingValuesWithoutEffects()
     {
         await using var f = new SettingInspectionFixture();
         f.Observe();
         var snapshot = await f.Source.CaptureAsync(f.Token);
         var timing = snapshot.Observations.Where(item => item.Setting is RegisteredSetting.CommandStartWait
-            or RegisteredSetting.ReplyStartWait or RegisteredSetting.TrailingSilence).ToArray();
-        timing.Should().HaveCount(3);
+            or RegisteredSetting.ReplyStartWait or RegisteredSetting.TrailingSilence or RegisteredSetting.MaximumCapture).ToArray();
+        timing.Should().HaveCount(4);
         timing.Select(item => item.Text).Should().Equal(
             "voice.command-start-wait = 5 seconds (confirmed absent; live default)",
             "voice.reply-start-wait = 15 seconds (confirmed absent; live default)",
-            "voice.trailing-silence = 1 seconds (confirmed absent; live default)");
+            "voice.trailing-silence = 1 seconds (confirmed absent; live default)",
+            "voice.maximum-capture = 60 seconds (confirmed absent; live default)");
         f.Store.Writes.Should().Be(0);
         f.Playback.Effects.Should().Be(0);
         f.Catalog.Reads.Should().Be(0);
@@ -35,13 +36,13 @@ public sealed class ConfirmedCaptureTimingTests
     public async Task SavedFractionalSecondsMatchAuthoritativeServiceWithoutRoundingOrMutation()
     {
         await using var f = new SettingInspectionFixture();
-        var saved = new VoiceCaptureTiming(7.1234567m, 20.7654321m, 0.5000001m);
+        var saved = new VoiceCaptureTiming(7.1234567m, 20.7654321m, 0.5000001m, 40.0000001m);
         f.Store.Text["voice-capture-timing.txt"] = saved.Serialize();
         f.Observe();
         var before = f.Timing.Get();
         var snapshot = await f.Source.CaptureAsync(f.Token);
         var values = snapshot.Timing.Observations;
-        values.Select(item => item.Value).Should().Equal(7.1234567m, 20.7654321m, 0.5000001m);
+        values.Select(item => item.Value).Should().Equal(7.1234567m, 20.7654321m, 0.5000001m, 40.0000001m);
         values.Should().OnlyContain(item => item.IsSaved && item.Revision == before.Revision);
         values[2].Text.Should().Be("voice.trailing-silence = 0.5000001 seconds (confirmed saved; matches live service)");
         await f.Source.ValidateAsync(snapshot, f.Token);

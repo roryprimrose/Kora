@@ -51,6 +51,7 @@ public sealed class SettingInspectionReview
         RegisteredSetting.TrailingSilence,
         RegisteredSetting.SpeechVoice,
         RegisteredSetting.DetailPresentation,
+        RegisteredSetting.MaximumCapture,
     ];
     private int consumed;
 

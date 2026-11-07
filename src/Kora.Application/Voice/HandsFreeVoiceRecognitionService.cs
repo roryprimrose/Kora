@@ -12,7 +12,7 @@ public sealed partial class HandsFreeVoiceRecognitionService(
     IQuestionVoiceRecognitionService activated,
     IHandsFreeAudioStage audio,
     ILogger<HandsFreeVoiceRecognitionService> logger,
-    TimeProvider? timeProvider = null) : IQuestionVoiceRecognitionService, ISpeechInputProfileRuntime
+    TimeProvider? timeProvider = null, IVoiceCaptureTimingSource? timingSource = null) : IQuestionVoiceRecognitionService, ISpeechInputProfileRuntime
 {
     private readonly Lock gate = new();
     private Func<HandsFreeVoiceAdmission?>? observe;
@@ -187,12 +187,15 @@ public sealed partial class HandsFreeVoiceRecognitionService(
                     }
                     try
                     {
+                        var timing = timingSource?.GetTiming() ?? VoiceCaptureTiming.Default;
+                        timing.Validate();
                         var binding = new HandsFreeAudioBinding(generation, current.Microphone,
                             current.AssistantName, current.Profile)
                         {
                             CanCapture = () => IsCaptureAdmissionCurrent(generation, token),
                             CommandPhrases = Array.AsReadOnly(recognitionPhrases().ToArray()),
                             WakeActivated = wake => AdmitWake(wake, generation, token),
+                            Timing = timing,
                         };
                         var opened = await audio.OpenAsync(binding, token);
                         lock (gate)
@@ -211,7 +214,7 @@ public sealed partial class HandsFreeVoiceRecognitionService(
                         wake = await opened.WaitForWakeAsync(token);
                         AdmitWake(wake, generation, token);
                         lock (gate) { current = admission!; }
-                        using var maximumDuration = new CancellationTokenSource(VoiceInputLimits.MaximumCommandDuration,
+                        using var maximumDuration = new CancellationTokenSource(timing.MaximumCapture,
                             timeProvider ?? TimeProvider.System);
                         using var commandDeadline = CancellationTokenSource.CreateLinkedTokenSource(token, maximumDuration.Token);
                         transcript = await opened.CaptureCommandAsync(wake, commandDeadline.Token);

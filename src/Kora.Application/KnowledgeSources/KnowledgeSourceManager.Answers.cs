@@ -41,7 +41,8 @@ public sealed partial class KnowledgeSourceManager
                 {
                     foreach (var exact in selected)
                     {
-                        var access = await inspector.InspectSourceAsync(exact.Folder.CanonicalPath, exact.Folder.Scope, token)
+                        var access = await inspector.InspectSourceAsync(exact.Folder.CanonicalPath, exact.Folder.Scope,
+                            exact.Folder.CaptureLimits, token)
                             .ConfigureAwait(false);
                         try
                         {

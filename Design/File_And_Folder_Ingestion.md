@@ -670,7 +670,7 @@ The [index owner](../src/Kora.Core/Context/LocalFileLexicalIndex.cs) binds immut
 An explicitly reviewed refresh reuses only unchanged digest/version entries; new or changed files are rebuilt, and deleted members are absent from the replacement.
 Reuse never retains an old item's citation identity or grants access to a revoked revision ([store publication](../src/Kora.Windows/KnowledgeSources/WindowsKnowledgeSourceStore.cs)).
 
-The [version-3 snapshot](../src/Kora.Windows/KnowledgeSources/WindowsKnowledgeSourceStore.Snapshot.cs) contains both inventories in the existing private partition.
+The [version-4 snapshot](../src/Kora.Windows/KnowledgeSources/WindowsKnowledgeSourceStore.Snapshot.cs) contains both inventories and their immutable captured numeric limits in the existing private partition.
 Bounded Brotli compression precedes authenticated encryption; the existing 2-MiB stored-snapshot limit remains enforced, with a 128-MiB expanded representation bound for repeated chunk metadata.
 Cold readback validates the complete index against the shared canonical chunk/token policy before indexed search or citation disclosure; malformed versions, digests, membership, spans or frequencies fail explicitly.
 The owning store retains at most two validated decoded revisions for repeated one/two-source use, checking current inventory and encrypted-body digest on every read; changed bytes trigger full validation, not cached disclosure.
@@ -704,6 +704,14 @@ mutation; reload and review the current inventory instead of silently targeting
 its replacement. Structurally identical observations remain valid after reopen.
 The [exact-inventory regressions](../tests/Kora.Windows.IntegrationTests/KnowledgeSources/WindowsKnowledgeSourceTests.ExactInventory.cs)
 cover all existing store operations and unchanged durable state on rejection.
+
+### Delivered exact-source lower capture limits
+
+Original native management and exact typed/current-name activated `source capture limits` commands get/review/lower/reset/confirm/cancel one uniquely selected registered source. Three positive limits independently lower file count, per-file original bytes and complete-source original bytes within the unchanged hard maxima. The exact source inventory, old/proposed tuple, independent retention and future-refresh-only effect are shown before separate one-shot two-minute confirmation ([configuration owner](../src/Kora.Application/Configuration/KnowledgeSourceCaptureLimitsConfigurationService.cs)).
+
+Only the stable source Guid and numeric tuple enter the shared atomic preference store, with requested/terminal audit, exact readback and an unconfirmed-write fence. Invalid new preferences fail explicitly. Saving or reset does not invoke refresh, revoke pinned answers, change in-flight metadata or change traversal/consent. The next explicit separately reviewed refresh freezes one confirmed tuple; inspector and metadata reject the complete excess source without truncation. Inspection and retained answer-use joins use the immutable captured tuple, never current desired limits ([source manager](../src/Kora.Application/KnowledgeSources/KnowledgeSourceManager.cs)).
+
+Registry version3/snapshot version4 require valid tuple metadata and retain existing exact item/revision/digest/index authority. Known legacy registry/snapshot formats decode at their historical hard maxima without automatic migration or widened consent. Removing copies also cleans the exact source's numeric preferences before deleting its revoked Removing registry row; failed numeric cleanup is visible, unavailable and retryable after reopen. This is original-user source configuration, not a generic model-controlled setting, path selection or source authority. See [user operation](../docs/knowledge-sources.md#lower-the-next-capture-limits-for-one-source) and [bounded native regressions](../tests/Kora.Windows.IntegrationTests/KnowledgeSources/WindowsKnowledgeSourceTests.CaptureLimits.cs).
 
 Inspection checks original access/identity/membership without rereading content.
 Old revisions become unavailable when refresh starts, including failed refresh.

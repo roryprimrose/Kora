@@ -23,6 +23,27 @@ Any unsupported item, forbidden subdirectory, protected/generated/source-control
 
 Names are unique ignoring case; up to 16 sources are supported. Registration is device-local to the current Windows profile. It never grants model consent, hosted disclosure, automatic session context or permission to treat documents as instructions.
 
+## Lower the next capture limits for one source
+
+Reload the inventory and select exactly one registered source. **Get selected source capture limits** shows its saved desired limits (or hard defaults) separately from the limits captured in its current immutable snapshot.
+Enter three positive integers: maximum file count, maximum original bytes per file and maximum original bytes across the complete source. Each must stay within the unchanged hard maxima of **32 / 262144 / 1048576** respectively. The byte limits are independent; a smaller total may constrain a file more than its per-file limit.
+
+Choose **Review selected source lower capture limits**, inspect the exact source/root and complete old/proposed tuple, then separately **Confirm this exact source capture limits preference** within two minutes, or cancel. Editing fields, selecting another source, source/preference drift or loss of private admission retires that review. **Review reset selected source capture limits** followed by confirmation removes only that source's saved override.
+
+The exact original typed commands, optionally prefixed by the current assistant name during deliberate activated voice, use the same private review:
+
+```text
+source capture limits get "Team notes"
+source capture limits lower "Team notes" 8 65536 262144
+source capture limits confirm
+source capture limits reset "Team notes"
+source capture limits cancel
+```
+
+Unknown or ambiguous names fail without selecting another source. These are original-user commands, not model proposals or generic `set` settings. Source paths still require the existing native picker.
+
+Saving is audited, atomic and read back; malformed or unconfirmed saved state explicitly blocks a new refresh, never defaults or clamps it. Preferences contain only the stable source identity and numeric tuple, separately from session/history retention. Saving/resetting does **not** refresh, revoke a pinned answer, change an in-flight capture, widen traversal or grant model use. Only the next separately reviewed explicit refresh freezes the then-confirmed tuple into complete metadata and its new snapshot. Any excess rejects the entire source without truncation or partial publication. Existing snapshots and their answer-use checks keep their own captured tuple.
+
 ## Explicit inspection and retrieval
 
 Choose **Reload source inventory**, select exactly one source and choose **Inspect selected exact stored snapshot**. Opening management or selecting a row does not inspect content.
@@ -77,19 +98,19 @@ Refresh, disable, removal, session retirement and private window closure revoke 
 
 - **Refresh selected source** first joins revocation of old use, then reviews only the same canonical physical root and stored traversal policy. The add checkbox cannot change refresh scope. Read and save each require a fresh exact confirmation. Failed, cancelled or interrupted refresh leaves the old source unavailable, not silently current. A replaced physical root or scope change requires removing and explicitly adding a new source ([refresh owner](../src/Kora.Application/KnowledgeSources/KnowledgeSourceManager.cs)).
 - **Disable selected source** immediately blocks new inspection/retrieval while retaining Kora copies. A fresh reviewed refresh is required to enable use again.
-- **Review removal of Kora copies** inventories the exact source registry row, encrypted snapshot and private rollback journal. Confirm removal separately within two minutes. Removal revokes use before cleanup. Kora never deletes or changes original files.
+- **Review removal of Kora copies** inventories the exact source registry row, encrypted snapshot/index, numeric source preferences and private rollback journal. Confirm removal separately within two minutes. Removal revokes use before cleanup. Kora never deletes or changes original files.
 
 Explicit refresh reuses unchanged original-byte digest/index-version entries, rebuilds changed or new items and retires deleted items from the new index. Cancellation never makes an older index current again. Disable retains both snapshot and index; removal retires both together ([index lifecycle](../src/Kora.Windows/KnowledgeSources/WindowsKnowledgeSourceStore.cs)).
 
-If storage, journal cleanup or deletion is uncertain, no completion is claimed. Reload the inventory and inspect the state; a **Removing** source remains revoked and can be reviewed for removal again. Unknown files, links, changed ownership, corrupt or missing storage hold admission/cleanup; do not delete arbitrary files or reset the partition to regain access.
+If storage, journal or numeric-preference cleanup or deletion is uncertain, no completion is claimed. Reload the inventory and inspect the state; a **Removing** source remains revoked and can be reviewed for removal again. Its metadata is not deleted until numeric cleanup succeeds, so a reopened removal can retry. Other sources' preferences are not removed. Unknown files, links, changed ownership, corrupt or missing storage hold admission/cleanup; do not delete arbitrary files or reset the partition to regain access.
 
 Copies are stored in Kora's private application data, encrypted for the current
 Windows profile, not in preference files. Removal cleans up Kora's stored copy
 and its own recovery journal. This is not a promise of forensic erasure from
 hardware, backups or copies made by other software.
 
-New snapshots use version 3 in the existing private partition, retaining directory identities, traversal consent, exact item/revision/digest identities and a versioned lexical index together.
+New registry metadata uses version 3 and new snapshots use version 4 in the existing private partition, retaining the captured numeric tuple, directory identities, traversal consent, exact item/revision/digest identities and the unchanged versioned lexical index together.
 Cold inspection validates the index against the exact saved text before use. Storage/index corruption is an explicit failure, never a plausible empty result.
-Valid version-1 immediate and version-2 directory-aware snapshots remain readable with their original lexical behavior; only an explicit refresh publishes their index, and old consent never becomes recursive ([snapshot format](../src/Kora.Windows/KnowledgeSources/WindowsKnowledgeSourceStore.Snapshot.cs)).
+Valid version-1 immediate, version-2 directory-aware and version-3 indexed snapshots remain readable at their historical hard capture maxima; the first two retain their original lexical behavior until an explicit refresh publishes their index. Old consent never becomes recursive, and missing or invalid new-format tuples fail explicitly ([snapshot format](../src/Kora.Windows/KnowledgeSources/WindowsKnowledgeSourceStore.Snapshot.cs)).
 
 No embeddings, OCR, whole-profile scans, always-on watchers, hosted egress, automatic refresh or original-file writes are included.

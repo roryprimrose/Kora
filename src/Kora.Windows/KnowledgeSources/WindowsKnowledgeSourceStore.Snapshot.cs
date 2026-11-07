@@ -27,12 +27,12 @@ public sealed partial class WindowsKnowledgeSourceStore
                 _ = LocalFileRevision.Restore(file.Review, originals[index].Span, file.AdmittedAt, file.Reference);
                 files.Add(new(file.Review.Metadata, file.Reference, file.AdmittedAt, originals[index].ToArray()));
             }
-            plaintext = JsonSerializer.SerializeToUtf8Bytes(new SnapshotData(3, snapshot.Review.SourceId,
+            plaintext = JsonSerializer.SerializeToUtf8Bytes(new SnapshotData(4, snapshot.Review.SourceId,
                 snapshot.Review.ReviewId, snapshot.Review.Metadata.CanonicalPath,
                 snapshot.Review.Metadata.DirectoryIdentity, snapshot.Review.Request, files.ToArray(),
                 snapshot.Review.Metadata.Scope, snapshot.Review.Metadata.Directories.ToArray(), snapshot.Reference,
                 snapshot.Indexes!.Select(index => new IndexData(LocalFileLexicalIndex.Version, index.PolicyVersion,
-                    index.Digest, index.Chunks.ToArray())).ToArray()), Json);
+                    index.Digest, index.Chunks.ToArray())).ToArray(), snapshot.Review.Metadata.CaptureLimits), Json);
             compressed = Compress(plaintext, token);
             var nonce = RandomNumberGenerator.GetBytes(12);
             var tag = new byte[16];
@@ -76,10 +76,10 @@ public sealed partial class WindowsKnowledgeSourceStore
                 || !data.Files.Select(file => file.Metadata).SequenceEqual(current.Folder.Files)
                 || data.Request.Origin != RequestOrigin.LocalUi || data.Request.InvocationId is not null
                 || (data.Version == 1 ? data.Reference is not null : data.Reference is null)
-                || (data.Version == 3 ? envelope.Version != 2 || data.Indexes is null : data.Indexes is not null))
+                || (data.Version is 3 or 4 ? envelope.Version != 2 || data.Indexes is null : data.Indexes is not null))
             { throw new InvalidDataException("Private source metadata and exact snapshot membership disagree."); }
-            var metadata = ReadMetadata(data.Version == 3 ? 2 : data.Version, data.Path, data.Identity,
-                data.Files.Select(file => file.Metadata).ToArray(), data.Scope, data.Directories);
+            var metadata = ReadMetadata(data.Version switch { 3 => 2, 4 => 3, _ => data.Version }, data.Path, data.Identity,
+                data.Files.Select(file => file.Metadata).ToArray(), data.Scope, data.Directories, data.CaptureLimits);
             if (!metadata.Matches(current.Folder))
             { throw new InvalidDataException("The retained traversal policy or directory inventory disagrees with its registry."); }
             var review = new KnowledgeSourceReview(data.ReviewId, data.Id, data.Request, metadata);
@@ -116,7 +116,7 @@ public sealed partial class WindowsKnowledgeSourceStore
     private sealed record SnapshotData(int Version, Guid Id, Guid ReviewId, string Path, string Identity,
         HostRequest Request, FileData[] Files, KnowledgeSourceScope? Scope = null,
         KnowledgeSourceDirectory[]? Directories = null, KnowledgeSourceReference? Reference = null,
-        IndexData[]? Indexes = null);
+        IndexData[]? Indexes = null, KnowledgeSourceCaptureLimits? CaptureLimits = null);
     private sealed record FileData(LocalFileMetadata Metadata, LocalFileReference Reference,
         DateTimeOffset AdmittedAt, byte[] Bytes);
 }

@@ -5,7 +5,7 @@ namespace Kora.Core.KnowledgeSources;
 public sealed class KnowledgeSourceRevision
 {
     public KnowledgeSourceRevision(KnowledgeSourceReview review, IEnumerable<LocalFileRevision> files,
-        KnowledgeSourceReference? retainedReference = null)
+        KnowledgeSourceReference? retainedReference = null, IReadOnlyList<LocalFileLexicalIndex>? indexes = null)
     {
         ArgumentNullException.ThrowIfNull(review);
         ArgumentNullException.ThrowIfNull(files);
@@ -22,11 +22,17 @@ public sealed class KnowledgeSourceRevision
         Review = review;
         Files = Array.AsReadOnly(items);
         Reference = retainedReference ?? new(review.SourceId, Guid.NewGuid());
+        if (indexes is not null && (indexes.Count != items.Length
+            || indexes.Where((index, position) => index is null
+                || !string.Equals(index.Digest, items[position].Reference.Digest, StringComparison.Ordinal)).Any()))
+        { throw new InvalidDataException("Every lexical index must bind to its exact original-byte digest."); }
+        Indexes = indexes is null ? null : Array.AsReadOnly(indexes.ToArray());
     }
 
     public KnowledgeSourceReview Review { get; }
     public IReadOnlyList<LocalFileRevision> Files { get; }
     public KnowledgeSourceReference Reference { get; }
+    public IReadOnlyList<LocalFileLexicalIndex>? Indexes { get; }
 
     public LocalFileCitationSpan ResolveCitation(LocalFileCitation citation)
     {
@@ -36,6 +42,7 @@ public sealed class KnowledgeSourceRevision
         if (!string.Equals(citation.DisplayIdentity,
             KnowledgeSourcePolicy.RelativePath(Review.Metadata.CanonicalPath, file.Review.Metadata.CanonicalPath), StringComparison.Ordinal))
         { throw new InvalidDataException("The citation location does not identify its exact root-relative item."); }
-        return LocalFileLexicalRetrieval.ResolveCitation(file, citation, LocalFileRetrievalMode.LexicalLines);
+        return LocalFileLexicalRetrieval.ResolveCitation(file, citation, LocalFileRetrievalMode.LexicalLines,
+            Indexes?[Files.ToList().IndexOf(file)]);
     }
 }

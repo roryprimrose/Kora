@@ -15,6 +15,8 @@ Adding a folder does not make it automatic AI context.
    Kora keeps these copies until you explicitly remove them; deleting a
    conversation does not remove them.
 
+Saving also builds and atomically retains the exact source's lexical index. It does not scan other folders or grant model use ([publication owner](../src/Kora.Windows/KnowledgeSources/WindowsKnowledgeSourceStore.cs)).
+
 Both scopes require a local fixed drive and strict UTF-8 `.txt`, `.md` or `.markdown`: at most 32 files across the whole source, 256 KiB per file and 1 MiB combined. Descendant capture additionally permits at most 32 directories including the root and empty directories, to depth 4 (root is depth 0). Discovery, capture, save and inspection each have a 30-second work bound ([policy](../src/Kora.Core/KnowledgeSources/KnowledgeSourcePolicy.cs)).
 
 Any unsupported item, forbidden subdirectory, protected/generated/source-control path, hard link, reparse point, hidden/system item, inaccessible or changing member rejects the entire source. Immediate scope still rejects every subdirectory. There are no silent exclusions, partial snapshots or truncation ([native admission](../src/Kora.Windows/Context/WindowsLocalFileInspector.KnowledgeSources.cs)).
@@ -41,6 +43,8 @@ For example, select **Team notes** and **Release notes** and ask how their alpha
 
 Separately choose **Confirm one private local-only no-tools named-source answer** within the displayed deadline. Consent is one-shot, private LocalOnly and limited to the shown question and excerpts. Saving, enabling or refreshing never grants it. Every evidence-bearing complete file passes the [shared risk policy](../src/Kora.Application/Context/LocalSourceUsePolicy.cs); this is not a secret-free guarantee.
 
+This separate review also covers retaining the unchanged original question and validated final answer in a new **Local context** conversation. Session-history retention applies independently of named-source copies. Nothing is submitted or retained by merely opening the review ([native consent](../src/Kora/KnowledgeSources/KnowledgeSourcesWindow.Answers.cs)).
+
 To answer from fewer of the retrieved sections, deliberately select whole excerpts in
 **Choose whole retrieved named-source excerpts; none selected by default**, then choose
 **Review only chosen named-source excerpts**. Review the unchanged question and complete
@@ -63,13 +67,19 @@ Operational failure diagnostics record only the failure type, not the question, 
 
 The deliberate typed command `answer using source "Team notes": What does alpha mean?` and current-name activated voice request open the same review. Replace the example name with an exact enabled source name; an unmatched or ambiguous name requires explicit inventory selection, never an all-source scan. Existing channel, privacy, ownership and call restrictions remain applicable ([entry route](../src/Kora.Application/ViewModels/MainViewModel.KnowledgeSources.cs)).
 
-Supported answers show host-bound citations. **Inspect exact answer citation** selects only the retained exact item's span, without disk recapture. The result remains private in this window, not a saved conversation, speech or renewed consent. Refresh, disable, removal, session retirement and private window closure revoke use; cancellation-ignoring model work must actually finish before native ownership is released, and cannot publish late output ([native lifecycle](../src/Kora/KnowledgeSources/KnowledgeSourcesWindow.Answers.cs), [use owner](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerUse.cs)).
+Supported answers show host-bound citations. **Inspect exact answer citation** selects only the retained exact item's span, without disk recapture. The original question and validated final answer are read back from the canonical private conversation before success is reported; they are not speech, effect authority or renewed consent ([answer owner](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerWorkflow.cs)).
+
+If admission, execution or retained readback fails, no supported retained answer is claimed. The original question or terminal outcome may already be committed: inspect the **Local context** conversation instead of automatically retrying ([canonical retention](../src/Kora.Application/Hosting/SessionConversationService.cs)).
+
+Refresh, disable, removal, session retirement and private window closure revoke source use and join cancellation-ignoring model resources before releasing native ownership. Retained conversation history follows its separate retention policy; source removal does not delete that history or renew access to removed source copies ([native lifecycle](../src/Kora/KnowledgeSources/KnowledgeSourcesWindow.Answers.cs)).
 
 ## Refresh, disable and remove
 
 - **Refresh selected source** first joins revocation of old use, then reviews only the same canonical physical root and stored traversal policy. The add checkbox cannot change refresh scope. Read and save each require a fresh exact confirmation. Failed, cancelled or interrupted refresh leaves the old source unavailable, not silently current. A replaced physical root or scope change requires removing and explicitly adding a new source ([refresh owner](../src/Kora.Application/KnowledgeSources/KnowledgeSourceManager.cs)).
 - **Disable selected source** immediately blocks new inspection/retrieval while retaining Kora copies. A fresh reviewed refresh is required to enable use again.
 - **Review removal of Kora copies** inventories the exact source registry row, encrypted snapshot and private rollback journal. Confirm removal separately within two minutes. Removal revokes use before cleanup. Kora never deletes or changes original files.
+
+Explicit refresh reuses unchanged original-byte digest/index-version entries, rebuilds changed or new items and retires deleted items from the new index. Cancellation never makes an older index current again. Disable retains both snapshot and index; removal retires both together ([index lifecycle](../src/Kora.Windows/KnowledgeSources/WindowsKnowledgeSourceStore.cs)).
 
 If storage, journal cleanup or deletion is uncertain, no completion is claimed. Reload the inventory and inspect the state; a **Removing** source remains revoked and can be reviewed for removal again. Unknown files, links, changed ownership, corrupt or missing storage hold admission/cleanup; do not delete arbitrary files or reset the partition to regain access.
 
@@ -78,6 +88,8 @@ Windows profile, not in preference files. Removal cleans up Kora's stored copy
 and its own recovery journal. This is not a promise of forensic erasure from
 hardware, backups or copies made by other software.
 
-New snapshots use an explicit version-2 format in the existing private partition, retaining all directory identities, traversal consent and exact saved item/revision/digest identities. Existing version-1 immediate snapshots remain readable with their original file identities and limits; old consent never becomes recursive. Unknown or malformed formats fail closed, not as an empty replacement store ([snapshot format](../src/Kora.Windows/KnowledgeSources/WindowsKnowledgeSourceStore.Snapshot.cs)).
+New snapshots use version 3 in the existing private partition, retaining directory identities, traversal consent, exact item/revision/digest identities and a versioned lexical index together.
+Cold inspection validates the index against the exact saved text before use. Storage/index corruption is an explicit failure, never a plausible empty result.
+Valid version-1 immediate and version-2 directory-aware snapshots remain readable with their original lexical behavior; only an explicit refresh publishes their index, and old consent never becomes recursive ([snapshot format](../src/Kora.Windows/KnowledgeSources/WindowsKnowledgeSourceStore.Snapshot.cs)).
 
 No embeddings, OCR, whole-profile scans, always-on watchers, hosted egress, automatic refresh or original-file writes are included.

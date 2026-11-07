@@ -9,7 +9,7 @@ public interface IKnowledgeSourceStore
     /// <summary>Revokes the exact previous revision before any refresh work starts.</summary>
     Task<KnowledgeSource> BeginRefreshAsync(KnowledgeSource exact, CancellationToken cancellationToken);
 
-    /// <summary>Atomically publishes all exact captured items, or leaves the source unavailable.</summary>
+    /// <summary>Atomically publishes all exact captured items and digest-bound lexical indexes, or leaves the source unavailable.</summary>
     Task<KnowledgeSource> PublishAsync(KnowledgeSource? expected, string name, KnowledgeSourceRevision snapshot,
         IReadOnlyList<ReadOnlyMemory<byte>> originalBytes, CancellationToken cancellationToken);
 

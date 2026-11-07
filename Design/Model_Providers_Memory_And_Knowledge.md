@@ -892,10 +892,15 @@ complete-inventory read and immutable-snapshot save reviews, restart inspection,
 global lexical retrieval with root-relative exact saved citations, pinned-policy
 revoke-first refresh and Kora-copy-only removal are owned by the
 [named-source lifecycle](File_And_Folder_Ingestion.md#named-device-local-folder-lifecycle).
-Registration and refresh still provide no named-source model-use, automatic
-session context or hosted approval; the
-[user surface](../docs/knowledge-sources.md#explicit-inspection-and-retrieval)
-keeps AI answers unavailable.
+Registration and refresh grant no model-use consent, automatic session context or
+hosted approval. Saving atomically publishes a versioned lexical index bound to the
+original-byte digests; restart readback validates the exact snapshot/index pair
+([index owner](../src/Kora.Windows/KnowledgeSources/WindowsKnowledgeSourceStore.Index.cs)).
+The [separate named-source answer review](../docs/knowledge-sources.md#one-reviewed-local-answer)
+admits one original question, selected exact citations and private local/no-tools
+execution, including canonical retention of the question and validated final answer.
+Missing runtime qualification remains unavailable, without hosted fallback
+([answer owner](../src/Kora.Application/KnowledgeSources/KnowledgeSourceAnswerWorkflow.cs)).
 
 ### Retrieval
 
@@ -931,7 +936,7 @@ The delivered R26.1g local-only slice is narrower: native exact-source viewers d
 It is not full CommonMark, rendering, OCR, an index or a model context envelope. There is no overlap/dedup inflation; oversized/incomplete structures are explicitly labelled fragments within the unchanged 2,048-character/128-line and eight-citation/16 KiB global budgets. Plain `.txt` uses original line chunks, unsupported formats/modes/versions deny, and reopening restores only the v1 default.
 
 The exact [supported subset and authority boundary](File_And_Folder_Ingestion.md#delivered-opt-in-markdown-structure-aware-retrieval---2026-10-11) is canonical.
-[Maintained golden tests](../tests/Kora.Core.UnitTests/Context/LocalFileMarkdownRetrievalTests.cs) prove only pure lexical original-snapshot retrieval; optional overlap, managed indexes, semantic ranking and provider-grounded reasoning above remain proposed.
+[Maintained golden tests](../tests/Kora.Core.UnitTests/Context/LocalFileMarkdownRetrievalTests.cs) prove only pure lexical original-snapshot retrieval; optional overlap, structure-aware managed indexes, semantic ranking and provider-grounded reasoning above remain proposed.
 
 Images are admitted separately from surrounding Markdown:
 
@@ -948,6 +953,13 @@ scripts, macros, and remote images are never executed or automatically
 fetched during indexing.
 
 ### Incremental Indexing
+
+The delivered named-source lexical subset publishes `lexical-index-v1` and the exact original-byte snapshot atomically after explicit save review.
+The [Core index](../src/Kora.Core/Context/LocalFileLexicalIndex.cs) uses the unchanged `lexical-lines-v1` parser, chunking, token normalization and saturated-frequency policy.
+The [Windows store](../src/Kora.Windows/KnowledgeSources/WindowsKnowledgeSourceStore.cs) reuses unchanged digest/version entries during explicit refresh and remaps citations to the new admitted item lineage.
+Cold reopen validates canonical index contents before search; changed/deleted members and revoked revisions cannot remain current citations.
+The [actual-store regressions](../tests/Kora.Windows.IntegrationTests/KnowledgeSources/WindowsKnowledgeSourceTests.Index.cs) cover reuse, atomicity, restart, hostile derived state and inventoried retirement.
+This does not implement semantic retrieval, watchers, automatic refresh, wider source bounds or provider enablement.
 
 Indexing is asynchronous, cancellable, resource-bounded, and separate from
 interactive reasoning. Kora:

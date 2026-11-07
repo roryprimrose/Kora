@@ -201,7 +201,7 @@ internal sealed partial class KnowledgeSourcesWindow : Window, IDisposable
             ShowFiles(candidate);
             review.Children.Add(new TextBlock
             {
-                Text = "Review every captured item above. This exact complete immutable snapshot will be retained privately "
+                Text = "Review every captured item above. This exact complete immutable snapshot and digest-bound lexical index will be retained privately "
                     + "until removal, independently of sessions. It is historical, not a current-filesystem observation. "
                     + "Saving does not select it for a model. Confirmation expires in two minutes.",
                 TextWrapping = Avalonia.Media.TextWrapping.Wrap,
@@ -210,7 +210,7 @@ internal sealed partial class KnowledgeSourcesWindow : Window, IDisposable
             {
                 await manager.PublishAsync(candidate, () => Eligible() && epoch == generation, lifetime.Token);
                 await LoadAsync();
-                status.Text = "Exact complete source saved. No model or hosted consent was granted.";
+                status.Text = "Exact complete source and lexical index saved atomically. No model or hosted consent was granted.";
             }));
         }));
     }
@@ -256,8 +256,9 @@ internal sealed partial class KnowledgeSourcesWindow : Window, IDisposable
         var snapshot = opened ?? throw new InvalidOperationException("No exact inspected snapshot is current.");
         var generation = epoch;
         _ = await manager.OpenAsync(source, Eligible, lifetime.Token);
-        var found = new LocalFileLexicalRetrieval().Search(snapshot, snapshot.Reference,
-            query.Text ?? string.Empty, DateTimeOffset.UtcNow, lifetime.Token);
+        var question = query.Text ?? string.Empty;
+        var found = await Task.Run(() => new LocalFileLexicalRetrieval().Search(snapshot, snapshot.Reference,
+            question, DateTimeOffset.UtcNow, lifetime.Token), lifetime.Token);
         _ = await manager.OpenAsync(source, Eligible, lifetime.Token);
         if (!Eligible() || epoch != generation) { throw new InvalidOperationException("The inspected source was retired."); }
         results.Text = $"{found.Outcome}; {found.Citations.Count} excerpts; truncated: {found.Truncated}\n"

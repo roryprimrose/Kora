@@ -99,3 +99,152 @@ writers, lock ownership, and failed atomic replacement without lost state.
 Worker-launch fixtures cover disjoint asynchronous isolated requests, exact
 callbacks, publication authority, source freshness, and safe control/receipt
 paths. They do not establish that real workers publish or clean up successfully.
+
+## Shrink-only reservation protocol
+
+`refine-scopes` contracts an attached **stopped** running or published reservation
+in enabled delivery mode. It never releases a slot, changes owner/key/outcome,
+kind/pool/source/PR/phase/publication/blocker/cleanup, archives a chat, removes
+files or authorizes new source writes. The retained owner has
+`sourceWritesRetired=true` permanently. Running/cleanup-blocked owners remain
+blocked; independently admitted genuinely disjoint candidates can dispatch.
+No new product or indexed-source feature is implemented by this protocol.
+
+### Exact consumed input
+
+Apply through the existing [checkpoint CLI](./scripts/checkpoint.cjs) with the
+current checkpoint `expectedRevision`. The event has exactly these fields:
+`id`, `type="refine-scopes"`, `owner`, `key`, `expectedScopeRevision`, `proof`,
+`acknowledgment`. Unrefined legacy items have effective scope revision **0**.
+All proof/acknowledgment/nested object fields below are mandatory; unknown
+fields reject. Paths are unique canonical lowercase repository-relative Windows
+paths, without glob, absolute, traversal, control characters, trailing dots or
+spaces. Scope/path lists are case-sensitive canonical data, not glob patterns.
+
+Illustrative **synthetic published-owner** proof (not host evidence):
+
+```json
+{
+  "version": 1,
+  "owner": "exact-stopped-worker-chat",
+  "key": "held-outcome",
+  "reservation": {
+    "outcome": "Original admitted outcome",
+    "kind": "feature",
+    "pool": "ready",
+    "head": "1111111111111111111111111111111111111111",
+    "pr": 869
+  },
+  "publication": {
+    "pushedHead": "2222222222222222222222222222222222222222",
+    "remoteHead": "2222222222222222222222222222222222222222",
+    "pr": 869,
+    "ready": true,
+    "enrolled": true
+  },
+  "scopeRevision": 0,
+  "fromScopes": ["src", "tests"],
+  "toScopes": ["src\\owned.cs", "tests\\owned.test.cs"],
+  "phase": "published",
+  "publicationHead": "2222222222222222222222222222222222222222",
+  "manifest": {
+    "complete": true,
+    "actual": ["src\\owned.cs", "tests\\owned.test.cs"],
+    "planned": []
+  },
+  "preservation": {
+    "complete": true,
+    "commits": [{
+      "head": "2222222222222222222222222222222222222222",
+      "paths": ["src\\owned.cs"],
+      "receipt": "Verified original committed diff and preserved local ref"
+    }],
+    "retained": [{
+      "path": "tests\\owned.test.cs",
+      "receipt": "Verified retained local write"
+    }],
+    "unpreserved": []
+  },
+  "stoppedWriting": true,
+  "expansionFrozen": true,
+  "pendingInstructions": 0,
+  "receipt": "Fresh exact host/owner evidence; actual cleanup still blocked"
+}
+```
+
+`reservation` copies the item's original outcome/kind/pool/head/pr.
+`publication` copies its complete original publication object, not a new remote
+query. For running owners both `publication` and `publicationHead` are `null`;
+assigned repair PRs remain bound. A later publication may fill an originally
+null running PR, but cannot change any previously assigned PR.
+Published proof must preserve its original publication head in `commits`,
+including a retained ref/commit receipt even if that commit's path list is empty.
+`commits[].paths` lists every relevant original committed write; use additional
+commit records for other retained heads. `retained` and `unpreserved` have the
+same `{path,receipt}` shape and unique local paths. Their union with committed
+paths must equal `manifest.actual`; all actual **and planned** paths must be
+covered by the new scopes. Removed/committed files remain actual writes.
+Unpreserved writes remain reserved with their existing blockers; they are not
+treated as preserved or safe to delete.
+
+The acknowledgment has exactly `id`, `receipt`, `owner`, `key`, `scopeRevision`,
+`proofDigest`. It repeats the proof's identity/revision and binds **all** proof
+fields, including old/proposed scopes, manifests and preservation evidence.
+`id` is a fresh concrete owner-response identity, unique across the registry.
+`receipt` identifies the actual response/evidence; an invented receipt or a
+digest computed by the coordinator without an owner response is not consent.
+Use exported `digest(proof)` from [registry.cjs](./scripts/registry.cjs):
+SHA-256 of UTF-8 JSON with recursively sorted object keys and unchanged array
+order. This is consistency binding, **not authentication**.
+
+To calculate the digest of an already prepared proof-only scratch JSON:
+
+```powershell
+Get-Content -LiteralPath $ProofPath -Raw |
+    node -e 'const fs = require("node:fs"); const { digest } = require(".\\.github\\skills\\kora-orchestrate\\scripts\\registry.cjs"); console.log(digest(JSON.parse(fs.readFileSync(0, "utf8"))));'
+```
+
+### Client sequencing and durable compatibility
+
+1. Read the exact checkpoint without mutation; reconcile pending actions and
+   identify the exact holding owner/key/revision/current scopes.
+2. Derive original committed/local-retained/unpreserved writes from Git and
+   filesystem receipts, not just clean status or current remote equality.
+   A merged PR whose remote branch is absent keeps its original publication
+   evidence and independent local preservation. Host locks remain cleanup
+   blockers. Neither a deleted branch nor idle status proves stopped writing.
+3. Verify source quiescence, permanent frozen expansion and zero queued **and
+   processing** broad instructions. Obtain a concrete fresh owner response
+   acknowledging the entire final proof, digest, old/new scopes and revision.
+   Unknown host facts fail closed; the reducer does not discover these facts.
+4. Apply once with current `expectedRevision` and `expectedScopeRevision`.
+   Use the existing stdin example in [the skill](./SKILL.md); persist returned
+   actions before sends. Stale/invalid input has no effects; same event ID is
+   idempotent. Reusing an acknowledgment under a new event ID rejects.
+5. Only accepted proper contraction requests/coalesces eligibility through
+   existing discover/steer/dispatch machinery. Written paths still conflict;
+   no slot is released. Carry retired-owner exclusions into planner/worker
+   instructions. Do not activate source writes for the old owner.
+6. Keep original PR/cleanup evidence and history. Completion still needs the
+   separate original cleanup proof; refinement does not fix a failed cleanup
+   gate or authorize remote-proof fabrication. Later repair requires allocation.
+
+The first accepted event migrates registry `version:1` to **2** atomically,
+leaving untouched legacy version-1 states readable and launchable. Version 2
+requires every item to have `scopeRevision`, `scopeHistory` and
+`sourceWritesRetired`; unrefined/new items have `0`, `[]`, `false`. Each accepted
+record is `{eventId,proof,acknowledgment}`. Revisions are consecutive, current
+scopes equal the final proposal, and successive proofs retain all prior actual
+and planned paths. Top-level `refinements` stores `{key,eventId,digest(record)}`
+and `seen` retains the event plus a reserved `scope-refinement:v1:<digest>`
+marker. No normal input event may use that marker prefix.
+
+Checkpoint reads additionally bind `refine-scopes` event journal entries to
+the registry index. Missing/altered history, omitted retirement, stale scope
+revision, proof/acknowledgment replay, event/index mismatch and schema downgrade
+reject on checkpoint read/apply and worker-launch validation. Later legitimate
+publication, blocking, pause/resume and proven completion retain the history.
+Deleting every binding and coherently forging the entire store is outside this
+deterministic guard: local hashes do not authenticate a checkpoint. The trusted
+coordinator must verify real host/owner/Git evidence. No real reservation is
+refined merely by shipping this implementation or running synthetic tests.

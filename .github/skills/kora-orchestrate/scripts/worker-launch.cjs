@@ -49,6 +49,9 @@ function workerLaunch(state, action, settings) {
       `Read and apply the absolute worker contract: ${contract}.`,
       `Admitted evidence and complete bounded operation: ${item.evidence}`,
       `Exclusive repository-relative write scopes: ${item.scopes.join('; ')}.`,
+      ...state.items.filter(other => other.key !== item.key &&
+        !['candidate', 'complete'].includes(other.phase)).map(other =>
+        `Retained exclusion key=${other.key}, owner=${other.owner ?? 'unattached'}, scopes=${other.scopes.join('; ')}, sourceWritesRetired=${other.sourceWritesRetired === true}. Ownership/PR/slot/cleanup blockers remain; never write these paths or restart that owner.`),
       `Expected source head at reservation: ${item.head}. Branch your exclusively owned isolated checkout from current origin/main after pinned source/owner preflight.`,
       `Receipts outside disposable worker worktree: ${scratch}. Verify control scratch ignore and access before writing receipts.`,
       `Repository=${settings.repository}. Publication explicitly authorized: ${authority}`,

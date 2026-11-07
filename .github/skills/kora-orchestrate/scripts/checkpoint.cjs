@@ -16,6 +16,12 @@ function validateCheckpoint(value) {
   requireValue(value.actions.every(action => typeof action.id === 'string' &&
     ['pending', 'done', 'blocked'].includes(action.status) && action.command &&
     typeof action.command.type === 'string'), 'Malformed action journal.');
+  const refinements = value.events.filter(event => event.type === 'refine-scopes');
+  const index = value.state.refinements ?? [];
+  requireValue(refinements.length === index.length &&
+    refinements.every(event => index.some(record => record.eventId === event.id)) &&
+    new Set(refinements.map(event => event.id)).size === refinements.length,
+  'Checkpoint refinement event/schema binding is inconsistent.');
 }
 
 function checkpoint(file, input, io = fs) {

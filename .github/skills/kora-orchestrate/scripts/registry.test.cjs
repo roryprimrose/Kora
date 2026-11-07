@@ -5,7 +5,8 @@ const { test } = require('node:test');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { createState, applyEvent } = require('./registry.cjs');
+const { createState, applyEvent, validate, digest } = require('./registry.cjs');
+const { refinementFixture, refinementEvent, rebind, tamperedStates } = require('./refinement-fixture.cjs');
 
 const sha = number => number.toString(16).padStart(40, '0');
 const coordinator = 'agent-host-session://coordinator';
@@ -358,7 +359,14 @@ test('repository customizations reference existing files and request separate pr
     const absolute = path.join(github, file);
     const content = fs.readFileSync(absolute, 'utf8');
     for (const match of content.matchAll(/\]\(([^)]+)\)/g)) {
-      assert.ok(fs.existsSync(path.resolve(path.dirname(absolute), match[1])), `${file}: ${match[1]}`);
+      const [target, fragment] = match[1].split('#');
+      const linkedFile = path.resolve(path.dirname(absolute), target);
+      assert.ok(fs.existsSync(linkedFile), `${file}: ${match[1]}`);
+      if (fragment) {
+        const headings = [...fs.readFileSync(linkedFile, 'utf8').matchAll(/^#+ (.+)$/gm)]
+          .map(heading => heading[1].trim().toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s/g, '-'));
+        assert.ok(headings.includes(fragment), `${file}: missing heading ${match[1]}`);
+      }
     }
     if (file.endsWith('.agent.md')) {
       assert.match(content, /^---\r?\n/);
@@ -376,4 +384,208 @@ test('repository customizations reference existing files and request separate pr
   assert.match(skillText, /delivery=queue/);
   assert.match(skillText, /same planner chat/);
   assert.match(skillText, /does not release file\s+ownership/);
+});
+
+for (const published of [false, true]) {
+  test(`stopped ${published ? 'published cleanup-blocked' : 'running blocked'} contraction enables only disjoint delivery`, () => {
+    let state = refinementFixture(published);
+    for (const [key, scopes] of [['disjoint', ['src\\other.cs']], ['written', ['src\\written.cs']]]) {
+      state = applyEvent(state, { id: key, type: 'candidate', owner: 'planner', pass: 1,
+        key, outcome: key, pool: 'ready', kind: 'feature', head: state.head, scopes,
+        evidence: 'Independent admitted complete operation.' }).state;
+    }
+    assert.equal(state.items[1].phase, 'candidate');
+    const before = structuredClone(state.items[0]);
+    const event = refinementEvent(state);
+    const result = applyEvent(state, event);
+    const item = result.state.items[0];
+    for (const key of Object.keys(before).filter(key => key !== 'scopes')) {
+      assert.deepEqual(item[key], before[key], key);
+    }
+    assert.equal(item.phase, published ? 'published' : 'running');
+    assert.equal(item.scopeRevision, 1);
+    assert.equal(item.sourceWritesRetired, true);
+    assert.deepEqual(item.scopes, event.proof.toScopes);
+    assert.deepEqual(item.scopeHistory, [{ eventId: event.id, proof: event.proof,
+      acknowledgment: event.acknowledgment }]);
+    assert.equal(result.state.items[1].phase, 'reserved');
+    assert.equal(result.state.items[2].phase, 'candidate');
+    assert.deepEqual(result.actions.map(action => action.type), ['launch', 'steer-planner']);
+    assert.equal(result.actions[1].capacity.ready, 8);
+    assert.ok(!result.actions.some(action => ['archive', 'pause'].includes(action.type)));
+    assert.deepEqual(state.items[0], before);
+    assert.deepEqual(applyEvent(result.state, event), {
+      state: result.state, actions: [], duplicate: true
+    });
+  });
+}
+
+test('refinement rejects invalid scopes, incomplete evidence and stale bindings without effects', () => {
+  const state = refinementFixture(true);
+  const invalid = [
+    e => { e.owner = 'other'; },
+    e => { e.key = 'other'; },
+    e => { e.expectedScopeRevision = 1; },
+    e => { e.proof.owner = 'other'; },
+    e => { e.proof.key = 'other'; },
+    e => { e.proof.scopeRevision = 1; },
+    e => { e.proof.phase = 'running'; },
+    e => { e.proof.fromScopes = ['src']; },
+    ...[[], ['src', 'tests'], ['tests', 'src'], ['src', 'tests', 'other'],
+      ['src\\written.cs'], ['src\\..\\written.cs', 'tests'], ['src\\.. \\written.cs', 'tests'],
+      ['Q:\\src', 'tests'], ['src/*.cs', 'tests'], ['src\\*.cs', 'tests'],
+      ['src\\written.cs', 'SRC\\written.cs', 'tests'], ['src\\written.cs', 'src\\written.cs', 'tests']]
+      .map(scopes => e => { e.proof.toScopes = scopes; }),
+    ...['stoppedWriting', 'expansionFrozen'].flatMap(key =>
+      [false, undefined, 'unknown'].map(value => e => { e.proof[key] = value; })),
+    ...[1, undefined, '0'].map(value => e => { e.proof.pendingInstructions = value; }),
+    e => { e.proof.manifest.complete = false; },
+    e => { delete e.proof.manifest.planned; },
+    e => { e.proof.manifest.actual.push('src\\other.cs'); },
+    e => { e.proof.manifest.actual = []; },
+    e => { e.proof.preservation.complete = false; },
+    e => { e.proof.preservation.commits = []; },
+    e => { e.proof.preservation.retained[0].receipt = ''; },
+    e => { e.proof.publicationHead = '2'.repeat(40); },
+    e => { e.proof.publication.enrolled = false; },
+    e => { e.proof.reservation.pr = 870; },
+    e => { e.proof.reservation.outcome = 'different'; },
+    e => { e.proof.receipt = ''; },
+    e => { e.proof.extra = true; },
+    e => { e.acknowledgment.owner = 'other'; },
+    e => { e.acknowledgment.key = 'other'; },
+    e => { e.acknowledgment.scopeRevision = 1; },
+    e => { e.acknowledgment.id = ''; },
+    e => { e.acknowledgment.receipt = ''; },
+    e => { e.acknowledgment.extra = true; }
+  ];
+  for (const [index, change] of invalid.entries()) {
+    const before = structuredClone(state);
+    const event = refinementEvent(state, `invalid-${index}`);
+    change(event);
+    rebind(event);
+    assert.throws(() => applyEvent(state, event), undefined, `case ${index}`);
+    assert.deepEqual(state, before);
+  }
+  for (const key of ['proof', 'acknowledgment']) {
+    const event = refinementEvent(state);
+    delete event[key];
+    assert.throws(() => applyEvent(state, event));
+  }
+  const event = refinementEvent(state);
+  event.acknowledgment.proofDigest = '0'.repeat(64);
+  assert.throws(() => applyEvent(state, event), /acknowledgment/);
+});
+
+test('paused, observation, unattached, candidate and completed owners cannot refine', () => {
+  const state = refinementFixture();
+  const event = refinementEvent(state);
+  assert.throws(() => applyEvent({ ...state, enabled: false }, event), /enabled delivery/);
+  assert.throws(() => applyEvent({ ...state, mode: 'observe' }, event), /enabled delivery/);
+  for (const phase of ['candidate', 'reserved']) {
+    const input = structuredClone(state);
+    input.items[0].phase = phase;
+    input.items[0].owner = null;
+    assert.throws(() => applyEvent(input, { ...event, owner: null }), /worker|attached/);
+  }
+  let complete = refinementFixture(true);
+  complete = applyEvent(complete, { id: 'complete', type: 'completed', key: 'holding',
+    owner: 'stopped-owner', proof: { remoteHead: complete.items[0].publication.remoteHead,
+      stoppedWriting: true, worktreeAbsent: true, branchAbsent: true, pendingInstructions: 0 } }).state;
+  assert.throws(() => applyEvent(complete, refinementEvent(complete)), /worker/);
+});
+
+test('fresh successive acknowledgment is required, retained manifests cannot lose prior writes, and eligibility coalesces', () => {
+  const original = refinementFixture();
+  const first = refinementEvent(original);
+  first.proof.toScopes = ['src\\written.cs', 'tests'];
+  rebind(first);
+  const state = applyEvent(original, first).state;
+  assert.throws(() => applyEvent(state, { ...first, id: 'stale-new-id' }), /Stale scope/);
+  const next = refinementEvent(state, 'refine-two');
+  next.acknowledgment.id = first.acknowledgment.id;
+  assert.throws(() => applyEvent(state, next), /replay/);
+  next.acknowledgment.id = 'fresh-ack-two';
+  const missing = structuredClone(next);
+  missing.proof.manifest.actual = ['src\\written.cs'];
+  missing.proof.manifest.planned = [];
+  missing.proof.preservation.retained = [];
+  assert.throws(() => applyEvent(state, rebind(missing)), /history/);
+  const result = applyEvent(state, next);
+  assert.equal(result.state.items[0].scopeRevision, 2);
+  assert.equal(result.state.items[0].scopeHistory.length, 2);
+  assert.deepEqual(result.actions, []);
+  validate(result.state);
+});
+
+test('refinement schema, proof, history and retirement survive resume and later milestones; tampering rejects', () => {
+  const state = refinementFixture();
+  let refined = applyEvent(state, refinementEvent(state)).state;
+  for (const tampered of tamperedStates(refined)) assert.throws(() => validate(tampered));
+  validate(state);
+  assert.equal(state.version, 1);
+  refined = applyEvent(refined, { id: 'published-later', type: 'published',
+    owner: 'stopped-owner', key: 'holding', proof: { pushedHead: state.head, remoteHead: state.head,
+      pr: 869, ready: true, enrolled: true } }).state;
+  refined = applyEvent(refined, { id: 'blocked-later', type: 'blocked',
+    owner: 'stopped-owner', key: 'holding', reason: 'Still host locked.' }).state;
+  const history = structuredClone(refined.items[0].scopeHistory);
+  assert.throws(() => applyEvent(refined, { id: 'bad-cleanup', type: 'completed',
+    owner: 'stopped-owner', key: 'holding', proof: { remoteHead: state.head,
+      stoppedWriting: true, worktreeAbsent: false, branchAbsent: true, pendingInstructions: 0 } }));
+  refined = applyEvent(refined, { id: 'pause', type: 'pause' }).state;
+  refined = applyEvent(refined, { id: 'resume', type: 'resume', owner: 'coordinator',
+    authorityConfirmed: true, discover: false }).state;
+  assert.equal(refined.head, null);
+  refined = applyEvent(refined, { id: 'complete-later', type: 'completed', owner: 'stopped-owner',
+    key: 'holding', proof: { remoteHead: state.head, stoppedWriting: true,
+      worktreeAbsent: true, branchAbsent: true, pendingInstructions: 0 } }).state;
+  assert.deepEqual(refined.items[0].scopeHistory, history);
+  assert.equal(refined.items[0].sourceWritesRetired, true);
+  validate(refined);
+});
+
+test('unpreserved local writes and planned writes stay covered, while exhausted discovery restarts only on acceptance', () => {
+  let state = refinementFixture();
+  state = applyEvent(state, { id: 'end', type: 'pass-ended', owner: 'planner', pass: 1,
+    readyExamined: true, repairExamined: true, remaining: false }).state;
+  assert.equal(state.planner.active, false);
+  const event = refinementEvent(state);
+  event.proof.preservation.unpreserved = event.proof.preservation.retained;
+  event.proof.preservation.retained = [];
+  event.proof.manifest.planned.push('tests\\future.test.cs');
+  assert.throws(() => applyEvent(state, rebind(event)), /uncovered writes/);
+  assert.equal(state.planner.active, false);
+  event.proof.toScopes = ['src\\written.cs', 'tests'];
+  const result = applyEvent(state, rebind(event));
+  assert.deepEqual(result.actions.map(action => action.type), ['discover']);
+  assert.equal(result.actions[0].pass, 2);
+  assert.equal(result.actions[0].capacity.ready, 9);
+  assert.deepEqual(result.state.items[0].scopeHistory[0].proof.preservation.unpreserved,
+    event.proof.preservation.unpreserved);
+  assert.equal(result.state.items[0].blocker, state.items[0].blocker);
+});
+
+test('documented proof JSON and digest CLI execute against the exact protocol; skill frontmatter is unchanged', () => {
+  const directory = path.resolve(__dirname, '..');
+  const readme = fs.readFileSync(path.join(directory, 'README.md'), 'utf8');
+  const proof = JSON.parse(readme.match(/```json\r?\n([\s\S]*?)\r?\n```/)[1]);
+  let state = createState('coordinator', proof.reservation.head, 'delivery');
+  state = applyEvent(state, { id: 'adopt', type: 'adopt', owner: proof.owner, key: proof.key,
+    ...proof.reservation, scopes: proof.fromScopes, evidence: 'Synthetic documented example.' }).state;
+  state = applyEvent(state, { id: 'published', type: 'published', owner: proof.owner,
+    key: proof.key, proof: proof.publication }).state;
+  const expression = readme.match(/node -e '([^']+)'/)[1];
+  const cli = spawnSync(process.execPath, ['-e', expression], {
+    input: JSON.stringify(proof), encoding: 'utf8', cwd: path.resolve(directory, '..', '..', '..')
+  });
+  assert.equal(cli.status, 0, cli.stderr);
+  assert.equal(cli.stdout.trim(), digest(proof));
+  const event = { id: 'example', type: 'refine-scopes', owner: proof.owner, key: proof.key,
+    expectedScopeRevision: proof.scopeRevision, proof,
+    acknowledgment: { id: 'example-ack', receipt: 'Synthetic example only', owner: proof.owner,
+      key: proof.key, scopeRevision: proof.scopeRevision, proofDigest: cli.stdout.trim() } };
+  assert.equal(applyEvent(state, event).state.items[0].scopeRevision, 1);
+  assert.match(fs.readFileSync(path.join(directory, 'SKILL.md'), 'utf8'),
+    /^---\r?\nname: kora-orchestrate\r?\ndescription: 'Use for Kora child-chat orchestration, delivery starvation, stalled owners, reservations, and finite message-driven coordinator turns\. No automation\.'\r?\n---/);
 });

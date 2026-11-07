@@ -1,6 +1,7 @@
 'use strict';
 
 const path = require('node:path');
+const { createHash } = require('node:crypto');
 
 const LIMITS = Object.freeze({ repair: 4, ready: 10 });
 const PHASES = ['candidate', 'reserved', 'running', 'published', 'complete'];
@@ -22,8 +23,136 @@ function overlaps(left, right) {
   return left.some(a => right.some(b => a === b || a.startsWith(`${b}\\`) || b.startsWith(`${a}\\`)));
 }
 
+const REFINEMENT_MARKER = 'scope-refinement:v1:';
+const equal = (left, right) => JSON.stringify(left) === JSON.stringify(right);
+const covers = (scopes, value) => scopes.some(s => value === s || value.startsWith(`${s}\\`));
+
+function digest(value) {
+  const canonical = input => Array.isArray(input) ? input.map(canonical) :
+    input && typeof input === 'object'
+      ? Object.fromEntries(Object.keys(input).sort().map(key => [key, canonical(input[key])])) : input;
+  return createHash('sha256').update(JSON.stringify(canonical(value))).digest('hex');
+}
+
+function fields(value, names) {
+  requireValue(value && typeof value === 'object' && !Array.isArray(value) &&
+    equal(Object.keys(value).sort(), names.split(' ').sort()), 'Malformed refinement fields.');
+}
+
+function canonicalPaths(values, nonempty = false) {
+  requireValue(Array.isArray(values) && (!nonempty || values.length > 0) &&
+    values.every(value => scope(value) === value && !/[\x00-\x1f<>"|]/.test(value) &&
+      value.split('\\').every(part => part.trim() === part && !part.endsWith('.'))) &&
+    new Set(values).size === values.length,
+  'Refinement paths must be canonical and unique.');
+}
+
+function validateRefinement(record, item, previous) {
+  fields(record, 'eventId proof acknowledgment');
+  const p = record.proof;
+  const a = record.acknowledgment;
+  fields(p, 'version owner key reservation publication scopeRevision fromScopes toScopes phase publicationHead manifest preservation stoppedWriting expansionFrozen pendingInstructions receipt');
+  fields(a, 'id receipt owner key scopeRevision proofDigest');
+  requireValue(text(record.eventId) && p.version === 1 && p.owner === item.owner &&
+    p.key === item.key && Number.isSafeInteger(p.scopeRevision) && p.scopeRevision >= 0 &&
+    ['running', 'published'].includes(p.phase) && p.stoppedWriting === true &&
+    p.expansionFrozen === true && p.pendingInstructions === 0 && text(p.receipt),
+  'Exact stopped owner and complete refinement proof required.');
+  fields(p.reservation, 'outcome kind pool head pr');
+  requireValue(['outcome', 'kind', 'pool', 'head'].every(key => p.reservation[key] === item[key]) &&
+    (p.reservation.pr === item.pr || p.phase === 'running' && p.reservation.pr === null),
+  'Refinement reservation identity is inconsistent.');
+  requireValue(p.phase === 'published'
+    ? ['published', 'complete'].includes(item.phase) && head(p.publicationHead) &&
+      p.publicationHead === item.publication?.remoteHead && digest(p.publication) === digest(item.publication)
+    : p.publicationHead === null && p.publication === null, 'Refinement publication binding is inconsistent.');
+  canonicalPaths(p.fromScopes, true);
+  canonicalPaths(p.toScopes, true);
+  requireValue(p.toScopes.every(value => covers(p.fromScopes, value)) &&
+    !p.fromScopes.every(value => covers(p.toScopes, value)),
+  'Refinement must be a nonempty proper coverage subset.');
+  fields(p.manifest, 'complete actual planned');
+  requireValue(p.manifest.complete === true, 'Complete actual/planned write manifest required.');
+  canonicalPaths(p.manifest.actual);
+  canonicalPaths(p.manifest.planned);
+  fields(p.preservation, 'complete commits retained unpreserved');
+  requireValue(p.preservation.complete === true && Array.isArray(p.preservation.commits) &&
+    Array.isArray(p.preservation.retained) && Array.isArray(p.preservation.unpreserved),
+  'Complete preservation evidence required.');
+  const committed = [];
+  const commits = new Set();
+  for (const commit of p.preservation.commits) {
+    fields(commit, 'head paths receipt');
+    requireValue(head(commit.head) && !commits.has(commit.head) && text(commit.receipt),
+      'Invalid preserved commit evidence.');
+    commits.add(commit.head);
+    canonicalPaths(commit.paths);
+    committed.push(...commit.paths);
+  }
+  requireValue(p.phase !== 'published' || commits.has(p.publicationHead),
+    'Original publication commit must remain preserved.');
+  const local = [];
+  for (const entry of [...p.preservation.retained, ...p.preservation.unpreserved]) {
+    fields(entry, 'path receipt');
+    requireValue(text(entry.receipt), 'Local retained/unpreserved path receipt required.');
+    local.push(entry.path);
+  }
+  canonicalPaths(local);
+  const actual = new Set([...committed, ...local]);
+  requireValue(actual.size === p.manifest.actual.length &&
+    p.manifest.actual.every(value => actual.has(value)), 'Preservation and actual writes disagree.');
+  requireValue([...p.manifest.actual, ...p.manifest.planned]
+    .every(value => covers(p.toScopes, value)), 'Refinement leaves uncovered writes.');
+  if (previous) {
+    requireValue(equal(p.fromScopes, previous.proof.toScopes) &&
+      (previous.proof.phase !== 'published' || p.phase === 'published') &&
+      [...previous.proof.manifest.actual, ...previous.proof.manifest.planned]
+        .every(value => [...p.manifest.actual, ...p.manifest.planned].includes(value)) &&
+      previous.proof.manifest.actual.every(value => p.manifest.actual.includes(value)),
+    'Refinement history loses scopes or written/planned paths.');
+  }
+  requireValue(text(a.id) && text(a.receipt) && a.owner === p.owner && a.key === p.key &&
+    a.scopeRevision === p.scopeRevision && a.proofDigest === digest(p),
+  'Fresh exact-owner acknowledgment must bind the complete proof.');
+}
+
+function validateRefinements(state) {
+  const markers = state.seen.filter(id => id.startsWith(REFINEMENT_MARKER));
+  if (state.version === 1) {
+    requireValue(!Object.hasOwn(state, 'refinements') && markers.length === 0 &&
+      state.items.every(item => !['scopeRevision', 'scopeHistory', 'sourceWritesRetired']
+        .some(key => Object.hasOwn(item, key))), 'Refinement schema downgrade or omission.');
+    return;
+  }
+  requireValue(Array.isArray(state.refinements), 'Refinement index missing.');
+  const records = [];
+  const acknowledgments = new Set();
+  for (const item of state.items) {
+    requireValue(Number.isSafeInteger(item.scopeRevision) && item.scopeRevision >= 0 &&
+      Array.isArray(item.scopeHistory) && item.scopeRevision === item.scopeHistory.length &&
+      item.sourceWritesRetired === (item.scopeRevision > 0), 'Refinement history/retirement missing.');
+    let previous = null;
+    for (const [revision, record] of item.scopeHistory.entries()) {
+      validateRefinement(record, item, previous);
+      requireValue(record.proof.scopeRevision === revision &&
+        state.seen.includes(record.eventId) && !acknowledgments.has(record.acknowledgment.id),
+      'Refinement revision, event or acknowledgment replay mismatch.');
+      acknowledgments.add(record.acknowledgment.id);
+      records.push({ key: item.key, eventId: record.eventId, digest: digest(record) });
+      previous = record;
+    }
+    requireValue(!previous || equal(item.scopes, previous.proof.toScopes),
+      'Current scopes disagree with refinement history.');
+  }
+  requireValue(new Set(records.map(record => record.eventId)).size === records.length &&
+    equal([...records].sort((a, b) => a.eventId.localeCompare(b.eventId)),
+      [...state.refinements].sort((a, b) => a.eventId.localeCompare(b.eventId))) &&
+    equal(markers.slice().sort(), records.map(record => `${REFINEMENT_MARKER}${record.digest}`).sort()),
+  'Refinement index/history/event binding missing or inconsistent.');
+}
+
 function validate(state) {
-  requireValue(state?.version === 1 && typeof state.enabled === 'boolean' &&
+  requireValue([1, 2].includes(state?.version) && typeof state.enabled === 'boolean' &&
     ['observe', 'delivery'].includes(state.mode) &&
     text(state.coordinator) && (state.head === null || head(state.head)) && Array.isArray(state.items) &&
     Array.isArray(state.seen), 'Malformed registry.');
@@ -88,6 +217,7 @@ function validate(state) {
   const represented = state.items.filter(item => item.phase !== 'complete' && item.pr !== null);
   requireValue(new Set(represented.map(item => item.pr)).size === represented.length,
     'PR already represented by an unfinished assignment.');
+  validateRefinements(state);
 }
 
 function createState(coordinator, sourceHead, mode = 'observe') {
@@ -146,6 +276,7 @@ function dispatch(state, actions) {
 function applyEvent(current, event) {
   validate(current);
   requireValue(event && text(event.id) && text(event.type), 'Event identity/type missing.');
+  requireValue(!event.id.startsWith(REFINEMENT_MARKER), 'Reserved refinement event identity.');
   const state = structuredClone(current);
   if (state.seen.includes(event.id)) return { state, actions: [], duplicate: true };
   const actions = [];
@@ -209,6 +340,40 @@ function applyEvent(current, event) {
       const item = worker();
       requireValue(text(event.reason), 'Blocker must be explicit.');
       item.blocker = event.reason;
+      break;
+    }
+    case 'refine-scopes': {
+      requireValue(state.enabled && state.mode === 'delivery',
+        'Scope refinement requires enabled delivery authority.');
+      const item = worker();
+      requireValue(['running', 'published'].includes(item.phase), 'Refinement requires an attached holding worker.');
+      fields(event, 'id type key owner expectedScopeRevision proof acknowledgment');
+      requireValue(event.expectedScopeRevision === (item.scopeRevision ?? 0) &&
+        event.proof?.scopeRevision === event.expectedScopeRevision &&
+        event.proof?.phase === item.phase && equal(event.proof?.fromScopes, item.scopes),
+      'Stale scope revision, phase or current scope binding.');
+      const record = { eventId: event.id, proof: structuredClone(event.proof),
+        acknowledgment: structuredClone(event.acknowledgment) };
+      validateRefinement(record, item, item.scopeHistory?.at(-1));
+      requireValue(!state.items.some(other => other.scopeHistory?.some(old =>
+        old.acknowledgment.id === record.acknowledgment.id)), 'Acknowledgment replay.');
+      if (state.version === 1) {
+        state.version = 2;
+        state.refinements = [];
+        for (const other of state.items) {
+          other.scopeRevision = 0;
+          other.scopeHistory = [];
+          other.sourceWritesRetired = false;
+        }
+      }
+      item.scopeHistory.push(record);
+      item.scopeRevision++;
+      item.sourceWritesRetired = true;
+      item.scopes = structuredClone(record.proof.toScopes);
+      const hash = digest(record);
+      state.refinements.push({ key: item.key, eventId: event.id, digest: hash });
+      state.seen.push(`${REFINEMENT_MARKER}${hash}`);
+      state.planner.requested = true;
       break;
     }
     case 'completed': {
@@ -281,14 +446,23 @@ function applyEvent(current, event) {
     default:
       throw new Error(`Unknown event type: ${event.type}`);
   }
-  validate(state);
   state.seen.push(event.id);
+  if (state.version === 2) {
+    for (const item of state.items) {
+      if (!Object.hasOwn(item, 'scopeRevision')) {
+        item.scopeRevision = 0;
+        item.scopeHistory = [];
+        item.sourceWritesRetired = false;
+      }
+    }
+  }
+  validate(state);
   dispatch(state, actions);
   validate(state);
   return { state, actions, duplicate: false };
 }
 
-module.exports = { createState, applyEvent, validate, LIMITS };
+module.exports = { createState, applyEvent, validate, digest, LIMITS };
 
 if (require.main === module) {
   try {

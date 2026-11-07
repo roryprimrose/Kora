@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { createState, applyEvent } = require('./registry.cjs');
 const { workerLaunch } = require('./worker-launch.cjs');
+const { refinementFixture, refinementEvent, tamperedStates } = require('./refinement-fixture.cjs');
 
 const head = '1'.repeat(40);
 const settings = {
@@ -80,4 +81,27 @@ test('already-attached, blocked, stale or observation-only workers cannot relaun
   const stale = applyEvent(f.state, { id: 'refresh', type: 'refresh', head: '2'.repeat(40) }).state;
   assert.throws(() => workerLaunch(stale, f.action, settings), /reservation/);
   assert.throws(() => workerLaunch({ ...f.state, mode: 'observe' }, f.action, settings), /authority/);
+});
+
+test('launch consumes refined schema, allows disjoint work and rejects proof omission/downgrade', () => {
+  let state = refinementFixture(true);
+  state = applyEvent(state, { id: 'disjoint', type: 'candidate', owner: 'planner', pass: 1,
+    key: 'one', outcome: 'independent outcome', pool: 'ready', kind: 'feature', head,
+    scopes: ['src\\other.cs'], evidence: 'Independent admitted complete interaction.' }).state;
+  const result = applyEvent(state, refinementEvent(state));
+  const action = result.actions.find(value => value.type === 'launch');
+  assert.equal(action.key, 'one');
+  const prompt = workerLaunch(result.state, action, settings).prompt;
+  assert.match(prompt, /src\\other.cs/);
+  assert.match(prompt, /Retained exclusion key=holding, owner=stopped-owner/);
+  assert.match(prompt, /src\\written.cs; tests\\written.test.cs, sourceWritesRetired=true/);
+  assert.equal(result.state.items[0].phase, 'published');
+  assert.equal(result.state.items[0].pr, 869);
+  for (const tampered of tamperedStates(result.state)) {
+    assert.throws(() => workerLaunch(tampered, action, settings));
+  }
+  assert.throws(() => workerLaunch(result.state,
+    { type: 'launch', key: 'holding', pool: 'ready' }, settings), /reservation/);
+  assert.equal(fixture().state.version, 1);
+  assert.equal(workerLaunch(fixture().state, fixture().action, settings).worktree, true);
 });

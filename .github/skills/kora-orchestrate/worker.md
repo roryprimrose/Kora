@@ -39,6 +39,26 @@ A later CI failure requires a new coordinator allocation after current-head and
 ownership reconciliation. Do not silently start another repair after publication.
 Never claim merge without authoritative merged state and main reachability.
 
+## Stopped-owner scope acknowledgment
+
+For an explicitly requested [shrink-only refinement](./README.md#shrink-only-reservation-protocol),
+report the exact owner/key/current scope revision and reservation, complete
+actual and planned write paths, original committed diffs and preserved local
+refs, retained and unpreserved files, and exact publication evidence. Include
+written files no longer present in the working tree. Do not infer a manifest
+from current dirty status alone. Keep every relevant path within the proposed
+nonempty strict subset, and report concrete preservation receipts.
+
+Stop source writes permanently before acknowledging. Reconcile all queued and
+processing broad instructions with the coordinator; zero pending instructions
+is a verified fact, not a default. Return a fresh acknowledgment ID and concrete
+message/receipt bound to the exact complete proof digest, old/proposed scopes
+and revision. Do not acknowledge unknown proof, reserve future expansion, or
+restart source writes after acceptance. This does not waive PR/slot ownership,
+publication, blockers or actual cleanup. A merged PR with a deleted remote
+branch uses original publication and locally preserved commits, never invented
+current remote equality or successful cleanup. New repair needs fresh allocation.
+
 ## Cleanup before terminal completion
 
 1. Verify publication/remote-head evidence and retain receipts in the supplied

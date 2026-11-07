@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const path = require('node:path');
 const { checkpoint } = require('./checkpoint.cjs');
+const { refinementFixture, refinementEvent, tamperedStates } = require('./refinement-fixture.cjs');
 
 function fixture() {
   const files = new Map();
@@ -90,4 +91,53 @@ test('checkpoint rejects relative and non-scratch destinations', () => {
   assert.throws(() => checkpoint('checkpoint.json', { operation: 'read' }), /absolute canonical/);
   assert.throws(() => checkpoint(path.resolve('checkpoint.json'), { operation: 'read' }),
     /absolute canonical/);
+});
+
+test('durable refinement rejects stale writers, resumes proof and binds checkpoint event schema', () => {
+  const f = fixture();
+  const legacy = JSON.parse(f.files.get(f.file));
+  legacy.state = refinementFixture(true);
+  f.files.set(f.file, JSON.stringify(legacy));
+  assert.equal(f.run({ operation: 'read' }).state.version, 1);
+  const event = refinementEvent(legacy.state);
+  const before = f.files.get(f.file);
+  assert.throws(() => f.run({ operation: 'apply', expectedRevision: 0, event }), /Stale/);
+  assert.equal(f.files.get(f.file), before);
+  const value = f.run({ operation: 'apply', expectedRevision: 1, event });
+  assert.equal(value.state.version, 2);
+  assert.equal(value.revision, 2);
+  assert.equal(value.events[0].type, 'refine-scopes');
+  assert.deepEqual(f.run({ operation: 'read' }), value);
+  const saved = f.files.get(f.file);
+  assert.equal(f.run({ operation: 'apply', expectedRevision: 2, event }).revision, 2);
+  assert.equal(f.files.get(f.file), saved);
+  assert.throws(() => f.run({ operation: 'apply', expectedRevision: 2,
+    event: { ...event, id: 'stale-proof' } }), /Stale scope/);
+  assert.equal(f.files.get(f.file), saved);
+  for (const state of tamperedStates(value.state)) {
+    f.files.set(f.file, JSON.stringify({ ...value, state }));
+    assert.throws(() => f.run({ operation: 'read' }));
+    assert.throws(() => f.run({ operation: 'apply', expectedRevision: 2,
+      event: { id: 'pause', type: 'pause' } }));
+  }
+  const downgraded = structuredClone(legacy);
+  downgraded.events = value.events;
+  f.files.set(f.file, JSON.stringify(downgraded));
+  assert.throws(() => f.run({ operation: 'read' }), /event\/schema/);
+  f.files.set(f.file, JSON.stringify({ ...value, events: [] }));
+  assert.throws(() => f.run({ operation: 'read' }), /event\/schema/);
+});
+
+test('failed refinement replacement retains original broad reservation with no eligibility journal', () => {
+  const f = fixture();
+  const value = JSON.parse(f.files.get(f.file));
+  value.state = refinementFixture();
+  f.files.set(f.file, JSON.stringify(value));
+  const before = f.files.get(f.file);
+  f.failReplacement();
+  assert.throws(() => f.run({ operation: 'apply', expectedRevision: 1,
+    event: refinementEvent(value.state) }), /Replacement failed/);
+  assert.equal(f.files.get(f.file), before);
+  assert.deepEqual([...f.files.keys()], [f.file]);
+  assert.deepEqual(f.run({ operation: 'read' }).state.items[0].scopes, ['src', 'tests']);
 });

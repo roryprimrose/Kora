@@ -9,6 +9,10 @@ const CAMPAIGN_DIRECTORY = path.join('eng', 'pr-campaign');
 const CAMPAIGN_MODULE = path.join(CAMPAIGN_DIRECTORY, 'campaign.test.cjs');
 const CAMPAIGN_MARKERS = ['', 'campaign.test.cjs', 'campaign.cjs', 'github.cjs', 'cli.cjs',
   'receipt.schema.json', 'receipt.example.json'].map(name => path.join(CAMPAIGN_DIRECTORY, name));
+const ORCHESTRATION_DIRECTORY = path.join('.github', 'skills', 'kora-orchestrate');
+const ORCHESTRATION_SCRIPTS = path.join(ORCHESTRATION_DIRECTORY, 'scripts');
+const ORCHESTRATION_MODULES = ['registry', 'checkpoint', 'worker-launch']
+  .map(name => path.join(ORCHESTRATION_SCRIPTS, `${name}.test.cjs`));
 
 function discoverPolicyTests(root, fileSystem = fs) {
   const stat = name => fileSystem.statSync(path.join(root, name), { throwIfNoEntry: false });
@@ -32,7 +36,13 @@ function discoverPolicyTests(root, fileSystem = fs) {
     requireFile(CAMPAIGN_MODULE);
     files.push(...discover(CAMPAIGN_DIRECTORY));
   }
-  return { files, campaign: installed ? 'INSTALLED' : 'NOT_INSTALLED' };
+  const orchestrationInstalled = stat(ORCHESTRATION_DIRECTORY) !== undefined;
+  if (orchestrationInstalled) {
+    for (const name of ORCHESTRATION_MODULES) requireFile(name);
+    files.push(...discover(ORCHESTRATION_SCRIPTS));
+  }
+  return { files, campaign: installed ? 'INSTALLED' : 'NOT_INSTALLED',
+    orchestration: orchestrationInstalled ? 'INSTALLED' : 'NOT_INSTALLED' };
 }
 
 function runPolicyTests(root, { fileSystem = fs, execute = spawnSync, write = console.log } = {}) {
@@ -40,6 +50,9 @@ function runPolicyTests(root, { fileSystem = fs, execute = spawnSync, write = co
   write(selection.campaign === 'NOT_INSTALLED'
     ? 'Campaign policy tests: NOT_INSTALLED (entire module absent; not a campaign test pass).'
     : 'Campaign policy tests: INSTALLED (required module and all discovered test modules selected).');
+  write(selection.orchestration === 'NOT_INSTALLED'
+    ? 'Orchestration policy tests: NOT_INSTALLED (entire module absent; not an orchestration test pass).'
+    : 'Orchestration policy tests: INSTALLED (all required and additional test modules selected).');
   for (const file of selection.files) write(`Policy test module: ${file}`);
   const result = execute(process.execPath, ['--test', ...selection.files], { cwd: root, stdio: 'inherit' });
   if (result.error) throw new Error('Node policy test execution could not start.', { cause: result.error });
@@ -50,7 +63,8 @@ function runPolicyTests(root, { fileSystem = fs, execute = spawnSync, write = co
   return { ...selection, exitCode: result.status };
 }
 
-module.exports = { discoverPolicyTests, runPolicyTests, QUEUE_MODULES, SELECTOR_MODULE, CAMPAIGN_MODULE };
+module.exports = { discoverPolicyTests, runPolicyTests, QUEUE_MODULES, SELECTOR_MODULE, CAMPAIGN_MODULE,
+  ORCHESTRATION_DIRECTORY, ORCHESTRATION_MODULES };
 if (require.main === module) {
   try {
     runPolicyTests(path.resolve(__dirname, '..'));

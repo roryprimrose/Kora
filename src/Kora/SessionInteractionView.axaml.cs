@@ -95,6 +95,7 @@ internal sealed partial class SessionInteractionView : UserControl
         NextActivity.Click += async (_, _) => await Run(model => model.ReadHistoryAsync(next: true));
         ActivityDetails.Click += async (_, _) => await Run(model => model.OpenHistoryDetailAsync());
         SubmitMessage.Click += async (_, _) => await Run(model => model.SubmitConversationAsync());
+        ReviewSessionMetadata.Click += async (_, _) => await Run(model => model.OpenMetadataAnswerAsync());
         SubmitLocalAnswer.Click += async (_, _) => await Run(model => model.SubmitLocalAnswerAsync());
         StopLocalAnswer.Click += async (_, _) =>
         {

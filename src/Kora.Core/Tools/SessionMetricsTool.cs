@@ -15,7 +15,8 @@ public static class SessionMetricsTool
             || reply.Capabilities is not null || reply.Descriptor is not null || reply.Version is not null
             || reply.Readiness is not null || reply.Runtimes is not null || reply.Runtime is not null
             || reply.WebPage is not null || reply.Mcp is not null || reply.Sessions is not null
-            || reply.Customizations is not null || reply.Settings is not null || reply.ProviderSettings is not null)
+            || reply.Customizations is not null || reply.Settings is not null || reply.ProviderSettings is not null
+            || reply.SessionMetadata is not null)
         { return false; }
         return true;
     }

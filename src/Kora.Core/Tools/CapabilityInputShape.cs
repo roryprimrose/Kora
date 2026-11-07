@@ -9,4 +9,5 @@ public enum CapabilityInputShape
     MetadataReference,
     RegisteredSettingId,
     ProviderSettings,
+    SessionId,
 }

@@ -181,6 +181,7 @@
               AutomationProperties.Name="Read-only compatibility recovery for this exact session; no save, delete or submit" />
           <Button x:Name="DiscardComposer" Content="Discard this unsent message..." IsEnabled="{Binding CanReadConversation}" />
           <Button x:Name="SubmitConversation" Content="Submit exact message — unavailable provider" IsEnabled="{Binding CanSubmitConversation}" />
+          <Button x:Name="ReviewSessionMetadata" Content="Review one session metadata answer..." IsEnabled="{Binding CanReadConversation}" />
           <Button x:Name="SubmitCopilotConversation" Content="Submit explicitly with Copilot (separate disclosure review)"
             IsEnabled="{Binding CanSubmitConversation}" ToolTip.Tip="Requires a current approved Copilot account/model and hosted policy. Unavailable until enabled. Never falls back." />
           <Button x:Name="SubmitLocalFirst" Content="Ask locally; review Copilot only if unavailable"

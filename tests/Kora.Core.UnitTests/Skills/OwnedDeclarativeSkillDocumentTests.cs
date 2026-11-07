@@ -7,6 +7,50 @@ namespace Kora.Core.UnitTests.Skills;
 
 public sealed class OwnedDeclarativeSkillDocumentTests
 {
+    [Fact]
+    public void V6PinsOneMcpDependencyWithoutChangingOldBytesOrEnablingUse()
+    {
+        var reference = new DeclarativeMcpToolReference(new string('a', 64), new string('b', 64), "search", new string('c', 64));
+        const string literal = "  Literal untrusted guidance\r\n${input:ignored}\nowned skill invoke  ";
+        var document = OwnedDeclarativeSkillDocument.CreateMcp("reference", "1.0.0", "Reference", "Review reference", literal, reference);
+        var parsed = OwnedDeclarativeSkillDocument.Parse(document.ManifestBytes.Span, document.InstructionBytes.Span);
+        parsed.Tool.Should().Be(OwnedSkillToolSelection.ReadOnlyMcp);
+        parsed.McpReference.Should().Be(reference);
+        parsed.InputTemplate.Should().BeNull();
+        parsed.ReferenceDeclaration.Should().BeNull();
+        parsed.Guidance.Should().Be(literal);
+        parsed.ManifestBytes.ToArray().Should().Equal(document.ManifestBytes.ToArray());
+        parsed.InstructionBytes.ToArray().Should().Equal(document.InstructionBytes.ToArray());
+        parsed.RevisionDigest.Should().Be(document.RevisionDigest);
+        parsed.IsComplete.Should().BeTrue();
+        parsed.IsAvailableForInvocation.Should().BeFalse();
+        var changed = OwnedDeclarativeSkillDocument.CreateMcp(document.Id, document.Version, document.Name, document.Description, literal,
+            reference with { });
+        changed.RevisionDigest.Should().Be(document.RevisionDigest);
+        ((Action)(() => OwnedDeclarativeSkillDocument.CreateMcp("reference", "1.0.0", "Reference", "Description", literal, null!)))
+            .Should().Throw<ArgumentNullException>();
+    }
+
+    [Theory]
+    [InlineData("tools: mcp.search", "tools: none")]
+    [InlineData("tools: mcp.search", "tools: mcp.search, mcp.other")]
+    [InlineData("tools: mcp.search", "tools: mcp.")]
+    [InlineData("mcp-server: ", "server: ")]
+    [InlineData("mcp-source-revision: ", "unknown: ")]
+    [InlineData("mcp-schema-digest: ", "schema: ")]
+    [InlineData("runtime: local", "runtime: hosted")]
+    [InlineData("references: none", "references: notes.md")]
+    [InlineData("kora-skill-format: 6", "kora-skill-format: 2")]
+    [InlineData("references: none", "inputs: required-literal")]
+    public void V6RejectsOpenOrExecutableDeclarations(string before, string after)
+    {
+        var document = OwnedDeclarativeSkillDocument.CreateMcp("reference", "1.0.0", "Reference", "Description", "literal",
+            new(new string('a', 64), new string('b', 64), "search", new string('c', 64)));
+        var parse = () => OwnedDeclarativeSkillDocument.Parse(Encoding.UTF8.GetBytes(document.ManifestText.Replace(before, after, StringComparison.Ordinal)),
+            document.InstructionBytes.Span);
+        parse.Should().Throw<InvalidDataException>();
+    }
+
     private static OwnedDeclarativeSkillDocument Document(string guidance = "Literal workflow.\r\nowned skill save\n```ps1\nnot executed\n```") =>
         OwnedDeclarativeSkillDocument.Create("daily-review", "1.0.0", "Daily review", "Review the day", guidance);
 

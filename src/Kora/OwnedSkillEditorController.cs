@@ -190,6 +190,10 @@ internal sealed partial class OwnedSkillEditorController(
                     opened.NameInput.Text = "";
                     opened.DescriptionInput.Text = "";
                     opened.Guidance.Text = "";
+                    opened.McpServer.Text = "";
+                    opened.McpSourceRevision.Text = "";
+                    opened.McpTool.Text = "";
+                    opened.McpSchemaDigest.Text = "";
                     opened.Tool.SelectedIndex = 0;
                     opened.InputFormat.SelectedIndex = 0;
                     opened.Critique.Text = "";
@@ -237,9 +241,22 @@ internal sealed partial class OwnedSkillEditorController(
                     opened.Tool.SelectedIndex = command.Literal switch
                     {
                         "web-page-get" => 1,
+                        "read-only-mcp" => 2,
                         "none" => 0,
                         _ => throw new InvalidOperationException("Select only no tools or host WebPageGet."),
                     };
+                    break;
+                case "mcp-server" when invocation?.IsMcpOpen != true:
+                    opened.McpServer.Text = command.Literal;
+                    break;
+                case "mcp-source-revision":
+                    opened.McpSourceRevision.Text = command.Literal;
+                    break;
+                case "mcp-tool":
+                    opened.McpTool.Text = command.Literal;
+                    break;
+                case "mcp-schema-digest":
+                    opened.McpSchemaDigest.Text = command.Literal;
                     break;
                 case "validate":
                     if (initialAuthority is not null && pendingRefinement is null)
@@ -304,6 +321,10 @@ internal sealed partial class OwnedSkillEditorController(
                 case "request":
                 case "input":
                 case "url":
+                case "mcp-options":
+                case "mcp-server":
+                case "mcp-account":
+                case "mcp-arguments":
                 case "review-tool":
                 case "review-use":
                 case "invoke":
@@ -410,7 +431,16 @@ internal sealed partial class OwnedSkillEditorController(
         opened.NameInput.Text = saved.Document.Name;
         opened.DescriptionInput.Text = saved.Document.Description;
         opened.Guidance.Text = saved.Document.Guidance;
-        opened.Tool.SelectedIndex = saved.Document.Tool == OwnedSkillToolSelection.WebPageGet ? 1 : 0;
+        opened.Tool.SelectedIndex = saved.Document.Tool switch
+        {
+            OwnedSkillToolSelection.WebPageGet => 1,
+            OwnedSkillToolSelection.ReadOnlyMcp => 2,
+            _ => 0,
+        };
+        opened.McpServer.Text = saved.Document.McpReference?.ServerId ?? "";
+        opened.McpSourceRevision.Text = saved.Document.McpReference?.SourceRevision ?? "";
+        opened.McpTool.Text = saved.Document.McpReference?.ToolName ?? "";
+        opened.McpSchemaDigest.Text = saved.Document.McpReference?.SchemaDigest ?? "";
         opened.InputFormat.SelectedIndex = saved.Document.ReferenceDeclaration is not null ? 2 : saved.Document.InputTemplate is null ? 0 : 1;
         opened.LoadComponents(saved);
         opened.Critique.Text = "";

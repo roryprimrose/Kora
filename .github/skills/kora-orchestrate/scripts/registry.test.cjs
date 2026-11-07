@@ -6,12 +6,250 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { createState, applyEvent, validate, digest, heldReservations } = require('./registry.cjs');
-const { refinementFixture, refinementEvent, rebind, tamperedStates } = require('./refinement-fixture.cjs');
+const { refinementFixture, refinementEvent, rebind, tamperedStates,
+  candidateFixture, candidateEvent } = require('./refinement-fixture.cjs');
 
 const sha = number => number.toString(16).padStart(40, '0');
 const coordinator = 'agent-host-session://coordinator';
 const planner = 'agent-host-session://coordinator?chat=planner';
 const owner = key => `agent-host-session://coordinator?chat=${key}`;
+
+test('all seven frozen final manifests fail closed against retained owners including fifteen retired guards', () => {
+  const state = candidateFixture();
+  validate(state);
+  const native = state.items.find(item => item.key === 'generate-owned-required-literal-skill');
+  assert.equal(native.sourceWritesRetired, true);
+  assert.equal(native.scopes.length, 15);
+  const before = structuredClone(state);
+  const finals = require('./candidate-readmission-fixture.json').finalCandidates;
+  assert.deepEqual(finals.map(item => item.scopes.length), [17, 28, 13, 21, 28, 14, 10]);
+  for (const final of finals) {
+    assert.throws(() => applyEvent(state, candidateEvent(state, final.key)), /conflicts with held/);
+    assert.deepEqual(state, before);
+  }
+  assert.equal(state.amendments.length, 4);
+  assert.equal(state.refinements.length, 1);
+});
+
+test('same-key final revalidation dispatches normally only after synthetic completed closure and retains all histories', () => {
+  const state = candidateFixture(true);
+  const held = state.items.filter(item => item.owner !== null);
+  for (const final of require('./candidate-readmission-fixture.json').finalCandidates) {
+    const item = state.items.find(value => value.key === final.key);
+    const event = candidateEvent(state, item.key);
+    const result = applyEvent(state, event);
+    const current = result.state.items.find(value => value.key === item.key);
+    assert.equal(result.state.version, 4);
+    assert.equal(result.state.items.length, state.items.length);
+    assert.deepEqual(result.actions, [{ type: 'launch', key: item.key, pool: item.pool }]);
+    assert.equal(current.phase, 'reserved');
+    assert.equal(current.owner, null);
+    assert.equal(current.sourceWritesRetired, false);
+    assert.equal(current.scopeRevision, 0);
+    assert.deepEqual(current.scopes, final.scopes);
+    for (const field of ['key', 'outcome', 'kind', 'pool', 'pr', 'publication', 'blocker']) {
+      assert.deepEqual(current[field], item[field]);
+    }
+    assert.deepEqual(result.state.items.filter(value => value.owner !== null),
+      held.map(value => ({ ...value, admissionHistory: [] })));
+    assert.deepEqual(result.state.amendments, state.amendments);
+    assert.deepEqual(result.state.refinements, state.refinements);
+    assert.equal(current.admissionHistory[0].event.expectedItemDigest, digest(item));
+    const repeated = applyEvent(result.state, event);
+    assert.equal(repeated.duplicate, true);
+    assert.deepEqual(repeated.state, result.state);
+    assert.deepEqual(repeated.actions, []);
+    assert.throws(() => applyEvent(result.state, { ...event, evidence: 'altered replay' }), /replay/);
+    assert.throws(() => applyEvent(result.state, { ...event, id: 'new-replay-id' }), /unowned unreserved/);
+    assert.throws(() => applyEvent(result.state, { ...item, id: `duplicate-${item.key}`, type: 'candidate',
+      owner: state.planner.owner, pass: state.planner.pass, head: state.head }), /Duplicate/);
+  }
+});
+
+test('candidate revalidation binds exact active planner/source/item and complete canonical manifest', () => {
+  const state = candidateFixture(true);
+  const event = candidateEvent(state);
+  for (const change of [
+    { owner: 'wrong-owner' }, { pass: state.planner.pass + 1 }, { head: '9'.repeat(40) },
+    { expectedItemDigest: '0'.repeat(64) }, { key: 'missing' }, { outcome: 'replacement' },
+    { kind: 'maintenance' }, { pool: 'repair' }, { pr: 123 }, { manifestComplete: false },
+    { scopes: [] }, { scopes: [...event.scopes, event.scopes[0]] }, { scopes: ['..\\outside'] },
+    { scopes: ['src\\*.cs'] }, { scopes: ['src/one.cs'] }, { scopes: ['src\\missing.cs'] },
+    { scopes: ['SRC\\one.cs'] }, { evidence: '' }, { permission: 'write' }
+  ]) {
+    assert.throws(() => applyEvent(state, { ...event, ...change }));
+  }
+  for (const change of [
+    value => { value.enabled = false; }, value => { value.mode = 'observe'; },
+    value => { value.planner.active = false; }, value => { value.head = null; },
+    value => { value.items.find(item => item.key === event.key).evidence = 'stale changed evidence'; },
+    value => { value.items.find(item => item.key === event.key).sourceWritesRetired = true; },
+    value => { value.items.find(item => item.key === event.key).sourceWriteAuthority = true; }
+  ]) {
+    const altered = structuredClone(state);
+    change(altered);
+    assert.throws(() => applyEvent(altered, event));
+  }
+  for (const item of state.items.filter(value => value.owner !== null)) {
+    assert.throws(() => applyEvent(state, { ...event, key: item.key, expectedItemDigest: digest(item) }),
+      /unowned unreserved/);
+  }
+  const oldId = state.seen.find(id => id.startsWith('planner-candidate-pass8'));
+  assert.throws(() => applyEvent(state, { ...event, id: oldId }), /replay/);
+  const current = structuredClone(state);
+  const item = current.items.find(value => value.key === event.key);
+  item.head = current.head;
+  assert.throws(() => applyEvent(current, { ...candidateEvent(current), scopes: [...item.scopes],
+    evidence: item.evidence }), /no-op/);
+  item.sourceWriteAuthority = true;
+  assert.throws(() => applyEvent(current, candidateEvent(current)));
+});
+
+test('persisted readmission rejects omission, downgrade, index/digest/history and authority tampering', () => {
+  const initial = candidateFixture(true);
+  const state = applyEvent(initial, candidateEvent(initial)).state;
+  for (const change of [
+    value => { delete value.readmissions; }, value => { value.readmissions = []; },
+    value => { value.version = 3; },
+    value => {
+      value.version = 3;
+      delete value.readmissions;
+      for (const item of value.items) delete item.admissionHistory;
+    },
+    value => { delete value.items.find(item => item.admissionHistory.length).admissionHistory; },
+    value => { value.items.find(item => item.admissionHistory.length).admissionHistory = []; },
+    value => { value.items.find(item => item.admissionHistory.length).scopes.pop(); },
+    value => { value.items.find(item => item.admissionHistory.length).evidence = 'tampered'; },
+    value => { value.readmissions[0].digest = '0'.repeat(64); },
+    value => { value.items.find(item => item.admissionHistory.length).admissionHistory[0].event.pass++; },
+    value => { value.items.find(item => item.admissionHistory.length).admissionHistory[0].before.owner = 'writer'; },
+    value => { value.items.find(item => item.admissionHistory.length).admissionHistory[0].before.pr = 999; },
+    value => { value.seen = value.seen.filter(id => id !== state.readmissions[0].eventId); }
+  ]) {
+    const altered = structuredClone(state);
+    change(altered);
+    assert.throws(() => validate(altered));
+    assert.throws(() => applyEvent(altered, { id: 'refresh-tampered', type: 'refresh', head: state.head }));
+  }
+});
+
+test('legacy v1/v2/v3 migrate without changing owner proofs and successive readmissions bind complete prior history', () => {
+  for (const version of [1, 2, 3]) {
+    const state = candidateFixture(true);
+    state.items = state.items.filter(item => item.phase === 'candidate');
+    state.version = version;
+    state.refinements = [];
+    state.amendments = [];
+    state.seen = [];
+    for (const item of state.items) {
+      if (version < 3) delete item.scopeAmendments;
+      if (version < 2) {
+        delete item.scopeHistory;
+        delete item.scopeRevision;
+        delete item.sourceWritesRetired;
+      }
+    }
+    if (version < 3) delete state.amendments;
+    if (version < 2) delete state.refinements;
+    validate(state);
+    const firstEvent = candidateEvent(state);
+    // Maintenance waits for pass end, so two current full manifests can be rebound without attaching.
+    const item = state.items.find(value => value.key === firstEvent.key);
+    item.kind = 'maintenance';
+    firstEvent.expectedItemDigest = digest(item);
+    const first = applyEvent(state, firstEvent).state;
+    assert.equal(first.items.find(value => value.key === item.key).phase, 'candidate');
+    const secondEvent = { ...candidateEvent(first), id: 'second-current-manifest',
+      evidence: 'Second fresh complete source inspection.' };
+    const second = applyEvent(first, secondEvent).state;
+    const current = second.items.find(value => value.key === item.key);
+    assert.equal(current.admissionHistory.length, 2);
+    assert.equal(current.admissionHistory[1].event.expectedItemDigest,
+      digest(first.items.find(value => value.key === item.key)));
+    assert.throws(() => applyEvent(first, { ...firstEvent, id: 'replayed-with-new-id' }), /Stale/);
+    const ended = applyEvent(second, { id: 'end-readmission-pass', type: 'pass-ended',
+      owner: second.planner.owner, pass: second.planner.pass, head: second.head,
+      readyExamined: true, repairExamined: true, remaining: false }).state;
+    validate(ended);
+    assert.equal(ended.items.find(value => value.key === item.key).phase, 'reserved');
+  }
+});
+
+test('v4 admission survives ordinary ownership, extension, permanent refinement, publication and cleanup', () => {
+  let state = candidateFixture(true);
+  const event = candidateEvent(state);
+  state = applyEvent(state, event).state;
+  state = applyEvent(state, { id: 'attach-revalidated', type: 'attached',
+    key: event.key, owner: 'fixture-revalidated-worker' }).state;
+  const admission = structuredClone(state.items.find(item => item.key === event.key).admissionHistory);
+  state = applyEvent(state, extensionEvent(state, event.key, ['next\\planned.cs'])).state;
+  state = applyEvent(state, { id: 'publish-revalidated', type: 'published',
+    key: event.key, owner: 'fixture-revalidated-worker', proof: {
+      pushedHead: state.head, remoteHead: state.head, pr: 9010, ready: true, enrolled: true } }).state;
+  const item = state.items.find(value => value.key === event.key);
+  const refined = refinementEvent({ items: [{ ...item, key: 'holding' }] }, 'refine-revalidated');
+  refined.key = event.key;
+  refined.proof.key = event.key;
+  refined.acknowledgment.key = event.key;
+  refined.proof.toScopes = [item.scopes[0], 'next\\planned.cs'];
+  refined.proof.manifest = { complete: true, actual: [item.scopes[0]], planned: ['next\\planned.cs'] };
+  refined.proof.preservation.commits[0].paths = [item.scopes[0]];
+  refined.proof.preservation.commits[0].head = state.head;
+  refined.proof.preservation.retained = [];
+  state = applyEvent(state, rebind(refined)).state;
+  assert.equal(state.items.find(value => value.key === event.key).sourceWritesRetired, true);
+  state = applyEvent(state, { id: 'complete-revalidated', type: 'completed', key: event.key,
+    owner: item.owner, proof: { remoteHead: state.head, stoppedWriting: true,
+      worktreeAbsent: true, branchAbsent: true, pendingInstructions: 0 } }).state;
+  assert.deepEqual(state.items.find(value => value.key === event.key).admissionHistory, admission);
+  validate(state);
+});
+
+test('revalidation retains candidate blockers and later ordinary launch failure can retain a reserved blocker', () => {
+  const state = candidateFixture(true);
+  const event = candidateEvent(state);
+  const reserved = applyEvent(state, event).state;
+  const blocked = applyEvent(reserved, { id: 'unknown-revalidated-launch', type: 'launch-blocked',
+    key: event.key, reason: 'Unknown host launch result; retain reservation.' }).state;
+  const item = blocked.items.find(value => value.key === event.key);
+  assert.equal(item.phase, 'reserved');
+  assert.equal(item.owner, null);
+  assert.equal(item.blocker, 'Unknown host launch result; retain reservation.');
+  assert.deepEqual(item.admissionHistory, reserved.items.find(value => value.key === event.key).admissionHistory);
+  assert.throws(() => applyEvent(blocked, { id: 'unsafe-revalidated-attach', type: 'attached',
+    key: event.key, owner: 'unknown-worker' }), /available reservation/);
+  const waiting = structuredClone(state);
+  waiting.items.find(value => value.key === event.key).blocker = 'Explicit retained admission blocker.';
+  const retained = applyEvent(waiting, candidateEvent(waiting));
+  assert.deepEqual(retained.actions, []);
+  const candidate = retained.state.items.find(value => value.key === event.key);
+  assert.equal(candidate.phase, 'candidate');
+  assert.equal(candidate.blocker, 'Explicit retained admission blocker.');
+});
+
+test('documented atomic readmission JSON executes with the entire legacy item digest', () => {
+  const readme = fs.readFileSync(path.resolve(__dirname, '..', 'README.md'), 'utf8');
+  const section = readme.split('## Same-key unowned candidate revalidation')[1];
+  const input = JSON.parse(section.match(/```json\r?\n([\s\S]*?)\r?\n```/)[1]);
+  const state = createState('fixture-coordinator', input.event.head, 'delivery');
+  state.planner = { owner: input.event.owner, active: true, pass: input.event.pass,
+    requested: false, notified: true };
+  const item = { key: input.event.key, outcome: 'Synthetic complete operation', kind: 'feature',
+    pool: 'ready', pr: null, owner: null, phase: 'candidate', blocker: null, publication: null,
+    head: '2'.repeat(40), scopes: [input.event.scopes[0]], evidence: 'Old incomplete cache.' };
+  state.items.push(item);
+  const expression = readme.match(/node -e '([^']+)'/)[1];
+  const cli = spawnSync(process.execPath, ['-e', expression], { input: JSON.stringify(item),
+    encoding: 'utf8', cwd: path.resolve(__dirname, '..', '..', '..', '..') });
+  assert.equal(cli.status, 0, cli.stderr);
+  input.event.expectedItemDigest = cli.stdout.trim();
+  assert.equal(input.event.expectedItemDigest, digest(item));
+  const result = applyEvent(state, input.event);
+  assert.equal(input.operation, 'apply');
+  assert.ok(Number.isSafeInteger(input.expectedRevision));
+  assert.deepEqual(result.actions, [{ type: 'launch', key: item.key, pool: 'ready' }]);
+  assert.deepEqual(result.state.items[0].scopes, input.event.scopes);
+});
 
 function fixture() {
   let state = createState(coordinator, sha(1), 'delivery');

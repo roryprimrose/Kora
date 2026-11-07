@@ -28,6 +28,12 @@ function validateCheckpoint(value) {
     amendments.every(event => amendmentIndex.some(record => record.eventId === event.id)) &&
     new Set(amendments.map(event => event.id)).size === amendments.length,
   'Checkpoint mutable amendment event/schema binding is inconsistent.');
+  const readmissions = value.events.filter(event => event.type === 'revalidate-candidate');
+  const readmissionIndex = value.state.readmissions ?? [];
+  requireValue(readmissions.length === readmissionIndex.length &&
+    readmissions.every(event => readmissionIndex.some(record => record.eventId === event.id)) &&
+    new Set(readmissions.map(event => event.id)).size === readmissions.length,
+  'Checkpoint candidate revalidation event/schema binding is inconsistent.');
 }
 
 function checkpoint(file, input, io = fs) {

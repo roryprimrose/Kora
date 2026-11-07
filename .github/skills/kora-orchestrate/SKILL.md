@@ -105,6 +105,7 @@ a second child.
 | --- | --- |
 | `planner` | Attach its exact `owner`; at most one reusable planner. |
 | `candidate` | Planner `owner`, assigned `pass`, `key`, unique `outcome`, `pool`, `kind`, `head`, `scopes`, admission `evidence`; repair also requires `pr`. |
+| `revalidate-candidate` | Active planner `owner/pass`, existing unowned candidate `key`, complete `expectedItemDigest`, current `head`, canonical complete `scopes`, fresh `evidence`, `manifestComplete=true`. Atomic current-checkpoint apply; held conflict rejects without mutation. See [same-key input and migration](./README.md#same-key-unowned-candidate-revalidation). |
 | `adopt` | Existing worker `owner` and the candidate fields, with concrete exclusive-ownership evidence; no new launch. |
 | `attached` | Reserved `key`, exact worker `owner`, and optional assigned `pr`. |
 | `launch-blocked` | Unattached reserved `key` and explicit `reason`; retain slot, scope and unknown launch evidence. |

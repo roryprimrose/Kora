@@ -6,7 +6,8 @@ const { createState, applyEvent, digest, heldReservations } = require('./registr
 const fs = require('node:fs');
 const path = require('node:path');
 const { workerLaunch } = require('./worker-launch.cjs');
-const { refinementFixture, refinementEvent, tamperedStates } = require('./refinement-fixture.cjs');
+const { refinementFixture, refinementEvent, tamperedStates,
+  candidateFixture, candidateEvent } = require('./refinement-fixture.cjs');
 
 const head = '1'.repeat(40);
 const settings = {
@@ -15,6 +16,30 @@ const settings = {
   productionWorkspace: 'Q:\\Repos\\Kora',
   scratch: 'Q:\\Repos\\Kora.worktrees\\control\\.scratch\\run'
 };
+
+test('launch consumes exact v4 revalidated scopes and all old proofs, never held-conflicting candidate authority', () => {
+  const held = candidateFixture();
+  const event = candidateEvent(held);
+  assert.throws(() => applyEvent(held, event), /conflicts with held/);
+  assert.throws(() => workerLaunch(held,
+    { type: 'launch', key: event.key, pool: 'ready' }, settings), /reservation/);
+  const state = candidateFixture(true);
+  const result = applyEvent(state, candidateEvent(state));
+  const launch = workerLaunch(result.state, result.actions[0], settings);
+  for (const value of candidateEvent(state).scopes) assert.ok(launch.prompt.includes(value));
+  assert.equal(result.state.amendments.length, 4);
+  assert.equal(result.state.refinements.length, 1);
+  for (const change of [
+    value => { delete value.readmissions; }, value => { value.version = 3; },
+    value => { value.items.find(item => item.admissionHistory.length).admissionHistory = []; },
+    value => { value.items.find(item => item.admissionHistory.length).scopes.pop(); },
+    value => { value.items.find(item => item.admissionHistory.length).admissionHistory[0].event.expectedItemDigest = '0'.repeat(64); }
+  ]) {
+    const altered = structuredClone(result.state);
+    change(altered);
+    assert.throws(() => workerLaunch(altered, result.actions[0], settings));
+  }
+});
 
 function fixture(pool = 'ready') {
   let state = createState('agent-host-session://coordinator?chat=exact', head, 'delivery');

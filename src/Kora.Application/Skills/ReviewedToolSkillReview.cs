@@ -37,7 +37,18 @@ public sealed class ReviewedToolSkillReview : IDisposable
     public RequestOrigin Origin { get; }
     public DeclarativeMcpToolReference? McpReference
     {
-        get { lock (gate) { return IsCurrent && source is SharedToolSkillSource shared ? shared.Snapshot.McpReference : null; } }
+        get
+        {
+            lock (gate)
+            {
+                return !IsCurrent ? null : source switch
+                {
+                    SharedToolSkillSource shared => shared.Snapshot.McpReference,
+                    OwnedToolSkillSource owned => owned.Review.Require(owned.Workflow).Document.McpReference,
+                    _ => null,
+                };
+            }
+        }
     }
     public DateTimeOffset ExpiresAt { get; }
     public string Text { get { lock (gate) { return IsCurrent ? source!.Text : string.Empty; } } }

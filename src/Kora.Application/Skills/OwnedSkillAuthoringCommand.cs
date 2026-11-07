@@ -7,10 +7,11 @@ namespace Kora.Application.Skills;
 public sealed record OwnedSkillAuthoringCommand(string Operation, string? Id = null, string? Version = null, string? Literal = null,
     string? InputName = null)
 {
-    public const string Syntax = "create a skill that <purpose> | owned skill expected-input: <literal> | owned skill expected-output: <literal> | owned skill generate | owned skill create <id> <version> | owned skill name: <literal> | owned skill description: <literal> | owned skill guidance: <literal> | owned skill critique: <literal> | owned skill refine | owned skill cancel-refinement | owned skill tool none|web-page-get | owned skill inputs none|required-literal | owned skill format markdown-package | owned skill reference <relative.md>: <literal> | owned skill remove-reference <relative.md> | owned skill read-references | owned skill validate | owned skill fixture: <closed-json> | owned skill test | owned skill cancel-test | owned skill save | owned skill list | owned skill reopen <id> <version> | owned skill rename <old-id> <version> <new-id> | owned skill recover-rename <old-id> <version> | owned skill delete <id> <version> | owned skill use <id> <version> | owned skill enable | owned skill targets | owned skill next-targets | owned skill target <session-id> | owned skill request: <literal> | owned skill input <name>: <literal> | owned skill url: <absolute-url> | owned skill review-tool | owned skill review-use | owned skill invoke | owned skill close-use | owned skill cancel";
+    public const string Syntax = "create a skill that <purpose> | owned skill expected-input: <literal> | owned skill expected-output: <literal> | owned skill generate | owned skill create <id> <version> | owned skill name: <literal> | owned skill description: <literal> | owned skill guidance: <literal> | owned skill critique: <literal> | owned skill refine | owned skill cancel-refinement | owned skill tool none|web-page-get | owned skill inputs none|required-literal | owned skill format markdown-package | owned skill reference <relative.md>: <literal> | owned skill remove-reference <relative.md> | owned skill read-references | owned skill validate | owned skill fixture: <closed-json> | owned skill test | owned skill cancel-test | owned skill save | owned skill list | owned skill reopen <id> <version> | owned skill rename <old-id> <version> <new-id> | owned skill recover-rename <old-id> <version> | owned skill delete <id> <version> | owned skill use <id> <version> | owned skill enable | owned skill targets | owned skill next-targets | owned skill target <session-id> | owned skill request: <literal> | owned skill input <name>: <literal> | owned skill url: <absolute-url> | owned skill review-tool | owned skill review-use | owned skill invoke | owned skill close-use | owned skill cancel | " + McpSyntax;
+    public const string McpSyntax = "owned skill tool read-only-mcp | owned skill mcp-server: <sha256> | owned skill mcp-source-revision: <sha256> | owned skill mcp-tool: <exact-name> | owned skill mcp-schema-digest: <sha256> | owned skill mcp-options | owned skill mcp-account: <displayed-account-id> | owned skill mcp-arguments: <json>";
     public static IReadOnlyList<string> FixedPhrases { get; } =
         Array.AsReadOnly(new[] { "owned skill editor", "owned skill list", "owned skill validate", "owned skill save", "owned skill cancel",
-            "owned skill tool none", "owned skill tool web-page-get", "owned skill review-tool",
+            "owned skill tool none", "owned skill tool web-page-get", "owned skill tool read-only-mcp", "owned skill mcp-options", "owned skill review-tool",
             "owned skill inputs none", "owned skill inputs required-literal", "owned skill generate", "owned skill refine", "owned skill cancel-refinement",
             "owned skill format markdown-package", "owned skill read-references",
             "owned skill enable", "owned skill targets", "owned skill next-targets", "owned skill review-use", "owned skill invoke", "owned skill close-use",
@@ -58,7 +59,8 @@ public sealed record OwnedSkillAuthoringCommand(string Operation, string? Id = n
             var start = input.IndexOf(inputPrefix, StringComparison.OrdinalIgnoreCase);
             return new("input", Literal: input[(start + split + 2)..], InputName: normalized[inputPrefix.Length..split]);
         }
-        foreach (var field in new[] { "name", "description", "guidance", "critique", "request", "url", "fixture", "expected-input", "expected-output" })
+        foreach (var field in new[] { "name", "description", "guidance", "critique", "request", "url", "fixture", "expected-input", "expected-output",
+            "mcp-server", "mcp-source-revision", "mcp-tool", "mcp-schema-digest", "mcp-account", "mcp-arguments" })
         {
             var prefix = "owned skill " + field + ": ";
             if (normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
@@ -74,7 +76,7 @@ public sealed record OwnedSkillAuthoringCommand(string Operation, string? Id = n
             var operation = words[2].ToLowerInvariant();
             return new(operation is "editor" or "list" or "validate" or "save" or "cancel" or "enable" or "targets"
                 or "next-targets" or "review-tool" or "review-use" or "invoke" or "close-use" or "generate" or "refine" or "cancel-refinement"
-                or "read-references" or "test" or "cancel-test" ? operation : "Invalid");
+                or "read-references" or "test" or "cancel-test" or "mcp-options" ? operation : "Invalid");
         }
         if (words.Length == 4 && !input.Any(char.IsControl) && words[2].Equals("format", StringComparison.OrdinalIgnoreCase)
             && words[3].Equals("markdown-package", StringComparison.OrdinalIgnoreCase))
@@ -86,7 +88,7 @@ public sealed record OwnedSkillAuthoringCommand(string Operation, string? Id = n
             return new("remove-reference", InputName: words[3]);
         }
         if (words.Length == 4 && !input.Any(char.IsControl) && words[2].Equals("tool", StringComparison.OrdinalIgnoreCase)
-            && words[3].ToLowerInvariant() is "none" or "web-page-get")
+            && words[3].ToLowerInvariant() is "none" or "web-page-get" or "read-only-mcp")
         { return new("tool", Literal: words[3].ToLowerInvariant()); }
         if (words.Length == 4 && !input.Any(char.IsControl) && words[2].Equals("inputs", StringComparison.OrdinalIgnoreCase)
             && words[3].ToLowerInvariant() is "none" or "required-literal")

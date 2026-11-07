@@ -23,7 +23,11 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview, IO
     internal readonly ComboBox Saved = new() { MinWidth = 400 };
     internal readonly TextBox RenameId = new() { PlaceholderText = "new-canonical-skill-id" };
     internal readonly ComboBox PendingRenames = new() { MinWidth = 400 };
-    internal readonly ComboBox Tool = new() { ItemsSource = new[] { "No tools (native v1)", "Host WebPageGet only (native v2)" }, SelectedIndex = 0 };
+    internal readonly ComboBox Tool = new() { ItemsSource = new[] { "No tools (native v1)", "Host WebPageGet only (native v2)", "One exact read-only MCP tool (native v6)" }, SelectedIndex = 0 };
+    internal readonly TextBox McpServer = new() { IsUndoEnabled = false };
+    internal readonly TextBox McpSourceRevision = new() { IsUndoEnabled = false };
+    internal readonly TextBox McpTool = new() { IsUndoEnabled = false };
+    internal readonly TextBox McpSchemaDigest = new() { IsUndoEnabled = false };
     internal readonly ComboBox InputFormat = new() { ItemsSource = new[] { "Literal guidance (native v1/v2)", "Required literal guidance inputs (native v3; no tools)" }, SelectedIndex = 0 };
     internal readonly TextBox ComponentPath = new() { PlaceholderText = @"references\notes.md" };
     internal readonly TextBox ComponentBody = new() { AcceptsReturn = true, IsUndoEnabled = false, Height = 100 };
@@ -63,6 +67,14 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview, IO
         AutomationProperties.SetName(Tool, "Exact existing host capability");
         fields.Children.Add(new TextBlock { Text = "Host capability declaration (not permission)" });
         fields.Children.Add(Tool);
+        foreach (var pair in new[] { ("Declared MCP server SHA-256", McpServer), ("Declared MCP source revision SHA-256", McpSourceRevision),
+            ("Declared exact MCP tool name", McpTool), ("Declared MCP schema SHA-256", McpSchemaDigest) })
+        {
+            fields.Children.Add(new TextBlock { Text = pair.Item1 });
+            AutomationProperties.SetName(pair.Item2, pair.Item1);
+            fields.Children.Add(pair.Item2);
+            pair.Item2.PropertyChanged += (_, args) => { if (args.Property == TextBox.TextProperty) { DraftChanged?.Invoke(); } };
+        }
         InputFormat.SelectionChanged += (_, _) => DraftChanged?.Invoke();
         InputFormat.ItemsSource = new[] { "Literal guidance (native v1/v2)", "Required literal guidance inputs (native v3; no tools)",
             "Declared Markdown component package (native v5; literal; no tools)" };
@@ -188,6 +200,12 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview, IO
                 NameInput.Text ?? "", DescriptionInput.Text ?? "", Guidance.Text ?? "", references)
             : throw new InvalidDataException("Owned Markdown packages declare tools none.")
         : references.Count != 0 ? throw new InvalidDataException("Select native v5 explicitly or remove every component; old formats cannot silently drop components.")
+        : Tool.SelectedIndex == 2
+        ? InputFormat.SelectedIndex == 0
+            ? OwnedDeclarativeSkillDocument.CreateMcp(IdInput.Text ?? "", VersionInput.Text ?? "", NameInput.Text ?? "",
+                DescriptionInput.Text ?? "", Guidance.Text ?? "",
+                new(McpServer.Text ?? "", McpSourceRevision.Text ?? "", McpTool.Text ?? "", McpSchemaDigest.Text ?? ""))
+            : throw new InvalidDataException("Native v6 MCP guidance is literal and reference-free; it cannot declare inputs.")
         : OwnedDeclarativeSkillDocument.Create(
         IdInput.Text ?? "", VersionInput.Text ?? "", NameInput.Text ?? "", DescriptionInput.Text ?? "", Guidance.Text ?? "",
         Tool.SelectedIndex switch

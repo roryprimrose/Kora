@@ -2348,6 +2348,18 @@ This is not a harmlessness or complete dependency-inventory certification
 
 Owned packages use the separate exact `owned skill` command family. Additive native v2 authoring uses `owned skill tool web-page-get` (or `owned skill tool none` for unchanged v1), and invocation adds `owned skill url: <absolute-url>` and `owned skill review-tool` before separate enablement/preview/confirmation. These commands do not publish, approve a web action or bypass native confirmations by themselves; see [the complete owned operation](owned-skill-authoring.md#author-and-use-one-host-webpageget-skill).
 
+Native v6 adds `owned skill tool read-only-mcp` with literal declaration fields
+`owned skill mcp-server: <sha256>`, `owned skill mcp-source-revision: <sha256>`,
+`owned skill mcp-tool: <exact-name>` and `owned skill mcp-schema-digest: <sha256>`.
+Save/Reopen remain disabled. In an open v6 Use window, `owned skill mcp-options`
+lists existing permitted choices; `owned skill mcp-server: <displayed-server-id>`,
+`owned skill mcp-account: <displayed-account-id>` and
+`owned skill mcp-arguments: <json>` select exact original inputs before the
+existing review-tool/enable/review-use/invoke sequence. Nothing automatically
+connects or installs; separate native account/schema/read-only mapping/egress
+and result-use approvals remain mandatory.
+[Complete owned MCP operation](owned-skill-authoring.md#author-and-use-one-exact-read-only-mcp-skill).
+
 The separate `owned skill workflow` family supports the [complete native ordered observation operation](owned-skill-authoring.md#author-and-run-an-ordered-host-observation-workflow): `create <id> <version>`, literal `name:`, `description:`, `definition:`, `validate`, `save`, `list`, `reopen <id> <version>`, `targets`, `next-targets`, `target <session-id>`, and literal `request:`.
 Then use `review <id> <version>`, separately `enable`, explicitly `invoke`, independent `approve-step`/`deny-step` while an exact native step review is pending, `status`, `cancel`, or `close`.
 Native Save still has two distinct confirmations. Only the six original read-only observations are admitted, without a model, implicit steps, scripts, external effects or partial success ([exact command grammar](../src/Kora.Application/Skills/ObservationWorkflowCommand.cs)).

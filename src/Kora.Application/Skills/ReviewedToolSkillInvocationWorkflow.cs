@@ -56,8 +56,8 @@ public sealed partial class ReviewedToolSkillInvocationWorkflow(
         try
         {
             SessionConversationService.RequireOriginalSource(authority.Origin);
-            if (source.Require(workflow).Document.Tool != OwnedSkillToolSelection.WebPageGet)
-            { throw new InvalidOperationException("Select an inspected native v2 package declaring only the existing host WebPageGet."); }
+            if (source.Require(workflow).Document.Tool is not (OwnedSkillToolSelection.WebPageGet or OwnedSkillToolSelection.ReadOnlyMcp))
+            { throw new InvalidOperationException("Select an inspected native v2 WebPageGet or v6 exact read-only MCP package."); }
             bool Current() => eligible() && source.IsCurrent && authority.IsCurrent();
             await workflow.ValidateAsync(source, authority, Current, token).ConfigureAwait(false);
             await RequireTargetAsync(target, Current, token).ConfigureAwait(false);

@@ -30,12 +30,12 @@ internal sealed class SharedSkillInvocationWindow : Window
     internal Button Stop { get; } = new() { Content = "Stop and close reviewed use" };
     private readonly List<Button> operationButtons = [];
 
-    internal SharedSkillInvocationWindow(Action<string> run, bool toolCapable = false, bool mcp = false)
+    internal SharedSkillInvocationWindow(Action<string> run, bool toolCapable = false, bool mcp = false, bool owned = false)
     {
         Title = mcp ? "Reviewed read-only MCP skill" : toolCapable ? "Reviewed one-tool shared skill" : "Reviewed instruction-only shared skill";
         Width = 850;
         Height = 850;
-        AutomationProperties.SetName(Instructions, "Complete inert shared skill instructions");
+        AutomationProperties.SetName(Instructions, owned ? "Complete inert owned skill package" : "Complete inert shared skill instructions");
         AutomationProperties.SetName(Targets, "Existing Active conversation target");
         AutomationProperties.SetName(Confirmation, "Exact reviewed invocation and finite web scope");
         AutomationProperties.SetName(Status, "Reviewed skill status and recovery");
@@ -91,7 +91,7 @@ internal sealed class SharedSkillInvocationWindow : Window
         panel.Children.Add(Confirmation);
         if (mcp) { panel.Children.Add(McpResult); }
         panel.Children.Add(Confirm);
-        if (mcp)
+        if (mcp && !owned)
         {
             AutomationProperties.SetName(McpQuestion, "Independent unchanged new question about the current MCP skill result");
             AutomationProperties.SetName(McpAnswerReview, "Complete result, provenance, channels and independent source-use consent");

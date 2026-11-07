@@ -412,6 +412,62 @@ read/model work joins, even if cancellation is ignored. If retention is
 unconfirmed, inspect that exact conversation before starting any fresh review;
 an unconfirmed result is not a rollback.
 
+## Author and use one exact read-only MCP skill
+
+Native v6 declares **one existing included read-only MCP server/tool** and literal
+inert guidance. It does not install a connector, acquire credentials, connect,
+enable a provider, or grant any tool permission. Unknown account, schema or
+read-only mapping remains unavailable; this is implementation only, not runtime
+qualification.
+
+1. Create a fresh ID/version in the owned editor, supply name, description and
+   guidance, and select **One exact read-only MCP tool (native v6)** or
+   `owned skill tool read-only-mcp`.
+2. Enter the exact existing server ID, full source revision, case-sensitive tool
+   name and schema digest in the labelled declaration fields. Exact commands are
+   `owned skill mcp-server: <sha256>`,
+   `owned skill mcp-source-revision: <sha256>`,
+   `owned skill mcp-tool: <exact-name>` and
+   `owned skill mcp-schema-digest: <sha256>`. Digests are 64 lowercase hexadecimal
+   characters; a readable alias or endpoint is not a source identity.
+3. Validate, review both complete files, and separately confirm Save. The exact
+   immutable revision is **saved disabled**. List and Reopen that ID/version;
+   reopening preserves every original byte and does not enable it.
+4. Choose **Use**, or `owned skill use <id> <version>`. The host independently
+   reads the exact private saved source. Refresh Active targets and choose one.
+   Refresh included servers/accounts with `owned skill mcp-options`; neither list
+   selects an item automatically. Select the existing permitted server/account
+   natively, or use `owned skill mcp-server: <displayed-server-id>` and
+   `owned skill mcp-account: <displayed-account-id>` in the open use window.
+5. Enter the unchanged original request and exact JSON object arguments, using
+   `owned skill request: <literal>` and `owned skill mcp-arguments: <json>`.
+   Review the exact target/tool revision (`owned skill review-tool`), then
+   separately Enable (`owned skill enable`). Review the complete invocation
+   (`owned skill review-use`), then confirm once (`owned skill invoke`).
+6. The native host separately reviews the current source/account connection,
+   selects the real discovered read-only tool, reviews its actual schema and
+   mapping, and obtains exact outgoing argument/egress permission. After the one
+   exchange joins, result-use consent remains separate before local continuation.
+   The window shows the actual inert result and truthful retained conversation
+   terminal, not a fabricated answer or automatic retry.
+
+The eleven-field v6 manifest adds `mcp-server`, `mcp-source-revision` and
+`mcp-schema-digest` to the existing eight fields, with `kora-skill-format: 6`,
+`tools: mcp.<exact-name>`, local runtime and references none. Guidance is literal:
+input markers never bind arguments or confer authority. V1-v5 remain unchanged.
+Generation, refinement, simulation, observation workflows, Markdown components
+and automatic named invocation do not gain MCP support. The optional shared
+result-question workflow is not exposed for owned v6.
+
+Source, original channel, account, target, arguments and host admission must stay
+current throughout. Editing a reviewed selection revokes confirmation and the
+source review; start a fresh Use rather than renewing it. Stop/close cancels and
+joins the owned operation; late output is fenced and never replayed. Native MCP
+authentication/privacy/permission reviews remain mandatory even when original
+commands use deliberately activated voice. No credential, install or automatic
+connection effect occurs on Save, Reopen, revision review, enablement or
+preparation. [Common host pipeline](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.Mcp.cs).
+
 ## Native v1 format
 
 The host resolves the owned roaming application root. The fixed layout is

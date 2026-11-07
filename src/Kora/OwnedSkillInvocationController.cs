@@ -75,6 +75,11 @@ internal sealed partial class OwnedSkillInvocationController(
                 { captured.Dispose(); throw new InvalidOperationException("Use owned skill workflow review for this exact observation workflow; the ordinary guidance/model route does not execute its steps."); }
                 if (!Eligible() || !sourceEligible()) { captured.Dispose(); return; }
                 review = captured;
+                if (captured.Tool == OwnedSkillToolSelection.ReadOnlyMcp)
+                {
+                    OpenMcp(captured);
+                    return;
+                }
                 var opened = new OwnedSkillInvocationWindow(action => Start(action), captured.Tool == OwnedSkillToolSelection.WebPageGet);
                 window = opened;
                 opened.Instructions.Text = captured.Text;
@@ -97,6 +102,11 @@ internal sealed partial class OwnedSkillInvocationController(
                 opened.Status.Text = captured.RequiresReferenceConsent
                     ? "Only primary files were read. Review the declaration, then separately authorize exact owned component reads. Nothing enabled or invoked."
                     : "Review both complete files, then separately Enable. Nothing invoked.";
+                return;
+            }
+            if (mcpWindow is not null)
+            {
+                await RunOwnedMcp(command, authority, sourceEligible);
                 return;
             }
             var currentWindow = window ?? throw new InvalidOperationException("Review an exact saved ID/version with owned skill use first.");
@@ -257,6 +267,12 @@ internal sealed partial class OwnedSkillInvocationController(
                 { opened.Status.Text = "Owned skill use unavailable or unconfirmed: " + exception.Message + " Inspect the selected conversation before a fresh review; no automatic retry."; }
             }
             main.ReportHostInteractionFailure("Owned skill use unavailable or unconfirmed; inspect the selected conversation before any fresh review.");
+            if (mcpWindow is { } mcp)
+            {
+                mcp.Clear();
+                if (main.CanRevealPrivatePresentation)
+                { mcp.Status.Text = "Owned MCP skill unavailable or unconfirmed: " + exception.Message + " No automatic retry."; }
+            }
         }
     }
 
@@ -286,6 +302,7 @@ internal sealed partial class OwnedSkillInvocationController(
 
     internal void Retire()
     {
+        RetireMcp();
         var opened = window;
         window = null;
         lifetime?.Cancel();

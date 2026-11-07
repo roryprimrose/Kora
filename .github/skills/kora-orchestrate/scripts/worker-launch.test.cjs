@@ -2,7 +2,9 @@
 
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
-const { createState, applyEvent } = require('./registry.cjs');
+const { createState, applyEvent, digest, heldReservations } = require('./registry.cjs');
+const fs = require('node:fs');
+const path = require('node:path');
 const { workerLaunch } = require('./worker-launch.cjs');
 const { refinementFixture, refinementEvent, tamperedStates } = require('./refinement-fixture.cjs');
 
@@ -104,4 +106,39 @@ test('launch consumes refined schema, allows disjoint work and rejects proof omi
     { type: 'launch', key: 'holding', pool: 'ready' }, settings), /reservation/);
   assert.equal(fixture().state.version, 1);
   assert.equal(workerLaunch(fixture().state, fixture().action, settings).worktree, true);
+});
+
+test('launch validates documented mutable amendment and retained union but never relaunches attached owner', () => {
+  const proof = JSON.parse([...fs.readFileSync(path.resolve(__dirname, '..', 'README.md'), 'utf8')
+    .matchAll(/```json\r?\n([\s\S]*?)\r?\n```/g)][1][1]);
+  const f = fixture();
+  let state = applyEvent(f.state, { id: 'adopt-doc', type: 'adopt', key: proof.key,
+    owner: proof.owner, ...proof.reservation, scopes: proof.fromScopes,
+    evidence: 'Synthetic documentation mutable owner.' }).state;
+  proof.exclusivity.reservations = heldReservations(state, proof.key);
+  const event = { id: 'extend-doc', type: 'extend-scopes', key: proof.key, owner: proof.owner,
+    expectedScopeRevision: proof.scopeRevision, proof,
+    acknowledgment: { id: 'fresh-doc-ack', receipt: 'Synthetic exact owner response', key: proof.key,
+      owner: proof.owner, scopeRevision: proof.scopeRevision, proofDigest: digest(proof) } };
+  state = applyEvent(state, event).state;
+  const prompt = workerLaunch(state, f.action, settings).prompt;
+  assert.match(prompt, /src\\owned.cs; tests\\owned.test.cs, sourceWritesRetired=false/);
+  assert.match(prompt, /separate coordinator continuation/);
+  assert.throws(() => workerLaunch(state,
+    { type: 'launch', key: proof.key, pool: 'ready' }, settings), /reservation/);
+  const mutations = [
+    v => { delete v.amendments; }, v => { v.amendments = []; },
+    v => { delete v.items[1].scopeAmendments; }, v => { v.items[1].scopeAmendments = []; },
+    v => { v.items[1].scopeAmendments[0].proof.receipt = 'altered'; },
+    v => { v.items[1].scopeAmendments[0].acknowledgment.id = 'altered'; },
+    v => { v.items[1].scopeRevision = 0; }, v => { v.items[1].sourceWritesRetired = true; },
+    v => { v.items[1].scopes.pop(); }, v => { v.version = 2; },
+    v => { v.version = 1; },
+    v => { v.seen = v.seen.filter(id => id !== event.id); }
+  ];
+  for (const mutate of mutations) {
+    const invalid = structuredClone(state);
+    mutate(invalid);
+    assert.throws(() => workerLaunch(invalid, f.action, settings));
+  }
 });

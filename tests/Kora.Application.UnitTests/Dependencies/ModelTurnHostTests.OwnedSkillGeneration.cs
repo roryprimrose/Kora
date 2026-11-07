@@ -81,17 +81,19 @@ public sealed partial class ModelTurnHostTests
     [InlineData("oversize")]
     [InlineData("complete-input")]
     [InlineData("tools")]
-    [InlineData("v3")]
     [InlineData("v4")]
+    [InlineData("v5")]
     [InlineData("occupied-name")]
     [InlineData("occupied-target")]
     public async Task InitialSkillGenerationRejectsMissingOrUnsupportedInputBeforeModel(string invalid)
     {
-        await using var f = new SkillRefinementFixture(inputs: invalid is "v3");
+        await using var f = new SkillRefinementFixture();
         var draft = invalid is "tools"
             ? OwnedDeclarativeSkillDocument.Create("example", "2.0.0", "Example", "Description", "OLD", OwnedSkillToolSelection.WebPageGet)
             : invalid is "v4" ? OwnedDeclarativeSkillDocument.CreateObservationWorkflow("example", "2.0.0", "Example", "Description",
                 "{\"steps\":[{\"tool\":\"application.get_version\",\"input\":{}}]}")
+            : invalid is "v5" ? OwnedDeclarativeSkillDocument.CreatePackage("example", "2.0.0", "Example", "Description", "OLD",
+                new Dictionary<string, byte[]>(StringComparer.Ordinal) { ["references\\notes.md"] = "NOTES"u8.ToArray() })
             : f.Draft;
         if (invalid is "occupied-name") { f.Store.Catalogue = [new(f.Draft, "directory", "manifest", "guidance")]; }
         if (invalid is "occupied-target") { f.Store.Target = new(f.Draft, "directory", "manifest", "guidance"); }
@@ -103,6 +105,84 @@ public sealed partial class ModelTurnHostTests
             .Should().ThrowAsync<Exception>();
         f.Model.Model.Adapter.Calls.Should().Be(0);
         f.Store.Writes.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.ActivatedVoice)]
+    public async Task InitialV3GenerationFreezesExactDeclaredNamesAndSeparatelySavesDisabled(RequestOrigin origin)
+    {
+        await using var f = new SkillRefinementFixture(origin);
+        var draft = OwnedDeclarativeSkillDocument.Create("example", "2.0.0", "Example", "Description",
+            "${input:topic}\n${input:environment}\n${input:topic}", guidanceFormat: OwnedSkillGuidanceFormat.RequiredLiteralInputs);
+        const string body = "Explain ${input:topic} for ${input:environment}. Recheck ${input:topic}.";
+        f.Model.Answer(body);
+        var input = new OwnedSkillGenerationRequest("Explain a deployment", "Do not infer extra names from this prose",
+            "Reusable explanation", f.Authority);
+        var proposal = (await f.Service.ProposeInitial(draft, input, (candidate, _) =>
+        {
+            candidate.Proposed.ManifestBytes.ToArray().Should().Equal(draft.ManifestBytes.ToArray());
+            candidate.Proposed.InputTemplate!.RequiredNames.Should().Equal("topic", "environment");
+            candidate.Proposed.Guidance.Should().Be(body);
+            f.Store.Writes.Should().Be(0);
+            return Task.FromResult(true);
+        }, f.Eligible, Token))!;
+        using var wire = JsonDocument.Parse(f.Model.Model.Adapter.Wire!);
+        wire.RootElement.GetProperty("UserRequest").GetString().Should().Be(input.Purpose);
+        wire.RootElement.GetProperty("Tools").GetArrayLength().Should().Be(0);
+        using var evidence = JsonDocument.Parse(wire.RootElement.GetProperty("Evidence")[0].GetProperty("Content").GetString()!);
+        evidence.RootElement.GetProperty("requiredInputs").EnumerateArray().Select(name => name.GetString())
+            .Should().Equal("topic", "environment");
+        evidence.RootElement.GetProperty("input").GetString().Should().Be(input.Input);
+        evidence.RootElement.GetProperty("output").GetString().Should().Be(input.Output);
+        evidence.RootElement.EnumerateObject().Should().HaveCount(3);
+        f.Model.Model.RetainCalls.Should().Be(0);
+        var review = new SkillRefinementReview();
+        var saved = (await f.Service.Save(proposal, f.Authority, review, f.Eligible, Token))!;
+        saved.Document.ManifestBytes.ToArray().Should().Equal(draft.ManifestBytes.ToArray());
+        saved.Document.Guidance.Should().Be(body);
+        saved.Document.IsAvailableForInvocation.Should().BeFalse();
+        review.Calls.Should().Equal("review", "confirm");
+        f.Store.Writes.Should().Be(1);
+        f.Model.Model.PolicyHost.IsQuiescent.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("Missing ${input:topic}")]
+    [InlineData("Extra ${input:topic} ${input:environment} ${input:invented}")]
+    [InlineData("Reordered ${input:environment} ${input:topic}")]
+    [InlineData("Malformed ${input:topic=default} ${input:environment}")]
+    [InlineData("Unknown ${other:topic} ${input:environment}")]
+    [InlineData("Duplicate replaces second name ${input:topic} ${input:topic}")]
+    public async Task InitialV3GenerationRejectsChangedLiteralSchemaBeforeReviewOrPublication(string body)
+    {
+        await using var f = new SkillRefinementFixture();
+        var draft = OwnedDeclarativeSkillDocument.Create("example", "2.0.0", "Example", "Description",
+            "${input:topic} ${input:environment}", guidanceFormat: OwnedSkillGuidanceFormat.RequiredLiteralInputs);
+        f.Model.Answer(body);
+        var reviewed = false;
+        await f.Service.Invoking(service => service.ProposeInitial(draft, new("Purpose", "Input", "Output", f.Authority),
+            (_, _) => { reviewed = true; return Task.FromResult(true); }, f.Eligible, Token))
+            .Should().ThrowAsync<InvalidDataException>();
+        reviewed.Should().BeFalse();
+        f.Store.Writes.Should().Be(0);
+        f.Model.Model.RetainCalls.Should().Be(0);
+        f.Model.Model.PolicyHost.IsQuiescent.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task InitialV3UnqualifiedLocalRuntimeRefusesBeforeProviderWithoutFallbackOrSave()
+    {
+        await using var f = new SkillRefinementFixture(inputs: true);
+        f.Model.Model.Time.Now += TimeSpan.FromMinutes(6);
+        await f.Service.Invoking(service => service.ProposeInitial(f.Draft, new("Purpose", "Input", "Output", f.Authority),
+            (_, _) => throw new InvalidOperationException("No proposal review is permitted"), f.Eligible, Token))
+            .Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Local guidance refinement unavailable: Unavailable / ModelUnavailable. Draft and critique retained; nothing saved.");
+        f.Model.Model.Adapter.Calls.Should().Be(0);
+        f.Store.Writes.Should().Be(0);
+        f.Model.Model.RetainCalls.Should().Be(0);
+        f.Model.Model.PolicyHost.IsQuiescent.Should().BeTrue();
     }
 
     [Theory]
@@ -138,15 +218,24 @@ public sealed partial class ModelTurnHostTests
     [InlineData("destination")]
     [InlineData("original-authority")]
     [InlineData("refined-authority")]
+    [InlineData("v3-catalogue-added")]
+    [InlineData("v3-catalogue-replaced")]
+    [InlineData("v3-review-catalogue")]
+    [InlineData("v3-save-catalogue")]
+    [InlineData("v3-destination")]
+    [InlineData("v3-original-authority")]
+    [InlineData("v3-refined-authority")]
     public async Task InitialSkillGenerationBindsCatalogueDestinationAndOriginalRequestThroughRefinement(string change)
     {
-        await using var f = new SkillRefinementFixture();
+        var inputs = change.StartsWith("v3-", StringComparison.Ordinal);
+        if (inputs) { change = change["v3-".Length..]; }
+        await using var f = new SkillRefinementFixture(inputs: inputs);
         var other = new OwnedDeclarativeSkillSnapshot(
             OwnedDeclarativeSkillDocument.Create("other", "1.0.0", "Other", "Description", "OTHER"), "dir", "manifest", "body");
         f.Store.Catalogue = [other];
         void ChangeCatalogue() => f.Store.Catalogue = change is "catalogue-replaced"
             ? [other with { DirectoryIdentity = "replaced" }] : [];
-        f.Model.Answer("GENERATED");
+        f.Model.Answer(inputs ? "GENERATED ${input:topic}" : "GENERATED");
         if (change.StartsWith("catalogue-", StringComparison.Ordinal)) { f.Model.Model.Adapter.OnRun = ChangeCatalogue; }
         var generate = () => f.Service.ProposeInitial(f.Draft, new("Purpose", "Input", "Output", f.Authority),
             (_, _) => { if (change is "review-catalogue") { ChangeCatalogue(); } return Task.FromResult(true); }, f.Eligible, Token);
@@ -156,7 +245,7 @@ public sealed partial class ModelTurnHostTests
         {
             var proposal = (await generate())!;
             var revision = proposal.Proposed;
-            f.Model.Answer("REFINED");
+            f.Model.Answer(inputs ? "REFINED ${input:topic}" : "REFINED");
             var fresh = new OwnedSkillAuthoringAuthority(RequestOrigin.LocalUi, f.Eligible);
             if (change is "refined-authority") { f.Model.Model.Adapter.OnRun = f.Authority.Retire; }
             var refine = () => f.Service.Propose(revision, null, "Original critique", fresh,

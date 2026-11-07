@@ -56,10 +56,29 @@ public sealed partial class OwnedSkillAuthoringNativeTests
     [InlineData("initial-late-privacy")]
     [InlineData("initial-other-cancel")]
     [InlineData("initial-save-simulated")]
+    [InlineData("initial-v3-save-v3")]
+    [InlineData("initial-v3-reject")]
+    [InlineData("initial-v3-cancel-disclosure")]
+    [InlineData("initial-v3-cancel-publication")]
+    [InlineData("initial-v3-unavailable")]
+    [InlineData("initial-v3-draft-edit")]
+    [InlineData("initial-v3-critique-edit")]
+    [InlineData("initial-v3-cancel-after-validate")]
+    [InlineData("initial-v3-late-cancel")]
+    [InlineData("initial-v3-late-draft")]
+    [InlineData("initial-v3-late-critique")]
+    [InlineData("initial-v3-late-owner")]
+    [InlineData("initial-v3-late-privacy")]
+    [InlineData("initial-v3-late-declaration")]
+    [InlineData("initial-v3-late-format")]
+    [InlineData("initial-v3-late-input")]
+    [InlineData("initial-v3-late-output")]
     public async Task NativeOwnedGuidanceRefinementCompletesReviewedProposalThroughExistingPublication(string scenario)
     {
         var initialGeneration = scenario.StartsWith("initial-", StringComparison.Ordinal);
         if (initialGeneration) { scenario = scenario["initial-".Length..]; }
+        var initialV3 = initialGeneration && scenario.StartsWith("v3-", StringComparison.Ordinal);
+        if (initialV3) { scenario = scenario["v3-".Length..]; }
         await HeadlessSession.RunAsync(async () =>
         {
             var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
@@ -121,7 +140,8 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 await Run("owned skill description: Description");
             }
             var owned = editor!;
-            var inputs = scenario is "save-v3";
+            var inputs = initialV3 || scenario is "save-v3";
+            if (initialV3) { owned.Guidance.Text = "Original user declares ${input:topic}"; }
             if (inputs) { await Run("owned skill inputs required-literal"); }
             var initial = initialGeneration ? owned.Guidance.Text! : inputs ? "CURRENT ${input:topic}" : "  CURRENT e\u0301\U0001f642\r\nowned skill save  ";
             if (!initialGeneration) { owned.Guidance.Text = initial; }
@@ -144,6 +164,11 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             }
             var disclosure = await Review(generating);
             disclosure.Title.Should().Be(initialGeneration ? "Review initial skill generation disclosure" : "Review local skill refinement disclosure");
+            if (initialV3)
+            {
+                string.Join("\n", disclosure.GetLogicalDescendants().OfType<TextBlock>().Select(block => block.Text))
+                    .Should().Contain("native v3").And.Contain("FROZEN REQUIRED INPUT NAMES (FIRST-USE ORDER)\ntopic");
+            }
             if (scenario is "other-cancel")
             {
                 Choose(owned, "Cancel test");
@@ -163,6 +188,10 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                     case "late-critique": owned.Critique.Text += "MANUAL"; break;
                     case "late-owner": ownership++; break;
                     case "late-privacy": f.Main.CloseForObservedPrivacyEvent("Synthetic refinement closure", hidePresentation: true); break;
+                    case "late-declaration": owned.Guidance.Text = "Changed ${input:environment}"; break;
+                    case "late-format": owned.InputFormat.SelectedIndex = 0; break;
+                    case "late-input": owned.ExpectedInput.Text += "CHANGED"; break;
+                    case "late-output": owned.ExpectedOutput.Text += "CHANGED"; break;
                 }
                 generating.IsCompleted.Should().BeFalse("the actual provider is still owned");
                 models.IsQuiescent.Should().BeFalse();

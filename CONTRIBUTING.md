@@ -31,6 +31,29 @@ catalogue registration, immutable resources and package validation.
 These are contributor navigation guides; the linked design documents remain
 the authoritative policy sources.
 
+## Child-message delivery orchestration
+
+Select [Kora Coordinator](.github/agents/kora-coordinator.agent.md) and run
+[/kora-orchestrate](.github/prompts/kora-orchestrate.prompt.md) for repository-scoped
+delivery coordination. The [orchestration skill](.github/skills/kora-orchestrate/SKILL.md)
+separates planner/worker contracts and deterministic reservation decisions.
+Coordinator turns are finite; the workflow remains enabled between child events.
+No scheduled automation, blocking subagents, or perpetual polling is used.
+
+Read the [runtime evidence and deployment acceptance](.github/skills/kora-orchestrate/README.md)
+before claiming unattended operation. A non-writing nested coordinator fixture
+resumed from a child's queued terminal report and processed a synthetic feature
+reservation. Enclosing-main-chat idle resumption and effective worker reasoning
+settings remain unverified. Agent frontmatter requests profiles; it does not
+prove session-creation APIs selected them.
+Publication still requires explicit delivery authority and the account-safe PR skill.
+
+Run the focused dependency-free contract regressions:
+
+```powershell
+node --test .\.github\skills\kora-orchestrate\scripts\registry.test.cjs .\.github\skills\kora-orchestrate\scripts\checkpoint.test.cjs .\.github\skills\kora-orchestrate\scripts\worker-launch.test.cjs
+```
+
 ## Run a Debug build
 
 On Windows, install Git, PowerShell 7 and the SDK selected by

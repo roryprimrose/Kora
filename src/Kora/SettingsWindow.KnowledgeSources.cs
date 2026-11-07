@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Kora.Application.Configuration;
 using Kora.Application.Infrastructure;
 using Kora.Application.KnowledgeSources;
 using Kora.Core.Auditing;
@@ -36,11 +37,15 @@ public sealed partial class SettingsWindow
     private KnowledgeSourcesWindow OpenKnowledgeSources()
     {
         if (knowledgeSources is not null) { return knowledgeSources; }
-        var store = new WindowsKnowledgeSourceStore(App.Services.GetRequiredService<IApplicationDataPaths>());
+        var limitsPreferences = new LocalKnowledgeSourceCaptureLimitsPreferences(App.Services.GetRequiredService<IApplicationDataPaths>());
+        var store = new WindowsKnowledgeSourceStore(App.Services.GetRequiredService<IApplicationDataPaths>(), limitsPreferences);
         var manager = new KnowledgeSourceManager(App.Services.GetRequiredService<IKnowledgeSourceInspector>(),
-            store, App.Services.GetRequiredService<ISecurityAuditLog>(), TimeProvider.System);
+            store, App.Services.GetRequiredService<ISecurityAuditLog>(), TimeProvider.System, limitsPreferences);
+        var limits = new KnowledgeSourceCaptureLimitsConfigurationService(store, limitsPreferences,
+            App.Services.GetRequiredService<ISecurityAuditLog>(), TimeProvider.System,
+            App.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger<KnowledgeSourceCaptureLimitsConfigurationService>>());
         var workflow = ActivatorUtilities.CreateInstance<KnowledgeSourceAnswerWorkflow>(App.Services, manager);
-        var window = new KnowledgeSourcesWindow(model, manager, answers: workflow);
+        var window = new KnowledgeSourcesWindow(model, manager, answers: workflow, captureLimits: limits);
         knowledgeSources = window;
         window.Closed += (_, _) => knowledgeSources = null;
         window.Show(this);
@@ -49,4 +54,7 @@ public sealed partial class SettingsWindow
 
     internal Task OpenKnowledgeSourceAnswerAsync(KnowledgeSourceAnswerCommand command, Func<bool> eligible) =>
         OpenKnowledgeSources().OpenAnswerAsync(command, eligible);
+
+    internal Task OpenKnowledgeSourceCaptureLimitsAsync(KnowledgeSourceCaptureLimitsCommand command, Func<bool> eligible) =>
+        OpenKnowledgeSources().OpenCaptureLimitsAsync(command, eligible);
 }

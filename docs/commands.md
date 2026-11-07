@@ -23,6 +23,18 @@ model-dependent operation.
 Full identifiers are needed only where the exact command syntax asks for them;
 use native lists or readable-name routes elsewhere.
 
+## One source's next capture limits
+
+Use original private typed input or current-name activated voice:
+
+- `source capture limits get "Team notes"` reads saved desired limits and current captured limits without reading source contents.
+- `source capture limits lower "Team notes" 8 65536 262144` reviews **file count / original bytes per file / combined original bytes** for only the exact named source.
+- `source capture limits reset "Team notes"` reviews removal of that source's override.
+- `source capture limits confirm` confirms only the current exact two-minute review.
+- `source capture limits cancel` discards the review without writing.
+
+Names must resolve uniquely. All three numbers must be positive and at most **32 / 262144 / 1048576**. Confirmation saves, audits and reads back a numeric preference, not a source capture. Only the next separately reviewed native refresh consumes its immutable tuple and rejects the whole excess source without truncation. Pending/pinned captures, model permissions and other sources remain unchanged. Source selection, field changes, stale inventory/preferences or lost privacy retire confirmation. This is not a model `set` proposal, arbitrary filesystem authority or natural-language numeric guessing. See [source controls and recovery](knowledge-sources.md#lower-the-next-capture-limits-for-one-source).
+
 ## Ask once about this request's Details
 
 Use `ask this conversation with details offer <original message>` in the global command box, or prefix it with the current assistant name during deliberate push-to-talk.

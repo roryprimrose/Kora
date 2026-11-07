@@ -50,6 +50,7 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
         viewModel.VoiceRecoveryRequested += OnVoiceRecoveryRequested;
         viewModel.BindSettingsSectionNavigation(this);
         viewModel.KnowledgeSourceAnswerRequested += OnKnowledgeSourceAnswer;
+        viewModel.KnowledgeSourceCaptureLimitsRequested += OnKnowledgeSourceCaptureLimits;
     }
 
     public void Dispose()
@@ -62,6 +63,7 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
         disposed = true;
         viewModel.BindSettingsSectionNavigation(null);
         viewModel.KnowledgeSourceAnswerRequested -= OnKnowledgeSourceAnswer;
+        viewModel.KnowledgeSourceCaptureLimitsRequested -= OnKnowledgeSourceCaptureLimits;
         BindNativeLifetime(false);
         DesktopLog.Debug(logger, "Disposing the settings window controller");
         viewModel.SettingsRequested -= OnSettingsRequested;
@@ -88,6 +90,9 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
 
     private Task OnKnowledgeSourceAnswer(Kora.Application.KnowledgeSources.KnowledgeSourceAnswerCommand command,
         Func<bool> eligible) => OpenWindow(eligible).OpenKnowledgeSourceAnswerAsync(command, eligible);
+
+    private Task OnKnowledgeSourceCaptureLimits(Kora.Application.Configuration.KnowledgeSourceCaptureLimitsCommand command,
+        Func<bool> eligible) => OpenWindow(eligible).OpenKnowledgeSourceCaptureLimitsAsync(command, eligible);
 
     public Func<bool> CaptureLifetime()
     {

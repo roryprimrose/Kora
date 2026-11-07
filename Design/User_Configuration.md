@@ -1844,13 +1844,17 @@ Unknown audit/save/readback outcomes retain the existing destination-only durabl
 | Knowledge source registration | None by default; explicit reviewed file/folder and session/managed scope | "Add my Team TSGs folder as a knowledge source" |
 | Knowledge source refresh | Manual initially; later bounded scheduled refresh only after R26 background-work gates | "Refresh Team TSGs" |
 | Knowledge retrieval strategy | Lexical initially; verified hybrid/vector retrieval optional later | "Use lexical retrieval for Team TSGs" |
-| Knowledge source limits | Host defaults within verified file/source/context maxima; user may lower them | "Limit knowledge files to one megabyte" |
+| Knowledge source limits | Delivered original-user exact-source count/per-file/aggregate lowering within 32 files/256 KiB each/1 MiB total, consumed only by next separately reviewed refresh; generic model proposals remain unavailable | `source capture limits lower "Team TSGs" 8 65536 262144` |
 | Knowledge citation detail | Source plus heading/page/line location | "Show detailed knowledge citations" |
 | Diagnostic database retention | Delivered canonical integer 1–365; default/reset 30; only future ordinary SQLite commits, existing deadlines unchanged; apply-now unavailable; daily JSON stays 30 files/30 days | `set logging.sqlite-diagnostic-retention-days to 14` |
 | Audit retention | Delivered canonical integer 30–365; default/reset 90; only NEW required authority audit and independently qualified diagnostic audit projections; old deadlines unchanged; apply-now/pruning unavailable | `set logging.audit-retention-days to 180` |
 | Diagnostic verbosity | Content-minimising normal; bounded metadata-only detail | "Use detailed diagnostics for this session" |
 
 Paths can be spoken or taken from explicitly selected clipboard text, then resolved/read back and validated.
+
+**Delivered exact-source capture limits - 2026-11-08.** Native management and exact original typed/current-name activated commands get/review/lower/reset/confirm/cancel one registered source's three positive numeric limits through the same two-minute source/version/preference/admission-bound review. The [source-specific owner](../src/Kora.Application/Configuration/KnowledgeSourceCaptureLimitsConfigurationService.cs) persists only its stable Guid/numeric tuple through the [shared atomic preference store](../src/Kora.Application/Configuration/LocalKnowledgeSourceCaptureLimitsPreferences.cs), with requested/terminal audit, readback and an unconfirmed-write fence. It is not a shared device-local RegisteredSetting or model-proposal authority.
+
+Saving does not refresh or rewrite a pending/pinned revision. The next separately reviewed refresh captures one immutable desired tuple; native discovery and complete metadata enforce inclusive count/per-file/aggregate bounds with whole-source refusal. Inspection/answer use validates against the captured tuple, not a later desired preference. New registry version3/snapshot version4 retain it alongside the unchanged lexical index; known legacy formats use their historical hard maxima and malformed new state fails explicitly. Removal retains a revoked Removing row until exact-Guid numeric cleanup succeeds, including reopened retry; other sources and session history remain independent. [Controls, grammar and recovery](../docs/knowledge-sources.md#lower-the-next-capture-limits-for-one-source).
 Do not require typing a path, but do not infer one from unrelated context.
 Long, ambiguous or low-confidence knowledge paths fall back to the native
 picker rather than being guessed. Adding a knowledge source, using its excerpts

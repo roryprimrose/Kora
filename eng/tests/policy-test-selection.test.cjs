@@ -4,7 +4,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { spawnSync } = require('node:child_process');
-const { discoverPolicyTests, runPolicyTests, QUEUE_MODULES, SELECTOR_MODULE, CAMPAIGN_MODULE } =
+const { discoverPolicyTests, runPolicyTests, QUEUE_MODULES, SELECTOR_MODULE, CAMPAIGN_MODULE,
+  ORCHESTRATION_DIRECTORY, ORCHESTRATION_MODULES } =
   require('../run-policy-tests.cjs');
 
 const root = path.resolve(__dirname, '..', '..');
@@ -13,10 +14,13 @@ const campaignDirectory = path.join('eng', 'pr-campaign');
 const queueFiles = QUEUE_MODULES.map(name => path.join(queueDirectory, name));
 const mandatoryFiles = [...queueFiles, SELECTOR_MODULE];
 
-function fakeFileSystem({ campaign = [], omit = [], directory = false, fault } = {}) {
-  const files = new Set([...mandatoryFiles, ...campaign].filter(name => !omit.includes(name)));
+function fakeFileSystem({ campaign = [], orchestration = [], omit = [], directory = false,
+  orchestrationDirectory = false, fault } = {}) {
+  const files = new Set([...mandatoryFiles, ...campaign, ...orchestration].filter(name => !omit.includes(name)));
   const directories = new Set([queueDirectory, path.dirname(SELECTOR_MODULE)]);
   if (directory || campaign.length) directories.add(campaignDirectory);
+  if (orchestrationDirectory || orchestration.length) directories.add(ORCHESTRATION_DIRECTORY);
+  if (orchestration.length) directories.add(path.join(ORCHESTRATION_DIRECTORY, 'scripts'));
   return {
     statSync(name) {
       const relative = path.relative(root, name);
@@ -40,6 +44,7 @@ test('entirely absent campaign is explicitly NOT_INSTALLED, never a campaign pas
     write: message => output.push(message),
   });
   assert.equal(result.campaign, 'NOT_INSTALLED');
+  assert.equal(result.orchestration, 'NOT_INSTALLED');
   assert.deepEqual(result.files, [...queueFiles].sort().concat(SELECTOR_MODULE));
   assert.ok(output.some(line => line.includes('NOT_INSTALLED') && line.includes('not a campaign test pass')));
   assert.ok(!result.files.includes(CAMPAIGN_MODULE));
@@ -47,6 +52,32 @@ test('entirely absent campaign is explicitly NOT_INSTALLED, never a campaign pas
   assert.equal(calls[0][0], process.execPath);
   assert.deepEqual(calls[0][1], ['--test', ...result.files]);
   assert.deepEqual(calls[0][2], { cwd: root, stdio: 'inherit' });
+});
+
+test('installed orchestration discovers every required and additional fixture', () => {
+  const extra = path.join(ORCHESTRATION_DIRECTORY, 'scripts', 'future.test.cjs');
+  const selection = discoverPolicyTests(root, fakeFileSystem({
+    orchestration: [...ORCHESTRATION_MODULES, extra]
+  }));
+  assert.equal(selection.orchestration, 'INSTALLED');
+  assert.deepEqual(selection.files, [...queueFiles].sort().concat(SELECTOR_MODULE,
+    [...ORCHESTRATION_MODULES, extra].sort()));
+});
+
+test('partially installed orchestration cannot pass a subset', () => {
+  for (const missing of ORCHESTRATION_MODULES) {
+    assert.throws(() => runPolicyTests(root, {
+      fileSystem: fakeFileSystem({ orchestration: ORCHESTRATION_MODULES, omit: [missing] }),
+      execute: () => assert.fail('Missing orchestration module must stop execution.')
+    }), /Required policy test module/);
+  }
+  assert.throws(() => discoverPolicyTests(root, fakeFileSystem({ orchestrationDirectory: true })),
+    /Required policy test module/);
+});
+
+test('unknown orchestration installation state is not reinterpreted as absent', () => {
+  assert.throws(() => discoverPolicyTests(root, fakeFileSystem({ fault: ORCHESTRATION_DIRECTORY })),
+    /Fixture access denied/);
 });
 
 for (const marker of ['', 'campaign.cjs', 'github.cjs', 'cli.cjs', 'receipt.schema.json', 'receipt.example.json']) {

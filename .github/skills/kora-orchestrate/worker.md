@@ -59,6 +59,25 @@ publication, blockers or actual cleanup. A merged PR with a deleted remote
 branch uses original publication and locally preserved commits, never invented
 current remote equality or successful cleanup. New repair needs fresh allocation.
 
+## Mutable-owner extension acknowledgment
+
+An attached running nonretired worker may request a bounded
+[active scope extension](./README.md#active-mutable-owner-scope-extension).
+Keep added writes withheld. Report exact owner/key/admitted identity/current
+scope revision, all original scopes, exact additions/full union and complete
+actual/planned/committed/retained/unpreserved writes (including restored files).
+Temporarily pause source work and reconcile queued/processing broad instructions
+with the coordinator before returning a fresh whole-proof acknowledgment.
+Unknown pending counts or exclusivity are blockers, not default success.
+
+Bind the final union/preservation/quiescence/exclusive snapshot/revision to the
+fresh owner acknowledgment digest. Freeze writes outside the union; this is
+temporary pause, not permanent retirement. Wait for separately issued exact
+coordinator continuation **after** accepted durable coverage before writing
+additions. Preserve old files, permissions, outcome, PR, blockers and cleanup.
+Do not package a superset as `refine-scopes`, resume a retired writer, or infer
+runtime/effect authority from a successful deterministic amendment.
+
 ## Cleanup before terminal completion
 
 1. Verify publication/remote-head evidence and retain receipts in the supplied

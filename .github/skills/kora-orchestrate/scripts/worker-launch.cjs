@@ -64,6 +64,7 @@ function workerLaunch(state, action, settings) {
       'Run required focused validation, account-safe commit/push, actual remote/PR/enrollment verification, then stop implementation and clean up only the owned worktree/local branch with full evidence.',
       'Report host-owned worktree cleanup restrictions as CLEANUP_BLOCKED and preserve work; do not force-remove dirty or locked worktrees or delete remote branches.',
       'Do not create workers, expand scope, invent product approval, publish the control branch, wait for unrelated proofs or refill slots. No automation, timers, polling or protection/authentication bypass.',
+      'Additional source paths require an accepted current-revision extend-scopes transaction and separate coordinator continuation. Temporary pause/whole-union acknowledgment does not permanently retire a mutable owner or itself restart source writes; refine-scopes never authorizes expansion or retirement reversal.',
       'End this assigned task after explicit publication and cleanup report or a concrete blocker. No routine continuation questions; unknown authority fails closed.'
     ].join('\n')
   };

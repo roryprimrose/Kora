@@ -22,6 +22,12 @@ function validateCheckpoint(value) {
     refinements.every(event => index.some(record => record.eventId === event.id)) &&
     new Set(refinements.map(event => event.id)).size === refinements.length,
   'Checkpoint refinement event/schema binding is inconsistent.');
+  const amendments = value.events.filter(event => event.type === 'extend-scopes');
+  const amendmentIndex = value.state.amendments ?? [];
+  requireValue(amendments.length === amendmentIndex.length &&
+    amendments.every(event => amendmentIndex.some(record => record.eventId === event.id)) &&
+    new Set(amendments.map(event => event.id)).size === amendments.length,
+  'Checkpoint mutable amendment event/schema binding is inconsistent.');
 }
 
 function checkpoint(file, input, io = fs) {

@@ -111,6 +111,7 @@ a second child.
 | `published` | Worker `owner/key`; coordinator-verified `proof`: matching `pushedHead/remoteHead`, `pr`; ready also `ready=true`, `enrolled=true`. |
 | `blocked` | Worker `owner/key`, explicit `reason`; retain slot and scope. |
 | `refine-scopes` | Attached stopped running/published `owner/key`, `expectedScopeRevision`, complete versioned `proof` and fresh exact-owner `acknowledgment`; shrink only, retain ownership and cleanup. See [exact input and sequencing](./README.md#shrink-only-reservation-protocol). |
+| `extend-scopes` | Attached running nonretired `owner/key`, current `expectedScopeRevision`, complete actual/planned/preservation, temporary pause, exact additional union/exclusivity `proof` and fresh whole-proof `acknowledgment`. Coverage only; continuation is separate. See [mutable input and migration](./README.md#active-mutable-owner-scope-extension). |
 | `completed` | Published worker `owner/key`; verified cleanup `proof`: matching `remoteHead`, `stoppedWriting`, `worktreeAbsent`, `branchAbsent`, `pendingInstructions=0`. |
 | `pass-ended` | Planner `owner`, assigned `pass`, `readyExamined=true`, `repairExamined=true`, boolean `remaining`; optional shortage receipt. |
 | `refresh` | Verified current `head`; invalidate stale undispatched candidates and coalesce discovery. |
@@ -131,6 +132,11 @@ insert them into the dispatchable backlog until their blockers are resolved.
 Canonical scopes are repository-relative Windows paths, with no globs or `..`.
 Name directories when exact file scope is not yet known; broad scopes deliberately
 exclude conflicting work. Scope expansion requires reconciliation before writes.
+For a mutable running owner, use `extend-scopes` only after fresh complete
+temporary-pause/current-union/exclusivity/owner proof. Preserve all original
+scopes and blockers, persist the accepted grant, then issue continuation
+separately. Neither a proposed union nor acknowledgment alone authorizes writes.
+This does not replace product/effect authority or qualify runtime.
 After accepted refinement the original owner's source writes are permanently
 retired, including inside its retained scopes. Refinement is not reconciliation
 for expansion or permission to restart. It preserves slots, PRs, publication,

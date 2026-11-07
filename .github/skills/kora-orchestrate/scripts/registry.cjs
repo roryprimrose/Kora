@@ -24,6 +24,7 @@ function overlaps(left, right) {
 }
 
 const REFINEMENT_MARKER = 'scope-refinement:v1:';
+const AMENDMENT_MARKER = 'scope-amendment:v1:';
 const equal = (left, right) => JSON.stringify(left) === JSON.stringify(right);
 const covers = (scopes, value) => scopes.some(s => value === s || value.startsWith(`${s}\\`));
 
@@ -71,6 +72,19 @@ function validateRefinement(record, item, previous) {
   requireValue(p.toScopes.every(value => covers(p.fromScopes, value)) &&
     !p.fromScopes.every(value => covers(p.toScopes, value)),
   'Refinement must be a nonempty proper coverage subset.');
+  validateManifest(p);
+  if (previous) {
+    requireValue(equal(p.fromScopes, previous.proof.toScopes) &&
+      (previous.proof.phase !== 'published' || p.phase === 'published') &&
+      [...previous.proof.manifest.actual, ...previous.proof.manifest.planned]
+        .every(value => [...p.manifest.actual, ...p.manifest.planned].includes(value)) &&
+      previous.proof.manifest.actual.every(value => p.manifest.actual.includes(value)),
+    'Refinement history loses scopes or written/planned paths.');
+  }
+  validateAcknowledgment(a, p);
+}
+
+function validateManifest(p) {
   fields(p.manifest, 'complete actual planned');
   requireValue(p.manifest.complete === true, 'Complete actual/planned write manifest required.');
   canonicalPaths(p.manifest.actual);
@@ -103,17 +117,72 @@ function validateRefinement(record, item, previous) {
     p.manifest.actual.every(value => actual.has(value)), 'Preservation and actual writes disagree.');
   requireValue([...p.manifest.actual, ...p.manifest.planned]
     .every(value => covers(p.toScopes, value)), 'Refinement leaves uncovered writes.');
-  if (previous) {
-    requireValue(equal(p.fromScopes, previous.proof.toScopes) &&
-      (previous.proof.phase !== 'published' || p.phase === 'published') &&
-      [...previous.proof.manifest.actual, ...previous.proof.manifest.planned]
-        .every(value => [...p.manifest.actual, ...p.manifest.planned].includes(value)) &&
-      previous.proof.manifest.actual.every(value => p.manifest.actual.includes(value)),
-    'Refinement history loses scopes or written/planned paths.');
-  }
+}
+
+function validateAcknowledgment(a, p) {
   requireValue(text(a.id) && text(a.receipt) && a.owner === p.owner && a.key === p.key &&
     a.scopeRevision === p.scopeRevision && a.proofDigest === digest(p),
   'Fresh exact-owner acknowledgment must bind the complete proof.');
+}
+
+function heldReservations(state, key) {
+  return state.items.filter(item => item.key !== key && holdsSlot(item))
+    .map(item => ({ key: item.key, owner: item.owner, scopes: [...item.scopes],
+      scopeRevision: item.scopeRevision ?? 0, sourceWritesRetired: item.sourceWritesRetired ?? false }))
+    .sort((a, b) => a.key.localeCompare(b.key));
+}
+
+function validateAmendment(record, item, previous) {
+  fields(record, 'eventId proof acknowledgment');
+  const p = record.proof;
+  const a = record.acknowledgment;
+  fields(p, 'version owner key reservation scopeRevision fromScopes additionalScopes toScopes phase sourceWritesRetired manifest preservation quiescence unionFrozen exclusivity receipt');
+  fields(a, 'id receipt owner key scopeRevision proofDigest');
+  fields(p.reservation, 'outcome kind pool head pr');
+  requireValue(text(record.eventId) && p.version === 1 && p.owner === item.owner &&
+    p.key === item.key && p.phase === 'running' && p.sourceWritesRetired === false &&
+    Number.isSafeInteger(p.scopeRevision) && p.scopeRevision >= 0 &&
+    ['outcome', 'kind', 'pool', 'head'].every(key => p.reservation[key] === item[key]) &&
+    (p.reservation.pr === item.pr || p.reservation.pr === null) && text(p.receipt),
+  'Exact mutable running owner/reservation proof required.');
+  canonicalPaths(p.fromScopes, true);
+  canonicalPaths(p.additionalScopes, true);
+  canonicalPaths(p.toScopes, true);
+  requireValue(equal(p.toScopes, [...p.fromScopes, ...p.additionalScopes]) &&
+    p.additionalScopes.every((value, index) => !overlaps([value],
+      [...p.fromScopes, ...p.additionalScopes.slice(0, index)])),
+  'Extension needs exact nonempty disjoint additions and complete original scope union.');
+  fields(p.quiescence, 'paused pendingInstructions receipt');
+  requireValue(p.quiescence.paused === true && p.quiescence.pendingInstructions === 0 &&
+    text(p.quiescence.receipt) && p.unionFrozen === true,
+  'Temporary source pause, pending-zero and frozen union proof required.');
+  fields(p.exclusivity, 'complete reservations receipt');
+  requireValue(p.exclusivity.complete === true && text(p.exclusivity.receipt) &&
+    Array.isArray(p.exclusivity.reservations), 'Complete exclusive ownership proof required.');
+  const keys = new Set([item.key]);
+  for (const reservation of p.exclusivity.reservations) {
+    fields(reservation, 'key owner scopes scopeRevision sourceWritesRetired');
+    requireValue(text(reservation.key) && !keys.has(reservation.key) &&
+      (reservation.owner === null || text(reservation.owner)) &&
+      Number.isSafeInteger(reservation.scopeRevision) && reservation.scopeRevision >= 0 &&
+      typeof reservation.sourceWritesRetired === 'boolean', 'Malformed exclusive reservation.');
+    keys.add(reservation.key);
+    canonicalPaths(reservation.scopes, true);
+    requireValue(!overlaps(p.toScopes, reservation.scopes), 'Extension conflicts with held owner scopes.');
+  }
+  validateManifest(p);
+  requireValue(p.manifest.actual.every(value => covers(p.fromScopes, value)),
+    'Actual writes outside original authority cannot be legalized by extension.');
+  requireValue(p.additionalScopes.every(value => p.manifest.planned.some(planned => covers([value], planned))),
+    'Each additional scope needs an explicit planned write.');
+  if (previous) {
+    requireValue(equal(p.fromScopes, previous.proof.toScopes) &&
+      previous.proof.manifest.actual.every(value => p.manifest.actual.includes(value)) &&
+      [...previous.proof.manifest.actual, ...previous.proof.manifest.planned].every(value =>
+        [...p.manifest.actual, ...p.manifest.planned].includes(value)),
+    'Amendment history loses original scopes or write manifest.');
+  }
+  validateAcknowledgment(a, p);
 }
 
 function validateRefinements(state) {
@@ -128,13 +197,15 @@ function validateRefinements(state) {
   const records = [];
   const acknowledgments = new Set();
   for (const item of state.items) {
+    const amendments = state.version === 3 ? item.scopeAmendments : [];
+    requireValue(Array.isArray(amendments), 'Mutable amendment history missing.');
     requireValue(Number.isSafeInteger(item.scopeRevision) && item.scopeRevision >= 0 &&
-      Array.isArray(item.scopeHistory) && item.scopeRevision === item.scopeHistory.length &&
-      item.sourceWritesRetired === (item.scopeRevision > 0), 'Refinement history/retirement missing.');
-    let previous = null;
+      Array.isArray(item.scopeHistory) && item.scopeRevision === item.scopeHistory.length + amendments.length &&
+      item.sourceWritesRetired === (item.scopeHistory.length > 0), 'Refinement history/retirement missing.');
+    let previous = amendments.at(-1) ?? null;
     for (const [revision, record] of item.scopeHistory.entries()) {
       validateRefinement(record, item, previous);
-      requireValue(record.proof.scopeRevision === revision &&
+      requireValue(record.proof.scopeRevision === revision + amendments.length &&
         state.seen.includes(record.eventId) && !acknowledgments.has(record.acknowledgment.id),
       'Refinement revision, event or acknowledgment replay mismatch.');
       acknowledgments.add(record.acknowledgment.id);
@@ -151,8 +222,41 @@ function validateRefinements(state) {
   'Refinement index/history/event binding missing or inconsistent.');
 }
 
+function validateAmendments(state) {
+  const markers = state.seen.filter(id => id.startsWith(AMENDMENT_MARKER));
+  if (state.version !== 3) {
+    requireValue(!Object.hasOwn(state, 'amendments') && markers.length === 0 &&
+      state.items.every(item => !Object.hasOwn(item, 'scopeAmendments')),
+    'Mutable amendment schema downgrade or omission.');
+    return;
+  }
+  requireValue(Array.isArray(state.amendments), 'Mutable amendment index missing.');
+  const records = [];
+  const acknowledgments = new Set(state.items.flatMap(item =>
+    item.scopeHistory.map(record => record.acknowledgment.id)));
+  for (const item of state.items) {
+    requireValue(Array.isArray(item.scopeAmendments), 'Mutable amendment history missing.');
+    let previous = null;
+    for (const [revision, record] of item.scopeAmendments.entries()) {
+      validateAmendment(record, item, previous);
+      requireValue(record.proof.scopeRevision === revision && state.seen.includes(record.eventId) &&
+        !acknowledgments.has(record.acknowledgment.id), 'Mutable amendment revision/event/ack replay mismatch.');
+      acknowledgments.add(record.acknowledgment.id);
+      records.push({ key: item.key, eventId: record.eventId, digest: digest(record) });
+      previous = record;
+    }
+    requireValue(!previous || item.scopeHistory.length > 0 || equal(item.scopes, previous.proof.toScopes),
+      'Current scopes disagree with mutable amendment history.');
+  }
+  requireValue(new Set(records.map(record => record.eventId)).size === records.length &&
+    equal([...records].sort((a, b) => a.eventId.localeCompare(b.eventId)),
+      [...state.amendments].sort((a, b) => a.eventId.localeCompare(b.eventId))) &&
+    equal(markers.slice().sort(), records.map(record => `${AMENDMENT_MARKER}${record.digest}`).sort()),
+  'Mutable amendment index/history/event binding missing or inconsistent.');
+}
+
 function validate(state) {
-  requireValue([1, 2].includes(state?.version) && typeof state.enabled === 'boolean' &&
+  requireValue([1, 2, 3].includes(state?.version) && typeof state.enabled === 'boolean' &&
     ['observe', 'delivery'].includes(state.mode) &&
     text(state.coordinator) && (state.head === null || head(state.head)) && Array.isArray(state.items) &&
     Array.isArray(state.seen), 'Malformed registry.');
@@ -218,6 +322,7 @@ function validate(state) {
   requireValue(new Set(represented.map(item => item.pr)).size === represented.length,
     'PR already represented by an unfinished assignment.');
   validateRefinements(state);
+  validateAmendments(state);
 }
 
 function createState(coordinator, sourceHead, mode = 'observe') {
@@ -276,7 +381,8 @@ function dispatch(state, actions) {
 function applyEvent(current, event) {
   validate(current);
   requireValue(event && text(event.id) && text(event.type), 'Event identity/type missing.');
-  requireValue(!event.id.startsWith(REFINEMENT_MARKER), 'Reserved refinement event identity.');
+  requireValue(![REFINEMENT_MARKER, AMENDMENT_MARKER].some(prefix => event.id.startsWith(prefix)),
+    'Reserved scope event identity.');
   const state = structuredClone(current);
   if (state.seen.includes(event.id)) return { state, actions: [], duplicate: true };
   const actions = [];
@@ -354,8 +460,8 @@ function applyEvent(current, event) {
       'Stale scope revision, phase or current scope binding.');
       const record = { eventId: event.id, proof: structuredClone(event.proof),
         acknowledgment: structuredClone(event.acknowledgment) };
-      validateRefinement(record, item, item.scopeHistory?.at(-1));
-      requireValue(!state.items.some(other => other.scopeHistory?.some(old =>
+      validateRefinement(record, item, item.scopeHistory?.at(-1) ?? item.scopeAmendments?.at(-1));
+      requireValue(!state.items.some(other => [...(other.scopeHistory ?? []), ...(other.scopeAmendments ?? [])].some(old =>
         old.acknowledgment.id === record.acknowledgment.id)), 'Acknowledgment replay.');
       if (state.version === 1) {
         state.version = 2;
@@ -374,6 +480,45 @@ function applyEvent(current, event) {
       state.refinements.push({ key: item.key, eventId: event.id, digest: hash });
       state.seen.push(`${REFINEMENT_MARKER}${hash}`);
       state.planner.requested = true;
+      break;
+    }
+    case 'extend-scopes': {
+      requireValue(state.enabled && state.mode === 'delivery', 'Scope extension requires enabled delivery.');
+      const item = worker();
+      requireValue(item.phase === 'running' && (item.sourceWritesRetired ?? false) === false,
+        'Scope extension requires an attached running nonretired owner.');
+      fields(event, 'id type key owner expectedScopeRevision proof acknowledgment');
+      requireValue(event.expectedScopeRevision === (item.scopeRevision ?? 0) &&
+        event.proof?.scopeRevision === event.expectedScopeRevision &&
+        equal(event.proof?.fromScopes, item.scopes) &&
+        event.proof?.reservation?.pr === item.pr,
+      'Stale mutable scope revision or current reservation binding.');
+      const record = { eventId: event.id, proof: structuredClone(event.proof),
+        acknowledgment: structuredClone(event.acknowledgment) };
+      validateAmendment(record, item, item.scopeAmendments?.at(-1));
+      requireValue(equal(record.proof.exclusivity.reservations, heldReservations(state, item.key)),
+        'Stale or incomplete held-owner exclusivity snapshot.');
+      requireValue(!state.items.some(other => [...(other.scopeHistory ?? []), ...(other.scopeAmendments ?? [])]
+        .some(old => old.acknowledgment.id === record.acknowledgment.id)), 'Acknowledgment replay.');
+      if (state.version === 1) {
+        state.refinements = [];
+        for (const other of state.items) {
+          other.scopeRevision = 0;
+          other.scopeHistory = [];
+          other.sourceWritesRetired = false;
+        }
+      }
+      if (state.version !== 3) {
+        state.version = 3;
+        state.amendments = [];
+        for (const other of state.items) other.scopeAmendments = [];
+      }
+      item.scopeAmendments.push(record);
+      item.scopeRevision++;
+      item.scopes = structuredClone(record.proof.toScopes);
+      const hash = digest(record);
+      state.amendments.push({ key: item.key, eventId: event.id, digest: hash });
+      state.seen.push(`${AMENDMENT_MARKER}${hash}`);
       break;
     }
     case 'completed': {
@@ -447,13 +592,14 @@ function applyEvent(current, event) {
       throw new Error(`Unknown event type: ${event.type}`);
   }
   state.seen.push(event.id);
-  if (state.version === 2) {
+  if (state.version >= 2) {
     for (const item of state.items) {
       if (!Object.hasOwn(item, 'scopeRevision')) {
         item.scopeRevision = 0;
         item.scopeHistory = [];
         item.sourceWritesRetired = false;
       }
+      if (state.version === 3 && !Object.hasOwn(item, 'scopeAmendments')) item.scopeAmendments = [];
     }
   }
   validate(state);
@@ -462,7 +608,8 @@ function applyEvent(current, event) {
   return { state, actions, duplicate: false };
 }
 
-module.exports = { createState, applyEvent, validate, digest, LIMITS };
+module.exports = { createState, applyEvent, validate, digest, scope, canonicalPaths, overlaps,
+  heldReservations, LIMITS };
 
 if (require.main === module) {
   try {

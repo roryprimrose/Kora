@@ -372,6 +372,141 @@ public sealed class KnowledgeSourceAnswerTests
             DateTimeOffset observedAt, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
+    [Theory]
+    [InlineData("valid")]
+    [InlineData("cloned-request")]
+    [InlineData("cloned-source")]
+    [InlineData("generation")]
+    [InlineData("fresh-target")]
+    [InlineData("null-target")]
+    [InlineData("expired")]
+    public void RetainedBindingRequiresExactHostRequestOriginalSourceAndReviewedGeneration(string defect)
+    {
+        var f = new Fixture();
+        var review = f.Review();
+        var request = HostRequest.Create(RequestOrigin.LocalUi);
+        var target = LocalContextSessionTarget.Existing(
+            defect is "cloned-source" ? review.Target.SourceRequest with { } : review.Target.SourceRequest, request, new(7));
+        if (defect is "fresh-target") { target = LocalContextSessionTarget.ReviewedFresh(review.Target.SourceRequest, request); }
+        var create = () => new KnowledgeSourceAnswerContext(review, defect is "null-target" ? null! : target,
+            defect is "cloned-request" ? request with { } : request,
+            defect is "generation" ? new(8) : new(7),
+            defect is "expired" ? review.ExpiresAt : DateTimeOffset.UnixEpoch);
+        if (defect is "null-target") { create.Should().Throw<ArgumentNullException>(); }
+        else if (defect is not "valid") { create.Should().Throw<InvalidDataException>(); }
+        else
+        {
+            var context = create();
+            context.Envelope.Request.Should().BeSameAs(request);
+            context.Envelope.Evidence.Should().OnlyContain(item => ReferenceEquals(item.Request, request) && item.Revision.Value == 7);
+            context.Resolve(Success(context) with
+            {
+                Provenance = new(new(Guid.NewGuid()), request with { }, ModelProviderSelection.OllamaCandidate),
+            }).Outcome.Should().Be(LocalFileAnswerOutcome.InvalidResponse);
+        }
+    }
+
+    [Theory]
+    [InlineData("supported")]
+    [InlineData("unsupported")]
+    [InlineData("invalid")]
+    [InlineData("over-limit")]
+    [InlineData("cancelled")]
+    [InlineData("revoked")]
+    public void RetainedProjectionPreservesHostProvenanceAndOnlyValidatedClaimsAndExactCitations(string defect)
+    {
+        var f = new Fixture();
+        var review = f.Review();
+        var request = HostRequest.Create(RequestOrigin.LocalUi);
+        var context = new KnowledgeSourceAnswerContext(review,
+            LocalContextSessionTarget.Existing(review.Target.SourceRequest, request, new(1)), request, new(1), DateTimeOffset.UnixEpoch);
+        var model = Success(context);
+        if (defect is "unsupported") { model = model with { Response = new("{\"unsupported\":true,\"claims\":[]}", null) }; }
+        if (defect is "invalid") { model = model with { Response = new("not JSON", null) }; }
+        if (defect is "over-limit")
+        {
+            model = model with { Response = new(JsonSerializer.Serialize(new
+            {
+                unsupported = false,
+                claims = new[] { new { text = new string('x', 32000), evidenceIds = context.Envelope.Evidence.Select(item => item.Id.Value) } },
+            }), null) };
+        }
+        if (defect is "cancelled") { model = new(ModelTurnOutcome.Cancelled, ModelTurnReason.CallerCancelled); }
+        if (defect is "revoked") { review.Revoke(); }
+        var projected = context.ResolveRetained(model);
+        projected.Result.Provenance.Should().BeSameAs(model.Provenance);
+        if (defect is "supported" or "unsupported")
+        {
+            projected.Result.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+            projected.Answer.Outcome.Should().Be(defect is "supported" ? LocalFileAnswerOutcome.Succeeded : LocalFileAnswerOutcome.Unsupported);
+            if (defect is "supported")
+            {
+                foreach (var citation in review.Search.Citations)
+                { projected.Result.Response!.Answer.Should().Contain(review.DescribeCitation(citation)).And.Contain(citation.Source.Digest); }
+            }
+            else { projected.Result.Response!.Answer.Should().Be("The selected evidence does not support an answer."); }
+        }
+        else
+        {
+            projected.Result.Outcome.Should().Be(defect is "cancelled" ? ModelTurnOutcome.Cancelled : ModelTurnOutcome.Unknown);
+            projected.Result.Response.Should().BeNull();
+            projected.Answer.Claims.Should().BeEmpty();
+        }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void RetainedProjectionEnforcesExactSerializedOutputBoundaryWithoutDroppingCitations(int excess)
+    {
+        var f = new Fixture(1);
+        var review = f.Review();
+        var request = HostRequest.Create(RequestOrigin.LocalUi);
+        var context = new KnowledgeSourceAnswerContext(review,
+            LocalContextSessionTarget.Existing(review.Target.SourceRequest, request, new(1)), request, new(1), DateTimeOffset.UnixEpoch);
+        var original = Success(context);
+        var baseline = context.ResolveRetained(original);
+        var baselineBytes = JsonSerializer.SerializeToUtf8Bytes(baseline.Result.Response).Length;
+        var text = new string('x', "synthetic".Length + ModelContextEnvelope.MaximumOutputUtf8Bytes - baselineBytes + excess);
+        var result = original with { Response = new(JsonSerializer.Serialize(new
+        {
+            unsupported = false,
+            claims = new[] { new { text, evidenceIds = context.Envelope.Evidence.Select(item => item.Id.Value) } },
+        }), null) };
+        Encoding.UTF8.GetByteCount(result.Response.Answer!).Should().BeLessThan(ModelContextEnvelope.MaximumOutputUtf8Bytes);
+        var projected = context.ResolveRetained(result);
+        if (excess == 0)
+        {
+            projected.Result.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+            JsonSerializer.SerializeToUtf8Bytes(projected.Result.Response).Length.Should().Be(4096);
+            projected.Answer.Claims.Single().Citations.Should().Equal(review.Search.Citations);
+        }
+        else
+        {
+            projected.Result.Outcome.Should().Be(ModelTurnOutcome.Unknown);
+            projected.Answer.Outcome.Should().Be(LocalFileAnswerOutcome.InvalidResponse);
+            projected.Answer.Claims.Should().BeEmpty();
+        }
+    }
+
+    [Fact]
+    public void RetainedProjectionRejectsCredentialLikeClaimWithoutRetainingAnAnswer()
+    {
+        var f = new Fixture(1);
+        var review = f.Review();
+        var context = new KnowledgeSourceAnswerContext(review, review.Target.Request, new(1), DateTimeOffset.UnixEpoch);
+        var result = Success(context) with { Response = new(JsonSerializer.Serialize(new
+        {
+            unsupported = false,
+            claims = new[] { new { text = "api_key=synthetic-only-value", evidenceIds = context.Envelope.Evidence.Select(item => item.Id.Value) } },
+        }), null) };
+        context.Resolve(result).Outcome.Should().Be(LocalFileAnswerOutcome.Succeeded);
+        var projected = context.ResolveRetained(result);
+        projected.Result.Outcome.Should().Be(ModelTurnOutcome.Unknown);
+        projected.Result.Response.Should().BeNull();
+        projected.Answer.Claims.Should().BeEmpty();
+    }
+
     private static ModelTurnResult Success(KnowledgeSourceAnswerContext context) => new(ModelTurnOutcome.Succeeded, ModelTurnReason.None,
         new(new(Guid.NewGuid()), context.Envelope.Request, ModelProviderSelection.OllamaCandidate),
         new(JsonSerializer.Serialize(new { unsupported = false, claims = new[] { new { text = "synthetic",

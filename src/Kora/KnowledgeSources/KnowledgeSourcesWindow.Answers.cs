@@ -167,7 +167,11 @@ internal sealed partial class KnowledgeSourcesWindow
             + string.Join("\n\n", exact.Search.Citations.Select(item =>
                 $"{exact.DescribeCitation(item)}\n{item.Excerpt}"))
             + "\nPrivate LocalOnly, no tools, hosted fallback or other sources. Files may contain secrets; risk screening is not a secret-free guarantee.\n"
-            + LocalContextSessionTarget.FreshSessionDisclosure
+            + (answers!.RetainsConversation
+                ? "Create a new Local context session. Retain this exact question and the validated final answer with exact source citations "
+                    + "in the private local conversation store under session-history retention. Reviewed excerpts are used only for this turn; "
+                    + "registration and saved conversation content do not renew source-use consent."
+                : LocalContextSessionTarget.FreshSessionDisclosure)
             + $"\nSeparate confirmation permits ONE use of only this question and these excerpts; expires {exact.ExpiresAt:O}.";
         answerLinks.Children.Add(Button("Confirm one private local-only no-tools named-source answer", async () =>
         {
@@ -183,7 +187,11 @@ internal sealed partial class KnowledgeSourcesWindow
                 if (!current() || exact.IsRevoked || execution.IsCancellationRequested
                     || !ReferenceEquals(answerReview, exact)) { return; }
                 answerStatus.Text = $"Named-source local answer: {result.Outcome}. "
-                    + "Retained here only while this exact private result remains open; no conversation body or speech.\n"
+                    + (answers.RetainsConversation
+                        ? result.Outcome is LocalFileAnswerOutcome.Succeeded or LocalFileAnswerOutcome.Unsupported
+                            ? "The exact question and validated final answer are retained in the new Local context conversation. No speech.\n"
+                            : "No retained supported answer is claimed. Inspect the Local context conversation for any committed original question or terminal outcome; do not retry automatically. No speech.\n"
+                        : "Retained here only while this exact private result remains open; no conversation body or speech.\n")
                     + string.Join("\n\n", result.Claims.Select(claim => claim.Text));
                 foreach (var citation in result.Claims.SelectMany(claim => claim.Citations).Distinct())
                 {

@@ -12,6 +12,7 @@ namespace Kora.Windows.KnowledgeSources;
 public sealed partial class WindowsKnowledgeSourceStore(IApplicationDataPaths paths) : IKnowledgeSourceStore
 {
     internal ISqliteTransactionCheckpoint? TransactionCheckpoint { get; init; }
+    internal int ReusedIndexEntries { get; private set; }
     private const int MaximumSources = 16;
     private const int MaximumSnapshotBytes = 2 * 1024 * 1024;
     private static readonly JsonSerializerOptions Json = new()
@@ -60,12 +61,25 @@ public sealed partial class WindowsKnowledgeSourceStore(IApplicationDataPaths pa
                     || !string.Equals(current.Folder.DirectoryIdentity, snapshot.Review.Metadata.DirectoryIdentity, StringComparison.Ordinal)
                     || current.Folder.Scope != snapshot.Review.Metadata.Scope)))
             { throw new InvalidDataException("Named source publication requires unique bounded identity, exact root and unavailable previous revision."); }
-            var bytes = Encode(snapshot, originalBytes);
+            var previous = current is null ? null : ReadSnapshot(connection, current, cancellationToken);
+            ReusedIndexEntries = 0;
+            var indexes = snapshot.Files.Select(file =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var prior = previous?.Indexes?.FirstOrDefault(index =>
+                    string.Equals(index.Digest, file.Reference.Digest, StringComparison.Ordinal));
+                var index = LocalFileLexicalIndex.Build(file, cancellationToken, prior);
+                if (ReferenceEquals(index, prior)) { ReusedIndexEntries++; }
+                return index;
+            }).ToArray();
+            var indexed = new KnowledgeSourceRevision(snapshot.Review, snapshot.Files, snapshot.Reference, indexes);
+            var bytes = Encode(indexed, originalBytes, cancellationToken);
             try
             {
                 var next = new KnowledgeSource(snapshot.Review.SourceId, checked((current?.Version ?? 0) + 1), name,
                     snapshot.Review.Metadata, KnowledgeSourceState.Enabled, DateTimeOffset.UtcNow, bytes.Length);
                 Update(connection, next, bytes, replaceSnapshot: true, cancellationToken, insert: current is null);
+                RetainValidatedSnapshot(indexed, Convert.ToHexString(SHA256.HashData(bytes)));
                 return next;
             }
             finally { CryptographicOperations.ZeroMemory(bytes); }
@@ -77,13 +91,7 @@ public sealed partial class WindowsKnowledgeSourceStore(IApplicationDataPaths pa
             var current = Require(connection, exact);
             if (current.State != KnowledgeSourceState.Enabled)
             { throw new InvalidOperationException("This source is disabled, refreshing or awaiting removal; no older snapshot is eligible."); }
-            using var command = connection.CreateCommand();
-            command.CommandText = "SELECT snapshot FROM knowledge_sources WHERE id=$id";
-            command.Parameters.AddWithValue("$id", current.Id.ToString("D"));
-            var bytes = command.ExecuteScalar() as byte[]
-                ?? throw new InvalidDataException("The committed source snapshot is missing.");
-            if (bytes.Length != current.StoredBytes) { throw new InvalidDataException("Source inventory and body disagree."); }
-            return Decode(current, bytes);
+            return ReadSnapshot(connection, current, cancellationToken);
         }, cancellationToken);
 
     public Task DisableAsync(KnowledgeSource exact, CancellationToken cancellationToken) =>
@@ -95,6 +103,7 @@ public sealed partial class WindowsKnowledgeSourceStore(IApplicationDataPaths pa
             Update(connection, current with { Version = checked(current.Version + 1),
                 State = KnowledgeSourceState.Disabled, ChangedAt = DateTimeOffset.UtcNow },
                 null, replaceSnapshot: false, cancellationToken);
+            RetireValidatedSnapshot(current.Id);
             return true;
         }, cancellationToken);
 
@@ -102,6 +111,7 @@ public sealed partial class WindowsKnowledgeSourceStore(IApplicationDataPaths pa
         Run(connection =>
         {
             var current = Require(connection, exact);
+            RetireValidatedSnapshot(current.Id);
             // Persist revocation before deletion. Interrupted cleanup remains visible and retryable.
             var removing = current with { State = KnowledgeSourceState.Removing, Version = checked(current.Version + 1),
                 ChangedAt = DateTimeOffset.UtcNow };

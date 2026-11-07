@@ -74,7 +74,8 @@ public sealed class KnowledgeSourcesWindowTests
                     preview.Text.Should().Be("alpha first saved text");
                     (await store.ListAsync(fixture.Token)).Should().BeEmpty();
                     await Press(window, "Confirm save of this exact complete device-local snapshot");
-                    (await store.ListAsync(fixture.Token)).Should().ContainSingle();
+                    var saved = (await store.ListAsync(fixture.Token)).Should().ContainSingle().Which;
+                    (await store.ReadAsync(saved, fixture.Token)).Indexes.Should().HaveCount(2);
                 }
                 finally { await window.StopAsync(); }
 
@@ -105,6 +106,9 @@ public sealed class KnowledgeSourcesWindowTests
                     (await store.ListAsync(fixture.Token)).Single().State.Should().Be(KnowledgeSourceState.Unavailable);
                     await Press(reopened, "Confirm read of this exact reviewed membership");
                     await Press(reopened, "Confirm save of this exact complete device-local snapshot");
+                    store = new WindowsKnowledgeSourceStore(fixture);
+                    var refreshed = (await store.ListAsync(fixture.Token)).Single();
+                    (await store.ReadAsync(refreshed, fixture.Token)).Indexes.Should().HaveCount(2);
                     list.SelectedIndex = 0;
                     await Press(reopened, "Review removal of Kora copies");
                     await Press(reopened, "Confirm remove this inventoried source and Kora copies");

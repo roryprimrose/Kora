@@ -3,13 +3,23 @@ using System.Text;
 using System.Text.Json;
 using AwesomeAssertions;
 using Kora.Application.Context;
+using Kora.Application.Configuration;
+using Kora.Application.Dependencies;
+using Kora.Application.Hosting;
+using Kora.Application.Tools;
 using Kora.Application.KnowledgeSources;
+using Kora.Application.Voice;
 using Kora.Core.Auditing;
+using Kora.Core.Authorization;
 using Kora.Core.Context;
+using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Interaction;
 using Kora.Core.KnowledgeSources;
+using Kora.Core.Storage;
+using Kora.Core.Tools;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -18,6 +28,241 @@ namespace Kora.Application.UnitTests.KnowledgeSources;
 [Collection("Host tracing")]
 public sealed class KnowledgeSourceAnswerTests : IDisposable
 {
+    [Theory]
+    [InlineData("supported", LocalFileAnswerOutcome.Succeeded)]
+    [InlineData("unsupported", LocalFileAnswerOutcome.Unsupported)]
+    [InlineData("invalid", LocalFileAnswerOutcome.InvalidResponse)]
+    [InlineData("unqualified", LocalFileAnswerOutcome.Unavailable)]
+    [InlineData("denied", LocalFileAnswerOutcome.Denied)]
+    [InlineData("cancelled", LocalFileAnswerOutcome.Cancelled)]
+    [InlineData("unavailable", LocalFileAnswerOutcome.Unavailable)]
+    [InlineData("missing-conversation", LocalFileAnswerOutcome.Unavailable)]
+    [InlineData("missing-session", LocalFileAnswerOutcome.Unavailable)]
+    [InlineData("terminal-failure", LocalFileAnswerOutcome.Unavailable)]
+    [InlineData("readback-metadata", LocalFileAnswerOutcome.Unavailable)]
+    [InlineData("readback-message", LocalFileAnswerOutcome.Unavailable)]
+    [InlineData("readback-task", LocalFileAnswerOutcome.Unavailable)]
+    public async Task CanonicalRetainedRouteBindsOriginalQuestionAndNeverFallsBackToVolatileExecution(
+        string fault, LocalFileAnswerOutcome expected)
+    {
+        using var root = Root();
+        using var source = new Fixture();
+        await using var retained = new RetainedFixture(source, fault);
+        var review = (await retained.Workflow.PrepareAsync(source.Source, "alpha?", () => source.Eligible, Token)).Review!;
+        retained.Workflow.RetainsConversation.Should().BeTrue();
+        retained.Message.Should().BeNull();
+        var result = await retained.Workflow.AnswerAsync(review, () => source.Eligible, Token);
+        result.Outcome.Should().Be(expected, "canonical target: {0}; retained message: {1}; model reason: {2}",
+            retained.Target, retained.Message, result.ModelReason);
+        source.ModelCalls.Should().Be(0);
+        source.Admissions.Should().Be(0);
+        retained.Models.IsQuiescent.Should().BeTrue();
+        if (expected is LocalFileAnswerOutcome.Succeeded or LocalFileAnswerOutcome.Unsupported)
+        {
+            retained.Message!.Body.Should().Be("alpha?");
+            retained.Message.AssistantResponse.Should().NotBeNull();
+            retained.Message.Request.SessionId.Should().Be(retained.Target!.Authority.SessionId);
+            result.ExecutionState.Should().Be(HostTaskState.Succeeded);
+            retained.Message.Request.Should().NotBeSameAs(review.Target.Request);
+            foreach (var citation in result.Claims.SelectMany(claim => claim.Citations))
+            { retained.Message.AssistantResponse!.Body.Should().Contain(review.DescribeCitation(citation)); }
+        }
+        else
+        {
+            result.Claims.Should().BeEmpty();
+            if (fault.StartsWith("readback-", StringComparison.Ordinal))
+            { retained.Message!.AssistantResponse.Should().NotBeNull("a committed answer is not a confirmed readback or permission to retry"); }
+            else { retained.Message?.AssistantResponse.Should().BeNull(); }
+        }
+        retained.Adapter.Calls.Should().Be(fault is "unqualified" or "missing-session" or "missing-conversation" ? 0 : 1);
+        (await retained.Workflow.AnswerAsync(review, () => true, Token)).Outcome.Should().Be(LocalFileAnswerOutcome.Denied);
+    }
+
+    [Fact]
+    public async Task PresentationAdmissionClosingAfterCanonicalReadbackCannotPublishClaimsOrRetry()
+    {
+        using var root = Root();
+        using var source = new Fixture();
+        await using var retained = new RetainedFixture(source, "supported");
+        var review = (await retained.Workflow.PrepareAsync(source.Source, "alpha?", () => true, Token)).Review!;
+        var eligible = true;
+        retained.AfterTerminalMetadata = () => source.At = stage =>
+        {
+            if (string.Equals(stage, "validate", StringComparison.Ordinal)) { eligible = false; }
+        };
+        var result = await retained.Workflow.AnswerAsync(review, () => eligible, Token);
+        result.Outcome.Should().Be(LocalFileAnswerOutcome.Stale);
+        result.Claims.Should().BeEmpty();
+        retained.Message!.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        retained.Message.AssistantResponse.Should().NotBeNull();
+        retained.Adapter.Calls.Should().Be(1);
+        retained.Models.IsQuiescent.Should().BeTrue();
+        (await retained.Workflow.AnswerAsync(review, () => true, Token)).Outcome.Should().Be(LocalFileAnswerOutcome.Denied);
+    }
+
+    private sealed class RetainedFixture : IAsyncDisposable, ISessionWorkspaceStore, ISessionConversationStore,
+        IHostTaskStore, ISessionWorkspaceAccess, ICapabilityHostAccess
+    {
+        internal KnowledgeSourceAnswerWorkflow Workflow { get; }
+        internal ModelTurnHost Models { get; }
+        internal RetainedAdapter Adapter { get; }
+        internal ConversationMessage? Message;
+        internal SessionWorkspaceEntry? Target;
+        internal Action? AfterTerminalMetadata;
+        private readonly SessionConversationService conversation;
+        private readonly DependencyBootstrapper dependencies;
+        private readonly Dictionary<HostId<TaskIdentity>, HostTaskRecord> records = [];
+        private readonly Fixture source;
+        private readonly string fault;
+        private readonly AudioControlAdmission modeAdmission;
+        public bool CanControl => true;
+        public bool CanInspect => true;
+        public long ControlRevision => 1;
+        public bool IsCurrentHost => true;
+        internal RetainedFixture(Fixture capturedSource, string failure)
+        {
+            source = capturedSource;
+            fault = failure;
+            dependencies = new([], NullLogger<DependencyBootstrapper>.Instance);
+            var runtime = new Kora.Tools.Runtime.RecordedRuntimeObservation(dependencies);
+            var registry = new ReadOnlyCapabilityRegistry(this, new(), new(), new(new Kora.Application.AssemblyApplicationInfo()),
+                new(dependencies), new(runtime), new(runtime), NullLogger<ReadOnlyCapabilityRegistry>.Instance);
+            var modes = new Kora.Application.UnitTests.Configuration.AudioControlTestStore();
+            modeAdmission = new(modes, modes, new(modes));
+            var policy = new ProviderModeConfigurationService(new RetainedModePreferences(), modeAdmission, source);
+            Adapter = new(fault);
+            Models = new(this, this, this, registry, source, NullLogger<ModelTurnHost>.Instance, source.Clock,
+                [new(ModelProviderSelection.OllamaCandidate, fault is "unqualified" ? ModelQualificationGate.None
+                    : ModelQualificationGate.LocalCandidateSelection | ModelQualificationGate.IntegratedHost,
+                    source.Clock.Now.AddMinutes(5), Adapter)], policy);
+            var workspace = new SessionWorkspaceService(this, new(this), this, NullLogger<SessionWorkspaceService>.Instance);
+            conversation = new(this, this, workspace, this, Models, source.Clock,
+                NullLogger<SessionConversationService>.Instance, execution: Models);
+            Workflow = new(source.Manager, new LocalFileLexicalRetrieval(), LocalSourceUsePolicy.Instance, source, source,
+                source.Clock, NullLogger<KnowledgeSourceAnswerWorkflow>.Instance,
+                fault is "missing-session" ? null : workspace,
+                fault is "missing-conversation" ? null : conversation);
+        }
+        public ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken token)
+        {
+            var record = new HostTaskRecord(request, new(1), HostTaskState.IntentRecorded);
+            records.Add(request.TaskId, record);
+            return ValueTask.FromResult(record);
+        }
+        public ValueTask CommitAsync(HostTaskRecord record, long revision, CancellationToken token)
+        { records[record.Request.TaskId] = record; return ValueTask.CompletedTask; }
+        public ValueTask<SessionWorkspaceEntry> CreateNamedSessionAsync(HostRequest request, SessionName name,
+            Func<bool> admitted, CancellationToken token)
+        {
+            if (!admitted()) { throw new InvalidOperationException("Synthetic creation denied"); }
+            Target = new(new(request.SessionId, new(1), true), new(request.SessionId, new(1), name));
+            return ValueTask.FromResult(Target);
+        }
+        public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken token)
+        {
+            if (Message?.Outcome is not null) { AfterTerminalMetadata?.Invoke(); }
+            return ValueTask.FromResult(fault is "readback-metadata" && Message?.Outcome is not null
+                ? Target! with { Metadata = Target!.Metadata! with { Revision = new(2) } } : Target!);
+        }
+        public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken token) =>
+            ValueTask.FromResult<HostTaskObservation?>(new(fault is "readback-task" && Message?.Outcome is not null
+                && Message.Request.TaskId == task ? new(records[task].Request, records[task].Revision, HostTaskState.Denied)
+                    : records[task], new(1), "host", true, null));
+        public ValueTask<ConversationSubmissionReceipt> RetainConversationMessageAsync(HostRequest request, HostRevision generation,
+            long revision, string body, Func<bool> admitted, CancellationToken token)
+        {
+            if (!admitted()) { throw new InvalidOperationException("Synthetic retention denied"); }
+            Message = new(request, generation, 1, 1, source.Clock.Now, body, null, null);
+            var task = new HostTaskRecord(request, new(1), HostTaskState.IntentRecorded);
+            records.Add(request.TaskId, task);
+            return ValueTask.FromResult(new ConversationSubmissionReceipt(Message, task));
+        }
+        public ValueTask<ConversationSubmissionReceipt> BeginConversationExecutionAsync(HostRequest request,
+            ModelTurnProvenance provenance, long revision, Func<bool> admitted, CancellationToken token)
+        {
+            if (!admitted()) { throw new InvalidOperationException("Synthetic dispatch denied"); }
+            Message = Message! with { Version = 2, Revision = 2, Execution = provenance, ExecutionMetadataRevision = revision };
+            var task = records[request.TaskId].Next(HostTaskState.DispatchRecorded);
+            records[request.TaskId] = task;
+            return ValueTask.FromResult(new ConversationSubmissionReceipt(Message, task));
+        }
+        public ValueTask<ConversationSubmissionReceipt> CompleteConversationExecutionAsync(HostRequest request,
+            ModelTurnResult result, Func<bool> admitted, CancellationToken token)
+        {
+            if (fault is "terminal-failure") { throw new IOException("Synthetic terminal failure"); }
+            if (!admitted()) { throw new InvalidOperationException("Synthetic completion denied"); }
+            Message = Message! with { Revision = 3, Outcome = result.Outcome, Reason = result.Reason,
+                AssistantResponse = result.Outcome == ModelTurnOutcome.Succeeded
+                    ? ConversationResponse.FromResult(result, result.Provenance!) : null,
+                SubmittedContext = result.SubmittedContext, Observations = result.Observations };
+            var task = records[request.TaskId].Next(Message.ExpectedTaskState);
+            records[request.TaskId] = task;
+            return ValueTask.FromResult(new ConversationSubmissionReceipt(Message, task));
+        }
+        public ValueTask<ConversationSubmissionReceipt> CompleteConversationSubmissionAsync(HostRequest request,
+            ModelTurnOutcome outcome, ModelTurnReason reason, Func<bool> admitted, CancellationToken token)
+        {
+            Message = Message! with { Revision = 2, Outcome = outcome, Reason = reason };
+            var task = records[request.TaskId].Next(Message.ExpectedTaskState);
+            records[request.TaskId] = task;
+            return ValueTask.FromResult(new ConversationSubmissionReceipt(Message, task));
+        }
+        public ValueTask<ConversationMessage> ReadConversationMessageAsync(HostId<SessionIdentity> session,
+            HostId<RequestIdentity> request, CancellationToken token) => ValueTask.FromResult(
+                fault is "readback-message" && Message?.Outcome is not null ? Message with { Body = "different readback" } : Message!);
+        public ValueTask<HostTaskRecord?> ReadTaskAsync(HostId<TaskIdentity> task, CancellationToken token) =>
+            ValueTask.FromResult(records.GetValueOrDefault(task));
+        public ValueTask<IReadOnlyList<HostTaskRecord>> ReadIncompleteAsync(int limit, CancellationToken token) => throw new NotSupportedException();
+        public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session, HostRevision generation, long revision, CancellationToken token) => throw new NotSupportedException();
+        public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview, Func<bool> admitted, CancellationToken token) => throw new NotSupportedException();
+        public ValueTask<SessionPage<WorkSessionAuthorization>> ReadSessionsAsync(Guid? after, int limit, CancellationToken token) => throw new NotSupportedException();
+        public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken token) => throw new NotSupportedException();
+        public ValueTask<HostTaskObservation> CancelWaitingTaskAsync(HostRequest request, HostTaskCancellationTarget target, Func<bool> admitted, CancellationToken token) => throw new NotSupportedException();
+        public ValueTask<SessionWorkspaceEntry> RenameSessionAsync(HostRequest request, HostRevision generation, long revision, SessionName name, Func<bool> admitted, CancellationToken token) => throw new NotSupportedException();
+        public ValueTask<SessionPage<HostQuestionRecord>> ReadQuestionPageAsync(HostId<SessionIdentity> session, Guid? after, int limit, CancellationToken token) => throw new NotSupportedException();
+        public ValueTask<SessionPage<HostTaskRecord>> ReadTaskPageAsync(HostId<SessionIdentity> session, Guid? after, int limit, CancellationToken token) => throw new NotSupportedException();
+        public ValueTask<WorkSessionAuthorization> ChangeIdleLifecycleAsync(HostRequest request, HostRevision generation, bool active, Func<bool> admitted, CancellationToken token) => throw new NotSupportedException();
+        public ValueTask<HostTaskRecord> RecordConversationCredentialRejectionAsync(HostRequest request, HostRevision generation, Func<bool> admitted, CancellationToken token) => throw new NotSupportedException();
+        public ValueTask<ConversationDraftSnapshot> ReadConversationDraftAsync(HostId<SessionIdentity> session, CancellationToken token) => throw new NotSupportedException();
+        public ValueTask<ConversationDraftSnapshot> CommitConversationDraftAsync(HostRequest request, ConversationDraftSnapshot expected, string? body, Func<bool> admitted, CancellationToken token) => throw new NotSupportedException();
+        public ValueTask<ConversationPage> ReadConversationPageAsync(HostId<SessionIdentity> session, ConversationCursor? cursor, int limit, CancellationToken token) => throw new NotSupportedException();
+        public async ValueTask DisposeAsync()
+        {
+            await conversation.DisposeAsync();
+            await Models.DisposeAsync();
+            await modeAdmission.DisposeAsync();
+            dependencies.Dispose();
+        }
+    }
+
+    private sealed class RetainedModePreferences : IModelProviderModePreferences
+    {
+        public ModelProviderMode? Load() => ModelProviderMode.LocalOnly;
+        public ModelProviderMode? ReadBack() => Load();
+        public void BeginWrite() => throw new NotSupportedException();
+        public void Save(ModelProviderMode mode) => throw new NotSupportedException();
+        public void ConfirmWrite() => throw new NotSupportedException();
+    }
+
+    private sealed class RetainedAdapter(string fault) : IModelTurnAdapter
+    {
+        internal int Calls;
+        public Task<ModelProviderReply> RunAsync(ModelTurnProvenance provenance, Kora.Core.Providers.ProviderProfileTuple? profile,
+            ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool, CancellationToken token)
+        {
+            Calls++;
+            using var wire = JsonDocument.Parse(context);
+            var ids = wire.RootElement.GetProperty("Evidence").EnumerateArray()
+                .Select(item => item.GetProperty("Id").GetProperty("Value").GetGuid()).ToArray();
+            var outcome = fault switch { "denied" => ModelTurnOutcome.Denied, "cancelled" => ModelTurnOutcome.Cancelled,
+                "unavailable" => ModelTurnOutcome.Unavailable, _ => ModelTurnOutcome.Succeeded };
+            var answer = fault is "invalid" ? "not JSON" : fault is "unsupported" ? "{\"unsupported\":true,\"claims\":[]}"
+                : JsonSerializer.Serialize(new { unsupported = false, claims = new[] { new { text = "alpha retained claim", evidenceIds = ids } } });
+            return Task.FromResult(new ModelProviderReply(outcome, provenance.Selection,
+                outcome == ModelTurnOutcome.Succeeded ? new(answer, null) : null));
+        }
+    }
+
     [Fact]
     public async Task TwoSelectedNamedSourcesProduceOneCombinedLocalAnswerAndBothExactCitationBindings()
     {

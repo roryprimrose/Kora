@@ -199,6 +199,7 @@ internal sealed partial class EvidenceViewModel(
     private void Clear(string message)
     {
         problemReportRevision++;
+        RetireExport();
         RetireEvidenceAnswer();
         page = null;
         selected = null;
@@ -224,5 +225,6 @@ internal sealed partial class EvidenceViewModel(
         OnPropertyChanged(nameof(RequestSummary));
         NotifyFind();
         NotifyEvidenceAnswer();
+        OnPropertyChanged(nameof(CanExportPage));
     }
 }

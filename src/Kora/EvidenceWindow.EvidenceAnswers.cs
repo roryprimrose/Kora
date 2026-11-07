@@ -13,7 +13,7 @@ internal sealed partial class EvidenceWindow
     private void BindEvidenceAnswers(EvidenceViewModel model)
     {
         if (!model.HasEvidenceAnswers) { EvidenceRecordBody.Children.Remove(AskEvidence); return; }
-        EvidenceRestrictions.Text = "No copy, export, remote model, browser, deletion or execution.";
+        EvidenceRestrictions.Text = "No copy, remote model, browser, deletion or execution. Page export requires its separate native new-file review and confirmation.";
         var question = new TextBox
         {
             PlaceholderText = "Original question: max 256 characters / 512 UTF-8 bytes",

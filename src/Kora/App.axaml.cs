@@ -254,7 +254,14 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
                 CreateEvidenceAnswers(), Services.GetRequiredService<TimeProvider>(),
                 Services.GetRequiredService<Kora.Application.Diagnostics.GitHubIssueReportWorkflow>(),
-                Services.GetRequiredService<Kora.Core.Hosting.IApplicationInfo>());
+                Services.GetRequiredService<Kora.Core.Hosting.IApplicationInfo>(),
+                new EvidencePageExportWindowController(
+                    new Kora.Windows.Presentation.WindowsEvidencePageExportWriter(
+                        Services.GetRequiredService<Kora.Core.Dependencies.IApplicationDataPaths>(),
+                        Services.GetRequiredService<ILogger<Kora.Windows.Presentation.WindowsEvidencePageExportWriter>>()),
+                    Services.GetRequiredService<Kora.Core.Auditing.ISecurityAuditLog>(),
+                    Services.GetRequiredService<ILogger<Kora.Application.Diagnostics.EvidencePageExportReview>>(),
+                    EvidencePageExportWindowController.SelectDestinationAsync));
             evidenceWindow.Bind();
             BindSettingInspection(settingsWindow);
             fileWindow = new LocalFilePreviewWindowController(viewModel, GetPresenceOwner);
@@ -308,7 +315,7 @@ public sealed partial class App : Avalonia.Application
             newRequestWindow.BindDictation(Services.GetRequiredService<ILogger<Kora.Application.Voice.ComposerDictationService>>());
             newRequestWindow.Bind();
             BindSessionRouting(viewModel);
-            ConversationShutdownGuard.Bind(viewModel, newRequestWindow, sessionsWindow, sessionRouting);
+            ConversationShutdownGuard.Bind(viewModel, newRequestWindow, sessionsWindow, sessionRouting, evidenceWindow);
             BindApplicationLifecycle(viewModel, nativeQuestions);
             sessionsWindow.ConversationQuestions = questionWindow;
             sessionsWindow.OpenNewRequest = newRequestWindow.Open;

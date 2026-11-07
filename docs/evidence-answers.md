@@ -25,8 +25,33 @@ grounded success. Inspect retained results in **Sessions**.
 
 **Show exact inert record** displays only a record already in the reviewed page.
 It performs no source read, command replay or historical-body reconstruction.
-No remote fallback, export, broader search, tools, actions or automatic retries
+No remote fallback, answer export, broader search, tools, actions or automatic retries
 are available.
+
+## Separately export one evidence page
+
+In **Evidence**, explicitly search a permitted bounded page and choose **Review
+page export**. Choose a **new** local fixed-drive `.json` destination outside
+Kora/protected storage. The separate native review shows every UTF-8 JSON byte,
+record/source/gap provenance, the exact destination and independent retention.
+The live continuation cursor is omitted (`Cursor` is null); no other page or
+missing content is reconstructed. The complete original page remains bounded
+to 50 records / 64 KiB, including its original cursor.
+
+Choose **Confirm this one new-file export** once, or cancel. Kora revalidates
+the original source snapshot, filters/privacy and held destination identities;
+it creates without replacement, flushes and verifies exact readback. Results
+distinguish **Saved**, **NotWritten**, **Cancelled** and **Uncertain**. An
+uncertain file may exist: inspect the destination before any fresh review;
+there is no automatic retry or rollback claim. No file is opened or copied
+to the clipboard. This operation does not call a model or grant authority.
+
+Filters, paging, privacy closure and window closure cancel and clear the
+review. Voluntary shutdown joins physical writes and destination disposal,
+including work that ignores cancellation. Exported copies leave Kora retention:
+deleting evidence or conversations does not delete files, backups or synced
+copies. This native file-write exception is separate from diagnostic model-input
+admission and from exact retained ASSISTANT answer export.
 
 Filters, paging, question edits, cancellation, privacy/ownership/control changes
 and closing the window retire the review and suppress late output. Cancellation

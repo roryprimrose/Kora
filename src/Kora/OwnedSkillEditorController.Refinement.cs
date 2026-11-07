@@ -47,6 +47,8 @@ internal sealed partial class OwnedSkillEditorController
         var generationInput = initial
             ? new OwnedSkillGenerationRequest(critique, opened.ExpectedInput.Text ?? "", opened.ExpectedOutput.Text ?? "", authority)
             : null;
+        var format = draft.InputTemplate is null ? "native v1 literal guidance" : "native v3 required literal guidance";
+        var requiredInputs = draft.InputTemplate is null ? "(none)" : string.Join(", ", draft.InputTemplate.RequiredNames);
         if (generationInput is not null && (string.IsNullOrWhiteSpace(generationInput.Purpose)
             || string.IsNullOrWhiteSpace(generationInput.Input) || string.IsNullOrWhiteSpace(generationInput.Output)))
         { throw new InvalidDataException("Supply the bounded purpose, expected input (or explicitly none) and expected output. Nothing sent or saved."); }
@@ -61,10 +63,13 @@ internal sealed partial class OwnedSkillEditorController
         try
         {
             var disclosure = initial
-                ? "Send only this unchanged original purpose and the two explicit input/output fields to one admitted local tools-none model. "
-                    + "The host chooses native v1, local runtime, tools none, references none and the owned destination. "
-                    + "The model may return only complete literal guidance; no metadata, capabilities, paths, scripts or files.\n\nPURPOSE\n"
+                ? "Send only this unchanged original purpose, the two explicit input/output fields and the exact user-declared required names "
+                    + "to one admitted local tools-none model. The host preserves " + format
+                    + ", local runtime, tools none, references none and the owned destination. "
+                    + "The model may return only complete guidance using exactly the declared names in first-use order; "
+                    + "no inferred names, metadata, capabilities, paths, scripts or files.\n\nPURPOSE\n"
                     + critique + "\n\nEXPECTED INPUT\n" + generationInput!.Input + "\n\nEXPECTED OUTPUT\n" + generationInput.Output
+                    + "\n\nFROZEN REQUIRED INPUT NAMES (FIRST-USE ORDER)\n" + requiredInputs
                 : "Send only the complete current guidance and unchanged original critique to one admitted local model with tools none. "
                 + "No history, memory, attachments, references, network or hosted fallback. Metadata, required input names, format, "
                 + "ID/version, paths and publication authority cannot be chosen by the model. The draft is not changed or saved.\n\nCRITIQUE\n" + critique;
@@ -78,7 +83,8 @@ internal sealed partial class OwnedSkillEditorController
                 {
                     return await opened.ChooseInitial("Review complete generated skill source",
                         "Exact host-chosen owned destination: " + proposal.Destination
-                        + "\nComplete native v1 source, local runtime, tools none, references none. Inert untrusted data, not authority. "
+                        + "\nComplete " + format + " source, local runtime, tools none, references none. Required names: "
+                        + requiredInputs + ". Inert untrusted data, not authority. "
                         + "Accept stages only this exact source. Validate and Save still require separate complete review and publication confirmation. "
                         + "Saved disabled; no grants, trust, applicability, enablement or invocation.\n\n" + disclosure,
                         proposal.Proposed.ManifestText, proposal.Proposed.Guidance, ["Use proposal for next Save", "Reject proposal"],

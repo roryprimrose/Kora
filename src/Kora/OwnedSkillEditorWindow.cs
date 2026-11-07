@@ -92,6 +92,11 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview, IO
         }
         var generate = new Button { Content = "Generate initial guidance", Margin = new(3) };
         generate.Click += (_, _) => run("generate");
+        fields.Children.Add(new TextBlock
+        {
+            Text = "Initial generation: select native v1 or native v3 with no tools. For v3, explicitly declare required names below using ${input:name} markers in first-use order before Generate. Expected input/output prose never declares names. The proposal must preserve exactly those names; saving and use remain separate.",
+            TextWrapping = TextWrapping.Wrap,
+        });
         fields.Children.Add(generate);
         fields.Children.Add(Saved);
         AutomationProperties.SetName(ComponentPath, "Exact declared package-relative Markdown component path");

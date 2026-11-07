@@ -5,8 +5,10 @@ namespace Kora.Core.KnowledgeSources;
 public sealed class KnowledgeSourceMetadata
 {
     public KnowledgeSourceMetadata(string canonicalPath, string directoryIdentity, KnowledgeSourceScope scope,
-        IEnumerable<KnowledgeSourceDirectory> directories, IEnumerable<LocalFileMetadata> files)
+        IEnumerable<KnowledgeSourceDirectory> directories, IEnumerable<LocalFileMetadata> files,
+        KnowledgeSourceCaptureLimits? captureLimits = null)
     {
+        CaptureLimits = captureLimits ?? KnowledgeSourceCaptureLimits.HardMaximum;
         LocalFilePolicy.ValidateFolderPath(canonicalPath);
         KnowledgeSourcePolicy.ValidateScope(scope);
         ArgumentNullException.ThrowIfNull(directories);
@@ -50,11 +52,11 @@ public sealed class KnowledgeSourceMetadata
             _ = KnowledgeSourcePolicy.RelativePath(canonicalPath, file.CanonicalPath);
             if (!parents.Contains(file.CanonicalPath[..file.CanonicalPath.LastIndexOf('\\')])
                 || string.IsNullOrWhiteSpace(file.FileIdentity) || !identities.Add(file.FileIdentity)
-                || !names.Add(file.CanonicalPath) || file.ByteLength is < 0 or > LocalFilePolicy.MaximumBytes)
+                || !names.Add(file.CanonicalPath) || file.ByteLength < 0 || file.ByteLength > CaptureLimits.MaximumFileBytes)
             { throw new InvalidDataException("Every file requires a distinct bounded identity and retained parent."); }
             items.Add(file);
             bytes += file.ByteLength;
-            if (items.Count > KnowledgeSourcePolicy.MaximumFiles || bytes > KnowledgeSourcePolicy.MaximumCombinedBytes)
+            if (items.Count > CaptureLimits.MaximumFiles || bytes > CaptureLimits.MaximumCombinedBytes)
             { throw new InvalidDataException("The complete source exceeds its file or aggregate byte bound."); }
         }
         if (items.Count == 0) { throw new InvalidDataException("A named source must contain supported text files."); }
@@ -70,6 +72,7 @@ public sealed class KnowledgeSourceMetadata
     public string CanonicalPath { get; }
     public string DirectoryIdentity { get; }
     public KnowledgeSourceScope Scope { get; }
+    public KnowledgeSourceCaptureLimits CaptureLimits { get; }
     public IReadOnlyList<KnowledgeSourceDirectory> Directories { get; }
     public IReadOnlyList<LocalFileMetadata> Files { get; }
     public long CombinedBytes => Files.Sum(file => file.ByteLength);
@@ -77,7 +80,8 @@ public sealed class KnowledgeSourceMetadata
     public bool Matches(KnowledgeSourceMetadata other) =>
         string.Equals(CanonicalPath, other.CanonicalPath, StringComparison.Ordinal)
         && string.Equals(DirectoryIdentity, other.DirectoryIdentity, StringComparison.Ordinal)
-        && Scope == other.Scope && Directories.SequenceEqual(other.Directories) && Files.SequenceEqual(other.Files);
+        && Scope == other.Scope && CaptureLimits == other.CaptureLimits
+        && Directories.SequenceEqual(other.Directories) && Files.SequenceEqual(other.Files);
 
     public static KnowledgeSourceMetadata FromImmediate(LocalFolderMetadata folder) =>
         new(folder.CanonicalPath, folder.DirectoryIdentity, KnowledgeSourceScope.ImmediateFiles,

@@ -9,7 +9,8 @@ using Microsoft.Data.Sqlite;
 
 namespace Kora.Windows.KnowledgeSources;
 
-public sealed partial class WindowsKnowledgeSourceStore(IApplicationDataPaths paths) : IKnowledgeSourceStore
+public sealed partial class WindowsKnowledgeSourceStore(IApplicationDataPaths paths,
+    IKnowledgeSourceCaptureLimitsPreferences? captureLimitsPreferences = null) : IKnowledgeSourceStore
 {
     internal ISqliteTransactionCheckpoint? TransactionCheckpoint { get; init; }
     internal int ReusedIndexEntries { get; private set; }
@@ -151,6 +152,8 @@ public sealed partial class WindowsKnowledgeSourceStore(IApplicationDataPaths pa
             database.RequireEmptyJournal();
             if (finishRemoval is { } removedId)
             {
+                // Keep the Removing row retryable until its numeric preferences are also cleaned.
+                captureLimitsPreferences?.Remove(removedId);
                 // Delete metadata only after body/journal cleanup. No arbitrary paths or directory deletes.
                 using (var removalIdentity = HoldStorageIdentity(created: false))
                 using (var connection = database.Open(false, RestrictedSqliteDatabase.DefaultProgressTimeout, token))
@@ -180,7 +183,7 @@ public sealed partial class WindowsKnowledgeSourceStore(IApplicationDataPaths pa
         {
             if (items.Count >= MaximumSources) { throw new InvalidDataException("The source inventory exceeds its bound."); }
             var dto = Deserialize<SourceData>(reader.GetString(2));
-            var folder = ReadMetadata(dto.FormatVersion, dto.Path, dto.Identity, dto.Files, dto.Scope, dto.Directories);
+            var folder = ReadMetadata(dto.FormatVersion, dto.Path, dto.Identity, dto.Files, dto.Scope, dto.Directories, dto.CaptureLimits);
             if (dto.Id == Guid.Empty || dto.Version <= 0 || !string.Equals(dto.Id.ToString("D"), reader.GetString(0), StringComparison.Ordinal)
                 || dto.Version != reader.GetInt64(1) || !Enum.IsDefined(dto.State)
                 || string.IsNullOrWhiteSpace(dto.Name) || dto.Name.Length > 80 || dto.Name.Any(char.IsControl)
@@ -209,7 +212,8 @@ public sealed partial class WindowsKnowledgeSourceStore(IApplicationDataPaths pa
     {
         var info = JsonSerializer.Serialize(new SourceData(source.Id, source.Version, source.Name,
             source.Folder.CanonicalPath, source.Folder.DirectoryIdentity, source.Folder.Files.ToArray(),
-            source.State, source.ChangedAt, source.StoredBytes, 2, source.Folder.Scope, source.Folder.Directories.ToArray()), Json);
+            source.State, source.ChangedAt, source.StoredBytes, 3, source.Folder.Scope, source.Folder.Directories.ToArray(),
+            source.Folder.CaptureLimits), Json);
         if (System.Text.Encoding.UTF8.GetByteCount(info) > 65536)
         { throw new InvalidDataException("The whole named-source metadata exceeds its existing storage bound."); }
         using var transaction = connection.BeginTransaction();
@@ -239,15 +243,18 @@ public sealed partial class WindowsKnowledgeSourceStore(IApplicationDataPaths pa
 
     private sealed record SourceData(Guid Id, long Version, string Name, string Path, string Identity,
         LocalFileMetadata[] Files, KnowledgeSourceState State, DateTimeOffset ChangedAt, int StoredBytes,
-        int FormatVersion = 1, KnowledgeSourceScope? Scope = null, KnowledgeSourceDirectory[]? Directories = null);
+        int FormatVersion = 1, KnowledgeSourceScope? Scope = null, KnowledgeSourceDirectory[]? Directories = null,
+        KnowledgeSourceCaptureLimits? CaptureLimits = null);
 
     private static KnowledgeSourceMetadata ReadMetadata(int version, string path, string identity, LocalFileMetadata[] files,
-        KnowledgeSourceScope? scope, KnowledgeSourceDirectory[]? directories)
+        KnowledgeSourceScope? scope, KnowledgeSourceDirectory[]? directories, KnowledgeSourceCaptureLimits? limits = null)
     {
-        if (version == 1 && scope is null && directories is null)
+        if (version == 1 && scope is null && directories is null && limits is null)
         { return KnowledgeSourceMetadata.FromImmediate(new LocalFolderMetadata(path, identity, files)); }
-        if (version == 2 && scope is not null && directories is not null)
+        if (version == 2 && scope is not null && directories is not null && limits is null)
         { return new(path, identity, scope.Value, directories, files); }
+        if (version == 3 && scope is not null && directories is not null && limits is not null)
+        { return new(path, identity, scope.Value, directories, files, limits); }
         throw new InvalidDataException("Unknown or malformed named-source metadata format; no legacy consent widening is permitted.");
     }
 }

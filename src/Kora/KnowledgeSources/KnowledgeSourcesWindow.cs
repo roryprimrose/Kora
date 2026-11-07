@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Kora.Application.Hosting;
+using Kora.Application.Configuration;
 using Kora.Application.Infrastructure;
 using Kora.Application.KnowledgeSources;
 using Kora.Application.ViewModels;
@@ -39,11 +40,12 @@ internal sealed partial class KnowledgeSourcesWindow : Window, IDisposable
     private bool disposed;
 
     internal KnowledgeSourcesWindow(MainViewModel host, KnowledgeSourceManager manager, IUserFolderPicker? picker = null,
-        KnowledgeSourceAnswerWorkflow? answers = null)
+        KnowledgeSourceAnswerWorkflow? answers = null, KnowledgeSourceCaptureLimitsConfigurationService? captureLimits = null)
     {
         this.host = host;
         this.manager = manager;
         this.answers = answers;
+        this.captureLimits = captureLimits;
         this.picker = picker ?? new KnowledgeSourceFolderPicker(this);
         Title = "Knowledge sources - device-local copies";
         Width = 840;
@@ -83,6 +85,7 @@ internal sealed partial class KnowledgeSourcesWindow : Window, IDisposable
         actions.Children.Add(Button("Review removal of Kora copies", ReviewRemovalAsync));
         actions.Children.Add(Button("Inspect selected exact stored snapshot", InspectAsync));
         body.Children.Add(actions);
+        BindCaptureLimits();
         body.Children.Add(status);
         body.Children.Add(review);
         body.Children.Add(preview);
@@ -108,21 +111,22 @@ internal sealed partial class KnowledgeSourcesWindow : Window, IDisposable
         return button;
     }
 
-    private async Task RunAsync(Func<Task> operation)
+    private async Task RunAsync(Func<Task> operation, RequestOrigin origin = RequestOrigin.LocalUi)
     {
         if (running || closing) { throw new InvalidOperationException("The previous source operation must finish first."); }
         running = true;
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         joined = completion;
         body.IsEnabled = false;
-        try { await HostRequestRunner.RunAsync(RequestOrigin.LocalUi, operation); }
+        try { await HostRequestRunner.RunAsync(origin, operation); }
         catch (Exception exception) when (exception is IOException or InvalidDataException or InvalidOperationException
             or System.Text.DecoderFallbackException
             or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException or OperationCanceledException)
         {
             RetirePresentation();
             status.Text = "Not completed. Refresh/removal may already have revoked the source. Reload inventory and retry "
-                + "a fresh review; never infer rollback. Storage/cleanup uncertainty is unavailable, not empty success. Failure type: "
+                + "a fresh review; never infer rollback. A Removing row can retain pending numeric-preference cleanup; review removal again to retry. "
+                + "Storage/cleanup uncertainty is unavailable, not empty success. Failure type: "
                 + exception.GetType().Name;
             host.ReportHostInteractionFailure(status.Text);
         }
@@ -181,7 +185,8 @@ internal sealed partial class KnowledgeSourcesWindow : Window, IDisposable
         {
             Text = "READ REVIEW (two minutes, one use)\n" + exact.Metadata.CanonicalPath
                 + $"\nScope: {exact.Metadata.Scope}; named device-local, current profile; retained until removal, no model selection. "
-                + "Limits: 32 files / 256 KiB each / 1 MiB total; depth 4; 32 directories including root/empty nodes; 30-second operations. "
+                + $"Captured limits: {exact.Metadata.CaptureLimits.MaximumFiles} files / {exact.Metadata.CaptureLimits.MaximumFileBytes} bytes each / "
+                + $"{exact.Metadata.CaptureLimits.MaximumCombinedBytes} bytes total; depth 4; 32 directories including root/empty nodes; 30-second operations. "
                 + "Any failure rejects the entire folder. May contain secrets. Review all members:\n"
                 + string.Join("\n", exact.Metadata.Directories.Select(item => "Directory: "
                     + (string.Equals(item.CanonicalPath, exact.Metadata.CanonicalPath, StringComparison.Ordinal) ? "."
@@ -300,7 +305,7 @@ internal sealed partial class KnowledgeSourcesWindow : Window, IDisposable
         {
             Text = $"Remove '{source.Name}' and Kora copies only?\n{source.Folder.CanonicalPath}\n"
                 + $"Inventory: one registry row, one encrypted complete snapshot ({source.StoredBytes} bytes), "
-                + "and its private database rollback journal. No embeddings, indexes, backups or original-file deletion. "
+                + "with its lexical index, numeric source preferences and private database rollback journal. No embeddings, backups or original-file deletion. "
                 + "Use is revoked before cleanup. Failure leaves unavailable/retryable cleanup, not a claim of erasure. "
                 + "This is logical deletion, not forensic erasure of hardware. Review expires in two minutes.",
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
@@ -311,13 +316,14 @@ internal sealed partial class KnowledgeSourcesWindow : Window, IDisposable
             RetirePresentation();
             await manager.RemoveAsync(source, reviewedAt, Eligible, lifetime.Token);
             await LoadAsync();
-            status.Text = "Inventoried Kora copies removed. Original files unchanged; no hardware erasure claim.";
+            status.Text = "Inventoried Kora copies and source numeric preferences removed. Original files unchanged; no hardware erasure claim.";
         }));
         return Task.CompletedTask;
     }
 
     private void RetirePresentation()
     {
+        captureLimitsReview = null;
         RetireAnswer();
         epoch++;
         opened = null;

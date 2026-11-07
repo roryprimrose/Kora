@@ -7,15 +7,21 @@ namespace Kora.Windows.Context;
 
 public sealed partial class WindowsLocalFileInspector
 {
+    public Task<IKnowledgeSourceSelection> InspectSourceAsync(string selectedPath, KnowledgeSourceScope scope,
+        CancellationToken cancellationToken) =>
+        InspectSourceAsync(selectedPath, scope, KnowledgeSourceCaptureLimits.HardMaximum, cancellationToken);
+
     public async Task<IKnowledgeSourceSelection> InspectSourceAsync(string selectedPath, KnowledgeSourceScope scope,
-        CancellationToken cancellationToken)
+        KnowledgeSourceCaptureLimits limits, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(limits);
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         operation.CancelAfter(KnowledgeSourcePolicy.MaximumOperationTime);
-        return await Task.Run(() => InspectSource(selectedPath, scope, operation.Token), operation.Token).ConfigureAwait(false);
+        return await Task.Run(() => InspectSource(selectedPath, scope, limits, operation.Token), operation.Token).ConfigureAwait(false);
     }
 
-    private SourceSelection InspectSource(string path, KnowledgeSourceScope scope, CancellationToken token)
+    private SourceSelection InspectSource(string path, KnowledgeSourceScope scope, KnowledgeSourceCaptureLimits limits,
+        CancellationToken token)
     {
         using var activity = HostActivity.BeginChild(HostActivityLayer.Windows, HostOperation.Storage);
         activity.Complete(HostOperationOutcome.Failed);
@@ -27,7 +33,7 @@ public sealed partial class WindowsLocalFileInspector
             Visit(path, 0);
             var root = directories[0].Metadata;
             var metadata = new KnowledgeSourceMetadata(path, root.DirectoryIdentity, scope,
-                directories.Select(directory => directory.Metadata), files.Select(file => file.Metadata));
+                directories.Select(directory => directory.Metadata), files.Select(file => file.Metadata), limits);
             files.Sort((left, right) => StringComparer.Ordinal.Compare(left.Metadata.CanonicalPath, right.Metadata.CanonicalPath));
             var result = new SourceSelection(directories, files, metadata);
             result.Validate(token);
@@ -68,10 +74,12 @@ public sealed partial class WindowsLocalFileInspector
                 if (File.GetAttributes(entry).HasFlag(FileAttributes.Directory)) { Visit(entry, depth + 1); }
                 else
                 {
-                    if (files.Count >= KnowledgeSourcePolicy.MaximumFiles)
+                    if (files.Count >= limits.MaximumFiles)
                     { throw new InvalidDataException("The complete named source exceeds its file-count bound."); }
                     files.Add(Inspect(entry, token));
-                    if (files.Sum(file => file.Metadata.ByteLength) > KnowledgeSourcePolicy.MaximumCombinedBytes)
+                    if (files[^1].Metadata.ByteLength > limits.MaximumFileBytes)
+                    { throw new InvalidDataException("The complete named source exceeds its per-file byte bound."); }
+                    if (files.Sum(file => file.Metadata.ByteLength) > limits.MaximumCombinedBytes)
                     { throw new InvalidDataException("The complete named source exceeds its aggregate byte bound."); }
                 }
             }

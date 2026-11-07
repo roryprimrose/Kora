@@ -206,7 +206,7 @@ public sealed partial class WindowsKnowledgeSourceTests
             var snapshot = JsonSerializer.SerializeToUtf8Bytes(new { Version = 1, Key = CurrentUserKeyProtection.Protect(key), Nonce = nonce, Tag = tag, Ciphertext = ciphertext });
             RewriteStorage(fixture, info =>
             {
-                info.Remove("FormatVersion"); info.Remove("Scope"); info.Remove("Directories");
+                info.Remove("FormatVersion"); info.Remove("Scope"); info.Remove("Directories"); info.Remove("CaptureLimits");
                 info["StoredBytes"] = snapshot.Length;
             }, snapshot);
             var reopened = new WindowsKnowledgeSourceStore(fixture);

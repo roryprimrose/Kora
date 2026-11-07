@@ -9,6 +9,8 @@ or sending information to an AI service.
 [approvals](#approvals), [session retention](#per-session-retention-status-and-hold),
 or [setup](#readiness). For named local folders, see [Knowledge sources](knowledge-sources.md).
 
+**Source-specific capture limits:** in **Knowledge > Manage knowledge sources**, reload and select one source, get its desired/current-captured limits, then review lower file-count/per-file-byte/total-byte limits or reset and separately confirm/cancel. [Exact controls and commands](knowledge-sources.md#lower-the-next-capture-limits-for-one-source) affect only its next separately reviewed refresh, never a pending/pinned capture. They are not shared generic model settings.
+
 **AI answers are unavailable in this build.** You can inspect and save supported
 preferences, but a saved choice is not proof that its model or service can run.
 

@@ -359,6 +359,44 @@ The complete model envelope must fit **32768 bytes**; output uses the existing m
 
 This is **SIMULATED structure/example behavior only**, not a real observation, proof of harmlessness, qualification, trust or permission. No actual tools, network, shell, files, MCP, grants, history, memory, attachments, hosted fallback or source expansion are authorized. Fixtures stay in memory, separate from the unchanged skill format. Both the draft and any reopened source must be native v1; native v5 declaration or complete reference packages are refused before source reads, review or inference, even if their primary text is inert. **Save**, **Enable**, **Use** and any independently admitted real trial retain their own reviews and normal permissions; passing a fixture does none of them.
 
+### Refine a reopened native v6 MCP skill's literal guidance
+
+This same **Refine** operation also supports one already owned, reopened native
+v6 read-only MCP skill. Select a **new immutable version** natively and keep the
+complete original manifest unchanged apart from that version. Server, tool,
+source revision and schema digest remain exactly native-selected. The model
+receives only the unchanged critique and complete literal guidance, with **tools
+none**; declared MCP capability is not authoring permission.
+
+An exact, still-held trusted runtime descriptor must already be available from
+an independently admitted MCP operation. Authoring never connects, discovers,
+refreshes, reads account-bound configuration or references, or invokes a tool
+to make this prerequisite available. Missing or withdrawn proof is explicitly
+unavailable; this build does not qualify an MCP provider or local model.
+
+The descriptor is ephemeral and retains the original runtime expiry. Every
+runtime validation attempt retires the previous observation before I/O; only
+successful complete validation of an already approved, unused selected tool
+can produce another observation. A captured authoring proposal cannot follow
+that replacement. Source/control observation attempts, policy replacement,
+account/transport withdrawal, cancellation, disposal or unknown state retire
+it. This is observed host state, **not unobserved disk or remote freshness**.
+Separate invocation still physically revalidates source, account, schema and
+permission ([trusted policy](../src/Kora.Application/Mcp/McpReadOnlyPolicy.cs),
+[runtime owner](../src/Kora.Application/Mcp/McpInvocation.cs)).
+
+Review compares the complete unchanged new-version manifest and old/new
+guidance, distinguishing the declared MCP capability from tools-none authoring.
+Acceptance stages only volatile guidance. **Validate**, complete original/new
+package comparison, separate publication confirmation and immutable readback
+remain required. The original stays unchanged; the new version is disabled,
+without inherited grants, enablement or invocation.
+
+New arbitrary tool-bearing drafts and initial MCP generation remain refused,
+as do v2 HTTP, v4 ordered workflows, v5 reference packages and unknown formats.
+Native v4's ordered steps/inputs are not free prose and cannot be model-refined
+through this operation.
+
 ## Review and invoke one saved revision
 
 For an exact readable-name request spanning owned and registered shared instruction-only skills, use the [named invocation operation](commands.md#invoke-an-instruction-only-skill-by-readable-name).

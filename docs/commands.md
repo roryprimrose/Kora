@@ -161,6 +161,13 @@ pause/resume/reorder/settings; this adds no global scheduler or configuration.
 
 ## Invoke one registered agent by readable name
 
+To refine an inert owned original instead of invoking it, use **agent author inspect example**,
+choose native **Edit existing original**, then **agent author describe Make the guidance shorter.**
+and **agent author ask** (exact typed or current-name activated voice). Only inspected tool-free/reference-free native v1
+originals support this local two-field proposal. Review disclosure and complete source comparison; adoption is memory-only.
+Then independently review and confirm **Save existing original** natively. No invocation, activation, tools or grants follow.
+See [owned-original refinement and separate save](agent-profile-authoring.md#edit-the-same-existing-original).
+
 Type `agent invoke "Exact readable name" <original task>`, or use the current
 assistant-name prefix for activated voice, for example
 `Kora, agent invoke "Planning helper" Explain the next step.`
@@ -404,6 +411,24 @@ completion. Dismissal, replacement, timeout, privacy closure and disposal retire
 current-response details; recovery never resurrects them.
 There is no per-response pin/unpin, preference write, model or speech action.
 Uncomposed native hosts report unavailable; this does not qualify a model route.
+
+## Exact current-sentence captions and dismissal delay
+
+Type `show the current sentence`, or say `Kora, show the current sentence`
+using your current assistant name. This saves **CurrentSentence** through the
+same native speech-text setting; actual sentence captions remain unavailable
+without qualified playback alignment. It never estimates progress or replays text.
+
+`keep speech text visible for ten seconds` saves the exact **10-second**
+post-completion dismissal delay. Use canonical numerals 0-30 or English number
+words zero through thirty, with `one second` / `1 second` and `seconds` otherwise.
+Twenty-one through twenty-nine accept one hyphen or one space (`twenty one`).
+Whole commands only: no extra clauses, negatives, fractions, fuzzy values or
+clamping. The current-name prefix is optional for typed input; activated voice
+keeps its existing channel/privacy/call gates. Native inspect/save/reset remain
+equivalent, and neither command enables a provider, speaks, or invokes a model
+([settings and unavailable alignment](settings.md#local-speech-text),
+[shared grammar](../src/Kora.Application/Configuration/SpeechTextCommand.cs)).
 
 ## Read the current response aloud once
 
@@ -1631,6 +1656,21 @@ No automatic rewrite, default-save, rollback or retry is claimed ([confirmation 
 Use `review response timeout suggestion` to review the exact host-pinned successful answer, then separately `confirm response timeout change` or `cancel response timeout review`. Activated voice requires the current assistant-name prefix. Both conversation windows also offer **Review setting suggestion...** on the exact retained answer ([shared route](../src/Kora.Application/ViewModels/MainViewModel.ResponseTimeoutSuggestions.cs)).
 
 The answer must be one exact `set appearance.response-timeout to <integer>` using canonical digits, 1-60 seconds. It changes only the existing response-window inactivity hide delay, not provider deadlines or Always show. Review saves nothing; original-channel call policy, source, preference, privacy and host checks remain required through commit ([review and recovery](settings.md#review-a-response-timeout-suggestion)).
+
+**Future ordinary deadline suggestions are a separate native-only review.**
+
+An original local user can choose **Review setting suggestion...** on an exact
+successful retained answer containing `set work.active-deadline-minutes to 10`
+(canonical whole minutes 1-60), or `reset work.active-deadline-minutes`.
+Review shows actual saved/default, effective and proposed values and future-only
+device-local scope; separately confirm or cancel in the same current native
+surface within 60 seconds. The model never executes the suggestion.
+Confirmed audited atomic write/readback is required before future dispatch
+consumes it. Running work and earlier context/provider/tool ceilings stay
+unchanged. Stale sources, returned surfaces, changed authority or uncertain
+saves require inspection, not retry, rollback, deadline undo or default success.
+This model route adds no typed/voice confirmation
+([complete review](setting-proposals.md), [direct controls](settings.md#future-ordinary-task-deadline)).
 
 ### Detail presentation preference
 

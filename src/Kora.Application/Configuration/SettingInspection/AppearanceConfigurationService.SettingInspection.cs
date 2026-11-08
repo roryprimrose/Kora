@@ -28,6 +28,8 @@ public sealed partial class AppearanceConfigurationService
                     (RegisteredSetting.PresenceDisplay, AppearanceOption.PresenceDisplay, display is { } d ? new AppearanceValue.Toggle(d) : null),
                     (RegisteredSetting.PresenceTimeout, AppearanceOption.PresenceTimeout,
                         preferences.LoadPresenceTimeoutSeconds() is { } timeout ? new AppearanceValue.Number(timeout) : null),
+                    (RegisteredSetting.ResponseTimeout, AppearanceOption.ResponseTimeout,
+                        preferences.LoadResponseTimeoutSeconds() is { } responseTimeout ? new AppearanceValue.Number(responseTimeout) : null),
                     (RegisteredSetting.PresenceSize, AppearanceOption.PresenceSize,
                         preferences.LoadPresenceSizePixels() is { } size ? new AppearanceValue.Number(size) : null),
                     (RegisteredSetting.DotSize, AppearanceOption.DotSize,

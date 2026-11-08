@@ -67,6 +67,18 @@ The status shows the confirmed saved/default value; editing the field alone chan
 Typed or activated voice can use `get work.active-deadline-minutes`, `status work.active-deadline-minutes`, `set work.active-deadline-minutes to 10`, or `reset work.active-deadline-minutes`.
 These routes use the same host admission, preference readback and required audit ([configuration owner](../src/Kora.Application/Configuration/OrdinaryTurnDeadlineConfigurationService.cs)).
 
+An original local user can also select an exact retained model answer containing
+`set work.active-deadline-minutes to 10` (canonical whole minutes 1-60), or
+`reset work.active-deadline-minutes`, using **Review setting suggestion...**.
+Read current saved/default and proposed values, then separately confirm or
+cancel in that same current native conversation surface within 60 seconds.
+Review is inert; only confirmed audited atomic write/readback changes the
+future preference. A replaced source, returned surface, changed preference or
+host/call authority requires fresh review. Unconfirmed saves require Settings
+and audit inspection, not retry, rollback or a default success.
+There is no model/voice write authority or deadline undo
+([complete workflow](setting-proposals.md)).
+
 This preference applies only when an ordinary conversation turn dispatches, including its admitted read-only tools.
 Pending work has no active budget; running turns do not change when you save a new default.
 Clarification/approval turns and specialized source workflows keep their existing fixed limits ([scope](../Design/User_Configuration.md#delivered-future-ordinary-conversation-deadline)).
@@ -361,6 +373,17 @@ Exact typed or current-name activated commands are `list speech text settings`,
 `set display.speech-text to CurrentSentence`,
 and `reset display.speech-text`. These only inspect/save the device-local
 preference; they never speak, replay or open the microphone.
+
+The exact natural command `show the current sentence` saves **CurrentSentence**.
+`keep speech text visible for ten seconds` saves a **10-second** dismissal delay
+without changing caption mode. Delay commands accept canonical numerals 0-30 or
+English number words zero through thirty. Use `one second` / `1 second`;
+all other values use `seconds`. Compounds twenty-one through twenty-nine accept
+one hyphen or one space (`twenty one`). Extra words, fractions, signs and
+out-of-range values are rejected without clamping. Typed input may omit the
+current name; activated voice retains the current-name and protected-channel
+gates. These aliases use the same native save, audit and readback operation
+([exact grammar](../src/Kora.Application/Configuration/SpeechTextCommand.cs)).
 
 **Current sentence (unavailable in this build)** is also an explicit native
 choice in Speech and audio settings. It requests the exact source sentence

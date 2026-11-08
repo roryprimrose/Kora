@@ -264,8 +264,6 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
         RequireDraft();
         if (action is "Ask")
         {
-            if (originalSnapshot is not null)
-            { throw new InvalidOperationException("Existing-original editing is manual only. Conversational generation remains create-only."); }
             await Propose(opened, Current, token); return;
         }
         if (action is "Validate")

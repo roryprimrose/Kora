@@ -5,10 +5,20 @@ namespace Kora.Application.Configuration.SettingInspection;
 public sealed class ConfirmedSettingsSource(AppearanceConfigurationService appearance, SpeechConfigurationService speech,
     PlaybackVolumeConfigurationService volume, ResponseModeConfigurationService response,
     QuietHoursConfigurationService quietHours, VoiceCaptureTimingConfigurationService timing,
-    DetailPresentationConfigurationService details)
+    DetailPresentationConfigurationService details, WindowsSpeechRateConfigurationService? windowsRate = null)
 {
-    public async Task<ConfirmedSettingsSnapshot> CaptureAsync(CancellationToken token)
+    public async Task<ConfirmedSettingsSnapshot> CaptureAsync(CancellationToken token,
+        SettingInspectionProfile profile = SettingInspectionProfile.ConfirmedSettings)
     {
+        _ = SettingInspectionReview.ExpectedSettings(profile);
+        if (profile == SettingInspectionProfile.WindowsRate)
+        {
+            var selection = await speech.ReadConfirmedRateSelectionAsync(token).ConfigureAwait(false);
+            var rate = await RequireWindowsRate().ReadConfirmedRateAsync(token).ConfigureAwait(false);
+            var dedicated = new ConfirmedSettingsSnapshot(selection, rate);
+            await ValidateAsync(dedicated, token).ConfigureAwait(false);
+            return dedicated;
+        }
         var a = await appearance.ReadConfirmedSettingsAsync(token).ConfigureAwait(false);
         var s = await speech.ReadConfirmedSettingsAsync(token).ConfigureAwait(false);
         var v = await volume.ReadConfirmedSettingsAsync(token).ConfigureAwait(false);
@@ -21,14 +31,31 @@ public sealed class ConfirmedSettingsSource(AppearanceConfigurationService appea
         return snapshot;
     }
 
+    private WindowsSpeechRateConfigurationService RequireWindowsRate() => windowsRate
+        ?? throw new InvalidOperationException("The dedicated Windows rate source is not composed.");
+
     public bool IsCurrent(ConfirmedSettingsSnapshot snapshot) =>
-        appearance.IsInspectionCurrent(snapshot.Appearance) && speech.IsInspectionCurrent(snapshot.Speech)
+        snapshot.Profile == SettingInspectionProfile.WindowsRate
+        ? windowsRate is not null && windowsRate.IsRateInspectionCurrent(snapshot.Rate)
+            && snapshot.Rate.Observations.Single().WindowsRate is { } rate
+            && speech.IsRateSelectionCurrent(snapshot.Speech, rate)
+        : appearance.IsInspectionCurrent(snapshot.Appearance) && speech.IsInspectionCurrent(snapshot.Speech)
         && volume.IsInspectionCurrent(snapshot.Volume) && response.IsInspectionCurrent(snapshot.Response)
         && quietHours.IsInspectionCurrent(snapshot.QuietHours)
         && timing.IsInspectionCurrent(snapshot.Timing) && details.IsInspectionCurrent(snapshot.Details);
 
     public async Task ValidateAsync(ConfirmedSettingsSnapshot snapshot, CancellationToken token)
     {
+        if (snapshot.Profile == SettingInspectionProfile.WindowsRate)
+        {
+            var selection = await speech.ReadConfirmedRateSelectionAsync(token).ConfigureAwait(false);
+            var rate = await RequireWindowsRate().ReadConfirmedRateAsync(token).ConfigureAwait(false);
+            token.ThrowIfCancellationRequested();
+            if (!ReferenceEquals(snapshot.Speech, selection) || !ReferenceEquals(snapshot.Rate, rate)
+                || !IsCurrent(snapshot))
+            { throw new InvalidDataException("Confirmed Windows rate or selected provider changed or is unavailable. Inspect again."); }
+            return;
+        }
         var a = await appearance.ReadConfirmedSettingsAsync(token).ConfigureAwait(false);
         var s = await speech.ReadConfirmedSettingsAsync(token).ConfigureAwait(false);
         var v = await volume.ReadConfirmedSettingsAsync(token).ConfigureAwait(false);

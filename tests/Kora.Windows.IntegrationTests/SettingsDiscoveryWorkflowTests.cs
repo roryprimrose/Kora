@@ -59,7 +59,7 @@ public sealed class SettingsDiscoveryWorkflowTests
         using var root = HostActivity.BeginRoot(HostRequest.Create(origin), HostActivityLayer.Desktop, HostOperation.Request);
         var session = await f.Workflow.ReviewAsync(question, () => true, f.Token,
             discovery ? ModelToolMode.SettingsDiscovery : ModelToolMode.None);
-        session.Review.Observations.Should().HaveCount(22).And.OnlyHaveUniqueItems(item => item.Setting);
+        session.Review.Observations.Should().HaveCount(23).And.OnlyHaveUniqueItems(item => item.Setting);
         var quiet = session.Review.Observations.Single(item => item.Setting == RegisteredSetting.QuietHours);
         quiet.QuietHours.Should().Be(QuietHoursSchedule.Parse(schedule));
         quiet.Value.Should().BeNull();
@@ -187,7 +187,7 @@ public sealed class SettingsDiscoveryWorkflowTests
         var session = await f.Workflow.ReviewAsync(
             "Why does Kora disappear so quickly, and what presence size and movement settings am I using?",
             () => true, f.Token, ModelToolMode.SettingsDiscovery);
-        session.Review.Observations.Should().HaveCount(22).And.OnlyHaveUniqueItems(item => item.Setting);
+        session.Review.Observations.Should().HaveCount(23).And.OnlyHaveUniqueItems(item => item.Setting);
         var observed = session.Review.Observations.Single(item =>
             string.Equals(RegisteredSettingRegistry.Get(item.Setting).Id, id, StringComparison.Ordinal));
         observed.Value.Should().Be(expected);
@@ -283,7 +283,7 @@ public sealed class SettingsDiscoveryWorkflowTests
     [InlineData("path", "settings.get", """{"id":"C:\\private\\config"}""")]
     [InlineData("scope", "settings.get", """{"id":"speech.summary-words","scope":"session"}""")]
     [InlineData("duplicate", "settings.get", """{"id":"speech.summary-words","id":"speech.summary-words"}""")]
-    [InlineData("unavailable", "settings.get", """{"id":"appearance.response-timeout"}""")]
+    [InlineData("unavailable", "settings.get", """{"id":"speech.windows-rate"}""")]
     [InlineData("writes", "settings.reset", "{}")]
     [InlineData("other-family", "application.get_version", "{}")]
     public async Task InvalidOrUnsupportedCallsDoNotReadNewSourcesWriteOrRetainSuccessfulAnswers(string defect, string id, string input)

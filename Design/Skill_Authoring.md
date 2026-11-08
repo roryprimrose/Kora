@@ -156,6 +156,26 @@ packages stay disabled, with separate existing review/enable/invoke. Original
 channel, source/target, draft, privacy and resource-joining checks remain
 authoritative; an unqualified provider is unavailable, not a fallback. This is
 not fixture generation or the full conversational Builder.
+The same [reopened native-v6 literal guidance refinement](../docs/owned-skill-authoring.md#refine-a-reopened-native-v6-mcp-skills-literal-guidance)
+supports a separately native-selected new immutable version with the entire
+original manifest preserved apart from version. MCP server/tool/source-revision/
+schema metadata never enters model evidence or changes through a body proposal.
+The package declares read-only MCP; local authoring remains tools none.
+`McpReadOnlyPolicy` alone owns an ephemeral, exact trusted descriptor admission.
+Only an independently admitted runtime's complete successful validation after
+exact tool selection/approval may produce it, with original expiry and held
+transport/account withdrawal fences. Every validation attempt retires the old
+observation before I/O; captured authoring authority cannot follow a replacement.
+Pure authoring capture/current checks perform no account, configuration,
+reference, discovery, MCP or network I/O. Missing proof is explicit unavailable.
+Source/control observation attempts, policy replacement, withdrawal, unknown
+state, cancellation and resource disposal retire proof before physical joining.
+This does not assert unobserved source freshness or confer invocation grants;
+invocation independently revalidates physical source/account/schema/permission.
+Complete native comparison, volatile adoption, Validate, separately confirmed
+immutable publication/readback and disabled result preserve existing source,
+target, draft, critique, channel, privacy and expiry fences. V2/v4/v5, references,
+unknown profiles and original tool-bearing generation remain refused.
 The [explicit literal owned Instruction body increment](../docs/instruction-editor.md#dictate-literal-instruction-body-text) now binds one foreground canonical owned draft/body caret or range before shared local capture, reviews the complete insertion/replacement and accepts into volatile memory only. Normal exact Save, dirty-close and separate enablement remain independent; metadata, prompts, profile originals and other definition kinds are excluded ([target owner](../src/Kora/OwnedInstructionEditorController.Dictation.cs)).
 The same editor supports [one volatile last-confirmed-save restore](../docs/instruction-editor.md#restore-the-last-confirmed-save-in-this-editor) for an existing owned native-v1 Instruction: complete current/previous-source review, separate normal Save and readback as a NEW disabled revision.
 It is not general history or a profile-original restore and cannot revive a renamed source identity.

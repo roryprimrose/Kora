@@ -47,6 +47,11 @@ internal sealed partial class McpInvocation(
     private int used;
     private bool disposed;
     private bool connectionFaulted;
+    private bool toolPrepared;
+    private readonly Lock guidanceClockGate = new();
+    private DateTimeOffset guidanceObservedAt = time.GetUtcNow();
+    private bool guidanceClockRetired;
+    private McpReadOnlyPolicy.DescriptorAdmission? guidanceDescriptor;
     internal bool Completed { get; private set; }
     internal McpModelResult? Result { get; private set; }
     internal McpModelTool ModelTool => selected is { } tool
@@ -118,6 +123,7 @@ internal sealed partial class McpInvocation(
             selected.Schema.ValidateArguments(reviewed.Arguments);
         }
         await ApproveAsync(McpReviewStage.ToolSelection, null, token).ConfigureAwait(false);
+        toolPrepared = true;
         await ValidateAsync(token).ConfigureAwait(false);
     }
 
@@ -226,6 +232,8 @@ internal sealed partial class McpInvocation(
 
     internal async Task ValidateAsync(CancellationToken token)
     {
+        guidanceDescriptor?.Retire();
+        _ = GuidanceClockCurrent();
         token.ThrowIfCancellationRequested();
         if (!Live(token)) { throw new InvalidOperationException("The exact MCP session, source or permission admission is closed."); }
         if (selected is not null && !configuration.IsToolEnabled(serverId, selected.Name))
@@ -254,6 +262,33 @@ internal sealed partial class McpInvocation(
         foreach (var validate in grants) { await validate(token).ConfigureAwait(false); }
         if (transportJoin is not null) { await ValidateAccountAsync(token).ConfigureAwait(false); }
         if (!Live(token)) { throw new InvalidOperationException("MCP admission changed during validation."); }
+        if (toolPrepared && selected is not null && used == 0 && !connectionFaulted && GuidanceClockCurrent()
+            && connection is not null && transportJoin is null)
+        {
+            var observation = configuration.CaptureDescriptorObservation();
+            var withdrawal = connection.AdmissionWithdrawn;
+            if (observation is not null && withdrawal.CanBeCanceled && !withdrawal.IsCancellationRequested)
+            {
+                bool DescriptorCurrent() => !disposed && !connectionFaulted && connection is not null
+                    && used == 0 && transportJoin is null
+                    && !token.IsCancellationRequested && !withdrawal.IsCancellationRequested
+                    && access.CanControl && access.ControlRevision == control && admitted() && observation()
+                    && GuidanceClockCurrent();
+                guidanceDescriptor = effects.ObservePreparedDescriptor(Source, selected, DescriptorCurrent, time, expiresAt);
+            }
+        }
+    }
+
+    private bool GuidanceClockCurrent()
+    {
+        lock (guidanceClockGate)
+        {
+            var now = time.GetUtcNow();
+            if (guidanceClockRetired || now < guidanceObservedAt || now >= expiresAt)
+            { guidanceClockRetired = true; return false; }
+            guidanceObservedAt = now;
+            return true;
+        }
     }
 
     private bool Admitted(CancellationToken token) => !disposed && !token.IsCancellationRequested
@@ -374,12 +409,14 @@ internal sealed partial class McpInvocation(
 
     public async ValueTask DisposeAsync()
     {
+        guidanceDescriptor?.Retire();
         disposed = true;
         await JoinTransportAsync().ConfigureAwait(false);
     }
 
     internal async ValueTask JoinTransportAsync()
     {
+        guidanceDescriptor?.Retire();
         if (connection is { } owned)
         {
             connection = null;

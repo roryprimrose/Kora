@@ -41,6 +41,9 @@ public sealed partial class MainViewModel
         internal Kora.Application.Presentation.ModelActionReviewTarget? ModelActionReview { get; init; }
         internal Func<bool> NamedSkillChoiceEligible { get; init; } = static () => false;
         internal Func<bool>? WakeActivationCurrent { get; init; }
+        internal Func<Kora.Application.Voice.HandsFreeVoiceContinuation>? RoutingWakeContinuation { get; init; }
+        internal Func<bool> RoutingStableEligible { get; init; } = static () => false;
+        internal long RoutingVoiceOwnerRevision { get; init; }
         internal Func<bool> SkillQuestionEligible { get; init; } = static () => false;
     }
 
@@ -73,6 +76,8 @@ public sealed partial class MainViewModel
                 && !IsVoiceEnabled && Interlocked.Read(ref acceptedTranscriptGeneration) == -1)
         {
             SkillQuestionEligible = StableInput,
+            RoutingStableEligible = StableInput,
+            RoutingVoiceOwnerRevision = Interlocked.Read(ref voiceOwnershipBindingRevision),
             NavigationOwnerRevision = auditImpactOwnerRevision(),
             NavigationInitiallyAdmitted = IsCallMutationHostEligible && !IsProtectedCall,
             AssistantNameRevision = assistantNameConfiguration.Get().Revision,

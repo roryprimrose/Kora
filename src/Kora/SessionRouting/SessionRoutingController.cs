@@ -84,14 +84,15 @@ internal sealed class SessionRoutingController : IDisposable
             if (!routing.IsCurrent(review)) { throw new OperationCanceledException("Original routing admission changed."); }
             var result = new TaskCompletionSource<SessionRoutingSelection?>(TaskCreationOptions.RunContinuationsAsynchronously);
             var opened = new SessionRoutingWindow(routing, review, () => !disposed && admitted(),
-                exception => main.ReportHostInteractionFailure("Destination review stopped. No rerouting or submission retry. Failure type: " + exception.GetType().Name));
+                exception => main.ReportHostInteractionFailure("Destination review stopped. No rerouting or submission retry. Failure type: " + exception.GetType().Name),
+                main.CreateSessionRoutingVoiceReply, main.ReleaseSessionRoutingVoiceReply);
             window = opened;
             opened.Closed += (_, _) => result.TrySetResult(opened.Result);
             Show(opened);
 #pragma warning disable VSTHRD003 // Exact native close completion; awaiting leaves the dispatcher responsive.
             var selection = await result.Task;
 #pragma warning restore VSTHRD003
-            await opened.ChoiceOperation;
+            await opened.JoinAsync();
             if (opened.Failure is { } failure) { throw new InvalidOperationException("The exact destination review failed; no submission.", failure); }
             if (selection is null) { return null; }
             return await routing.SubmitAsync(selection, CancellationToken.None);
@@ -101,7 +102,11 @@ internal sealed class SessionRoutingController : IDisposable
         {
             routing.Retire();
             lock (inferenceGate) { inference = null; }
-            if (window is { } destination) { Withdraw(destination); }
+            if (window is { } destination)
+            {
+                Withdraw(destination);
+                await destination.JoinAsync();
+            }
             window = null;
             if (adviceWindow is { } advice) { Withdraw(advice); }
             adviceWindow = null;

@@ -1053,8 +1053,41 @@ visibility, performance or Windows motion state.
 
 Mutation remains the separate existing setting-suggestion/native review.
 Inspection performs no preference write, grant, consent change, capture, speech,
-network/export, renderer replacement or run-only presence mutation. Response
-timeout and Windows speech rate remain outside this confirmed-value subset.
+network/export, renderer replacement or run-only presence mutation. Windows
+speech rate remains outside this confirmed-value subset.
+
+### Delivered confirmed response-window hide-delay answer
+
+The existing [complete confirmed settings inspection](../docs/setting-inspection.md)
+now includes `appearance.response-timeout` for the original question "Which
+response-window hide delay is configured, and is that the same as presence
+inactivity or my ordinary task deadline?" The existing
+[authoritative appearance reader](../src/Kora.Application/Configuration/SettingInspection/AppearanceConfigurationService.SettingInspection.cs)
+compares the validated saved value or existing absent/default 5 seconds against
+live appearance state and saved/default provenance at its revision. The closed
+integer range remains 1-60 seconds; no writer, default or persistence format is added.
+
+All twelve appearance observations are required in the complete twenty-three-value
+source. Malformed, unconfirmed, publishing, unobserved or externally changed state
+blocks the whole source. Observed change-and-return or service revision changes
+cannot renew prior evidence. Existing original host/session/channel/privacy/call,
+expiry, cancellation, tool-boundary and final-publication revalidation remains
+unchanged.
+
+Native/typed or eligible activated-voice originals use the same complete source
+review, exact question, new local destination and original expiry before separate
+one-use confirmation. A tool-free local answer or explicitly chosen read-only
+settings-discovery flow retains only the original question and genuine final
+answer under existing conversation policy, with physical join and terminal audit.
+Settings navigation alone grants no source consent.
+
+The value is explicitly configured response-window inactivity hide delay, not
+presence inactivity, a task/provider deadline, current visibility, performance
+or evidence that [visibility exceptions](../docs/settings.md#independent-visibility-timeouts)
+are absent. No setting write, hide/show, capture/playback, other source/tool,
+export, grant, policy or provider enablement is introduced. Windows-native rate
+stays outside this source. This is deterministic implementation evidence, not
+local-provider or installed qualification.
 
 ### Delivered confirmed capture-timing answer
 

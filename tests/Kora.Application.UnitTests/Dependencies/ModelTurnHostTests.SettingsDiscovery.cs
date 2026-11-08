@@ -27,6 +27,7 @@ public sealed partial class ModelTurnHostTests
                 new(RegisteredSetting.DetailPresentation, 0, false, 1),
                 new(RegisteredSetting.PresenceDisplay, 1, false, 1),
                 new(RegisteredSetting.PresenceTimeout, 10, false, 1),
+                new(RegisteredSetting.ResponseTimeout, 5, false, 1),
                 new(RegisteredSetting.PresenceSize, 360, false, 1),
                 new(RegisteredSetting.DotSize, 100, false, 1),
                 new(RegisteredSetting.DotDensity, 100, false, 1),
@@ -177,7 +178,7 @@ public sealed partial class ModelTurnHostTests
             var review = SettingsReview(f);
             using var root = f.Root();
             var transport = new ToolTransport(
-                """{"kind":"toolCalls","calls":[{"callId":"get_1","capabilityId":"settings.get","input":{"id":"appearance.response-timeout"}}]}""");
+                """{"kind":"toolCalls","calls":[{"callId":"get_1","capabilityId":"settings.get","input":{"id":"speech.windows-rate"}}]}""");
             await using var loop = CreateLoop(f, transport);
             var host = f.LoopHost(loop);
             var turn = (await host.AdmitAsync(ModelProviderSelection.OllamaCandidate,

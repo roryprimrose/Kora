@@ -1942,16 +1942,17 @@ Original typed input and current-name activated voice accept only the following 
 | Whole utterance | Existing action and scope |
 |---|---|
 | `turn on speech captions`, `show speech captions`, `show speech text`, `show the words you're saying` | Save device-local `CurrentUtterance`; this is persistent opt-in, not immediate display or replay |
+| `show the current sentence` | Save device-local `CurrentSentence`; actual sentence captions still require qualified source alignment, with no fabricated progress or utterance fallback |
 | `turn off speech captions`, `hide speech captions`, `hide speech text` | Save device-local `Off`; this is persistent opt-out, not one-shot hiding |
 | `list speech caption settings`, `inspect speech caption settings`, `status speech captions` | Inspect existing saved/effective settings and recovery |
 | `reset speech captions` | Save `Off` only; preserve placement and dismissal delay |
 | `get/status/reset speech caption placement` | Inspect or reset only placement |
 | `get/status/reset speech caption dismissal delay` | Inspect or reset only dismissal delay |
 | `put speech captions in the bottom-right/bottom-left/top-right/top-left` | Save one of the four existing working-area corners; no automatic display selection |
-| `keep speech text visible for <seconds> seconds` | Save canonical integer 0-30 seconds; use `1 second` for one, not number words |
+| `keep speech text visible for <seconds> seconds` | Save exact integer 0-30 using canonical numerals or English number words zero through thirty; use `1 second` / `one second`; twenty-one through twenty-nine accept either one hyphen or one space |
 | `pin current speech caption`, `unpin current speech caption` | Run-only pin/unpin of the eligible host-owned current caption; never a content selector |
 
-The table abbreviates alternatives with `/`; a command contains one complete alternative. Unknown settings, trailing clauses, number words, noncanonical/out-of-range delays and vague `pin that text`/`unpin that text` clarify rather than falling through to inference or approval/question handling. Embedded or quoted instructions do not match ([grammar tests](../tests/Kora.Application.UnitTests/Configuration/NaturalSpeechCaptionCommandTests.cs)).
+The table abbreviates alternatives with `/`; a command contains one complete alternative. Unknown settings, trailing clauses, unlisted number words, noncanonical/out-of-range/fractional delays, incorrect singular/plural units and vague `pin that text`/`unpin that text` clarify rather than falling through to inference or approval/question handling. Embedded or quoted instructions do not match ([grammar tests](../tests/Kora.Application.UnitTests/Configuration/NaturalSpeechCaptionCommandTests.cs)).
 
 Aliases retain original input origin, saved-preference confirmation, session/generation/choice identity, ownership/privacy/call admission and typed audit/atomic/readback outcomes. Configuration does not speak, stop listening or change response mode; options do not opt in. Pinning uses the existing observed playback identity and never restores retired speech ([execution](../src/Kora.Application/ViewModels/MainViewModel.SpeechText.cs), [configuration service](../src/Kora.Application/Configuration/SpeechTextConfigurationService.cs)).
 
@@ -1987,8 +1988,8 @@ The broader proposed registry includes:
 
 | Preference | Default / choices | Example after "Kora" |
 |---|---|---|
-| Speech text | CurrentSentence exact controls/implementation are delivered but alignment is unqualified; word highlighting and a natural sentence alias remain proposed | "Show the current sentence" (proposed alias) |
-| Speech-text dismissal | Number-word parsing remains proposed; canonical integer 0-30 commands are [delivered above](#bounded-natural-speech-caption-commands) | "Keep speech text visible for ten seconds" (proposed) |
+| Speech text | CurrentSentence exact controls and natural alias are delivered but alignment is unqualified; word highlighting also remains unqualified | "Show the current sentence" ([delivered alias](#bounded-natural-speech-caption-commands)) |
+| Speech-text dismissal | Exact number words zero through thirty and canonical integer 0-30 commands are [delivered above](#bounded-natural-speech-caption-commands) | "Keep speech text visible for ten seconds" |
 | Caption placement | Arbitrary placement and voice display selection remain proposed; four corner aliases are [delivered above](#bounded-natural-speech-caption-commands) | "Put speech text on another display" (proposed) |
 | Text scale | 100%; 75-200% | "Make result text twenty percent larger" |
 | Detailed result opening | Offer (default) / Open automatically / Link only | "Always open detailed results" |

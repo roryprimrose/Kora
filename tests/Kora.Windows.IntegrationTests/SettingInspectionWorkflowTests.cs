@@ -89,7 +89,8 @@ public sealed class SettingInspectionWorkflowTests
         private readonly BoundedModelTurnAdapter? loop;
         internal Fixture(string mode = "success", IModelToolTransport? transport = null,
             VoiceCaptureTiming? savedTiming = null, SpeechSelection? speechSelection = null,
-            Kora.Core.Presentation.DetailPresentationMode? detailMode = null, string? quietHours = null)
+            Kora.Core.Presentation.DetailPresentationMode? detailMode = null, string? quietHours = null,
+            int? responseTimeout = null)
         {
             if (speechSelection is not null)
             { Preferences.Lines["speech-selection.txt"] = ["1", speechSelection.ProviderId, speechSelection.VoiceId ?? string.Empty]; }
@@ -111,7 +112,9 @@ public sealed class SettingInspectionWorkflowTests
             audio = new(Storage.Store, Storage.Store, new(Storage.Tasks));
             Preferences.Text["appearance-theme.txt"] = "Dark";
             Preferences.Text["reader-text-scale-percent.txt"] = "125";
-            var appearance = new AppearanceConfigurationService(
+            if (responseTimeout is { } timeout)
+            { Preferences.Text["response-timeout-seconds.txt"] = timeout.ToString(System.Globalization.CultureInfo.InvariantCulture); }
+            Appearance = new AppearanceConfigurationService(
                 new LocalAppearancePreferences(Preferences, NullLogger<LocalAppearancePreferences>.Instance),
                 Controls, NullLogger<AppearanceConfigurationService>.Instance);
             var speech = new SpeechConfigurationService(
@@ -130,17 +133,18 @@ public sealed class SettingInspectionWorkflowTests
             { Preferences.Text["detail-presentation.txt"] = Kora.Core.Presentation.DetailPresentationPreference.Format(detailMode.Value); }
             Details = new(new LocalDetailPresentationPreferences(Preferences), audio, Controls, Storage.Time);
             Details.Observe();
-            appearance.Reload();
+            Appearance.Reload();
             speech.Reload();
             volume.Observe();
             response.Observe();
             Playback.Effects = 0;
             Preferences.Reads = 0;
-            Workflow = new(new(appearance, speech, volume, response, QuietHours, Timing, Details), new SettingInspectionConversation(sessions, Conversation, Host),
+            Workflow = new(new(Appearance, speech, volume, response, QuietHours, Timing, Details), new SettingInspectionConversation(sessions, Conversation, Host),
                 Controls, Controls, Storage.Time, NullLogger<SettingInspectionWorkflow>.Instance);
         }
 
         internal InteractionStorageFixture Storage { get; } = new();
+        internal AppearanceConfigurationService Appearance { get; }
         internal QuietHoursConfigurationService QuietHours { get; }
         internal CancellationToken Token => TestContext.Current.CancellationToken;
         internal ControlsData Controls { get; }

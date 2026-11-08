@@ -33,7 +33,7 @@ public sealed class DetailSettingInspectionTests
         await f.InitializeAsync();
         using var root = HostActivity.BeginRoot(HostRequest.Create(origin), HostActivityLayer.Desktop, HostOperation.Request);
         var session = await f.Workflow.ReviewAsync(Question, () => true, f.Token, ModelToolMode.SettingsDiscovery);
-        session.Review.Observations.Should().HaveCount(21).And.OnlyHaveUniqueItems(item => item.Setting);
+        session.Review.Observations.Should().HaveCount(23).And.OnlyHaveUniqueItems(item => item.Setting);
         var observation = session.Review.Observations.Single(item => item.Setting == RegisteredSetting.DetailPresentation);
         observation.Value.Should().Be((int)expected);
         observation.IsSaved.Should().Be(saved.HasValue);

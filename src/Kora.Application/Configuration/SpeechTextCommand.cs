@@ -21,10 +21,12 @@ public sealed record SpeechTextCommand(AppearanceCommandOperation Operation, Spe
         + "get/status/set/reset display.speech-text-pin (true|false; current caption only) | "
         + "turn on/off speech captions | show/hide speech captions | show/hide speech text | show the words you're saying "
         + "(show/on saves CurrentUtterance; hide/off saves Off, not a one-shot hide) | "
+        + "show the current sentence (saves CurrentSentence; requires qualified alignment) | "
         + "list/inspect speech caption settings | status/reset speech captions (reset saves Off only) | "
         + "get/status/reset speech caption placement | get/status/reset speech caption dismissal delay | "
         + "put speech captions in the bottom-right|bottom-left|top-right|top-left | "
-        + "keep speech text visible for <canonical integer 0-30> seconds (1 second) | "
+        + "keep speech text visible for <canonical integer or English number word 0-30> seconds "
+        + "(1/one second; twenty-one through twenty-nine also accept spaces) | "
         + "pin current speech caption | unpin current speech caption";
     private static Dictionary<string, string> NaturalAliases { get; } = CreateNaturalAliases();
     private static readonly string[] ReservedPrefixes =
@@ -32,7 +34,7 @@ public sealed record SpeechTextCommand(AppearanceCommandOperation Operation, Spe
         "list speech text", "get display.speech-text", "status display.speech-text",
         "set display.speech-text", "reset display.speech-text",
         "turn on speech caption", "turn off speech caption", "show speech caption", "hide speech caption",
-        "show speech text", "hide speech text", "show the words",
+        "show speech text", "hide speech text", "show the words", "show the current sentence",
         "list speech caption", "inspect speech caption", "status speech caption", "reset speech caption",
         "get speech caption", "set speech caption", "put speech caption", "keep speech text",
         "pin current speech caption", "unpin current speech caption",
@@ -59,6 +61,7 @@ public sealed record SpeechTextCommand(AppearanceCommandOperation Operation, Spe
             ["show speech captions"] = "set " + OptionId + " to " + SpeechTextMode.CurrentUtterance,
             ["show speech text"] = "set " + OptionId + " to " + SpeechTextMode.CurrentUtterance,
             ["show the words you're saying"] = "set " + OptionId + " to " + SpeechTextMode.CurrentUtterance,
+            ["show the current sentence"] = "set " + OptionId + " to " + SpeechTextMode.CurrentSentence,
             ["turn off speech captions"] = "set " + OptionId + " to " + SpeechTextMode.Off,
             ["hide speech captions"] = "set " + OptionId + " to " + SpeechTextMode.Off,
             ["hide speech text"] = "set " + OptionId + " to " + SpeechTextMode.Off,
@@ -82,12 +85,22 @@ public sealed record SpeechTextCommand(AppearanceCommandOperation Operation, Spe
         {
             aliases.Add("put speech captions in the " + corner, "set " + PlacementId + " to " + placement);
         }
+        string[] numberWords =
+        [
+            "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+            "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen",
+            "eighteen", "nineteen", "twenty", "twenty-one", "twenty-two", "twenty-three",
+            "twenty-four", "twenty-five", "twenty-six", "twenty-seven", "twenty-eight", "twenty-nine", "thirty",
+        ];
         foreach (var seconds in Enumerable.Range(SpeechCaptionOptions.MinimumDelaySeconds,
             SpeechCaptionOptions.MaximumDelaySeconds - SpeechCaptionOptions.MinimumDelaySeconds + 1))
         {
             var label = new SpeechCaptionValue.Delay(seconds).Label;
-            aliases.Add("keep speech text visible for " + label + (seconds == 1 ? " second" : " seconds"),
-                "set " + DelayId + " to " + label);
+            foreach (var duration in new[] { label, numberWords[seconds], numberWords[seconds].Replace('-', ' ') }.Distinct(StringComparer.Ordinal))
+            {
+                aliases.Add("keep speech text visible for " + duration + (seconds == 1 ? " second" : " seconds"),
+                    "set " + DelayId + " to " + label);
+            }
         }
         return aliases;
     }

@@ -6,5 +6,5 @@ public interface ICurrentResponsePresentation
 {
     Func<bool> CaptureLifetime();
     bool Dismiss(Func<bool> admitted);
-    bool OpenDetails(AdmittedDetailContent content, Func<bool> admitted);
+    Task<bool> OpenDetailsAsync(AdmittedDetailContent content, Func<bool> admitted);
 }

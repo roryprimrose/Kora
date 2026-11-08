@@ -134,15 +134,15 @@ public sealed class StaticHtmlDetailRendererTests
             }, NullLogger<DetailWindowController>.Instance,
             new StaticHtmlDetailRenderer(NullLogger<StaticHtmlDetailRenderer>.Instance, qualified));
         var content = Content("<h2>Exact result</h2><p>Private source</p>");
-        controller.OpenCurrentResponse(content, null, () => sourceLive).Should().BeTrue();
+        (await controller.OpenCurrentResponseAsync(content, null, () => sourceLive, TestContext.Current.CancellationToken)).Should().BeTrue();
         var view = views.Single();
         results.Single().IsFallback.Should().Be(!qualified);
         view.State.ActiveText.Should().Be(qualified ? "Exact result\n\nPrivate source" : content.Source);
-        controller.OpenCurrentResponse(content, null, () => sourceLive).Should().BeTrue();
+        (await controller.OpenCurrentResponseAsync(content, null, () => sourceLive, TestContext.Current.CancellationToken)).Should().BeTrue();
         views.Should().ContainSingle();
         var foreign = new AdmittedDetailContent(content.Reference, content.Kind, content.Origin, content.Sensitivity,
             content.Title, content.Provenance, "<p>foreign</p>", sessionSource: content.SessionSource);
-        controller.OpenCurrentResponse(foreign, null, () => true).Should().BeFalse();
+        (await controller.OpenCurrentResponseAsync(foreign, null, () => true, TestContext.Current.CancellationToken)).Should().BeFalse();
         var generation = view.State.Generation;
         view.State.SetSource(true);
         view.State.ActiveText.Should().Be(content.Source);
@@ -153,9 +153,9 @@ public sealed class StaticHtmlDetailRendererTests
         view.Cleared.Should().BeTrue();
         view.State.ActiveText.Should().BeEmpty();
         view.State.CompleteRender(generation, "late private text", "Late", false).Should().BeFalse();
-        controller.OpenCurrentResponse(content, null, () => sourceLive).Should().BeFalse();
+        (await controller.OpenCurrentResponseAsync(content, null, () => sourceLive, TestContext.Current.CancellationToken)).Should().BeFalse();
         sourceLive = true;
-        controller.OpenCurrentResponse(Content("<p>New exact source</p>"), null, () => sourceLive).Should().BeTrue();
+        (await controller.OpenCurrentResponseAsync(Content("<p>New exact source</p>"), null, () => sourceLive, TestContext.Current.CancellationToken)).Should().BeTrue();
         controller.ClearForPrivacy();
         views.Should().OnlyContain(item => item.Cleared);
         views.Should().OnlyContain(item => item.State.Content == null);
@@ -183,7 +183,8 @@ public sealed class StaticHtmlDetailRendererTests
                 views.Add(view);
                 return view;
             }, NullLogger<DetailWindowController>.Instance,
-            new(NullLogger<StaticHtmlDetailRenderer>.Instance, htmlQualified));
+            new(NullLogger<StaticHtmlDetailRenderer>.Instance, htmlQualified),
+            markdownDisplay: (_, _) => Task.FromResult(MarkdownDisplayMode.Rendered));
         var html = Content("<h2>Private HTML</h2>");
         var request = HostRequest.Create(RequestOrigin.LocalUi);
         const string checklistSource = "- [ ] Private checklist\r\n";
@@ -191,8 +192,8 @@ public sealed class StaticHtmlDetailRendererTests
             DetailContentOrigin.FinalizedResponse, DetailSensitivity.DisclosureConfirmationRequired,
             "Exact assistant answer", "Host-issued immutable test answer", checklistSource,
             new(request.SessionId, request.RequestId, request.TaskId));
-        controller.OpenCurrentResponse(html, null, () => htmlLive).Should().BeTrue();
-        controller.OpenCurrentResponse(checklist, null, () => true).Should().BeTrue();
+        (await controller.OpenCurrentResponseAsync(html, null, () => htmlLive, TestContext.Current.CancellationToken)).Should().BeTrue();
+        (await controller.OpenCurrentResponseAsync(checklist, null, () => true, TestContext.Current.CancellationToken)).Should().BeTrue();
         views[0].State.ActiveText.Should().Be(htmlQualified ? "Private HTML" : html.Source);
         views[0].State.Status.Should().Contain(StaticHtmlProfile.Name);
         views[1].State.RenderState.Should().Be(checklistQualified ? DetailRenderState.Rendered : DetailRenderState.SourceFallback);

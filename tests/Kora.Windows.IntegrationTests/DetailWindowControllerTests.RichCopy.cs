@@ -191,7 +191,7 @@ public sealed partial class DetailWindowControllerTests
             DetailContentOrigin.FinalizedResponse, DetailSensitivity.DisclosureConfirmationRequired,
             "Final", "Original response", "# Final",
             new(request.SessionId, request.RequestId, request.TaskId));
-        f.Controller.OpenCurrentResponse(content, null, static () => true).Should().BeTrue();
+        (await f.Controller.OpenCurrentResponseAsync(content, null, static () => true, TestContext.Current.CancellationToken)).Should().BeTrue();
         var denied = f.Views.Single().State;
         await f.Controller.CopyAsync(denied.Reference, denied.Generation, true);
         await f.Controller.CopyAsync(denied.Reference, denied.Generation, true, 0, 3);

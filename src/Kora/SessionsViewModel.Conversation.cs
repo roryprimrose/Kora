@@ -321,6 +321,12 @@ internal sealed partial class SessionsViewModel
                 conversationStatus = "Legacy recovery unavailable: " + exception.Message
                     + " Unsent input and conversation history unchanged. Nothing saved, removed or submitted; a fresh explicit recovery reads the source again.";
             }
+            else if (sourceRead && exception is Kora.Application.Configuration.MarkdownDisplayConfigurationService.CaptureUnavailableException
+                && Live())
+            {
+                conversationStatus = exception.Message
+                    + " Existing admitted readers, retained page and unsent input are unchanged. No new reader was published; no automatic retry.";
+            }
             else if (sourceRead && exception is ConversationSnapshotChangedException && Live())
             {
                 revokeConversationDetails?.Invoke(target.Authority.SessionId);

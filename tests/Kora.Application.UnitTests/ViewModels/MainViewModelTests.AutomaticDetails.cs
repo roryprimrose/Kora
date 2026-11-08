@@ -134,6 +134,40 @@ public sealed partial class MainViewModelTests
         main.CaptureAutomaticDetailsAdmission()().Should().BeFalse();
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AutomaticPreferenceFailurePreservesCompletedAnswerAndNeverDisclosesAfterRevocation(bool revoke)
+    {
+        await using var settings = new DetailPresentationConfigurationServiceTests.Fixture();
+        var f = new Fixture(detailPresentationConfiguration: settings.Service);
+        using var main = f.ViewModel;
+        f.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "Qualified deterministic fake");
+        await main.InitializeAsync();
+        await settings.Set(DetailPresentationMode.OpenAutomatically);
+        var presenter = new AutomaticResponsePresenter
+        {
+            PublicationFailure = new InvalidDataException("Unconfirmed Markdown preference"),
+            BeforePublish = revoke ? () => main.BindCallOwnershipGate(static () => false) : null
+        };
+        main.BindCurrentResponsePresentation(presenter);
+        f.Reasoner.Response = new(DetailOfferAnswer, null);
+        await f.RunAsync("prepare the complete deployment plan");
+        await main.ActiveReasoningTask!;
+        presenter.Intents.Should().ContainSingle();
+        presenter.Opened.Should().Be(0);
+        f.Reasoner.Requests.Should().ContainSingle();
+        main.ResponseTitle.Should().Be("Local model response");
+        main.ResponseBody.Should().Contain(AnswerPresentation.From(DetailOfferAnswer).Brief);
+        if (revoke) { main.Transcript.Should().NotContain("Automatic Markdown Details unavailable"); }
+        else { main.Transcript.Should().Contain("Automatic Markdown Details unavailable").And.Contain("saved default was not applied"); }
+        f.TextToSpeech.SpeakCalls.Should().Be(revoke ? 0 : 1,
+            "only the original completed answer may speak, and revoked host output must not");
+        if (!revoke)
+        { f.TextToSpeech.SpokenText.Should().NotContain("saved default").And.NotContain("Detailed response:"); }
+        f.Voice.StartCalls.Should().Be(0);
+    }
+
     private sealed class AutomaticResponsePresenter : ICurrentResponsePresentation, IAutomaticDetailPresentation
     {
         internal bool CaptureAvailable { get; init; } = true;
@@ -141,9 +175,11 @@ public sealed partial class MainViewModelTests
         internal bool NativeCurrent { get; set; } = true;
         internal List<AutomaticDetailIntent> Intents { get; } = [];
         internal int Opened { get; private set; }
+        internal Exception? PublicationFailure { get; init; }
+        internal Action? BeforePublish { get; init; }
         public Func<bool> CaptureLifetime() => () => NativeCurrent;
         public bool Dismiss(Func<bool> admitted) => throw new InvalidOperationException("Automatic opening cannot dismiss.");
-        public bool OpenDetails(AdmittedDetailContent content, Func<bool> admitted) =>
+        public Task<bool> OpenDetailsAsync(AdmittedDetailContent content, Func<bool> admitted) =>
             throw new InvalidOperationException("Automatic opening cannot use the activating manual route.");
         public AutomaticDetailLease? CaptureAutomaticDetails()
         {
@@ -152,12 +188,14 @@ public sealed partial class MainViewModelTests
             return new(ForeignSession ? new(Guid.NewGuid()) : request.SessionId, new(1), 1, 2, 3,
                 () => NativeCurrent, () => NativeCurrent);
         }
-        public bool PublishAutomaticDetails(AutomaticDetailIntent intent)
+        public Task<bool> PublishAutomaticDetailsAsync(AutomaticDetailIntent intent)
         {
             Intents.Add(intent);
-            if (!intent.TryConsume()) { return false; }
+            BeforePublish?.Invoke();
+            if (PublicationFailure is { } failure) { return Task.FromException<bool>(failure); }
+            if (!intent.TryConsume()) { return Task.FromResult(false); }
             Opened++;
-            return true;
+            return Task.FromResult(true);
         }
     }
 }

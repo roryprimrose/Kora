@@ -33,7 +33,6 @@ internal sealed partial class SessionsViewModel
         { completedConversationMessage = message; }
         conversationReadingControl = access.ControlRevision;
         conversationUpdates = true;
-        PresentAutomaticDetails(message);
         return true;
     }
 

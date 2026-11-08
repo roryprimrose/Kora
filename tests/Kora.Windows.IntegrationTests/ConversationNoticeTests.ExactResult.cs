@@ -5,6 +5,8 @@ using Avalonia.VisualTree;
 using AwesomeAssertions;
 
 using Kora.Application.Documentation;
+using Kora.Application.Configuration;
+using Kora.Application.Voice;
 using Kora.Application.Presentation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
@@ -132,14 +134,17 @@ public sealed partial class ConversationNoticeTests
             await f.Submit(ModelTurnOutcome.Succeeded, first.Authority.SessionId, "newer answer must never replace the exact old result");
             await f.Submit(ModelTurnOutcome.Succeeded, second.Authority.SessionId, "same title foreign session answer");
             using var native = new NativeUxFixtureSession(Path.GetFullPath("."), silentCaption: true);
-            await native.InitializeAsync();
+            await using var admission = new AudioControlAdmission(f.Storage.Store, f.Storage.Store, new(f.Storage.Tasks));
+            await using var markdown = new MarkdownDisplayConfigurationService(new MarkdownDisplaySettingsTests.Preferences(),
+                admission, native.Audit, f.Storage.Time, NullLogger<MarkdownDisplayConfigurationService>.Instance);
+            await native.InitializeAsync(null, markdownDisplayConfiguration: markdown);
             await using var broker = f.Broker();
             ResponseWindow? primary = null;
             var clipboard = new ResultClipboard();
             using var details = new DetailWindowController(native.Documents, () => f.Access.CanInspect,
                 new(NullLogger<NativeDetailRenderer>.Instance), clipboard,
                 (state, result, copy) => new SessionDetailView(primary!.SessionView, state, result, copy, native.Main),
-                NullLogger<DetailWindowController>.Instance);
+                NullLogger<DetailWindowController>.Instance, markdownDisplay: markdown.CaptureAsync);
             var viewer = f.Viewer(broker, (content, admitted, resolve, token) =>
                 details.OpenConversationDetailAsync(content, primary, admitted, resolve, token));
             await viewer.RefreshAsync();

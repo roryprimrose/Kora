@@ -559,6 +559,9 @@ public sealed partial class ModelTurnHostTests
         internal string File { get; }
         internal McpServerConfigurationService Configuration { get; }
         internal McpCapabilityPreferences? Capabilities { get; }
+        internal ArtifactUsePreferences? DescriptorUse { get; }
+        internal Tools.KoraMcpServerTests.MemoryStore DescriptorUseStore { get; } = new();
+        internal ArtifactDirectoryConfigurationService? DescriptorDirectories { get; }
         private readonly McpPreferences preferences;
         internal IArtifactDirectoryPreferences Preferences => preferences;
         internal ArtifactDirectorySettings Settings { get => preferences.Value; set => preferences.Value = value; }
@@ -573,8 +576,9 @@ public sealed partial class ModelTurnHostTests
             preferences = new McpPreferences(new([], [], [], [], [File], []));
             if (audit is not null)
             {
-                Capabilities = new(new ArtifactUsePreferences(new Tools.KoraMcpServerTests.MemoryStore()),
-                    preferences, new ArtifactDirectoryConfigurationService(preferences, audit));
+                DescriptorUse = new(DescriptorUseStore);
+                DescriptorDirectories = new(preferences, audit);
+                Capabilities = new(DescriptorUse, preferences, DescriptorDirectories);
             }
             Configuration = new(new McpPaths(directory), preferences, Path.Combine(directory, "profile"), usePolicy, Capabilities);
             ServerId = Configuration.Load().Single().Id;
@@ -600,17 +604,19 @@ public sealed partial class ModelTurnHostTests
 
     private sealed class McpModelTransport : IModelToolTransport
     {
+        internal Func<Task>? BeforeFirstReply { get; init; }
         internal string Arguments { get; init; } = """{"query":"reference"}""";
         internal bool NoTool { get; init; }
         internal string? Fault { get; set; }
         internal List<ModelToolRequest> Requests { get; } = [];
-        public Task<ModelToolTransportReply> CompleteAsync(ModelToolRequest request, CancellationToken cancellationToken)
+        public async Task<ModelToolTransportReply> CompleteAsync(ModelToolRequest request, CancellationToken cancellationToken)
         {
+            if (Requests.Count == 0 && BeforeFirstReply is not null) { await BeforeFirstReply(); }
             request.Context.ToolMode.Should().Be(ModelToolMode.McpReadOnly);
             request.Provenance.Selection.Provider.Should().Be(ModelProviderIdentity.Ollama);
             Requests.Add(request);
             if (Fault is "cancelled" && Requests.Count == 2)
-            { return Task.FromResult(new ModelToolTransportReply(ModelTurnOutcome.Cancelled, request.Provenance, null)); }
+            { return new ModelToolTransportReply(ModelTurnOutcome.Cancelled, request.Provenance, null); }
             ModelAssistantMessage message = ModelToolProtocol.ParseAssistant(Encoding.UTF8.GetBytes(Requests.Count == 1 && !NoTool
                 ? "{\"kind\":\"toolCalls\",\"calls\":[{\"callId\":\"read_1\",\"capabilityId\":\"mcp.search\",\"input\":" + Arguments + "}]}"
                 : """{"kind":"answer","answer":"The reviewed MCP reference says value 42."}"""), mcpTool: request.Context.McpTool);
@@ -634,14 +640,16 @@ public sealed partial class ModelTurnHostTests
                     : """{"kind":"toolCalls","calls":[{"callId":"read_1","capabilityId":"mcp.search","input":{"query":"reference"}},{"callId":"read_2","capabilityId":"mcp.search","input":{"undeclared":true}}]}""";
                 message = ModelToolProtocol.ParseAssistant(Encoding.UTF8.GetBytes(wire), mcpTool: new("mcp.search", permissive));
             }
-            return Task.FromResult(new ModelToolTransportReply(ModelTurnOutcome.Succeeded, request.Provenance, message,
-                new(ModelToolProtocol.SerializeRequest(request).Length, ModelToolProtocol.SerializeMessage(message).Length)));
+            return new ModelToolTransportReply(ModelTurnOutcome.Succeeded, request.Provenance, message,
+                new(ModelToolProtocol.SerializeRequest(request).Length, ModelToolProtocol.SerializeMessage(message).Length));
         }
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
     private sealed class McpBroker(McpAccountReference account) : IMcpConnectionBroker, IMcpConnection
     {
+        internal CancellationToken Withdrawal { get; init; } = new(canceled: true);
+        public CancellationToken AdmissionWithdrawn => Withdrawal;
         internal string? Fault { get; set; }
         internal IReadOnlyList<McpAccountChoice>? Accounts { get; set; }
         internal Action<string>? AfterExchange { get; set; }

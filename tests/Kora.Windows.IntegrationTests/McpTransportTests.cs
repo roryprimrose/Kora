@@ -33,6 +33,8 @@ public sealed class McpTransportTests
         await using (var connection = await f.Broker.ConnectAsync(f.Account, Token))
         {
             connection.Account.Should().Be(f.Account);
+            connection.AdmissionWithdrawn.CanBeCanceled.Should().BeTrue();
+            connection.AdmissionWithdrawn.IsCancellationRequested.Should().BeFalse();
             connection.Endpoint.Should().Be(f.Account.Destination);
             connection.RemoteAddresses.Should().Equal(IPAddress.Parse("8.8.8.8"));
             (await connection.IsCurrentAsync(Token)).Should().BeTrue();

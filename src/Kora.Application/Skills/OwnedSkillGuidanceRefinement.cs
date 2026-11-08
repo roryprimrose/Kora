@@ -25,6 +25,7 @@ public sealed class OwnedSkillGuidanceRefinement
     internal OwnedDeclarativeSkillSnapshot? Source { get; }
     internal OwnedSkillAuthoringAuthority Authority { get; }
     internal Func<CancellationToken, Task>? ValidateCatalogue { get; }
+    internal Mcp.McpReadOnlyPolicy.DescriptorAdmission? Descriptor { get; init; }
     public OwnedSkillGenerationRequest? Generation { get; }
     public string Destination { get; }
     public OwnedDeclarativeSkillDocument Draft { get; }

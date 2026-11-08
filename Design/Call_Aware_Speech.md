@@ -71,6 +71,10 @@ downgrades and call-wide temporary overrides remain unavailable. Call-time activ
 [exact local speak-once review](#delivered-exact-local-speak-once-review) composes
 only one current otherwise-eligible response; it does not disable protection.
 
+Call-policy observations may arrive on worker threads. Review retirement and
+output invalidation remain immediate; their presentation notifications and
+failure messages run through the UI dispatcher.
+
 Manual changes bind original `RequestOrigin` and observed call revision, then
 recheck live ownership/privacy immediately before application. Host-system or
 unknown mutation origin is not UI authority. Existing voice/input/output and

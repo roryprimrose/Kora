@@ -281,6 +281,7 @@ public sealed partial class MainViewModel
             if (disposed) { return; }
             disposed = true;
         }
+        RetireSessionRoutingVoice();
         RetireDetailsOffer();
         PrivacyClosureRequested -= OnDetailsOfferPrivacyClosure;
         if (speechComparison is not null)
@@ -405,6 +406,7 @@ public sealed partial class MainViewModel
 
     private void OnCaptureStateChanged(object? sender, VoiceCaptureStateChangedEventArgs eventArgs)
     {
+        if (sessionRoutingVoiceReply is not null) { return; }
         if (eventArgs.IsListening)
         {
             return;
@@ -424,6 +426,7 @@ public sealed partial class MainViewModel
 
     private void OnRecognitionCompleted(object? sender, VoiceRecognitionCompletedEventArgs eventArgs)
     {
+        if (sessionRoutingVoiceReply is not null) { return; }
         uiDispatcher.Post(() =>
         {
             if (eventArgs.Generation != Interlocked.Read(ref acceptedTranscriptGeneration)
@@ -522,6 +525,7 @@ public sealed partial class MainViewModel
             await Task.WhenAll(captureClosure, outputClosure, presentation);
             if (completionNotices is not null) { await completionNotices.RetireAndJoinAsync(); }
             await JoinCustomizationClarification();
+            await JoinSessionRoutingVoice();
             await ClosePromptPreparation();
             if (bundledActionShutdown is not null) { await bundledActionShutdown(); }
             if (hidePresentation) { CompletePrivatePresentationRetirement(presentationRevision); }
@@ -579,6 +583,7 @@ public sealed partial class MainViewModel
         }
         voiceRecognition.InvalidateCapture();
         captureOpenCancellation?.Cancel();
+        RetireSessionRoutingVoice();
         RetireQuestionVoiceReply();
         RetireComposerDictation();
         RetireReviewedVoiceCommand();
@@ -755,6 +760,11 @@ public sealed partial class MainViewModel
 
     public async Task BeginPushToTalkAsync()
     {
+        if (sessionRoutingVoiceRequest is not null)
+        {
+            ReportHostInteractionFailure("The original destination review owns input. Use its exact native controls or explicit voice reply.");
+            return;
+        }
         var detailsTarget = CurrentDetailsOffer?.Key;
         if (!IsReviewedVoiceCaptureReleased)
         {
@@ -1065,6 +1075,7 @@ public sealed partial class MainViewModel
     private async Task CompleteListeningStopAsync(SecurityAuditInitiator initiator)
     {
         if (disposed) { return; }
+        RetireSessionRoutingVoice();
         using var activity = HostActivity.BeginOperation(HostActivityLayer.Application, HostOperation.Policy, OriginalOrigin(initiator));
         // Release must not wait for audit storage or be cancelled by an unrelated request.
         var release = listeningStop.DisableAsync(() =>
@@ -1083,6 +1094,7 @@ public sealed partial class MainViewModel
             ApplicationLog.Error(logger, exception, "Recording listening stop request");
         }
         var outcome = await release;
+        await JoinSessionRoutingVoice();
         if (audit is not null)
         {
             try

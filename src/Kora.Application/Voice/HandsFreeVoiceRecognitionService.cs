@@ -134,6 +134,7 @@ public sealed partial class HandsFreeVoiceRecognitionService(
 
     private void InvalidateCaptureCore()
     {
+        if (routingContinuation is { } continuation) { continuation.Retired = true; }
         Interlocked.Exchange(ref ambientGeneration, -Interlocked.Increment(ref sequence) - 1);
         cancellation?.Cancel();
         session?.Invalidate();
@@ -323,13 +324,16 @@ public sealed partial class HandsFreeVoiceRecognitionService(
         {
             return false;
         }
-        var current = !disposed && !profileSwitchActive && !profileRetirementFailed
+        var authorityCurrent = !disposed && !profileSwitchActive && !profileRetirementFailed
             && cancellation is { IsCancellationRequested: false }
             && evidence.Generation == ambientGeneration
             && admission == evidence.Admission && IsObservedAdmissionCurrent(observation)
-            && captureClosed.Task.IsCompletedSuccessfully && session is null && activatedQuiescent;
-        if (!current) { pendingWakeUtterance = null; }
-        return current;
+            && captureClosed.Task.IsCompletedSuccessfully && session is null;
+        var successorOwnsCapture = routingContinuation is { Retired: false } successor
+            && ReferenceEquals(successor.Utterance, utterance)
+            && successor.Phase != HandsFreeVoiceContinuation.ContinuationPhase.Ready;
+        if (!authorityCurrent || !activatedQuiescent && !successorOwnsCapture) { pendingWakeUtterance = null; }
+        return authorityCurrent && activatedQuiescent;
     }
 
     private sealed class NativeWakeEvidence(

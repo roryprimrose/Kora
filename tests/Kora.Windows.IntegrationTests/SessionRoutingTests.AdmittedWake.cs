@@ -461,9 +461,9 @@ public sealed partial class SessionRoutingTests
         private readonly SpeechInputConfigurationService configuration;
         internal SpeechInputConfigurationService Configuration => configuration;
 
-        internal WakeNativeComposition()
+        internal WakeNativeComposition(IQuestionVoiceRecognitionService? replyCapture = null)
         {
-            Voice = new(new NativeWakeAdapter(), Stage, NullLogger<HandsFreeVoiceRecognitionService>.Instance);
+            Voice = new(replyCapture ?? new NativeWakeAdapter(), Stage, NullLogger<HandsFreeVoiceRecognitionService>.Instance);
             StatusRuntime = new(Voice);
             var native = Composition.Ui.Native;
             native.MainLogger = Diagnostics;
@@ -506,6 +506,7 @@ public sealed partial class SessionRoutingTests
             Composition.Ui.AutoAllowAdvice = false;
             await Composition.Initialize(expanded, voiceRecognition: Voice, speechInputConfiguration: configuration);
             var main = Composition.Ui.Native.Main;
+            main.BindSessionRoutingCaptureRelease(HandsFreeVoiceContinuation.CaptureRelease.Preserved);
             main.BindReviewedVoiceCommand(NullLogger<ReviewedVoiceCommandCapture>.Instance, TimeProvider.System);
             await main.SetAssistantNameAsync("Nova");
             Composition.Ui.Window!.ShowSessions(expanded);

@@ -8,6 +8,8 @@ using AwesomeAssertions;
 using AwesomeAssertions.Execution;
 
 using Kora.Application.Documentation;
+using Kora.Application.Configuration;
+using Kora.Application.Voice;
 using Kora.Core.Conversation;
 using Kora.Windows.IntegrationTests.Storage;
 
@@ -37,12 +39,16 @@ public sealed partial class SessionsConversationTests
             await RetainSearchAnswer(f, "marker another conversation must not replace the exact answer");
             var clipboard = new ReaderRetirementClipboard();
             var playback = new NativeAnswerPlayback();
+            await using var admission = new AudioControlAdmission(f.Store, f.Store, new(f.Tasks));
+            await using var markdown = new MarkdownDisplayConfigurationService(new MarkdownDisplaySettingsTests.Preferences(),
+                admission, new AuditLog(), f.Time, NullLogger<MarkdownDisplayConfigurationService>.Instance);
+            await markdown.ObserveAsync(f.Token);
             Window? surface = null;
             DetailWindow? detail = null;
             using var details = new DetailWindowController(new EmbeddedUserDocumentationProvider(), () => true,
                 new(NullLogger<NativeDetailRenderer>.Instance), clipboard,
                 (state, result, copy) => detail = new(state, result, copy),
-                NullLogger<DetailWindowController>.Instance);
+                NullLogger<DetailWindowController>.Instance, markdownDisplay: markdown.CaptureAsync);
             await using var composed = new Composition(f,
                 (content, live, resolve, token) => details.OpenConversationDetailAsync(content, surface, live, resolve, token),
                 revokeDetails: details.RevokeConversationSession, answerPlayback: playback);

@@ -95,7 +95,7 @@ internal sealed partial class SessionsViewModel
                         ? "Submitted and queued at position " + submitted.Position + ". Original request retained; no provider execution yet."
                         : "Original request accepted. Running or waiting for admitted resources; another ordinary request may now be submitted.";
             }
-            PresentAutomaticDetails(submitted.Receipt.Message);
+            await PresentAutomaticDetailsAsync(submitted.Receipt.Message);
             conversationBusy = false;
             busy = false;
             released = true;
@@ -107,7 +107,7 @@ internal sealed partial class SessionsViewModel
                 {
                     conversationStatus = TerminalConversationStatus(completed);
                 }
-                if (PresentLive()) { PresentAutomaticDetails(completed.Message); }
+                if (PresentLive()) { await PresentAutomaticDetailsAsync(completed.Message); }
             }
             activity.Complete(HostOperationOutcome.Completed);
         }

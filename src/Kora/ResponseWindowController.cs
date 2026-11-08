@@ -75,12 +75,13 @@ public sealed partial class ResponseWindowController : IDisposable, ICurrentResp
         return !current.IsVisible;
     }
 
-    public bool OpenDetails(AdmittedDetailContent content, Func<bool> admitted)
+    public async Task<bool> OpenDetailsAsync(AdmittedDetailContent content, Func<bool> admitted)
     {
         if (disposed || window is not { IsVisible: true } current || !admitted()) { return false; }
         PrepareDetailsHost?.Invoke();
-        return !disposed && ReferenceEquals(window, current) && admitted()
-            && details?.OpenCurrentResponse(content, current, admitted) == true;
+        bool Current() => !disposed && ReferenceEquals(window, current) && current.IsVisible && admitted();
+        return Current() && details is not null
+            && await details.OpenCurrentResponseAsync(content, current, Current) && Current();
     }
 
     private void OnCurrentResponseChanged(object? sender, EventArgs eventArgs) =>

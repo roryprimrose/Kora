@@ -54,8 +54,8 @@ public sealed partial class DetailWindowControllerTests
         var first = Answer(TableSource);
         var second = Answer(TableSource.Replace("Alpha", "Other session", StringComparison.Ordinal));
         var admitted = true;
-        fixture.Controller.OpenCurrentResponse(first, null, () => admitted).Should().BeTrue();
-        fixture.Controller.OpenCurrentResponse(second, null, () => true).Should().BeTrue();
+        (await fixture.Controller.OpenCurrentResponseAsync(first, null, () => admitted, TestContext.Current.CancellationToken)).Should().BeTrue();
+        (await fixture.Controller.OpenCurrentResponseAsync(second, null, () => true, TestContext.Current.CancellationToken)).Should().BeTrue();
         var firstView = fixture.Views[0];
         var secondView = fixture.Views[1];
         firstView.State.ActiveText.Should().Contain("Alpha").And.NotContain("Other session");
@@ -70,6 +70,6 @@ public sealed partial class DetailWindowControllerTests
         secondView.State.ActiveText.Should().Contain("Other session");
         await fixture.Controller.CopyAsync(first.Reference, generation, true);
         fixture.Clipboard.Writes.Should().BeEmpty();
-        fixture.Controller.OpenCurrentResponse(first, null, () => admitted).Should().BeFalse();
+        (await fixture.Controller.OpenCurrentResponseAsync(first, null, () => admitted, TestContext.Current.CancellationToken)).Should().BeFalse();
     }
 }

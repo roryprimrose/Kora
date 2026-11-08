@@ -277,6 +277,37 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
+    public async Task CurrentResponsePreferenceFailureReportsRecoveryOnlyWhileOriginalSourceAndNativeOwnerRemainLive()
+    {
+        foreach (var boundary in new[] { "live", "source", "native" })
+        {
+            var f = await CreateReadableResponseAsync();
+            var original = f.ViewModel.ResponseBody;
+            var native = new ResponsePresenter(f.ViewModel)
+            {
+                Failure = new Kora.Application.Configuration.MarkdownDisplayConfigurationService.CaptureUnavailableException(
+                    new InvalidDataException("Unconfirmed saved preference"))
+            };
+            native.BeforeFailure = () =>
+            {
+                if (boundary is "source") { f.ViewModel.RetireCurrentResponseSpeech(); }
+                if (boundary is "native") { native.Alive = false; }
+            };
+            f.ViewModel.BindCurrentResponsePresentation(native);
+            await f.RunAsync("open current response details");
+            if (boundary is "live")
+            {
+                f.ViewModel.Transcript.Should().Contain("Markdown display preference unavailable")
+                    .And.Contain("no new viewer was published");
+                f.ViewModel.ResponseBody.Should().Be(original);
+            }
+            else { f.ViewModel.Transcript.Should().NotContain("saved default was not applied"); }
+            f.Reasoner.Requests.Should().BeEmpty();
+            f.Audit.Events.Should().NotContain(a => a.ActionId == "response.details" && a.Outcome == SecurityAuditOutcome.Succeeded);
+        }
+    }
+
+    [Fact]
     public async Task CurrentResponseHelpAndRenamedGrammarAreExactAndNonDestructive()
     {
         var f = await CreateReadableResponseAsync();
@@ -551,6 +582,7 @@ public sealed partial class MainViewModelTests
         public bool RetireOnDismiss { get; set; } = true;
         public Action? AfterNative { get; set; }
         public Action? BeforeOpen { get; set; }
+        public Action? BeforeFailure { get; set; }
         public int Calls { get; private set; }
         public AdmittedDetailContent? Content { get; private set; }
         public Func<bool> CaptureLifetime() => () => Alive;
@@ -563,14 +595,14 @@ public sealed partial class MainViewModelTests
             AfterNative?.Invoke();
             return Acknowledge;
         }
-        public bool OpenDetails(AdmittedDetailContent content, Func<bool> admitted)
+        public Task<bool> OpenDetailsAsync(AdmittedDetailContent content, Func<bool> admitted)
         {
             BeforeOpen?.Invoke();
             Calls++;
             admitted().Should().BeTrue();
-            if (Failure is { } failure) { throw failure; }
+            if (Failure is { } failure) { BeforeFailure?.Invoke(); throw failure; }
             Content = content;
-            return Acknowledge;
+            return Task.FromResult(Acknowledge);
         }
     }
 }

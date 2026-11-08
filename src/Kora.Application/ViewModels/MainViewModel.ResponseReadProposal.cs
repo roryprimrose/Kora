@@ -94,7 +94,7 @@ public sealed partial class MainViewModel
         if (responseReadProposal is not null) { LastResponseReadOutcome = SpeechReadOutcome.Denied; }
         responseReadProposal = null;
         responseReadPlanCancellation?.Cancel();
-        NotifyResponseReadProposal();
+        uiDispatcher.Post(NotifyResponseReadProposal);
     }
 
     private async Task CloseResponseReadProposal()

@@ -11,6 +11,67 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task Call_policy_retirement_invalidates_output_before_dispatching_presentation_notifications()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var notifications = new List<string?>();
+        fixture.ViewModel.PropertyChanged += (_, args) => notifications.Add(args.PropertyName);
+        fixture.Dispatcher.DeferPosts = true;
+        fixture.Dispatcher.BeforeInvokeAsync = () => release.Task;
+        fixture.Events.Clear();
+
+        try
+        {
+            fixture.CallState.SetState(CallState.Active);
+
+            fixture.ViewModel.IsProtectedCall.Should().BeTrue();
+            fixture.Events.Should().Contain("speech.invalidate");
+            fixture.TextToSpeech.StopCalls.Should().Be(1);
+            notifications.Should().BeEmpty();
+            fixture.ViewModel.CallClosureTask.IsCompleted.Should().BeFalse();
+        }
+        finally
+        {
+            release.TrySetResult();
+            await fixture.ViewModel.CallClosureTask;
+            fixture.Dispatcher.FlushPosts();
+        }
+
+        notifications.Should().Contain(nameof(fixture.ViewModel.HasResponseReadProposal))
+            .And.Contain(nameof(fixture.ViewModel.HasForegroundRequestReview));
+        fixture.ViewModel.CurrentCallState.Should().Be(CallState.Active);
+        fixture.ViewModel.IsSpeechResponseEnabled.Should().BeFalse();
+        fixture.TextToSpeech.SpokenText.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Call_policy_failure_presentation_is_dispatched_without_relaxing_protection()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        var notifications = new List<string?>();
+        fixture.ViewModel.PropertyChanged += (_, args) =>
+        {
+            if (string.Equals(args.PropertyName, nameof(fixture.ViewModel.ResponseTitle), StringComparison.Ordinal))
+            { notifications.Add(args.PropertyName); }
+        };
+        fixture.Dispatcher.DeferPosts = true;
+        fixture.TextToSpeech.BeforeStop = () => throw new InvalidOperationException("speech stop failed");
+
+        fixture.CallState.SetState(CallState.Active);
+        var closure = () => fixture.ViewModel.CallClosureTask;
+        await closure.Should().ThrowAsync<InvalidOperationException>();
+
+        notifications.Should().BeEmpty();
+        fixture.ViewModel.IsProtectedCall.Should().BeTrue();
+        fixture.ViewModel.IsSpeechResponseEnabled.Should().BeFalse();
+        fixture.Dispatcher.FlushPosts();
+        fixture.ViewModel.ResponseTitle.Should().Be("The call-aware output policy could not be applied.");
+        notifications.Should().Contain(nameof(fixture.ViewModel.ResponseTitle));
+        fixture.TextToSpeech.SpokenText.Should().BeNull();
+    }
+
     [Theory]
     [InlineData(CallState.Unavailable, false)]
     [InlineData(CallState.Clear, false)]

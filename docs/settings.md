@@ -362,6 +362,17 @@ Exact typed or current-name activated commands are `list speech text settings`,
 and `reset display.speech-text`. These only inspect/save the device-local
 preference; they never speak, replay or open the microphone.
 
+The exact natural command `show the current sentence` saves **CurrentSentence**.
+`keep speech text visible for ten seconds` saves a **10-second** dismissal delay
+without changing caption mode. Delay commands accept canonical numerals 0-30 or
+English number words zero through thirty. Use `one second` / `1 second`;
+all other values use `seconds`. Compounds twenty-one through twenty-nine accept
+one hyphen or one space (`twenty one`). Extra words, fractions, signs and
+out-of-range values are rejected without clamping. Typed input may omit the
+current name; activated voice retains the current-name and protected-channel
+gates. These aliases use the same native save, audit and readback operation
+([exact grammar](../src/Kora.Application/Configuration/SpeechTextCommand.cs)).
+
 **Current sentence (unavailable in this build)** is also an explicit native
 choice in Speech and audio settings. It requests the exact source sentence
 reached by actual playback, not a timing estimate or rewritten text. This build

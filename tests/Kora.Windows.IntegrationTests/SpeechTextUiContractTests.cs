@@ -1,10 +1,31 @@
 using System.Xml.Linq;
 using AwesomeAssertions;
+using Kora.Application.Configuration;
+using Kora.Core.Commands;
+using Kora.Core.Voice;
 
 namespace Kora.Windows.IntegrationTests;
 
 public sealed class SpeechTextUiContractTests
 {
+    [Fact]
+    public void Natural_sentence_and_number_word_delay_share_exact_native_choices_and_recognition_vocabulary()
+    {
+        var sentence = SpeechTextCommand.Parse("Kora, show the current sentence", "Kora")!;
+        sentence.Operation.Should().Be(AppearanceCommandOperation.Set);
+        sentence.Value.Should().Be(SpeechTextMode.CurrentSentence);
+        sentence.Should().Be(SpeechTextCommand.Parse("set display.speech-text to CurrentSentence", "Kora"));
+        foreach (var phrase in new[] { "keep speech text visible for ten seconds",
+            "keep speech text visible for twenty-one seconds", "keep speech text visible for twenty one seconds" })
+        {
+            var command = SpeechTextCommand.Parse("Kora, " + phrase, "Kora")!;
+            command.CaptionOption.Should().Be(SpeechCaptionOption.DismissalDelay);
+            command.CaptionValue.Should().Be(new SpeechCaptionValue.Delay(phrase.Contains("ten", StringComparison.Ordinal) ? 10 : 21));
+            SpeechTextCommand.FixedPhrases.Should().Contain(phrase);
+        }
+        SpeechTextCommand.FixedPhrases.Should().Contain("show the current sentence");
+    }
+
     [Fact]
     public void Caption_is_native_selectable_nonactivating_and_settings_use_exact_choices_without_auto_speech()
     {

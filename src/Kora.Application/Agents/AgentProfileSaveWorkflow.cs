@@ -35,6 +35,14 @@ public sealed class AgentProfileSaveWorkflow(IOwnedAgentProfileStore store,
             return result;
         }, token);
 
+    public async Task RequireOriginalAsync(OwnedAgentProfileSnapshot original, Func<bool> eligible, CancellationToken token)
+    {
+        var observed = await ReadAsync(original.Destination.Name, eligible, token).ConfigureAwait(false);
+        if (!original.Matches(observed))
+        { throw new InvalidOperationException("The pinned original changed, was replaced or is missing. Reload or cancel; no new copy is approved."); }
+        Require(eligible, token);
+    }
+
     public Task<AgentProfileSaveReview> ReviewAsync(string name, string source, long revision,
         RequestOrigin origin, Func<bool> eligible, CancellationToken token)
     {

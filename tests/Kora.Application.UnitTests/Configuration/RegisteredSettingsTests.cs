@@ -22,15 +22,15 @@ public sealed class RegisteredSettingsTests
             "appearance.speech-scaling", "appearance.speech-scale-amount", "speech.windows-rate",
             "appearance.response-timeout", "appearance.reduced-motion", "speech.voice",
             "voice.command-start-wait", "voice.reply-start-wait", "voice.trailing-silence",
-            "notices.quiet-hours", "responses.detail-presentation", "voice.maximum-capture");
-        RegisteredSettingRegistry.Settings.Select(item => (int)item.Setting).Should().Equal(Enumerable.Range(0, 24));
+            "notices.quiet-hours", "responses.detail-presentation", "voice.maximum-capture", "work.active-deadline-minutes");
+        RegisteredSettingRegistry.Settings.Select(item => (int)item.Setting).Should().Equal(Enumerable.Range(0, 25));
     }
 
     [Fact]
     public void ClosedRegistryInspectionAndPolicyDeclareOnlyTheExistingAdmittedSubset()
     {
         RegisteredSettingRegistry.Settings.Select(item => item.Setting).Should().Equal(Enum.GetValues<RegisteredSetting>());
-        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().OnlyHaveUniqueItems().And.HaveCount(24);
+        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().OnlyHaveUniqueItems().And.HaveCount(25);
         foreach (var descriptor in RegisteredSettingRegistry.Settings)
         {
             RegisteredSettingRegistry.Get(descriptor.Setting).Should().BeSameAs(descriptor);
@@ -38,7 +38,10 @@ public sealed class RegisteredSettingsTests
             RegisteredSettingSuggestions.ModelPolicy.Should().Contain(descriptor.Id).And.Contain(descriptor.Description);
             descriptor.SuggestedValues.Should().NotBeNullOrWhiteSpace();
             RegisteredSettingSuggestions.ModelPolicy.Should().Contain(descriptor.SuggestedValues);
-            descriptor.RequiresNativeReview.Should().Be(descriptor.Setting is RegisteredSetting.QuietHours or RegisteredSetting.DetailPresentation
+            RegisteredSettingSuggestions.ModelPolicy.Should().Contain(
+                $"'{descriptor.Id}' ({descriptor.Description}; {descriptor.SuggestedValues}"
+                + (descriptor.RequiresNativeReview ? "; native-only)" : ")"));
+            descriptor.RequiresNativeReview.Should().Be(descriptor.Setting is RegisteredSetting.QuietHours or RegisteredSetting.DetailPresentation or RegisteredSetting.OrdinaryTurnDeadline
                 || descriptor.Id.StartsWith("voice.", StringComparison.Ordinal)
                 || descriptor.Id.StartsWith("appearance.", StringComparison.Ordinal) && descriptor.Setting != RegisteredSetting.ResponseTimeout);
             if (descriptor.Id.StartsWith("appearance.", StringComparison.Ordinal))
@@ -55,9 +58,42 @@ public sealed class RegisteredSettingsTests
         RegisteredSettingRegistry.Get(RegisteredSetting.ReaderTextScale).Minimum.Should().Be(ReaderTextScaleSettings.MinimumPercent);
         RegisteredSettingRegistry.Get(RegisteredSetting.ReaderTextScale).Maximum.Should().Be(ReaderTextScaleSettings.MaximumPercent);
         RegisteredSettingSuggestions.ModelPolicy.Should().Contain("never write authority").And.Contain("separately confirm or cancel")
+            .And.Contain("Native-only entries require original local UI and separate native confirmation only")
             .And.Contain("companion cap").And.Contain("desired/effective").And.Contain("zero blocks future synthesis")
             .And.Contain("native/authentication exceptions");
     }
+
+    [Theory]
+    [InlineData("1", 1)]
+    [InlineData("10", 10)]
+    [InlineData("60", 60)]
+    public void OrdinaryTurnDeadlineSuggestionsUseOnlyExactWholeMinutesAndNativeReview(string literal, int minutes)
+    {
+        RegisteredSettingSuggestions.Parse("set work.active-deadline-minutes to " + literal)
+            .Should().Be(new RegisteredSettingProposal.OrdinaryDeadline(new(minutes)));
+        RegisteredSettingSuggestions.Parse("reset work.active-deadline-minutes")
+            .Should().Be(new RegisteredSettingProposal.Reset(RegisteredSetting.OrdinaryTurnDeadline));
+        var descriptor = RegisteredSettingRegistry.Get(RegisteredSetting.OrdinaryTurnDeadline);
+        descriptor.RequiresNativeReview.Should().BeTrue();
+        descriptor.Minimum.Should().Be(1);
+        descriptor.Maximum.Should().Be(60);
+        RegisteredSettingSuggestions.ModelPolicy.Should().Contain("No deadline undo").And.Contain("earlier provider/tool ceilings");
+    }
+
+    [Theory]
+    [InlineData("set work.active-deadline-minutes to 0")]
+    [InlineData("set work.active-deadline-minutes to 61")]
+    [InlineData("set work.active-deadline-minutes to 01")]
+    [InlineData("set work.active-deadline-minutes to +10")]
+    [InlineData("set work.active-deadline-minutes to 1.5")]
+    [InlineData("set work.active-deadline-minutes to 10 minutes")]
+    [InlineData("set work.active-deadline-minutes to 10 ")]
+    [InlineData("set work.active-deadline-minutes to 10\nreset work.active-deadline-minutes")]
+    [InlineData("Set work.active-deadline-minutes to 10")]
+    [InlineData("reset work.active-deadline-minutes to 5")]
+    [InlineData("extend the running task to 10 minutes")]
+    public void OrdinaryTurnDeadlineRejectsAliasesBatchCommentaryAndInvalidRanges(string answer) =>
+        FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse(answer)).Should().Throw<InvalidDataException>();
 
     [Theory]
     [InlineData("Offer", DetailPresentationMode.Offer)]

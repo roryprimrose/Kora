@@ -101,6 +101,44 @@ Only the original question and genuine final answer enter conversation retention
 inspection never writes a timeout, hides/shows a window or changes a task deadline.
 Windows-native speech rate remains value-unavailable in this source.
 
+## Dedicated Windows-native rate source
+
+The source picker defaults to **ConfirmedSettings**, the complete twenty-three
+values above. Choose **WindowsRate** explicitly for: **Which Windows-native rate
+preference is saved, what configured rate is effective, and why does it not change
+Kokoro?** Model text cannot choose a source. Changing the source, question or
+discovery choice clears the prior review and output; inspect and confirm again.
+
+This separate complete profile contains only `speech.voice` and
+`speech.windows-rate`. Review the full selected provider/voice preference,
+saved/default provenance, desired native integer, configured effective integer
+or explicit `null`, support, provider revision and rate-service revision, original
+question and new local destination before separately confirming one request.
+Native units range from -10 through 10; the absent preference is 0 only when
+confirmed disk absence matches the observed service's default.
+
+Effective `null` means an explicitly observed unsupported/unavailable configured
+mapping, not zero or an assumed normal speed. Windows-native units apply only to
+Kora's Windows synthesizer; they do not change Kokoro synthesis. Configured
+effective/support is not actual playback speed, provider qualification, ready
+voice, acoustic alignment or permission to speak. This source enables nothing.
+
+Unobserved, held, malformed, unconfirmed or changed rate/provider state makes
+this entire dedicated source unavailable. Inspection reads and validates off the
+UI thread; it never refreshes/reloads/observes either service, repairs a preference,
+probes a provider/account/network, invalidates output or starts synthesis.
+Both bindings are checked at model/tool/final boundaries and after awaited work.
+The default full source still excludes rate and does not require rate availability.
+
+Optional `settings.list`/`settings.get` expose only these two reviewed entries,
+with a closed `WindowsRate` profile and typed rate observation. A get outside
+this profile is unavailable. Tool-free and discovery answers retain only the
+original question and genuine final answer, with one-use confirmation, original
+channel, cancellation, expiry, terminal audit and physical resource join unchanged.
+Runtime local answer generation remains unavailable independently in this build.
+See the [typed profile](../src/Kora.Core/Configuration/SettingInspection/SettingInspectionReview.cs)
+and [read-only rate reader](../src/Kora.Application/Configuration/SettingInspection/WindowsSpeechRateConfigurationService.SettingInspection.cs).
+
 For capture, ask "Why does capture stop or wait, and which command-start,
 reply-start and trailing-silence timings are configured?" The complete review
 includes all four exact timing values, units and saved/default provenance.

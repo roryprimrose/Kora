@@ -116,13 +116,23 @@ public sealed record SettingObservation
         Revision = revision;
     }
 
+    public SettingObservation(WindowsSpeechRateObservation rate)
+    {
+        ArgumentNullException.ThrowIfNull(rate);
+        Setting = RegisteredSetting.WindowsSpeechRate;
+        WindowsRate = rate;
+        IsSaved = rate.IsSaved;
+        Revision = rate.Revision;
+    }
+
     public RegisteredSetting Setting { get; }
     public decimal? Value { get; }
     public QuietHoursSchedule? QuietHours { get; }
     public SpeechSelection? Selection { get; }
+    public WindowsSpeechRateObservation? WindowsRate { get; }
     public bool IsSaved { get; }
     public long Revision { get; }
-    public string Text => RegisteredSettingRegistry.Get(Setting).Id + " = " + (QuietHours?.ToString() ?? (Selection is { } selection
+    public string Text => RegisteredSettingRegistry.Get(Setting).Id + " = " + (WindowsRate?.Text ?? QuietHours?.ToString() ?? (Selection is { } selection
         ? JsonSerializer.Serialize(selection.ProviderId) + " / "
             + (selection.VoiceId is { } voice ? JsonSerializer.Serialize(voice) : "provider-advertised default (exact voice not resolved)")
             + " (future-only; no runtime claim)"

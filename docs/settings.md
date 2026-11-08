@@ -67,6 +67,18 @@ The status shows the confirmed saved/default value; editing the field alone chan
 Typed or activated voice can use `get work.active-deadline-minutes`, `status work.active-deadline-minutes`, `set work.active-deadline-minutes to 10`, or `reset work.active-deadline-minutes`.
 These routes use the same host admission, preference readback and required audit ([configuration owner](../src/Kora.Application/Configuration/OrdinaryTurnDeadlineConfigurationService.cs)).
 
+An original local user can also select an exact retained model answer containing
+`set work.active-deadline-minutes to 10` (canonical whole minutes 1-60), or
+`reset work.active-deadline-minutes`, using **Review setting suggestion...**.
+Read current saved/default and proposed values, then separately confirm or
+cancel in that same current native conversation surface within 60 seconds.
+Review is inert; only confirmed audited atomic write/readback changes the
+future preference. A replaced source, returned surface, changed preference or
+host/call authority requires fresh review. Unconfirmed saves require Settings
+and audit inspection, not retry, rollback or a default success.
+There is no model/voice write authority or deadline undo
+([complete workflow](setting-proposals.md)).
+
 This preference applies only when an ordinary conversation turn dispatches, including its admitted read-only tools.
 Pending work has no active budget; running turns do not change when you save a new default.
 Clarification/approval turns and specialized source workflows keep their existing fixed limits ([scope](../Design/User_Configuration.md#delivered-future-ordinary-conversation-deadline)).

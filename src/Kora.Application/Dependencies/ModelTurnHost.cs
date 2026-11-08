@@ -397,7 +397,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
                         && access.ControlRevision == turn.ControlRevision, toolToken).ConfigureAwait(false)
                 : new(CapabilityOutcome.Denied, "local-provider-settings-workflow-required")
             : settingDiscoveries.TryGetValue(turn, out var settings)
-            ? SettingsDiscoveryTools.Read(settings.Observations, id, input)
+            ? SettingsDiscoveryTools.Read(settings.Observations, id, input, settings.Profile)
             : customizationDiscoveries.TryGetValue(turn, out var customizations)
             ? await customizations.Invoke(id, input, toolToken).ConfigureAwait(false)
             : sessionDiscoveries.TryGetValue(turn, out var discovery)

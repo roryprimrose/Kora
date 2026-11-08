@@ -90,7 +90,7 @@ public sealed class SettingInspectionWorkflowTests
         internal Fixture(string mode = "success", IModelToolTransport? transport = null,
             VoiceCaptureTiming? savedTiming = null, SpeechSelection? speechSelection = null,
             Kora.Core.Presentation.DetailPresentationMode? detailMode = null, string? quietHours = null,
-            int? responseTimeout = null)
+            int? responseTimeout = null, bool observeWindowsRate = false, int? savedWindowsRate = null)
         {
             if (speechSelection is not null)
             { Preferences.Lines["speech-selection.txt"] = ["1", speechSelection.ProviderId, speechSelection.VoiceId ?? string.Empty]; }
@@ -117,9 +117,9 @@ public sealed class SettingInspectionWorkflowTests
             Appearance = new AppearanceConfigurationService(
                 new LocalAppearancePreferences(Preferences, NullLogger<LocalAppearancePreferences>.Instance),
                 Controls, NullLogger<AppearanceConfigurationService>.Instance);
-            var speech = new SpeechConfigurationService(
+            Speech = new SpeechConfigurationService(
                 new LocalTextToSpeechPreferences(Preferences, NullLogger<LocalTextToSpeechPreferences>.Instance),
-                new CatalogData(speechSelection), Controls, NullLogger<SpeechConfigurationService>.Instance);
+                new CatalogData(speechSelection, observeWindowsRate), Controls, NullLogger<SpeechConfigurationService>.Instance);
             var volume = new PlaybackVolumeConfigurationService(new LocalPlaybackVolumePreferences(Preferences), Playback, audio, Controls);
             var response = new ResponseModeConfigurationService(
                 new LocalResponseOutputPreferences(Preferences, NullLogger<LocalResponseOutputPreferences>.Instance), audio, Controls, Playback);
@@ -134,18 +134,25 @@ public sealed class SettingInspectionWorkflowTests
             Details = new(new LocalDetailPresentationPreferences(Preferences), audio, Controls, Storage.Time);
             Details.Observe();
             Appearance.Reload();
-            speech.Reload();
+            Speech.Reload();
+            if (savedWindowsRate is { } rate)
+            { Preferences.Lines["speech-windows-rate.txt"] = ["1", rate.ToString(System.Globalization.CultureInfo.InvariantCulture)]; }
+            WindowsRate = new(new LocalWindowsSpeechRatePreferences(Preferences), Playback, Speech, audio, Controls,
+                NullLogger<WindowsSpeechRateConfigurationService>.Instance);
+            if (observeWindowsRate) { WindowsRate.Observe(); }
             volume.Observe();
             response.Observe();
             Playback.Effects = 0;
             Preferences.Reads = 0;
-            Workflow = new(new(Appearance, speech, volume, response, QuietHours, Timing, Details), new SettingInspectionConversation(sessions, Conversation, Host),
+            Workflow = new(new(Appearance, Speech, volume, response, QuietHours, Timing, Details, WindowsRate), new SettingInspectionConversation(sessions, Conversation, Host),
                 Controls, Controls, Storage.Time, NullLogger<SettingInspectionWorkflow>.Instance);
         }
 
         internal InteractionStorageFixture Storage { get; } = new();
         internal AppearanceConfigurationService Appearance { get; }
         internal QuietHoursConfigurationService QuietHours { get; }
+        internal SpeechConfigurationService Speech { get; }
+        internal WindowsSpeechRateConfigurationService WindowsRate { get; }
         internal CancellationToken Token => TestContext.Current.CancellationToken;
         internal ControlsData Controls { get; }
         internal AdapterData Adapter { get; }
@@ -237,22 +244,25 @@ public sealed class SettingInspectionWorkflowTests
         public void Delete(string fileName) { Writes++; throw new NotSupportedException(); }
     }
 
-    private sealed class CatalogData(SpeechSelection? selection) : ISpeechCatalog
+    private sealed class CatalogData(SpeechSelection? selection, bool rateSupport) : ISpeechCatalog
     {
         public IReadOnlyList<SpeechProvider> GetProviders() => selection is null ? [] :
-            [new(selection.ProviderId, "Private catalogue provider", "Private catalogue description", true, false, null, selection.VoiceId)];
+            [new(selection.ProviderId, "Private catalogue provider", "Private catalogue description", true, false, null, selection.VoiceId)
+            { RateSupport = rateSupport && string.Equals(selection.ProviderId, SpeechProviderIds.Windows, StringComparison.Ordinal)
+                ? SpeechRateSupport.WindowsNative : SpeechRateSupport.Unsupported }];
         public IReadOnlyList<SpeechVoice> GetVoices() => selection?.VoiceId is not { } voice ? [] :
             [new(voice, "Private catalogue voice", "en-US", SpeechVoiceGender.Female) { ProviderId = selection.ProviderId }];
         public SpeechVoice? GetDefaultVoice() => throw new NotSupportedException();
     }
 
-    internal sealed class PlaybackData : ISpeechPlaybackService, IPlaybackVolumeControl
+    internal sealed class PlaybackData : ISpeechPlaybackService, IPlaybackVolumeControl, IWindowsSpeechRateControl
     {
         internal int Effects { get; set; }
         public bool IsSpeaking => false;
         public SpeechPlaybackFrame PlaybackFrame => SpeechPlaybackFrame.Inactive;
         public void InvalidateOutput() => Effects++;
         public void SetPlaybackVolume(PlaybackVolume? volume) => Effects++;
+        public void SetWindowsSpeechRate(WindowsSpeechRate? rate) => Effects++;
         public Task SpeakAsync(string text, SpeechVoice voice, AudioOutputDevice outputDevice, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
         public Task StopAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();

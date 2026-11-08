@@ -1089,6 +1089,43 @@ export, grant, policy or provider enablement is introduced. Windows-native rate
 stays outside this source. This is deterministic implementation evidence, not
 local-provider or installed qualification.
 
+### Delivered dedicated provider-aware Windows rate answer
+
+The native confirmed-settings question workflow has a separately selected
+`WindowsRate` profile for "Which Windows-native rate preference is saved, what
+configured rate is effective, and why does it not change Kokoro?" Its complete
+source is exactly the confirmed `speech.voice` preference plus a closed typed
+`speech.windows-rate` observation: desired validated native units, saved/default
+provenance, configured effective nullable units/support, exact selected provider
+and provider/rate-service revisions. Raw recovery, exception and path text are
+excluded. Explicit effective null is known unsupported/unavailable configured
+mapping, not zero, default reinterpretation or observed playback speed.
+
+The source picker defaults to the existing full `ConfirmedSettings` profile,
+including response timeout. That profile retains completeness and rate exclusion;
+old questions do not require rate/provider qualification. Only the native user
+selects the dedicated profile. Source/question/discovery edits retire prior
+review/output. Original native or eligible activated-voice channel, full source,
+exact question and new local destination require review and separate one-use
+tool-free or settings-discovery confirmation. Dedicated list/get expose exactly
+the two selected entries; mixed/partial/extra source profiles are rejected.
+
+Inspection validates confirmed disk values/provenance against already observed
+state off the dispatcher, then revalidates provider and rate bindings at actual
+model/tool/final boundaries, including after awaits. Unobserved, held, malformed,
+unconfirmed or changed state makes this source unavailable; no Observe, refresh,
+reload, preference write, provider/account/network probe, output invalidation or
+synthesis is performed. Existing requested/terminal audit, privacy/call/channel,
+expiry, cancellation, retention and physical join remain authoritative.
+
+Windows-native configured rate does not change Kokoro, establish ready voice,
+actual playback speed, acoustic alignment, provider qualification or permission
+to speak. Only the original question and genuine final answer are retained.
+No new qualification, enrollment or enablement is introduced; unavailable local
+model/runtime readiness remains unavailable. See the
+[complete user interaction](../docs/setting-inspection.md#dedicated-windows-native-rate-source)
+and [deterministic native regressions](../tests/Kora.Windows.IntegrationTests/SettingInspection/WindowsSpeechRateSettingInspectionTests.cs).
+
 ### Delivered confirmed capture-timing answer
 
 The same [complete inspection operation](../docs/setting-inspection.md) also

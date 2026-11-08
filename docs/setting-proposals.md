@@ -34,11 +34,28 @@ do not require you to remember these names.
 | `voice.reply-start-wait` | Exact decimal 5-60 seconds, default 15 | Separate current native review and confirmation |
 | `voice.trailing-silence` | Exact decimal 0.5-3 seconds, default 1 | Separate current native review and confirmation |
 | `voice.maximum-capture` | Exact decimal 10-60 seconds, default 60 | Separate current native review and confirmation |
+| `work.active-deadline-minutes` | Canonical whole minutes 1-60, default 5 | Original local UI source, separate current native review and confirmation |
 
 For example, the complete answer may be `set appearance.theme to dark`,
 `set appearance.reduced-motion to true`, `set appearance.movement-speed to 50`,
 `set speech.summary-words to 40`, `set speech.playback-volume to 30`, or
 `set responses.default-mode to VoiceOnly`.
+For future ordinary tasks, the complete retained answer must be exactly
+`set work.active-deadline-minutes to 10` (or another canonical integer 1-60),
+or `reset work.active-deadline-minutes` with no value.
+Choose **Review setting suggestion...** on that exact successful answer in the
+original Active conversation. Read the current saved/default, effective and
+proposed minutes, default five minutes, and future-only device-local scope.
+Review changes nothing. Separately confirm in the same current native surface
+within 60 seconds, or Cancel. Confirmed atomic persistence, audit and readback
+are required before future dispatch uses it; Reset restores unsaved five minutes.
+Running work, original context expiry and earlier provider/tool ceilings are
+unchanged. Source/page replacement, hide/reopen, changed preference or host/call
+authority requires fresh inspection. An uncertain save may have persisted:
+inspect Settings and audit receipts, with no automatic retry or rollback.
+This model route adds no typed/voice confirmation, deadline undo, current-value
+discovery authority or automatic allowance inference. Direct original-user
+controls remain independent ([deadline controls](settings.md#future-ordinary-task-deadline)).
 For slower Windows speech, the complete retained answer may be
 `set speech.windows-rate to -1`. Rate alone permits canonical negative integers;
 plus signs, negative zero, padding, leading zeroes, suffixes and commentary are rejected.

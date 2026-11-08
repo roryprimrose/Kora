@@ -8,7 +8,7 @@ namespace Kora;
 
 internal sealed partial class SessionsViewModel
 {
-    private enum SettingReviewFamily { Appearance, Summary, Volume, ResponseMode, WindowsRate, InstalledVoice, CaptureTiming, QuietHours, DetailPresentation }
+    private enum SettingReviewFamily { Appearance, Summary, Volume, ResponseMode, WindowsRate, InstalledVoice, CaptureTiming, QuietHours, DetailPresentation, OrdinaryDeadline }
     private volatile object? registeredSettingReviewIdentity;
 
     public string RegisteredSettingsDescription => "Supported inert suggestions: " + string.Join("; ",
@@ -21,15 +21,18 @@ internal sealed partial class SessionsViewModel
 
     public bool CanReviewRegisteredSettingSuggestion => CanReviewAppearanceSuggestion
         || CanReviewSpeechSummarySuggestion || CanReviewPlaybackVolumeSuggestion || CanReviewResponseModeSuggestion || CanReviewWindowsSpeechRateSuggestion
-        || CanReviewQuietHoursSuggestion || CanReviewInstalledSpeechVoiceSuggestion || CanReviewCaptureTimingSuggestion || CanReviewDetailPresentationSuggestion;
+        || CanReviewQuietHoursSuggestion || CanReviewInstalledSpeechVoiceSuggestion || CanReviewCaptureTimingSuggestion || CanReviewDetailPresentationSuggestion
+        || CanReviewOrdinaryDeadlineSuggestion;
     public bool CanConfirmRegisteredSettingSuggestion => CanConfirmAppearanceSuggestion
         || CanConfirmSpeechSummarySuggestion || CanConfirmPlaybackVolumeSuggestion || CanConfirmResponseModeSuggestion || CanConfirmWindowsSpeechRateSuggestion
-        || CanConfirmQuietHoursSuggestion || CanConfirmInstalledSpeechVoiceSuggestion || CanConfirmCaptureTimingSuggestion || CanConfirmDetailPresentationSuggestion;
+        || CanConfirmQuietHoursSuggestion || CanConfirmInstalledSpeechVoiceSuggestion || CanConfirmCaptureTimingSuggestion || CanConfirmDetailPresentationSuggestion
+        || CanConfirmOrdinaryDeadlineSuggestion;
     public bool CanCancelRegisteredSettingSuggestion => !closed && access.CanInspect && access.CanControl
         && selected?.Authority.IsActive == true && registeredSettingReviewIdentity is not null;
     public string RegisteredSettingSuggestionDescription => AppearanceSuggestionDescription
         + SpeechSummarySuggestionDescription + PlaybackVolumeSuggestionDescription + ResponseModeSuggestionDescription + WindowsSpeechRateSuggestionDescription
-        + QuietHoursSuggestionDescription + InstalledSpeechVoiceSuggestionDescription + CaptureTimingSuggestionDescription + DetailPresentationSuggestionDescription;
+        + QuietHoursSuggestionDescription + InstalledSpeechVoiceSuggestionDescription + CaptureTimingSuggestionDescription + DetailPresentationSuggestionDescription
+        + OrdinaryDeadlineSuggestionDescription;
 
     public Task ReviewRegisteredSettingSuggestionAsync(ConversationMessage message) =>
         ReviewRegisteredSettingSuggestionAsync(message, null);
@@ -54,6 +57,8 @@ internal sealed partial class SessionsViewModel
                 RegisteredSettingProposal.Volume => SettingReviewFamily.Volume,
                 RegisteredSettingProposal.ResponseMode => SettingReviewFamily.ResponseMode,
                 RegisteredSettingProposal.WindowsRate => SettingReviewFamily.WindowsRate,
+                RegisteredSettingProposal.OrdinaryDeadline => SettingReviewFamily.OrdinaryDeadline,
+                RegisteredSettingProposal.Reset { Setting: RegisteredSetting.OrdinaryTurnDeadline } => SettingReviewFamily.OrdinaryDeadline,
                 RegisteredSettingProposal.DetailPresentation => SettingReviewFamily.DetailPresentation,
                 RegisteredSettingProposal.Reset { Setting: RegisteredSetting.DetailPresentation } => SettingReviewFamily.DetailPresentation,
                 RegisteredSettingProposal.QuietHours => SettingReviewFamily.QuietHours,
@@ -81,9 +86,12 @@ internal sealed partial class SessionsViewModel
             var detailNative = family == SettingReviewFamily.DetailPresentation
                 ? (CaptureDetailPresentationNativeLifetime ?? throw new InvalidOperationException("A current native Details surface is required."))()
                 : static () => true;
+            var deadlineNative = family == SettingReviewFamily.OrdinaryDeadline
+                ? (CaptureOrdinaryDeadlineNativeLifetime ?? throw new InvalidOperationException("A current native deadline surface is required."))()
+                : static () => true;
             bool Current() => ReferenceEquals(identity, registeredSettingReviewIdentity)
                 && live() && access.CanControl && !conversationSourceHeld
-                && detailNative()
+                && detailNative() && deadlineNative()
                 && (quietIdentity is null || ReferenceEquals(quietIdentity, quietHoursSuggestionIdentity) && native())
                 && ReferenceEquals(page, conversationPage) && ReferenceEquals(completed, completedConversationMessage);
             async Task Validate(CancellationToken token)
@@ -93,6 +101,17 @@ internal sealed partial class SessionsViewModel
             NotifyRegisteredSettings();
             switch (family)
             {
+                case SettingReviewFamily.OrdinaryDeadline:
+                    RequireOrdinaryDeadlineNativeInput(originalInput);
+                    var deadlineReview = await (reviewOrdinaryDeadlineSuggestion
+                        ?? throw new InvalidOperationException("Native deadline review is unavailable."))(message, Current, Validate, lifetime.Token);
+                    if (!Current())
+                    {
+                        deadlineReview.Dispose();
+                        throw new OperationCanceledException("The exact deadline review was retired.");
+                    }
+                    ordinaryDeadlineSuggestionReview = deadlineReview;
+                    break;
                 case SettingReviewFamily.DetailPresentation:
                     RequireDetailPresentationNativeInput(originalInput);
                     var detailReview = await (reviewDetailPresentationSuggestion
@@ -165,6 +184,7 @@ internal sealed partial class SessionsViewModel
 
     public Task ConfirmRegisteredSettingSuggestionAsync() => appearanceReview is not null
         ? ConfirmAppearanceSuggestionAsync()
+        : ordinaryDeadlineSuggestionReview is not null ? ConfirmOrdinaryDeadlineSuggestionAsync()
         : detailPresentationSuggestionReview is not null ? ConfirmDetailPresentationSuggestionAsync()
         : quietHoursSuggestionReview is not null ? ConfirmQuietHoursSuggestionAsync()
         : captureTimingSuggestionReview is not null ? ConfirmCaptureTimingSuggestionAsync()
@@ -176,6 +196,7 @@ internal sealed partial class SessionsViewModel
     public void CancelRegisteredSettingSuggestion(bool reportCancellation = true)
     {
         registeredSettingReviewIdentity = null;
+        CancelOrdinaryDeadlineSuggestion();
         CancelDetailPresentationSuggestion();
         CancelQuietHoursSuggestion();
         CancelCaptureTimingSuggestion();
@@ -198,6 +219,7 @@ internal sealed partial class SessionsViewModel
         if (responseModeReview is { Available: false }) { CancelResponseModeSuggestion(); }
         if (windowsSpeechRateReview is { Available: false }) { CancelWindowsSpeechRateSuggestion(); }
         if (quietHoursSuggestionReview is { Available: false }) { CancelQuietHoursSuggestion(); }
+        if (ordinaryDeadlineSuggestionReview is { Available: false }) { CancelOrdinaryDeadlineSuggestion(); }
         if (detailPresentationSuggestionReview is { Available: false }) { CancelDetailPresentationSuggestion(); }
         if (installedVoiceReview is { Available: false }) { CancelInstalledSpeechVoiceSuggestion(); }
         if (!busy && !conversationBusy && !CanConfirmRegisteredSettingSuggestion)

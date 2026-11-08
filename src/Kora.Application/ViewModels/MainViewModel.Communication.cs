@@ -307,11 +307,14 @@ public sealed partial class MainViewModel
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             ApplicationLog.Error(logger, exception, "Applying the call-aware output policy");
-            if (!disposed)
+            uiDispatcher.Post(() =>
             {
-                if (IsResponseInteractionPending) { Transcript = "Call-aware output retirement could not be confirmed; the complete pending interaction remains visual."; }
-                else { ShowFailure("The call-aware output policy could not be applied.", exception.Message); }
-            }
+                if (!disposed)
+                {
+                    if (IsResponseInteractionPending) { Transcript = "Call-aware output retirement could not be confirmed; the complete pending interaction remains visual."; }
+                    else { ShowFailure("The call-aware output policy could not be applied.", exception.Message); }
+                }
+            });
         }
     }
 

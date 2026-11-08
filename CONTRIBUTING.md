@@ -78,6 +78,11 @@ dotnet build .\src\Kora\Kora.csproj --configuration Debug --no-restore
 dotnet run --project .\src\Kora\Kora.csproj --configuration Debug --no-build --no-restore
 ```
 
+Verify that startup completes and Kora's configured window or tray interface is
+available; a briefly running process alone does not prove successful startup.
+For an unexpected exit, inspect the Windows Application log's `.NET Runtime`
+event for the startup exception.
+
 Run `.\eng\Test-Run.ps1` to check launcher ordering, failure handling and working
 directory restoration with fake commands; it never updates source or opens Kora.
 

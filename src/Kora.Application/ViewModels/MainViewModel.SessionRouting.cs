@@ -109,7 +109,7 @@ public sealed partial class MainViewModel
                         status + "\n\nAssistant answer (generated locally; verify important details):\n" + answerPresentation.Brief,
                         requestWindow: automaticDetails is null,
                         modelAnswer: new(answer.Body, result.Submission.Message.Request));
-                    PresentAutomaticResponse(automaticDetails);
+                    await PresentAutomaticResponseAsync(automaticDetails);
                 }
                 else { ShowInformation("Request destination: " + name + ".", status); }
             }

@@ -1657,6 +1657,21 @@ Use `review response timeout suggestion` to review the exact host-pinned success
 
 The answer must be one exact `set appearance.response-timeout to <integer>` using canonical digits, 1-60 seconds. It changes only the existing response-window inactivity hide delay, not provider deadlines or Always show. Review saves nothing; original-channel call policy, source, preference, privacy and host checks remain required through commit ([review and recovery](settings.md#review-a-response-timeout-suggestion)).
 
+**Future ordinary deadline suggestions are a separate native-only review.**
+
+An original local user can choose **Review setting suggestion...** on an exact
+successful retained answer containing `set work.active-deadline-minutes to 10`
+(canonical whole minutes 1-60), or `reset work.active-deadline-minutes`.
+Review shows actual saved/default, effective and proposed values and future-only
+device-local scope; separately confirm or cancel in the same current native
+surface within 60 seconds. The model never executes the suggestion.
+Confirmed audited atomic write/readback is required before future dispatch
+consumes it. Running work and earlier context/provider/tool ceilings stay
+unchanged. Stale sources, returned surfaces, changed authority or uncertain
+saves require inspection, not retry, rollback, deadline undo or default success.
+This model route adds no typed/voice confirmation
+([complete review](setting-proposals.md), [direct controls](settings.md#future-ordinary-task-deadline)).
+
 ### Detail presentation preference
 
 These exact commands share the native reviewed preference workflow. Prefix activated voice with the current assistant name. Set/reset stage a review only; confirmation is separate ([parser](../src/Kora.Application/Configuration/DetailPresentationCommand.cs), [interaction](../src/Kora.Application/ViewModels/MainViewModel.DetailPresentation.cs)).
@@ -1678,6 +1693,25 @@ cancel detail presentation change
 Offer remains the default; reset saves Offer. LinkOnly suppresses cues on future publications. OpenAutomatically opts into nonactivating foreground automatic opening, with no new question or background/history replay ([shared policy](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs), [bounded native admission](../src/Kora/ResponseWindowController.AutomaticDetails.cs)).
 
 **Open details**, `open current response details` and selected-session detail commands retain their existing source/privacy admission. One-off acceptance or decline never saves a preference; protected-call voice writes remain denied ([manual route](../src/Kora.Application/ViewModels/MainViewModel.CurrentResponse.cs), [detailed boundaries](settings.md#detailed-result-offers)).
+
+#### Future final-answer Markdown display default
+
+These exact original typed commands share **Settings > Responses > Future final-answer Markdown Details**. Activated voice requires the current assistant-name prefix. Set and reset prepare an exact review; Save is separate ([parser](../src/Kora.Application/Configuration/MarkdownDisplayCommand.cs), [reviewed writer](../src/Kora.Application/Configuration/MarkdownDisplayConfigurationService.cs)).
+
+```text
+get responses.markdown-display
+status responses.markdown-display
+set responses.markdown-display to Source
+set responses.markdown-display to Rendered
+reset responses.markdown-display
+review markdown display change
+confirm markdown display change
+cancel markdown display change
+```
+
+**Rendered** is the legacy missing-file default; reset reviews Rendered. The device-local choice applies only to NEW already-admitted final-answer/retained-assistant Markdown Details, in either native reader. Existing exact viewers preserve their mode and Find position. Saving neither opens a result nor changes active viewers. A malformed, unconfirmed or externally changed preference is explicitly unavailable, never implicitly Rendered ([scope and recovery](settings.md#future-final-answer-markdown-details)).
+
+Embedded help, original USER/history/context readers, raw file previews, plain text, HTML, Mermaid and browser renderers remain unchanged. This preference grants no source access, consent, export, clipboard, link or model authority.
 
 ### Inspect or change the device-default response mode
 

@@ -330,6 +330,9 @@ public sealed partial class MainViewModel
         CancelLogonStartupReview();
         CancelQuietHoursReview();
         CancelDetailPresentationReview();
+        CancelMarkdownDisplayReview();
+        PropertyChanged -= OnMarkdownDisplayHostChanged;
+        if (markdownDisplay is not null) { markdownDisplay.Changed -= OnMarkdownDisplayChanged; }
         NotifyDetailPresentationAvailability();
         PropertyChanged -= OnDetailPresentationHostChanged;
         if (composerDictation is not null) { composerDictation.Changed -= OnDetailPresentationDecisionChanged; }

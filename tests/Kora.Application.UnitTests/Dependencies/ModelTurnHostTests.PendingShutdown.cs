@@ -27,10 +27,13 @@ public sealed partial class ModelTurnHostTests
         f.Adapter.Pending = provider.Task;
         var target = new SessionWorkspaceEntry(f.Session, null);
         var active = await service.SubmitQueuedAsync(target, "active private original", () => true, Token);
+        var cancellationObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var registration = f.Adapter.RunToken.Register(() => cancellationObserved.TrySetResult());
         var disposal = service.DisposeAsync().AsTask();
         Exception? disposalFailure;
         try
         {
+            await cancellationObserved.Task.WaitAsync(Token);
             disposal.IsCompleted.Should().BeFalse("the original provider is still physically held");
             host.IsQuiescent.Should().BeFalse();
             active.Completion.IsCompleted.Should().BeFalse();

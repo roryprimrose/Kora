@@ -5,6 +5,7 @@ using Kora.Application.Hosting;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Dependencies;
+using Kora.Core.Configuration.SettingInspection;
 
 namespace Kora.SettingInspection;
 
@@ -23,6 +24,7 @@ internal sealed class SettingInspectionPresenter(SettingInspectionWorkflow workf
     private bool busy;
     private bool confirmed;
     private bool discoverSettings;
+    private SettingInspectionProfile profile;
 
     public event PropertyChangedEventHandler? PropertyChanged;
     public string Question
@@ -37,6 +39,18 @@ internal sealed class SettingInspectionPresenter(SettingInspectionWorkflow workf
         }
     }
     public string Status => status;
+    public SettingInspectionProfile Profile
+    {
+        get => profile;
+        set
+        {
+            _ = SettingInspectionReview.ExpectedSettings(value);
+            if (profile == value) { return; }
+            Retire();
+            profile = value;
+            Notify();
+        }
+    }
     public bool DiscoverSettings
     {
         get => discoverSettings;
@@ -81,7 +95,7 @@ internal sealed class SettingInspectionPresenter(SettingInspectionWorkflow workf
             var lifetime = captureLifetime();
             bool Current() => !closed && revision == version && host() && lifetime();
             var reviewed = await workflow.ReviewAsync(question, Current, operation.Token,
-                discoverSettings ? ModelToolMode.SettingsDiscovery : ModelToolMode.None);
+                discoverSettings ? ModelToolMode.SettingsDiscovery : ModelToolMode.None, profile);
             if (!Current() || operation.IsCancellationRequested)
             { throw new OperationCanceledException("The native source review was retired."); }
             admitted = Current;
@@ -224,7 +238,7 @@ internal sealed class SettingInspectionPresenter(SettingInspectionWorkflow workf
     private void Notify()
     {
         foreach (var name in new[] { nameof(Question), nameof(Status), nameof(Answer), nameof(ReviewText),
-            nameof(IsBusy), nameof(CanReview), nameof(CanConfirm), nameof(DiscoverSettings), nameof(ConfirmLabel) })
+            nameof(IsBusy), nameof(CanReview), nameof(CanConfirm), nameof(DiscoverSettings), nameof(ConfirmLabel), nameof(Profile) })
         { OnPropertyChanged(name); }
     }
     private void OnPropertyChanged([CallerMemberName] string? name = null) =>

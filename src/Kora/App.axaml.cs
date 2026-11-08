@@ -58,6 +58,7 @@ public sealed partial class App : Avalonia.Application
     private Func<HostActivity>? rendererSwitchContext;
 
     internal static ServiceProvider Services { get; set; } = null!;
+    internal static Task DetailPreferenceQuiescence { get; private set; } = Task.CompletedTask;
     internal static bool IsManualStartup { get; set; }
     private ManualStartupPresentationController? manualStartupPresentation;
     internal DetailWindowController? Details => detailWindow;
@@ -114,7 +115,8 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<IUserDocumentationProvider>(), viewModel,
                 Services.GetRequiredService<ILogger<DetailWindowController>>(),
                 Services.GetRequiredService<ILogger<NativeDetailRenderer>>(),
-                Services.GetRequiredService<ILogger<StaticHtmlDetailRenderer>>());
+                Services.GetRequiredService<ILogger<StaticHtmlDetailRenderer>>(),
+                Services.GetRequiredService<MarkdownDisplayConfigurationService>());
             detailWindow.BindHistoryAccess(() => Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>().CanInspect);
             documentationWindow = new DocumentationWindowController(
                 Services.GetRequiredService<IUserDocumentationProvider>(),
@@ -501,6 +503,7 @@ public sealed partial class App : Avalonia.Application
         documentationWindow?.Dispose();
         documentationWindow = null;
         detailWindow?.Dispose();
+        DetailPreferenceQuiescence = detailWindow?.JoinPreferenceReadsAsync() ?? Task.CompletedTask;
         detailWindow = null;
         responseWindow?.Dispose();
         speechCaptionWindow?.Dispose();

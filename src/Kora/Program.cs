@@ -254,6 +254,9 @@ internal static class Program
         using var shutdown = HostActivity.BeginOperation(HostActivityLayer.Desktop, HostOperation.Recovery);
         try
         {
+#pragma warning disable VSTHRD003 // Join the desktop owner's thread-pool preference reads after its synchronous privacy revocation.
+            await App.DetailPreferenceQuiescence.ConfigureAwait(false);
+#pragma warning restore VSTHRD003
             await provider.DisposeAsync();
             shutdown.Complete(HostOperationOutcome.Completed);
         }
@@ -428,6 +431,9 @@ internal static class Program
         services.AddSingleton<Kora.Core.Presentation.IDetailPresentationPreferences>(provider =>
             new LocalDetailPresentationPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<DetailPresentationConfigurationService>();
+        services.AddSingleton<Kora.Core.Presentation.IMarkdownDisplayPreferences>(provider =>
+            new LocalMarkdownDisplayPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<MarkdownDisplayConfigurationService>();
         services.AddSingleton<ProviderModeConfigurationService>();
         ProviderProfileComposition.Configure(services);
         services.AddSingleton<IModelProviderModePreferences>(provider =>

@@ -12,8 +12,8 @@ public sealed partial class DetailWindowControllerTests
         using var f = new Fixture();
         var content = OrdinaryContent();
         var eligible = true;
-        f.Controller.OpenCurrentResponse(content, null, () => eligible).Should().BeTrue();
-        f.Controller.OpenCurrentResponse(content, null, () => eligible).Should().BeTrue();
+        (await f.Controller.OpenCurrentResponseAsync(content, null, () => eligible, TestContext.Current.CancellationToken)).Should().BeTrue();
+        (await f.Controller.OpenCurrentResponseAsync(content, null, () => eligible, TestContext.Current.CancellationToken)).Should().BeTrue();
         var view = f.Views.Single();
         view.Activations.Should().Be(2);
         view.State.ActiveText.Should().Be(content.Source);
@@ -24,9 +24,9 @@ public sealed partial class DetailWindowControllerTests
         f.Controller.RetireUnavailableCurrentResponses();
         view.Cleared.Should().BeTrue();
         view.State.ActiveText.Should().BeEmpty();
-        f.Controller.OpenCurrentResponse(content, null, () => eligible).Should().BeFalse();
+        (await f.Controller.OpenCurrentResponseAsync(content, null, () => eligible, TestContext.Current.CancellationToken)).Should().BeFalse();
         f.Controller.Dispose();
-        f.Controller.OpenCurrentResponse(content, null, static () => true).Should().BeFalse();
+        (await f.Controller.OpenCurrentResponseAsync(content, null, static () => true, TestContext.Current.CancellationToken)).Should().BeFalse();
     }
 
     [Theory]
@@ -35,7 +35,7 @@ public sealed partial class DetailWindowControllerTests
     [InlineData("activation")]
     [InlineData("show-revoked")]
     [InlineData("activate-revoked")]
-    public void CurrentResponseDetailsNeverAcknowledgeFailedOrRevokedPublication(string failure)
+    public async Task CurrentResponseDetailsNeverAcknowledgeFailedOrRevokedPublication(string failure)
     {
         using var f = new Fixture();
         var content = OrdinaryContent();
@@ -51,20 +51,20 @@ public sealed partial class DetailWindowControllerTests
                 if (string.Equals(failure, "activate-revoked", StringComparison.Ordinal)) { view.OnActivate = () => admitted = false; }
             };
         }
-        f.Controller.OpenCurrentResponse(content, null, () => admitted).Should().BeFalse();
+        (await f.Controller.OpenCurrentResponseAsync(content, null, () => admitted, TestContext.Current.CancellationToken)).Should().BeFalse();
         f.Views.Should().OnlyContain(view => view.Cleared);
     }
 
     [Fact]
-    public void CurrentResponseDetailsRejectForeignOriginAndChangedExactSnapshotAndPrivacyClearsAll()
+    public async Task CurrentResponseDetailsRejectForeignOriginAndChangedExactSnapshotAndPrivacyClearsAll()
     {
         using var f = new Fixture();
         var content = OrdinaryContent();
-        f.Controller.OpenCurrentResponse(WebContent("web"), null, static () => true).Should().BeFalse();
-        f.Controller.OpenCurrentResponse(content, null, static () => true).Should().BeTrue();
+        (await f.Controller.OpenCurrentResponseAsync(WebContent("web"), null, static () => true, TestContext.Current.CancellationToken)).Should().BeFalse();
+        (await f.Controller.OpenCurrentResponseAsync(content, null, static () => true, TestContext.Current.CancellationToken)).Should().BeTrue();
         var changed = new AdmittedDetailContent(content.Reference, content.Kind, content.Origin, content.Sensitivity,
             content.Title, content.Provenance, "Different replacement", content.SessionSource);
-        f.Controller.OpenCurrentResponse(changed, null, static () => true).Should().BeFalse();
+        (await f.Controller.OpenCurrentResponseAsync(changed, null, static () => true, TestContext.Current.CancellationToken)).Should().BeFalse();
         f.Views.Should().ContainSingle();
         f.Controller.ClearForPrivacy();
         f.Views.Single().Cleared.Should().BeTrue();

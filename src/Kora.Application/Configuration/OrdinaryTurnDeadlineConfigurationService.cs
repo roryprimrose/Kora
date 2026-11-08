@@ -25,6 +25,20 @@ public sealed class OrdinaryTurnDeadlineConfigurationService(
         }
     }
 
+    internal bool IsCurrent(OrdinaryTurnDeadlineObservation expected)
+    {
+        lock (gate)
+        {
+            if (applying || !ReferenceEquals(observed, expected)) { return false; }
+            if (!observedEligibility() || preferences.Load() != expected.Saved)
+            {
+                observed = null;
+                return false;
+            }
+            return true;
+        }
+    }
+
     public async Task<OrdinaryTurnDeadlineObservation> RefreshAsync(RequestOrigin origin, Func<bool> eligible, CancellationToken token)
     {
         var value = await admission.RunAsync(origin, eligible, (_, _) =>

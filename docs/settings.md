@@ -67,6 +67,18 @@ The status shows the confirmed saved/default value; editing the field alone chan
 Typed or activated voice can use `get work.active-deadline-minutes`, `status work.active-deadline-minutes`, `set work.active-deadline-minutes to 10`, or `reset work.active-deadline-minutes`.
 These routes use the same host admission, preference readback and required audit ([configuration owner](../src/Kora.Application/Configuration/OrdinaryTurnDeadlineConfigurationService.cs)).
 
+An original local user can also select an exact retained model answer containing
+`set work.active-deadline-minutes to 10` (canonical whole minutes 1-60), or
+`reset work.active-deadline-minutes`, using **Review setting suggestion...**.
+Read current saved/default and proposed values, then separately confirm or
+cancel in that same current native conversation surface within 60 seconds.
+Review is inert; only confirmed audited atomic write/readback changes the
+future preference. A replaced source, returned surface, changed preference or
+host/call authority requires fresh review. Unconfirmed saves require Settings
+and audit inspection, not retry, rollback or a default success.
+There is no model/voice write authority or deadline undo
+([complete workflow](setting-proposals.md)).
+
 This preference applies only when an ordinary conversation turn dispatches, including its admitted read-only tools.
 Pending work has no active budget; running turns do not change when you save a new default.
 Clarification/approval turns and specialized source workflows keep their existing fixed limits ([scope](../Design/User_Configuration.md#delivered-future-ordinary-conversation-deadline)).
@@ -1323,6 +1335,16 @@ Settings window refreshes their availability; reopening is not required.
 Exact typed commands are listed in [the command reference](commands.md#detail-presentation-preference); voice requires the current assistant name and existing microphone/privacy/call eligibility. Protected calls reject voice-originated setting changes. One-off **Not now** or opening Details changes no preference. Restoring Offer never replays old offers or speech; already published response text is not rewritten ([workflow](../src/Kora.Application/Configuration/DetailPresentationConfigurationService.cs), [consumer](../src/Kora.Application/ViewModels/MainViewModel.CurrentResponse.cs)).
 
 Malformed or unconfirmed saved state holds proactive presentation with explicit recovery status; it does not hide manual access or reinterpret corrupt data as Offer. Spoken Offer questions remain unavailable. This preference does not qualify a model, microphone or provider ([persistence](../src/Kora.Application/Configuration/LocalDetailPresentationPreferences.cs), [scope](../Design/Information_Display.md#implemented-opt-in-nonactivating-foreground-expansion)).
+
+### Future final-answer Markdown Details
+
+In **Responses > Future final-answer Markdown Details**, choose **Review Source** or **Review Rendered**, read the saved/default-to-proposed review, then separately **Save Markdown display change** or **Cancel Markdown display change**. The cog menu offers **Inspect** and **Review reset to Rendered**; reset also requires Save. Reviews expire after 60 seconds; original channel, call, privacy and owner checks still apply. Closing Settings retires its native review ([shared controls](../src/Kora.Application/ViewModels/MainViewModel.MarkdownDisplay.cs)).
+
+**Rendered** is the default when the legacy preference file is missing. A saved choice is device-local and applies only to NEW already-admitted final-answer and retained-assistant Markdown Details in either the separate window or primary conversation reader. Saving does not open any result, change an active viewer, or reset Find. Reopening the same already-open exact viewer preserves its explicit Source/Rendered and continuous-reading choices ([native admission](../src/Kora/DetailWindowController.cs)).
+
+The atomic store retains an unconfirmed-write hold until required audit and exact readback complete. Malformed, pending, externally changed or unavailable saved evidence blocks applying the default to a new eligible viewer with a distinct error; it never becomes implicit Rendered. A preference failure preserves an older admitted reader, retained page and unsent input only while their original source/privacy admission remains valid; actual withdrawal still retires them. Inspect state and audit before explicit recovery; no automatic retry or rewrite is claimed ([persistence](../src/Kora.Application/Configuration/LocalMarkdownDisplayPreferences.cs)).
+
+This bounded preference does **not** affect embedded help, original USER/history/context readers, raw file previews, plain text, HTML, Mermaid or browser renderers. It confers no source disclosure, consent, export/clipboard/link authority or renderer/provider qualification. Existing truthful renderer source fallback and source/privacy gates remain authoritative. [Exact typed and activated commands](commands.md#future-final-answer-markdown-display-default) use the same reviewed writer, not model-generated setting instructions.
 
 ### Device default
 

@@ -9,6 +9,7 @@ public interface IMcpConnection : IAsyncDisposable
     McpAccountReference Account { get; }
     McpEndpoint Endpoint { get; }
     IReadOnlyList<IPAddress> RemoteAddresses { get; }
+    CancellationToken AdmissionWithdrawn => new(canceled: true);
     Task<bool> IsCurrentAsync(CancellationToken token);
     Task<ImmutableArray<byte>> ExchangeAsync(ImmutableArray<byte> request, int maximumResponseBytes, CancellationToken token);
     Task NotifyAsync(ImmutableArray<byte> notification, CancellationToken token);

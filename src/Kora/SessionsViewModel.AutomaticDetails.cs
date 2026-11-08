@@ -45,7 +45,7 @@ internal sealed partial class SessionsViewModel
         automaticDetails[checked((int)accepted.Sequence - 1)] = new(accepted, capture);
     }
 
-    private void PresentAutomaticDetails(ConversationMessage message)
+    private async Task PresentAutomaticDetailsAsync(ConversationMessage message)
     {
         if (message.Outcome is null || message.Sequence is <= 0 or > ConversationText.MaximumSessionMessages) { return; }
         var index = checked((int)message.Sequence - 1);
@@ -67,7 +67,18 @@ internal sealed partial class SessionsViewModel
             && !publication.Dismissed && ReferenceEquals(detailPresentation, preference)
             && CanPresentDetails && selected?.Authority.SessionId == message.Request.SessionId
             && selected.Authority.Generation == message.Generation;
-        _ = capture.Host.PublishAutomaticDetails(new(message.Request, content, preference, capture.PreferenceEpoch,
-            capture.Lease, Current));
+        try
+        {
+            if (!await capture.Host.PublishAutomaticDetailsAsync(new(message.Request, content, preference, capture.PreferenceEpoch,
+                capture.Lease, Current)))
+            { Failure(logger, "automatic-publication-unavailable"); }
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or InvalidDataException or IOException
+            or UnauthorizedAccessException or OperationCanceledException or ArgumentException)
+        {
+            Failure(logger, exception.GetType().Name);
+            if (Current())
+            { conversationStatus = "Automatic Markdown Details unavailable; the saved default was not applied. Inspect preference state and audit. The retained answer is unchanged."; }
+        }
     }
 }

@@ -12,6 +12,8 @@ internal sealed class McpHttpConnection : IMcpConnection
     private readonly HttpClient client;
     private readonly TimeProvider time;
     private readonly CancellationTokenSource lifetime = new();
+    private readonly CancellationTokenSource admission;
+    private readonly CancellationToken withdrawal;
     private readonly SemaphoreSlim serial = new(1, 1);
     private readonly Lock sync = new();
     private readonly HashSet<Task> active = [];
@@ -21,6 +23,8 @@ internal sealed class McpHttpConnection : IMcpConnection
         HttpMessageHandler handler, TimeProvider? time = null)
     {
         this.lease = lease;
+        admission = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, lease.AdmissionWithdrawn);
+        withdrawal = admission.Token;
         this.addresses = addresses;
         Account = account;
         this.time = time ?? TimeProvider.System;
@@ -29,6 +33,7 @@ internal sealed class McpHttpConnection : IMcpConnection
 
     public McpAccountReference Account { get; }
     public McpEndpoint Endpoint => Account.Destination;
+    public CancellationToken AdmissionWithdrawn => withdrawal;
     public IReadOnlyList<IPAddress> RemoteAddresses => addresses.Select(WindowsMcpConnectionBroker.CloneAddress).ToArray();
 
     public Task<bool> IsCurrentAsync(CancellationToken token) => RunAsync(async current =>
@@ -152,16 +157,28 @@ internal sealed class McpHttpConnection : IMcpConnection
     {
         lock (sync)
         {
-            disposal ??= DisposeCoreAsync([.. active]);
+            if (disposal is null)
+            {
+                disposal = DisposeCoreAsync([.. active]);
+                admissionWithdrawal = admission.CancelAsync();
+            }
             return new(disposal);
         }
     }
+
+    private Task admissionWithdrawal = Task.CompletedTask;
 
     private async Task DisposeCoreAsync(Task[] pending)
     {
         // Publish the shared disposal task before cancellation can reenter the owner.
         await Task.CompletedTask.ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
-        try { await lifetime.CancelAsync().ConfigureAwait(false); }
+        try
+        {
+            Task callbacks;
+            lock (sync) { callbacks = admissionWithdrawal; }
+            try { await callbacks.ConfigureAwait(false); }
+            finally { await lifetime.CancelAsync().ConfigureAwait(false); }
+        }
         finally
         {
             await Task.WhenAll(pending).ConfigureAwait(false);
@@ -172,6 +189,7 @@ internal sealed class McpHttpConnection : IMcpConnection
                 finally
                 {
                     serial.Dispose();
+                    admission.Dispose();
                     lifetime.Dispose();
                 }
             }

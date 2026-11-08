@@ -1994,7 +1994,7 @@ The broader proposed registry includes:
 | Text scale | 100%; 75-200% | "Make result text twenty percent larger" |
 | Detailed result opening | Offer (default) / Open automatically / Link only | "Always open detailed results" |
 | Browser target | Embedded when verified; external only by explicit selection | "Use my default browser for websites" |
-| Markdown mode | Rendered / source | "Show Markdown source by default" |
+| Markdown mode | [Bounded final-answer default implemented](#reviewed-future-final-answer-markdown-default): Rendered / Source; broader reader defaults and natural aliases remain proposed | `set responses.markdown-display to Source`; "Show Markdown source by default" remains proposed |
 | Mermaid | Enabled only after integration gate; source alternative always available | "Show Mermaid diagrams as source" |
 
 Broader proposed content commands include "show the full answer", "show this page", "preview that HTML", "show the source", "show the diagram", "zoom in", "go back", and "close the content viewer". `hide speech text` is a delivered persistent opt-out; caption pinning requires the explicit current-caption phrases above, never "pin that text" or "unpin that text" ([parser](../src/Kora.Application/Configuration/SpeechTextCommand.cs)).
@@ -2002,6 +2002,14 @@ Remote assets remain blocked by default; "load the images for this page" initiat
 Ambiguous "that" or multiple viewer targets requires clarification.
 Scrolling/diagram zoom/navigation operate on displayed content only; they cannot automate page forms or execute webpage instructions.
 An optional text overlay never hides mandatory approval/error UI.
+
+## Reviewed future final-answer Markdown default
+
+The bounded device-local preference uses Rendered (legacy missing-file default) or Source only for NEW host-admitted finalized-answer/retained-assistant Markdown Details. Native Settings and exact original typed/current-name activated get/status/set/reset/review/confirm/cancel share one host reviewed writer, original channel/effect admission, required audit, shared atomic store and exact readback. Set/reset review saves nothing; confirmation is separate and expires after 60 seconds ([control](../src/Kora.Application/Configuration/MarkdownDisplayConfigurationService.cs), [domain](../src/Kora.Core/Presentation/MarkdownDisplayPreference.cs)).
+
+At each new eligible viewer boundary, an immutable confirmed mode is obtained asynchronously before native publication. Source/privacy/native ownership and generation are revalidated after the await. Preference failure is explicit and distinct from renderer source fallback; missing production composition, malformed/pending/unknown or externally changed state is not Rendered. Already-open exact viewers keep their chosen mode and Find position; saving never opens a result or changes active readers ([both native readers](../src/Kora/DetailWindowController.cs)).
+
+Embedded help, original USER/history/context-envelope readers, raw file previews, plain text, HTML, Mermaid and browser renderers are excluded. The preference grants no content access, source consent, clipboard/export/link authority or renderer/provider qualification; model text cannot select it or self-classify Markdown. Existing sourceFallback identity and every source/retention/privacy gate remain authoritative. Broader natural preference phrases remain proposed, not model fallbacks ([user settings](../docs/settings.md#future-final-answer-markdown-details), [exact grammar](../docs/commands.md#future-final-answer-markdown-display-default)).
 
 ## Delivery and Proof
 

@@ -10,6 +10,9 @@ public sealed class ArtifactDirectoryConfigurationService(
 {
     private readonly Lock gate = new();
     private ArtifactDirectorySettings settings = ArtifactDirectorySettings.Empty;
+    internal sealed record DescriptorObservation(long Revision, bool Available);
+    private DescriptorObservation descriptorObservation = new(0, true);
+    internal DescriptorObservation ObservedDescriptorControl => Volatile.Read(ref descriptorObservation);
 
     public event EventHandler? Changed;
 
@@ -43,7 +46,7 @@ public sealed class ArtifactDirectoryConfigurationService(
         ArgumentException.ThrowIfNullOrWhiteSpace(serverId);
         lock (gate)
         {
-            settings = preferences.Load();
+            settings = ReadCurrentCore();
             if (!string.Equals(serverId, KoraMcpCatalog.ServerId, StringComparison.Ordinal)
                 && settings.IncludedMcpServerIds.Contains(serverId, StringComparer.Ordinal) == included)
             {
@@ -58,7 +61,7 @@ public sealed class ArtifactDirectoryConfigurationService(
     {
         lock (gate)
         {
-            settings = preferences.Load();
+            settings = ReadCurrentCore();
             return Save(WithCapabilities(settings.McpCapabilities.SetCategory(serverId, category, enabled)));
         }
     }
@@ -67,7 +70,7 @@ public sealed class ArtifactDirectoryConfigurationService(
     {
         lock (gate)
         {
-            settings = preferences.Load();
+            settings = ReadCurrentCore();
             return Save(WithCapabilities(settings.McpCapabilities.SetItem(serverId, kind, identity, enabled)));
         }
     }
@@ -92,7 +95,7 @@ public sealed class ArtifactDirectoryConfigurationService(
         ArgumentNullException.ThrowIfNull(proposed);
         lock (gate)
         {
-            settings = preferences.Load();
+            settings = ReadCurrentCore();
             if (!string.Equals(settings.McpCapabilities.Fingerprint(serverId), expectedFingerprint, StringComparison.Ordinal))
             { throw new InvalidOperationException("MCP capability preferences changed. Review a fresh inventory."); }
             var replacements = Enum.GetValues<McpCapabilityCategory>().Select(category =>
@@ -122,7 +125,7 @@ public sealed class ArtifactDirectoryConfigurationService(
             : LocalArtifactDirectoryPreferences.NormalizeDirectory(path);
         lock (gate)
         {
-            settings = preferences.Load();
+            settings = ReadCurrentCore();
             var current = settings.GetPaths(kind);
             var next = add
                 ? current.Append(normalized).ToArray()
@@ -141,6 +144,7 @@ public sealed class ArtifactDirectoryConfigurationService(
 
     private ArtifactDirectorySettings Save(ArtifactDirectorySettings proposed)
     {
+        Volatile.Write(ref descriptorObservation, new(checked(descriptorObservation.Revision + 1), false));
         var audit = new SecurityAuditEvent(
                 Guid.NewGuid(),
                 SecurityAuditCategory.ConfigurationWrite,
@@ -173,11 +177,18 @@ public sealed class ArtifactDirectoryConfigurationService(
             throw;
         }
         auditLog.Write(audit.WithOutcome(SecurityAuditOutcome.Succeeded));
+        Volatile.Write(ref descriptorObservation, new(descriptorObservation.Revision, true));
         Changed?.Invoke(this, EventArgs.Empty);
         return settings;
     }
 
-    private ArtifactDirectorySettings ReadCurrentCore() => preferences.Load();
+    private ArtifactDirectorySettings ReadCurrentCore()
+    {
+        Volatile.Write(ref descriptorObservation, new(checked(descriptorObservation.Revision + 1), false));
+        var current = preferences.Load();
+        Volatile.Write(ref descriptorObservation, new(descriptorObservation.Revision, true));
+        return current;
+    }
 
     private static ArtifactDirectorySettings Replace(
         ArtifactDirectorySettings current,

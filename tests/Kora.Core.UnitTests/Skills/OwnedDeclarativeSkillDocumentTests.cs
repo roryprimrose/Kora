@@ -54,6 +54,21 @@ public sealed class OwnedDeclarativeSkillDocumentTests
     private static OwnedDeclarativeSkillDocument Document(string guidance = "Literal workflow.\r\nowned skill save\n```ps1\nnot executed\n```") =>
         OwnedDeclarativeSkillDocument.Create("daily-review", "1.0.0", "Daily review", "Review the day", guidance);
 
+    [Theory]
+    [InlineData("tools: mcp.other\nmcp-server: changed\nowned skill invoke")]
+    [InlineData("{\"version\":\"999.0.0\",\"tools\":[\"mcp.other\"]}")]
+    public void V6ReplacementBodyCannotChangeAnyManifestByteOrDependency(string body)
+    {
+        var original = OwnedDeclarativeSkillDocument.CreateMcp("example", "2.0.0", "Example", "Description", "OLD",
+            new(new string('a', 64), new string('b', 64), "search", new string('c', 64)));
+        var changed = OwnedDeclarativeSkillDocument.Parse(original.ManifestBytes.Span, Encoding.UTF8.GetBytes(body));
+        changed.ManifestBytes.ToArray().Should().Equal(original.ManifestBytes.ToArray());
+        changed.McpReference.Should().Be(original.McpReference);
+        changed.Guidance.Should().Be(body);
+        changed.ObservationWorkflow.Should().BeNull();
+        changed.IsAvailableForInvocation.Should().BeFalse();
+    }
+
     [Fact]
     public void ExactTwoFileRoundtripPreservesLiteralGuidanceAndIsAlwaysInactive()
     {

@@ -202,7 +202,16 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview, IO
         : references.Count != 0 ? throw new InvalidDataException("Select native v5 explicitly or remove every component; old formats cannot silently drop components.")
         : Tool.SelectedIndex == 2
         ? InputFormat.SelectedIndex == 0
-            ? OwnedDeclarativeSkillDocument.CreateMcp(IdInput.Text ?? "", VersionInput.Text ?? "", NameInput.Text ?? "",
+            ? BasePackage is { Document.Tool: OwnedSkillToolSelection.ReadOnlyMcp } original
+                && string.Equals(IdInput.Text, original.Document.Id, StringComparison.Ordinal)
+                && string.Equals(NameInput.Text, original.Document.Name, StringComparison.Ordinal)
+                && string.Equals(DescriptionInput.Text, original.Document.Description, StringComparison.Ordinal)
+                && string.Equals(McpServer.Text, original.Document.McpReference!.ServerId, StringComparison.Ordinal)
+                && string.Equals(McpSourceRevision.Text, original.Document.McpReference.SourceRevision, StringComparison.Ordinal)
+                && string.Equals(McpTool.Text, original.Document.McpReference.ToolName, StringComparison.Ordinal)
+                && string.Equals(McpSchemaDigest.Text, original.Document.McpReference.SchemaDigest, StringComparison.Ordinal)
+                ? OwnedSkillGuidanceRefinementService.CreateReopenedMcpDraft(original, VersionInput.Text ?? "", Guidance.Text ?? "")
+                : OwnedDeclarativeSkillDocument.CreateMcp(IdInput.Text ?? "", VersionInput.Text ?? "", NameInput.Text ?? "",
                 DescriptionInput.Text ?? "", Guidance.Text ?? "",
                 new(McpServer.Text ?? "", McpSourceRevision.Text ?? "", McpTool.Text ?? "", McpSchemaDigest.Text ?? ""))
             : throw new InvalidDataException("Native v6 MCP guidance is literal and reference-free; it cannot declare inputs.")
@@ -289,7 +298,16 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview, IO
     }
 
     public async Task<bool> Review(OwnedDeclarativeSkillDocument document, string destination, CancellationToken token) =>
-        document.ReferenceDeclaration is null && BasePackage?.Document.ReferenceDeclaration is null
+        document.Tool == OwnedSkillToolSelection.ReadOnlyMcp && BasePackage is { } original
+        ? await ChooseOnUi("Review complete skill package",
+            "Exact new version directory: " + destination
+                + "\nDeclared package capability: read-only MCP. Guidance refinement, if used, runs with tools none, not that capability. "
+                + "Compare the complete original and new immutable package, including every native-selected change. "
+                + "Refinement cannot change the manifest; the new version is selected natively. "
+                + "Saving remains disabled, without grants; independent review/enable/invoke still required.",
+            Complete(original.Document), Complete(document), ["Continue to separate native publication confirmation", "Cancel"], token,
+            firstLabel: "Complete original package", secondLabel: "Complete proposed package") == 0
+        : document.ReferenceDeclaration is null && BasePackage?.Document.ReferenceDeclaration is null
         ? await ChooseOnUi("Review complete skill package",
             "Exact new version directory: " + destination
                 + "\nExactly TWO files: manifest.yaml and instructions.md. Local only; references none. Declared capability: " + document.Tool

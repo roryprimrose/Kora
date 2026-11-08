@@ -265,6 +265,7 @@ internal sealed partial class OwnedSkillEditorController(
                         ? proposal.IsCurrent() ? proposal.Proposed : throw new InvalidOperationException("The refinement expired. Generate and review again.")
                         : opened.Document();
                     opened.Report("Valid native complete package" + (pendingRefinement is null ? "" : " from the reviewed guidance proposal")
+                        + (validated.Tool == OwnedSkillToolSelection.ReadOnlyMcp ? ". Declared capability is read-only MCP; authoring tools none" : "")
                         + ". No publication, enablement, tool permission or invocation.");
                     break;
                 case "save": await Save(authority); break;

@@ -17,6 +17,9 @@ public sealed class ArtifactUsePreferences : IArtifactUsePolicy
     private long revision;
     private bool unavailable;
     private bool observed;
+    internal sealed record DescriptorObservation(long Revision, bool Available);
+    private DescriptorObservation descriptorObservation = new(0, true);
+    internal DescriptorObservation ObservedDescriptorControl => Volatile.Read(ref descriptorObservation);
 
     public ArtifactUsePreferences(IApplicationDataPaths paths) : this(new LocalPreferenceStore(paths)) { }
 
@@ -78,6 +81,7 @@ public sealed class ArtifactUsePreferences : IArtifactUsePolicy
         {
             lock (gate)
             {
+                Volatile.Write(ref descriptorObservation, new(checked(descriptorObservation.Revision + 1), false));
                 if (unavailable)
                 { throw new InvalidOperationException("Artifact use control is unavailable. Restore verified preferences and restart; nothing was enabled."); }
                 var current = Load();
@@ -85,7 +89,7 @@ public sealed class ArtifactUsePreferences : IArtifactUsePolicy
                 if (onlyIfChanged && current.Disabled.SetEquals(disabled)
                     && current.Reviewed.Count == reviewed.Count
                     && current.Reviewed.All(item => string.Equals(reviewed.GetValueOrDefault(item.Key), item.Value, StringComparison.Ordinal)))
-                { return; }
+                { Volatile.Write(ref descriptorObservation, new(descriptorObservation.Revision, true)); return; }
                 if (current.Disabled.Count + current.Reviewed.Count > MaximumEntries)
                 { throw new InvalidDataException("The artifact use-control inventory is full."); }
                 var text = JsonSerializer.Serialize(new { Version = 2,
@@ -99,6 +103,7 @@ public sealed class ArtifactUsePreferences : IArtifactUsePolicy
                 reviewed = current.Reviewed;
                 observed = true;
                 Interlocked.Increment(ref revision);
+                Volatile.Write(ref descriptorObservation, new(descriptorObservation.Revision, true));
             }
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)

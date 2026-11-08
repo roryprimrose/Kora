@@ -11,6 +11,10 @@ public sealed class McpCapabilityPreferences(ArtifactUsePreferences preferences,
     IArtifactDirectoryPreferences directories, ArtifactDirectoryConfigurationService configuration)
 {
     private volatile bool unavailable;
+    internal sealed record DescriptorObservation(ArtifactUsePreferences.DescriptorObservation Use,
+        ArtifactDirectoryConfigurationService.DescriptorObservation Configuration, bool Available);
+    internal DescriptorObservation ObservedDescriptorControl =>
+        new(preferences.ObservedDescriptorControl, configuration.ObservedDescriptorControl, !unavailable);
     public string Revision => RevisionFor(KoraMcpCatalog.ServerId);
 
     internal string RevisionFor(string serverId)

@@ -10,7 +10,7 @@ using Kora.Core.Tools;
 
 namespace Kora.Application.Configuration;
 
-public sealed partial class McpServerConfigurationService
+public sealed partial class McpServerConfigurationService : IDisposable
 {
     private const int MaximumConfigurationBytes = 256 * 1024;
     private const int MaximumServers = 128;
@@ -24,6 +24,9 @@ public sealed partial class McpServerConfigurationService
     private readonly Dictionary<string, SourceObservation> observedSources = new(StringComparer.Ordinal);
     private McpCapabilitySelection? observedCapabilities;
     private long nextSourceRevision;
+    internal sealed record DescriptorObservation(long Revision, bool Available);
+    private DescriptorObservation descriptorObservation = new(0, false);
+    private bool disposed;
 
     public event EventHandler? Changed;
     internal long UseControlRevision => capabilities?.ServerUseRevision ?? usePolicy?.Revision ?? 0;
@@ -109,7 +112,14 @@ public sealed partial class McpServerConfigurationService
     {
         lock (sourceGate)
         {
-            try { return LoadCore(); }
+            ObjectDisposedException.ThrowIf(disposed, this);
+            Volatile.Write(ref descriptorObservation, new(checked(descriptorObservation.Revision + 1), false));
+            try
+            {
+                var result = LoadCore();
+                Volatile.Write(ref descriptorObservation, new(descriptorObservation.Revision, true));
+                return result;
+            }
             catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException
                 or ArgumentException or NotSupportedException)
             {
@@ -189,15 +199,47 @@ public sealed partial class McpServerConfigurationService
     {
         get
         {
-            var settings = preferences.Load();
-            return DefaultFiles()
-                .Concat(settings.McpConfigurationFiles)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
+            lock (sourceGate)
+            {
+                ObjectDisposedException.ThrowIf(disposed, this);
+                Volatile.Write(ref descriptorObservation, new(checked(descriptorObservation.Revision + 1), false));
+                var settings = preferences.Load();
+                var result = DefaultFiles()
+                    .Concat(settings.McpConfigurationFiles)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+                Volatile.Write(ref descriptorObservation, new(descriptorObservation.Revision, true));
+                return result;
+            }
         }
     }
 
-    internal void NotifyChanged() => Changed?.Invoke(this, EventArgs.Empty);
+    internal void NotifyChanged()
+    {
+        lock (sourceGate)
+        { Volatile.Write(ref descriptorObservation, new(checked(descriptorObservation.Revision + 1), false)); }
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    internal Func<bool>? CaptureDescriptorObservation()
+    {
+        var source = Volatile.Read(ref descriptorObservation);
+        var control = capabilities?.ObservedDescriptorControl;
+        if (!source.Available || control is null || !control.Available
+            || !control.Use.Available || !control.Configuration.Available)
+        { return null; }
+        return () => ReferenceEquals(source, Volatile.Read(ref descriptorObservation))
+            && control == capabilities!.ObservedDescriptorControl;
+    }
+
+    public void Dispose()
+    {
+        lock (sourceGate)
+        {
+            disposed = true;
+            Volatile.Write(ref descriptorObservation, new(checked(descriptorObservation.Revision + 1), false));
+        }
+    }
 
     internal bool IsCapabilityEnabled(string serverId, McpCapabilityKind kind, string identity)
     {

@@ -24,6 +24,7 @@ public sealed class SettingsDiscoveryToolsTests
             new(RegisteredSetting.ResponseMode, 0, false, 5),
             new(RegisteredSetting.PresenceDisplay, 1, false, 6),
             new(RegisteredSetting.PresenceTimeout, 10, false, 6),
+            new(RegisteredSetting.ResponseTimeout, 5, false, 6),
             new(RegisteredSetting.PresenceSize, 360, false, 6),
             new(RegisteredSetting.DotSize, 100, false, 6),
             new(RegisteredSetting.DotDensity, 100, false, 6),
@@ -68,7 +69,7 @@ public sealed class SettingsDiscoveryToolsTests
                 .Should().Be(SettingsDiscoveryTools.HasConfirmedReader(descriptor.Setting));
         }
         review.Observations.Should().OnlyContain(item => review.Source.Contains(item.Text, StringComparison.Ordinal));
-        review.Observations.Should().HaveCount(22).And.OnlyHaveUniqueItems(item => item.Setting);
+        review.Observations.Should().HaveCount(23).And.OnlyHaveUniqueItems(item => item.Setting);
         review.Observations.Single(item => item.Setting == RegisteredSetting.QuietHours)
             .QuietHours.Should().Be(QuietHoursSchedule.Off);
         SettingsDiscoveryTools.HasConfirmedReader(RegisteredSetting.QuietHours).Should().BeTrue();
@@ -113,6 +114,10 @@ public sealed class SettingsDiscoveryToolsTests
             ModelToolProtocol.CreateToolResult(new("get_1", SettingsDiscoveryTools.Get, input), reply);
         }
         SettingsDiscoveryTools.Read(review.Observations, SettingsDiscoveryTools.Get,
+            """{"id":"appearance.response-timeout"}""").Settings!.Observation.Should().BeSameAs(
+                review.Observations.Single(item => item.Setting == RegisteredSetting.ResponseTimeout));
+        SettingsDiscoveryTools.HasConfirmedReader(RegisteredSetting.ResponseTimeout).Should().BeTrue();
+        SettingsDiscoveryTools.Read([], SettingsDiscoveryTools.Get,
             """{"id":"appearance.response-timeout"}""").Should().Be(
                 new CapabilityReply(CapabilityOutcome.Unavailable, "setting-value-unavailable"));
         SettingsDiscoveryTools.Read(review.Observations, SettingsDiscoveryTools.Get,

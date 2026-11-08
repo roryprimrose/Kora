@@ -52,6 +52,9 @@ public sealed record SettingObservation
             case RegisteredSetting.PresenceTimeout:
                 AppearanceOptionRegistry.Validate(AppearanceOption.PresenceTimeout, new AppearanceValue.Number(value));
                 break;
+            case RegisteredSetting.ResponseTimeout:
+                AppearanceOptionRegistry.Validate(AppearanceOption.ResponseTimeout, new AppearanceValue.Number(value));
+                break;
             case RegisteredSetting.PresenceSize:
                 AppearanceOptionRegistry.Validate(AppearanceOption.PresenceSize, new AppearanceValue.Number(value));
                 break;
@@ -128,6 +131,9 @@ public sealed record SettingObservation
         + (IsSaved ? " (confirmed saved; matches live service)" : " (confirmed absent; live default)")
         + (Setting == RegisteredSetting.ReducedMotion
             ? Value == 0 ? "; follows Windows reduced-motion preference, not forced motion" : "; freezes presence particles"
+            : "")
+        + (Setting == RegisteredSetting.ResponseTimeout
+            ? "; configured response-window inactivity hide delay, not presence inactivity or a task/provider deadline; no current visibility or visibility-exception claim"
             : "")
         + (QuietHours is not null ? "; configured intent only, not current quiet-now, output availability or speech consent" : "");
 

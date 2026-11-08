@@ -137,6 +137,7 @@ public sealed class ConfirmedSettingsTests
             f.Store.Text["reader-text-scale-percent.txt"] = "125";
             f.Store.Text["presence-display-enabled.txt"] = "False";
             f.Store.Text["presence-inactivity-timeout-seconds.txt"] = "5";
+            f.Store.Text["response-timeout-seconds.txt"] = "7";
             f.Store.Text["presence-size-pixels.txt"] = "480";
             f.Store.Text["presence-dot-size-percent.txt"] = "75";
             f.Store.Text["presence-dot-density-percent.txt"] = "50";
@@ -154,7 +155,7 @@ public sealed class ConfirmedSettingsTests
         f.Observe();
         var before = f.Appearance.Get(AppearanceOption.Theme);
         var snapshot = await f.Source.CaptureAsync(f.Token);
-        snapshot.Observations.Should().HaveCount(22).And.OnlyHaveUniqueItems(item => item.Setting);
+        snapshot.Observations.Should().HaveCount(23).And.OnlyHaveUniqueItems(item => item.Setting);
         snapshot.Observations.Should().OnlyContain(item => item.IsSaved == saved);
         snapshot.Observations.Single(item => item.Setting == RegisteredSetting.ReaderTextScale).Value.Should().Be(saved ? 125 : 100);
         f.Source.IsCurrent(snapshot).Should().BeTrue();
@@ -169,16 +170,19 @@ public sealed class ConfirmedSettingsTests
              "speech-summary-limits.txt", "speech-selection.txt", "speech-playback-volume-unconfirmed.txt", "speech-playback-volume.txt",
              "response-output-mode-unconfirmed.txt", "response-output-mode.txt",
              "presence-inactivity-timeout-seconds.txt", "presence-size-pixels.txt", "presence-dot-size-percent.txt",
+             "response-timeout-seconds.txt",
              "presence-dot-density-percent.txt", "presence-movement-speed-percent.txt", "presence-speech-scaling-enabled.txt",
              "presence-speech-scale-amount-percent.txt", "appearance-reduced-motion-enabled.txt",
              "notices-quiet-hours-unconfirmed.txt", "notices-quiet-hours.txt",
              "voice-capture-timing.txt", "voice-capture-timing-unconfirmed.txt",
              "detail-presentation.txt", "detail-presentation-unconfirmed.txt"];
         if (!saved) { expectedReads.Add("speech-provider.txt"); expectedReads.Add("speech-voice.txt"); }
+        if (!saved) { expectedReads.Add("presence-timeout-seconds.txt"); }
         f.Store.Reads.Distinct(StringComparer.Ordinal).Should().BeEquivalentTo(expectedReads);
         (RegisteredSetting Setting, AppearanceOption Option, int Default, int Saved)[] presence =
         [
             (RegisteredSetting.PresenceTimeout, AppearanceOption.PresenceTimeout, 10, 5),
+            (RegisteredSetting.ResponseTimeout, AppearanceOption.ResponseTimeout, 5, 7),
             (RegisteredSetting.PresenceSize, AppearanceOption.PresenceSize, 360, 480),
             (RegisteredSetting.DotSize, AppearanceOption.DotSize, 100, 75),
             (RegisteredSetting.DotDensity, AppearanceOption.DotDensity, 100, 50),
@@ -201,6 +205,9 @@ public sealed class ConfirmedSettingsTests
     [InlineData("presence-display-enabled.txt", "False")]
     [InlineData("presence-display-enabled.txt", "True")]
     [InlineData("presence-inactivity-timeout-seconds.txt", "5")]
+    [InlineData("response-timeout-seconds.txt", "7")]
+    [InlineData("response-timeout-seconds.txt", "5")]
+    [InlineData("presence-timeout-seconds.txt", "7")]
     [InlineData("presence-size-pixels.txt", "480")]
     [InlineData("presence-dot-size-percent.txt", "75")]
     [InlineData("presence-dot-density-percent.txt", "50")]
@@ -252,6 +259,8 @@ public sealed class ConfirmedSettingsTests
     [InlineData("reader-text-scale-percent.txt")]
     [InlineData("presence-display-enabled.txt")]
     [InlineData("presence-inactivity-timeout-seconds.txt")]
+    [InlineData("response-timeout-seconds.txt")]
+    [InlineData("presence-timeout-seconds.txt")]
     [InlineData("presence-size-pixels.txt")]
     [InlineData("presence-dot-size-percent.txt")]
     [InlineData("presence-dot-density-percent.txt")]
@@ -302,6 +311,9 @@ public sealed class ConfirmedSettingsTests
     [InlineData("io", "appearance-theme.txt")]
     [InlineData("access", "appearance-theme.txt")]
     [InlineData("range", "appearance-theme.txt")]
+    [InlineData("io", "response-timeout-seconds.txt")]
+    [InlineData("access", "response-timeout-seconds.txt")]
+    [InlineData("range", "response-timeout-seconds.txt")]
     [InlineData("io", "presence-display-enabled.txt")]
     [InlineData("access", "presence-display-enabled.txt")]
     [InlineData("range", "presence-display-enabled.txt")]
@@ -373,6 +385,7 @@ public sealed class ConfirmedSettingsTests
     [Theory]
     [InlineData("presence-display-enabled.txt", "False")]
     [InlineData("presence-inactivity-timeout-seconds.txt", "5")]
+    [InlineData("response-timeout-seconds.txt", "7")]
     [InlineData("presence-size-pixels.txt", "480")]
     [InlineData("presence-dot-size-percent.txt", "75")]
     [InlineData("presence-dot-density-percent.txt", "50")]
@@ -392,5 +405,55 @@ public sealed class ConfirmedSettingsTests
         f.Source.IsCurrent(snapshot).Should().BeFalse();
         await FluentActions.Awaiting(() => f.Source.ValidateAsync(snapshot, f.Token)).Should().ThrowAsync<InvalidDataException>();
         f.Store.Writes.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(null, 5, false)]
+    [InlineData("1", 1, false)]
+    [InlineData("5", 5, false)]
+    [InlineData("60", 60, false)]
+    [InlineData("7", 7, true)]
+    public async Task ResponseHideDelayConfirmsExactSavedOrDefaultPreferenceWithoutPresenceOrRuntimeInference(
+        string? saved, int expected, bool legacy)
+    {
+        await using var f = new SettingInspectionFixture();
+        if (saved is not null)
+        { f.Store.Text[legacy ? "presence-timeout-seconds.txt" : "response-timeout-seconds.txt"] = saved; }
+        f.Observe();
+        var state = f.Appearance.Get(AppearanceOption.ResponseTimeout);
+        var snapshot = await f.Source.CaptureAsync(f.Token);
+        var delay = snapshot.Observations.Single(item => item.Setting == RegisteredSetting.ResponseTimeout);
+        delay.Value.Should().Be(expected);
+        delay.IsSaved.Should().Be(saved is not null);
+        delay.Revision.Should().Be(state.Revision);
+        state.Value.Should().Be(new AppearanceValue.Number(expected));
+        snapshot.Observations.Single(item => item.Setting == RegisteredSetting.PresenceTimeout).Value.Should().Be(10);
+        delay.Text.Should().Contain("configured response-window inactivity hide delay")
+            .And.Contain("not presence inactivity or a task/provider deadline")
+            .And.Contain("no current visibility or visibility-exception claim");
+        await f.Source.ValidateAsync(snapshot, f.Token);
+        f.Appearance.Get(AppearanceOption.ResponseTimeout).Should().Be(state);
+        f.Store.Writes.Should().Be(0);
+        f.Playback.Effects.Should().Be(0);
+        f.Events.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("61")]
+    [InlineData("5.5")]
+    public async Task InvalidResponseHideDelayRetiresCompleteSourceEvenAfterStorageReturns(string invalid)
+    {
+        await using var f = new SettingInspectionFixture();
+        f.Observe();
+        var original = await f.Source.CaptureAsync(f.Token);
+        f.Store.Text["response-timeout-seconds.txt"] = invalid;
+        await FluentActions.Awaiting(() => f.Source.ValidateAsync(original, f.Token)).Should().ThrowAsync<InvalidDataException>();
+        f.Source.IsCurrent(original).Should().BeFalse();
+        f.Store.Text.Remove("response-timeout-seconds.txt");
+        await FluentActions.Awaiting(() => f.Source.ValidateAsync(original, f.Token)).Should().ThrowAsync<InvalidDataException>();
+        f.Source.IsCurrent(await f.Source.CaptureAsync(f.Token)).Should().BeTrue();
+        f.Store.Writes.Should().Be(0);
+        f.Events.Should().BeEmpty();
     }
 }

@@ -370,7 +370,8 @@ public sealed partial class DetailWindowControllerTests
 
     private sealed class Fixture : IDisposable
     {
-        public Fixture(bool rendererAvailable = true, bool pipeTablesAvailable = false, bool checklistsAvailable = false)
+        public Fixture(bool rendererAvailable = true, bool pipeTablesAvailable = false, bool checklistsAvailable = false,
+            Func<Func<bool>, CancellationToken, Task<MarkdownDisplayMode>>? markdownDisplay = null)
         {
             Controller = new(Documents, () => AccessGate?.Invoke() ?? Accessible,
                 new(NullLogger<NativeDetailRenderer>.Instance, rendererAvailable, pipeTablesAvailable, checklistsAvailable), Clipboard,
@@ -381,7 +382,8 @@ public sealed partial class DetailWindowControllerTests
                     OnViewCreated?.Invoke(view);
                     Views.Add(view);
                     return view;
-                }, NullLogger<DetailWindowController>.Instance);
+                }, NullLogger<DetailWindowController>.Instance,
+                markdownDisplay: markdownDisplay ?? ((_, _) => Task.FromResult(MarkdownDisplayMode.Rendered)));
         }
         public FakeDocumentation Documents { get; } = new();
         public FakeClipboard Clipboard { get; } = new();

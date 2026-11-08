@@ -947,6 +947,34 @@
             </Border>
 
             <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Text="Future final-answer Markdown Details" Classes="settings-title" />
+                  <controls:SettingActionsButton Grid.Column="1" SettingName="Markdown display default"
+                      IsEnabled="{Binding CanControlMarkdownDisplayNative}">
+                    <controls:SettingActionsButton.Flyout>
+                      <MenuFlyout>
+                        <MenuItem Header="Inspect" Command="{Binding InspectMarkdownDisplayCommand}" IsEnabled="{Binding CanControlMarkdownDisplayNative}" />
+                        <Separator />
+                        <MenuItem Header="Review reset to Rendered" Command="{Binding ResetMarkdownDisplayCommand}" IsEnabled="{Binding CanControlMarkdownDisplayNative}" />
+                      </MenuFlyout>
+                    </controls:SettingActionsButton.Flyout>
+                  </controls:SettingActionsButton>
+                </Grid>
+                <TextBlock Text="{Binding MarkdownDisplayStatus}" TextWrapping="Wrap" AutomationProperties.Name="Markdown display preference status" />
+                <WrapPanel ItemSpacing="8" LineSpacing="6">
+                  <Button x:Name="RenderedMarkdownDisplay" Content="Review Rendered" Command="{Binding RenderedMarkdownDisplayCommand}" IsEnabled="{Binding CanControlMarkdownDisplayNative}" />
+                  <Button x:Name="SourceMarkdownDisplay" Content="Review Source" Command="{Binding SourceMarkdownDisplayCommand}" IsEnabled="{Binding CanControlMarkdownDisplayNative}" />
+                </WrapPanel>
+                <TextBlock Text="{Binding MarkdownDisplayReviewText}" TextWrapping="Wrap" AutomationProperties.Name="Exact Markdown display preference review" />
+                <WrapPanel ItemSpacing="8" LineSpacing="6">
+                  <Button x:Name="ConfirmMarkdownDisplay" Content="Save Markdown display change" Command="{Binding ConfirmMarkdownDisplayCommand}" IsEnabled="{Binding CanControlMarkdownDisplayNative}" />
+                  <Button x:Name="CancelMarkdownDisplay" Content="Cancel Markdown display change" Command="{Binding CancelMarkdownDisplayCommand}" IsEnabled="{Binding CanControlMarkdownDisplayNative}" />
+                </WrapPanel>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,260,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Device default" Classes="settings-title" />

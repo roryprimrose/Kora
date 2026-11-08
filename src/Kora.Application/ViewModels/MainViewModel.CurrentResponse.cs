@@ -112,13 +112,14 @@ public sealed partial class MainViewModel
             SecurityAuditOutcome.Requested, initiator, source!.Id.ToString("D"));
         var continuation = HostActivity.CaptureContinuation(HostActivityLayer.Application, HostOperation.Presentation);
         var requested = false;
+        Func<bool> lifetime = static () => false;
         try
         {
-            var lifetime = presenter.CaptureLifetime();
+            lifetime = presenter.CaptureLifetime();
             await WriteAuditAsync(audit);
             requested = true;
             var confirmed = false;
-            await uiDispatcher.InvokeAsync(() =>
+            await uiDispatcher.InvokeAsync(async () =>
             {
                 using var activity = continuation();
                 activity.Complete(HostOperationOutcome.Failed);
@@ -141,11 +142,10 @@ public sealed partial class MainViewModel
                             source.ModelAnswer is null ? "Exact ordinary response" : "Exact model answer. Generated locally; verify important details.",
                             source.ModelAnswer?.Body ?? source.Title + Environment.NewLine + source.Body,
                             new(request.SessionId, request.RequestId, request.TaskId));
-                        confirmed = presenter.OpenDetails(content, Admitted) && Admitted() && lifetime();
+                        confirmed = await presenter.OpenDetailsAsync(content, Admitted) && Admitted() && lifetime();
                     }
                 }
                 activity.Complete(confirmed ? HostOperationOutcome.Completed : HostOperationOutcome.Cancelled);
-                return Task.CompletedTask;
             });
             await WriteAuditAsync(audit.WithOutcome(confirmed ? SecurityAuditOutcome.Succeeded : SecurityAuditOutcome.Cancelled));
             if (confirmed && HostAdmitted())
@@ -156,6 +156,8 @@ public sealed partial class MainViewModel
             or UnauthorizedAccessException or OperationCanceledException or ArgumentException)
         {
             CurrentResponseActionLog.CurrentResponseActionFailed(logger, exception.GetType().Name);
+            if (exception is Configuration.MarkdownDisplayConfigurationService.CaptureUnavailableException && Admitted() && lifetime())
+            { Transcript = exception.Message + " The current response is unchanged; no new viewer was published."; }
             if (requested)
             {
                 try { await WriteAuditAsync(audit.WithOutcome(SecurityAuditOutcome.Failed)); }

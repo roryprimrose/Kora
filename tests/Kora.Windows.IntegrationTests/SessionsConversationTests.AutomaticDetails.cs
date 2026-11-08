@@ -19,8 +19,107 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class SessionsConversationTests
 {
     private const string AutomaticDetailsBody = "Brief response:\nA bounded summary.\n\nDetailed response:\n# Exact answer\n\n```text\nThe complete original result.\n```";
-    [Fact]
-    public async Task NewFinalizedForegroundAnswerOpensExactPrimaryPaneWithoutChangingKeyboardFocus()
+    [Theory]
+    [InlineData("live")]
+    [InlineData("source")]
+    [InlineData("native")]
+    [InlineData("privacy")]
+    public Task RetainedPreferenceFailurePreservesOldReadersOnlyWhileExactOriginalAdmissionRemainsLive(string boundary) =>
+        HeadlessSession.RunAsync(async () =>
+        {
+            using var storage = new InteractionStorageFixture();
+            await storage.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(storage);
+            var first = await RetainSearchAnswer(storage, "# Original answer\n\nmarker first");
+            var second = await RetainSearchAnswer(storage, "# New answer\n\nmarker second");
+            await using var admission = new AudioControlAdmission(storage.Store, storage.Store, new(storage.Tasks));
+            var preferences = new MarkdownDisplaySettingsTests.Preferences { Value = MarkdownDisplayMode.Source };
+            await using var markdown = new MarkdownDisplayConfigurationService(preferences, admission, new AuditLog(),
+                storage.Time, NullLogger<MarkdownDisplayConfigurationService>.Instance);
+            await markdown.ObserveAsync(storage.Token);
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var failing = false;
+            var accessible = true;
+            var sourceAvailable = true;
+            var states = new List<DetailViewerState>();
+            var windows = new List<DetailWindow>();
+            var surface = new Window();
+            using var details = new DetailWindowController(new Kora.Application.Documentation.EmbeddedUserDocumentationProvider(),
+                () => accessible, new(NullLogger<NativeDetailRenderer>.Instance),
+                new ReaderRetirementClipboard(), (state, result, copy) =>
+                {
+                    states.Add(state);
+                    var window = new DetailWindow(state, result, copy);
+                    windows.Add(window);
+                    return window;
+                }, NullLogger<DetailWindowController>.Instance, markdownDisplay: async (live, token) =>
+                {
+                    if (failing) { entered.SetResult(); await release.Task; }
+                    return await markdown.CaptureAsync(live, token);
+                });
+            await using var composition = new Composition(storage, (content, live, resolve, token) =>
+                details.OpenConversationDetailAsync(content, surface, live, async readToken =>
+                {
+                    if (!sourceAvailable) { throw new InvalidDataException("Original source withdrawn"); }
+                    return await resolve(readToken);
+                }, token), revokeDetails: details.RevokeConversationSession);
+            var model = composition.Model;
+            surface.Show();
+            try
+            {
+                await model.RefreshAsync();
+                await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId == storage.Request.SessionId));
+                await model.ReadConversationAsync();
+                var originalPage = model.ConversationMessages.ToArray();
+                model.ComposerBody = "unsent original input";
+                await model.OpenConversationDetailAsync(model.ConversationMessages.Single(row => row.Request == first.Request), assistant: true);
+                var old = states.Single();
+                old.SetSource(false);
+                old.Search("marker").Should().BeTrue();
+                var position = old.MatchStart;
+                preferences.BeginWrite();
+                failing = true;
+                var pending = model.OpenConversationDetailAsync(model.ConversationMessages.Single(row => row.Request == second.Request), assistant: true);
+                await entered.Task;
+                states.Should().ContainSingle("the new source cannot publish while capture is pending");
+                if (boundary is "source") { sourceAvailable = false; }
+                if (boundary is "native") { accessible = false; }
+                if (boundary is "privacy") { composition.Access.CanInspect = false; details.ClearForPrivacy(); }
+                release.SetResult();
+                await pending;
+                await details.JoinPreferenceReadsAsync();
+                states.Should().ContainSingle();
+                model.ComposerBody.Should().Be(boundary is "privacy" ? string.Empty : "unsent original input");
+                if (boundary is "live")
+                {
+                    model.ConversationStatus.Should().Contain("Markdown display preference unavailable").And.Contain("No new reader was published");
+                    model.ConversationMessages.Should().Equal(originalPage);
+                    old.Content.Should().NotBeNull();
+                    old.IsSource.Should().BeFalse();
+                    old.SearchQuery.Should().Be("marker");
+                    old.MatchStart.Should().Be(position);
+                }
+                else
+                {
+                    model.ConversationStatus.Should().NotContain("Existing admitted readers");
+                    model.ConversationMessages.Should().BeEmpty();
+                    old.Content.Should().BeNull();
+                }
+                storage.Count("scoped_grants").Should().Be(0);
+                storage.Count("host_questions").Should().Be(0);
+            }
+            finally
+            {
+                foreach (var window in windows) { window.Close(); }
+                surface.Close();
+            }
+        });
+
+    [Theory]
+    [InlineData(MarkdownDisplayMode.Rendered)]
+    [InlineData(MarkdownDisplayMode.Source)]
+    public async Task NewFinalizedForegroundAnswerOpensExactPrimaryPaneWithoutChangingKeyboardFocus(MarkdownDisplayMode mode)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -31,7 +130,9 @@ public sealed partial class SessionsConversationTests
             await using var admission = new AudioControlAdmission(storage.Store, storage.Store, new(storage.Tasks));
             var preferences = new DetailPresentationSettingsTests.Preferences();
             var settings = new DetailPresentationConfigurationService(preferences, admission, new AuditLog(), storage.Time);
-            await native.InitializeAsync(null, detailPresentationConfiguration: settings);
+            await using var markdown = new MarkdownDisplayConfigurationService(new MarkdownDisplaySettingsTests.Preferences { Value = mode },
+                admission, new AuditLog(), storage.Time, NullLogger<MarkdownDisplayConfigurationService>.Instance);
+            await native.InitializeAsync(null, detailPresentationConfiguration: settings, markdownDisplayConfiguration: markdown);
             using var settingsWindow = new SettingsWindowController(native.Main, NullLogger<SettingsWindowController>.Instance);
             settingsWindow.Navigate(SettingsSection.Responses, static () => true);
             native.Main.CommandText = "always open detailed results";
@@ -43,17 +144,21 @@ public sealed partial class SessionsConversationTests
 
             var release = new TaskCompletionSource<ModelProviderReply>(TaskCreationOptions.RunContinuationsAsynchronously);
             var adapter = new MemoryAnswerAdapter { Pending = release.Task };
-            await using var composition = new Composition(storage, adapter: adapter);
+            DetailWindowController? detailHost = null;
+            ResponseWindow? window = null;
+            await using var composition = new Composition(storage, (content, live, resolve, token) =>
+                detailHost!.OpenConversationDetailAsync(content, window, live, resolve, token), adapter: adapter);
             var model = composition.Model;
             model.BindDetailPresentation(settings);
             await model.RefreshAsync();
             await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId == storage.Request.SessionId));
             using var details = new DetailWindowController(native.Documents, native.Main,
                 NullLogger<DetailWindowController>.Instance, NullLogger<NativeDetailRenderer>.Instance,
-                NullLogger<StaticHtmlDetailRenderer>.Instance);
+                NullLogger<StaticHtmlDetailRenderer>.Instance, markdown);
+            detailHost = details;
             using var responses = new ResponseWindowController(native.Main, NullLogger<ResponseWindowController>.Instance, details);
             var owner = new SessionsPresentationOwner(model, native.Main);
-            var window = responses.PrepareSessions(model, owner, static () => { }, static () => { });
+            window = responses.PrepareSessions(model, owner, static () => { }, static () => { });
             var automatic = new AutomaticDetailsProbe(responses);
             model.BindAutomaticDetails(automatic);
             window.ShowSessions(expanded: true);
@@ -82,9 +187,11 @@ public sealed partial class SessionsConversationTests
             window.UpdateLayout();
             automatic.Leases.Should().ContainSingle().Which.Should().NotBeNull();
             automatic.IntentCurrent.Should().Equal(true);
+            automatic.Failures.Should().BeEmpty();
             automatic.Published.Should().Equal(true);
             window.SessionView.DetailsVisible.Should().BeTrue();
             var reader = window.SessionView.GetVisualDescendants().OfType<DetailContentView>().Single();
+            reader.FindControl<CheckBox>("SourceToggle")!.IsChecked.Should().Be(mode == MarkdownDisplayMode.Source);
             window.FocusManager!.GetFocusedElement().Should().BeSameAs(focus);
             activations.Should().Be(0);
             reader.FindControl<CheckBox>("SourceToggle")!.IsChecked = true;
@@ -101,6 +208,16 @@ public sealed partial class SessionsConversationTests
             model.PresentOriginalRequestSubmission(new(message, new(message.Request, new(3), message.ExpectedTaskState)));
             window.SessionView.DetailsVisible.Should().BeFalse("dismissal and duplicate finalization cannot reopen the pane");
             automatic.Published.Should().ContainSingle();
+            await model.ReadConversationAsync();
+            message = model.ConversationMessages.Single();
+            await model.OpenConversationDetailAsync(message, assistant: true);
+            window.SessionView.DetailsVisible.Should().BeTrue("retained publication must complete: {0}", model.ConversationStatus);
+            var retainedReader = window.SessionView.GetVisualDescendants().OfType<DetailContentView>().Single();
+            retainedReader.FindControl<CheckBox>("SourceToggle")!.IsChecked.Should().Be(mode == MarkdownDisplayMode.Source);
+            retainedReader.FindControl<CheckBox>("SourceToggle")!.IsChecked = mode != MarkdownDisplayMode.Source;
+            await model.OpenConversationDetailAsync(message, assistant: true);
+            retainedReader.FindControl<CheckBox>("SourceToggle")!.IsChecked.Should().Be(mode != MarkdownDisplayMode.Source,
+                "reopening the exact retained viewer must preserve its explicit mode");
             owner.Revoke();
         });
     }
@@ -140,7 +257,9 @@ public sealed partial class SessionsConversationTests
             };
             var clock = new AutomaticDetailsClock();
             var settings = new DetailPresentationConfigurationService(preferences, admission, new AuditLog(), clock);
-            await native.InitializeAsync(null, detailPresentationConfiguration: settings);
+            await using var markdown = new MarkdownDisplayConfigurationService(new MarkdownDisplaySettingsTests.Preferences(),
+                admission, new AuditLog(), clock, NullLogger<MarkdownDisplayConfigurationService>.Instance);
+            await native.InitializeAsync(null, detailPresentationConfiguration: settings, markdownDisplayConfiguration: markdown);
             var release = new TaskCompletionSource<ModelProviderReply>(TaskCreationOptions.RunContinuationsAsynchronously);
             var adapter = new MemoryAnswerAdapter { Pending = release.Task };
             DetailWindowController? detailHost = null;
@@ -155,7 +274,7 @@ public sealed partial class SessionsConversationTests
             await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId == storage.Request.SessionId));
             using var details = new DetailWindowController(native.Documents, native.Main,
                 NullLogger<DetailWindowController>.Instance, NullLogger<NativeDetailRenderer>.Instance,
-                NullLogger<StaticHtmlDetailRenderer>.Instance);
+                NullLogger<StaticHtmlDetailRenderer>.Instance, markdown);
             detailHost = details;
             using var responses = new ResponseWindowController(native.Main, NullLogger<ResponseWindowController>.Instance, details);
             var owner = new SessionsPresentationOwner(model, native.Main);
@@ -265,18 +384,23 @@ public sealed partial class SessionsConversationTests
         internal List<AutomaticDetailLease?> Leases { get; } = [];
         internal List<bool> IntentCurrent { get; } = [];
         internal List<bool> Published { get; } = [];
+        internal List<Exception> Failures { get; } = [];
         public AutomaticDetailLease? CaptureAutomaticDetails()
         {
             var lease = actual.CaptureAutomaticDetails();
             Leases.Add(lease);
             return lease;
         }
-        public bool PublishAutomaticDetails(AutomaticDetailIntent intent)
+        public async Task<bool> PublishAutomaticDetailsAsync(AutomaticDetailIntent intent)
         {
             IntentCurrent.Add(intent.IsCurrent());
-            var published = actual.PublishAutomaticDetails(intent);
-            Published.Add(published);
-            return published;
+            try
+            {
+                var published = await actual.PublishAutomaticDetailsAsync(intent);
+                Published.Add(published);
+                return published;
+            }
+            catch (Exception exception) { Failures.Add(exception); throw; }
         }
     }
 }

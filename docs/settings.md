@@ -1313,6 +1313,16 @@ Exact typed commands are listed in [the command reference](commands.md#detail-pr
 
 Malformed or unconfirmed saved state holds proactive presentation with explicit recovery status; it does not hide manual access or reinterpret corrupt data as Offer. Spoken Offer questions remain unavailable. This preference does not qualify a model, microphone or provider ([persistence](../src/Kora.Application/Configuration/LocalDetailPresentationPreferences.cs), [scope](../Design/Information_Display.md#implemented-opt-in-nonactivating-foreground-expansion)).
 
+### Future final-answer Markdown Details
+
+In **Responses > Future final-answer Markdown Details**, choose **Review Source** or **Review Rendered**, read the saved/default-to-proposed review, then separately **Save Markdown display change** or **Cancel Markdown display change**. The cog menu offers **Inspect** and **Review reset to Rendered**; reset also requires Save. Reviews expire after 60 seconds; original channel, call, privacy and owner checks still apply. Closing Settings retires its native review ([shared controls](../src/Kora.Application/ViewModels/MainViewModel.MarkdownDisplay.cs)).
+
+**Rendered** is the default when the legacy preference file is missing. A saved choice is device-local and applies only to NEW already-admitted final-answer and retained-assistant Markdown Details in either the separate window or primary conversation reader. Saving does not open any result, change an active viewer, or reset Find. Reopening the same already-open exact viewer preserves its explicit Source/Rendered and continuous-reading choices ([native admission](../src/Kora/DetailWindowController.cs)).
+
+The atomic store retains an unconfirmed-write hold until required audit and exact readback complete. Malformed, pending, externally changed or unavailable saved evidence blocks applying the default to a new eligible viewer with a distinct error; it never becomes implicit Rendered. A preference failure preserves an older admitted reader, retained page and unsent input only while their original source/privacy admission remains valid; actual withdrawal still retires them. Inspect state and audit before explicit recovery; no automatic retry or rewrite is claimed ([persistence](../src/Kora.Application/Configuration/LocalMarkdownDisplayPreferences.cs)).
+
+This bounded preference does **not** affect embedded help, original USER/history/context readers, raw file previews, plain text, HTML, Mermaid or browser renderers. It confers no source disclosure, consent, export/clipboard/link authority or renderer/provider qualification. Existing truthful renderer source fallback and source/privacy gates remain authoritative. [Exact typed and activated commands](commands.md#future-final-answer-markdown-display-default) use the same reviewed writer, not model-generated setting instructions.
+
 ### Device default
 
 Persistent `Hybrid` (**Text and speech**), `VoiceOnly` (**Speech only**)

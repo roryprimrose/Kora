@@ -1654,6 +1654,25 @@ Offer remains the default; reset saves Offer. LinkOnly suppresses cues on future
 
 **Open details**, `open current response details` and selected-session detail commands retain their existing source/privacy admission. One-off acceptance or decline never saves a preference; protected-call voice writes remain denied ([manual route](../src/Kora.Application/ViewModels/MainViewModel.CurrentResponse.cs), [detailed boundaries](settings.md#detailed-result-offers)).
 
+#### Future final-answer Markdown display default
+
+These exact original typed commands share **Settings > Responses > Future final-answer Markdown Details**. Activated voice requires the current assistant-name prefix. Set and reset prepare an exact review; Save is separate ([parser](../src/Kora.Application/Configuration/MarkdownDisplayCommand.cs), [reviewed writer](../src/Kora.Application/Configuration/MarkdownDisplayConfigurationService.cs)).
+
+```text
+get responses.markdown-display
+status responses.markdown-display
+set responses.markdown-display to Source
+set responses.markdown-display to Rendered
+reset responses.markdown-display
+review markdown display change
+confirm markdown display change
+cancel markdown display change
+```
+
+**Rendered** is the legacy missing-file default; reset reviews Rendered. The device-local choice applies only to NEW already-admitted final-answer/retained-assistant Markdown Details, in either native reader. Existing exact viewers preserve their mode and Find position. Saving neither opens a result nor changes active viewers. A malformed, unconfirmed or externally changed preference is explicitly unavailable, never implicitly Rendered ([scope and recovery](settings.md#future-final-answer-markdown-details)).
+
+Embedded help, original USER/history/context readers, raw file previews, plain text, HTML, Mermaid and browser renderers remain unchanged. This preference grants no source access, consent, export, clipboard, link or model authority.
+
 ### Inspect or change the device-default response mode
 
 - **list response settings**

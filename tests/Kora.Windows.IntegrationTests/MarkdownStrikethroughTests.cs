@@ -375,16 +375,17 @@ public sealed class MarkdownStrikethroughTests
                 views.Add(view);
                 return view;
             }, NullLogger<DetailWindowController>.Instance,
-            finalizedMarkdownFormat: NativeDetailFormat.MarkdownStrikethroughV4);
+            finalizedMarkdownFormat: NativeDetailFormat.MarkdownStrikethroughV4,
+            markdownDisplay: (_, _) => Task.FromResult(MarkdownDisplayMode.Rendered));
         var first = Content("~~first~~");
         var second = Content("~~second~~");
-        controller.OpenCurrentResponse(first, null, () => admitted).Should().BeTrue();
-        controller.OpenCurrentResponse(second, null, () => true).Should().BeTrue();
+        (await controller.OpenCurrentResponseAsync(first, null, () => admitted, TestContext.Current.CancellationToken)).Should().BeTrue();
+        (await controller.OpenCurrentResponseAsync(second, null, () => true, TestContext.Current.CancellationToken)).Should().BeTrue();
         views[0].State.Status.Should().Contain(NativeMarkdownStrikethroughProfile.Name);
         views[0].State.RenderState.Should().Be(qualified ? DetailRenderState.Rendered : DetailRenderState.SourceFallback);
         views[0].State.ActiveText.Should().NotContain("second");
         views[1].State.ActiveText.Should().NotContain("first");
-        controller.OpenCurrentResponse(first, null, () => admitted).Should().BeTrue();
+        (await controller.OpenCurrentResponseAsync(first, null, () => admitted, TestContext.Current.CancellationToken)).Should().BeTrue();
         views.Should().HaveCount(2);
         views[0].State.Search("first").Should().BeTrue();
         var generation = views[0].State.Generation;
@@ -401,7 +402,7 @@ public sealed class MarkdownStrikethroughTests
         views[1].State.Content.Should().BeNull();
         views[0].State.CompleteRender(generation, "late", "late", false).Should().BeFalse();
         clipboard.Writes.Should().Be(0);
-        controller.OpenCurrentResponse(first, null, () => admitted).Should().BeFalse();
+        (await controller.OpenCurrentResponseAsync(first, null, () => admitted, TestContext.Current.CancellationToken)).Should().BeFalse();
     }
 
     private static AdmittedDetailContent Content(string source)

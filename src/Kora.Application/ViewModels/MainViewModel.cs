@@ -291,7 +291,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         ForegroundPttConfigurationService? foregroundPtt = null,
         VoiceCaptureTimingConfigurationService? voiceCaptureTimingConfiguration = null,
         DetailPresentationConfigurationService? detailPresentationConfiguration = null,
-        QuietHoursConfigurationService? quietHoursConfiguration = null)
+        QuietHoursConfigurationService? quietHoursConfiguration = null,
+        MarkdownDisplayConfigurationService? markdownDisplayConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -459,6 +460,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         InitializeStartupPresentation(startupPresentationConfiguration, execute => CreateCommand(execute));
         InitializeQuietHours(quietHoursConfiguration, execute => CreateCommand(execute));
         InitializeDetailPresentation(detailPresentationConfiguration, execute => CreateCommand(execute));
+        InitializeMarkdownDisplay(markdownDisplayConfiguration, execute => CreateCommand(execute));
         ResetThemeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.Theme));
         ResetReaderTextScaleCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReaderTextScale));
         ResetReducedMotionCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReducedMotion));
@@ -2135,6 +2137,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         isInitializing = true;
         try
         {
+            if (markdownDisplay is not null)
+            {
+                try { await markdownDisplay.ObserveAsync(CancellationToken.None); }
+                catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException
+                    or InvalidOperationException or OperationCanceledException)
+                { ApplicationLog.Error(logger, exception, "Reading Markdown display preference"); }
+            }
             if (communicationActivity is not null)
             {
                 try { communicationActivity.ObservePreferences(); }
@@ -4279,6 +4288,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             || QuietHoursCommand.Parse(eventArgs.Transcript, AssistantName) is not null
             || LogonStartupCommand.Parse(eventArgs.Transcript, AssistantName) is not null
             || DetailPresentationCommand.Parse(eventArgs.Transcript, AssistantName) is not null
+            || MarkdownDisplayCommand.Parse(eventArgs.Transcript, AssistantName) is not null
             || manualInput.CataloguePreparation is not null
             || EvidenceTraceCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
         {
@@ -4358,6 +4368,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             && string.Equals(spokenText.Trim(), "listening", StringComparison.OrdinalIgnoreCase))
         {
             await ExecuteAsync(commandCatalog.GetCommands(AssistantName).Single(command => command.Action == BuiltInAction.DisableListening), initiator);
+            return;
+        }
+        if (MarkdownDisplayCommand.Parse(spokenText, AssistantName) is { } markdownCommand)
+        {
+            if (!isAssistantNameAvailable || initiator == SecurityAuditInitiator.VoiceCommand
+                && !HasCurrentNameActivation(spokenText))
+            {
+                CancelMarkdownDisplayReview();
+                Transcript = "Markdown preferences require original typed input or the current assistant-name voice prefix.";
+                return;
+            }
+            await ExecuteMarkdownDisplay(markdownCommand, initiator, manualInput);
             return;
         }
         if (DetailPresentationCommand.Parse(spokenText, AssistantName) is { } detailCommand)
@@ -5497,7 +5519,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     $"Generated locally; verify important details.\n\n{presentation.Brief}",
                     requestWindow: automaticDetails is null,
                     modelAnswer: new(decision.Answer!, HostActivity.RequireCurrent().Request));
-                PresentAutomaticResponse(automaticDetails);
+                await PresentAutomaticResponseAsync(automaticDetails);
                 await SpeakCurrentResponseAsync(cancellationToken: cancellation.Token, expectedSpeechRevision: speechRevision);
             }
         }
@@ -6939,6 +6961,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(SettingsSectionCommand.FixedPhrases)
             .Concat(LogonStartupCommand.FixedPhrases)
             .Concat(DetailPresentationCommand.FixedPhrases)
+            .Concat(MarkdownDisplayCommand.FixedPhrases)
             .Concat(HasDetailsQuestion ? ["yes", "show it", "no", "not now"] : [])
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceUpdateCommand.FixedPhrases)

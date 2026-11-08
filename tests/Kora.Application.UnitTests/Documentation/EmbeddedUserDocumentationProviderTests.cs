@@ -433,7 +433,12 @@ public sealed class EmbeddedUserDocumentationProviderTests
         guide.Should().Contain("**Review this destination**").And.Contain("**Correct destination**")
             .And.Contain("Unqualified production providers remain unavailable")
             .And.Contain("physical inference resources are joined")
-            .And.Contain("one page of 50").And.Contain("does not add hands-free routing replies")
+            .And.Contain("one page of 50").And.Contain("choose **Answer by voice**")
+            .And.Contain("Capture must physically close before **Review this destination**")
+            .And.MatchRegex(@"choose \*\*Answer by\r?\nvoice\*\* again")
+            .And.Contain("No microphone opens automatically at acknowledgment")
+            .And.Contain("LocalUi/ActivatedVoice channel")
+            .And.Contain("closed and offers native controls")
             .And.Contain("grants, provider state, history, sources and permissions are not moved")
             .And.Contain("separate audited").And.Contain("no automatic fallback after denial");
     }

@@ -3925,6 +3925,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 #pragma warning disable VSTHRD003 // Await owned reply retirement asynchronously so no queued UI commit survives host handoff/close.
             if (questionVoiceReplies is not null) { await questionVoiceReplies.Quiescence; }
             await JoinCustomizationClarification();
+            await JoinSessionRoutingVoice();
             if (composerDictation is not null) { await composerDictation.Quiescence; }
             if (reviewedVoiceCommand is not null) { await reviewedVoiceCommand.Quiescence; }
 #pragma warning restore VSTHRD003
@@ -4132,7 +4133,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         ActivityLink[] causes = HostActivity.Current?.Activity is { } cause ? [new(cause.Context)] : [];
         using var activity = HostActivity.BeginRoot(originalRequest ?? HostRequest.Create(RequestOrigin.ActivatedVoice),
             HostActivityLayer.Application, HostOperation.Request, causes);
-        if (reviewedEligibility?.Invoke() == false || eventArgs.Generation != Interlocked.Read(ref acceptedTranscriptGeneration)
+        if (sessionRoutingVoiceReply is not null || reviewedEligibility?.Invoke() == false || eventArgs.Generation != Interlocked.Read(ref acceptedTranscriptGeneration)
             || eventArgs.Generation != voiceRecognition.Generation)
         {
             ApplicationLog.Debug(logger, "Discarded an unactivated or retired voice callback before UI dispatch");
@@ -4177,6 +4178,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     manualInput = manualInput with
                     {
                         WakeActivationCurrent = wakeOwner.ConsumeWakeActivation(eventArgs, wakeRequest),
+                        RoutingWakeContinuation = () => wakeOwner.CaptureRoutingContinuation(eventArgs, wakeRequest),
                     };
                 }
                 return HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput, responseReadInput, reviewEligibility,
@@ -4198,6 +4200,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     private void OnRecognitionFailed(object? sender, VoiceRecognitionFailureEventArgs eventArgs)
     {
+        if (sessionRoutingVoiceReply is not null) { return; }
         if (eventArgs.Reason == VoiceRecognitionFailureReason.PrivacyTransition
             && privacyObservation.Current.SessionState == WindowsSessionState.Locked)
         {

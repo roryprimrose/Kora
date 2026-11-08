@@ -13,6 +13,7 @@ public partial class App
 
     private void BindSessionRouting(Kora.Application.ViewModels.MainViewModel main)
     {
+        main.BindSessionRoutingCaptureRelease(Kora.Application.Voice.HandsFreeVoiceContinuation.CaptureRelease.InvalidatedOnce);
         sessionRouting = new(main, Services.GetRequiredService<SessionWorkspaceService>(),
             Services.GetRequiredService<SessionConversationService>(), Services.GetRequiredService<ISessionWorkspaceAccess>(),
             Services.GetRequiredService<TimeProvider>(), Services.GetRequiredService<ISessionRelatednessMatcher>(),

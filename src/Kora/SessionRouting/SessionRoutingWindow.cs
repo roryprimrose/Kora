@@ -7,6 +7,7 @@ using Avalonia.Threading;
 
 using Kora.Application.Hosting.SessionRouting;
 using Kora.Core.Conversation.SessionRouting;
+using static Kora.Application.Hosting.SessionRouting.SessionRoutingVoiceReply;
 
 namespace Kora;
 
@@ -20,6 +21,13 @@ internal sealed class SessionRoutingWindow : Window
     private readonly TextBlock acknowledgment = new() { Name = "RoutingAcknowledgment", TextWrapping = TextWrapping.Wrap };
     private readonly Button choose = new() { Name = "RoutingChoose", Content = "Review this destination" };
     private readonly Button submit = new() { Name = "RoutingSubmit", Content = "Submit original request to acknowledged destination", IsEnabled = false };
+    private readonly Button voice = new() { Name = "RoutingAnswerByVoice", Content = "Answer by voice" };
+    private readonly TextBlock voiceStatus = new() { Name = "RoutingVoiceStatus", Text = "Microphone closed. Voice replies require a separate explicit gesture for each question.", TextWrapping = TextWrapping.Wrap };
+    private readonly Func<SessionRoutingReview, IEnumerable<SessionRouteDescriptor>, SessionRoutingSelection?, Func<bool>, SessionRoutingVoiceReply?>? createVoiceReply;
+    private readonly Action<SessionRoutingVoiceReply>? releaseVoiceReply;
+    private SessionRoutingVoiceReply? voiceReply;
+    private Destination[] presented = [];
+    private bool voiceBusy;
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private SessionRoutingSelection? selection;
     private bool retired;
@@ -29,14 +37,19 @@ internal sealed class SessionRoutingWindow : Window
     internal SessionRoutingSelection? Result { get; private set; }
     internal Exception? Failure { get; private set; }
     internal Task ChoiceOperation { get; private set; } = Task.CompletedTask;
+    internal Task VoiceOperation { get; private set; } = Task.CompletedTask;
 
     internal SessionRoutingWindow(SessionRoutingService routing, SessionRoutingReview review,
-        Func<bool> admitted, Action<Exception> reportFailure)
+        Func<bool> admitted, Action<Exception> reportFailure,
+        Func<SessionRoutingReview, IEnumerable<SessionRouteDescriptor>, SessionRoutingSelection?, Func<bool>, SessionRoutingVoiceReply?>? createVoiceReply = null,
+        Action<SessionRoutingVoiceReply>? releaseVoiceReply = null)
     {
         this.routing = routing;
         this.review = review;
         this.admitted = admitted;
         this.reportFailure = reportFailure;
+        this.createVoiceReply = createVoiceReply;
+        this.releaseVoiceReply = releaseVoiceReply;
         Title = "Review request destination";
         Width = 700; Height = 540; MinWidth = 500; MinHeight = 400;
         var root = new StackPanel { Margin = new(16), Spacing = 12 };
@@ -75,6 +88,12 @@ internal sealed class SessionRoutingWindow : Window
             Close();
         };
         root.Children.Add(submit);
+        voice.Click += (_, _) =>
+        {
+            if (Current() && !voiceBusy && !choosing) { VoiceOperation = AnswerByVoiceAsync(); }
+        };
+        root.Children.Add(voice);
+        root.Children.Add(voiceStatus);
         var cancel = new Button { Name = "RoutingCancel", Content = "Cancel without submitting" };
         cancel.Click += (_, _) => Close();
         root.Children.Add(cancel);
@@ -87,8 +106,9 @@ internal sealed class SessionRoutingWindow : Window
 
     private void SetOptions(IEnumerable<SessionRouteDescriptor> descriptors)
     {
-        destinations.ItemsSource = descriptors.Select((item, index) => new Destination(
+        presented = descriptors.Select((item, index) => new Destination(
             (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture) + ": " + item.Name, item)).Append(new("New conversation (fresh session)", null)).ToArray();
+        destinations.ItemsSource = presented;
         destinations.SelectedIndex = 0;
     }
 
@@ -103,6 +123,8 @@ internal sealed class SessionRoutingWindow : Window
         var attempt = choiceRevision;
         try
         {
+            await RetireVoiceReplyAsync();
+            if (!Current() || attempt != choiceRevision) { return; }
             var result = await routing.SelectAsync(review, destination.Descriptor?.Entry.Authority.SessionId, CancellationToken.None);
             if (!Current()) { Withdraw(); return; }
             if (attempt != choiceRevision) { return; }
@@ -125,13 +147,108 @@ internal sealed class SessionRoutingWindow : Window
 
     private void ClearAcknowledgment()
     {
+        voiceReply?.Cancel();
         choiceRevision++;
         selection = null;
         acknowledgment.Text = string.Empty;
         submit.IsEnabled = false;
     }
 
-    private void OnTick(object? sender, EventArgs args) { if (!Current()) { Withdraw(); } }
+    private async Task AnswerByVoiceAsync()
+    {
+        voiceBusy = true;
+        voice.IsEnabled = false;
+        var revision = choiceRevision;
+        var acknowledged = selection;
+        bool Exact() => Current() && revision == choiceRevision && ReferenceEquals(selection, acknowledged);
+        try
+        {
+            var reply = createVoiceReply?.Invoke(review, presented.Where(item => item.Descriptor is not null).Select(item => item.Descriptor!),
+                acknowledged, Exact);
+            if (reply is null)
+            {
+                voiceStatus.Text = "Voice replies are unavailable. Microphone closed; use the native destination and confirmation controls.";
+                return;
+            }
+            voiceReply = reply;
+            reply.Changed += VoiceChanged;
+            SessionRoutingVoiceAnswer? answer;
+            try
+            {
+                answer = await reply.StartAsync();
+                voiceStatus.Text = reply.Status;
+            }
+            finally
+            {
+                await reply.DisposeAsync();
+                reply.Changed -= VoiceChanged;
+                releaseVoiceReply?.Invoke(reply);
+                if (ReferenceEquals(voiceReply, reply)) { voiceReply = null; }
+            }
+            if (!Exact()) { if (!Current()) { Withdraw(); } return; }
+            if (answer is null) { return; }
+            switch (answer.Choice)
+            {
+                case SessionRoutingVoiceChoice.Destination:
+                    destinations.SelectedItem = presented.Single(item => ReferenceEquals(item.Descriptor, answer.Destination));
+                    await ChooseAsync();
+                    break;
+                case SessionRoutingVoiceChoice.New:
+                    destinations.SelectedItem = presented.Single(item => item.Descriptor is null);
+                    await ChooseAsync();
+                    break;
+                case SessionRoutingVoiceChoice.Submit:
+                    if (acknowledged is null) { throw new InvalidOperationException("Voice submission requires the exact acknowledged selection."); }
+                    Result = acknowledged;
+                    Close();
+                    break;
+                case SessionRoutingVoiceChoice.Correct:
+                    ClearAcknowledgment();
+                    SetOptions(review.Snapshot.Descriptors);
+                    break;
+                case SessionRoutingVoiceChoice.Cancel:
+                    Close();
+                    break;
+                default:
+                    throw new InvalidOperationException("The closed routing question returned an unsupported answer.");
+            }
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            Failure = exception;
+            reportFailure(exception);
+            Withdraw();
+        }
+        finally
+        {
+            voiceBusy = false;
+            voice.IsEnabled = Current();
+        }
+    }
+
+    private void VoiceChanged(object? sender, EventArgs args) => Dispatcher.UIThread.Post(() =>
+    {
+        if (!retired && voiceReply is { } reply && ReferenceEquals(sender, reply)) { voiceStatus.Text = reply.Status; }
+    });
+
+    private async Task RetireVoiceReplyAsync()
+    {
+        if (voiceReply is { } reply) { await reply.DisposeAsync(); }
+    }
+
+    internal async Task JoinAsync()
+    {
+#pragma warning disable VSTHRD003 // Join exact native choice and voice ownership before the controller can submit or shut down.
+        await Task.WhenAll(ChoiceOperation, VoiceOperation);
+#pragma warning restore VSTHRD003
+        await RetireVoiceReplyAsync();
+    }
+
+    private void OnTick(object? sender, EventArgs args)
+    {
+        voiceReply?.Revalidate();
+        if (!Current()) { Withdraw(); }
+    }
 
     internal void Withdraw()
     {

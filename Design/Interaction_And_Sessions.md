@@ -1673,8 +1673,23 @@ revision. Inference resources physically join and canonical control outcomes com
 before review is returned. Unqualified local providers remain unavailable and
 explicitly offer reviewed New, with deterministic selection available.
 The native review reveals the destination
-without switching the previous reader or moving any unsent input. Hands-free
-routing replies and automatic selection changes remain unavailable. After separate
+without switching the previous reader or moving any unsent input. The destination
+review offers an explicit **Answer by voice** gesture for one closed question:
+exactly a presented ordinal, New or Cancel. Capture must physically join before
+the same `SelectAsync` operation acknowledges the exact name. A second explicit
+voice gesture accepts only Submit original request, Correct destination or Cancel;
+native controls remain equivalent and usable without voice qualification.
+Correction retires the previous acknowledgment and reply generation, presents the
+existing fixed Active inventory again, and requires a new acknowledgment.
+The first-party wake continuation retains exact original host evidence and
+ambient/request authority while transferring only to its own acknowledged reply
+generation. Foreign capture, changed source/owner/name/profile/privacy/call state,
+unconfirmed release and the original 60-second review expiry cannot renew or
+revive that authority. Reply text is choice data, never another global command,
+model input, session request or effect approval. No capture is automatically armed
+for acknowledgment or confirmation, and unavailable capture remains explicit.
+Opening, cancellation, late recognition, shutdown and asynchronous disposal retain
+ownership until physical release. Automatic selection changes remain unavailable. After separate
 confirmation, unchanged canonical conversation submission sends the original body
 and LocalUi/ActivatedVoice channel in a new request. Only its genuine final answer,
 not the routing proposal, is retained. Cancellation and source closure suppress late

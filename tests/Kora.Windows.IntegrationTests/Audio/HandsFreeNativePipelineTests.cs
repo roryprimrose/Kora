@@ -204,6 +204,57 @@ public sealed class HandsFreeNativePipelineTests
     }
 
     [Theory]
+    [InlineData("microphone")]
+    [InlineData("command-stop")]
+    [InlineData("command-dispose")]
+    [InlineData("keyword")]
+    [InlineData("endpoint")]
+    public async Task Failed_native_join_retains_assets_and_ownership_without_retry_or_late_transcript(string failure)
+    {
+        using var assets = new HandsFreeSetupTests.Fixture();
+        var ownership = (await assets.Runtime.TryAcquireOwnershipAsync(TestContext.Current.CancellationToken))!;
+        var fixture = new Fixture(ownership);
+        ownership.Attach(() => fixture.Session.DisposeAsync().AsTask()).Should().BeTrue();
+        var wake = await fixture.WakeAsync();
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var capture = fixture.Session.CaptureCommandAsync(wake, cancellation.Token);
+        await fixture.Capture.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var lateTranscript = fixture.Capture.QueueTranscript("retired fixture command");
+        fixture.Microphone.FailRelease = failure is "microphone";
+        fixture.Capture.FailStop = failure is "command-stop";
+        fixture.Capture.FailRelease = failure is "command-dispose";
+        fixture.Detector.FailRelease = failure is "keyword";
+        fixture.Endpoint.FailRelease = failure is "endpoint";
+
+        cancellation.Cancel();
+        await FluentActions.Awaiting(() => fixture.Session.DisposeAsync().AsTask())
+            .Should().ThrowAsync<InvalidOperationException>();
+        lateTranscript();
+        await FluentActions.Awaiting(() => capture).Should().ThrowAsync<OperationCanceledException>();
+        fixture.Stream!.BufferedBytes.Should().Be(0);
+        fixture.Session.IsQuiescent.Should().BeFalse();
+        fixture.Assets.Disposed.Should().BeFalse();
+        fixture.Microphone.Disposed.Should().Be(failure is not "microphone");
+        fixture.Capture.Disposed.Should().Be(failure is "keyword" or "endpoint");
+        fixture.Detector.Disposed.Should().Be(failure is "endpoint");
+        fixture.Endpoint.Disposed.Should().BeFalse();
+        assets.Runtime.Observe(assets.Component).ActiveConsumers.Should().Be(1);
+        assets.Runtime.Observe(assets.Component).ConsumersKnown.Should().BeFalse();
+        (await assets.Runtime.TryAcquireOwnershipAsync(TestContext.Current.CancellationToken)).Should().BeNull();
+
+        await FluentActions.Awaiting(async () => await assets.Runtime.TryAcquireExclusiveAsync(
+            assets.Component, TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+        await FluentActions.Awaiting(() => fixture.Session.DisposeAsync().AsTask())
+            .Should().ThrowAsync<InvalidOperationException>();
+        fixture.Microphone.ReleaseAttempts.Should().Be(1);
+        fixture.Capture.ReleaseAttempts.Should().Be(failure is "microphone" or "command-stop" ? 0 : 1);
+        fixture.Detector.ReleaseAttempts.Should().Be(failure is "keyword" or "endpoint" ? 1 : 0);
+        fixture.Endpoint.ReleaseAttempts.Should().Be(failure is "endpoint" ? 1 : 0);
+        fixture.Assets.Disposed.Should().BeFalse();
+        fixture.OpenCount.Should().Be(1);
+    }
+
+    [Theory]
     [InlineData(-1f, "session help")]
     [InlineData(float.NaN, "session help")]
     [InlineData(1.1f, "session help")]
@@ -346,10 +397,18 @@ public sealed class HandsFreeNativePipelineTests
         public event HandsFreeSamplesAvailable? Samples;
         public event EventHandler? Failed;
         public bool Disposed { get; private set; }
+        public bool FailRelease { get; set; }
+        public int ReleaseAttempts { get; private set; }
         public void Start() { }
         public void Emit(short[] samples) => Samples?.Invoke(samples);
         public void Fail() => Failed?.Invoke(this, EventArgs.Empty);
-        public ValueTask DisposeAsync() { Disposed = true; return ValueTask.CompletedTask; }
+        public ValueTask DisposeAsync()
+        {
+            ReleaseAttempts++;
+            if (FailRelease) { throw new InvalidOperationException("Fixture microphone join failed."); }
+            Disposed = true;
+            return ValueTask.CompletedTask;
+        }
     }
 
     private sealed class FakeDetector : IHandsFreeKeywordDetector
@@ -357,6 +416,8 @@ public sealed class HandsFreeNativePipelineTests
         public KeywordAudioSegment? Next { get; set; }
         public int Samples { get; private set; }
         public bool Disposed { get; private set; }
+        public bool FailRelease { get; set; }
+        public int ReleaseAttempts { get; private set; }
         public ManualResetEventSlim? Hold { get; set; }
         public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public KeywordAudioSegment? Accept(ReadOnlySpan<short> audio)
@@ -366,16 +427,28 @@ public sealed class HandsFreeNativePipelineTests
             Hold?.Wait(TestContext.Current.CancellationToken);
             return Next;
         }
-        public void Dispose() => Disposed = true;
+        public void Dispose()
+        {
+            ReleaseAttempts++;
+            if (FailRelease) { throw new InvalidOperationException("Fixture keyword join failed."); }
+            Disposed = true;
+        }
     }
 
     private sealed class FakeEndpoint : IHandsFreeCommandEndpoint
     {
         public bool Disposed { get; private set; }
+        public bool FailRelease { get; set; }
+        public int ReleaseAttempts { get; private set; }
         public bool End { get; set; }
         public int Samples { get; private set; }
         public bool Accept(ReadOnlySpan<short> audio) { Samples += audio.Length; return End; }
-        public void Dispose() => Disposed = true;
+        public void Dispose()
+        {
+            ReleaseAttempts++;
+            if (FailRelease) { throw new InvalidOperationException("Fixture endpoint join failed."); }
+            Disposed = true;
+        }
     }
 
     private sealed class FakeAssets : IAsyncDisposable
@@ -396,11 +469,19 @@ public sealed class HandsFreeNativePipelineTests
         public TaskCompletionSource StopRequested { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource? Release { get; set; }
         public bool Disposed { get; private set; }
+        public bool FailStop { get; set; }
+        public bool FailRelease { get; set; }
+        public int ReleaseAttempts { get; private set; }
         public Task Completion => Done.Task;
         public long? RecorderReleasedTimestamp => null;
         public void Start() => Started.TrySetResult();
         public Task ReleaseRecorder() => Task.CompletedTask;
-        public void FinishRecognition(bool cancel) { StopRequested.TrySetResult(); if (cancel) { Done.TrySetResult(); } }
+        public void FinishRecognition(bool cancel)
+        {
+            StopRequested.TrySetResult();
+            if (cancel && FailStop) { throw new InvalidOperationException("Fixture command stop failed."); }
+            if (cancel) { Done.TrySetResult(); }
+        }
         public void Transcript(string text, float confidence) => TranscriptRecognized?.Invoke(this, new(text, confidence));
         public Action QueueTranscript(string text)
         {
@@ -409,7 +490,9 @@ public sealed class HandsFreeNativePipelineTests
         }
         public async ValueTask DisposeAsync()
         {
+            ReleaseAttempts++;
             Closing.TrySetResult();
+            if (FailRelease) { throw new InvalidOperationException("Fixture command join failed."); }
             if (Release is not null) { await Release.Task.WaitAsync(TestContext.Current.CancellationToken); }
             Disposed = true;
         }

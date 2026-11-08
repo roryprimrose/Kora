@@ -14,7 +14,8 @@ public sealed partial class SettingInspectionWorkflow(ConfirmedSettingsSource so
     TimeProvider time, ILogger<SettingInspectionWorkflow> logger)
 {
     public async Task<SettingInspectionSession> ReviewAsync(string question, Func<bool> admitted, CancellationToken token,
-        ModelToolMode toolMode = ModelToolMode.None)
+        ModelToolMode toolMode = ModelToolMode.None,
+        SettingInspectionProfile profile = SettingInspectionProfile.ConfirmedSettings)
     {
         var original = HostActivity.RequireCurrent();
         Application.Hosting.SessionConversationService.RequireOriginalSource(original.Request.Origin);
@@ -24,9 +25,9 @@ public sealed partial class SettingInspectionWorkflow(ConfirmedSettingsSource so
         bool Current() => access.CanControl && access.CanInspect && access.ControlRevision == control && admitted()
             && !token.IsCancellationRequested;
         if (!Current()) { throw new InvalidOperationException("Original private host admission is unavailable."); }
-        var snapshot = await source.CaptureAsync(token).ConfigureAwait(false);
+        var snapshot = await source.CaptureAsync(token, profile).ConfigureAwait(false);
         if (!Current()) { throw new OperationCanceledException("Original input changed during confirmed observation."); }
-        var review = new SettingInspectionReview(snapshot.Observations, question, original.Request, now, toolMode);
+        var review = new SettingInspectionReview(snapshot.Observations, question, original.Request, now, toolMode, profile);
         if (time.GetUtcNow() >= review.ExpiresAt)
         { throw new InvalidOperationException("The original confirmed observation expired before review."); }
         return new(review, snapshot, () => Current() && source.IsCurrent(snapshot) && time.GetUtcNow() < review.ExpiresAt);

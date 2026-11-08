@@ -59,7 +59,7 @@ public sealed partial class HandsFreeVoiceRecognitionService : IProvisionalVoice
         EnsureNotDisposed();
         lock (gate)
         {
-            if (comparisonActive) { throw new InvalidOperationException("Inert comparison owns capture."); }
+            if (comparisonActive || routingContinuation is not null) { throw new InvalidOperationException("Inert comparison or exact routing continuation owns capture."); }
             activatedOpenRequests++;
         }
         try
@@ -84,7 +84,7 @@ public sealed partial class HandsFreeVoiceRecognitionService : IProvisionalVoice
         EnsureNotDisposed();
         lock (gate)
         {
-            if (comparisonActive) { throw new InvalidOperationException("Inert comparison owns capture."); }
+            if (comparisonActive || routingContinuation is not null) { throw new InvalidOperationException("Inert comparison or exact routing continuation owns capture."); }
             activatedOpenRequests++;
         }
         try

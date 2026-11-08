@@ -98,7 +98,39 @@ original request is routed. Other unsent input stays in its own memory buffer;
 grants, provider state, history, sources and permissions are not moved.
 
 The native confirmation may confirm an activated-voice request but cannot relabel
-it as a local-UI request. This feature does not add hands-free routing replies.
+it as a local-UI request.
+
+### Explicit voice replies in destination review
+
+In **Review request destination**, choose **Answer by voice** to open one bounded
+reply capture. Speak exactly a displayed destination number, **New**, or **Cancel**.
+Names, number-word aliases, assistant-name prefixes and other commands are not
+accepted. The host uses the exact displayed ordinal object, including when names
+are duplicated; it does not reconstruct a list or guess a destination.
+
+Capture must physically close before **Review this destination** acknowledges the
+exact name. Nothing has been submitted. To continue by voice, choose **Answer by
+voice** again and speak exactly **Submit original request**, **Correct destination**,
+or **Cancel**. No microphone opens automatically at acknowledgment.
+
+**Correct destination** retires that selection and confirmation, shows the existing
+fixed Active inventory, and requires another exact choice and name acknowledgment.
+The original review's 60-second expiry is never renewed. Native selection,
+correction, submission and cancellation remain available; changing a native choice
+retires and joins the current reply before acting.
+
+Submission executes the same one-use original-request operation, preserving its
+unchanged USER body and LocalUi/ActivatedVoice channel. Spoken choices are not new
+requests, global commands, provider input, source consent or tool approval. The
+independent local-advice disclosure still requires its own native decision.
+
+An unavailable or unqualified capture service explicitly leaves the microphone
+closed and offers native controls. Invalid replies terminate without fallback or
+submission. Original source, private presentation, ownership, name, profile,
+privacy, call and capture changes invalidate the operation rather than reviving
+it later. Cancellation, close, shutdown and disposal join any opening or delayed
+release before late recognition can act. Deterministic fakes establish implementation
+behavior, not runtime voice-profile enablement.
 
 ## Privacy and unavailable boundaries
 

@@ -25,7 +25,7 @@ internal sealed class SettingInspectionFixture : IAsyncDisposable, ISessionWorks
         Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
     };
 
-    internal SettingInspectionFixture(string? quietHours = null)
+    internal SettingInspectionFixture(string? quietHours = null, bool rateControl = true)
     {
         ActivitySource.AddActivityListener(listener);
         var controls = new AudioControlTestStore();
@@ -43,7 +43,9 @@ internal sealed class SettingInspectionFixture : IAsyncDisposable, ISessionWorks
         Timing = new(new LocalVoiceCaptureTimingPreferences(Store), Admission, this,
             NullLogger<VoiceCaptureTimingConfigurationService>.Instance);
         Details = new(new LocalDetailPresentationPreferences(Store), Admission, this, Time);
-        Source = new(Appearance, Speech, Volume, Response, QuietHours, Timing, Details);
+        Rate = new(new LocalWindowsSpeechRatePreferences(Store), rateControl ? Playback : new PlaybackWithoutRate(Playback),
+            Speech, Admission, this, NullLogger<WindowsSpeechRateConfigurationService>.Instance);
+        Source = new(Appearance, Speech, Volume, Response, QuietHours, Timing, Details, Rate);
         Workflow = new(Source, this, this, this, Time, Logger);
     }
 
@@ -59,6 +61,7 @@ internal sealed class SettingInspectionFixture : IAsyncDisposable, ISessionWorks
     internal QuietHoursConfigurationService QuietHours { get; }
     internal VoiceCaptureTimingConfigurationService Timing { get; }
     internal DetailPresentationConfigurationService Details { get; }
+    internal WindowsSpeechRateConfigurationService Rate { get; }
     internal ConfirmedSettingsSource Source { get; }
     internal SettingInspectionWorkflow Workflow { get; }
     internal Clock Time { get; } = new();
@@ -75,6 +78,7 @@ internal sealed class SettingInspectionFixture : IAsyncDisposable, ISessionWorks
     internal Func<Task>? Hold { get; set; }
     internal Func<Task>? Join { get; set; }
     internal SecurityAuditOutcome? FailAudit { get; set; }
+    internal Action<SecurityAuditEvent>? BeforeAudit { get; set; }
     internal string? Defect { get; set; }
     internal TaskCompletionSource JoinEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     internal List<SecurityAuditEvent> Events { get; } = [];
@@ -94,6 +98,7 @@ internal sealed class SettingInspectionFixture : IAsyncDisposable, ISessionWorks
 
     public void Write(SecurityAuditEvent auditEvent)
     {
+        BeforeAudit?.Invoke(auditEvent);
         if (auditEvent.Outcome == FailAudit) { throw new IOException("private audit failure"); }
         Events.Add(auditEvent);
     }
@@ -181,15 +186,27 @@ internal sealed class SettingInspectionFixture : IAsyncDisposable, ISessionWorks
         public SpeechVoice? GetDefaultVoice() => throw new NotSupportedException();
     }
 
-    internal sealed class PlaybackData : ISpeechPlaybackService, IPlaybackVolumeControl
+    internal sealed class PlaybackData : ISpeechPlaybackService, IPlaybackVolumeControl, IWindowsSpeechRateControl
     {
         internal int Effects { get; set; }
         public bool IsSpeaking => false;
         public SpeechPlaybackFrame PlaybackFrame => SpeechPlaybackFrame.Inactive;
         public void InvalidateOutput() => Effects++;
         public void SetPlaybackVolume(PlaybackVolume? volume) => Effects++;
+        public void SetWindowsSpeechRate(WindowsSpeechRate? rate) => Effects++;
         public Task SpeakAsync(string text, SpeechVoice voice, AudioOutputDevice outputDevice, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException("No synthesis is permitted.");
+        public Task StopAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
+    private sealed class PlaybackWithoutRate(PlaybackData playback) : ISpeechPlaybackService
+    {
+        public bool IsSpeaking => false;
+        public SpeechPlaybackFrame PlaybackFrame => SpeechPlaybackFrame.Inactive;
+        public void InvalidateOutput() => playback.Effects++;
+        public Task SpeakAsync(string text, SpeechVoice voice, AudioOutputDevice outputDevice, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
         public Task StopAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }

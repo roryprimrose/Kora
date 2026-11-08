@@ -18,7 +18,8 @@ public sealed partial class App
             Services.GetRequiredService<SpeechConfigurationService>(), Services.GetRequiredService<PlaybackVolumeConfigurationService>(),
             Services.GetRequiredService<ResponseModeConfigurationService>(), Services.GetRequiredService<QuietHoursConfigurationService>(),
             Services.GetRequiredService<VoiceCaptureTimingConfigurationService>(),
-            Services.GetRequiredService<DetailPresentationConfigurationService>());
+            Services.GetRequiredService<DetailPresentationConfigurationService>(),
+            Services.GetRequiredService<WindowsSpeechRateConfigurationService>());
         var workflow = new SettingInspectionWorkflow(source,
             new SettingInspectionConversation(Services.GetRequiredService<SessionWorkspaceService>(),
                 Services.GetRequiredService<SessionConversationService>(), Services.GetRequiredService<IModelTurnExecution>()),

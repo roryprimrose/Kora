@@ -14,6 +14,133 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData("typed")]
+    [InlineData("prefixed")]
+    [InlineData("voice")]
+    public async Task NaturalSentenceAndNumberWordDelayUseOriginalRouteAndNativeReadback(string route)
+    {
+        var fixture = new Fixture(enableSpeechText: true);
+        await using var admission = fixture.OutputAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        fixture.TextToSpeech.ClearSpokenResponse();
+        await Run("show the current sentence");
+        fixture.CaptionPreferences.Mode.Should().Be(SpeechTextMode.CurrentSentence);
+        fixture.ViewModel.ResponseBody.Should().Contain("\"outcome\":\"saved\"");
+        await Run("keep speech text visible for ten seconds");
+        fixture.CaptionPreferences.Options!.DismissalDelaySeconds.Should().Be(10);
+        await Run("status speech caption dismissal delay");
+        fixture.ViewModel.ResponseBody.Should().Contain("\"source\":\"saved\"");
+        await fixture.ViewModel.RefreshSpeechTextCommand.ExecuteAsync();
+        fixture.ViewModel.SelectedSpeechTextChoice!.Mode.Should().Be(SpeechTextMode.CurrentSentence);
+        fixture.ViewModel.SelectedSpeechCaptionOption = SpeechCaptionOption.DismissalDelay;
+        fixture.ViewModel.SelectedSpeechCaptionChoice = fixture.ViewModel.SpeechCaptionOptionChoices.Single(
+            choice => choice.CaptionValue == new SpeechCaptionValue.Delay(1));
+        await fixture.ViewModel.SaveSpeechCaptionOptionCommand.ExecuteAsync();
+        fixture.CaptionPreferences.Options!.DismissalDelaySeconds.Should().Be(1);
+        await fixture.ViewModel.ResetSpeechCaptionOptionCommand.ExecuteAsync();
+        fixture.CaptionPreferences.Options!.DismissalDelaySeconds.Should().Be(5);
+        fixture.CaptionPreferences.Mode.Should().Be(SpeechTextMode.CurrentSentence);
+        await fixture.ViewModel.ResetSpeechTextCommand.ExecuteAsync();
+        fixture.CaptionPreferences.Mode.Should().Be(SpeechTextMode.Off);
+        fixture.CaptionPreferences.Options!.DismissalDelaySeconds.Should().Be(5);
+        fixture.TextToSpeech.SpokenText.Should().BeNull();
+        fixture.ViewModel.SpeechCaptionText.Should().BeNull();
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        var writes = fixture.Audit.Events.Where(item => item.ActionId.StartsWith("configuration.speech-", StringComparison.Ordinal)).ToArray();
+        writes.Should().HaveCount(10);
+        writes.Chunk(2).Should().OnlyContain(pair =>
+            pair[0].Outcome == Kora.Core.Auditing.SecurityAuditOutcome.Requested
+            && pair[1].Outcome == Kora.Core.Auditing.SecurityAuditOutcome.Succeeded
+            && pair[0].CorrelationId == pair[1].CorrelationId);
+        var expectedInitiator = route is "voice"
+            ? Kora.Core.Auditing.SecurityAuditInitiator.VoiceCommand
+            : Kora.Core.Auditing.SecurityAuditInitiator.TypedCommand;
+        writes.Take(4).Should().OnlyContain(item => item.Initiator == expectedInitiator);
+        if (route is "voice")
+        {
+            fixture.Voice.StartedPhrases.Should().Contain(SpeechTextCommand.FixedPhrases);
+            fixture.Voice.StartedPhrases.Should().Contain("Kora show the current sentence")
+                .And.Contain("Kora keep speech text visible for twenty one seconds");
+        }
+
+        Task Run(string command) => route is "voice"
+            ? fixture.RaiseActivatedTranscriptAsync("Kora, " + command, 1)
+            : fixture.RunAsync((route is "prefixed" ? "Kora, " : "") + command);
+    }
+
+    [Theory]
+    [InlineData("show the current sentence", false)]
+    [InlineData("keep speech text visible for ten seconds", false)]
+    [InlineData("show the current sentence", true)]
+    [InlineData("keep speech text visible for ten seconds", true)]
+    public async Task NaturalSentenceAndDelayFailureAndCancellationHaveNoSuccessfulWrite(string input, bool cancelled)
+    {
+        var fixture = new Fixture(enableSpeechText: true);
+        await using var admission = fixture.OutputAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        fixture.TextToSpeech.ClearSpokenResponse();
+        if (!cancelled) { fixture.CaptionPreferences.Failure = new IOException(); }
+        await fixture.ViewModel.ExecuteSpeechTextCommandAsync(SpeechTextCommand.Parse(input, "Kora")!,
+            Kora.Core.Auditing.SecurityAuditInitiator.TypedCommand,
+            cancellationToken: cancelled ? new CancellationToken(true) : TestContext.Current.CancellationToken);
+        fixture.CaptionPreferences.Mode.Should().BeNull();
+        fixture.CaptionPreferences.Options.Should().BeNull();
+        fixture.Audit.Events.Should().NotContain(item => item.Outcome == Kora.Core.Auditing.SecurityAuditOutcome.Succeeded);
+        fixture.ViewModel.SpeechTextConfigurationStatus.Should().Contain("Setting unavailable");
+        fixture.TextToSpeech.SpokenText.Should().BeNull();
+        fixture.ViewModel.SpeechCaptionText.Should().BeNull();
+        fixture.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("show the current sentence")]
+    [InlineData("keep speech text visible for ten seconds")]
+    public async Task NaturalSentenceAndDelayRespectProtectedVoiceAndConfirmedActivationName(string input)
+    {
+        var fixture = new Fixture(enableSpeechText: true);
+        await using var admission = fixture.OutputAdmission;
+        fixture.NamePreferences.Name = "Supported Commands";
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.RunAsync("Kora, " + input);
+        fixture.ViewModel.Transcript.Should().Contain("prefix routing is unavailable");
+        fixture.CaptionPreferences.Mode.Should().BeNull();
+        fixture.CaptionPreferences.Options.Should().BeNull();
+        fixture.Reasoner.Requests.Should().BeEmpty();
+
+        var protectedFixture = new Fixture(enableSpeechText: true);
+        await using var protectedAdmission = protectedFixture.OutputAdmission;
+        protectedFixture.Voice.Microphones = [new MicrophoneDevice("voice-fixture", "Synthetic microphone")];
+        protectedFixture.Voice.DefaultMicrophoneId = "voice-fixture";
+        await protectedFixture.ViewModel.InitializeAsync();
+        protectedFixture.CallState.SetState(CallState.Unknown);
+        await protectedFixture.Dispatcher.LastInvocation;
+        await protectedFixture.ViewModel.ExecuteSpeechTextCommandAsync(SpeechTextCommand.Parse(input, "Kora")!,
+            Kora.Core.Auditing.SecurityAuditInitiator.VoiceCommand, cancellationToken: TestContext.Current.CancellationToken);
+        protectedFixture.CaptionPreferences.Mode.Should().BeNull();
+        protectedFixture.CaptionPreferences.Options.Should().BeNull();
+        protectedFixture.ViewModel.ResponseBody.Should().Contain("\"outcome\":\"denied\"");
+        protectedFixture.Audit.Events.Last().Initiator.Should().Be(Kora.Core.Auditing.SecurityAuditInitiator.VoiceCommand);
+        protectedFixture.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task NaturalSentenceAndDelayVocabularyTracksConfirmedNameChanges()
+    {
+        var fixture = new Fixture(enableSpeechText: true);
+        await using var admission = fixture.OutputAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        await fixture.RunAsync("set assistant name to Nova");
+        await fixture.RaiseActivatedTranscriptAsync("Nova, show the current sentence", 1);
+        await fixture.RaiseActivatedTranscriptAsync("Nova, keep speech text visible for twenty-nine seconds", 1);
+        fixture.CaptionPreferences.Mode.Should().Be(SpeechTextMode.CurrentSentence);
+        fixture.CaptionPreferences.Options!.DismissalDelaySeconds.Should().Be(29);
+        fixture.Voice.StartedPhrases.Should().Contain("Nova show the current sentence")
+            .And.Contain("Nova keep speech text visible for twenty-nine seconds")
+            .And.NotContain("Kora show the current sentence");
+        fixture.Reasoner.Requests.Should().BeEmpty();
+    }
+
     [Fact]
     public async Task DisplayRecoveryPreservesUnconfirmedPreferencesAndRequiredPanels()
     {
@@ -53,7 +180,7 @@ public sealed partial class MainViewModelTests
         await using var admission = fixture.OutputAdmission;
         await fixture.ViewModel.InitializeAsync();
         fixture.ViewModel.CanChooseSpeechCaptionDisplay.Should().BeTrue();
-        await fixture.RunAsync($"set display.speech-text to {mode}");
+        await fixture.RunAsync(mode == SpeechTextMode.CurrentSentence ? "show the current sentence" : $"set display.speech-text to {mode}");
         fixture.TextToSpeech.ClearSpokenResponse();
         fixture.TextToSpeech.SpeakGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
         var response = fixture.RunAsync("show your window");
@@ -485,7 +612,8 @@ public sealed partial class MainViewModelTests
             subscribeToWindowActions: transition is not "native-presentation-no-subscriber");
         await using var admission = fixture.OutputAdmission;
         await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync($"set display.speech-text to {mode}");
+        await fixture.RunAsync(mode == SpeechTextMode.CurrentSentence ? "show the current sentence" : $"set display.speech-text to {mode}");
+        await fixture.RunAsync("keep speech text visible for ten seconds");
         await fixture.RunAsync("set display.speech-text-word-emphasis to true");
         fixture.ViewModel.ReaderTextScalePercent = 200;
         await fixture.ViewModel.AppearanceUpdate;

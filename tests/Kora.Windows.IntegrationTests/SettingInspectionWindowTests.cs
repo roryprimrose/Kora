@@ -345,7 +345,9 @@ public sealed class SettingInspectionWindowTests
             {
                 f.Preferences.Reads.Should().Be(0);
                 inspection.IsVisible.Should().BeTrue();
-                inspection.GetVisualDescendants().OfType<TextBox>().Single().Text = "What is my reading text size?";
+                inspection.GetVisualDescendants().OfType<TextBox>().Single(control => string.Equals(
+                    AutomationProperties.GetName(control), "Original question about confirmed Kora settings", StringComparison.Ordinal))
+                    .Text = "What is my reading text size?";
                 await ((AsyncCommand)Button(inspection, "Inspect confirmed settings and review").Command!).ExecuteAsync();
                 presenter.ReviewText.Should().Contain("125").And.Contain("NEW Local context conversation");
                 f.Adapter.Calls.Should().Be(0);
@@ -376,7 +378,8 @@ public sealed class SettingInspectionWindowTests
             {
                 f.Preferences.Reads.Should().Be(0);
                 f.Adapter.Calls.Should().Be(0);
-                var question = window.GetVisualDescendants().OfType<TextBox>().Single();
+                var question = window.GetVisualDescendants().OfType<TextBox>().Single(control => string.Equals(
+                    AutomationProperties.GetName(control), "Original question about confirmed Kora settings", StringComparison.Ordinal));
                 question.Text = "What is my reading text size?";
                 presenter.Question.Should().Be(question.Text);
                 f.Preferences.Reads.Should().Be(0, "editing is not source capture");
@@ -460,4 +463,63 @@ public sealed class SettingInspectionWindowTests
 
     private static Button Button(Window window, string label) =>
         window.GetVisualDescendants().OfType<Button>().Single(control => string.Equals(control.Content as string, label, StringComparison.Ordinal));
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NativeSourcePickerRetiresOldReviewAndSeparatelyConfirmsOneProviderAwareLocalAnswer(bool discovery)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            const string question = SettingInspection.WindowsSpeechRateSettingInspectionTests.Question;
+            const string answer = SettingInspection.WindowsSpeechRateSettingInspectionTests.Answer;
+            var final = System.Text.Json.JsonSerializer.Serialize(new { kind = "answer", answer });
+            var transport = new SettingsDiscoveryWorkflowTests.Transport(discovery
+                ? ["""{"kind":"toolCalls","calls":[{"callId":"get_1","capabilityId":"settings.get","input":{"id":"speech.windows-rate"}}]}""", final]
+                : [final]);
+            await using var f = new SettingInspectionWorkflowTests.Fixture(transport: transport,
+                speechSelection: new(SpeechProviderIds.Kokoro, "af_heart"), observeWindowsRate: true, savedWindowsRate: 5);
+            await f.InitializeAsync();
+            var presenter = new SettingInspectionPresenter(f.Workflow, () => () => true, () => () => true, f.Storage.Time)
+            { Question = question, DiscoverSettings = discovery };
+            var failures = new List<Exception>();
+            var window = new SettingInspectionWindow(presenter, failures.Add);
+            window.Show();
+            try
+            {
+                var picker = window.GetVisualDescendants().OfType<ComboBox>().Single();
+                presenter.Profile.Should().Be(SettingInspectionProfile.ConfirmedSettings);
+                picker.SelectedItem.Should().Be(SettingInspectionProfile.ConfirmedSettings);
+                f.Preferences.Reads.Should().Be(0);
+                await presenter.ReviewAsync();
+                presenter.CanConfirm.Should().BeTrue();
+                picker.SelectedItem = SettingInspectionProfile.WindowsRate;
+                presenter.Profile.Should().Be(SettingInspectionProfile.WindowsRate);
+                presenter.Question.Should().Be(question);
+                presenter.ReviewText.Should().BeEmpty();
+                presenter.Answer.Should().BeEmpty();
+                presenter.CanConfirm.Should().BeFalse();
+                transport.Requests.Should().BeEmpty();
+                await ((AsyncCommand)Button(window, "Inspect confirmed settings and review").Command!).ExecuteAsync();
+                presenter.ReviewText.Should().Contain("NATIVE SOURCE PROFILE: WindowsRate")
+                    .And.Contain(question).And.Contain("configured effective null").And.Contain("Kokoro unchanged")
+                    .And.Contain("NEW Local context conversation");
+                f.Storage.Count("work_sessions").Should().Be(0);
+                transport.Requests.Should().BeEmpty();
+                await ((AsyncCommand)Button(window, discovery
+                    ? "Confirm ONE settings-discovery LocalOnly request" : "Confirm ONE tool-free LocalOnly request").Command!).ExecuteAsync();
+                presenter.Answer.Should().Be(answer);
+                presenter.CanConfirm.Should().BeFalse();
+                f.Storage.Count("conversation_messages").Should().Be(1);
+                f.Host.IsQuiescent.Should().BeTrue();
+                f.Preferences.Writes.Should().Be(0);
+                f.Playback.Effects.Should().Be(0);
+                picker.SelectedItem = SettingInspectionProfile.ConfirmedSettings;
+                presenter.Answer.Should().BeEmpty();
+                presenter.ReviewText.Should().BeEmpty();
+                failures.Should().BeEmpty();
+            }
+            finally { window.Close(); await presenter.CloseAsync(); }
+        });
+    }
 }

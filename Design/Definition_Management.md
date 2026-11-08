@@ -413,7 +413,12 @@ file identity and complete base; manual edits remain volatile. Complete old/new 
 confirmation update only that same destination through the [authoritative store](../src/Kora.Windows/ArtifactDiscovery/WindowsOwnedAgentProfileStore.cs).
 Exact readback completes Save; changed bytes remain inert with no reference resolution, activation or new invocation authority.
 Detected conflicts offer Reload, separately reviewed Overwrite, or Cancel/keep draft. Missing originals cannot be recreated
-through Update. Conversational generation remains create-only; generic Customizations editing is unchanged.
+through Update. Conversational refinement also supports that inspected/editable tool-free, reference-free native v1 original:
+the complete pinned original identity/base and current draft/request remain bound through local model admission,
+continuations and final proposal review. Only description/body are proposed; metadata and destination remain host-owned.
+External source change, replacement, deletion or failed read retires the proposal without renewing its base.
+Adoption is volatile; the complete original/proposed review and separate disabled Update save remain independent.
+Observation-capable v1, v4 and generic Customizations editing are unchanged.
 
 The same operations are addressed by exact original typed input or current-name
 activated voice: "Show skills", "Show me XYZ instruction", "Edit XYZ skill" and

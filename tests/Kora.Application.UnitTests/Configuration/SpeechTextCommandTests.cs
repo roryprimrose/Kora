@@ -7,6 +7,18 @@ namespace Kora.Application.UnitTests.Configuration;
 
 public sealed class SpeechTextCommandTests
 {
+    [Fact]
+    public void Every_recognizer_phrase_is_an_exact_command_with_current_name_parity()
+    {
+        foreach (var phrase in SpeechTextCommand.FixedPhrases)
+        {
+            var command = SpeechTextCommand.Parse(phrase, "Nova");
+            command.Should().NotBeNull();
+            command!.Operation.Should().NotBe(AppearanceCommandOperation.Clarify);
+            SpeechTextCommand.Parse("Nova, " + phrase, "Nova").Should().Be(command);
+        }
+    }
+
     [Theory]
     [InlineData("list speech text settings", AppearanceCommandOperation.List, null)]
     [InlineData("get display.speech-text", AppearanceCommandOperation.Get, null)]

@@ -161,6 +161,13 @@ pause/resume/reorder/settings; this adds no global scheduler or configuration.
 
 ## Invoke one registered agent by readable name
 
+To refine an inert owned original instead of invoking it, use **agent author inspect example**,
+choose native **Edit existing original**, then **agent author describe Make the guidance shorter.**
+and **agent author ask** (exact typed or current-name activated voice). Only inspected tool-free/reference-free native v1
+originals support this local two-field proposal. Review disclosure and complete source comparison; adoption is memory-only.
+Then independently review and confirm **Save existing original** natively. No invocation, activation, tools or grants follow.
+See [owned-original refinement and separate save](agent-profile-authoring.md#edit-the-same-existing-original).
+
 Type `agent invoke "Exact readable name" <original task>`, or use the current
 assistant-name prefix for activated voice, for example
 `Kora, agent invoke "Planning helper" Explain the next step.`

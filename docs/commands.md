@@ -405,6 +405,24 @@ current-response details; recovery never resurrects them.
 There is no per-response pin/unpin, preference write, model or speech action.
 Uncomposed native hosts report unavailable; this does not qualify a model route.
 
+## Exact current-sentence captions and dismissal delay
+
+Type `show the current sentence`, or say `Kora, show the current sentence`
+using your current assistant name. This saves **CurrentSentence** through the
+same native speech-text setting; actual sentence captions remain unavailable
+without qualified playback alignment. It never estimates progress or replays text.
+
+`keep speech text visible for ten seconds` saves the exact **10-second**
+post-completion dismissal delay. Use canonical numerals 0-30 or English number
+words zero through thirty, with `one second` / `1 second` and `seconds` otherwise.
+Twenty-one through twenty-nine accept one hyphen or one space (`twenty one`).
+Whole commands only: no extra clauses, negatives, fractions, fuzzy values or
+clamping. The current-name prefix is optional for typed input; activated voice
+keeps its existing channel/privacy/call gates. Native inspect/save/reset remain
+equivalent, and neither command enables a provider, speaks, or invokes a model
+([settings and unavailable alignment](settings.md#local-speech-text),
+[shared grammar](../src/Kora.Application/Configuration/SpeechTextCommand.cs)).
+
 ## Read the current response aloud once
 
 Use **Read current response** in the compact response window, `read that aloud`, or `read current response`.

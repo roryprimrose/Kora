@@ -38,6 +38,9 @@ public sealed class RegisteredSettingsTests
             RegisteredSettingSuggestions.ModelPolicy.Should().Contain(descriptor.Id).And.Contain(descriptor.Description);
             descriptor.SuggestedValues.Should().NotBeNullOrWhiteSpace();
             RegisteredSettingSuggestions.ModelPolicy.Should().Contain(descriptor.SuggestedValues);
+            RegisteredSettingSuggestions.ModelPolicy.Should().Contain(
+                $"'{descriptor.Id}' ({descriptor.Description}; {descriptor.SuggestedValues}"
+                + (descriptor.RequiresNativeReview ? "; native-only)" : ")"));
             descriptor.RequiresNativeReview.Should().Be(descriptor.Setting is RegisteredSetting.QuietHours or RegisteredSetting.DetailPresentation or RegisteredSetting.OrdinaryTurnDeadline
                 || descriptor.Id.StartsWith("voice.", StringComparison.Ordinal)
                 || descriptor.Id.StartsWith("appearance.", StringComparison.Ordinal) && descriptor.Setting != RegisteredSetting.ResponseTimeout);
@@ -55,6 +58,7 @@ public sealed class RegisteredSettingsTests
         RegisteredSettingRegistry.Get(RegisteredSetting.ReaderTextScale).Minimum.Should().Be(ReaderTextScaleSettings.MinimumPercent);
         RegisteredSettingRegistry.Get(RegisteredSetting.ReaderTextScale).Maximum.Should().Be(ReaderTextScaleSettings.MaximumPercent);
         RegisteredSettingSuggestions.ModelPolicy.Should().Contain("never write authority").And.Contain("separately confirm or cancel")
+            .And.Contain("Native-only entries require original local UI and separate native confirmation only")
             .And.Contain("companion cap").And.Contain("desired/effective").And.Contain("zero blocks future synthesis")
             .And.Contain("native/authentication exceptions");
     }

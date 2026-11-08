@@ -235,6 +235,22 @@ public sealed class OrdinaryTurnDeadlineSuggestionReviewTests : IDisposable
     }
 
     [Fact]
+    public async Task RestoredStoppedNativeActivityCannotReviewRetainedDeadlineAdvice()
+    {
+        await using var f = new OrdinaryDeadlineConfigurationFixture();
+        var message = Answer();
+        using var input = Input(message);
+        await Task.Run(() => input.Activity!.Stop(), Token);
+        HostActivity.RequireCurrent().Should().BeSameAs(input);
+        await FluentActions.Awaiting(() => OrdinaryTurnDeadlineSuggestionReview.ReviewAsync(f.Service, f.CallPolicy,
+            TimeProvider.System, message, () => true, _ => Task.CompletedTask, Token))
+            .Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Deadline review requires live original native user input in the exact session.");
+        f.Preferences.Load().Should().BeNull();
+        f.Audit.Events.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task DisposedCallPolicyCannotAdmitNativeDeadlineReview()
     {
         await using var f = new OrdinaryDeadlineConfigurationFixture();

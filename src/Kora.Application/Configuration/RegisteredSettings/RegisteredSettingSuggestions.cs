@@ -16,8 +16,9 @@ public static class RegisteredSettingSuggestions
         + string.Join("; ", RegisteredSettingRegistry.Settings.Select(item =>
             $"'{item.Id}' ({item.Description}; "
             + item.SuggestedValues
-            + (item.RequiresNativeReview ? "; original local UI and separate native confirmation only)" : ")")))
-        + ". All have shared device-local scope. Use 'set <exact ID> to <value>', canonical decimal integers for numeric values except exact decimal capture seconds, and true/false for booleans, "
+            + (item.RequiresNativeReview ? "; native-only)" : ")")))
+        + ". All have shared device-local scope. Native-only entries require original local UI and separate native confirmation only. "
+        + "Use 'set <exact ID> to <value>', canonical decimal integers for numeric values except exact decimal capture seconds, and true/false for booleans, "
         + "Capture timing uses one exact voice.command-start-wait, voice.reply-start-wait, voice.trailing-silence or voice.maximum-capture ID. "
         + "Use canonical seconds without exponent, suffix, redundant leading or fractional trailing zeros, or rounding. Native review shows the full old/new timing tuple; "
         + "separate native confirmation changes future captures only, never an in-flight capture, microphone consent or provider readiness. "

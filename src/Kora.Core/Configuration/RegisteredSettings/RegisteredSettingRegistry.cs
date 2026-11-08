@@ -48,6 +48,9 @@ public static class RegisteredSettingRegistry
             "future eligible detail presentation only; no retained answer opening or replay", "mode", null, null, true),
         new(RegisteredSetting.MaximumCapture, VoiceCaptureTiming.MaximumCaptureId,
             "maximum duration for future eligible captures only, never listening or review authority", "seconds", null, null, true),
+        new(RegisteredSetting.OrdinaryTurnDeadline, "work.active-deadline-minutes",
+            "future ordinary task allowance only; running work and earlier context/provider/tool ceilings unchanged",
+            "minutes", OrdinaryTurnDeadline.MinimumMinutes, OrdinaryTurnDeadline.MaximumMinutes, true),
     ]);
 
     public static RegisteredSettingDescriptor Get(RegisteredSetting setting) =>

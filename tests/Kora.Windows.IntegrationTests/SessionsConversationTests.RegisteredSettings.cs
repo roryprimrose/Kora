@@ -10,6 +10,8 @@ using AwesomeAssertions;
 
 using Kora.Application.Communication;
 using Kora.Application.Configuration;
+using Kora.Application.Hosting;
+using Kora.Application.Voice;
 using Kora.Application.Dependencies;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
@@ -17,6 +19,9 @@ using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Providers;
 using Kora.Core.Tools;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
+using Kora.NativeUxFixture;
 using Kora.Windows.IntegrationTests.Storage;
 
 using Microsoft.Extensions.Logging.Abstractions;
@@ -25,6 +30,224 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SessionsConversationTests
 {
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task RegisteredSettingsOrdinaryTurnDeadlineProductionControllerReviewsCancelsAndSeparatelyConfirms(bool compact, bool reset)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            await using var admission = new AudioControlAdmission(f.Store, f.Store, new HostTaskCoordinator(f.Tasks));
+            var preferences = new LocalOrdinaryTurnDeadlinePreferences(f.Paths);
+            preferences.Save(new(7));
+            var audit = new AuditLog();
+            var deadline = new OrdinaryTurnDeadlineConfigurationService(preferences, admission, audit);
+            var running = deadline.Capture();
+            var adapter = new DeadlineAnswerAdapter(reset ? "reset work.active-deadline-minutes" : "set work.active-deadline-minutes to 10");
+            await using var composed = new Composition(f, adapter: adapter);
+            var parent = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, ".net-test-artifacts"));
+            Directory.CreateDirectory(parent);
+            using var native = new NativeUxFixtureSession(parent);
+            await native.InitializeAsync(null, ordinaryDeadlineConfiguration: deadline);
+            using var controller = new SessionsWindowController(native.Main, composed.Workspace, native.Evidence,
+                composed.Access, NullLogger<SessionsViewModel>.Instance, conversation: composed.Conversation);
+            Window? window = null;
+            using var expanded = Window.WindowOpenedEvent.AddClassHandler<SessionsWindow>((view, _) => window = view);
+            using var small = Window.WindowOpenedEvent.AddClassHandler<CompactSessionWindow>((view, _) => window = view);
+            if (compact) { controller.OpenCompact(); }
+            else { controller.Open(); }
+            var surface = window ?? throw new InvalidOperationException("The actual native deadline conversation did not open.");
+            var model = (SessionsViewModel)surface.DataContext!;
+            await model.RefreshAsync();
+            await model.SelectAsync(model.Sessions.Single(entry => entry.Authority.SessionId == f.Request.SessionId));
+            await model.ReadConversationAsync();
+            model.ComposerBody = "Suggest a longer future ordinary task allowance, without extending running work.";
+            await model.SubmitConversationAsync();
+            var answer = model.ConversationMessages.Single();
+            adapter.Calls.Should().Be(1);
+            preferences.Load().Should().Be(new OrdinaryTurnDeadline(7), "the model answer cannot write");
+            model.ComposerBody = "Unsent text stays unchanged.";
+            await ActivateOriginalRequestWindow(surface);
+            surface.UpdateLayout();
+            var button = surface.GetVisualDescendants().OfType<Button>().Single(item =>
+                string.Equals(item.Name, "ReviewRegisteredSettingSuggestion", StringComparison.Ordinal));
+            button.DataContext.Should().BeSameAs(answer);
+            button.Focus().Should().BeTrue();
+            await model.ReviewRegisteredSettingSuggestionAsync(answer);
+            model.RegisteredSettingSuggestionDescription.Should().Contain("Current saved: 7 minutes")
+                .And.Contain(reset ? "reset to default five minutes (not saved)" : "Proposed: 10 minutes")
+                .And.Contain("shared device-local").And.Contain("future ordinary task dispatch only")
+                .And.Contain("fixed provider/tool ceilings").And.Contain("Running turns are unchanged");
+            model.CanConfirmRegisteredSettingSuggestion.Should().BeTrue(model.ConversationStatus);
+            preferences.Load().Should().Be(new OrdinaryTurnDeadline(7));
+            audit.Events.Should().BeEmpty();
+            surface.FindControl<Button>("CancelRegisteredSettingSuggestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            model.CanConfirmRegisteredSettingSuggestion.Should().BeFalse();
+            model.RegisteredSettingSuggestionDescription.Should().BeEmpty();
+            audit.Events.Should().BeEmpty();
+            await model.ReviewRegisteredSettingSuggestionAsync(answer);
+            await model.ConfirmRegisteredSettingSuggestionAsync();
+            model.ConversationStatus.Should().Contain("saved with committed preference and audit readback")
+                .And.Contain("Running turns").And.Contain("ceilings are unchanged");
+            var expected = reset ? (OrdinaryTurnDeadline?)null : new(10);
+            new LocalOrdinaryTurnDeadlinePreferences(f.Paths).Load().Should().Be(expected);
+            deadline.Capture().Should().Be(expected ?? OrdinaryTurnDeadline.Default);
+            running.Minutes.Should().Be(7, "the already captured running budget is immutable");
+            audit.Events.Select(item => (item.ActionId, item.Initiator, item.Outcome)).Should().Equal(
+                ("configuration.ordinary-turn-deadline", SecurityAuditInitiator.LocalUser, SecurityAuditOutcome.Requested),
+                ("configuration.ordinary-turn-deadline", SecurityAuditInitiator.LocalUser, SecurityAuditOutcome.Succeeded));
+            model.CanConfirmRegisteredSettingSuggestion.Should().BeFalse();
+            model.ComposerBody.Should().Be("Unsent text stays unchanged.");
+            adapter.Calls.Should().Be(1, "review must reuse the exact retained answer, not regenerate it");
+            (await f.Store.ReadConversationMessageAsync(answer.Request.SessionId, answer.Request.RequestId, f.Token)).Should().Be(answer);
+            f.Count("host_questions").Should().Be(0);
+            f.Count("scoped_grants").Should().Be(0);
+            surface.Close();
+        });
+    }
+
+    [Theory]
+    [InlineData("cancel")]
+    [InlineData("refresh")]
+    [InlineData("source")]
+    [InlineData("private")]
+    [InlineData("control")]
+    [InlineData("close")]
+    [InlineData("disk")]
+    [InlineData("revision")]
+    [InlineData("hide-reopen")]
+    [InlineData("cancel-await")]
+    [InlineData("cancel-confirm-await")]
+    [InlineData("voice-laundering")]
+    [InlineData("terminal-audit")]
+    public async Task RegisteredSettingsOrdinaryTurnDeadlineRejectsStaleAwaitedAndUnconfirmedNativeReview(string transition)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            await using var admission = new AudioControlAdmission(f.Store, f.Store, new(f.Tasks));
+            var preferences = new LocalOrdinaryTurnDeadlinePreferences(f.Paths);
+            var audit = new DeadlineSuggestionAudit { FailSuccess = transition is "terminal-audit" };
+            var deadline = new OrdinaryTurnDeadlineConfigurationService(preferences, admission, audit);
+            using var policy = new CallCommunicationPolicy(new SummaryCallState());
+            var adapter = new DeadlineAnswerAdapter("set work.active-deadline-minutes to 10");
+            await using var composed = new Composition(f, adapter: adapter);
+            var model = composed.Model;
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var reads = 0;
+            model.BindOrdinaryTurnDeadlineSuggestions(async (message, eligible, validate, token) =>
+            {
+                async Task Validate(CancellationToken cancellation)
+                {
+                    reads++;
+                    if (transition is "cancel-await" || transition is "cancel-confirm-await" && reads == 3)
+                    { entered.TrySetResult(); await release.Task.WaitAsync(cancellation); }
+                    await validate(cancellation);
+                }
+                return await OrdinaryTurnDeadlineSuggestionReview.ReviewAsync(deadline, policy, f.Time, message, eligible, Validate, token);
+            }, (review, token) => review.ConfirmAsync(token));
+            await model.RefreshAsync();
+            await model.SelectAsync(model.Sessions.Single());
+            await model.ReadConversationAsync();
+            model.ComposerBody = "Suggest ten minutes for future ordinary work only.";
+            await model.SubmitConversationAsync();
+            var answer = model.ConversationMessages.Single();
+            var owner = new SessionsPresentationOwner(model);
+            var window = new SessionsWindow(model, owner);
+            window.Show();
+            await ActivateOriginalRequestWindow(window);
+            try
+            {
+                await model.ReviewRegisteredSettingSuggestionAsync(answer with { });
+                model.CanConfirmRegisteredSettingSuggestion.Should().BeFalse("a copy is not the exact observed retained row");
+                if (transition is "voice-laundering")
+                {
+                    using var voice = HostActivity.BeginRoot(new(new(Guid.NewGuid()), answer.Request.SessionId,
+                        new(Guid.NewGuid()), RequestOrigin.ActivatedVoice), HostActivityLayer.Desktop, HostOperation.Request);
+                    await model.ReviewRegisteredSettingSuggestionAsync(answer);
+                }
+                else
+                {
+                    var work = model.ReviewRegisteredSettingSuggestionAsync(answer);
+                    if (transition is "cancel-confirm-await")
+                    { await work; work = model.ConfirmRegisteredSettingSuggestionAsync(); }
+                    if (transition is "cancel-await" or "cancel-confirm-await")
+                    {
+                        await Task.WhenAny(entered.Task, work);
+                        entered.Task.IsCompleted.Should().BeTrue(model.ConversationStatus);
+                        model.CanCancelRegisteredSettingSuggestion.Should().BeTrue();
+                        window.FindControl<Button>("CancelRegisteredSettingSuggestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                        release.TrySetResult();
+                    }
+                    await work;
+                }
+                if (transition is "cancel") { model.CancelRegisteredSettingSuggestion(); }
+                if (transition is "refresh") { await model.ReadConversationAsync(); }
+                if (transition is "private") { composed.Access.CanInspect = false; }
+                if (transition is "control") { composed.Access.ControlRevision++; }
+                if (transition is "close") { model.Close(); }
+                if (transition is "disk") { preferences.Save(new(7)); }
+                if (transition is "revision") { await deadline.RefreshAsync(RequestOrigin.LocalUi, () => true, f.Token); }
+                if (transition is "hide-reopen") { window.Hide(); window.Show(); }
+                if (transition is "source")
+                {
+                    var request = new HostRequest(new(Guid.NewGuid()), answer.Request.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi);
+                    using var input = HostActivity.BeginRoot(request, HostActivityLayer.Desktop, HostOperation.Request);
+                    var preview = await f.Store.PreviewDispositionAsync(answer.Request.SessionId, answer.Generation, 0, f.Token);
+                    await f.Tasks.CommitAsync(new(request, new(1), HostTaskState.IntentRecorded), 0, f.Token);
+                    await f.Store.DisposeSessionAsync(request, preview, () => true, f.Token);
+                }
+                await model.ConfirmRegisteredSettingSuggestionAsync();
+                audit.Events.Should().NotContain(item => item.Outcome == SecurityAuditOutcome.Succeeded);
+                model.CanConfirmRegisteredSettingSuggestion.Should().BeFalse();
+                if (transition is "terminal-audit")
+                {
+                    preferences.ReadBack().Should().Be(new OrdinaryTurnDeadline(10));
+                    FluentActions.Invoking(() => deadline.Capture()).Should().Throw<InvalidDataException>();
+                    model.ConversationStatus.Should().Contain("save is unconfirmed").And.Contain("No automatic retry or rollback");
+                }
+                else { preferences.Load().Should().Be(transition is "disk" ? new OrdinaryTurnDeadline(7) : null); }
+                adapter.Calls.Should().Be(1);
+            }
+            finally { owner.Revoke(); }
+        });
+    }
+
+    private sealed class DeadlineAnswerAdapter(string text) : IModelTurnAdapter
+    {
+        internal int Calls { get; private set; }
+        public Task<ModelProviderReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple? profile,
+            ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
+            CancellationToken cancellationToken)
+        {
+            Calls++;
+            Encoding.UTF8.GetString(context.Span).Should().Contain("work.active-deadline-minutes")
+                .And.Contain("No deadline undo").And.Contain("one inert suggestion");
+            return Task.FromResult(new ModelProviderReply(ModelTurnOutcome.Succeeded, provenance.Selection, new(text, null)));
+        }
+    }
+
+    private sealed class DeadlineSuggestionAudit : ISecurityAuditLog
+    {
+        internal bool FailSuccess { get; init; }
+        internal List<SecurityAuditEvent> Events { get; } = [];
+        public void Write(SecurityAuditEvent value)
+        {
+            HostActivity.RequireCurrent();
+            if (FailSuccess && value.Outcome == SecurityAuditOutcome.Succeeded)
+            { throw new IOException("injected required audit failure"); }
+            Events.Add(value);
+        }
+    }
+
     [Theory]
     [InlineData(false, "RegisteredSettingReviewReadback")]
     [InlineData(true, "RegisteredSettingReviewReadback")]

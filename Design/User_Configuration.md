@@ -1726,6 +1726,15 @@ In Settings > Sessions, refresh **Future ordinary task deadline**, choose 1-60 w
 Readback distinguishes saved/default/unavailable state; Reset restores five minutes.
 Typed or activated voice uses `get work.active-deadline-minutes`, `status work.active-deadline-minutes`, `set work.active-deadline-minutes to 10`, or `reset work.active-deadline-minutes` ([shared control](../src/Kora.Application/ViewModels/MainViewModel.OrdinaryTurnDeadline.cs)).
 
+The closed inert model-setting registry also admits an exact `set work.active-deadline-minutes to <canonical integer 1-60>` or `reset work.active-deadline-minutes`.
+An original local user selects that exact successful retained answer in the Active conversation, reviews actual saved/default, effective and proposed minutes, the five-minute default and future-only shared device-local scope, then separately confirms natively within 60 seconds or cancels.
+The same audited atomic writer and strict unconfirmed-write fence own persistence; model output and review cannot save.
+Review binds the exact retained source, session/generation, original native request, preference observation/revision, host/privacy/call/ownership and native foreground epoch.
+Source/page replacement, source change-and-return, direct control, stale disk, expiry or closure requires fresh inspection; late results are suppressed and owned operations are joined.
+Uncertain audit/readback remains explicitly unconfirmed, with no retry, rollback or default success.
+This subset adds no deadline undo, settings-discovery current-value authority, automatic allowance inference or running-turn extension
+([review owner](../src/Kora.Application/Configuration/OrdinaryTurnDeadlineSuggestionReview.cs), [native host binding](../src/Kora.Application/ViewModels/MainViewModel.OrdinaryTurnDeadlineSuggestions.cs)).
+
 The device-local preference is confirmed through original-user host admission, atomic storage, exact readback, required audit and terminal receipt before future dispatch can consume it.
 Stale observations, malformed values and unconfirmed writes fail explicitly; an unconfirmed preference cannot silently become the default
 ([configuration owner](../src/Kora.Application/Configuration/OrdinaryTurnDeadlineConfigurationService.cs), [preference store](../src/Kora.Application/Configuration/LocalOrdinaryTurnDeadlinePreferences.cs)).

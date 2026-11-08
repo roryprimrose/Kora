@@ -25,6 +25,8 @@ public static class RegisteredSettingSuggestions
         + "including companion fields; never supply a default value. Reset requires the same separate review and confirmation as Set. "
         + "Presence and response-timeout suggestions require that exact syntax, ID and canonical value, without aliases or surrounding text. "
         + "No adjustment, batch, commentary, other setting, approval or claimed save. "
+        + "work.active-deadline-minutes defaults to five minutes. Confirmation changes future ordinary dispatch only, "
+        + "never running work, original context expiry or earlier provider/tool ceilings. No deadline undo or inferred allowance. "
         + "Quiet hours requires exact 'set notices.quiet-hours to Off' or 'set notices.quiet-hours to weekly Mon,Tue,Wed,Thu,Fri 09:00 17:00 UTC', "
         + "with explicit requested ordered distinct days, 24-hour times and installed zone ID; never infer a zone. "
         + "Native review shows current/proposed/default schedule and zone; separate native confirmation constrains only future already-consented "
@@ -73,6 +75,14 @@ public static class RegisteredSettingSuggestions
         }
         if (answer.Length > 256)
         { throw new InvalidDataException("A setting suggestion must be one bounded Set or Reset, not a batch or commentary."); }
+
+        const string deadlinePrefix = "set work.active-deadline-minutes to ";
+        if (answer.StartsWith(deadlinePrefix, StringComparison.Ordinal))
+        {
+            try { return new RegisteredSettingProposal.OrdinaryDeadline(OrdinaryTurnDeadline.Parse(answer[deadlinePrefix.Length..])); }
+            catch (ArgumentOutOfRangeException exception)
+            { throw new InvalidDataException("The future ordinary deadline requires canonical whole minutes from 1 through 60.", exception); }
+        }
 
         const string detailPrefix = "set responses.detail-presentation to ";
         if (answer.StartsWith(detailPrefix, StringComparison.Ordinal))

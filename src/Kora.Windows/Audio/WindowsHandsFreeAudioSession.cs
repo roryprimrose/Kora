@@ -224,42 +224,28 @@ internal sealed class WindowsHandsFreeAudioSession : IHandsFreeAudioSession
         Invalidate();
         microphone.Samples -= OnSamples;
         microphone.Failed -= OnMicrophoneFailed;
-        try { await microphone.DisposeAsync().ConfigureAwait(false); }
-        finally
-        {
-            try
-            {
-                await Task.Run(() => { lock (processing) { } }, CancellationToken.None).ConfigureAwait(false);
+        // Failed joins retain dependent native resources and verified asset handles.
+        await microphone.DisposeAsync().ConfigureAwait(false);
+        await Task.Run(() => { lock (processing) { } }, CancellationToken.None).ConfigureAwait(false);
 #pragma warning disable VSTHRD003 // The owned native-open task runs on the pool and must join even after authority loss.
-                if (opening is not null) { command = await opening.ConfigureAwait(false); }
+        if (opening is not null) { command = await opening.ConfigureAwait(false); }
 #pragma warning restore VSTHRD003
-                if (command is not null)
-                {
-                    command.TranscriptRecognized -= OnTranscript;
-                    command.FinishRecognition(cancel: true);
-                    await command.DisposeAsync().ConfigureAwait(false);
-                }
-            }
-            finally
-            {
-                try
-                {
-                    await Task.Run(() =>
-                    {
-                        lock (processing)
-                        {
-                            try { detector.Dispose(); }
-                            finally { endpoint.Dispose(); }
-                        }
-                    }, CancellationToken.None).ConfigureAwait(false);
-                }
-                finally
-                {
-                    await commandAudio.DisposeAsync().ConfigureAwait(false);
-                    await assets.DisposeAsync().ConfigureAwait(false);
-                }
-            }
+        if (command is not null)
+        {
+            command.TranscriptRecognized -= OnTranscript;
+            command.FinishRecognition(cancel: true);
+            await command.DisposeAsync().ConfigureAwait(false);
         }
+        await Task.Run(() =>
+        {
+            lock (processing)
+            {
+                detector.Dispose();
+                endpoint.Dispose();
+            }
+        }, CancellationToken.None).ConfigureAwait(false);
+        await commandAudio.DisposeAsync().ConfigureAwait(false);
+        await assets.DisposeAsync().ConfigureAwait(false);
         Volatile.Write(ref quiescent, true);
     }
 }

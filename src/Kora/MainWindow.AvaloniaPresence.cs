@@ -14,7 +14,7 @@ public sealed partial class MainWindow
         avaloniaPresence = new(this, presence,
             () => !retiring && !resourcesDisposed && viewModel.CanRevealPrivatePresentation
                 && viewModel.IsPresenceDisplayEnabled,
-            ReportAvaloniaPresenceFailure);
+            ReportAvaloniaPresenceFailure, createBitmapTarget);
         viewModel.PrivacyClosureRequested += OnAvaloniaPrivacyClosure;
     }
 

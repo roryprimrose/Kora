@@ -143,6 +143,52 @@ public sealed partial class MainViewModelTests
             DateTimeOffset.MaxValue, () => HostActivity.BeginRoot(original, HostActivityLayer.Application, HostOperation.Request));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RoutingPrivacyRetirementDuringReleaseSharesTheExactPhysicalJoin(bool delayed)
+    {
+        var f = await RoutingReplyHostAsync();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (delayed) { f.Voice.StopGate = new(TaskCreationOptions.RunContinuationsAsynchronously); }
+        var stops = 0;
+        f.Voice.BeforeStopFailure = () =>
+        {
+            if (Interlocked.Increment(ref stops) != 1) { return; }
+            entered.SetResult();
+            if (!delayed) { PublishVoiceSession(f, WindowsSessionState.Locked); }
+        };
+        f.ViewModel.BindSessionRouting(async (body, origin, admitted) =>
+        {
+            var review = RoutingVoiceReview(body, origin);
+            var reply = f.ViewModel.CreateSessionRoutingVoiceReply(review, review.Candidates, null, admitted)!;
+            var operation = reply.StartAsync();
+            reply.Cancel();
+            await entered.Task;
+            if (delayed)
+            {
+                PublishVoiceSession(f, WindowsSessionState.Locked);
+                f.ViewModel.CanRevealPrivatePresentation.Should().BeFalse();
+                f.ViewModel.PrivacyClosureTask.IsCompleted.Should().BeFalse();
+                operation.IsCompleted.Should().BeFalse();
+                f.Voice.StopGate!.SetResult();
+            }
+            (await operation).Should().BeNull();
+            await reply.DisposeAsync();
+            f.ViewModel.ReleaseSessionRoutingVoiceReply(reply);
+            return null;
+        });
+
+        await f.RunAsync("Explain original routing with forced privacy retirement");
+        await f.ViewModel.PrivacyClosureTask;
+
+        stops.Should().Be(1);
+        f.Voice.IsCaptureQuiescent.Should().BeTrue();
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.Session.LockCalls.Should().Be(0);
+        await f.ViewModel.DisposeAsync();
+    }
+
     private static async Task<Fixture> RoutingReplyHostAsync()
     {
         var f = await ReplyHostAsync();

@@ -3,7 +3,7 @@ using Kora.Application.ViewModels;
 
 namespace Kora;
 
-internal sealed class MaintenanceWindowController : IDisposable
+internal sealed partial class MaintenanceWindowController : IDisposable
 {
     private readonly MainViewModel main;
     private readonly MaintenanceViewModel state;
@@ -17,6 +17,7 @@ internal sealed class MaintenanceWindowController : IDisposable
         this.state = state;
         this.ownsDesktop = ownsDesktop;
         state.BindGate(() => !disposed && ownsDesktop() && main.CanRevealPrivatePresentation && !main.IsProtectedCall);
+        state.BindInstallerReview(RequestInstallerAsync);
         main.MaintenanceRequested += OnRequested;
         main.PrivacyClosureRequested += OnPrivacyClosure;
         main.PropertyChanged += OnMainChanged;
@@ -53,6 +54,7 @@ internal sealed class MaintenanceWindowController : IDisposable
     private void OnPrivacyClosure(object? sender, EventArgs args)
     {
         state.PrivacyClosed();
+        installerWindow?.Close();
         window?.Close();
         window = null;
     }
@@ -66,6 +68,8 @@ internal sealed class MaintenanceWindowController : IDisposable
         main.PropertyChanged -= OnMainChanged;
         state.PropertyChanged -= OnStateChanged;
         state.Dispose();
+        state.BindInstallerReview(null);
+        installerWindow?.Close();
         window?.Close();
         window = null;
     }

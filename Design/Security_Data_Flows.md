@@ -1280,7 +1280,7 @@ The agent has no elevation, installer, updater, or executable-extension activati
 The built-in environment controller is a separate trusted host path for exact catalogue-defined dependency setup, not a model/skill installer capability.
 It may initialise Kora data and offer approved external prerequisites, but cannot alter Kora code or use arbitrary supplied installer paths.
 See [Environment Setup](Environment_Setup.md).
-Application maintenance has a narrow host-owned unsigned-installer exception: original-user check/upgrade tools can check or request review, never approve or execute installation. Saved network consent only permits canonical metadata discovery.
+Application maintenance has a narrow host-owned unsigned-installer exception: original-user actions and the built-in MCP check/upgrade tools can check or request native-reviewed installer startup, never approve their own proposal or execute installation themselves. Saved network consent only permits canonical metadata discovery.
 Separate native review/approval binds the exact newer x64 release, asset ID, byte count and SHA-256; it is invalidated by target/metadata/admission changes ([tools contract](../src/Kora.Core/Maintenance/IApplicationMaintenance.cs), [upgrade owner](../src/Kora.Application/Maintenance/MaintenanceViewModel.Upgrade.cs)).
 The delivered exact typed/activated `maintenance status`, `maintenance review`
 and `maintenance snooze` commands are original-user cached controls, not model
@@ -1297,6 +1297,13 @@ These commands cannot grant/renew network consent, check/refresh, navigate,
 download, install, elevate, activate source or start a runtime/provider.
 Full bounded visual output is preserved without audio/device probes.
 The host verifies metadata before/after download, restricts transfer to the canonical asset API and admitted CDN, leases verified bytes and requests ordinary non-elevated installer startup. It does not replace running application files itself or claim completed installation.
+MCP installation requests are confined to an explicit original local maintenance
+scope. Tool-free, ordinary read-only and hosted turns cannot acquire this authority.
+Version-only arguments cannot choose a path, URL, channel or approval. Exact native
+approval remains separate from the model turn and is revalidated before executable
+startup; cancellation or changed caller, metadata, privacy or capability policy
+cannot become a late successful launch. Setup owns the authenticated running-instance
+shutdown handshake and actual package mutation; the tool reports startup only.
 Unsigned GitHub-origin consistency is not independent publisher authentication, rollback/freeze safety or protected deployment ([transfer](../src/Kora.Application/Maintenance/ReleaseInstallerDownloader.cs), [launcher](../src/Kora.Windows/Maintenance/WindowsReleaseInstallerLauncher.cs)).
 An independently authenticated updater still requires an authenticated metadata trust root, native secure per-release approval and separate acceptance evidence; this explicitly disclosed unsigned path does not claim that guarantee.
 Source-bootstrap installation and precompiled deployment follow the same protected-code boundary; discovering `.git` does not grant update authority.

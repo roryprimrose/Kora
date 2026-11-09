@@ -13,10 +13,55 @@ namespace Kora.Application.UnitTests.Voice;
 public sealed partial class HandsFreeVoiceRecognitionServiceTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DirectHostedRoutingPinsActualNativeCaptureAndNeverConfusesAmbientGeneration(bool retire)
+    {
+        var native = new Activated { InvalidateOnStop = true };
+        await using var voice = Create(native, new());
+        var routing = new Kora.Application.Hosting.SessionRouting.SessionRoutingVoiceRequest(
+            "original", HostRequest.Create(RequestOrigin.LocalUi), () => true, voice,
+            release: HandsFreeVoiceContinuation.CaptureRelease.InvalidatedOnce);
+        routing.Capture.Should().BeSameAs(native);
+        routing.BeginHandover().Should().BeTrue();
+        await routing.OpenAsync(Admission.Microphone, ["1"], () => true, TestContext.Current.CancellationToken);
+        routing.Acknowledge(native.CaptureGeneration);
+        var foreign = new RoutingCaptureRelease(native, HandsFreeVoiceContinuation.CaptureRelease.InvalidatedOnce);
+        FluentActions.Invoking(() => voice.AttachRoutingCapture(foreign)).Should().Throw<InvalidOperationException>();
+        FluentActions.Invoking(() => voice.DetachRoutingCapture(foreign)).Should().Throw<InvalidOperationException>();
+        FluentActions.Invoking(() => voice.BindRoutingCaptureRelease(HandsFreeVoiceContinuation.CaptureRelease.Preserved))
+            .Should().Throw<InvalidOperationException>();
+        await FluentActions.Awaiting(() => voice.BeginReplyAsync(Admission.Microphone, ["1"], () => true,
+            TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+        await FluentActions.Awaiting(() => voice.BeginPushToTalkAsync(Admission.Microphone, ["1"],
+            cancellationToken: TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+        await FluentActions.Awaiting(() => voice.StartHandsFreeAsync(cancellationToken: TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<InvalidOperationException>();
+        if (retire)
+        {
+            routing.InvalidateHostCapture(voice);
+            await routing.StopHostCaptureAsync(voice);
+        }
+        await routing.ReleaseAsync(native.CaptureGeneration);
+        routing.IsCurrent.Should().Be(!retire);
+        native.IsCaptureQuiescent.Should().BeTrue();
+        if (!retire)
+        {
+            routing.BeginHandover().Should().BeTrue();
+            await routing.OpenAsync(Admission.Microphone, ["Cancel"], () => true, TestContext.Current.CancellationToken);
+            routing.Acknowledge(native.CaptureGeneration);
+            await routing.ReleaseAsync(native.CaptureGeneration);
+            routing.IsCurrent.Should().BeTrue();
+        }
+        routing.ReleaseOwner();
+    }
+
+    [Theory]
     [InlineData("current")]
     [InlineData("admission")]
     [InlineData("generation")]
     [InlineData("stop")]
+    [InlineData("host-privacy")]
     [InlineData("incrementing-stop")]
     [InlineData("lock-admission")]
     [InlineData("competing-handover")]
@@ -91,6 +136,11 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
                 if (change is "admission") { observation = Admission with { ComposerRevision = 2 }; }
                 if (change is "generation") { native.InvalidateCapture(); }
                 if (change is "stop") { await voice.StopAsync(TestContext.Current.CancellationToken); }
+                if (change is "host-privacy")
+                {
+                    routing.InvalidateHostCapture(voice);
+                    await routing.StopHostCaptureAsync(voice);
+                }
                 if (change is not ("current" or "incrementing-stop")) { continuation.IsAdmitted.Should().BeFalse(); }
                 await routing.ReleaseAsync(native.CaptureGeneration);
                 continuation.IsCurrent.Should().Be(change is "current" or "incrementing-stop");

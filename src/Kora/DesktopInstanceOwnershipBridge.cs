@@ -8,6 +8,8 @@ public sealed class DesktopInstanceOwnershipBridge : IInstanceHostCallbacks
     private Func<CancellationToken, Task>? activate;
     private Func<CancellationToken, Task<bool>>? quiesce;
     private Func<CancellationToken, Task>? abort;
+    private Func<CancellationToken, Task<bool>>? review;
+    private bool handoffActive;
     private bool quiescenceActive;
     private bool abortFailed;
     private long admissionRevision;
@@ -39,7 +41,8 @@ public sealed class DesktopInstanceOwnershipBridge : IInstanceHostCallbacks
     public void BindCallbacks(
         Func<CancellationToken, Task> activateExisting,
         Func<CancellationToken, Task<bool>> quiesceForHandoff,
-        Func<CancellationToken, Task>? abortHandoff = null)
+        Func<CancellationToken, Task>? abortHandoff = null,
+        Func<CancellationToken, Task<bool>>? reviewHandoff = null)
     {
         ArgumentNullException.ThrowIfNull(activateExisting);
         ArgumentNullException.ThrowIfNull(quiesceForHandoff);
@@ -48,6 +51,7 @@ public sealed class DesktopInstanceOwnershipBridge : IInstanceHostCallbacks
             activate = activateExisting;
             quiesce = quiesceForHandoff;
             abort = abortHandoff;
+            review = reviewHandoff;
             admissionRevision = checked(admissionRevision + 1);
         }
     }
@@ -59,6 +63,7 @@ public sealed class DesktopInstanceOwnershipBridge : IInstanceHostCallbacks
             activate = null;
             quiesce = null;
             abort = null;
+            review = null;
             admissionRevision = checked(admissionRevision + 1);
         }
     }
@@ -91,23 +96,40 @@ public sealed class DesktopInstanceOwnershipBridge : IInstanceHostCallbacks
     {
         Func<CancellationToken, Task<bool>>? callback;
         Func<CancellationToken, Task>? abortCallback;
+        Func<CancellationToken, Task<bool>>? reviewCallback;
+        long bindingRevision;
         lock (sync)
         {
             // Never start irreversible preparation without a reversible admission-only abort.
-            if (quiescenceActive || abortFailed || quiesce is null || abort is null)
+            if (handoffActive || abortFailed || quiesce is null || abort is null)
             {
                 return false;
             }
 
             callback = quiesce;
             abortCallback = abort;
-            quiescenceActive = true;
-            admissionRevision = checked(admissionRevision + 1);
+            reviewCallback = review;
+            bindingRevision = admissionRevision;
+            handoffActive = true;
         }
 
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (reviewCallback is not null && !await reviewCallback(cancellationToken).ConfigureAwait(false))
+            {
+                await TryAbortPreparationAsync(abortCallback).ConfigureAwait(false);
+                return false;
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            lock (sync)
+            {
+                if (abortFailed || admissionRevision != bindingRevision || !ReferenceEquals(quiesce, callback)
+                    || !ReferenceEquals(abort, abortCallback) || !ReferenceEquals(review, reviewCallback))
+                { throw new InvalidOperationException("The desktop handoff binding changed during review."); }
+                quiescenceActive = true;
+                admissionRevision = checked(admissionRevision + 1);
+            }
             var prepared = await callback(cancellationToken).ConfigureAwait(false);
             if (!prepared)
             {
@@ -127,6 +149,7 @@ public sealed class DesktopInstanceOwnershipBridge : IInstanceHostCallbacks
             lock (sync)
             {
                 quiescenceActive = false;
+                handoffActive = false;
                 admissionRevision = checked(admissionRevision + 1);
             }
         }

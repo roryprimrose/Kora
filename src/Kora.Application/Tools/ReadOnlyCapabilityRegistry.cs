@@ -27,6 +27,10 @@ public sealed class ReadOnlyCapabilityRegistry(
     internal bool IsCurrentCaller(CapabilityCaller caller) =>
         IsAdmitted(caller) && ReferenceEquals(HostActivity.Current, caller.Activity);
 
+    internal bool IsLiveCaller(CapabilityCaller caller) => caller.RegistryId == registryId
+        && Enum.IsDefined(caller.Lane) && host.IsCurrentHost
+        && caller.Activity.Outcome == HostOperationOutcome.Unknown && caller.Activity.Activity?.IsStopped == false;
+
     public CapabilityCaller Admit(CapabilityLane lane)
     {
         if (!Enum.IsDefined(lane) || !host.IsCurrentHost)

@@ -481,6 +481,13 @@ delivered controls without dropping command, placement or guard assertions.
 For incomplete native operations, include reported status and admission flags in
 assertion context, not original source or response content.
 
+Owned-definition fixtures create originals with the existing
+`WindowsOwnedInstructionStoreTests.WriteOwnedFile` helper when current-user
+ownership is part of the contract. Generic file writes can inherit an elevated
+token's default owner instead; a restricted parent directory alone does not
+prove the file owner. Keep replacement originals explicitly owned too, and
+retain the production reader's exact-owner rejection.
+
 The [desktop bootstrap integration tests](tests/Kora.Windows.IntegrationTests/DesktopBootstrapIntegrationTests.cs)
 validate production service registrations and run the actual `App` framework
 binding and main-window startup on the headless dispatcher. Only platform ports

@@ -126,9 +126,15 @@ primary window, not another top-level window:
   automatic-detail preference. Background completion may indicate available content
   but never replaces the item being read, selects a session or steals focus.
 - Keep the conversation/message pane and its composer visible beside Details,
-  separated by a pointer- and keyboard-resizable divider. Enforce a minimum expanded
-  window width and minimum pane widths so neither collapses into an unreadable strip.
-  Do not replace conversation with a Details tab or stack the panes on narrow windows.
+  separated by a pointer- and keyboard-resizable divider when the panes fit.
+  The expanded shell permits a 320-by-300 minimum work area. Below the
+  1000-unit session-view width, session navigation collapses and Details takes
+  the main reading area rather than squeezing two panes into unreadable strips.
+  **Chat** hides and releases the private Details reader while preserving the
+  memory-only composer; **Show details** explicitly re-admits the exact source.
+  **Sessions** opens the bounded navigation page and its **Chat** control returns
+  without selecting, reading or submitting. Hiding navigation retires captured
+  positional-selection callbacks, including after an away-and-back resize.
   Native **Expand details** allocates surplus width to Details while keeping the
   conversation at its existing minimum. **Restore split** restores the prior
   column lengths; the divider stays usable in either state. Hide, replacement
@@ -136,9 +142,10 @@ primary window, not another top-level window:
   the ordinary split. Neither action rereads content, recreates the reader,
   changes selection/Find or resizes the window. Both remain within those minimums;
   **Back to conversation** focuses the originating message without hiding either pane.
-  If the available work area cannot fit the minimum layout, report the limitation
-  explicitly rather than placing controls off screen or silently using a different
-  layout. The session and item remain named.
+  Below the shell minimum, report the limitation explicitly and retain compact
+  recovery controls. Responsive layout does not change session selection,
+  source authority, retained data, input buffers or a saved preference.
+  The session and item remain named.
 - Provide native **Show details** when hidden and **Hide details** when visible.
   Hide returns space to the persistent conversation pane and focus to the originating
   message link or Show control. It does not clear unsent input or delete result links.
@@ -176,6 +183,55 @@ primary window, not another top-level window:
   hidden browser views must stop renderer-owned activity or be disposed, not continue
   invisible browsing. Privacy, ownership/source loss, deletion and lock revoke content
   and fence delayed publication under the existing viewer contract.
+
+### Expanded captions and two-mode placement
+
+The existing response/session shell now exposes an expanded-only caption row:
+Collapse, Minimize, Maximize/Restore and Close. The standard three caption
+controls use Avalonia native decoration roles, including maximize hit testing,
+and owner-drawn flat glyphs. Collapse has a separate user-control role and uses
+the same compact transition as existing navigation. Native Snap menu behavior
+still requires installed Windows evidence; headless role assertions do not
+establish that the OS displayed the menu.
+
+Expanded mode participates in the taskbar. Minimize removes private presenter
+eligibility and releases view-owned Details/capture/speech, not conversation
+work or unsent input. Explicit show restores the previous non-minimized state.
+Close retains the existing last-view unsent-input protection and tray lifetime.
+Unhandled Escape and Dismiss now hide presentation only; explicit task,
+question and grant cancellation/rejection controls retain their own authority.
+
+The shared atomic device-local preference store saves independently observed
+compact/expanded normal rectangles, render scale and expanded maximized state.
+Minimized or maximized client dimensions do not replace normal restore bounds.
+Restoration revalidates work-area fit without reading session bodies, restarting
+capture, replaying work or restoring approval. Legacy X/Y position remains the
+fallback when no new placement is saved. Malformed or unavailable saved state
+is reported and is not overwritten by a default.
+
+The production desktop now hosts Settings, embedded Help, exact Permissions,
+Audit/Evidence, unified Customizations and Work/Attention as native controls in the same expanded shell. Each view
+retains its own source/transaction owner. Native view lifetimes distinguish
+visible presentation from activation and expire on hide, detach or minimize;
+returning does not revive a captured review. Evidence and Permissions release
+private results and cancel their owned reads without changing retained sources
+or grants. Fresh Search/Refresh is explicit.
+
+The supporting reader has at most eight exact document descriptors, with only
+the selected conversation's tabs shown. Inactive readers release their bodies;
+tab selection revalidates the original source rather than selecting a newer result.
+Conversation, assistant, observation, answer-context, activity, bounded evidence,
+embedded guide and still-current response sources use their authoritative
+resolvers. A replaced response cannot be reopened as its replacement. Descriptors
+are memory-only and private closure clears labels, references and reading positions.
+Work/Attention withdraws its private overview and pending Stop All presentation
+on hide/detach/minimize; returning requires explicit Refresh and never renews a
+review or confirmation. Its narrow layout stacks the bounded reading panes.
+
+Standalone adapters remain for direct compatibility tests. Specialist setup,
+account, source and question/review surfaces, full session management,
+dedicated definition editors and the broader prompt operation redesign are not yet fully
+migrated. This is not a claim that the complete consolidation is delivered.
 
 ### Explicit private workspace recovery
 
@@ -363,7 +419,7 @@ This surface is metadata observation, not original-file access, retained-byte in
 
 ### Delivered Bounded Passive All Work / Attention Overview - 2026-10-11
 
-The [All work window](../src/Kora/AllWorkWindow.axaml) retains lifecycle, name/exact-session navigation, observed task state, Needs answer, loaded-page ordering and Find in displayed metadata. It observes bounded independent per-session snapshots; omissions, changed/unavailable sources and output bounds remain explicit, not an all-clear or atomic global inventory.
+The [Work/Attention view](../src/Kora/AllWorkView.axaml) retains lifecycle, name/exact-session navigation, observed task state, Needs answer, loaded-page ordering and Find in displayed metadata. It observes bounded independent per-session snapshots; omissions, changed/unavailable sources and output bounds remain explicit, not an all-clear or atomic global inventory.
 
 Raw retained task/request correlation queries, authority/queue/count ranges and technical availability/content query widgets are removed. Source identity and status remain visible where useful, and [query service](../src/Kora.Application/Hosting/SessionWorkspaceService.WorkOverview.cs) validation remains mandatory even for excluded rows.
 

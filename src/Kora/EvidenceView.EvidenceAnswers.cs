@@ -8,7 +8,7 @@ using Kora.Controls;
 
 namespace Kora;
 
-internal sealed partial class EvidenceWindow
+internal sealed partial class EvidenceView
 {
     private void BindEvidenceAnswers(EvidenceViewModel model)
     {

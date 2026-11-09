@@ -79,9 +79,9 @@ internal sealed partial class SessionsViewModel
     public bool CanNextConversation => CanReadConversation && ConversationReadingAvailable && conversationPage?.Next is not null;
     public bool CanOpenConversationDetails => CanReadConversation && openConversationDetail is not null;
     internal bool CanPresentDetails => !closed && access.CanInspect;
-    public bool CanShowDetails => CanRead && selected is not null
-        && (CanOpenConversationDetails && ObservedConversationMessages.Any() || CanOpenHistoryDetail || HasEvidenceDetails);
-    public string DetailsAvailability => CanShowDetails ? "Open an exact result from this session's observed messages or selected activity."
+    public bool CanShowDetails => CanPresentDetails && (hasDocumentTabs || CanRead && selected is not null
+        && (CanOpenConversationDetails && ObservedConversationMessages.Any() || CanOpenHistoryDetail || HasEvidenceDetails));
+    public string DetailsAvailability => CanShowDetails ? "Select an exact document tab or open a result from this session's observed messages or selected activity."
         : "No available details on the selected session's observed page. Select a session and explicitly read conversation or activity.";
     public ConversationMessage? DetailsOfferMessage => ConversationReadingAvailable
         && completedDetailPublication is { Dismissed: false, Message: { AssistantResponse: { } response } message } publication
@@ -95,7 +95,8 @@ internal sealed partial class SessionsViewModel
         NotifyConversation();
     }
     public Task OpenConversationDetailAsync(ConversationMessage message, bool assistant = false, Guid? observationId = null,
-        Func<bool>? detailAdmission = null, bool submittedContext = false) => RunConversationAsync(async (target, live) =>
+        Func<bool>? detailAdmission = null, bool submittedContext = false,
+        Kora.Core.Presentation.DetailContentReference? expectedReference = null) => RunConversationAsync(async (target, live) =>
     {
         var offered = ReferenceEquals(message, DetailsOfferMessage);
         if (!offered && !ObservedConversationMessages.Concat(ConversationSearchMessages).Any(record => ReferenceEquals(record, message)))
@@ -109,6 +110,8 @@ internal sealed partial class SessionsViewModel
         if (searchMatch) { conversationSearchDetailTarget = target; }
         var content = await conversation!.ReadDetailAsync(target, message, DetailLive, lifetime.Token,
             assistant, observationId, submittedContext);
+        if (expectedReference is { } reference && content.Reference != reference)
+        { throw new InvalidDataException("The exact document tab revision is unavailable; no replacement was opened."); }
         if (!DetailLive()) { throw new OperationCanceledException("The original conversation selection or search changed."); }
         var beginValidation = HostActivity.CaptureContinuation(HostActivityLayer.Desktop, HostOperation.Storage);
         async Task<Kora.Core.Presentation.AdmittedDetailContent> Resolve(CancellationToken token)

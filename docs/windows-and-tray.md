@@ -158,6 +158,55 @@ question windows and **Return to current question** remain independent.
 **Session management** opens the existing advanced workspace for additional search,
 providers, retention, evidence and lifecycle operations.
 
+### Expanded window controls and remembered placement
+
+The expanded title bar has **Collapse**, **Minimize**, **Maximize/Restore** and
+**Close**, in that order. Collapse returns to compact mode; Restore is the
+standard Windows window-size operation, not Collapse. Close uses the existing
+unsent-message protection and leaves Kora running in the tray.
+
+Compact and expanded position/size are remembered separately across hiding,
+minimizing, reopening and restart. A minimized/maximized window keeps its normal
+restore rectangle. If a display or work area changes, placement is fitted to the
+available area. Saved geometry never restores a question approval, sends input
+or enables capture. A saved-placement error is reported instead of being treated
+as a successful default.
+
+**Dismiss** and otherwise unhandled **Escape** hide the response without
+cancelling the task, rejecting an operation or discarding unsent input. Use the
+explicit cancellation/rejection controls for those operations. Focused controls
+retain their own Escape behavior, such as closing a command chooser.
+
+### Narrow conversation and Details layout
+
+In a narrow expanded window, **Sessions** opens navigation without selecting a
+conversation. Its **Chat** control returns to the conversation.
+An explicitly opened Details reader uses the main reading area rather than
+placing two unreadable panes side by side. **Chat** releases Details and returns
+to the same unsent composer; **Show details** explicitly reopens an eligible
+source. Resizing and switching views never submit text or read another session.
+
+The expanded activity rail provides **Chat**, **Work**, **Settings**, **Help**,
+**Permissions**, **Customizations**, and **Audit and diagnostics**. The normal Settings, Help,
+permission inventory, evidence, shared customization editor and Work overview routes use this same window. The existing
+specialist setup/account and native question/review workflows still have
+separate surfaces; dedicated editors and full session management are not yet fully consolidated.
+
+Details supports up to eight exact document tabs. Only the selected conversation's
+tabs are shown. Selecting a tab revalidates its original source; hidden bodies
+are released, not restored from a cache. Close a tab to release its descriptor.
+Embedded guide and current-response tabs stay distinct from conversation authority.
+A replaced response is unavailable rather than being silently replaced with the latest one.
+Tabs and reading positions are not saved to disk and privacy closure clears them.
+
+Hiding or leaving Permissions/Evidence clears private inspection/results and
+retires confirmations. Return and explicitly Refresh/Search for a new page;
+view navigation never revokes grants, deletes audit or renews authority.
+Work likewise clears its private overview and retires the original Stop All
+presentation when hidden, minimized or left. Reopening requires explicit Refresh
+and a new review; it never repeats a stop action.
+This is not the complete consolidated workbench.
+
 Untargeted requests use [reviewed local relatedness](session-routing.md), not
 automatic destination submission. The session list is not supplied to a model by
 these navigation commands.

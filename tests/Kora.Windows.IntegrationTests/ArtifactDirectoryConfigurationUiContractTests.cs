@@ -16,7 +16,7 @@ public sealed class ArtifactDirectoryConfigurationUiContractTests
         }
         var root = directory?.FullName
             ?? throw new InvalidOperationException("The repository source root is unavailable.");
-        var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml"))
+        var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsView.axaml"))
             .Descendants()
             .ToArray();
 

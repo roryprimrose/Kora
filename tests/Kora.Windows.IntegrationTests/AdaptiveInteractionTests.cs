@@ -237,6 +237,7 @@ public sealed partial class AdaptiveInteractionTests
         private DetailWindowController? details;
         internal ResponseWindow? Window { get; private set; }
         internal SessionsPresentationOwner? Owner { get; private set; }
+        internal DetailWindowController Details => details!;
         internal SessionsViewModel Model => (SessionsViewModel)Window!.SessionView.DataContext!;
         internal SessionWorkspaceEntry Conversation { get; private set; } = null!;
         internal SessionWorkspaceEntry? Done { get; private set; }

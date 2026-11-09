@@ -1,0 +1,394 @@
+﻿using Avalonia;
+using Avalonia.Automation;
+using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
+using Avalonia.Threading;
+
+using Kora.Application.ViewModels;
+using Kora.Application.Definitions;
+using Kora.Core.Customizations;
+
+namespace Kora;
+
+internal sealed partial class CustomizationView : UserControl, IDisposable
+{
+    private readonly Window owner;
+    private readonly NativeViewLifetime nativeLifetime;
+    private bool disposed;
+    internal Window Owner => owner;
+    internal bool IsNativePresented => nativeLifetime.IsPresented;
+    internal bool IsActive => nativeLifetime.IsActive;
+    internal event EventHandler? Activated;
+    internal event EventHandler? Closed;
+    internal event EventHandler<WindowClosingEventArgs>? Closing;
+    private static readonly (CustomizationKind Kind, string Label)[] kindOptions =
+    [
+        (CustomizationKind.Instruction, "Instructions"),
+        (CustomizationKind.Skill, "Skills"),
+        (CustomizationKind.Agent, "Agents"),
+        (CustomizationKind.McpServer, "MCP Servers"),
+        (CustomizationKind.Prompt, "Prompts"),
+    ];
+    internal readonly ListBox Kinds = new() { ItemsSource = kindOptions.Select(option => option.Label).ToArray(), SelectedIndex = 0 };
+    internal readonly TextBox Search = new() { PlaceholderText = "Name, source or disabled state" };
+    internal readonly Button ClearFilter = new() { Content = "Clear", IsEnabled = false };
+    internal readonly TextBlock FilterSummary = new();
+    internal readonly ComboBox Destination = new() { ItemsSource = new[] { CustomizationScope.Kora, CustomizationScope.User }, SelectedIndex = 0, MinWidth = 100 };
+    internal readonly TextBox NewName = new() { PlaceholderText = "new-artifact-id", MinWidth = 150 };
+    internal readonly ListBox Files = new() { MinHeight = 64, MaxHeight = 160 };
+    internal readonly TextBox FileName = new() { PlaceholderText = @"references\notes.md", MinWidth = 180 };
+    internal readonly TextBox Editor = new()
+    {
+        AcceptsReturn = true,
+        TextWrapping = TextWrapping.NoWrap,
+        FontFamily = new("Consolas"),
+        HorizontalAlignment = HorizontalAlignment.Stretch,
+        VerticalAlignment = VerticalAlignment.Stretch,
+    };
+    internal readonly TextBox Request = new() { PlaceholderText = "Describe or discuss a change with Kora...", AcceptsReturn = true, MinHeight = 64, MaxHeight = 120 };
+    internal readonly TextBox RequiredPromptInputs = new()
+    {
+        PlaceholderText = "Required literal names, e.g. topic,audience; empty means none",
+        IsVisible = false,
+    };
+    internal readonly TextBlock Status = new() { TextWrapping = TextWrapping.Wrap };
+    internal readonly TextBlock Details = new() { TextWrapping = TextWrapping.Wrap };
+    internal readonly TextBlock VoiceContext = new() { TextWrapping = TextWrapping.Wrap };
+    internal readonly Button PushToTalkButton = new() { Content = "Hold to speak", Name = "EditorPushToTalkButton" };
+    internal event Action? PresentationLost;
+    private readonly PushToTalkButtonBinding pushToTalk;
+    private readonly StackPanel catalogue = new() { Spacing = 8 };
+    private readonly Dictionary<string, Button> actions = new(StringComparer.Ordinal);
+    private Window? review;
+    private bool openingReview;
+    internal CustomizationSource? SelectedSource { get; private set; }
+    internal CustomizationKind Kind
+    {
+        get => kindOptions[Math.Max(0, Kinds.SelectedIndex)].Kind;
+        set => Kinds.SelectedIndex = Array.FindIndex(kindOptions, option => option.Kind == value);
+    }
+    internal CustomizationScope Scope => Destination.SelectedItem is CustomizationScope scope ? scope : CustomizationScope.Kora;
+
+    internal CustomizationView(Action<string> run, MainViewModel main, Window owner)
+    {
+        this.owner = owner;
+        nativeLifetime = new(this, owner, () => main.CanRevealPrivatePresentation);
+        nativeLifetime.PresentationChanged += OnNativePresentationChanged;
+        nativeLifetime.ActivationChanged += OnNativeActivationChanged;
+        owner.Closing += OnOwnerClosing;
+        owner.Closed += OnOwnerClosed;
+        var root = new Grid { ColumnDefinitions = new("150,320,*"), Margin = new(16), ColumnSpacing = 16 };
+        root.Children.Add(Kinds);
+        Kinds.SelectionChanged += (_, _) =>
+        {
+            Destination.IsEnabled = Kind != CustomizationKind.McpServer;
+            if (Kind == CustomizationKind.McpServer) { Destination.SelectedItem = CustomizationScope.Kora; }
+            run("Filter");
+        };
+        var browse = new DockPanel();
+        var browseTop = new StackPanel { Spacing = 8 };
+        browseTop.Children.Add(new TextBlock { Text = "Customizations", FontSize = 22, FontWeight = FontWeight.SemiBold });
+        var filterLabel = new TextBlock { Text = "Filter artifacts" };
+        browseTop.Children.Add(filterLabel);
+        var filter = new DockPanel { LastChildFill = true };
+        ClearFilter.Margin = new(8, 0, 0, 0);
+        DockPanel.SetDock(ClearFilter, Dock.Right);
+        filter.Children.Add(ClearFilter);
+        filter.Children.Add(Search);
+        browseTop.Children.Add(filter);
+        browseTop.Children.Add(FilterSummary);
+        var add = new WrapPanel();
+        add.Children.Add(Destination); add.Children.Add(NewName);
+        AddButton(add, "Add", "Create", run);
+        AddButton(add, "Refresh", "Refresh", run);
+        browseTop.Children.Add(add);
+        DockPanel.SetDock(browseTop, Dock.Top); browse.Children.Add(browseTop);
+        var catalogues = new StackPanel { Spacing = 8 };
+        catalogues.Children.Add(catalogue);
+        BindCapabilityMetadata(run, browseTop, catalogues);
+        browse.Children.Add(new ScrollViewer { Content = catalogues });
+        Grid.SetColumn(browse, 1); root.Children.Add(browse);
+
+        var detail = new DockPanel();
+        var header = new StackPanel { Spacing = 8 };
+        header.Children.Add(Details);
+        header.Children.Add(VoiceContext);
+        header.Children.Add(PushToTalkButton);
+        pushToTalk = new(owner, PushToTalkButton, main);
+        pushToTalk.SetAvailable(false);
+        AutomationProperties.SetName(PushToTalkButton, "Speak to the selected artifact; hold while speaking");
+        ToolTip.SetTip(PushToTalkButton, "Hold to speak to this artifact. Release to review local interpretation; nothing is saved or enabled.");
+        var sourceActions = new WrapPanel();
+        foreach (var action in new[] { "Review original registration", "Withdraw original registration", "Compare external",
+            "Review and save", "Reload", "Create Kora copy", "Create Kora adaptation", "Disable", "Enable", "Review recovery", "Delete owned definition" })
+        { AddButton(sourceActions, action, action, run); }
+        header.Children.Add(sourceActions); header.Children.Add(Files); header.Children.Add(McpFields);
+        var components = new WrapPanel();
+        components.Children.Add(FileName);
+        foreach (var action in new[] { "Add file", "Rename file", "Remove file" }) { AddButton(components, action, action, run); }
+        header.Children.Add(components);
+        DockPanel.SetDock(header, Dock.Top); detail.Children.Add(header);
+        var bottom = new StackPanel { Spacing = 8, Margin = new(0, 8, 0, 0) };
+        bottom.Children.Add(RequiredPromptInputs);
+        bottom.Children.Add(Request);
+        var authoring = new WrapPanel();
+        AddButton(authoring, "Ask Kora (review local disclosure)", "Refine", run);
+        AddButton(authoring, "Cancel prompt authoring", "Cancel prompt authoring", run);
+        bottom.Children.Add(authoring); bottom.Children.Add(Status);
+        DockPanel.SetDock(bottom, Dock.Bottom); detail.Children.Add(bottom);
+        detail.Children.Add(Editor);
+        Grid.SetColumn(detail, 2); root.Children.Add(detail);
+        Content = root;
+        Search.PropertyChanged += (_, change) =>
+        {
+            if (change.Property != TextBox.TextProperty) { return; }
+            ClearFilter.IsEnabled = !string.IsNullOrEmpty(Search.Text);
+            run("Filter");
+        };
+        ClearFilter.Click += (_, _) => { Search.Text = string.Empty; Search.Focus(); };
+        AutomationProperties.SetName(Kinds, "Customization type");
+        AutomationProperties.SetLabeledBy(Search, filterLabel);
+        AutomationProperties.SetName(Search, "Filter artifacts by name, source or disabled state; no content reads");
+        AutomationProperties.SetName(ClearFilter, "Clear artifact filter");
+        AutomationProperties.SetName(FilterSummary, "Matching artifact count");
+        AutomationProperties.SetName(Files, "Selected artifact components");
+        AutomationProperties.SetName(Editor, "Selected artifact source; untrusted definition content");
+        AutomationProperties.SetName(Request, "Definition authoring request");
+        AutomationProperties.SetName(RequiredPromptInputs, "Host-declared required prompt literals, comma-separated in first-use order, at most eight; no defaults or expressions");
+        AutomationProperties.SetName(NewName, "New artifact ID");
+        AutomationProperties.SetName(Destination, "New artifact destination");
+        AutomationProperties.SetName(Status, "Customization operation status and recovery");
+        BindMcpFields(run);
+        AutomationProperties.SetLiveSetting(Status, AutomationLiveSetting.Polite);
+        SetSource(null, false);
+    }
+
+    private void OnNativePresentationChanged(object? sender, EventArgs args)
+    {
+        if (!nativeLifetime.IsPresented)
+        {
+            CancelReview();
+            pushToTalk.Release();
+            PresentationLost?.Invoke();
+        }
+    }
+    private void OnNativeActivationChanged(object? sender, EventArgs args)
+    {
+        if (nativeLifetime.IsActive) { Activated?.Invoke(this, EventArgs.Empty); }
+        else if (!openingReview && review?.IsActive != true) { PresentationLost?.Invoke(); }
+    }
+    private void OnOwnerClosing(object? sender, WindowClosingEventArgs args) => Closing?.Invoke(this, args);
+    private void OnOwnerClosed(object? sender, EventArgs args) => Dispose();
+
+    public void Dispose()
+    {
+        if (disposed) { return; }
+        disposed = true;
+        nativeLifetime.PresentationChanged -= OnNativePresentationChanged;
+        nativeLifetime.ActivationChanged -= OnNativeActivationChanged;
+        nativeLifetime.Dispose();
+        owner.Closing -= OnOwnerClosing;
+        owner.Closed -= OnOwnerClosed;
+        pushToTalk.Dispose();
+        ClearPrivateText();
+        Closed?.Invoke(this, EventArgs.Empty);
+    }
+
+    internal void SetVoiceCaptureAvailable(bool value) => pushToTalk.SetAvailable(value);
+
+    private void AddButton(Panel panel, string caption, string action, Action<string> run)
+    {
+        var button = new Button { Content = caption, Margin = new(2) };
+        actions.Add(action, button);
+        button.Click += (_, _) => run(action);
+        panel.Children.Add(button);
+    }
+
+    internal void SetSource(CustomizationSource? source, bool recovery, bool originalRegistered = true)
+    {
+        var original = source is { Kind: CustomizationKind.Instruction, Scope: CustomizationScope.User };
+        var mcp = source?.Kind == CustomizationKind.McpServer;
+        var writable = source is { IsReadOnly: false } && (!original || originalRegistered)
+            && (!mcp || source.Scope == CustomizationScope.Kora);
+        actions["Review original registration"].IsEnabled = original;
+        actions["Withdraw original registration"].IsEnabled = original && originalRegistered;
+        actions["Compare external"].IsEnabled = original && originalRegistered;
+        var components = writable && source?.Kind == CustomizationKind.Skill && !recovery;
+        Editor.IsReadOnly = !writable || recovery;
+        actions["Review and save"].IsEnabled = writable;
+        actions["Reload"].IsEnabled = writable;
+        actions["Create Kora copy"].IsEnabled = source is not null && !recovery && !mcp;
+        actions["Create Kora adaptation"].IsEnabled = source?.Kind == CustomizationKind.Skill && !recovery;
+        actions["Disable"].IsEnabled = source is not null;
+        actions["Enable"].IsEnabled = source is not null && !recovery;
+        actions["Review recovery"].IsEnabled = writable && !mcp;
+        actions["Delete owned definition"].IsEnabled = source is not null && CustomizationDeletion.Supports(source) && !recovery;
+        actions["Add file"].IsEnabled = components;
+        actions["Rename file"].IsEnabled = components && !string.Equals(Files.SelectedItem as string, source?.PrimaryFile, StringComparison.Ordinal);
+        actions["Remove file"].IsEnabled = actions["Rename file"].IsEnabled;
+        actions["Refine"].IsEnabled = writable && !recovery && !mcp;
+        var prompt = source?.Kind == CustomizationKind.Prompt;
+        RequiredPromptInputs.IsVisible = prompt;
+        RequiredPromptInputs.IsEnabled = prompt && writable && !recovery && source?.Scope == CustomizationScope.Kora;
+        actions["Cancel prompt authoring"].IsVisible = prompt;
+        if (prompt && source?.Scope != CustomizationScope.Kora) { actions["Refine"].IsEnabled = false; }
+        FileName.IsEnabled = components;
+        Request.IsEnabled = writable && !recovery && !mcp;
+        Editor.IsVisible = !mcp;
+        Files.IsVisible = !mcp;
+        McpFields.IsVisible = mcp && writable;
+        McpFields.IsEnabled = writable && !recovery;
+    }
+
+    internal void ShowSources(IReadOnlyList<CustomizationSource> sources, Func<CustomizationSource, bool> disabled, Action<CustomizationSource> select)
+    {
+        if (capabilityPrivacyClosed) { return; }
+        catalogue.Children.Clear();
+        var filter = Search.Text?.Trim() ?? string.Empty;
+        var matchingCount = 0;
+        var totalCount = 0;
+        foreach (var scope in Enum.GetValues<CustomizationScope>())
+        {
+            var scopeLabel = scope == CustomizationScope.BuiltIn ? "Built-in" : scope.ToString();
+            var candidates = sources.Where(source => source.Kind == Kind && source.Scope == scope).ToArray();
+            totalCount += candidates.Length;
+            var matches = candidates.Select(source => (Source: source,
+                Label: source.Name + (disabled(source) ? " (Disabled)" : string.Empty)))
+                .Where(item => CustomizationMetadataMatch.Matches(filter, item.Label, item.Source.Location, scopeLabel)).ToArray();
+            matchingCount += matches.Length;
+            var rows = new StackPanel { Spacing = 4 };
+            foreach (var (source, labelText) in matches)
+            {
+                var label = new StackPanel();
+                label.Children.Add(new TextBlock { Text = labelText, TextWrapping = TextWrapping.Wrap });
+                label.Children.Add(new TextBlock { Text = source.Location, FontSize = 11, Opacity = 0.7, TextWrapping = TextWrapping.Wrap });
+                var button = new Button { Content = label, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left };
+                button.Click += (_, _) => { SelectedSource = source; select(source); };
+                rows.Children.Add(button);
+            }
+            if (matches.Length == 0) { rows.Children.Add(new TextBlock { Text = "No matching artifacts", Opacity = 0.6 }); }
+            catalogue.Children.Add(new Expander
+            {
+                Header = scopeLabel + " (" + matches.Length + ")",
+                IsExpanded = true,
+                Content = rows,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+            });
+        }
+        RenderCapabilityMetadata();
+        FilterSummary.Text = matchingCount + " of " + totalCount + " artifacts";
+        if (capabilitySnapshotActive && Kind == CustomizationKind.McpServer)
+        { FilterSummary.Text += "; " + capabilityRows.CountText; }
+    }
+
+    internal async Task<string> Review(string title, string text, CancellationToken token, params string[] choices)
+        => await ReviewCore(title, text, null, token, choices);
+
+    internal async Task<CustomizationVoiceChoice> ReviewClarification(string text,
+        CustomizationVoiceClarification question, CancellationToken token)
+    {
+        await ReviewCore("Choose voice target", text, question, token,
+            CustomizationVoiceClarification.Spec.Options.Select(option => option.Label).ToArray());
+#pragma warning disable VSTHRD003 // Join this presented question's already completed response and native capture release.
+        return await question.Completion;
+#pragma warning restore VSTHRD003
+    }
+
+    private async Task<string> ReviewCore(string title, string text, CustomizationVoiceClarification? question,
+        CancellationToken token, params string[] choices)
+    {
+        if (!Dispatcher.UIThread.CheckAccess())
+        { return await Dispatcher.UIThread.InvokeAsync(() => ReviewCore(title, text, question, token, choices)); }
+        token.ThrowIfCancellationRequested();
+        CancelReview();
+        var completion = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var opened = new Window { Title = title, Width = 860, Height = 660 };
+        var closingReview = false;
+        opened.Closing += (_, _) => closingReview = true;
+        opened.Deactivated += (_, _) => { if (!closingReview && !IsActive) { PresentationLost?.Invoke(); } };
+        opened.PropertyChanged += (_, change) =>
+        { if (change.Property == IsVisibleProperty && !opened.IsVisible && !closingReview) { PresentationLost?.Invoke(); } };
+        var panel = new DockPanel { Margin = new(16) };
+        var buttons = new WrapPanel();
+        foreach (var choice in choices)
+        {
+            var button = new Button { Content = choice, Margin = new(4) };
+            button.Click += (_, _) =>
+            {
+                if (question is null) { completion.TrySetResult(choice); opened.Close(); }
+                else
+                {
+                    question.Choose(choice switch
+                    {
+                        "Refine this artifact" => CustomizationVoiceChoice.Refine,
+                        "Discuss this artifact" => CustomizationVoiceChoice.Discuss,
+                        _ => CustomizationVoiceChoice.Cancel,
+                    });
+                }
+            };
+            buttons.Children.Add(button);
+        }
+        var replyStatus = new TextBlock { TextWrapping = TextWrapping.Wrap };
+        var speak = new Button { Content = "Answer by voice", Margin = new(4) };
+        void UpdateReply(object? sender, EventArgs args) => Dispatcher.UIThread.Post(() =>
+        {
+            replyStatus.Text = question!.Status;
+            speak.IsEnabled = question.CanAnswerByVoice;
+        });
+        if (question is not null)
+        {
+            question.Changed += UpdateReply;
+            replyStatus.Text = question.Status;
+            speak.IsEnabled = question.CanAnswerByVoice;
+            speak.Click += (_, _) => question.StartVoice();
+            AutomationProperties.SetName(speak, "Answer only this editor clarification by voice");
+            buttons.Children.Add(speak);
+            buttons.Children.Add(replyStatus);
+        }
+        DockPanel.SetDock(buttons, Dock.Bottom); panel.Children.Add(buttons);
+        var body = new TextBox { Text = text, IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap };
+        AutomationProperties.SetName(body, title + ": complete exact source and scope review");
+        panel.Children.Add(body);
+        opened.Content = panel;
+        opened.Closed += (_, _) =>
+        {
+            body.Text = string.Empty;
+            if (ReferenceEquals(review, opened)) { review = null; }
+            if (question is not null && !question.Completion.IsCompleted)
+            { question.Cancel("Editor question closed. Nothing was continued."); }
+            completion.TrySetResult("Cancel");
+        };
+        review = opened;
+        using var registration = token.Register(() => Dispatcher.UIThread.Post(() => opened.Close()));
+        openingReview = true;
+        try { opened.Show(owner); opened.Activate(); }
+        finally { openingReview = false; }
+        try
+        {
+            if (question is null) { return await completion.Task; }
+#pragma warning disable VSTHRD003 // This window owns presentation of this exact question and must join capture before returning.
+            await question.Completion;
+#pragma warning restore VSTHRD003
+            return "Cancel";
+        }
+        finally
+        {
+            if (question is not null) { question.Changed -= UpdateReply; }
+            opened.Close();
+        }
+    }
+
+    internal void CancelReview() { review?.Close(); review = null; }
+
+    internal void ClearPrivateText()
+    {
+        ClearCapabilityMetadata();
+        CancelReview();
+        Editor.Text = string.Empty; Request.Text = string.Empty; NewName.Text = string.Empty; RequiredPromptInputs.Text = string.Empty;
+        McpUrl.Text = string.Empty; McpHttpType.IsChecked = false;
+        FileName.Text = string.Empty; Search.Text = string.Empty;
+        Details.Text = string.Empty; Status.Text = string.Empty; VoiceContext.Text = string.Empty; FilterSummary.Text = string.Empty;
+        Files.ItemsSource = null; catalogue.Children.Clear(); SelectedSource = null;
+    }
+}

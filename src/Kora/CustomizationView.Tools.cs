@@ -7,7 +7,7 @@ using Kora.Core.Mcp;
 
 namespace Kora;
 
-internal sealed partial class CustomizationWindow
+internal sealed partial class CustomizationView
 {
     private readonly McpCapabilityRows capabilityRows = new();
     private readonly StackPanel capabilityCatalogue = new() { Spacing = 8 };

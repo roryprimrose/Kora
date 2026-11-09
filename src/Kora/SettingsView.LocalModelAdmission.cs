@@ -9,7 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Kora;
 
-public sealed partial class SettingsWindow
+public sealed partial class SettingsView
 {
     private OllamaAdmissionReview? localAdmissionReview;
     private bool localAdmissionBusy;
@@ -49,7 +49,8 @@ public sealed partial class SettingsWindow
         try
         {
             var workflow = App.Services.GetRequiredService<OllamaAdmissionWorkflow>();
-            bool Eligible() => DataContext is MainViewModel { CanChangeProviderProfile: true };
+            var presentation = CapturePresentation();
+            bool Eligible() => presentation() && DataContext is MainViewModel { CanChangeProviderProfile: true };
             if (!Eligible()) { throw new InvalidOperationException("Local model admission requires the current unlocked owning host."); }
             await operation(workflow, Eligible);
             status.Text = workflow.Status;

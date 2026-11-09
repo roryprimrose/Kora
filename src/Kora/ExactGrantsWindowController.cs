@@ -1,6 +1,7 @@
 using System.ComponentModel;
 
 using Avalonia.Threading;
+using Avalonia.Controls;
 
 using Kora.Application.Interaction;
 using Kora.Application.ViewModels;
@@ -21,10 +22,21 @@ internal sealed class ExactGrantsWindowController : IDisposable
     private readonly ILogger<ExactGrantsViewModel> logger;
     private readonly PermissionGrantManagementService permissions;
     private ExactGrantsWindow? window;
+    private ExactGrantsView? view;
+    private Window? viewOwner;
+    private Func<Window>? getWorkbench;
+    private Action<ExactGrantsView>? presentWorkbench;
     private ExactGrantsViewModel? state;
     private bool disposed;
     private HostId<SessionIdentity>? session;
     private Func<bool> sessionAdmission = () => true;
+    internal Task InventoryOperation { get; private set; } = Task.CompletedTask;
+
+    internal void BindWorkbench(Func<Window> owner, Action<ExactGrantsView> present)
+    {
+        getWorkbench = owner;
+        presentWorkbench = present;
+    }
 
     internal ExactGrantsWindowController(MainViewModel main, IExactGrantStore store, ExactGrantControlAdmission control,
         ISessionWorkspaceAccess access, Func<bool> ownsDesktop, ILogger<ExactGrantsViewModel> logger,
@@ -50,7 +62,8 @@ internal sealed class ExactGrantsWindowController : IDisposable
     private bool WindowAdmitted()
     {
         if (!Dispatcher.UIThread.CheckAccess()) { return Dispatcher.UIThread.Invoke(WindowAdmitted); }
-        return window is { IsVisible: true } && Admitted();
+        return (view?.IsNativePresented == true || window is { IsVisible: true, WindowState: not WindowState.Minimized })
+            && Admitted();
     }
 
     internal void Open(HostId<SessionIdentity>? target = null, Func<bool>? admitted = null)
@@ -61,7 +74,7 @@ internal sealed class ExactGrantsWindowController : IDisposable
             main.ReportHostInteractionFailure("Permission grants navigation retired with its original session selection.");
             return;
         }
-        if (window is not null && session != target) { Close(); }
+        if ((window is not null || view is not null) && session != target) { Close(); }
         session = target;
         sessionAdmission = eligible;
         if (!Admitted() || !access.CanInspect)
@@ -69,16 +82,42 @@ internal sealed class ExactGrantsWindowController : IDisposable
             main.ReportHostInteractionFailure("Exact operation grants unavailable under current ownership/privacy. No record or effect was read.");
             return;
         }
-        if (window is null)
+        if (state is null)
         {
-            state = new(store, control, access, WindowAdmitted, logger, permissions, () => main.CanChangePreapprovedUris,
+            var created = new ExactGrantsViewModel(store, control, access, WindowAdmitted, logger, permissions, () => main.CanChangePreapprovedUris,
                 managementView: true, managementSession: target);
-            window = new(state);
-            window.Closed += OnClosed;
-            window.Show();
-            state.RefreshCommand.Execute(null);
+            state = created;
+            if (getWorkbench is not null && presentWorkbench is not null)
+            {
+                viewOwner = getWorkbench();
+                view = new ExactGrantsView(viewOwner, Admitted, created);
+                viewOwner.Closed += OnClosed;
+                presentWorkbench(view);
+            }
+            else
+            {
+                window = new(created);
+                window.Closed += OnClosed;
+                window.Show();
+            }
+            if (!ReferenceEquals(state, created) || !eligible() || !WindowAdmitted())
+            {
+                if (ReferenceEquals(state, created)) { Close(); }
+                main.ReportHostInteractionFailure("Permission grants opening retired before the admitted inventory read.");
+                return;
+            }
+            InventoryOperation = ReadInventoryAsync(created);
         }
-        window.Activate();
+        else if (view is not null && presentWorkbench is not null) { presentWorkbench(view); }
+        window?.Activate();
+    }
+
+    private static async Task ReadInventoryAsync(ExactGrantsViewModel created)
+    {
+        try { await created.RefreshCommand.ExecuteAsync(); }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException
+            or InvalidOperationException or ArgumentException or OperationCanceledException)
+        { created.ReportFailure(exception); }
     }
 
     private void OnMainChanged(object? sender, PropertyChangedEventArgs args)
@@ -92,18 +131,23 @@ internal sealed class ExactGrantsWindowController : IDisposable
     }
     private void OnPrivacyClosure(object? sender, EventArgs args) => Close();
     private void OnClosed(object? sender, EventArgs args)
-    {
-        state?.Dispose();
-        state = null;
-        if (window is not null) { window.Closed -= OnClosed; }
-        window = null;
-    }
+        => Close();
     private void Close()
     {
-        state?.Dispose();
-        window?.Close();
+        var oldState = state;
+        var oldWindow = window;
+        var oldView = view;
+        var oldOwner = viewOwner;
         state = null;
         window = null;
+        view = null;
+        viewOwner = null;
+        if (oldWindow is not null) { oldWindow.Closed -= OnClosed; }
+        if (oldOwner is not null) { oldOwner.Closed -= OnClosed; }
+        oldView?.Dispose();
+        if (oldOwner is ResponseWindow workbench && oldView is not null) { workbench.RemoveHostedView(oldView); }
+        oldState?.Dispose();
+        if (oldWindow is { IsVisible: true }) { oldWindow.Close(); }
     }
     public void Dispose()
     {

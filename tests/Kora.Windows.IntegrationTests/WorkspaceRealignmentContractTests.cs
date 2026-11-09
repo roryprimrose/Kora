@@ -37,7 +37,7 @@ public sealed class WorkspaceRealignmentContractTests
             || name is "DispatchQueue" or "PauseQueue" or "ResumeQueue" or "QueuePrerequisites" or "QueueCapabilities"
                 or "NoQueuePrerequisite" or "MoveQueueUp" or "MoveQueueDown" or "HistoryRequestId" or "HistoryTaskId"
                 or "LocalEventTaskIdFilter" or "LocalEventQueueProfileFilter").Should().BeEmpty();
-        var settings = XDocument.Load(Source("SettingsWindow.axaml"));
+        var settings = XDocument.Load(Source("SettingsView.axaml"));
         settings.Descendants().Attributes().Should().NotContain(attribute =>
             attribute.Value.Contains("QueueConfiguration", StringComparison.Ordinal)
             || attribute.Value.Contains("SelectedQueuePending", StringComparison.Ordinal)
@@ -68,14 +68,14 @@ public sealed class WorkspaceRealignmentContractTests
             || name.StartsWith("AttachmentMaximumStorage", StringComparison.Ordinal)).Should().BeEmpty();
         Names("SkillPackagesWindow.axaml").Should().NotContain(["PackageDefinitionDigest", "PackageDeclaredResourceDigest"]);
         Names("SharedSkillSourcesWindow.axaml").Should().NotContain("SharedRevisionDigest");
-        Names("AllWorkWindow.axaml").Should().NotContain(["WorkRanges", "RetainedTaskId", "RetainedRequestId",
+        Names("AllWorkView.axaml").Should().NotContain(["WorkRanges", "RetainedTaskId", "RetainedRequestId",
             "ObservationAvailability", "ObservedContent"]);
     }
 
     [Fact]
     public void EvidenceTraceAndAuditQueriesRemainInTheirDiagnosticSurface()
     {
-        Names("EvidenceWindow.axaml").Should().Contain(["SpanId", "TraceSource", "TraceSourceVersion",
+        Names("EvidenceView.axaml").Should().Contain(["SpanId", "TraceSource", "TraceSourceVersion",
             "ActivityName", "ActivityKind", "TraceFlags", "ParentSpanId", "OperationOutcome",
             "FromAuditSequence", "UntilAuditSequence", "FromDueUtc", "UntilDueUtc"]);
     }

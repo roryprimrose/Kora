@@ -196,6 +196,20 @@ internal sealed partial class EvidenceViewModel(
         Notify();
     }
 
+    internal void RetirePresentation()
+    {
+        if (closed) { return; }
+        filterRevision++;
+        readCancellation?.Cancel();
+        Clear("Evidence presentation ended. Private results and reviews were released; explicitly search again.");
+        Notify();
+    }
+
+    internal void RefreshPresentationAdmission()
+    {
+        if (!closed) { Notify(); }
+    }
+
     private void Clear(string message)
     {
         problemReportRevision++;

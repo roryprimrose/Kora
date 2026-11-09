@@ -123,7 +123,7 @@ public sealed partial class AdaptiveInteractionTests
             await f.Model.OpenConversationDetailAsync(messages[0]);
             f.Window.IsExpanded.Should().BeTrue();
             view.DetailsVisible.Should().BeTrue();
-            f.Window.MinWidth.Should().Be(1040);
+            f.Window.MinWidth.Should().Be(320, "narrow workbench layouts switch between chat and Details");
             f.Window.UpdateLayout();
             var firstReader = view.GetVisualDescendants().OfType<DetailContentView>().Single();
             firstReader.FindControl<TextBox>("ContentReader")!.Text.Should().Be(messages[0].Body);

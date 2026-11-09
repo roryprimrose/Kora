@@ -62,18 +62,18 @@ internal sealed partial class SessionsViewModel
         status = PresentEvidencePage(snapshot, target, epoch, control);
     });
 
-    public Task OpenEvidenceDetailsAsync(SessionEvidenceDetail? detail = null) => RunAsync(async () =>
+    public Task OpenEvidenceDetailsAsync(SessionEvidenceDetail? detail = null, Func<bool>? detailAdmission = null) => RunAsync(async () =>
     {
         var snapshot = detail ?? LastEvidenceDetail
             ?? throw new InvalidOperationException("Choose an exact session evidence result; no latest-result substitution is allowed.");
         var target = RequireSelected();
         var epoch = selectionEpoch;
         var control = access.ControlRevision;
-        bool Current() => EvidenceDetailCurrent(snapshot, target, epoch, control);
+        bool Current() => EvidenceDetailCurrent(snapshot, target, epoch, control) && detailAdmission?.Invoke() != false;
         if (!Current()) { throw new InvalidOperationException("This evidence result is no longer on the selected session's observed page."); }
         if (!await ValidateEvidencePageAsync(snapshot, Current, lifetime.Token))
         { throw new InvalidOperationException("The original evidence source changed or is unavailable. Explicitly read fresh session evidence."); }
-        status = PresentEvidencePage(snapshot, target, epoch, control);
+        status = PresentEvidencePage(snapshot, target, epoch, control, detailAdmission);
     }, activitySession: (detail ?? LastEvidenceDetail)?.RequestMessage?.Request.SessionId);
 
     private bool EvidenceDetailCurrent(SessionEvidenceDetail detail, Kora.Core.Storage.SessionWorkspaceEntry target, long epoch, long control) =>
@@ -81,9 +81,10 @@ internal sealed partial class SessionsViewModel
         && selected == target && evidenceDetails.Any(item => ReferenceEquals(item, detail))
         && (detail.RequestMessage is null || detail.RequestAdmission?.Invoke() == true);
 
-    private string PresentEvidencePage(SessionEvidenceDetail detail, Kora.Core.Storage.SessionWorkspaceEntry target, long epoch, long control)
+    private string PresentEvidencePage(SessionEvidenceDetail detail, Kora.Core.Storage.SessionWorkspaceEntry target, long epoch, long control,
+        Func<bool>? detailAdmission = null)
     {
-        bool Current() => EvidenceDetailCurrent(detail, target, epoch, control);
+        bool Current() => EvidenceDetailCurrent(detail, target, epoch, control) && detailAdmission?.Invoke() != false;
         var continueValidation = HostActivity.CaptureContinuation(HostActivityLayer.Desktop, HostOperation.Storage);
         async Task<bool> Validate(CancellationToken token)
         {

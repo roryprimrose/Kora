@@ -65,7 +65,7 @@ Existing pending entries retain exact-set review and separate atomic confirmatio
 
 ### Delivered passive cross-session work observation - 2026-10-11
 
-The [All work window](../src/Kora/AllWorkWindow.axaml) retains lifecycle, name/exact-session navigation, observed task state, Needs answer, loaded-page ordering and Find in displayed metadata. It observes bounded independent snapshots, not an atomic global inventory or all-clear.
+The [Work/Attention view](../src/Kora/AllWorkView.axaml) retains lifecycle, name/exact-session navigation, observed task state, Needs answer, loaded-page ordering and Find in displayed metadata. It is hosted in the shared workbench and observes bounded independent snapshots, not an atomic global inventory or all-clear.
 
 Raw task/request correlation predicates and authority/queue/count-range widgets are removed. Displayed provenance, explicit omissions/unavailable/output-bound status and full consumed-source validation remain mandatory. Browsing neither dispatches/resumes work, answers a question, changes voice focus nor renews activity.
 

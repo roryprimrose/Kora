@@ -11,7 +11,7 @@ using Kora.Core.Hosting;
 
 namespace Kora;
 
-public sealed partial class SettingsWindow
+public sealed partial class SettingsView
 {
     private CancellationTokenSource? speechComponentCancellation;
 
@@ -92,7 +92,7 @@ public sealed partial class SettingsWindow
                         decline.Click += (_, _) => review.Close(false);
                         using var cancellation = token.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(() => review.Close(false)));
                         status.Text = "Review the exact speech assets and approve or decline. Capture remains unchanged.";
-                        var consent = await review.ShowDialog<bool>(this);
+                        var consent = await review.ShowDialog<bool>(owner);
                         var result = await viewModel.ApplySpeechComponentAsync(plan, consent,
                             new Progress<string>(message => status.Text = message), token);
                         status.Text = DescribeSpeechComponent(result);

@@ -5,7 +5,7 @@ using Avalonia.Layout;
 
 namespace Kora;
 
-internal sealed partial class CustomizationWindow
+internal sealed partial class CustomizationView
 {
     internal readonly TextBox McpUrl = new() { PlaceholderText = "https://server.example/mcp" };
     internal readonly CheckBox McpHttpType = new() { Content = "Include explicit type: http" };

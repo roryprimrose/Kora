@@ -8,7 +8,7 @@ using Kora.Core.Context;
 
 namespace Kora;
 
-internal sealed partial class AllWorkWindow
+internal sealed partial class AllWorkView
 {
     private bool renderingFind;
     internal Func<bool>? FocusFindMatch { get; set; }
@@ -28,7 +28,7 @@ internal sealed partial class AllWorkWindow
         DetailsFindPrevious.Click += (_, _) => Find(SnapshotFindDirection.Previous);
         DetailsFindClear.Click += (_, _) => model.ClearFind();
         model.PropertyChanged += Changed;
-        Closed += (_, _) =>
+        Disposed += (_, _) =>
         {
             model.PropertyChanged -= Changed;
             FocusFindMatch = null;
@@ -83,7 +83,7 @@ internal sealed partial class AllWorkWindow
             try
             {
                 if ((!model.CanFind && DetailsFindQuery.IsFocused) || (model.FindMatch.Length == 0 && DetailsFindMatch.IsFocused))
-                { FocusManager?.Focus(null); }
+                { TopLevel.GetTopLevel(this)?.FocusManager?.Focus(null); }
                 DetailsFindQuery.Text = model.FindQuery;
                 DetailsFindQuery.IsEnabled = model.CanFind;
                 DetailsFindFirst.IsEnabled = model.CanFind;

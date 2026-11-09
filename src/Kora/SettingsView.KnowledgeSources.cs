@@ -11,7 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Kora;
 
-public sealed partial class SettingsWindow
+public sealed partial class SettingsView
 {
     private KnowledgeSourcesWindow? knowledgeSources;
 
@@ -21,17 +21,12 @@ public sealed partial class SettingsWindow
             ?? throw new InvalidOperationException("Knowledge source navigation is unavailable.");
         button.Command = new AsyncCommand(() =>
         {
-            if (!model.CanRevealPrivatePresentation || model.IsProtectedCall || !IsVisible)
+            if (!model.CanRevealPrivatePresentation || model.IsProtectedCall || !IsNativePresented)
             { throw new InvalidOperationException("Private native knowledge source management is unavailable."); }
             OpenKnowledgeSources().Activate();
             return Task.CompletedTask;
         }, exception => model.ReportHostInteractionFailure(
             "Knowledge source management unavailable. Failure type: " + exception.GetType().Name));
-        Closing += (_, args) =>
-        {
-            knowledgeSources?.Close();
-            if (knowledgeSources is { IsVisible: true }) { args.Cancel = true; }
-        };
     }
 
     private KnowledgeSourcesWindow OpenKnowledgeSources()
@@ -48,7 +43,7 @@ public sealed partial class SettingsWindow
         var window = new KnowledgeSourcesWindow(model, manager, answers: workflow, captureLimits: limits);
         knowledgeSources = window;
         window.Closed += (_, _) => knowledgeSources = null;
-        window.Show(this);
+        window.Show(owner);
         return window;
     }
 

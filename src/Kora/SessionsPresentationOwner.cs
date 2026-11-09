@@ -204,6 +204,7 @@ internal sealed partial class SessionsPresentationOwner
             Release();
             return;
         }
+        if (args.Cancel) { return; }
         if (revoked) { return; }
         if (draftDialog is not null || closing) { args.Cancel = true; return; }
         if (surfaces.Count > 1 || !model.HasUnsentMessages) { return; }

@@ -44,8 +44,9 @@ internal sealed partial class SessionsPresentationOwner
     private Window? UniqueForegroundSurface(bool conversationRequired)
     {
         if (revoked) { return null; }
-        var candidates = surfaces.Where(surface => surface.IsVisible && surface.IsActive
-            && (!conversationRequired || surface is not ResponseWindow response || response.IsSessionListPresented))
+        var candidates = surfaces.Where(surface => surface.IsVisible && surface.IsActive && surface.WindowState != WindowState.Minimized
+            && (!conversationRequired || surface is not ResponseWindow response
+                || response.IsSessionWorkspacePresented && response.SessionView.IsConversationPresented))
             .Take(2).ToArray();
         return candidates.Length == 1 ? candidates[0] : null;
     }
@@ -58,7 +59,11 @@ internal sealed partial class SessionsPresentationOwner
         surface.AddHandler(InputElement.PointerPressedEvent, OnDetailsSourceInteraction, RoutingStrategies.Tunnel, handledEventsToo: true);
         surface.AddHandler(InputElement.KeyDownEvent, OnDetailsSourceInteraction, RoutingStrategies.Tunnel, handledEventsToo: true);
         surface.AddHandler(InputElement.PointerWheelChangedEvent, OnDetailsSourceInteraction, RoutingStrategies.Tunnel, handledEventsToo: true);
-        if (surface is ResponseWindow response) { response.SessionView.PropertyChanged += OnForegroundSurfaceChanged; }
+        if (surface is ResponseWindow response)
+        {
+            response.SessionView.PropertyChanged += OnForegroundSurfaceChanged;
+            response.SessionView.PresentationChanged += OnSessionContentPresentationChanged;
+        }
         RequestPanel(surface)?.Bind(requestCommands);
         UpdateForegroundTarget();
     }
@@ -71,7 +76,11 @@ internal sealed partial class SessionsPresentationOwner
         surface.RemoveHandler(InputElement.PointerPressedEvent, OnDetailsSourceInteraction);
         surface.RemoveHandler(InputElement.KeyDownEvent, OnDetailsSourceInteraction);
         surface.RemoveHandler(InputElement.PointerWheelChangedEvent, OnDetailsSourceInteraction);
-        if (surface is ResponseWindow response) { response.SessionView.PropertyChanged -= OnForegroundSurfaceChanged; }
+        if (surface is ResponseWindow response)
+        {
+            response.SessionView.PropertyChanged -= OnForegroundSurfaceChanged;
+            response.SessionView.PresentationChanged -= OnSessionContentPresentationChanged;
+        }
         RequestPanel(surface)?.Bind(null);
         RetireForegroundTarget();
     }
@@ -82,12 +91,20 @@ internal sealed partial class SessionsPresentationOwner
 
     private void OnForegroundSurfaceChanged(object? sender, AvaloniaPropertyChangedEventArgs args)
     {
-        if (args.Property == Window.IsActiveProperty || args.Property == Visual.IsVisibleProperty)
+        if (args.Property == Window.IsActiveProperty || args.Property == Visual.IsVisibleProperty
+            || args.Property == Window.WindowStateProperty)
         { Interlocked.Increment(ref foregroundSourceRevision); UpdateForegroundTarget(); requestCommands?.RevalidateDetailsOffer(); }
     }
 
     private void OnForegroundModelChanged(object? sender, PropertyChangedEventArgs args)
     { UpdateForegroundTarget(); requestCommands?.RevalidateDetailsOffer(); }
+
+    private void OnSessionContentPresentationChanged(object? sender, EventArgs args)
+    {
+        Interlocked.Increment(ref foregroundSourceRevision);
+        UpdateForegroundTarget();
+        requestCommands?.RevalidateDetailsOffer();
+    }
 
     private void RetireForegroundTarget()
     {

@@ -25,7 +25,10 @@ internal sealed partial class CustomizationWindowController(
     Kora.Application.Configuration.ArtifactDirectoryConfigurationService? mcpSettings = null,
     Kora.Application.Hosting.SessionConversationService? mcpConversation = null) : IDisposable
 {
-    private CustomizationWindow? window;
+    private CustomizationView? window;
+    private CustomizationWindow? adapter;
+    private Func<Window>? getWorkbench;
+    private Action<CustomizationView>? presentWorkbench;
     private CancellationTokenSource? lifetime;
     private IReadOnlyList<CustomizationSource> sources = [];
     private readonly Dictionary<string, CustomizationSnapshot> bundled = new(StringComparer.Ordinal);
@@ -54,6 +57,12 @@ internal sealed partial class CustomizationWindowController(
     private long promptAuthoringRevision;
     internal CustomizationVoiceTarget? VoiceTarget => voiceTarget;
 
+    internal void BindWorkbench(Func<Window> owner, Action<CustomizationView> present)
+    {
+        getWorkbench = owner;
+        presentWorkbench = present;
+    }
+
     internal async Task WaitForOperation()
     {
 #pragma warning disable VSTHRD003 // Observes only the operation owned by this controller; no replacement is started.
@@ -74,7 +83,7 @@ internal sealed partial class CustomizationWindowController(
         main.BindCustomizationVoice(RouteVoice);
     }
 
-    private bool Eligible() => !disposed && window is not null && ownsHost()
+    private bool Eligible() => !disposed && window is { IsNativePresented: true } && ownsHost()
         && ownerRevision == ownershipRevision() && main.CanRevealPrivatePresentation
         && main.CaptureInstructionEditorEligibility()();
 
@@ -85,12 +94,23 @@ internal sealed partial class CustomizationWindowController(
         { main.ReportHostInteractionFailure("Customizations requires the current unlocked owning host and eligible privacy/call state."); return; }
         if (window is not null)
         {
-            if (!Eligible()) { OnPrivacyClosed(this, EventArgs.Empty); return; }
-            window.Activate(); return;
+            if (!ownsHost() || ownerRevision != ownershipRevision() || !main.CaptureInstructionEditorEligibility()())
+            { OnPrivacyClosed(this, EventArgs.Empty); return; }
+            if (presentWorkbench is not null) { presentWorkbench(window); }
+            else { adapter!.Show(); }
+            window.Owner.Activate();
+            PublishVoiceTarget();
+            return;
         }
         ownerRevision = ownershipRevision();
         lifetime = new();
-        window = new(Start, main);
+        if (getWorkbench is not null)
+        { window = new CustomizationView(Start, main, getWorkbench()); }
+        else
+        {
+            adapter = new CustomizationWindow(Start, main);
+            window = adapter.View;
+        }
         window.Files.SelectionChanged += (_, _) => SelectFile();
         window.Editor.PropertyChanged += (_, change) =>
         {
@@ -107,14 +127,10 @@ internal sealed partial class CustomizationWindowController(
         window.PresentationLost += () => { RetireVoiceTarget(); RetirePromptAuthoring(); };
         window.Activated += (_, _) => PublishVoiceTarget();
         // Activated can precede IsActive; also observe the committed foreground state.
-        window.PropertyChanged += (_, change) =>
-        {
-            if (change.Property == Window.IsActiveProperty
-                && window is { IsActive: true, IsVisible: true }) { PublishVoiceTarget(); }
-        };
         window.Closing += OnClosing;
         window.Closed += (_, _) => ClearWindow();
-        window.Show();
+        if (presentWorkbench is not null) { presentWorkbench(window); }
+        else { adapter!.Show(); }
         Start("Refresh");
     }
 
@@ -218,7 +234,7 @@ internal sealed partial class CustomizationWindowController(
 
     private void PublishVoiceTarget()
     {
-        if (busy || window is not { IsActive: true, IsVisible: true } opened || source is null || !Eligible()
+        if (busy || window is not { IsActive: true, IsNativePresented: true } opened || source is null || !Eligible()
             || source.Kind == CustomizationKind.McpServer) { return; }
         if (voiceTarget is { IsCurrent: true }) { return; }
         var input = main.CaptureCustomizationVoiceEligibility();
@@ -796,19 +812,20 @@ internal sealed partial class CustomizationWindowController(
     private void OnPrivacyClosed(object? sender, EventArgs args)
     {
         if (!Dispatcher.UIThread.CheckAccess()) { Dispatcher.UIThread.Post(() => OnPrivacyClosed(sender, args)); return; }
-        RetirePromptAuthoring(); lifetime?.Cancel(); closing = true; window?.CancelReview(); window?.Close(); closing = false;
+        RetirePromptAuthoring(); lifetime?.Cancel(); closing = true; window?.CancelReview(); CloseSurface(); closing = false;
     }
     private void OnClosing(object? sender, WindowClosingEventArgs args)
     {
         RetireVoiceTarget();
         RetirePromptAuthoring();
-        if (closing) { return; }
+        if (closing || args.Cancel || !busy && !Dirty()) { return; }
         args.Cancel = true;
         if (!busy) { active = CloseReviewed(); }
     }
     private async Task CloseReviewed()
     {
-        if (await PrepareClose()) { closing = true; window?.Close(); closing = false; }
+        if (window is not null && !window.IsNativePresented && presentWorkbench is not null) { presentWorkbench(window); }
+        if (await PrepareClose()) { closing = true; window?.Owner.Close(); closing = false; }
     }
     internal async Task<bool> PrepareClose()
     {
@@ -830,8 +847,18 @@ internal sealed partial class CustomizationWindowController(
         externalInventories.Clear(); displayedServers.Clear();
         Interlocked.Increment(ref capabilityPresentationRevision);
         retiredWindow?.ClearPrivateText();
+        adapter = null;
         retired?.Cancel();
         if (retired is not null) { _ = DisposeLifetime(active, retired); }
+    }
+
+    private void CloseSurface()
+    {
+        var view = window;
+        var legacy = adapter;
+        view?.Dispose();
+        if (view?.Owner is ResponseWindow owner) { owner.RemoveHostedView(view); }
+        if (legacy is { IsVisible: true }) { legacy.Close(); }
     }
     private async Task DisposeLifetime(Task operation, CancellationTokenSource retired)
     {

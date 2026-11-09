@@ -14,13 +14,13 @@ public sealed class SpeechComponentUiContractTests
             directory = directory.Parent;
         }
         var root = directory?.FullName ?? throw new InvalidOperationException("The repository source root is unavailable.");
-        var settings = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml"));
+        var settings = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsView.axaml"));
         var panel = settings.Descendants().Single(element =>
             string.Equals(element.Attribute(XName.Get("Name", "http://schemas.microsoft.com/winfx/2006/xaml"))?.Value,
                 "SpeechComponentsPanel", StringComparison.Ordinal));
         panel.Ancestors().Single(element => string.Equals(element.Name.LocalName, "TabItem", StringComparison.Ordinal))
             .Attribute("Header")!.Value.Should().Be("Speech & audio");
-        File.ReadAllText(Path.Combine(root, "src", "Kora", "SettingsWindow.SpeechComponents.cs"))
+        File.ReadAllText(Path.Combine(root, "src", "Kora", "SettingsView.SpeechComponents.cs"))
             .Should().Contain("ReviewSpeechComponentAsync").And.Contain("ApplySpeechComponentAsync")
             .And.Contain("No qualified optional speech-input components")
             .And.NotContain("new SpeechComponentDefinition");

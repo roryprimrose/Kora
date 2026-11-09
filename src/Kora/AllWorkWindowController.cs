@@ -1,4 +1,5 @@
 ﻿using Avalonia.Threading;
+using Avalonia.Controls;
 
 using Kora.Application.Hosting;
 using Kora.Application.ViewModels;
@@ -14,6 +15,17 @@ internal sealed class AllWorkWindowController(
     ILogger<AllWorkViewModel> logger, SessionsWindowController sessions) : IDisposable, IAsyncDisposable
 {
     private AllWorkWindow? window;
+    private AllWorkView? view;
+    private Window? viewOwner;
+    private Func<Window>? getWorkbench;
+    private Action<AllWorkView>? presentWorkbench;
+    private AllWorkViewModel? ActiveModel => view?.Model ?? window?.DataContext as AllWorkViewModel;
+    internal AllWorkViewModel? CurrentModel => ActiveModel;
+    internal void BindWorkbench(Func<Window> owner, Action<AllWorkView> present)
+    {
+        getWorkbench = owner;
+        presentWorkbench = present;
+    }
     private long openedRevision;
     private bool disposed;
     private AllWorkViewModel? stopAllOwner;
@@ -37,12 +49,13 @@ internal sealed class AllWorkWindowController(
             return Task.FromResult(WorkspaceSurfaceNavigationOutcome.Unavailable);
         }
         Open(navigation.IsAdmitted);
-        if (window is not { DataContext: AllWorkViewModel model } opened)
+        if (ActiveModel is not { } model)
         {
             return Task.FromResult(WorkspaceSurfaceNavigationOutcome.Unavailable);
         }
         var revision = openedRevision;
-        bool Admitted() => !disposed && ReferenceEquals(window, opened) && access.CanInspect
+        var native = view?.CapturePresentation() ?? (() => window is { IsVisible: true, WindowState: not WindowState.Minimized });
+        bool Admitted() => !disposed && ReferenceEquals(ActiveModel, model) && native() && access.CanInspect
             && openedRevision == revision && access.ControlRevision == revision && navigation.IsAdmitted();
         waitingQuestionOperation = model.ReadWaitingQuestionsAsync(navigation with { IsAdmitted = Admitted });
         return waitingQuestionOperation;
@@ -50,24 +63,43 @@ internal sealed class AllWorkWindowController(
 
     internal void RetireWaitingQuestionsIfStale()
     {
-        if (window?.DataContext is AllWorkViewModel model) { model.RetireWaitingQuestionsIfStale(); }
+        ActiveModel?.RetireWaitingQuestionsIfStale();
     }
 
     internal void Open(Func<bool> admitted)
     {
         if (disposed || !access.CanInspect || !admitted())
         {
+            CloseHostedView();
             window?.Close();
             main.ReportHostInteractionFailure("All work unavailable: live private desktop ownership is required.");
             return;
         }
         var revision = access.ControlRevision;
+        if (getWorkbench is not null && presentWorkbench is not null)
+        {
+            if (view is not null && openedRevision != revision) { CloseHostedView(); }
+            if (view is null)
+            {
+                var model = CreateModel();
+                viewOwner = getWorkbench();
+                view = new(model, viewOwner);
+                view.CloseRequested += OnHostedCloseRequested;
+                viewOwner.Closed += OnHostedOwnerClosed;
+                openedRevision = revision;
+            }
+            presentWorkbench(view);
+            if (!access.CanInspect || access.ControlRevision != revision || !admitted())
+            {
+                CloseHostedView();
+                main.ReportHostInteractionFailure("All work unavailable: private ownership changed while opening.");
+            }
+            return;
+        }
         if (window is not null && openedRevision != revision) { window.Close(); }
         if (window is null)
         {
-            var model = new AllWorkViewModel(service, access, logger, sessions.NavigateAsync);
-            model.BindStopAll(main.StopAllWorkAsync);
-            stopAllOwner = model;
+            var model = CreateModel();
             var opened = new AllWorkWindow(model);
             opened.Closed += (_, _) =>
             {
@@ -93,15 +125,42 @@ internal sealed class AllWorkWindowController(
             Dispatcher.UIThread.Invoke(() => OnInvalidated(session));
             return;
         }
-        if (window?.DataContext is AllWorkViewModel model) { model.Revoke(); }
+        ActiveModel?.Revoke();
     }
-    private void OnPrivacyClosure(object? sender, EventArgs args) => window?.Close();
+    private AllWorkViewModel CreateModel()
+    {
+        var model = new AllWorkViewModel(service, access, logger, sessions.NavigateAsync);
+        model.BindStopAll(main.StopAllWorkAsync);
+        stopAllOwner = model;
+        return model;
+    }
+    private void OnHostedCloseRequested(object? sender, EventArgs args) => CloseHostedView();
+    private void OnHostedOwnerClosed(object? sender, EventArgs args) => CloseHostedView();
+    private void CloseHostedView()
+    {
+        if (view is null) { return; }
+        var retired = view;
+        view = null;
+        var owner = viewOwner;
+        if (viewOwner is not null) { viewOwner.Closed -= OnHostedOwnerClosed; }
+        viewOwner = null;
+        retired.CloseRequested -= OnHostedCloseRequested;
+        retiredStopAll = Task.WhenAll(retiredStopAll, retired.Model.StopAllOperation);
+        if (owner is ResponseWindow workbench) { workbench.RemoveHostedView(retired); }
+        retired.Dispose();
+    }
+    private void OnPrivacyClosure(object? sender, EventArgs args)
+    {
+        CloseHostedView();
+        window?.Close();
+    }
     public void Dispose()
     {
         if (disposed) { return; }
         disposed = true;
         main.PrivacyClosureRequested -= OnPrivacyClosure;
         service.WorkOverviewInvalidated -= OnInvalidated;
+        CloseHostedView();
         window?.Close();
         window = null;
     }

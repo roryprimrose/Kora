@@ -112,7 +112,7 @@ public sealed class PlaybackVolumeUiContractTests
     public void Native_volume_uses_a_bounded_unsaved_draft_and_explicit_admitted_save_reset_refresh_without_preview()
     {
         var root = SourceRoot();
-        var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml")).Descendants().ToArray();
+        var controls = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsView.axaml")).Descendants().ToArray();
         var selector = controls.Single(control =>
             string.Equals(control.Attribute("Value")?.Value, "{Binding SelectedPlaybackVolume}", StringComparison.Ordinal));
         selector.Name.LocalName.Should().Be("SettingsNumberField");

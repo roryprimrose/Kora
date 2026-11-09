@@ -789,6 +789,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         MicrophoneAccessStatus.State == MicrophoneAccessState.Denied;
 
     public event EventHandler<WindowAction>? WindowActionRequested;
+    public event EventHandler? ResponseRestoreRequested;
 
     public event EventHandler? SettingsRequested;
     public event EventHandler? ReadinessRequested;
@@ -2543,6 +2544,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
 
         ShowPresentation();
+        ResponseRestoreRequested?.Invoke(this, EventArgs.Empty);
     }
 
     public void HideApplication() => new AsyncCommand(HideApplicationAsync, HandleCommandException).Execute(null);

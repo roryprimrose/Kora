@@ -128,9 +128,17 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<TimeProvider>());
             responseWindow = new ResponseWindowController(
                 viewModel,
-                Services.GetRequiredService<ILogger<ResponseWindowController>>(), detailWindow);
+                Services.GetRequiredService<ILogger<ResponseWindowController>>(), detailWindow,
+                Services.GetRequiredService<Kora.Core.Configuration.IWorkbenchPlacementPreferences>());
+            settingsWindow.BindWorkbench(responseWindow.PrepareWorkbenchOwner,
+                view => responseWindow.ShowHostedView(WorkbenchActivity.Settings, view));
+            documentationWindow.BindWorkbench(responseWindow.PrepareWorkbenchOwner,
+                view => responseWindow.ShowHostedView(WorkbenchActivity.Help, view));
             grantListWindow = new GrantListWindowController(viewModel);
             BindExactGrants(viewModel);
+            exactGrants!.BindWorkbench(responseWindow.PrepareWorkbenchOwner,
+                view => responseWindow.ShowHostedView(WorkbenchActivity.Permissions, view));
+            responseWindow.OpenPermissionGrants = () => exactGrants.Open();
             Services.GetRequiredService<Kora.Windows.Storage.WindowsSqliteHostInteractionStore>()
                 .BindAuthorizationPolicyGate(viewModel.AuthorizationPolicyGate);
             var nativeQuestions = new NativeQuestionHost(Services.GetRequiredService<Kora.Windows.Storage.WindowsSqliteHostInteractionStore>(),
@@ -203,6 +211,9 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<ArtifactDirectoryConfigurationService>(),
                 Services.GetRequiredService<SessionConversationService>());
             customizations.Bind();
+            customizations.BindWorkbench(responseWindow.PrepareWorkbenchOwner,
+                view => responseWindow.ShowHostedView(WorkbenchActivity.Customizations, view));
+            responseWindow.OpenCustomizations = customizations.Open;
             BindInstructionUse(viewModel);
             promptParameters = new(viewModel, Services.GetRequiredService<Kora.Core.Artifacts.ArtifactCatalogue>(),
                 Services.GetRequiredService<Kora.Application.Definitions.PromptRequestConsumer>(),
@@ -258,6 +269,9 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Application.Diagnostics.GitHubIssueReportWorkflow>(),
                 Services.GetRequiredService<Kora.Core.Hosting.IApplicationInfo>());
             evidenceWindow.Bind();
+            evidenceWindow.BindWorkbench(responseWindow.PrepareWorkbenchOwner,
+                view => responseWindow.ShowHostedView(WorkbenchActivity.Audit, view));
+            responseWindow.OpenEvidence = evidenceWindow.Open;
             BindSettingInspection(settingsWindow);
             fileWindow = new LocalFilePreviewWindowController(viewModel, GetPresenceOwner);
             var sessionFiles = Services.GetRequiredService<SessionFileAttachmentService>();
@@ -323,6 +337,9 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
                 Services.GetRequiredService<ILogger<AllWorkViewModel>>(), sessionsWindow);
             allWorkWindow.Bind();
+            allWorkWindow.BindWorkbench(responseWindow.PrepareWorkbenchOwner,
+                view => responseWindow.ShowHostedView(WorkbenchActivity.Work, view));
+            responseWindow.OpenWork = allWorkWindow.Open;
             sessionsWindow.OpenAllWork = allWorkWindow.Open;
             workspaceSurfaceCommands = new(viewModel,
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
@@ -506,6 +523,8 @@ public sealed partial class App : Avalonia.Application
         DetailPreferenceQuiescence = detailWindow?.JoinPreferenceReadsAsync() ?? Task.CompletedTask;
         detailWindow = null;
         responseWindow?.Dispose();
+        DetailPreferenceQuiescence = Task.WhenAll(DetailPreferenceQuiescence,
+            responseWindow?.PlacementOperation ?? Task.CompletedTask);
         speechCaptionWindow?.Dispose();
         speechCaptionWindow = null;
         responseWindow = null;

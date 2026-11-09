@@ -33,7 +33,7 @@ public sealed class NativeHandoffUiContractTests
             .Contain("AddSingleton<ModelHandoffPresentation>")
             .And.Contain("AddSingleton<ModelProviderHandoffWorkflow>")
             .And.Contain("AddSingleton<Kora.Application.Interaction.HostQuestionReviewService>");
-        XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml")).Descendants()
+        XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsView.axaml")).Descendants()
             .Any(control => string.Equals(control.Attribute("Click")?.Value, "OnReviewHandoffClicked", StringComparison.Ordinal)).Should().BeTrue();
     }
 }

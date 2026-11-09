@@ -14,7 +14,7 @@ public sealed class SpeechConfigurationUiContractTests
             directory = directory.Parent;
         }
         var root = directory?.FullName ?? throw new InvalidOperationException("The repository source root is unavailable.");
-        var document = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsWindow.axaml"));
+        var document = XDocument.Load(Path.Combine(root, "src", "Kora", "SettingsView.axaml"));
         var controls = document.Descendants().ToArray();
         controls.Any(control => string.Equals(control.Attribute("SelectedItem")?.Value,
             "{Binding SelectedInstalledSpeechProvider}", StringComparison.Ordinal)).Should().BeFalse();

@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using AwesomeAssertions;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
+using Kora.Core.Maintenance;
 using Kora.Core.Mcp;
 using Kora.Core.Tools;
 
@@ -116,6 +117,9 @@ public sealed class McpModelProtocolTests
             reply with { Settings = new([], 0, null) },
             reply with { SessionMetrics = new(DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch, 0, 0, 0, 0, 0, []) },
             reply with { Customizations = new([], 0, null) },
+            reply with { Maintenance = new("1.0.0", ReleaseChannel.Production, ReleaseAvailability.Available,
+                "Installer started, not installed.", "1.2.3", InstallerStartOutcome.Started) },
+            reply with { ProviderSettings = new() },
             reply with { Runtime = new("test", RuntimeLocality.Local, CapabilityAvailability.Available, null, "test", null, false) },
             reply with { WebPage = new(HostRequest.Create(RequestOrigin.LocalUi), new("https://example.com/"),
                 new("https://example.com/"), DateTimeOffset.UnixEpoch, "text", false, "text/plain") },

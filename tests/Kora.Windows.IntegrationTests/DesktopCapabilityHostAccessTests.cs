@@ -7,6 +7,49 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class DesktopCapabilityHostAccessTests
 {
     [Theory]
+    [InlineData("accepted")]
+    [InlineData("decline")]
+    [InlineData("cancel")]
+    [InlineData("rebind")]
+    [InlineData("failure")]
+    public async Task HandoffReviewsBeforeClosingAdmissionAndNeverShutsDownAnInvalidReview(string outcome)
+    {
+        var bridge = new DesktopInstanceOwnershipBridge();
+        var reviewed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var cancellation = new CancellationTokenSource();
+        var shutdowns = 0;
+        var aborts = 0;
+        bridge.BindCallbacks(_ => Task.CompletedTask, _ =>
+        {
+            bridge.IsCapabilityAdmissionOpen.Should().BeFalse();
+            shutdowns++;
+            return Task.FromResult(true);
+        }, _ => { aborts++; return Task.CompletedTask; }, async _ =>
+        {
+            bridge.IsCapabilityAdmissionOpen.Should().BeTrue();
+            reviewed.SetResult();
+            var accepted = await release.Task;
+            if (outcome is "failure") { throw new IOException("Synthetic review failure."); }
+            return accepted;
+        });
+        var handoff = bridge.QuiesceForHandoffAsync(cancellation.Token);
+        await reviewed.Task.WaitAsync(TestContext.Current.CancellationToken);
+        (await bridge.QuiesceForHandoffAsync(TestContext.Current.CancellationToken)).Should().BeFalse();
+        shutdowns.Should().Be(0);
+        if (outcome is "cancel") { cancellation.Cancel(); }
+        if (outcome is "rebind") { bridge.UnbindCallbacks(); }
+        release.SetResult(outcome is not "decline");
+        var completion = () => handoff;
+        if (outcome is "cancel") { await completion.Should().ThrowAsync<OperationCanceledException>(); }
+        else if (outcome is "rebind") { await completion.Should().ThrowAsync<InvalidOperationException>(); }
+        else if (outcome is "failure") { await completion.Should().ThrowAsync<IOException>(); }
+        else { (await handoff).Should().Be(outcome is "accepted"); }
+        shutdowns.Should().Be(outcome is "accepted" ? 1 : 0);
+        aborts.Should().Be(outcome is "accepted" ? 0 : 1);
+    }
+
+    [Theory]
     [InlineData(WindowsSessionState.Unknown)]
     [InlineData(WindowsSessionState.Locked)]
     [InlineData(WindowsSessionState.Disconnected)]

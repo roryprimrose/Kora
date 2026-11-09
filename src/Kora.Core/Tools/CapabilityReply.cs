@@ -15,4 +15,5 @@ public sealed record CapabilityReply(
     CustomizationMetadataPage? Customizations = null,
     RegisteredSettingsResult? Settings = null,
     Kora.Core.Dependencies.SessionModelMetrics? SessionMetrics = null,
-    ProviderSettingsResult? ProviderSettings = null);
+    ProviderSettingsResult? ProviderSettings = null,
+    Kora.Core.Maintenance.MaintenanceToolObservation? Maintenance = null);

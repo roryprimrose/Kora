@@ -64,7 +64,6 @@ public sealed partial class MainViewModel
                 : await updateCheckTool.ExecuteAsync(command.Version, origin, Eligible, CancellationToken.None);
             if (!Eligible()) { throw new InvalidOperationException("Update request admission changed before presentation."); }
             PresentCachedMaintenance("Release maintenance.", output);
-            if (command.Upgrade) { ShowMaintenance(); }
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or InvalidOperationException
             or UnauthorizedAccessException or OperationCanceledException or HttpRequestException)

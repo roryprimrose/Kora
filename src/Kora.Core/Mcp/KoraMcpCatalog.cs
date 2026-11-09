@@ -14,7 +14,8 @@ public static class KoraMcpCatalog
             .Concat(ProviderSettingsTools.Descriptors)
             .Concat(CustomizationDiscoveryTools.Descriptors)
             .Concat(SessionDiscoveryTool.Descriptors)
-            .Concat(Network.LocalWebPageTool.Descriptors).ToArray());
+            .Concat(Network.LocalWebPageTool.Descriptors)
+            .Concat(MaintenanceTools.Descriptors).ToArray());
 
     public static IReadOnlyList<string> ToolIds { get; } = Array.AsReadOnly(
         Descriptors.Select(tool => tool.Id).Append(ModelToolProtocol.AskUserToolName).ToArray());

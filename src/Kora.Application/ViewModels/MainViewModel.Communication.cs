@@ -245,7 +245,7 @@ public sealed partial class MainViewModel
         Interlocked.Increment(ref manualCallSpeechRevision);
         textToSpeech.InvalidateOutput();
         HoldVoiceInput("Microphone closed · manual call mode changed; enable listening explicitly when permitted");
-        var retirement = Task.WhenAll(textToSpeech.StopAsync(), voiceRecognition.StopAsync());
+        var retirement = Task.WhenAll(textToSpeech.StopAsync(), StopOwnedVoiceCaptureAsync());
         uiDispatcher.Post(() =>
         {
             if (disposed) { return; }
@@ -328,7 +328,7 @@ public sealed partial class MainViewModel
         var withhold = ShouldWithholdCallOutput(observation);
         var feedbackRevision = inCallFeedbackConfiguration?.Get().Revision;
         var output = withhold ? textToSpeech.StopAsync() : Task.CompletedTask;
-        var capture = !observation.AllowActivation ? voiceRecognition.StopAsync() : Task.CompletedTask;
+        var capture = !observation.AllowActivation ? StopOwnedVoiceCaptureAsync() : Task.CompletedTask;
         await uiDispatcher.InvokeAsync(() =>
         {
             if (!disposed && observation.Revision == CallPolicyRevision)

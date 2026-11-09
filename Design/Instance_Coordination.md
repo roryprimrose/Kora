@@ -156,6 +156,13 @@ The native Yes action requests an idle, safely quiescent switch; it does not
 silently cancel active work. No leaves ownership unchanged so the user can retry
 after current work finishes. Prompt expiry, secure desktop, disconnect, ambiguity or candidate
 death revoke the proposal. Only one proposal/local restart is pending.
+The desktop first uses the ordinary unsent-conversation review and captures an
+idle-only lifecycle reservation across submitted conversation work and compatibility
+queues. Pending or running work in any session refuses the switch without a stop
+confirmation, cancellation or withdrawal. Declined, failed or stale unsent review
+also refuses it. Private review runs before the bridge closes capability admission;
+the host revalidates review and work reservations after audio joins, then closes
+input and retains the reservations until disposal or admission-only abandonment.
 Application restart is deferred through the same lifecycle controller rather
 than launching a secondary that merely activates an owner about to exit.
 Host cleanup captures the first exception and rethrows it only after cleanup and

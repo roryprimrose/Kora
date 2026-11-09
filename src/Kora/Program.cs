@@ -438,6 +438,7 @@ internal static class Program
         services.AddSingleton<StartupPresentationConfigurationService>();
         services.AddSingleton<MaintenanceCommands>();
         services.AddSingleton<IApplicationMaintenance>(provider => provider.GetRequiredService<MaintenanceCommands>());
+        services.AddSingleton<IApplicationMaintenanceMcp>(provider => provider.GetRequiredService<MaintenanceCommands>());
         services.AddSingleton<IMaintenancePreferences>(provider =>
             new LocalMaintenancePreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<Kora.Tools.Application.ApplicationCheckForUpdates>();
@@ -627,7 +628,8 @@ internal static class Program
             provider.GetRequiredService<HostedTransmissionReviewService>(),
             conversationExecution: provider.GetRequiredService<ConversationExecutionConfigurationService>(),
             capabilities: provider.GetRequiredService<McpCapabilityPreferences>(),
-            builtInMcp: provider.GetRequiredService<Kora.Application.Mcp.KoraMcpServer>()));
+            builtInMcp: provider.GetRequiredService<Kora.Application.Mcp.KoraMcpServer>(),
+            maintenance: provider.GetRequiredService<IApplicationMaintenanceMcp>()));
         services.AddSingleton<IModelTurnAdmission>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<IModelTurnExecution>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<SessionConversationService>();

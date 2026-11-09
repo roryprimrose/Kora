@@ -91,7 +91,10 @@ public sealed partial class App : Avalonia.Application
             {
                 var replacement = new MainWindow(hostViewModel,
                     Services.GetRequiredService<ILogger<MainWindow>>(), native, startup,
-                    Services.GetRequiredService<ILogger<Kora.Application.Visuals.PresenceRenderWorker>>());
+                    Services.GetRequiredService<ILogger<Kora.Application.Visuals.PresenceRenderWorker>>(),
+                    Services.GetRequiredService<Func<Kora.Core.Presentation.IMotionPreferenceSource>>()(),
+                    Services.GetRequiredService<Func<Window, Kora.Windows.Presentation.IWindowsPresenceWindowInput>>(),
+                    Services.GetRequiredService<Func<nint, AvaloniaPresencePresenter.IBitmapTarget>>());
                 replacement.ApplyStartupPresentation = ApplyStartupPresentationAsync;
                 desktop.MainWindow = replacement;
                 return replacement;
@@ -459,10 +462,12 @@ public sealed partial class App : Avalonia.Application
         => HostRequestRunner.Run(RequestOrigin.HostSystem, DisposeDesktopControllers,
             HostActivityLayer.Desktop, HostOperation.Recovery);
 
-    private void DisposeDesktopControllers()
+    internal void DisposeDesktopControllers()
     {
         desktopLifetime?.Dispose();
         desktopLifetime = null;
+        installerShutdownHost?.BindInstallerShutdown(null);
+        installerShutdownHost = null;
         presenceRendererTimer.Stop();
         presenceRendererTimer.Tick -= OnPresenceRendererTick;
         presenceWindows?.Stop();

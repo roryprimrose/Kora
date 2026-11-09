@@ -126,7 +126,10 @@ public sealed class AgentProfileOriginalRefinementTests
                 await f.Main.SetVoiceConsentAsync(true);
             }
             await Run("agent author inspect example");
-            editor!.Source.IsReadOnly.Should().BeTrue();
+            editor!.Source.IsReadOnly.Should().BeTrue(
+                "the original inspect operation must complete; editor status: {0}; current inspect admission: {1}; private presentation: {2}; protected call: {3}; pending interaction: {4}; controller operation: {5}",
+                editor.Status.Text, f.Main.CaptureInstructionEditorEligibility().Invoke(), f.Main.CanRevealPrivatePresentation,
+                f.Main.IsProtectedCall, f.Main.IsResponseInteractionPending, controller.ActiveOperation.Status);
             Click(editor, "Edit existing original");
             await controller.ActiveOperation;
             editor.NameInput.IsReadOnly.Should().BeTrue();

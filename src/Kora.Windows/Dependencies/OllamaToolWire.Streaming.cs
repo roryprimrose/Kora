@@ -9,11 +9,25 @@ internal static partial class OllamaToolWire
     internal sealed record AnswerWire(byte[] Terminal, int Charge);
 
     internal static async Task<AnswerWire> ReadAnswerStreamAsync(HttpContent content, string model, int limit,
-        Func<string, ValueTask> publish, CancellationToken token, Action<ModelTokenUsage?>? observeUsage = null)
+        Func<string, ValueTask> publish, CancellationToken token, Action<ModelTokenUsage?>? observeUsage = null,
+        Action<Exception>? releaseFailed = null)
     {
         if (content.Headers.ContentLength > limit)
         { throw new InvalidDataException("The complete native stream exceeds the output budget."); }
-        await using var stream = await content.ReadAsStreamAsync(token).ConfigureAwait(false);
+        var stream = await content.ReadAsStreamAsync(token).ConfigureAwait(false);
+        try { return await ReadAsync(stream, model, limit, publish, observeUsage, token).ConfigureAwait(false); }
+        finally { await DisposeStreamAsync(stream, releaseFailed).ConfigureAwait(false); }
+    }
+
+    internal static async ValueTask DisposeStreamAsync(Stream stream, Action<Exception>? releaseFailed)
+    {
+        try { await stream.DisposeAsync().ConfigureAwait(false); }
+        catch (Exception exception) { releaseFailed?.Invoke(exception); throw; }
+    }
+
+    private static async Task<AnswerWire> ReadAsync(Stream stream, string model, int limit,
+        Func<string, ValueTask> publish, Action<ModelTokenUsage?>? observeUsage, CancellationToken token)
+    {
         var bytes = new byte[limit + 1];
         var count = 0;
         var start = 0;

@@ -373,7 +373,7 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
         if (document.ReferenceDeclaration is { } declaration && scope == OwnedSkillReadScope.CompletePackage)
         {
             var contents = new Dictionary<string, byte[]>(StringComparer.Ordinal);
-            var referencePins = new List<SafeFileHandle>();
+            var referencePins = new List<(string Path, SafeFileHandle Handle)>();
             try
             {
                 var remaining = SharedSkillReferenceDeclaration.MaximumBundleBytes - metadata.Length - guidance.Length;
@@ -382,7 +382,7 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
                     Checkpoint?.Invoke("before-reference-read");
                     var referencePath = Path.Combine(path, relative);
                     var pin = OwnedSkillPackagePublication.OpenFile(referencePath);
-                    referencePins.Add(pin);
+                    referencePins.Add((referencePath, pin));
                     directory.VerifyFile(referencePath);
                     var bytes = ReadBytes(pin, Math.Min(remaining, SharedSkillReferenceDeclaration.MaximumReferenceBytes), token);
                     remaining -= bytes.Length;
@@ -392,11 +392,15 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPa
                 document = OwnedDeclarativeSkillDocument.Parse(metadata, guidance, contents);
                 if (!entries.SequenceEqual(Inventory(path, declaration, packagePins, token), StringComparer.Ordinal))
                 { throw new InvalidDataException("The selected package inventory changed during capture."); }
+                foreach (var reference in referencePins)
+                { OwnedSkillPackagePublication.Verify(reference.Handle, reference.Path, directory: false); }
             }
-            finally { foreach (var pin in referencePins) { pin.Dispose(); } }
+            finally { foreach (var reference in referencePins) { reference.Handle.Dispose(); } }
         }
         directory.VerifyFile(manifestPath);
         directory.VerifyFile(instructionsPath);
+        OwnedSkillPackagePublication.Verify(manifest, manifestPath, directory: false);
+        OwnedSkillPackagePublication.Verify(instructions, instructionsPath, directory: false);
         return new(document, WindowsFileIdentity.Read(handle), WindowsFileIdentity.Read(manifest), WindowsFileIdentity.Read(instructions))
         { ReferenceIdentities = referenceIdentities.ToImmutable(), StoredBytes = storedBytes };
     }

@@ -23,15 +23,18 @@ internal sealed class McpTransportFixture : IDisposable
     internal int Resolutions { get; private set; }
     internal int Acquisitions { get; private set; }
     internal int AccountReads { get; private set; }
+    internal int HandlerCreations { get; private set; }
     internal IReadOnlyList<IPAddress>? Pinned { get; private set; }
     internal Func<string, CancellationToken, Task<IPAddress[]>> Resolve { get; set; } =
         (_, _) => Task.FromResult(new[] { IPAddress.Parse("8.8.8.8") });
     internal Func<SentRequest, CancellationToken, Task<HttpResponseMessage>>? Send { get; set; }
+    internal Func<CancellationToken, Task<McpAccountLease>>? Acquire { get; set; }
+    internal Action? OnCreateHandler { get; set; }
     internal string? ResponseContentType { get; set; }
     internal bool Qualified { get; set; } = true;
     internal WindowsMcpConnectionBroker Broker { get; }
 
-    internal McpTransportFixture()
+    internal McpTransportFixture(TimeProvider? time = null)
     {
         Broker = new(new Accounts(this), async (host, token) =>
         {
@@ -39,10 +42,12 @@ internal sealed class McpTransportFixture : IDisposable
             return await Resolve(host, token);
         }, (_, addresses) =>
         {
+            HandlerCreations++;
             Pinned = addresses;
             Connected = true;
+            OnCreateHandler?.Invoke();
             return new Handler(this);
-        });
+        }, time);
     }
 
     internal static ImmutableArray<byte> Wire(byte[] bytes) => ImmutableArray.CreateRange(bytes);
@@ -72,7 +77,7 @@ internal sealed class McpTransportFixture : IDisposable
             token.ThrowIfCancellationRequested();
             owner.Acquisitions++;
             if (!owner.Qualified) { throw new InvalidOperationException("Fake profile is unqualified."); }
-            return Task.FromResult<McpAccountLease>(owner.Lease);
+            return owner.Acquire is { } acquire ? acquire(token) : Task.FromResult<McpAccountLease>(owner.Lease);
         }
     }
 
@@ -81,22 +86,29 @@ internal sealed class McpTransportFixture : IDisposable
         public override McpAccountReference Account { get; } =
             new(Guid.NewGuid(), new(1), Guid.NewGuid(), new(new("https://example.com/mcp")));
         internal string Credential { get; set; } = "fake-delegated-token";
-        public override string AccessToken => Credential;
+        internal int CredentialReads { get; private set; }
+        public override string AccessToken { get { CredentialReads++; return Credential; } }
         internal CancellationTokenSource Withdrawn { get; } = new();
-        public override CancellationToken AdmissionWithdrawn => Withdrawn.Token;
+        internal Action? OnAdmissionRead { get; set; }
+        public override CancellationToken AdmissionWithdrawn { get { OnAdmissionRead?.Invoke(); return Withdrawn.Token; } }
         internal bool Current { get; set; } = true;
         internal bool Disposed { get; private set; }
+        internal int Disposals { get; private set; }
+        internal int Validations { get; private set; }
         internal bool FailDisposal { get; set; }
         internal Action? OnValidation { get; set; }
+        internal Func<CancellationToken, Task<bool>>? Validate { get; set; }
         public override Task<bool> IsCurrentAsync(CancellationToken token)
         {
+            Validations++;
             OnValidation?.Invoke();
             token.ThrowIfCancellationRequested();
-            return Task.FromResult(Current);
+            return Validate is { } validate ? validate(token) : Task.FromResult(Current);
         }
         public override void Dispose()
         {
             Disposed = true;
+            Disposals++;
             if (FailDisposal) { throw new InvalidOperationException("Fake credential lease disposal failed."); }
         }
     }

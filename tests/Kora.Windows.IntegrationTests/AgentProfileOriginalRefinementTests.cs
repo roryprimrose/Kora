@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Security.Principal;
 
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -20,6 +21,7 @@ using Kora.Core.Hosting;
 using Kora.Core.Tools;
 using Kora.NativeUxFixture;
 using Kora.Windows.Artifacts;
+using Kora.Windows.IntegrationTests.ArtifactDiscovery;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -119,7 +121,14 @@ public sealed class AgentProfileOriginalRefinementTests
                     .Replace("references: none", "references: disk.kora-profile.instruction.example", StringComparison.Ordinal);
             }
             var originalBytes = ArtifactFileDocument.Encode(source, true);
-            await File.WriteAllBytesAsync(destination.DisplayPath, originalBytes, f.Token);
+            await Task.Run(() => WindowsOwnedInstructionStoreTests.WriteOwnedFile(destination.DisplayPath, originalBytes), f.Token);
+            using (var identity = WindowsIdentity.GetCurrent())
+            {
+                var expectedOwner = identity.User ?? throw new InvalidOperationException("The fixture user owner is unavailable.");
+                var fileOwner = new FileInfo(destination.DisplayPath).GetAccessControl().GetOwner(typeof(SecurityIdentifier));
+                fileOwner.Should().BeOfType<SecurityIdentifier>().Which.Equals(expectedOwner).Should()
+                    .BeTrue("the original fixture must be explicitly owned by the current user, not the token's default owner");
+            }
             if (voice)
             {
                 f.Main.BindVoiceOwnershipGate(() => true);
@@ -192,7 +201,7 @@ public sealed class AgentProfileOriginalRefinementTests
                         case "late-source": await File.WriteAllTextAsync(destination.DisplayPath, source + "\nExternal", f.Token); break;
                         case "late-replaced":
                             File.Delete(destination.DisplayPath);
-                            await File.WriteAllBytesAsync(destination.DisplayPath, originalBytes, f.Token);
+                            await Task.Run(() => WindowsOwnedInstructionStoreTests.WriteOwnedFile(destination.DisplayPath, originalBytes), f.Token);
                             break;
                         case "late-missing": File.Delete(destination.DisplayPath); break;
                         case "late-read-failure": store.FailRead = true; break;

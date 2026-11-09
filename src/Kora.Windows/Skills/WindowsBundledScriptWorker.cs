@@ -80,6 +80,8 @@ public sealed class WindowsBundledScriptWorker : IBundledScriptWorker
                 bool LaunchCurrent() => qualification() == profile && current() && !lifetime.IsCancellationRequested;
                 if (!LaunchCurrent()) { throw new InvalidOperationException("The owned worker source retired before startup."); }
                 await process.StartAsync(LaunchCurrent, lifetime.Token).ConfigureAwait(false);
+                if (!LaunchCurrent())
+                { throw new InvalidOperationException("The owned worker source or runtime retired during startup; no script snapshot was delivered."); }
                 using var stdout = new StreamReader(process.Output, new UTF8Encoding(false, true), false, 1024, true);
                 using var stderr = new StreamReader(process.Error, new UTF8Encoding(false, true), false, 1024, true);
                 await using var stdin = new StreamWriter(process.Input, new UTF8Encoding(false), 1024, true) { NewLine = "\n" };

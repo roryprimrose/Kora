@@ -24,6 +24,7 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
     private byte[][] admittedHistory = [];
     private TaskCompletionSource? running;
     private Task? disposal;
+    private Exception? releaseFailure;
     private bool closed;
     private volatile bool disposed;
     private WindowsOllamaToolEndpointBinding? binding;
@@ -75,7 +76,8 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
         TaskCompletionSource completion;
         lock (gate)
         {
-            if (running is not null || disposed) { return new(ModelTurnOutcome.Denied, request.Provenance); }
+            if (running is not null || disposed || releaseFailure is not null)
+            { return new(ModelTurnOutcome.Denied, request.Provenance); }
             if (!disposed && closed && completedProvenance is not null && request.Round == 1
                 && request.Provenance != completedProvenance)
             {
@@ -102,10 +104,14 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
             using var activity = HostActivity.BeginChild(HostActivityLayer.Windows, HostOperation.Runtime);
             ModelToolTransportReply reply;
             try { reply = await ExchangeAsync(request, publish, usage => tokenUsage = usage, cancellationToken).ConfigureAwait(false); }
+            catch (Exception) when (releaseFailure is not null)
+            { reply = Finish(request, ModelTurnOutcome.Unknown); }
             catch (InvalidDataException) { reply = Finish(request, ModelTurnOutcome.Denied); }
             catch (OperationCanceledException) { reply = Finish(request, ModelTurnOutcome.Unknown); }
             catch (Exception exception) when (exception is HttpRequestException or IOException)
             { reply = Finish(request, ModelTurnOutcome.Unavailable); }
+            if (reply.Outcome == ModelTurnOutcome.Succeeded)
+            { TransportCompleted(logger, ModelTurnOutcome.Succeeded); }
             activity.Complete(reply.Outcome == ModelTurnOutcome.Succeeded ? HostOperationOutcome.Completed
                 : reply.Outcome == ModelTurnOutcome.Cancelled ? HostOperationOutcome.Cancelled : HostOperationOutcome.Failed);
             completed = true;
@@ -161,6 +167,7 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
         using var timeout = new CancellationTokenSource(remaining, time);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(callerToken, lifetime.Token,
             selected.Revoked, timeout.Token);
+        HttpResponseMessage? response = null;
         try
         {
             linked.Token.ThrowIfCancellationRequested();
@@ -187,7 +194,7 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
                 Content = new ByteArrayContent(body),
             };
             message.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-            using var response = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead,
+            response = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead,
                 linked.Token).ConfigureAwait(false);
             var status = Status(response, message, streaming);
             if (status != ModelTurnOutcome.Succeeded) { return Finish(request, status); }
@@ -197,8 +204,9 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
                     if (!await ObserveAsync(request, linked.Token).ConfigureAwait(false))
                     { throw new InvalidDataException("Native stream admission changed before publication."); }
                     await publish!(new(request.Provenance, answer), linked.Token).ConfigureAwait(false);
-                }, linked.Token, observeUsage).ConfigureAwait(false)
-                : new OllamaToolWire.AnswerWire(await ReadBoundedAsync(response.Content, outputLimit, linked.Token).ConfigureAwait(false), 0);
+                }, linked.Token, observeUsage, RecordReleaseFailure).ConfigureAwait(false)
+                : new OllamaToolWire.AnswerWire(await ReadBoundedAsync(response.Content, outputLimit, linked.Token,
+                    RecordReleaseFailure).ConfigureAwait(false), 0);
             observeUsage(OllamaToolWire.ReadTokenUsage(wire.Terminal, selected.Model));
             var parsed = OllamaToolWire.ReadReply(wire.Terminal, selected.Model, request.Round, request.ClarificationAllowed,
                 request.Context.McpTool, request.Context.ToolMode);
@@ -233,7 +241,6 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
                 issuedQuestionIndex = request.Messages.Length;
             }
             else { CloseConversation(request.Provenance); }
-            TransportCompleted(logger, ModelTurnOutcome.Succeeded);
             return new(ModelTurnOutcome.Succeeded, request.Provenance, parsed.Message, new(inputCharge, outputCharge));
         }
         catch (OperationCanceledException) when (linked.IsCancellationRequested)
@@ -242,10 +249,11 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
                 : callerToken.IsCancellationRequested || lifetime.IsCancellationRequested ? ModelTurnOutcome.Cancelled
                 : ModelTurnOutcome.TimedOut);
         }
+        finally { DisposeResource(response); }
     }
 
     private bool Current(ModelToolRequest request) =>
-        binding is not null && original is not null && !disposed && !lifetime.IsCancellationRequested
+        binding is not null && original is not null && !disposed && releaseFailure is null && !lifetime.IsCancellationRequested
         && !binding.Revoked.IsCancellationRequested && time.GetUtcNow() < binding.ExpiresAt
         && request.Provenance == original.Provenance && request.Provenance == binding.Provenance
         && request.Profile is not null && request.Profile == binding.Profile && request.Profile == original.Profile
@@ -269,13 +277,17 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
         {
             if (!await ObserveAsync(request, token).ConfigureAwait(false)) { return ModelTurnOutcome.Denied; }
             using var message = new HttpRequestMessage(HttpMethod.Get, new Uri(Endpoint, path));
-            using var response = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
-            var status = Status(response, message);
-            if (status != ModelTurnOutcome.Succeeded) { return status; }
-            var bytes = await ReadBoundedAsync(response.Content, outputLimit, token).ConfigureAwait(false);
-            if (string.Equals(path, "api/version", StringComparison.Ordinal))
-            { OllamaToolWire.VerifyVersion(bytes, binding!.RuntimeVersion); }
-            else { OllamaToolWire.VerifyModel(bytes, binding!.Model, binding.ModelDigest); }
+            var response = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
+            try
+            {
+                var status = Status(response, message);
+                if (status != ModelTurnOutcome.Succeeded) { return status; }
+                var bytes = await ReadBoundedAsync(response.Content, outputLimit, token, RecordReleaseFailure).ConfigureAwait(false);
+                if (string.Equals(path, "api/version", StringComparison.Ordinal))
+                { OllamaToolWire.VerifyVersion(bytes, binding!.RuntimeVersion); }
+                else { OllamaToolWire.VerifyModel(bytes, binding!.Model, binding.ModelDigest); }
+            }
+            finally { DisposeResource(response); }
         }
         return ModelTurnOutcome.Succeeded;
     }
@@ -295,21 +307,26 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
         return ModelTurnOutcome.Succeeded;
     }
 
-    internal static async Task<byte[]> ReadBoundedAsync(HttpContent content, int limit, CancellationToken token)
+    internal static async Task<byte[]> ReadBoundedAsync(HttpContent content, int limit, CancellationToken token,
+        Action<Exception>? releaseFailed = null)
     {
         if (content.Headers.ContentLength > limit)
         { throw new InvalidDataException("The complete native response exceeds the remaining host output budget."); }
-        await using var stream = await content.ReadAsStreamAsync(token).ConfigureAwait(false);
-        var bytes = new byte[limit + 1];
-        var count = 0;
-        while (count < bytes.Length)
+        var stream = await content.ReadAsStreamAsync(token).ConfigureAwait(false);
+        try
         {
-            var read = await stream.ReadAsync(bytes.AsMemory(count), token).ConfigureAwait(false);
-            token.ThrowIfCancellationRequested();
-            if (read == 0) { return bytes[..count]; }
-            count += read;
+            var bytes = new byte[limit + 1];
+            var count = 0;
+            while (count < bytes.Length)
+            {
+                var read = await stream.ReadAsync(bytes.AsMemory(count), token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+                if (read == 0) { return bytes[..count]; }
+                count += read;
+            }
+            throw new InvalidDataException("The complete native response exceeds the remaining host output budget.");
         }
-        throw new InvalidDataException("The complete native response exceeds the remaining host output budget.");
+        finally { await OllamaToolWire.DisposeStreamAsync(stream, releaseFailed).ConfigureAwait(false); }
     }
 
     private ModelToolTransportReply Finish(ModelToolRequest request, ModelTurnOutcome outcome)
@@ -338,6 +355,14 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
         admittedHistory = [];
         original = null;
         binding = null;
+    }
+
+    private void RecordReleaseFailure(Exception exception) => releaseFailure ??= exception;
+
+    private void DisposeResource(IDisposable? resource)
+    {
+        try { resource?.Dispose(); }
+        catch (Exception exception) { RecordReleaseFailure(exception); throw; }
     }
 
     internal static HttpClient CreateClient() => new(CreateHandler())
@@ -379,7 +404,9 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
         lock (gate) { pending = running?.Task; }
         if (pending is not null) { await pending.ConfigureAwait(false); }
         if (original is not null) { CloseConversation(original.Provenance); }
-        client.Dispose();
-        lifetime.Dispose();
+        try { DisposeResource(client); }
+        finally { lifetime.Dispose(); }
+        if (releaseFailure is not null)
+        { throw new IOException("Native transport resource release remains unconfirmed.", releaseFailure); }
     }
 }

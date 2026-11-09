@@ -17,6 +17,63 @@ namespace Kora.Application.UnitTests.Hosting;
 [Collection("Host tracing")]
 public sealed class SessionRoutingVoiceReplyTests
 {
+    [Fact]
+    public async Task ForeignHostsCannotInvalidateOrStopTheOriginalRoutingCapture()
+    {
+        var f = new Fixture();
+        var foreign = new QuestionReplyFixture.ReplyCapture();
+        var invalidate = () => f.Request.InvalidateHostCapture(foreign);
+        var stop = () => f.Request.StopHostCaptureAsync(foreign);
+
+        invalidate.Should().Throw<InvalidOperationException>();
+        await stop.Should().ThrowAsync<InvalidOperationException>();
+
+        f.Request.IsCurrent.Should().BeTrue();
+        foreign.CaptureGeneration.Should().Be(0);
+        foreign.Stops.Should().Be(0);
+        f.Capture.CaptureGeneration.Should().Be(0);
+        f.Capture.Stops.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task UnqualifiedRoutingStillAllowsTheHostToCloseItsOwnCaptureWithoutAReply()
+    {
+        var f = new Fixture();
+        var request = new SessionRoutingVoiceRequest(f.Review.Body, f.Request.Request, () => true, f.Capture);
+
+        request.InvalidateHostCapture(f.Capture);
+        await request.StopHostCaptureAsync(f.Capture);
+
+        request.IsCurrent.Should().BeFalse();
+        f.Capture.Stops.Should().Be(1);
+        f.Capture.Opens.Should().Be(0);
+        f.Capture.IsCaptureQuiescent.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task AHostStopDuringOpeningJoinsBeforeTheRoutingReleaseReceipt()
+    {
+        var f = new Fixture();
+        f.Capture.Opening = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.Capture.Closing = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.Request.BeginHandover().Should().BeTrue();
+        var opening = f.Request.OpenAsync(Fixture.OriginalAdmission.Microphone, ["Cancel"],
+            () => f.Request.IsLive, TestContext.Current.CancellationToken);
+        var hostStop = f.Request.StopHostCaptureAsync(f.Capture);
+        f.Capture.Opening.SetResult();
+        await FluentActions.Awaiting(() => opening).Should().ThrowAsync<InvalidOperationException>();
+        var release = f.Request.ReleaseAsync(-1);
+        hostStop.IsCompleted.Should().BeFalse();
+        release.IsCompleted.Should().BeFalse();
+
+        f.Capture.Closing.SetResult();
+        await Task.WhenAll(hostStop, release);
+
+        f.Request.IsCurrent.Should().BeFalse();
+        f.Capture.IsCaptureQuiescent.Should().BeTrue();
+        f.Capture.Opens.Should().Be(0);
+    }
+
     [Theory]
     [InlineData("1", SessionRoutingVoiceChoice.Destination)]
     [InlineData("2", SessionRoutingVoiceChoice.Destination)]

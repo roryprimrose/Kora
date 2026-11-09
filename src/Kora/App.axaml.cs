@@ -406,35 +406,30 @@ public sealed partial class App : Avalonia.Application
                 }),
                 async cancellationToken =>
                 {
-                    var quiescent = false;
-                    await dispatcher.InvokeAsync(async () =>
+                    await dispatcher.InvokeAsync(() =>
                     {
-                        try
-                        {
-                            cancellationToken.ThrowIfCancellationRequested();
-                            quiescent = await host.TryPrepareHandoffAsync();
-                            if (quiescent)
-                            {
-                                cancellationToken.ThrowIfCancellationRequested();
-                                desktop.Shutdown();
-                            }
-                        }
-                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                        {
-                            if (quiescent)
-                            {
-                                host.AbandonHandoffPreparation();
-                            }
-                            throw;
-                        }
+                        cancellationToken.ThrowIfCancellationRequested();
+                        desktop.Shutdown();
+                        return Task.CompletedTask;
                     });
-                    return quiescent;
+                    return true;
                 },
                 _ => dispatcher.InvokeAsync(() =>
                 {
                     host.AbandonHandoffPreparation();
                     return Task.CompletedTask;
-                }));
+                }),
+                async cancellationToken =>
+                {
+                    var prepared = false;
+                    await dispatcher.InvokeAsync(async () =>
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        prepared = await host.TryPrepareHandoffAsync();
+                        cancellationToken.ThrowIfCancellationRequested();
+                    });
+                    return prepared;
+                });
             desktopLifetime = new(viewModel, () => desktop.Shutdown(),
                 Services.GetRequiredService<ILogger<DesktopLifetimeController>>());
             BindInstallerShutdown(host, dispatcher, desktop);

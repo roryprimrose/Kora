@@ -948,7 +948,7 @@ maintenance workflow:
 | `maintenance review` | Review the exact fresh host-held canonical record/source/architecture/digest/unsigned disclosure and reveal the existing native review window |
 | `maintenance snooze` | Snooze only that fresh, reviewed Available notice for 24 hours within this run; no persistent reminder policy or other prompt change |
 | `maintenance check [latest\|version]` | Check canonical GitHub releases using already-saved network consent; optional exact version such as `1.2.3-beta7` |
-| `maintenance upgrade [latest\|version]` | Check and open native upgrade review; downloading/running the exact unsigned installer needs separate native approval |
+| `maintenance upgrade [latest\|version]` | Check, obtain exact native unsigned-installer approval, then start the verified installer; setup handles Kora shutdown and installation |
 
 The optional **Kora,** prefix uses the current configured name. The complete
 original input is at most 128 characters; phrases are case-insensitive with

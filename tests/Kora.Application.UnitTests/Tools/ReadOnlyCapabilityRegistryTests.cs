@@ -28,6 +28,46 @@ public sealed class ReadOnlyCapabilityRegistryTests : IDisposable
 
     public static TheoryData<string> QueueTargets => new(ReadOnlyCapabilityCatalog.Descriptors.Select(descriptor => descriptor.Id));
 
+    [Fact]
+    public void MissingHostActivityCannotEstablishRetainedCallerAuthority()
+    {
+        using var fixture = new Fixture();
+        Guid registry;
+        using (var root = Root()) { registry = fixture.Registry.Admit(CapabilityLane.Native).RegistryId; }
+        listener.Dispose();
+        using var untraced = Root();
+        untraced.Activity.Should().BeNull();
+        var caller = new CapabilityCaller(registry, untraced, CapabilityLane.Native);
+
+        fixture.Registry.IsLiveCaller(caller).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("registry")]
+    [InlineData("lane")]
+    [InlineData("host")]
+    [InlineData("terminal")]
+    [InlineData("stopped")]
+    public void RetainedMaintenanceCallerCannotOutliveItsRegistryLaneHostOrIssuingActivity(string boundary)
+    {
+        using var fixture = new Fixture();
+        using var root = Root();
+        var caller = fixture.Registry.Admit(CapabilityLane.Native);
+        fixture.Registry.IsLiveCaller(caller).Should().BeTrue();
+        using (var nested = HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Tool))
+        {
+            fixture.Registry.IsLiveCaller(caller).Should().BeTrue();
+            fixture.Registry.IsCurrentCaller(caller).Should().BeFalse();
+        }
+        if (boundary is "registry") { caller = new(Guid.NewGuid(), root, CapabilityLane.Native); }
+        if (boundary is "lane") { caller = new(caller.RegistryId, root, (CapabilityLane)99); }
+        if (boundary is "host") { fixture.Host.Current = false; }
+        if (boundary is "terminal") { root.Complete(HostOperationOutcome.Completed); }
+        if (boundary is "stopped") { root.Activity!.Stop(); }
+
+        fixture.Registry.IsLiveCaller(caller).Should().BeFalse();
+    }
+
     [Theory]
     [MemberData(nameof(QueueTargets))]
     public void QueuedDescriptorUsesActualActionAndExactlySelectedCatalogueMetadata(string id)

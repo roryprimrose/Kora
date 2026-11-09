@@ -151,13 +151,18 @@ public sealed partial class SessionConversationService(
         pending?.Output?.Bind(request);
         localRequestProfile?.Bind(request);
         var now = time.GetUtcNow();
-        var providerSettings = createContext is null && prepareContext is null && !copilot && !claude
-            && localRequestProfile is null && !retainAgentObservations && Kora.Core.Tools.ProviderSettingsTools.IsExplicitRequest(body);
-        if (providerSettings) { choice = ModelTurnChoice.Local; }
+        var originalLocalTools = createContext is null && prepareContext is null && !copilot && !claude
+            && localRequestProfile is null && !retainAgentObservations;
+        var providerSettings = originalLocalTools && Kora.Core.Tools.ProviderSettingsTools.IsExplicitRequest(body);
+        var maintenance = originalLocalTools && Kora.Core.Tools.MaintenanceTools.IsExplicitRequest(body);
+        if (providerSettings || maintenance) { choice = ModelTurnChoice.Local; }
         var context = createContext is null ? new ModelContextEnvelope(request,
-            providerSettings ? Policy + " " + Kora.Core.Tools.ProviderSettingsTools.ModelPolicy : Policy, body, [], now,
-            copilot || claude ? now.Add(HostedTurnAuthorization.MaximumDuration) : now.AddSeconds(15),
-            providerSettings ? ModelToolMode.ProviderSettings : claude ? ModelToolMode.None : ModelToolMode.ReadOnly)
+            maintenance ? Policy + " " + Kora.Core.Tools.MaintenanceTools.ModelPolicy
+                : providerSettings ? Policy + " " + Kora.Core.Tools.ProviderSettingsTools.ModelPolicy : Policy, body, [], now,
+            maintenance ? now.Add(Kora.Core.Tools.MaintenanceTools.Deadline)
+                : copilot || claude ? now.Add(HostedTurnAuthorization.MaximumDuration) : now.AddSeconds(15),
+            maintenance ? ModelToolMode.ApplicationMaintenance
+                : providerSettings ? ModelToolMode.ProviderSettings : claude ? ModelToolMode.None : ModelToolMode.ReadOnly)
             : createContext(request, now);
         context = mcpConfiguration?.RestrictTools(context) ?? context;
         if (pending?.Output is not null)

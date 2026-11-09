@@ -7,8 +7,8 @@ using Kora.Core.Storage;
 
 namespace Kora.Application.Maintenance;
 
-public sealed class MaintenanceCommands(MaintenanceViewModel state, ISessionWorkspaceStore workspace,
-    IMaintenanceControlSessionStore sessions, HostTaskCoordinator tasks) : IMaintenanceCommands, IApplicationMaintenance, IAsyncDisposable
+public sealed partial class MaintenanceCommands(MaintenanceViewModel state, ISessionWorkspaceStore workspace,
+    IMaintenanceControlSessionStore sessions, HostTaskCoordinator tasks) : IMaintenanceCommands, IApplicationMaintenance, IApplicationMaintenanceMcp, IAsyncDisposable
 {
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly CancellationTokenSource lifetime = new();
@@ -20,13 +20,22 @@ public sealed class MaintenanceCommands(MaintenanceViewModel state, ISessionWork
 
     public Task<string> CheckForUpdatesAsync(ReleaseVersion? version, RequestOrigin origin,
         Func<bool> admitted, CancellationToken cancellationToken) =>
-        ExecuteUpdateAsync(version, false, origin, admitted, cancellationToken);
+        ExecuteUpdateAsync(version, origin, admitted, cancellationToken);
 
-    public Task<string> RequestUpgradeAsync(ReleaseVersion? version, RequestOrigin origin,
-        Func<bool> admitted, CancellationToken cancellationToken) =>
-        ExecuteUpdateAsync(version, true, origin, admitted, cancellationToken);
+    public async Task<string> RequestUpgradeAsync(ReleaseVersion? version, RequestOrigin origin,
+        Func<bool> admitted, CancellationToken cancellationToken)
+    {
+        if (origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice) || HostActivity.Current is not null)
+        { throw new InvalidOperationException("Installer launch requests require fresh original user input."); }
+        using var activity = HostActivity.BeginRoot(HostRequest.Create(origin), HostActivityLayer.Application, HostOperation.Request);
+        var reply = await InvokeAsync(Kora.Core.Tools.MaintenanceTools.Upgrade,
+            Kora.Core.Tools.MaintenanceTools.CreateInput(version), admitted, cancellationToken).ConfigureAwait(false);
+        activity.Complete(reply.Outcome == Kora.Core.Tools.CapabilityOutcome.Succeeded
+            ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
+        return reply.Maintenance?.Message ?? "Installer was not started: " + reply.Reason + ". Review native Maintenance settings and retry.";
+    }
 
-    private async Task<string> ExecuteUpdateAsync(ReleaseVersion? version, bool upgrade, RequestOrigin origin,
+    private async Task<string> ExecuteUpdateAsync(ReleaseVersion? version, RequestOrigin origin,
         Func<bool> eligible, CancellationToken cancellationToken)
     {
         // Establish/revalidate the same durable control session used by cached maintenance.
@@ -48,7 +57,7 @@ public sealed class MaintenanceCommands(MaintenanceViewModel state, ISessionWork
             {
                 await sessions.WithMaintenanceControlSessionAsync(request, authority.Generation,
                     () => Admitted() ? true : throw new InvalidOperationException("Maintenance admission changed."), token).ConfigureAwait(false);
-                output = await state.ExecuteUpdateAsync(version, upgrade, Admitted, token).ConfigureAwait(false);
+                output = await state.ExecuteUpdateAsync(version, Admitted, token).ConfigureAwait(false);
                 token.ThrowIfCancellationRequested();
                 await sessions.WithMaintenanceControlSessionAsync(request, authority.Generation,
                     () => Admitted() ? true : throw new InvalidOperationException("Maintenance admission changed before receipt."), token).ConfigureAwait(false);
@@ -89,32 +98,21 @@ public sealed class MaintenanceCommands(MaintenanceViewModel state, ISessionWork
             token.ThrowIfCancellationRequested();
             bool Admitted() => !disposed && !unavailable && eligible();
             if (!Admitted()) { throw new InvalidOperationException("Maintenance host admission is unavailable."); }
-            if (session is null)
-            {
-                var creation = HostRequest.Create(origin);
-                using var activity = HostActivity.BeginRoot(creation, HostActivityLayer.Application, HostOperation.Policy);
-                var intent = await workspace.RecordControlIntentAsync(creation, token).ConfigureAwait(false);
-                try
-                {
-                    session = await sessions.CreateMaintenanceControlSessionAsync(creation, Admitted, token).ConfigureAwait(false);
-                    await tasks.RecordOutcomeAsync(intent, HostTaskState.Succeeded, CancellationToken.None).ConfigureAwait(false);
-                }
-                catch { unavailable = true; throw; }
-                activity.Complete(HostOperationOutcome.Completed);
-            }
-            var request = new HostRequest(new(Guid.NewGuid()), session.SessionId, new(Guid.NewGuid()), origin);
+            var authority = await EnsureControlSessionAsync(origin, Admitted, token).ConfigureAwait(false);
+            var request = new HostRequest(new(Guid.NewGuid()), authority.SessionId, new(Guid.NewGuid()), origin);
             using var operation = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
             var admitted = await workspace.RecordControlIntentAsync(request, token).ConfigureAwait(false);
             var terminalRecorded = false;
             try
             {
-                output = await sessions.WithMaintenanceControlSessionAsync(request, session.Generation, () =>
+                output = await sessions.WithMaintenanceControlSessionAsync(request, authority.Generation, () =>
                 {
                     token.ThrowIfCancellationRequested();
                     if (!Admitted() || !ReferenceEquals(HostActivity.RequireCurrent().Request, request))
                     {
                         throw new InvalidOperationException("Maintenance original channel, ownership, privacy or call admission changed.");
                     }
+
                     return state.ApplyCached(command, target, request, Admitted, token);
                 }, token).ConfigureAwait(false);
                 token.ThrowIfCancellationRequested();

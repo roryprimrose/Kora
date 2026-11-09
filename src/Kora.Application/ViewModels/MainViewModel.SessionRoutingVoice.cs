@@ -14,6 +14,15 @@ public sealed partial class MainViewModel
     private Task sessionRoutingVoiceRetirement = Task.CompletedTask;
     private HandsFreeVoiceContinuation.CaptureRelease? routingCaptureRelease;
 
+    private void InvalidateOwnedVoiceCapture()
+    {
+        if (sessionRoutingVoiceRequest is { } request) { request.InvalidateHostCapture(voiceRecognition); }
+        else { voiceRecognition.InvalidateCapture(); }
+    }
+
+    private Task StopOwnedVoiceCaptureAsync() => sessionRoutingVoiceRequest is { } request
+        ? request.StopHostCaptureAsync(voiceRecognition) : voiceRecognition.StopAsync();
+
     public void BindSessionRoutingCaptureRelease(HandsFreeVoiceContinuation.CaptureRelease release)
     {
         if (sessionRoutingVoiceRequest is not null)

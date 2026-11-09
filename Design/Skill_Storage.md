@@ -566,6 +566,10 @@ Keep the approved snapshot in memory for invocation; do not read live changing i
 Include all permitted referenced package content in the revision identity.
 Recheck source content/access before new dispatch and reconcile watcher notifications; watchers alone are not authoritative.
 
+The [owned native package reader](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.cs) revalidates the final canonical binding of every captured primary and Markdown reference handle before returning a complete snapshot.
+A component moved away or replaced during capture is rejected even when the replacement has identical bytes and the directory membership names are unchanged.
+Reopening the replacement remains a different revision and does not enable use ([deterministic regressions](../tests/Kora.Windows.IntegrationTests/Skills/OwnedSkillMarkdownPublicationTests.cs)).
+
 Use the [common reconciliation pipeline](Definition_Management.md#consistent-external-change-and-reload-contract)
 for owned and profile sources, manual reload, external changes, and saves.
 Refresh catalogues, UI/voice lookup, applicable instructions, and agent

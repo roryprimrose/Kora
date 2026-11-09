@@ -4,6 +4,7 @@ using AwesomeAssertions;
 using Kora.Core.Skills;
 using Kora.Windows.IntegrationTests.Storage;
 using Kora.Windows.Skills;
+using Kora.Windows.Storage;
 
 namespace Kora.Windows.IntegrationTests.Skills;
 
@@ -211,6 +212,57 @@ public sealed partial class OwnedSkillMarkdownPublicationTests
         attempts.Should().Be(1);
         published.Document.IsAvailableForInvocation.Should().BeFalse();
         source.IsSameRevision((await store.Read("example", "1.0.0", Token))!).Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("manifest.yaml", false)]
+    [InlineData("manifest.yaml", true)]
+    [InlineData("instructions.md", false)]
+    [InlineData("instructions.md", true)]
+    [InlineData("reference", false)]
+    [InlineData("reference", true)]
+    public async Task ReadRejectsCapturedComponentsWhoseCanonicalNamesChange(string component, bool replace)
+    {
+        using var paths = new OwnedStorageFixture();
+        var store = new WindowsOwnedDeclarativeSkillStore(paths);
+        var document = Document();
+        var original = await Save(store, document);
+        var relative = component is "reference" ? document.ReferenceDeclaration!.Paths[0] : component;
+        var source = Path.Combine(store.Destination(document), relative);
+        var moved = Path.Combine(paths.RoamingRoot, "captured-component.md");
+        var reads = 0;
+        var changed = false;
+        store.Checkpoint = point =>
+        {
+            if (point is not "before-reference-read") { return; }
+            reads++;
+            if (reads != (component is "reference" ? 2 : 1)) { return; }
+            File.Move(source, moved);
+            if (replace)
+            {
+                using var replacement = RestrictedStorageDirectory.ForOwnedSkills(paths).CreateNewFile(source);
+                replacement.Write(File.ReadAllBytes(moved));
+                replacement.Flush(flushToDisk: true);
+            }
+            changed = true;
+        };
+
+        await store.Invoking(value => value.Read("example", "1.0.0", Token))
+            .Should().ThrowAsync<InvalidDataException>();
+        changed.Should().BeTrue();
+        store.Checkpoint = null;
+        File.Exists(moved).Should().BeTrue();
+        File.Exists(source).Should().Be(replace);
+        if (replace)
+        {
+            (await File.ReadAllBytesAsync(source, Token)).Should().Equal(await File.ReadAllBytesAsync(moved, Token));
+            var reopened = (await new WindowsOwnedDeclarativeSkillStore(paths).Read("example", "1.0.0", Token))!;
+            original.IsSameRevision(reopened).Should().BeFalse();
+            reopened.Document.RevisionDigest.Should().Be(original.Document.RevisionDigest);
+            reopened.Document.IsAvailableForInvocation.Should().BeFalse();
+        }
+        Directory.GetDirectories(Path.Combine(paths.RoamingRoot, "Skills", document.Id))
+            .Should().Equal(store.Destination(document));
     }
 
     [Fact]

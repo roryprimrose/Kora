@@ -11,6 +11,7 @@ public sealed class WindowsMcpConnectionBroker : IMcpConnectionBroker
     private readonly IQualifiedMcpAccountSource accounts;
     private readonly Func<string, CancellationToken, Task<IPAddress[]>> resolve;
     private readonly Func<McpEndpoint, IReadOnlyList<IPAddress>, HttpMessageHandler> createHandler;
+    private readonly TimeProvider time;
 
     public WindowsMcpConnectionBroker() : this(new UnavailableAccounts()) { }
 
@@ -19,11 +20,12 @@ public sealed class WindowsMcpConnectionBroker : IMcpConnectionBroker
 
     internal WindowsMcpConnectionBroker(IQualifiedMcpAccountSource accounts,
         Func<string, CancellationToken, Task<IPAddress[]>> resolve,
-        Func<McpEndpoint, IReadOnlyList<IPAddress>, HttpMessageHandler> createHandler)
+        Func<McpEndpoint, IReadOnlyList<IPAddress>, HttpMessageHandler> createHandler, TimeProvider? time = null)
     {
         this.accounts = accounts;
         this.resolve = resolve;
         this.createHandler = createHandler;
+        this.time = time ?? TimeProvider.System;
     }
 
     public Task<IReadOnlyList<McpAccountChoice>> ReadAccountsAsync(CancellationToken token)
@@ -36,21 +38,39 @@ public sealed class WindowsMcpConnectionBroker : IMcpConnectionBroker
     {
         ArgumentNullException.ThrowIfNull(account);
         token.ThrowIfCancellationRequested();
-        var lease = await accounts.AcquireAsync(account, token).ConfigureAwait(false);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30), time);
+        using var startup = CancellationTokenSource.CreateLinkedTokenSource(token, deadline.Token);
+        startup.Token.ThrowIfCancellationRequested();
+        var lease = await accounts.AcquireAsync(account, startup.Token).ConfigureAwait(false);
+        HttpMessageHandler? handler = null;
+        McpHttpConnection? connection = null;
         try
         {
-            using var admission = CancellationTokenSource.CreateLinkedTokenSource(token, lease.AdmissionWithdrawn);
+            using var admission = CancellationTokenSource.CreateLinkedTokenSource(startup.Token, lease.AdmissionWithdrawn);
+            admission.Token.ThrowIfCancellationRequested();
             await RequireCurrentAsync(lease, account, admission.Token).ConfigureAwait(false);
+            admission.Token.ThrowIfCancellationRequested();
             var addresses = await resolve(account.Destination.Address.IdnHost, admission.Token).ConfigureAwait(false);
+            admission.Token.ThrowIfCancellationRequested();
             if (addresses.Length == 0 || addresses.Any(address => !WebPageNetworkPolicy.IsPublic(address)))
             { throw new InvalidOperationException("The MCP destination has no exclusively public DNS binding."); }
             var pinned = addresses.Distinct().Select(CloneAddress).ToArray();
             await RequireCurrentAsync(lease, account, admission.Token).ConfigureAwait(false);
-            return new McpHttpConnection(account, lease, pinned, createHandler(account.Destination, pinned));
+            admission.Token.ThrowIfCancellationRequested();
+            handler = createHandler(account.Destination, pinned);
+            admission.Token.ThrowIfCancellationRequested();
+            connection = new McpHttpConnection(account, lease, pinned, handler, time);
+            admission.Token.ThrowIfCancellationRequested();
+            return connection;
         }
         catch
         {
-            lease.Dispose();
+            if (connection is not null) { await connection.DisposeAsync().ConfigureAwait(false); }
+            else
+            {
+                try { handler?.Dispose(); }
+                finally { lease.Dispose(); }
+            }
             throw;
         }
     }

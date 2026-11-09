@@ -299,6 +299,10 @@ also covers serial waiters. Lifetime/account withdrawal cancels waiting
 exchanges before any new send, and disposal retains the handler and credential
 lease until cancellation-ignoring work actually terminates.
 
+[Windows connection establishment](../src/Kora.Windows/Mcp/WindowsMcpConnectionBroker.cs) has one fixed 30-second overall deadline spanning delegated account acquisition, account/egress qualification checks and public-DNS admission.
+Cancellation signals do not release startup ownership or an acquired credential lease until cancellation-ignoring startup work actually terminates; late success is rejected without publishing a connection.
+This deadline is separate from the independent 30-second per-exchange deadline and adds no automatic retry, reconnect or profile enablement.
+
 The separately reviewed [declarative MCP skill bridge](Skill_Storage.md#reviewed-exact-read-only-mcp-skill)
 reuses this route for one closed exact tool/source/schema dependency and the original user's independently selected account and arguments.
 The skill is local-only untrusted guidance, not a new model-tool catalogue, effect mapping or connector approval.

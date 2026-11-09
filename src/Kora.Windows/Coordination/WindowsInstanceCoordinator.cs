@@ -11,7 +11,7 @@ namespace Kora.Windows.Coordination;
 /// Main-thread ownership surrounds the entire desktop/service lifetime. After a handoff,
 /// that thread becomes a lifecycle-only supervisor; it never composes assistant services again.
 /// </summary>
-public sealed partial class WindowsInstanceCoordinator : IInstanceCoordinator
+public sealed partial class WindowsInstanceCoordinator : IInstanceCoordinator, IWindowsInstallerShutdownHost
 {
     private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(10);
     private readonly IInstanceHostCallbacks callbacks;

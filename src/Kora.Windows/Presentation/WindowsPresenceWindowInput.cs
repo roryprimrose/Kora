@@ -1,6 +1,6 @@
 namespace Kora.Windows.Presentation;
 
-public sealed class WindowsPresenceWindowInput
+public sealed class WindowsPresenceWindowInput : IWindowsPresenceWindowInput
 {
     private const uint TransparentStyle = 0x00000020;
     private const uint LayeredStyle = 0x00080000;

@@ -28,7 +28,7 @@ internal sealed class AvaloniaPresencePresenter : IDisposable
         this.reportFailure = reportFailure;
         var handle = owner.TryGetPlatformHandle()?.Handle
             ?? throw new InvalidOperationException("The standard presence requires its host-owned window.");
-        target = (createTarget ?? (parent => new NativeBitmapTarget(new(parent))))(handle);
+        target = (createTarget ?? CreateNativeTarget)(handle);
         source.UseExternalPresentation();
         source.FrameReady += OnFrameReady;
         source.PropertyChanged += OnSourceChanged;
@@ -37,6 +37,8 @@ internal sealed class AvaloniaPresencePresenter : IDisposable
         owner.PositionChanged += OnPositionChanged;
         owner.ScalingChanged += OnScalingChanged;
     }
+
+    internal static IBitmapTarget CreateNativeTarget(nint parent) => new NativeBitmapTarget(new(parent));
 
     internal nint Handle => target.Handle;
     internal double PresentedOpacity { get; private set; }

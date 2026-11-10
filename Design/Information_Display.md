@@ -36,6 +36,29 @@ Cancellation/failure before publication and uncertain committed effects remain d
 Files leave Kora retention and may be copied or synced by the selected location; conversation/data deletion does not delete exports or inherited copies.
 Deterministic [native transaction tests](../tests/Kora.Windows.IntegrationTests/ExactAnswerExportWriterTests.cs) and [authority/audit tests](../tests/Kora.Application.UnitTests/Presentation/ExactAnswerExportReviewTests.cs) do not qualify installed accessibility or provider/hardware readiness.
 
+## Separately reviewed bounded evidence-page export
+
+The Evidence viewer's **Review page export** completes the already admitted
+`evidence.export` write through an original native gesture, new-file picker,
+complete immutable UTF-8 JSON review and separate single-use confirmation.
+It is not an answer export or diagnostic/model-input permission. See
+[the complete operation](../docs/evidence-answers.md#separately-export-one-evidence-page).
+
+The complete original page retains the 50-record/64-KiB bound; only its live
+cursor is omitted from exported bytes. Record/source/gap/DailyReport fields
+remain unchanged. Revalidation rereads the original source checkpoint and
+page position for comparison only, without following a cursor or replacing
+the frozen page. Lost privacy, filters, source or provenance refuses the write.
+
+Separate typed evidence source/review/destination contracts share only the
+[Windows create-only transaction](../src/Kora.Windows/Presentation/WindowsCreateOnlyExportDestination.cs)
+with answer export. Native adapters retain their own format and authority
+requirements. Publication remains no-replace, durable flush and exact readback;
+uncertainty never becomes rollback or an automatic retry. Review retirement
+clears presentation, cancels work and keeps the operation owned until actual
+writer/destination closure; voluntary conversation shutdown joins these operations.
+Exports leave Kora retention and are never opened automatically.
+
 ## Bounded provisional local answers
 
 **Answer locally (no tools)** submits the selected conversation's original input through the ordinary session/instruction owner, explicitly selecting local, tool-free execution. The primary conversation, Sessions and compact views label arriving text **Provisional answer - not retained**. Existing Send, tool loops, clarification and ordinary hosted paths remain buffered ([submission](../src/Kora.Application/Hosting/SessionConversationService.SessionInstructions.cs), [native controls](../src/Kora/SessionInteractionView.axaml), [adapter selection](../src/Kora.Application/Dependencies/ModelTurnHost.Questions.cs)).

@@ -16,10 +16,12 @@ internal sealed partial class EvidenceView : UserControl, IDisposable
 {
     private readonly Window owner;
     private readonly NativeViewLifetime lifetime;
+    private EvidenceViewModel? boundModel;
     private bool disposed;
     internal event EventHandler? Closed;
     internal event EventHandler? CloseRequested;
     internal bool IsNativePresented => lifetime.IsPresented;
+    internal bool IsBoundTo(EvidenceViewModel model) => ReferenceEquals(Volatile.Read(ref boundModel), model);
     internal Func<bool> CapturePresentation() => lifetime.Capture();
     private bool IsActive => lifetime.IsActive;
 
@@ -66,11 +68,13 @@ internal sealed partial class EvidenceView : UserControl, IDisposable
         typographyHostForEvidenceAnswers = typographyHost;
         InitializeComponent();
         SizeChanged += (_, _) => EvidenceLayoutRoot.Height = Math.Max(EvidenceLayoutRoot.MinHeight, Bounds.Height - 48);
+        DataContextChanged += OnDataContextChanged;
         DataContext = model;
         lifetime = new(this, owner, admitted);
         lifetime.PresentationChanged += OnPresentationChanged;
         owner.Closed += OnOwnerClosed;
         BindEvidenceAnswers(model);
+        BindExport(model);
         var scaleBody = NativeReaderTypography.Capture(EvidenceBody);
         var scaleMatch = NativeReaderTypography.Capture(LiteralMatch);
         var retired = false;
@@ -235,6 +239,8 @@ internal sealed partial class EvidenceView : UserControl, IDisposable
             else { model.RefreshPresentationAdmission(); }
         }
     }
+    private void OnDataContextChanged(object? sender, EventArgs args) =>
+        Volatile.Write(ref boundModel, DataContext as EvidenceViewModel);
     private void OnOwnerClosed(object? sender, EventArgs args) => Dispose();
     private void Close() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
@@ -242,6 +248,8 @@ internal sealed partial class EvidenceView : UserControl, IDisposable
     {
         if (disposed) { return; }
         disposed = true;
+        Volatile.Write(ref boundModel, null);
+        DataContextChanged -= OnDataContextChanged;
         owner.Closed -= OnOwnerClosed;
         lifetime.PresentationChanged -= OnPresentationChanged;
         lifetime.Dispose();

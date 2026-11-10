@@ -22,5 +22,8 @@ public sealed class ReviewedContextGuideTests
         page.Markdown.Should().Contain("Reply to this answer").And.Contain("Confirm ONE local-only reply")
             .And.Contain("60 seconds").And.Contain("Cancel reply").And.Contain("memory-only composer")
             .And.Contain("no spoken/typed ordinal Reply command").And.Contain("silently sending the follow-up alone");
+        page.Markdown.Should().Contain("Context submitted for this answer").And.Contain("Unknown")
+            .And.Contain("Complete original capture does not mean all current sources are retained or usable")
+            .And.Contain("Unknown / not recorded").And.Contain("no instruction file, catalogue or body is read");
     }
 }

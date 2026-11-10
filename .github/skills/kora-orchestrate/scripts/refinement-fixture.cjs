@@ -1,6 +1,6 @@
 'use strict';
 
-const { createState, applyEvent, digest } = require('./registry.cjs');
+const { createState, applyEvent, digest, supersessionAcknowledgmentDigest } = require('./registry.cjs');
 
 const head = '1'.repeat(40);
 const owner = 'stopped-owner';
@@ -110,5 +110,91 @@ function candidateEvent(state, key = 'independent-local-action-reviewer', id = `
     evidence: `Fresh current-source complete manifest: ${final.evidence}`, manifestComplete: true };
 }
 
+function supersessionFixture() {
+  let state = createState('local-coordinator', head, 'delivery');
+  state = applyEvent(state, { id: 'planner', type: 'planner', owner: 'planner' }).state;
+  for (const [index, scopes] of [['src\\shared.cs', 'docs\\retained.md'],
+    ['tests\\shared.test.cjs']].entries()) {
+    const key = `prior-${index}`;
+    state = applyEvent(state, { id: key, type: 'adopt', owner: `owner-${index}`, key,
+      outcome: key, pool: 'ready', kind: 'feature', head, scopes,
+      evidence: 'Synthetic independently admitted historical owner.' }).state;
+    state = applyEvent(state, { id: `publication-${index}`, type: 'published',
+      owner: `owner-${index}`, key, proof: { pushedHead: head, remoteHead: head,
+        pr: 910 + index, ready: true, enrolled: true } }).state;
+    state = applyEvent(state, { id: `blocked-${index}`, type: 'blocked',
+      owner: `owner-${index}`, key, reason: 'Retained cleanup obligation.' }).state;
+  }
+  return applyEvent(state, { id: 'candidate', type: 'candidate', owner: 'planner', pass: 1,
+    key: 'successor', outcome: 'successor outcome', pool: 'ready', kind: 'feature', head,
+    scopes: ['src\\shared.cs', 'tests\\shared.test.cjs'],
+    evidence: 'Synthetic complete independently admitted successor.' }).state;
+}
+
+function supersessionEvent(state, revision = 41, mode = 'activate-local', externalCheckpoints = []) {
+  const candidate = state.items.find(item => item.key === 'successor');
+  const proof = {
+    version: 1, repository: 'roryprimrose/Kora', coordinator: state.coordinator,
+    checkpointRevision: revision, head: state.head, mode, candidate: structuredClone(candidate),
+    authority: { singleLedger: mode === 'activate-local',
+      receipt: 'Synthetic controlling-ledger authority; external authority explicitly unavailable.' },
+    exactFiles: { complete: true, paths: [], receipt: 'Synthetic verified exact file-kind inventory.' },
+    expectedItemDigest: digest(candidate), manifestComplete: true,
+    localReservations: structuredClone(state.items.filter(item =>
+      !['candidate', 'complete'].includes(item.phase))), externalCheckpoints, holders: []
+  };
+  for (const [coordinator, items] of [[state.coordinator, proof.localReservations],
+    ...externalCheckpoints.map(snapshot => [snapshot.state.coordinator,
+      snapshot.state.items.filter(item => !['candidate', 'complete'].includes(item.phase))])]) {
+    for (const item of items) {
+      const paths = candidate.scopes.filter(value => item.scopes.includes(value));
+      if (!paths.length) continue;
+      const holder = {
+        coordinator, key: item.key, owner: item.owner, itemDigest: digest(item),
+        scopeRevision: item.scopeRevision ?? 0, paths,
+        manifest: { complete: true, actual: [...item.scopes], planned: [] },
+        preservation: { complete: true,
+          commits: [{ head: item.publication?.remoteHead ?? head, paths: [...item.scopes],
+            receipt: 'Synthetic exact commit/blob preservation receipt.' }],
+          retained: [], unpreserved: [] },
+        stopped: { writingStopped: true, pendingInstructions: 0, sourceInstructionsCleared: true,
+          receipt: 'Synthetic independent host quiescence and exact instruction readback.' },
+        acknowledgment: null
+      };
+      proof.holders.push(holder);
+    }
+  }
+  proof.exactFiles.paths = [...new Set(proof.holders.flatMap(holder => holder.paths))];
+  return rebindSupersession({ id: 'supersede-once', type: 'supersede-write-reservations', proof,
+    authorization: { humanAuthorized: true, receipt: 'Synthetic explicit exact human authority.',
+      proofDigest: '' } });
+}
+
+function rebindSupersession(event) {
+  for (const holder of event.proof.holders) {
+    holder.acknowledgment = { kind: 'owner', id: `ack-${event.id}-${holder.coordinator}-${holder.key}`,
+      receipt: 'Synthetic exact owner whole-proof response, not real host evidence.',
+      proofDigest: supersessionAcknowledgmentDigest(event.proof, holder) };
+  }
+  event.authorization.proofDigest = digest(event.proof);
+  return event;
+}
+
+function supersessionBeneficiaryFixture() {
+  const before = supersessionFixture();
+  const reserved = applyEvent(before, supersessionEvent(before), { revision: 41 }).state;
+  const running = applyEvent(reserved, { id: 'review-successor-attached', type: 'attached',
+    key: 'successor', owner: 'review-successor' }).state;
+  const published = applyEvent(running, { id: 'review-successor-published', type: 'published',
+    key: 'successor', owner: 'review-successor', proof: { pushedHead: head, remoteHead: head,
+      pr: 912, ready: true, enrolled: true } }).state;
+  const completion = { id: 'review-successor-completed', type: 'completed',
+    key: 'successor', owner: 'review-successor', proof: { remoteHead: head,
+      stoppedWriting: true, worktreeAbsent: true, branchAbsent: true, pendingInstructions: 0 } };
+  const complete = applyEvent(published, completion).state;
+  return { reserved, running, published, completion, complete };
+}
+
 module.exports = { refinementFixture, refinementEvent, rebind, tamperedStates, head, owner,
-  candidateFixture, candidateEvent };
+  candidateFixture, candidateEvent, supersessionFixture, supersessionEvent, rebindSupersession,
+  supersessionBeneficiaryFixture };

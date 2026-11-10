@@ -44,11 +44,18 @@ The separate native-only **Stream explicitly with Claude (text only, separately 
 
 ## Retained-answer context handoff inspection
 
-The explicit native **Context submitted for this answer** operation inspects one exact successful retained ASSISTANT answer. Its bounded implementation records only the existing LocalOnly, tool-free, reviewed same-session history consumer; legacy and other consumers report unknown/not recorded ([record](../src/Kora.Core/Conversation/SubmittedAnswerContext.cs), [user operation](../docs/responses-and-calls.md#inspect-context-submitted-for-a-retained-answer)).
+The explicit native **Context submitted for this answer** operation inspects one exact successful retained ASSISTANT answer. It records reviewed LocalOnly, tool-free history, Session memory, Device-profile memory and the exact mixed history/instruction/Session-memory consumer. Legacy and unsupported consumers remain unknown/not recorded
+([record](../src/Kora.Core/Conversation/SubmittedAnswerContext.cs)).
 
 The host freezes typed, content-free lineage at the canonical adapter handoff and binds it to the original request/task/session/generation/turn/profile in the genuine terminal transaction. The ordered collection and complete message/page/envelope retain existing bounds; overflow is rejection, not partial successful provenance. No source body, value, excerpt, private label/path, credential or transport token is newly retained ([capture](../src/Kora.Application/Dependencies/ModelTurnHost.Questions.cs), [commit](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.ConversationExecution.cs)).
 
-The shared history-evidence builder preserves that exact ordered lineage, including the ASSISTANT-only exact-reply subset; lineage remains host-only and absent from the canonical wire. Reusing the builder for mixed instruction/memory context does not make that consumer a recorded history-only handoff ([history/reply regressions](../tests/Kora.Core.UnitTests/Conversation/ConversationHistoryContextTests.cs), [mixed-context boundary](../tests/Kora.Application.UnitTests/Hosting/ModelTurnHostTests.ReviewedContext.cs)).
+The shared history builder preserves ordered lineage, including ASSISTANT-only replies. Mixed version 4 requires all ordered history, one owned instruction and every selected Session memory. Lineage stays off the model wire; incomplete collections cannot become partial successful metadata ([capture regressions](../tests/Kora.Core.UnitTests/Conversation/SubmittedMixedContextTests.cs)).
+
+Only the authoritative instruction broker issues the instruction evidence's opaque original snapshot reference and revision/digest; no label, path, body or prompt content is copied. This is historical provenance, not a resolvable read/use token or renewed authority
+([issuer](../src/Kora.Application/Hosting/ScopedInstructionUseBroker.cs), [contract](../src/Kora.Core/Conversation/SubmittedInstructionSource.cs)).
+
+Instruction current availability is always explicitly **Unknown**. Inspection performs no instruction file, catalogue or body read and does not infer retention from matching digests. Complete original capture does not assert complete current-source verification. History and memory availability remain metadata-only
+([availability](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.AnswerContext.cs)).
 
 The 32768-byte storage limit applies to the complete serialized UTF-8 conversation cell, including submitted metadata and JSON framing, not merely the canonical input envelope. A 32769-byte prospective successful cell cannot retain a partial answer or provenance ([domain boundary tests](../tests/Kora.Core.UnitTests/Conversation/SubmittedAnswerContextTests.cs), [host boundary tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.SubmittedContextBoundaries.cs), [transaction boundary tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteConversationTests.AnswerContext.cs)).
 
@@ -56,7 +63,8 @@ This evidence establishes bytes handed to the admitted local adapter, not physic
 
 Availability changes in either direction between the application's observations deny publication. Native Details also revalidates the exact recorded-context snapshot before showing it and during later inspection; changed availability or origin retires it rather than substituting an assistant body or renewing private/session admission ([application races](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.SubmittedContextBoundaries.cs), [native publication and retirement races](../tests/Kora.Windows.IntegrationTests/DetailWindowControllerTests.AnswerContext.cs)).
 
-The existing exact native Details source/private/current-target fences, return-to-message navigation and no-copy policy apply. Inspection never renews session activity, source permission or independent retention. Only same-session conversation references are supported; memory, definitions and account-source expansion require their own deletion/privacy contracts ([native route](../src/Kora/SessionsViewModel.Conversation.cs), [metadata reader](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.AnswerContext.cs)).
+Existing native Details source/private/current-target fences, return-to-message navigation and no-copy policy apply. Metadata belongs only to its answer cell and follows answer/session deletion and inspection retirement; memory and definition lifetimes remain independent. Inspection never renews activity or source authority
+([native regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.SubmittedContext.cs)).
 
 Metadata-only inspection also excludes the separately retained ASSISTANT body from shared native chrome, including unknown/not-recorded answers. Ordinary original-message Details retains its separate answer display; inspecting metadata does not substitute that body for unavailable provenance ([presentation boundary](../src/Kora.Application/Presentation/DetailViewerState.cs), [native chrome](../src/Kora/DetailContentView.axaml.cs)).
 

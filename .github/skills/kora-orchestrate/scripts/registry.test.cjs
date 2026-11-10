@@ -5,14 +5,366 @@ const { test } = require('node:test');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { createState, applyEvent, validate, digest, heldReservations } = require('./registry.cjs');
+const { createState, applyEvent, validate, digest, heldReservations,
+  supersessionAcknowledgmentDigest } = require('./registry.cjs');
 const { refinementFixture, refinementEvent, rebind, tamperedStates,
-  candidateFixture, candidateEvent } = require('./refinement-fixture.cjs');
+  candidateFixture, candidateEvent, supersessionFixture, supersessionEvent,
+  rebindSupersession, supersessionBeneficiaryFixture } = require('./refinement-fixture.cjs');
 
 const sha = number => number.toString(16).padStart(40, '0');
 const coordinator = 'agent-host-session://coordinator';
 const planner = 'agent-host-session://coordinator?chat=planner';
 const owner = key => `agent-host-session://coordinator?chat=${key}`;
+
+test('exact local supersession atomically reserves only its beneficiary and preserves historical owners and slots', () => {
+  const state = supersessionFixture();
+  const before = structuredClone(state);
+  const event = supersessionEvent(state);
+  const result = applyEvent(state, event, { revision: 41 });
+  assert.equal(result.state.version, 5);
+  assert.deepEqual(result.state.items.slice(0, 2).map(item => {
+    const value = structuredClone(item);
+    delete value.scopeRevision; delete value.scopeHistory; delete value.scopeAmendments;
+    delete value.admissionHistory; delete value.sourceWritesRetired;
+    return value;
+  }), before.items.slice(0, 2));
+  assert.deepEqual(state, before);
+  assert.deepEqual(result.actions, [{ type: 'launch', key: 'successor', pool: 'ready' }]);
+  assert.equal(result.state.items.filter(item => item.phase !== 'candidate').length, 3);
+  const held = heldReservations(result.state, 'successor');
+  assert.deepEqual(held.map(item => item.scopes), [['docs\\retained.md'], []]);
+  assert.ok(held.every(item => item.sourceWritesRetired));
+  assert.ok(result.state.items.slice(0, 2).every(item => item.sourceWritesRetired === false));
+  assert.deepEqual(applyEvent(result.state, event, { revision: 42 }).actions, []);
+  for (const altered of [{ ...event, type: 'pause' },
+    { ...event, authorization: { ...event.authorization, receipt: 'changed' } }]) {
+    assert.throws(() => applyEvent(result.state, altered, { revision: 42 }), /replay/);
+  }
+  validate(result.state);
+});
+
+test('supersession rejects incomplete, stale, ancestor, unknown, unpreserved or unauthorized proof without mutation', () => {
+  const state = supersessionFixture();
+  const changes = [
+    e => { e.proof.holders.pop(); },
+    e => { e.proof.localReservations.pop(); },
+    e => { e.proof.head = sha(8); },
+    e => { e.proof.coordinator = 'different'; },
+    e => { e.proof.repository = 'other/repository'; },
+    e => { e.proof.expectedItemDigest = '0'.repeat(64); },
+    e => { e.proof.candidate.scopes.push('src\\extra.cs'); },
+    e => { e.proof.manifestComplete = false; },
+    e => { e.proof.authority.singleLedger = false; },
+    e => { e.proof.exactFiles.paths.pop(); },
+    e => { e.proof.exactFiles.complete = false; },
+    e => { e.proof.holders[0].paths = ['src']; },
+    e => { e.proof.holders[0].stopped.pendingInstructions = null; },
+    e => { e.proof.holders[0].stopped.writingStopped = false; },
+    e => { e.proof.holders[0].preservation.unpreserved = [{ path: 'src\\shared.cs', receipt: 'lost' }]; },
+    e => { e.proof.holders[0].preservation.commits = []; },
+    e => { e.proof.holders[0].itemDigest = '0'.repeat(64); },
+    e => { e.proof.holders[0].scopeRevision++; },
+    e => { e.authorization.humanAuthorized = false; },
+    e => { e.proof.mode = 'activate-external'; }
+  ];
+  for (const change of changes) {
+    const event = supersessionEvent(state);
+    change(event);
+    rebindSupersession(event);
+    assert.throws(() => applyEvent(state, event, { revision: 41 }));
+    assert.deepEqual(state, supersessionFixture());
+  }
+  assert.throws(() => applyEvent(state, supersessionEvent(state)), /revision/);
+  assert.throws(() => applyEvent(state, supersessionEvent(state), { revision: 40 }), /revision/);
+  const forged = supersessionEvent(state);
+  forged.proof.holders[0].acknowledgment.proofDigest = '0'.repeat(64);
+  forged.authorization.proofDigest = digest(forged.proof);
+  assert.throws(() => applyEvent(state, forged, { revision: 41 }), /acknowledgment/);
+});
+
+test('supersession acknowledgment binds the complete multi-holder proof, not only its own holder body', () => {
+  const state = supersessionFixture();
+  const event = supersessionEvent(state);
+  event.proof.holders[1].stopped.receipt = 'Changed independently verified second-holder evidence.';
+  event.proof.holders[1].acknowledgment.proofDigest =
+    supersessionAcknowledgmentDigest(event.proof, event.proof.holders[1]);
+  event.authorization.proofDigest = digest(event.proof);
+  assert.throws(() => applyEvent(state, event, { revision: 41 }), /acknowledgment/);
+  assert.deepEqual(state, supersessionFixture());
+});
+
+test('superseded owners cannot extend, refine, readmit or regain transferred writes after cleanup/resume', () => {
+  const state = applyEvent(supersessionFixture(),
+    supersessionEvent(supersessionFixture()), { revision: 41 }).state;
+  for (const type of ['extend-scopes', 'refine-scopes', 'revalidate-candidate']) {
+    assert.throws(() => applyEvent(state, { id: type, type, owner: 'owner-0', key: 'prior-0' }));
+  }
+  let next = applyEvent(state, { id: 'clean-old', type: 'completed', owner: 'owner-0', key: 'prior-0',
+    proof: { remoteHead: state.head, stoppedWriting: true, worktreeAbsent: true,
+      branchAbsent: true, pendingInstructions: 0 } }).state;
+  next = applyEvent(next, { id: 'pause-new', type: 'pause' }).state;
+  next = applyEvent(next, { id: 'resume-new', type: 'resume', owner: next.coordinator,
+    authorityConfirmed: true, discover: false }).state;
+  assert.deepEqual(next.supersessions, state.supersessions);
+  assert.equal(next.items[0].sourceWritesRetired, false);
+  validate(next);
+  for (const change of [
+    s => { s.version = 4; },
+    s => { s.supersessions = []; },
+    s => { s.items[0].scopes.push('src\\reclaimed.cs'); },
+    s => { s.items[0].sourceWritesRetired = true; },
+    s => { s.supersessions[0].event.proof.holders.pop(); },
+    s => { s.supersessions[0].event.authorization.receipt = 'forged'; },
+    s => { s.seen = s.seen.filter(value => value !== 'supersede-once'); }
+  ]) {
+    const altered = structuredClone(state);
+    change(altered);
+    assert.throws(() => validate(altered));
+  }
+});
+
+test('external multi-holder preparation preserves every guard and cannot activate or launch', () => {
+  const state = supersessionFixture();
+  const snapshots = ['external-one', 'external-two'].map(coordinator => {
+    let external = supersessionFixture();
+    external.coordinator = coordinator;
+    return { repository: 'roryprimrose/Kora', revision: 122, state: external,
+      stateDigest: digest(external), receipt: 'Synthetic complete external checkpoint read.' };
+  });
+  const event = supersessionEvent(state, 41, 'prepare-external', snapshots);
+  for (const holder of event.proof.holders) {
+    holder.stopped = null;
+    holder.acknowledgment = null;
+    holder.manifest = null;
+    holder.preservation = null;
+  }
+  event.authorization.proofDigest = digest(event.proof);
+  const result = applyEvent(state, event, { revision: 41 });
+  assert.equal(result.state.items.at(-1).phase, 'candidate');
+  assert.equal(result.actions.some(action => action.type === 'launch'), false);
+  assert.equal(heldReservations(result.state, 'successor').length, 6);
+  assert.ok(heldReservations(result.state, 'successor').every(item => item.scopes.length > 0));
+  const missing = structuredClone(event);
+  missing.proof.holders.pop();
+  missing.authorization.proofDigest = digest(missing.proof);
+  assert.throws(() => applyEvent(state, missing, { revision: 41 }), /holder/);
+  const active = rebindSupersession({ ...structuredClone(event),
+    proof: { ...structuredClone(event.proof), mode: 'activate-local' } });
+  active.proof.authority.singleLedger = true;
+  active.authorization.proofDigest = digest(active.proof);
+  assert.throws(() => applyEvent(state, active, { revision: 41 }), /External/);
+  const stale = structuredClone(event);
+  stale.proof.externalCheckpoints[0].state.items[0].scopes.pop();
+  stale.authorization.proofDigest = digest(stale.proof);
+  assert.throws(() => applyEvent(state, stale, { revision: 41 }), /snapshot/);
+});
+
+test('supersession is not slot release and its beneficiary fence prevents rival dispatch, adoption and readmission', () => {
+  let state = supersessionFixture();
+  for (let index = 0; index < 8; index++) {
+    state = applyEvent(state, { id: `fill-${index}`, type: 'adopt', owner: `filler-${index}`,
+      key: `fill-${index}`, outcome: `filler outcome ${index}`, head: state.head,
+      scopes: [`other\\${index}.cs`], pool: 'ready', kind: 'feature', evidence: 'Synthetic held slot.' }).state;
+  }
+  state = applyEvent(state, { id: 'rival', type: 'candidate', owner: 'planner', pass: 1,
+    key: 'rival', outcome: 'rival outcome', head: state.head, scopes: ['src\\shared.cs'],
+    pool: 'ready', kind: 'feature', evidence: 'Independent proposal, not beneficiary authority.' }).state;
+  // Put the rival first to distinguish a beneficiary fence from incidental dispatch order.
+  state.items.unshift(state.items.pop());
+  const event = supersessionEvent(state);
+  let result = applyEvent(state, event, { revision: 41 });
+  assert.equal(result.actions.some(action => action.type === 'launch'), false);
+  assert.equal(result.state.items.filter(item => !['candidate', 'complete'].includes(item.phase)).length, 10);
+  assert.equal(result.state.items.find(item => item.key === 'successor').phase, 'candidate');
+  assert.throws(() => applyEvent(result.state, { id: 'rival-adopt', type: 'adopt', owner: 'rogue-owner',
+    key: 'rogue', outcome: 'rogue outcome', head: state.head, scopes: ['src\\shared.cs'],
+    pool: 'repair', kind: 'repair', pr: 999, evidence: 'No authority to take transferred file.' }), /bound|Conflicting/);
+  const rival = result.state.items.find(item => item.key === 'rival');
+  assert.throws(() => applyEvent(result.state, { id: 'rival-readmit', type: 'revalidate-candidate',
+    key: rival.key, owner: 'planner', pass: 1, expectedItemDigest: digest(rival), head: state.head,
+    scopes: rival.scopes, evidence: 'Fresh evidence is not a transfer grant.', manifestComplete: true }), /conflicts/);
+  result = applyEvent(result.state, { id: 'release-prior', type: 'completed', owner: 'owner-0',
+    key: 'prior-0', proof: { remoteHead: state.head, stoppedWriting: true, worktreeAbsent: true,
+      branchAbsent: true, pendingInstructions: 0 } });
+  assert.deepEqual(result.actions.filter(action => action.type === 'launch'),
+    [{ type: 'launch', key: 'successor', pool: 'ready' }]);
+  assert.equal(result.state.items.find(item => item.key === 'rival').phase, 'candidate');
+});
+
+test('supersession keeps truthful later publication and cleanup possible and distinguishes explicit revocation', () => {
+  const state = supersessionFixture();
+  const prior = state.items[0];
+  prior.phase = 'running'; prior.publication = null; prior.pr = null;
+  const event = supersessionEvent(state);
+  event.proof.holders[0].acknowledgment.kind = 'revocation';
+  event.proof.holders[0].acknowledgment.receipt = 'Synthetic separate explicit revocation authority.';
+  event.authorization.proofDigest = digest(event.proof);
+  let result = applyEvent(state, event, { revision: 41 }).state;
+  result = applyEvent(result, { id: 'publish-old-later', type: 'published', key: prior.key,
+    owner: prior.owner, proof: { pushedHead: state.head, remoteHead: state.head,
+      pr: 919, ready: true, enrolled: true } }).state;
+  result = applyEvent(result, { id: 'cleanup-old-later', type: 'completed', key: prior.key,
+    owner: prior.owner, proof: { remoteHead: state.head, stoppedWriting: true,
+      worktreeAbsent: true, branchAbsent: true, pendingInstructions: 0 } }).state;
+  assert.equal(result.items[0].phase, 'complete');
+  assert.equal(result.items[0].sourceWritesRetired, false);
+  assert.equal(result.supersessions[0].event.proof.holders[0].acknowledgment.kind, 'revocation');
+  validate(result);
+});
+
+test('beneficiary fence releases only after complete cleanup for later dispatch, adoption and revalidation', () => {
+  const { reserved, running, published, completion, complete } = supersessionBeneficiaryFixture();
+  const blocked = applyEvent(published, { id: 'review-successor-blocked', type: 'blocked',
+    key: 'successor', owner: 'review-successor', reason: 'Beneficiary cleanup is still blocked.' }).state;
+  for (const state of [reserved, running, published, blocked]) {
+    assert.ok(heldReservations(state, 'later-feature').some(item =>
+      item.key === 'supersession:supersede-once:successor'));
+  }
+  for (const proof of [
+    { ...completion.proof, stoppedWriting: false },
+    { ...completion.proof, worktreeAbsent: false },
+    { ...completion.proof, branchAbsent: false },
+    { ...completion.proof, pendingInstructions: null }
+  ]) {
+    assert.throws(() => applyEvent(published, { ...completion, proof }), /cleanup/);
+    assert.deepEqual(published, supersessionBeneficiaryFixture().published);
+  }
+  assert.equal(complete.items.find(item => item.key === 'successor').phase, 'complete');
+  assert.equal(heldReservations(complete, 'later-feature').some(item =>
+    item.key === 'supersession:supersede-once:successor'), false);
+  assert.deepEqual(complete.supersessions, reserved.supersessions);
+  assert.deepEqual(complete.items.slice(0, 2), reserved.items.slice(0, 2));
+  assert.deepEqual(heldReservations(complete, 'later-feature').map(item => item.scopes),
+    [['docs\\retained.md'], []]);
+  const candidate = { id: 'review-later-feature', type: 'candidate', owner: 'planner', pass: 1,
+    key: 'later-feature', outcome: 'later independent outcome', head: complete.head,
+    scopes: ['src\\shared.cs'], pool: 'ready', kind: 'feature', evidence: 'Fresh independent admission.' };
+  const dispatched = applyEvent(complete, candidate);
+  assert.deepEqual(dispatched.actions, [{ type: 'launch', key: candidate.key, pool: 'ready' }]);
+  const adopted = applyEvent(complete, { ...candidate, id: 'review-later-adopt', type: 'adopt',
+    owner: 'review-later-owner' }).state;
+  assert.equal(adopted.items.at(-1).phase, 'running');
+  const waiting = applyEvent(complete, { ...candidate, id: 'review-later-maintenance',
+    kind: 'maintenance', scopes: ['later\\helper.cs'] }).state;
+  const item = waiting.items.at(-1);
+  const revalidated = applyEvent(waiting, { id: 'review-later-revalidated', type: 'revalidate-candidate',
+    key: item.key, owner: 'planner', pass: 1, expectedItemDigest: digest(item), head: waiting.head,
+    scopes: [...item.scopes, 'src\\shared.cs'], evidence: 'Fresh expanded independent maintenance manifest.',
+    manifestComplete: true }).state;
+  assert.deepEqual(revalidated.items.at(-1).scopes, ['later\\helper.cs', 'src\\shared.cs']);
+  for (const type of ['extend-scopes', 'refine-scopes', 'revalidate-candidate']) {
+    assert.throws(() => applyEvent(complete, { id: `review-old-${type}`, type,
+      owner: 'owner-0', key: 'prior-0' }), /fresh authority/);
+  }
+  assert.throws(() => applyEvent(complete, { ...candidate, id: 'review-old-revival', type: 'adopt',
+    owner: 'owner-0' }), /Duplicate or invalid owner/);
+});
+
+test('external preparation imports completed-beneficiary release without dropping remaining external guards', () => {
+  const external = supersessionBeneficiaryFixture().complete;
+  const base = supersessionFixture();
+  base.coordinator = 'review-import-coordinator';
+  base.items = [structuredClone(base.items.find(item => item.key === 'successor'))];
+  base.items[0].scopes = ['docs\\retained.md'];
+  validate(base);
+  const event = supersessionEvent(base, 41, 'prepare-external',
+    [{ repository: 'roryprimrose/Kora', revision: 45, state: external,
+      stateDigest: digest(external), receipt: 'Synthetic post-cleanup external ledger snapshot.' }]);
+  const prepared = applyEvent(base, event, { revision: 41 }).state;
+  assert.equal(prepared.items[0].phase, 'candidate');
+  const guards = heldReservations(prepared, 'later-feature');
+  assert.ok(guards.some(item => item.scopes.includes('docs\\retained.md')));
+  assert.equal(guards.some(item => item.scopes.includes('src\\shared.cs')), false);
+  const later = { id: 'review-import-later', type: 'candidate', owner: 'planner', pass: 1,
+    key: 'later-feature', outcome: 'later independent imported outcome', head: prepared.head,
+    scopes: ['src\\shared.cs'], pool: 'ready', kind: 'feature', evidence: 'Independent exact-file admission.' };
+  assert.deepEqual(applyEvent(prepared, later).actions,
+    [{ type: 'launch', key: 'later-feature', pool: 'ready' }]);
+  assert.throws(() => applyEvent(prepared, { ...later, type: 'adopt', owner: 'review-external-rogue',
+    scopes: ['docs\\retained.md'] }), /Conflicting external/);
+  assert.deepEqual(prepared.supersessions[0].event.proof.externalCheckpoints[0].state, external);
+});
+
+test('supersession refuses ancestor coverage and authentic-looking but unbound receipts in old schema versions', () => {
+  for (const version of [1, 2, 3, 4]) {
+    const state = supersessionFixture();
+    if (version >= 2) {
+      state.version = version; state.refinements = [];
+      for (const item of state.items) {
+        item.scopeRevision = 0; item.scopeHistory = []; item.sourceWritesRetired = false;
+        if (version >= 3) item.scopeAmendments = [];
+        if (version >= 4) item.admissionHistory = [];
+      }
+      if (version >= 3) state.amendments = [];
+      if (version >= 4) state.readmissions = [];
+    }
+    validate(state);
+    const event = supersessionEvent(state);
+    assert.equal(applyEvent(state, event, { revision: 41 }).state.version, 5);
+    const broad = structuredClone(state);
+    broad.items[0].scopes = ['src', 'docs\\retained.md'];
+    const broadEvent = supersessionEvent(broad);
+    // Include the ancestor holder explicitly; equality-only transfer must still reject it.
+    broadEvent.proof.holders.unshift({ ...structuredClone(event.proof.holders[0]),
+      itemDigest: digest(broad.items[0]) });
+    rebindSupersession(broadEvent);
+    assert.throws(() => applyEvent(broad, broadEvent, { revision: 41 }), /ancestor/);
+    const unbound = structuredClone(event);
+    unbound.authorization.receipt = '';
+    assert.throws(() => applyEvent(state, unbound, { revision: 41 }), /authorization/);
+  }
+});
+
+test('supersession shares effective guards with unrelated extension and same-key revalidation', () => {
+  let state = supersessionFixture();
+  state = applyEvent(state, supersessionEvent(state), { revision: 41 }).state;
+  state = applyEvent(state, { id: 'adopt-other', type: 'adopt', owner: 'other-owner',
+    key: 'other', outcome: 'other outcome', head: state.head, scopes: ['other\\original.cs'],
+    pool: 'ready', kind: 'feature', evidence: 'Independent mutable source authority.' }).state;
+  const extension = extensionEvent(state, 'other', ['other\\added.cs'], 'extend-unrelated');
+  state = applyEvent(state, extension).state;
+  assert.ok(state.items.find(item => item.key === 'other').scopes.includes('other\\added.cs'));
+  const conflict = extensionEvent(state, 'other', ['src\\shared.cs'], 'extend-conflict');
+  assert.throws(() => applyEvent(state, conflict), /conflicts/);
+  state = applyEvent(state, { id: 'unrelated-cache', type: 'candidate', owner: 'planner', pass: 1,
+    key: 'cache', outcome: 'cache outcome', head: state.head, scopes: ['other\\cache.cs'],
+    pool: 'ready', kind: 'maintenance', evidence: 'Older cache outside transferred scope.' }).state;
+  const cached = state.items.find(item => item.key === 'cache');
+  state = applyEvent(state, { id: 'revalidate-unrelated', type: 'revalidate-candidate',
+    key: cached.key, owner: 'planner', pass: 1, expectedItemDigest: digest(cached),
+    head: state.head, scopes: [...cached.scopes, 'other\\cache.test.cjs'],
+    evidence: 'Fresh complete unrelated maintenance manifest.', manifestComplete: true }).state;
+  assert.equal(state.items.find(item => item.key === 'cache').admissionHistory[0].fromVersion, 5);
+  validate(state);
+});
+
+test('documented supersession example executes without touching a checkpoint or claiming host proof', () => {
+  const readme = fs.readFileSync(path.resolve(__dirname, '..', 'README.md'), 'utf8');
+  const section = readme.split('## Exact-path write-reservation supersession')[1];
+  const example = section.match(/```javascript\r?\n([\s\S]*?)\r?\n```/)[1];
+  const result = spawnSync(process.execPath, ['-e', example], { encoding: 'utf8',
+    cwd: path.resolve(__dirname, '..', '..', '..', '..') });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout), { version: 5,
+    launch: [{ type: 'launch', key: 'successor', pool: 'ready' }],
+    retained: [['docs\\retained.md'], []] });
+});
+
+test('supersession preserves accepted refinement history and permanent legacy retirement verbatim', () => {
+  let state = refinementFixture(true);
+  state = applyEvent(state, refinementEvent(state)).state;
+  const prior = structuredClone(state.items[0]);
+  state = applyEvent(state, { id: 'refined-successor', type: 'candidate', owner: 'planner', pass: 1,
+    key: 'successor', outcome: 'refined successor outcome', head: state.head,
+    scopes: [...prior.scopes], pool: 'ready', kind: 'feature',
+    evidence: 'Independent exact-file operation after explicit retirement proof.' }).state;
+  const result = applyEvent(state, supersessionEvent(state), { revision: 41 }).state;
+  const expected = { ...prior, scopeAmendments: [], admissionHistory: [] };
+  assert.deepEqual(result.items[0], expected);
+  assert.equal(result.items[0].sourceWritesRetired, true);
+  assert.deepEqual(result.refinements, state.refinements);
+  assert.deepEqual(heldReservations(result, 'successor')[0].scopes, []);
+});
 
 test('all seven frozen final manifests fail closed against retained owners including fifteen retired guards', () => {
   const state = candidateFixture();

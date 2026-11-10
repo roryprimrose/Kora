@@ -90,6 +90,13 @@ additions. Preserve old files, permissions, outcome, PR, blockers and cleanup.
 Do not package a superset as `refine-scopes`, resume a retired writer, or infer
 runtime/effect authority from a successful deterministic amendment.
 
+## Superseded exact-file write identity
+
+For [exact-path supersession](./README.md#exact-path-write-reservation-supersession), verify the exact beneficiary, current source and durable accepted reservation before writing. A prepared external proposal is never a grant. Historical scopes remain on old items; use coordinator-supplied shared effective exclusions, not ad hoc ancestor subtraction or the old retirement flag alone.
+
+Accepted local supersession permanently retires the prior writer's source authority even when its legacy `sourceWritesRetired` field remains false. Do not refine, extend, readmit or resume that source identity.
+Original commits/publication/history, blocker, slot and cleanup obligations remain; separately authorized truthful publication and actual cleanup are not forbidden by source retirement. No test, receipt string or digest authenticates external human/host facts.
+
 ## Cleanup before terminal completion
 
 1. Verify publication/remote-head evidence and retain receipts in the supplied

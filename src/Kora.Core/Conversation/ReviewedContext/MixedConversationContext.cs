@@ -38,9 +38,22 @@ public static class MixedConversationContext
         MemoryBoundary boundary, IEnumerable<MemoryRecord> memories, DateTimeOffset now, DateTimeOffset expiresAt) =>
         BuildEnvelope(request, body, history, instructionName, instructionText, boundary, memories, now, expiresAt).Serialize().Length;
 
+    internal static ModelContextEnvelope CreateSubmittedEnvelope(HostRequest request, string body,
+        IEnumerable<ConversationHistorySelection> history, string instructionName, string instructionText,
+        MemoryBoundary boundary, IEnumerable<MemoryRecord> memories, DateTimeOffset now, DateTimeOffset expiresAt,
+        SubmittedInstructionSource instruction)
+    {
+        instruction.Validate();
+        var context = BuildEnvelope(request, body, history, instructionName, instructionText, boundary, memories,
+            now, expiresAt, instruction);
+        context.RequireCompleteInputLimit();
+        return context;
+    }
+
     private static ModelContextEnvelope BuildEnvelope(HostRequest request, string body,
         IEnumerable<ConversationHistorySelection> history, string instructionName, string instructionText,
-        MemoryBoundary boundary, IEnumerable<MemoryRecord> memories, DateTimeOffset now, DateTimeOffset expiresAt)
+        MemoryBoundary boundary, IEnumerable<MemoryRecord> memories, DateTimeOffset now, DateTimeOffset expiresAt,
+        SubmittedInstructionSource? instruction = null)
     {
         ConversationText.Validate(body, submission: true);
         if (string.IsNullOrWhiteSpace(instructionName) || string.IsNullOrWhiteSpace(instructionText))
@@ -54,12 +67,13 @@ public static class MixedConversationContext
             || !ids.Add(record.Id)))
         { throw new InvalidDataException("Select distinct admitted enabled memories from this exact session only."); }
         var evidence = ConversationHistoryContext.CreateEvidence(request, history).Concat(
-            [new ModelContextEvidence(new(Guid.NewGuid()), request, new(1),
+            [new ModelContextEvidence(new(instruction?.Reference ?? Guid.NewGuid()), request, new(1),
                 JsonSerializer.Serialize(new { Source = "Instruction", Name = instructionName, Body = instructionText }),
-                ModelEvidenceDisclosure.LocalOnly)])
+                ModelEvidenceDisclosure.LocalOnly) { InstructionSource = instruction }])
             .Concat(selected.Select(record => new ModelContextEvidence(new(record.Id.Value), request, record.Revision,
                 JsonSerializer.Serialize(new { Source = "SessionMemory", record.Scope,
-                    record.Candidate!.ContentClass, record.Candidate.Value }), ModelEvidenceDisclosure.LocalOnly)));
+                    record.Candidate!.ContentClass, record.Candidate.Value }), ModelEvidenceDisclosure.LocalOnly)
+                { MemorySource = new(record.Id, record.Revision, request.SessionId) }));
         return new ModelContextEnvelope(request, Policy, body, evidence, now, expiresAt, ModelToolMode.None);
     }
 }

@@ -187,6 +187,17 @@ An already retained request is not rolled back: inspect its HOST/task receipts.
 Cancellation is not proof of resource release; the admitted host retains ownership
 until a late or cancellation-ignoring provider actually becomes quiescent.
 
+## Inspect context submitted for the exact mixed answer
+
+After a genuine ASSISTANT completion, explicitly read the conversation and choose **Context submitted for this answer** under that exact answer. The existing native inspector shows the complete original order: earlier USER/ASSISTANT messages, one selected owned INSTRUCTION, then selected SESSION memories. It does not show source bodies or private names/paths
+([native regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.SubmittedContext.cs)).
+
+This records the canonical bytes handed to the admitted local adapter, not provider delivery, processing or reasoning. Instruction current availability is always **Unknown**: no instruction file, catalogue or body is read. Complete original capture does not mean all current sources are retained or usable; history and memory availability are separate metadata-only observations
+([projection](../src/Kora.Core/Conversation/AnswerContextInspection.cs)).
+
+**Back to conversation** returns to the exact answer without submitting or changing unsent input. Changed answer/source availability or lost privacy retires the existing inspector. Legacy and unsupported answers remain **Unknown / not recorded**. Inspection grants no source use, renews no retention/activity and preserves independent memory and definition lifetimes
+([inspection contract](../Design/Interaction_And_Sessions.md#retained-answer-context-handoff-inspection)).
+
 ## Boundaries
 
 All selected text remains lower-trust evidence or instruction guidance under

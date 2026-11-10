@@ -173,8 +173,9 @@ internal sealed class MixedContextReview : IDisposable
             if (!Current || request.SessionId != Target.Authority.SessionId || request.Origin != Origin)
             { throw new InvalidOperationException("The exact original mixed-context session/channel is no longer current."); }
             var content = Memory.ReadCurrent();
-            return MixedConversationContext.CreateEnvelope(request, content.Body, history, Instruction.Name,
-                Instruction.InstructionText, content.Snapshot.Boundary, content.Snapshot.Records, now, now.AddSeconds(15));
+            return MixedConversationContext.CreateSubmittedEnvelope(request, content.Body, history, Instruction.Name,
+                Instruction.InstructionText, content.Snapshot.Boundary, content.Snapshot.Records, now, now.AddSeconds(15),
+                Instruction.SubmittedSource);
         }
     }
 

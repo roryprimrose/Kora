@@ -16,7 +16,8 @@ internal sealed class EvidenceWindowController(
     MainViewModel main, DurableEvidenceQuery query, IEvidenceQueryAccess access,
     ILogger<EvidenceViewModel> logger, ISessionWorkspaceAccess workspaceAccess,
     EvidenceAnswerWorkflow? answers = null, TimeProvider? time = null,
-    GitHubIssueReportWorkflow? problemReports = null, Kora.Core.Hosting.IApplicationInfo? applicationInfo = null) : IDisposable
+    GitHubIssueReportWorkflow? problemReports = null, Kora.Core.Hosting.IApplicationInfo? applicationInfo = null,
+    EvidencePageExportWindowController? exports = null) : IDisposable
 {
     private EvidenceWindow? window;
     private EvidenceView? view;
@@ -25,6 +26,28 @@ internal sealed class EvidenceWindowController(
     private Action<EvidenceView>? presentWorkbench;
     private bool disposed;
     private long windowRevision;
+    private readonly List<Task> exportOperations = [];
+
+    internal void BindExports(EvidenceViewModel model)
+    {
+        if (exports is not null)
+        {
+            model.BindExport(exports, exportOperations.Add, operation => exportOperations.Remove(operation));
+        }
+    }
+
+    internal async Task PrepareShutdownAsync()
+    {
+        CloseView();
+        await Task.WhenAll(exportOperations);
+        exportOperations.RemoveAll(operation => operation.IsCompleted);
+    }
+
+    internal Func<bool> CaptureShutdownEligibility()
+    {
+        var revision = windowRevision;
+        return () => view is null && revision == windowRevision && exportOperations.All(operation => operation.IsCompleted);
+    }
 
     internal void BindWorkbench(Func<Window> owner, Action<EvidenceView> present)
     {
@@ -53,7 +76,8 @@ internal sealed class EvidenceWindowController(
         {
             EvidenceViewModel? model = null;
             model = new EvidenceViewModel(query, () => !disposed && access.CanInspect && main.CanRevealPrivatePresentation
-                && view?.IsNativePresented == true && ReferenceEquals(view.DataContext, model), logger);
+                && view?.IsNativePresented == true && model is not null && view.IsBoundTo(model), logger);
+            BindExports(model);
             if (problemReports is not null && applicationInfo is not null)
             {
                 model.BindProblemReporting(problemReports, signature => new(signature, applicationInfo.Version,

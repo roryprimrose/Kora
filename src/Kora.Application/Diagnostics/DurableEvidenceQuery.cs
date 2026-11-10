@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.IO.Compression;
 using System.Security.Cryptography;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -27,12 +28,19 @@ public sealed partial class DurableEvidenceQuery(
         Converters = { new JsonStringEnumConverter() },
     };
     private readonly byte[] cursorKey = RandomNumberGenerator.GetBytes(32);
+    private readonly ConditionalWeakTable<EvidencePage, EvidencePageExportSource> exportSources = new();
 
     internal DurableEvidenceQuery(IEvidenceReader reader, IEvidenceQueryAccess access, TimeProvider time,
         ILogger<DurableEvidenceQuery> logger, byte[] cursorKey) : this(reader, access, time, logger) =>
         this.cursorKey = cursorKey.ToArray();
 
-    public static byte[] Serialize(EvidencePage page) => JsonSerializer.SerializeToUtf8Bytes(page, Format);
+    public static byte[] Serialize(EvidencePage page) => EvidencePageExportSnapshot.Serialize(page);
+
+    public EvidencePageExportSource CaptureExportSource(EvidencePage page) =>
+        exportSources.TryGetValue(page, out var source) ? source
+            : throw new InvalidOperationException("Only the original admitted bounded query page can be exported.");
+
+    public bool CanExport(EvidencePage page) => exportSources.TryGetValue(page, out _);
 
     public async ValueTask<EvidencePage> QueryAsync(EvidenceQuery query, string? cursor, CancellationToken cancellationToken)
     {
@@ -99,6 +107,25 @@ public sealed partial class DurableEvidenceQuery(
             cancellationToken.ThrowIfCancellationRequested();
             RequireAccess(current.Request, query.Source);
             Returned(logger, page.Records.Count, Serialize(page).Length, page.Status);
+            var originalDigest = SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(batch, Format));
+            var originalCheckpoint = new EvidenceReadCheckpoint(batch.Snapshot, continuation?.Checkpoint.After);
+            var sourceRequest = current.Request;
+            var resumeRead = HostActivity.CaptureContinuation(HostActivityLayer.Application, HostOperation.Evidence);
+            exportSources.Add(page, new(new(page), async token =>
+            {
+                // Source-query identity is retained only for comparison reads, never the export audit actor.
+                using var comparison = resumeRead();
+                comparison.Complete(HostOperationOutcome.Failed);
+                token.ThrowIfCancellationRequested();
+                RequireAccess(sourceRequest, query.Source);
+                var reread = await reader.ReadAsync(query, originalCheckpoint, sourceRequest, time.GetUtcNow(), token)
+                    .ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+                RequireAccess(sourceRequest, query.Source);
+                if (!originalDigest.AsSpan().SequenceEqual(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(reread, Format))))
+                { throw new InvalidOperationException("The original bounded evidence source or provenance changed; no replacement page was substituted."); }
+                comparison.Complete(HostOperationOutcome.Completed);
+            }));
             activity.Complete(batch.UnavailableSources is { Count: > 0 }
                 ? HostOperationOutcome.Failed : HostOperationOutcome.Completed);
             return page;

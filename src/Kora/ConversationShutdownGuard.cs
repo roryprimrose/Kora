@@ -5,7 +5,7 @@ namespace Kora;
 internal static class ConversationShutdownGuard
 {
     internal static void Bind(MainViewModel main, NewRequestWindowController requests, SessionsWindowController sessions,
-        SessionRoutingController? routing = null)
+        SessionRoutingController? routing = null, EvidenceWindowController? evidence = null)
     {
         Func<bool>? current = null;
         main.BindConversationShutdown(async () =>
@@ -17,7 +17,9 @@ internal static class ConversationShutdownGuard
             var requestCurrent = requests.CaptureShutdownEligibility();
             if (!await sessions.PrepareShutdown()) { return false; }
             var sessionsCurrent = sessions.CaptureShutdownEligibility();
-            current = () => routingCurrent() && requestCurrent() && sessionsCurrent();
+            if (evidence is not null) { await evidence.PrepareShutdownAsync(); }
+            var evidenceCurrent = evidence?.CaptureShutdownEligibility() ?? (static () => true);
+            current = () => routingCurrent() && requestCurrent() && sessionsCurrent() && evidenceCurrent();
             return current();
         }, () => current?.Invoke() == true);
     }

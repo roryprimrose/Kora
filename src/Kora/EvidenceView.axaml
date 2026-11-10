@@ -21,6 +21,8 @@
               AutomationProperties.Name="Search a fresh bounded evidence snapshot" />
       <Button x:Name="Next" Content="Next page" IsEnabled="{Binding CanNext}" />
       <Button x:Name="Trace" Content="Read selected trace" IsEnabled="{Binding CanReadTrace}" />
+      <Button x:Name="ExportPage" Content="Review page export" IsEnabled="{Binding CanExportPage}"
+              AutomationProperties.Name="Separately review one new-file evidence page export" />
     </StackPanel>
     <Grid Grid.Row="2" ColumnDefinitions="*,*,*,*" ColumnSpacing="10">
       <TextBox Text="{Binding SessionFilter}" PlaceholderText="Session GUID (correlation filter only)"

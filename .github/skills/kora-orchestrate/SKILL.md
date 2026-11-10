@@ -5,6 +5,10 @@ description: 'Use for Kora child-chat orchestration, delivery starvation, stalle
 
 # Kora event-turn orchestration
 
+## Runtime
+
+Runtime support: `LocalOnly`. Requires a local Windows checkout and discovered host session tools; no Azure SRE-native execution adapter is supplied. Scripts validate local inputs, not host configuration or authority.
+
 ## Bootstrap and transport
 
 1. Discover the exact coordinator chat and existing related owners using host
@@ -113,6 +117,7 @@ a second child.
 | `blocked` | Worker `owner/key`, explicit `reason`; retain slot and scope. |
 | `refine-scopes` | Attached stopped running/published `owner/key`, `expectedScopeRevision`, complete versioned `proof` and fresh exact-owner `acknowledgment`; shrink only, retain ownership and cleanup. See [exact input and sequencing](./README.md#shrink-only-reservation-protocol). |
 | `extend-scopes` | Attached running nonretired `owner/key`, current `expectedScopeRevision`, complete actual/planned/preservation, temporary pause, exact additional union/exclusivity `proof` and fresh whole-proof `acknowledgment`. Coverage only; continuation is separate. See [mutable input and migration](./README.md#active-mutable-owner-scope-extension). |
+| `supersede-write-reservations` | Versioned whole `proof` and explicit human `authorization`, bound to the current durable revision/source/coordinator, complete candidate and every exact prior holder. Local-ledger activation only; external preparation never launches. See [exact input and limitations](./README.md#exact-path-write-reservation-supersession). |
 | `completed` | Published worker `owner/key`; verified cleanup `proof`: matching `remoteHead`, `stoppedWriting`, `worktreeAbsent`, `branchAbsent`, `pendingInstructions=0`. |
 | `pass-ended` | Planner `owner`, assigned `pass`, `readyExamined=true`, `repairExamined=true`, boolean `remaining`; optional shortage receipt. |
 | `refresh` | Verified current `head`; invalidate stale undispatched candidates and coalesce discovery. |
@@ -143,6 +148,11 @@ retired, including inside its retained scopes. Refinement is not reconciliation
 for expansion or permission to restart. It preserves slots, PRs, publication,
 blockers and cleanup obligations; only disjoint independently admitted work can
 gain eligibility. Never infer an acknowledgment or stopped state from idle.
+
+For [accepted exact-path supersession](./README.md#exact-path-write-reservation-supersession), use exported `heldReservations(state,key)` for effective planner/worker/external-consumer exclusions, never subtract ancestors or overwrite historical item scopes.
+Original owners keep publication, blockers, slots and cleanup; derived prior source retirement is permanent even when the legacy item flag is false.
+
+Only a verified controlling single ledger can activate a transfer. Complete external snapshots can be recorded as nonactivating preparation; retain all their effective guards and withhold the beneficiary. No snapshot, merged publication, supplied receipt string or digest proves fresh human authority, host quiescence or a live authority handoff. Unknown facts stay unknown.
 
 `launch` actions already hold reservations. Send the relevant worker contract,
 one bounded assignment, publisher/authority, exclusions, scratch, and return

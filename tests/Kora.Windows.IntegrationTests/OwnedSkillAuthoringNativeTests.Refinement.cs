@@ -73,10 +73,36 @@ public sealed partial class OwnedSkillAuthoringNativeTests
     [InlineData("initial-v3-late-format")]
     [InlineData("initial-v3-late-input")]
     [InlineData("initial-v3-late-output")]
+    [InlineData("initial-v5-save")]
+    [InlineData("initial-v5-save-refined")]
+    [InlineData("initial-v5-reject")]
+    [InlineData("initial-v5-cancel-disclosure")]
+    [InlineData("initial-v5-cancel-publication")]
+    [InlineData("initial-v5-unavailable")]
+    [InlineData("initial-v5-draft-edit")]
+    [InlineData("initial-v5-critique-edit")]
+    [InlineData("initial-v5-cancel-after-validate")]
+    [InlineData("initial-v5-late-cancel")]
+    [InlineData("initial-v5-late-draft")]
+    [InlineData("initial-v5-late-critique")]
+    [InlineData("initial-v5-late-owner")]
+    [InlineData("initial-v5-late-privacy")]
+    [InlineData("initial-v5-late-format")]
+    [InlineData("initial-v5-late-input")]
+    [InlineData("initial-v5-late-output")]
+    [InlineData("initial-v5-late-path")]
+    [InlineData("initial-v5-late-component")]
+    [InlineData("initial-v5-late-name")]
+    [InlineData("initial-v5-late-description")]
+    [InlineData("initial-v5-late-id")]
+    [InlineData("initial-v5-late-version")]
+    [InlineData("initial-v5-component-edit")]
     public async Task NativeOwnedGuidanceRefinementCompletesReviewedProposalThroughExistingPublication(string scenario)
     {
         var initialGeneration = scenario.StartsWith("initial-", StringComparison.Ordinal);
         if (initialGeneration) { scenario = scenario["initial-".Length..]; }
+        var initialV5 = initialGeneration && scenario.StartsWith("v5-", StringComparison.Ordinal);
+        if (initialV5) { scenario = scenario["v5-".Length..]; }
         var initialV3 = initialGeneration && scenario.StartsWith("v3-", StringComparison.Ordinal);
         if (initialV3) { scenario = scenario["v3-".Length..]; }
         await HeadlessSession.RunAsync(async () =>
@@ -143,6 +169,12 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             var inputs = initialV3 || scenario is "save-v3";
             if (initialV3) { owned.Guidance.Text = "Original user declares ${input:topic}"; }
             if (inputs) { await Run("owned skill inputs required-literal"); }
+            if (initialV5)
+            {
+                await Run("owned skill format markdown-package");
+                await Run(@"owned skill reference references\guide.md: Exact literal notes" + "\r\ne\u0301 ${input:literal}");
+                await Run("owned skill reference rubric.md: Complete rubric.");
+            }
             var initial = initialGeneration ? owned.Guidance.Text! : inputs ? "CURRENT ${input:topic}" : "  CURRENT e\u0301\U0001f642\r\nowned skill save  ";
             if (!initialGeneration) { owned.Guidance.Text = initial; }
             var draft = owned.Document();
@@ -169,6 +201,15 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 string.Join("\n", disclosure.GetLogicalDescendants().OfType<TextBlock>().Select(block => block.Text))
                     .Should().Contain("native v3").And.Contain("FROZEN REQUIRED INPUT NAMES (FIRST-USE ORDER)\ntopic");
             }
+            if (initialV5)
+            {
+                string.Join("\n", disclosure.GetLogicalDescendants().OfType<TextBlock>().Select(block => block.Text))
+                    .Should().Contain("native v5").And.Contain("tools-NONE").And.Contain(store.Destination(draft))
+                    .And.Contain(draft.CompleteText).And.Contain(purpose);
+                disclosure.GetLogicalDescendants().OfType<TextBox>().Select(box => box.Text)
+                    .Should().Equal(draft.CompleteText, draft.CompleteText);
+                adapter.Calls.Should().Be(0);
+            }
             if (scenario is "other-cancel")
             {
                 Choose(owned, "Cancel test");
@@ -192,6 +233,12 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                     case "late-format": owned.InputFormat.SelectedIndex = 0; break;
                     case "late-input": owned.ExpectedInput.Text += "CHANGED"; break;
                     case "late-output": owned.ExpectedOutput.Text += "CHANGED"; break;
+                    case "late-path": owned.ComponentPath.Text = @"references\changed.md"; break;
+                    case "late-component": owned.ComponentBody.Text = "Changed bytes"; break;
+                    case "late-name": owned.NameInput.Text += "CHANGED"; break;
+                    case "late-description": owned.DescriptionInput.Text += "CHANGED"; break;
+                    case "late-id": owned.IdInput.Text += "-changed"; break;
+                    case "late-version": owned.VersionInput.Text = "2.0.0"; break;
                 }
                 generating.IsCompleted.Should().BeFalse("the actual provider is still owned");
                 models.IsQuiescent.Should().BeFalse();
@@ -208,7 +255,9 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 var comparison = await Review(generating);
                 comparison.Title.Should().Be(initialGeneration ? "Review complete generated skill source" : "Compare complete skill guidance proposal");
                 var sources = comparison.GetLogicalDescendants().OfType<TextBox>().ToArray();
-                sources.Select(source => source.Text).Should().Equal(initialGeneration ? draft.ManifestText : initial, adapter.Body);
+                sources.Select(source => source.Text).Should().Equal(
+                    initialV5 ? draft.CompleteText : initialGeneration ? draft.ManifestText : initial,
+                    initialV5 ? PackageProposal(adapter.Body).CompleteText : adapter.Body);
                 if (initialGeneration)
                 {
                     string.Join("\n", comparison.GetLogicalDescendants().OfType<TextBlock>().Select(block => block.Text))
@@ -231,12 +280,17 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 if (!initialGeneration) { wire.RootElement.GetProperty("Evidence")[0].GetProperty("Content").GetString().Should().Be(initial); }
                 wire.RootElement.GetProperty("Tools").GetArrayLength().Should().Be(0);
             }
-            if (scenario is "draft-edit" or "critique-edit" or "cancel-after-validate")
+            if (scenario is "draft-edit" or "critique-edit" or "cancel-after-validate" or "component-edit")
             {
                 await Run("owned skill validate");
                 if (scenario is "draft-edit") { owned.Guidance.Text += "MANUAL"; }
                 if (scenario is "critique-edit") { owned.Critique.Text += "MANUAL"; }
                 if (scenario is "cancel-after-validate") { await Run("owned skill cancel-refinement"); }
+                if (scenario is "component-edit")
+                {
+                    await Run(@"owned skill reference references\guide.md: Changed bytes");
+                    await Run(@"owned skill reference references\guide.md: Exact literal notes" + "\r\ne\u0301 ${input:literal}");
+                }
                 await Run("owned skill save");
                 next.Task.IsCompleted.Should().BeFalse("revocation must clear the validated replacement, not fall back to publishing it");
                 (await store.List(f.Token)).Should().BeEmpty();
@@ -250,7 +304,8 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 Choose(await Review(refining), "Generate local guidance proposal");
                 var comparison = await Review(refining);
                 comparison.GetLogicalDescendants().OfType<TextBox>().Select(source => source.Text)
-                    .Should().Equal(previous, adapter.Body);
+                    .Should().Equal(initialV5 ? PackageProposal(previous).CompleteText : previous,
+                        initialV5 ? PackageProposal(adapter.Body).CompleteText : adapter.Body);
                 Choose(comparison, "Use proposal for next Save");
                 await refining;
             }
@@ -282,8 +337,16 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 var saving = Run("owned skill save");
                 var package = await Review(saving);
                 package.Title.Should().Be("Review complete skill package");
-                package.GetLogicalDescendants().OfType<TextBox>().Select(source => source.Text)
-                    .Should().Equal(draft.ManifestText, adapter.Body);
+                if (initialV5)
+                {
+                    package.GetLogicalDescendants().OfType<TextBox>().First().Text.Should().Be("(no saved source)");
+                    package.GetLogicalDescendants().OfType<TextBox>().Last().Text.Should().Contain(PackageProposal(adapter.Body).CompleteText);
+                }
+                else
+                {
+                    package.GetLogicalDescendants().OfType<TextBox>().Select(source => source.Text)
+                        .Should().Equal(draft.ManifestText, adapter.Body);
+                }
                 Choose(package, "Continue to separate native publication confirmation");
                 var publication = await Review(saving);
                 publication.Title.Should().Be("Confirm exact new skill publication");
@@ -297,13 +360,20 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                     saved.Document.ManifestBytes.ToArray().Should().Equal(draft.ManifestBytes.ToArray());
                     saved.Document.Guidance.Should().Be(adapter.Body);
                     saved.Document.IsAvailableForInvocation.Should().BeFalse();
+                    if (initialV5) { saved.Document.CompleteText.Should().Be(PackageProposal(adapter.Body).CompleteText); }
                     owned.Guidance.Text.Should().Be(adapter.Body);
-                    await Run($"owned skill reopen {draft.Id} {draft.Version}");
+                    var reopening = Run($"owned skill reopen {draft.Id} {draft.Version}");
+                    if (initialV5) { Choose(await Review(reopening), "Read only the exact declared owned Markdown components"); }
+                    await reopening;
                     owned.Guidance.Text.Should().Be(adapter.Body);
                     adapter.Calls.Should().Be(scenario is "save-refined" or "save-simulated" ? 2 : 1, "Save and Reopen never invoke or enable a skill");
                 }
             }
             models.IsQuiescent.Should().BeTrue();
+
+            OwnedDeclarativeSkillDocument PackageProposal(string body) => OwnedDeclarativeSkillDocument.Parse(draft.ManifestBytes.Span,
+                Kora.Core.Artifacts.ArtifactFileDocument.Encode(body, false),
+                draft.References.ToDictionary(item => item.RelativePath, item => item.Bytes.ToArray(), StringComparer.Ordinal));
         });
     }
 

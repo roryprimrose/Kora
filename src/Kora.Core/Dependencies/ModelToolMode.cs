@@ -32,4 +32,6 @@ public enum ModelToolMode
 
     /// <summary>Explicit local application maintenance, with native approval before exact installer startup.</summary>
     ApplicationMaintenance,
+
+    SessionMetadata,
 }

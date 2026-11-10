@@ -26,7 +26,7 @@ public static partial class ModelToolProtocol
         ValidateProvenance(provenance);
         if (context.Provenance != provenance)
         { throw new InvalidDataException("A context cannot be reused by another host turn."); }
-        if (context.ToolMode is ModelToolMode.LocalWebPage or ModelToolMode.McpReadOnly or ModelToolMode.SessionDiscovery
+        if (context.ToolMode is ModelToolMode.LocalWebPage or ModelToolMode.McpReadOnly or ModelToolMode.SessionDiscovery or ModelToolMode.SessionMetadata
                 or ModelToolMode.CustomizationDiscovery or ModelToolMode.SettingsDiscovery or ModelToolMode.ProviderSettings
                 or ModelToolMode.ApplicationMaintenance
             && provenance.Selection.Provider != ModelProviderIdentity.Ollama)

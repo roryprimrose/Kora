@@ -26,6 +26,15 @@ public static class CapabilityInputSchema
             Integer(writer, "offset", 0, boundedOffset ? int.MaxValue : null);
             Integer(writer, "count", 1, descriptor.Limits.MaximumRecords);
         }
+        else if (descriptor.Input == CapabilityInputShape.SessionId)
+        {
+            writer.WriteStartObject("id");
+            writer.WriteString("type", "string");
+            writer.WriteNumber("minLength", 36);
+            writer.WriteNumber("maxLength", 36);
+            writer.WriteString("pattern", "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$");
+            writer.WriteEndObject();
+        }
         else if (descriptor.Input is CapabilityInputShape.Id or CapabilityInputShape.RegisteredSettingId)
         {
             writer.WriteStartObject("id");
@@ -96,7 +105,7 @@ public static class CapabilityInputSchema
         writer.WriteEndObject();
         var required = descriptor.Input switch
         {
-            CapabilityInputShape.Id or CapabilityInputShape.RegisteredSettingId => "id",
+            CapabilityInputShape.Id or CapabilityInputShape.RegisteredSettingId or CapabilityInputShape.SessionId => "id",
             CapabilityInputShape.WebPageAddress => "address",
             CapabilityInputShape.MetadataReference => "ref",
             CapabilityInputShape.ProviderSettings => "service",

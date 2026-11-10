@@ -55,3 +55,36 @@ request/response content.
 
 Related: [request destinations](session-routing.md) and
 [reviewed conversation context](reviewed-context.md).
+
+## Review one content-free session metadata answer
+
+The workbench conversation pane and Sessions management view provide
+**Review one session metadata answer...** for the exact selected caller.
+Enter one canonical subject ID and the original question. The subject is
+inspected passively, without selecting, resuming or renewing it.
+
+Original typed or current-name activated input can open the same operation:
+`review session metadata <subject-id> for <caller-id>: <question>`.
+Both IDs are exact lowercase GUIDs; names and model output cannot choose them.
+
+**Review exact metadata locally** first requires actual local model admission
+for the original caller. An unqualified or unavailable local profile returns
+an explicit unavailable caller terminal without inspecting the subject or
+showing a disclosure review. This implementation does not enable a model.
+
+If admitted, the complete frozen preview shows the original question, exact
+ID/name and stored Active/Done state, work availability, observed UTC, coarse
+observed task counts, pending work/questions, omissions and earliest expiry
+among only the bounded observed pending questions. Omitted questions preclude
+global-earliest or complete-inventory claims. Unknown fields remain unavailable.
+
+**Confirm this one LOCAL disclosure** is separate one-use consent, not
+`sessions.list` consent. Only `sessions.get` with that exact ID can return this
+snapshot once. The answer and truthful terminal are retained in the original
+caller conversation. No generic MCP catalogue, hosted disclosure, body/history,
+question specification/answer, grant or retention mutation is added.
+
+Edits, close, privacy, source retirement and changed continuations invalidate
+the review. Cancellation retains physical ownership until reads/provider work
+actually join; late answers cannot renew permission. An uncertain caller
+receipt is inspected rather than automatically retried.

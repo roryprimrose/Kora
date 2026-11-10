@@ -10,4 +10,5 @@ public enum CapabilityInputShape
     RegisteredSettingId,
     ProviderSettings,
     ReleaseVersion,
+    SessionId,
 }

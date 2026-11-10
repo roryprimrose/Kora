@@ -108,7 +108,7 @@ public static class ProviderSettingsTools
         && reply.Capabilities is null && reply.Descriptor is null && reply.Version is null
         && reply.Readiness is null && reply.Runtimes is null && reply.Runtime is null && reply.WebPage is null
         && reply.Mcp is null && reply.Sessions is null && reply.Customizations is null && reply.Settings is null
-        && reply.SessionMetrics is null && reply.Maintenance is null
+        && reply.SessionMetrics is null && reply.Maintenance is null && reply.SessionMetadata is null
         && (result.Settings is null ? 0 : 1) + (result.Models is null ? 0 : 1)
             + (result.Model is null ? 0 : 1) + (result.Service is null ? 0 : 1) + (result.Proposal is null ? 0 : 1) == 1
         && (id switch

@@ -224,6 +224,7 @@
           AutomationProperties.Name="Memory-only unsent message for the selected conversation; not an answer or approval" />
       <WrapPanel Grid.Row="4">
         <Button x:Name="SubmitMessage" Content="Send to this conversation" IsEnabled="{Binding CanSubmitConversation}" />
+        <Button x:Name="ReviewSessionMetadata" Content="Review one session metadata answer..." IsEnabled="{Binding CanReadConversation}" />
         <Button x:Name="SubmitLocalAnswer" Content="Answer locally (no tools)" IsEnabled="{Binding CanSubmitConversation}"
             AutomationProperties.Name="Answer in this conversation using the qualified local model without tools" />
         <Button x:Name="StopLocalAnswer" Content="Stop this answer" IsEnabled="{Binding CanCancelRunningConversation}" />

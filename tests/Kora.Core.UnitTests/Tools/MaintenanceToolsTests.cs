@@ -28,6 +28,7 @@ public sealed class MaintenanceToolsTests
     [InlineData("settings")]
     [InlineData("sessionMetrics")]
     [InlineData("providerSettings")]
+    [InlineData("sessionMetadata")]
     public void MaintenanceCannotSmuggleAnotherResultShape(string field)
     {
         var reply = Success();

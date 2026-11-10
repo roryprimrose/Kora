@@ -256,6 +256,7 @@ internal sealed partial class SessionsWindowController(
     internal QuestionWindowController? ConversationQuestions { get; set; }
     internal async Task<bool> PrepareShutdown()
     {
+        await JoinMetadataAsync();
         RetireNamedConversation();
 #pragma warning disable VSTHRD003 // Join the exact owned passive navigation, not merely the choice window.
         if (!NamedConversationOperation.IsCompleted)
@@ -288,6 +289,7 @@ internal sealed partial class SessionsWindowController(
 
     internal void Bind()
     {
+        BindMetadataAnswer();
         if (scopeCommands is not null && scopeBroker is not null)
         {
             instructionScopes = new(main.CaptureSessionInstructionScopeEligibility, () => main.CanRevealPrivatePresentation,
@@ -553,6 +555,7 @@ internal sealed partial class SessionsWindowController(
             return await answerExports.ShowAsync(owner, source, Live, resolve, token);
         };
         model.BindCompletionNotices(main);
+        model.MetadataAnswerRequested = (caller, admitted) => OpenMetadataAsync(caller, admitted);
         model.PropertyChanged += OnPermissionSourceChanged;
         model.InspectPermissionGrants = (target, admitted) =>
         {
@@ -712,12 +715,13 @@ internal sealed partial class SessionsWindowController(
         { main.ReportHostInteractionFailure("Sessions could not be opened. " + exception.Message); }
     }
     private void OnPrivacyClosure(object? sender, EventArgs args)
-    { RetireNamedConversation(); instructionScopes?.RevokeAll(); presentation?.Revoke(); }
+    { RetireMetadataAnswer(); RetireNamedConversation(); instructionScopes?.RevokeAll(); presentation?.Revoke(); }
 
     public void Dispose()
     {
         if (disposed) { return; }
         disposed = true;
+        UnbindMetadataAnswer();
         RetireNamedConversation();
         instructionScopes?.Retire();
         main.BindSessionInstructionScopes(null, null);

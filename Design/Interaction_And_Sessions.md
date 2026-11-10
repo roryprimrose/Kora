@@ -15,6 +15,19 @@ Windows login sessions, voice capture generations, provider/SDK conversations, a
 
 ## Session model usage
 
+The [separately reviewed exact metadata answer](../docs/model-session-discovery.md#review-one-content-free-session-metadata-answer)
+uses the original caller's admitted local conversation. Both primary and management
+surfaces and exact original typed/current-name activated input share the same
+one-use frozen disclosure review. The host admits the local caller before any
+cross-session observation or presentation; refusal/staleness completes that
+same caller request without provider execution. Passive subject lookup and
+bounded work observation never navigate, renew activity, read bodies/history or
+change retention. Earliest expiry refers only to observed pending questions;
+omissions prohibit a global-earliest or complete-inventory claim. Unknown work
+remains unavailable. Source/privacy retirement and cancellation retain physical
+ownership through the canonical submission join. This is separate from minimal
+session-list consent, generic MCP and hosted disclosure; no provider is enabled.
+
 The [session metrics operation](../docs/commands.md#inspect-session-model-metrics) supports inspectable session conversations with a native panel and equivalent typed/activated-voice queries. The [host ledger](../src/Kora.Application/Dependencies/SessionModelMetricsLedger.cs) groups reported consumption by provider and exact selected model, adds session token totals, and keeps each model's latest request context separate. It records no conversation content and confers no execution authority.
 
 The [scoped read-only tool](../src/Kora.Tools/Sessions/SessionMetricsGet.cs) makes the same observations available to independently qualified model questions without permitting model-selected cross-session access. Content-free usage records survive restart with the session and follow its retention/deletion. Reports may be partial; context occupancy is not cumulative usage, capacity is not inferred from byte budgets, and cost remains explicitly unreported ([contract](../src/Kora.Core/Dependencies/SessionModelMetrics.cs)). Existing session inspection, hosted egress approval, privacy and runtime qualification boundaries remain unchanged ([reader](../src/Kora.Application/Hosting/SessionConversationService.Metrics.cs)).

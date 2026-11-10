@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.VisualTree;
 using AwesomeAssertions;
@@ -55,7 +56,8 @@ public sealed class QuietHoursInspectionOperationTests
             try
             {
                 f.Preferences.Reads.Should().Be(0);
-                var textbox = window.GetVisualDescendants().OfType<TextBox>().Single();
+                var textbox = window.GetVisualDescendants().OfType<TextBox>().Single(control => string.Equals(
+                    AutomationProperties.GetName(control), "Original question about confirmed Kora settings", StringComparison.Ordinal));
                 textbox.Text.Should().Be(Question);
                 await ((AsyncCommand)Button(window, "Inspect confirmed settings and review").Command!).ExecuteAsync();
                 presenter.CanConfirm.Should().BeTrue();

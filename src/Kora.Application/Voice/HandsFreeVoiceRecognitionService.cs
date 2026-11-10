@@ -88,7 +88,7 @@ public sealed partial class HandsFreeVoiceRecognitionService(
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
-            if (comparisonActive || profileSwitchActive || profileRetirementFailed) { throw new InvalidOperationException("Speech-input comparison, switching or unconfirmed retirement owns the capture/runtime lifecycle."); }
+            if (comparisonActive || profileSwitchActive || profileRetirementFailed || directRoutingCapture is not null) { throw new InvalidOperationException("Speech-input comparison, switching, routing or unconfirmed retirement owns the capture/runtime lifecycle."); }
             if (!audio.IsAvailable) { return; }
             if (observe is null) { throw new InvalidOperationException("The hands-free host is not bound."); }
             if (!run.IsCompleted || !captureClosed.Task.IsCompletedSuccessfully || !activated.IsCaptureQuiescent)
@@ -114,22 +114,28 @@ public sealed partial class HandsFreeVoiceRecognitionService(
     public void Revalidate()
     {
         var observation = ObserveAdmission();
-        var invalidated = false;
-        lock (gate)
+        MutateRoutingCapture(() =>
         {
-            if (admission is not null && !IsObservedAdmissionCurrent(observation))
+            var invalidated = false;
+            lock (gate)
             {
-                InvalidateCaptureCore();
-                invalidated = true;
+                if (admission is not null && !IsObservedAdmissionCurrent(observation))
+                {
+                    InvalidateCaptureCore();
+                    invalidated = true;
+                }
             }
-        }
-        if (invalidated) { activated.InvalidateCapture(); }
+            if (invalidated) { activated.InvalidateCapture(); }
+        });
     }
 
     public void InvalidateCapture()
     {
-        lock (gate) { InvalidateCaptureCore(); }
-        activated.InvalidateCapture();
+        MutateRoutingCapture(() =>
+        {
+            lock (gate) { InvalidateCaptureCore(); }
+            activated.InvalidateCapture();
+        });
     }
 
     private void InvalidateCaptureCore()
@@ -145,20 +151,29 @@ public sealed partial class HandsFreeVoiceRecognitionService(
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
+        var captureOwner = RoutingCaptureOwner;
+        var sharedCapture = captureOwner is { IsCaptureActive: true } && !ReferenceEquals(captureOwner.Capture, this)
+            ? captureOwner : null;
         Task worker;
         bool joinWorker;
+        void Invalidate()
+        {
+            lock (gate) { InvalidateCaptureCore(); }
+            activated.InvalidateCapture();
+        }
         lock (gate)
         {
             worker = run;
             joinWorker = state != HandsFreeVoiceState.CompletingOperation;
-            InvalidateCaptureCore();
         }
-        activated.InvalidateCapture();
+        if (captureOwner is not null && !ReferenceEquals(captureOwner.Capture, this)) { captureOwner.Invalidate(Invalidate); }
+        else { Invalidate(); }
         Task closure;
         lock (gate) { closure = captureClosed.Task; }
         // Dispatch can itself execute Disable listening. Join capture, not the operation awaiting dispatch.
 #pragma warning disable VSTHRD003 // Owned capture release is independent of the governed operation and dispatcher.
-        await Task.WhenAll(closure, activated.StopAsync(cancellationToken));
+        await Task.WhenAll(closure, sharedCapture is not null
+            ? sharedCapture.JoinRetiredAsync() : activated.StopAsync(cancellationToken));
         if (joinWorker) { await worker; }
 #pragma warning restore VSTHRD003
     }

@@ -52,6 +52,7 @@ public static partial class ModelToolProtocol
             }
             var descriptor = ReadOnlyCapabilityCatalog.FindExact(capabilityId)
                 ?? ProviderSettingsTools.FindExact(capabilityId)
+                ?? MaintenanceTools.FindExact(capabilityId)
                 ?? SettingsDiscoveryTools.FindExact(capabilityId)
                 ?? CustomizationDiscoveryTools.FindExact(capabilityId)
                 ?? Network.LocalWebPageTool.FindExact(capabilityId)
@@ -86,7 +87,7 @@ public static partial class ModelToolProtocol
                 || reply.WebPage is not null || reply.Capabilities is not null || reply.Descriptor is not null
                 || reply.Version is not null || reply.Readiness is not null || reply.Runtimes is not null || reply.Runtime is not null
                 || reply.Sessions is not null || reply.Customizations is not null || reply.Settings is not null
-                || reply.SessionMetrics is not null || reply.ProviderSettings is not null)
+                || reply.SessionMetrics is not null || reply.ProviderSettings is not null || reply.Maintenance is not null)
             { throw new InvalidDataException("The external result does not match its exact requested tool and provenance."); }
             ValidateText(external.Text);
             if (external.StructuredJson is { } structured)

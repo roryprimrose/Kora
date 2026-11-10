@@ -157,7 +157,7 @@ public sealed class SettingsResetMenuTests
     }
 
     [Fact]
-    public void Every_settings_reset_is_in_a_cog_menu_with_no_standalone_reset_button()
+    public void Every_settings_reset_uses_its_cog_or_exact_capture_timing_review_route()
     {
         var elements = LoadSettingsMarkup().SelectMany(document => document.Descendants()).ToArray();
         var bindings = elements.SelectMany(element => element.Attributes())
@@ -168,7 +168,8 @@ public sealed class SettingsResetMenuTests
         bindings.Select(attribute => attribute.Value).Distinct(StringComparer.Ordinal).Should().HaveCount(40);
         bindings.Select(attribute => attribute.Value).Should().Contain(
             ["{Binding ResetOrdinaryDeadlineCommand}", "{Binding ResetLogonStartupCommand}",
-                "{Binding ResetQuietHoursCommand}", "{Binding ResetDetailPresentationCommand}"]);
+                "{Binding ResetQuietHoursCommand}", "{Binding ResetDetailPresentationCommand}",
+                "{Binding ResetMarkdownDisplayCommand}"]);
         elements.Count(element =>
             string.Equals(element.Name.LocalName, nameof(SettingActionsButton), StringComparison.Ordinal))
             .Should().Be(43);
@@ -182,6 +183,15 @@ public sealed class SettingsResetMenuTests
             if (string.Equals(element.Name.LocalName, nameof(SettingActionsButton), StringComparison.Ordinal))
             {
                 binding.Name.LocalName.Should().Be("ResetCommand");
+            }
+            else if (string.Equals(element.Name.LocalName, "Button", StringComparison.Ordinal))
+            {
+                binding.Name.LocalName.Should().Be("Command");
+                binding.Value.Should().Be("{Binding ResetVoiceTimingCommand}");
+                element.Attribute("Content")!.Value.Should().Be("Review reset capture timing");
+                element.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanReviewVoiceTiming}");
+                element.Parent!.Descendants().Attributes("Command").Select(attribute => attribute.Value)
+                    .Should().Contain(["{Binding ConfirmVoiceTimingCommand}", "{Binding CancelVoiceTimingCommand}"]);
             }
             else
             {
@@ -304,7 +314,7 @@ public sealed class SettingsResetMenuTests
                                 {
                                     "Detailed result offers" => fixture.Main.InspectDetailPresentationCommand,
                                     "Markdown display default" => fixture.Main.InspectMarkdownDisplayCommand,
-                                    _ => throw new InvalidOperationException("An unexpected inspected setting must declare its exact command contract."),
+                                    _ => throw new InvalidOperationException("Unexpected settings inspection cog: " + cog.SettingName),
                                 });
                                 inspections++;
                             }

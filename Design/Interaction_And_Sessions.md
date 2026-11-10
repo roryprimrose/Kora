@@ -1693,7 +1693,17 @@ revive that authority. Reply text is choice data, never another global command,
 model input, session request or effect approval. No capture is automatically armed
 for acknowledgment or confirmation, and unavailable capture remains explicit.
 Opening, cancellation, late recognition, shutdown and asynchronous disposal retain
-ownership until physical release. Automatic selection changes remain unavailable. After separate
+ownership until physical release. Routing privacy retirement and reply cleanup share
+one release owner for the actual activated capture, including a wrapped hands-free
+host. Host-issued invalidations are recorded synchronously; active reply stops join
+the same in-flight native completion, and earlier opening/host stops join before its receipt.
+A verified release returns its exact generation,
+not a later mutable observation. Unknown generation changes, failed invalidation and
+unconfirmed physical release still fail closed. Retirement immediately withdraws
+original/reply admission, never resumes listening or permits a late choice.
+An explicit close-only retry can join previously unconfirmed native cleanup but
+cannot reopen capture or revive the retired original request.
+Automatic selection changes remain unavailable. After separate
 confirmation, unchanged canonical conversation submission sends the original body
 and LocalUi/ActivatedVoice channel in a new request. Only its genuine final answer,
 not the routing proposal, is retained. Cancellation and source closure suppress late

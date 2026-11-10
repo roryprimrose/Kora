@@ -3,6 +3,7 @@ using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Maintenance;
+using Kora.Core.Tools;
 
 namespace Kora.Application.Maintenance;
 
@@ -14,6 +15,48 @@ public sealed partial class MaintenanceViewModel
     private ReleaseCheck? approvedInstaller;
     private long approvedInstallerRevision;
     private string requestedVersionText = string.Empty;
+    private Func<ReleaseCheck, Func<bool>, CancellationToken, Task<InstallerStartOutcome>>? installerReview;
+
+    public void BindInstallerReview(Func<ReleaseCheck, Func<bool>, CancellationToken, Task<InstallerStartOutcome>>? review) =>
+        installerReview = review;
+
+    internal MaintenanceToolObservation ReadMcpObservation(InstallerStartOutcome? installer = null)
+    {
+        lock (cachedGate)
+        {
+            return new(info.Version, channel, result?.Status ?? ReleaseAvailability.Unknown,
+                MaintenanceCommandParser.BoundOutput(Status), result?.Release?.Version.ToString(), installer);
+        }
+    }
+
+    internal bool HasVerifiedMcpObservation => !busy && result?.VerifiedAt is not null && !IsStale;
+
+    internal async Task<InstallerStartOutcome> RequestMcpInstallerAsync(ReleaseVersion? version,
+        Func<bool> eligible, CancellationToken token)
+    {
+        InstallerStartOutcome outcome = InstallerStartOutcome.Denied;
+        await dispatcher.InvokeAsync(async () =>
+        {
+            var target = result;
+            var review = installerReview;
+            if (review is null || target?.Release is not { } release || !HasVerifiedMcpObservation
+                || target.Status != ReleaseAvailability.Available || architecture != ReleaseArchitecture.X64
+                || !release.InstallerUpgradeSupported || installerDownloader is null || installerLauncher is null
+                || version is not null && release.Version != version)
+            {
+                message = "Installer launch unavailable. A fresh newer x64 release, supported installer and native approval surface are required.";
+                Notify();
+                return;
+            }
+            bool Current() => !disposed && networkEnabled && admitted() && nativeCachedAdmission() && eligible()
+                && ReferenceEquals(result, target) && !IsStale && ReferenceEquals(installerReview, review);
+            token.ThrowIfCancellationRequested();
+            if (!Current()) { throw new InvalidOperationException("Maintenance installer request admission changed."); }
+            outcome = await review(target, Current, token);
+            if (!Current() && outcome == InstallerStartOutcome.Started) { outcome = InstallerStartOutcome.Unknown; }
+        });
+        return outcome;
+    }
 
     public AsyncCommand CheckSelectedVersionCommand { get; private set; } = null!;
     public AsyncCommand UpgradeCommand { get; private set; } = null!;
@@ -95,15 +138,15 @@ public sealed partial class MaintenanceViewModel
         return RunCheckAsync(automatic: false);
     }
 
-    internal async Task<string> ExecuteUpdateAsync(ReleaseVersion? version, bool requestUpgrade,
+    internal async Task<string> ExecuteUpdateAsync(ReleaseVersion? version,
         Func<bool> eligible, CancellationToken token)
     {
         string? output = null;
-        await dispatcher.InvokeAsync(async () => output = await ExecuteUpdateCoreAsync(version, requestUpgrade, eligible, token));
+        await dispatcher.InvokeAsync(async () => output = await ExecuteUpdateCoreAsync(version, eligible, token));
         return output ?? throw new InvalidOperationException("Maintenance UI dispatch did not produce an outcome.");
     }
 
-    private async Task<string> ExecuteUpdateCoreAsync(ReleaseVersion? version, bool requestUpgrade,
+    private async Task<string> ExecuteUpdateCoreAsync(ReleaseVersion? version,
         Func<bool> eligible, CancellationToken token)
     {
         var host = HostActivity.RequireCurrent();
@@ -120,12 +163,14 @@ public sealed partial class MaintenanceViewModel
         if (!eligible() || !admitted())
         { throw new InvalidOperationException("Maintenance request admission changed before its result."); }
         return MaintenanceCommandParser.BoundOutput(Status + "\n" + VerificationStatus
-            + (CanReview ? "\n" + ReleaseDetails : string.Empty)
-            + (requestUpgrade ? "\nOpen native Maintenance, review this exact release, and separately approve downloading and running its unsigned installer. This tool did not approve or start installation." : string.Empty));
+            + (CanReview ? "\n" + ReleaseDetails : string.Empty));
     }
 
-    public async Task UpgradeAsync()
+    public async Task UpgradeAsync() => _ = await UpgradeAsync(static () => true, CancellationToken.None);
+
+    public async Task<InstallerStartOutcome> UpgradeAsync(Func<bool> sourceCurrent, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(sourceCurrent);
         var originalNativeInput = HostActivity.Current is null;
         using var activity = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
             HostActivityLayer.Application, HostOperation.Runtime);
@@ -134,20 +179,20 @@ public sealed partial class MaintenanceViewModel
             SecurityAuditInitiator.LocalUser, "maintenance.canonical-release");
         audit.Write(record);
         var target = approvedInstaller;
-        if (!originalNativeInput || target is null || !CanUpgrade)
+        if (!originalNativeInput || target is null || !CanUpgrade || !sourceCurrent() || cancellationToken.IsCancellationRequested)
         {
             audit.Write(record.WithOutcome(SecurityAuditOutcome.Denied, "exact-native-installer-approval-required"));
             message = "Installer startup denied. A fresh exact native release review and separate installer approval are required.";
             activity.Complete(HostOperationOutcome.Failed);
             Notify();
-            return;
+            return InstallerStartOutcome.Denied;
         }
         var expectedRevision = revision;
         busy = true;
-        operation = new();
+        operation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var token = operation.Token;
         var launchRequested = false;
-        bool Current() => !token.IsCancellationRequested && IsUpgradeApprovalCurrent(target, expectedRevision);
+        bool Current() => !token.IsCancellationRequested && sourceCurrent() && IsUpgradeApprovalCurrent(target, expectedRevision);
         Notify();
         try
         {
@@ -166,11 +211,12 @@ public sealed partial class MaintenanceViewModel
                 audit.Write(record.WithOutcome(SecurityAuditOutcome.Unknown, "installer-start-outcome-unconfirmed"));
                 message = "Installer startup outcome is unconfirmed after host admission changed. Inspect setup; no rollback or completed upgrade is claimed.";
                 activity.Complete(HostOperationOutcome.Unknown);
-                return;
+                return InstallerStartOutcome.Unknown;
             }
             audit.Write(record.WithOutcome(SecurityAuditOutcome.Succeeded));
             message = "The reviewed installer was started. Complete setup to upgrade; Kora does not claim installation success from process startup.";
             activity.Complete(HostOperationOutcome.Completed);
+            return InstallerStartOutcome.Started;
 
             async Task VerifyCurrentAsync()
             {
@@ -198,6 +244,8 @@ public sealed partial class MaintenanceViewModel
                 : "Upgrade stopped before installer startup: " + exception.Message;
             activity.Complete(launchRequested ? HostOperationOutcome.Unknown
                 : exception is OperationCanceledException ? HostOperationOutcome.Cancelled : HostOperationOutcome.Failed);
+            return launchRequested ? InstallerStartOutcome.Unknown
+                : exception is OperationCanceledException ? InstallerStartOutcome.Cancelled : InstallerStartOutcome.Failed;
         }
         finally
         {

@@ -14,6 +14,7 @@ public sealed class HandsFreeVoiceContinuation
         Request = request;
         Capture = capture;
         Release = owner.RoutingCaptureRelease;
+        CaptureReleaseOwner = Release is null ? null : new(capture, Release);
         ExpectedGeneration = capture.CaptureGeneration;
     }
 
@@ -22,6 +23,7 @@ public sealed class HandsFreeVoiceContinuation
     internal HostRequest Request { get; }
     internal IQuestionVoiceRecognitionService Capture { get; }
     internal CaptureRelease? Release { get; }
+    internal RoutingCaptureRelease? CaptureReleaseOwner { get; }
     internal long ExpectedGeneration { get; set; }
     internal ContinuationPhase Phase { get; set; }
     internal bool Retired { get; set; }
@@ -41,25 +43,9 @@ public sealed class HandsFreeVoiceContinuation
         private CaptureRelease(int advance) => this.advance = advance;
         public static CaptureRelease Preserved { get; } = new(0);
         public static CaptureRelease InvalidatedOnce { get; } = new(1);
-        internal long Expected(long generation, bool handsFreeWrapper = false) =>
-            checked(generation + advance + (handsFreeWrapper ? 1 : 0));
+        internal long Expected(long generation) => checked(generation + advance);
     }
 
-    internal static async Task JoinReplyCaptureAsync(IQuestionVoiceRecognitionService capture, long expectedGeneration,
-        Action retire)
-    {
-        try
-        {
-            await capture.StopAsync().ConfigureAwait(false);
-            if (!capture.IsCaptureQuiescent || capture.CaptureGeneration != expectedGeneration)
-            { throw new InvalidOperationException("Routing successor release was not physically confirmed for its exact generation."); }
-        }
-        catch
-        {
-            retire();
-            throw;
-        }
-    }
 }
 
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "MA0048",
@@ -67,16 +53,50 @@ public sealed class HandsFreeVoiceContinuation
 public sealed partial class HandsFreeVoiceRecognitionService
 {
     private HandsFreeVoiceContinuation? routingContinuation;
+    private RoutingCaptureRelease? directRoutingCapture;
+    internal IQuestionVoiceRecognitionService RoutingActivatedCapture => activated;
     internal HandsFreeVoiceContinuation.CaptureRelease? RoutingCaptureRelease { get; private set; }
 
     internal void BindRoutingCaptureRelease(HandsFreeVoiceContinuation.CaptureRelease release)
     {
         lock (gate)
         {
-            if (routingContinuation is not null)
+            if (routingContinuation is not null || directRoutingCapture is not null)
             { throw new InvalidOperationException("An original routing owner prevents replacing its release contract."); }
             RoutingCaptureRelease = release;
         }
+    }
+
+    internal void AttachRoutingCapture(RoutingCaptureRelease release)
+    {
+        lock (gate)
+        {
+            if (directRoutingCapture is not null || routingContinuation is not null)
+            { throw new InvalidOperationException("Another routing owner already holds capture."); }
+            directRoutingCapture = release;
+        }
+    }
+
+    internal void DetachRoutingCapture(RoutingCaptureRelease release)
+    {
+        lock (gate)
+        {
+            if (!ReferenceEquals(directRoutingCapture, release))
+            { throw new InvalidOperationException("The exact direct routing capture owner changed."); }
+            directRoutingCapture = null;
+        }
+    }
+
+    private RoutingCaptureRelease? RoutingCaptureOwner
+    {
+        get { lock (gate) { return routingContinuation?.CaptureReleaseOwner ?? directRoutingCapture; } }
+    }
+
+    private void MutateRoutingCapture(Action mutate)
+    {
+        var captureOwner = RoutingCaptureOwner;
+        if (captureOwner is null) { mutate(); }
+        else { captureOwner.Invalidate(mutate); }
     }
 
     internal HandsFreeVoiceContinuation CaptureRoutingContinuation(VoiceTranscriptEventArgs utterance, HostRequest request)
@@ -85,7 +105,7 @@ public sealed partial class HandsFreeVoiceRecognitionService
         var quiescent = activated.IsCaptureQuiescent;
         lock (gate)
         {
-            if (routingContinuation is not null || !wakeUtteranceConsumed
+            if (routingContinuation is not null || directRoutingCapture is not null || !wakeUtteranceConsumed
                 || !IsWakeActivationCurrentCore(utterance, request, observation, quiescent))
             { throw new InvalidOperationException("Only the exact consumed original wake owner can acquire routing continuation."); }
             return routingContinuation = new(this, utterance, request, activated);
@@ -136,6 +156,7 @@ public sealed partial class HandsFreeVoiceRecognitionService
         try
         {
             await activated.BeginReplyAsync(microphone, phrases, () => continuation.IsAdmitted && admitted(), token);
+            continuation.CaptureReleaseOwner!.CaptureStarted();
             if (!continuation.IsAdmitted || !admitted()) { throw new OperationCanceledException("Routing successor admission changed."); }
         }
         finally { lock (gate) { activatedOpenRequests--; } }
@@ -158,19 +179,21 @@ public sealed partial class HandsFreeVoiceRecognitionService
     internal async Task ReleaseRoutingReplyAsync(HandsFreeVoiceContinuation continuation)
     {
         var generation = activated.CaptureGeneration;
+        bool retryClose;
         lock (gate)
         {
             if (!ReferenceEquals(routingContinuation, continuation))
             { throw new InvalidOperationException("A foreign or retired routing owner cannot release capture."); }
             if (continuation.ExpectedGeneration != generation)
             { continuation.Retired = true; }
+            retryClose = continuation.Retired && continuation.Phase == HandsFreeVoiceContinuation.ContinuationPhase.Releasing
+                && continuation.CaptureReleaseOwner!.HasFailedRelease;
             continuation.Phase = HandsFreeVoiceContinuation.ContinuationPhase.Releasing;
         }
         try
         {
-            var released = continuation.Release!.Expected(generation);
-            await HandsFreeVoiceContinuation.JoinReplyCaptureAsync(activated, released,
-                () => { lock (gate) { continuation.Retired = true; } }).ConfigureAwait(false);
+            var released = await (retryClose ? continuation.CaptureReleaseOwner!.JoinRetiredAsync()
+                : continuation.CaptureReleaseOwner!.JoinAsync()).ConfigureAwait(false);
             var observation = ObserveAdmission();
             lock (gate)
             {

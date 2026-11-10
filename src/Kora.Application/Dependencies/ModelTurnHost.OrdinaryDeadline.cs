@@ -7,7 +7,8 @@ public sealed partial class ModelTurnHost
 {
     private static TimeSpan RuntimeDeadline(ModelTurn turn)
     {
-        var provider = turn.Registration.Adapter is CopilotModelTurnAdapter or ClaudeModelTurnAdapter
+        var provider = turn.Context.ToolMode == ModelToolMode.ApplicationMaintenance ? Kora.Core.Tools.MaintenanceTools.Deadline
+            : turn.Registration.Adapter is CopilotModelTurnAdapter or ClaudeModelTurnAdapter
             ? HostedTurnAuthorization.MaximumDuration : Deadline;
         var constraint = turn.Context.Constraints is { } limits
             ? TimeSpan.FromMilliseconds(limits.DeadlineMilliseconds) : provider;

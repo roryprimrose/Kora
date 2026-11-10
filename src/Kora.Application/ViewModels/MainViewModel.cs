@@ -3569,8 +3569,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     private async Task StopListeningAsync()
     {
         Interlocked.Exchange(ref acceptedTranscriptGeneration, -1);
-        voiceRecognition.InvalidateCapture();
-        await voiceRecognition.StopAsync();
+        InvalidateOwnedVoiceCapture();
+        await StopOwnedVoiceCaptureAsync();
         IsListening = false;
         ApplicationLog.Information(logger, "Voice activation stopped");
     }

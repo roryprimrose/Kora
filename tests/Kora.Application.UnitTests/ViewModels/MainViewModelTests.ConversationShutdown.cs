@@ -8,6 +8,174 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData("decline")]
+    [InlineData("failure")]
+    [InlineData("stale")]
+    public async Task DebugHandoffRequiresCurrentUnsentInputReview(string outcome)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var reviews = 0;
+        var stops = f.TextToSpeech.StopCalls;
+        f.ViewModel.BindConversationShutdown(() =>
+        {
+            reviews++;
+            if (outcome is "failure") { throw new IOException("Synthetic unsent review failure."); }
+            return Task.FromResult(outcome is not "decline");
+        }, () => outcome is not "stale");
+
+        (await f.ViewModel.TryPrepareHandoffAsync()).Should().BeFalse();
+
+        reviews.Should().Be(1);
+        f.TextToSpeech.StopCalls.Should().Be(stops);
+        f.ViewModel.CanRevealPrivatePresentation.Should().BeTrue();
+        f.WindowActions.Should().NotContain(WindowAction.Close);
+    }
+
+    [Fact]
+    public async Task DebugHandoffRevalidatesUnsentInputAfterAudioStops()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var current = true;
+        f.ViewModel.BindConversationShutdown(() => Task.FromResult(true), () => current);
+        f.TextToSpeech.BeforeStop = () => current = false;
+
+        (await f.ViewModel.TryPrepareHandoffAsync()).Should().BeFalse();
+
+        f.ViewModel.CanRevealPrivatePresentation.Should().BeTrue();
+        f.ViewModel.IsVoiceEnabled.Should().BeFalse();
+        f.WindowActions.Should().NotContain(WindowAction.Close);
+    }
+
+    [Theory]
+    [InlineData("accepted")]
+    [InlineData("decline")]
+    [InlineData("stale")]
+    [InlineData("failure")]
+    [InlineData("audio")]
+    public async Task DebugHandoffHoldsTheIdleSubmittedWorkReviewUntilAbandonment(string outcome)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var current = true;
+        var reviews = 0;
+        var joins = 0;
+        var releases = 0;
+        f.ViewModel.BindConversationShutdown(() => Task.FromResult(true), () => true);
+        f.ViewModel.BindSubmittedWorkShutdown((operation, _, admitted) =>
+        {
+            operation.Should().Be(ApplicationLifecycleOperation.DebugHandoff);
+            reviews++;
+            if (outcome is "decline") { return Task.FromResult<ApplicationLifecycleShutdown?>(null); }
+            if (outcome is "failure") { throw new IOException("Synthetic work review failure."); }
+            return Task.FromResult<ApplicationLifecycleShutdown?>(new(() => current && admitted(),
+                () => { joins++; return Task.CompletedTask; }, () => releases++));
+        });
+        if (outcome is "stale") { f.TextToSpeech.BeforeStop = () => current = false; }
+        if (outcome is "audio") { f.TextToSpeech.StopException = new IOException("Synthetic audio stop failure."); }
+
+        var prepared = await f.ViewModel.TryPrepareHandoffAsync();
+
+        prepared.Should().Be(outcome is "accepted");
+        reviews.Should().Be(1);
+        joins.Should().Be(0, "idle handoff review must never cancel submitted work");
+        releases.Should().Be(outcome is "stale" or "audio" ? 1 : 0);
+        if (prepared)
+        {
+            f.ViewModel.CanRevealPrivatePresentation.Should().BeFalse();
+            (await f.ViewModel.TryPrepareHandoffAsync()).Should().BeFalse();
+            reviews.Should().Be(1);
+            f.ViewModel.AbandonHandoffPreparation();
+            f.ViewModel.AbandonHandoffPreparation();
+            releases.Should().Be(1);
+        }
+        f.ViewModel.CanRevealPrivatePresentation.Should().BeTrue();
+        f.WindowActions.Should().NotContain(WindowAction.Close);
+    }
+
+    [Fact]
+    public async Task DebugHandoffCannotRaceAPendingVoluntaryExitDecision()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var decision = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.ViewModel.BindConversationShutdown(() => decision.Task);
+        var exiting = f.ViewModel.ExitAsync();
+
+        (await f.ViewModel.TryPrepareHandoffAsync()).Should().BeFalse();
+
+        decision.SetResult(false);
+        await exiting;
+        f.WindowActions.Should().NotContain(WindowAction.Close);
+        f.ViewModel.CanRevealPrivatePresentation.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task DebugHandoffReleasesItsSubmittedWorkReservationOnDesktopDisposal()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var releases = 0;
+        f.ViewModel.BindSubmittedWorkShutdown((_, _, current) =>
+            Task.FromResult<ApplicationLifecycleShutdown?>(new(current, () => Task.CompletedTask, () => releases++)));
+
+        (await f.ViewModel.TryPrepareHandoffAsync()).Should().BeTrue();
+        releases.Should().Be(0);
+        f.ViewModel.Dispose();
+        f.ViewModel.Dispose();
+        f.ViewModel.AbandonHandoffPreparation();
+
+        releases.Should().Be(1);
+        f.ViewModel.CanRevealPrivatePresentation.Should().BeFalse();
+        (await f.ViewModel.TryPrepareHandoffAsync()).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("owner")]
+    [InlineData("unsent")]
+    [InlineData("work")]
+    public async Task DebugHandoffRejectsChangesDuringEditorReviewBeforeStoppingAudio(string boundary)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var unsentCurrent = true;
+        var workCurrent = true;
+        var releases = 0;
+        var stops = f.TextToSpeech.StopCalls;
+        f.ViewModel.BindConversationShutdown(() => Task.FromResult(true), () => unsentCurrent);
+        f.ViewModel.BindSubmittedWorkShutdown((_, _, current) =>
+            Task.FromResult<ApplicationLifecycleShutdown?>(new(() => workCurrent && current(),
+                () => Task.CompletedTask, () => releases++)));
+        f.ViewModel.BindInstructionEditorShutdown(() =>
+        {
+            if (boundary is "owner") { f.Session.IsUnlocked = false; }
+            if (boundary is "unsent") { unsentCurrent = false; }
+            if (boundary is "work") { workCurrent = false; }
+            return Task.FromResult(true);
+        });
+
+        (await f.ViewModel.TryPrepareHandoffAsync()).Should().BeFalse();
+
+        releases.Should().Be(1);
+        f.TextToSpeech.StopCalls.Should().Be(stops);
+        f.WindowActions.Should().NotContain(WindowAction.Close);
+    }
+
+    [Fact]
+    public async Task DebugHandoffAbandonmentCannotReopenADispatchedExit()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var releases = 0;
+        f.ViewModel.BindSubmittedWorkShutdown((_, _, current) =>
+            Task.FromResult<ApplicationLifecycleShutdown?>(new(current, () => Task.CompletedTask, () => releases++)));
+        (await f.ViewModel.TryPrepareHandoffAsync()).Should().BeTrue();
+
+        await f.ViewModel.ExitAsync();
+        f.WindowActions.Should().Contain(WindowAction.Close);
+        f.ViewModel.AbandonHandoffPreparation();
+
+        f.ViewModel.CanRevealPrivatePresentation.Should().BeFalse();
+        releases.Should().Be(1, "only the separate exit review has released its reservation");
+        f.ViewModel.Dispose();
+        releases.Should().Be(2, "the handoff reservation remains owned until desktop disposal");
+    }
+
     [Fact]
     public async Task NewUnsentInputWhileJoiningExistingRunOwnersPreventsExitAfterSubmittedWorkHasStopped()
     {

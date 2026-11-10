@@ -5,11 +5,13 @@ using Kora.Application.Tools;
 using Kora.Core.Dependencies;
 using Kora.Core.Mcp;
 using Kora.Core.Tools;
+using Kora.Core.Maintenance;
 
 namespace Kora.Application.Mcp;
 
 /// <summary>Private MCP projection of admitted host observations; never a network listener.</summary>
-public sealed class KoraMcpServer(ReadOnlyCapabilityRegistry registry, McpCapabilityPreferences preferences)
+public sealed partial class KoraMcpServer(ReadOnlyCapabilityRegistry registry, McpCapabilityPreferences preferences,
+    IApplicationMaintenanceMcp? maintenance = null)
 {
     public void HandleInitialized(CapabilityCaller caller, ReadOnlySpan<byte> notification, CancellationToken token)
     {
@@ -91,14 +93,16 @@ public sealed class KoraMcpServer(ReadOnlyCapabilityRegistry registry, McpCapabi
                     if (parameters.EnumerateObject().Any())
                     { throw new InvalidDataException("Private Kora discovery does not accept additional fields."); }
                     writer.WriteStartArray("tools");
-                    foreach (var descriptor in ReadOnlyCapabilityCatalog.Descriptors.Where(item =>
+                    foreach (var descriptor in ReadOnlyCapabilityCatalog.Descriptors.Concat(MaintenanceTools.Descriptors).Where(item =>
                         preferences.IsToolEnabled(KoraMcpCatalog.ServerId, item.Id)))
                     {
                         writer.WriteStartObject();
                         writer.WriteString("name", descriptor.Id);
-                        writer.WriteString("description", "Host-owned read-only observation: " + descriptor.Id);
+                        writer.WriteString("description", MaintenanceTools.FindExact(descriptor.Id) is null
+                            ? "Host-owned read-only observation: " + descriptor.Id
+                            : "Canonical Kora maintenance. Installer startup requires exact native approval; setup owns shutdown and installation.");
                         writer.WritePropertyName("inputSchema");
-                        writer.WriteRawValue(ReadOnlyCapabilitySchema.Serialize(descriptor.Id));
+                        CapabilityInputSchema.Write(writer, descriptor);
                         writer.WriteEndObject();
                     }
                     writer.WriteEndArray();

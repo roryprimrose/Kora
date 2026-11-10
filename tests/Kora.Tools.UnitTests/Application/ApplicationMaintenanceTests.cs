@@ -1,12 +1,44 @@
 using AwesomeAssertions;
 using Kora.Core.Hosting;
 using Kora.Core.Maintenance;
+using Kora.Core.Tools;
 using Kora.Tools.Application;
 
 namespace Kora.Tools.UnitTests.Application;
 
 public sealed class ApplicationMaintenanceTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task McpActionsUseTheSharedHostRunnerWithoutApprovalArguments(bool upgrade)
+    {
+        var host = new McpMaintenance();
+        Func<bool> admitted = () => true;
+        var token = TestContext.Current.CancellationToken;
+        var result = upgrade
+            ? await new ApplicationUpgrade(host).ExecuteMcpAsync("""{"version":"1.2.3"}""", admitted, token)
+            : await new ApplicationCheckForUpdates(host).ExecuteMcpAsync("""{"version":"1.2.3"}""", admitted, token);
+        host.Id.Should().Be(upgrade ? MaintenanceTools.Upgrade : MaintenanceTools.Check);
+        host.Input.Should().Be("""{"version":"1.2.3"}""");
+        host.Admitted.Should().BeSameAs(admitted);
+        host.Token.Should().Be(token);
+        result.Reason.Should().Be("recorded");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task MissingMcpRunnerIsExplicitlyUnavailable(bool upgrade)
+    {
+        var host = new Maintenance();
+        var result = upgrade
+            ? await new ApplicationUpgrade(host).ExecuteMcpAsync("{}", () => true, TestContext.Current.CancellationToken)
+            : await new ApplicationCheckForUpdates(host).ExecuteMcpAsync("{}", () => true, TestContext.Current.CancellationToken);
+        result.Outcome.Should().Be(CapabilityOutcome.Denied);
+        host.Calls.Should().Be(0);
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(false, true)]
@@ -52,5 +84,22 @@ public sealed class ApplicationMaintenanceTests
             Token = token;
             return Task.FromResult(upgrade ? "native review required" : "checked");
         }
+    }
+
+    private sealed class McpMaintenance : IApplicationMaintenance, IApplicationMaintenanceMcp
+    {
+        public string? Id { get; private set; }
+        public string? Input { get; private set; }
+        public Func<bool>? Admitted { get; private set; }
+        public CancellationToken Token { get; private set; }
+        public ValueTask<CapabilityReply> InvokeAsync(string id, string input, Func<bool> admitted, CancellationToken token)
+        {
+            Id = id; Input = input; Admitted = admitted; Token = token;
+            return ValueTask.FromResult(new CapabilityReply(CapabilityOutcome.Denied, "recorded"));
+        }
+        public Task<string> CheckForUpdatesAsync(ReleaseVersion? version, RequestOrigin origin, Func<bool> admitted, CancellationToken token) =>
+            throw new InvalidOperationException("MCP must use its shared runner.");
+        public Task<string> RequestUpgradeAsync(ReleaseVersion? version, RequestOrigin origin, Func<bool> admitted, CancellationToken token) =>
+            throw new InvalidOperationException("MCP must use its shared runner.");
     }
 }

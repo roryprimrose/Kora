@@ -802,7 +802,7 @@ Existing same-build activation, handoff, setup completion, restart, errors and n
 ## Update Ownership and Deployment Mode
 
 Application maintenance is separate from the agent's model, tools, scripts, skills, and work queue.
-Kora offers updates from verified canonical GitHub release metadata using the existing passive notice surface. The shared check/upgrade tools can check or prepare review, but cannot grant network consent or installer approval ([actions](../src/Kora.Core/Maintenance/IApplicationMaintenance.cs)).
+Kora offers updates from verified canonical GitHub release metadata using the existing passive notice surface. The shared check/upgrade actions and built-in MCP tools can check or request a native-approved installer launch, but cannot grant network consent or installer approval ([actions](../src/Kora.Core/Maintenance/IApplicationMaintenance.cs)).
 Native Maintenance requires a fresh exact release review and a separate explicit unsigned-installer checkbox before download/run. The host revalidates the release before and after transfer; setup owns installation and ordinary OS prompts ([upgrade owner](../src/Kora.Application/Maintenance/MaintenanceViewModel.Upgrade.cs)).
 This is a deliberate user-approved unsigned installer path, not authenticated unattended activation.
 An independently authenticated updater still requires signed metadata, an offline/root trust anchor, expiry, rollback/freeze protection, threshold/key rotation and separate acceptance evidence; hashes from the same GitHub origin are not that trust root ([security boundary](Security_Data_Flows.md#application-integrity-and-no-self-modification)).
@@ -831,7 +831,29 @@ Startup and periodic checks use the existing ownership/privacy/call admission, j
 Beta-inclusive discovery covers at most fifty pages of twenty records (1,000 releases), preserving the per-response bounds and total deadline. Exhausting that bound remains Unknown, not a guessed latest version ([discovery](../src/Kora.Application/Maintenance/GitHubReleaseMetadataClient.cs)).
 
 `maintenance check [latest|version]` and `maintenance upgrade [latest|version]` use the registered `application.check_for_updates` and `application.upgrade` actions. Exact versions use canonical release tags, never supplied URLs or paths; stable-only policy rejects betas.
-The upgrade action prepares native review only, preserving pending questions and approvals ([command](../src/Kora.Core/Maintenance/MaintenanceUpdateCommand.cs), [routing](../src/Kora.Application/ViewModels/MainViewModel.Maintenance.cs)).
+The upgrade action requests exact native approval, then starts the verified installer, preserving unrelated pending questions and approvals ([command](../src/Kora.Core/Maintenance/MaintenanceUpdateCommand.cs), [routing](../src/Kora.Application/ViewModels/MainViewModel.Maintenance.cs)).
+
+The private `builtin.kora` MCP catalogue includes `application.check_for_updates`
+and `application.upgrade`. Both accept `{}` for latest or `{"version":"1.2.3-beta7"}`
+for an exact canonical version; URLs, paths, scripts, channel changes and approval
+fields are rejected. Original local `maintenance check` / `maintenance upgrade`
+requests submitted in a conversation select the maintenance-only local model tool
+scope. Ordinary read-only, tool-free, hosted and unrelated tool scopes cannot gain
+installer authority ([catalogue](../src/Kora.Core/Tools/MaintenanceTools.cs),
+[scope](../src/Kora.Core/Dependencies/ModelToolMode.cs)).
+
+`application.upgrade` presents the exact native unsigned-installer review. Only
+the original user's approval starts download and execution; the MCP call cannot
+confirm its own proposal. The maintenance control lock is released while waiting
+so native review remains usable. The installer then identifies the active instance
+and requests authenticated graceful shutdown before planning package changes.
+Kora's tool does not close the assistant itself or introduce installation-status
+tracking across restart. Its successful result means **installer started**, never
+**installation completed**. The explicit local maintenance turn is bounded to
+twenty minutes for native review and transfer; ordinary model deadlines are unchanged
+([MCP owner](../src/Kora.Application/Maintenance/MaintenanceCommands.Mcp.cs),
+[native review](../src/Kora/MaintenanceWindowController.Installer.cs),
+[installer shutdown](../installer/Kora.Setup/InstallerSession.cs)).
 
 Select **Review this exact verified release**, then explicitly approve the displayed unsigned installer and choose **Download and run reviewed installer**. Only a newer supported x64 release is eligible.
 Any refresh, expiry, changed target, revoked approval or admission closure retires the approval; neither saved preferences nor a reusable model grant can approve execution ([approval owner](../src/Kora.Application/Maintenance/MaintenanceViewModel.Upgrade.cs)).

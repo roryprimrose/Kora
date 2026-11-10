@@ -180,5 +180,6 @@ public sealed partial class MainWindow : IPresenceWindow
             presenceInput = null;
         }
         resourcesDisposed = true;
+        if (!initializationStarted) { initializationQuiescence.TrySetResult(); }
     }
 }

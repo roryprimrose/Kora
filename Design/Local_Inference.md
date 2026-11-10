@@ -299,7 +299,13 @@ replayed as new invocations.
 Cancellation, revocation, expiry, failed HTTP and deadline completion have
 typed terminal outcomes without retries or fallback. Cancellation/disposal
 waits for actual owned HTTP/read work to terminate, including a
-non-cooperative platform fake, before disposing the client. Closing HTTP is
+non-cooperative platform fake, before disposing the client. Failed stream,
+response or client release permanently closes that transport: no answer or
+continuation can establish successful release, and repeated disposal remains
+faulted with the resource failure retained. Buffered and streamed paths share
+this boundary ([transport](../src/Kora.Windows/Dependencies/WindowsOllamaToolTransport.cs),
+[deterministic disposal regressions](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsOllamaToolTransportTests.Disposal.cs)).
+Closing HTTP is
 not proof that a server's model computation physically stopped; actual-runtime
 cessation and enablement qualification remain separate and unclaimed.
 Maintained tests use fake HTTP, process observations and in-memory listener

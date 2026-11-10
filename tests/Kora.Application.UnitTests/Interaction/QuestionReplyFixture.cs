@@ -96,6 +96,7 @@ internal sealed class QuestionReplyFixture : IAsyncDisposable
         public bool RejectAcknowledgement { get; set; }
         public Exception? OpenFailure { get; set; }
         public Exception? StopFailure { get; set; }
+        public Action? BeforeStop { get; set; }
         public Action? BeforeOpen { get; set; }
         public TaskCompletionSource? Opening { get; set; }
         public TaskCompletionSource? Closing { get; set; }
@@ -129,6 +130,7 @@ internal sealed class QuestionReplyFixture : IAsyncDisposable
         {
             Stops++;
             StopStarted.TrySetResult();
+            BeforeStop?.Invoke();
             if (StopFailure is not null) { throw StopFailure; }
             IsListening = false;
             if (Closing is not null) { await Closing.Task.WaitAsync(cancellationToken); }
@@ -137,6 +139,7 @@ internal sealed class QuestionReplyFixture : IAsyncDisposable
         public void Speech(long? generation = null) => ReplySpeechStarted?.Invoke(this, new(generation ?? Generation, true));
         public void Fail(long? generation = null) => RecognitionFailed?.Invoke(this, new("Synthetic", generation ?? Generation));
         public void AdvanceGeneration() => Generation++;
+        public void SetGeneration(long generation) => Generation = generation;
         public void Complete(long? generation = null) => RecognitionCompleted?.Invoke(this,
             new(generation ?? Generation, VoiceRecognitionCompletionReason.NoSpeechRecognized));
         public Task BeginPushToTalkAsync(MicrophoneDevice microphone, IEnumerable<string> phrases, string? assistantName = null,

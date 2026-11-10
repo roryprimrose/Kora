@@ -27,7 +27,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseBody.Should().Be("Fresh check; native review required for installation.");
         f.TextToSpeech.SpokenText.Should().BeNull();
         f.Reasoner.Requests.Should().BeEmpty();
-        reviews.Should().Be(upgrade ? 1 : 0);
+        reviews.Should().Be(0, "the shared governed action owns native installer review; the command must not open a duplicate window");
     }
 
     [Fact]

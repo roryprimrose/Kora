@@ -103,6 +103,17 @@ cannot authorize this action. `stop` and `stop speaking` keep their prior meanin
 
 ## Inspect session model metrics
 
+For a separate local model answer about one exact session's content-free work
+and observed question expiry, choose **Review one session metadata answer...**
+in the primary conversation pane or Sessions management window.
+The selected conversation is the caller; the inspected subject is entered
+separately and is never selected or renewed.
+Exact typed/current-name activated syntax is
+`review session metadata <subject-id> for <caller-id>: <question>`.
+Local admission precedes inspection; separate frozen disclosure confirmation
+precedes model execution. Unknown local readiness stays unavailable.
+See [the complete review and exclusions](model-session-discovery.md#review-one-content-free-session-metadata-answer).
+
 Select a conversation in Sessions or the compact conversation window, then expand **Session metrics**. Opening it reads a fresh observation; **Refresh session metrics** updates it without a model call or network request ([native reader](../src/Kora/SessionsViewModel.Metrics.cs), [session admission](../src/Kora.Application/Hosting/SessionConversationService.Metrics.cs)).
 
 In the global command box, use `show session metrics`, `show token usage`, `how many tokens have I used in this session?` or `what is my context usage`. These require an exact current foreground conversation; otherwise use `session metrics <session-id>`. Activated voice requires the configured assistant-name prefix, for example `Kora, show session metrics`. Existing private, call, question, approval and editor restrictions still apply ([grammar](../src/Kora.Core/Commands/SessionCommand.Metrics.cs), [presentation](../src/Kora.Application/ViewModels/MainViewModel.Metrics.cs)).

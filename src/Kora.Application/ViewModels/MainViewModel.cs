@@ -643,6 +643,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || IsInstructionEditorCommand(CommandText)
                       || Kora.Application.Definitions.CustomizationCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Application.Tools.CustomizationDiscoveryCommand.Parse(CommandText, AssistantName) is not null
+                      || Kora.Application.Tools.SessionMetadataCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Application.Skills.OwnedSkillAuthoringCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Application.Skills.SkillReviewCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Application.Skills.SharedSkillInvocationCommand.Parse(CommandText, AssistantName) is not null
@@ -4543,6 +4544,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision), reviewEligibility);
             return;
         }
+        if (Kora.Application.Tools.SessionMetadataCommand.Parse(spokenText, AssistantName) is { } metadataCommand)
+        {
+            await ExecuteSessionMetadata(metadataCommand, spokenText, manualInput
+                ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision), reviewEligibility);
+            return;
+        }
         if (Kora.Application.Skills.SharedSkillInvocationCommand.Parse(spokenText, AssistantName) is { } skillUse)
         {
             await ExecuteSharedSkillInvocation(skillUse, spokenText, manualInput
@@ -6917,6 +6924,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(Kora.Application.Mcp.McpCommand.FixedPhrases)
             .Concat([Kora.Application.Tools.CustomizationDiscoveryCommand.Phrase])
+            .Concat([Kora.Application.Tools.SessionMetadataCommand.Phrase])
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
             .Concat(EvidenceTraceCommand.DiscoveryPhrases)
             .Concat(["pending question help"])

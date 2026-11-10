@@ -31,6 +31,9 @@ expansion/collapse does not recreate the session model, move input, save, submit
 The expanded window does not use the ordinary response inactivity timer.
 
 The [compact response](../src/Kora/ResponseWindow.axaml) uses an opaque background and glyph buttons with tooltips and accessible names.
+One rounded frame contains the compact toolbar, response or selected conversation,
+and input controls. Expanding restores the workbench's separate response frame;
+collapsing restores the shared compact frame without moving or submitting input.
 
 - Expand, Dismiss, Send and the available microphone remain direct actions; Cancel task and Stop speaking appear only when relevant.
 - The More response actions menu contains response details, read-aloud, call-speech review and reviewed voice capture.

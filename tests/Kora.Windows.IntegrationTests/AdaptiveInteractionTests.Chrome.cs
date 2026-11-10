@@ -48,6 +48,7 @@ public sealed partial class AdaptiveInteractionTests
             AutomationProperties.GetName(expand).Should().Be("Expand to the full workbench");
             expand.BringIntoView();
             window.UpdateLayout();
+            CompactResponseWorkingAreaTests.AssertCompactFrameContainsControls(window);
             expand.Focus().Should().BeTrue();
             if (keyboard)
             {

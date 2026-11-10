@@ -10,6 +10,7 @@ public sealed partial class ResponseWindow
 {
     private void ConfigureChrome(bool expanded)
     {
+        Classes.Set("compact", !expanded);
         WorkbenchCaption.IsVisible = expanded;
         WindowSurface.Cursor = new Cursor(expanded ? StandardCursorType.Arrow : StandardCursorType.SizeAll);
         ShowInTaskbar = expanded;

@@ -25,6 +25,37 @@ public sealed class CompactResponseWorkingAreaTests
 {
     private static readonly string[] SubmittedActivityControls = ["RefreshSubmittedActivity", "StopSubmittedActivity"];
 
+    [Theory]
+    [InlineData(320, 400, 1)]
+    [InlineData(640, 800, 2)]
+    [InlineData(480, 570, 1)]
+    [InlineData(1200, 900, 1)]
+    public async Task EveryCompactActionAndInputIsInsideOneRoundedFrame(int width, int height, double scale)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(ScratchParent(), silentCaption: true);
+            await fixture.InitializeAsync();
+            var window = new ResponseWindow(fixture.Main, null, null, () => new(0, 0, width, height));
+            try
+            {
+                window.SetRenderScaling(scale);
+                window.ShowResponse();
+                window.UpdateLayout();
+                AssertCompactFrameContainsControls(window);
+                window.ShowSessions(true, activate: false);
+                window.UpdateLayout();
+                window.FindControl<Border>("CurrentInteractionContent")!.CornerRadius.Should().Be(new CornerRadius(16));
+                window.ShowSessions(false, activate: false);
+                window.UpdateLayout();
+                AssertCompactFrameContainsControls(window);
+                fixture.Voice.StartCalls.Should().Be(0);
+                fixture.SilentSpeech!.AdmittedRequests.Should().Be(0);
+            }
+            finally { window.Close(); }
+        });
+    }
+
     [Fact]
     public async Task InteractiveFixtureWorkbenchExpandsAndCollapsesTheSameResponseWithoutSendingInput()
     {
@@ -425,6 +456,32 @@ public sealed class CompactResponseWorkingAreaTests
     private static Task<byte[]> ReadStoreBytes(NativeUxFixtureSession fixture) =>
         File.ReadAllBytesAsync(Path.Combine(fixture.LocalRoot, "InteractionStorageV1", "interaction.db"),
             TestContext.Current.CancellationToken);
+
+    internal static void AssertCompactFrameContainsControls(ResponseWindow window)
+    {
+        var frame = window.GetVisualDescendants().OfType<Border>().Single(border =>
+            border.IsEffectivelyVisible && border.CornerRadius == new CornerRadius(16)
+                && border.BorderThickness == new Thickness(1));
+        var interior = new Rect(new Point(1, 1), new Size(frame.Bounds.Width - 2, frame.Bounds.Height - 2));
+        var controls = window.GetVisualDescendants().OfType<Control>()
+            .Where(control => control.IsEffectivelyVisible && control is Button or TextBox
+                && !control.GetVisualAncestors().OfType<Avalonia.Controls.Primitives.ScrollBar>().Any()).ToArray();
+        controls.Should().NotBeEmpty();
+        foreach (var control in controls)
+        {
+            control.GetVisualAncestors().Should().Contain(frame, $"{control.Name} belongs inside the rounded frame");
+            var origin = control.TranslatePoint(default, frame)!.Value;
+            var visible = new Rect(origin, control.Bounds.Size);
+            foreach (var clip in control.GetVisualAncestors().TakeWhile(ancestor => ancestor != frame)
+                .Where(ancestor => ancestor.ClipToBounds))
+            {
+                var clipOrigin = clip.TranslatePoint(default, frame)!.Value;
+                visible = visible.Intersect(new Rect(clipOrigin, clip.Bounds.Size));
+            }
+            (visible.Width <= 0 || visible.Height <= 0 || interior.Contains(visible)).Should().BeTrue(
+                $"{control.Name} has visible bounds {visible} inside the frame interior {interior}");
+        }
+    }
 
     private static void AssertInside(Window window, Control control)
     {

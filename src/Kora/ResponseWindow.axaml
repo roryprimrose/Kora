@@ -5,6 +5,7 @@
     xmlns:controls="using:Kora.Controls"
     xmlns:local="using:Kora"
     xmlns:chrome="using:Avalonia.Controls.Chrome"
+    Classes="compact"
     Title="{Binding AssistantName}"
     Width="560"
     Height="690"
@@ -19,6 +20,26 @@
     KeyDown="OnCancelTaskKeyDown"
     WindowStartupLocation="Manual">
   <Window.Styles>
+    <Style Selector="Border#CurrentInteractionContent">
+      <Setter Property="Margin" Value="12" />
+      <Setter Property="Background" Value="{DynamicResource KoraPresencePanelBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource KoraBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="16" />
+    </Style>
+    <Style Selector="Window.compact Border#CompactFrame">
+      <Setter Property="Margin" Value="12" />
+      <Setter Property="Background" Value="{DynamicResource KoraPresencePanelBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource KoraBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="16" />
+    </Style>
+    <Style Selector="Window.compact Border#CurrentInteractionContent">
+      <Setter Property="Margin" Value="0" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="0" />
+    </Style>
     <Style Selector="Button.compact-action">
       <Setter Property="Width" Value="32" />
       <Setter Property="Height" Value="32" />
@@ -89,7 +110,9 @@
       Grid.Row="1"
       HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
       AutomationProperties.Name="Current response and controls; scroll to read and operate">
-  <Grid x:Name="ResponseLayout" MinWidth="480" MinHeight="570" RowDefinitions="Auto,Auto,*">
+  <Grid x:Name="ResponseLayout" MinWidth="480" MinHeight="570">
+  <Border x:Name="CompactFrame">
+  <Grid RowDefinitions="Auto,Auto,*">
     <WrapPanel Margin="12,8,12,0">
       <Button x:Name="ExpandSessions" Classes="compact-action" Click="OnExpandSessionsClicked"
           ToolTip.Tip="Expand to the full workbench"
@@ -178,12 +201,7 @@
       <StackPanel x:Name="InlineQuestions" Spacing="8" Margin="12" />
     </ScrollViewer>
   <Border x:Name="CurrentInteractionContent" Grid.Column="1"
-      Margin="12"
-      Padding="22"
-      Background="{DynamicResource KoraPresencePanelBrush}"
-      BorderBrush="{DynamicResource KoraBorderBrush}"
-      BorderThickness="1"
-      CornerRadius="16">
+      Padding="22">
     <Grid RowDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="12">
       <Grid ColumnDefinitions="*,Auto">
         <StackPanel Spacing="4">
@@ -457,6 +475,8 @@
     </Grid>
   </Border>
     </Grid>
+  </Grid>
+  </Border>
   </Grid>
   </ScrollViewer>
   </Grid>

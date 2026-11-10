@@ -30,6 +30,14 @@ typed command and live interaction controls. The conversation view remains mount
 expansion/collapse does not recreate the session model, move input, save, submit or replay.
 The expanded window does not use the ordinary response inactivity timer.
 
+The [compact response](../src/Kora/ResponseWindow.axaml) uses an opaque background and glyph buttons with tooltips and accessible names.
+
+- Expand, Dismiss, Send and the available microphone remain direct actions; Cancel task and Stop speaking appear only when relevant.
+- The More response actions menu contains response details, read-aloud, call-speech review and reviewed voice capture.
+- Submitted-work reports and management controls remain in the expanded workbench.
+- Blank compact-window areas use the move cursor and support mouse dragging; text, input and interactive controls retain their normal behavior.
+- Question choices and approval decisions retain readable text.
+
 - The left pane defaults to Active on its first list load, with All/Done filters and
   explicit Refresh/Next. Ordinary conversation-name substring Search/Clear/Next
   matches/Cancel reuses the validated bounded metadata search; edits read nothing,

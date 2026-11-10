@@ -47,8 +47,12 @@ public sealed class CurrentResponseNativeTests
                 if (string.Equals(args.PropertyName, nameof(f.Main.CanConfirmCallSpeech), StringComparison.Ordinal)
                     && f.Main.CanConfirmCallSpeech) { reviewed.TrySetResult(); }
             };
-            var review = window.GetVisualDescendants().OfType<Button>().Single(button =>
-                string.Equals(button.Content as string, "Review speak once during call", StringComparison.Ordinal));
+            var more = window.FindControl<Button>("ResponseMoreActions")!;
+            var menu = (MenuFlyout)more.Flyout!;
+            menu.ShowAt(more);
+            Dispatcher.UIThread.RunJobs();
+            var review = menu.Items.OfType<MenuItem>().Single(item =>
+                string.Equals(item.Header as string, "Review speak once during call", StringComparison.Ordinal));
             f.Main.CanReviewCallSpeech.Should().BeTrue(f.Main.CallSpeechStatus);
             review.Command.Should().BeSameAs(f.Main.ReviewCallSpeechCommand);
             review.Command!.Execute(null);
@@ -60,8 +64,8 @@ public sealed class CurrentResponseNativeTests
             inactivity.IsScheduled.Should().BeFalse("the separate exact review must not be auto-hidden mid-review");
             f.Main.IsSpeechResponseEnabled.Should().BeFalse();
             f.SilentSpeech!.AdmittedRequests.Should().Be(0);
-            var confirm = window.GetVisualDescendants().OfType<Button>().Single(button =>
-                string.Equals(button.Content as string, "Confirm speak once", StringComparison.Ordinal));
+            var confirm = menu.Items.OfType<MenuItem>().Single(item =>
+                string.Equals(item.Header as string, "Confirm speak once", StringComparison.Ordinal));
             confirm.Command.Should().BeSameAs(f.Main.ConfirmCallSpeechCommand);
             var started = f.SilentSpeech.Arm();
             var completion = f.Main.ConfirmCallSpeechCommand.ExecuteAsync();
@@ -167,17 +171,20 @@ public sealed class CurrentResponseNativeTests
             window.IsVisible.Should().BeTrue();
             window.UpdateLayout();
             var original = f.Main.ResponseBody;
-            var button = window.GetVisualDescendants().OfType<Button>().Single(button =>
-                string.Equals(button.Content as string, "Current response details", StringComparison.Ordinal));
-            button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var more = window.FindControl<Button>("ResponseMoreActions")!;
+            var menu = (MenuFlyout)more.Flyout!;
+            menu.ShowAt(more);
+            Dispatcher.UIThread.RunJobs();
+            var button = menu.Items.OfType<MenuItem>().Single(item =>
+                string.Equals(item.Header as string, "Current response details", StringComparison.Ordinal));
+            button.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
             await opened.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
             views.Should().ContainSingle();
             views[0].State.ActiveText.Should().EndWith(original);
             f.Main.CommandText = "open current response details";
             await f.Main.RunTypedCommand.ExecuteAsync();
             f.Main.Transcript.Should().Be("Exact current response details opened.");
-            var dismiss = window.GetVisualDescendants().OfType<Button>().Single(button =>
-                string.Equals(button.Content as string, "Dismiss", StringComparison.Ordinal));
+            var dismiss = window.FindControl<Button>("DismissResponse")!;
             if (dispose) { controller.Dispose(); }
             else { dismiss.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
             await views[^1].ClosedTask.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);

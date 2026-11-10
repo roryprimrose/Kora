@@ -114,6 +114,7 @@ public sealed partial class ResponseWindow
             CaptureNormalBounds();
         }
         ConfigureChrome(expanded);
+        ExpandedControls.IsVisible = expanded;
         ResponseLayout.Width = expanded ? double.NaN : Math.Max(480, Width);
         var conversation = expanded || SessionWorkspace.DataContext is SessionsViewModel { SelectedSessionRecord: not null };
         if (wasExpanded != expanded || SessionWorkspace.IsVisible != conversation) { sessionPresentationEpoch++; }

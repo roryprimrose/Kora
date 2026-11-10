@@ -70,7 +70,8 @@ public sealed class EvidencePageExportReviewTests : IDisposable
             if (fault is "during-read") { live = false; }
             return fault is "source" ? Task.FromException(new InvalidOperationException("source drift")) : Task.CompletedTask;
         });
-        await using var review = new EvidencePageExportReview(source, destination, () => live, audit, NullLogger<EvidencePageExportReview>.Instance);
+        var logger = new Network.EnabledLogger<EvidencePageExportReview>();
+        await using var review = new EvidencePageExportReview(source, destination, () => live, audit, logger);
         if (fault is "cancel") { cancellation.Cancel(); }
         if (fault is "disposed")
         {
@@ -90,6 +91,7 @@ public sealed class EvidencePageExportReviewTests : IDisposable
         }
         destination.Calls.Should().Be(0);
         audit.Events.Should().NotContain(item => item.Outcome == SecurityAuditOutcome.Succeeded);
+        logger.Messages.Should().HaveCount(fault is "cancel" or "disposed" ? 0 : 1);
     }
 
     [Theory]

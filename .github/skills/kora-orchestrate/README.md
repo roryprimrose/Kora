@@ -422,8 +422,10 @@ evidence or a source refresh alone does not establish completeness.
 Any overlap with **any held owner**, including a permanently retired owner's
 passive guards, or the same held PR rejects without mutation or new action.
 Stopped source work, empty roots, failed cleanup and spare capacity do not
-release a guard. Only independently supported ordinary lifecycle completion
-can release it. No variant, renamed outcome, new worker or live event is
+release a guard. Ordinary lifecycle completion or separately authorized
+[exact-path supersession](./README.md#exact-path-write-reservation-supersession) is required
+to change effective exclusion; supersession never releases historical ownership.
+No variant, renamed outcome, new worker or live event is
 authorized by a published protocol repair.
 
 ### Exact atomic client input
@@ -487,7 +489,7 @@ stores remain readable without migration. Every v4 item requires
 Each record is `{event,before,fromVersion}`: `before` is the exact old item
 without `admissionHistory`, whose prior prefix is reconstructed for v4
 complete-item digest validation. First-record legacy shape follows
-`fromVersion`; successive records require v4. No original shrink/amendment
+`fromVersion`; successive records require v4 or v5. No original shrink/amendment
 record, marker, acknowledgment, revision or retirement changes.
 
 `seen` binds the accepted ID and reserved
@@ -503,3 +505,79 @@ final-manifest/v3-history fixtures are data-only shadow evidence. Their
 synthetic successful cleanup does **not** prove any live owner's physical
 closure. Load a pinned verified canonical module and obtain separately
 authorized fresh discovery/source/cleanup inputs before any future live apply.
+
+## Exact-path write-reservation supersession
+
+The [registry reducer](./scripts/registry.cjs) accepts `supersede-write-reservations` in enabled delivery mode through the [durable checkpoint client](./scripts/checkpoint.cjs).
+It separates future exact-file write exclusion from immutable historical scope/publication/source-retirement records and retained slots/cleanup. It does not implement external authority transfer, release capacity or perform host operations.
+
+### Supported activation and nonactivating preparation
+
+- `mode=activate-local`: all overlapping holders must be in the controlling local ledger, with single-ledger authority, complete preservation, stopped-work/instruction reconciliation and exact holder acknowledgments or authorized revocation receipts. The [reducer](./scripts/registry.cjs) derives retirement without changing the old flag. No external snapshot may activate.
+- `mode=prepare-external`: retain complete external snapshots and every overlapping holder. Unknown host evidence remains null, never inferred pending-zero or acknowledgment. The [reducer](./scripts/registry.cjs) persists the proposal but never reserves/attaches/launches its candidate. External guards remain; this is not resolved feature ownership.
+- External activation requires a separately supported authoritative single-ledger handoff protocol. There is no promotion, two-checkpoint commit, live migration or prepared-proposal activation route in this version. Preparing, publishing or testing this code does not execute such a protocol ([checkpoint client](./scripts/checkpoint.cjs)).
+
+### Exact input contract
+
+Use the existing absolute ignored scratch checkpoint client with `operation=apply` and current `expectedRevision`. The event has exactly `{id,type,proof,authorization}`, where `type=supersede-write-reservations`. Pin the complete source modules and verify facts before constructing any input; the [validator](./scripts/registry.cjs) checks the following exact field sets.
+
+| Object | Exact fields and requirements |
+| --- | --- |
+| `proof` | `version=1`, `repository="roryprimrose/Kora"`, exact `coordinator`, `checkpointRevision`, current verified `head`, `mode`, `authority`, `exactFiles`, complete `candidate`, `expectedItemDigest`, `manifestComplete=true`, `localReservations`, `externalCheckpoints`, `holders`. |
+| `authority` | `singleLedger=true` only for local activation; false for external preparation. Nonempty `receipt` identifies independently verified controlling source authority, not a snapshot-based claim to it. |
+| `exactFiles` | `complete=true`, canonical unique `paths` equal the first-occurrence union of all holder paths, and `receipt` establishing these are exact files, not directories. Filesystem kinds are a trusted-host fact, not inferred from extensions. |
+| `candidate` | Entire current unowned, unreserved, unpublished, nonretired candidate item, including all metadata/history. `expectedItemDigest=digest(candidate)`, head equals proof head and blocker is null. Independent product/effect admission remains required. |
+| `localReservations` | Entire current ordered array of all slot-holding items, not a projection. Acceptance compares it exactly; ownership, publication anchors, scopes, history and blockers are not rewritten. Unrelated unattached reservations are retained; an overlapping unattached reservation blocks acceptance. |
+| `externalCheckpoints[]` | Exactly `repository`, positive `revision`, complete validated `state`, `stateDigest=digest(state)`, and `receipt`. Coordinators must be distinct from each other/local. Nested external authority imports reject; local-only v5 histories in an external snapshot retain their shared effective exclusions. No external file is written. |
+| `holders[]` | Exactly `coordinator`, `key`, `owner`, complete original `itemDigest`, `scopeRevision`, exact `paths`, `manifest`, `preservation`, `stopped`, `acknowledgment`. List every overlap in local snapshot order, then external snapshot/item order, including multiple ledgers holding the same path. Missing, duplicate, reordered or mismatched holders reject. |
+| `manifest` / `preservation` | Existing complete actual/planned and commit/retained/unpreserved structures from the shrink-only protocol; every historical actual/planned path remains accounted for, original publication is preserved, and `unpreserved` must be empty for activation. Receipt-backed retained local bytes may be preserved without inventing publication. |
+| `stopped` | Exactly `writingStopped=true`, `pendingInstructions=0`, `sourceInstructionsCleared=true`, and independent concrete `receipt`. Reconcile source-authorizing queued and processing instructions; idle/archived/merged/empty-directory states are not proof. |
+| `acknowledgment` | Exactly `kind=owner` or `revocation`, unique fresh `id`, concrete `receipt`, and `proofDigest=supersessionAcknowledgmentDigest(proof,holder)`. |
+| Unknown external evidence | In preparation only, `manifest`, `preservation`, `stopped` and `acknowledgment` may all be explicit `null`. Partial/unknown activation rejects. Otherwise complete proof is validated even though preparation remains nonactivating. |
+| `authorization` | Exactly `humanAuthorized=true`, concrete explicit human authority `receipt`, and `proofDigest=digest(proof)`. Bind the exact complete multi-holder operation, not a blanket ancestor grant or approval of this design. |
+
+The [acknowledgment helper](./scripts/registry.cjs) binds the entire proof, excluding all acknowledgment objects to avoid a circular digest, plus the exact holder identity. Changes to any holder, snapshot, source, authority or candidate invalidate every acknowledgment. Revocation requires explicit authority plus independent quiescence, never an unavailable owner's fabricated response.
+
+`paths` must equal both an effective prior scope token and a candidate token, with no overlapping ancestor/descendant token. The reducer never carves a file out of a directory reservation or interprets a directory grant as a set of transferred descendants. The host must verify `exactFiles` kinds; canonical strings/digests cannot do that ([scope derivation](./scripts/registry.cjs)).
+
+The pure reducer requires a host-supplied third argument `{revision}` for this event; ordinary two-argument routes remain unchanged. Production clients use `checkpoint(...,{operation:"apply",expectedRevision,event})` with the locked revision. The registry JSON CLI cannot apply supersession without that durable context ([clients](./scripts/checkpoint.cjs)).
+
+### History, dispatch and retained lifecycle
+
+First acceptance upgrades valid v1-v4 to v5, preserving prior schemas/history with their existing empty migration metadata. Unaccepted older stores remain unchanged.
+Each `supersessions[]` record stores `{event,commands}`; `seen` binds the event and `write-supersession:v1:<digest(record)>`. The [checkpoint journal](./scripts/checkpoint.cjs) binds the full record and exact generated commands before returning any action.
+
+Exact accepted replay at the current checkpoint revision changes no bytes, actions or revision. Changed payload/type, stale item/snapshot/source/revision, missing history/journal/commands, lock contention or replacement failure rejects without replacement. Hashes detect inconsistent edits, not a coherently forged whole store ([regressions](./scripts/checkpoint.test.cjs)).
+
+Shared `heldReservations(state,key)` includes effective local exclusions, nonactivating external snapshots and a beneficiary-specific transferred-file fence. Empty effective scopes retain their slot/owner.
+Only the exact beneficiary can acquire transferred writes even if it waits for capacity, a rival appears first, or the prior holder completes cleanup. Validation, dispatch, adoption, revalidation, extension and [worker launch](./scripts/worker-launch.cjs) consume this derivation.
+
+The fence remains while the beneficiary is waiting, reserved, running, published or blocked. Only its valid accepted `completed` cleanup ends that future fence, allowing independently admitted later same-path work.
+Local and external snapshot consumers use the same release rule; historical transfer records and permanent prior-writer retirement remain unchanged ([cleanup regressions](./scripts/registry.test.cjs)).
+
+Supersession freezes participant source identity/scopes/history; `refine-scopes`, `extend-scopes` and candidate revalidation cannot mutate it or revive a prior writer. A changed beneficiary/source requires fresh supported authority; this version has no participant amendment route.
+Ordinary truthful later publication, explicit blockers and actual cleanup remain supported; they never erase supersession history or restore prior source writes ([lifecycle regressions](./scripts/registry.test.cjs)).
+
+Generated launch prompts distinguish historical reservations from future exclusions and permanent derived retirement. External preparation emits no beneficiary launch; fabricated actions and adoption under a different key cannot bypass its guards.
+Tests establish these local contracts, not external inventory freshness, consent, quiescence, transport delivery, global enforcement or host configuration ([launch regressions](./scripts/worker-launch.test.cjs)).
+
+### Executable synthetic example
+
+This example uses only in-memory test data and makes no live checkpoint, session, source or authority changes. It exercises the [shared fixture](./scripts/refinement-fixture.cjs), not a ready-to-apply human receipt.
+
+```javascript
+const path = require('node:path');
+const scripts = path.resolve('.github', 'skills', 'kora-orchestrate', 'scripts');
+const { applyEvent, heldReservations } = require(path.join(scripts, 'registry.cjs'));
+const { supersessionFixture, supersessionEvent } = require(path.join(scripts, 'refinement-fixture.cjs'));
+const before = supersessionFixture();
+const event = supersessionEvent(before, 41);
+const result = applyEvent(before, event, { revision: 41 });
+console.log(JSON.stringify({
+  version: result.state.version,
+  launch: result.actions.filter(action => action.type === 'launch'),
+  retained: heldReservations(result.state, 'successor').map(item => item.scopes)
+}));
+```
+
+Run the three focused modules and the combined maintained policy selector under [deployment acceptance](./README.md#deployment-acceptance). Tests exercise synthetic complete proofs and explicit unknowns; they cannot authenticate supplied receipt strings or establish an unavailable external protocol.

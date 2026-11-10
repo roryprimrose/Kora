@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('node:path');
-const { validate } = require('./registry.cjs');
+const { validate, heldReservations, overlaps, supersededWriter, preparedCandidate } = require('./registry.cjs');
 
 function requireValue(condition, message) {
   if (!condition) throw new Error(message);
@@ -20,6 +20,9 @@ function workerLaunch(state, action, settings) {
   const item = state.items.find(value => value.key === action.key);
   requireValue(item?.phase === 'reserved' && item.owner === null && !item.blocker &&
     item.pool === action.pool && item.head === state.head, 'Worker reservation is stale, blocked or already attached.');
+  requireValue(!preparedCandidate(state, item.key) &&
+    !heldReservations(state, item.key).some(other => overlaps(item.scopes, other.scopes)),
+  'Worker reservation conflicts with retained exclusions or a prepared external proposal.');
   requireValue(settings?.repository === 'roryprimrose/Kora' &&
     settings.publicationAuthorized === true, 'Explicit repository publication authority is required.');
   const control = absolute(settings.controlWorkspace);
@@ -49,9 +52,10 @@ function workerLaunch(state, action, settings) {
       `Read and apply the absolute worker contract: ${contract}.`,
       `Admitted evidence and complete bounded operation: ${item.evidence}`,
       `Exclusive repository-relative write scopes: ${item.scopes.join('; ')}.`,
-      ...state.items.filter(other => other.key !== item.key &&
-        !['candidate', 'complete'].includes(other.phase)).map(other =>
-        `Retained exclusion key=${other.key}, owner=${other.owner ?? 'unattached'}, scopes=${other.scopes.join('; ')}, sourceWritesRetired=${other.sourceWritesRetired === true}. Ownership/PR/slot/cleanup blockers remain; never write these paths or restart that owner.`),
+      ...heldReservations(state, item.key).filter(other => other.scopes.length).map(other =>
+        `Retained exclusion key=${other.key}, owner=${other.owner ?? 'unattached'}, scopes=${other.scopes.join('; ')}, sourceWritesRetired=${other.sourceWritesRetired}. Ownership/PR/slot/cleanup blockers remain; never write these paths or restart that owner.`),
+      ...state.items.filter(other => other.key !== item.key && supersededWriter(state, other.key)).map(other =>
+        `Historical reservation key=${other.key}, owner=${other.owner}, scopes=${other.scopes.join('; ')}. Prior source writes permanently retired by accepted supersession; original publication/history/slot/cleanup remain. Historical transferred paths are not this prior owner's future exclusions; consult the current effective exclusions.`),
       `Expected source head at reservation: ${item.head}. Branch your exclusively owned isolated checkout from current origin/main after pinned source/owner preflight.`,
       `Receipts outside disposable worker worktree: ${scratch}. Verify control scratch ignore and access before writing receipts.`,
       `Repository=${settings.repository}. Publication explicitly authorized: ${authority}`,

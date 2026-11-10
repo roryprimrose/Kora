@@ -7,6 +7,15 @@ public static partial class ModelToolProtocol
     private static void ValidateResult(ModelToolCall call, CapabilityReply reply, bool historical = false)
     {
         ValidateText(reply.Reason);
+        if (string.Equals(call.CapabilityId, SessionMetadataTool.Id, StringComparison.Ordinal))
+        {
+            var parsed = CapabilityInputPolicy.Read(SessionMetadataTool.Descriptor, call.InputJson);
+            if (parsed.Id is null || !SessionMetadataTool.Matches(reply, parsed.Id.Id))
+            { throw new InvalidDataException("Metadata must match the one reviewed exact subject and closed output shape."); }
+            return;
+        }
+        if (reply.SessionMetadata is not null)
+        { throw new InvalidDataException("Content-free session metadata cannot be returned by an old tool."); }
         if (reply.Mcp is not null)
         { throw new InvalidDataException("External content cannot be returned without an exact external tool."); }
         if (MaintenanceTools.FindExact(call.CapabilityId) is { } maintenance)

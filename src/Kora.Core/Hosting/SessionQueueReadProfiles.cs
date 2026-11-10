@@ -78,7 +78,8 @@ public static class SessionQueueReadProfiles
         {
             return CapabilityReplyWire.IsSingleRecordedRuntime(reply);
         }
-        if (reply.Descriptor is not null || reply.Runtime is not null || reply.SessionMetrics is not null) { return false; }
+        if (reply.Descriptor is not null || reply.Runtime is not null || reply.SessionMetrics is not null
+            || reply.SessionMetadata is not null) { return false; }
         return profile switch
         {
             SessionQueueReadProfile.Version => reply.Version is not null

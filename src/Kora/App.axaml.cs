@@ -175,6 +175,9 @@ public sealed partial class App : Avalonia.Application
                 new NativeDetailRenderer(Services.GetRequiredService<ILogger<NativeDetailRenderer>>()),
                 Services.GetRequiredService<Kora.Application.Skills.SharedSkillDiscoveryService>(),
                 Services.GetRequiredService<ILogger<SharedSkillSourcesWindowController>>());
+            skillPackagesWindow.BindWorkbench(responseWindow.PrepareWorkbenchOwner,
+                view => responseWindow.ShowHostedView(WorkbenchActivity.SkillPackages, view),
+                view => responseWindow.ShowHostedView(WorkbenchActivity.SharedSkills, view));
             BindBundledRuntimeSetup();
             viewModel.BindSkillReviewNavigation(skillPackagesWindow,
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision);
@@ -198,6 +201,9 @@ public sealed partial class App : Avalonia.Application
                 profileOriginals: Services.GetRequiredService<Kora.Application.Definitions.ProfileInstructionEditorWorkflow>(),
                 dictation: viewModel.BindComposerDictation(Services.GetRequiredService<ILogger<Kora.Application.Voice.ComposerDictationService>>()));
             instructionEditor.Bind();
+            var instructionResponses = responseWindow ?? throw new InvalidOperationException("Instruction authoring requires the owning response workbench.");
+            instructionEditor.BindWorkbench(instructionResponses.PrepareWorkbenchOwner,
+                view => instructionResponses.ShowHostedView(WorkbenchActivity.InstructionEditor, view));
             customizations = new(viewModel,
                 Services.GetRequiredService<Kora.Application.Definitions.CustomizationManagementService>(),
                 Services.GetRequiredService<Kora.Application.Definitions.CustomizationAuthoringService>(),
@@ -224,6 +230,15 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<ILogger<PromptParameterController>>(),
                 viewModel.BindPromptInputVoice(Services.GetRequiredService<ILogger<Kora.Application.Definitions.PromptInputVoiceController>>()));
             promptParameters.Bind();
+            var promptResponses = responseWindow ?? throw new InvalidOperationException("Prompt preparation requires the owning response workbench.");
+            promptParameters.BindWorkbench(promptResponses.PrepareWorkbenchOwner,
+                view =>
+                {
+                    var owner = promptResponses.PrepareWorkbenchOwner();
+                    owner.ShowSessions(expanded: true);
+                    owner.ShowNativeReview(view, "Required prompt inputs and exact request review", view,
+                        () => viewModel.CanRevealPrivatePresentation, _ => { });
+                });
             viewModel.PrivacyClosureRequested += (_, _) =>
                 Services.GetRequiredService<Kora.Application.Definitions.OwnedInstructionEditorActions>().SuspendReviewedUse();
             viewModel.PrivacyClosureRequested += (_, _) =>
@@ -274,18 +289,22 @@ public sealed partial class App : Avalonia.Application
             responseWindow.OpenEvidence = evidenceWindow.Open;
             BindSettingInspection(settingsWindow);
             fileWindow = new LocalFilePreviewWindowController(viewModel, GetPresenceOwner);
+            fileWindow.BindWorkbench(responseWindow.PrepareWorkbenchOwner);
             var sessionFiles = Services.GetRequiredService<SessionFileAttachmentService>();
             Services.GetRequiredService<SessionWorkspaceService>().BindAttachmentLifecycle(sessionFiles);
             viewModel.BindSessionAttachments(sessionFiles);
             attachmentWindow = new SessionAttachmentWindowController(viewModel.ReportHostInteractionFailure, sessionFiles,
                 Services.GetRequiredService<SessionWorkspaceService>(),
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(), fileWindow, viewModel);
+            attachmentWindow.BindWorkbench(responseWindow.PrepareWorkbenchOwner);
             viewModel.BindSessionAttachmentCommands(new(Services.GetRequiredService<SessionWorkspaceService>(), sessionFiles,
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(), attachmentWindow));
             attachmentCatalogue = new(viewModel, Services.GetRequiredService<SessionWorkspaceService>(), sessionFiles,
                 attachmentWindow, Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
                 Services.GetRequiredService<ILogger<AttachmentCatalogueViewModel>>(),
                 Services.GetRequiredService<SessionAttachmentCatalogueService>());
+            attachmentCatalogue.BindWorkbench(responseWindow.PrepareWorkbenchOwner,
+                view => responseWindow.ShowHostedView(WorkbenchActivity.Attachments, view));
             sessionsWindow = new SessionsWindowController(viewModel,
                 Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>(),
                 Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
@@ -323,6 +342,8 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<IUiDispatcher>());
             newRequestWindow.BindDictation(Services.GetRequiredService<ILogger<Kora.Application.Voice.ComposerDictationService>>());
             newRequestWindow.Bind();
+            newRequestWindow.BindWorkbench(responseWindow.PrepareWorkbenchOwner,
+                view => responseWindow.ShowHostedView(WorkbenchActivity.NewRequest, view));
             BindSessionRouting(viewModel);
             ConversationShutdownGuard.Bind(viewModel, newRequestWindow, sessionsWindow, sessionRouting);
             BindApplicationLifecycle(viewModel, nativeQuestions);
@@ -345,6 +366,7 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
                 allWorkWindow, sessionsWindow);
             workspaceSurfaceCommands.Bind();
+            workspaceSurfaceCommands.BindManagement(settingsWindow, customizations, evidenceWindow);
             var localEvents = Services.GetRequiredService<Kora.Application.Interaction.LocalEventBroker>();
             Services.GetRequiredService<SessionWorkspaceService>().BindLocalEvents(localEvents);
             viewModel.BindLocalEvents(localEvents);
@@ -376,6 +398,7 @@ public sealed partial class App : Avalonia.Application
             viewModel.BindSessionProviderProfiles(Services.GetRequiredService<Kora.Application.Configuration.SessionProviderProfileConfigurationService>());
             viewModel.BindMemoryCommands(memories);
             clipboardWindow = new ClipboardPreviewWindowController(viewModel);
+            clipboardWindow.BindWorkbench(responseWindow.PrepareWorkbenchOwner);
             Services.GetRequiredService<Kora.Application.Context.ClipboardPermissionSourceUsePolicy>()
                 .BindPresenter((proposal, generation, current, token) =>
                     string.Equals(proposal.Binding.ActionId, Kora.Application.Context.ClipboardPermissionSourceUsePolicy.ReadActionId, StringComparison.Ordinal)
@@ -385,11 +408,13 @@ public sealed partial class App : Avalonia.Application
             {
                 copilotTransmissionWindow = new CopilotTransmissionWindowController(viewModel, hostedReviews,
                 Services.GetRequiredService<ILogger<CopilotTransmissionWindowController>>());
+                copilotTransmissionWindow.BindWorkbench(responseWindow.PrepareWorkbenchOwner);
             }
             copilotAccountWindow = new CopilotAccountWindowController(viewModel,
                 Services.GetRequiredService<Kora.Windows.Dependencies.CopilotAccountBroker>(),
                 Services.GetRequiredService<Kora.Application.Voice.AudioControlAdmission>(),
                 Services.GetRequiredService<ILogger<CopilotAccountWindowController>>());
+            copilotAccountWindow.BindWorkbench(responseWindow.PrepareWorkbenchOwner);
             viewModel.BindFilePreview(Services.GetRequiredService<Kora.Tools.Files.LocalFilePreview>(), fileWindow,
                 Services.GetRequiredService<Kora.Tools.Files.LocalFileSearch>(), fileWindow,
                 Services.GetRequiredService<Kora.Tools.Files.LocalFileRefresh>());

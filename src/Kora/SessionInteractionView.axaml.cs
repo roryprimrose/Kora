@@ -49,6 +49,7 @@ internal sealed partial class SessionInteractionView : UserControl
         && ConversationTabs.SelectedItem == ConversationTab;
     private long conversationPresentationRevision;
     internal long ConversationPresentationRevision => Interlocked.Read(ref conversationPresentationRevision);
+    internal void NotifyManagementPresentationChanged() => PresentationChanged?.Invoke(this, EventArgs.Empty);
 
     public SessionInteractionView()
     {

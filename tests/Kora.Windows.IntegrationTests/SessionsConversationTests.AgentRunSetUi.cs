@@ -66,7 +66,7 @@ public sealed partial class SessionsConversationTests
                 {
                     await Command($"agent run {index + 1} targets");
                     var panel = window.Runs[index];
-                    panel.Targets.SelectedItem = ((AgentRunSetWindow.Target[])panel.Targets.ItemsSource!)
+                    panel.Targets.SelectedItem = ((AgentRunSetView.Target[])panel.Targets.ItemsSource!)
                         .Single(item => item.Entry.Authority.SessionId == (index == 0 ? first : second).Authority.SessionId);
                     await Command($"agent run {index + 1} source existing.agent.md");
                     await Command($"agent run {index + 1} request native original {index + 1}");

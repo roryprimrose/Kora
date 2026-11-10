@@ -103,7 +103,8 @@ internal sealed partial class SessionsPresentationOwner
         surface.AddHandler(Button.ClickEvent, OnSpeechSummarySuggestion);
         surface.AddHandler(Button.ClickEvent, OnPlaybackVolumeSuggestion);
         surface.AddHandler(Button.ClickEvent, OnRegisteredSettingSuggestion);
-        surface.AddHandler(Avalonia.Input.InputElement.KeyDownEvent, OnRegisteredSettingReviewKeyDown);
+        surface.AddHandler(Avalonia.Input.InputElement.KeyDownEvent, OnRegisteredSettingReviewKeyDown,
+            Avalonia.Interactivity.RoutingStrategies.Tunnel);
         surface.AddHandler(Button.ClickEvent, OnModelMemoryProposal);
         refresh.Start();
     }

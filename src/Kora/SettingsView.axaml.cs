@@ -132,7 +132,7 @@ public sealed partial class SettingsView : UserControl, IDisposable
     internal bool PrepareClose()
     {
         knowledgeSources?.Close();
-        return knowledgeSources is not { IsVisible: true };
+        return knowledgeSources is not { IsQuiescent: false };
     }
 
     public void Dispose()
@@ -210,6 +210,19 @@ public sealed partial class SettingsView : UserControl, IDisposable
         settingsTabs.SelectedItem = tab;
         if (!ReferenceEquals(settingsTabs.SelectedItem, tab))
         { throw new InvalidOperationException("The native Settings section was not selected."); }
+    }
+
+    internal void ShowPresence(Func<bool> admitted)
+    {
+        ShowSection(SettingsSection.Appearance);
+        UpdateLayout();
+        var heading = this.FindControl<TextBlock>("PresenceHeading")
+            ?? throw new InvalidOperationException("The Presence settings heading is unavailable.");
+        if (!admitted() || !IsNativePresented)
+        { throw new OperationCanceledException("Presence settings navigation was retired before focus."); }
+        heading.BringIntoView();
+        if (!admitted() || !heading.Focus() || !admitted())
+        { throw new InvalidOperationException("The existing Presence settings could not be focused; no setting was changed."); }
     }
 
     private void OnMaintenanceClicked(object? sender, RoutedEventArgs eventArgs)

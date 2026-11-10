@@ -103,6 +103,37 @@ internal sealed class EvidenceWindowController(
         return null;
     }
 
+    internal async Task<bool> ReadAuditHistoryAsync(Kora.Core.Hosting.RequestOrigin origin, Func<bool> admitted)
+    {
+        var failure = Open(admitted);
+        if (failure is not null)
+        { main.ReportHostInteractionFailure(failure); return false; }
+        var target = view ?? throw new InvalidOperationException("The native audit view is unavailable.");
+        var model = target.DataContext as EvidenceViewModel
+            ?? throw new InvalidOperationException("The native audit query owner is unavailable.");
+        var revision = windowRevision;
+        var native = target.CapturePresentation();
+        bool Current() => !disposed && admitted() && native() && revision == windowRevision
+            && ReferenceEquals(view, target) && ReferenceEquals(target.DataContext, model);
+        var withdrawn = false;
+        var observing = true;
+        void OnInputChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+        {
+            if (Dispatcher.UIThread.CheckAccess()) { RetireIfChanged(); }
+            else { Dispatcher.UIThread.Post(RetireIfChanged); }
+        }
+        void RetireIfChanged()
+        {
+            if (!Volatile.Read(ref observing)) { return; }
+            if (withdrawn || Current()) { return; }
+            withdrawn = true;
+            model.RetirePresentation();
+        }
+        main.PropertyChanged += OnInputChanged;
+        try { return await model.ReadAuditHistoryAsync(origin, Current); }
+        finally { Volatile.Write(ref observing, false); main.PropertyChanged -= OnInputChanged; }
+    }
+
     internal async Task<bool> PrepareTraceAsync(EvidenceTracePreparation request)
     {
         var revision = windowRevision;

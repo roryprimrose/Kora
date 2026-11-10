@@ -17,6 +17,14 @@ public sealed partial class App
             Services.GetRequiredService<ILogger<SharedSkillInvocationController>>(),
             ActivatorUtilities.CreateInstance<ReviewedToolSkillInvocationWorkflow>(Services), questionWindow);
         sharedSkillInvocation.Bind();
+        var responses = responseWindow ?? throw new InvalidOperationException("Shared skill invocation requires the owning response workbench.");
+        sharedSkillInvocation.BindWorkbench(responses.PrepareWorkbenchOwner, view =>
+        {
+            var owner = responses.PrepareWorkbenchOwner();
+            owner.ShowSessions(expanded: true);
+            owner.ShowNativeReview(view, "Reviewed shared skill invocation", view,
+                () => main.CanRevealPrivatePresentation, _ => { });
+        });
         BindOwnedSkillAuthoring(main);
     }
 }

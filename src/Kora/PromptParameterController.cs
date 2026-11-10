@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using Avalonia.Controls;
 using Avalonia.Threading;
 using Kora.Application.Definitions;
 using Kora.Application.ViewModels;
@@ -19,7 +20,13 @@ internal sealed partial class PromptParameterController(
     private Task voiceOperation = Task.CompletedTask;
     private long voiceFocusRevision;
     private int promptWindowFocused;
-    private PromptParameterWindow? window;
+    private PromptParameterView? window;
+    private PromptParameterWindow? adapter;
+    private Func<Window>? getWorkbench;
+    private Action<PromptParameterView>? presentWorkbench;
+    internal PromptParameterView? View => window;
+    internal void BindWorkbench(Func<Window> owner, Action<PromptParameterView> present)
+    { getWorkbench = owner; presentWorkbench = present; }
     private PromptParameterDraft? draft;
     private CancellationTokenSource? lifetime;
     private long ownership;
@@ -64,17 +71,38 @@ internal sealed partial class PromptParameterController(
         draft = proposed;
         BindAnswerReadDecisionGate();
         lifetime = new();
-        window = new(proposed, Edit, action =>
+        void RunAction(string action)
         {
             if (!busy) { activeOperation = Run(action); }
-        }, SelectTarget, voice is null ? null : SpeakInput, CancelVoice);
+        }
+        if (getWorkbench is not null && presentWorkbench is not null)
+        {
+            window = new(getWorkbench(), proposed, Edit, RunAction, () => !disposed && main.CanRevealPrivatePresentation,
+                SelectTarget, voice is null ? null : SpeakInput, CancelVoice);
+        }
+        else
+        {
+            adapter = new(proposed, Edit, RunAction, SelectTarget, voice is null ? null : SpeakInput, CancelVoice);
+            window = adapter.View;
+        }
         window.VoiceStatus.Text = voice?.Status ?? "Voice input unavailable. Current activated reply capture is not supported; native inputs remain available.";
         window.Deactivated += (_, _) => { Volatile.Write(ref promptWindowFocused, 0); CancelVoice(); RetireReview(); };
         window.Activated += (_, _) => { Volatile.Write(ref promptWindowFocused, 1); EnableReview(); };
         var opened = window;
         window.Closed += (_, _) => { if (ReferenceEquals(window, opened)) { Clear(); } };
-        window.Show();
-        Volatile.Write(ref promptWindowFocused, (nativeFocus?.Invoke() ?? window.IsActive) && window.IsVisible ? 1 : 0);
+        window.CloseRequested += (_, _) => Close();
+        if (getWorkbench is not null)
+        {
+            window.PresentationLost += (_, _) =>
+            {
+                if (!ReferenceEquals(window, opened)) { return; }
+                Clear();
+                Dispatcher.UIThread.Post(opened.Dispose);
+            };
+        }
+        if (presentWorkbench is not null) { presentWorkbench(window); }
+        else { adapter!.Show(); }
+        Volatile.Write(ref promptWindowFocused, (nativeFocus?.Invoke() ?? window.IsNativeActive) && window.IsNativePresented ? 1 : 0);
         return Task.CompletedTask;
     }
 
@@ -262,7 +290,7 @@ internal sealed partial class PromptParameterController(
     private void SpeakInput(string name)
     {
         if (busy || submissionHeld || draft is not { } captured || window is not { } opened || lifetime is null || voice is null) { return; }
-        if (!(nativeFocus?.Invoke() ?? opened.IsActive))
+        if (!(nativeFocus?.Invoke() ?? opened.IsNativeActive))
         { CancelVoice(); opened.VoiceStatus.Text = "Focus this exact private prompt form before speaking an input."; return; }
         if (voice.IsActive) { opened.VoiceStatus.Text = "Cancel the current spoken input before choosing another declared name."; return; }
         RetireReview();
@@ -275,7 +303,7 @@ internal sealed partial class PromptParameterController(
         voiceOperation = BeginVoice(captured, name, opened, Focused, lifetime.Token);
     }
 
-    private async Task BeginVoice(PromptParameterDraft captured, string name, PromptParameterWindow opened,
+    private async Task BeginVoice(PromptParameterDraft captured, string name, PromptParameterView opened,
         Func<bool> focused, CancellationToken token)
     {
         try
@@ -360,6 +388,7 @@ internal sealed partial class PromptParameterController(
         submissionHeld = false;
         var opened = window;
         window = null;
+        adapter = null;
         opened?.ClearPrivateText();
         main.NotifyResponseReadDecisionAvailability();
         try { cancellation?.Cancel(); }

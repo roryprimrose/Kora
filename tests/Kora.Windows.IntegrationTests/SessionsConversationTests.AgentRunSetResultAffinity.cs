@@ -262,7 +262,7 @@ public sealed partial class SessionsConversationTests
         });
     }
 
-    private static Task WithRunSetAffinity(Func<RunSetAffinityUi, Task> test) => HeadlessSession.RunAsync(async () =>
+    private static Task WithRunSetAffinity(Func<RunSetAffinityUi, Task> test, bool hosted = false) => HeadlessSession.RunAsync(async () =>
     {
         using var storage = new InteractionStorageFixture();
         await storage.InitializeAsync();
@@ -293,6 +293,17 @@ public sealed partial class SessionsConversationTests
         var controller = new AgentRunSetController(native.Main, factory, composed.Workspace,
             () => true, () => ui.OwnerRevision, NullLogger<AgentRunSetController>.Instance);
         ui.Controller = controller;
+        using var responses = hosted ? new ResponseWindowController(native.Main, NullLogger<ResponseWindowController>.Instance) : null;
+        if (responses is not null)
+        {
+            controller.BindWorkbench(responses.PrepareWorkbenchOwner, view =>
+            {
+                var owner = responses.PrepareWorkbenchOwner();
+                owner.ShowSessions(expanded: true);
+                owner.ShowNativeReview(view, "Independent local agent runs", view,
+                    () => native.Main.CanRevealPrivatePresentation, _ => { });
+            });
+        }
         controller.Bind();
         using var observation = Window.WindowOpenedEvent.AddClassHandler<AgentRunSetWindow>((window, _) => ui.Opened = window);
         try { await ui.Command("independent agents"); await test(ui); }
@@ -313,6 +324,7 @@ public sealed partial class SessionsConversationTests
         internal SessionWorkspaceEntry Other => targets[2];
         internal long OwnerRevision { get; set; } = 1;
         internal AgentRunSetController Controller { get; set; } = null!;
+        internal AgentRunSetView View => Controller.View!;
         internal AgentRunSetWindow? Opened { get; set; }
         internal AgentRunSetWindow Window => Opened ?? throw new InvalidOperationException("No independent runs window.");
         internal async Task Command(string command)
@@ -323,8 +335,8 @@ public sealed partial class SessionsConversationTests
         internal async Task Review(int number, SessionWorkspaceEntry target)
         {
             await Command($"agent run {number} targets");
-            var panel = Window.Runs[number - 1];
-            panel.Targets.SelectedItem = ((AgentRunSetWindow.Target[])panel.Targets.ItemsSource!)
+            var panel = View.Runs[number - 1];
+            panel.Targets.SelectedItem = ((AgentRunSetView.Target[])panel.Targets.ItemsSource!)
                 .Single(item => item.Entry.Authority.SessionId == target.Authority.SessionId);
             await Command($"agent run {number} source existing.agent.md");
             await Command($"agent run {number} request original {number} for {target.Authority.SessionId}");
@@ -336,7 +348,7 @@ public sealed partial class SessionsConversationTests
             await Command($"agent run {number} confirm");
             await RequireRunSetStarted(Controller.ObserveOperation(number), adapter.Inner.Started(target).Task);
         }
-        internal Button StatusButton(AgentRunSetWindow.RunPanel panel)
+        internal Button StatusButton(AgentRunSetView.RunPanel panel)
         {
             var index = Array.IndexOf(Window.Runs, panel);
             var tab = ((IEnumerable<TabItem>)Window.Selection.ItemsSource!).ElementAt(index);
@@ -350,7 +362,7 @@ public sealed partial class SessionsConversationTests
             else if (edit is "task") { panel.Input.Text = "different original task"; }
             else
             {
-                panel.Targets.SelectedItem = ((AgentRunSetWindow.Target[])panel.Targets.ItemsSource!)
+                panel.Targets.SelectedItem = ((AgentRunSetView.Target[])panel.Targets.ItemsSource!)
                     .Single(item => item.Entry.Authority.SessionId == Second.Authority.SessionId);
             }
         }

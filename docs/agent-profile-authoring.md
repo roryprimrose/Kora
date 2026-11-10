@@ -10,6 +10,10 @@ name while voice commands are eligible. This opens a native editor, not a model
 request. Create an exact new lowercase owned ID using **agent author create example**.
 The ID contains at most 64 ASCII letters, digits and hyphens; no paths or URLs.
 
+The [editor](../src/Kora/AgentProfileEditorView.cs) now opens inside Kora's shared workbench. Complete save previews and separate confirmation/disclosure decisions use supporting native tabs, including in narrow layouts. Hiding or leaving retires the review and pending decisions while preserving the editable draft; return and explicitly review again before Save.
+
+Closing a dirty editor still offers Save, Discard or Cancel. When you close the whole workbench, a confirmed discard resumes that original close rather than leaving another window behind. No save occurs merely from closing or restoring a view ([hosted regressions](../tests/Kora.Windows.IntegrationTests/AgentProfileHostedEditorTests.cs)).
+
 Enter the complete source in the editor, or use **agent author source** followed by
 the complete source. Kora keeps the original typed/activated-voice channel. If you started by voice,
 later on-screen input does not bypass voice consent, call protection or expiry.

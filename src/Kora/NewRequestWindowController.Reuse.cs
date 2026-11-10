@@ -63,7 +63,9 @@ internal sealed partial class NewRequestWindowController
                 state.PropertyChanged += TargetChanged;
                 var confirm = DecideOriginalReuse is { } decide
                     ? await decide(reviewed, owner)
-                    : await new OriginalMessageReuseWindow(owner, reviewed).Open(owner);
+                    : owner is ResponseWindow
+                        ? await new OriginalMessageReuseView(owner, owner, reviewed).Open(owner)
+                        : await new OriginalMessageReuseWindow(owner, reviewed).Open(owner);
                 if (!confirm || !reviewed.Available || !Current()
                     || !ReferenceEquals(window, originalWindow) || !ReferenceEquals(composer, originalComposer))
                 { return "Original USER reuse cancelled. Existing New request memory kept; no target, Save, Submit or replay."; }

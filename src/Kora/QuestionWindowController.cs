@@ -19,7 +19,7 @@ internal sealed partial class QuestionWindowController : IDisposable, IPendingQu
     private readonly IApplicationInfo info;
     private readonly NativeDetailRenderer renderer;
     private readonly ILogger<QuestionWindowController> logger;
-    private QuestionWindow? window;
+    private INativeQuestionPresentation? window;
     private NativeQuestionViewModel? state;
     private bool running;
     private bool disposed;
@@ -149,7 +149,9 @@ internal sealed partial class QuestionWindowController : IDisposable, IPendingQu
         }
 
         state = model;
-        window = new(model, renderer);
+        window = owner is ResponseWindow primary
+            ? new QuestionView(model, renderer, primary, logger)
+            : new QuestionWindow(model, renderer);
         main.NotifyResponseReadDecisionAvailability();
         var opened = window;
         opened.Closed += (_, _) =>
@@ -161,8 +163,13 @@ internal sealed partial class QuestionWindowController : IDisposable, IPendingQu
                 main.NotifyResponseReadDecisionAvailability();
             }
         };
-        if (owner is null) { window.Show(); }
-        else { window.Show(owner); }
+        if (owner is ResponseWindow workbench && window is QuestionView question)
+        { workbench.ShowInlineQuestion(question); }
+        else if (window is QuestionWindow standalone)
+        {
+            if (owner is null) { standalone.Show(); }
+            else { standalone.Show(owner); }
+        }
         window.Activate();
     }
 
@@ -176,7 +183,7 @@ internal sealed partial class QuestionWindowController : IDisposable, IPendingQu
         return CaptureExactFocus(original, native, () => host.ValidateFocusAsync(original), static () => true);
     }
 
-    private PendingFocus? CaptureExactFocus(NativeQuestionViewModel original, QuestionWindow native,
+    private PendingFocus? CaptureExactFocus(NativeQuestionViewModel original, INativeQuestionPresentation native,
         Func<Task<bool>> validate, Func<bool> originalInput)
     {
         var eligible = host.CaptureFocusEligibility(original);

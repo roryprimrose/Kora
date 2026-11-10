@@ -9,7 +9,7 @@ public sealed class SkillPackagesWindowContractTests
     [Fact]
     public void InspectionOnlyShellExposesScreenReaderNamesForStaticAndPerFileDynamicControls()
     {
-        var document = XDocument.Parse(Read("SkillPackagesWindow.axaml"));
+        var document = XDocument.Parse(Read("SkillPackagesView.axaml"));
         foreach (var name in new[] { "PackageSelector", "PackageIdentity", "SourceTabs", "PackageQuery", "PackageFilter",
             "SearchPackages", "ClearPackageSearch", "PackageSearchStatus", "IdentityFind" })
         {
@@ -18,7 +18,7 @@ public sealed class SkillPackagesWindowContractTests
                 && string.Equals(attribute.Value, name, StringComparison.Ordinal)));
             control.Attribute("AutomationProperties.Name")!.Value.Should().NotBeNullOrWhiteSpace();
         }
-        var codeBehind = Read("SkillPackagesWindow.axaml.cs");
+        var codeBehind = Read("SkillPackagesView.axaml.cs");
         codeBehind.Should().Contain("AutomationProperties.SetName(identity, $\"{file.Name} identity, digest and byte count\")")
             .And.Contain("AutomationProperties.SetName(source, $\"{file.Name} exact immutable source\")")
             .And.Contain("IsReadOnly = true").And.Contain("IsUndoEnabled = false")

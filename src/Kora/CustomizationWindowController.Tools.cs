@@ -94,11 +94,13 @@ internal sealed partial class CustomizationWindowController
     {
         Interlocked.Increment(ref capabilityPresentationRevision);
         if (publishingCapabilities) { return; }
-        Dispatcher.UIThread.Post(() =>
-        {
-            externalInventories.Clear();
-            displayedServers.Clear();
-            RenderSources();
-        });
+        Dispatcher.UIThread.Post(ClearCapabilityMetadata);
+    }
+
+    private void ClearCapabilityMetadata()
+    {
+        externalInventories.Clear();
+        displayedServers.Clear();
+        RenderSources();
     }
 }

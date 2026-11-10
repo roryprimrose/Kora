@@ -166,15 +166,17 @@ internal sealed partial class SessionsViewModel
         NotifyConversation();
     }
 
-    public Task ReadConversationAsync(bool next = false) => RunConversationAsync(async (target, live) =>
+    public Task ReadConversationAsync(bool next = false, RequestOrigin origin = RequestOrigin.LocalUi,
+        Func<bool>? admitted = null) => RunConversationAsync(async (target, live) =>
     {
+        if (admitted?.Invoke() == false) { throw new OperationCanceledException("The original conversation read input was retired."); }
         if (next && !ConversationReadingAvailable)
         { throw new InvalidOperationException("The original private conversation page is retired. Read again explicitly."); }
         var observedCompletion = completedConversationMessage;
         var page = await conversation!.ReadPageAsync(target.Authority.SessionId,
             next ? conversationPage?.Next ?? throw new InvalidOperationException("No conversation continuation; refresh the exact source.") : null,
             25, lifetime.Token);
-        if (!live() || page.Session != target.Authority)
+        if (!live() || admitted?.Invoke() == false || page.Session != target.Authority)
         { throw new OperationCanceledException("Conversation source or exact selected generation changed."); }
         conversationPage = page;
         conversationReadingControl = access.ControlRevision;
@@ -189,7 +191,7 @@ internal sealed partial class SessionsViewModel
             + " exact immutable user messages with any separately retained ASSISTANT answer. HOST status is not assistant prose. "
             + (page.Next is null ? "End of this sequence snapshot." : "More bounded records available.")
             + (conversationHeld ? " Submission uncertainty remains held; inspect task receipts/restart recovery, never retry automatically." : string.Empty);
-    }, sourceRead: true);
+    }, sourceRead: true, origin: origin);
 
     public Task SubmitConversationAsync() => assistantReply ? ReviewAssistantReplyAsync() : SubmitOrdinaryConversationAsync(localAnswer: false);
     public Task SubmitLocalAnswerAsync() => assistantReply

@@ -5,6 +5,9 @@ copy locally. Open **Settings > Knowledge > Manage knowledge sources**.
 Managing and searching these copies needs no voice, AI model or network.
 Adding a folder does not make it automatic AI context.
 
+Management uses a supporting tab in the expanded workbench, not another application window ([source view](../src/Kora/KnowledgeSources/KnowledgeSourcesView.cs)).
+Leaving, hiding or minimizing retires displayed sources and temporary reviews. Saved copies are not removed; any pending work stays owned until it joins, without late private output ([hosted operations and teardown](../tests/Kora.Windows.IntegrationTests/KnowledgeSources/KnowledgeSourceAnswerWindowTests.cs)).
+
 ## Add a folder
 
 1. Enter a short source name. Immediate files remain the default. To include subfolders, explicitly select **Explicitly include bounded subfolders** before choosing **Choose folder and review metadata**. Use the trusted native picker; conversation text, document instructions and model output cannot select a root.
@@ -58,13 +61,13 @@ Snapshots are historical admitted revisions, not current filesystem observations
 
 ## One reviewed local answer
 
-Explicitly select one or two enabled source rows (Ctrl+click adds a second), enter one new question in **New named-source answer question**, and choose **Review selected named source excerpts for this question**. No source is selected by default. Review the unchanged question, every selected source's exact retained revision, source-qualified root-relative locations and complete retrieved excerpts. Two selected sources produce one combined answer, not two independent model calls. This does not invoke a model ([review owner](../src/Kora/KnowledgeSources/KnowledgeSourcesWindow.Answers.cs)).
+Explicitly select one or two enabled source rows (Ctrl+click adds a second), enter one new question in **New named-source answer question**, and choose **Review selected named source excerpts for this question**. No source is selected by default. Review the unchanged question, every selected source's exact retained revision, source-qualified root-relative locations and complete retrieved excerpts. Two selected sources produce one combined answer, not two independent model calls. This does not invoke a model ([review owner](../src/Kora/KnowledgeSources/KnowledgeSourcesView.Answers.cs)).
 
 For example, select **Team notes** and **Release notes** and ask how their alpha guidance differs. Both retained revisions must still pass original access, membership and exact retained-revision checks; one unavailable source rejects the whole use, without falling back to the other. The review labels sources with no shown supporting excerpt. Ranking and the global evidence budget are shared across both sources, not multiplied. Inspection, refresh, disable and removal still require exactly one selected row.
 
 Separately choose **Confirm one private local-only no-tools named-source answer** within the displayed deadline. Consent is one-shot, private LocalOnly and limited to the shown question and excerpts. Saving, enabling or refreshing never grants it. Every evidence-bearing complete file passes the [shared risk policy](../src/Kora.Application/Context/LocalSourceUsePolicy.cs); this is not a secret-free guarantee.
 
-This separate review also covers retaining the unchanged original question and validated final answer in a new **Local context** conversation. Session-history retention applies independently of named-source copies. Nothing is submitted or retained by merely opening the review ([native consent](../src/Kora/KnowledgeSources/KnowledgeSourcesWindow.Answers.cs)).
+This separate review also covers retaining the unchanged original question and validated final answer in a new **Local context** conversation. Session-history retention applies independently of named-source copies. Nothing is submitted or retained by merely opening the review ([native consent](../src/Kora/KnowledgeSources/KnowledgeSourcesView.Answers.cs)).
 
 To answer from fewer of the retrieved sections, deliberately select whole excerpts in
 **Choose whole retrieved named-source excerpts; none selected by default**, then choose
@@ -92,7 +95,7 @@ Supported answers show host-bound citations. **Inspect exact answer citation** s
 
 If admission, execution or retained readback fails, no supported retained answer is claimed. The original question or terminal outcome may already be committed: inspect the **Local context** conversation instead of automatically retrying ([canonical retention](../src/Kora.Application/Hosting/SessionConversationService.cs)).
 
-Refresh, disable, removal, session retirement and private window closure revoke source use and join cancellation-ignoring model resources before releasing native ownership. Retained conversation history follows its separate retention policy; source removal does not delete that history or renew access to removed source copies ([native lifecycle](../src/Kora/KnowledgeSources/KnowledgeSourcesWindow.Answers.cs)).
+Refresh, disable, removal, session retirement and private window closure revoke source use and join cancellation-ignoring model resources before releasing native ownership. Retained conversation history follows its separate retention policy; source removal does not delete that history or renew access to removed source copies ([native lifecycle](../src/Kora/KnowledgeSources/KnowledgeSourcesView.Answers.cs)).
 
 ## Refresh, disable and remove
 

@@ -60,7 +60,7 @@ connector.
 ## Choose which capabilities Kora may consider
 
 The Customizations MCP Servers page shows built-in Kora tools and any external capability metadata admitted during an explicit Session discovery.
-Its existing Search field also filters those rows by name, exact item identity, source or group; category filtering changes visibility only ([row projection](../src/Kora/McpCapabilityRows.cs), [native catalogue](../src/Kora/CustomizationWindow.Tools.cs)).
+Its existing Search field also filters those rows by name, exact item identity, source or group; category filtering changes visibility only ([row projection](../src/Kora/McpCapabilityRows.cs), [native catalogue](../src/Kora/CustomizationView.Tools.cs)).
 
 Select an admitted capability row and choose **Review selected server capabilities** to edit that server's saved parent/category/item choices through the shared manager. The built-in catalogue needs no delegated account or invented HTTPS endpoint.
 External editing still requires its original current discovery receipt; expired or retired metadata cannot authorize a save ([native workflow](../src/Kora/CustomizationWindowController.Tools.cs)).
@@ -73,7 +73,7 @@ The private manager groups **Tools**, **Resources** (including resource template
 Category-wide actions apply to the entire category, including items hidden by a live filter. Clearing a filter changes visibility only; it does not discard individual draft choices or change the category's default ([native regression](../tests/Kora.Windows.IntegrationTests/McpCapabilityManagerTests.cs)).
 
 Choose **Review changes**, inspect the server/category/item changes, then separately confirm Save. Closing or cancelling writes nothing. These device-local preferences do not change another application's MCP configuration.
-Excluded and unsupported items are not offered for use; enabled does not mean connected, authorized, automatically read or inserted into every model request ([manager](../src/Kora/McpCapabilityManagerWindow.cs)).
+Excluded and unsupported items are not offered for use; enabled does not mean connected, authorized, automatically read or inserted into every model request ([manager](../src/Kora/McpCapabilityManagerEditorView.cs)).
 
 Capability changes retire pending source reviews, including disable/re-enable cycles. Missing effect mappings and unavailable account/runtime readiness remain unavailable regardless of checkbox state.
 Discovery is explicit, private and volatile; saved choices contain hashed item identities, not resource bodies or raw resource identifiers ([preference store](../src/Kora.Application/Configuration/LocalArtifactDirectoryPreferences.cs)).

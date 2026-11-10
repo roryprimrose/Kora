@@ -1,0 +1,116 @@
+using Avalonia;
+using Avalonia.Automation;
+using Avalonia.Controls;
+using Avalonia.Layout;
+
+namespace Kora;
+
+internal sealed partial class AgentRunView : UserControl, IDisposable
+{
+    internal Window Owner { get; }
+    private readonly NativeViewLifetime lifetime;
+    private bool disposed;
+    internal Func<bool> CapturePresentation() => lifetime.Capture();
+    internal event EventHandler? Closed;
+    internal event EventHandler? PresentationLost;
+    internal TextBox Source { get; } = new() { PlaceholderText = "Full path to an existing user-owned .agent.md file", IsUndoEnabled = false };
+    internal TextBox Input { get; } = new() { AcceptsReturn = true, Height = 90, IsUndoEnabled = false };
+    internal TextBox Recommendation { get; } = new() { IsReadOnly = true, AcceptsReturn = true, Height = 110, IsUndoEnabled = false, IsVisible = false };
+    internal ComboBox RecommendedSources { get; } = new() { HorizontalAlignment = HorizontalAlignment.Stretch, IsVisible = false };
+    internal ComboBox Targets { get; } = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
+    internal TextBox Review { get; } = new() { IsReadOnly = true, AcceptsReturn = true, Height = 260, IsUndoEnabled = false };
+    internal TextBox Result { get; } = new() { IsReadOnly = true, AcceptsReturn = true, Height = 150, IsUndoEnabled = false };
+    internal Button Confirm { get; } = new() { Content = "Consent to this exact bounded invocation", IsEnabled = false };
+    internal Button Resolve { get; } = new() { Content = "Consent to read this exact declared instruction set", IsEnabled = false };
+    internal TextBlock Status { get; } = new() { TextWrapping = Avalonia.Media.TextWrapping.Wrap };
+    internal AgentRunView(Window owner, Action<string> run, Func<bool> admitted)
+    {
+        Owner = owner;
+        lifetime = new(this, owner, () => !disposed && admitted());
+        lifetime.PresentationChanged += (_, _) =>
+        {
+            if (!lifetime.IsPresented)
+            {
+                ClearReview();
+                PresentationLost?.Invoke(this, EventArgs.Empty);
+            }
+        };
+        owner.Closed += OwnerClosed;
+        var panel = new StackPanel { Margin = new Thickness(20), Spacing = 10 };
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Select an EXISTING user-owned .agent.md source. Review reads at most 64 KiB and pins the exact native source. "
+                + "v2 permits up to four exact enabled Kora-owned instruction IDs after separate resolution consent, then full bundle review. "
+                + "v4 combines those pinned instructions with a declared subset of the six existing observation tools in the same run. "
+                + "No arbitrary files, executable skills, scripts, recursion, delegation, MCP or hosted transmission. v2/v3 remain tool-free; all observation tools retain their own permissions. "
+                + "Review is not invocation consent. The local model may be unavailable.",
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+        });
+        AutomationProperties.SetName(Source, "Exact existing owned agent source path");
+        AutomationProperties.SetName(Input, "Original agent request");
+        AutomationProperties.SetName(Recommendation, "Inert discovery recommendation, not invocation input or authority");
+        AutomationProperties.SetName(RecommendedSources, "Choose one current source-qualified agent; no automatic selection");
+        AutomationProperties.SetName(Targets, "Exact Active conversation for this agent");
+        AutomationProperties.SetName(Review, "Complete exact agent guidance, tools and cumulative budget review");
+        AutomationProperties.SetName(Result, "Retained agent answer or terminal");
+        AutomationProperties.SetName(Resolve, "Separate consent to resolve exact declared owned instructions");
+        AutomationProperties.SetName(Confirm, "Separate confirmation of this exact bounded agent invocation");
+        panel.Children.Add(Recommendation);
+        panel.Children.Add(RecommendedSources);
+        panel.Children.Add(Source);
+        Add("Refresh existing Active conversations", "Targets");
+        Add("Next conversation page", "NextTargets");
+        panel.Children.Add(Targets);
+        panel.Children.Add(new TextBlock { Text = "Original bounded task (retained in the selected conversation)" });
+        panel.Children.Add(Input);
+        AddSharedSkillControls(panel, run);
+        Add("Read source and review exact invocation", "Review");
+        panel.Children.Add(Review);
+        panel.Children.Add(Resolve);
+        Resolve.Click += (_, _) => run("Resolve");
+        panel.Children.Add(Confirm);
+        Confirm.Click += (_, _) => run("Invoke");
+        Add("Stop / revoke and join owned execution", "Stop");
+        panel.Children.Add(Status);
+        panel.Children.Add(Result);
+        Content = new ScrollViewer { Content = panel };
+        void Add(string label, string action)
+        {
+            var button = new Button { Content = label };
+            button.Click += (_, _) => run(action);
+            panel.Children.Add(button);
+        }
+    }
+    internal void Clear()
+    {
+        Source.Text = Input.Text = Review.Text = Result.Text = string.Empty;
+        Recommendation.Text = string.Empty;
+        RecommendedSources.ItemsSource = null;
+        Targets.ItemsSource = null;
+        Status.Text = string.Empty;
+        Confirm.IsEnabled = false;
+        Resolve.IsEnabled = false;
+        ClearSharedSkills();
+    }
+
+    internal void ClearReview()
+    {
+        Review.Text = Result.Text = string.Empty;
+        Confirm.IsEnabled = Resolve.IsEnabled = false;
+        RetireSharedSkills();
+    }
+
+    internal void Close() => Dispose();
+    private void OwnerClosed(object? sender, EventArgs args) => Dispose();
+    public void Dispose()
+    {
+        if (disposed) { return; }
+        disposed = true;
+        Owner.Closed -= OwnerClosed;
+        lifetime.Dispose();
+        Clear();
+        Closed?.Invoke(this, EventArgs.Empty);
+        if (Owner is ResponseWindow primary) { primary.RemoveNativeReview(this); }
+        else if (Owner is AgentRunWindow) { Owner.Close(); }
+    }
+}

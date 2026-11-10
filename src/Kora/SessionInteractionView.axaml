@@ -188,7 +188,7 @@
             </StackPanel>
           </Grid>
         </TabItem>
-        <TabItem Header="Activity">
+        <TabItem x:Name="ActivityTab" Header="Activity">
           <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="8">
             <TextBlock Text="Retained host records: questions, answers, work and decisions. Historical records are read-only, never approval controls."
                 TextWrapping="Wrap" Classes="muted" />

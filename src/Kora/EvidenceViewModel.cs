@@ -40,6 +40,28 @@ internal sealed partial class EvidenceViewModel(
 
     public Task SearchAsync() => RunAsync(CreateQuery, next: false);
 
+    internal async Task<bool> ReadAuditHistoryAsync(RequestOrigin origin, Func<bool> admitted)
+    {
+        if (!CanQuery || !admitted() || HostActivity.Current?.Request.Origin != origin)
+        { throw new InvalidOperationException("Audit history requires the original idle user request and private view admission."); }
+        ClearAdvancedFilters();
+        Source = EvidenceSource.AuthorityAudit;
+        SafeText = string.Empty;
+        SessionFilter = string.Empty;
+        TaskFilter = string.Empty;
+        TraceFilter = string.Empty;
+        SpanFilter = string.Empty;
+        await RunAsync(CreateQuery, next: false, origin: origin, admitted: admitted);
+        var completed = admitted() && currentQuery?.Source == EvidenceSource.AuthorityAudit
+            && page is not null && !HasUnavailableSource(page, EvidenceSource.AuthorityAudit);
+        if (completed)
+        {
+            status = "Application-wide committed authority audit; bounded native display only. No automatic speech, model disclosure or operation approval. " + status;
+            Notify();
+        }
+        return completed;
+    }
+
     public Task NextAsync() => RunAsync(() => currentQuery
         ?? throw new InvalidOperationException("Search before requesting a next page."), next: true,
         requestSubject: inspectedRequest);
@@ -105,11 +127,14 @@ internal sealed partial class EvidenceViewModel(
         Notify();
     }
 
-    private async Task RunAsync(Func<EvidenceQuery> create, bool next, EvidenceRecord? requestSubject = null)
+    private async Task RunAsync(Func<EvidenceQuery> create, bool next, EvidenceRecord? requestSubject = null,
+        RequestOrigin origin = RequestOrigin.LocalUi, Func<bool>? admitted = null)
     {
         if (busy || closed) { return; }
+        var cause = HostActivity.Current;
         using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), viewer.SessionId,
-            viewer.TaskId, RequestOrigin.LocalUi), HostActivityLayer.Desktop, HostOperation.Evidence);
+            viewer.TaskId, origin), HostActivityLayer.Desktop, HostOperation.Evidence,
+            cause is null ? null : [new(cause.Activity!.Context)]);
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         readCancellation = cancellation;
         var revision = filterRevision;
@@ -118,14 +143,16 @@ internal sealed partial class EvidenceViewModel(
         Notify();
         try
         {
-            if (!canInspect()) { throw new InvalidOperationException("Evidence inspection is denied by host ownership or privacy."); }
+            if (!canInspect() || admitted?.Invoke() == false)
+            { throw new InvalidOperationException("Evidence inspection is denied by host ownership, original input or privacy."); }
             var target = create();
             var cursor = next ? page?.Cursor ?? throw new InvalidOperationException("No continuation page is available.") : null;
             Clear("Reading a bounded evidence snapshot.");
             Notify();
             var result = await query.QueryAsync(target, cursor, cancellation.Token);
             cancellation.Token.ThrowIfCancellationRequested();
-            if (closed || revision != filterRevision || !canInspect()) { throw new OperationCanceledException("Evidence presentation retired."); }
+            if (closed || revision != filterRevision || !canInspect() || admitted?.Invoke() == false)
+            { throw new OperationCanceledException("Evidence presentation retired."); }
             currentQuery = target;
             page = result;
             inspectedRequest = requestSubject;

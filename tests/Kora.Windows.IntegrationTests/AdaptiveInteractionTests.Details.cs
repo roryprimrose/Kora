@@ -302,7 +302,7 @@ public sealed partial class AdaptiveInteractionTests
             await f.Run("select the first session");
             using var voice = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice),
                 HostActivityLayer.Desktop, HostOperation.Request);
-            await f.Sessions.ShowDetailsAsync(WorkspaceSurfaceTarget.SessionAudit, () => true);
+            await f.Sessions.ShowDetailsAsync(WorkspaceSurfaceTarget.SessionLogs, () => true);
             f.Native.Main.ResponseBody.Should().Contain("requires an original local UI request");
             f.Model.EvidenceDetails.Should().BeEmpty();
             f.Window!.SessionView.DetailsVisible.Should().BeFalse();

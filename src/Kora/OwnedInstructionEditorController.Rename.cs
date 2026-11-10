@@ -7,7 +7,7 @@ internal sealed partial class OwnedInstructionEditorController
 {
     private bool renaming;
 
-    private async Task RenameInstruction(OwnedInstructionEditorWindow opened, bool recover, Func<bool> eligible, CancellationToken token)
+    private async Task RenameInstruction(OwnedInstructionEditorView opened, bool recover, Func<bool> eligible, CancellationToken token)
     {
         if (kind != ArtifactKind.Instruction || profileOriginal is not null || Dirty)
         { throw new InvalidOperationException("Rename/recovery requires a clean owned Instruction editor. Save or explicitly discard draft edits separately; prompts and profile originals cannot be renamed."); }
@@ -49,7 +49,7 @@ internal sealed partial class OwnedInstructionEditorController
             + "No reference, grant or activation was transferred. Reopen the new ID to inspect current resolution status. Original unrelated files and source bytes except declared name were preserved.");
     }
 
-    private static async Task<bool> ConfirmInstructionRename(OwnedInstructionEditorWindow opened, OwnedInstructionRenameReview review,
+    private static async Task<bool> ConfirmInstructionRename(OwnedInstructionEditorView opened, OwnedInstructionRenameReview review,
         Func<bool> current, CancellationToken token)
     {
         if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())

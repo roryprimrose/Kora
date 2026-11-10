@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.ComponentModel;
+using Avalonia.Controls;
 
 using Kora.Definitions.Skills;
 using Kora.Application.ViewModels;
@@ -20,7 +21,19 @@ internal sealed partial class SkillPackagesWindowController : IDisposable, ISkil
     private readonly NativeDetailRenderer renderer;
     private readonly SharedSkillSourcesWindowController sharedSources;
     private readonly Func<SkillPackageCatalogue> loadCatalogue;
-    private SkillPackagesWindow? window;
+    private SkillPackagesView? window;
+    private SkillPackagesWindow? adapter;
+    private Func<Window>? getWorkbench;
+    private Action<SkillPackagesView>? presentWorkbench;
+    internal SkillPackagesView? View => window;
+    internal void BindWorkbench(Func<Window> owner, Action<SkillPackagesView> present,
+        Action<SharedSkillSourcesView>? shared = null)
+    {
+        getWorkbench = owner;
+        presentWorkbench = present;
+        if (shared is not null) { sharedSources.BindWorkbench(owner, shared); }
+    }
+    internal SharedSkillSourcesView? SharedView => sharedSources.View;
     private bool disposed;
     private bool opening;
     private bool closeAfterOpening;
@@ -45,7 +58,7 @@ internal sealed partial class SkillPackagesWindowController : IDisposable, ISkil
             () => !disposed && isCurrentHost() && ownershipRevision() == revision && IsReviewing(package));
         runtimeWindow = opened;
         opened.Closed += (_, _) => runtimeWindow = null;
-        opened.Show(window);
+        opened.Show(window.Owner);
     }
 
     internal void BindBundledExecution(Action<SkillPackageSnapshot>? execute, Action<SkillPackageSnapshot>? executeBound = null)
@@ -116,10 +129,21 @@ internal sealed partial class SkillPackagesWindowController : IDisposable, ISkil
                     || !viewModel.IsSkillReviewCallEligible)
                 { return false; }
                 var revision = viewModel.CallPolicyRevision;
-                window = new(catalogue, renderer, sharedSources.Open,
-                    () => !disposed && isCurrentHost() && viewModel.CanRevealPrivatePresentation && viewModel.CallPolicyRevision == revision,
-                    package => executeBundled?.Invoke(package), package => executeBoundBundled?.Invoke(package),
-                    runtimeSetup is null ? null : OpenRuntimeSetup);
+                bool Current() => !disposed && isCurrentHost() && viewModel.CanRevealPrivatePresentation && viewModel.CallPolicyRevision == revision;
+                if (getWorkbench is not null && presentWorkbench is not null)
+                {
+                    window = new(getWorkbench(), catalogue, renderer, sharedSources.Open, Current,
+                        package => executeBundled?.Invoke(package), package => executeBoundBundled?.Invoke(package),
+                        runtimeSetup is null ? null : OpenRuntimeSetup);
+                }
+                else
+                {
+                    adapter = new(catalogue, renderer, sharedSources.Open, Current,
+                        package => executeBundled?.Invoke(package), package => executeBoundBundled?.Invoke(package),
+                        runtimeSetup is null ? null : OpenRuntimeSetup);
+                    window = adapter.View;
+                }
+                window.CloseRequested += (_, _) => Close();
                 window.SetControlSessionAvailable(controlSessionAvailable);
                 window.Closed += OnClosed;
                 window.PackageChanged += package =>
@@ -131,10 +155,14 @@ internal sealed partial class SkillPackagesWindowController : IDisposable, ISkil
                 InspectionAdmitted(logger, catalogue.Packages.Count, false);
             }
             var opened = window;
-            if (!opened.IsVisible)
+            if (!opened.IsNativePresented)
             {
                 opening = true;
-                try { opened.Show(); }
+                try
+                {
+                    if (presentWorkbench is not null) { presentWorkbench(opened); }
+                    else { adapter!.Show(); }
+                }
                 catch (InvalidOperationException) { Close(); throw; }
                 finally
                 {
@@ -180,6 +208,7 @@ internal sealed partial class SkillPackagesWindowController : IDisposable, ISkil
     {
         Volatile.Write(ref reviewedPackage, null);
         window = null;
+        adapter = null;
     }
 
     private void Close()
@@ -198,6 +227,8 @@ internal sealed partial class SkillPackagesWindowController : IDisposable, ISkil
             window.Closed -= OnClosed;
             window.Close();
             window = null;
+            adapter?.Close();
+            adapter = null;
         }
     }
 }

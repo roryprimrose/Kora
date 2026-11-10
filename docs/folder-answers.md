@@ -10,7 +10,7 @@ Use **Preview folder** and the native folder picker. Review the complete immedia
 
 For keyboard review, Tab to the **Complete local file or folder metadata and consent disclosure** viewport. Page Up / Page Down and Home / End reach the complete inventory and privacy bounds; Tab then reaches the separate confirmation. Scrolling is not read consent.
 
-Closing or replacing the review clears its metadata and retires its confirmation ([native review](../src/Kora/LocalFilePreviewWindow.cs)).
+Closing or replacing the review clears its metadata and retires its confirmation ([native review](../src/Kora/LocalFilePreviewView.cs)).
 
 Subdirectories, unsupported, protected, generated, source-control, hidden/system, reparse/link or unstable items reject the complete selection; they are not silently skipped.
 

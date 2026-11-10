@@ -127,12 +127,19 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
             HideSettings(target);
             throw new InvalidOperationException("Settings navigation was revoked before tab selection.");
         }
+
         target.ShowSection(section);
         if (!admitted())
         {
             HideSettings(target);
             throw new InvalidOperationException("Settings navigation was revoked during tab selection.");
         }
+    }
+
+    internal void ShowPresence(Func<bool> admitted)
+    {
+        var target = OpenWindow(admitted);
+        target.ShowPresence(admitted);
     }
 
     private SettingsView OpenWindow(Func<bool> admitted)

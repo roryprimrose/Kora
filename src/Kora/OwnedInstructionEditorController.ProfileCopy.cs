@@ -15,7 +15,7 @@ internal sealed partial class OwnedInstructionEditorController
         window?.CancelReview();
     }
 
-    private async Task ForkProfileInstruction(OwnedInstructionEditorWindow opened, Func<bool> eligible, CancellationToken token)
+    private async Task ForkProfileInstruction(OwnedInstructionEditorView opened, Func<bool> eligible, CancellationToken token)
     {
         if (kind != ArtifactKind.Instruction || profileForks is null)
         { throw new InvalidOperationException("Profile instruction copying is unavailable for this kind or runtime."); }
@@ -55,11 +55,11 @@ internal sealed partial class OwnedInstructionEditorController
         }
     }
 
-    private async Task<string?> SelectProfileInstruction(OwnedInstructionEditorWindow opened, CancellationToken token)
+    private async Task<string?> SelectProfileInstruction(OwnedInstructionEditorView opened, CancellationToken token)
     {
         if (profilePicker is not null) { return await profilePicker.SelectAsync(token); }
-        if (!opened.StorageProvider.CanOpen) { throw new InvalidOperationException("Trusted native file selection is unavailable."); }
-        var selected = await opened.StorageProvider.OpenFilePickerAsync(new()
+        if (!opened.Owner.StorageProvider.CanOpen) { throw new InvalidOperationException("Trusted native file selection is unavailable."); }
+        var selected = await opened.Owner.StorageProvider.OpenFilePickerAsync(new()
         {
             Title = "Select one personal native v1 instruction original (read consent follows)",
             AllowMultiple = false,

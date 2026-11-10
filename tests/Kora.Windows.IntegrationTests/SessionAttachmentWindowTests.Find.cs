@@ -116,7 +116,7 @@ public sealed partial class SessionAttachmentWindowTests
                 query.Text.Should().BeNull();
                 span.Text.Should().BeNull();
                 source.Text.Should().BeNull();
-                view.Content.Should().BeNull();
+                view.View.Content.Should().BeNull();
                 failures.Should().BeEmpty();
                 audit.Fail = false;
             }

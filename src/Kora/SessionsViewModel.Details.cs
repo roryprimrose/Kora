@@ -45,7 +45,7 @@ internal sealed partial class SessionsViewModel
         : evidenceDetails.Where(item => item.RequestMessage is null || item.RequestAdmission?.Invoke() == true).ToArray();
     public bool HasEvidenceDetails => selected is not null && EvidenceDetails.Count != 0;
 
-    public Task ReadEvidenceDetailsAsync(EvidenceSource source) => RunAsync(async () =>
+    public Task ReadEvidenceDetailsAsync(EvidenceSource source, RequestOrigin origin = RequestOrigin.LocalUi) => RunAsync(async () =>
     {
         if (source is not (EvidenceSource.Log or EvidenceSource.AuthorityAudit))
         { throw new InvalidOperationException("Select Logs or typed AuthorityAudit; scope cannot be broadened by the pane."); }
@@ -60,7 +60,7 @@ internal sealed partial class SessionsViewModel
         if (evidenceDetails.Count == 8) { evidenceDetails.RemoveAt(0); }
         evidenceDetails.Add(snapshot);
         status = PresentEvidencePage(snapshot, target, epoch, control);
-    });
+    }, origin: origin);
 
     public Task OpenEvidenceDetailsAsync(SessionEvidenceDetail? detail = null, Func<bool>? detailAdmission = null) => RunAsync(async () =>
     {

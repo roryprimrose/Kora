@@ -20,6 +20,7 @@ internal sealed partial class EvidenceView : UserControl, IDisposable
     internal event EventHandler? Closed;
     internal event EventHandler? CloseRequested;
     internal bool IsNativePresented => lifetime.IsPresented;
+    internal Func<bool> CapturePresentation() => lifetime.Capture();
     private bool IsActive => lifetime.IsActive;
 
     public EvidenceView() => throw new InvalidOperationException("Evidence requires an explicit host-owned view.");

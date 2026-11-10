@@ -13,7 +13,7 @@ namespace Kora;
 
 public sealed partial class SettingsView
 {
-    private KnowledgeSourcesWindow? knowledgeSources;
+    private KnowledgeSourcesView? knowledgeSources;
 
     private void BindKnowledgeSources()
     {
@@ -29,7 +29,7 @@ public sealed partial class SettingsView
             "Knowledge source management unavailable. Failure type: " + exception.GetType().Name));
     }
 
-    private KnowledgeSourcesWindow OpenKnowledgeSources()
+    private KnowledgeSourcesView OpenKnowledgeSources()
     {
         if (knowledgeSources is not null) { return knowledgeSources; }
         var limitsPreferences = new LocalKnowledgeSourceCaptureLimitsPreferences(App.Services.GetRequiredService<IApplicationDataPaths>());
@@ -40,10 +40,12 @@ public sealed partial class SettingsView
             App.Services.GetRequiredService<ISecurityAuditLog>(), TimeProvider.System,
             App.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger<KnowledgeSourceCaptureLimitsConfigurationService>>());
         var workflow = ActivatorUtilities.CreateInstance<KnowledgeSourceAnswerWorkflow>(App.Services, manager);
-        var window = new KnowledgeSourcesWindow(model, manager, answers: workflow, captureLimits: limits);
+        var window = owner is ResponseWindow ? new KnowledgeSourcesView(owner, model, manager, answers: workflow, captureLimits: limits)
+            : new KnowledgeSourcesWindow(model, manager, answers: workflow, captureLimits: limits).View;
         knowledgeSources = window;
         window.Closed += (_, _) => knowledgeSources = null;
-        window.Show(owner);
+        if (owner is ResponseWindow) { window.Show(); }
+        else { window.Owner.Show(owner); }
         return window;
     }
 

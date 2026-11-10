@@ -7,7 +7,7 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class WorkspaceRealignmentContractTests
 {
     [Theory]
-    [InlineData("SessionsWindow.axaml")]
+    [InlineData("SessionsManagementView.axaml")]
     [InlineData("CompactSessionWindow.axaml")]
     public void NormalConversationRetainsContentSearchWithoutEngineeringQueries(string file)
     {
@@ -23,7 +23,7 @@ public sealed class WorkspaceRealignmentContractTests
     [Fact]
     public void SessionsRetainsExistingWorkInspectionAndCancellationWithoutDiagnosticAdmission()
     {
-        var controls = Names("SessionsWindow.axaml");
+        var controls = Names("SessionsManagementView.axaml");
         controls.Should().Contain(["HistoryKind", "HistoryTaskState", "HistoryDecision",
             "HistoryQuestionStatus", "HistoryAnswerChannel"]);
         controls.Should().Contain(["ReadQueue", "InspectWork", "CancelQueueEntry", "RemoveQueueEntry",
@@ -53,7 +53,7 @@ public sealed class WorkspaceRealignmentContractTests
     [Fact]
     public void AttachmentCatalogueRetainsMeaningfulSizeTypeAndFindWithoutEngineeringPredicates()
     {
-        var controls = Names("AttachmentCatalogueWindow.axaml");
+        var controls = Names("AttachmentCatalogueView.axaml");
         controls.Should().Contain(["AttachmentMediaType", "AttachmentMinimumBytes", "AttachmentMaximumBytes",
             "AttachmentPageOrder", "MetadataDetails", "MetadataFindQuery", "OpenExact"]);
         controls.Where(name => name is "AttachmentDigest" or "AttachmentMetadataText"
@@ -66,8 +66,8 @@ public sealed class WorkspaceRealignmentContractTests
             || name.StartsWith("AttachmentMaximumCaptured", StringComparison.Ordinal)
             || name.StartsWith("AttachmentMinimumStorage", StringComparison.Ordinal)
             || name.StartsWith("AttachmentMaximumStorage", StringComparison.Ordinal)).Should().BeEmpty();
-        Names("SkillPackagesWindow.axaml").Should().NotContain(["PackageDefinitionDigest", "PackageDeclaredResourceDigest"]);
-        Names("SharedSkillSourcesWindow.axaml").Should().NotContain("SharedRevisionDigest");
+        Names("SkillPackagesView.axaml").Should().NotContain(["PackageDefinitionDigest", "PackageDeclaredResourceDigest"]);
+        Names("SharedSkillSourcesView.axaml").Should().NotContain("SharedRevisionDigest");
         Names("AllWorkView.axaml").Should().NotContain(["WorkRanges", "RetainedTaskId", "RetainedRequestId",
             "ObservationAvailability", "ObservedContent"]);
     }

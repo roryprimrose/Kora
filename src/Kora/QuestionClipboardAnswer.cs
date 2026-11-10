@@ -29,7 +29,7 @@ internal sealed class QuestionClipboardAnswer : IDisposable
     private readonly TimeProvider time;
     private readonly ILogger<NativeQuestionViewModel> logger;
     private Window? owner;
-    private QuestionWindow? permissionWindow;
+    private INativeQuestionPresentation? permissionWindow;
     private CancellationTokenSource? cancellation;
     private Task run = Task.CompletedTask;
     private TaskCompletionSource? ready;
@@ -48,6 +48,7 @@ internal sealed class QuestionClipboardAnswer : IDisposable
     private bool validating;
     private long revision;
     private int visible;
+    private Func<Func<bool>>? capturePresentation;
 
     internal QuestionClipboardAnswer(NativeQuestionViewModel question, IPlainTextClipboardReader reader,
         ClipboardExplanationAdmission admission, WindowsSqliteHostInteractionStore store,
@@ -74,8 +75,18 @@ internal sealed class QuestionClipboardAnswer : IDisposable
                 {
                     if (owner is not { IsVisible: true } || !original())
                     { throw new OperationCanceledException(token); }
-                    permissionWindow = new(model, renderer);
-                    permissionWindow.Show(owner);
+                    if (owner is ResponseWindow primary)
+                    {
+                        var permission = new QuestionView(model, renderer, primary, logger);
+                        permissionWindow = permission;
+                        primary.ShowInlineQuestion(permission);
+                    }
+                    else
+                    {
+                        var permission = new QuestionWindow(model, renderer);
+                        permissionWindow = permission;
+                        permission.Show(owner);
+                    }
                     permissionWindow.Activate();
                     return Task.CompletedTask;
                 }, token)));
@@ -88,10 +99,12 @@ internal sealed class QuestionClipboardAnswer : IDisposable
         && string.Equals(record.Spec.Purpose, LocalModelQuestionPolicy.Purpose, StringComparison.Ordinal)
         && string.Equals(record.Spec.SourceId, LocalModelQuestionPolicy.SourceId, StringComparison.Ordinal);
 
-    internal void BindWindow(Window window)
+    internal void BindWindow(Window window, Func<Func<bool>>? presentation = null)
     {
         if (owner is not null) { throw new InvalidOperationException("Only one exact clipboard-answer presenter is permitted."); }
         owner = window;
+        capturePresentation = presentation;
+        Volatile.Write(ref visible, window.IsVisible ? 1 : 0);
         window.PropertyChanged += OnWindowChanged;
     }
 
@@ -111,7 +124,7 @@ internal sealed class QuestionClipboardAnswer : IDisposable
     internal string ReviewText => snapshot is not null && Current() ? reviewText : string.Empty;
     internal bool NeedsReplacement => previous?.Text is { Length: > 0 };
     internal bool CanCapture => !disposed && !IsActive && owner is { IsVisible: true, IsActive: true }
-        && question.IsEditable && Supports(question.Question);
+        && (capturePresentation?.Invoke()() ?? true) && question.IsEditable && Supports(question.Question);
     internal bool CanAccept => !validating && accepted is null && displayed && Current()
         && owner is { IsActive: true } && (!NeedsReplacement || replacing);
     internal bool CanCommit => accepted is not null && ReferenceEquals(question.Answer, accepted)
@@ -134,12 +147,13 @@ internal sealed class QuestionClipboardAnswer : IDisposable
         using var native = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
             HostActivityLayer.Desktop, HostOperation.Presentation);
         var admission = captureAdmission();
+        var presenter = capturePresentation?.Invoke() ?? (static () => true);
         var version = Interlocked.Increment(ref revision);
         var exact = question.Question;
         target = exact;
         previous = question.Answer;
         original = () => !disposed && Interlocked.Read(ref revision) == version && admission()
-            && Volatile.Read(ref visible) == 1 && question.IsClipboardTargetLive(exact) && Supports(exact);
+            && presenter() && Volatile.Read(ref visible) == 1 && question.IsClipboardTargetLive(exact) && Supports(exact);
         if (!original()) { Clear("Clipboard answer denied before reading. The manual draft is unchanged."); return; }
         cancellation = new();
         var presented = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

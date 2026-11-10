@@ -10,6 +10,7 @@ using Kora.Core.Artifacts;
 using Kora.Core.Customizations;
 using Kora.Core.Hosting;
 using Kora.Core.Diagnostics;
+using Kora.Core.Commands;
 using Kora.Definitions.Skills;
 
 using Microsoft.Extensions.Logging;
@@ -68,6 +69,73 @@ internal sealed partial class CustomizationWindowController(
 #pragma warning disable VSTHRD003 // Observes only the operation owned by this controller; no replacement is started.
         await active;
 #pragma warning restore VSTHRD003
+    }
+
+    internal async Task<bool> ShowRegisteredMcpAsync(bool lookupWorkIq, Func<bool> admitted)
+    {
+        if (!admitted() || busy)
+        { throw new InvalidOperationException("Registered MCP navigation requires the original idle host presentation."); }
+        Open();
+        if (window is not { } opened)
+        { throw new InvalidOperationException("The registered MCP view could not be presented."); }
+        await WaitForOperation();
+        if (!admitted() || !ReferenceEquals(window, opened) || !Eligible())
+        { throw new OperationCanceledException("Registered MCP navigation was retired before metadata presentation."); }
+        var read = ReadRegisteredMcpMetadataAsync(opened, admitted);
+        active = read;
+        if (!await read) { return false; }
+        opened.Kind = CustomizationKind.McpServer;
+        RenderSources();
+        var registered = sources.Where(item => item.Kind == CustomizationKind.McpServer).ToArray();
+        var unavailable = registered.Count(item => item.UnavailableReason is not null);
+        if (lookupWorkIq)
+        {
+            var matches = registered.Where(item => WorkspaceSurfaceCommand.MatchesObservationName(item.Name, "WorkIQ")).ToArray();
+            opened.Search.Text = "WorkIQ";
+            opened.Status.Text = matches.Length == 0
+                ? unavailable == 0
+                    ? "No MCP server named WorkIQ was found in Kora's registered metadata. Scope: registered sources only, not an internet search. Broader discovery requires separate source/network consent. No connection or model call was made."
+                    : "WorkIQ lookup unconfirmed: registered MCP source metadata is unavailable. No absence or complete inventory is claimed. Clear the filter and inspect the unavailable source, then explicitly retry. No connection or model call was made."
+                : $"Found {matches.Length} registered MCP source(s) named WorkIQ. Scope: Kora's registered metadata only. Presence in this list does not establish connector readiness, authentication or permission. No connection or model call was made.";
+            if (unavailable != 0) { opened.Status.Text += $" Unavailable registered entries: {unavailable}. The inventory is incomplete."; }
+            return matches.Length != 0 || unavailable == 0;
+        }
+        else
+        {
+            opened.Search.Text = string.Empty;
+            opened.Status.Text = $"Registered MCP metadata: {registered.Length} observed entries; {unavailable} unavailable sources. "
+                + (unavailable == 0 ? string.Empty : "Incomplete inventory; no empty success or absence is claimed. ")
+                + "Disabled entries remain visible. No endpoints, launch arguments or credentials were disclosed; no network, model or tool invocation occurred.";
+            return unavailable == 0;
+        }
+    }
+
+    private async Task<bool> ReadRegisteredMcpMetadataAsync(CustomizationView opened, Func<bool> admitted)
+    {
+        var token = lifetime?.Token ?? throw new InvalidOperationException("The registered MCP source owner is unavailable.");
+        bool Current() => admitted() && ReferenceEquals(window, opened) && Eligible();
+        busy = true;
+        try
+        {
+            sources = [];
+            Interlocked.Increment(ref capabilityPresentationRevision);
+            ClearCapabilityMetadata();
+            opened.Status.Text = "Reading current registered MCP metadata. The previous lookup result has been retired.";
+            var disk = await management.List(Current, token);
+            RequireCurrent(Current, token);
+            sources = [.. bundled.Values.Select(snapshot => snapshot.Source), .. disk];
+            RefreshCapabilityMetadata();
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException
+            or InvalidOperationException or ArgumentException or NotSupportedException or OperationCanceledException)
+        {
+            CustomizationFailed(logger, exception.GetType().Name);
+            if (ReferenceEquals(window, opened))
+            { opened.Status.Text = "Registered MCP metadata unavailable or retired. No complete inventory, absence or previous found result is claimed; explicitly retry after inspecting the source."; }
+            return false;
+        }
+        finally { busy = false; }
     }
 
     internal void Bind()

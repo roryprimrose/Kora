@@ -577,6 +577,12 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         Notify();
     }
 
+    internal void RetireReviewPresentation()
+    {
+        lock (stateGate) { displayedReviewKey = null; presentationRevision++; }
+        Notify();
+    }
+
     internal void Close(string reason)
     {
         StopVoiceReply();

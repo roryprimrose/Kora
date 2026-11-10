@@ -46,7 +46,8 @@ internal sealed partial class SessionsPresentationOwner
         if (revoked) { return null; }
         var candidates = surfaces.Where(surface => surface.IsVisible && surface.IsActive && surface.WindowState != WindowState.Minimized
             && (!conversationRequired || surface is not ResponseWindow response
-                || response.IsSessionWorkspacePresented && response.SessionView.IsConversationPresented))
+                || response.IsSessionWorkspacePresented && response.SessionView.IsConversationPresented
+                || response.IsManagementConversationPresented))
             .Take(2).ToArray();
         return candidates.Length == 1 ? candidates[0] : null;
     }
@@ -86,8 +87,11 @@ internal sealed partial class SessionsPresentationOwner
     }
 
     private static SessionRequestReviewPanel? RequestPanel(Window surface) => surface is ResponseWindow response
-        ? response.SessionView.FindControl<SessionRequestReviewPanel>("OriginalRequestReview")
-        : surface.FindNameScope()?.Find<SessionRequestReviewPanel>("OriginalRequestReview");
+        ? response.IsManagementConversationPresented
+            ? response.SessionManagement?.FindControl<SessionRequestReviewPanel>("OriginalRequestReview")
+            : response.SessionView.FindControl<SessionRequestReviewPanel>("OriginalRequestReview")
+        : surface is SessionsWindow management ? management.FindControl<SessionRequestReviewPanel>("OriginalRequestReview")
+            : surface.FindNameScope()?.Find<SessionRequestReviewPanel>("OriginalRequestReview");
 
     private void OnForegroundSurfaceChanged(object? sender, AvaloniaPropertyChangedEventArgs args)
     {
@@ -101,6 +105,7 @@ internal sealed partial class SessionsPresentationOwner
 
     private void OnSessionContentPresentationChanged(object? sender, EventArgs args)
     {
+        foreach (var surface in surfaces) { RequestPanel(surface)?.Bind(requestCommands); }
         Interlocked.Increment(ref foregroundSourceRevision);
         UpdateForegroundTarget();
         requestCommands?.RevalidateDetailsOffer();

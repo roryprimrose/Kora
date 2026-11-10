@@ -4,6 +4,16 @@ An **instruction** is reusable guidance for an answer; a **prompt** is a reusabl
 request. You can edit either without AI. Saving is separate from enabling or
 using it, and every write needs exact confirmation after the complete native source review.
 
+The editor opens in the expanded workbench. Complete source comparisons, Save/conflict/copy
+decisions and source-preserving Rebase reviews use supporting tabs, not additional Kora
+windows ([view](../src/Kora/OwnedInstructionEditorView.cs),
+[decisions](../src/Kora/OwnedInstructionEditorView.Decisions.cs),
+[Rebase review](../src/Kora/OwnedInstructionEditorView.Rebase.cs)).
+Hiding, minimizing or leaving the editor retains the volatile draft but retires pending
+reviews, Find matches and body dictation. Returning does not accept a review, replay input
+or save. **Close editor** offers Save, Discard or Cancel for unsaved changes; cancelling
+the decision keeps the editor open ([owner](../src/Kora/OwnedInstructionEditorController.cs)).
+
 Start with [open and select](#open-and-select), [edit and save](#edit-review-and-save),
 [required prompt inputs](#prepare-required-native-prompt-inputs), or
 [resolve a conflict](#resolve-a-conflict). **Local generation/refinement is unavailable in
@@ -430,17 +440,18 @@ Return to ${input:first}.
 
 Save exactly reviewed source, then separately **Review use** (`prompts activate`). Saving or copying never enables the new revision.
 Explicit `/prompt compare`, `/compare` or `Kora, use compare` selects that exact enabled owned revision and opens the private native required-input form. Typed/voice inline parameters are refused; selection does not generate an answer.
+The form, complete expansion and exact-session retention review share a supporting tab in the expanded workbench, not another Kora window ([view](../src/Kora/PromptParameterView.cs)). Hiding/minimizing the workbench or leaving that review discards temporary values and retires preview, confirmation and voice admission. Returning requires fresh explicit prompt selection; fields are never restored or autosaved ([hosted behavior](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/PromptParameterWindowTests.Workbench.cs)).
 Names are lowercase ASCII letters/digits/hyphens, start with a letter, and have at most 64 characters. At most eight distinct required inputs appear in first-occurrence order; repeated markers share one field. Blank/whitespace-only input requires correction.
 Fields preserve exact native text/newlines/case/Unicode, bounded to 512 UTF-16 units / 2048 UTF-8 bytes each. **Preview complete expanded USER REQUEST** displays the entire expansion, bounded to 4096 UTF-16 / 16384 UTF-8 bytes. Oversize/invalid values are rejected, not normalized; no defaults or hidden reads exist.
 Values containing `${input:name}` remain literal. No expression/environment/file/secret/clipboard/network/function evaluation or recursive expansion occurs. The preview is inert plain text, not Markdown evaluation, system instructions, command dispatch, model qualification or approval.
 For an already selected prompt, choose **Speak input _declared-name_** beside exactly one required field in the focused private form. Supply one utterance to replace that field, or **Cancel spoken input**. The [prompt input controller](../src/Kora.Application/Definitions/PromptInputVoiceController.cs) uses current consented activated recognition, not a new speech backend or the conversation-composer dictation profile.
 Starting spoken input retires the previous expanded preview and retention review. Capture must be released before literal text reaches the field; edits, focus/source/session/channel/privacy changes, cancellation or the 75-second lifetime discard late text. No name aliases, fuzzy name matching, command parsing, question answers or approval replies are accepted by this [exact target](../src/Kora/PromptParameterController.cs).
-Use native fields if activated capture is unsupported or unavailable; speaking does not enable listening, change consent or select a device. After voice or native edits, explicitly preview the **complete** expanded request, select the exact session, review and separately confirm with the existing native controls. Spoken values never auto-submit or authorize a model call ([native form](../src/Kora/PromptParameterWindow.cs)).
+Use native fields if activated capture is unsupported or unavailable; speaking does not enable listening, change consent or select a device. After voice or native edits, explicitly preview the **complete** expanded request, select the exact session, review and separately confirm with the existing native controls. Spoken values never auto-submit or authorize a model call ([native form](../src/Kora/PromptParameterView.cs)).
 Failed voice-turn setup retires its exact target without accepting text. If microphone cleanup is unconfirmed, further voice input stays blocked; restart Kora before trying voice again. Cancellation still joins outstanding publication and native release; no successful cleanup or automatic retry is claimed.
 Editing any field clears the old preview and disables Use until another explicit preview. Source/review/catalogue/native identity/input/call/private ownership changes retire the form; missed watcher changes are checked again immediately before preview and use.
 **Use reviewed request (separate admission)** sends only the captured full `UserRequest` to a fresh host model-admission check. Original source bytes/digest/native revision remain separate from the expansion digest; no body is replaced in the catalogue.
 Generation is currently unavailable: the existing artifact control task has no qualified model-task source classification (`Denied / HostAdmissionClosed`), and there is no qualified production adapter/model. Neither the rejected Ollama 0.35.1/qwen3 nor 0.40.2 is a recovery path. Use reports actual admission without HTTP/inference, installation, authentication fallback or action execution.
-Cancel/window close/private closure clears fields and expansion immediately; pending admitted source work is cancelled and joined before handoff/exit releases owned resources. Original-input fencing includes a new activated request even when typed command text is unchanged, and captures before awaited disk validation.
+Cancel, leaving the form or private closure clears fields and expansion immediately; pending admitted source work is cancelled and joined before handoff/exit releases owned resources. Original-input fencing includes a new activated request even when typed command text is unchanged, and captures before awaited disk validation ([owner](../src/Kora/PromptParameterController.cs)).
 Values are never autofilled, logged, audited as content, separately stored as form values, saved into preferences/templates or automatically copied/exported/spoken. Preview and Use write no body. Only the separate explicit conversation confirmation below retains the approved expanded text. Existing v1 literal prompt selection remains on its existing route.
 
 ## Submit an expanded request to one exact session

@@ -220,7 +220,7 @@ public sealed class ClipboardSourceWrappingTests
             }
             // The gesture must fence loss before the controller timer refreshes.
             toggle.IsChecked = false;
-            old.Content.Should().BeNull();
+            old.View.Content.Should().BeNull();
             source.Text.Should().BeNull();
             source.TextWrapping.Should().Be(TextWrapping.NoWrap);
             toggle.IsChecked.Should().BeFalse();
@@ -229,7 +229,7 @@ public sealed class ClipboardSourceWrappingTests
             controller.Refresh();
             toggle.IsChecked = true;
             Dispatcher.UIThread.RunJobs();
-            old.Content.Should().BeNull();
+            old.View.Content.Should().BeNull();
             if (change is not "dispose")
             {
                 var replacement = views[^1];
@@ -285,7 +285,7 @@ public sealed class ClipboardSourceWrappingTests
                 }
                 else
                 {
-                    window.Content.Should().BeNull();
+                    window.View.Content.Should().BeNull();
                     source.Text.Should().BeNull();
                     toggle.IsChecked.Should().BeFalse();
                     toggle.IsChecked = true;

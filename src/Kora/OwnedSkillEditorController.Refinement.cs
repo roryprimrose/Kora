@@ -23,7 +23,7 @@ internal sealed partial class OwnedSkillEditorController
 
     private enum GuidanceOperation { Generate, Refine }
 
-    private async Task ProposeGuidance(OwnedSkillEditorWindow opened, OwnedSkillAuthoringAuthority request, GuidanceOperation operation,
+    private async Task ProposeGuidance(OwnedSkillEditorView opened, OwnedSkillAuthoringAuthority request, GuidanceOperation operation,
         CancellationToken token)
     {
         var previous = pendingRefinement ?? (operation == GuidanceOperation.Refine ? generatedBase : null);

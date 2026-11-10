@@ -3,7 +3,7 @@
 Status: immutable package inspection and the [script-preserving fixed-action implementation](../src/Kora/BundledFixedActionController.cs) exist.
 All bundled execution remains unavailable because the [production worker](../src/Kora.Windows/Skills/WindowsBundledScriptWorker.cs) has no qualified installed profile.
 Direct Lock and model-proposed Lock use the same exact host gate, preserving the original request channel; a model cannot grant or self-confirm it. Direct shutdown/restart retain that gate; model power suggestions still open inspection only and require a subsequent original-user execution gesture. There is no legacy native-lock fallback.
-The [source inspector](../src/Kora/SkillPackagesWindow.axaml.cs) retains every original manifest, instruction, fixture, entry and shared-helper tab. See [execution availability](../docs/skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
+The [hosted source inspector](../src/Kora/SkillPackagesView.axaml.cs) retains every original manifest, instruction, fixture, entry and shared-helper tab. See [execution availability](../docs/skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
 
 The structural migration preserves all 13 resource IDs/bytes and package
 digest golden vectors. `Kora.Definitions.Skills` owns the explicit embedded

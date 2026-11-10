@@ -36,7 +36,7 @@ internal sealed partial class OwnedInstructionEditorController
         window?.SetRestoreAvailable(true);
     }
 
-    private async Task RestorePrevious(OwnedInstructionEditorWindow opened, Func<bool> eligible, CancellationToken token)
+    private async Task RestorePrevious(OwnedInstructionEditorView opened, Func<bool> eligible, CancellationToken token)
     {
         if (lastConfirmedSave is not { } point || kind != ArtifactKind.Instruction || profileOriginal is not null
             || uncertain || Actions.IsSourceUnavailable || newDraft || opened.Source.IsReadOnly

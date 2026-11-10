@@ -110,7 +110,7 @@ public sealed partial class SessionsConversationTests
                 adapter.Calls.Should().Be(0);
                 async Task Press(string label)
                 {
-                    var buttons = ((StackPanel)((ScrollViewer)window.Content!).Content!).Children.OfType<Button>();
+                    var buttons = ((StackPanel)((ScrollViewer)window.View.Content!).Content!).Children.OfType<Button>();
                     var button = buttons.Single(button => Equals(button.Content, label));
                     button.Focus().Should().BeTrue();
                     window.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");

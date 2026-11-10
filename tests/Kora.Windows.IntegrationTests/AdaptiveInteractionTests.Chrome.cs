@@ -16,6 +16,59 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class AdaptiveInteractionTests
 {
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Compact_expand_button_opens_same_workbench_without_selecting_or_submitting(bool selected, bool keyboard)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new Fixture();
+            await f.Initialize();
+            var windows = new List<Window>();
+            using var opened = Window.WindowOpenedEvent.AddClassHandler<Window>((window, _) => windows.Add(window));
+            if (selected)
+            {
+                await f.Run("show sessions");
+                await f.Run("select the first session");
+                f.Model.ComposerBody = "Unsent selected-conversation input";
+                f.Window!.FindControl<Button>("CollapseWorkbench")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            }
+            else { await f.Sessions.ShowInteractionAsync(false, static () => true); }
+            var window = f.Window!;
+            var originalSelection = f.Model.SelectedSessionRecord;
+            f.Native.Main.CommandText = "Unsent global input";
+            var expand = window.FindControl<Button>("ExpandSessions")!;
+            window.IsExpanded.Should().BeFalse();
+            expand.IsEffectivelyVisible.Should().BeTrue();
+            expand.Content.Should().Be("Expand view");
+            AutomationProperties.GetName(expand).Should().Be("Expand to the full workbench");
+            expand.BringIntoView();
+            window.UpdateLayout();
+            expand.Focus().Should().BeTrue();
+            if (keyboard)
+            {
+                window.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
+                window.KeyRelease(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
+            }
+            else { expand.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
+            await f.Sessions.InteractionOperation;
+            f.Window.Should().BeSameAs(window);
+            window.IsExpanded.Should().BeTrue();
+            window.CanResize.Should().BeTrue();
+            expand.IsEffectivelyVisible.Should().BeFalse();
+            window.FindControl<Button>("CollapseWorkbench")!.IsEffectivelyVisible.Should().BeTrue();
+            f.Model.SelectedSessionRecord.Should().Be(originalSelection);
+            f.Model.ComposerBody.Should().Be(selected ? "Unsent selected-conversation input" : string.Empty);
+            f.Native.Main.CommandText.Should().Be("Unsent global input");
+            f.Model.ConversationMessages.Should().BeEmpty();
+            f.Admission.Calls.Should().Be(0);
+            windows.Distinct().Should().Equal(window);
+        });
+    }
+
     [Fact]
     public async Task Caption_roles_are_native_and_collapse_keeps_one_window_and_unsent_input()
     {

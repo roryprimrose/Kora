@@ -1,5 +1,6 @@
 using Avalonia.Platform.Storage;
 using System.ComponentModel;
+using Avalonia.Controls;
 
 using Kora.Application.Skills;
 using Kora.Application.ViewModels;
@@ -13,7 +14,15 @@ internal sealed partial class SharedSkillSourcesWindowController(
     MainViewModel main, SharedSkillDiscoveryService discovery, Func<bool> isCurrentHost,
     ILogger<SharedSkillSourcesWindowController> logger) : IDisposable
 {
-    private SharedSkillSourcesWindow? window;
+    private SharedSkillSourcesView? window;
+    private SharedSkillSourcesWindow? adapter;
+    private Func<Window>? getWorkbench;
+    private Action<SharedSkillSourcesView>? presentWorkbench;
+    private Func<bool> operationPresentation = static () => false;
+    internal Task Operation { get; private set; } = Task.CompletedTask;
+    internal SharedSkillSourcesView? View => window;
+    internal void BindWorkbench(Func<Window> owner, Action<SharedSkillSourcesView> present)
+    { getWorkbench = owner; presentWorkbench = present; }
     private CancellationTokenSource? lifetime;
     private CancellationTokenSource? activeOperation;
     private bool busy;
@@ -26,13 +35,31 @@ internal sealed partial class SharedSkillSourcesWindowController(
     internal bool TryOpen(Func<bool> eligible)
     {
         if (opening || !eligible() || !Eligible()) { main.ReportHostInteractionFailure("Shared skill inspection requires the owning unlocked host and a known call policy."); return false; }
-        if (window is not null) { window.Activate(); return true; }
+        if (window is not null)
+        {
+            if (presentWorkbench is not null) { presentWorkbench(window); }
+            window.Activate();
+            return true;
+        }
         lifetime = new();
         var revision = main.CallPolicyRevision;
-        window = new(() => RunAsync(RegisterAsync), () => RunAsync(RefreshAsync),
-            () => RunAsync(DiscoverAsync, fenceCatalogue: true), () => RunAsync(VerifyAsync, fenceCatalogue: true),
-            () => RunAsync(UnregisterAsync, supersede: true),
-            () => Eligible() && main.CallPolicyRevision == revision);
+        if (getWorkbench is not null && presentWorkbench is not null)
+        {
+            window = new(getWorkbench(), () => RunAsync(RegisterAsync), () => RunAsync(RefreshAsync),
+                () => RunAsync(DiscoverAsync, fenceCatalogue: true), () => RunAsync(VerifyAsync, fenceCatalogue: true),
+                () => RunAsync(UnregisterAsync, supersede: true),
+                () => Eligible() && main.CallPolicyRevision == revision);
+        }
+        else
+        {
+            adapter = new(() => RunAsync(RegisterAsync), () => RunAsync(RefreshAsync),
+                () => RunAsync(DiscoverAsync, fenceCatalogue: true), () => RunAsync(VerifyAsync, fenceCatalogue: true),
+                () => RunAsync(UnregisterAsync, supersede: true),
+                () => Eligible() && main.CallPolicyRevision == revision);
+            window = adapter.View;
+        }
+        window.CloseRequested += (_, _) => Close();
+        window.PresentationLost += (_, _) => activeOperation?.Cancel();
         window.BindInvocation(() => RunAsync(ReviewInvocationAsync));
         window.BindToolInvocation(() => RunAsync(ReviewToolInvocationAsync));
         window.Closed += OnClosed;
@@ -40,7 +67,11 @@ internal sealed partial class SharedSkillSourcesWindowController(
         main.PropertyChanged += OnMainChanged;
         var opened = window;
         opening = true;
-        try { opened.Show(); }
+        try
+        {
+            if (presentWorkbench is not null) { presentWorkbench(opened); }
+            else { adapter!.Show(); }
+        }
         catch (InvalidOperationException) { Close(); throw; }
         finally
         {
@@ -60,13 +91,25 @@ internal sealed partial class SharedSkillSourcesWindowController(
     private bool Eligible() => !closeAfterOpening && !disposed && isCurrentHost()
         && main.CanRevealPrivatePresentation && main.IsSkillReviewCallEligible;
 
-    private bool CurrentWindow(SharedSkillSourcesWindow opened, CancellationToken token) =>
-        Eligible() && ReferenceEquals(window, opened) && !token.IsCancellationRequested;
+    private bool CurrentWindow(SharedSkillSourcesView opened, CancellationToken token) =>
+        Eligible() && ReferenceEquals(window, opened) && operationPresentation() && !token.IsCancellationRequested;
 
-    private async Task RunAsync(Func<CancellationToken, Task> operation, bool supersede = false, bool fenceCatalogue = false)
+    private Task RunAsync(Func<CancellationToken, Task> operation, bool supersede = false, bool fenceCatalogue = false)
+    {
+        if (busy && !supersede) { return Task.CompletedTask; }
+        if (window?.IsNativePresented != true)
+        {
+            main.ReportHostInteractionFailure("Shared skill operation unavailable: the original inspection view is not presented.");
+            return Task.CompletedTask;
+        }
+        return Operation = RunCoreAsync(operation, supersede, fenceCatalogue);
+    }
+
+    private async Task RunCoreAsync(Func<CancellationToken, Task> operation, bool supersede, bool fenceCatalogue)
     {
         if (busy && !supersede || window is null || lifetime is null || !Eligible()) { return; }
         var opened = window;
+        operationPresentation = opened.CapturePresentation();
         using var currentOperation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         var previous = activeOperation;
         activeOperation = currentOperation;
@@ -135,7 +178,7 @@ internal sealed partial class SharedSkillSourcesWindowController(
     private async Task RegisterAsync(CancellationToken token)
     {
         if (window is not { } opened) { return; }
-        var selected = await opened.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        var selected = await opened.Owner.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
             Title = "Register a bounded profile skill root for local read only (no enablement or execution)",
             AllowMultiple = false,
@@ -213,6 +256,7 @@ internal sealed partial class SharedSkillSourcesWindowController(
         busy = false;
         window?.ClearPrivateContent();
         window = null;
+        adapter = null;
     }
 
     public void Dispose()

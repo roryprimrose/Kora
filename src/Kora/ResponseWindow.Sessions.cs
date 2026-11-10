@@ -43,7 +43,7 @@ public sealed partial class ResponseWindow
         owner.Attach(this);
     }
 
-    internal void ShowSessions(bool expanded, bool activate = true)
+    internal void ShowSessions(bool expanded, bool activate = true, bool preservePresentation = false)
     {
         if (sessionWindowClosed || !viewModel.CanRevealPrivatePresentation) { return; }
         if (!IsVisible)
@@ -62,12 +62,13 @@ public sealed partial class ResponseWindow
             return;
         }
         RestoreMinimizedState();
-        SetExpanded(expanded);
+        SetExpanded(expanded, preservePresentation);
         if (activate) { Activate(); }
     }
 
-    private void SetExpanded(bool expanded)
+    private void SetExpanded(bool expanded, bool preservePresentation = false)
     {
+        var wasExpanded = IsExpanded;
         var area = getWorkingArea();
         if (expanded && area is { } available
             && (available.Width / RenderScaling < 320 || available.Height / RenderScaling < 300))
@@ -76,7 +77,7 @@ public sealed partial class ResponseWindow
             return;
         }
         CompactLayoutStatus.Text = string.Empty;
-        ClearHostedView();
+        if (!preservePresentation) { ClearHostedView(); }
         ResponseViewport.HorizontalScrollBarVisibility = expanded
             ? Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled : Avalonia.Controls.Primitives.ScrollBarVisibility.Auto;
         ResponseViewport.VerticalScrollBarVisibility = expanded
@@ -114,16 +115,23 @@ public sealed partial class ResponseWindow
         }
         ConfigureChrome(expanded);
         ResponseLayout.Width = expanded ? double.NaN : Math.Max(480, Width);
-        if (SessionWorkspace.IsVisible != expanded) { sessionPresentationEpoch++; }
+        var conversation = expanded || SessionWorkspace.DataContext is SessionsViewModel { SelectedSessionRecord: not null };
+        if (wasExpanded != expanded || SessionWorkspace.IsVisible != conversation) { sessionPresentationEpoch++; }
         if (!expanded) { SessionWorkspace.HideDetails(); }
-        SessionWorkspace.IsVisible = expanded;
-        SessionDictation.IsVisible = expanded;
-        CurrentInteractionContent.IsVisible = !expanded;
+        SessionWorkspace.SetCompactPresentation(!expanded);
+        SessionWorkspace.Height = expanded ? double.NaN : Math.Max(420, Height - 160);
+        if (!preservePresentation)
+        {
+            SessionWorkspace.IsVisible = conversation;
+            SessionDictation.IsVisible = conversation;
+            CurrentInteractionContent.IsVisible = !conversation;
+        }
         CollapseSessions.IsVisible = expanded;
-        ShowCurrentInteraction.IsVisible = expanded;
-        HideInteraction.IsVisible = expanded;
+        ShowCurrentInteraction.IsVisible = conversation;
+        HideInteraction.IsVisible = conversation;
         ExpandSessions.IsVisible = !expanded;
         SessionWorkspace.UpdateResponsiveLayout();
+        UpdateNativeReviewLayout();
         FlushPlacement();
         RestartResponseTimeout();
     }
@@ -161,6 +169,9 @@ public sealed partial class ResponseWindow
     private void OnExpandSessionsClicked(object? sender, RoutedEventArgs args) => viewModel.ShowSessions();
     private void OnCollapseSessionsClicked(object? sender, RoutedEventArgs args) => SetExpanded(false);
     private void OnCurrentInteractionClicked(object? sender, RoutedEventArgs args)
+        => PresentCurrentInteraction();
+
+    private void PresentCurrentInteraction()
     {
         ClearHostedView();
         sessionPresentationEpoch++;

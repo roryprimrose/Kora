@@ -179,7 +179,7 @@ public sealed partial class SessionAttachmentWindowTests
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
             var fresh = opened!;
             fresh.Should().NotBeSameAs(original);
-            original.Content.Should().BeNull();
+            original.View.Content.Should().BeNull();
             fresh.IsVisible.Should().BeTrue();
             fresh.Content.Should().NotBeNull();
             fresh.UpdateLayout();
@@ -189,7 +189,7 @@ public sealed partial class SessionAttachmentWindowTests
 
             await Task.Run(Notify, fixture.Token);
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
-            fresh.Content.Should().BeNull();
+            fresh.View.Content.Should().BeNull();
             fresh.IsVisible.Should().BeFalse();
         });
     }
@@ -243,7 +243,7 @@ public sealed partial class SessionAttachmentWindowTests
                 picker.Calls.Should().Be(2);
                 var reviewed = opened!;
                 reviewed.Should().NotBeSameAs(retiredView);
-                retiredView.Content.Should().BeNull();
+                retiredView.View.Content.Should().BeNull();
                 var metadata = string.Join("\n", reviewed.GetVisualDescendants().OfType<TextBlock>().Select(block => block.Text));
                 metadata.Should().Contain(firstPath).And.Contain(nextPath).And.Contain(old.File.Reference.RevisionId.ToString("D"))
                     .And.Contain("metadata only").And.NotContain(oldText).And.NotContain("# native café");
@@ -258,7 +258,7 @@ public sealed partial class SessionAttachmentWindowTests
                 {
                     var confirm = () => Press(reviewed, "Confirm: replace this exact retained attachment with the newly selected file");
                     await confirm.Should().ThrowAsync<InvalidOperationException>().WithMessage("*No replacement completion*");
-                    reviewed.Content.Should().BeNull();
+                    reviewed.View.Content.Should().BeNull();
                     access.CanControl = true;
                     await controller.Open(target, attach: false, () => true, fixture.Token);
                     opened!.UpdateLayout();
@@ -271,7 +271,7 @@ public sealed partial class SessionAttachmentWindowTests
                     return;
                 }
                 await Press(reviewed, "Confirm: replace this exact retained attachment with the newly selected file");
-                reviewed.Content.Should().BeNull();
+                reviewed.View.Content.Should().BeNull();
                 var completed = opened!;
                 completed.Should().NotBeSameAs(reviewed);
                 var current = (await service.Read(old.Session, fixture.Token))!;
@@ -362,7 +362,7 @@ public sealed partial class SessionAttachmentWindowTests
                 activity.Complete(Kora.Core.Diagnostics.HostOperationOutcome.Completed);
             }
             await Press(view, "Show exact cited source span");
-            view.Content.Should().BeNull();
+            view.View.Content.Should().BeNull();
             rows.ItemsSource.Should().BeNull();
             capture.Reads.Should().Be(1);
             (await service.Read(retained.Session, fixture.Token)).Should().BeNull();

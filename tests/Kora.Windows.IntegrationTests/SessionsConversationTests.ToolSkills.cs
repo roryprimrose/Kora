@@ -101,7 +101,7 @@ public sealed partial class SessionsConversationTests
                     .Should().Be(Avalonia.Automation.AutomationLiveSetting.Polite);
                 var statusPeer = Avalonia.Automation.Peers.ControlAutomationPeer.CreatePeerForElement(opened.Status)!;
                 statusPeer.GetName().Should().Contain("Reviewed skill status and recovery").And.Contain(opened.Status.Text);
-                var buttons = ((StackPanel)((ScrollViewer)opened.Content!).Content!).Children.OfType<Button>().ToArray();
+                var buttons = ((StackPanel)((ScrollViewer)opened.View.Content!).Content!).Children.OfType<Button>().ToArray();
                 async Task Click(string label)
                 {
                     buttons.Single(button => Equals(button.Content, label)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));

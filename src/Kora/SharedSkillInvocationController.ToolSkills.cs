@@ -135,6 +135,7 @@ internal sealed partial class SharedSkillInvocationController
         }
         else if (action is "Invoke")
         {
+            invoking = true;
             if (captured.McpReference is not null)
             {
                 var preparedMcp = mcpInvocation ?? throw new InvalidOperationException("Review this exact MCP skill invocation first.");
@@ -158,7 +159,7 @@ internal sealed partial class SharedSkillInvocationController
                         completedRequest = request;
                         completedResult = result;
                     }, skillMcpCapture);
-                if (Current())
+                if (Current() && operationPresentation?.Invoke() != false)
                 {
                     if (inputRevision == mcpRevision && completedRequest is { } resultRequest && completedResult is { } result)
                     {
@@ -191,12 +192,12 @@ internal sealed partial class SharedSkillInvocationController
                 {
                     if (questions is null) { throw new InvalidOperationException("Native per-action page approval is unavailable."); }
                     var spec = new QuestionSpec("Exact page approval", QuestionKind.SingleChoice, [new("once", "Approve once")]);
-                    var presentation = await questions.AskConversationAsync(opened, proposal.Request, generation,
+                    var presentation = await questions.AskConversationAsync(opened.Owner, proposal.Request, generation,
                         spec, proposal.ExpiresAt, admitted, approvalToken, proposal, address);
                     return new(presentation.Presented, presentation.Completed);
                 }, token);
             request.Complete(HostOperationOutcome.Completed);
-            if (Current())
+            if (Current() && operationPresentation?.Invoke() != false)
             {
                 opened.Confirmation.Text = string.Empty;
                 opened.Status.Text = $"Retained exact request {receipt.Message.Request.RequestId.Value:D}: {receipt.Message.Outcome} / {receipt.Message.Reason}. "

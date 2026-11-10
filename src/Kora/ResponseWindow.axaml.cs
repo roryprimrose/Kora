@@ -471,6 +471,7 @@ public sealed partial class ResponseWindow : Window
     {
         if (sessionWindowClosed || !viewModel.IsModelActionReviewCurrent(target)) { return false; }
         SetExpanded(false);
+        PresentCurrentInteraction();
         ShowResponse();
         if (sessionWindowClosed || !viewModel.IsModelActionReviewCurrent(target))
         {

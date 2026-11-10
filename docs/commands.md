@@ -830,7 +830,7 @@ An explicit already-confirmed singleton file or complete folder preview must mat
 No path, name or selected-window guessing occurs; stale/closed/replaced previews refuse ([host handoff](../src/Kora.Application/ViewModels/MainViewModel.PreparedLocalSearch.cs)).
 
 The existing inspection window opens/focuses with **PREPARED / REVIEW NEEDED**, lexical mode and no result claim. Typing, focus and preparation execute nothing. Only the separate native Search button reaches the existing canonical audited executor; ActivatedVoice is never relabelled LocalUi.
-No read, metadata capture, refresh, Attach, source-use consent, model/provider, clipboard, retention or query persistence is granted ([native hook](../src/Kora/LocalFilePreviewWindow.PreparedSearch.cs), [executor guard](../src/Kora.Application/ViewModels/MainViewModel.Files.cs)).
+No read, metadata capture, refresh, Attach, source-use consent, model/provider, clipboard, retention or query persistence is granted ([native hook](../src/Kora/LocalFilePreviewView.PreparedSearch.cs), [executor guard](../src/Kora.Application/ViewModels/MainViewModel.Files.cs)).
 
 The query is volatile native input, never a response, transcript, speech, log/audit field or Activity tag. Late/reused handoffs expire and repeated preparation clears old citations without searching. Retained attachments, native Literal Find and existing invalid `search file <query>` / `search folder <query>` forms are unchanged
 ([deterministic host tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.PreparedLocalSearch.cs), [native tests](../tests/Kora.Windows.IntegrationTests/PreparedLocalSearchWindowTests.cs)).
@@ -2336,11 +2336,11 @@ inclusion still does not connect or authorize execution.
 
 ### Search admitted skill package metadata
 
-In **Settings > Custom content > Skill packages...**, type a native metadata query, choose **All / Runtime unavailable / Runtime available**, then click **Search**. Search covers bundled declared names, IDs and descriptions only, across the admitted catalogue (at most eight packages). Runtime availability is not instruction compatibility; every current bundled package remains invocation-unavailable ([bundled controls](../src/Kora/SkillPackagesWindow.axaml.cs), [bounded catalogue](../src/Kora.Core/Skills/SkillPackageCatalogue.cs)).
+In **Settings > Custom content > Skill packages...**, type a native metadata query, choose **All / Runtime unavailable / Runtime available**, then click **Search**. Search covers bundled declared names, IDs and descriptions only, across the admitted catalogue (at most eight packages). Runtime availability is not instruction compatibility; every current bundled package remains invocation-unavailable ([bundled controls](../src/Kora/SkillPackagesView.axaml.cs), [bounded catalogue](../src/Kora.Core/Skills/SkillPackageCatalogue.cs)).
 
 In **Shared profile sources (read only)**, first explicitly **List selected source**, then use **Search** with **All / Instruction-compatible / Instruction-incompatible**. Matching covers admitted declared name, metadata-qualified source ID/name/version identity when the name is valid, and valid declared description, across at most 32 snapshots from that exact source. Missing metadata is not guessed; files/roots, path-fallback IDs, SKILL.md bodies, manifests and helpers are not searched ([query policy](../src/Kora.Application/Skills/SkillCatalogueSearch.cs)).
 
-Queries are literal ordinal-ignore-case substrings: spaces are significant, with no trimming, wildcards, ranges or Unicode normalization. The bound is 256 UTF-16 units / 512 strict UTF-8 bytes; malformed Unicode, controls, directional/format characters and line/paragraph separators are explicitly rejected. Rejection empties results/selection rather than falling back to All. Typing or changing the filter only edits the draft; click Search to apply it. **Clear** restores empty/All without opening another result ([shared query validation](../src/Kora.Core/Context/LiteralMetadataQuery.cs), [native search](../src/Kora/SharedSkillSourcesWindow.axaml.cs)).
+Queries are literal ordinal-ignore-case substrings: spaces are significant, with no trimming, wildcards, ranges or Unicode normalization. The bound is 256 UTF-16 units / 512 strict UTF-8 bytes; malformed Unicode, controls, directional/format characters and line/paragraph separators are explicitly rejected. Rejection empties results/selection rather than falling back to All. Typing or changing the filter only edits the draft; click Search to apply it. **Clear** restores empty/All without opening another result ([shared query validation](../src/Kora.Core/Context/LiteralMetadataQuery.cs), [native search](../src/Kora/SharedSkillSourcesView.axaml.cs)).
 
 All includes incompatible/unavailable rows. Shared compatibility is structural instruction-only, not harmlessness, trust, runtime qualification or invocation availability. Search/filter never performs a read, recheck, registration change or withdrawal. An exact surviving selection can remain open; exclusion clears private source/identity panes with an explanation and requires explicit result selection. Initial open/list still selects the first package; refresh/source replacement/withdrawal/failure/privacy/ownership/call change/close clears navigation and retires late callbacks. Queries are not saved or indexed, and no model/tool/typed/voice search route is added ([controllers](../src/Kora/SharedSkillSourcesWindowController.cs), [native behavior tests](../tests/Kora.Windows.IntegrationTests/SkillMetadataSearchWindowTests.cs)).
 
@@ -2446,7 +2446,7 @@ Use **shared skill next targets** for the next bounded metadata page.
 The exact case-sensitive skill name resolves only within the explicitly listed native source; use `name from source <displayed source ID>` when source qualification is needed.
 No fuzzy match, model selection, reserved alias registration or implicit conversation creation is admitted.
 Initial root registration and discovery remain native-only
-([command parser](../src/Kora.Application/Skills/SharedSkillInvocationCommand.cs), [source selection](../src/Kora/SharedSkillSourcesWindow.Invocation.cs)).
+([command parser](../src/Kora.Application/Skills/SharedSkillInvocationCommand.cs), [source selection](../src/Kora/SharedSkillSourcesView.Invocation.cs)).
 
 Enablement is memory-only, exact-revision, single-use and expires after two minutes.
 Close, privacy/control/call/ownership changes, changed registration or stale source revoke the review; restored old bytes do not revive an observed revoked review.
@@ -2461,7 +2461,7 @@ Enter `use skill <exact declared readable name>`, optionally prefixed with the c
 
 [Customization metadata discovery](tools-and-built-in-skills.md) remains a separate reviewed operation. Command-like text in a skill name or discovery request does not invoke the other operation or enable a skill. Both routes refuse to replace a pending question or approval; the original question remains visible.
 
-The named-use window initially reads no files. Choose **Inspect saved and registered skill files locally (read consent)** to explicitly inspect the bounded owned inventory and every already registered shared source using their existing readers.
+The named-use supporting tab in the expanded workbench initially reads no files and does not open another Kora window ([view](../src/Kora/NamedSkillInvocationView.cs)). Choose **Inspect saved and registered skill files locally (read consent)** to explicitly inspect the bounded owned inventory and every already registered shared source using their existing readers.
 This reads complete package files, not reference bodies or unrelated context. Initial shared-root registration remains a separate native operation ([inspection](../src/Kora.Application/Skills/NamedSkillCatalogue.cs)).
 
 Every exact-name match appears as a numbered source-qualified choice, including unavailable kinds or excluded sources. No row is selected automatically, even for a unique match. Choose the readable row and **Review exactly the selected source choice**, or enter `skill choice <displayed number>`.
@@ -2478,6 +2478,8 @@ Changes require fresh inspection/review, never latest-name retargeting ([owned b
 
 Only a genuine retained canonical local-model answer or truthful typed unavailable/failure/cancellation terminal completes use. Lookup/inspection errors invalidate the whole lookup rather than reporting successful empty results; a valid no-match lookup explicitly clarifies.
 **Stop, join and close named skill use** or `skill close` cancels and joins actual work. No automatic enablement, grants, hosted fallback or live-provider qualification is added ([native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.NamedSkills.cs)).
+
+Hiding/minimizing the workbench or leaving this review clears its source/confirmation body and retires an unconfirmed choice. Inspect and review again after returning. An already separately confirmed invocation remains owned through physical completion; its actual retained answer stays in the exact original conversation and is not republished into the restored old review. Hiding is not Stop ([hosted regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.NamedSkillWorkbench.cs)).
 
 ### Reviewed one-tool shared skill invocation
 

@@ -1,5 +1,7 @@
 using System.ComponentModel;
 
+using Avalonia.Controls;
+
 using Kora.Application.Agents;
 using Kora.Application.Hosting;
 using Kora.Application.ViewModels;
@@ -16,7 +18,14 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
     SessionWorkspaceService workspace, Func<bool> ownsHost, Func<long> ownerRevision,
     ILogger<AgentRunController> logger, NamedAgentResolver? namedAgents = null)
 {
-    private AgentRunWindow? window;
+    private AgentRunView? window;
+    private AgentRunWindow? adapter;
+    private Func<Window>? getWorkbench;
+    private Action<AgentRunView>? presentWorkbench;
+    private bool invoking;
+    internal AgentRunView? View => window;
+    internal void BindWorkbench(Func<Window> owner, Action<AgentRunView> present)
+    { getWorkbench = owner; presentWorkbench = present; }
     private BoundedAgentReview? review;
     private CancellationTokenSource? cancellation;
     private Task active = Task.CompletedTask;
@@ -65,14 +74,23 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
                 inputOrigin = requestOrigin;
                 cancellation = new();
 #pragma warning disable MA0147 // Native buttons require void callbacks; Start joins RunReported, which logs failures.
-                window = new(Start);
+                if (getWorkbench is not null && presentWorkbench is not null)
+                { window = new(getWorkbench(), Start, () => main.CanRevealPrivatePresentation); }
+                else
+                {
+                    adapter = new(Start);
+                    window = adapter.View;
+                }
 #pragma warning restore MA0147
                 window.Closed += (_, _) => Close();
+                if (getWorkbench is not null)
+                { window.PresentationLost += (_, _) => { if (!invoking) { Retire(); } }; }
                 window.Source.PropertyChanged += InputChanged;
                 window.Input.PropertyChanged += InputChanged;
                 window.Targets.SelectionChanged += (_, _) => Retire();
                 BindSharedSkillSelection(window);
-                window.Show();
+                if (presentWorkbench is not null) { presentWorkbench(window); }
+                else { adapter!.Show(); }
                 if (!Eligible() || !eligible()) { Close(); }
                 if (named is not null && window is { } opened)
                 {
@@ -86,6 +104,7 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
             }
             if (!Eligible() || !active.IsCompleted)
             { throw new InvalidOperationException("Open an exact current agent review and wait for its owned operation."); }
+            if (presentWorkbench is not null) { presentWorkbench(window!); }
             origin = requestOrigin;
             if (SelectSharedSkill(command)) { return; }
             if (namedCommand is not null && command.Action is "Source" or "Request")
@@ -120,14 +139,16 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
         }
     }
 
-    private async Task PrepareNamedAsync(NamedAgentCommand command, AgentRunWindow opened, Func<bool> eligible)
+    private async Task PrepareNamedAsync(NamedAgentCommand command, AgentRunView opened, Func<bool> eligible)
     {
         try
         {
             var resolver = namedAgents ?? throw new InvalidOperationException("Named agent source lookup is unavailable in this host.");
             var token = cancellation!.Token;
+            var native = opened.CapturePresentation();
             var selected = await resolver.ResolveAsync(command.Name,
-                () => HostEligible() && eligible() && ReferenceEquals(window, opened), token);
+                () => HostEligible() && eligible() && native() && ReferenceEquals(window, opened), token);
+            if (!native()) { throw new OperationCanceledException("Named source presentation was retired."); }
             namedSelection = selected;
             namedEligibility = () => eligible() && selected.IsCurrent();
             opened.Source.Text = selected.Path;
@@ -148,14 +169,15 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
         }
     }
 
-    private async Task ReadTargetsAsync(string action, AgentRunWindow opened, Func<bool> eligible, CancellationToken token)
+    private async Task ReadTargetsAsync(string action, AgentRunView opened, Func<bool> eligible, CancellationToken token)
     {
         if (modelProposal is not null)
         { throw new InvalidOperationException("A model proposal is fixed to its exact original conversation; start a fresh original request to change it."); }
         Guid? after = action is "Targets" ? null : next ?? throw new InvalidOperationException("No next page. Refresh conversations.");
         Retire();
+        var native = opened.CapturePresentation();
         var page = await workspace.ReadMetadataAsync(after, 25, token);
-        if (!Eligible() || !eligible() || !ReferenceEquals(window, opened))
+        if (!Eligible() || !eligible() || !native() || !ReferenceEquals(window, opened))
         { throw new InvalidOperationException("Active conversation inspection admission expired."); }
         next = page.Next;
         opened.Targets.ItemsSource = page.Records.Where(item => item.Authority.IsActive).Select(item => new AgentTarget(item)).ToArray();
@@ -206,8 +228,10 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
             var opened = window ?? throw new InvalidOperationException("Agent review is closed.");
             var token = cancellation!.Token;
             var revision = inputRevision;
+            var native = opened.CapturePresentation();
             bool Current() => Eligible() && eligible() && (inputEligibility?.Invoke() ?? true)
                 && ReferenceEquals(window, opened) && inputRevision == revision
+                && (invoking || native())
                 && (namedCommand is null || namedSelection is not null
                     && contentRevision == namedContentRevision);
             if (!Current()) { throw new InvalidOperationException("Private host admission changed."); }
@@ -276,8 +300,10 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
                 opened.Confirm.IsEnabled = false;
                 if (modelProposal is { } proposal) { await proposal.ValidateAsync(token); }
                 opened.Status.Text = "Executing one serial bounded run. Stop/revoke remains available; resource release requires actual quiescence.";
+                invoking = true;
                 var result = await workflow.InvokeAsync(captured, origin, token);
                 if (!Current()) { return; }
+                if (!native()) { return; }
                 opened.Result.Text = result.Message.AssistantResponse?.Body ?? "No assistant answer was produced.";
                 opened.Status.Text = $"Retained terminal {result.Message.Outcome} / {result.Message.Reason}. "
                     + "Inspect it in the selected conversation in Sessions. No automatic replay.";
@@ -297,9 +323,10 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
                 opened.Status.Text = "Unavailable, revoked, cancelled or unconfirmed. Inspect Sessions before any fresh review. No success or rollback claimed.";
             }
         }
+        finally { invoking = false; }
     }
 
-    private static void ShowInvocation(AgentRunWindow opened, BoundedAgentReview captured)
+    private static void ShowInvocation(AgentRunView opened, BoundedAgentReview captured)
     {
         var profile = captured.Profile;
         opened.Review.Text = $"{profile.Document.Definition.Name}\nSOURCE {opened.Source.Text}\n"
@@ -331,6 +358,7 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
         var opened = window;
         var captured = review;
         window = null;
+        adapter = null;
         review = null;
         namedSelection = null;
         namedEligibility = null;

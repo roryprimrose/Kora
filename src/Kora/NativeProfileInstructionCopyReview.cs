@@ -5,7 +5,7 @@ using Kora.Core.Context;
 namespace Kora;
 
 internal sealed class NativeProfileInstructionCopyReview(
-    OwnedInstructionEditorWindow window, string destinationRoot, Func<bool> current) : IProfileInstructionCopyReview
+    OwnedInstructionEditorView window, string destinationRoot, Func<bool> current) : IProfileInstructionCopyReview
 {
     public async Task<bool> ConfirmRead(LocalFileMetadata source, CancellationToken token)
     {
